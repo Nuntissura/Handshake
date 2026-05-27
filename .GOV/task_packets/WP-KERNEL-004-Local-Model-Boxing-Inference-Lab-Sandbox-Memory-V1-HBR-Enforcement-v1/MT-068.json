@@ -7,7 +7,7 @@
   "cluster_subscope": "C.1",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:00:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-05-27T19:03:58.446Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -28,7 +28,10 @@
     "app/src/lib/ipc/model_runtime.ts",
     "app/src-tauri/Cargo.toml"
   ],
-  "depends_on_mts": ["MT-062", "MT-067"],
+  "depends_on_mts": [
+    "MT-062",
+    "MT-067"
+  ],
   "unblock_conditions": "MT-062 trait + MT-067 registry merged.",
   "implementation_notes": "Per AC-MODEL-CAP-DECL and AC-INFER-LAB-UI-TOGGLES the frontend reads capabilities via `kernel.model_runtime.capabilities(model_id)` and hides (not greys) unsupported toggles. Tauri command signature: `#[tauri::command] async fn kernel_model_runtime_capabilities(model_id: String, state: tauri::State<'_, ModelRuntimeState>) -> Result<ModelCapabilities, String>` — parse model_id string into ModelId (Uuid v7), call registry.lookup, return the declared_capabilities. Companion command `kernel_model_runtime_list_loaded` returns Vec<{ model_id, runtime_binding, artifact_path, sha256, perf_stats }> for the §10.13 ModelRuntime Control Panel (AC-MODEL-RUNTIME-CONTROL-PANEL); the panel itself ships in cluster X but this IPC primitive is foundational. TypeScript binding in app/src/lib/ipc/model_runtime.ts: export `async function capabilities(modelId: string): Promise<ModelCapabilities>` calling `invoke('kernel_model_runtime_capabilities', { modelId })`. Type ModelCapabilities mirrors the Rust struct exactly (serde Serialize uses camelCase via #[serde(rename_all = \"camelCase\")] so frontend gets `supportsLora`, `supportsKvPrefixCache`, etc.). Backend inspector plane (HBR-VIS-004) MUST NOT mutate via this command — it's read-only. Error path returns String error for Tauri serialization compat; structured ModelRuntimeError gets logged via FR-EVT-LLM-INFER-CAPS-LOOKUP. Tests: invoke from a Tauri test harness with a registered model; receive expected capabilities JSON.",
   "proof_commands": [
@@ -37,22 +40,54 @@
   ],
   "risk_if_missed": "Frontend cannot decide toggle visibility; lab UI either shows all toggles greyed (wrong per AC-INFER-LAB-UI-TOGGLES) or hardcodes capability matrix (drifts from backend).",
   "validator_focus": "IPC contract is read-only; JSON shape uses camelCase for frontend; missing model_id returns explicit error (not panic); TypeScript binding type matches Rust struct byte-for-byte.",
-  "hbr_obligations": ["HBR-INT-002"],
+  "hbr_obligations": [
+    "HBR-INT-002"
+  ],
   "spec_anchors": [
     ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.6.3",
     ".GOV/spec/master-spec-v02.186/spec-modules/10-product-surfaces.md#10.13",
     ".GOV/spec/master-spec-v02.186/spec-modules/10-product-surfaces.md#10.14"
   ],
-  "acceptance_criteria_refs": ["AC-MODEL-CAP-DECL", "AC-MODEL-RUNTIME-CONTROL-PANEL", "AC-INFER-LAB-UI-TOGGLES"],
+  "acceptance_criteria_refs": [
+    "AC-MODEL-CAP-DECL",
+    "AC-MODEL-RUNTIME-CONTROL-PANEL",
+    "AC-INFER-LAB-UI-TOGGLES"
+  ],
   "lifecycle": {
     "active": false,
-    "status": "PENDING",
-    "validator_verdict": "PENDING",
-    "depends_on": ["MT-062", "MT-067"],
-    "blocks": ["MT-069", "MT-070"]
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "PASS",
+    "depends_on": [
+      "MT-062",
+      "MT-067"
+    ],
+    "blocks": [
+      "MT-069",
+      "MT-070"
+    ],
+    "claimed_by": "KERNEL_BUILDER-20260518-235451",
+    "claimed_at_utc": "2026-05-19T04:04:48Z",
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "COMPLETED",
+        "validator_verdict": "PENDING",
+        "completed_at_utc": "2026-05-19T04:17:51Z"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "previous_completed_at_utc_before_ready_for_validation_20260525": "2026-05-19T04:17:51Z",
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-27T19:03:58.446Z"
   },
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260518-235451",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
     "review_response_receipt_id": null
@@ -63,5 +98,51 @@
       "TypeScript type-check passes (camelCase fields stay aligned).",
       "Error path tested for unknown model_id."
     ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C1_FRESH",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T19:03:58.446Z",
+    "verdict": "PASS",
+    "verdict_reason": "Tauri IPC `kernel_model_runtime_capabilities(model_id)` correctly dispatches through live ModelRuntime adapter when attached, falls back to declared metadata otherwise, with explicit fail paths for unknown model and non-v7 UUID. ModelCapabilitiesIpc DTO is camelCase per AC-INFER-LAB-UI-TOGGLES; core type stays snake_case (verified in MT-071 capabilities_core_snake_case_and_ipc_projection_camelcase_are_both_stable). list_loaded projection filters by registry.is_loaded. Locks are RwLock with poisoned-lock recovery to string errors (no panic across IPC boundary).",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "MINOR",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 0
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-068.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-068.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C1_FRESH",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T18:50:05.123Z",
+    "verdict": "PASS",
+    "verdict_reason": "Tauri IPC `kernel_model_runtime_capabilities(model_id)` correctly dispatches through live ModelRuntime adapter when attached, falls back to declared metadata otherwise, with explicit fail paths for unknown model and non-v7 UUID. ModelCapabilitiesIpc DTO is camelCase per AC-INFER-LAB-UI-TOGGLES; core type stays snake_case (verified in MT-071 capabilities_core_snake_case_and_ipc_projection_camelcase_are_both_stable). list_loaded projection filters by registry.is_loaded. Locks are RwLock with poisoned-lock recovery to string errors (no panic across IPC boundary).",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "MINOR",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 0
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-068.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-068.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
   }
 }

@@ -7,7 +7,7 @@
   "cluster_subscope": "C.11",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:00:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-05-27T19:03:58.446Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -26,7 +26,10 @@
     "src/backend/handshake_core/src/model_runtime/candle/state_vector.rs",
     "src/backend/handshake_core/tests/inf9_cross_session_state_tests.rs"
   ],
-  "depends_on_mts": ["MT-088", "MT-114"],
+  "depends_on_mts": [
+    "MT-088",
+    "MT-114"
+  ],
   "unblock_conditions": "MT-088 state-vector primitive + MT-114 prefix-reuse merged.",
   "implementation_notes": "Per refinement INF-9 feature_parity_detail. persist_to_disk(state_id, dest_path): serialize SSMStateSnapshot via bincode or candle Tensor to_vec; write `{ artifact: bytes, metadata: StateVectorPersistMetadata }` to ArtifactStore; mint StateVectorArtifactId v7. StateVectorPersistMetadata: `{ state_id, model_id, model_artifact_sha256, variant: SSMVariant, n_tokens_advanced, persisted_at_utc, persisted_by: OperatorId, content_hash, license_tag }`. load_from_disk(artifact_id) -> Result<SSMStateSnapshot, ModelRuntimeError>: read metadata, verify variant matches target model, verify model_artifact_sha256 matches the currently-loaded model's sha256 (or warn + fail per operator policy), deserialize tensors, validate content_hash. Failure modes: variant mismatch -> Err; sha256 mismatch -> Err with explicit guidance (\"snapshot was taken against a different model artifact; either load that artifact or recapture\"); deserialization error -> Err. ArtifactStore integration: persist_to_disk goes through KernelActionCatalogV1 `kernel.subquadratic.persist_state` action -> WriteBoxV1. Tests: persist on Mamba2, simulate process restart by dropping the model+state and reloading, load_from_disk, generate continuation; assert deterministic. Sha256-mismatch test. Variant-mismatch test.",
   "proof_commands": [
@@ -34,20 +37,145 @@
   ],
   "risk_if_missed": "INF-9 cross-session restore missing; SSM state ephemeral; operator E-2 breached.",
   "validator_focus": "Process-restart simulation test; sha256 + variant validation enforced; mutations through KernelActionCatalogV1.",
-  "hbr_obligations": ["HBR-INT-002", "HBR-INT-006", "HBR-INT-008"],
+  "hbr_obligations": [
+    "HBR-INT-002",
+    "HBR-INT-006",
+    "HBR-INT-008"
+  ],
   "spec_anchors": [
     ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.7.1"
   ],
-  "acceptance_criteria_refs": ["AC-INFER-LAB-8-TECHNIQUES", "AC-CANDLE-ADAPTER"],
+  "acceptance_criteria_refs": [
+    "AC-INFER-LAB-8-TECHNIQUES",
+    "AC-CANDLE-ADAPTER"
+  ],
   "lifecycle": {
     "active": false,
-    "status": "PENDING",
-    "validator_verdict": "PENDING",
-    "depends_on": ["MT-088", "MT-114"],
-    "blocks": ["MT-118"]
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "PASS",
+    "integration_validator_verdict": "PENDING",
+    "depends_on": [
+      "MT-088",
+      "MT-114"
+    ],
+    "blocks": [
+      "MT-118"
+    ],
+    "claimed_by": "KERNEL_BUILDER-20260523-031814",
+    "claimed_at_utc": "2026-05-23T03:30:00Z",
+    "resumed_from_prior_session": "KERNEL_BUILDER-20260522-171100",
+    "resume_reason": "prior session left in-process bytes-in/bytes-out surface but explicitly deferred ArtifactStore + KernelActionCatalogV1 + WriteBoxV1 integration to a non-existent follow-on MT; resuming to land the full MT-117 contract (disk persistence + load_from_disk + catalog action) in this MT per Spec-Realism Gate sub-rule 1 (no deferred-live escape)",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260523-031814",
+    "ready_for_validation_at_utc": "2026-05-23T05:55:00Z",
+    "implementation_record": {
+      "classification": "IMPLEMENTATION_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+      "authoritative_integration_validator_pass": false,
+      "summary": "MT-117 landed the disk-integration layer the prior session deferred: persist_to_artifact_store + load_from_artifact_store + load_from_artifact_store_into_handle in src/backend/handshake_core/src/model_runtime/candle/state_vector.rs; new kernel.subquadratic.persist_state catalog action in src/backend/handshake_core/src/kernel/action_catalog.rs; candle/mod.rs re-exports for the new surface; 11 new disk-integration tests appended to tests/inf9_cross_session_state_tests.rs covering the marquee process-restart-via-artifact-store path plus adversarial scenarios (unknown artifact_id, tampered payload, corrupted manifest, cross-handle sha/variant mismatch, unbound prefix handle, concurrent persist). The obsolete STATE_VECTOR_PERSIST_DISK_DEFERRED_MARKER constant and its self-referential test were removed because the deferred work is complete in-MT.",
+      "spec_realism_gate_self_check": {
+        "sub_rule_1_no_deferred_live_escape": "PASS — the prior 'follow-on' deferral was the exact pattern this gate forbids; resuming the MT and implementing the deferred surface in the same MT resolves it. No *Unavailable / not yet wired / pending MT-NNN code paths remain in the MT-117 surface.",
+        "sub_rule_2_external_resource_touch": "PASS — persist_to_artifact_store writes a real envelope file under <workspace>/.handshake/artifacts/L3/<uuid>/{payload,artifact.json} via write_file_artifact (atomic temp+fsync+rename); load_from_artifact_store reads and validates the manifest content_hash against the on-disk bytes before deserializing. Tests use tempfile::TempDir as workspace_root and verify the actual filesystem layout.",
+        "sub_rule_3_implementer_cannot_self_certify": "PASS — lifecycle.claimed_by (KERNEL_BUILDER-20260523-031814) is distinct from lifecycle.completed_by (NULL — only the validator role can set this; KERNEL_BUILDER transitions only to READY_FOR_VALIDATION)."
+      },
+      "files_touched": [
+        "src/backend/handshake_core/src/model_runtime/candle/state_vector.rs (added persist_to_artifact_store, load_from_artifact_store, load_from_artifact_store_into_handle, StateVectorPersistRecord struct, STATE_VECTOR_PERSIST_ACTION_ID + STATE_VECTOR_PERSIST_WRITE_BOX_SCHEMA_ID constants; removed STATE_VECTOR_PERSIST_DISK_DEFERRED_MARKER and the deferral comment block)",
+        "src/backend/handshake_core/src/model_runtime/candle/mod.rs (extended pub use re-exports for the new MT-117 surface)",
+        "src/backend/handshake_core/src/kernel/action_catalog.rs (added subquadratic_persist_state_action and registered it in kernel002_action_catalog)",
+        "src/backend/handshake_core/tests/inf9_cross_session_state_tests.rs (extended with 11 disk-integration tests; removed the disk_integration_deferral_marker test)"
+      ],
+      "out_of_scope_self_evaluation": {
+        "edits_made": [
+          {
+            "file": "src/backend/handshake_core/src/model_runtime/candle/mod.rs",
+            "change": "extended pub use re-exports to expose persist_to_bytes / load_from_bytes / load_into_handle / load_from_artifact_store / load_from_artifact_store_into_handle / persist_to_artifact_store / StateVectorPersistEnvelope / StateVectorPersistMetadata / StateVectorPersistRecord / STATE_VECTOR_PERSIST_ACTION_ID / STATE_VECTOR_PERSIST_WRITE_BOX_SCHEMA_ID. Original MT-117 prior session's bytes-in/bytes-out surface was also un-exported; without this the test file would not compile.",
+            "why_unavoidable": "Same defect class as the original MT-117 prior session — without the re-export the public surface is unreachable from integration tests. Test file's import line names these symbols directly under candle::, not candle::state_vector::.",
+            "operator_waiver_status": "PENDING_OPERATOR_REVIEW"
+          },
+          {
+            "file": "src/backend/handshake_core/src/kernel/action_catalog.rs",
+            "change": "+ subquadratic_persist_state_action() function (~50 lines) + 1-line registration in the kernel002_action_catalog actions vec",
+            "why_unavoidable": "MT-117 contract narrative names KernelActionCatalogV1 'kernel.subquadratic.persist_state' as the dispatch surface; without this action present in the kernel catalog the action_id constant in state_vector.rs would be orphaned. Same defect class as MT-145 memory_capsule_record_action which sat alongside its persistence implementation.",
+            "operator_waiver_status": "PENDING_OPERATOR_REVIEW"
+          }
+        ],
+        "edits_avoided": [
+          "No edits to ModelRuntime trait — disk persistence is engine-level (state_vector specific) not runtime-trait level.",
+          "No edits to WriteBoxKind enum — the catalog action declares ArtifactBox + state_vector_persist write_box schema_id via the existing Artifact variant; no new variant required.",
+          "No edits to ArtifactPayloadKind — used existing Bundle variant for the JSON envelope payload.",
+          "No edits to Tauri IPC commands — the operator-facing IPC bridge is a separate concern (downstream MT scope, follow-on UI work)."
+        ]
+      },
+      "test_results": {
+        "inf9_cross_session_state_tests": {
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test inf9_cross_session_state_tests -- --nocapture",
+          "exit_code": 0,
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt117-disk-integration-green-20260523-003.log",
+          "tests_passed": 21,
+          "tests_failed": 0,
+          "tests_ignored": 0,
+          "finished_in_seconds": 2.94
+        },
+        "inf9_state_vector_prefix_reuse_tests_regression_mt114": {
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test inf9_state_vector_prefix_reuse_tests -- --nocapture",
+          "exit_code": 0,
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt117-mt114-regression-20260523-001.log",
+          "tests_passed": 8,
+          "tests_failed": 0,
+          "note": "MT-114 KvCacheOps-on-state-vector tests continue to pass after MT-117 surface additions"
+        }
+      },
+      "red_team_coverage": {
+        "minimum_control_process_restart_simulation": {
+          "covered_by": "process_restart_simulation_via_load_into_handle (in-process) + process_restart_simulation_via_artifact_store_round_trips_deterministic (disk path)",
+          "evidence": "Phase 1 commits snapshot via handle A + persists to disk; Phase 2 drops handle A + prefix_a; Phase 3 mints fresh handle B on same model+sha; Phase 4 loads envelope from artifact store via re-mint bridge; Phase 5 prefix_restore succeeds + handle B hit counter advances."
+        },
+        "minimum_control_sha256_validation": {
+          "covered_by": "cross_session_restore_rejects_sha256_mismatch_with_operator_guidance + load_from_artifact_store_into_handle_rejects_sha256_mismatch_on_target",
+          "evidence": "Disk-path test persists snapshot against artifact_sha_a then attempts load_from_artifact_store_into_handle on a handle bound to artifact_sha_b; rejected with KvCacheError containing 'different model artifact' guidance."
+        },
+        "minimum_control_variant_validation": {
+          "covered_by": "cross_session_restore_rejects_variant_mismatch + load_from_artifact_store_into_handle_rejects_variant_mismatch_on_target",
+          "evidence": "Disk-path test persists Mamba2 snapshot then attempts load on an RWKV-v5 handle; rejected with KvCacheError containing 'variant mismatch'."
+        },
+        "minimum_control_mutations_through_kernel_action_catalog_v1": {
+          "covered_by": "state_vector_persist_action_id_is_stable + state_vector_persist_action_is_registered_in_kernel002_catalog",
+          "evidence": "Tests pin the action_id constant ('kernel.subquadratic.persist_state') + write_box schema_id ('hsk.write_box.state_vector_persist@1') AND verify the action is registered in kernel002_action_catalog with the expected write_box, capabilities, and KERNEL_BUILDER role eligibility."
+        }
+      },
+      "adversarial_tests_added_beyond_minimum_controls": [
+        "load_from_artifact_store_rejects_unknown_artifact_id — typed error with operator-readable guidance naming the missing artifact_root",
+        "load_from_artifact_store_rejects_tampered_payload_after_persist — manifest content_hash gate catches post-persist tampering before envelope parse runs",
+        "load_from_artifact_store_rejects_corrupted_manifest_json — manifest deserialize failure is typed (not panic)",
+        "persist_to_artifact_store_writes_into_l3_layer_under_workspace_root — pins the on-disk layout (L3 layer, bundle kind, medium classification, exportable=true) so a downstream MT adding a Layer/Classification mapping cannot silently drift the state-vector contract",
+        "persist_to_artifact_store_does_not_double_write_under_concurrent_calls — 4-thread concurrent persist of the same handle produces 4 distinct UUIDv7 artifact_ids; each loads back successfully",
+        "persist_to_artifact_store_rejects_export_from_unknown_prefix_handle — persist with an unbound KvPrefixHandle fails closed before write_file_artifact runs; no L3 artifact directory created"
+      ],
+      "residual_risks": [
+        "Tauri IPC bridge for kernel.subquadratic.persist_state action is NOT implemented in this MT — operator-facing IPC (so the UI can call persist_to_artifact_store from a button) is a follow-on UI MT. The action_id is registered in the catalog so a future IPC MT can wire it without changing the engine-side API.",
+        "POSTGRES_TEST_URL is not set in this session — but MT-117 disk persistence is filesystem-only (ArtifactStore L3 path), so no Postgres dependency. Tests fully exercised without Postgres.",
+        "Concurrent-persist test exercises in-process threading via std::thread. Tokio-runtime-driven concurrent persists are not separately tested because the surface is sync at the Rust level; if a future MT adds an async persist surface that test will need an async sibling.",
+        "envelope_version=v1 is pinned; if a future MT changes the SSMStateSnapshot enum variant set or adds a new tensor field, the envelope_version must bump and a migration shim must land. The pin test (persist_envelope_version_is_a_stable_string_constant) catches accidental bumps; intentional bumps require a paired migration test.",
+        "No Integration Validator has reviewed MT-117; supporting evidence only."
+      ]
+    },
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "READY_FOR_VALIDATION",
+        "validator_verdict": "PENDING"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-27T19:03:58.446Z"
   },
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260522-171100",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
     "review_response_receipt_id": null
@@ -58,5 +186,51 @@
       "Sha256 + variant validation enforced.",
       "Mutations through KernelActionCatalogV1."
     ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C11_FRESH",
+    "reviewed_at_utc": "2026-05-27T18:55:00Z",
+    "aggregator_run_at_utc": "2026-05-27T19:03:58.446Z",
+    "verdict": "PASS",
+    "verdict_reason": "Cross-session state restore lands real disk persistence (persist_to_artifact_store + load_from_artifact_store + load_from_artifact_store_into_handle) via ArtifactStore with atomic write_file_artifact (temp+fsync+rename), manifest content_hash gate before envelope parse, sha256/variant validation on target handle, UUIDv7 artifact_ids, registered KernelActionCatalogV1 action 'kernel.subquadratic.persist_state' with write_box schema 'hsk.write_box.state_vector_persist@1'. 21 inf9_cross_session_state_tests PASS plus MT-114 regression (8 PASS). The Spec-Realism Gate sub-rules are correctly self-checked: sub_rule_1 (no deferred-live escape) — resumed the MT and implemented the prior session's deferral in-MT; sub_rule_2 (external resource touch) — real filesystem under .handshake/artifacts/L3/<uuid>/{payload,artifact.json}; sub_rule_3 (implementer cannot self-certify) — claimed_by ≠ validator role. All three red_team minimum controls covered with named tests and adversarial extensions. Operator E-2 'cross-session state restore' parity item: MET.",
+    "spec_compliance_status": "PASS",
+    "code_hygiene_status": "PASS",
+    "runtime_safety_status": "PASS",
+    "agent_swarm_safety_status": "PASS",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "PASS",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 2
+    },
+    "paperwork_notes_count": 3,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-117.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-117.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C11_FRESH",
+    "reviewed_at_utc": "2026-05-27T18:55:00Z",
+    "aggregator_run_at_utc": "2026-05-27T18:50:05.123Z",
+    "verdict": "PASS",
+    "verdict_reason": "Cross-session state restore lands real disk persistence (persist_to_artifact_store + load_from_artifact_store + load_from_artifact_store_into_handle) via ArtifactStore with atomic write_file_artifact (temp+fsync+rename), manifest content_hash gate before envelope parse, sha256/variant validation on target handle, UUIDv7 artifact_ids, registered KernelActionCatalogV1 action 'kernel.subquadratic.persist_state' with write_box schema 'hsk.write_box.state_vector_persist@1'. 21 inf9_cross_session_state_tests PASS plus MT-114 regression (8 PASS). The Spec-Realism Gate sub-rules are correctly self-checked: sub_rule_1 (no deferred-live escape) — resumed the MT and implemented the prior session's deferral in-MT; sub_rule_2 (external resource touch) — real filesystem under .handshake/artifacts/L3/<uuid>/{payload,artifact.json}; sub_rule_3 (implementer cannot self-certify) — claimed_by ≠ validator role. All three red_team minimum controls covered with named tests and adversarial extensions. Operator E-2 'cross-session state restore' parity item: MET.",
+    "spec_compliance_status": "PASS",
+    "code_hygiene_status": "PASS",
+    "runtime_safety_status": "PASS",
+    "agent_swarm_safety_status": "PASS",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "PASS",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 2
+    },
+    "paperwork_notes_count": 3,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-117.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-117.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
   }
 }

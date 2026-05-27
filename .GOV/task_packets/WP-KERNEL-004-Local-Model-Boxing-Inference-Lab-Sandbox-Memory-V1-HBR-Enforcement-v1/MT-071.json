@@ -7,7 +7,7 @@
   "cluster_subscope": "C.1",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:00:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-05-27T19:03:58.446Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -27,7 +27,12 @@
     "src/backend/handshake_core/tests/fixtures/model_runtime/capabilities_sample.json",
     "src/backend/handshake_core/tests/fixtures/model_runtime/lora_descriptor_sample.json"
   ],
-  "depends_on_mts": ["MT-062", "MT-063", "MT-064", "MT-065"],
+  "depends_on_mts": [
+    "MT-062",
+    "MT-063",
+    "MT-064",
+    "MT-065"
+  ],
   "unblock_conditions": "MT-062..MT-065 trait surface + sub-traits merged.",
   "implementation_notes": "Tests: (1) object_safety_compile_test — function takes `&dyn ModelRuntime` and `Box<dyn KvCacheOps>`, `Box<dyn LoraStackOps>`, `Box<dyn SteeringHookOps>`; compile success is the test. (2) trait_is_send_sync — `fn _assert_send_sync<T: Send + Sync>() {}; _assert_send_sync::<dyn ModelRuntime>();` (3) model_id_v7_monotonic — mint 1000 ModelIds, assert timestamps non-decreasing per HBR-INT-008. (4) capabilities_serde_round_trip — load capabilities_sample.json, deserialize, re-serialize, assert byte-equal. (5) capabilities_camelcase_for_ipc — verify serialized JSON uses camelCase keys (frontend contract). (6) error_variant_completeness — assert every ModelRuntimeError variant has a Display impl and unique discriminant. (7) lora_descriptor_serde — load lora_descriptor_sample.json, round-trip. (8) lora_strength_clamp — try_new with 3.0 returns Err; try_new with -0.5 returns Err; try_new with 0.5 returns Ok. (9) kv_prefix_handle_tamper — construct two handles with same prefix_id but different content_hash; assert equality returns false (so an adapter rejecting on hash mismatch is correct). (10) steering_vector_provenance_required — register_vector with provenance=Manual{author:\"\", notes:\"\"} returns Err (empty author rejected). (11) capability_consistency — ModelRegistration with runtime_binding=LlamaCpp + supports_activation_steering=true fails the consistency check. (12) external_compat_short_circuit — register_model_process with provider=ExternalCompat returns None and does NOT write to ledger.",
   "proof_commands": [
@@ -35,20 +40,51 @@
   ],
   "risk_if_missed": "Trait surface regressions slip through into adapter implementations; engine-agnostic invariant decays silently.",
   "validator_focus": "All 12 tests present and pass; fixtures match real schema; v7 monotonicity covers HBR-INT-008.",
-  "hbr_obligations": ["HBR-INT-002", "HBR-INT-008"],
+  "hbr_obligations": [
+    "HBR-INT-002",
+    "HBR-INT-008"
+  ],
   "spec_anchors": [
     ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.6"
   ],
-  "acceptance_criteria_refs": ["AC-MODEL-RUNTIME-TRAIT", "AC-MODEL-CAP-DECL"],
+  "acceptance_criteria_refs": [
+    "AC-MODEL-RUNTIME-TRAIT",
+    "AC-MODEL-CAP-DECL"
+  ],
   "lifecycle": {
     "active": false,
-    "status": "PENDING",
-    "validator_verdict": "PENDING",
-    "depends_on": ["MT-062", "MT-063", "MT-064", "MT-065"],
-    "blocks": []
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "PASS",
+    "depends_on": [
+      "MT-062",
+      "MT-063",
+      "MT-064",
+      "MT-065"
+    ],
+    "blocks": [],
+    "claimed_by": "KERNEL_BUILDER-20260518-235451",
+    "claimed_at_utc": "2026-05-19T04:57:19Z",
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "COMPLETED",
+        "validator_verdict": "PENDING",
+        "completed_at_utc": "2026-05-19T05:03:19Z"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "previous_completed_at_utc_before_ready_for_validation_20260525": "2026-05-19T05:03:19Z",
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-27T19:03:58.446Z"
   },
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260518-235451",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
     "review_response_receipt_id": null
@@ -59,5 +95,51 @@
       "v7 monotonicity test runs 1000 iterations (not 10).",
       "camelCase IPC contract test must catch a field renamed to snake_case."
     ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C1_FRESH",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T19:03:58.446Z",
+    "verdict": "PASS",
+    "verdict_reason": "Cross-cutting trait surface tests cover the full C.1 acceptance floor: object-safety for ModelRuntime + KvCacheOps + LoraStackOps + SteeringHookOps; Send+Sync for trait objects and Arc/Box wrappers; ModelId v7 monotonicity over 1000 mints; ModelCapabilities serde snake_case + IPC camelCase parity; error variant completeness (11 variants, unique discriminants, non-empty Display); LoraDescriptor + LoraStrength validation; KvPrefixHandle tamper detection; SteeringVector provenance enforcement; capability-binding consistency rejection (LlamaCpp+activation_steering); ExternalCompat short-circuit.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-071.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-071.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C1_FRESH",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T18:50:05.123Z",
+    "verdict": "PASS",
+    "verdict_reason": "Cross-cutting trait surface tests cover the full C.1 acceptance floor: object-safety for ModelRuntime + KvCacheOps + LoraStackOps + SteeringHookOps; Send+Sync for trait objects and Arc/Box wrappers; ModelId v7 monotonicity over 1000 mints; ModelCapabilities serde snake_case + IPC camelCase parity; error variant completeness (11 variants, unique discriminants, non-empty Display); LoraDescriptor + LoraStrength validation; KvPrefixHandle tamper detection; SteeringVector provenance enforcement; capability-binding consistency rejection (LlamaCpp+activation_steering); ExternalCompat short-circuit.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-071.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-071.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
   }
 }

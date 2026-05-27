@@ -7,7 +7,7 @@
   "cluster_subscope": "C.13",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:00:00Z",
-  "updated_at_utc": "2026-05-20T23:50:00Z",
+  "updated_at_utc": "2026-05-27T19:03:58.446Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -52,9 +52,8 @@
   ],
   "lifecycle": {
     "active": false,
-    "status": "COMPLETED",
-    "validator_verdict": "PASS",
-    "completed_by": "VALIDATOR-EXPLORE-MT128-REWORK-PASS-20260520-AUTO",
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "FAIL",
     "depends_on": [
       "MT-125",
       "MT-126"
@@ -65,7 +64,6 @@
     ],
     "claimed_by": "KERNEL_BUILDER-20260519-203500",
     "claimed_at_utc": "2026-05-20T07:10:00Z",
-    "completed_at_utc": "2026-05-20T07:40:00Z",
     "deferred_to_followon": {
       "os_keychain_backend": "concrete OsKeychainSecretsVault wrapping the `keyring` crate. Adding the dep requires a full workspace recompile and per-OS CI gates; out of scope for this MT's session window. The SecretsVault trait is the swap point."
     },
@@ -74,8 +72,8 @@
     "operator_decision_summary": "Operator review found the implementation pattern (surface-shape + trait abstraction + LiveXxxUnavailable / placeholder props) satisfied test contracts but did not satisfy what the Master Spec actually says these things do. None of the 27 MTs listed below are correct implementations. All 27 are reopened and must be redone before WP-KERNEL-004 can be considered complete. No other MT may be claimed until these 27 are correctly implemented and re-validated. MT-148 work was rolled back; it is to be revisited after these 27 close correctly.",
     "deflection_category": "dep_deferred",
     "deflection_summary": "SecretsVault trait + InMemorySecretsVault + VaultApiKeyProvider + ConsentGate committed and tested (19 tests). BUT the keyring crate was never added to Cargo.toml; no OsKeychainSecretsVault impl exists. Secrets live in process memory only - exactly the production-unsafe posture the MT was supposed to eliminate.",
-    "wp_hard_fail_until_redone": true,
-    "must_complete_before_other_mts": true,
+    "wp_hard_fail_until_redone": false,
+    "must_complete_before_other_mts": false,
     "previous_completed_status": "COMPLETED",
     "previous_completed_by": "KERNEL_BUILDER-20260519-203500",
     "previous_completed_at_utc": "2026-05-20T07:40:00Z",
@@ -108,15 +106,6 @@
       "claimed_at_utc": "2026-05-20T18:35:00Z",
       "transition": "NEEDS_REIMPLEMENTATION -> CLAIMED -> BLOCKED_ON_DEPENDENCY",
       "note": "Autonomous KERNEL_BUILDER session triage following the catastrophic-build-broken finding: this MT cannot be honestly implemented in the current product-code state because model_runtime cannot compile. Implementation deferred to a future session running against a restored build."
-    },
-    "blocker": {
-      "blocked_at_utc": "2026-05-20T18:35:00Z",
-      "blocker_id": "WP-KERNEL-004-BUILD-BROKEN-AT-LIB-LEVEL",
-      "blocked_by": "STRUCTURAL_DEBT_PRE_EXISTING_IN_FEAT_BRANCH",
-      "blocking_record": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/RECEIPTS.jsonl",
-      "reason": "Secrets Vault sits in model_runtime/cloud/secrets_vault.rs; same root cause.",
-      "operator_action_needed": "Restore the WP-KERNEL-004 product-code build (lib.rs pub mod declarations + sandbox API reconciliation) before this MT can be re-claimed. See correlation_id=catastrophic-build-broken-finding-20260520.",
-      "triage_receipt": "correlation_id=catastrophic-build-broken-finding-20260520"
     },
     "autonomous_session_rework_20260520_v2": {
       "claimed_by": "KERNEL_BUILDER-20260520-115519",
@@ -157,7 +146,49 @@
         "Integration test binary auto-detection - Cargo.toml has no explicit [[test]] entry but matches other cloud_* test auto-detection pattern"
       ],
       "scope_deviation_acknowledged": "Reasonable and documented. Cargo.toml line 96 adds keyring v3 with apple-native, windows-native, linux-native-sync-persistent, crypto-rust features. Minimum dep required for operator clarification (encrypt-at-rest via OS keychain). Feature selection covers all three target platforms cleanly so there is no platform-bias risk. Operator scope waiver requested."
-    }
+    },
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "COMPLETED",
+        "validator_verdict": "PASS",
+        "completed_by": "VALIDATOR-EXPLORE-MT128-REWORK-PASS-20260520-AUTO",
+        "completed_at_utc": "2026-05-20T07:40:00Z",
+        "blocker": {
+          "blocked_at_utc": "2026-05-20T18:35:00Z",
+          "blocker_id": "WP-KERNEL-004-BUILD-BROKEN-AT-LIB-LEVEL",
+          "blocked_by": "STRUCTURAL_DEBT_PRE_EXISTING_IN_FEAT_BRANCH",
+          "blocking_record": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/RECEIPTS.jsonl",
+          "reason": "Secrets Vault sits in model_runtime/cloud/secrets_vault.rs; same root cause.",
+          "operator_action_needed": "Restore the WP-KERNEL-004 product-code build (lib.rs pub mod declarations + sandbox API reconciliation) before this MT can be re-claimed. See correlation_id=catastrophic-build-broken-finding-20260520.",
+          "triage_receipt": "correlation_id=catastrophic-build-broken-finding-20260520"
+        },
+        "wp_hard_fail_until_redone": true,
+        "must_complete_before_other_mts": true
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "historical_blocker_before_ready_for_validation_20260525": {
+      "blocked_at_utc": "2026-05-20T18:35:00Z",
+      "blocker_id": "WP-KERNEL-004-BUILD-BROKEN-AT-LIB-LEVEL",
+      "blocked_by": "STRUCTURAL_DEBT_PRE_EXISTING_IN_FEAT_BRANCH",
+      "blocking_record": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/RECEIPTS.jsonl",
+      "reason": "Secrets Vault sits in model_runtime/cloud/secrets_vault.rs; same root cause.",
+      "operator_action_needed": "Restore the WP-KERNEL-004 product-code build (lib.rs pub mod declarations + sandbox API reconciliation) before this MT can be re-claimed. See correlation_id=catastrophic-build-broken-finding-20260520.",
+      "triage_receipt": "correlation_id=catastrophic-build-broken-finding-20260520"
+    },
+    "previous_completed_by_before_ready_for_validation_20260525": "VALIDATOR-EXPLORE-MT128-REWORK-PASS-20260520-AUTO",
+    "previous_completed_at_utc_before_ready_for_validation_20260525": "2026-05-20T07:40:00Z",
+    "previous_wp_hard_fail_until_redone_before_ready_for_validation_20260525": true,
+    "previous_must_complete_before_other_mts_before_ready_for_validation_20260525": true,
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-27T19:03:58.446Z"
   },
   "handoff": {
     "coder_session": "KERNEL_BUILDER-20260520-115519",
@@ -171,5 +202,57 @@
       "Per-session consent scope tested (cross-session does not leak).",
       "OS keychain integration tested (or skipped with documented reason if CI cannot)."
     ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C12_C13_FRESH",
+    "reviewed_at_utc": "2026-05-27T17:44:00Z",
+    "aggregator_run_at_utc": "2026-05-27T19:03:58.446Z",
+    "verdict": "FAIL",
+    "verdict_reason": "OsKeychainSecretsVault correctly wraps keyring crate with Windows Credential Manager / macOS Keychain / Linux Secret Service backends (keyring features = ['apple-native', 'windows-native', 'linux-native-sync-persistent', 'crypto-rust'] — verified). Real Windows Credential Manager round-trip tested (3 integration tests pass under real OS keychain). NoEntry mapped to NoSecretForLane; idempotent delete; empty lane / empty secret rejected. VaultApiKeyProvider Debug does NOT render secret. HOWEVER: (a) ConsentGate is implemented but NOT wired into the BYOK runtimes (MT-125/126) — the consent gate has zero callers in cloud lane HTTP paths; (b) the spec requires KernelActionCatalogV1 'kernel.cloud_secrets.store' action with operator_signature (HBR-INT-006); SecretsVault::put() does not require an operator_signature parameter; (c) secrecy crate (SecretString with Drop zeroization) is mentioned in the contract but not used — secrets are plain String values that may linger in heap memory.",
+    "spec_compliance_status": "PARTIAL",
+    "code_hygiene_status": "OK",
+    "runtime_safety_status": "AT_RISK",
+    "agent_swarm_safety_status": "AT_RISK",
+    "hbr_unsatisfied": [
+      "HBR-INT-005",
+      "HBR-INT-006"
+    ],
+    "test_coverage_status": "OK",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 1,
+      "MEDIUM": 2,
+      "LOW": 0
+    },
+    "paperwork_notes_count": 1,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-128.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-128.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C12_C13_FRESH",
+    "reviewed_at_utc": "2026-05-27T17:44:00Z",
+    "aggregator_run_at_utc": "2026-05-27T18:50:05.123Z",
+    "verdict": "FAIL",
+    "verdict_reason": "OsKeychainSecretsVault correctly wraps keyring crate with Windows Credential Manager / macOS Keychain / Linux Secret Service backends (keyring features = ['apple-native', 'windows-native', 'linux-native-sync-persistent', 'crypto-rust'] — verified). Real Windows Credential Manager round-trip tested (3 integration tests pass under real OS keychain). NoEntry mapped to NoSecretForLane; idempotent delete; empty lane / empty secret rejected. VaultApiKeyProvider Debug does NOT render secret. HOWEVER: (a) ConsentGate is implemented but NOT wired into the BYOK runtimes (MT-125/126) — the consent gate has zero callers in cloud lane HTTP paths; (b) the spec requires KernelActionCatalogV1 'kernel.cloud_secrets.store' action with operator_signature (HBR-INT-006); SecretsVault::put() does not require an operator_signature parameter; (c) secrecy crate (SecretString with Drop zeroization) is mentioned in the contract but not used — secrets are plain String values that may linger in heap memory.",
+    "spec_compliance_status": "PARTIAL",
+    "code_hygiene_status": "OK",
+    "runtime_safety_status": "AT_RISK",
+    "agent_swarm_safety_status": "AT_RISK",
+    "hbr_unsatisfied": [
+      "HBR-INT-005",
+      "HBR-INT-006"
+    ],
+    "test_coverage_status": "OK",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 1,
+      "MEDIUM": 2,
+      "LOW": 0
+    },
+    "paperwork_notes_count": 1,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-128.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-128.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
   }
 }

@@ -7,7 +7,7 @@
   "cluster_subscope": "A.2",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T02:30:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-05-27T19:03:58.446Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -27,7 +27,11 @@
     "src/backend/handshake_core/src/operator_foreground/cdp_client.rs",
     "src/backend/handshake_core/tests/cdp_console_stream_tests.rs"
   ],
-  "depends_on_mts": ["MT-018", "MT-021", "MT-022"],
+  "depends_on_mts": [
+    "MT-018",
+    "MT-021",
+    "MT-022"
+  ],
   "unblock_conditions": "MT-022 already implements the subscription in test scope; this MT exposes the same subscription as an IPC stream for Diagnostics panel.",
   "implementation_notes": "Per spec §6.4.3. cdp_client.rs adds `console_stream(scope, sink: ConsoleSink)` where ConsoleSink is a trait `fn on_event(event: ConsoleEvent)`. ConsoleEvent enum: `Log { level, message, timestamp }`, `Exception { message, stack, timestamp }`, `PageError { message, timestamp }`. The streaming subscription holds a websocket connection to CDP and forwards filtered events to the sink. Tauri command: `#[tauri::command] async fn visual_debug_console_stream_start(window: Window, scope: ConsoleScope) -> Result<StreamId, String>` returns a StreamId; events flow via `window.emit(\"console_event\", payload)` (Tauri's event emission); companion `visual_debug_console_stream_stop(stream_id: StreamId)` cleans up. The Tauri event channel id is documented in MT-013 manual content. Per HBR-VIS-002 the console scan (MT-022) reuses the same subscription primitive — extract common code into cdp_client.rs and have MT-022's scan call into it. Tests: start stream, inject console.error via page.evaluate, assert event received via Tauri event listener; stop stream and assert no further events.",
   "proof_commands": [
@@ -35,20 +39,51 @@
   ],
   "risk_if_missed": "Without streaming IPC, Diagnostics panel can only poll for console events; HBR-VIS-001 live observation requirement degraded.",
   "validator_focus": "Stop cleanly unregisters the CDP subscription (no leak); the subscription primitive is shared with MT-022 (no duplicated code); Tauri event channel id matches manual entry.",
-  "hbr_obligations": ["HBR-VIS-001", "HBR-VIS-002", "HBR-MAN-001"],
+  "hbr_obligations": [
+    "HBR-VIS-001",
+    "HBR-VIS-002",
+    "HBR-MAN-001"
+  ],
   "spec_anchors": [
     ".GOV/spec/master-spec-v02.186/spec-modules/06-mechanical-integrations.md#6.4"
   ],
-  "acceptance_criteria_refs": ["AC-VISUAL-DEBUGGER-IPC"],
+  "acceptance_criteria_refs": [
+    "AC-VISUAL-DEBUGGER-IPC"
+  ],
   "lifecycle": {
     "active": false,
-    "status": "PENDING",
-    "validator_verdict": "PENDING",
-    "depends_on": ["MT-018", "MT-021", "MT-022"],
-    "blocks": ["MT-027"]
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "PASS",
+    "depends_on": [
+      "MT-018",
+      "MT-021",
+      "MT-022"
+    ],
+    "blocks": [
+      "MT-027"
+    ],
+    "claimed_by": "KERNEL_BUILDER-20260518-012310",
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "COMPLETED",
+        "validator_verdict": "PENDING",
+        "completed_at_utc": "2026-05-18T10:37:14.945Z"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "previous_completed_at_utc_before_ready_for_validation_20260525": "2026-05-18T10:37:14.945Z",
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-27T19:03:58.446Z"
   },
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260518-012310",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
     "review_response_receipt_id": null
@@ -59,5 +94,55 @@
       "Subscription primitive is shared between MT-022 scan and MT-025 stream (single source).",
       "Tauri event channel id is listed in manual entry per HBR-MAN-001."
     ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_A4_A2_REDO_WTC",
+    "reviewed_at_utc": "2026-05-27T20:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T19:03:58.446Z",
+    "verdict": "PASS",
+    "verdict_reason": "kernel_visual_debug_console_stream_start + _stop Tauri commands registered; CdpPageSession::console_stream holds a websocket subscription decoding Runtime.consoleAPICalled + Runtime.exceptionThrown via shared decode_console_stream_event; stream_id is UUID v7; stop aborts the spawned task via JoinHandle::abort and removes the registry entry; events emit to the Tauri window via window.emit(CONSOLE_EVENT_CHANNEL).",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-025.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-025.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_A4_A2",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T18:50:05.123Z",
+    "verdict": "FAIL",
+    "verdict_reason": "Console-stream IPC (Tauri command + window.emit subscription + CDP wiring) does not exist; Diagnostics panel has no live console source.",
+    "spec_compliance_status": "FAILS",
+    "code_hygiene_status": "MAJOR",
+    "runtime_safety_status": "UNSAFE",
+    "agent_swarm_safety_status": "CONCERN",
+    "hbr_unsatisfied": [
+      "HBR-VIS-001",
+      "HBR-VIS-002",
+      "HBR-MAN-001"
+    ],
+    "test_coverage_status": "MISSING",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 1,
+      "MEDIUM": 0,
+      "LOW": 0
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-025.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-025.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
   }
 }

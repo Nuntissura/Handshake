@@ -7,7 +7,7 @@
   "cluster_subscope": "A.1",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T02:30:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-05-27T19:03:58.446Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -26,7 +26,9 @@
     ".GOV/roles_shared/scripts/hbr-matrix-hydrate.mjs",
     ".GOV/roles_shared/scripts/hbr-matrix-hydrate.test.mjs"
   ],
-  "depends_on_mts": ["MT-001"],
+  "depends_on_mts": [
+    "MT-001"
+  ],
   "unblock_conditions": "MT-001 registry loader and applicability evaluator merged.",
   "implementation_notes": "Per spec §5.6 and the enforcement.mechanism field of HANDSHAKE_BUILD_RULES.json (`PACKET_ACCEPTANCE_MATRIX_EXTENSION`), this MT closes the loop from registry to packet acceptance matrix. The hydrator: (1) reads the packet.json (must accept a CLI arg `--packet <path>`), (2) extracts touched-path declarations (scope.allowed_paths globs), (3) extracts declared tags (a new optional `hbr.tags_declared` field on packet.json; absence is fine — evaluator falls back to path-glob-based tag inference), (4) extracts `hbr.not_applicable_overrides` (an optional array on packet.json of `{ hbr_id, reason }` operator-supplied N/A claims), (5) calls `evaluateApplicability(rule, ctx)` for every active rule, (6) for each Applicable rule, emits a row into the packet's PACKET_ACCEPTANCE_MATRIX (target: `packet.acceptance_matrix.hbr` array of `{ hbr_id, status: \"PENDING\", evidence_pointer: null, validator_verdict: null, added_at_utc }`), (7) for each NotApplicable rule, appends to `packet.acceptance_matrix.hbr_not_applicable` an entry of `{ hbr_id, reason, source: \"applicability_evaluator\" | \"operator_override\" }`. Idempotency: re-running hydrator on a packet that already has matrix rows must MERGE not duplicate — keyed by hbr_id — and must NEVER downgrade an existing PROVED row back to PENDING. Schema: declare `packet.acceptance_matrix.schema_version=1`. Output must be valid JSON that parses cleanly. Tests use a fixture packet with `tags_declared=[\"model_invocation\",\"automation_surface\"]` and assert that HBR-INT-002 + HBR-QUIET-001 + HBR-QUIET-002 rows are emitted while HBR-INT-004 (crdt, no tag declared, no path match) lands in the not_applicable ledger.",
   "proof_commands": [
@@ -35,20 +37,50 @@
   ],
   "risk_if_missed": "Without auto-emission, every packet author manually picks HBR rules and silently misses applicable ones; the HBR registry stays DESIGN_ONLY_WIRING_PENDING.",
   "validator_focus": "Hydrator is idempotent under re-run; never downgrades PROVED rows; not_applicable ledger captures every rejected rule with a non-empty reason.",
-  "hbr_obligations": ["HBR-INT-001"],
+  "hbr_obligations": [
+    "HBR-INT-001"
+  ],
   "spec_anchors": [
     ".GOV/spec/master-spec-v02.186/spec-modules/05-security-and-observability.md#5.6"
   ],
-  "acceptance_criteria_refs": ["AC-HBR-AUTHORITY", "AC-HBR-HANDOFF-GATE"],
+  "acceptance_criteria_refs": [
+    "AC-HBR-AUTHORITY",
+    "AC-HBR-HANDOFF-GATE"
+  ],
   "lifecycle": {
     "active": false,
-    "status": "PENDING",
-    "validator_verdict": "PENDING",
-    "depends_on": ["MT-001"],
-    "blocks": ["MT-003", "MT-005", "MT-009"]
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "CONCERN",
+    "depends_on": [
+      "MT-001"
+    ],
+    "blocks": [
+      "MT-003",
+      "MT-005",
+      "MT-009"
+    ],
+    "claimed_by": "KERNEL_BUILDER-20260518-012310",
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "COMPLETED",
+        "validator_verdict": "PENDING",
+        "completed_at_utc": "2026-05-18T02:19:38.423Z"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "previous_completed_at_utc_before_ready_for_validation_20260525": "2026-05-18T02:19:38.423Z",
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-27T19:03:58.446Z"
   },
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260518-012310",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
     "review_response_receipt_id": null
@@ -59,5 +91,51 @@
       "Negative test: hydrator refuses to downgrade a PROVED row to PENDING (asserts panic/error).",
       "Operator-supplied not_applicable_overrides must include a non-empty reason or the hydrator errors."
     ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_A1_A2",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T19:03:58.446Z",
+    "verdict": "CONCERN",
+    "verdict_reason": "Hydrator correctly reads registry, evaluates applicability, infers tags from touched paths, validates not_applicable_overrides, and writes deterministic sorted matrix rows; however the missing-reason check throws but the contract red-team requires explicit panic/error rejection of any attempt to downgrade PROVED → PENDING, which is NOT enforced anywhere in this file.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "MINOR",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "CONCERN",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 1,
+      "MEDIUM": 1,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-002.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-002.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_A1_A2",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T18:50:05.123Z",
+    "verdict": "CONCERN",
+    "verdict_reason": "Hydrator correctly reads registry, evaluates applicability, infers tags from touched paths, validates not_applicable_overrides, and writes deterministic sorted matrix rows; however the missing-reason check throws but the contract red-team requires explicit panic/error rejection of any attempt to downgrade PROVED → PENDING, which is NOT enforced anywhere in this file.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "MINOR",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "CONCERN",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 1,
+      "MEDIUM": 1,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-002.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-002.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
   }
 }

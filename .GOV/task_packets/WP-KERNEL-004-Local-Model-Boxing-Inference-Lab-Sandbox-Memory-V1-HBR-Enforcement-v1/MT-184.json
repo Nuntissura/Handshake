@@ -7,7 +7,7 @@
   "cluster_subscope": "X.2",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:08:00Z",
-  "updated_at_utc": "2026-05-25T15:54:56.028Z",
+  "updated_at_utc": "2026-05-27T19:03:58.446Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -149,7 +149,9 @@
     },
     "ready_by": "KERNEL_BUILDER-20260525-144915",
     "ready_at_utc": "2026-05-25T15:54:56.028Z",
-    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending."
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-27T19:03:58.446Z"
   },
   "handoff": {
     "coder_session": "KERNEL_BUILDER-20260524-014",
@@ -201,5 +203,51 @@
       "Escalation tier monotonic enforced by CHECK constraint or trigger on state column.",
       "HardGate release requires operator capability proof (forward-declared; MT-188 wires signed envelope check)."
     ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_X_GAPS",
+    "reviewed_at_utc": "2026-05-27T17:45:00Z",
+    "aggregator_run_at_utc": "2026-05-27T19:03:58.446Z",
+    "verdict": "PASS_WITH_NOTES",
+    "verdict_reason": "MicroTaskJob primitive + Postgres queue schema + 6-tier escalation enum (T7B->T7BAlt->T13B->T13BAlt->T32B->HardGate) + EscalationTier::next() monotonic + atomic SKIP LOCKED claim + HardGate terminal. EscalationTier wire-form bug repaired during MT (rename_all=snake_case emitted t7_b; replaced with explicit per-variant rename to compact form). 11 always-on + 9 Postgres-gated tests green. HardGate signed-envelope release explicitly forward-declared to MT-188 — acceptable scope split.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "OK",
+    "runtime_safety_status": "OK",
+    "agent_swarm_safety_status": "OK",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 1,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 2,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-184.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-184.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_X_GAPS",
+    "reviewed_at_utc": "2026-05-27T17:45:00Z",
+    "aggregator_run_at_utc": "2026-05-27T18:50:05.123Z",
+    "verdict": "PASS_WITH_NOTES",
+    "verdict_reason": "MicroTaskJob primitive + Postgres queue schema + 6-tier escalation enum (T7B->T7BAlt->T13B->T13BAlt->T32B->HardGate) + EscalationTier::next() monotonic + atomic SKIP LOCKED claim + HardGate terminal. EscalationTier wire-form bug repaired during MT (rename_all=snake_case emitted t7_b; replaced with explicit per-variant rename to compact form). 11 always-on + 9 Postgres-gated tests green. HardGate signed-envelope release explicitly forward-declared to MT-188 — acceptable scope split.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "OK",
+    "runtime_safety_status": "OK",
+    "agent_swarm_safety_status": "OK",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 1,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 2,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-184.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-184.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
   }
 }

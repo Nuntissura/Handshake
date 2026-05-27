@@ -7,7 +7,7 @@
   "cluster_subscope": "A.1",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T02:30:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-05-27T19:03:58.446Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -27,7 +27,10 @@
     ".GOV/roles_shared/checks/hbr-matrix-check.test.mjs",
     "justfile"
   ],
-  "depends_on_mts": ["MT-001", "MT-002"],
+  "depends_on_mts": [
+    "MT-001",
+    "MT-002"
+  ],
   "unblock_conditions": "MT-001 loader + MT-002 hydrator merged; packets carry hydrated matrix rows.",
   "implementation_notes": "Per spec §5.6.2 (AC-HBR-HANDOFF-GATE) HBR gate evaluation runs HARD at two points: (a) build time via `just gov-check`, (b) handoff time on every governed inter-role transition. This MT covers point (a). The check accepts CLI args `--packet <path>` (single) or `--all-packets` (walk .GOV/task_packets/*/packet.json). For each packet: read `acceptance_matrix.hbr` array, group rows by status, and FAIL the check if any row has status in {PENDING, STEER, BLOCKED}. PROVED rows must additionally carry a non-empty `evidence_pointer` (string path or receipt-id reference) and `validator_verdict==\"PROVED\"`. NOT_APPLICABLE rows are only allowed if they appear in `acceptance_matrix.hbr_not_applicable` with a captured reason — a NOT_APPLICABLE in the hbr array without a parallel ledger entry is itself a fail. Exit codes: 0=pass, 2=fail (matrix violations), 3=error (malformed input). Stderr output is JSONL: one `{hbr_id, packet, reason, severity}` per failure. Justfile recipe: add `hbr-matrix-check` recipe that runs `node .GOV/roles_shared/checks/hbr-matrix-check.mjs --all-packets`, and wire it into the umbrella `gov-check` recipe (find it in justfile; if absent, the umbrella may be implied — add a comment marking the new sub-check). Tests: golden fixture packet with one PROVED row passes; same fixture with one PENDING row fails with exit 2; missing evidence_pointer on a PROVED row fails; NOT_APPLICABLE in main array without ledger entry fails.",
   "proof_commands": [
@@ -37,20 +40,50 @@
   ],
   "risk_if_missed": "Without build-time gate, an Applicable HBR row can be silently shipped as PENDING; the registry becomes advisory rather than enforced.",
   "validator_focus": "Exit codes match documented contract; stderr is parseable JSONL; the gov-check umbrella actually invokes the sub-check (verify by failing a fixture and seeing umbrella fail).",
-  "hbr_obligations": ["HBR-INT-001"],
+  "hbr_obligations": [
+    "HBR-INT-001"
+  ],
   "spec_anchors": [
     ".GOV/spec/master-spec-v02.186/spec-modules/05-security-and-observability.md#5.6"
   ],
-  "acceptance_criteria_refs": ["AC-HBR-HANDOFF-GATE"],
+  "acceptance_criteria_refs": [
+    "AC-HBR-HANDOFF-GATE"
+  ],
   "lifecycle": {
     "active": false,
-    "status": "PENDING",
-    "validator_verdict": "PENDING",
-    "depends_on": ["MT-001", "MT-002"],
-    "blocks": ["MT-004", "MT-005", "MT-006"]
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "PASS",
+    "depends_on": [
+      "MT-001",
+      "MT-002"
+    ],
+    "blocks": [
+      "MT-004",
+      "MT-005",
+      "MT-006"
+    ],
+    "claimed_by": "KERNEL_BUILDER-20260518-012310",
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "COMPLETED",
+        "validator_verdict": "PENDING",
+        "completed_at_utc": "2026-05-18T02:55:30.534Z"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "previous_completed_at_utc_before_ready_for_validation_20260525": "2026-05-18T02:55:30.534Z",
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-27T19:03:58.446Z"
   },
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260518-012310",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
     "review_response_receipt_id": null
@@ -61,5 +94,51 @@
       "Stderr output must be JSONL (line-delimited) so CI pipelines can parse it.",
       "Missing evidence_pointer on a PROVED row must fail (not silently warn)."
     ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_A1_A2",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T19:03:58.446Z",
+    "verdict": "PASS",
+    "verdict_reason": "hbr-matrix-check.mjs cleanly enforces PROVED rows need evidence_pointer + validator_verdict, blocks PENDING/STEER/BLOCKED at closure, requires NOT_APPLICABLE rows to have a matching non-empty reason in hbr_not_applicable, enforces HBR-QUIET-004 requires packet.requires_foreground===true, emits JSONL records on stderr per the red-team control, and exits non-zero on violation.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 2
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-003.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-003.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_A1_A2",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T18:50:05.123Z",
+    "verdict": "PASS",
+    "verdict_reason": "hbr-matrix-check.mjs cleanly enforces PROVED rows need evidence_pointer + validator_verdict, blocks PENDING/STEER/BLOCKED at closure, requires NOT_APPLICABLE rows to have a matching non-empty reason in hbr_not_applicable, enforces HBR-QUIET-004 requires packet.requires_foreground===true, emits JSONL records on stderr per the red-team control, and exits non-zero on violation.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 2
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-003.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-003.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
   }
 }

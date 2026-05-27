@@ -7,7 +7,7 @@
   "cluster_subscope": "X.4",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:22:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-05-27T19:03:58.446Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -27,7 +27,9 @@
     "src/backend/handshake_core/tests/fr_event_registry_tests.rs",
     ".GOV/roles_shared/records/FR_EVENT_REGISTRY.json"
   ],
-  "depends_on_mts": ["MT-196"],
+  "depends_on_mts": [
+    "MT-196"
+  ],
   "unblock_conditions": "MT-196 span primitives merged so FR-EVT-SPAN-* events can be bound to span types.",
   "implementation_notes": "Define `FrEventId` enum with one variant per registered ID. Initial taxonomy covers cluster X emissions: `MailboxBackpressure`, `MailboxRoutingDenied`, `MailboxLeaseAcquired`, `MailboxLeaseExpired`, `MailboxLeaseTakeover`, `MtCancelRequested`, `MtCancelForced`, `MtCancelCleanupFailed`, `MtStarved`, `MtExecError`, `Mt015DistillationCandidate` (alias for FR-EVT-MT-015 from folded stub), `CheckpointOverflow`, `CheckpointShutdownForced`, `ReplayStarted`, `ReplayProgress`, `ReplayCompleted`, `ReplayFailed`, `RestartResumeStarted`, `RestartResumeSessionResumed`, `RestartResumeSessionRecoveryFailed`, `RestartResumeDbUnavailable`, `RestartResumeCompleted`, `SpanStarted`, `SpanEnded`, `SpanFailed`. Each variant maps to a canonical string ID like `FR-EVT-MAILBOX-BACKPRESSURE`, retrievable via `FrEventId::as_str() -> &'static str` and `FrEventId::from_str(s) -> Result<FrEventId, UnknownEventId>`. JSON manifest at .GOV/roles_shared/records/FR_EVENT_REGISTRY.json mirrors the enum: `{ schema: \"handshake.fr_event_registry@1\", version: \"1.0.0\", events: [ { id: \"FR-EVT-MAILBOX-BACKPRESSURE\", kind: \"emission\", subsystem: \"role_mailbox\", added_in_wp: \"WP-KERNEL-004\", schema_fields: [{ name: \"role_id\", kind: \"string\" }, ...] }, ... ] }`. A unit test asserts Rust enum + JSON manifest are byte-byte aligned (every enum variant has a JSON entry and vice versa). Every cluster X site that previously had a string literal for an FR event ID MUST switch to `FrEventId::MtCancelRequested.as_str()` (this is a refactor obligation propagated to MT-182/186/188/189/191/192/193/195 — the registry MT lands the type and the others adopt it on their own MT). Tests: (a) round-trip enum<->string for every variant; (b) JSON manifest parse + schema check; (c) Rust + JSON alignment test enumerates both sides and asserts equality; (d) unknown event ID round-trip returns UnknownEventId error.",
   "proof_commands": [
@@ -36,7 +38,9 @@
   ],
   "risk_if_missed": "Without a typed registry, every site emits free-form strings; typos slip in (FR-EVT-MAILBOX-BACKPRESURE vs FR-EVT-MAILBOX-BACKPRESSURE); diagnostics panel filters break silently; the folded stub's 'new FR event families' invariant becomes a string-soup.",
   "validator_focus": "Rust enum and JSON manifest provably aligned (test fails if either drifts); every variant has a documented schema_fields description; .GOV/roles_shared/records/ JSON validated via JSON Schema (forward-compat for HBR-INT-001 registry pattern).",
-  "hbr_obligations": ["HBR-INT-001"],
+  "hbr_obligations": [
+    "HBR-INT-001"
+  ],
   "spec_anchors": [
     ".GOV/spec/master-spec-v02.186/spec-modules/05-security-and-observability.md#5"
   ],
@@ -45,13 +49,110 @@
   ],
   "lifecycle": {
     "active": false,
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "validator_verdict": "PENDING",
-    "depends_on": ["MT-196"],
-    "blocks": ["MT-199", "MT-200"]
+    "integration_validator_verdict": "PENDING",
+    "depends_on": [
+      "MT-196"
+    ],
+    "blocks": [
+      "MT-199",
+      "MT-200"
+    ],
+    "claimed_by": "KERNEL_BUILDER-20260523-031814-AGT-X4",
+    "claimed_at_utc": "2026-05-23T03:18:14Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260523-031814",
+    "ready_for_validation_at_utc": "2026-05-23T06:10:00Z",
+    "implementation_record": {
+      "classification": "IMPLEMENTATION_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+      "authoritative_integration_validator_pass": false,
+      "completed_by_session": "KERNEL_BUILDER-20260523-031814-AGT-X4 (parallel subagent; hit Anthropic session rate-limit at ~05:53 before authoring its own implementation_record; parent KERNEL_BUILDER-20260523-031814 verified test green + transitioned lifecycle)",
+      "summary": "FrEventId enum extended in src/backend/handshake_core/src/flight_recorder/fr_event_registry.rs (PATH_SHAPE_DRIFT: contract names src/observability/fr_events.rs but actual extends the existing flight_recorder module). Variants cover the cluster X taxonomy (MailboxBackpressure, MailboxRoutingDenied, MailboxLeaseAcquired/Expired/Takeover, MtCancelRequested/Forced/CleanupFailed, MtStarved, MtExecError, Mt015DistillationCandidate, CheckpointOverflow/ShutdownForced, ReplayStarted/Progress/Completed/Failed, RestartResume{Started,SessionResumed,SessionRecoveryFailed,DbUnavailable,Completed}, SpanStarted/Ended/Failed). FR_EVENT_REGISTRY.json governance manifest landed at .GOV/roles_shared/records/FR_EVENT_REGISTRY.json. as_str/from_str round-trip + Rust-JSON alignment tests prove enum and manifest agree.",
+      "spec_realism_gate_self_check": {
+        "sub_rule_1_no_deferred_live_escape": "PASS — grep across fr_event_registry.rs surfaces no '*Unavailable' code-path escape (FrEventId::RestartResumeDbUnavailable is the named FR event for DB unavailability, a legitimate runtime observation, not a deferred-live escape).",
+        "sub_rule_2_external_resource_touch": "PASS — 10 unit tests exercise the typed enum + JSON manifest alignment + round-trip + unknown-string typed rejection.",
+        "sub_rule_3_implementer_cannot_self_certify": "PASS — sub-agent implementer ≠ validator role."
+      },
+      "files_touched": [
+        "src/backend/handshake_core/src/flight_recorder/fr_event_registry.rs",
+        "src/backend/handshake_core/src/flight_recorder/mod.rs (re-exports; out-of-owned-files; PENDING_OPERATOR_REVIEW)",
+        "src/backend/handshake_core/tests/fr_event_registry_tests.rs",
+        ".GOV/roles_shared/records/FR_EVENT_REGISTRY.json"
+      ],
+      "test_results": {
+        "fr_event_registry_tests": {
+          "command": "cargo test --features test-utils --manifest-path src/backend/handshake_core/Cargo.toml --test fr_event_registry_tests -- --nocapture",
+          "exit_code": 0,
+          "tests_passed": 10,
+          "tests_failed": 0,
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt197mt198-validate-20260523-002.log"
+        }
+      },
+      "red_team_coverage": {
+        "rust_json_alignment_test": "covered — test enumerates Rust FrEventId variants and JSON manifest entries; asserts exact set equality; either drift fails CI.",
+        "json_schema_validation": "covered — JSON manifest has schema:\"handshake.fr_event_registry@1\" string-validated; deeper JSON Schema enforcement deferred to the schema-registry MT (out of MT-198 owned scope).",
+        "adopter_refactor_obligations_noted": "noted — MT-182/186/188/189/191/192/193/195 will adopt FrEventId.as_str() in their own MT lifecycles; MT-198 lands the type only."
+      },
+      "residual_risks": [
+        "PATH_SHAPE_DRIFT: contract names src/observability/ but actual is src/flight_recorder/. Same defect class as MT-197.",
+        "mod.rs out-of-owned-files edit needs operator waiver.",
+        "Adopter MTs (MT-182/186/188/189/191/192/193/195) will accumulate the refactor debt of replacing string literals with FrEventId.as_str() calls; tracked as cross-cutting obligation.",
+        "No Integration Validator has reviewed MT-198."
+      ]
+    },
+    "postgres_test_url_live_evidence_20260525_continuation": {
+      "authoritative_integration_validator_pass": false,
+      "classification": "KERNEL_BUILDER_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+      "not_run_or_not_claimed": [],
+      "artifact_log_root": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs",
+      "implementation_or_hardening_notes": [],
+      "postgres_test_url_redacted": "postgres://postgres:***@127.0.0.1:65432/handshake_test",
+      "proof": [
+        {
+          "log": "postgres-live-observability_span_repo_tests-20260525-resume.log",
+          "scope": "observability_span_repo_tests",
+          "note": [
+            "Span repository live Postgres suite passed.",
+            "Proof"
+          ],
+          "result": "11 passed"
+        }
+      ],
+      "recorded_by": "KERNEL_BUILDER-POSTGRES-TEST-URL-20260525-CONTINUATION",
+      "mt_ids": [
+        "MT-197",
+        "MT-198",
+        "MT-199",
+        "MT-200"
+      ],
+      "summary": "Observability span, FR integration, event ledger, and aggregate query live Postgres checks passed for the continuation slice.",
+      "integration_validator_status": "PENDING",
+      "residual_risks": [
+        "Supporting evidence only; Integration Validator verdict remains PENDING.",
+        "Focused Postgres/live-kernel commands were run, not a full workspace cargo test."
+      ],
+      "recorded_at_utc": "2026-05-25T10:56:03.5601331Z",
+      "cargo_target_dir": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target"
+    },
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "READY_FOR_VALIDATION",
+        "validator_verdict": "PENDING"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-27T19:03:58.446Z"
   },
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260523-031814-AGT-X4",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
     "review_response_receipt_id": null
@@ -62,5 +163,51 @@
       "JSON manifest validated via JSON Schema (added to .GOV/roles_shared/records/ schema dir).",
       "Adopters in MT-182/186/188/189/191/192/193/195 noted as refactor obligations; each MT picks up FrEventId on its own implementation."
     ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_X_GAPS",
+    "reviewed_at_utc": "2026-05-27T18:10:00Z",
+    "aggregator_run_at_utc": "2026-05-27T19:03:58.446Z",
+    "verdict": "PASS_WITH_NOTES",
+    "verdict_reason": "FrEventId enum + .GOV/roles_shared/records/FR_EVENT_REGISTRY.json landed with full cluster X taxonomy (MailboxBackpressure, MailboxRoutingDenied, MailboxLeaseAcquired/Expired/Takeover, MtCancelRequested/Forced/CleanupFailed, MtStarved, MtExecError, Mt015DistillationCandidate, CheckpointOverflow/ShutdownForced, ReplayStarted/Progress/Completed/Failed, RestartResume* family, SpanStarted/Ended/Failed). 10/10 unit tests green. Rust enum + JSON manifest alignment test fails CI if either drifts (red_team #1 satisfied). Two real gaps: (1) JSON Schema validation of the manifest itself is deferred to a separate schema-registry MT; (2) adopter MTs (182/186/188/189/etc.) are still mid-refactor — backpressure emission demonstrably falls back to FlightRecorderEventType::System.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "OK",
+    "runtime_safety_status": "OK",
+    "agent_swarm_safety_status": "OK",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 1,
+      "LOW": 2
+    },
+    "paperwork_notes_count": 2,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-198.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-198.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_X_GAPS",
+    "reviewed_at_utc": "2026-05-27T18:10:00Z",
+    "aggregator_run_at_utc": "2026-05-27T18:50:05.123Z",
+    "verdict": "PASS_WITH_NOTES",
+    "verdict_reason": "FrEventId enum + .GOV/roles_shared/records/FR_EVENT_REGISTRY.json landed with full cluster X taxonomy (MailboxBackpressure, MailboxRoutingDenied, MailboxLeaseAcquired/Expired/Takeover, MtCancelRequested/Forced/CleanupFailed, MtStarved, MtExecError, Mt015DistillationCandidate, CheckpointOverflow/ShutdownForced, ReplayStarted/Progress/Completed/Failed, RestartResume* family, SpanStarted/Ended/Failed). 10/10 unit tests green. Rust enum + JSON manifest alignment test fails CI if either drifts (red_team #1 satisfied). Two real gaps: (1) JSON Schema validation of the manifest itself is deferred to a separate schema-registry MT; (2) adopter MTs (182/186/188/189/etc.) are still mid-refactor — backpressure emission demonstrably falls back to FlightRecorderEventType::System.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "OK",
+    "runtime_safety_status": "OK",
+    "agent_swarm_safety_status": "OK",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 1,
+      "LOW": 2
+    },
+    "paperwork_notes_count": 2,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-198.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-198.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
   }
 }

@@ -7,7 +7,7 @@
   "cluster_subscope": "A.2",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T02:30:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-05-27T19:03:58.446Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -27,7 +27,15 @@
     ".GOV/roles_shared/checks/hbr-visual-smoke.mjs",
     "justfile"
   ],
-  "depends_on_mts": ["MT-021", "MT-022", "MT-023", "MT-024", "MT-025", "MT-026", "MT-015"],
+  "depends_on_mts": [
+    "MT-021",
+    "MT-022",
+    "MT-023",
+    "MT-024",
+    "MT-025",
+    "MT-026",
+    "MT-015"
+  ],
   "unblock_conditions": "All A.2 building blocks merged; MT-015 focus-audit so the smoke test asserts zero handshake-owned foreground transitions during the run.",
   "implementation_notes": "The smoke test is the end-to-end wire test for HBR-VIS-001/002/003/005 as a unit. Flow: (1) Launch Handshake in quiet mode (MT-014); (2) Connect Playwright via CDP (MT-021); (3) Start focus-audit (MT-015) with run_id = <smoke_run_id>; (4) Walk the capture matrix (MT-023) for the three required scenarios (normal viewport, constrained viewport, one edge state); (5) For each capture, pair console-error scan (MT-022) and DOM snapshot (MT-024); (6) On any drift, emit HBR_VIS_REGRESSION (MT-023); on any surface gap, emit HBR_VIS_GAP (MT-026); (7) Stop focus-audit and assert handshake_owned_events is empty (MT-015); (8) Output a smoke report JSONL `{ scenarios_run, drifts_detected, gaps_detected, console_errors_seen, focus_audit_summary, total_duration_ms }`. The Node helper `hbr-visual-smoke.mjs` is the gov-check sub-check; it spawns the Playwright run, captures its output, and exits 0 only when all four conditions hold: zero drifts, zero gaps (or all gaps have open_blockers entries), zero console errors, zero handshake-owned foreground transitions. Justfile: add `hbr-visual-smoke` recipe and wire into gov-check umbrella. Per HBR-VIS-001 evidence_kind=gui_drive_with_screenshot_capture this is THE wire test that demonstrates the whole visual stack works.",
   "proof_commands": [
@@ -37,20 +45,59 @@
   ],
   "risk_if_missed": "Without the smoke, individual A.2 MTs prove pieces but not integration; a regression that breaks the chain ships green.",
   "validator_focus": "Smoke fails loudly on any of the four conditions; focus-audit assertion ties A.2 visual work to A.4 quiet-mode guarantees; the smoke report JSONL is human-readable for forensic review.",
-  "hbr_obligations": ["HBR-VIS-001", "HBR-VIS-002", "HBR-VIS-003", "HBR-VIS-005", "HBR-QUIET-001"],
+  "hbr_obligations": [
+    "HBR-VIS-001",
+    "HBR-VIS-002",
+    "HBR-VIS-003",
+    "HBR-VIS-005",
+    "HBR-QUIET-001"
+  ],
   "spec_anchors": [
     ".GOV/spec/master-spec-v02.186/spec-modules/06-mechanical-integrations.md#6.4"
   ],
-  "acceptance_criteria_refs": ["AC-VISUAL-DEBUGGER-IMPL", "AC-VISUAL-DEBUGGER-IPC", "AC-VISUAL-DEBUGGER-MATRIX"],
+  "acceptance_criteria_refs": [
+    "AC-VISUAL-DEBUGGER-IMPL",
+    "AC-VISUAL-DEBUGGER-IPC",
+    "AC-VISUAL-DEBUGGER-MATRIX"
+  ],
   "lifecycle": {
     "active": false,
-    "status": "PENDING",
-    "validator_verdict": "PENDING",
-    "depends_on": ["MT-021", "MT-022", "MT-023", "MT-024", "MT-025", "MT-026", "MT-015"],
-    "blocks": ["MT-034"]
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "CONCERN",
+    "depends_on": [
+      "MT-021",
+      "MT-022",
+      "MT-023",
+      "MT-024",
+      "MT-025",
+      "MT-026",
+      "MT-015"
+    ],
+    "blocks": [
+      "MT-034"
+    ],
+    "claimed_by": "KERNEL_BUILDER-20260518-073535",
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "COMPLETED",
+        "validator_verdict": "PENDING",
+        "completed_at_utc": "2026-05-18T11:04:33.200Z"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "previous_completed_at_utc_before_ready_for_validation_20260525": "2026-05-18T11:04:33.200Z",
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-27T19:03:58.446Z"
   },
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260518-073535",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
     "review_response_receipt_id": null
@@ -61,5 +108,59 @@
       "Focus-audit assertion at smoke level ties A.2 work to A.4 invariants.",
       "Smoke report JSONL is structured (machine-readable) for post-hoc forensics."
     ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_A4_A2_REDO_WTC",
+    "reviewed_at_utc": "2026-05-27T20:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T19:03:58.446Z",
+    "verdict": "CONCERN",
+    "verdict_reason": "tests/visual/a2_smoke.spec.ts orchestrates capture + console scan (via test fixture) + DOM snapshot + gap emission + smoke-report JSONL row per project, and asserts all four pass conditions (drifts==0, gaps==0, console_errors==0, focus-audit handshake_owned_events==[]); hbr-visual-smoke.mjs aggregates rows and is wired into gov-check. However the focus-audit assertion uses a HARDCODED empty array - the smoke does NOT actually start FocusAuditHandle / MT-015 platform hook during the run, so the tie to A.4 quiet-mode is structural-only.",
+    "spec_compliance_status": "PARTIAL",
+    "code_hygiene_status": "MINOR",
+    "runtime_safety_status": "CONCERN",
+    "agent_swarm_safety_status": "CONCERN",
+    "hbr_unsatisfied": [
+      "HBR-QUIET-001 (not actually exercised - the smoke claims zero foreground events without running the audit)"
+    ],
+    "test_coverage_status": "THIN",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 1,
+      "MEDIUM": 1,
+      "LOW": 0
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-027.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-027.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_A4_A2",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T18:50:05.123Z",
+    "verdict": "FAIL",
+    "verdict_reason": "End-to-end A.2 smoke test does not exist and could not run anyway because every dependency MT (021/022/023/024/025/026 + 015) is also unimplemented; the chain has no green segment.",
+    "spec_compliance_status": "FAILS",
+    "code_hygiene_status": "MAJOR",
+    "runtime_safety_status": "UNSAFE",
+    "agent_swarm_safety_status": "UNSAFE",
+    "hbr_unsatisfied": [
+      "HBR-VIS-001",
+      "HBR-VIS-002",
+      "HBR-VIS-003",
+      "HBR-VIS-005",
+      "HBR-QUIET-001"
+    ],
+    "test_coverage_status": "MISSING",
+    "findings_count_by_severity": {
+      "CRITICAL": 1,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 0
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-027.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-027.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
   }
 }

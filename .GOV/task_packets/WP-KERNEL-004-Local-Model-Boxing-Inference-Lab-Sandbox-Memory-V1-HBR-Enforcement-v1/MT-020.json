@@ -7,7 +7,7 @@
   "cluster_subscope": "A.4",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T02:30:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-05-27T19:03:58.446Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -26,7 +26,14 @@
     "src/backend/handshake_core/tests/automation_first_audit_tests.rs",
     ".GOV/roles_shared/scripts/automation-first-audit.mjs"
   ],
-  "depends_on_mts": ["MT-014", "MT-015", "MT-016", "MT-017", "MT-018", "MT-019"],
+  "depends_on_mts": [
+    "MT-014",
+    "MT-015",
+    "MT-016",
+    "MT-017",
+    "MT-018",
+    "MT-019"
+  ],
   "unblock_conditions": "All A.4 foundation MTs merged so the audit has the full quiet-mode + focus-audit + injection-test + lint + foreground-exception stack to assert against.",
   "implementation_notes": "Per spec §6.6 + HBR-QUIET-002 evidence_kind=automation_path_audit. The audit walks the Tauri command inventory (extracted via a build-time scanner that greps for `#[tauri::command]`) and for each command runs: (1) call via IPC mock — must succeed without any OS-level input; (2) call via IPC while focus-audit (MT-015) is active — assert zero handshake-owned foreground transitions; (3) call via raw OS keyboard injection (MT-016) — assert zero invocation count. Commands that legitimately require foreground are exempted only if they appear in a `foreground_exempt_commands` allowlist documented inline (currently empty; if a future command needs exemption it must declare via MT-019 ForegroundException). The Node helper script `automation-first-audit.mjs` produces a markdown summary report (on-demand only per CX-908) for operator review. Per HBR-QUIET-002 evidence_kind = automation_path_audit this MT is THE wire test that produces the audit evidence. Tests: assert all current KERNEL-004 Tauri commands (from MT-013, MT-018, MT-027, MT-030, MT-036) pass the audit; assert that a synthetic violation (a test command that calls SetForegroundWindow) fails the audit loudly.",
   "proof_commands": [
@@ -35,20 +42,58 @@
   ],
   "risk_if_missed": "Without the audit, HBR-QUIET-002 has no end-to-end evidence; individual MTs prove pieces but not the whole-app guarantee.",
   "validator_focus": "Audit walks the WHOLE Tauri command inventory (not a hand-picked subset); synthetic violation fixture proves the audit can catch a regression.",
-  "hbr_obligations": ["HBR-QUIET-001", "HBR-QUIET-002", "HBR-QUIET-003"],
+  "hbr_obligations": [
+    "HBR-QUIET-001",
+    "HBR-QUIET-002",
+    "HBR-QUIET-003"
+  ],
   "spec_anchors": [
     ".GOV/spec/master-spec-v02.186/spec-modules/06-mechanical-integrations.md#6.6"
   ],
-  "acceptance_criteria_refs": ["AC-QUIET-WINDOW-CONFIG", "AC-QUIET-FOCUS-AUDIT", "AC-QUIET-INJECT-NEG-TEST", "AC-QUIET-API-LINT", "AC-QUIET-FOREGROUND-EXCEPTION"],
+  "acceptance_criteria_refs": [
+    "AC-QUIET-WINDOW-CONFIG",
+    "AC-QUIET-FOCUS-AUDIT",
+    "AC-QUIET-INJECT-NEG-TEST",
+    "AC-QUIET-API-LINT",
+    "AC-QUIET-FOREGROUND-EXCEPTION"
+  ],
   "lifecycle": {
     "active": false,
-    "status": "PENDING",
-    "validator_verdict": "PENDING",
-    "depends_on": ["MT-014", "MT-015", "MT-016", "MT-017", "MT-018", "MT-019"],
-    "blocks": ["MT-034"]
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "CONCERN",
+    "depends_on": [
+      "MT-014",
+      "MT-015",
+      "MT-016",
+      "MT-017",
+      "MT-018",
+      "MT-019"
+    ],
+    "blocks": [
+      "MT-034"
+    ],
+    "claimed_by": "KERNEL_BUILDER-20260518-073535",
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "COMPLETED",
+        "validator_verdict": "PENDING",
+        "completed_at_utc": "2026-05-18T08:55:59.054Z"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "previous_completed_at_utc_before_ready_for_validation_20260525": "2026-05-18T08:55:59.054Z",
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-27T19:03:58.446Z"
   },
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260518-073535",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
     "review_response_receipt_id": null
@@ -59,5 +104,57 @@
       "Synthetic-violation fixture confirms the audit can catch regressions.",
       "foreground_exempt_commands allowlist is documented and initially empty."
     ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_A4_A2_REDO_WTC",
+    "reviewed_at_utc": "2026-05-27T20:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T19:03:58.446Z",
+    "verdict": "CONCERN",
+    "verdict_reason": "automation-first-audit.mjs walks the full Tauri command inventory (regex over #[tauri::command] in app/src-tauri/src) and detects forbidden OS-foreground/input APIs (SetForegroundWindow, AllowSetForegroundWindow, LockSetForegroundWindow, SendInput, .set_focus, .unminimize, WebviewWindowBuilder::new); on synthetic fixture it correctly emits FORBIDDEN_OS_FOREGROUND_API violations. However the audit is STATIC SOURCE ANALYSIS only - it never actually calls each Tauri command via IPC nor pairs the call with a live focus-audit/keyboard-injection probe as the MT-020 contract demands.",
+    "spec_compliance_status": "PARTIAL",
+    "code_hygiene_status": "MINOR",
+    "runtime_safety_status": "CONCERN",
+    "agent_swarm_safety_status": "CONCERN",
+    "hbr_unsatisfied": [
+      "HBR-QUIET-003 (process-lifecycle wiring is in MT-015, but MT-020 does not exercise it during the audit run)"
+    ],
+    "test_coverage_status": "THIN",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 1,
+      "MEDIUM": 0,
+      "LOW": 0
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-020.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-020.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_A4_A2",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T18:50:05.123Z",
+    "verdict": "FAIL",
+    "verdict_reason": "Automation-first design audit does not exist; the whole-app HBR-QUIET-002 wire test is absent and could not function anyway because every dependency MT (014..019) is also unimplemented.",
+    "spec_compliance_status": "FAILS",
+    "code_hygiene_status": "MAJOR",
+    "runtime_safety_status": "UNSAFE",
+    "agent_swarm_safety_status": "UNSAFE",
+    "hbr_unsatisfied": [
+      "HBR-QUIET-001",
+      "HBR-QUIET-002",
+      "HBR-QUIET-003"
+    ],
+    "test_coverage_status": "MISSING",
+    "findings_count_by_severity": {
+      "CRITICAL": 1,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 0
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-020.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-020.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
   }
 }

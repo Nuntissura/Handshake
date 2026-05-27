@@ -7,7 +7,7 @@
   "cluster_subscope": "C.5",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:00:00Z",
-  "updated_at_utc": "2026-05-22T20:50:00Z",
+  "updated_at_utc": "2026-05-27T19:03:58.446Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -28,7 +28,11 @@
     "app/src-tauri/src/main.rs",
     "src/backend/handshake_core/tests/kv_cache_technique_tests.rs"
   ],
-  "depends_on_mts": ["MT-063", "MT-075", "MT-090"],
+  "depends_on_mts": [
+    "MT-063",
+    "MT-075",
+    "MT-090"
+  ],
   "unblock_conditions": "MT-075 LlamaCpp KV cache impl merged; Candle transformer KV cache lands implicitly via candle internals.",
   "implementation_notes": "Per AC-INFER-LAB-8-TECHNIQUES.b + refinement INF-2: KV caching PRODUCTION. Work Profile knob: settings.exec_policy.kv_cache: `{ quantization: KvQuantSupport, prefix_cache_ttl_seconds: u64, max_bytes: Option<u64> }` applied at session start. Tauri commands: kernel_model_runtime_kv_set_quantization, kernel_model_runtime_kv_prefix_commit, kernel_model_runtime_kv_prefix_restore, kernel_model_runtime_kv_evict_all, kernel_model_runtime_kv_occupancy. FR events: FR-EVT-LLM-INFER-KV-QUANT-CHANGE { model_id, prev, next }, FR-EVT-LLM-INFER-KV-PREFIX-COMMIT { model_id, handle_id, token_count }, FR-EVT-LLM-INFER-KV-PREFIX-RESTORE { model_id, handle_id, hit: bool }, FR-EVT-LLM-INFER-KV-EVICT { model_id, evicted_entries, reason }. Conservative defaults: quantization=q8 (lower memory; production sane); prefix_cache_ttl=300s; max_bytes=None (operator-driven). Capability gate: technique surface returns CapabilityNotSupported when supports_kv_quantization=None (e.g., SSM models) — UI hides the knob per MT-068 IPC. Replay-resistance: prefix_restore validates the handle's content_hash against the cached state's hash (already enforced in MT-063/MT-075). Tests: technique surface dispatches to LlamaCpp KvCacheOps correctly; quant change emits FR event; restore hit/miss counter increments.",
   "proof_commands": [
@@ -36,23 +40,52 @@
   ],
   "risk_if_missed": "INF-2 PRODUCTION partial (per-adapter only); UI knob has no backend.",
   "validator_focus": "Capability gate hides knob for SSMs; FR event field shape stable; conservative defaults documented.",
-  "hbr_obligations": ["HBR-INT-002", "HBR-INT-008"],
+  "hbr_obligations": [
+    "HBR-INT-002",
+    "HBR-INT-008"
+  ],
   "spec_anchors": [
     ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.7.1",
     ".GOV/spec/master-spec-v02.186/spec-modules/10-product-surfaces.md#10.14"
   ],
-  "acceptance_criteria_refs": ["AC-INFER-LAB-8-TECHNIQUES", "AC-INFER-LAB-UI-TOGGLES"],
+  "acceptance_criteria_refs": [
+    "AC-INFER-LAB-8-TECHNIQUES",
+    "AC-INFER-LAB-UI-TOGGLES"
+  ],
   "lifecycle": {
     "active": false,
     "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "validator_verdict": "PASS",
     "integration_validator_verdict": "PENDING",
-    "depends_on": ["MT-063", "MT-075", "MT-090"],
-    "blocks": ["MT-094", "MT-095"],
+    "depends_on": [
+      "MT-063",
+      "MT-075",
+      "MT-090"
+    ],
+    "blocks": [
+      "MT-094",
+      "MT-095"
+    ],
     "claimed_by": "KERNEL_BUILDER-20260522-171100",
     "claimed_at_utc": "2026-05-22T20:50:00Z",
     "ready_for_validation_by": "KERNEL_BUILDER-20260522-171100",
-    "ready_for_validation_at_utc": "2026-05-22T21:35:00Z"
+    "ready_for_validation_at_utc": "2026-05-22T21:35:00Z",
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "READY_FOR_VALIDATION",
+        "validator_verdict": "PENDING"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-27T19:03:58.446Z"
   },
   "handoff": {
     "coder_session": "KERNEL_BUILDER-20260522-171100",
@@ -161,5 +194,51 @@
       "risk_reduced": "Prevents per-adapter downcast logic in the technique surface, keeps the existing UnsupportedKvCacheOps default safe for cloud adapters that don't own a real KV cache (they fail closed automatically), and gives the FR registry full coverage of the four KV technique events so observability tooling can subscribe without ad-hoc strings.",
       "waiver_status": "OPERATOR_WAIVER_REQUIRED_FOR_THIS_MT_OUT_OF_SCOPE_FILES"
     }
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C4_C7",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T19:03:58.446Z",
+    "verdict": "PASS",
+    "verdict_reason": "KV cache technique surface cleanly lifts KvCacheOps to public set_quantization/prefix_commit/prefix_restore/evict_all/occupancy with capability-cascade gating (quantization vs prefix_cache vs telemetry), Work Profile knob bridge with effective_quantization precedence, and FR-EVT-LLM-INFER-KV-* stamping.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "CONCERN",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 1,
+      "LOW": 0
+    },
+    "paperwork_notes_count": 1,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-093.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-093.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C4_C7",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T18:50:05.123Z",
+    "verdict": "PASS",
+    "verdict_reason": "KV cache technique surface cleanly lifts KvCacheOps to public set_quantization/prefix_commit/prefix_restore/evict_all/occupancy with capability-cascade gating (quantization vs prefix_cache vs telemetry), Work Profile knob bridge with effective_quantization precedence, and FR-EVT-LLM-INFER-KV-* stamping.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "CONCERN",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 1,
+      "LOW": 0
+    },
+    "paperwork_notes_count": 1,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-093.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-093.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
   }
 }

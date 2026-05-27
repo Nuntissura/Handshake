@@ -1,0 +1,3812 @@
+{
+  "schema_id": "hsk.wp_hardening_report@1",
+  "schema_version": "wp_hardening_report_v1",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "generated_at_utc": "2026-05-27T19:03:58.446Z",
+  "generated_by": "INTEGRATION_VALIDATOR (Opus 4.7) per operator goal 2026-05-27",
+  "classification": "INTEGRATION_VALIDATOR_PHASE1_PRE_REMEDIATION_HARDENING_REPORT",
+  "operator_stance": {
+    "kernel_reset_builds": true,
+    "do_not_fail_on_governance_paperwork": true,
+    "paperwork_will_be_patched_separately": true,
+    "product_quality_focus": true,
+    "phase_2_followup_after_remediation": "Whole product-code vs Master Spec pass for intent + correctness (separate session)."
+  },
+  "scope": {
+    "mt_range": [
+      "MT-001..040 (cluster A)",
+      "MT-041..058 (cluster B)",
+      "MT-061..130 (cluster C)",
+      "MT-141..170 (cluster D)",
+      "MT-176..200 (cluster X)"
+    ],
+    "mt_count_expected": 183,
+    "mt_count_reviewed": 183,
+    "sub_reviewers_used": [
+      "INTEGRATION_VALIDATOR_SUB_REVIEWER_A1_A2",
+      "INTEGRATION_VALIDATOR_SUB_REVIEWER_A1tail_A6",
+      "INTEGRATION_VALIDATOR_SUB_REVIEWER_A4_A2_REDO_WTC",
+      "INTEGRATION_VALIDATOR_SUB_REVIEWER_A3_A5_A7",
+      "INTEGRATION_VALIDATOR_SUB_REVIEWER_B1_B2",
+      "INTEGRATION_VALIDATOR_SUB_REVIEWER_B_GAPS_REDO_WTC",
+      "INTEGRATION_VALIDATOR_SUB_REVIEWER_C1_FRESH",
+      "INTEGRATION_VALIDATOR_SUB_REVIEWER_C2_FRESH",
+      "INTEGRATION_VALIDATOR_SUB_REVIEWER_C3_FRESH",
+      "INTEGRATION_VALIDATOR_SUB_REVIEWER_C4_C7",
+      "INTEGRATION_VALIDATOR_SUB_REVIEWER_C6_C7",
+      "INTEGRATION_VALIDATOR_SUB_REVIEWER_C8_C10",
+      "INTEGRATION_VALIDATOR_SUB_REVIEWER_C11_FRESH",
+      "INTEGRATION_VALIDATOR_SUB_REVIEWER_C12_C13_FRESH",
+      "INTEGRATION_VALIDATOR_SUB_REVIEWER_D1_D2",
+      "INTEGRATION_VALIDATOR_SUB_REVIEWER_D_GAPS",
+      "INTEGRATION_VALIDATOR_SUB_REVIEWER_D3_D4",
+      "INTEGRATION_VALIDATOR_SUB_REVIEWER_X1_X2",
+      "INTEGRATION_VALIDATOR_SUB_REVIEWER_X_GAPS",
+      "INTEGRATION_VALIDATOR_SUB_REVIEWER_X3_X4"
+    ]
+  },
+  "totals": {
+    "mts_reviewed": 183,
+    "by_verdict": {
+      "PASS": 79,
+      "CONCERN": 52,
+      "FAIL": 19,
+      "PENDING": 0
+    },
+    "findings_by_severity": {
+      "CRITICAL": 4,
+      "HIGH": 64,
+      "MEDIUM": 114,
+      "LOW": 181
+    },
+    "by_runtime_safety": {
+      "ROBUST": 109,
+      "CONCERN": 20,
+      "UNSAFE": 5,
+      "UNKNOWN": 0,
+      "N/A": 1,
+      "DEGRADED": 1,
+      "PASS": 7,
+      "OK": 34,
+      "AT_RISK": 4,
+      "BAD": 1,
+      "GAP": 1
+    },
+    "by_agent_swarm_safety": {
+      "SAFE": 97,
+      "CONCERN": 25,
+      "UNSAFE": 5,
+      "UNKNOWN": 0,
+      "OK": 37,
+      "N/A": 1,
+      "DEGRADED": 1,
+      "PASS": 7,
+      "AT_RISK": 7,
+      "WEAK": 1,
+      "BAD": 2
+    },
+    "by_spec_compliance": {
+      "MEETS": 113,
+      "PARTIAL": 45,
+      "FAILS": 10,
+      "UNVERIFIABLE": 0,
+      "UNKNOWN": 0,
+      "FULL": 5,
+      "NONE": 1,
+      "PASS": 4,
+      "PASSES": 5
+    },
+    "by_test_coverage": {
+      "ADEQUATE": 121,
+      "THIN": 15,
+      "MISSING": 0,
+      "UNKNOWN": 0,
+      "ROBUST": 3,
+      "NONE": 1,
+      "PARTIAL": 13,
+      "PASS": 4,
+      "OK": 8,
+      "STRONG": 18
+    }
+  },
+  "by_cluster": {
+    "A": {
+      "count": 40,
+      "by_verdict": {
+        "PASS": 21,
+        "CONCERN": 17,
+        "FAIL": 2,
+        "PENDING": 0
+      },
+      "findings_by_severity": {
+        "CRITICAL": 2,
+        "HIGH": 17,
+        "MEDIUM": 23,
+        "LOW": 41
+      },
+      "mts": [
+        {
+          "mt_id": "MT-001",
+          "verdict": "CONCERN",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 1,
+            "MEDIUM": 1,
+            "LOW": 1
+          }
+        },
+        {
+          "mt_id": "MT-002",
+          "verdict": "CONCERN",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 1,
+            "MEDIUM": 1,
+            "LOW": 1
+          }
+        },
+        {
+          "mt_id": "MT-003",
+          "verdict": "PASS",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 0,
+            "LOW": 2
+          }
+        },
+        {
+          "mt_id": "MT-004",
+          "verdict": "CONCERN",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 1,
+            "MEDIUM": 1,
+            "LOW": 1
+          }
+        },
+        {
+          "mt_id": "MT-005",
+          "verdict": "PASS",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 1,
+            "LOW": 1
+          }
+        },
+        {
+          "mt_id": "MT-006",
+          "verdict": "PASS",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 0,
+            "LOW": 2
+          }
+        },
+        {
+          "mt_id": "MT-007",
+          "verdict": "CONCERN",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 1,
+            "MEDIUM": 1,
+            "LOW": 2
+          }
+        },
+        {
+          "mt_id": "MT-008",
+          "verdict": "CONCERN",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 1,
+            "MEDIUM": 1,
+            "LOW": 1
+          }
+        },
+        {
+          "mt_id": "MT-009",
+          "verdict": "CONCERN",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 1,
+            "MEDIUM": 1,
+            "LOW": 1
+          }
+        },
+        {
+          "mt_id": "MT-010",
+          "verdict": "CONCERN",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 1,
+            "MEDIUM": 1,
+            "LOW": 1
+          }
+        },
+        {
+          "mt_id": "MT-011",
+          "verdict": "CONCERN",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 1,
+            "MEDIUM": 1,
+            "LOW": 1
+          }
+        },
+        {
+          "mt_id": "MT-012",
+          "verdict": "FAIL",
+          "sev_counts": {
+            "CRITICAL": 1,
+            "HIGH": 1,
+            "MEDIUM": 1,
+            "LOW": 1
+          }
+        },
+        {
+          "mt_id": "MT-013",
+          "verdict": "CONCERN",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 1,
+            "MEDIUM": 2,
+            "LOW": 2
+          }
+        },
+        {
+          "mt_id": "MT-014",
+          "verdict": "PASS",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 0,
+            "LOW": 1
+          }
+        },
+        {
+          "mt_id": "MT-015",
+          "verdict": "PASS",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 0,
+            "LOW": 0
+          }
+        },
+        {
+          "mt_id": "MT-016",
+          "verdict": "PASS",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 0,
+            "LOW": 1
+          }
+        },
+        {
+          "mt_id": "MT-017",
+          "verdict": "CONCERN",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 1,
+            "LOW": 1
+          }
+        },
+        {
+          "mt_id": "MT-018",
+          "verdict": "PASS",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 1,
+            "LOW": 0
+          }
+        },
+        {
+          "mt_id": "MT-019",
+          "verdict": "CONCERN",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 1,
+            "MEDIUM": 1,
+            "LOW": 0
+          }
+        },
+        {
+          "mt_id": "MT-020",
+          "verdict": "CONCERN",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 1,
+            "MEDIUM": 0,
+            "LOW": 0
+          }
+        },
+        {
+          "mt_id": "MT-021",
+          "verdict": "PASS",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 0,
+            "LOW": 1
+          }
+        },
+        {
+          "mt_id": "MT-022",
+          "verdict": "PASS",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 0,
+            "LOW": 1
+          }
+        },
+        {
+          "mt_id": "MT-023",
+          "verdict": "PASS",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 0,
+            "LOW": 1
+          }
+        },
+        {
+          "mt_id": "MT-024",
+          "verdict": "PASS",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 0,
+            "LOW": 0
+          }
+        },
+        {
+          "mt_id": "MT-025",
+          "verdict": "PASS",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 0,
+            "LOW": 1
+          }
+        },
+        {
+          "mt_id": "MT-026",
+          "verdict": "PASS",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 0,
+            "LOW": 1
+          }
+        },
+        {
+          "mt_id": "MT-027",
+          "verdict": "CONCERN",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 1,
+            "MEDIUM": 1,
+            "LOW": 0
+          }
+        },
+        {
+          "mt_id": "MT-028",
+          "verdict": "PASS",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 0,
+            "LOW": 1
+          }
+        },
+        {
+          "mt_id": "MT-029",
+          "verdict": "CONCERN",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 1,
+            "MEDIUM": 2,
+            "LOW": 2
+          }
+        },
+        {
+          "mt_id": "MT-030",
+          "verdict": "FAIL",
+          "sev_counts": {
+            "CRITICAL": 1,
+            "HIGH": 1,
+            "MEDIUM": 2,
+            "LOW": 0
+          }
+        },
+        {
+          "mt_id": "MT-031",
+          "verdict": "PASS",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 0,
+            "LOW": 2
+          }
+        },
+        {
+          "mt_id": "MT-032",
+          "verdict": "CONCERN",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 1,
+            "LOW": 1
+          }
+        },
+        {
+          "mt_id": "MT-033",
+          "verdict": "PASS",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 0,
+            "LOW": 2
+          }
+        },
+        {
+          "mt_id": "MT-034",
+          "verdict": "PASS",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 0,
+            "LOW": 2
+          }
+        },
+        {
+          "mt_id": "MT-035",
+          "verdict": "CONCERN",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 1,
+            "MEDIUM": 1,
+            "LOW": 0
+          }
+        },
+        {
+          "mt_id": "MT-036",
+          "verdict": "PASS",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 0,
+            "LOW": 2
+          }
+        },
+        {
+          "mt_id": "MT-037",
+          "verdict": "CONCERN",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 1,
+            "MEDIUM": 1,
+            "LOW": 1
+          }
+        },
+        {
+          "mt_id": "MT-038",
+          "verdict": "PASS",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 0,
+            "LOW": 1
+          }
+        },
+        {
+          "mt_id": "MT-039",
+          "verdict": "PASS",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 0,
+            "LOW": 1
+          }
+        },
+        {
+          "mt_id": "MT-040",
+          "verdict": "PASS",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 0,
+            "LOW": 1
+          }
+        }
+      ]
+    },
+    "B": {
+      "count": 18,
+      "by_verdict": {
+        "PASS": 7,
+        "CONCERN": 11,
+        "FAIL": 0,
+        "PENDING": 0
+      },
+      "findings_by_severity": {
+        "CRITICAL": 0,
+        "HIGH": 11,
+        "MEDIUM": 13,
+        "LOW": 17
+      },
+      "mts": [
+        {
+          "mt_id": "MT-041",
+          "verdict": "CONCERN",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 1,
+            "LOW": 2
+          }
+        },
+        {
+          "mt_id": "MT-042",
+          "verdict": "PASS",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 0,
+            "LOW": 2
+          }
+        },
+        {
+          "mt_id": "MT-043",
+          "verdict": "PASS",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 0,
+            "LOW": 2
+          }
+        },
+        {
+          "mt_id": "MT-044",
+          "verdict": "CONCERN",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 1,
+            "MEDIUM": 2,
+            "LOW": 1
+          }
+        },
+        {
+          "mt_id": "MT-045",
+          "verdict": "PASS",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 0,
+            "LOW": 2
+          }
+        },
+        {
+          "mt_id": "MT-046",
+          "verdict": "CONCERN",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 1,
+            "MEDIUM": 2,
+            "LOW": 2
+          }
+        },
+        {
+          "mt_id": "MT-047",
+          "verdict": "CONCERN",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 2,
+            "MEDIUM": 2,
+            "LOW": 1
+          }
+        },
+        {
+          "mt_id": "MT-048",
+          "verdict": "CONCERN",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 1,
+            "LOW": 1
+          }
+        },
+        {
+          "mt_id": "MT-049",
+          "verdict": "PASS",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 0,
+            "LOW": 1
+          }
+        },
+        {
+          "mt_id": "MT-050",
+          "verdict": "CONCERN",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 1,
+            "MEDIUM": 1,
+            "LOW": 0
+          }
+        },
+        {
+          "mt_id": "MT-051",
+          "verdict": "PASS",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 0,
+            "LOW": 1
+          }
+        },
+        {
+          "mt_id": "MT-052",
+          "verdict": "CONCERN",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 1,
+            "MEDIUM": 1,
+            "LOW": 0
+          }
+        },
+        {
+          "mt_id": "MT-053",
+          "verdict": "PASS",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 1,
+            "LOW": 1
+          }
+        },
+        {
+          "mt_id": "MT-054",
+          "verdict": "CONCERN",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 1,
+            "MEDIUM": 0,
+            "LOW": 0
+          }
+        },
+        {
+          "mt_id": "MT-055",
+          "verdict": "CONCERN",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 1,
+            "LOW": 0
+          }
+        },
+        {
+          "mt_id": "MT-056",
+          "verdict": "PASS",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 0,
+            "LOW": 1
+          }
+        },
+        {
+          "mt_id": "MT-057",
+          "verdict": "CONCERN",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 2,
+            "MEDIUM": 0,
+            "LOW": 0
+          }
+        },
+        {
+          "mt_id": "MT-058",
+          "verdict": "CONCERN",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 2,
+            "MEDIUM": 1,
+            "LOW": 0
+          }
+        }
+      ]
+    },
+    "C": {
+      "count": 70,
+      "by_verdict": {
+        "PASS": 29,
+        "CONCERN": 18,
+        "FAIL": 15,
+        "PENDING": 0
+      },
+      "findings_by_severity": {
+        "CRITICAL": 2,
+        "HIGH": 27,
+        "MEDIUM": 51,
+        "LOW": 55
+      },
+      "mts": [
+        {
+          "mt_id": "MT-061",
+          "verdict": "PASS",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 0,
+            "LOW": 0
+          }
+        },
+        {
+          "mt_id": "MT-062",
+          "verdict": "CONCERN",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 1,
+            "LOW": 0
+          }
+        },
+        {
+          "mt_id": "MT-063",
+          "verdict": "PASS",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 0,
+            "LOW": 0
+          }
+        },
+        {
+          "mt_id": "MT-064",
+          "verdict": "PASS",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 0,
+            "LOW": 1
+          }
+        },
+        {
+          "mt_id": "MT-065",
+          "verdict": "PASS",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 0,
+            "LOW": 0
+          }
+        },
+        {
+          "mt_id": "MT-066",
+          "verdict": "PASS",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 0,
+            "LOW": 1
+          }
+        },
+        {
+          "mt_id": "MT-067",
+          "verdict": "PASS",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 1,
+            "LOW": 0
+          }
+        },
+        {
+          "mt_id": "MT-068",
+          "verdict": "PASS",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 0,
+            "LOW": 0
+          }
+        },
+        {
+          "mt_id": "MT-069",
+          "verdict": "PASS",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 0,
+            "LOW": 1
+          }
+        },
+        {
+          "mt_id": "MT-070",
+          "verdict": "PASS",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 0,
+            "LOW": 1
+          }
+        },
+        {
+          "mt_id": "MT-071",
+          "verdict": "PASS",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 0,
+            "LOW": 1
+          }
+        },
+        {
+          "mt_id": "MT-072",
+          "verdict": "PASS",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 0,
+            "LOW": 1
+          }
+        },
+        {
+          "mt_id": "MT-073",
+          "verdict": "PASS",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 0,
+            "LOW": 1
+          }
+        },
+        {
+          "mt_id": "MT-074",
+          "verdict": "PASS",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 0,
+            "LOW": 1
+          }
+        },
+        {
+          "mt_id": "MT-075",
+          "verdict": "CONCERN",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 1,
+            "LOW": 0
+          }
+        },
+        {
+          "mt_id": "MT-076",
+          "verdict": "CONCERN",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 2,
+            "LOW": 1
+          }
+        },
+        {
+          "mt_id": "MT-077",
+          "verdict": "PASS",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 0,
+            "LOW": 2
+          }
+        },
+        {
+          "mt_id": "MT-078",
+          "verdict": "PASS",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 1,
+            "LOW": 1
+          }
+        },
+        {
+          "mt_id": "MT-079",
+          "verdict": "PASS",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 1,
+            "LOW": 1
+          }
+        },
+        {
+          "mt_id": "MT-080",
+          "verdict": "PASS",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 0,
+            "LOW": 2
+          }
+        },
+        {
+          "mt_id": "MT-081",
+          "verdict": "CONCERN",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 3,
+            "LOW": 0
+          }
+        },
+        {
+          "mt_id": "MT-082",
+          "verdict": "CONCERN",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 1,
+            "MEDIUM": 1,
+            "LOW": 0
+          }
+        },
+        {
+          "mt_id": "MT-083",
+          "verdict": "PASS",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 1,
+            "LOW": 2
+          }
+        },
+        {
+          "mt_id": "MT-084",
+          "verdict": "PASS",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 1,
+            "LOW": 2
+          }
+        },
+        {
+          "mt_id": "MT-085",
+          "verdict": "PASS",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 0,
+            "LOW": 2
+          }
+        },
+        {
+          "mt_id": "MT-086",
+          "verdict": "CONCERN",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 1,
+            "LOW": 2
+          }
+        },
+        {
+          "mt_id": "MT-087",
+          "verdict": "PASS",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 0,
+            "LOW": 1
+          }
+        },
+        {
+          "mt_id": "MT-088",
+          "verdict": "FAIL",
+          "sev_counts": {
+            "CRITICAL": 1,
+            "HIGH": 1,
+            "MEDIUM": 1,
+            "LOW": 0
+          }
+        },
+        {
+          "mt_id": "MT-089",
+          "verdict": "CONCERN",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 1,
+            "MEDIUM": 1,
+            "LOW": 1
+          }
+        },
+        {
+          "mt_id": "MT-090",
+          "verdict": "PASS",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 0,
+            "LOW": 1
+          }
+        },
+        {
+          "mt_id": "MT-091",
+          "verdict": "CONCERN",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 1,
+            "LOW": 1
+          }
+        },
+        {
+          "mt_id": "MT-092",
+          "verdict": "CONCERN",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 1,
+            "LOW": 0
+          }
+        },
+        {
+          "mt_id": "MT-093",
+          "verdict": "PASS",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 1,
+            "LOW": 0
+          }
+        },
+        {
+          "mt_id": "MT-094",
+          "verdict": "CONCERN",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 1,
+            "LOW": 1
+          }
+        },
+        {
+          "mt_id": "MT-095",
+          "verdict": "FAIL",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 1,
+            "MEDIUM": 1,
+            "LOW": 0
+          }
+        },
+        {
+          "mt_id": "MT-096",
+          "verdict": "CONCERN",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 1,
+            "MEDIUM": 2,
+            "LOW": 0
+          }
+        },
+        {
+          "mt_id": "MT-097",
+          "verdict": "CONCERN",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 1,
+            "MEDIUM": 1,
+            "LOW": 1
+          }
+        },
+        {
+          "mt_id": "MT-098",
+          "verdict": "CONCERN",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 1,
+            "MEDIUM": 1,
+            "LOW": 0
+          }
+        },
+        {
+          "mt_id": "MT-099",
+          "verdict": "CONCERN",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 2,
+            "LOW": 0
+          }
+        },
+        {
+          "mt_id": "MT-100",
+          "verdict": "FAIL",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 3,
+            "MEDIUM": 1,
+            "LOW": 0
+          }
+        },
+        {
+          "mt_id": "MT-101",
+          "verdict": "CONCERN",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 1,
+            "MEDIUM": 2,
+            "LOW": 0
+          }
+        },
+        {
+          "mt_id": "MT-102",
+          "verdict": "CONCERN",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 2,
+            "MEDIUM": 1,
+            "LOW": 0
+          }
+        },
+        {
+          "mt_id": "MT-103",
+          "verdict": "PASS",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 0,
+            "LOW": 1
+          }
+        },
+        {
+          "mt_id": "MT-104",
+          "verdict": "PASS",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 0,
+            "LOW": 1
+          }
+        },
+        {
+          "mt_id": "MT-105",
+          "verdict": "PASS",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 0,
+            "LOW": 2
+          }
+        },
+        {
+          "mt_id": "MT-106",
+          "verdict": "PASS",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 0,
+            "LOW": 2
+          }
+        },
+        {
+          "mt_id": "MT-107",
+          "verdict": "FAIL",
+          "sev_counts": {
+            "CRITICAL": 1,
+            "HIGH": 0,
+            "MEDIUM": 1,
+            "LOW": 0
+          }
+        },
+        {
+          "mt_id": "MT-108",
+          "verdict": "FAIL",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 1,
+            "MEDIUM": 2,
+            "LOW": 0
+          }
+        },
+        {
+          "mt_id": "MT-109",
+          "verdict": "PASS",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 0,
+            "LOW": 1
+          }
+        },
+        {
+          "mt_id": "MT-110",
+          "verdict": "CONCERN",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 2,
+            "LOW": 2
+          }
+        },
+        {
+          "mt_id": "MT-111",
+          "verdict": "CONCERN",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 1,
+            "LOW": 1
+          }
+        },
+        {
+          "mt_id": "MT-112",
+          "verdict": "PASS_WITH_CONCERNS",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 0,
+            "LOW": 1
+          }
+        },
+        {
+          "mt_id": "MT-113",
+          "verdict": "PASS_WITH_CONCERNS",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 0,
+            "LOW": 3
+          }
+        },
+        {
+          "mt_id": "MT-114",
+          "verdict": "PASS_WITH_CONCERNS",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 1,
+            "LOW": 1
+          }
+        },
+        {
+          "mt_id": "MT-115",
+          "verdict": "FAIL",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 1,
+            "MEDIUM": 1,
+            "LOW": 0
+          }
+        },
+        {
+          "mt_id": "MT-116",
+          "verdict": "FAIL",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 1,
+            "MEDIUM": 1,
+            "LOW": 1
+          }
+        },
+        {
+          "mt_id": "MT-117",
+          "verdict": "PASS",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 0,
+            "LOW": 2
+          }
+        },
+        {
+          "mt_id": "MT-118",
+          "verdict": "FAIL",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 1,
+            "MEDIUM": 1,
+            "LOW": 1
+          }
+        },
+        {
+          "mt_id": "MT-119",
+          "verdict": "PASS_WITH_NOTES",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 1,
+            "LOW": 0
+          }
+        },
+        {
+          "mt_id": "MT-120",
+          "verdict": "PASS_WITH_NOTES",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 0,
+            "LOW": 2
+          }
+        },
+        {
+          "mt_id": "MT-121",
+          "verdict": "PASS_WITH_NOTES",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 1,
+            "LOW": 0
+          }
+        },
+        {
+          "mt_id": "MT-122",
+          "verdict": "FAIL",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 1,
+            "MEDIUM": 1,
+            "LOW": 0
+          }
+        },
+        {
+          "mt_id": "MT-123",
+          "verdict": "FAIL",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 1,
+            "MEDIUM": 0,
+            "LOW": 0
+          }
+        },
+        {
+          "mt_id": "MT-124",
+          "verdict": "PASS_WITH_NOTES",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 1,
+            "LOW": 1
+          }
+        },
+        {
+          "mt_id": "MT-125",
+          "verdict": "FAIL",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 2,
+            "MEDIUM": 0,
+            "LOW": 1
+          }
+        },
+        {
+          "mt_id": "MT-126",
+          "verdict": "FAIL",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 2,
+            "MEDIUM": 0,
+            "LOW": 1
+          }
+        },
+        {
+          "mt_id": "MT-127",
+          "verdict": "FAIL",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 2,
+            "MEDIUM": 1,
+            "LOW": 1
+          }
+        },
+        {
+          "mt_id": "MT-128",
+          "verdict": "FAIL",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 1,
+            "MEDIUM": 2,
+            "LOW": 0
+          }
+        },
+        {
+          "mt_id": "MT-129",
+          "verdict": "PASS_WITH_NOTES",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 1,
+            "LOW": 1
+          }
+        },
+        {
+          "mt_id": "MT-130",
+          "verdict": "FAIL",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 1,
+            "MEDIUM": 2,
+            "LOW": 0
+          }
+        }
+      ]
+    },
+    "D": {
+      "count": 30,
+      "by_verdict": {
+        "PASS": 13,
+        "CONCERN": 3,
+        "FAIL": 2,
+        "PENDING": 0
+      },
+      "findings_by_severity": {
+        "CRITICAL": 0,
+        "HIGH": 7,
+        "MEDIUM": 12,
+        "LOW": 38
+      },
+      "mts": [
+        {
+          "mt_id": "MT-141",
+          "verdict": "PASS",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 0,
+            "LOW": 2
+          }
+        },
+        {
+          "mt_id": "MT-142",
+          "verdict": "PASS",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 0,
+            "LOW": 2
+          }
+        },
+        {
+          "mt_id": "MT-143",
+          "verdict": "PASS",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 1,
+            "LOW": 1
+          }
+        },
+        {
+          "mt_id": "MT-144",
+          "verdict": "CONCERN",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 2,
+            "LOW": 1
+          }
+        },
+        {
+          "mt_id": "MT-145",
+          "verdict": "PASS",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 0,
+            "LOW": 1
+          }
+        },
+        {
+          "mt_id": "MT-146",
+          "verdict": "PASS",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 0,
+            "LOW": 1
+          }
+        },
+        {
+          "mt_id": "MT-147",
+          "verdict": "PASS",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 0,
+            "LOW": 1
+          }
+        },
+        {
+          "mt_id": "MT-148",
+          "verdict": "PASS",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 0,
+            "LOW": 2
+          }
+        },
+        {
+          "mt_id": "MT-149",
+          "verdict": "PASS",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 0,
+            "LOW": 2
+          }
+        },
+        {
+          "mt_id": "MT-150",
+          "verdict": "PASS",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 0,
+            "LOW": 2
+          }
+        },
+        {
+          "mt_id": "MT-151",
+          "verdict": "PASS",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 0,
+            "LOW": 2
+          }
+        },
+        {
+          "mt_id": "MT-152",
+          "verdict": "PASS",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 0,
+            "LOW": 2
+          }
+        },
+        {
+          "mt_id": "MT-153",
+          "verdict": "PASS_WITH_NOTES",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 0,
+            "LOW": 2
+          }
+        },
+        {
+          "mt_id": "MT-154",
+          "verdict": "PASS_WITH_NOTES",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 1,
+            "MEDIUM": 0,
+            "LOW": 1
+          }
+        },
+        {
+          "mt_id": "MT-155",
+          "verdict": "FAIL",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 2,
+            "MEDIUM": 0,
+            "LOW": 1
+          }
+        },
+        {
+          "mt_id": "MT-156",
+          "verdict": "PASS_WITH_NOTES",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 1,
+            "LOW": 1
+          }
+        },
+        {
+          "mt_id": "MT-157",
+          "verdict": "PASS",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 0,
+            "LOW": 1
+          }
+        },
+        {
+          "mt_id": "MT-158",
+          "verdict": "PASS",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 1,
+            "LOW": 0
+          }
+        },
+        {
+          "mt_id": "MT-159",
+          "verdict": "CONCERN",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 1,
+            "MEDIUM": 0,
+            "LOW": 0
+          }
+        },
+        {
+          "mt_id": "MT-160",
+          "verdict": "CONCERN",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 1,
+            "MEDIUM": 0,
+            "LOW": 1
+          }
+        },
+        {
+          "mt_id": "MT-161",
+          "verdict": "PASS_WITH_NOTES",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 1,
+            "LOW": 1
+          }
+        },
+        {
+          "mt_id": "MT-162",
+          "verdict": "PASS_WITH_NOTES",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 1,
+            "LOW": 1
+          }
+        },
+        {
+          "mt_id": "MT-163",
+          "verdict": "PASS_WITH_NOTES",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 1,
+            "LOW": 1
+          }
+        },
+        {
+          "mt_id": "MT-164",
+          "verdict": "PASS_WITH_NOTES",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 0,
+            "LOW": 2
+          }
+        },
+        {
+          "mt_id": "MT-165",
+          "verdict": "FAIL",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 2,
+            "MEDIUM": 0,
+            "LOW": 1
+          }
+        },
+        {
+          "mt_id": "MT-166",
+          "verdict": "PASS_WITH_NOTES",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 1,
+            "LOW": 1
+          }
+        },
+        {
+          "mt_id": "MT-167",
+          "verdict": "PASS_WITH_NOTES",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 1,
+            "LOW": 1
+          }
+        },
+        {
+          "mt_id": "MT-168",
+          "verdict": "PASS_WITH_NOTES",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 0,
+            "LOW": 2
+          }
+        },
+        {
+          "mt_id": "MT-169",
+          "verdict": "PASS_WITH_NOTES",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 1,
+            "LOW": 1
+          }
+        },
+        {
+          "mt_id": "MT-170",
+          "verdict": "PASS_WITH_NOTES",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 1,
+            "LOW": 1
+          }
+        }
+      ]
+    },
+    "X": {
+      "count": 25,
+      "by_verdict": {
+        "PASS": 9,
+        "CONCERN": 3,
+        "FAIL": 0,
+        "PENDING": 0
+      },
+      "findings_by_severity": {
+        "CRITICAL": 0,
+        "HIGH": 2,
+        "MEDIUM": 15,
+        "LOW": 30
+      },
+      "mts": [
+        {
+          "mt_id": "MT-176",
+          "verdict": "CONCERN",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 2,
+            "LOW": 0
+          }
+        },
+        {
+          "mt_id": "MT-177",
+          "verdict": "PASS",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 0,
+            "LOW": 2
+          }
+        },
+        {
+          "mt_id": "MT-178",
+          "verdict": "PASS",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 0,
+            "LOW": 2
+          }
+        },
+        {
+          "mt_id": "MT-179",
+          "verdict": "PASS_WITH_NOTES",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 1,
+            "LOW": 1
+          }
+        },
+        {
+          "mt_id": "MT-180",
+          "verdict": "PASS_WITH_NOTES",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 1,
+            "LOW": 1
+          }
+        },
+        {
+          "mt_id": "MT-181",
+          "verdict": "PASS",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 0,
+            "LOW": 2
+          }
+        },
+        {
+          "mt_id": "MT-182",
+          "verdict": "PASS_WITH_NOTES",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 1,
+            "LOW": 1
+          }
+        },
+        {
+          "mt_id": "MT-183",
+          "verdict": "PASS_WITH_NOTES",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 2,
+            "LOW": 0
+          }
+        },
+        {
+          "mt_id": "MT-184",
+          "verdict": "PASS_WITH_NOTES",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 1,
+            "LOW": 1
+          }
+        },
+        {
+          "mt_id": "MT-185",
+          "verdict": "PASS_WITH_NOTES",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 0,
+            "LOW": 1
+          }
+        },
+        {
+          "mt_id": "MT-186",
+          "verdict": "CONCERNS",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 2,
+            "MEDIUM": 1,
+            "LOW": 0
+          }
+        },
+        {
+          "mt_id": "MT-187",
+          "verdict": "PASS_WITH_NOTES",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 0,
+            "LOW": 2
+          }
+        },
+        {
+          "mt_id": "MT-188",
+          "verdict": "PASS_WITH_NOTES",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 0,
+            "LOW": 2
+          }
+        },
+        {
+          "mt_id": "MT-189",
+          "verdict": "PASS_WITH_NOTES",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 1,
+            "LOW": 1
+          }
+        },
+        {
+          "mt_id": "MT-190",
+          "verdict": "CONCERN",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 2,
+            "LOW": 0
+          }
+        },
+        {
+          "mt_id": "MT-191",
+          "verdict": "PASS",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 0,
+            "LOW": 2
+          }
+        },
+        {
+          "mt_id": "MT-192",
+          "verdict": "PASS",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 0,
+            "LOW": 2
+          }
+        },
+        {
+          "mt_id": "MT-193",
+          "verdict": "PASS",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 0,
+            "LOW": 1
+          }
+        },
+        {
+          "mt_id": "MT-194",
+          "verdict": "PASS",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 0,
+            "LOW": 1
+          }
+        },
+        {
+          "mt_id": "MT-195",
+          "verdict": "PASS",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 0,
+            "LOW": 1
+          }
+        },
+        {
+          "mt_id": "MT-196",
+          "verdict": "PASS",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 0,
+            "LOW": 1
+          }
+        },
+        {
+          "mt_id": "MT-197",
+          "verdict": "CONCERN",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 1,
+            "LOW": 0
+          }
+        },
+        {
+          "mt_id": "MT-198",
+          "verdict": "PASS_WITH_NOTES",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 1,
+            "LOW": 2
+          }
+        },
+        {
+          "mt_id": "MT-199",
+          "verdict": "PASS_WITH_NOTES",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 1,
+            "LOW": 2
+          }
+        },
+        {
+          "mt_id": "MT-200",
+          "verdict": "PASS_WITH_NOTES",
+          "sev_counts": {
+            "CRITICAL": 0,
+            "HIGH": 0,
+            "MEDIUM": 0,
+            "LOW": 2
+          }
+        }
+      ]
+    }
+  },
+  "by_subscope": {
+    "A.1": {
+      "count": 9,
+      "by_verdict": {
+        "PASS": 3,
+        "CONCERN": 6,
+        "FAIL": 0,
+        "PENDING": 0
+      }
+    },
+    "A.6": {
+      "count": 4,
+      "by_verdict": {
+        "PASS": 0,
+        "CONCERN": 3,
+        "FAIL": 1,
+        "PENDING": 0
+      }
+    },
+    "A.4": {
+      "count": 7,
+      "by_verdict": {
+        "PASS": 4,
+        "CONCERN": 3,
+        "FAIL": 0,
+        "PENDING": 0
+      }
+    },
+    "A.2": {
+      "count": 7,
+      "by_verdict": {
+        "PASS": 6,
+        "CONCERN": 1,
+        "FAIL": 0,
+        "PENDING": 0
+      }
+    },
+    "A.3": {
+      "count": 6,
+      "by_verdict": {
+        "PASS": 3,
+        "CONCERN": 2,
+        "FAIL": 1,
+        "PENDING": 0
+      }
+    },
+    "A.5": {
+      "count": 4,
+      "by_verdict": {
+        "PASS": 2,
+        "CONCERN": 2,
+        "FAIL": 0,
+        "PENDING": 0
+      }
+    },
+    "A.7": {
+      "count": 3,
+      "by_verdict": {
+        "PASS": 3,
+        "CONCERN": 0,
+        "FAIL": 0,
+        "PENDING": 0
+      }
+    },
+    "B.1": {
+      "count": 8,
+      "by_verdict": {
+        "PASS": 3,
+        "CONCERN": 5,
+        "FAIL": 0,
+        "PENDING": 0
+      }
+    },
+    "B.2": {
+      "count": 5,
+      "by_verdict": {
+        "PASS": 3,
+        "CONCERN": 2,
+        "FAIL": 0,
+        "PENDING": 0
+      }
+    },
+    "B.3": {
+      "count": 3,
+      "by_verdict": {
+        "PASS": 1,
+        "CONCERN": 2,
+        "FAIL": 0,
+        "PENDING": 0
+      }
+    },
+    "B.4": {
+      "count": 2,
+      "by_verdict": {
+        "PASS": 0,
+        "CONCERN": 2,
+        "FAIL": 0,
+        "PENDING": 0
+      }
+    },
+    "C.1": {
+      "count": 11,
+      "by_verdict": {
+        "PASS": 10,
+        "CONCERN": 1,
+        "FAIL": 0,
+        "PENDING": 0
+      }
+    },
+    "C.2": {
+      "count": 9,
+      "by_verdict": {
+        "PASS": 7,
+        "CONCERN": 2,
+        "FAIL": 0,
+        "PENDING": 0
+      }
+    },
+    "C.3": {
+      "count": 9,
+      "by_verdict": {
+        "PASS": 4,
+        "CONCERN": 4,
+        "FAIL": 1,
+        "PENDING": 0
+      }
+    },
+    "C.4": {
+      "count": 3,
+      "by_verdict": {
+        "PASS": 1,
+        "CONCERN": 2,
+        "FAIL": 0,
+        "PENDING": 0
+      }
+    },
+    "C.5": {
+      "count": 3,
+      "by_verdict": {
+        "PASS": 1,
+        "CONCERN": 1,
+        "FAIL": 1,
+        "PENDING": 0
+      }
+    },
+    "C.6": {
+      "count": 4,
+      "by_verdict": {
+        "PASS": 0,
+        "CONCERN": 4,
+        "FAIL": 0,
+        "PENDING": 0
+      }
+    },
+    "C.7": {
+      "count": 3,
+      "by_verdict": {
+        "PASS": 0,
+        "CONCERN": 2,
+        "FAIL": 1,
+        "PENDING": 0
+      }
+    },
+    "C.8": {
+      "count": 3,
+      "by_verdict": {
+        "PASS": 3,
+        "CONCERN": 0,
+        "FAIL": 0,
+        "PENDING": 0
+      }
+    },
+    "C.9": {
+      "count": 3,
+      "by_verdict": {
+        "PASS": 1,
+        "CONCERN": 0,
+        "FAIL": 2,
+        "PENDING": 0
+      }
+    },
+    "C.10": {
+      "count": 3,
+      "by_verdict": {
+        "PASS": 1,
+        "CONCERN": 2,
+        "FAIL": 0,
+        "PENDING": 0
+      }
+    },
+    "C.11": {
+      "count": 7,
+      "by_verdict": {
+        "PASS": 1,
+        "CONCERN": 0,
+        "FAIL": 3,
+        "PENDING": 0
+      }
+    },
+    "C.12": {
+      "count": 6,
+      "by_verdict": {
+        "PASS": 0,
+        "CONCERN": 0,
+        "FAIL": 2,
+        "PENDING": 0
+      }
+    },
+    "C.13": {
+      "count": 6,
+      "by_verdict": {
+        "PASS": 0,
+        "CONCERN": 0,
+        "FAIL": 5,
+        "PENDING": 0
+      }
+    },
+    "D.1": {
+      "count": 7,
+      "by_verdict": {
+        "PASS": 6,
+        "CONCERN": 1,
+        "FAIL": 0,
+        "PENDING": 0
+      }
+    },
+    "D.2": {
+      "count": 9,
+      "by_verdict": {
+        "PASS": 5,
+        "CONCERN": 0,
+        "FAIL": 1,
+        "PENDING": 0
+      }
+    },
+    "D.3": {
+      "count": 10,
+      "by_verdict": {
+        "PASS": 2,
+        "CONCERN": 2,
+        "FAIL": 1,
+        "PENDING": 0
+      }
+    },
+    "D.4": {
+      "count": 4,
+      "by_verdict": {
+        "PASS": 0,
+        "CONCERN": 0,
+        "FAIL": 0,
+        "PENDING": 0
+      }
+    },
+    "X.1": {
+      "count": 8,
+      "by_verdict": {
+        "PASS": 3,
+        "CONCERN": 1,
+        "FAIL": 0,
+        "PENDING": 0
+      }
+    },
+    "X.2": {
+      "count": 6,
+      "by_verdict": {
+        "PASS": 0,
+        "CONCERN": 0,
+        "FAIL": 0,
+        "PENDING": 0
+      }
+    },
+    "X.3": {
+      "count": 6,
+      "by_verdict": {
+        "PASS": 5,
+        "CONCERN": 1,
+        "FAIL": 0,
+        "PENDING": 0
+      }
+    },
+    "X.4": {
+      "count": 5,
+      "by_verdict": {
+        "PASS": 1,
+        "CONCERN": 1,
+        "FAIL": 0,
+        "PENDING": 0
+      }
+    }
+  },
+  "hbr_unsatisfied_by_rule": {
+    "HBR-SWARM-002 partially — leases-and-cancellation behavior is correct per-process but multi-process reclaim has no cancellation/timeout": [
+      "MT-008"
+    ],
+    "Live scan against current product code (wtc-kernel-004-fold-v1) FAILS because memory_calibration_snapshot.name = 'memory_calibration_snapshot' but the actual tauri command is kernel_memory_calibration_snapshot, and schema_fields use dotted paths the scanner does not resolve.": [
+      "MT-012"
+    ],
+    "HBR-QUIET-004 (partial - declaration + warning + log work, but the controlled bounded window required by the rule is not actually instantiated)": [
+      "MT-019"
+    ],
+    "HBR-QUIET-003 (process-lifecycle wiring is in MT-015, but MT-020 does not exercise it during the audit run)": [
+      "MT-020"
+    ],
+    "HBR-QUIET-001 (not actually exercised - the smoke claims zero foreground events without running the audit)": [
+      "MT-027"
+    ],
+    "HBR-INT-001": [
+      "MT-030"
+    ],
+    "HBR-INT-003": [
+      "MT-030"
+    ],
+    "HBR-SWARM-001": [
+      "MT-035",
+      "MT-037"
+    ],
+    "HBR-SWARM-002": [
+      "MT-035"
+    ],
+    "HBR-SWARM-003": [
+      "MT-035",
+      "MT-037"
+    ],
+    "HBR-SWARM-004": [
+      "MT-035",
+      "MT-037"
+    ],
+    "HBR-INT-001 partially: the binder output is replay-deterministic for the same FS state, but no integration test verifies the OS layer honors the binds": [
+      "MT-052"
+    ],
+    "HBR-INT-001 strict-parity for stdout_bytes is not exercised (auto-pass)": [
+      "MT-057"
+    ],
+    "HBR-QUIET-001: ESC-WIN32-FOREGROUND-INJECT requires a handshake-foreground-inject-probe.exe binary, which is referenced in the fixture spec (escape_attempts.rs:337) but not present in the repo. The Windows lane cannot actually exercise the foreground-inject acid test until that probe binary is built.": [
+      "MT-058"
+    ],
+    "HBR-INT-002: required wire test proves ContextBundle -> ModelAdapter -> ToolGate -> ArtifactStore chain; no such evidence in MT-081 tests, and CandleRuntime does not appear to wire any ledger/ArtifactStore integration in adapter.rs (the narrative's `ledger: Arc<ProcessLedgerIntegration>` is not in the struct).": [
+      "MT-081"
+    ],
+    "HBR-INT-002 wire evidence still absent — hook substrate does not show ContextBundle/ArtifactStore wiring.": [
+      "MT-082"
+    ],
+    "HBR-INT-002 — generate path does not write to ProcessLedgerIntegration or ArtifactStore. The MT-081 narrative names ledger but it is not present, and MT-083 generate yields GeneratedToken stream without any receipt emission.": [
+      "MT-083"
+    ],
+    "HBR-INT-002 — no LoRA mount/swap receipt emitted to ArtifactStore; spec 4.7.1 names FR-EVT-LLM-INFER-LORA-{LOAD,SWAP,UNLOAD} but the LoraStackOps impl does not call any receipt sink.": [
+      "MT-084"
+    ],
+    "HBR-INT-002 — no FR-EVT-LLM-INFER-SUBQ-{STATE_SAVE,STATE_RESTORE} receipt emission visible at adapter layer.": [
+      "MT-085"
+    ],
+    "HBR-INT-002 — no FR-EVT-LLM-INFER-SUBQ event emission at the adapter layer.": [
+      "MT-086"
+    ],
+    "HBR-INT-002 — no FR-EVT-LLM-INFER-SUBQ event emission visible at adapter layer.": [
+      "MT-087"
+    ],
+    "HBR-INT-002 — persist path emits an artifact via write_file_artifact (good evidence of ArtifactStore wiring) but the restore path does not exercise the live model, so the wire test for SSM state restore is not satisfied.": [
+      "MT-088"
+    ],
+    "HBR-INT-002 — smoke tests do not assert ContextBundle -> ModelAdapter -> ToolGate -> ArtifactStore wire. They only exercise direct ModelRuntime calls; the actual obligation wire test is absent.": [
+      "MT-089"
+    ],
+    "HBR-INT-002": [
+      "MT-095",
+      "MT-096",
+      "MT-097",
+      "MT-098",
+      "MT-099",
+      "MT-100",
+      "MT-101",
+      "MT-102",
+      "MT-115",
+      "MT-116",
+      "MT-123",
+      "MT-130"
+    ],
+    "HBR-INT-006": [
+      "MT-097",
+      "MT-122",
+      "MT-128",
+      "MT-129",
+      "MT-155"
+    ],
+    "HBR-INT-002 wire-evidence (ContextBundle -> ModelAdapter -> ArtifactStore) is not exercised here; capture is dispatched through ModelRuntime trait but the kernel-level CAA helper does not produce ArtifactStore receipts directly.": [
+      "MT-103"
+    ],
+    "HBR-INT-002 wire-evidence: the UI ultimately drives a real dyn ModelRuntime dispatch via the Tauri command, but ArtifactStore receipts on extract are upstream of MT-105 (they belong to MT-082 / MT-096 substrate).": [
+      "MT-105"
+    ],
+    "HBR-INT-002: no wire evidence — module absent.": [
+      "MT-107"
+    ],
+    "HBR-INT-006: contract calls for FR-EVT-DISTILL-ABLITERATE-REVIEW emission as a typed FEMS record — not implemented in the branch.": [
+      "MT-107"
+    ],
+    "HBR-INT-002 cross-module helper callable from gov-check — absent.": [
+      "MT-108"
+    ],
+    "Runtime-refusal invariant for AbliterationTool-tagged artifacts — absent.": [
+      "MT-108"
+    ],
+    "HBR-INT-002 wire-evidence — SPEC-MODE-CHANGE FR event is declared at the technique surface (MT-109) but not emitted from the Tauri command surface; the commit path does not write a typed FEMS record.": [
+      "MT-110"
+    ],
+    "HBR-INT-008": [
+      "MT-115"
+    ],
+    "HBR-INT-005": [
+      "MT-125",
+      "MT-126",
+      "MT-127",
+      "MT-128",
+      "MT-129",
+      "MT-130"
+    ],
+    "HBR-SWARM-002 (partial — bounded-retry escalation timer not in primitive)": [
+      "MT-186"
+    ]
+  },
+  "critical_and_high_findings": [
+    {
+      "mt_id": "MT-044",
+      "subscope": "B.1",
+      "cluster": "B",
+      "severity": "HIGH",
+      "category": "RUNTIME",
+      "title": "NetPolicy::LoopbackOnly silently maps to --network=none, breaking callers that need loopback reachability",
+      "detail": "podman_cli::network_mode() returns 'none' for both DenyAll and LoopbackOnly. With --network=none the container has no loopback to the host and no localhost-served services are reachable. Validation/inference workloads that expect to talk to a host-side llama-server on 127.0.0.1:11434 (a typical pattern for LoopbackOnly) will silently get no network at all. The test loopback_and_allowlist_network_policies_have_explicit_spawn_modes asserts this as intended.",
+      "file_refs": [
+        "src/backend/handshake_core/src/sandbox/wsl2_podman/podman_cli.rs:259-274",
+        "src/backend/handshake_core/tests/wsl2_podman_adapter_tests.rs:109-138"
+      ],
+      "spec_anchor": ".GOV/spec/master-spec-v02.186/spec-modules/03-local-first-infrastructure.md#3.5.2",
+      "remediation_hint": "Either implement slirp4netns with allow_host_loopback for LoopbackOnly (spec'd path), or return SandboxAdapterError::NetPolicyApplyFailed loud at spawn time and require callers to opt into DenyAll explicitly. Update the test to assert the new fail-loud behavior."
+    },
+    {
+      "mt_id": "MT-046",
+      "subscope": "B.1",
+      "cluster": "B",
+      "severity": "HIGH",
+      "category": "SPEC",
+      "title": "capabilities() overclaims gpu_passthrough=VendorAgnostic with no GPU plumbing",
+      "detail": "windows_native_jail_runtime_capabilities() returns gpu_passthrough=GpuPassthrough::VendorAgnostic. There is no AppContainer GPU capability code, no D3D adapter passthrough, no token attribute for GPU access. A ProcessSpec.required_capabilities containing VendorAgnosticGpu will SUCCESSFULLY select this adapter and the spawned process will silently have no GPU access. This is a sandbox-isolation overclaim that misleads selection.",
+      "file_refs": [
+        "src/backend/handshake_core/src/sandbox/windows_native_jail/capabilities.rs:6-17",
+        "src/backend/handshake_core/src/sandbox/selection.rs:142-160"
+      ],
+      "spec_anchor": ".GOV/spec/master-spec-v02.186/spec-modules/03-local-first-infrastructure.md#3.5.2",
+      "remediation_hint": "Set gpu_passthrough=GpuPassthrough::None for both target and runtime capabilities until actual GPU pass-through is implemented; or document why DirectX path is considered VendorAgnostic at the AppContainer level."
+    },
+    {
+      "mt_id": "MT-047",
+      "subscope": "B.1",
+      "cluster": "B",
+      "severity": "HIGH",
+      "category": "SPEC",
+      "title": "KERNEL-003 'behavior parity' is structurally unachievable — DocketAdapter never shipped",
+      "detail": "kernel_003_bridge.rs's provenance struct openly admits status='non_executing_stub_no_docket_adapter_found'. The MT-047 contract's risk_if_missed cites 'every existing Docker-using KERNEL-003 sandbox consumer breaks in MT-054 refactoring with no migration target' and the red-team requires a 'golden argv-shape test compares docker_cli_argv_builder output to a fixture captured from KERNEL-003 to prove behavior parity'. With no real KERNEL-003 docker code to fixture against, the parity claim is vacuous; MT-054 will refactor against the new adapter, not against a preserved KERNEL-003 baseline.",
+      "file_refs": [
+        "src/backend/handshake_core/src/sandbox/docker/kernel_003_bridge.rs:37-56"
+      ],
+      "spec_anchor": ".GOV/spec/master-spec-v02.186/spec-modules/03-local-first-infrastructure.md#3.5.2",
+      "remediation_hint": "Either (a) record an explicit waiver in the MT-047 lifecycle that the parity goal was retired because KERNEL-003 DocketAdapter never shipped, OR (b) capture the argv shape from KERNEL-003's ContainerAdapterStub (the only KERNEL-003 docker-adjacent surface) and golden-test against it."
+    },
+    {
+      "mt_id": "MT-047",
+      "subscope": "B.1",
+      "cluster": "B",
+      "severity": "HIGH",
+      "category": "RUNTIME",
+      "title": "NetPolicy::LoopbackOnly silently maps to --network=none",
+      "detail": "Same defect as MT-044 WSL2Podman: network_mode() maps both DenyAll and LoopbackOnly to 'none'. Loopback inside a netnone Docker container is unreachable from host services. Callers expecting LoopbackOnly to reach 127.0.0.1:host_port silently get no network.",
+      "file_refs": [
+        "src/backend/handshake_core/src/sandbox/docker/kernel_003_bridge.rs:243-257"
+      ],
+      "spec_anchor": ".GOV/spec/master-spec-v02.186/spec-modules/03-local-first-infrastructure.md#3.5.2",
+      "remediation_hint": "Either implement --network=bridge with iptables localhost-only firewall seed (spec'd path) or fail loud at spawn time with NetPolicyApplyFailed."
+    },
+    {
+      "mt_id": "MT-050",
+      "subscope": "B.2",
+      "cluster": "B",
+      "severity": "HIGH",
+      "category": "SPEC",
+      "title": "MT-050 'KERNEL-003 ValidationRunner public API preservation' control is vacuous",
+      "detail": "kernel_003_bridge.rs:45-52 records that KERNEL-003 has only a non-executing ContainerAdapterStub, not a DocketAdapter. There is therefore no existing ValidationRunner with a public API to preserve, and no constructor signature change to validate. The 'public API preservation' minimum_control under red_team is non-falsifiable in this environment. The new ValidationSandboxRunner is a clean implementation, not a refactor.",
+      "file_refs": [
+        "src/backend/handshake_core/src/sandbox/docker/kernel_003_bridge.rs:45",
+        "src/backend/handshake_core/src/sandbox/validation_runner_binding.rs:125"
+      ],
+      "spec_anchor": ".GOV/spec/master-spec-v02.186/spec-modules/06-mechanical-integrations.md#6.4",
+      "remediation_hint": "Re-frame MT-050 in the packet contract: the work is 'establish the canonical sandbox-routed validation lane' rather than 'preserve an existing ValidationRunner'. Update packet/refinement so future validators do not chase a non-existent prior surface."
+    },
+    {
+      "mt_id": "MT-052",
+      "subscope": "B.2",
+      "cluster": "B",
+      "severity": "HIGH",
+      "category": "TEST",
+      "title": "OS-level EROFS enforcement test missing",
+      "detail": "MT-052 requires an integration test on WSL2Podman that spawns a container with the binder's output and verifies that writing outside the ReadWrite overlay fails with EROFS. The contract names the test as work_packet_scope_binder_integration under --features wsl2-integration. No such test file or test function exists. The 'strict no out-of-scope work enforcement via OS-level filesystem boundary' invariant is therefore asserted at the data-shape level only, not at runtime.",
+      "file_refs": [
+        "src/backend/handshake_core/tests/work_packet_scope_binder_tests.rs"
+      ],
+      "spec_anchor": ".GOV/spec/master-spec-v02.186/spec-modules/03-local-first-infrastructure.md#3.5",
+      "remediation_hint": "Add a wsl2-integration feature-gated test that bind_specs_from_packet(fixture_packet, tempdir_repo) into WSL2PodmanAdapter::spawn into exec a touch outside allowed_paths into assert non-zero exit (EROFS class), and touch inside into assert exit 0."
+    },
+    {
+      "mt_id": "MT-054",
+      "subscope": "B.3",
+      "cluster": "B",
+      "severity": "HIGH",
+      "category": "SPEC",
+      "title": "MT-054 contract assumes a refactor target that does not exist in product code",
+      "detail": "The MT-054 contract says 'Move every call site... that today consumes the concrete DocketAdapter type onto the abstract trait.' The migration record honestly reports that no such consumers exist; the kernel_003_bridge.rs comment (lines 45-52) records 'non_executing_stub_no_docket_adapter_found'. This makes the contract's 'parity test asserts the same input produces the same OS-level behavior' control non-falsifiable.",
+      "file_refs": [
+        ".GOV/roles_shared/records/sandbox/WP-KERNEL-004-kernel-003-callsite-migration.json",
+        "src/backend/handshake_core/src/sandbox/docker/kernel_003_bridge.rs:45"
+      ],
+      "spec_anchor": ".GOV/spec/master-spec-v02.186/spec-modules/03-local-first-infrastructure.md#3.5.2",
+      "remediation_hint": "Re-frame MT-054 in packet/refinement: 'install the forward-guard repo lint and verify no KERNEL-003 Docker consumers exist'. Refer downstream MTs (MT-055 migration tests) to the lint output rather than a parity fixture."
+    },
+    {
+      "mt_id": "MT-057",
+      "subscope": "B.4",
+      "cluster": "B",
+      "severity": "HIGH",
+      "category": "TEST",
+      "title": "stdout_bytes parity check is unconditional auto-pass",
+      "detail": "cross_adapter.rs:491 sets report.stdout_predicate_passed = true regardless of fixture predicate. The MT-057 red_team minimum control 'Parity assertion is strict on (exit_code, stdout_bytes, ledger_row_shape) modulo the documented allowed-drift fields' is therefore unmet for stdout_bytes. A regression where Wsl2Podman swallows stdout while Docker emits it would not be caught.",
+      "file_refs": [
+        "src/backend/handshake_core/src/test_harness/cross_adapter.rs:491"
+      ],
+      "spec_anchor": ".GOV/spec/master-spec-v02.186/spec-modules/03-local-first-infrastructure.md#3.5",
+      "remediation_hint": "Either: (a) wire stdout capture per-adapter (Wsl2Podman: podman logs, Docker: docker logs) and assert the StdoutPredicate; or (b) mark stdout_predicate_passed as explicitly Skipped with a coverage-gap entry so the validator sees the gap rather than a green check."
+    },
+    {
+      "mt_id": "MT-057",
+      "subscope": "B.4",
+      "cluster": "B",
+      "severity": "HIGH",
+      "category": "TEST",
+      "title": "net_loopback_only parity fixture cannot detect silent DenyAll coercion",
+      "detail": "tests/fixtures/cross_adapter_parity/net_loopback_only.json sets expected.exit_code_class: 'any'. Because podman_cli.rs:262 and docker/kernel_003_bridge.rs:245 silently map NetPolicy::LoopbackOnly to --network=none, the loopback connectivity smoke test inside the fixture will FAIL on both adapters (nc -z 127.0.0.1 47057 cannot connect because the container has no network at all), and the harness will pass because 'any' exit is acceptable. This is the same finding raised on MT-044/MT-047 in B.1 and persists into B.4 parity.",
+      "file_refs": [
+        "src/backend/handshake_core/tests/fixtures/cross_adapter_parity/net_loopback_only.json:26",
+        "src/backend/handshake_core/src/sandbox/wsl2_podman/podman_cli.rs:262",
+        "src/backend/handshake_core/src/sandbox/docker/kernel_003_bridge.rs:245"
+      ],
+      "spec_anchor": ".GOV/spec/master-spec-v02.186/spec-modules/03-local-first-infrastructure.md#3.5",
+      "remediation_hint": "Tighten the fixture: change expected.exit_code_class to 'zero' (loopback must actually work) so the silent LoopbackOnly to DenyAll coercion is caught. Then fix podman_cli/kernel_003_bridge to either honor LoopbackOnly (slirp4netns / network=bridge with iptables) or fail-closed with NetPolicyApplyFailed."
+    },
+    {
+      "mt_id": "MT-058",
+      "subscope": "B.4",
+      "cluster": "B",
+      "severity": "HIGH",
+      "category": "RUNTIME",
+      "title": "ESC-FS-SYMLINK-TRAVERSAL marked weaker-enforcement for both Linux adapters",
+      "detail": "escape_attempts.rs:190 lists documented_weaker_enforcement_adapters: vec!['docker', 'wsl2_podman'] for ESC-FS-SYMLINK-TRAVERSAL. This converts a successful symlink leak (reading /etc/passwd through a symlink inside the sandbox) to Yellow instead of Red, so it does NOT block WP merge. Per MT-058 contract: 'A RED on any adapter blocks the WP integration validation.' Yellow does not. This is a load-bearing-assertion downgrade for the two Linux adapters that ship as default + compat.",
+      "file_refs": [
+        "src/backend/handshake_core/src/test_harness/escape_attempts.rs:190"
+      ],
+      "spec_anchor": ".GOV/spec/master-spec-v02.186/spec-modules/03-local-first-infrastructure.md#3.6.2",
+      "remediation_hint": "Remove the documented_weaker_enforcement_adapters for ESC-FS-SYMLINK-TRAVERSAL OR change the bind mount to a tmpfs/ephemeral root so /etc is not present at all in the container's filesystem view. If the symlink really does resolve to host /etc/passwd, that is an escape - record it as Red and fix the adapter."
+    },
+    {
+      "mt_id": "MT-058",
+      "subscope": "B.4",
+      "cluster": "B",
+      "severity": "HIGH",
+      "category": "RUNTIME",
+      "title": "ESC-WIN32-FOREGROUND-INJECT cannot actually run (probe binary missing)",
+      "detail": "escape_attempts.rs:337 references handshake-foreground-inject-probe.exe, which is not built or shipped in the repo. The Win32 foreground-inject acid test (the HBR-QUIET-001 load-bearing assertion) cannot be exercised on the Windows lane even with --features win-native-integration.",
+      "file_refs": [
+        "src/backend/handshake_core/src/test_harness/escape_attempts.rs:337"
+      ],
+      "spec_anchor": ".GOV/spec/master-spec-v02.186/spec-modules/03-local-first-infrastructure.md#3.6.2",
+      "remediation_hint": "Add a tiny Win32 helper binary under tests/win32-helpers/ that calls SetForegroundWindow(GetForegroundWindow()) and exits with the GetLastError code; build it under the win-native-integration feature; reference it via its build-output path."
+    },
+    {
+      "mt_id": "MT-082",
+      "subscope": "C.3",
+      "cluster": "C",
+      "severity": "HIGH",
+      "category": "CODE",
+      "title": "Bare CandleSteeringHooks::capture returns synthetic prompt-hashed rows instead of real activations",
+      "detail": "The SteeringHookOps impl on CandleSteeringHooks builds capture rows via `scaffold_resid_stream_row(layer, prompt)` which is a 31-multiplier polynomial over prompt bytes mapped through `% 997`. Callers obtaining the bare hooks (including SSM-variant fallback in adapter.rs:459-462 — though SSM steering_hooks is rejected earlier by supports_activation_steering=false, any future code path that unwraps the steering_hooks struct directly will hit this) get a deterministic synthetic activation that has no relation to the model.",
+      "file_refs": [
+        "src/backend/handshake_core/src/model_runtime/candle/hooks.rs:407-414",
+        "src/backend/handshake_core/src/model_runtime/candle/hooks.rs:461-490",
+        "src/backend/handshake_core/src/model_runtime/candle/adapter.rs:459-462"
+      ],
+      "spec_anchor": ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.7.1",
+      "remediation_hint": "Either (a) remove the bare CandleSteeringHooks::capture impl and route all SteeringHookOps callers through CandleRuntimeSteeringHookOps which holds the model, or (b) make the bare impl return ModelRuntimeError::SteeringHookError(\"capture requires a CandleRuntime-bound hook handle\") so callers cannot silently consume synthetic data."
+    },
+    {
+      "mt_id": "MT-088",
+      "subscope": "C.3",
+      "cluster": "C",
+      "severity": "HIGH",
+      "category": "TEST",
+      "title": "E2E smoke test for state-vector restore is structurally insufficient",
+      "detail": "run_state_vector_smoke commits state, generates, restores, generates same prompt, and asserts equal output. Because generate.rs always calls reset_generation_state() before forward, the assertion is trivially true regardless of whether prefix_commit/prefix_restore did anything. The test would still pass with the entire StateVectorOps impl no-op'd.",
+      "file_refs": [
+        "src/backend/handshake_core/tests/candle_e2e_smoke.rs:403-441",
+        "src/backend/handshake_core/src/model_runtime/candle/generate.rs:120-125"
+      ],
+      "spec_anchor": "",
+      "remediation_hint": "Replace the test with: forward N tokens (without reset), record live state via the (to-be-added) extract path, prefix_commit, forward M tokens, prefix_restore, forward 1 token, assert logits match the M+1-th token of the original sequence. This requires the bug fix above."
+    },
+    {
+      "mt_id": "MT-089",
+      "subscope": "C.3",
+      "cluster": "C",
+      "severity": "HIGH",
+      "category": "TEST",
+      "title": "State-vector sub-test inherits MT-088 structural defect",
+      "detail": "run_state_vector_smoke commits/generates/restores/generates-same-prompt and asserts equal output. Equality is guaranteed by the reset_generation_state call in generate.rs, not by the state restore. Test passes even if prefix_commit and prefix_restore are no-ops.",
+      "file_refs": [
+        "src/backend/handshake_core/tests/candle_e2e_smoke.rs:403-441"
+      ],
+      "spec_anchor": "",
+      "remediation_hint": "See MT-088 remediation. After MT-088 is fixed, replace the test with: forward N tokens, commit, forward M more, restore, forward 1 -> assert that single-token logits match the N+M+1 trace."
+    },
+    {
+      "mt_id": "MT-095",
+      "subscope": "C.5",
+      "cluster": "C",
+      "severity": "HIGH",
+      "category": "RUNTIME",
+      "title": "BLAKE3 keyed-hash replay resistance is dead code at the live path",
+      "detail": "Neither LlamaCppKvCache nor Candle StateVectorHandle calls from_derived on commit or verify_derived_against on restore. kv_cache_technique::prefix_commit/restore delegate to ops which use from_scoped_tokens. derived_id is always None on production handles. Adversarial paths 3/4/5 (cross-process, TTL expiry, cross-cache) are not enforced.",
+      "file_refs": [
+        "src/backend/handshake_core/src/model_runtime/llama_cpp/kv_cache_impl.rs:392",
+        "src/backend/handshake_core/src/model_runtime/candle/state_vector.rs:613",
+        "src/backend/handshake_core/src/model_runtime/techniques/kv_cache_technique.rs:91-125"
+      ],
+      "spec_anchor": "AC-INFER-LAB-8-TECHNIQUES.b",
+      "remediation_hint": "Wire from_derived inside both adapter prefix_commit impls so the cache entry stores registered_at_utc and the handle carries derived_id. At restore, call verify_derived_against with the cached registered_at_utc + TTL check before deserializing the cached state. Add an integration test that constructs a handle in one logical 'process' (rotated key) and asserts restore in another rejects it."
+    },
+    {
+      "mt_id": "MT-096",
+      "subscope": "C.6",
+      "cluster": "C",
+      "severity": "HIGH",
+      "category": "production_wiring",
+      "title": "attach_live_runtime is test-only; production app never binds a real CandleRuntime adapter",
+      "detail": "All 11 call sites of attach_live_runtime() in app/src-tauri/src are inside #[cfg(test)] mod tests blocks (commands/steering.rs, commands/refusal.rs, commands/caa.rs, commands/kv_cache.rs, commands/lora.rs, commands/model_runtime.rs). The production lib.rs setup() block registers ModelRuntimeState::default() but never attaches a real adapter from a real model load. In the deployed Tauri binary, every kernel_model_runtime_steering_* command will fail with `capture_not_available: <op> requires a live ModelRuntime adapter attached for model <id>; the adapter is not yet bound to this model in this app session`. This is the same Spec-Realism Gate Sub-rule 1 failure described in the historical_blocker — the steering command IPC now correctly dispatches when a runtime IS attached, but the runtime is never attached in production.",
+      "file_refs": [
+        "app/src-tauri/src/lib.rs:861-895",
+        "app/src-tauri/src/commands/model_runtime.rs:71-81",
+        "app/src-tauri/src/commands/steering.rs:413-425"
+      ],
+      "spec_anchor": "spec-modules/04-llm-infrastructure.md#4.7.1 technique (c)",
+      "remediation_hint": "The model load flow (wherever CandleRuntime::load() is invoked) MUST call ModelRuntimeState::attach_live_runtime(model_id, Arc::new(candle_runtime)) before returning success. This was the same gap noted in MT-068/MT-096 historical_blocker, and remains unresolved at the wiring layer even though the dispatch layer is correct."
+    },
+    {
+      "mt_id": "MT-097",
+      "subscope": "C.6",
+      "cluster": "C",
+      "severity": "HIGH",
+      "category": "safety_gate_missing",
+      "title": "ReviewStatus::Pending is written but never enforced",
+      "detail": "steering_vector_store.rs writes review_status: ReviewStatus::Pending on every persist (line 146). Grep across the kernel + IPC + UI shows ZERO code paths that read review_status before allowing set_active to activate the vector. Red_team minimum_control #2 ('Review-gated promote step before vector becomes active by default') is contractually required but not implemented. This is a critical gap for refusal-overriding vectors (subscope C.7) because a sub-agent could activate a pending refusal vector without operator approval.",
+      "file_refs": [
+        "src/backend/handshake_core/src/model_runtime/techniques/steering_vector_store.rs:146",
+        "src/backend/handshake_core/src/model_runtime/techniques/activation_steering.rs:38-45",
+        "app/src-tauri/src/commands/steering.rs:339-362 (steering_set_active)"
+      ],
+      "spec_anchor": "MT-097 red_team minimum_controls #2",
+      "remediation_hint": "Add `pub fn approve(&self, id: SteeringVectorId, approver: OperatorId) -> Result<...>` that transitions Pending -> Approved and writes an audit row. Then either (a) gate set_active to consult store.is_approved(id) when a store is attached, or (b) make the gate a Tauri-IPC-layer concern in steering_set_active. Operator UI needs an Approve button on the SteeringVectorEditor."
+    },
+    {
+      "mt_id": "MT-098",
+      "subscope": "C.6",
+      "cluster": "C",
+      "severity": "HIGH",
+      "category": "spec_gap",
+      "title": "AC-INFER-LAB-UI-AB-COMPARE not implemented",
+      "detail": "Spec 10.14.2 requires before/after comparison: 'side-by-side generation output with the current knob value vs. the proposed knob value; operator can A/B before committing.' The wizard contains a single <details><summary>A/B compare (live generation)</summary><p>explanatory text about runtime requirements</p></details> at lines 300-308 of ContrastiveCaptureWizard.tsx. No generate calls, no side-by-side output panel, no propose-then-commit workflow. This is the same UI gap noted in the historical deflection (`<details> tag with a 'requires MT-074' note; live generation never happens`). MT-074 status is not in scope for this review but the contract was promoted to READY_FOR_VALIDATION on 2026-05-25 — the UI gap remains.",
+      "file_refs": [
+        "app/src/components/inference_lab/ContrastiveCaptureWizard.tsx:300-308"
+      ],
+      "spec_anchor": "spec-modules/10-product-surfaces.md#10.14.2",
+      "remediation_hint": "Replace the explanatory <details> with two side-by-side <pre> output panes: 'Base (no steering)' and 'With proposed vector'. Both panes call kernel_model_runtime_generate (or its streaming equivalent once MT-074 lands) — Base with steering inactive, Proposed with the just-computed direction set_active. Include a 'Commit to Work Profile' button that becomes enabled only after the operator inspects both outputs."
+    },
+    {
+      "mt_id": "MT-100",
+      "subscope": "C.7",
+      "cluster": "C",
+      "severity": "HIGH",
+      "category": "spec_failure_runtime_behavior",
+      "title": "ablate_at_inference does not actually orthogonalise; it subtracts a unit vector additively",
+      "detail": "MT-100 contract requires 'ORTHOGONALISES the residual stream against the refusal direction at each forward step (subtracts the projection of residual onto direction): new_resid = resid - (resid . direction) * direction'. The implementation registers the unit direction as a SteeringVector with intensity = REFUSAL_ABLATION_INTENSITY (-1.0). At forward time, candle/hooks.rs::apply_vector_to_activation computes `value = base + (steering * intensity)` for each dim — i.e. base - steering_value. For a unit direction d this gives r - d, NOT r - (r·d)d. The two are equal only when r·d = 1 (i.e. r is already aligned with d at unit magnitude); in general they diverge significantly. Arditi 2024's claim that 'refusal is mediated by a single direction' is operationalised via projection ablation, not direction subtraction. The implementation therefore does not implement the technique it claims to.",
+      "file_refs": [
+        "src/backend/handshake_core/src/model_runtime/techniques/refusal_vector.rs:121-146",
+        "src/backend/handshake_core/src/model_runtime/candle/hooks.rs:306-331"
+      ],
+      "spec_anchor": "MT-100 implementation_notes 'ORTHOGONALISES the residual stream'",
+      "remediation_hint": "Add a runtime branch in apply_vector_to_activation that checks the vector's provenance.technique. When ContrastiveTechnique::RefusalVector AND intensity == REFUSAL_ABLATION_INTENSITY, compute `let proj = dot(activation, vector.values); activation - proj * vector.values` (per-element). Pre-condition: vector.values is unit-length, which extract_refusal_direction guarantees via unit_normalise. Add a wire test that compares the actual residual delta to the projection-ablation formula on a synthetic activation+direction pair."
+    },
+    {
+      "mt_id": "MT-100",
+      "subscope": "C.7",
+      "cluster": "C",
+      "severity": "HIGH",
+      "category": "operator_gating",
+      "title": "Refusal-disabling vectors can be saved AND activated without any operator confirmation step",
+      "detail": "Per operator stance: 'vector that disables refusal silently = HIGH; non-operator-gated activation-steering = HIGH'. The refusal vector flow is: wizard -> kernel_model_runtime_refusal_extract -> kernel_model_runtime_steering_register_vector -> kernel_model_runtime_steering_set_active. No intermediate operator-approval gate. ReviewStatus::Pending is written in the store but not enforced (see MT-097 HIGH). A sub-agent driving the IPC could disable refusal without operator awareness.",
+      "file_refs": [
+        "src/backend/handshake_core/src/model_runtime/techniques/refusal_vector.rs:121-146",
+        "app/src-tauri/src/commands/steering.rs:339-362"
+      ],
+      "spec_anchor": "Operator stance + MT-097 red_team #2",
+      "remediation_hint": "Refusal vectors specifically (ContrastiveTechnique::RefusalVector) should require an additional `operator_acknowledgment: bool` flag on register and a separate explicit approve step before set_active will accept them. Consider a distinct kernel.steering.register_refusal action with stricter authority-effect than the generic register."
+    },
+    {
+      "mt_id": "MT-100",
+      "subscope": "C.7",
+      "cluster": "C",
+      "severity": "HIGH",
+      "category": "test_coverage_missing",
+      "title": "Arditi 2024 end-to-end reproduction never runs",
+      "detail": "inf4_refusal_end_to_end_eval_skips_cleanly_or_runs_when_model_dir_set (line 431-481) is a documentation-comment test. When HANDSHAKE_TEST_REFUSAL_MODEL_DIR is unset: eprintln + return. When set: eprintln 'live runtime path is blocked by MT-074' + return. The procedure (steps 1-6 in the comments) is never executed. Operator stance values 'eval determinism' — this MT has neither real nor mock determinism for the actual refusal-drop claim. Compare to MT-099 which at least has a mock test that runs in CI.",
+      "file_refs": [
+        "src/backend/handshake_core/tests/inf4_refusal_vector_tests.rs:431-481"
+      ],
+      "spec_anchor": "MT-100 implementation_notes 'Tests (env-gated): ... assert the ablated completion is not a refusal ... >70% of test prompts'",
+      "remediation_hint": "Adopt the MT-099 pattern: a deterministic dyn ModelRuntime mock with synthetic refusal direction and synthetic completions where the orthogonalisation actually changes the regex-classified completion from 'I can't' to a non-refusal. This catches both the orthogonalisation-vs-subtraction bug (HIGH finding above) and the missing end-to-end eval gap in one test."
+    },
+    {
+      "mt_id": "MT-101",
+      "subscope": "C.7",
+      "cluster": "C",
+      "severity": "HIGH",
+      "category": "downstream_of_mt100",
+      "title": "Metrics correctness depends on MT-100 orthogonalisation that does not exist",
+      "detail": "measure_with_runtime calls ablate_at_inference, which registers a unit direction at intensity -1.0 with technique RefusalVector. Per MT-100 HIGH finding, the runtime treats this as a normal additive steering subtraction, not projection ablation. Therefore the ablated_refusal_rate measured by this framework will reflect the effect of subtracting a unit vector from the residual stream — which is not the same effect Arditi et al. quantified. If the metrics PASS (drop >= 0.3 AND preservation >= 0.7) on a real model, that does not validate INF-4 PRODUCTION; it validates that the linear-subtraction operationalisation also reduces refusals, which is a different (weaker) result.",
+      "file_refs": [
+        "src/backend/handshake_core/src/model_runtime/techniques/refusal_metrics.rs:298-330",
+        "src/backend/handshake_core/src/model_runtime/techniques/refusal_vector.rs:121-146"
+      ],
+      "spec_anchor": "MT-100 implementation_notes orthogonalisation requirement",
+      "remediation_hint": "Fix MT-100's ablate_at_inference first (add the orthogonalisation branch in candle/hooks.rs::apply_vector_to_activation), then this metrics framework correctly measures the right operation. No code changes in MT-101 itself are required for this finding — but the MT-101 PASS verdict must be conditional on MT-100 being fixed."
+    },
+    {
+      "mt_id": "MT-102",
+      "subscope": "C.7",
+      "cluster": "C",
+      "severity": "HIGH",
+      "category": "operator_safety_ui",
+      "title": "Save & Activate has no 'this disables refusal' confirmation step",
+      "detail": "Per operator stance: 'vector that disables refusal silently = HIGH'. The wizard's Save flow at line 330+ calls registerVector and (per contract notes) flows into the active steering set. No modal, no warning text, no acknowledgement checkbox surfaces the safety implication: 'you are about to register a vector whose intended effect is to disable the model's refusal behavior on this model_id'. For the most safety-critical wizard in the suite, this is the weakest gate.",
+      "file_refs": [
+        "app/src/components/inference_lab/RefusalVectorWizard.tsx (Save section around line 326-340)"
+      ],
+      "spec_anchor": "Operator stance + spec 4.7.1(d) 'research lane only' framing",
+      "remediation_hint": "Before Save fires, surface a confirmation panel with explicit acknowledgement: '[ ] I understand this vector is designed to disable refusal on model <X>. I have authorisation to ablate refusal on this base model under its license <license_tag>.' The acknowledgement must be a typed receipt (CX-130) not just a UI gesture."
+    },
+    {
+      "mt_id": "MT-102",
+      "subscope": "C.7",
+      "cluster": "C",
+      "severity": "HIGH",
+      "category": "ui_signal_wrong",
+      "title": "Per-layer effectiveness bar chart uses L2 norm of unit vector — always 1.0",
+      "detail": "extract_refusal_direction unit-normalises every per-layer RefusalDirection (refusal_vector.rs:97-106). The wizard's per-layer bar fill width is proportional to the L2 norm of direction.values — which is therefore always 1.0 (to within float precision). All bars render identical height. Operators cannot use this surface to pick the most-effective layer, which is the contract's stated purpose ('per_layer_drop from MT-101 metrics... operator may inspect per-layer drops to choose the most effective single-layer ablation').",
+      "file_refs": [
+        "app/src/components/inference_lab/RefusalVectorWizard.tsx (bar chart render section)"
+      ],
+      "spec_anchor": "MT-102 implementation_notes 'per-layer effectiveness bar chart (uses per_layer_drop from MT-101 metrics)'",
+      "remediation_hint": "Wire a second IPC call to MT-101 measure_with_runtime (or a dedicated kernel_model_runtime_refusal_measure command) that returns per_layer_drop. Bar fill width = per_layer_drop[layer] / max(per_layer_drop.values()). For the case where measurement is not yet run, render the bars as empty with a 'click Measure to populate' affordance — NEVER show fake-uniform bars."
+    },
+    {
+      "mt_id": "MT-108",
+      "subscope": "C.9",
+      "cluster": "C",
+      "severity": "HIGH",
+      "category": "MISSING_CODE",
+      "title": "MT-108 owned files are not present in feat/WP-KERNEL-004 branch",
+      "detail": "tests/abliteration_offline_invariant_tests.rs and src/model_runtime/invariant.rs are not in the branch. Supporting-evidence block cites red/green test logs that are not on disk. Ready_for_validation set on 2026-05-25 without landing code.",
+      "file_refs": [
+        "src/backend/handshake_core/tests/abliteration_offline_invariant_tests.rs (MISSING)",
+        "src/backend/handshake_core/src/model_runtime/invariant.rs (MISSING)"
+      ],
+      "spec_anchor": ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.7.4",
+      "remediation_hint": "Reopen as NEEDS_REIMPLEMENTATION. The static-analysis test is partially redundant with MT-106's scan; the unique value MT-108 adds is the runtime-refusal gate (refuse load of AbliterationTool-tagged ledger row) and the gov-check-callable assert_abliteration_offline_invariant helper. Implement at minimum the runtime-refusal gate + the helper; cite MT-106 for the static-analysis coverage."
+    },
+    {
+      "mt_id": "MT-115",
+      "subscope": "C.11",
+      "cluster": "C",
+      "severity": "HIGH",
+      "category": "CODE",
+      "title": "LoRA-for-SSM weight-application path absent — operator E-2 FULL FEATURE PARITY breached",
+      "detail": "Operator E-2 acceptance is explicit: LoRA mount/unmount must actually work for SSMs. MT-115 lands only the validator + per-architecture target-module name lists + PEFT formula doc-string + deferral marker. The actual y = base.forward(x) + scaling * strength * (B @ (A @ x)) wiring through mamba2.rs / rwkv_v5.rs / rwkv_v6.rs / rwkv_v7.rs forward passes is deferred to a follow-on MT that does not yet exist as a tracked contract. capabilities.supports_lora stays false for SSM variants, so the technique surface fail-closes — that is correct behavior but does not satisfy the parity requirement.",
+      "file_refs": [
+        "src/backend/handshake_core/src/model_runtime/candle/ssm_lora.rs",
+        "src/backend/handshake_core/src/model_runtime/candle/mamba2.rs",
+        "src/backend/handshake_core/src/model_runtime/candle/rwkv_v5.rs",
+        "src/backend/handshake_core/src/model_runtime/candle/rwkv_v6.rs",
+        "src/backend/handshake_core/src/model_runtime/candle/rwkv_v7.rs",
+        "src/backend/handshake_core/src/model_runtime/candle/adapter.rs:517,529"
+      ],
+      "spec_anchor": ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.7.1",
+      "remediation_hint": "Either (a) author the follow-on weight-application MT (call it MT-119 or fold into WP) with: hook into candle-transformers Mamba2/RWKV wrappers via fork or hook layer; LoraDescriptor.architecture: ArchitectureTag field; mount() applies delta per Linear projection; deterministic output-divergence test on a fixture LoRA; capabilities.supports_lora flip to true; or (b) explicitly mark INF-9 LoRA parity as scoped-out for WP-KERNEL-004 with operator E-2 amendment. Current state is a parity gap, not a parity ship."
+    },
+    {
+      "mt_id": "MT-116",
+      "subscope": "C.11",
+      "cluster": "C",
+      "severity": "HIGH",
+      "category": "CODE",
+      "title": "Activation-steering-for-SSM forward-pass wiring absent — operator E-2 FULL FEATURE PARITY breached",
+      "detail": "Operator E-2 names activation steering as a required parity feature. MT-116 lands the SSMHookSite mapping, token-by-token semantics doc-string, and deferral marker, but does not thread hook callbacks through mamba2.rs / rwkv_v5.rs / rwkv_v6.rs / rwkv_v7.rs per-layer forwards. capabilities.supportsActivationSteering stays false for SSM variants. Same blocker (candle-transformers extensibility) as MT-115; same undefined follow-on MT.",
+      "file_refs": [
+        "src/backend/handshake_core/src/model_runtime/candle/hooks.rs:553-654",
+        "src/backend/handshake_core/src/model_runtime/candle/mamba2.rs",
+        "src/backend/handshake_core/src/model_runtime/candle/rwkv_v5.rs",
+        "src/backend/handshake_core/src/model_runtime/candle/rwkv_v6.rs",
+        "src/backend/handshake_core/src/model_runtime/candle/rwkv_v7.rs",
+        "src/backend/handshake_core/src/model_runtime/candle/adapter.rs:520,532"
+      ],
+      "spec_anchor": ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.7.1",
+      "remediation_hint": "Pair with MT-115's follow-on weight-application MT: same candle-transformers hook substrate work unblocks both. Identity test (zero vector -> output unchanged) and contrastive-pair capture (CAA semantics on last-token-of-prompt) must produce deterministic runtime evidence before capabilities.supportsActivationSteering flips."
+    },
+    {
+      "mt_id": "MT-118",
+      "subscope": "C.11",
+      "cluster": "C",
+      "severity": "HIGH",
+      "category": "TEST",
+      "title": "Full-parity gate is the operator-visible E-2 signal but 3 of 5 parity items are DEFERRED",
+      "detail": "MT-118 is by contract design the operator's ship-gate for INF-9 FULL FEATURE PARITY. Today it cannot certify load+generate, LoRA mount, or activation steering for SSMs because the underlying MT-115/116 weight-application MT does not yet exist. The DEFERRED-via-eprintln markers are observable but functionally equivalent to test skips for the parity claim. Risk_if_missed wording ('partial-parity ship could be mistaken for PRODUCTION') is currently realized.",
+      "file_refs": [
+        "src/backend/handshake_core/tests/inf9_subquadratic_full_parity_smoke.rs"
+      ],
+      "spec_anchor": ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.7.1",
+      "remediation_hint": "Gate WP-KERNEL-004 INF-9 acceptance on: (a) MT-115 + MT-116 follow-on weight-application MT lands and flips capabilities.supports_lora + capabilities.supportsActivationSteering to true on SSM variants; (b) MT-118 STEP-1/2/3 produce deterministic runtime evidence (LoRA output divergence + steering identity + nonzero capture) without DEFERRED markers; (c) per-architecture env vars set or synthetic fixtures checked in so the --ignored full-parity run produces actual proof under CI."
+    },
+    {
+      "mt_id": "MT-122",
+      "subscope": "C.12",
+      "cluster": "C",
+      "severity": "HIGH",
+      "category": "RUNTIME",
+      "title": "PythonPeftTrainerExecutor is an unguarded fork; red_team minimum_controls[0] unsatisfied",
+      "detail": "Source code: 'The executor is intentionally minimal: it does not register a ProcessOwnershipLedger row ... it does not enforce a cluster-B SandboxAdapter ... The subprocess inherits the parent's environment'. Adversarial risk: if the operator runs Handshake from a shell that has OPENAI_API_KEY / ANTHROPIC_API_KEY / HF_TOKEN in the environment (common dev setup), those secrets leak into the trainer subprocess and can be exfiltrated via the trainer script. The trainer script is also operator-editable (scripts/distill/train_lora.py), so any tampering downstream of the ContentReview gate is undetected.",
+      "file_refs": [
+        "src/backend/handshake_core/src/distillation/peft_pipeline.rs (lines ~248-260 PythonPeftTrainerExecutor doc-comment)"
+      ],
+      "spec_anchor": ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.8",
+      "remediation_hint": "Wrap PythonPeftTrainerExecutor::run() in a SandboxAdapter spawn that env-clears + selectively-injects only HANDSHAKE_DISTILL_* env vars; register a ProcessOwnershipLedger row with engine_kind=DistillationJob before spawn and finalise the row on exit/timeout. Add a deny-by-default for inheriting OPENAI_/ANTHROPIC_/HF_/GOOGLE_/AWS_ env prefixes."
+    },
+    {
+      "mt_id": "MT-123",
+      "subscope": "C.12",
+      "cluster": "C",
+      "severity": "HIGH",
+      "category": "SPEC",
+      "title": "PromotionGate mount-side enforcement absent",
+      "detail": "MT-123 implementation_notes: 'LoraStackOps::mount checks the CandidateRegistry: if a LoraId resolves to a Pending or Rejected candidate, mount returns Err with explicit reason; only Promoted (or non-candidate, i.e., externally-provided LoRAs) can mount in production sessions.' Reality: CandidateRegistry is not imported by any module under src/backend/handshake_core/src/model_runtime/. mount_status has zero callers. AC-DISTILL-LOOP-SAFEGUARDS — the literal safeguard this MT exists for — is unenforced.",
+      "file_refs": [
+        "src/backend/handshake_core/src/distillation/candidate_registry.rs",
+        "src/backend/handshake_core/src/model_runtime/ (no consumer)"
+      ],
+      "spec_anchor": ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.8.3",
+      "remediation_hint": "Land a wire from LoraStackOps::mount to CandidateRegistry::mount_status (or _with_override) before WP-KERNEL-004 closes. Add an integration test that registers a Pending candidate, attempts mount, asserts Refuse; promotes; mount succeeds."
+    },
+    {
+      "mt_id": "MT-125",
+      "subscope": "C.13",
+      "cluster": "C",
+      "severity": "HIGH",
+      "category": "SPEC",
+      "title": "FR-EVT-LLM-INFER-{START,TOKEN,END} not emitted on cloud lane — HBR-INT-005 lane normalisation broken",
+      "detail": "MT-125 implementation_notes explicitly require lane-uniform FR events. The live OpenAI streaming path emits only its own CloudInvocationAuditRow to CloudInvocationAuditSink. Operator dashboards keyed on FR-EVT-LLM-INFER-* (the canonical event stream) show cloud calls as missing. This is the structural defect MT-130 parity test papers over by simulating per-lane payloads instead of capturing real emissions.",
+      "file_refs": [
+        "src/backend/handshake_core/src/model_runtime/cloud/openai_byok.rs (run_live_stream + chat_completions_stream)",
+        "src/backend/handshake_core/src/flight_recorder/events_llm_infer.rs (helpers exist but not called from cloud)",
+        "src/backend/handshake_core/src/model_runtime/llama_cpp/generate.rs (only caller of infer_*_event helpers)"
+      ],
+      "spec_anchor": ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.6",
+      "remediation_hint": "Call infer_start_event(adapter='openai_byok', ...) on stream start, infer_token_event at the LLM_INFER_TOKEN_SAMPLE_INTERVAL cadence, infer_end_event on terminal. Generalise infer_start_event to accept the adapter label as a parameter rather than hardcoding 'llama_cpp'."
+    },
+    {
+      "mt_id": "MT-125",
+      "subscope": "C.13",
+      "cluster": "C",
+      "severity": "HIGH",
+      "category": "RUNTIME",
+      "title": "ConsentGate never consulted before live OpenAI calls",
+      "detail": "MT-128 ConsentGate is implemented but no cloud adapter calls check_or_prompt() before issuing the live HTTP request. Per MT-125 + MT-128 contract the operator policy cloud_consent_per_session=true should block the first call per session per lane until the operator explicitly consents. Today, a call with a valid ApiKeyProvider proceeds directly to wiremock/OpenAI with no consent check.",
+      "file_refs": [
+        "src/backend/handshake_core/src/model_runtime/cloud/openai_byok.rs (no ConsentGate import; chat_completions_stream goes straight to HTTP)",
+        "src/backend/handshake_core/src/model_runtime/cloud/consent_gate.rs (standalone)"
+      ],
+      "spec_anchor": ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.6",
+      "remediation_hint": "Either (a) pass session_id + ConsentGate into GenerateRequest and have the runtime consult it before issuing the HTTP request, or (b) gate at the LlmClient/router layer that should sit in front of cloud runtimes. Today neither layer enforces it."
+    },
+    {
+      "mt_id": "MT-126",
+      "subscope": "C.13",
+      "cluster": "C",
+      "severity": "HIGH",
+      "category": "SPEC",
+      "title": "FR-EVT-LLM-INFER-{START,TOKEN,END} not emitted — HBR-INT-005 broken (same as MT-125)",
+      "detail": "See MT-125 finding of the same name. AnthropicByokRuntime::messages_stream writes only CloudInvocationAuditRow; the canonical FR-EVT-LLM-INFER event family is never emitted for cloud calls.",
+      "file_refs": [
+        "src/backend/handshake_core/src/model_runtime/cloud/anthropic_byok.rs (run_live_stream + messages_stream)"
+      ],
+      "spec_anchor": ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.6",
+      "remediation_hint": "Same as MT-125: call infer_start_event(adapter='anthropic_byok', ...) etc. The fix is shared with MT-125."
+    },
+    {
+      "mt_id": "MT-126",
+      "subscope": "C.13",
+      "cluster": "C",
+      "severity": "HIGH",
+      "category": "RUNTIME",
+      "title": "ConsentGate never consulted before live Anthropic calls (same as MT-125)",
+      "detail": "messages_stream goes directly to HTTP without consulting ConsentGate. Operator's per-session cloud-consent policy is unenforced.",
+      "file_refs": [
+        "src/backend/handshake_core/src/model_runtime/cloud/anthropic_byok.rs"
+      ],
+      "spec_anchor": ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.6",
+      "remediation_hint": "Same shape as MT-125 remediation."
+    },
+    {
+      "mt_id": "MT-127",
+      "subscope": "C.13",
+      "cluster": "C",
+      "severity": "HIGH",
+      "category": "RUNTIME",
+      "title": "LiveCliSpawner inherits operator shell env including potential cloud API keys",
+      "detail": "Code: line 318-325 comment explicitly chooses to inherit parent env to avoid STATUS_ACCESS_VIOLATION on node-based CLIs. Adversarial scenario: operator's shell has OPENAI_API_KEY exported (very common dev setup). Operator triggers a CLI-bridge invocation. The spawned claude.exe / codex.exe / gemini.exe sees OPENAI_API_KEY in its environment and could log it, forward it, or be tampered with to exfiltrate it. The MT-128 vault architecture explicitly exists so secrets do NOT live in env vars — this bridge undoes that.",
+      "file_refs": [
+        "src/backend/handshake_core/src/model_runtime/cloud/official_cli_bridge.rs (LiveCliSpawner::spawn lines ~316-328)"
+      ],
+      "spec_anchor": ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.6",
+      "remediation_hint": "Implement a selective env scrub: env_clear() THEN copy only PATH / USERPROFILE / APPDATA / SYSTEMROOT / TEMP / TMP (Windows) or HOME / PATH / TMPDIR (Unix) + the explicit config.env_vars from the operator. Deny-list OPENAI_*, ANTHROPIC_*, GOOGLE_*, HF_*, GITHUB_*, AWS_*. Document the env-allowlist as part of the bridge contract."
+    },
+    {
+      "mt_id": "MT-127",
+      "subscope": "C.13",
+      "cluster": "C",
+      "severity": "HIGH",
+      "category": "SPEC",
+      "title": "ProcessOwnershipLedger row not registered for CLI bridge subprocess",
+      "detail": "MT-127 implementation_notes explicitly require 'ProcessOwnershipLedger row with engine_kind=OfficialCliBridge per MT-069'. LiveCliSpawner has no import of process_ledger and writes no row. Adversarial scenario: orphan CLI subprocess outlives Handshake (operator force-quits app); orphan is not in the kernel's process inventory; operator's MT-130 parity assertion 'for CLI bridge verify ProcessOwnershipLedger row with engine_kind=OfficialCliBridge' is structurally unmet (the parity test uses CapturingSpawner which fakes the receipt shape).",
+      "file_refs": [
+        "src/backend/handshake_core/src/model_runtime/cloud/official_cli_bridge.rs (LiveCliSpawner — no process_ledger import)"
+      ],
+      "spec_anchor": ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.6",
+      "remediation_hint": "Take an Arc<dyn ProcessOwnershipLedger> at LiveCliSpawner construction; register a row at child.id() capture; finalise on exit / kill / timeout."
+    },
+    {
+      "mt_id": "MT-128",
+      "subscope": "C.13",
+      "cluster": "C",
+      "severity": "HIGH",
+      "category": "RUNTIME",
+      "title": "ConsentGate unwired across all cloud runtimes",
+      "detail": "MT-128 red_team minimum_controls and the consent_gate.rs module exist, with comprehensive tests for prompt/cache/denial semantics. But no cloud runtime (MT-125 / MT-126 / MT-127) imports ConsentGate or calls check_or_prompt before issuing a live call. The operator policy 'cloud_consent_per_session=true' is structurally toothless. This is the same finding cited in MT-125 + MT-126 + MT-127, but its root cause lives in MT-128's integration boundary.",
+      "file_refs": [
+        "src/backend/handshake_core/src/model_runtime/cloud/consent_gate.rs (no external caller in cloud lane HTTP paths)",
+        "src/backend/handshake_core/src/model_runtime/cloud/openai_byok.rs (no ConsentGate import)",
+        "src/backend/handshake_core/src/model_runtime/cloud/anthropic_byok.rs (no ConsentGate import)",
+        "src/backend/handshake_core/src/model_runtime/cloud/official_cli_bridge.rs (no ConsentGate import)"
+      ],
+      "spec_anchor": ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.6",
+      "remediation_hint": "Pass ConsentGate + session_id + lane label into the cloud runtime call path (either inside GenerateRequest or as a runtime constructor parameter) and have the runtime call check_or_prompt before any HTTP send. Add an integration test that asserts a fresh session with cloud_consent_per_session=true blocks the first call until consent is granted."
+    },
+    {
+      "mt_id": "MT-130",
+      "subscope": "C.13",
+      "cluster": "C",
+      "severity": "HIGH",
+      "category": "TEST",
+      "title": "FR-event parity test is a simulation, not a capture — HBR-INT-005 lane-normalisation gate is structurally green-but-untrue",
+      "detail": "fr_event_payload_shape_is_uniform_across_lanes_start_token_end (lines 602-720) iterates cloud_lane_labels() and for each label calls infer_start_event/infer_token_event/infer_end_event (which emit a payload with adapter='llama_cpp' hardcoded), then mutates a clone: `lane_payload.insert('adapter', Value::String(lane_label.to_string()))`. The key set is identical across lanes by construction — the helper produces the same shape every time; mutating one field cannot change the key set. The test does NOT (a) drive the OpenAiByokRuntime / AnthropicByokRuntime / OfficialCliBridgeRuntime through a real call, (b) capture the FR events those runtimes emit, (c) assert the captured events have lane-appropriate adapter values. The MT exists to prove operator dashboards work identically across lanes; the test does not prove that because the cloud + CLI bridge runtimes emit zero FR-EVT-LLM-INFER-* events in production.",
+      "file_refs": [
+        "src/backend/handshake_core/tests/cloud_local_parity_smoke.rs (fr_event_payload_shape_is_uniform_across_lanes_start_token_end)",
+        "src/backend/handshake_core/src/flight_recorder/events_llm_infer.rs (infer_start_event hardcodes adapter='llama_cpp')",
+        "src/backend/handshake_core/src/model_runtime/cloud/openai_byok.rs (no FR-EVT-LLM-INFER emission)",
+        "src/backend/handshake_core/src/model_runtime/cloud/anthropic_byok.rs (no FR-EVT-LLM-INFER emission)",
+        "src/backend/handshake_core/src/model_runtime/cloud/official_cli_bridge.rs (no FR-EVT-LLM-INFER emission)"
+      ],
+      "spec_anchor": ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.6",
+      "remediation_hint": "After MT-125/126/127 wire FR-EVT-LLM-INFER-* emission, rewrite this test to capture events through a shared FlightRecorder and assert per-lane adapter values + identical key sets on the captured payloads (not mutated clones)."
+    },
+    {
+      "mt_id": "MT-154",
+      "subscope": "D.2",
+      "cluster": "D",
+      "severity": "HIGH",
+      "category": "CODE",
+      "title": "PromotionTicket.iteration_id not validated against PromotionRequest.iteration_id",
+      "detail": "LoopPromotionGate::submit returns the gate's PromotionTicket verbatim without verifying ticket.iteration_id == request.iteration_id. The MockGate test fixture (promotion_gate_adapter.rs lines 178-189) literally synthesizes a fresh Uuid::now_v7 for ticket.iteration_id, ignoring the inbound request entirely. If a production gate implementation has the same bug (or is malicious), approval evidence becomes detached from the iteration it was supposedly bundled with — breaking the audit chain that operator-review depends on. Adversarial scenario: a gate implementation could approve iteration_A's ticket but bundle the evidence under iteration_B's id, allowing a low-quality change to inherit a high-quality change's approval evidence.",
+      "file_refs": [
+        "src/backend/handshake_core/src/self_improve/promotion_gate_adapter.rs"
+      ],
+      "spec_anchor": ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.8.3",
+      "remediation_hint": "In LoopPromotionGate::submit, after self.gate.submit(request.clone()) returns ticket, assert ticket.iteration_id == request.iteration_id and return GateError::Io { message: \"gate returned mismatched iteration_id\" } on mismatch. Update MockGate to honor request.iteration_id (line 181) and add a regression test that wires a mis-binding mock and asserts the typed error."
+    },
+    {
+      "mt_id": "MT-155",
+      "subscope": "D.2",
+      "cluster": "D",
+      "severity": "HIGH",
+      "category": "CODE",
+      "title": "approve_promotion synthesizes approval on gate-Pending status, bypassing gate-side review",
+      "detail": "LoopIpcState::approve_promotion (src/self_improve/ipc.rs lines 200-245) routes approve through gate.poll. The Approved branch correctly clears pending state and returns the gate's approval. But the Pending branch (lines 225-238) ALSO clears pending state and returns a locally-synthesized PromotionApproval bearing the operator's id and a fresh signoff_evidence_id. The downstream consumer cannot distinguish a synthesized approval from a real one. This means an operator clicking approve before the KERNEL-001 PromotionGate has actually responded mints a 'valid-looking' approval and removes the iteration from pending_reviews — defeating the operator-review-required invariant.",
+      "file_refs": [
+        "src/backend/handshake_core/src/self_improve/ipc.rs"
+      ],
+      "spec_anchor": ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.8.3",
+      "remediation_hint": "Replace the Pending branch with `Err(LoopIpcError::Gate(GateError::ReviewPending))` and leave pending_reviews/pending_tickets untouched. Optionally add a separate `cast_operator_vote` method that records the operator's intent without claiming gate-side approval, so the UI can record 'operator pre-approved' state distinct from 'gate approved'."
+    },
+    {
+      "mt_id": "MT-155",
+      "subscope": "D.2",
+      "cluster": "D",
+      "severity": "HIGH",
+      "category": "CODE",
+      "title": "pending_reviews and pending_tickets key on different iteration_ids when gate returns mismatched ticket",
+      "detail": "submit_for_review (line 190) inserts request keyed by request.iteration_id and ticket keyed by ticket.iteration_id (line 191). Combined with MT-154's lack of ticket-binding validation, a gate that returns a mismatched ticket creates desynchronized HashMaps where ticket_for_iteration(request_iter_id) returns None even though pending_reviews contains the entry — breaking the IPC contract.",
+      "file_refs": [
+        "src/backend/handshake_core/src/self_improve/ipc.rs"
+      ],
+      "spec_anchor": "",
+      "remediation_hint": "Either validate request.iteration_id == ticket.iteration_id in submit_for_review and reject mismatches, or pick a single canonical iteration_id (the request's) and key both maps on it."
+    },
+    {
+      "mt_id": "MT-159",
+      "subscope": "D.3",
+      "cluster": "D",
+      "severity": "HIGH",
+      "category": "RUNTIME",
+      "title": "Hygiene PostgresBitemporalMemoryIndex.list_items cannot see pins set via PinIpcService",
+      "detail": "PostgresBitemporalMemoryIndex::list_items (impl FemsAccessor) maps each bitemporal item via hygiene_item_from_bitemporal which reads pinned from payload.pinned or payload.is_pinned. Pin/unpin actions append to MEMORY_PIN_AGGREGATE_TYPE='memory_item' (a different aggregate than memory_bitemporal_item). Unless the pin action also projects pinned=true into the latest bitemporal payload (no such projection observed), production hygiene will treat IPC-pinned items as unpinned and may emit prune/consolidation candidates against them. Operator review of candidates is the only remaining backstop.",
+      "file_refs": [
+        "src/backend/handshake_core/src/memory/hygiene.rs:711-733",
+        "src/backend/handshake_core/src/memory/hygiene.rs:748-769",
+        "src/backend/handshake_core/src/memory/pinned_core.rs:45-50",
+        "src/backend/handshake_core/src/memory/persistence_postgres.rs:233-247"
+      ],
+      "spec_anchor": ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.8.5",
+      "remediation_hint": "Either (a) project pin/unpin actions back into the bitemporal item payload via a follow-up ledger event, OR (b) extend HygieneItemView.pinned resolution to read both the bitemporal payload and the latest pin aggregate event, OR (c) add a Postgres test that pins an item via PinIpcService then asserts HygieneJobRunner.run_once with FemsAccessor=PostgresBitemporalMemoryIndex skips it on prune/consolidate/flag/promote."
+    },
+    {
+      "mt_id": "MT-160",
+      "subscope": "D.3",
+      "cluster": "D",
+      "severity": "HIGH",
+      "category": "RUNTIME",
+      "title": "Hygiene pinned-skip is bypassable in production via the cross-aggregate pin gap",
+      "detail": "Because PostgresBitemporalMemoryIndex.list_items reads pinned from the bitemporal item payload, and IPC pin actions only append to the separate memory_pin aggregate, run_consolidate / run_prune / run_flag_contradictions / run_promote will not skip IPC-pinned items. Hygiene candidates are review-gated (operator must approve before mutation), so this is not a silent auto-delete of core memory — but it does mean operators are forced to manually filter pinned items out of every hygiene review, breaking the MT-159 invariant that pinned items are protected from hygiene at the contract level.",
+      "file_refs": [
+        "src/backend/handshake_core/src/memory/hygiene.rs:490",
+        "src/backend/handshake_core/src/memory/hygiene.rs:524",
+        "src/backend/handshake_core/src/memory/hygiene.rs:552",
+        "src/backend/handshake_core/src/memory/hygiene.rs:591",
+        "src/backend/handshake_core/src/memory/hygiene.rs:761-765"
+      ],
+      "spec_anchor": ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.8.3",
+      "remediation_hint": "Same as MT-159: project pin state into bitemporal payload OR teach HygieneItemView to query the pin aggregate. Add a live-Postgres red-team test that pins via PinIpcService then runs hygiene and asserts zero candidates against pinned items."
+    },
+    {
+      "mt_id": "MT-165",
+      "subscope": "D.3",
+      "cluster": "D",
+      "severity": "HIGH",
+      "category": "CODE",
+      "title": "Tarball artifact payloads bypass redaction policy",
+      "detail": "In export(), the Tarball branch (lines 255-275) calls self.source.load_artifact(&art.artifact_id) and pushes the returned bytes directly into the tar entries Vec. apply_redactions never sees these bytes. A bundle with redact_pii=true + redact_credentials=true will still export a credential-bearing packet.json verbatim if that artifact_id resolves to a file containing secrets.",
+      "file_refs": [
+        "src/backend/handshake_core/src/memory/trace_export.rs"
+      ],
+      "spec_anchor": ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.8.3",
+      "remediation_hint": "After loading artifact bytes, if policy.redact_pii or policy.redact_credentials is true, attempt to interpret bytes as UTF-8 and run redact_pii/redact_credentials on the text payload; record redactions in bundle.redactions_applied with field=`artifacts.<id>`. For non-text artifacts, either reject (typed error) or replace with a `[BINARY ARTIFACT REDACTED]` placeholder when policy.redact_full_item_text=true."
+    },
+    {
+      "mt_id": "MT-165",
+      "subscope": "D.3",
+      "cluster": "D",
+      "severity": "HIGH",
+      "category": "SPEC",
+      "title": "Redaction is regex-only; contract requires regex + NER",
+      "detail": "MT-165 implementation_notes explicitly require 'the same PII+credential scanner used by AC-DISTILL-CONTENT-REVIEW (regex + NER)'. Current implementation has email_re + phone_re + secret_re only. No NER (e.g., presidio, BERT-NER, or any entity extractor). Operator names, addresses, ID numbers, multi-line tokens, and credit-card numbers are not detected.",
+      "file_refs": [
+        "src/backend/handshake_core/src/memory/trace_export.rs"
+      ],
+      "spec_anchor": ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.8.3",
+      "remediation_hint": "Either ship a NER pipeline (e.g., wire to an existing redactor used in content_review.rs) or update the contract + ACs to formally accept regex-only Phase 1 with NER deferred to a tracked follow-up MT."
+    },
+    {
+      "mt_id": "MT-186",
+      "subscope": "X.2",
+      "cluster": "X",
+      "severity": "HIGH",
+      "category": "RUNTIME",
+      "title": "Orphan-process risk — red_team #1 ProcessOwnershipLedger reclaim path unproven",
+      "detail": "Operator's high-priority concern: 'forced cancellation always triggers reclaim hooks (no orphan processes)'. The contract red_team minimum_controls #1 calls for a test asserting no PID survives. force() invokes user-registered MtCancellationCleanupHook trait objects only; there is no built-in path to ProcessOwnershipLedger (spec §5.7.5) and no test asserting orphan-free outcome. SessionBroker shutdown path could therefore leak child processes if it does not register an explicit reclaim hook on every job — a contract-level gap, not just a test gap.",
+      "file_refs": [
+        "src/backend/handshake_core/src/mt_executor/cancellation.rs"
+      ],
+      "spec_anchor": ".GOV/spec/master-spec-v02.186/spec-modules/05-security-and-observability.md#5.7.5",
+      "remediation_hint": "Either (a) make ProcessOwnershipLedger reclaim a built-in step inside MtCanceller::force (always runs, even if caller forgets to register a hook), or (b) require every caller-registered job to bind a reclaim hook at register time (compile-enforced via API). Add a test that registers a stub PID-tracking ProcessOwnershipLedger, calls force, asserts the PID was reclaimed."
+    },
+    {
+      "mt_id": "MT-186",
+      "subscope": "X.2",
+      "cluster": "X",
+      "severity": "HIGH",
+      "category": "SPEC",
+      "title": "force_after_secs cooperative-to-forced escalation timer missing",
+      "detail": "Adversarial concern: retry-loop without escalation. Contract specifies a default-30s timer that escalates cooperative -> forced. Without it, a hung executor that ignores the cooperative token never reaches forced cancellation unless the caller orchestrates the timer. red_team #3 explicitly requires this to be configurable per Work Profile.",
+      "file_refs": [
+        "src/backend/handshake_core/src/mt_executor/cancellation.rs"
+      ],
+      "spec_anchor": ".GOV/spec/master-spec-v02.186/spec-modules/05-security-and-observability.md#5.7.5",
+      "remediation_hint": "Add an MtCanceller helper (e.g., request_with_force_after) that flips the token cooperatively, awaits drain up to force_after_secs, then calls force() automatically. Sourced from Work Profile."
+    },
+    {
+      "mt_id": "MT-001",
+      "subscope": "A.1",
+      "cluster": "A",
+      "severity": "HIGH",
+      "category": "TEST",
+      "title": "Node self-test asserts wrong rule count and pillar distribution",
+      "detail": ".GOV/roles_shared/scripts/hbr-registry-loader.mjs lines 138-145: `assert.equal(rules.length, 24)` and pillar distribution `{INT:8,SWARM:4,VIS:5,QUIET:4,MAN:3}` exclude the 5 STOP rules added in registry v1.3.0. `node ... --self-test` (a proof_command for this MT) will fail immediately.",
+      "file_refs": [
+        ".GOV/roles_shared/scripts/hbr-registry-loader.mjs:138-145"
+      ],
+      "spec_anchor": "",
+      "remediation_hint": "Update assert to 29 and pillar distribution to include STOP:5, or compute distribution dynamically and assert only INT/SWARM/VIS/QUIET/MAN/STOP keys exist."
+    },
+    {
+      "mt_id": "MT-002",
+      "subscope": "A.1",
+      "cluster": "A",
+      "severity": "HIGH",
+      "category": "CODE",
+      "title": "PROVED-to-PENDING downgrade is NOT explicitly blocked",
+      "detail": "Red-team minimum_control: 'Negative test: hydrator refuses to downgrade a PROVED row to PENDING (asserts panic/error)'. Looking at applicableRow() (lines 158-177), the function preserves existing.status if a row exists, but does NOT throw when status is PROVED and the rule is now flagged Applicable. If a future packet edit corrupted status to PENDING manually and the hydrator ran, it would preserve PENDING. The check should fail-closed: if existing.status === 'PROVED' and any field becomes inconsistent, error out.",
+      "file_refs": [
+        ".GOV/roles_shared/scripts/hbr-matrix-hydrate.mjs:158-177"
+      ],
+      "spec_anchor": "",
+      "remediation_hint": "Add explicit invariant: if existing.status === 'PROVED', validator_verdict must remain 'PROVED' and evidence_pointer must be non-empty; throw if not."
+    },
+    {
+      "mt_id": "MT-004",
+      "subscope": "A.1",
+      "cluster": "A",
+      "severity": "HIGH",
+      "category": "SPEC",
+      "title": "STOP pillar evidence_kinds missing from all transition tables",
+      "detail": "HandoffTransition::checkable_evidence_kinds() (lines 74-110) covers only INT/MAN/SWARM/VIS/QUIET evidence_kinds. The 5 STOP rules' evidence_kinds are absent. Result: a packet matrix row for HBR-STOP-001..005 in PENDING/BLOCKED state will not appear in evaluated_rules and will not trigger a failing_rules entry — the handoff PASSES while the STOP discipline gate is silently bypassed.",
+      "file_refs": [
+        "src/backend/handshake_core/src/hbr/handoff_gate.rs:74-110"
+      ],
+      "spec_anchor": ".GOV/spec/master-spec-v02.186/spec-modules/05-security-and-observability.md#5.6.2",
+      "remediation_hint": "Add STOP evidence_kinds to (at minimum) CoderToWpValidator transition, OR document that STOP is build-time-only and never handoff-evaluable; whichever is intended, the choice must be explicit, not omission."
+    },
+    {
+      "mt_id": "MT-007",
+      "subscope": "A.1",
+      "cluster": "A",
+      "severity": "HIGH",
+      "category": "RUNTIME",
+      "title": "flush_batch errors silently dropped in run_writer",
+      "detail": "Lines 347 and 352: `let _ = flush_batch(&store, &mut batch, &degraded).await;` discards the Result. flush_batch on error does NOT clear the batch (line 380 only clears on Ok), so the failed batch is retried on the next iteration. The original sqlx error is never logged, never propagated as a typed event. Postgres outage manifests only as 'degraded=true' after first failure.",
+      "file_refs": [
+        "src/backend/handshake_core/src/process_ledger/writer.rs:347,352,379-383"
+      ],
+      "spec_anchor": "",
+      "remediation_hint": "Log the error via tracing, emit a typed FR_EVT_LEDGER_STORE_FAILED event to the kernel event ledger, and add bounded retry + dead-letter handling before falling into overflow."
+    },
+    {
+      "mt_id": "MT-008",
+      "subscope": "A.1",
+      "cluster": "A",
+      "severity": "HIGH",
+      "category": "RUNTIME",
+      "title": "FOR UPDATE row-lock released before kill() runs",
+      "detail": "active_processes_for_session opens a tx, runs FOR UPDATE SELECT, then COMMITS the tx (line 252) before returning rows. The row-lock is released before the reclaim loop calls kill(). Two concurrent Reclaim::run() invocations on the same session each load identical row sets and both issue kill() — defeats the stated red-team control 'FOR UPDATE row-lock prevents two reclaim runs racing'.",
+      "file_refs": [
+        "src/backend/handshake_core/src/process_ledger/reclaim.rs:247-252"
+      ],
+      "spec_anchor": "",
+      "remediation_hint": "Hold the transaction open across the entire reclaim loop (passing tx into kill() / append_stop()), OR use SELECT ... FOR UPDATE SKIP LOCKED so the second runner sees an empty set, OR use an advisory PostgreSQL lock keyed on session_id."
+    },
+    {
+      "mt_id": "MT-009",
+      "subscope": "A.1",
+      "cluster": "A",
+      "severity": "HIGH",
+      "category": "CODE",
+      "title": "Smoke test file is untracked in coder worktree",
+      "detail": "src/backend/handshake_core/tests/hbr_e2e_smoke_test.rs is an untracked file in wtc-kernel-004-fold-v1 (status: '??'). The MT cannot be considered durable until the file is committed on feat/WP-KERNEL-004. The registry flip is committed via gov_kernel sync (HANDSHAKE_BUILD_RULES.json shows version 1.3.0 in gov_kernel), but the smoke test that proves the flip is not yet in git history.",
+      "file_refs": [
+        "src/backend/handshake_core/tests/hbr_e2e_smoke_test.rs"
+      ],
+      "spec_anchor": "",
+      "remediation_hint": "Commit the smoke test on feat/WP-KERNEL-004 in the same commit (or chained commits) as any other untracked KERNEL-004 product code so HBR-MAN-001 paired-diff enforcement can be evaluated against real history."
+    },
+    {
+      "mt_id": "MT-010",
+      "subscope": "A.6",
+      "cluster": "A",
+      "severity": "HIGH",
+      "category": "CODE",
+      "title": "ModelManual module is untracked in git",
+      "detail": "The entire src/backend/handshake_core/src/model_manual/ directory is untracked (status: '??') in wtc-kernel-004-fold-v1. None of mod.rs, types.rs, content.rs, projection.rs, nor the test file have been committed on feat/WP-KERNEL-004. This means: (a) HBR-MAN-001 paired-diff has never run against a real history-locked commit because the canonical file does not exist in any committed tree; (b) Integration Validator cannot replay the commit to confirm the same-commit invariant; (c) the deliverable cannot ship until committed.",
+      "file_refs": [
+        "src/backend/handshake_core/src/model_manual/mod.rs",
+        "src/backend/handshake_core/src/model_manual/types.rs",
+        "src/backend/handshake_core/src/model_manual/content.rs",
+        "src/backend/handshake_core/tests/model_manual_tests.rs"
+      ],
+      "spec_anchor": "",
+      "remediation_hint": "Commit the entire model_manual module + its tests in a single feat/WP-KERNEL-004 commit; rerun MT-011 paired-diff hook against that commit to confirm the bootstrap commit is rule-compatible."
+    },
+    {
+      "mt_id": "MT-011",
+      "subscope": "A.6",
+      "cluster": "A",
+      "severity": "HIGH",
+      "category": "CODE",
+      "title": "config_key detector false-positive flood on real Rust files",
+      "detail": "detectConfigKeys() trips when a file path matches /config|settings|options/i OR the patch text contains a struct named *Config/*Settings/*Options, then matches EVERY `name:` line in the patch as a config_key. Running `node hbr-man-001-paired-diff.mjs --repo-root . --base-ref HEAD~1 --target-ref HEAD` against wtc-kernel-004-fold-v1 currently emits dozens of spurious config_key failures whose names are local variable bindings, struct-literal field names from `From<...> for Y` impls, and unrelated message-pipe fields. Real wired config keys would be a small set; the current scanner cannot distinguish them.",
+      "file_refs": [
+        ".GOV/roles_shared/checks/hbr-man-001-paired-diff.mjs"
+      ],
+      "spec_anchor": ".GOV/spec/master-spec-v02.186/spec-modules/10-product-surfaces.md#10.15.7",
+      "remediation_hint": "Narrow detection to (a) only patch hunks whose added/removed line text appears INSIDE a struct definition body (track {} depth from the nearest preceding `struct *Config { }` declaration), OR (b) restrict to files with `derive(Serialize, Deserialize)` AND require the field be inside the deserializable struct. Add a fixture that adds a struct-literal expression `Foo { x: y }` in a file whose patch mentions WriterConfig elsewhere and assert zero false positives."
+    },
+    {
+      "mt_id": "MT-012",
+      "subscope": "A.6",
+      "cluster": "A",
+      "severity": "HIGH",
+      "category": "CODE",
+      "title": "Scanner script untracked in feature branch and live content.rs untracked",
+      "detail": "The MT-012 deliverables live on gov_kernel (script) and as untracked files in wtc-kernel-004-fold-v1 (content.rs). Same CX-212F pattern as MT-011: governance script lives on gov_kernel by design, but the live content.rs that the scanner reads must be committed on feat/WP-KERNEL-004 before MT-012 can produce durable evidence.",
+      "file_refs": [
+        ".GOV/roles_shared/checks/hbr-man-003-scan.mjs",
+        "src/backend/handshake_core/src/model_manual/content.rs"
+      ],
+      "spec_anchor": "",
+      "remediation_hint": "Commit content.rs on feat/WP-KERNEL-004; re-run hbr-man-003-scan against the committed tree to confirm exit code."
+    },
+    {
+      "mt_id": "MT-013",
+      "subscope": "A.6",
+      "cluster": "A",
+      "severity": "HIGH",
+      "category": "CODE",
+      "title": "All MT-013 deliverables are untracked in feature branch",
+      "detail": "app/src-tauri/src/manual.rs, src/backend/handshake_core/src/model_manual/projection.rs, src/backend/handshake_core/tests/manual_no_context_harness.rs, and the generated app/MODEL_MANUAL.md are all untracked in wtc-kernel-004-fold-v1. The justfile recipe `generate-model-manual-md` lives on gov_kernel. Same CX-212F caveat as MT-010/011/012: the deliverables must be committed on feat/WP-KERNEL-004 before MT-013 can produce durable evidence.",
+      "file_refs": [
+        "app/src-tauri/src/manual.rs",
+        "src/backend/handshake_core/src/model_manual/projection.rs",
+        "src/backend/handshake_core/tests/manual_no_context_harness.rs"
+      ],
+      "spec_anchor": "",
+      "remediation_hint": "Commit MT-013 deliverables on feat/WP-KERNEL-004 in a single commit (or chained commits with MT-010..012 deliverables); confirm MODEL_MANUAL.md is NOT committed (per AC-MODEL-MANUAL-MD-ON-DEMAND)."
+    },
+    {
+      "mt_id": "MT-019",
+      "subscope": "A.4",
+      "cluster": "A",
+      "severity": "HIGH",
+      "category": "SPEC",
+      "title": "ControlledWindow does not create an actual Tauri window",
+      "detail": "The MT-019 contract API is `handle.bounded_window(label, url) -> ControlledWindow` returning 'a SHOWN, FOCUSED window that lives for at most max_duration and auto-dismisses via tokio::time::timeout'. The implementation returns a struct with only label/url/log_path/state - no WebviewWindow is ever built. visible()/focused()/expected_foreground() are hardcoded true. auto_dismiss_at_deadline is timeout(max_duration, pending::<()>()).await - just a sleep. This means the foreground exception API is half-built: the declaration ceremony works but operators who legitimately need a foreground window get nothing.",
+      "file_refs": [
+        "src/backend/handshake_core/src/operator_foreground/foreground_exception.rs:262-326"
+      ],
+      "spec_anchor": "06-mechanical-integrations.md#6.6",
+      "remediation_hint": "Either (a) instantiate a Tauri WebviewWindow with .visible(true).focused(true) constrained to max_duration via a tokio::time::timeout on a real window event loop, or (b) explicitly mark MT-019 as Phase-1 declaration-only and add a follow-up MT for the actual window-creation surface. The current state is neither operator-useful nor honest about the gap."
+    },
+    {
+      "mt_id": "MT-020",
+      "subscope": "A.4",
+      "cluster": "A",
+      "severity": "HIGH",
+      "category": "SPEC",
+      "title": "Audit is static source analysis only; the MT-020 contract requires runtime IPC + focus-audit + keyboard-injection per command",
+      "detail": "The contract implementation_notes are explicit: for each command run (1) IPC mock call, (2) IPC call while MT-015 focus-audit is active asserting zero handshake-owned foreground transitions, (3) raw SendInput injection from MT-016 asserting zero command invocation. The current automation-first-audit.mjs does only static regex scan for forbidden API names. A future regression where a command calls SetForegroundWindow through a renamed wrapper (or via dynamic dispatch) will pass the static audit.",
+      "file_refs": [
+        ".GOV/roles_shared/scripts/automation-first-audit.mjs",
+        "src/backend/handshake_core/tests/automation_first_audit_tests.rs"
+      ],
+      "spec_anchor": "06-mechanical-integrations.md#6.6",
+      "remediation_hint": "Extend the audit (or add a paired Rust integration test) that: spawns the app in test mode, enumerates Tauri commands via the registered handlers list, mocks IPC for each, starts FocusAuditHandle, runs simulate_shortcut_injection for the synthetic-violation fixture, and asserts the four contract conditions per command."
+    },
+    {
+      "mt_id": "MT-027",
+      "subscope": "A.2",
+      "cluster": "A",
+      "severity": "HIGH",
+      "category": "SPEC",
+      "title": "Smoke hardcodes focus_audit_summary.handshake_owned_events: [] instead of running MT-015 FocusAuditHandle",
+      "detail": "a2_smoke.spec.ts line 130 builds the smoke row with focus_audit_summary: { run_id: runId, handshake_owned_events: [] } - hardcoded. There is no call to FocusAuditHandle::start / .stop, no link to the Windows wineventhook subsystem. The contract step (3) 'Start focus-audit (MT-015) with run_id' and step (7) 'Stop focus-audit and assert handshake_owned_events is empty' are not implemented. The whole point of the smoke is to tie A.2 visual work to A.4 quiet-mode guarantees - this tie is currently a comment, not a test.",
+      "file_refs": [
+        "tests/visual/a2_smoke.spec.ts:117-141"
+      ],
+      "spec_anchor": "06-mechanical-integrations.md#6.4",
+      "remediation_hint": "Either (a) spawn the Tauri app with a Rust harness that starts FocusAuditHandle around the Playwright run + stops + serializes the report into the smoke row, or (b) explicitly mark the focus-audit slot as DEFERRED in the smoke row and document the gap. Current state silently passes regressions."
+    },
+    {
+      "mt_id": "MT-029",
+      "subscope": "A.3",
+      "cluster": "A",
+      "severity": "HIGH",
+      "category": "SPEC",
+      "title": "Per-run shared-secret header missing (spec §6.5.5)",
+      "detail": "No request authentication exists. Any local process can curl http://127.0.0.1:<port>/inspector/v1/sessions and read the governance event ledger, session state, workspace state, and loaded models. Spec mandates a per-launch secret rotated per run with audit log of every reject. This is a confidentiality + tamper-evidence gap, not just paperwork.",
+      "file_refs": [
+        "src/backend/handshake_core/src/inspector_read/server.rs"
+      ],
+      "spec_anchor": ".GOV/spec/master-spec-v02.186/spec-modules/06-mechanical-integrations.md#6.5.5",
+      "remediation_hint": "Add a per-launch random secret (uuid-v7 hex), expose via kernel.inspector.secret() IPC alongside kernel.inspector.port(), require X-Handshake-Inspector-Secret header in a tower middleware, return 403 + audit-row on missing/mismatched header."
+    },
+    {
+      "mt_id": "MT-030",
+      "subscope": "A.3",
+      "cluster": "A",
+      "severity": "HIGH",
+      "category": "SPEC",
+      "title": "Validator focus claim 'signature verification uses KERNEL-002 verifier (not a duplicated implementation)' is false",
+      "detail": "There is no KERNEL-002 cryptographic verifier. write_boxes.rs::validate_write_box_common performs field-presence validation only, not signature verification. replay_drive.rs defines its own Kernel002WriteBoxEnvelopeVerifier from scratch using a keyless hash. The 'no duplicated crypto' requirement is met trivially because there is no crypto at all.",
+      "file_refs": [
+        "src/backend/handshake_core/src/inspector_read/replay_drive.rs",
+        "src/backend/handshake_core/src/kernel/write_boxes.rs"
+      ],
+      "spec_anchor": ".GOV/spec/master-spec-v02.186/spec-modules/06-mechanical-integrations.md#6.5.4",
+      "remediation_hint": "Either land a real KERNEL-002 signature verifier (HMAC with per-run shared secret) and have replay_drive call it, or change the spec/contract to acknowledge that signature verification is deferred until a real key surface lands."
+    },
+    {
+      "mt_id": "MT-035",
+      "subscope": "A.5",
+      "cluster": "A",
+      "severity": "HIGH",
+      "category": "SWARM",
+      "title": "N=8 perf evidence is synthetic — closed-form simulator computes conflicts/leases/cancellations, not real concurrent CRDT contention",
+      "detail": "The test runs SwarmHarness::new(8, N8PerfScenario).run() which only validates that each session completes 100 steps and emits InspectorReplayDrive events. Then in a separate code path it builds MutationAttempts in a fresh JoinSet (no shared state) and applies them sequentially via apply_attempts() to a struct WorkspaceEvidence. The conflict_report_count, revision_rejection_count, lease_waits, and cancellations are all functions of session_idx/op_idx arithmetic, not of real CRDT contention. A regression that breaks SwarmHarness concurrency or CRDT conflict surfacing would not fail this test.",
+      "file_refs": [
+        "src/backend/handshake_core/tests/swarm_n8_perf_tests.rs"
+      ],
+      "spec_anchor": ".GOV/spec/master-spec-v02.186/spec-modules/06-mechanical-integrations.md#6.7.3",
+      "remediation_hint": "Replace generate_attempts_concurrently + apply_attempts with N=8 SwarmHarness sessions that all dispatch through a real KernelActionCatalogV1 against a shared crdt::WorkspaceManager; observe actual CRDT_CONFLICT_REPORT / REVISION_REJECTION rows emitted by KERNEL-002 rather than synthesizing them."
+    },
+    {
+      "mt_id": "MT-037",
+      "subscope": "A.5",
+      "cluster": "A",
+      "severity": "HIGH",
+      "category": "SWARM",
+      "title": "Cancellation invariant uses AtomicBool poll-loop, not real mid-mutation interrupt of a KernelActionCatalogV1 dispatch",
+      "detail": "run_cancellation_invariant spawns 8 tasks running `while !cancel.load(SeqCst) { sleep(10ms) }`. After 100ms it flips the atomic. The 'propagation_ms' measured is the time for all tasks to wake from their next sleep and exit — bounded by sleep granularity and tokio scheduling, not by the platform's cancellation primitive. No mutation is in flight to cancel.",
+      "file_refs": [
+        "src/backend/handshake_core/tests/swarm_invariants_tests.rs"
+      ],
+      "spec_anchor": ".GOV/spec/master-spec-v02.186/spec-modules/06-mechanical-integrations.md#6.7.5",
+      "remediation_hint": "Replace with SwarmHarness::new(8, CancelMidMutationScenario).run() where the scenario issues a MutateViaCatalog step that calls into a real KernelActionCatalogV1 handler, then triggers Reclaim(OperatorCancel) and asserts the handler observed the cancellation signal within the deadline."
+    },
+    {
+      "mt_id": "MT-088",
+      "subscope": "C.3",
+      "cluster": "C",
+      "severity": "CRITICAL",
+      "category": "RUNTIME",
+      "title": "StateVectorHandle is decoupled from live SSM model state",
+      "detail": "InMemoryStateVectorOps owns a current_snapshot Mutex that is never populated from the live model. CandleMamba2Model.state / CandleRwkvV5Model.state / CandleRwkvV6Model.state / CandleRwkvV7Model.state are mutated by Model::forward but have no path to (a) extract a tensor-byte snapshot into SSMTensorSnapshot, or (b) inject an SSMTensorSnapshot back into State::new. prefix_commit and prefix_restore on the SSM handle therefore operate on a placeholder empty snapshot.",
+      "file_refs": [
+        "src/backend/handshake_core/src/model_runtime/candle/adapter.rs:204-208",
+        "src/backend/handshake_core/src/model_runtime/candle/adapter.rs:232-236",
+        "src/backend/handshake_core/src/model_runtime/candle/adapter.rs:260-264",
+        "src/backend/handshake_core/src/model_runtime/candle/adapter.rs:288-292",
+        "src/backend/handshake_core/src/model_runtime/candle/state_vector.rs:548-573",
+        "src/backend/handshake_core/src/model_runtime/candle/state_vector.rs:612-653",
+        "src/backend/handshake_core/src/model_runtime/candle/mamba2.rs:78-86",
+        "src/backend/handshake_core/src/model_runtime/candle/rwkv_v5.rs:77-84"
+      ],
+      "spec_anchor": ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.7.1",
+      "remediation_hint": "Add `extract_snapshot(&self) -> Result<SSMStateSnapshot, ...>` and `restore_snapshot(&mut self, snapshot: SSMStateSnapshot) -> Result<(), ...>` to a new SsmModel sub-trait (or to TransformerModel for SSM variants); have CandleMamba2Model::extract_snapshot serialise self.state.conv_states + self.state.ssm_states to SSMTensorSnapshot bytes; have CandleRuntime's state_vector handle hold a back-reference to the model's Arc<Mutex<...>> so prefix_commit pulls from the live state and prefix_restore writes back. Then add a real test: load tiny Mamba2 -> forward 4 tokens -> prefix_commit -> reset -> prefix_restore -> forward same 1-token continuation -> assert logits == post-4-token-forward logits."
+    },
+    {
+      "mt_id": "MT-107",
+      "subscope": "C.9",
+      "cluster": "C",
+      "severity": "CRITICAL",
+      "category": "MISSING_CODE",
+      "title": "MT-107 owned files are not present in feat/WP-KERNEL-004 branch",
+      "detail": "git ls-tree -r feat/WP-KERNEL-004-... returns no abliterate_review.rs and no abliterate_review_tests.rs. `git log --all --oneline -- '**abliterate_review*'` returns zero file-touching commits. The contract's implementation_supporting_evidence_20260521 cites passing test logs at D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/focused-mt107-* but that directory does not exist on the current disk (Handshake_Artifacts/ exists; wp-kernel-004-test-runs/ does not). The Kernel Builder's ready_for_validation transition was made without landing the code.",
+      "file_refs": [
+        "src/backend/handshake_core/src/distillation/abliterate_review.rs (MISSING)",
+        "src/backend/handshake_core/tests/abliterate_review_tests.rs (MISSING)",
+        "src/backend/handshake_core/src/distillation/mod.rs (no abliterate_review mod entry)"
+      ],
+      "spec_anchor": ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.7.4",
+      "remediation_hint": "Either (a) reopen MT-107 as NEEDS_REIMPLEMENTATION and land the abliterate_review.rs + tests on feat per the contract's implementation_notes, OR (b) if the operator-E-5 'no curated abliterated models in registry' stance now applies hard enough that no in-process review gate is required, retire the MT with an explicit packet revision and a recorded operator decision pointing back to E-5; do not leave it in READY_FOR_VALIDATION with no code in the branch."
+    },
+    {
+      "mt_id": "MT-012",
+      "subscope": "A.6",
+      "cluster": "A",
+      "severity": "CRITICAL",
+      "category": "HBR",
+      "title": "Live HBR-MAN-003 scan fails on memory_calibration_snapshot",
+      "detail": "Running `node hbr-man-003-scan.mjs --repo-root ../wtc-kernel-004-fold-v1 --gov-root ../wt-gov-kernel/.GOV` exits 2 with: { manual_id: memory_calibration_snapshot, name: memory_calibration_snapshot, kind: command_name, reason: no_source_match } plus 6 schema_field failures for signals.{bloat,stale_dominance,trust_drift,embedding_gap,degradation_rate,hygiene_lag}. The actual Rust function is `pub async fn kernel_memory_calibration_snapshot` at app/src-tauri/src/commands/memory_calibration.rs:103, and the signal fields exist inside a `signals` field of the snapshot struct (dotted path). This is the live manual; HBR-MAN-003 is currently violated.",
+      "file_refs": [
+        "src/backend/handshake_core/src/model_manual/content.rs",
+        "app/src-tauri/src/commands/memory_calibration.rs"
+      ],
+      "spec_anchor": ".GOV/spec/master-spec-v02.186/spec-modules/10-product-surfaces.md#10.15.5",
+      "remediation_hint": "Two paths: (a) update content.rs so name='kernel_memory_calibration_snapshot' and schema_fields = ['bloat','stale_dominance','trust_drift','embedding_gap','degradation_rate','hygiene_lag','signal_errors']; (b) extend the scanner to recognize dotted field paths (`a.b` resolves if struct containing `a` has field whose type contains `b`). Path (a) is the minimal fix and the cheapest to verify in CI; path (b) is more permissive for nested types but increases scanner complexity. Recommend (a) plus a follow-up MT for nested-path support if the spec actually intends dotted addressing."
+    },
+    {
+      "mt_id": "MT-030",
+      "subscope": "A.3",
+      "cluster": "A",
+      "severity": "CRITICAL",
+      "category": "RUNTIME",
+      "title": "Keyless 'signature' scheme provides no authentication on the sole inspector mutation endpoint",
+      "detail": "expected_write_box_v1_signature(signer, write_box) = sha256(canonical_json({schema_id, signer, write_box})). The signer string is part of the input — there is no private key, no HMAC, no per-run secret. The verifier in Kernel002WriteBoxEnvelopeVerifier compares envelope.signature to the recomputed hash and accepts. A fully forged envelope from any signer name passes 'verification'. Under operator stance this is a CRITICAL bypass of WriteBoxV1.",
+      "file_refs": [
+        "src/backend/handshake_core/src/inspector_read/replay_drive.rs"
+      ],
+      "spec_anchor": ".GOV/spec/master-spec-v02.186/spec-modules/06-mechanical-integrations.md#6.5.3",
+      "remediation_hint": "Use HMAC-SHA256 with a per-run shared secret (the same secret as the MT-029 header): sig = HMAC(secret, canonical_json(envelope_payload)). Store the secret in operator-visible state at launch; rotate per run. Reject any envelope whose HMAC does not match."
+    }
+  ],
+  "cross_cutting_themes": [
+    "See critical_and_high_findings for top issues; themes will be derived from cluster patterns post-aggregation."
+  ],
+  "remediation_priorities": [
+    {
+      "priority": 1,
+      "mt_id": "MT-044",
+      "severity": "HIGH",
+      "title": "NetPolicy::LoopbackOnly silently maps to --network=none, breaking callers that need loopback reachability",
+      "remediation_hint": "Either implement slirp4netns with allow_host_loopback for LoopbackOnly (spec'd path), or return SandboxAdapterError::NetPolicyApplyFailed loud at spawn time and require callers to opt into DenyAll explicitly. Update the test to assert the new fail-loud behavior.",
+      "file_refs": [
+        "src/backend/handshake_core/src/sandbox/wsl2_podman/podman_cli.rs:259-274",
+        "src/backend/handshake_core/tests/wsl2_podman_adapter_tests.rs:109-138"
+      ]
+    },
+    {
+      "priority": 2,
+      "mt_id": "MT-046",
+      "severity": "HIGH",
+      "title": "capabilities() overclaims gpu_passthrough=VendorAgnostic with no GPU plumbing",
+      "remediation_hint": "Set gpu_passthrough=GpuPassthrough::None for both target and runtime capabilities until actual GPU pass-through is implemented; or document why DirectX path is considered VendorAgnostic at the AppContainer level.",
+      "file_refs": [
+        "src/backend/handshake_core/src/sandbox/windows_native_jail/capabilities.rs:6-17",
+        "src/backend/handshake_core/src/sandbox/selection.rs:142-160"
+      ]
+    },
+    {
+      "priority": 3,
+      "mt_id": "MT-047",
+      "severity": "HIGH",
+      "title": "KERNEL-003 'behavior parity' is structurally unachievable — DocketAdapter never shipped",
+      "remediation_hint": "Either (a) record an explicit waiver in the MT-047 lifecycle that the parity goal was retired because KERNEL-003 DocketAdapter never shipped, OR (b) capture the argv shape from KERNEL-003's ContainerAdapterStub (the only KERNEL-003 docker-adjacent surface) and golden-test against it.",
+      "file_refs": [
+        "src/backend/handshake_core/src/sandbox/docker/kernel_003_bridge.rs:37-56"
+      ]
+    },
+    {
+      "priority": 4,
+      "mt_id": "MT-047",
+      "severity": "HIGH",
+      "title": "NetPolicy::LoopbackOnly silently maps to --network=none",
+      "remediation_hint": "Either implement --network=bridge with iptables localhost-only firewall seed (spec'd path) or fail loud at spawn time with NetPolicyApplyFailed.",
+      "file_refs": [
+        "src/backend/handshake_core/src/sandbox/docker/kernel_003_bridge.rs:243-257"
+      ]
+    },
+    {
+      "priority": 5,
+      "mt_id": "MT-050",
+      "severity": "HIGH",
+      "title": "MT-050 'KERNEL-003 ValidationRunner public API preservation' control is vacuous",
+      "remediation_hint": "Re-frame MT-050 in the packet contract: the work is 'establish the canonical sandbox-routed validation lane' rather than 'preserve an existing ValidationRunner'. Update packet/refinement so future validators do not chase a non-existent prior surface.",
+      "file_refs": [
+        "src/backend/handshake_core/src/sandbox/docker/kernel_003_bridge.rs:45",
+        "src/backend/handshake_core/src/sandbox/validation_runner_binding.rs:125"
+      ]
+    },
+    {
+      "priority": 6,
+      "mt_id": "MT-052",
+      "severity": "HIGH",
+      "title": "OS-level EROFS enforcement test missing",
+      "remediation_hint": "Add a wsl2-integration feature-gated test that bind_specs_from_packet(fixture_packet, tempdir_repo) into WSL2PodmanAdapter::spawn into exec a touch outside allowed_paths into assert non-zero exit (EROFS class), and touch inside into assert exit 0.",
+      "file_refs": [
+        "src/backend/handshake_core/tests/work_packet_scope_binder_tests.rs"
+      ]
+    },
+    {
+      "priority": 7,
+      "mt_id": "MT-054",
+      "severity": "HIGH",
+      "title": "MT-054 contract assumes a refactor target that does not exist in product code",
+      "remediation_hint": "Re-frame MT-054 in packet/refinement: 'install the forward-guard repo lint and verify no KERNEL-003 Docker consumers exist'. Refer downstream MTs (MT-055 migration tests) to the lint output rather than a parity fixture.",
+      "file_refs": [
+        ".GOV/roles_shared/records/sandbox/WP-KERNEL-004-kernel-003-callsite-migration.json",
+        "src/backend/handshake_core/src/sandbox/docker/kernel_003_bridge.rs:45"
+      ]
+    },
+    {
+      "priority": 8,
+      "mt_id": "MT-057",
+      "severity": "HIGH",
+      "title": "stdout_bytes parity check is unconditional auto-pass",
+      "remediation_hint": "Either: (a) wire stdout capture per-adapter (Wsl2Podman: podman logs, Docker: docker logs) and assert the StdoutPredicate; or (b) mark stdout_predicate_passed as explicitly Skipped with a coverage-gap entry so the validator sees the gap rather than a green check.",
+      "file_refs": [
+        "src/backend/handshake_core/src/test_harness/cross_adapter.rs:491"
+      ]
+    },
+    {
+      "priority": 9,
+      "mt_id": "MT-057",
+      "severity": "HIGH",
+      "title": "net_loopback_only parity fixture cannot detect silent DenyAll coercion",
+      "remediation_hint": "Tighten the fixture: change expected.exit_code_class to 'zero' (loopback must actually work) so the silent LoopbackOnly to DenyAll coercion is caught. Then fix podman_cli/kernel_003_bridge to either honor LoopbackOnly (slirp4netns / network=bridge with iptables) or fail-closed with NetPolicyApplyFailed.",
+      "file_refs": [
+        "src/backend/handshake_core/tests/fixtures/cross_adapter_parity/net_loopback_only.json:26",
+        "src/backend/handshake_core/src/sandbox/wsl2_podman/podman_cli.rs:262",
+        "src/backend/handshake_core/src/sandbox/docker/kernel_003_bridge.rs:245"
+      ]
+    },
+    {
+      "priority": 10,
+      "mt_id": "MT-058",
+      "severity": "HIGH",
+      "title": "ESC-FS-SYMLINK-TRAVERSAL marked weaker-enforcement for both Linux adapters",
+      "remediation_hint": "Remove the documented_weaker_enforcement_adapters for ESC-FS-SYMLINK-TRAVERSAL OR change the bind mount to a tmpfs/ephemeral root so /etc is not present at all in the container's filesystem view. If the symlink really does resolve to host /etc/passwd, that is an escape - record it as Red and fix the adapter.",
+      "file_refs": [
+        "src/backend/handshake_core/src/test_harness/escape_attempts.rs:190"
+      ]
+    },
+    {
+      "priority": 11,
+      "mt_id": "MT-058",
+      "severity": "HIGH",
+      "title": "ESC-WIN32-FOREGROUND-INJECT cannot actually run (probe binary missing)",
+      "remediation_hint": "Add a tiny Win32 helper binary under tests/win32-helpers/ that calls SetForegroundWindow(GetForegroundWindow()) and exits with the GetLastError code; build it under the win-native-integration feature; reference it via its build-output path.",
+      "file_refs": [
+        "src/backend/handshake_core/src/test_harness/escape_attempts.rs:337"
+      ]
+    },
+    {
+      "priority": 12,
+      "mt_id": "MT-082",
+      "severity": "HIGH",
+      "title": "Bare CandleSteeringHooks::capture returns synthetic prompt-hashed rows instead of real activations",
+      "remediation_hint": "Either (a) remove the bare CandleSteeringHooks::capture impl and route all SteeringHookOps callers through CandleRuntimeSteeringHookOps which holds the model, or (b) make the bare impl return ModelRuntimeError::SteeringHookError(\"capture requires a CandleRuntime-bound hook handle\") so callers cannot silently consume synthetic data.",
+      "file_refs": [
+        "src/backend/handshake_core/src/model_runtime/candle/hooks.rs:407-414",
+        "src/backend/handshake_core/src/model_runtime/candle/hooks.rs:461-490",
+        "src/backend/handshake_core/src/model_runtime/candle/adapter.rs:459-462"
+      ]
+    },
+    {
+      "priority": 13,
+      "mt_id": "MT-088",
+      "severity": "HIGH",
+      "title": "E2E smoke test for state-vector restore is structurally insufficient",
+      "remediation_hint": "Replace the test with: forward N tokens (without reset), record live state via the (to-be-added) extract path, prefix_commit, forward M tokens, prefix_restore, forward 1 token, assert logits match the M+1-th token of the original sequence. This requires the bug fix above.",
+      "file_refs": [
+        "src/backend/handshake_core/tests/candle_e2e_smoke.rs:403-441",
+        "src/backend/handshake_core/src/model_runtime/candle/generate.rs:120-125"
+      ]
+    },
+    {
+      "priority": 14,
+      "mt_id": "MT-089",
+      "severity": "HIGH",
+      "title": "State-vector sub-test inherits MT-088 structural defect",
+      "remediation_hint": "See MT-088 remediation. After MT-088 is fixed, replace the test with: forward N tokens, commit, forward M more, restore, forward 1 -> assert that single-token logits match the N+M+1 trace.",
+      "file_refs": [
+        "src/backend/handshake_core/tests/candle_e2e_smoke.rs:403-441"
+      ]
+    },
+    {
+      "priority": 15,
+      "mt_id": "MT-095",
+      "severity": "HIGH",
+      "title": "BLAKE3 keyed-hash replay resistance is dead code at the live path",
+      "remediation_hint": "Wire from_derived inside both adapter prefix_commit impls so the cache entry stores registered_at_utc and the handle carries derived_id. At restore, call verify_derived_against with the cached registered_at_utc + TTL check before deserializing the cached state. Add an integration test that constructs a handle in one logical 'process' (rotated key) and asserts restore in another rejects it.",
+      "file_refs": [
+        "src/backend/handshake_core/src/model_runtime/llama_cpp/kv_cache_impl.rs:392",
+        "src/backend/handshake_core/src/model_runtime/candle/state_vector.rs:613",
+        "src/backend/handshake_core/src/model_runtime/techniques/kv_cache_technique.rs:91-125"
+      ]
+    },
+    {
+      "priority": 16,
+      "mt_id": "MT-096",
+      "severity": "HIGH",
+      "title": "attach_live_runtime is test-only; production app never binds a real CandleRuntime adapter",
+      "remediation_hint": "The model load flow (wherever CandleRuntime::load() is invoked) MUST call ModelRuntimeState::attach_live_runtime(model_id, Arc::new(candle_runtime)) before returning success. This was the same gap noted in MT-068/MT-096 historical_blocker, and remains unresolved at the wiring layer even though the dispatch layer is correct.",
+      "file_refs": [
+        "app/src-tauri/src/lib.rs:861-895",
+        "app/src-tauri/src/commands/model_runtime.rs:71-81",
+        "app/src-tauri/src/commands/steering.rs:413-425"
+      ]
+    },
+    {
+      "priority": 17,
+      "mt_id": "MT-097",
+      "severity": "HIGH",
+      "title": "ReviewStatus::Pending is written but never enforced",
+      "remediation_hint": "Add `pub fn approve(&self, id: SteeringVectorId, approver: OperatorId) -> Result<...>` that transitions Pending -> Approved and writes an audit row. Then either (a) gate set_active to consult store.is_approved(id) when a store is attached, or (b) make the gate a Tauri-IPC-layer concern in steering_set_active. Operator UI needs an Approve button on the SteeringVectorEditor.",
+      "file_refs": [
+        "src/backend/handshake_core/src/model_runtime/techniques/steering_vector_store.rs:146",
+        "src/backend/handshake_core/src/model_runtime/techniques/activation_steering.rs:38-45",
+        "app/src-tauri/src/commands/steering.rs:339-362 (steering_set_active)"
+      ]
+    },
+    {
+      "priority": 18,
+      "mt_id": "MT-098",
+      "severity": "HIGH",
+      "title": "AC-INFER-LAB-UI-AB-COMPARE not implemented",
+      "remediation_hint": "Replace the explanatory <details> with two side-by-side <pre> output panes: 'Base (no steering)' and 'With proposed vector'. Both panes call kernel_model_runtime_generate (or its streaming equivalent once MT-074 lands) — Base with steering inactive, Proposed with the just-computed direction set_active. Include a 'Commit to Work Profile' button that becomes enabled only after the operator inspects both outputs.",
+      "file_refs": [
+        "app/src/components/inference_lab/ContrastiveCaptureWizard.tsx:300-308"
+      ]
+    },
+    {
+      "priority": 19,
+      "mt_id": "MT-100",
+      "severity": "HIGH",
+      "title": "ablate_at_inference does not actually orthogonalise; it subtracts a unit vector additively",
+      "remediation_hint": "Add a runtime branch in apply_vector_to_activation that checks the vector's provenance.technique. When ContrastiveTechnique::RefusalVector AND intensity == REFUSAL_ABLATION_INTENSITY, compute `let proj = dot(activation, vector.values); activation - proj * vector.values` (per-element). Pre-condition: vector.values is unit-length, which extract_refusal_direction guarantees via unit_normalise. Add a wire test that compares the actual residual delta to the projection-ablation formula on a synthetic activation+direction pair.",
+      "file_refs": [
+        "src/backend/handshake_core/src/model_runtime/techniques/refusal_vector.rs:121-146",
+        "src/backend/handshake_core/src/model_runtime/candle/hooks.rs:306-331"
+      ]
+    },
+    {
+      "priority": 20,
+      "mt_id": "MT-100",
+      "severity": "HIGH",
+      "title": "Refusal-disabling vectors can be saved AND activated without any operator confirmation step",
+      "remediation_hint": "Refusal vectors specifically (ContrastiveTechnique::RefusalVector) should require an additional `operator_acknowledgment: bool` flag on register and a separate explicit approve step before set_active will accept them. Consider a distinct kernel.steering.register_refusal action with stricter authority-effect than the generic register.",
+      "file_refs": [
+        "src/backend/handshake_core/src/model_runtime/techniques/refusal_vector.rs:121-146",
+        "app/src-tauri/src/commands/steering.rs:339-362"
+      ]
+    },
+    {
+      "priority": 21,
+      "mt_id": "MT-100",
+      "severity": "HIGH",
+      "title": "Arditi 2024 end-to-end reproduction never runs",
+      "remediation_hint": "Adopt the MT-099 pattern: a deterministic dyn ModelRuntime mock with synthetic refusal direction and synthetic completions where the orthogonalisation actually changes the regex-classified completion from 'I can't' to a non-refusal. This catches both the orthogonalisation-vs-subtraction bug (HIGH finding above) and the missing end-to-end eval gap in one test.",
+      "file_refs": [
+        "src/backend/handshake_core/tests/inf4_refusal_vector_tests.rs:431-481"
+      ]
+    },
+    {
+      "priority": 22,
+      "mt_id": "MT-101",
+      "severity": "HIGH",
+      "title": "Metrics correctness depends on MT-100 orthogonalisation that does not exist",
+      "remediation_hint": "Fix MT-100's ablate_at_inference first (add the orthogonalisation branch in candle/hooks.rs::apply_vector_to_activation), then this metrics framework correctly measures the right operation. No code changes in MT-101 itself are required for this finding — but the MT-101 PASS verdict must be conditional on MT-100 being fixed.",
+      "file_refs": [
+        "src/backend/handshake_core/src/model_runtime/techniques/refusal_metrics.rs:298-330",
+        "src/backend/handshake_core/src/model_runtime/techniques/refusal_vector.rs:121-146"
+      ]
+    },
+    {
+      "priority": 23,
+      "mt_id": "MT-102",
+      "severity": "HIGH",
+      "title": "Save & Activate has no 'this disables refusal' confirmation step",
+      "remediation_hint": "Before Save fires, surface a confirmation panel with explicit acknowledgement: '[ ] I understand this vector is designed to disable refusal on model <X>. I have authorisation to ablate refusal on this base model under its license <license_tag>.' The acknowledgement must be a typed receipt (CX-130) not just a UI gesture.",
+      "file_refs": [
+        "app/src/components/inference_lab/RefusalVectorWizard.tsx (Save section around line 326-340)"
+      ]
+    },
+    {
+      "priority": 24,
+      "mt_id": "MT-102",
+      "severity": "HIGH",
+      "title": "Per-layer effectiveness bar chart uses L2 norm of unit vector — always 1.0",
+      "remediation_hint": "Wire a second IPC call to MT-101 measure_with_runtime (or a dedicated kernel_model_runtime_refusal_measure command) that returns per_layer_drop. Bar fill width = per_layer_drop[layer] / max(per_layer_drop.values()). For the case where measurement is not yet run, render the bars as empty with a 'click Measure to populate' affordance — NEVER show fake-uniform bars.",
+      "file_refs": [
+        "app/src/components/inference_lab/RefusalVectorWizard.tsx (bar chart render section)"
+      ]
+    },
+    {
+      "priority": 25,
+      "mt_id": "MT-108",
+      "severity": "HIGH",
+      "title": "MT-108 owned files are not present in feat/WP-KERNEL-004 branch",
+      "remediation_hint": "Reopen as NEEDS_REIMPLEMENTATION. The static-analysis test is partially redundant with MT-106's scan; the unique value MT-108 adds is the runtime-refusal gate (refuse load of AbliterationTool-tagged ledger row) and the gov-check-callable assert_abliteration_offline_invariant helper. Implement at minimum the runtime-refusal gate + the helper; cite MT-106 for the static-analysis coverage.",
+      "file_refs": [
+        "src/backend/handshake_core/tests/abliteration_offline_invariant_tests.rs (MISSING)",
+        "src/backend/handshake_core/src/model_runtime/invariant.rs (MISSING)"
+      ]
+    },
+    {
+      "priority": 26,
+      "mt_id": "MT-115",
+      "severity": "HIGH",
+      "title": "LoRA-for-SSM weight-application path absent — operator E-2 FULL FEATURE PARITY breached",
+      "remediation_hint": "Either (a) author the follow-on weight-application MT (call it MT-119 or fold into WP) with: hook into candle-transformers Mamba2/RWKV wrappers via fork or hook layer; LoraDescriptor.architecture: ArchitectureTag field; mount() applies delta per Linear projection; deterministic output-divergence test on a fixture LoRA; capabilities.supports_lora flip to true; or (b) explicitly mark INF-9 LoRA parity as scoped-out for WP-KERNEL-004 with operator E-2 amendment. Current state is a parity gap, not a parity ship.",
+      "file_refs": [
+        "src/backend/handshake_core/src/model_runtime/candle/ssm_lora.rs",
+        "src/backend/handshake_core/src/model_runtime/candle/mamba2.rs",
+        "src/backend/handshake_core/src/model_runtime/candle/rwkv_v5.rs",
+        "src/backend/handshake_core/src/model_runtime/candle/rwkv_v6.rs",
+        "src/backend/handshake_core/src/model_runtime/candle/rwkv_v7.rs",
+        "src/backend/handshake_core/src/model_runtime/candle/adapter.rs:517,529"
+      ]
+    },
+    {
+      "priority": 27,
+      "mt_id": "MT-116",
+      "severity": "HIGH",
+      "title": "Activation-steering-for-SSM forward-pass wiring absent — operator E-2 FULL FEATURE PARITY breached",
+      "remediation_hint": "Pair with MT-115's follow-on weight-application MT: same candle-transformers hook substrate work unblocks both. Identity test (zero vector -> output unchanged) and contrastive-pair capture (CAA semantics on last-token-of-prompt) must produce deterministic runtime evidence before capabilities.supportsActivationSteering flips.",
+      "file_refs": [
+        "src/backend/handshake_core/src/model_runtime/candle/hooks.rs:553-654",
+        "src/backend/handshake_core/src/model_runtime/candle/mamba2.rs",
+        "src/backend/handshake_core/src/model_runtime/candle/rwkv_v5.rs",
+        "src/backend/handshake_core/src/model_runtime/candle/rwkv_v6.rs",
+        "src/backend/handshake_core/src/model_runtime/candle/rwkv_v7.rs",
+        "src/backend/handshake_core/src/model_runtime/candle/adapter.rs:520,532"
+      ]
+    },
+    {
+      "priority": 28,
+      "mt_id": "MT-118",
+      "severity": "HIGH",
+      "title": "Full-parity gate is the operator-visible E-2 signal but 3 of 5 parity items are DEFERRED",
+      "remediation_hint": "Gate WP-KERNEL-004 INF-9 acceptance on: (a) MT-115 + MT-116 follow-on weight-application MT lands and flips capabilities.supports_lora + capabilities.supportsActivationSteering to true on SSM variants; (b) MT-118 STEP-1/2/3 produce deterministic runtime evidence (LoRA output divergence + steering identity + nonzero capture) without DEFERRED markers; (c) per-architecture env vars set or synthetic fixtures checked in so the --ignored full-parity run produces actual proof under CI.",
+      "file_refs": [
+        "src/backend/handshake_core/tests/inf9_subquadratic_full_parity_smoke.rs"
+      ]
+    },
+    {
+      "priority": 29,
+      "mt_id": "MT-122",
+      "severity": "HIGH",
+      "title": "PythonPeftTrainerExecutor is an unguarded fork; red_team minimum_controls[0] unsatisfied",
+      "remediation_hint": "Wrap PythonPeftTrainerExecutor::run() in a SandboxAdapter spawn that env-clears + selectively-injects only HANDSHAKE_DISTILL_* env vars; register a ProcessOwnershipLedger row with engine_kind=DistillationJob before spawn and finalise the row on exit/timeout. Add a deny-by-default for inheriting OPENAI_/ANTHROPIC_/HF_/GOOGLE_/AWS_ env prefixes.",
+      "file_refs": [
+        "src/backend/handshake_core/src/distillation/peft_pipeline.rs (lines ~248-260 PythonPeftTrainerExecutor doc-comment)"
+      ]
+    },
+    {
+      "priority": 30,
+      "mt_id": "MT-123",
+      "severity": "HIGH",
+      "title": "PromotionGate mount-side enforcement absent",
+      "remediation_hint": "Land a wire from LoraStackOps::mount to CandidateRegistry::mount_status (or _with_override) before WP-KERNEL-004 closes. Add an integration test that registers a Pending candidate, attempts mount, asserts Refuse; promotes; mount succeeds.",
+      "file_refs": [
+        "src/backend/handshake_core/src/distillation/candidate_registry.rs",
+        "src/backend/handshake_core/src/model_runtime/ (no consumer)"
+      ]
+    }
+  ],
+  "next_steps_for_kernel_builder": [
+    "Read critical_and_high_findings in order; address CRITICAL before HIGH.",
+    "For each FAIL or CONCERN MT, read its integration_validator_review block (in MT-NNN.json) plus the full per-MT review artifact at the noted path.",
+    "After remediation pass, request Phase 2 whole-product vs Master Spec validation."
+  ],
+  "artifact_refs": {
+    "per_mt_reviews_dir": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/",
+    "packet_contract": "packet.json (lifecycle.validator_audit_summary mirrors totals)"
+  }
+}

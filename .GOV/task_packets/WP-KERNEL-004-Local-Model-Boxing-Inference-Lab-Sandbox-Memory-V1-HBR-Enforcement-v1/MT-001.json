@@ -7,7 +7,7 @@
   "cluster_subscope": "A.1",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T02:30:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-05-27T19:03:58.446Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -39,20 +39,53 @@
   ],
   "risk_if_missed": "Without a canonical registry loader every downstream A.1 MT reinvents parsing and applicability semantics inconsistently; PACKET_ACCEPTANCE_MATRIX hydration becomes silently wrong.",
   "validator_focus": "Rust and Node implementations agree byte-for-byte on (rule_id, applicability) pairs for a fixture context; schema validation rejects a tampered registry; iteration is deterministic.",
-  "hbr_obligations": ["HBR-INT-001", "HBR-INT-008"],
+  "hbr_obligations": [
+    "HBR-INT-001",
+    "HBR-INT-008"
+  ],
   "spec_anchors": [
     ".GOV/spec/master-spec-v02.186/spec-modules/05-security-and-observability.md#5.6"
   ],
-  "acceptance_criteria_refs": ["AC-HBR-AUTHORITY"],
+  "acceptance_criteria_refs": [
+    "AC-HBR-AUTHORITY"
+  ],
   "lifecycle": {
     "active": false,
-    "status": "PENDING",
-    "validator_verdict": "PENDING",
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "CONCERN",
     "depends_on": [],
-    "blocks": ["MT-002", "MT-003", "MT-004", "MT-005", "MT-006", "MT-007", "MT-008", "MT-009"]
+    "blocks": [
+      "MT-002",
+      "MT-003",
+      "MT-004",
+      "MT-005",
+      "MT-006",
+      "MT-007",
+      "MT-008",
+      "MT-009"
+    ],
+    "claimed_by": "KERNEL_BUILDER-20260518-012310",
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "COMPLETED",
+        "validator_verdict": "PENDING",
+        "completed_at_utc": "2026-05-18T02:13:44.549Z"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "previous_completed_at_utc_before_ready_for_validation_20260525": "2026-05-18T02:13:44.549Z",
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-27T19:03:58.446Z"
   },
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260518-012310",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
     "review_response_receipt_id": null
@@ -63,5 +96,51 @@
       "Applicability evaluator is pure (no I/O) so unit tests deterministically cover all 23 rules.",
       "Rust and Node loaders share a golden-fixture cross-check test to prevent semantic drift between build-time and runtime evaluation."
     ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_A1_A2",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T19:03:58.446Z",
+    "verdict": "CONCERN",
+    "verdict_reason": "Rust + Node loaders implement schema/applicability correctly and a tampering-rejection test exists, but the Node self-test asserts 24 active rules and a pillar distribution that excludes STOP entirely — it will fail against the live v1.3.0 registry (29 active rules across INT/SWARM/VIS/QUIET/MAN/STOP).",
+    "spec_compliance_status": "PARTIAL",
+    "code_hygiene_status": "MINOR",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 1,
+      "MEDIUM": 1,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 2,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-001.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-001.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_A1_A2",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T18:50:05.123Z",
+    "verdict": "CONCERN",
+    "verdict_reason": "Rust + Node loaders implement schema/applicability correctly and a tampering-rejection test exists, but the Node self-test asserts 24 active rules and a pillar distribution that excludes STOP entirely — it will fail against the live v1.3.0 registry (29 active rules across INT/SWARM/VIS/QUIET/MAN/STOP).",
+    "spec_compliance_status": "PARTIAL",
+    "code_hygiene_status": "MINOR",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 1,
+      "MEDIUM": 1,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 2,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-001.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-001.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
   }
 }

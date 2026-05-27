@@ -7,7 +7,7 @@
   "cluster_subscope": "X.1",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:04:00Z",
-  "updated_at_utc": "2026-05-25T15:54:56.028Z",
+  "updated_at_utc": "2026-05-27T19:03:58.446Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -122,7 +122,9 @@
     },
     "ready_by": "KERNEL_BUILDER-20260525-144915",
     "ready_at_utc": "2026-05-25T15:54:56.028Z",
-    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending."
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-27T19:03:58.446Z"
   },
   "handoff": {
     "coder_session": "KERNEL_BUILDER-20260523-031814-AGT-MT180",
@@ -195,5 +197,51 @@
       "ANTI-COORDINATION: 2 other agents running in parallel were declared in the dispatch envelope. The cargo check + cargo test runs reported only pre-existing 55 warnings; no unrelated-module compile errors observed during this session.",
       "extend_lease applies its time check using server-side `Utc::now()` rather than reading the DB's NOW(). For the typical case clock skew is bounded; for hostile-clock test scenarios a Postgres-side `WHERE expires_at_utc > NOW()` could be added to the UPDATE — out of MT-180 scope, flagged for MT-181/MT-184."
     ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_X_GAPS",
+    "reviewed_at_utc": "2026-05-27T17:32:00Z",
+    "aggregator_run_at_utc": "2026-05-27T19:03:58.446Z",
+    "verdict": "PASS_WITH_NOTES",
+    "verdict_reason": "Lease primitive (acquire/extend/release/takeover) lands with FOR UPDATE serialisation + 23505 unique_violation handling + recursive-CTE takeover chain + idempotent extend/release. Partial unique index `idx_role_mailbox_claim_lease_active WHERE released_at_utc IS NULL` enforces 'one active lease per thread' at DB layer. Pure-Rust adversarial tests 11/11 green; 20 Postgres-gated tests proven against live Postgres in the 2026-05-25 continuation. Acceptable predicate divergence vs. contract NOW()-based index (Postgres immutability constraint).",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "OK",
+    "runtime_safety_status": "OK",
+    "agent_swarm_safety_status": "OK",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 1,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 2,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-180.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-180.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_X_GAPS",
+    "reviewed_at_utc": "2026-05-27T17:32:00Z",
+    "aggregator_run_at_utc": "2026-05-27T18:50:05.123Z",
+    "verdict": "PASS_WITH_NOTES",
+    "verdict_reason": "Lease primitive (acquire/extend/release/takeover) lands with FOR UPDATE serialisation + 23505 unique_violation handling + recursive-CTE takeover chain + idempotent extend/release. Partial unique index `idx_role_mailbox_claim_lease_active WHERE released_at_utc IS NULL` enforces 'one active lease per thread' at DB layer. Pure-Rust adversarial tests 11/11 green; 20 Postgres-gated tests proven against live Postgres in the 2026-05-25 continuation. Acceptable predicate divergence vs. contract NOW()-based index (Postgres immutability constraint).",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "OK",
+    "runtime_safety_status": "OK",
+    "agent_swarm_safety_status": "OK",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 1,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 2,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-180.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-180.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
   }
 }

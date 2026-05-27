@@ -7,7 +7,7 @@
   "cluster_subscope": "A.4",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T02:30:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-05-27T19:03:58.446Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -27,7 +27,10 @@
     "src/backend/handshake_core/tests/foreground_exception_tests.rs",
     "app/src-tauri/src/foreground_warning.rs"
   ],
-  "depends_on_mts": ["MT-014", "MT-015"],
+  "depends_on_mts": [
+    "MT-014",
+    "MT-015"
+  ],
   "unblock_conditions": "MT-014 quiet window foundation; MT-015 focus audit (foreground exception runs trigger focus events that must be flagged in the audit as expected-foreground, not violations).",
   "implementation_notes": "Per spec §6.6.7 the default is forbidden; exceptions must be justified and time-bounded. API: `ForegroundException::declare(wp_id: &str, reason: &str, max_duration: Duration) -> ForegroundExceptionHandle` writes a row to a `foreground_exception_log` (per-WP JSONL under .GOV/runtime/foreground_log/<wp_id>.jsonl) and triggers (a) a Tauri notification via `tauri-plugin-notification` (add to Cargo.toml if not present), (b) a Diagnostics-panel banner (Diag panel proper lands in cluster X; this MT emits a typed `DIAG_BANNER_REQUEST` event the panel subscribes to). The handle's `.bounded_window(label, url) -> ControlledWindow` returns a SHOWN, FOCUSED window that lives for at most max_duration and auto-dismisses via tokio::time::timeout. On dismiss, the handle records an end-row. Packet validator: when MT-002 hbr-matrix-hydrate runs against a packet, if any HBR-QUIET-004 row is emitted Applicable, the validator REQUIRES `packet.requires_foreground == true` else emits a violation (this MT extends MT-002 hydrator's checks with this rule). Tests: declare an exception, build a controlled window, assert notification fires + banner event emitted + focus audit (from MT-015) tags the foreground transitions with `expected_foreground=true`; assert auto-dismiss closes the window at deadline; assert packet without requires_foreground=true cannot use ForegroundException::declare (returns Err with explicit reason).",
   "proof_commands": [
@@ -35,20 +38,49 @@
   ],
   "risk_if_missed": "Without an explicit foreground exception API, packets that legitimately need foreground (rare) either silently violate HBR-QUIET-001/002 or work around the QuietWindowBuilder ban.",
   "validator_focus": "ForegroundException::declare REJECTS calls when packet.requires_foreground=false; auto-dismiss is enforced even if the controlled window doesn't close itself; focus-audit (MT-015) entries are tagged so the harness assertion doesn't false-positive on legitimate foreground use.",
-  "hbr_obligations": ["HBR-QUIET-001", "HBR-QUIET-004"],
+  "hbr_obligations": [
+    "HBR-QUIET-001",
+    "HBR-QUIET-004"
+  ],
   "spec_anchors": [
     ".GOV/spec/master-spec-v02.186/spec-modules/06-mechanical-integrations.md#6.6"
   ],
-  "acceptance_criteria_refs": ["AC-QUIET-FOREGROUND-EXCEPTION"],
+  "acceptance_criteria_refs": [
+    "AC-QUIET-FOREGROUND-EXCEPTION"
+  ],
   "lifecycle": {
     "active": false,
-    "status": "PENDING",
-    "validator_verdict": "PENDING",
-    "depends_on": ["MT-014", "MT-015"],
-    "blocks": ["MT-020"]
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "CONCERN",
+    "depends_on": [
+      "MT-014",
+      "MT-015"
+    ],
+    "blocks": [
+      "MT-020"
+    ],
+    "claimed_by": "KERNEL_BUILDER-20260518-012310",
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "COMPLETED",
+        "validator_verdict": "PENDING",
+        "completed_at_utc": "2026-05-18T08:43:42.194Z"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "previous_completed_at_utc_before_ready_for_validation_20260525": "2026-05-18T08:43:42.194Z",
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-27T19:03:58.446Z"
   },
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260518-012310",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
     "review_response_receipt_id": null
@@ -59,5 +91,56 @@
       "auto-dismiss timeout is enforced via tokio::time::timeout (not best-effort).",
       "Focus audit tags expected_foreground=true on declared exception windows to prevent test false-positives."
     ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_A4_A2_REDO_WTC",
+    "reviewed_at_utc": "2026-05-27T20:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T19:03:58.446Z",
+    "verdict": "CONCERN",
+    "verdict_reason": "ForegroundException::declare correctly rejects packets with requires_foreground=false (returns Err(MissingPacketDeclaration)), writes structured JSONL log rows, and routes a notification + DIAG_BANNER_REQUEST through the warning sink; foreground_warning.rs validates declarations before allowing the IPC emit. However ControlledWindow::bounded_window is a logging-only shell - it never opens an actual Tauri window; visible()/focused()/expected_foreground() return hardcoded true with no real surface, and auto_dismiss_at_deadline just sleeps then records a row.",
+    "spec_compliance_status": "PARTIAL",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "CONCERN",
+    "agent_swarm_safety_status": "CONCERN",
+    "hbr_unsatisfied": [
+      "HBR-QUIET-004 (partial - declaration + warning + log work, but the controlled bounded window required by the rule is not actually instantiated)"
+    ],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 1,
+      "MEDIUM": 1,
+      "LOW": 0
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-019.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-019.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_A4_A2",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T18:50:05.123Z",
+    "verdict": "FAIL",
+    "verdict_reason": "Foreground exception API and operator warning surface do not exist; any future legitimate foreground need will either silently bypass the quiet-mode guard or work around QuietWindowBuilder when it eventually lands.",
+    "spec_compliance_status": "FAILS",
+    "code_hygiene_status": "MAJOR",
+    "runtime_safety_status": "UNSAFE",
+    "agent_swarm_safety_status": "UNSAFE",
+    "hbr_unsatisfied": [
+      "HBR-QUIET-001",
+      "HBR-QUIET-004"
+    ],
+    "test_coverage_status": "MISSING",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 2,
+      "MEDIUM": 0,
+      "LOW": 0
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-019.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-019.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
   }
 }

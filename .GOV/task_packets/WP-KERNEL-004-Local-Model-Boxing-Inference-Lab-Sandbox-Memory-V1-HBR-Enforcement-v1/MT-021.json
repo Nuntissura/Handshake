@@ -7,7 +7,7 @@
   "cluster_subscope": "A.2",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T02:30:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-05-27T19:03:58.446Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -28,7 +28,9 @@
     "tests/visual/webview2_cdp_driver.ts",
     "tests/visual/sample_screenshot.spec.ts"
   ],
-  "depends_on_mts": ["MT-018"],
+  "depends_on_mts": [
+    "MT-018"
+  ],
   "unblock_conditions": "MT-018 CDP wiring ships so the random remote-debugging-port is discoverable.",
   "implementation_notes": "Per spec §6.4.1 + research note RW-4. app/package.json: add `\"@playwright/test\": \"^1.46.0\"` and `\"playwright\": \"^1.46.0\"` to devDependencies. Run `pnpm install` to regenerate pnpm-lock.yaml (the MT must check in the resulting lockfile). webview2_cdp_driver.ts: implements `class WebView2CdpDriver { async connect(handshakeProcess: ChildProcess): Promise<Page>; async disconnect(): Promise<void>; }`. connect(): (1) queries the Handshake process via Tauri IPC `kernel.visual_debug.port()` to discover the random port; (2) calls `await chromium.connectOverCDP(`http://127.0.0.1:${port}`)`; (3) returns the first Page (the main WebView2 page). Per AC-VISUAL-DEBUGGER-IMPL the driver never modifies UI state outside test scope — the test API enforces this by wrapping any `page.evaluate` calls behind a `readOnly()` namespace that rejects writes. sample_screenshot.spec.ts: minimal test that connects, takes a screenshot via Playwright's `page.screenshot()`, asserts the resulting buffer is non-empty PNG bytes. Playwright config (playwright.config.ts): timeout 30s per test, `projects` array with one project for now (matrix expansion lands in MT-023). The MT also adds a justfile recipe `visual-test` that runs `pnpm --filter app exec playwright test`. NOTE: pnpm-lock.yaml diff will be large; that's expected.",
   "proof_commands": [
@@ -38,20 +40,50 @@
   ],
   "risk_if_missed": "Without Playwright + CDP driver, the visual debugger has no test framework; HBR-VIS-001 evidence_kind=gui_drive_with_screenshot_capture cannot be produced.",
   "validator_focus": "pnpm-lock.yaml is committed and `pnpm install --frozen-lockfile` passes; the driver's readOnly() wrapper rejects writes; the sample test produces a non-empty PNG.",
-  "hbr_obligations": ["HBR-VIS-001"],
+  "hbr_obligations": [
+    "HBR-VIS-001"
+  ],
   "spec_anchors": [
     ".GOV/spec/master-spec-v02.186/spec-modules/06-mechanical-integrations.md#6.4"
   ],
-  "acceptance_criteria_refs": ["AC-VISUAL-DEBUGGER-IMPL"],
+  "acceptance_criteria_refs": [
+    "AC-VISUAL-DEBUGGER-IMPL"
+  ],
   "lifecycle": {
     "active": false,
-    "status": "PENDING",
-    "validator_verdict": "PENDING",
-    "depends_on": ["MT-018"],
-    "blocks": ["MT-022", "MT-023", "MT-024", "MT-025"]
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "PASS",
+    "depends_on": [
+      "MT-018"
+    ],
+    "blocks": [
+      "MT-022",
+      "MT-023",
+      "MT-024",
+      "MT-025"
+    ],
+    "claimed_by": "KERNEL_BUILDER-20260518-012310",
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "COMPLETED",
+        "validator_verdict": "PENDING",
+        "completed_at_utc": "2026-05-18T09:07:33.851Z"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "previous_completed_at_utc_before_ready_for_validation_20260525": "2026-05-18T09:07:33.851Z",
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-27T19:03:58.446Z"
   },
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260518-012310",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
     "review_response_receipt_id": null
@@ -62,5 +94,53 @@
       "readOnly() wrapper enforces no UI mutation from test scope.",
       "pnpm-lock.yaml committed in same MT to ensure frozen-lockfile reproducibility."
     ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_A4_A2_REDO_WTC",
+    "reviewed_at_utc": "2026-05-27T20:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T19:03:58.446Z",
+    "verdict": "PASS",
+    "verdict_reason": "@playwright/test ^1.60.0 + playwright ^1.60.0 declared in app/package.json; pnpm-lock.yaml present; tests/visual/webview2_cdp_driver.ts implements WebView2CdpDriver with chromium.connectOverCDP, readOnly() wrapper that rejects DOM mutations / synthetic interactions / network side effects, isPngBuffer signature check, and a Tauri IPC verification path; tests/visual/sample_screenshot.spec.ts exercises the driver and proves PNG bytes return; app/playwright.config.ts defines a three-project visual matrix with capture_matrix_entry metadata.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-021.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-021.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_A4_A2",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T18:50:05.123Z",
+    "verdict": "FAIL",
+    "verdict_reason": "Playwright @playwright/test dev dep is not declared, no playwright.config.ts, no tests/visual directory, no webview2_cdp_driver.ts, no sample test, no justfile visual-test recipe.",
+    "spec_compliance_status": "FAILS",
+    "code_hygiene_status": "MAJOR",
+    "runtime_safety_status": "UNSAFE",
+    "agent_swarm_safety_status": "UNSAFE",
+    "hbr_unsatisfied": [
+      "HBR-VIS-001"
+    ],
+    "test_coverage_status": "MISSING",
+    "findings_count_by_severity": {
+      "CRITICAL": 2,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 0
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-021.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-021.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
   }
 }

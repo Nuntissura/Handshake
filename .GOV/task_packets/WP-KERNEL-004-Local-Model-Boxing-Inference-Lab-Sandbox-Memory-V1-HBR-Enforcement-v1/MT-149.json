@@ -7,7 +7,7 @@
   "cluster_subscope": "D.2",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:08:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-05-27T19:03:58.446Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -26,7 +26,9 @@
     "src/backend/handshake_core/src/self_improve/editable_surface.rs",
     "src/backend/handshake_core/tests/editable_surface_tests.rs"
   ],
-  "depends_on_mts": ["MT-148"],
+  "depends_on_mts": [
+    "MT-148"
+  ],
   "unblock_conditions": "MT-148 loop core ships LoopTarget enum.",
   "implementation_notes": "Per AC-DISTILL-EDITABLE-SURFACE the V0 editable surface is exactly: (1) ModelManual capsule text (spec §10.15) and (2) retrieval policy parameters (top_k, capsule_budget_bytes). The forbid-list is: spec text (shadow-authority risk), role-shared system prompts (blast radius), LoRA weights (no V0 training infra), tool descriptions. Surface: `pub trait EditableSurfaceProvider { fn snapshot(target: &LoopTarget) -> Result<EditableSurfaceSnapshot, EditableSurfaceError>; fn apply_proposal(snapshot: &EditableSurfaceSnapshot, proposal: SurfaceProposal) -> Result<EditableSurfaceSnapshot, EditableSurfaceError>; }`. Two concrete impls: ModelManualSurface (reads ModelManual via the Tauri IPC backed by src/backend/handshake_core/src/model_manual/mod.rs from cluster X; writes via KernelActionCatalogV1) and RetrievalPolicySurface (reads from CapsulePolicyTable MT-142; writes via KernelActionCatalogV1 PolicyTableUpdate action). Forbidden surface guard: `pub struct ForbiddenSurfaceGuard;` with `pub fn check(target: &LoopTarget) -> Result<(), EditableSurfaceError>` returning `EditableSurfaceError::Forbidden { surface_id: String, reason: ForbidReason }` for any attempt that walks the LoopTarget enum into a forbid-list. ForbidReason enum: ShadowAuthority, BlastRadiusTooWide, NoTrainingInfraInV0, ToolDescriptionAuthority. Tests: ModelManualSurface snapshot+apply round-trip via mock catalog; RetrievalPolicySurface enforces budget bounds (cannot propose top_k=0 or budget>1MB); ForbiddenSurfaceGuard fails for any synthetic LoopTarget that names a spec path; guard is invoked by snapshot() before any work.",
   "proof_commands": [
@@ -34,17 +36,91 @@
   ],
   "risk_if_missed": "Without an enforced allow/forbid list, the loop can silently widen the editable surface and shadow-authority risk (spec edits via the loop) becomes real.",
   "validator_focus": "ForbiddenSurfaceGuard is the only check that runs before snapshot/apply; both impls go through the guard. Closed enum means widening requires a typed code change.",
-  "hbr_obligations": ["HBR-INT-006"],
+  "hbr_obligations": [
+    "HBR-INT-006"
+  ],
   "spec_anchors": [
     ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.8.5"
   ],
-  "acceptance_criteria_refs": ["AC-DISTILL-EDITABLE-SURFACE"],
+  "acceptance_criteria_refs": [
+    "AC-DISTILL-EDITABLE-SURFACE"
+  ],
   "lifecycle": {
     "active": false,
-    "status": "PENDING",
-    "validator_verdict": "PENDING",
-    "depends_on": ["MT-148"],
-    "blocks": ["MT-150", "MT-153", "MT-156"]
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "PASS",
+    "integration_validator_verdict": "PENDING",
+    "depends_on": [
+      "MT-148"
+    ],
+    "blocks": [
+      "MT-150",
+      "MT-153",
+      "MT-156"
+    ],
+    "claimed_by": "KERNEL_BUILDER-20260523-031814",
+    "claimed_at_utc": "2026-05-23T06:30:00Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260523-031814",
+    "ready_for_validation_at_utc": "2026-05-23T06:35:00Z",
+    "implementation_record": {
+      "classification": "IMPLEMENTATION_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+      "authoritative_integration_validator_pass": false,
+      "summary": "MT-149 EditableSurface registry is on disk (src/self_improve/editable_surface.rs, 20K, authored 2026-05-21 by prior session) with 9 inline #[cfg(test)] tests already covering forbidden-guard variants + clamp behavior. This session added the integration test file tests/editable_surface_tests.rs (18 tests) that the contract owned_files names, covering: guard-before-snapshot proof per forbid-reason (4 tests using read_attempts RefCell to prove read_section closure does NOT fire on Forbidden targets), catalog routing proof per surface (recorder closure asserts the production action_id + write_box schema_id constants), policy bounds at the surface boundary (top_k 0/above-max, budget 0/above-max, empty/oversize ModelManual text), MismatchedTarget cross-surface rejection both directions, standalone guard adversarial scenarios (uppercase spec anchor, /spec/ path segment, legit intro section, retrieval-policy unconditional pass). Post-RFV hardening on 2026-05-25 registered the two production catalog actions in kernel002_action_catalog so the previously documented follow-on catalog gap is closed as supporting evidence.",
+      "spec_realism_gate_self_check": {
+        "sub_rule_1_no_deferred_live_escape": "PASS — editable_surface.rs is a complete impl with no '*Unavailable' / 'pending MT-NNN' / 'deferred to follow-on' patterns.",
+        "sub_rule_2_external_resource_touch": "PASS — integration tests exercise the public EditableSurfaceProvider trait via real ModelManualSurface + RetrievalPolicySurface impls with injected closures; lib tests additionally exercise the inline module-private paths.",
+        "sub_rule_3_implementer_cannot_self_certify": "PASS — implementation authored in prior session; tests authored in this session; both differ from any validator role."
+      },
+      "files_touched": [
+        "src/backend/handshake_core/tests/editable_surface_tests.rs (NEW; 18 tests)",
+        "src/backend/handshake_core/src/kernel/action_catalog.rs (post-RFV hardening: registered kernel.model_manual.update_section + kernel.memory_capsule.policy_table_update)",
+        "src/backend/handshake_core/tests/kernel_action_catalog_tests.rs (post-RFV hardening: catalog registration regression test)"
+      ],
+      "implementation_files_verified_unchanged": [
+        "src/backend/handshake_core/src/self_improve/editable_surface.rs (prior session, 20K, 9 inline tests)"
+      ],
+      "test_results": {
+        "editable_surface_tests": {
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test editable_surface_tests -- --nocapture",
+          "exit_code": 0,
+          "tests_passed": 18,
+          "tests_failed": 0,
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt149-validate-20260523-001.log"
+        },
+        "catalog_registration_hardening_20260525": {
+          "command": "$env:CARGO_TARGET_DIR='D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target/wp-kernel-004-focused-final'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test kernel_action_catalog_tests --test editable_surface_tests -- --nocapture",
+          "exit_code": 0,
+          "tests_passed": 24,
+          "tests_failed": 0,
+          "note": "kernel_action_catalog_tests 6/6 + editable_surface_tests 18/18 pass; includes editable_surface_actions_are_registered_with_expected_write_boxes."
+        }
+      },
+      "red_team_coverage": {
+        "forbidden_surface_guard_invoked_unconditionally_before_snapshot_or_apply": "covered — 4 tests use a RefCell read-attempts counter and assert it stays 0 when guard rejects; proves guard short-circuits before the read_section closure fires.",
+        "both_concrete_surfaces_write_via_kernel_action_catalog_v1": "covered — mt149_model_manual_apply_routes_through_catalog_action_id + mt149_retrieval_policy_apply_routes_through_catalog_action_id record the catalog action_id and write_box_schema_id constants ('kernel.model_manual.update_section' / 'hsk.write_box.model_manual_section@1' and 'kernel.memory_capsule.policy_table_update' / 'hsk.write_box.memory_capsule_policy_update@1'). Post-RFV hardening registered both action IDs and write-box schema IDs in kernel002_action_catalog, and kernel_action_catalog_tests now pin those registrations.",
+        "policy_bounds_top_k_gt_zero_and_budget_within_sane_ceiling": "covered — 4 tests reject zero + above-max for both top_k and capsule_budget_bytes; MAX_TOP_K + MAX_CAPSULE_BUDGET_BYTES const values used in test assertions."
+      },
+      "residual_risks": [
+        "Integration tests use injected closures; the closure is responsible for routing the write through KernelActionCatalogV1. A wrong implementation could pass tests by recording the right constants without actually routing. Validator should verify the production ModelManualSurface + RetrievalPolicySurface wiring code explicitly invokes the catalog dispatcher.",
+        "No Integration Validator has reviewed MT-149."
+      ]
+    },
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "READY_FOR_VALIDATION",
+        "validator_verdict": "PENDING"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-27T19:03:58.446Z"
   },
   "handoff": {
     "coder_session": null,
@@ -58,5 +134,51 @@
       "Both concrete surfaces write via KernelActionCatalogV1 so the audit trail is the same as operator-driven edits.",
       "Policy bounds (top_k > 0, budget_bytes within sane ceiling) enforced at the surface, not at the proposer."
     ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_D1_D2",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T19:03:58.446Z",
+    "verdict": "PASS",
+    "verdict_reason": "EditableSurface implements the spec 4.8.5 allow-list (ModelManual text + RetrievalPolicy top_k/capsule_budget_bytes) and forbid-list (spec/role/lora/tool_description) with typed ForbidReason variants; ForbiddenSurfaceGuard runs unconditionally before every snapshot.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 2
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-149.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-149.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_D1_D2",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T18:50:05.123Z",
+    "verdict": "PASS",
+    "verdict_reason": "EditableSurface implements the spec 4.8.5 allow-list (ModelManual text + RetrievalPolicy top_k/capsule_budget_bytes) and forbid-list (spec/role/lora/tool_description) with typed ForbidReason variants; ForbiddenSurfaceGuard runs unconditionally before every snapshot.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 2
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-149.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-149.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
   }
 }

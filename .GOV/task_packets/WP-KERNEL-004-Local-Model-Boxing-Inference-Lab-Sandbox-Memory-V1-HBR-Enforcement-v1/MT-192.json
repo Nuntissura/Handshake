@@ -7,7 +7,7 @@
   "cluster_subscope": "X.3",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:16:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-05-27T19:03:58.446Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -26,7 +26,9 @@
     "src/backend/handshake_core/src/process_ledger/state_replay.rs",
     "src/backend/handshake_core/tests/state_replay_tests.rs"
   ],
-  "depends_on_mts": ["MT-190"],
+  "depends_on_mts": [
+    "MT-190"
+  ],
   "unblock_conditions": "MT-190 SessionCheckpoint primitive merged (provides the watermark schema); KERNEL-001 EventLedger already in main.",
   "implementation_notes": "Per spec §5 line 1192-1208: 'Kernel V1 replay and promotion authority MUST come from the Postgres EventLedger ... replay still works when Flight Recorder or provider trace history is unavailable and EventLedger rows remain intact.' `StateReplayer::plan(session_id) -> ReplayPlan` does: (1) load latest SessionCheckpoint via watermark query (MT-190 index); (2) query KERNEL-001 EventLedger for events where seq > checkpoint.last_event_ledger_seq AND session_id matches, ordered by seq ASC; (3) return `ReplayPlan { from_checkpoint: SessionCheckpoint, events_to_replay: Vec<EventLedgerRow>, expected_final_seq: i64 }`. `StateReplayer::execute(plan, state_apply: impl Fn(&mut State, &EventLedgerRow) -> Result<(), ReplayError>) -> ReplayResult` applies events one-by-one to a state seeded from checkpoint.compact_state, returning either `Ok(final_state, final_seq)` or `Err(ReplayError { at_seq, cause })`. Determinism: events MUST be replayed in seq order; replay is idempotent over any single event (state_apply must be implemented so re-applying the same event is a no-op, but the replayer itself does not enforce this — it documents the contract). ReplayError variants: `EventNotApplicable { seq, reason }`, `StateInvariantViolated { seq, invariant }`, `MissingEvent { gap_at_seq }` (gap detection: assert no seq skipped between checkpoint.watermark+1 and final). The replayer logs every applied event count + final state hash via FR-EVT-REPLAY-{STARTED,PROGRESS,COMPLETED,FAILED}. No I/O during state_apply — the applicator function is pure (replayer takes &mut State, passes events). Tests: (a) checkpoint + 10 events -> replay produces expected final state; (b) gap detection (manually insert seq+2 skipping seq+1) -> returns MissingEvent; (c) state_apply error at event 5 -> ReplayError with at_seq=5; (d) determinism: 100 replays of same plan produce byte-identical final state.",
   "proof_commands": [
@@ -34,7 +36,10 @@
   ],
   "risk_if_missed": "Without deterministic replay, crash recovery cannot rebuild state authoritatively; spec §5 line 1208 invariant (replay works from EventLedger alone) is violated; the cluster X 'idempotent recovery' guarantee has no implementation.",
   "validator_focus": "Strict seq ordering (no in-memory re-sort allowed — query must be ORDER BY seq ASC); gap detection mandatory (silent gap = silent state loss); 100x determinism test asserts byte-identical replay output.",
-  "hbr_obligations": ["HBR-INT-001", "HBR-INT-008"],
+  "hbr_obligations": [
+    "HBR-INT-001",
+    "HBR-INT-008"
+  ],
   "spec_anchors": [
     ".GOV/spec/master-spec-v02.186/spec-modules/05-security-and-observability.md#5"
   ],
@@ -42,14 +47,258 @@
     "PRESERVED_INTENT:WP-1-Session-Crash-Recovery-Checkpointing-v1 (state replay from EventLedger)"
   ],
   "lifecycle": {
-    "active": false,
-    "status": "PENDING",
-    "validator_verdict": "PENDING",
-    "depends_on": ["MT-190"],
-    "blocks": ["MT-193", "MT-194", "MT-195"]
+    "active": true,
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "PASS",
+    "integration_validator_verdict": "PENDING",
+    "depends_on": [
+      "MT-190"
+    ],
+    "blocks": [
+      "MT-193",
+      "MT-194",
+      "MT-195"
+    ],
+    "claimed_by": "KERNEL_BUILDER-20260523-031814-AGT-X3-WR",
+    "claimed_at_utc": "2026-05-23T14:17:49.485Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260523-031814-AGT-X3-WR",
+    "ready_for_validation_at_utc": "2026-05-23T14:41:56.431Z",
+    "implementation_record": {
+      "summary": "MT-192 EventLedger replay reconstruction primitive (checkpoint + delta replay) verified against the folded cluster X.3 implementation at src/backend/handshake_core/src/session_checkpoint/replay.rs (PATH_SHAPE_DRIFT inherited from MT-190 — contract names src/process_ledger/state_replay.rs but the folded module landed under session_checkpoint/* alongside MT-190/191/193/194/195). The 2026-05-23 RFV session added 9 pure-Rust adversarial tests plus 1 #[ignore]-gated Postgres test. The 2026-05-25 post-ready hardening session patched replay.rs with StateReplayer::execute_with_flight_recorder, emitting best-effort FR-EVT-REPLAY-STARTED/PROGRESS/COMPLETED/FAILED receipts while preserving the primary replay result/error.",
+      "files_touched": [
+        "src/backend/handshake_core/src/session_checkpoint/replay.rs",
+        "src/backend/handshake_core/tests/session_checkpoint_tests.rs"
+      ],
+      "files_verified_unchanged": [],
+      "out_of_scope_files_touched_for_unblock": [
+        "src/backend/handshake_core/src/flight_recorder/fr_emitter.rs"
+      ],
+      "contract_deviation_note": "MT-192 expected_diff_shape and owned_files name src/backend/handshake_core/src/process_ledger/state_replay.rs and tests/state_replay_tests.rs, but the folded implementation lives at src/session_checkpoint/replay.rs and the test surface lives at tests/session_checkpoint_tests.rs (shared). Same PATH_SHAPE_DRIFT class noted on MT-190 and MT-191. Operator/Integration Validator decision required.",
+      "test_results": [
+        {
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test session_checkpoint_tests -- --test-threads=1",
+          "exit_code": 0,
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt191-192-session-checkpoint-tests-20260523-002.log",
+          "note": "test result: ok. 31 passed; 0 failed; 6 ignored. Of the 31 passing, 9 are MT-192 adversarial pure-Rust tests (mt_192_adversarial::*) and 2 are the pre-existing mt_192_replay_* tests. The 1 ignored MT-192 test under mt_191_192_adversarial_postgres::* requires POSTGRES_TEST_URL. Build wall-clock ~10m due to cold rebuild after concurrent sibling session lib changes."
+        },
+        {
+          "command": "rustfmt --check --edition 2021 src/backend/handshake_core/tests/session_checkpoint_tests.rs",
+          "exit_code": 0,
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt191-192-session-checkpoint-tests-20260523-002.log",
+          "note": "Test file is rustfmt-clean after applying formatter to the appended MT-191 + MT-192 adversarial sections."
+        }
+      ],
+      "red_team_coverage": {
+        "gap_detection_returns_typed_missing_event_not_silent": {
+          "in_memory_test_at_watermark": "mt_192_adversarial::mt_192_adversarial_gap_at_watermark_boundary_returns_missing_event (checkpoint watermark=5; first event seq=7; expects MissingEvent { gap_at_seq: 6 })",
+          "in_memory_test_mid_stream": "mt_192_adversarial::mt_192_adversarial_mid_stream_gap_returns_missing_event_at_first_hole (events [1,2,3,5,6]; expects MissingEvent { gap_at_seq: 4 })",
+          "existing_inline_test": "mt_192_replay_detects_gap (already in tests file)"
+        },
+        "determinism_100x_byte_identical_final_state": {
+          "in_memory_test": "mt_192_adversarial::mt_192_adversarial_replay_is_deterministic_over_100_runs (6-event mixed-kind plan replayed 100 times; DefaultHasher over serialized final_state is identical across all 100 runs)"
+        },
+        "fr_evt_replay_emission_at_every_phase": {
+          "note": "2026-05-25 post-ready hardening wired FR-EVT-REPLAY-{STARTED,PROGRESS,COMPLETED,FAILED} emission through StateReplayer::execute_with_flight_recorder. The legacy execute() path remains receipt-free for compatibility; receipt-requiring callers should use the FR-aware helper."
+        }
+      },
+      "adversarial_tests_added_beyond_minimum_controls": [
+        "mt_192_adversarial::mt_192_adversarial_replay_checkpoint_plus_delta_produces_authoritative_state",
+        "mt_192_adversarial::mt_192_adversarial_replay_is_deterministic_over_100_runs",
+        "mt_192_adversarial::mt_192_adversarial_gap_at_watermark_boundary_returns_missing_event",
+        "mt_192_adversarial::mt_192_adversarial_mid_stream_gap_returns_missing_event_at_first_hole",
+        "mt_192_adversarial::mt_192_adversarial_applicator_typed_error_propagates_at_seq",
+        "mt_192_adversarial::mt_192_adversarial_partial_delta_returns_event_not_applicable",
+        "mt_192_adversarial::mt_192_adversarial_plan_normalizes_seq_order_even_if_caller_supplies_shuffled",
+        "mt_192_adversarial::mt_192_adversarial_plan_filters_foreign_session_events",
+        "mt_192_adversarial::mt_192_adversarial_replay_error_round_trips_all_variants",
+        "mt_192_adversarial::mt_192_fr_records_replay_started_progress_completed_in_order",
+        "mt_192_adversarial::mt_192_fr_records_replay_failed_on_missing_event_without_completed",
+        "mt_191_192_adversarial_postgres::mt_192_adversarial_postgres_replay_from_persisted_checkpoint"
+      ],
+      "spec_realism_gate_self_check": {
+        "sub_rule_1_no_deferred_live_escape": "PASS — no LiveXxxUnavailable / TODO / unimplemented paths in the new MT-192 adversarial test surface; all 9 pure-Rust tests exercise real StateReplayer code. The Postgres-gated test panics with ENVIRONMENT_BLOCKED prefix when run without POSTGRES_TEST_URL.",
+        "sub_rule_2_external_resource_touch": "PARTIAL — pure-Rust tests fully cover the type-level guarantees (9 PASS). The 1 Postgres-gated test for end-to-end checkpoint-write-then-replay against the real kernel_session_checkpoint table will only touch real Postgres when POSTGRES_TEST_URL is set. Same gate as MT-190/MT-191.",
+        "sub_rule_3_implementer_cannot_self_certify": "STRUCTURAL — lifecycle.claimed_by=KERNEL_BUILDER-20260523-031814-AGT-X3-WR transitions PENDING -> CLAIMED -> READY_FOR_VALIDATION only. The READY_FOR_VALIDATION -> COMPLETED transition is reserved for the validator role."
+      },
+      "out_of_scope_self_evaluation": {
+        "edits_made_outside_owned_files": [
+          "src/backend/handshake_core/src/flight_recorder/fr_emitter.rs: see MT-191 implementation_record.out_of_scope_self_evaluation for the rationale and exact scope. The same unblock fix served both MT-191 and MT-192 — they share the same test binary and lib dependency."
+        ],
+        "edits_made_inside_owned_files": [
+          "src/backend/handshake_core/tests/session_checkpoint_tests.rs: appended a `mod mt_192_adversarial` module with 9 pure-Rust tests adjacent to the MT-191 module + 1 #[ignore]-gated Postgres test inside the shared `mod mt_191_192_adversarial_postgres`. Existing pre-MT-192-session tests preserved verbatim. rustfmt-clean."
+        ],
+        "implementation_files_intentionally_unchanged": "The contract's two owned files (src/process_ledger/state_replay.rs and tests/state_replay_tests.rs) do not exist at the contract-declared paths because the folded implementation landed at src/session_checkpoint/replay.rs and tests/session_checkpoint_tests.rs. Same operator decision required as MT-190/MT-191."
+      },
+      "post_ready_hardening_20260525": {
+        "classification": "IMPLEMENTATION_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+        "recorded_at_utc": "2026-05-25T01:05:17.94Z",
+        "recorded_by": "KERNEL_BUILDER-20260525-002537",
+        "base_scope": "Close the MT-192 FR replay observability residual without changing READY_FOR_VALIDATION lifecycle authority.",
+        "product_changes": [
+          "StateReplayer::execute_with_flight_recorder emits best-effort FR-EVT-REPLAY-STARTED before replay begins.",
+          "The FR-aware helper emits FR-EVT-REPLAY-PROGRESS after each applied event.",
+          "The FR-aware helper emits FR-EVT-REPLAY-COMPLETED after successful replay and FR-EVT-REPLAY-FAILED on missing-event or applicator failure.",
+          "Recorder failures are best-effort and do not mask ReplayResult or ReplayError."
+        ],
+        "high_roi_additions": [
+          "Kept execute() unchanged for existing callers while adding an explicit receipt-producing path for restart/recovery call sites.",
+          "Reused the existing FlightRecorderEvent shape and replay plan/session identifiers for deterministic audit receipts.",
+          "Added both success and failure FR tests so later replay changes cannot silently drop terminal receipts."
+        ],
+        "gaps_closed": [
+          "Previously documented FR-EVT-REPLAY-* emission was not executable in replay.rs.",
+          "Replay failure observability existed only as typed ReplayError serialization, not as a recordable FR event path.",
+          "No test verified that FR progress/completion order followed replay order."
+        ],
+        "files_touched": [
+          "src/backend/handshake_core/src/session_checkpoint/replay.rs",
+          "src/backend/handshake_core/tests/session_checkpoint_tests.rs"
+        ],
+        "red_evidence": [
+          {
+            "command": "$env:CARGO_TARGET_DIR='D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target/wp-kernel-004-checkpoint-fr-red'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test session_checkpoint_tests mt_192_fr_records -- --nocapture",
+            "exit_code": 1,
+            "note": "Failed as expected before patch because StateReplayer::execute_with_flight_recorder did not exist."
+          }
+        ],
+        "green_evidence": [
+          {
+            "command": "$env:CARGO_TARGET_DIR='D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target/wp-kernel-004-checkpoint-fr-green'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test session_checkpoint_tests mt_192_fr_records -- --nocapture",
+            "exit_code": 0,
+            "note": "2 passed; covers replay started/progress/completed order and failed-without-completed on missing event."
+          },
+          {
+            "command": "$env:CARGO_TARGET_DIR='D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target/wp-kernel-004-checkpoint-fr-full'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test session_checkpoint_tests -- --nocapture",
+            "exit_code": 0,
+            "note": "37 passed; 0 failed; 6 ignored gated on POSTGRES_TEST_URL."
+          },
+          {
+            "command": "$env:CARGO_TARGET_DIR='D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target/wp-kernel-004-checkpoint-fr-registry'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test fr_event_registry_tests -- --nocapture",
+            "exit_code": 0,
+            "note": "17 passed; registry adjacency still green."
+          },
+          {
+            "command": "$env:CARGO_TARGET_DIR='D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target/wp-kernel-004-checkpoint-fr-restart'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test restart_resume_tests -- --nocapture",
+            "exit_code": 0,
+            "note": "3 passed; restart/resume adjacency still green."
+          },
+          {
+            "command": "rustfmt --edition 2021 --check src/backend/handshake_core/src/session_checkpoint/writer.rs src/backend/handshake_core/src/session_checkpoint/replay.rs src/backend/handshake_core/tests/session_checkpoint_tests.rs",
+            "exit_code": 0,
+            "note": "Touched Rust files are rustfmt-clean."
+          },
+          {
+            "command": "rg -n \"sqlite|duckdb\" src/backend/handshake_core/src/session_checkpoint src/backend/handshake_core/tests/session_checkpoint_tests.rs",
+            "exit_code": 1,
+            "note": "No SQLite/DuckDB references in touched checkpoint/replay files."
+          }
+        ],
+        "verification_needs_remaining": [
+          "Run ignored Postgres-gated tests with POSTGRES_TEST_URL to exercise real checkpoint persistence and replay from persisted rows.",
+          "Integration Validator still needs to review the MT; lifecycle.integration_validator_verdict remains PENDING.",
+          "Audit restart/resume and recovery call sites to use execute_with_flight_recorder where FR receipts are required."
+        ]
+      },
+      "residual_risks": [
+        "Postgres-backed adversarial test (1) remains #[ignore]-gated because POSTGRES_TEST_URL was unset in this session. Same gate as MT-190/MT-191.",
+        "PATH_SHAPE_DRIFT vs contract owned_files (process_ledger/state_replay.rs vs session_checkpoint/replay.rs). Same defect class as MT-190/MT-191; operator decision needed.",
+        "Out-of-scope edit to src/flight_recorder/fr_emitter.rs to unblock lib compilation — operator waiver requested (same as MT-191).",
+        "FR-aware replay telemetry is implemented on StateReplayer::execute_with_flight_recorder(); legacy StateReplayer::execute() remains receipt-free for compatibility. Validator should audit restart/resume call sites and migrate receipt-requiring paths to the FR-aware helper.",
+        "StateReplayer::plan re-sorts the events slice by seq ASC defensively, but the contract validator_focus explicitly says 'query must be ORDER BY seq ASC' — the in-memory re-sort is a defense-in-depth shim, not a replacement for the SQL ORDER BY at the caller. Recommend the caller's query is audited at integration time to ensure ORDER BY seq ASC is present.",
+        "No Integration Validator has reviewed MT-192; lifecycle.integration_validator_verdict remains PENDING."
+      ],
+      "next_dependent_mts_unblocked": [
+        "MT-193 (restart resume orchestrator — depends on StateReplayer for event replay; orchestrator already wires this in the folded impl, MT-193 will validate)",
+        "MT-194 (idempotency ledger — depends on the watermark contract from MT-192's ReplayPlan to dedupe side-effects per session+seq)",
+        "MT-195 (integration tests for the whole cluster X.3 surface — depends on writer + replay both being RFV)"
+      ]
+    },
+    "latest_postgres_test_evidence_20260525": {
+      "recorded_at_utc": "2026-05-25T02:36:47.3466494Z",
+      "recorded_by": "KERNEL_BUILDER-20260525-011217",
+      "classification": "KERNEL_BUILDER_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+      "postgres_target": "postgres://postgres:***@127.0.0.1:65432/handshake_test?sslmode=disable",
+      "artifact_target_root": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target",
+      "fixes": [
+        {
+          "file": "src/backend/handshake_core/tests/session_checkpoint_tests.rs",
+          "summary": "Postgres ignored-test helpers now create isolated schemas through a direct connection and reconnect pools with options=-csearch_path%3D<schema>, preventing pooled-connection search_path drift.",
+          "gap_closed": "Fixed MT-190/191/192 live Postgres failures where SET search_path on a PgPool made schema/table visibility nondeterministic."
+        }
+      ],
+      "tests": [
+        {
+          "scope": "MT-190/MT-191/MT-192",
+          "command": "POSTGRES_TEST_URL=postgres://postgres:***@127.0.0.1:65432/handshake_test?sslmode=disable CARGO_TARGET_DIR=D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target/wp-kernel-004-postgres-session-checkpoint cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test session_checkpoint_tests -- --ignored --test-threads=1 --nocapture",
+          "exit_code": 0,
+          "result": "6 passed; 0 failed; 0 ignored",
+          "note": "Verified duplicate checkpoint PK rejection, DB compact_state CHECK rejection, concurrent ordering preservation, transaction rollback invisibility, Postgres writer drain into kernel_session_checkpoint, and persisted checkpoint replay."
+        }
+      ],
+      "shared_risks": [
+        "This is KERNEL_BUILDER supporting evidence, not an Integration Validator verdict; lifecycle.integration_validator_verdict remains PENDING unless a validator role signs off.",
+        "Broad workspace remains dirty with many pre-existing modified/untracked files outside this session; this evidence block records only the Postgres test/fix slice listed here.",
+        "Warnings remain in unrelated library areas during cargo test; no warnings were introduced as hard errors in the verified commands.",
+        "Postgres fixture was local Docker Postgres on 127.0.0.1:65432; validators should re-run against their configured POSTGRES_TEST_URL before marking authoritative completion."
+      ]
+    },
+    "postgres_test_url_live_evidence_20260525_continuation": {
+      "authoritative_integration_validator_pass": false,
+      "classification": "KERNEL_BUILDER_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+      "not_run_or_not_claimed": [
+        "mt195_runtime_real_handshake_core_binary_runs_startup_recovery_and_persists_report was not newly run or claimed in this continuation because it requires app-runtime binary coverage."
+      ],
+      "artifact_log_root": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs",
+      "implementation_or_hardening_notes": [],
+      "postgres_test_url_redacted": "postgres://postgres:***@127.0.0.1:65432/handshake_test",
+      "proof": [
+        {
+          "log": "postgres-live-session_checkpoint_tests-20260525-resume.log",
+          "scope": "session_checkpoint_tests",
+          "note": [
+            "Session checkpoint live Postgres suite passed.",
+            "Proof"
+          ],
+          "result": "passed"
+        }
+      ],
+      "recorded_by": "KERNEL_BUILDER-POSTGRES-TEST-URL-20260525-CONTINUATION",
+      "mt_ids": [
+        "MT-190",
+        "MT-191",
+        "MT-192",
+        "MT-193",
+        "MT-194",
+        "MT-195"
+      ],
+      "summary": "Checkpoint, restart/resume, idempotency, kernel end-to-end, and selected crash-recovery live Postgres checks passed; app-runtime binary crash-recovery case was not newly claimed in this continuation.",
+      "integration_validator_status": "PENDING",
+      "residual_risks": [
+        "Supporting evidence only; Integration Validator verdict remains PENDING.",
+        "Focused Postgres/live-kernel commands were run, not a full workspace cargo test."
+      ],
+      "recorded_at_utc": "2026-05-25T10:56:03.5601331Z",
+      "cargo_target_dir": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target"
+    },
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "READY_FOR_VALIDATION",
+        "validator_verdict": "PENDING"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-27T19:03:58.446Z"
   },
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260523-031814-AGT-X3-WR",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
     "review_response_receipt_id": null
@@ -60,5 +309,51 @@
       "Determinism test runs 100 replays of same plan and asserts byte-identical final state hash.",
       "FR-EVT-REPLAY-* events emitted at every phase; receipts queryable for post-recovery audit."
     ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_X3_X4",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T19:03:58.446Z",
+    "verdict": "PASS",
+    "verdict_reason": "StateReplayer enforces strict seq+1 ordering, types MissingEvent with gap_at_seq, returns typed ReplayError variants, and 100x determinism over a mixed plan is asserted. FR-aware execute emits STARTED/PROGRESS/COMPLETED/FAILED in order.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "MINOR",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 2
+    },
+    "paperwork_notes_count": 1,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-192.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-192.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_X3_X4",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T18:50:05.123Z",
+    "verdict": "PASS",
+    "verdict_reason": "StateReplayer enforces strict seq+1 ordering, types MissingEvent with gap_at_seq, returns typed ReplayError variants, and 100x determinism over a mixed plan is asserted. FR-aware execute emits STARTED/PROGRESS/COMPLETED/FAILED in order.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "MINOR",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 2
+    },
+    "paperwork_notes_count": 1,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-192.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-192.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
   }
 }

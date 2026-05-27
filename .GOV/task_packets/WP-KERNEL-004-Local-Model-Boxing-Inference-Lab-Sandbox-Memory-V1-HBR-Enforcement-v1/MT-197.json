@@ -7,7 +7,7 @@
   "cluster_subscope": "X.4",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:21:00Z",
-  "updated_at_utc": "2026-05-25T15:54:56.028Z",
+  "updated_at_utc": "2026-05-27T19:03:58.446Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -51,7 +51,7 @@
   "lifecycle": {
     "active": false,
     "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "validator_verdict": "CONCERN",
     "integration_validator_verdict": "PENDING",
     "depends_on": [
       "MT-196"
@@ -229,7 +229,9 @@
     },
     "ready_by": "KERNEL_BUILDER-20260525-144915",
     "ready_at_utc": "2026-05-25T15:54:56.028Z",
-    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending."
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-27T19:03:58.446Z"
   },
   "handoff": {
     "coder_session": "KERNEL_BUILDER-20260523-031814-AGT-X4",
@@ -243,5 +245,51 @@
       "Attribute immutability enforced by absence of update method + db trigger preventing UPDATE of attributes column.",
       "Cross-link join performance verified via EXPLAIN on a fixture with 1k sessions x 100 spans each (latency target documented)."
     ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_X3_X4",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T19:03:58.446Z",
+    "verdict": "CONCERN",
+    "verdict_reason": "Span schema, FK CASCADE, attribute-immutability DB triggers, status CHECK, end-after-start CHECK, monotonic watermark, and cross-link join all land correctly. ONE deviation from contract: related_event_ledger_seqs is JSONB not BIGINT[] — functional but loses type-level guarantee and changes query ergonomics.",
+    "spec_compliance_status": "PARTIAL",
+    "code_hygiene_status": "MINOR",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 1,
+      "LOW": 0
+    },
+    "paperwork_notes_count": 2,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-197.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-197.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_X3_X4",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T18:50:05.123Z",
+    "verdict": "CONCERN",
+    "verdict_reason": "Span schema, FK CASCADE, attribute-immutability DB triggers, status CHECK, end-after-start CHECK, monotonic watermark, and cross-link join all land correctly. ONE deviation from contract: related_event_ledger_seqs is JSONB not BIGINT[] — functional but loses type-level guarantee and changes query ergonomics.",
+    "spec_compliance_status": "PARTIAL",
+    "code_hygiene_status": "MINOR",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 1,
+      "LOW": 0
+    },
+    "paperwork_notes_count": 2,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-197.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-197.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
   }
 }

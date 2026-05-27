@@ -7,7 +7,7 @@
   "cluster_subscope": "A.3",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T02:30:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-05-27T19:03:58.446Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -27,7 +27,9 @@
     "src/backend/handshake_core/tests/inspector_server_tests.rs",
     "src/backend/handshake_core/Cargo.toml"
   ],
-  "depends_on_mts": ["MT-028"],
+  "depends_on_mts": [
+    "MT-028"
+  ],
   "unblock_conditions": "MT-028 InspectorReadV1 trait exists so the server has a typed read source.",
   "implementation_notes": "Per spec §6.5.1. Cargo.toml: add `[features] inspector = [\"axum\", \"tokio-tungstenite\"]` and gate the dependencies behind the feature. server.rs is wrapped in `#![cfg(feature = \"inspector\")]` at the module top so the entire file compiles to nothing without the feature. API: `InspectorServer::start(reader: Arc<dyn InspectorReadV1>) -> InspectorServerHandle` binds via `tokio::net::TcpListener::bind(\"127.0.0.1:0\")` (port 0 = OS-assigned random port). Server uses axum router with read-only GET endpoints: `/inspector/v1/sessions`, `/inspector/v1/sessions/{id}`, `/inspector/v1/event-ledger/tail`, `/inspector/v1/process-ledger/active`, `/inspector/v1/workspace/{ws_id}`, `/inspector/v1/trace/{session_id}`, `/inspector/v1/models`. All handlers call into reader methods. WebSocket endpoint `/inspector/v1/event-stream` for live event tail. Tauri command `#[tauri::command] kernel_inspector_port() -> u16` returns the bound port; this is the single entry point for the Diagnostics panel (cluster X) and external test harnesses (MT-036 swarm). Negative test asserts: (a) binding to 0.0.0.0 fails at compile-time via a const assert or runtime-time fail-loud (use a wrapper that explicitly checks the SocketAddr.ip() before bind), (b) release build without `inspector` feature does NOT include the server module (test via `cargo build --release` + grep symbol list for `InspectorServer`). The HTTP handlers are routed via axum's get() handlers ONLY (no post/put/delete on this path — POST goes to `/inspector/v1/replay-drive` in MT-030). Per spec §6.5.1 the feature gate enforces this is not in release builds.",
   "proof_commands": [
@@ -36,20 +38,52 @@
   ],
   "risk_if_missed": "Without the server, the Diagnostics panel cannot read backend state; HBR-VIS-004 trace_projection_inspection has no surface for non-UI work.",
   "validator_focus": "Bind to 127.0.0.1 only (negative test attempts 0.0.0.0 and fails loud); release build without feature contains zero inspector symbols; per-launch random port is discoverable via Tauri command.",
-  "hbr_obligations": ["HBR-INT-007", "HBR-VIS-004", "HBR-QUIET-003"],
+  "hbr_obligations": [
+    "HBR-INT-007",
+    "HBR-VIS-004",
+    "HBR-QUIET-003"
+  ],
   "spec_anchors": [
     ".GOV/spec/master-spec-v02.186/spec-modules/06-mechanical-integrations.md#6.5"
   ],
-  "acceptance_criteria_refs": ["AC-INSPECTOR-PLANE-BIND"],
+  "acceptance_criteria_refs": [
+    "AC-INSPECTOR-PLANE-BIND"
+  ],
   "lifecycle": {
     "active": false,
-    "status": "PENDING",
-    "validator_verdict": "PENDING",
-    "depends_on": ["MT-028"],
-    "blocks": ["MT-030", "MT-031", "MT-032", "MT-033"]
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "CONCERN",
+    "depends_on": [
+      "MT-028"
+    ],
+    "blocks": [
+      "MT-030",
+      "MT-031",
+      "MT-032",
+      "MT-033"
+    ],
+    "claimed_by": "KERNEL_BUILDER-20260518-073535",
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "COMPLETED",
+        "validator_verdict": "PENDING",
+        "completed_at_utc": "2026-05-18T10:08:17.520Z"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "previous_completed_at_utc_before_ready_for_validation_20260525": "2026-05-18T10:08:17.520Z",
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-27T19:03:58.446Z"
   },
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260518-073535",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
     "review_response_receipt_id": null
@@ -60,5 +94,51 @@
       "Release build without feature compiles without server symbols (grep test on release binary).",
       "Only GET handlers on /inspector/v1/* (POST/PUT/DELETE on read paths return 405)."
     ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_A3_A5_A7",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T19:03:58.446Z",
+    "verdict": "CONCERN",
+    "verdict_reason": "Server binds 127.0.0.1 random-port and is cleanly feature-gated, but the spec §6.5.5 per-run shared-secret header is not enforced, reject-attempts are not audit-logged, and the route family names diverge from spec §6.5.3.",
+    "spec_compliance_status": "PARTIAL",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "CONCERN",
+    "agent_swarm_safety_status": "CONCERN",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 1,
+      "MEDIUM": 2,
+      "LOW": 2
+    },
+    "paperwork_notes_count": 1,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-029.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-029.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_A3_A5_A7",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T18:50:05.123Z",
+    "verdict": "CONCERN",
+    "verdict_reason": "Server binds 127.0.0.1 random-port and is cleanly feature-gated, but the spec §6.5.5 per-run shared-secret header is not enforced, reject-attempts are not audit-logged, and the route family names diverge from spec §6.5.3.",
+    "spec_compliance_status": "PARTIAL",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "CONCERN",
+    "agent_swarm_safety_status": "CONCERN",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 1,
+      "MEDIUM": 2,
+      "LOW": 2
+    },
+    "paperwork_notes_count": 1,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-029.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-029.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
   }
 }

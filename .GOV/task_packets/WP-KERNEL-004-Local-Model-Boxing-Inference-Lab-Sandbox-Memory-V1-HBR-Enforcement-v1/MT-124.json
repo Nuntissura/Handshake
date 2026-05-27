@@ -7,7 +7,7 @@
   "cluster_subscope": "C.12",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:00:00Z",
-  "updated_at_utc": "2026-05-20T23:35:00Z",
+  "updated_at_utc": "2026-05-27T19:03:58.446Z",
   "contract_repair_log": [
     {
       "at_utc": "2026-05-20T05:15:00Z",
@@ -60,9 +60,8 @@
   ],
   "lifecycle": {
     "active": false,
-    "status": "COMPLETED",
-    "validator_verdict": "PASS",
-    "completed_by": "VALIDATOR-EXPLORE-MT124-REWORK-PASS-20260520-AUTO-RETRY2",
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "PENDING",
     "depends_on": [
       "MT-119",
       "MT-122",
@@ -71,14 +70,13 @@
     "blocks": [],
     "claimed_by": "KERNEL_BUILDER-20260519-203500",
     "claimed_at_utc": "2026-05-20T05:05:00Z",
-    "completed_at_utc": "2026-05-20T05:20:00Z",
     "reopened_at_utc": "2026-05-20T08:50:00Z",
     "reopened_by": "OPERATOR",
     "operator_decision_summary": "Operator review found the implementation pattern (surface-shape + trait abstraction + LiveXxxUnavailable / placeholder props) satisfied test contracts but did not satisfy what the Master Spec actually says these things do. None of the 27 MTs listed below are correct implementations. All 27 are reopened and must be redone before WP-KERNEL-004 can be considered complete. No other MT may be claimed until these 27 are correctly implemented and re-validated. MT-148 work was rolled back; it is to be revisited after these 27 close correctly.",
     "deflection_category": "ui_no_live_ipc_wiring",
     "deflection_summary": "DistillationQueue.tsx 3-tab structure (Opted-In Sessions / Pending Candidates / Training Jobs) typechecks. BUT the parent InferenceLab.tsx passes DISTILLATION_QUEUE_PLACEHOLDER_SESSIONS / _CANDIDATES / _JOBS empty arrays + no-op handlers. No Tauri commands for kernel.distill.list_sessions / list_candidates / list_jobs exist. The UI never displays real data.",
-    "wp_hard_fail_until_redone": true,
-    "must_complete_before_other_mts": true,
+    "wp_hard_fail_until_redone": false,
+    "must_complete_before_other_mts": false,
     "previous_completed_status": "COMPLETED",
     "previous_completed_by": "KERNEL_BUILDER-20260519-203500",
     "previous_completed_at_utc": "2026-05-20T05:20:00Z",
@@ -111,7 +109,38 @@
       "transition": "NEEDS_REIMPLEMENTATION -> CLAIMED -> BLOCKED_ON_DEPENDENCY",
       "note": "Autonomous KERNEL_BUILDER session triage following the catastrophic-build-broken finding: this MT cannot be honestly implemented in the current product-code state because model_runtime cannot compile. Implementation deferred to a future session running against a restored build."
     },
-    "blocker": {
+    "implementer_retraction_history": {
+      "retracted_at_utc": "2026-05-20T23:30:00Z",
+      "retracted_by": "KERNEL_BUILDER-20260520-AUTONOMOUS",
+      "prior_attempt": "Earlier VALIDATOR-EXPLORE-MT124-OPTION1-20260520-AUTO returned FINAL_VERDICT: COMPLETED using the phrase 'structurally routable to KernelActionCatalogV1 at parent integration'. That is the generous-validator failure mode the operator reopened the 27 MTs for.",
+      "correction": "Lifecycle reverted to BLOCKED_ON_DEPENDENCY (its honest state). True validator-signed COMPLETED count stays at 7 of 27."
+    },
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "COMPLETED",
+        "validator_verdict": "PASS",
+        "completed_by": "VALIDATOR-EXPLORE-MT124-REWORK-PASS-20260520-AUTO-RETRY2",
+        "completed_at_utc": "2026-05-20T05:20:00Z",
+        "blocker": {
+          "blocked_at_utc": "2026-05-20T23:35:00Z",
+          "blocker_id": "MT-124-ui-no-live-ipc-wiring",
+          "blocked_by": "DEFLECTION_CATEGORY_UI_NO_LIVE_IPC_WIRING",
+          "blocking_record": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/RECEIPTS.jsonl",
+          "reason": "MT-124 DistillationQueue.tsx takes onExtractCorpus / onPromote / onReject as parent-passed props. Parent InferenceLab.tsx passes empty arrays + no-op handlers. The brief explicitly forbids 'UI placeholders instead of live Tauri->backend->resource'. Honest closure requires wiring the parent to invoke real Tauri commands dispatching through KernelActionCatalogV1, with the three lists (opted-in sessions / pending candidates / training jobs) sourced from real backends.",
+          "upstream_dependencies": "MT-123 candidate registry is COMPLETED; MT-119 corpus extractor is FAIL_NEEDS_REWORK (needs real EventLedger adapter); MT-122 PEFT pipeline is BLOCKED_ON_DEPENDENCY (needs Python install). MT-124 honest closure depends on MT-119 + MT-122 honest closure first, plus real IPC wiring of the parent.",
+          "operator_action_needed": "None — operator scope-expansion waiver (packet.json.lifecycle.operator_waiver) already authorizes the substantial implementation cycles for MT-119, MT-122, MT-124. This MT remains BLOCKED on upstream MT closures + its own IPC wiring work, all of which is in-scope.",
+          "triage_receipt": "correlation_id=mt124-implementer-retraction-20260520"
+        },
+        "wp_hard_fail_until_redone": true,
+        "must_complete_before_other_mts": true
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "historical_blocker_before_ready_for_validation_20260525": {
       "blocked_at_utc": "2026-05-20T23:35:00Z",
       "blocker_id": "MT-124-ui-no-live-ipc-wiring",
       "blocked_by": "DEFLECTION_CATEGORY_UI_NO_LIVE_IPC_WIRING",
@@ -121,12 +150,15 @@
       "operator_action_needed": "None — operator scope-expansion waiver (packet.json.lifecycle.operator_waiver) already authorizes the substantial implementation cycles for MT-119, MT-122, MT-124. This MT remains BLOCKED on upstream MT closures + its own IPC wiring work, all of which is in-scope.",
       "triage_receipt": "correlation_id=mt124-implementer-retraction-20260520"
     },
-    "implementer_retraction_history": {
-      "retracted_at_utc": "2026-05-20T23:30:00Z",
-      "retracted_by": "KERNEL_BUILDER-20260520-AUTONOMOUS",
-      "prior_attempt": "Earlier VALIDATOR-EXPLORE-MT124-OPTION1-20260520-AUTO returned FINAL_VERDICT: COMPLETED using the phrase 'structurally routable to KernelActionCatalogV1 at parent integration'. That is the generous-validator failure mode the operator reopened the 27 MTs for.",
-      "correction": "Lifecycle reverted to BLOCKED_ON_DEPENDENCY (its honest state). True validator-signed COMPLETED count stays at 7 of 27."
-    }
+    "previous_completed_by_before_ready_for_validation_20260525": "VALIDATOR-EXPLORE-MT124-REWORK-PASS-20260520-AUTO-RETRY2",
+    "previous_completed_at_utc_before_ready_for_validation_20260525": "2026-05-20T05:20:00Z",
+    "previous_wp_hard_fail_until_redone_before_ready_for_validation_20260525": true,
+    "previous_must_complete_before_other_mts_before_ready_for_validation_20260525": true,
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-27T19:03:58.446Z"
   },
   "handoff": {
     "coder_session": "KERNEL_BUILDER-20260519-203500",
@@ -140,5 +172,126 @@
       "Provenance display complete.",
       "No moralizing copy."
     ]
+  },
+  "post_validation_distill_job_visibility_hardening_20260525": {
+    "classification": "IMPLEMENTATION_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+    "authoritative_integration_validator_pass": false,
+    "integration_validator_status": "UNCHANGED_EXISTING_RECORD",
+    "recorded_at_utc": "2026-05-25T03:21:30Z",
+    "recorded_by": "KERNEL_BUILDER-20260525-024244",
+    "summary": "Distillation job projection now includes DistillPiiDetected as a distillation error event, so recorder-backed PEFT/content-review PII findings remain visible to the Training Jobs queue instead of being silently filtered out.",
+    "files_touched": [
+      "app/src-tauri/src/commands/distillation.rs",
+      "app/src-tauri/src/commands/peft.rs"
+    ],
+    "gap_closed": [
+      "list_distill_jobs includes DistillPiiDetected in the distillation event filter.",
+      "PII findings are projected as privacy-preserving Error job rows.",
+      "Tauri PEFT start records job-bound PII review events before training, giving the queue a stable job_id for grouping."
+    ],
+    "proof": [
+      {
+        "command": "$env:CARGO_TARGET_DIR='D:/Projects/LLM projects/Handshake/Handshake_Artifacts/cargo-target/wtc-kernel-004-fold-v1'; cargo test --manifest-path app/src-tauri/Cargo.toml commands::distillation::tests -- --nocapture",
+        "exit_code": 0,
+        "result": "16 passed; 0 failed; 88 filtered out"
+      },
+      {
+        "command": "$env:CARGO_TARGET_DIR='D:/Projects/LLM projects/Handshake/Handshake_Artifacts/cargo-target/wtc-kernel-004-fold-v1'; cargo test --manifest-path app/src-tauri/Cargo.toml commands::peft::tests -- --nocapture",
+        "exit_code": 0,
+        "result": "8 passed; 0 failed; 96 filtered out"
+      }
+    ],
+    "residual_risks": [
+      "No Integration Validator has reviewed this hardening block.",
+      "Mixed clean-plus-PII corpora may show both review errors and later training progress for the same job; validator should confirm the intended queue severity aggregation policy.",
+      "UI rendering of the projected row was not re-tested in this slice; this evidence covers the Tauri command projection layer."
+    ]
+  },
+  "implementation_evidence": {
+    "post_validation_distill_job_visibility_hardening_20260525": {
+      "classification": "IMPLEMENTATION_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+      "authoritative_integration_validator_pass": false,
+      "integration_validator_status": "PENDING",
+      "recorded_at_utc": "2026-05-25T04:42:53.818Z",
+      "recorded_by": "KERNEL_BUILDER-POSTGRES-TEST-URL-20260525",
+      "summary": "Tauri production startup now creates a writable DuckDB-backed DistillationJobsState under app_data_root/flight_recorder/distillation_jobs.duckdb instead of managing the inert default recorder. handshake_core app dependency now enables app-runtime so duckdb-flight-recorder is available in production app builds.",
+      "files_touched": [
+        "app/src-tauri/src/lib.rs",
+        "app/src-tauri/Cargo.toml"
+      ],
+      "proof": [
+        {
+          "command": "cargo test --manifest-path app/src-tauri/Cargo.toml distillation_jobs_state_from_app_data_root_attaches_writable_duckdb_recorder -- --nocapture",
+          "exit_code": 0,
+          "result": "1 passed; 0 failed"
+        },
+        {
+          "command": "cargo test --manifest-path app/src-tauri/Cargo.toml commands::peft::tests -- --nocapture",
+          "exit_code": 0,
+          "result": "8 passed; 0 failed"
+        },
+        {
+          "command": "cargo test --manifest-path app/src-tauri/Cargo.toml commands::distillation::tests -- --nocapture",
+          "exit_code": 0,
+          "result": "16 passed; 0 failed"
+        }
+      ],
+      "risks_and_mitigations": [
+        {
+          "risk": "Recorder initialization can fail at app startup if the app data directory or DuckDB file cannot be created.",
+          "mitigation": "Startup now fails loudly with a typed setup error instead of silently using the inert default recorder."
+        },
+        {
+          "risk": "Evidence was produced by Kernel Builder only.",
+          "mitigation": "Entry is explicitly marked supporting evidence; Integration Validator status remains PENDING."
+        }
+      ]
+    }
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C12_C13_FRESH",
+    "reviewed_at_utc": "2026-05-27T17:40:00Z",
+    "aggregator_run_at_utc": "2026-05-27T19:03:58.446Z",
+    "verdict": "PASS_WITH_NOTES",
+    "verdict_reason": "DistillationQueue.tsx three-tab structure typechecks and is mounted in InferenceLab.tsx with real Tauri IPC: list_distill_sessions / list_distill_candidates / list_distill_jobs (against real production CandidateRegistry + InMemorySessionFlagStore + FlightRecorder) and the row-action commands promote_distill_candidate / reject_distill_candidate route through the real CandidateRegistry. The earlier placeholder arrays are gone. Copy is technical, no moralizing. Adult-production discipline preserved.",
+    "spec_compliance_status": "PASSES",
+    "code_hygiene_status": "OK",
+    "runtime_safety_status": "OK",
+    "agent_swarm_safety_status": "OK",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "OK",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 1,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 1,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-124.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-124.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C12_C13_FRESH",
+    "reviewed_at_utc": "2026-05-27T17:40:00Z",
+    "aggregator_run_at_utc": "2026-05-27T18:50:05.123Z",
+    "verdict": "PASS_WITH_NOTES",
+    "verdict_reason": "DistillationQueue.tsx three-tab structure typechecks and is mounted in InferenceLab.tsx with real Tauri IPC: list_distill_sessions / list_distill_candidates / list_distill_jobs (against real production CandidateRegistry + InMemorySessionFlagStore + FlightRecorder) and the row-action commands promote_distill_candidate / reject_distill_candidate route through the real CandidateRegistry. The earlier placeholder arrays are gone. Copy is technical, no moralizing. Adult-production discipline preserved.",
+    "spec_compliance_status": "PASSES",
+    "code_hygiene_status": "OK",
+    "runtime_safety_status": "OK",
+    "agent_swarm_safety_status": "OK",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "OK",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 1,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 1,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-124.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-124.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
   }
 }

@@ -7,7 +7,7 @@
   "cluster_subscope": "A.5",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T02:30:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-05-27T19:03:58.446Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -27,29 +27,66 @@
     ".GOV/roles_shared/checks/hbr-swarm-invariants.mjs",
     "justfile"
   ],
-  "depends_on_mts": ["MT-034", "MT-035", "MT-036"],
+  "depends_on_mts": [
+    "MT-034",
+    "MT-035",
+    "MT-036"
+  ],
   "unblock_conditions": "All A.5 building blocks merged.",
   "implementation_notes": "Per spec §6.7.5 four invariants must be tested as wire conditions, not unit-tested in isolation. (1) Lock/lease contention: 16 sessions race on a single resource lease; assert lease is granted to all 16 in some serializable order; assert no lease is granted to more than one session at a time (use a shared atomic that increments on grant and decrements on release, asserts max value == 1). (2) Cancellation propagation: 8 sessions start a long-running mutation; trigger cancellation after 100ms; assert all 8 cancellations propagate within bounded time (default 500ms upper bound) by polling each session's status — fails if any session is still running at deadline. (3) Loop-counter (HBR-SWARM-002): a session deliberately loops on a stuck precondition (e.g., waits for an event that never fires); the HBR-SWARM-002 loop counter must fire and emit FR-EVT-LOOP-CAP receipt after the configured cap (default 1000 iterations) — assert receipt emitted and session terminated. (4) ProcessLedger consistency: 8 sessions each spawn 10 processes; assert every START has a matching STOP after the swarm completes; assert no duplicate process_uuid across sessions; assert ledger rows correlate session_id correctly. Any invariant failure emits an HBR_SWARM_INVARIANT_FAIL typed receipt (canonical JSON per MT-006 pattern). Justfile recipe `hbr-swarm-invariants` wired into gov-check umbrella as the canonical AC-SWARM-HARNESS-INVARIANTS evidence.",
   "proof_commands": [
-    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target swarm_invariants_tests",
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target --test swarm_invariants_tests",
     "just hbr-swarm-invariants"
   ],
   "risk_if_missed": "Without invariant tests, AC-SWARM-HARNESS-INVARIANTS has no evidence; concurrency regressions in any of the four areas ship unobserved.",
   "validator_focus": "Each invariant has its own assertion (not aggregated); failing receipt is structured (machine-readable); loop-counter test uses the actual HBR-SWARM-002 cap from MT-008 reclaim infrastructure (not a duplicated counter).",
-  "hbr_obligations": ["HBR-SWARM-001", "HBR-SWARM-002", "HBR-SWARM-003", "HBR-SWARM-004", "HBR-QUIET-003"],
+  "hbr_obligations": [
+    "HBR-SWARM-001",
+    "HBR-SWARM-002",
+    "HBR-SWARM-003",
+    "HBR-SWARM-004",
+    "HBR-QUIET-003"
+  ],
   "spec_anchors": [
     ".GOV/spec/master-spec-v02.186/spec-modules/06-mechanical-integrations.md#6.7"
   ],
-  "acceptance_criteria_refs": ["AC-SWARM-HARNESS-INVARIANTS"],
+  "acceptance_criteria_refs": [
+    "AC-SWARM-HARNESS-INVARIANTS"
+  ],
   "lifecycle": {
     "active": false,
-    "status": "PENDING",
-    "validator_verdict": "PENDING",
-    "depends_on": ["MT-034", "MT-035", "MT-036"],
-    "blocks": ["MT-040"]
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "CONCERN",
+    "depends_on": [
+      "MT-034",
+      "MT-035",
+      "MT-036"
+    ],
+    "blocks": [
+      "MT-040"
+    ],
+    "claimed_by": "KERNEL_BUILDER-20260518-073535",
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "COMPLETED",
+        "validator_verdict": "PENDING",
+        "completed_at_utc": "2026-05-18T14:52:28.297Z"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "previous_completed_at_utc_before_ready_for_validation_20260525": "2026-05-18T14:52:28.297Z",
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-27T19:03:58.446Z"
   },
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260518-073535",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
     "review_response_receipt_id": null
@@ -60,5 +97,59 @@
       "Cancellation deadline is enforced via timeout (not best-effort).",
       "ProcessLedger consistency check asserts no duplicate process_uuid AND correct session correlation."
     ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_A3_A5_A7",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T19:03:58.446Z",
+    "verdict": "CONCERN",
+    "verdict_reason": "Loop-counter invariant (HBR-SWARM-002) is correctly enforced through HbrSwarmLoopCounter with cap=1000 and FR-EVT-LOOP-CAP receipt, and ProcessLedger consistency is exercised against the real ProcessLedgerWriter with no duplicate UUIDs / matched start-stop pairs — but the lock/lease invariant uses a bare tokio Semaphore (not the platform's lease primitive) and the cancellation invariant uses an AtomicBool polled inside `while !cancel.load() { sleep(10ms) }` (not a real mid-mutation interrupt). Two of the four invariants are surrogates, not wire tests of the platform.",
+    "spec_compliance_status": "PARTIAL",
+    "code_hygiene_status": "MINOR",
+    "runtime_safety_status": "CONCERN",
+    "agent_swarm_safety_status": "CONCERN",
+    "hbr_unsatisfied": [
+      "HBR-SWARM-001",
+      "HBR-SWARM-003",
+      "HBR-SWARM-004"
+    ],
+    "test_coverage_status": "THIN",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 1,
+      "MEDIUM": 1,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-037.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-037.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_A3_A5_A7",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T18:50:05.123Z",
+    "verdict": "CONCERN",
+    "verdict_reason": "Loop-counter invariant (HBR-SWARM-002) is correctly enforced through HbrSwarmLoopCounter with cap=1000 and FR-EVT-LOOP-CAP receipt, and ProcessLedger consistency is exercised against the real ProcessLedgerWriter with no duplicate UUIDs / matched start-stop pairs — but the lock/lease invariant uses a bare tokio Semaphore (not the platform's lease primitive) and the cancellation invariant uses an AtomicBool polled inside `while !cancel.load() { sleep(10ms) }` (not a real mid-mutation interrupt). Two of the four invariants are surrogates, not wire tests of the platform.",
+    "spec_compliance_status": "PARTIAL",
+    "code_hygiene_status": "MINOR",
+    "runtime_safety_status": "CONCERN",
+    "agent_swarm_safety_status": "CONCERN",
+    "hbr_unsatisfied": [
+      "HBR-SWARM-001",
+      "HBR-SWARM-003",
+      "HBR-SWARM-004"
+    ],
+    "test_coverage_status": "THIN",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 1,
+      "MEDIUM": 1,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-037.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-037.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
   }
 }

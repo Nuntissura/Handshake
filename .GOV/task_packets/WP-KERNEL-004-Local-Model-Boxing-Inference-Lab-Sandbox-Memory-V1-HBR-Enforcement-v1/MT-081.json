@@ -7,7 +7,7 @@
   "cluster_subscope": "C.3",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:00:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-05-27T19:03:58.446Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -29,7 +29,16 @@
     "src/backend/handshake_core/src/model_runtime/candle/tokenizer.rs",
     "src/backend/handshake_core/src/model_runtime/mod.rs"
   ],
-  "depends_on_mts": ["MT-062", "MT-063", "MT-064", "MT-065", "MT-066", "MT-067", "MT-069", "MT-070"],
+  "depends_on_mts": [
+    "MT-062",
+    "MT-063",
+    "MT-064",
+    "MT-065",
+    "MT-066",
+    "MT-067",
+    "MT-069",
+    "MT-070"
+  ],
   "unblock_conditions": "MT-061..MT-070 trait + sub-traits + registry + LlmClient routing merged.",
   "implementation_notes": "Per AC-CANDLE-ADAPTER (spec §4.6.2): CandleRuntime wraps candle-core + candle-transformers; required path for hook-requiring techniques (activation steering, refusal vector, CAA) and for subquadratic architectures (Mamba2, RWKV v5-v7). CandleRuntime struct: `pub struct CandleRuntime { models: Arc<RwLock<HashMap<ModelId, CandleModelHandle>>>, device: candle_core::Device, tokenizer_cache: Arc<RwLock<HashMap<ModelId, Arc<tokenizers::Tokenizer>>>>, ledger: Arc<ProcessLedgerIntegration> }`. CandleModelHandle is an enum: `Transformer { model: Box<dyn TransformerModel>, config: TransformerConfig, state: TransformerState }`, `Mamba2 { model: candle_transformers::models::mamba2::Model, state: Mamba2State }`, `RwkvV5 { model: ..., state: ... }`, `RwkvV6 { ... }`, `RwkvV7 { ... }`. (Mamba2/RWKV variants implemented in MT-085/MT-086/MT-087.) candle_core::Device selection per OS+GPU: try Cuda(0) if cuda feature enabled and available; fallback Metal(0) on macOS; fallback Cpu. Operator override via LoadSpec.device_override. Tokenizer cache: HF tokenizers crate loads `tokenizer.json` from the model directory; embedded in CandleModelHandle for fast access. impl ModelRuntime for CandleRuntime: load verifies RuntimeKind==Candle, sha256, mints ModelId v7, registers with ledger; generate/score/embed return NotImplemented (filled MT-082..MT-088); kv_cache returns Err CapabilityNotSupported for Mamba2/RWKV variants (they use state-vector cache, MT-088 separate handle), Default impl for Transformer variant; steering_hooks returns SteeringHookHandle backed by CandleSteeringHook (MT-082). All candle_core::* / candle_transformers::* identifiers MUST stay inside model_runtime/candle/**.",
   "proof_commands": [
@@ -38,20 +47,68 @@
   ],
   "risk_if_missed": "CandleRuntime cannot be wired into LlmClient; hook-requiring techniques and SSMs have no host.",
   "validator_focus": "Grep candle_core:: / candle_transformers:: only inside model_runtime/candle/**; Device selector respects operator override; ModelId v7.",
-  "hbr_obligations": ["HBR-INT-002", "HBR-INT-008"],
+  "hbr_obligations": [
+    "HBR-INT-002",
+    "HBR-INT-008"
+  ],
   "spec_anchors": [
     ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.6.2"
   ],
-  "acceptance_criteria_refs": ["AC-CANDLE-ADAPTER", "AC-MODEL-RUNTIME-TRAIT"],
+  "acceptance_criteria_refs": [
+    "AC-CANDLE-ADAPTER",
+    "AC-MODEL-RUNTIME-TRAIT"
+  ],
   "lifecycle": {
     "active": false,
-    "status": "PENDING",
-    "validator_verdict": "PENDING",
-    "depends_on": ["MT-062", "MT-063", "MT-064", "MT-065", "MT-066", "MT-067", "MT-069", "MT-070"],
-    "blocks": ["MT-082", "MT-083", "MT-084", "MT-085", "MT-086", "MT-087", "MT-088", "MT-089", "MT-096", "MT-100", "MT-103", "MT-112"]
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "CONCERN",
+    "depends_on": [
+      "MT-062",
+      "MT-063",
+      "MT-064",
+      "MT-065",
+      "MT-066",
+      "MT-067",
+      "MT-069",
+      "MT-070"
+    ],
+    "blocks": [
+      "MT-082",
+      "MT-083",
+      "MT-084",
+      "MT-085",
+      "MT-086",
+      "MT-087",
+      "MT-088",
+      "MT-089",
+      "MT-096",
+      "MT-100",
+      "MT-103",
+      "MT-112"
+    ],
+    "claimed_by": "KERNEL_BUILDER-20260518-235451",
+    "claimed_at_utc": "2026-05-19T06:02:29Z",
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "COMPLETED",
+        "validator_verdict": "PENDING",
+        "completed_at_utc": "2026-05-19T06:32:02Z"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "previous_completed_at_utc_before_ready_for_validation_20260525": "2026-05-19T06:32:02Z",
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-27T19:03:58.446Z"
   },
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260518-235451",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
     "review_response_receipt_id": null
@@ -62,5 +119,55 @@
       "Device selector cuda-not-available path returns CPU fallback (no panic).",
       "Cargo feature flags for cuda/metal documented so non-GPU builds compile."
     ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C3_FRESH",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T19:03:58.446Z",
+    "verdict": "CONCERN",
+    "verdict_reason": "Scaffold + ModelRuntime impl skeleton lands cleanly with engine-containment, sha256 verification, UUID v7, OS device selector, tokenizer cache, and feature-gated native imports. Concerns: (a) `load_duration_ms` is measured BEFORE any safetensors construction work (mmap, model build, state init), so the metric is meaningless / monotonically near-zero; (b) `CandleModelBackend` is enum with engine-feature variants only and emits a non-helpful `not_implemented(\"candle_*\")` for SSM paths via the catch-all `_` arm in `generate`, but that arm is now unreachable for the engine-on build (good) — yet the `kv_cache` fallback for Transformer returns `candle_kv_cache not implemented` even though MT-088 should later wire a Transformer KV handle; (c) `device_kind` reports `Cuda { ordinal: 0 }` / `Metal { ordinal: 0 }` regardless of the actual ordinal returned by candle, so a non-zero ordinal device collapses to 0 in the selection record (telemetry / receipts will be wrong).",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "MINOR",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [
+      "HBR-INT-002: required wire test proves ContextBundle -> ModelAdapter -> ToolGate -> ArtifactStore chain; no such evidence in MT-081 tests, and CandleRuntime does not appear to wire any ledger/ArtifactStore integration in adapter.rs (the narrative's `ledger: Arc<ProcessLedgerIntegration>` is not in the struct)."
+    ],
+    "test_coverage_status": "THIN",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 3,
+      "LOW": 0
+    },
+    "paperwork_notes_count": 1,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-081.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-081.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C3_FRESH",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T18:50:05.123Z",
+    "verdict": "CONCERN",
+    "verdict_reason": "Scaffold + ModelRuntime impl skeleton lands cleanly with engine-containment, sha256 verification, UUID v7, OS device selector, tokenizer cache, and feature-gated native imports. Concerns: (a) `load_duration_ms` is measured BEFORE any safetensors construction work (mmap, model build, state init), so the metric is meaningless / monotonically near-zero; (b) `CandleModelBackend` is enum with engine-feature variants only and emits a non-helpful `not_implemented(\"candle_*\")` for SSM paths via the catch-all `_` arm in `generate`, but that arm is now unreachable for the engine-on build (good) — yet the `kv_cache` fallback for Transformer returns `candle_kv_cache not implemented` even though MT-088 should later wire a Transformer KV handle; (c) `device_kind` reports `Cuda { ordinal: 0 }` / `Metal { ordinal: 0 }` regardless of the actual ordinal returned by candle, so a non-zero ordinal device collapses to 0 in the selection record (telemetry / receipts will be wrong).",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "MINOR",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [
+      "HBR-INT-002: required wire test proves ContextBundle -> ModelAdapter -> ToolGate -> ArtifactStore chain; no such evidence in MT-081 tests, and CandleRuntime does not appear to wire any ledger/ArtifactStore integration in adapter.rs (the narrative's `ledger: Arc<ProcessLedgerIntegration>` is not in the struct)."
+    ],
+    "test_coverage_status": "THIN",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 3,
+      "LOW": 0
+    },
+    "paperwork_notes_count": 1,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-081.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-081.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
   }
 }

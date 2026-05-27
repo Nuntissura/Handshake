@@ -7,7 +7,7 @@
   "cluster_subscope": "X.2",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:12:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-05-27T19:03:58.446Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -28,7 +28,11 @@
     "src/backend/handshake_core/src/distillation/candidate.rs",
     "src/backend/handshake_core/tests/mt_outcome_tests.rs"
   ],
-  "depends_on_mts": ["MT-184", "MT-185", "MT-177"],
+  "depends_on_mts": [
+    "MT-184",
+    "MT-185",
+    "MT-177"
+  ],
   "unblock_conditions": "MT-184 job primitive + MT-185 checkpoint contract + MT-177 mailbox repo all merged so outcome can reference the loop chain and post escalation messages to the mailbox.",
   "implementation_notes": "Per folded WP-1-Micro-Task-Executor-v1 stub intent (refinement.json line 995): 'support a 6-level escalation chain (7B->7B-alt->13B->13B-alt->32B->HARD_GATE) with LoRA selection by task_tags, and emit DistillationCandidate artifacts + FR-EVT-MT-015 for logging-only distillation in Phase 1.' `MtOutcomeRecorder::record(job, outcome: MtOutcome) -> Result<MtOutcomeRecord, OutcomeError>` writes the canonical row: `MtOutcomeRecord { outcome_id: Uuid v7, job_id (FK), iteration_n, outcome_kind: OutcomeKind (Success|Failure|Verification|Cancellation|Timeout), completion_signal: Option<CompletionSignal>, run_ledger_ref: Option<RunLedgerPointer>, evidence_pointers: Vec<EvidencePointer>, distillation_candidate_id: Option<Uuid v7>, recorded_at_utc, recorded_by_session: Uuid v7 }`. On Success: also produces a `DistillationCandidate { candidate_id: Uuid v7, job_id, summary: String, prompt_response_trace: Vec<TraceEvent>, tier_at_completion: EscalationTier, created_at_utc }` written to a `distillation_candidate` Postgres table (logging-only per Phase 1; cluster C MT-XXX wires the full pipeline). Emits FR-EVT-MT-015. On Failure: `EscalationRouter::route(job, outcome) -> EscalationDecision { Retry { same_tier } | EscalateTo { next_tier, lora_id } | HardGate { reason } | Abandon { reason } }`. Algorithm: (1) check loop_control budget remaining (MT-185); (2) if exhausted at current tier, lookup `EscalationTier::next(current)`; (3) select LoRA by job.task_tags using a simple tag-to-lora map (configurable, MT-184 sets default empty map; cluster C MTE-LoRA-Wiring fold provides the production map); (4) update job.escalation_tier, append to job.escalation_history, post `micro_task_escalation` message to job's mailbox_thread_id (MT-179 family). HardGate transitions job.state=`HardGated` and posts decision_request message to operator role. Tests: (a) Success records outcome + DistillationCandidate + FR-EVT-MT-015; (b) 3 consecutive failures at T7B exhaust budget -> EscalateTo T7BAlt with mailbox message posted; (c) failure at HardGate returns Abandon if max_hardgate_retries exceeded; (d) FR event registry IDs validated (MT-198).",
   "proof_commands": [
@@ -36,7 +40,11 @@
   ],
   "risk_if_missed": "Without canonical outcome recording, MT failures lose audit trail; without escalation routing, the 6-tier chain stays unwired; without DistillationCandidate emission, Phase 1 distillation evidence is dropped (folded WP-1-Micro-Task-Executor-v1 stub intent regression).",
   "validator_focus": "Escalation tier monotonic (tested); LoRA selection from task_tags deterministic; HardGate transitions always emit operator decision_request message (no silent pauses); DistillationCandidate rows queryable for downstream cluster C pipeline.",
-  "hbr_obligations": ["HBR-INT-008", "HBR-SWARM-001", "HBR-SWARM-002"],
+  "hbr_obligations": [
+    "HBR-INT-008",
+    "HBR-SWARM-001",
+    "HBR-SWARM-002"
+  ],
   "spec_anchors": [
     ".GOV/spec/master-spec-v02.186/spec-modules/02-system-architecture.md#role-mailbox-message-contract",
     ".GOV/spec/master-spec-v02.186/spec-modules/06-mechanical-integrations.md#6.7"
@@ -46,16 +54,253 @@
   ],
   "lifecycle": {
     "active": false,
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "validator_verdict": "PENDING",
-    "depends_on": ["MT-184", "MT-185", "MT-177"],
-    "blocks": ["MT-189"]
+    "depends_on": [
+      "MT-184",
+      "MT-185",
+      "MT-177"
+    ],
+    "blocks": [
+      "MT-189"
+    ],
+    "claimed_at_utc": "2026-05-24T05:00:00Z",
+    "claimed_by_session": "KERNEL_BUILDER-20260524-188",
+    "claimed_by": "KERNEL_BUILDER-20260524-188",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260524-188",
+    "ready_for_validation_at_utc": "2026-05-24T03:47:34.6425793Z",
+    "integration_validator_verdict": "PENDING",
+    "latest_postgres_test_evidence_20260525": {
+      "recorded_at_utc": "2026-05-25T02:36:47.3466494Z",
+      "recorded_by": "KERNEL_BUILDER-20260525-011217",
+      "classification": "KERNEL_BUILDER_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+      "postgres_target": "postgres://postgres:***@127.0.0.1:65432/handshake_test?sslmode=disable",
+      "artifact_target_root": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target",
+      "fixes": [
+        {
+          "file": "src/backend/handshake_core/src/mt_executor/queue.rs",
+          "summary": "MicroTaskQueue::ensure_schema now executes embedded multi-statement migration SQL with sqlx::raw_sql; HardGate receipt check now runs only after validating that the requested tier transition is legal.",
+          "gap_closed": "Fixed PostgreSQL prepared-statement rejection for multi-command schema SQL and restored InvalidEscalation precedence for terminal/skip-tier HardGate attempts."
+        },
+        {
+          "file": "src/backend/handshake_core/src/mt_executor/outcome.rs",
+          "summary": "MtOutcomeRecorder::ensure_schema now uses sqlx::raw_sql for embedded multi-statement migration SQL.",
+          "gap_closed": "Fixed MT-188 live Postgres schema setup for 0027 outcome/distillation candidate additions."
+        }
+      ],
+      "tests": [
+        {
+          "scope": "MT-188",
+          "command": "POSTGRES_TEST_URL=postgres://postgres:***@127.0.0.1:65432/handshake_test?sslmode=disable CARGO_TARGET_DIR=D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target/wp-kernel-004-postgres-mt-outcome cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mt_outcome_tests -- --ignored --test-threads=1 --nocapture",
+          "exit_code": 0,
+          "result": "11 passed; 0 failed; 0 ignored",
+          "note": "Initial RED fixed: sqlx prepared statement rejected multi-statement schema migration; HardGate terminal test exposed receipt-check precedence. Final suite green."
+        }
+      ],
+      "shared_risks": [
+        "This is KERNEL_BUILDER supporting evidence, not an Integration Validator verdict; lifecycle.integration_validator_verdict remains PENDING unless a validator role signs off.",
+        "Broad workspace remains dirty with many pre-existing modified/untracked files outside this session; this evidence block records only the Postgres test/fix slice listed here.",
+        "Warnings remain in unrelated library areas during cargo test; no warnings were introduced as hard errors in the verified commands.",
+        "Postgres fixture was local Docker Postgres on 127.0.0.1:65432; validators should re-run against their configured POSTGRES_TEST_URL before marking authoritative completion."
+      ]
+    },
+    "postgres_test_url_live_evidence_20260525_continuation": {
+      "authoritative_integration_validator_pass": false,
+      "classification": "KERNEL_BUILDER_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+      "not_run_or_not_claimed": [],
+      "artifact_log_root": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs",
+      "implementation_or_hardening_notes": [],
+      "postgres_test_url_redacted": "postgres://postgres:***@127.0.0.1:65432/handshake_test",
+      "proof": [
+        {
+          "log": "postgres-live-micro_task_job_tests-20260525-070454.log",
+          "scope": "micro_task_job_tests",
+          "note": [
+            "Queue primitive and schema tests passed.",
+            "Proof"
+          ],
+          "result": "9 passed"
+        }
+      ],
+      "recorded_by": "KERNEL_BUILDER-POSTGRES-TEST-URL-20260525-CONTINUATION",
+      "mt_ids": [
+        "MT-184",
+        "MT-185",
+        "MT-186",
+        "MT-187",
+        "MT-188",
+        "MT-189"
+      ],
+      "summary": "MT executor/job/loop/cancel/scheduler/outcome/orchestrator live Postgres checks passed for the continuation slice.",
+      "integration_validator_status": "PENDING",
+      "residual_risks": [
+        "Supporting evidence only; Integration Validator verdict remains PENDING.",
+        "Focused Postgres/live-kernel commands were run, not a full workspace cargo test."
+      ],
+      "recorded_at_utc": "2026-05-25T10:56:03.5601331Z",
+      "cargo_target_dir": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target"
+    },
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "READY_FOR_VALIDATION",
+        "validator_verdict": "PENDING"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-27T19:03:58.446Z"
   },
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260524-188",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
     "review_response_receipt_id": null
+  },
+  "implementation_record": {
+    "recorded_at_utc": "2026-05-24T03:47:34.6425793Z",
+    "recorded_by": "KERNEL_BUILDER-20260524-188",
+    "classification": "IMPLEMENTATION_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+    "authoritative_integration_validator_pass": false,
+    "status_transition": "CLAIMED -> READY_FOR_VALIDATION",
+    "summary": "Implemented MT outcome recording contract surfaces, budget-aware escalation routing, DistillationCandidate Phase-1 emission, FR-EVT-MT-015 Flight Recorder emission, RoleMailbox escalation/HardGate posting, executor HardGate fail-closed behavior, LoRA persistence support on queue escalation, and FR registry schema alignment for the emitted candidate payload.",
+    "files_touched": [
+      "src/backend/handshake_core/src/mt_executor/outcome.rs",
+      "src/backend/handshake_core/src/mt_executor/executor.rs",
+      "src/backend/handshake_core/src/mt_executor/queue.rs",
+      "src/backend/handshake_core/src/mt_executor/mod.rs",
+      "src/backend/handshake_core/src/process_ledger/mt_outcome.rs",
+      "src/backend/handshake_core/src/process_ledger/escalation_router.rs",
+      "src/backend/handshake_core/src/process_ledger/mod.rs",
+      "src/backend/handshake_core/src/distillation/candidate.rs",
+      "src/backend/handshake_core/src/distillation/mod.rs",
+      "src/backend/handshake_core/src/flight_recorder/fr_event_registry.rs",
+      "src/backend/handshake_core/tests/mt_outcome_tests.rs",
+      "src/backend/handshake_core/tests/mt_executor_tests.rs",
+      "src/backend/handshake_core/tests/fr_event_registry_tests.rs",
+      "src/backend/handshake_core/tests/micro_task_job_tests.rs",
+      ".GOV/roles_shared/records/FR_EVENT_REGISTRY.json"
+    ],
+    "research_basis": {
+      "sources_checked": [
+        "Local MT-184 MicroTaskJob and MicroTaskQueue implementation",
+        "Local MT-185 MtLoopControlBudget and checkpoint implementation",
+        "Local MT-177 RoleMailboxRepository and MT-179 typed message families",
+        "Local FlightRecorder event model and MT-198 FR event registry",
+        "Subagent research on Postgres outcome durability, SELECT FOR UPDATE ownership checks, durable events, skip-locked claiming, typed Rust APIs, and UUIDv7 identity"
+      ],
+      "selected_patterns": [
+        "Use pure recorder methods for executor hot-loop tests and Postgres persist methods for durable outcome rows.",
+        "Use MT-185 max_consecutive_failures in executor routing instead of the router-local default.",
+        "Post decision_request through RoleMailbox before returning HardGated from the mailbox-wired executor path.",
+        "Fail closed when HardGate is selected and the job has no mailbox_thread_id.",
+        "Emit FR-EVT-MT-015 with wp_id, mt_id, and candidate_ref matching the registered schema.",
+        "Keep DistillationCandidate status defaulted to LOGGING_ONLY_PHASE_1."
+      ],
+      "rejected_options": [
+        "Leaving HardGate mailbox posting as a standalone helper only, because the executor path could still return HardGated silently.",
+        "Keeping FR-EVT-MT-015 registered as candidate_score, because the actual emitted payload references a candidate artifact rather than a score.",
+        "Letting MicroTaskQueue::escalate write HardGate directly, because the red-team control requires a decision_request receipt before the hardgate state commit."
+      ]
+    },
+    "proof": {
+      "red_tests": [
+        {
+          "command": "cargo test --features test-utils --manifest-path src/backend/handshake_core/Cargo.toml --target-dir D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target --test mt_executor_tests mt_188_executor -- --test-threads=1",
+          "exit_code": 101,
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/mt188-executor-tdd-fail-001.log",
+          "note": "Failed before implementation because MicroTaskExecutor lacked run_job_with_mailbox."
+        },
+        {
+          "command": "cargo test --features test-utils --manifest-path src/backend/handshake_core/Cargo.toml --target-dir D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target --test fr_event_registry_tests mt_188_fr_evt_mt_015_schema_matches_candidate_payload_contract -- --test-threads=1",
+          "exit_code": 101,
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/mt188-fr-registry-tdd-fail-001.log",
+          "note": "Failed before implementation because FR-EVT-MT-015 still declared mt_id + candidate_score."
+        },
+        {
+          "command": "cargo test --features test-utils --manifest-path src/backend/handshake_core/Cargo.toml --target-dir D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target --test mt_outcome_tests mt_188_record_with_flight_recorder_couples_candidate_and_fr_event -- --test-threads=1",
+          "exit_code": 101,
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/mt188-fr-emission-tdd-fail-001.log",
+          "note": "Failed before implementation because MtOutcomeRecorder lacked record_with_flight_recorder and persist_with_flight_recorder."
+        }
+      ],
+      "focused_green": [
+        {
+          "command": "cargo test --features test-utils --manifest-path src/backend/handshake_core/Cargo.toml --target-dir D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target --test mt_executor_tests -- --test-threads=1",
+          "exit_code": 0,
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/mt188-mt-executor-full-002.log"
+        },
+        {
+          "command": "cargo test --features test-utils --manifest-path src/backend/handshake_core/Cargo.toml --target-dir D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target --test mt_outcome_tests -- --test-threads=1",
+          "exit_code": 0,
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/mt188-mt-outcome-full-002.log"
+        },
+        {
+          "command": "cargo test --features test-utils --manifest-path src/backend/handshake_core/Cargo.toml --target-dir D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target --test fr_event_registry_tests -- --test-threads=1",
+          "exit_code": 0,
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/mt188-fr-registry-full-001.log"
+        }
+      ],
+      "adjacent_green": [
+        {
+          "command": "cargo test --features test-utils --manifest-path src/backend/handshake_core/Cargo.toml --target-dir D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target --test micro_task_job_tests -- --test-threads=1",
+          "exit_code": 0,
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/mt188-micro-task-job-adjacent-001.log"
+        },
+        {
+          "command": "cargo test --features test-utils --manifest-path src/backend/handshake_core/Cargo.toml --target-dir D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target --test mt_loop_control_tests -- --test-threads=1",
+          "exit_code": 0,
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/mt188-mt-loop-control-adjacent-001.log"
+        },
+        {
+          "command": "cargo test --features test-utils --manifest-path src/backend/handshake_core/Cargo.toml --target-dir D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target --test mt_scheduler_tests -- --test-threads=1",
+          "exit_code": 0,
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/mt188-mt-scheduler-adjacent-001.log"
+        },
+        {
+          "command": "cargo test --features test-utils --manifest-path src/backend/handshake_core/Cargo.toml --target-dir D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target --test role_mailbox_families_tests -- --test-threads=1",
+          "exit_code": 0,
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/mt188-role-mailbox-families-adjacent-001.log"
+        }
+      ],
+      "formatting": {
+        "command": "rustfmt --edition 2021 --check <MT-188 touched Rust files>",
+        "exit_code": 0,
+        "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/mt188-rustfmt-check-touched-002.log",
+        "cargo_fmt_check_caveat": {
+          "command": "cargo fmt --manifest-path src/backend/handshake_core/Cargo.toml --check",
+          "exit_code": 1,
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/mt188-cargo-fmt-check-001.log",
+          "failure": "Windows path expansion failed before formatting with os error 206: filename or extension is too long."
+        }
+      },
+      "governance": {
+        "ready_receipt": {
+          "command": "just wp-receipt-append WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1 CODER KERNEL_BUILDER-20260524-188 STATUS ... CLAIMED READY_FOR_VALIDATION INTEGRATION_VALIDATOR INTEGRATION_VALIDATOR KERNEL004-MT188-READY-20260524",
+          "exit_code": 0,
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/mt188-wp-receipt-ready-001.log",
+          "timestamp_utc": "2026-05-24T03:51:04.582Z"
+        },
+        "handoff_phase_check": {
+          "command": "just phase-check HANDOFF WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1 CODER KERNEL_BUILDER-20260524-188",
+          "exit_code": 1,
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/mt188-phase-check-handoff-001.log",
+          "failure": "Pre-existing generated receipts ledger validation failures block phase-check; role-mailbox-export-check passed, but gate-check and post-work-check failed."
+        }
+      }
+    },
+    "residual_risks": [
+      "No Integration Validator has reviewed MT-188; this record is Kernel Builder supporting evidence only.",
+      "POSTGRES_TEST_URL is unset in this environment, so ignored Postgres-gated outcome/queue tests were not live-run here; the code compiles and always-on tests pass, but a validator with Postgres should run the ignored tests.",
+      "Full crate-wide cargo test was not run in this closeout; scoped MT and adjacent binaries passed.",
+      "Existing worktree is heavily dirty with many unrelated WP-KERNEL-004 files and untracked files; this record lists MT-188 touched surfaces only."
+    ]
   },
   "red_team": {
     "minimum_controls": [
@@ -63,5 +308,51 @@
       "DistillationCandidate Postgres table has a status column defaulting to 'LOGGING_ONLY_PHASE_1' to prevent accidental promotion before cluster C pipeline lands.",
       "Escalation router refuses to skip tiers (assertion test for every (from, to) pair)."
     ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_X_GAPS",
+    "reviewed_at_utc": "2026-05-27T18:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T19:03:58.446Z",
+    "verdict": "PASS_WITH_NOTES",
+    "verdict_reason": "MtOutcomeRecorder + EscalationRouter + DistillationCandidate (Phase-1 LOGGING_ONLY status) + FR-EVT-MT-015 emission + HardGate decision_request mailbox posting BEFORE HardGated state commit. TDD-red proof shows real test-first discipline. Executor fail-closed when HardGate chosen but no mailbox_thread_id. 11/11 Postgres-gated tests green. EscalationTier monotonic refusal to skip enforced. Distillation status column defaults to LOGGING_ONLY_PHASE_1 preventing accidental Phase-2 promotion (red_team #2 satisfied).",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "OK",
+    "runtime_safety_status": "OK",
+    "agent_swarm_safety_status": "OK",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "STRONG",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 2
+    },
+    "paperwork_notes_count": 2,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-188.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-188.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_X_GAPS",
+    "reviewed_at_utc": "2026-05-27T18:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T18:50:05.123Z",
+    "verdict": "PASS_WITH_NOTES",
+    "verdict_reason": "MtOutcomeRecorder + EscalationRouter + DistillationCandidate (Phase-1 LOGGING_ONLY status) + FR-EVT-MT-015 emission + HardGate decision_request mailbox posting BEFORE HardGated state commit. TDD-red proof shows real test-first discipline. Executor fail-closed when HardGate chosen but no mailbox_thread_id. 11/11 Postgres-gated tests green. EscalationTier monotonic refusal to skip enforced. Distillation status column defaults to LOGGING_ONLY_PHASE_1 preventing accidental Phase-2 promotion (red_team #2 satisfied).",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "OK",
+    "runtime_safety_status": "OK",
+    "agent_swarm_safety_status": "OK",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "STRONG",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 2
+    },
+    "paperwork_notes_count": 2,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-188.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-188.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
   }
 }

@@ -7,7 +7,7 @@
   "cluster_subscope": "A.3",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T02:30:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-05-27T19:03:58.446Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -26,7 +26,9 @@
     "src/backend/handshake_core/src/inspector_read/replay_drive.rs",
     "src/backend/handshake_core/tests/replay_drive_tests.rs"
   ],
-  "depends_on_mts": ["MT-029"],
+  "depends_on_mts": [
+    "MT-029"
+  ],
   "unblock_conditions": "MT-029 server scaffold ships; KernelActionCatalogV1 exists in main from KERNEL-002 (verify via cargo doc or Grep before authoring).",
   "implementation_notes": "Per spec §6.5.4 the endpoint surface is STRICTLY: POST /inspector/v1/replay-drive with body `{ action_id: String, envelope: WriteBoxV1Envelope }`. WriteBoxV1Envelope is the signed envelope type from KERNEL-002 (refer to src/backend/handshake_core/src/kernel/write_box/* for the actual type — confirm via Grep). The handler: (1) deserialize body; reject malformed with 400; (2) verify envelope signature via KERNEL-002's WriteBox verifier; reject invalid with 403; (3) look up action_id in KernelActionCatalogV1; reject unknown action with 404; (4) dispatch to KernelActionCatalogV1's action handler passing the verified envelope; (5) return the action's typed response. Any body shape OTHER than `{ action_id, envelope }` returns 403 (NOT 400 — 403 is the specified status because the request was syntactically valid but the request shape itself is forbidden as a parallel-mutation attempt). This is critical: a request like `{ catalog_action: \"x\", payload: {...} }` (any field name other than action_id+envelope) returns 403. Note: even though MT-029 routes only GET on /inspector/v1/*, this MT adds the one POST exception explicitly. Per HBR-INT-007 the action dispatch emits an EventLedger row `INSPECTOR_REPLAY_DRIVE { action_id, envelope_signer, result }`. Tests: (a) valid envelope + known action_id -> 200 + KernelActionCatalogV1 dispatch confirmed (use a mock catalog); (b) invalid signature -> 403; (c) unknown action_id -> 404; (d) extra body field -> 403; (e) missing field -> 403.",
   "proof_commands": [
@@ -34,20 +36,51 @@
   ],
   "risk_if_missed": "Without strict envelope shape enforcement, the inspector becomes a parallel mutation path bypassing KernelActionCatalogV1 + WriteBoxV1 — spec §6.5 invariant breached.",
   "validator_focus": "ALL non-{action_id,envelope} body shapes return 403 (not 400); signature verification uses KERNEL-002 verifier (not a duplicated implementation); EventLedger row emitted on dispatch.",
-  "hbr_obligations": ["HBR-INT-001", "HBR-INT-003", "HBR-INT-007"],
+  "hbr_obligations": [
+    "HBR-INT-001",
+    "HBR-INT-003",
+    "HBR-INT-007"
+  ],
   "spec_anchors": [
     ".GOV/spec/master-spec-v02.186/spec-modules/06-mechanical-integrations.md#6.5"
   ],
-  "acceptance_criteria_refs": ["AC-INSPECTOR-PLANE-MUTATION-ROUTING"],
+  "acceptance_criteria_refs": [
+    "AC-INSPECTOR-PLANE-MUTATION-ROUTING"
+  ],
   "lifecycle": {
     "active": false,
-    "status": "PENDING",
-    "validator_verdict": "PENDING",
-    "depends_on": ["MT-029"],
-    "blocks": ["MT-031", "MT-033", "MT-034"]
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "FAIL",
+    "depends_on": [
+      "MT-029"
+    ],
+    "blocks": [
+      "MT-031",
+      "MT-033",
+      "MT-034"
+    ],
+    "claimed_by": "MT-030",
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "COMPLETED",
+        "validator_verdict": "PENDING",
+        "completed_at_utc": "2026-05-18T11:02:13.451Z"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "previous_completed_at_utc_before_ready_for_validation_20260525": "2026-05-18T11:02:13.451Z",
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-27T19:03:58.446Z"
   },
   "handoff": {
-    "coder_session": null,
+    "coder_session": "MT-030",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
     "review_response_receipt_id": null
@@ -58,5 +91,57 @@
       "Signature verification uses KERNEL-002 verifier (no duplicated crypto).",
       "EventLedger row emitted on dispatch for post-hoc audit."
     ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_A3_A5_A7",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T19:03:58.446Z",
+    "verdict": "FAIL",
+    "verdict_reason": "Operator stance treats any path that bypasses WriteBoxV1 as CRITICAL — the WriteBoxV1 envelope 'signature' is a keyless SHA256 of the canonical envelope body, so any local process can forge a passing replay-drive envelope under any signer; the gate that should be the sole inspector mutation surface does not authenticate at all.",
+    "spec_compliance_status": "FAILS",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "UNSAFE",
+    "agent_swarm_safety_status": "UNSAFE",
+    "hbr_unsatisfied": [
+      "HBR-INT-001",
+      "HBR-INT-003"
+    ],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 1,
+      "HIGH": 1,
+      "MEDIUM": 2,
+      "LOW": 0
+    },
+    "paperwork_notes_count": 1,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-030.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-030.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_A3_A5_A7",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T18:50:05.123Z",
+    "verdict": "FAIL",
+    "verdict_reason": "Operator stance treats any path that bypasses WriteBoxV1 as CRITICAL — the WriteBoxV1 envelope 'signature' is a keyless SHA256 of the canonical envelope body, so any local process can forge a passing replay-drive envelope under any signer; the gate that should be the sole inspector mutation surface does not authenticate at all.",
+    "spec_compliance_status": "FAILS",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "UNSAFE",
+    "agent_swarm_safety_status": "UNSAFE",
+    "hbr_unsatisfied": [
+      "HBR-INT-001",
+      "HBR-INT-003"
+    ],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 1,
+      "HIGH": 1,
+      "MEDIUM": 2,
+      "LOW": 0
+    },
+    "paperwork_notes_count": 1,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-030.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-030.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
   }
 }

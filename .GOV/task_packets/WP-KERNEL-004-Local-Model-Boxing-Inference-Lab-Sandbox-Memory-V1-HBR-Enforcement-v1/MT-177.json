@@ -7,7 +7,7 @@
   "cluster_subscope": "X.1",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:01:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-05-27T19:03:58.446Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -26,7 +26,9 @@
     "src/backend/handshake_core/src/role_mailbox/repo.rs",
     "src/backend/handshake_core/tests/role_mailbox_repo_tests.rs"
   ],
-  "depends_on_mts": ["MT-176"],
+  "depends_on_mts": [
+    "MT-176"
+  ],
   "unblock_conditions": "MT-176 typed primitives + Postgres migration must be merged so the repo can target the schema.",
   "implementation_notes": "Per CX-503R Postgres-only authority and spec §5.7 ProcessOwnershipLedger pattern, the repo wraps a `sqlx::PgPool` and exposes async methods. `update_thread_lifecycle(thread_id, requested_state, by_role) -> Result<RoleMailboxThread, MailboxError>` MUST execute the transition check inside a `BEGIN; SELECT ... FOR UPDATE; UPDATE ...; COMMIT` block to prevent races (cluster X spec subsection [ADD v02.176] forbids races between parallel models). `append_message(thread_id, message) -> Result<RoleMailboxMessage, MailboxError>` MUST: (a) check thread lifecycle_state is in an accepting state (not archived/expired/resolved), (b) assign Uuid v7 message_id if not provided, (c) insert with delivery_state=`queued`. `dead_letter_message(message_id, reason)` transitions delivery to `dead_lettered` and writes an audit row. `list_threads_by_state(state, limit, offset)` is the validator query surface (mirrors spec §5.7.4 pattern). No method writes outside the transaction. All errors typed via `thiserror::Error`. Integration tests use a Postgres test container (use testcontainers-rs or the KERNEL-003 fixture pattern in tests/common.rs): (a) create thread, append 3 messages, list them, expect chronological order; (b) attempt illegal lifecycle transition, expect `MailboxError::InvalidTransition`; (c) parallel update_thread_lifecycle calls — one wins, one returns `MailboxError::Conflict`; (d) append_message against archived thread rejects.",
   "proof_commands": [
@@ -34,7 +36,11 @@
   ],
   "risk_if_missed": "Without a transactional repo, parallel executors (folded WP-1-Role-Mailbox-Executor-Routing-Claim-Lease-v1 intent) race on the same thread; lifecycle transitions silently become non-deterministic; the cluster X preservation slice loses its 'one lawful ownership layer' invariant.",
   "validator_focus": "All lifecycle mutations atomic via SELECT FOR UPDATE; append_message rejects on terminal lifecycle states; concurrent transitions produce exactly-one-winner semantics; no SQLite anywhere (CX-503R).",
-  "hbr_obligations": ["HBR-INT-008", "HBR-SWARM-001", "HBR-SWARM-002"],
+  "hbr_obligations": [
+    "HBR-INT-008",
+    "HBR-SWARM-001",
+    "HBR-SWARM-002"
+  ],
   "spec_anchors": [
     ".GOV/spec/master-spec-v02.186/spec-modules/02-system-architecture.md#role-mailbox-message-contract",
     ".GOV/spec/master-spec-v02.186/spec-modules/05-security-and-observability.md#5.7.4"
@@ -43,14 +49,84 @@
     "PRESERVED_INTENT:WP-1-Role-Mailbox-v1 (durable repo with lifecycle enforcement)"
   ],
   "lifecycle": {
-    "active": false,
-    "status": "PENDING",
-    "validator_verdict": "PENDING",
-    "depends_on": ["MT-176"],
-    "blocks": ["MT-178", "MT-180", "MT-181", "MT-182", "MT-183", "MT-184", "MT-188"]
+    "active": true,
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "PASS",
+    "depends_on": [
+      "MT-176"
+    ],
+    "blocks": [
+      "MT-178",
+      "MT-180",
+      "MT-181",
+      "MT-182",
+      "MT-183",
+      "MT-184",
+      "MT-188"
+    ],
+    "claimed_by": "KERNEL_BUILDER-20260523-031814-AGT-MT177-R2",
+    "claimed_at_utc": "2026-05-23T17:15:00Z",
+    "ready_for_validation_at_utc": "2026-05-23T17:40:00Z",
+    "integration_validator_verdict": "PENDING",
+    "postgres_test_url_live_evidence_20260525_continuation": {
+      "authoritative_integration_validator_pass": false,
+      "classification": "KERNEL_BUILDER_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+      "not_run_or_not_claimed": [],
+      "artifact_log_root": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs",
+      "implementation_or_hardening_notes": [
+        "Normalized handoff expires_at_utc to Postgres microsecond precision before bundle hashing."
+      ],
+      "postgres_test_url_redacted": "postgres://postgres:***@127.0.0.1:65432/handshake_test",
+      "proof": [
+        {
+          "log": "postgres-live-role_mailbox_v1_tests-mt_177-20260525-resume.log",
+          "scope": "role_mailbox_v1_tests MT-177",
+          "note": [
+            "MT-177 targeted repository lifecycle round trip passed.",
+            "Proof"
+          ],
+          "result": "passed"
+        }
+      ],
+      "recorded_by": "KERNEL_BUILDER-POSTGRES-TEST-URL-20260525-CONTINUATION",
+      "mt_ids": [
+        "MT-176",
+        "MT-177",
+        "MT-178",
+        "MT-179",
+        "MT-180",
+        "MT-181",
+        "MT-182",
+        "MT-183"
+      ],
+      "summary": "Role Mailbox V1 live Postgres suites passed, including repository lifecycle, lease, backpressure, handoff, and exporter coverage.",
+      "integration_validator_status": "PENDING",
+      "residual_risks": [
+        "Supporting evidence only; Integration Validator verdict remains PENDING.",
+        "Focused Postgres/live-kernel commands were run, not a full workspace cargo test."
+      ],
+      "recorded_at_utc": "2026-05-25T10:56:03.5601331Z",
+      "cargo_target_dir": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target"
+    },
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "READY_FOR_VALIDATION",
+        "validator_verdict": "PENDING"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-27T19:03:58.446Z"
   },
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260523-031814-AGT-MT177-R2",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
     "review_response_receipt_id": null
@@ -61,5 +137,100 @@
       "Repo refuses to construct against a SQLite connection (CX-503R) via type bound on PgPool only.",
       "Append-only invariant tested: no method exposes a way to delete or rewrite a message row."
     ]
+  },
+  "implementation_supporting_evidence_20260523_mt177r2": {
+    "schema_id": "hsk.mt_implementation_supporting_evidence@1",
+    "recorded_at_utc": "2026-05-23T17:40:00Z",
+    "recorded_by": "KERNEL_BUILDER-20260523-031814-AGT-MT177-R2",
+    "classification": "IMPLEMENTATION_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+    "authoritative_integration_validator_pass": false,
+    "integration_validator_status": "PENDING",
+    "summary": "MT-177 Role Mailbox Postgres repository + CRUD transitioned PENDING -> CLAIMED -> READY_FOR_VALIDATION. The existing src/backend/handshake_core/src/role_mailbox_v1/repo.rs (RoleMailboxRepository on sqlx::PgPool, ensure_schema, create_thread, get_thread, update_thread_lifecycle with SELECT ... FOR UPDATE, append_message with TerminalState guard, list_thread_messages, list_threads_by_state, dead_letter_message, count_pending_messages_for_role, MailboxError typed via thiserror) was reviewed and accepted; no in-place edits needed to the repo module. A dedicated MT-177 adversarial test file was added at tests/role_mailbox_repo_tests.rs (the owned-files path) covering: (a) CX-503R compile-time PgPool-only constructor guard, (b) MailboxError variant Display distinctness, (c) thread_id and message_id Uuid v7 mint-site enforcement (HBR-INT-008), (d) lifecycle terminal-state snapshot, (e) RoleId persistence round-trip, (f) append-only negative-surface check (no delete/update_body), plus Postgres-gated adversarial tests: thread CRUD round-trip with chronological message order, eight-parallel-caller illegal-transition race (exactly-one-winner), append-after-archived rejects TerminalState, append-against-missing-thread rejects NotFound, update_thread_lifecycle on missing thread rejects NotFound, FK ON DELETE CASCADE proven by direct DELETE, concurrent eight-writer append preserves (created_at, message_id) order, transactional rollback leaves no visible state, list_threads_by_state filters by lifecycle, dead_letter_message audits reason and keeps the row (append-only), count_pending_messages_for_role isolates by to_roles membership.",
+    "product_surfaces_verified": [
+      "src/backend/handshake_core/src/role_mailbox_v1/repo.rs",
+      "src/backend/handshake_core/migrations/0022_role_mailbox_threads_messages.sql"
+    ],
+    "files_added": [
+      "src/backend/handshake_core/tests/role_mailbox_repo_tests.rs"
+    ],
+    "out_of_scope_edits": [
+      {
+        "path": "src/backend/handshake_core/Cargo.toml",
+        "change": "Added [[test]] block declaring role_mailbox_repo_tests with required-features=['test-utils'] mirroring the role_mailbox_v1_tests pattern. Necessary because the test binary cannot enforce required-features without a declared [[test]] entry; Cargo auto-discovery falls back to defaults which omits explicit test-utils gating.",
+        "waiver_requested": true
+      }
+    ],
+    "contract_deviation_note": "MT-177 expected_diff_shape and owned_files name `src/backend/handshake_core/src/role_mailbox/repo.rs`, but the existing folded implementation lives under role_mailbox_v1/repo.rs (the same PATH_SHAPE_DRIFT class flagged in MT-176 implementation_supporting_evidence_20260521.contract_deviation_note). No new product code under role_mailbox/ was created — that would duplicate the authoritative implementation. Operator/Integration Validator decision needed on path-shape drift vs. the actual role_mailbox_v1/ tree.",
+    "proof_commands": [
+      {
+        "command": "cargo test --features test-utils --manifest-path src/backend/handshake_core/Cargo.toml --test role_mailbox_repo_tests -- --nocapture --test-threads=1",
+        "exit_code": 0,
+        "tests_passed": 7,
+        "tests_ignored": 11,
+        "tests_failed": 0,
+        "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt177-test-default-002.log",
+        "note": "7/7 default tests pass; 11 Postgres-gated tests #[ignore]-ed pending POSTGRES_TEST_URL."
+      },
+      {
+        "command": "cargo test --features test-utils --manifest-path src/backend/handshake_core/Cargo.toml --test role_mailbox_v1_tests --test role_mailbox_repo_tests -- --nocapture --test-threads=1",
+        "exit_code": 0,
+        "tests_passed": 16,
+        "tests_ignored": 13,
+        "tests_failed": 0,
+        "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt177-adjacent-001.log",
+        "note": "Adjacent role_mailbox_v1_tests still pass alongside the new MT-177 test binary; no regression from the Cargo.toml [[test]] addition."
+      }
+    ],
+    "residual_risks": [
+      "11 Postgres-gated adversarial tests (eight-parallel-caller race, append-after-archived, FK CASCADE, transactional rollback, etc.) require POSTGRES_TEST_URL to actually validate the in-database SELECT ... FOR UPDATE semantics. Without the live-Postgres run the contract's red_team.minimum_controls #1 is structurally satisfied but not executionally verified — same Postgres-gating class as MT-190 / MT-197.",
+      "PATH_SHAPE_DRIFT: owned_files name role_mailbox/repo.rs but the implementation is under role_mailbox_v1/repo.rs (folded preservation slice). Integration Validator decision needed.",
+      "Cargo.toml [[test]] addition is out-of-owned-files; operator waiver requested. The alternative — relying on Cargo auto-discovery — would silently default to feature set [] and bypass the test-utils requirement that other role_mailbox_v1 tests depend on."
+    ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_X1_X2",
+    "reviewed_at_utc": "2026-05-27T15:05:30Z",
+    "aggregator_run_at_utc": "2026-05-27T19:03:58.446Z",
+    "verdict": "PASS",
+    "verdict_reason": "RoleMailboxRepository correctly executes lifecycle transitions and message appends inside SELECT ... FOR UPDATE transactions on a PgPool-only type bound, rejects terminal-state appends, and chains lease/handoff methods through the same transaction discipline.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "MINOR",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 2
+    },
+    "paperwork_notes_count": 1,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-177.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-177.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_X1_X2",
+    "reviewed_at_utc": "2026-05-27T15:05:30Z",
+    "aggregator_run_at_utc": "2026-05-27T18:50:05.123Z",
+    "verdict": "PASS",
+    "verdict_reason": "RoleMailboxRepository correctly executes lifecycle transitions and message appends inside SELECT ... FOR UPDATE transactions on a PgPool-only type bound, rejects terminal-state appends, and chains lease/handoff methods through the same transaction discipline.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "MINOR",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 2
+    },
+    "paperwork_notes_count": 1,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-177.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-177.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
   }
 }

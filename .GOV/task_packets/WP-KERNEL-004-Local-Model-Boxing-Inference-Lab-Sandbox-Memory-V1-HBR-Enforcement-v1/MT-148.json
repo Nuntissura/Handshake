@@ -7,7 +7,7 @@
   "cluster_subscope": "D.2",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:07:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-05-27T19:03:58.446Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -28,7 +28,13 @@
     "src/backend/handshake_core/src/self_improve/iteration.rs",
     "src/backend/handshake_core/tests/self_improve_loop_core_tests.rs"
   ],
-  "depends_on_mts": ["MT-141", "MT-142", "MT-143", "MT-145", "MT-147"],
+  "depends_on_mts": [
+    "MT-141",
+    "MT-142",
+    "MT-143",
+    "MT-145",
+    "MT-147"
+  ],
   "unblock_conditions": "D.1 MemoryCapsule primitives + persistence + e2e land first (loop reads + writes capsules + retrieval policy via the typed surface).",
   "implementation_notes": "Per RW-6 synthesis: 'Karpathy autoresearch one-iteration pattern (target -> eval -> propose -> review -> accept/reject)'. The loop is bounded: one iteration is one pass through the state machine; multiple iterations are driven by a separate scheduler (MT-152 + MT-156). State machine: `pub enum LoopStage { ChooseTarget, IsolateEditableSurface, RunInSandbox, ExecuteEval, AcceptReject, RecordAsMemory, Complete }`. `pub struct LoopIteration { iteration_id: Uuid (v7), iteration_number: u32, stage: LoopStage, target: Option<LoopTarget>, editable_surface_snapshot: Option<EditableSurfaceSnapshot>, sandbox_run_id: Option<Uuid>, eval_result: Option<EvalResult>, decision: Option<AcceptRejectDecision>, started_at_utc, updated_at_utc, completed_at_utc }`. LoopTarget (V0): `pub enum LoopTarget { ModelManualCapsuleText { manual_section_id: String }, RetrievalPolicyParams { task_type: TaskType, parameter: PolicyParameter } }` where PolicyParameter is the closed enum `{ TopK, CapsuleBudgetBytes }` so the editable surface is provably finite. EditableSurfaceSnapshot: typed before+after of the surface to be modified (e.g., `{ before_text: String, after_text: String }` for ModelManual, `{ before_value: u64, after_value: u64 }` for policy params). AcceptRejectDecision: `{ Accept { rationale: String, signed_off_by: OperatorId }, Reject { rationale: String } }`. Core API: `pub trait LoopStageExecutor` with one method per stage so each stage is independently testable + swappable. Loop driver: `pub fn run_one_iteration(prior_iterations: &[LoopIteration], target_picker: &dyn TargetPicker, surface: &dyn EditableSurfaceProvider, sandbox: &dyn LoopSandbox, evaluator: &dyn Evaluator, gate: &dyn OperatorGate, recorder: &dyn IterationRecorder) -> Result<LoopIteration, LoopIterationError>`. Tests: state machine advances stage-by-stage; cannot skip stages; rejected iteration short-circuits past RecordAsMemory; iteration_id is v7; iteration_number monotonic per loop instance.",
   "proof_commands": [
@@ -36,17 +42,104 @@
   ],
   "risk_if_missed": "Without a typed iteration state machine the loop becomes ad-hoc procedural code that cannot be reasoned about, replayed, or gated.",
   "validator_focus": "LoopStage is a closed enum; stage advancement is total; iteration is replayable from its persisted state. No LLM call inside the engine module.",
-  "hbr_obligations": ["HBR-INT-006", "HBR-INT-008", "HBR-SWARM-002"],
+  "hbr_obligations": [
+    "HBR-INT-006",
+    "HBR-INT-008",
+    "HBR-SWARM-002"
+  ],
   "spec_anchors": [
     ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.8.3"
   ],
-  "acceptance_criteria_refs": ["AC-DISTILL-LOOP-SAFEGUARDS", "AC-DISTILL-EDITABLE-SURFACE"],
+  "acceptance_criteria_refs": [
+    "AC-DISTILL-LOOP-SAFEGUARDS",
+    "AC-DISTILL-EDITABLE-SURFACE"
+  ],
   "lifecycle": {
     "active": false,
-    "status": "PENDING",
-    "validator_verdict": "PENDING",
-    "depends_on": ["MT-141", "MT-142", "MT-143", "MT-145", "MT-147"],
-    "blocks": ["MT-149", "MT-150", "MT-151", "MT-152", "MT-153", "MT-154", "MT-155", "MT-156"]
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "PASS",
+    "integration_validator_verdict": "PENDING",
+    "depends_on": [
+      "MT-141",
+      "MT-142",
+      "MT-143",
+      "MT-145",
+      "MT-147"
+    ],
+    "blocks": [
+      "MT-149",
+      "MT-150",
+      "MT-151",
+      "MT-152",
+      "MT-153",
+      "MT-154",
+      "MT-155",
+      "MT-156"
+    ],
+    "claimed_by": "KERNEL_BUILDER-20260523-031814-AGT-MT148",
+    "claimed_at_utc": "2026-05-23T03:25:00Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260523-031814",
+    "ready_for_validation_at_utc": "2026-05-23T06:05:00Z",
+    "implementation_record": {
+      "classification": "IMPLEMENTATION_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+      "authoritative_integration_validator_pass": false,
+      "completed_by_session": "KERNEL_BUILDER-20260523-031814-AGT-MT148 (parallel subagent; hit Anthropic session rate-limit at ~05:53 before authoring its own implementation_record; parent KERNEL_BUILDER-20260523-031814 verified test green and transitioned lifecycle)",
+      "summary": "SelfImprovementLoop core + LoopIteration state machine landed in src/backend/handshake_core/src/self_improve/ (loop_core.rs, iteration.rs, mod.rs re-exports). Companion modules (corpus, evaluator, promotion_floor, goodhart_sentinel, promotion_gate_adapter, scheduler, ipc) authored alongside as the D.2 cluster surface — those are MT-149..MT-156 owned scope and their lifecycle transitions follow in their own MTs.",
+      "spec_realism_gate_self_check": {
+        "sub_rule_1_no_deferred_live_escape": "PASS — grep across self_improve/* surfaces no '*Unavailable' or 'pending MT-NNN' or 'deferred to follow-on' code paths from the LoopStage state machine. KeyError::Unavailable in corpus.rs is a legitimate named error variant (not a deferred-live escape).",
+        "sub_rule_2_external_resource_touch": "PASS — 23 unit tests exercise the LoopStage state machine end-to-end (15 in self_improve_loop_core_tests, 8 in self_improve_loop_tests). State transitions, illegal transition rejection, iteration_id v7 minting, monotonic iteration_number all covered.",
+        "sub_rule_3_implementer_cannot_self_certify": "PASS — claimed_by (sub-agent session) differs from any validator role; parent KERNEL_BUILDER session transitioning to RFV is the implementer side, not the completed_by validator."
+      },
+      "files_touched": [
+        "src/backend/handshake_core/src/self_improve/loop_core.rs",
+        "src/backend/handshake_core/src/self_improve/iteration.rs",
+        "src/backend/handshake_core/src/self_improve/mod.rs",
+        "src/backend/handshake_core/tests/self_improve_loop_core_tests.rs",
+        "src/backend/handshake_core/tests/self_improve_loop_tests.rs"
+      ],
+      "test_results": {
+        "self_improve_loop_core_tests": {
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test self_improve_loop_core_tests -- --nocapture",
+          "exit_code": 0,
+          "tests_passed": 15,
+          "tests_failed": 0,
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt148-validate-20260523-001.log"
+        },
+        "self_improve_loop_tests": {
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test self_improve_loop_tests -- --nocapture",
+          "exit_code": 0,
+          "tests_passed": 8,
+          "tests_failed": 0,
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt148-validate-20260523-001.log"
+        }
+      },
+      "red_team_coverage": {
+        "loop_stage_transitions_are_total_and_tested": "covered — state machine tests in self_improve_loop_core_tests exercise stage advancement; illegal transitions return typed error.",
+        "loop_target_is_closed_enum": "covered — LoopTarget enum is closed (ModelManualCapsuleText | RetrievalPolicyParams), tests prove unknown variants do not deserialize silently.",
+        "engine_module_has_no_llm_dependency": "covered — LoopStageExecutor trait is injected; tests use deterministic fakes (no LLM client). Grep confirms no `crate::llm` or `LLMClient` imports in self_improve/loop_core.rs."
+      },
+      "residual_risks": [
+        "Parent KERNEL_BUILDER session verified tests pass post-hoc; did not author the implementation. Implementation provenance is the sub-agent session and the existing scaffolding on disk.",
+        "D.2 cluster downstream MTs (MT-149..MT-156) own their own files (editable_surface, corpus, evaluator, etc.) which already exist on disk from the same authoring wave; their lifecycle transitions need their own MT closeouts to record this.",
+        "No Integration Validator has reviewed MT-148."
+      ]
+    },
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "READY_FOR_VALIDATION",
+        "validator_verdict": "PENDING"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-27T19:03:58.446Z"
   },
   "handoff": {
     "coder_session": null,
@@ -60,5 +153,51 @@
       "LoopTarget is a closed enum so a future contributor cannot widen the editable surface without changing the type.",
       "Engine module has no LLM dependency; the proposer is injected as a trait so test runs are deterministic."
     ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_D1_D2",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T19:03:58.446Z",
+    "verdict": "PASS",
+    "verdict_reason": "LoopCore drives a typed 7-stage state machine via injected trait executors; SelfImprovementLoop holder owns bounded history (default 100), monotonic iteration_counter, pause slot, pending_review_queue — every downstream MT can wire its slot without re-shaping. Karpathy autoresearch shape is faithful.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 2
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-148.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-148.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_D1_D2",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T18:50:05.123Z",
+    "verdict": "PASS",
+    "verdict_reason": "LoopCore drives a typed 7-stage state machine via injected trait executors; SelfImprovementLoop holder owns bounded history (default 100), monotonic iteration_counter, pause slot, pending_review_queue — every downstream MT can wire its slot without re-shaping. Karpathy autoresearch shape is faithful.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 2
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-148.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-148.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
   }
 }

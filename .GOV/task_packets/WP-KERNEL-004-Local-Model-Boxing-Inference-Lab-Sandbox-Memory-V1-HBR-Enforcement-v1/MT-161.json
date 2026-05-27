@@ -7,7 +7,7 @@
   "cluster_subscope": "D.3",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:20:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-05-27T19:03:58.446Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -28,7 +28,11 @@
     "src/backend/handshake_core/tests/injection_scoring_tests.rs",
     "src/backend/handshake_core/tests/progressive_retrieval_tests.rs"
   ],
-  "depends_on_mts": ["MT-141", "MT-142", "MT-143"],
+  "depends_on_mts": [
+    "MT-141",
+    "MT-142",
+    "MT-143"
+  ],
   "unblock_conditions": "MT-141 (MemoryCapsule), MT-142 (TaskType + DegradationTier enum already defined there), MT-143 (CapsuleBuilder consumes scoring).",
   "implementation_notes": "Per WP-1-FEMS-Injection-Scoring-Graceful-Degradation preserved_intent: 'FEMS spec says \"drop lowest priority items\" on budget overflow but defines no scoring algorithm. The p95 500ms latency target is unrealistic under heavy load'. InjectionScoringFormula: deterministic combination of (a) importance (operator-set weight), (b) recency (exponential decay over recorded_at age), (c) trust (per-source provenance score), (d) outcome-tuned weight (from MT-158), (e) embedding-similarity to query. Formula version exposed as constant `INJECTION_SCORING_FORMULA_VERSION` consumed by RetrievalPolicy.scoring_formula_version (MT-141). ProgressiveRetriever: `pub fn retrieve_progressive(query: &str, top_k: u32, tier: DegradationTier, load_signal: &dyn LoadSignal) -> Result<(Vec<RetrievedItem>, DegradationReport), RetrievalError>`. DegradationTier already defined in MT-142 as `{ Strict, Tiered, Aggressive }`. Tiered pipeline: full-text search -> vector search -> graph expansion -> re-rank; under load_signal pressure, skip latest tiers. DegradationReport: `{ tiers_completed: Vec<String>, tiers_skipped: Vec<String>, load_signal_at_start, total_duration_ms }`. LoadSignal trait: `pub trait LoadSignal { fn current_pressure() -> f64 (0.0..=1.0); }` so production wires to actual CPU/GPU metrics and tests inject deterministic values. Tests: scoring formula is deterministic for fixed inputs; formula version constant stable; progressive retriever completes all tiers under low load; skips graph + re-rank under high load; DegradationReport accurately tracks skipped tiers; never returns empty result when at least one tier succeeded.",
   "proof_commands": [
@@ -36,18 +40,95 @@
   ],
   "risk_if_missed": "Without graceful degradation FEMS fails hard under heavy load (parallel local models + browser + other apps), breaking the bounded-injection invariant.",
   "validator_focus": "Scoring formula is deterministic; LoadSignal trait is testable; DegradationReport accurately surfaces what was skipped.",
-  "hbr_obligations": ["HBR-INT-006"],
+  "hbr_obligations": [
+    "HBR-INT-006"
+  ],
   "spec_anchors": [
     ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.8.3",
     ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.8.5"
   ],
-  "acceptance_criteria_refs": ["AC-DISTILL-EDITABLE-SURFACE"],
+  "acceptance_criteria_refs": [
+    "AC-DISTILL-EDITABLE-SURFACE"
+  ],
   "lifecycle": {
     "active": false,
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "validator_verdict": "PENDING",
-    "depends_on": ["MT-141", "MT-142", "MT-143"],
-    "blocks": ["MT-162", "MT-168"]
+    "integration_validator_verdict": "PENDING",
+    "depends_on": [
+      "MT-141",
+      "MT-142",
+      "MT-143"
+    ],
+    "blocks": [
+      "MT-162",
+      "MT-168"
+    ],
+    "claimed_by": "KERNEL_BUILDER-20260523-031814",
+    "claimed_at_utc": "2026-05-23T07:15:00Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260523-031814",
+    "ready_for_validation_at_utc": "2026-05-23T07:20:00Z",
+    "implementation_record": {
+      "classification": "IMPLEMENTATION_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+      "authoritative_integration_validator_pass": false,
+      "summary": "MT-161 InjectionScoringFormula (src/memory/scoring.rs, 165 lines, prior session, 4 inline tests) + ProgressiveRetriever (src/memory/progressive_retrieval.rs, 298 lines, prior session, 5 inline tests) verified + integration test files tests/injection_scoring_tests.rs (11 tests) + tests/progressive_retrieval_tests.rs (8 tests) added. Both test files satisfy the contract owned_files entries.",
+      "spec_realism_gate_self_check": {
+        "sub_rule_1_no_deferred_live_escape": "PASS — scoring.rs is complete (linear combination + recency decay); progressive_retrieval.rs runs all four tier-policy branches without placeholders.",
+        "sub_rule_2_external_resource_touch": "PASS — integration tests exercise the public API with deterministic LoadSignal + RetrievalTier injection; scoring tests sweep a 5x6x3x3x3 = 810-input grid.",
+        "sub_rule_3_implementer_cannot_self_certify": "PASS — implementations prior session; tests this session; both differ from validator."
+      },
+      "files_touched": [
+        "src/backend/handshake_core/tests/injection_scoring_tests.rs (NEW; 11 tests)",
+        "src/backend/handshake_core/tests/progressive_retrieval_tests.rs (NEW; 8 tests)"
+      ],
+      "implementation_files_verified_unchanged": [
+        "src/backend/handshake_core/src/memory/scoring.rs (prior session, 165 lines)",
+        "src/backend/handshake_core/src/memory/progressive_retrieval.rs (prior session, 298 lines)"
+      ],
+      "test_results": {
+        "injection_scoring_tests": {
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test injection_scoring_tests -- --nocapture",
+          "exit_code": 0,
+          "tests_passed": 11,
+          "tests_failed": 0,
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt161-validate-20260523-001.log"
+        },
+        "progressive_retrieval_tests": {
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test progressive_retrieval_tests -- --nocapture",
+          "exit_code": 0,
+          "tests_passed": 8,
+          "tests_failed": 0,
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt161-validate-20260523-001.log"
+        }
+      },
+      "red_team_coverage": {
+        "scoring_formula_deterministic_version_pinned": "covered — mt161_score_is_deterministic_across_invocations runs 64 invocations + mt161_formula_version_constant_is_pinned + InjectionScoringFormula::version test.",
+        "load_signal_trait_so_tests_inject_deterministic_pressure_values_production_wires_real_metrics": "covered — FixedLoad test impl injects deterministic pressure; LoadSignal trait surface is independent of implementation. Production wiring (CPU/GPU pressure) is the responsibility of the consumer.",
+        "degradation_report_surfaces_every_skipped_tier": "covered — mt161_completed_and_skipped_lists_partition_the_four_tiers proves completed + skipped union = {full_text, vector, graph_expansion, re_rank}; mt161_tiered_high_pressure_skips_graph_and_rerank + mt161_aggressive_high_pressure_runs_only_full_text test specific skip patterns."
+      },
+      "residual_risks": [
+        "LoadSignal production wiring (CPU/GPU metrics) is downstream MT scope; integration test uses FixedLoad fake.",
+        "FormulaWeights are tunable; a future operator weight change without a formula version bump could silently shift ranking. Validator should check whether 'tune weights without bumping version' is a valid path or requires version bump per minimum_control 'formula deterministic; version constant pinned for reproducibility'.",
+        "RetrievalTier trait is injection-based; production must wire BM25 + vector + graph + re-rank backends. Integration test uses fake CountingTier.",
+        "No Integration Validator has reviewed MT-161."
+      ]
+    },
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "READY_FOR_VALIDATION",
+        "validator_verdict": "PENDING"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-27T19:03:58.446Z"
   },
   "handoff": {
     "coder_session": null,
@@ -61,5 +142,51 @@
       "LoadSignal trait so tests inject deterministic pressure values; production wires real CPU/GPU metrics.",
       "DegradationReport surfaces every skipped tier so the operator can diagnose degraded calls."
     ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_D_GAPS",
+    "reviewed_at_utc": "2026-05-27T18:20:00Z",
+    "aggregator_run_at_utc": "2026-05-27T19:03:58.446Z",
+    "verdict": "PASS_WITH_NOTES",
+    "verdict_reason": "InjectionScoringFormula and ProgressiveRetriever land per contract. Scoring formula is deterministic with a pinned INJECTION_SCORING_FORMULA_VERSION constant. ProgressiveRetriever has DegradationTier-driven tier policy (Strict / Tiered / Aggressive) and a LoadSignal trait for deterministic testing. DegradationReport surfaces completed + skipped tiers. 11 + 8 integration tests pass per builder. CONCERN about permissive-fallback semantics: when an upstream tier fails (e.g., full_text errors), the pipeline still attempts later tiers and returns success if any tier completed. Per the operator stance 'injection scoring permissive-fallback = HIGH', this is the documented design but could mask backend failures from the calibration dashboard. The trade-off is intentional per contract ('never returns empty result when at least one tier succeeded') but the failure mode should be made observable via a distinct status, not buried in skipped[].",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "OK",
+    "runtime_safety_status": "OK",
+    "agent_swarm_safety_status": "OK",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "STRONG",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 1,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 2,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-161.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-161.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_D_GAPS",
+    "reviewed_at_utc": "2026-05-27T18:20:00Z",
+    "aggregator_run_at_utc": "2026-05-27T18:50:05.123Z",
+    "verdict": "PASS_WITH_NOTES",
+    "verdict_reason": "InjectionScoringFormula and ProgressiveRetriever land per contract. Scoring formula is deterministic with a pinned INJECTION_SCORING_FORMULA_VERSION constant. ProgressiveRetriever has DegradationTier-driven tier policy (Strict / Tiered / Aggressive) and a LoadSignal trait for deterministic testing. DegradationReport surfaces completed + skipped tiers. 11 + 8 integration tests pass per builder. CONCERN about permissive-fallback semantics: when an upstream tier fails (e.g., full_text errors), the pipeline still attempts later tiers and returns success if any tier completed. Per the operator stance 'injection scoring permissive-fallback = HIGH', this is the documented design but could mask backend failures from the calibration dashboard. The trade-off is intentional per contract ('never returns empty result when at least one tier succeeded') but the failure mode should be made observable via a distinct status, not buried in skipped[].",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "OK",
+    "runtime_safety_status": "OK",
+    "agent_swarm_safety_status": "OK",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "STRONG",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 1,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 2,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-161.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-161.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
   }
 }

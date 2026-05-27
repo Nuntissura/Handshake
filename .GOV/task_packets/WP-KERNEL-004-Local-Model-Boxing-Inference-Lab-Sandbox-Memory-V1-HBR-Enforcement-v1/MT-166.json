@@ -7,7 +7,7 @@
   "cluster_subscope": "D.3",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:25:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-05-27T19:03:58.446Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -26,29 +26,79 @@
     "src/backend/handshake_core/src/distillation/spawn_tree_harvester.rs",
     "src/backend/handshake_core/tests/spawn_tree_harvester_tests.rs"
   ],
-  "depends_on_mts": ["MT-145", "MT-158"],
+  "depends_on_mts": [
+    "MT-145",
+    "MT-158"
+  ],
   "unblock_conditions": "MT-145 (CapsuleRecorder for storing distillation candidates), MT-158 (outcome feedback used to gate which spawn trees are candidate-worthy). Cluster C distillation pipeline trait surface consumed externally.",
   "implementation_notes": "Per WP-1-Session-Spawn-Conversation-Distillation preserved_intent: 'A spawn tree represents a structured decomposition of complex work. The parent-child conversation trail is high-quality training signal for model specialization'. Per AC-DISTILL-OPT-IN: 'Distillation is default OFF for every governed session; opt-in is per-session (never persistent default) via operator setting DISTILL_CORPUS=true at session close (post-hoc); scope of opt-in is a single session's events + artifacts and does not extend transitively'. Per AC-DISTILL-CONTENT-REVIEW: 'Before any distillation candidate enters the Skill Bank it MUST pass: PII scan + license tagging + dedup'. Surface: `pub struct SpawnTreeHarvester<'a> { event_ledger: &'a dyn EventLedgerReader, content_reviewer: &'a dyn ContentReviewer, action_catalog: &'a dyn KernelActionSubmitter }` with `pub fn harvest(session_id: Uuid, opt_in_confirmed: bool) -> Result<Vec<DistillationCandidate>, HarvestError>`. Flow: (1) refuse if opt_in_confirmed is false (AC-DISTILL-OPT-IN); (2) walk spawn tree from session_id; (3) extract parent-child conversation pairs as SpawnConversation { parent_message, child_response, child_outcome (from MT-158) }; (4) filter to pairs where child_outcome is Pass (otherwise teacher-student signal is poisoned); (5) submit each to content_reviewer (PII + license + dedup); (6) emit FR-EVT-DISTILL-CANDIDATE-CREATED for each surviving candidate; (7) submit DistillationCandidate via KernelActionCatalogV1 for review-gated Skill Bank entry. DistillationCandidate: `{ candidate_id: Uuid v7, session_id, parent_message_id, child_message_id, parent_role, child_role, content_hash, license_provenance, pii_scan_result }`. Tests: harvest with opt_in_confirmed=false returns typed error; harvest with opted-in session walks spawn tree; only Pass-outcome pairs are candidates; content_reviewer is invoked for every candidate; harvest emits FR-EVT-DISTILL-CANDIDATE-CREATED for surviving candidates; harvest does NOT auto-promote (review-gated).",
   "proof_commands": [
-    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target spawn_tree_harvester_tests"
+    "$env:CARGO_TARGET_DIR='D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test spawn_tree_harvester_tests",
+    "$env:CARGO_TARGET_DIR='D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test fems_v1_integration_tests spawn_tree_harvester -- --nocapture",
+    "$env:CARGO_TARGET_DIR='D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils spawn_tree_harvester::tests --lib",
+    "rustfmt --edition 2021 --config skip_children=true --check src/backend/handshake_core/src/distillation/spawn_tree_harvester.rs src/backend/handshake_core/tests/spawn_tree_harvester_tests.rs src/backend/handshake_core/tests/fems_v1_integration_tests.rs",
+    "git diff --check -- src/backend/handshake_core/src/distillation/spawn_tree_harvester.rs src/backend/handshake_core/tests/spawn_tree_harvester_tests.rs src/backend/handshake_core/tests/fems_v1_integration_tests.rs src/backend/handshake_core/Cargo.toml",
+    "rg -n -i \"sqlite|rusqlite|libsqlite|Sqlite\" <MT-166 touched files>",
+    "rg -n \"CompletionRequest|llm_client|openai|model_runtime\" <MT-166 touched files>"
   ],
   "risk_if_missed": "Without spawn-tree distillation the parent-child conversation signal is wasted, and the only training data is post-hoc EventLedger replay without structural decomposition.",
   "validator_focus": "Opt-in is enforced before any harvest. Content review is invoked for every candidate. Only Pass-outcome pairs are candidates (avoid teaching from failures).",
-  "hbr_obligations": ["HBR-INT-006"],
+  "hbr_obligations": [
+    "HBR-INT-006"
+  ],
   "spec_anchors": [
     ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.8.1",
     ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.8.2"
   ],
-  "acceptance_criteria_refs": ["AC-DISTILL-OPT-IN", "AC-DISTILL-CONTENT-REVIEW"],
+  "acceptance_criteria_refs": [
+    "AC-DISTILL-OPT-IN",
+    "AC-DISTILL-CONTENT-REVIEW"
+  ],
   "lifecycle": {
     "active": false,
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "validator_verdict": "PENDING",
-    "depends_on": ["MT-145", "MT-158"],
-    "blocks": ["MT-168", "MT-169"]
+    "depends_on": [
+      "MT-145",
+      "MT-158"
+    ],
+    "blocks": [
+      "MT-168",
+      "MT-169"
+    ],
+    "operator_clarification_20260520": {
+      "captured_at_utc": "2026-05-20T10:45:00Z",
+      "captured_by": "OPERATOR",
+      "topic": "distillation_secondary_flow_intra_session",
+      "summary": "This is a SECONDARY distillation flow (intra-session parent-child spawn-tree pairs as teacher-student data), parallel to the PRIMARY distillation flow built by MT-119/120/121/122/123/124. Under operator's 2026-05-20 clarification, the primary flow defaults to CLOUD-TEACHER -> LOCAL-STUDENT (frontier vendor model teaching a local student). This MT-166 flow is the local-larger-teacher modality the operator described as 'supported but not default': parent role (acting as larger-context teacher) -> specialized child role (student). Both flows coexist; this one does not replace cloud-teacher distillation.",
+      "prior_assumption_corrected": "There was no prior incorrect assumption attached to this MT specifically; the clarification is forward-context so the implementer understands which distillation modality this MT belongs to and how it relates to the cloud-teacher-primary flow.",
+      "implications": [
+        "This flow is local-to-local by nature (parent and child are both Handshake-internal sessions); no cloud teacher transport needed for THIS flow. Cloud-teacher distillation is the responsibility of MT-119/120/122 corpus extraction + PEFT pipeline, not this MT.",
+        "DISTILL_CORPUS opt-in semantics (MT-121) apply identically: spawn-tree pairs only enter the corpus when the session is flagged DISTILL_CORPUS=true at close. Default-deny per AC-DISTILL-OPT-IN.",
+        "Output of this MT feeds the SAME PEFT pipeline (MT-122) as cloud-teacher corpus; the pipeline must accept both teacher-source modalities transparently. Teacher ModelId in the training run is the parent-role ModelId for this flow, the cloud-vendor ModelId for the cloud-teacher flow.",
+        "License/provenance tagging (MT-120 pipeline reused) is simpler for this flow (no third-party vendor ToS to honor), but the spawn-tree provenance MUST still be captured: which parent role + which child role + which task spawned the pair. Operator-controlled internal data, but provenance is non-optional.",
+        "Pass-outcome filtering (only successful parent-child pairs become candidates) is unique to this flow and does NOT apply to cloud-teacher distillation — keep the filter local to this MT, not in the shared MT-120 pipeline."
+      ]
+    },
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "READY_FOR_VALIDATION",
+        "validator_verdict": "PENDING"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-27T19:03:58.446Z"
   },
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260524-MT166",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
     "review_response_receipt_id": null
@@ -59,5 +109,191 @@
       "Only Pass-outcome parent-child pairs are candidates; failure pairs cannot leak as teacher-student data.",
       "Content reviewer is invoked for every candidate; no candidate bypasses PII + license + dedup."
     ]
+  },
+  "implementation_evidence": {
+    "classification": "IMPLEMENTATION_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+    "authoritative_integration_validator_pass": false,
+    "integration_validator_status": "PENDING",
+    "recorded_at_utc": "2026-05-24T19:43:26.301Z",
+    "recorded_by": "KERNEL_BUILDER-20260524-190701",
+    "mt_ids": [
+      "MT-166"
+    ],
+    "summary": "MT-166 completed session-spawn conversation distillation hardening. Existing harvester opt-in/pass filtering/content review remains, and candidate submission now carries an explicit FR-EVT-DISTILL-CANDIDATE-CREATED event projection, action id, review-gate state, no-auto-promote flag, and non-authoritative training refs.",
+    "research_basis": {
+      "sources_checked": [
+        "LangSmith trace-to-dataset and dataset evaluation/versioning docs: https://docs.langchain.com/langsmith/manage-datasets",
+        "OpenTelemetry GenAI semantic conventions for observable AI traces: https://opentelemetry.io/docs/specs/semconv/gen-ai/",
+        "Hugging Face dataset cards / dataset governance reference: https://huggingface.co/docs/hub/datasets-cards",
+        "Hugging Face datasets processing and filtering docs: https://huggingface.co/docs/datasets/process"
+      ],
+      "relevant_patterns_found": [
+        "Training/evaluation examples should preserve trace/dataset provenance and stable identifiers instead of relying on raw conversational transcript authority.",
+        "Dataset candidates need explicit curation gates for PII, license, dedup, and review status before promotion.",
+        "Trace-derived examples should carry observable metadata/event references so downstream agents can audit how a training item was created."
+      ],
+      "reuse_opportunities": [
+        "Reused existing EventLedgerReader, ContentReviewer, SpawnPair, and pass-outcome filtering surface in spawn_tree_harvester.rs.",
+        "Reused MT-158 CapsuleOutcome::Pass as the poisoned-signal filter.",
+        "Reused existing FEMS V1 integration smoke and added the missing dedicated spawn_tree_harvester_tests integration binary."
+      ],
+      "rejected_options": [
+        "Rejected auto-promoting candidates to Skill Bank because MT-166 requires review-gated entry.",
+        "Rejected making raw conversation text authoritative; submission now emits typed refs instead.",
+        "Rejected wiring full KernelActionSubmitter inside the harvester because it would pull write-box construction into a pure extraction component; kept a submitter trait and recorded adapter need as residual risk."
+      ],
+      "selected_approach": "Keep harvester pure and contract-shaped while extending DistillationCandidateSubmitter to accept DistillationCandidateSubmission containing action id, candidate, candidate-created event metadata, review gate, no-auto-promote flag, and training refs.",
+      "risks": [
+        "A concrete KernelActionCatalogV1 adapter is not implemented in this microtask; submitter trait remains the integration boundary.",
+        "Event emission is represented in the submission envelope; a downstream adapter must persist/forward it to Flight Recorder.",
+        "ContentReviewer returns a simplified pass/quarantine/reject verdict and the candidate pii_scan_result is clean only for passing verdicts."
+      ],
+      "mitigations": [
+        "Submission envelope includes action_id and event metadata so the adapter has deterministic material to persist.",
+        "Tests assert review_gate PendingSkillBankReview and auto_promote false.",
+        "Tests assert opt-in false fails before ledger read and reviewer/submission calls."
+      ],
+      "validation_plan": [
+        "Run dedicated spawn_tree_harvester_tests.",
+        "Run existing FEMS V1 spawn_tree_harvester smoke tests.",
+        "Run inline distillation::spawn_tree_harvester module tests.",
+        "Run rustfmt --check, git diff --check, and forbidden SQLite/model-runtime scans on touched files."
+      ]
+    },
+    "tdd_evidence": {
+      "red": {
+        "command": "$env:CARGO_TARGET_DIR='D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test spawn_tree_harvester_tests",
+        "exit_code": 1,
+        "note": "Initial red run failed because CandidateReviewGate and DistillationCandidateSubmission did not exist; current submitter only accepted a bare candidate."
+      },
+      "green": {
+        "command": "$env:CARGO_TARGET_DIR='D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test spawn_tree_harvester_tests",
+        "exit_code": 0,
+        "note": "3 passed: opt-in false short-circuit, pass/review/filter/event/review-gate submission, and non-authoritative training refs."
+      }
+    },
+    "implementation_evidence": {
+      "files_touched": [
+        "src/backend/handshake_core/src/distillation/spawn_tree_harvester.rs",
+        "src/backend/handshake_core/tests/spawn_tree_harvester_tests.rs",
+        "src/backend/handshake_core/tests/fems_v1_integration_tests.rs",
+        "src/backend/handshake_core/Cargo.toml"
+      ],
+      "owned_files": [
+        "src/backend/handshake_core/src/distillation/spawn_tree_harvester.rs",
+        "src/backend/handshake_core/tests/spawn_tree_harvester_tests.rs"
+      ],
+      "out_of_owned_files_pending_operator_review": [
+        "src/backend/handshake_core/Cargo.toml (registered spawn_tree_harvester_tests integration binary)",
+        "src/backend/handshake_core/tests/fems_v1_integration_tests.rs (updated existing MT-166 smoke submitter to new submission envelope trait)"
+      ],
+      "product_entry_points": [
+        "CandidateReviewGate",
+        "DistillationCandidateCreatedEvent",
+        "DistillationCandidateSubmission",
+        "DistillationCandidateSubmitter::submit_candidate(submission)",
+        "SpawnTreeHarvester::harvest(session_id, opt_in_confirmed)"
+      ],
+      "high_roi_additions": [
+        "Dedicated spawn_tree_harvester_tests binary matching the MT-166 contract.",
+        "Explicit candidate-created event projection for every surviving candidate.",
+        "Review-gate/no-auto-promote fields so downstream Skill Bank promotion cannot be implied by harvest.",
+        "Training-example/teacher/student refs with conversation_text_authority=false to avoid raw transcript authority drift."
+      ]
+    },
+    "proof": [
+      {
+        "command": "$env:CARGO_TARGET_DIR='D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test spawn_tree_harvester_tests",
+        "exit_code": 0,
+        "note": "3 passed."
+      },
+      {
+        "command": "$env:CARGO_TARGET_DIR='D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test fems_v1_integration_tests spawn_tree_harvester -- --nocapture",
+        "exit_code": 0,
+        "note": "2 passed."
+      },
+      {
+        "command": "$env:CARGO_TARGET_DIR='D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils spawn_tree_harvester::tests --lib",
+        "exit_code": 0,
+        "note": "4 passed."
+      },
+      {
+        "command": "rustfmt --edition 2021 --config skip_children=true --check src/backend/handshake_core/src/distillation/spawn_tree_harvester.rs src/backend/handshake_core/tests/spawn_tree_harvester_tests.rs src/backend/handshake_core/tests/fems_v1_integration_tests.rs",
+        "exit_code": 0,
+        "note": "Formatting check passed."
+      },
+      {
+        "command": "git diff --check -- src/backend/handshake_core/src/distillation/spawn_tree_harvester.rs src/backend/handshake_core/tests/spawn_tree_harvester_tests.rs src/backend/handshake_core/tests/fems_v1_integration_tests.rs src/backend/handshake_core/Cargo.toml",
+        "exit_code": 0,
+        "note": "Whitespace diff check passed; only Git LF->CRLF warning for Cargo.toml."
+      },
+      {
+        "command": "rg -n -i \"sqlite|rusqlite|libsqlite|Sqlite\" <MT-166 touched files>",
+        "exit_code": 1,
+        "note": "No matches; exit 1 is ripgrep no-match."
+      },
+      {
+        "command": "rg -n \"CompletionRequest|llm_client|openai|model_runtime\" <MT-166 touched files>",
+        "exit_code": 1,
+        "note": "No matches; exit 1 is ripgrep no-match."
+      }
+    ],
+    "repomem_receipts": {
+      "pre": 2247,
+      "decision": 2248,
+      "research_close": 2249,
+      "concern": 2250
+    },
+    "residual_risks": [
+      "No Integration Validator has reviewed MT-166; READY_FOR_VALIDATION is implementer handoff only.",
+      "A concrete KernelActionCatalogV1/Flight Recorder adapter for DistillationCandidateSubmission remains a follow-up integration concern if the validator requires persistence beyond the trait boundary.",
+      "The harvester assumes EventLedgerReader already scopes returned SpawnPair rows to the requested session/spawn tree."
+    ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_D_GAPS",
+    "reviewed_at_utc": "2026-05-27T18:45:00Z",
+    "aggregator_run_at_utc": "2026-05-27T19:03:58.446Z",
+    "verdict": "PASS_WITH_NOTES",
+    "verdict_reason": "SpawnTreeHarvester enforces AC-DISTILL-OPT-IN via opt_in_confirmed=false short-circuit returning HarvestError::OptInRequired before any ledger/reviewer/submitter calls. Only Pass-outcome pairs proceed to ContentReviewer; Quarantine + Reject verdicts continue past (correctly excluded). DistillationCandidateSubmission carries review_gate=PendingSkillBankReview and auto_promote=false; training/teacher/student refs are non-authoritative. 3 + 2 + 4 tests reported pass. CONCERN: opt-in non-transitivity is asserted by the harvester only at the top-level session_id; the spawn-tree transitivity (parent session A spawns child session B; only A is opted in; do we walk B's events?) is delegated to the EventLedgerReader implementation, NOT enforced at the harvester layer. The MT-169 negative-path test for non-transitivity uses two PEER sessions in the same ledger, not a true parent-child spawn relationship.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "OK",
+    "runtime_safety_status": "OK",
+    "agent_swarm_safety_status": "OK",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "PARTIAL",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 1,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 4,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-166.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-166.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_D_GAPS",
+    "reviewed_at_utc": "2026-05-27T18:45:00Z",
+    "aggregator_run_at_utc": "2026-05-27T18:50:05.123Z",
+    "verdict": "PASS_WITH_NOTES",
+    "verdict_reason": "SpawnTreeHarvester enforces AC-DISTILL-OPT-IN via opt_in_confirmed=false short-circuit returning HarvestError::OptInRequired before any ledger/reviewer/submitter calls. Only Pass-outcome pairs proceed to ContentReviewer; Quarantine + Reject verdicts continue past (correctly excluded). DistillationCandidateSubmission carries review_gate=PendingSkillBankReview and auto_promote=false; training/teacher/student refs are non-authoritative. 3 + 2 + 4 tests reported pass. CONCERN: opt-in non-transitivity is asserted by the harvester only at the top-level session_id; the spawn-tree transitivity (parent session A spawns child session B; only A is opted in; do we walk B's events?) is delegated to the EventLedgerReader implementation, NOT enforced at the harvester layer. The MT-169 negative-path test for non-transitivity uses two PEER sessions in the same ledger, not a true parent-child spawn relationship.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "OK",
+    "runtime_safety_status": "OK",
+    "agent_swarm_safety_status": "OK",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "PARTIAL",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 1,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 4,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-166.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-166.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
   }
 }

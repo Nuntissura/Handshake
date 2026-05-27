@@ -7,7 +7,7 @@
   "cluster_subscope": "D.2",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:13:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-05-27T19:03:58.446Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -26,7 +26,11 @@
     "src/backend/handshake_core/src/self_improve/promotion_gate_adapter.rs",
     "src/backend/handshake_core/tests/loop_promotion_gate_tests.rs"
   ],
-  "depends_on_mts": ["MT-148", "MT-149", "MT-152"],
+  "depends_on_mts": [
+    "MT-148",
+    "MT-149",
+    "MT-152"
+  ],
   "unblock_conditions": "MT-148 (loop core), MT-149 (editable surface), MT-152 (promotion floor). KERNEL-001 PromotionGate exists in main.",
   "implementation_notes": "Per AC-DISTILL-LOOP-SAFEGUARDS: 'PromotionGate operator review per promotion'. Per refinement D.2: 'promotion-gated; operator review required before promotion'. Surface: `pub struct LoopPromotionGate<'a> { gate: &'a dyn PromotionGateSubmitter }` with `pub fn submit(request: PromotionRequest) -> Result<PromotionTicket, GateError>` and `pub fn poll(ticket: &PromotionTicket) -> Result<PromotionStatus, GateError>`. PromotionRequest: `{ iteration_id, target: LoopTarget, baseline_snapshot, proposed_snapshot, eval_result: EvalResult, floor_decision: PromotionDecision, sentinel_decision: SentinelDecision, justification_text: String }`. PromotionStatus: `{ Pending { submitted_at_utc }, Approved { approval: PromotionApproval }, Rejected { rejection: PromotionRejection } }`. PromotionApproval: `{ approved_by: OperatorId, approved_at_utc, signoff_evidence_id: Uuid v7 }`. PromotionRejection: `{ rejected_by: OperatorId, rejected_at_utc, rejection_reason: String }`. The gate is asynchronous (submit then poll) because operator review may take hours/days; the loop scheduler (MT-156) tracks pending tickets and resumes the iteration ONLY after Approved. On Rejected, the loop records the rejection as a memory entry (so future iterations learn) and advances to the next target. Tests: submit creates a typed request via the gate; poll returns Pending immediately after submit; gate rejection produces typed PromotionRejection; gate approval populates signoff_evidence_id; loop cannot apply the surface mutation without an Approved status (assert by attempting apply with Pending status returns typed error).",
   "proof_commands": [
@@ -34,17 +38,111 @@
   ],
   "risk_if_missed": "Without PromotionGate integration the loop can apply Accept decisions directly to authority, bypassing operator review and creating a shadow self-modification path.",
   "validator_focus": "PromotionRequest captures the full evidence bundle (baseline + proposal + eval + floor + sentinel). Apply path is gated by PromotionStatus::Approved.",
-  "hbr_obligations": ["HBR-INT-006"],
+  "hbr_obligations": [
+    "HBR-INT-006"
+  ],
   "spec_anchors": [
     ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.8.3"
   ],
-  "acceptance_criteria_refs": ["AC-DISTILL-LOOP-SAFEGUARDS", "AC-DISTILL-CONTENT-REVIEW"],
+  "acceptance_criteria_refs": [
+    "AC-DISTILL-LOOP-SAFEGUARDS",
+    "AC-DISTILL-CONTENT-REVIEW"
+  ],
   "lifecycle": {
-    "active": false,
-    "status": "PENDING",
+    "active": true,
+    "status": "READY_FOR_VALIDATION",
     "validator_verdict": "PENDING",
-    "depends_on": ["MT-148", "MT-149", "MT-152"],
-    "blocks": ["MT-155", "MT-156", "MT-167", "MT-170"]
+    "integration_validator_verdict": "PENDING",
+    "depends_on": [
+      "MT-148",
+      "MT-149",
+      "MT-152"
+    ],
+    "blocks": [
+      "MT-155",
+      "MT-156",
+      "MT-167",
+      "MT-170"
+    ],
+    "claimed_at_utc": "2026-05-23T08:15:00Z",
+    "claimed_by": "KERNEL_BUILDER-20260523-031814-AGT-MT154-R2",
+    "claim_note": "MT-154 PromotionGate adapter integration; promotion_gate_adapter.rs already on disk from prior session with 4 inline tests; this claim adds the contract-named integration test file tests/loop_promotion_gate_tests.rs with adversarial coverage beyond minimum_controls. Deps MT-148 + MT-149 + MT-152 all RFV in parallel session.",
+    "ready_for_validation_at_utc": "2026-05-23T08:45:00Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260523-031814-AGT-MT154-R2",
+    "implementation_record": {
+      "classification": "IMPLEMENTATION_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+      "authoritative_integration_validator_pass": false,
+      "summary": "MT-154 PromotionGate adapter is on disk (src/self_improve/promotion_gate_adapter.rs, ~10K, authored prior session) with 4 inline #[cfg(test)] tests already covering submit -> Pending, require_approved Pending -> Approved transition with UUIDv7 signoff_evidence_id, require_approved Rejected typed error with rationale, and UnknownTicket typed error for forged ticket_id. This session added the contract-named integration test file tests/loop_promotion_gate_tests.rs (29 tests) covering: apply-gate enforcement (Pending / Rejected / Approved typed transitions, status-poll stability across repeated polls), forged-ticket defense (UnknownTicket on synthesized ticket_id direct + via require_approved), MT-149 ForbiddenSurfaceGuard short-circuits before submit (spec / role / lora variants assert gate.submit_count() stays at 0 when guard rejects), MT-152 PromotionFloor Rejected still submittable for audit transparency, MT-153 SentinelDecision::Pause carried in request bundle, request bundle completeness (all 5 evidence pieces + iteration_id + target + justification present in serialized JSON), request byte-for-byte serde round-trip preserving every field, audit metadata serde round-trip (PromotionApproval who/when/signoff_evidence_id; PromotionRejection who/when/reason; PromotionStatus all three variants; PromotionTicket; GateError all four variants), idempotency / dedup (3 identical submits yield 3 distinct ticket_ids while preserving the shared iteration_id linkage), cross-ticket-replay defense (approving ticket A leaves sibling ticket B Pending), concurrency (8 concurrent submits + 16 concurrent polls produce consistent typed observations without panic / race), I/O error propagation (typed GateError::Io for submit + poll + require_approved), helper-method semantics (is_approved / is_pending discriminant accuracy), and worst-case audit bundle (floor Rejected + sentinel Pause carried together still submittable + faithfully round-trips). 29/29 integration pass + 4/4 inline pass.",
+      "spec_realism_gate_self_check": {
+        "sub_rule_1_no_deferred_live_escape": "PASS - promotion_gate_adapter.rs is a complete impl with no '*Unavailable' / 'pending MT-NNN' / 'deferred to follow-on' patterns; trait + concrete adapter + typed errors + helper methods all shipped.",
+        "sub_rule_2_external_resource_touch": "PASS - integration tests exercise the public LoopPromotionGate API via a MockGate implementing PromotionGateSubmitter; the public trait surface is the same one production wires to KERNEL-001 PromotionGate.",
+        "sub_rule_3_implementer_cannot_self_certify": "PASS - promotion_gate_adapter.rs authored in prior session (~10K); integration tests authored in this session; both differ from any validator role."
+      },
+      "files_touched": [
+        "src/backend/handshake_core/tests/loop_promotion_gate_tests.rs (NEW; 29 tests)"
+      ],
+      "implementation_files_verified_unchanged": [
+        "src/backend/handshake_core/src/self_improve/promotion_gate_adapter.rs (prior session, ~10K, 4 inline tests; verified unchanged)"
+      ],
+      "test_results": {
+        "loop_promotion_gate_tests_integration": {
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test loop_promotion_gate_tests -- --nocapture",
+          "exit_code": 0,
+          "tests_passed": 29,
+          "tests_failed": 0,
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt154-validate-20260523-001.log"
+        },
+        "promotion_gate_adapter_inline_lib_tests": {
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib self_improve::promotion_gate_adapter -- --nocapture",
+          "exit_code": 0,
+          "tests_passed": 4,
+          "tests_failed": 0,
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt154-inline-validate-20260523-001.log"
+        }
+      },
+      "red_team_coverage": {
+        "apply_path_gated_by_promotion_status_approved_pending_or_rejected_returns_typed_error": "covered - mt154_require_approved_returns_pending_typed_error_immediately_after_submit + mt154_require_approved_returns_rejected_typed_error_with_rationale + mt154_require_approved_returns_typed_approval_with_signoff_evidence_uuidv7 prove all three status -> require_approved outcomes are typed; mt154_full_lifecycle_pending_then_approved_then_remains_approved proves the Approved status is sticky across repeated polls (no retroactive demotion).",
+        "promotion_request_bundles_all_evidence_baseline_plus_proposal_plus_eval_plus_floor_plus_sentinel": "covered - mt154_request_bundles_all_five_evidence_pieces_in_serialized_form asserts the serialized JSON contains baseline_snapshot / proposed_snapshot / eval_result / floor_decision / sentinel_decision / justification_text / target / iteration_id; mt154_request_round_trips_byte_for_byte_via_serde proves byte-equal round-trip so EventLedger replay can reconstruct what the reviewer saw; mt154_request_can_carry_floor_rejected_and_sentinel_pause_simultaneously proves the bundle preserves negative-signal evidence pieces.",
+        "rejection_recorded_as_memory_so_future_iterations_do_not_re_propose_same_change": "PARTIAL - PromotionRejection carries rejected_by / rejected_at_utc / rejection_reason and round-trips via serde so the loop can persist it as memory; the actual memory-write pathway lives in MT-156 scheduler. This MT proves the typed rejection shape; the downstream consumer integration is MT-156 scope."
+      },
+      "adversarial_coverage_beyond_minimum_controls": [
+        "mt149_forbidden_surface_guard_short_circuits_before_gate_submit_count_increments (3 forbidden variants: spec / role / lora)",
+        "mt152_floor_rejected_still_submittable_for_audit_transparency",
+        "mt153_sentinel_pause_carried_in_bundle + worst_case_floor_rejected_plus_sentinel_pause_simultaneously",
+        "ticket_forging_defense_unknown_ticket_typed_error_via_require_approved_and_direct_poll",
+        "cross_ticket_replay_defense_approving_ticket_a_leaves_sibling_b_pending",
+        "repeated_identical_promotion_yields_distinct_ticket_ids_with_preserved_iteration_id_linkage",
+        "8_concurrent_submits_yield_8_distinct_ticket_ids_without_panic_or_race",
+        "16_concurrent_polls_observe_consistent_approved_status_under_arc_shared_gate",
+        "io_error_propagation_typed_gate_error_io_for_submit_poll_require_approved",
+        "audit_metadata_serde_round_trip_all_5_envelope_types (request / ticket / status / approval / rejection / gate_error)"
+      ],
+      "out_of_scope_edits": [],
+      "residual_risks": [
+        "MockGate is in-process; production wiring to KERNEL-001 PromotionGate transport (durable promotion-receipt store) is not exercised here. The LoopPromotionGate trait surface is the same one production will wire, but the durability + transport layer is downstream MT scope (likely shared with MT-156 scheduler).",
+        "Memory-persistence of rejections so future iterations don't re-propose the same change is a downstream MT-156 scheduler responsibility; this MT proves the typed PromotionRejection shape and serde round-trip but not the actual memory-write pathway.",
+        "Idempotency / dedup is intentionally left to the caller (loop scheduler) rather than enforced by the gate, so multiple submits on the same iteration_id yield distinct ticket_ids. A poorly written scheduler could spam the gate; this is acknowledged but not enforced at the adapter layer (audit history is the priority).",
+        "Concurrency tests run 8 + 16 workers in std::thread; production async runtime (tauri) was not exercised here, but the adapter is sync-trait and safe to call from any thread. If the production gate transport requires async, that wrapping is downstream.",
+        "FR-EVT-PROMOTION-DECISION emission is not asserted here (no FEMS subscriber); the kind constant is referenced in MT-155 ipc.rs. Validator should verify the production loop emits this event when require_approved returns Approved or Rejected.",
+        "No Integration Validator has reviewed MT-154."
+      ]
+    },
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "READY_FOR_VALIDATION",
+        "validator_verdict": "PENDING"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-27T19:03:58.446Z"
   },
   "handoff": {
     "coder_session": null,
@@ -58,5 +156,51 @@
       "PromotionRequest bundles all evidence (baseline + proposal + eval + floor + sentinel) so operator review is informed.",
       "Rejection is recorded as memory so future iterations do not re-propose the same change."
     ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_D_GAPS",
+    "reviewed_at_utc": "2026-05-27T18:05:00Z",
+    "aggregator_run_at_utc": "2026-05-27T19:03:58.446Z",
+    "verdict": "PASS_WITH_NOTES",
+    "verdict_reason": "LoopPromotionGate adapter ships the contracted PromotionRequest/PromotionTicket/PromotionStatus/PromotionApproval/PromotionRejection/GateError types. Evidence bundle (baseline + proposal + eval + floor + sentinel + justification) is preserved and serde round-trips byte-for-byte per builder evidence. require_approved short-circuits Pending and Rejected with typed errors. 29 integration + 4 inline tests reported. HIGH-severity adversarial gap: the trait surface and the MockGate test fixture do NOT bind PromotionTicket.iteration_id to PromotionRequest.iteration_id — the gate is free to return a ticket bearing any iteration_id, breaking the audit linkage. Production code must validate this binding before trusting downstream loop wiring.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "OK",
+    "runtime_safety_status": "OK",
+    "agent_swarm_safety_status": "WEAK",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "STRONG",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 1,
+      "MEDIUM": 0,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 2,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-154.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-154.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_D_GAPS",
+    "reviewed_at_utc": "2026-05-27T18:05:00Z",
+    "aggregator_run_at_utc": "2026-05-27T18:50:05.123Z",
+    "verdict": "PASS_WITH_NOTES",
+    "verdict_reason": "LoopPromotionGate adapter ships the contracted PromotionRequest/PromotionTicket/PromotionStatus/PromotionApproval/PromotionRejection/GateError types. Evidence bundle (baseline + proposal + eval + floor + sentinel + justification) is preserved and serde round-trips byte-for-byte per builder evidence. require_approved short-circuits Pending and Rejected with typed errors. 29 integration + 4 inline tests reported. HIGH-severity adversarial gap: the trait surface and the MockGate test fixture do NOT bind PromotionTicket.iteration_id to PromotionRequest.iteration_id — the gate is free to return a ticket bearing any iteration_id, breaking the audit linkage. Production code must validate this binding before trusting downstream loop wiring.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "OK",
+    "runtime_safety_status": "OK",
+    "agent_swarm_safety_status": "WEAK",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "STRONG",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 1,
+      "MEDIUM": 0,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 2,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-154.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-154.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
   }
 }

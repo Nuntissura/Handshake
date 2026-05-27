@@ -7,7 +7,7 @@
   "cluster_subscope": "A.6",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T02:30:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-05-27T19:03:58.446Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -27,7 +27,9 @@
     ".GOV/roles_shared/checks/hbr-man-001-paired-diff.test.mjs",
     "justfile"
   ],
-  "depends_on_mts": ["MT-010"],
+  "depends_on_mts": [
+    "MT-010"
+  ],
   "unblock_conditions": "MT-010 ModelManual module with MANUAL_VERSION pub const merged so the diff check has something to grep.",
   "implementation_notes": "Per spec §10.15.7 (AC-MODEL-MANUAL-CI-HOOK). The script accepts CLI args `--base-ref <git ref>` (default HEAD~1) and `--target-ref <git ref>` (default HEAD). It runs `git diff --name-only <base>..<target>` to get the changed file list. It scans the changed Rust files for new/removed/renamed wired surfaces by regex-detecting: (a) `#[tauri::command]` attribute additions/removals; (b) IPC channel string-literal additions (pattern: `\"kernel\\.[a-z_]+\\.[a-z_]+\"`); (c) struct field additions to types under `**/types.rs` matching IPC payload schemas (heuristic: structs that derive `Serialize, Deserialize`); (d) clap CLI flag additions (pattern: `#[arg(...)]` or `#[clap(...)]`); (e) config key additions to known config structs. For each detected wired-surface change, the script REQUIRES that the same diff also touches `src/backend/handshake_core/src/model_manual/content.rs` AND that MANUAL_VERSION (in src/backend/handshake_core/src/model_manual/mod.rs) bumps to a higher SemVer. If either condition fails, the script exits 2 with stderr JSONL `{file, surface_kind, name, reason}`. The bump rule: any wired-surface change forces at least a PATCH bump; ManualWorkflow or ManualSafetyConstraint changes force a MINOR bump; CommandReference removal forces a MAJOR bump. Justfile: add `hbr-man-001` recipe and wire into gov-check umbrella. Tests: fixture commit adds a #[tauri::command] without content.rs change -> exit 2; fixture commit adds the same command WITH content.rs change AND MANUAL_VERSION bump -> exit 0; fixture commit changes only renames a non-wired internal function -> exit 0 (no false positive). NOTE: This check runs in CI; locally operators run `just hbr-man-001` before commit.",
   "proof_commands": [
@@ -36,20 +38,47 @@
   ],
   "risk_if_missed": "Without paired-diff enforcement, manual drift creeps in commit-by-commit; HBR-MAN-001 becomes advisory and the in-product manual fossilizes.",
   "validator_focus": "False-positive rate: fixture commits that touch internal helpers (not wired surfaces) must NOT trigger; regex patterns are documented inline with their detection rationale.",
-  "hbr_obligations": ["HBR-MAN-001"],
+  "hbr_obligations": [
+    "HBR-MAN-001"
+  ],
   "spec_anchors": [
     ".GOV/spec/master-spec-v02.186/spec-modules/10-product-surfaces.md#10.15"
   ],
-  "acceptance_criteria_refs": ["AC-MODEL-MANUAL-CI-HOOK"],
+  "acceptance_criteria_refs": [
+    "AC-MODEL-MANUAL-CI-HOOK"
+  ],
   "lifecycle": {
     "active": false,
-    "status": "PENDING",
-    "validator_verdict": "PENDING",
-    "depends_on": ["MT-010"],
-    "blocks": ["MT-013"]
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "CONCERN",
+    "depends_on": [
+      "MT-010"
+    ],
+    "blocks": [
+      "MT-013"
+    ],
+    "claimed_by": "KERNEL_BUILDER-20260518-012310",
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "COMPLETED",
+        "validator_verdict": "PENDING",
+        "completed_at_utc": "2026-05-18T05:57:04.011Z"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "previous_completed_at_utc_before_ready_for_validation_20260525": "2026-05-18T05:57:04.011Z",
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-27T19:03:58.446Z"
   },
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260518-012310",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
     "review_response_receipt_id": null
@@ -60,5 +89,51 @@
       "Regex patterns are documented with rationale next to each pattern so they can be tuned.",
       "Bump rule is explicit (patch/minor/major) and the test enforces it."
     ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_A1tail_A6",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T19:03:58.446Z",
+    "verdict": "CONCERN",
+    "verdict_reason": "The paired-diff hook script exists, is wired into gov-check and the justfile, and its 8-test fixture suite passes cleanly (synthetic happy and failure paths both correct); however, the config_key detection regex over-fires on ordinary struct-literal expressions in any file/struct that mentions Config/Settings/Options, producing a large false-positive surface in real-history runs.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "MAJOR",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "CONCERN",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 1,
+      "MEDIUM": 1,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 2,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-011.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-011.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_A1tail_A6",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T18:50:05.123Z",
+    "verdict": "CONCERN",
+    "verdict_reason": "The paired-diff hook script exists, is wired into gov-check and the justfile, and its 8-test fixture suite passes cleanly (synthetic happy and failure paths both correct); however, the config_key detection regex over-fires on ordinary struct-literal expressions in any file/struct that mentions Config/Settings/Options, producing a large false-positive surface in real-history runs.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "MAJOR",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "CONCERN",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 1,
+      "MEDIUM": 1,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 2,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-011.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-011.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
   }
 }

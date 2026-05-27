@@ -7,7 +7,7 @@
   "cluster_subscope": "B.2",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:10:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-05-27T19:03:58.446Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -27,7 +27,9 @@
     "src/backend/handshake_core/src/sandbox/mod.rs",
     "src/backend/handshake_core/tests/sandbox_promotion_binding_tests.rs"
   ],
-  "depends_on_mts": ["MT-050"],
+  "depends_on_mts": [
+    "MT-050"
+  ],
   "unblock_conditions": "MT-050 ValidationRunner binding merged; KERNEL-001 PromotionGate already in main (verify path).",
   "implementation_notes": "Pre-step: Grep `pub struct PromotionGate` and `pub enum PromotionRequest` in src/backend/handshake_core/src/kernel/** to locate the KERNEL-001 surface and the existing request variants. promotion_binding.rs: `pub struct SandboxValidationEvidence { process_handle: ProcessHandle, adapter_capabilities: AdapterCapabilities, validation_exit_code: i32, validation_stdout_artifact_id: ArtifactId, validation_stderr_artifact_id: ArtifactId, sandbox_runtime_ms: u64 }` and `pub fn build_promotion_request(evidence: SandboxValidationEvidence, candidate_artifact: ArtifactId) -> PromotionRequest`. The PromotionGate accepts this new request shape; on success, the gate writes an EventLedger row of family `FR-EVT-PROMOTION-SANDBOX-VALIDATED` carrying the ProcessHandle.id (UUID v7) so HBR-INT-001 replay can reconstruct which adapter+handle produced the validated artifact. Critically: the PromotionGate REJECTS evidence where adapter_capabilities.filesystem_isolation_strength==Weak OR network_isolation_strength==Weak — sandbox quality is part of the promotion criterion (prevents an attacker swapping in a fake/no-op adapter to bypass validation). Add `pub enum PromotionRejectReason { ... InsufficientSandboxIsolation { required_min: IsolationStrength, observed: IsolationStrength }, ... }`. Tests: (a) successful promotion writes the FR-EVT-PROMOTION-SANDBOX-VALIDATED row containing the ProcessHandle.id; (b) Weak isolation rejects with InsufficientSandboxIsolation; (c) non-zero validation_exit_code rejects with the existing KERNEL-001 reject variant (preserve behavior); (d) replay-equivalence test: given two recorded EventLedger streams that differ only in ProcessHandle.id values, both produce identical projected promotion state (HBR-INT-001 replay invariant).",
   "proof_commands": [
@@ -35,21 +37,51 @@
   ],
   "risk_if_missed": "Without binding, sandbox-validated artifacts cannot reach PromotionGate authority; the KERNEL-003 promotion path silently bypasses the new sandbox isolation guarantee.",
   "validator_focus": "(a) Weak isolation rejection works; (b) EventLedger row carries ProcessHandle.id (UUID v7); (c) replay-equivalence test passes; (d) existing KERNEL-001 PromotionGate reject variants are preserved (no regression).",
-  "hbr_obligations": ["HBR-INT-001", "HBR-INT-008"],
+  "hbr_obligations": [
+    "HBR-INT-001",
+    "HBR-INT-008"
+  ],
   "spec_anchors": [
     ".GOV/spec/master-spec-v02.186/spec-modules/06-mechanical-integrations.md#6.4",
     ".GOV/spec/master-spec-v02.186/spec-modules/05-security-and-observability.md#5.7"
   ],
-  "acceptance_criteria_refs": ["AC-SANDBOX-ADAPTER-IMPLS", "AC-LOCAL-MODEL-BOXING"],
+  "acceptance_criteria_refs": [
+    "AC-SANDBOX-ADAPTER-IMPLS",
+    "AC-LOCAL-MODEL-BOXING"
+  ],
   "lifecycle": {
     "active": false,
-    "status": "PENDING",
-    "validator_verdict": "PENDING",
-    "depends_on": ["MT-050"],
-    "blocks": ["MT-055"]
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "PASS",
+    "depends_on": [
+      "MT-050"
+    ],
+    "blocks": [
+      "MT-055"
+    ],
+    "claimed_by": "KERNEL_BUILDER-20260518-211025",
+    "claimed_at_utc": "2026-05-18T22:45:20Z",
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "COMPLETED",
+        "validator_verdict": "PENDING",
+        "completed_at_utc": "2026-05-18T22:52:52.643Z"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "previous_completed_at_utc_before_ready_for_validation_20260525": "2026-05-18T22:52:52.643Z",
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-27T19:03:58.446Z"
   },
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260518-211025",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
     "review_response_receipt_id": null
@@ -60,5 +92,54 @@
       "Replay-equivalence test prevents promotion state from becoming sandbox-internal-id-dependent (would break HBR-INT-001 EventLedger replay).",
       "Preserve existing KERNEL-001 PromotionGate variants; this MT is additive."
     ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_B_GAPS_REDO_WTC",
+    "reviewed_at_utc": "2026-05-27T22:30:00Z",
+    "aggregator_run_at_utc": "2026-05-27T19:03:58.446Z",
+    "verdict": "PASS",
+    "verdict_reason": "PromotionGate::decide_sandbox_validated is implemented with all required rejection variants (MissingArtifactEvidence, ValidationFailed, AdapterUnavailable, InsufficientSandboxIsolation); Weak isolation is rejected; WindowsNativeJail-specific rejection enforces approved-backend gate; replay-equivalence projection over ProcessHandle.id is implemented.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-051.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-051.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_B_GAPS",
+    "reviewed_at_utc": "2026-05-27T17:33:00Z",
+    "aggregator_run_at_utc": "2026-05-27T18:50:05.123Z",
+    "verdict": "FAIL",
+    "verdict_reason": "PromotionGate sandbox binding owned files absent; the Weak-isolation rejection guard (critical to prevent NoopAdapter-bypass attacks on promotion) is not implemented and not tested.",
+    "spec_compliance_status": "FAILS",
+    "code_hygiene_status": "MAJOR",
+    "runtime_safety_status": "UNSAFE",
+    "agent_swarm_safety_status": "UNSAFE",
+    "hbr_unsatisfied": [
+      "HBR-INT-001",
+      "HBR-INT-008"
+    ],
+    "test_coverage_status": "MISSING",
+    "findings_count_by_severity": {
+      "CRITICAL": 1,
+      "HIGH": 1,
+      "MEDIUM": 0,
+      "LOW": 0
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-051.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-051.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
   }
 }

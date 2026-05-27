@@ -7,7 +7,7 @@
   "cluster_subscope": "C.2",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:00:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-05-27T19:03:58.446Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -27,7 +27,10 @@
     "src/backend/handshake_core/src/model_runtime/llama_cpp/generate.rs",
     "src/backend/handshake_core/tests/llama_cpp_lora_tests.rs"
   ],
-  "depends_on_mts": ["MT-064", "MT-074"],
+  "depends_on_mts": [
+    "MT-064",
+    "MT-074"
+  ],
   "unblock_conditions": "MT-064 LoraStackOps trait + MT-074 generate path merged.",
   "implementation_notes": "Per AC-LLAMACPP-ADAPTER + AC-INFER-LAB-8-TECHNIQUES.a (LoRA hot-swap PRODUCTION) and refinement.json inference_technique_matrix INF-1: llama.cpp 2025 supports multi-LoRA via `llama_lora_adapter_init` + per-context `llama_lora_adapter_set` (scale param) without unloading the base model. Implementation: LlamaCppLoraStack holds `HashMap<LoraId, llama_cpp_2::LoraAdapter>` plus a per-context active set. mount: validate LoraDescriptor.base_model_compat matches the model's base tag (compare LoadSpec.base_model_tag); load GGUF LoRA via llama_cpp_2 LoraAdapter constructor (path + sha256 verification); set_lora_adapter on the active context with the provided strength. unmount: llama_lora_adapter_remove (or set strength to 0.0 and drop from active set). set_strength: call llama_lora_adapter_set with new scale. swap (atomic replace): for each new entry, ensure it can mount; if any fails, roll back to previous snapshot; on success, batch-apply via a single context lock. Per-request override path: GenerateRequest.lora_overrides Vec<LoraId> — generate.rs uses these for the call duration; if a LoraId is not currently mounted, mount it transiently (with explicit failure if mount fails). License tagging mandatory (LoraDescriptor.license_tag is non-Optional). Tests (env-gated, requires a small LoRA file beside the GGUF): mount LoRA, generate with override, verify output differs from base; unmount, verify output reverts; swap with a failing entry rolls back; per-request override on non-mounted LoRA works (transient mount). FR-EVT-LLM-INFER-LORA-MOUNT / UNMOUNT events emitted.",
   "proof_commands": [
@@ -35,21 +38,56 @@
   ],
   "risk_if_missed": "LoRA hot-swap (INF-1) ships with broken LlamaCpp path; AC-INFER-LAB-8-TECHNIQUES.a fails on default adapter.",
   "validator_focus": "No process restart on mount/unmount; base-model-tag validation; atomic swap rollback on partial failure; per-request override path covered.",
-  "hbr_obligations": ["HBR-INT-002", "HBR-INT-008"],
+  "hbr_obligations": [
+    "HBR-INT-002",
+    "HBR-INT-008"
+  ],
   "spec_anchors": [
     ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.6.2",
     ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.7.1"
   ],
-  "acceptance_criteria_refs": ["AC-LLAMACPP-ADAPTER", "AC-INFER-LAB-8-TECHNIQUES"],
+  "acceptance_criteria_refs": [
+    "AC-LLAMACPP-ADAPTER",
+    "AC-INFER-LAB-8-TECHNIQUES"
+  ],
   "lifecycle": {
     "active": false,
-    "status": "PENDING",
-    "validator_verdict": "PENDING",
-    "depends_on": ["MT-064", "MT-074"],
-    "blocks": ["MT-090", "MT-091", "MT-092"]
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "CONCERN",
+    "depends_on": [
+      "MT-064",
+      "MT-074"
+    ],
+    "blocks": [
+      "MT-090",
+      "MT-091",
+      "MT-092"
+    ],
+    "claimed_by": "KERNEL_BUILDER-20260521-162633",
+    "integration_validator_verdict": "PENDING",
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "COMPLETED",
+        "validator_verdict": "PENDING",
+        "completed_by": "KERNEL_BUILDER-20260521-162633",
+        "completed_at_utc": "2026-05-21T17:34:09.251Z"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "previous_completed_by_before_ready_for_validation_20260525": "KERNEL_BUILDER-20260521-162633",
+    "previous_completed_at_utc_before_ready_for_validation_20260525": "2026-05-21T17:34:09.251Z",
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-27T19:03:58.446Z"
   },
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260521-162633",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
     "review_response_receipt_id": null
@@ -60,5 +98,176 @@
       "Atomic swap rollback covered.",
       "License tag enforced at mount."
     ]
+  },
+  "implementation_reality_20260521": {
+    "recorded_at_utc": "2026-05-21T17:36:38.583Z",
+    "recorded_by": "KERNEL_BUILDER-20260521-162633",
+    "summary": "MT-076 implemented the safe subset supported by locked llama-cpp-2 0.1.146 and records the true multi-LoRA/event gaps for validator review instead of claiming an unsupported multi-LoRA pass.",
+    "details": [
+      "The original MT text assumed llama.cpp 2025 multi-LoRA and per-request --lora CLI semantics. Local research against locked llama-cpp-2 0.1.146 found the safe Rust wrapper only exposes one adapter per context via LlamaContext::lora_adapter_set and lora_adapter_remove; upstream C supports multi-adapter arrays, but the wrapper does not expose the raw handles safely.",
+      "Implementation therefore does not fake multi-LoRA. It enforces at most one mounted/applied LoRA for llama.cpp and returns explicit LoraStackError messages when more are requested.",
+      "Per-request behavior is implemented by applying the selected mounted adapter to the fresh generation context for the call duration, not by shelling out through llama.cpp server CLI --lora flags.",
+      "Native adapter Drop uses the locked wrapper representation plus llama-cpp-sys-2::llama_adapter_lora_free because llama-cpp-2 0.1.146 has no Drop implementation for LlamaLoraAdapter. Each NativeLoraAdapter owns an Arc<NativeLlamaCppBackend> so the underlying model outlives adapter free."
+    ]
+  },
+  "implementation_supporting_evidence_20260521": {
+    "schema_id": "hsk.mt_implementation_supporting_evidence@1",
+    "recorded_at_utc": "2026-05-21T17:36:38.583Z",
+    "recorded_by": "KERNEL_BUILDER-20260521-162633",
+    "classification": "IMPLEMENTATION_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+    "authoritative_integration_validator_pass": false,
+    "integration_validator_status": "PENDING",
+    "operator_mt_review_status": "DEFERRED_NOT_CURRENT_SESSION_FOCUS",
+    "operator_product_vs_master_spec_review_status": "DEFERRED_NOT_CURRENT_SESSION_FOCUS",
+    "summary": "Implemented LlamaCppRuntime LoRA stack support for the current llama-cpp-2 0.1.146 safe wrapper: loaded llama.cpp models expose LoraStackOps, descriptor/base/sha/license validation runs before adapter activation, generation honors mounted lora_overrides on the per-request native context, unmounted overrides fail before decoding, KV-prefix plus LoRA is rejected because prefix handles are not LoRA-scoped, single active LoRA is enforced honestly, adapter lifetime is pinned to the owning native backend, and mount/unmount/swap do not restart the process. This is supporting implementation/test evidence only; WP remains In Progress and Integration Validator PASS remains pending.",
+    "product_surfaces_changed": [
+      "src/backend/handshake_core/Cargo.toml",
+      "src/backend/handshake_core/src/model_runtime/llama_cpp/mod.rs",
+      "src/backend/handshake_core/src/model_runtime/llama_cpp/adapter.rs",
+      "src/backend/handshake_core/src/model_runtime/llama_cpp/context.rs",
+      "src/backend/handshake_core/src/model_runtime/llama_cpp/generate.rs",
+      "src/backend/handshake_core/src/model_runtime/llama_cpp/lora_impl.rs",
+      "src/backend/handshake_core/tests/llama_cpp_lora_tests.rs"
+    ],
+    "corrected_contract_reality": [
+      "The original MT text assumed llama.cpp 2025 multi-LoRA and per-request --lora CLI semantics. Local research against locked llama-cpp-2 0.1.146 found the safe Rust wrapper only exposes one adapter per context via LlamaContext::lora_adapter_set and lora_adapter_remove; upstream C supports multi-adapter arrays, but the wrapper does not expose the raw handles safely.",
+      "Implementation therefore does not fake multi-LoRA. It enforces at most one mounted/applied LoRA for llama.cpp and returns explicit LoraStackError messages when more are requested.",
+      "Per-request behavior is implemented by applying the selected mounted adapter to the fresh generation context for the call duration, not by shelling out through llama.cpp server CLI --lora flags.",
+      "Native adapter Drop uses the locked wrapper representation plus llama-cpp-sys-2::llama_adapter_lora_free because llama-cpp-2 0.1.146 has no Drop implementation for LlamaLoraAdapter. Each NativeLoraAdapter owns an Arc<NativeLlamaCppBackend> so the underlying model outlives adapter free."
+    ],
+    "high_roi_additions": [
+      "Added explicit single-LoRA stack enforcement at mount, swap, and generation selection time so the runtime cannot advertise impossible multi-LoRA state under the current wrapper.",
+      "Added KV-prefix plus LoRA rejection in both preflight and context-application paths to close the concurrent default-LoRA mount race identified by review.",
+      "Added native adapter lifetime hardening so mounted adapters keep the owning model alive during native free and generation guards keep adapters alive until after context drop.",
+      "Added native test serialization guard matching existing llama.cpp KV tests to avoid false BackendAlreadyInitialized failures under Rust test concurrency.",
+      "Added env-gated negative tests for second mount precheck and unload while mounted; they compile and will exercise real LoRA paths when HANDSHAKE_TEST_LORA_PATH is provided."
+    ],
+    "proof_commands": [
+      {
+        "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features llama-cpp-runtime-engine --test llama_cpp_lora_tests -- --nocapture",
+        "exit_code": 101,
+        "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/red-mt076-llama-cpp-lora-20260521-183527.log",
+        "phase": "RED",
+        "note": "Initial RED failed because loaded llama.cpp models exposed no LoRA stack and unmounted lora_overrides decoded instead of failing."
+      },
+      {
+        "command": "cargo fmt --manifest-path src/backend/handshake_core/Cargo.toml",
+        "exit_code": 0,
+        "phase": "FORMAT",
+        "note": "Ran after review hardening and final lifetime/precheck edits."
+      },
+      {
+        "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features llama-cpp-runtime-engine --test llama_cpp_lora_tests -- --nocapture",
+        "exit_code": 0,
+        "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt076-native-lora-after-lifetime-fix-20260521.log",
+        "phase": "FINAL_NATIVE_LLAMA_CPP_LORA_TEST",
+        "note": "6 passed, 0 failed. Real LoRA fixture-specific tests are env-gated and returned early because HANDSHAKE_TEST_LORA_PATH was not set in this session.",
+        "env": {
+          "CARGO_TARGET_DIR": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/t",
+          "LIBCLANG_PATH": "C:/Program Files/LLVM/bin",
+          "HANDSHAKE_TEST_GGUF_PATH": "D:/Local Models/Novaciano/Nanopenis-68M_NSFW_RP-GGUF/Nanopenis-68M_NSFW_RP.gguf",
+          "HANDSHAKE_TEST_LORA_PATH": "not set in this session; real LoRA mount/generate/drop negative tests are env-gated and returned early without a fixture"
+        }
+      },
+      {
+        "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test llama_cpp_lora_tests -- --nocapture",
+        "exit_code": 0,
+        "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt076-default-feature-after-lifetime-fix-20260521.log",
+        "phase": "FINAL_DEFAULT_FEATURE_TEST",
+        "note": "6 passed, 0 failed. Confirms disabled-native/default feature path compiles and returns typed native-disabled behavior for load attempts."
+      },
+      {
+        "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features llama-cpp-runtime-engine --test llama_cpp_lora_tests --test llama_cpp_generate_tests --test llama_cpp_kv_cache_tests --test llama_cpp_adapter_tests --test llama_cpp_loader_tests -- --nocapture",
+        "exit_code": 0,
+        "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt076-focused-llama-cpp-regression-after-lifetime-fix-20260521.log",
+        "phase": "FINAL_FOCUSED_NATIVE_REGRESSION_SUITE",
+        "note": "Focused llama.cpp LoRA/generate/KV-cache/adapter/loader regression command exits 0.",
+        "env": {
+          "CARGO_TARGET_DIR": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/t",
+          "LIBCLANG_PATH": "C:/Program Files/LLVM/bin",
+          "HANDSHAKE_TEST_GGUF_PATH": "D:/Local Models/Novaciano/Nanopenis-68M_NSFW_RP-GGUF/Nanopenis-68M_NSFW_RP.gguf",
+          "HANDSHAKE_TEST_LORA_PATH": "not set in this session; real LoRA mount/generate/drop negative tests are env-gated and returned early without a fixture"
+        }
+      }
+    ],
+    "supporting_reviews": [
+      {
+        "reviewer_session": "019e4b5c-7feb-7162-8ad9-6b56ec3d88ee",
+        "reviewer_name": "Poincare",
+        "classification": "SUPPORTING_RESEARCH_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+        "summary": "Confirmed locked llama-cpp-2 0.1.146 exposes only one safe LoRA adapter per context while upstream C supports multi-adapter arrays."
+      },
+      {
+        "reviewer_session": "019e4b74-1374-7812-9865-df6ff9a89873",
+        "reviewer_name": "Avicenna",
+        "classification": "SUPPORTING_REVIEW_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+        "summary": "Found KV-prefix/LoRA race, missing stack mutation single-LoRA enforcement, native adapter lifetime leak/free risk, and negative-test gaps. Final implementation added apply-time KV-prefix rejection, mount/swap single-LoRA enforcement, explicit adapter free, and expanded tests."
+      },
+      {
+        "reviewer_session": "019e4b8b-c423-78f2-a408-6313007a32bb",
+        "reviewer_name": "Lagrange",
+        "classification": "SUPPORTING_REVIEW_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+        "summary": "Found post-fix native adapter/model drop-order risk and mount precheck ordering issue. Final implementation makes NativeLoraAdapter retain the owning NativeLlamaCppBackend and rejects second active mounts before adapter load."
+      },
+      {
+        "reviewer_session": "019e4b85-f41c-7141-8e87-0362cefa95e6",
+        "reviewer_name": "Leibniz",
+        "classification": "SUPPORTING_GOVERNANCE_PATTERN_REVIEW_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+        "summary": "Confirmed the correct governance state for MT-076 is completed implementation evidence with validator_verdict and integration_validator_verdict still PENDING, and WP ready_for_validation remains false."
+      }
+    ],
+    "residual_risks": [
+      "No Integration Validator has reviewed MT-076; this record must not be treated as an authoritative WP pass.",
+      "True multi-LoRA on llama.cpp is not implemented under the locked safe Rust wrapper. Supporting it later requires a wrapper patch/fork or a safe upstream API for llama_set_adapters_lora with multiple handles.",
+      "No real LoRA fixture was configured in this session. Native load/generate tests exercised a real GGUF model, but real LoRA mount/application/unload negative paths remain env-gated on HANDSHAKE_TEST_LORA_PATH.",
+      "FR-EVT-LLM-INFER-LORA-MOUNT / UNMOUNT emission is not wired in the current ModelRuntime LoRA surface; no existing model-runtime event hook was present to reuse during this MT. Validator should decide whether this belongs in a later event-ledger MT or requires reopening this scope.",
+      "Native adapter free relies on locked llama-cpp-2 0.1.146 layout knowledge. If the crate later adds Drop for LlamaLoraAdapter or changes representation, this manual free path must be revisited."
+    ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C2_FRESH",
+    "reviewed_at_utc": "2026-05-27T18:30:00Z",
+    "aggregator_run_at_utc": "2026-05-27T19:03:58.446Z",
+    "verdict": "CONCERN",
+    "verdict_reason": "LoRA hot-swap implemented honestly within wrapper limits: single-LoRA per context enforced, sha256 + base-tag + license validated, no process restart, KV-prefix race blocked. Multi-LoRA contract-text and FR-EVT-LLM-INFER-LORA-MOUNT/UNMOUNT emission are deferred per builder disclosure.",
+    "spec_compliance_status": "PARTIAL",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 2,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 2,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-076.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-076.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C2_FRESH",
+    "reviewed_at_utc": "2026-05-27T18:30:00Z",
+    "aggregator_run_at_utc": "2026-05-27T18:50:05.123Z",
+    "verdict": "CONCERN",
+    "verdict_reason": "LoRA hot-swap implemented honestly within wrapper limits: single-LoRA per context enforced, sha256 + base-tag + license validated, no process restart, KV-prefix race blocked. Multi-LoRA contract-text and FR-EVT-LLM-INFER-LORA-MOUNT/UNMOUNT emission are deferred per builder disclosure.",
+    "spec_compliance_status": "PARTIAL",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 2,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 2,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-076.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-076.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
   }
 }

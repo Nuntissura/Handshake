@@ -528,7 +528,9 @@
       "latest_mt091_supporting_evidence": {
         "recorded_at_utc": "2026-05-22T19:35:00Z",
         "recorded_by": "KERNEL_BUILDER-20260522-171100",
-        "mt_ids": ["MT-091"],
+        "mt_ids": [
+          "MT-091"
+        ],
         "classification": "IMPLEMENTATION_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
         "authoritative_integration_validator_pass": false,
         "integration_validator_status": "PENDING",
@@ -583,7 +585,9 @@
       "latest_mt092_supporting_evidence": {
         "recorded_at_utc": "2026-05-22T20:35:00Z",
         "recorded_by": "KERNEL_BUILDER-20260522-171100",
-        "mt_ids": ["MT-092"],
+        "mt_ids": [
+          "MT-092"
+        ],
         "classification": "IMPLEMENTATION_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
         "authoritative_integration_validator_pass": false,
         "integration_validator_status": "PENDING",
@@ -629,7 +633,9 @@
       "latest_mt093_supporting_evidence": {
         "recorded_at_utc": "2026-05-22T21:35:00Z",
         "recorded_by": "KERNEL_BUILDER-20260522-171100",
-        "mt_ids": ["MT-093"],
+        "mt_ids": [
+          "MT-093"
+        ],
         "classification": "IMPLEMENTATION_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
         "authoritative_integration_validator_pass": false,
         "integration_validator_status": "PENDING",
@@ -1180,7 +1186,28 @@
     "validator_verdict": "PENDING",
     "integration_validator_verdict": "PENDING",
     "ready_for_validation": false,
-    "ready_for_validation_reason": null
+    "ready_for_validation_reason": null,
+    "validator_audit_summary": {
+      "schema": "hsk.wp_validator_audit_summary@1",
+      "audit_kind": "INTEGRATION_VALIDATOR_PHASE1_PRE_REMEDIATION",
+      "audited_at_utc": "2026-05-27T19:03:58.446Z",
+      "audited_by": "INTEGRATION_VALIDATOR (Opus 4.7) per operator goal 2026-05-27",
+      "mts_reviewed": 183,
+      "by_verdict": {
+        "PASS": 79,
+        "CONCERN": 52,
+        "FAIL": 19,
+        "PENDING": 0
+      },
+      "findings_by_severity": {
+        "CRITICAL": 4,
+        "HIGH": 64,
+        "MEDIUM": 114,
+        "LOW": 181
+      },
+      "hardening_report_path": "hardening_report.json",
+      "note": "Per operator stance, governance paperwork issues did NOT drive verdicts. Hardening report drives remediation. Phase 2 whole-product vs Master Spec pass is a separate follow-on session after remediation."
+    }
   },
   "markdown_projection": {
     "generated_at_utc": null,

@@ -7,7 +7,7 @@
   "cluster_subscope": "C.13",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:00:00Z",
-  "updated_at_utc": "2026-05-20T23:50:00Z",
+  "updated_at_utc": "2026-05-27T19:03:58.446Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -56,9 +56,8 @@
   ],
   "lifecycle": {
     "active": false,
-    "status": "COMPLETED",
-    "validator_verdict": "PASS",
-    "completed_by": "VALIDATOR-EXPLORE-MT125-REWORK-PASS-20260520-AUTO",
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "FAIL",
     "depends_on": [
       "MT-062",
       "MT-066",
@@ -75,7 +74,6 @@
     ],
     "claimed_by": "KERNEL_BUILDER-20260519-203500",
     "claimed_at_utc": "2026-05-20T05:25:00Z",
-    "completed_at_utc": "2026-05-20T06:00:00Z",
     "deferred_to_followon": {
       "live_http_streaming": "chat_completions_stream() currently returns LiveClientUnavailable. The live wire-up requires (1) reqwest features extended from [\"json\"] to [\"json\", \"stream\", \"rustls-tls\"], (2) an SSE parser dep (eventsource-stream = \"0.2\" or similar), (3) wiremock/httpmock crate for the HTTP mock-server tests, (4) plumbing into the ModelRuntime trait full impl (load/unload/generate/score/embed/capabilities/kv_cache/lora_stack/steering_hooks/cancel). Adding those deps and wiring requires a full workspace recompile and was out of scope for this MT's session window."
     },
@@ -84,8 +82,8 @@
     "operator_decision_summary": "Operator review found the implementation pattern (surface-shape + trait abstraction + LiveXxxUnavailable / placeholder props) satisfied test contracts but did not satisfy what the Master Spec actually says these things do. None of the 27 MTs listed below are correct implementations. All 27 are reopened and must be redone before WP-KERNEL-004 can be considered complete. No other MT may be claimed until these 27 are correctly implemented and re-validated. MT-148 work was rolled back; it is to be revisited after these 27 close correctly.",
     "deflection_category": "dep_deferred",
     "deflection_summary": "OpenAiByokRuntime struct + ApiKeyProvider trait + DEFAULT_OPENAI_MODEL_ALLOWLIST + CloudInvocationAuditSink trait + capability declaration are committed and tested (15 tests). BUT chat_completions_stream returns LiveClientUnavailable. reqwest features stay at [\"json\"] - need [\"json\", \"stream\", \"rustls-tls\"]. eventsource-stream + wiremock deps never added to Cargo.toml. Full ModelRuntime trait impl (load/unload/generate/score/embed/capabilities/kv_cache/lora_stack/steering_hooks/cancel) was never written. Spec 4.6 demands the adapter exposes the same trait surface as the local adapters.",
-    "wp_hard_fail_until_redone": true,
-    "must_complete_before_other_mts": true,
+    "wp_hard_fail_until_redone": false,
+    "must_complete_before_other_mts": false,
     "previous_completed_status": "COMPLETED",
     "previous_completed_by": "KERNEL_BUILDER-20260519-203500",
     "previous_completed_at_utc": "2026-05-20T06:00:00Z",
@@ -117,15 +115,6 @@
       "claimed_at_utc": "2026-05-20T18:35:00Z",
       "transition": "NEEDS_REIMPLEMENTATION -> CLAIMED -> BLOCKED_ON_DEPENDENCY",
       "note": "Autonomous KERNEL_BUILDER session triage following the catastrophic-build-broken finding: this MT cannot be honestly implemented in the current product-code state because model_runtime cannot compile. Implementation deferred to a future session running against a restored build."
-    },
-    "blocker": {
-      "blocked_at_utc": "2026-05-20T18:35:00Z",
-      "blocker_id": "WP-KERNEL-004-BUILD-BROKEN-AT-LIB-LEVEL",
-      "blocked_by": "STRUCTURAL_DEBT_PRE_EXISTING_IN_FEAT_BRANCH",
-      "blocking_record": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/RECEIPTS.jsonl",
-      "reason": "OpenAI BYOK lane lives under model_runtime/cloud/ which cannot compile. Note: wiremock/httpmock dependency check NOT performed due to broken build foreclosing the build.",
-      "operator_action_needed": "Restore the WP-KERNEL-004 product-code build (lib.rs pub mod declarations + sandbox API reconciliation) before this MT can be re-claimed. See correlation_id=catastrophic-build-broken-finding-20260520.",
-      "triage_receipt": "correlation_id=catastrophic-build-broken-finding-20260520"
     },
     "autonomous_session_rework_20260520_v2": {
       "claimed_by": "KERNEL_BUILDER-20260520-115519",
@@ -160,7 +149,49 @@
         "Test claims pass without consuming tokens - test 1 collects produced_texts from each non-empty delta.content and asserts vec[Hello, , , world, !] content equality (not just count); also asserts saw_terminal_stop",
         "ModelRuntime trait surface incompleteness - all 11 methods (adapter_name/load/unload/generate/score/embed/capabilities/kv_cache/lora_stack/steering_hooks/cancel) have real bodies; score and embed use real client.post.bearer_auth.json.send paths with audit lifecycle"
       ]
-    }
+    },
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "COMPLETED",
+        "validator_verdict": "PASS",
+        "completed_by": "VALIDATOR-EXPLORE-MT125-REWORK-PASS-20260520-AUTO",
+        "completed_at_utc": "2026-05-20T06:00:00Z",
+        "blocker": {
+          "blocked_at_utc": "2026-05-20T18:35:00Z",
+          "blocker_id": "WP-KERNEL-004-BUILD-BROKEN-AT-LIB-LEVEL",
+          "blocked_by": "STRUCTURAL_DEBT_PRE_EXISTING_IN_FEAT_BRANCH",
+          "blocking_record": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/RECEIPTS.jsonl",
+          "reason": "OpenAI BYOK lane lives under model_runtime/cloud/ which cannot compile. Note: wiremock/httpmock dependency check NOT performed due to broken build foreclosing the build.",
+          "operator_action_needed": "Restore the WP-KERNEL-004 product-code build (lib.rs pub mod declarations + sandbox API reconciliation) before this MT can be re-claimed. See correlation_id=catastrophic-build-broken-finding-20260520.",
+          "triage_receipt": "correlation_id=catastrophic-build-broken-finding-20260520"
+        },
+        "wp_hard_fail_until_redone": true,
+        "must_complete_before_other_mts": true
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "historical_blocker_before_ready_for_validation_20260525": {
+      "blocked_at_utc": "2026-05-20T18:35:00Z",
+      "blocker_id": "WP-KERNEL-004-BUILD-BROKEN-AT-LIB-LEVEL",
+      "blocked_by": "STRUCTURAL_DEBT_PRE_EXISTING_IN_FEAT_BRANCH",
+      "blocking_record": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/RECEIPTS.jsonl",
+      "reason": "OpenAI BYOK lane lives under model_runtime/cloud/ which cannot compile. Note: wiremock/httpmock dependency check NOT performed due to broken build foreclosing the build.",
+      "operator_action_needed": "Restore the WP-KERNEL-004 product-code build (lib.rs pub mod declarations + sandbox API reconciliation) before this MT can be re-claimed. See correlation_id=catastrophic-build-broken-finding-20260520.",
+      "triage_receipt": "correlation_id=catastrophic-build-broken-finding-20260520"
+    },
+    "previous_completed_by_before_ready_for_validation_20260525": "VALIDATOR-EXPLORE-MT125-REWORK-PASS-20260520-AUTO",
+    "previous_completed_at_utc_before_ready_for_validation_20260525": "2026-05-20T06:00:00Z",
+    "previous_wp_hard_fail_until_redone_before_ready_for_validation_20260525": true,
+    "previous_must_complete_before_other_mts_before_ready_for_validation_20260525": true,
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-27T19:03:58.446Z"
   },
   "handoff": {
     "coder_session": "KERNEL_BUILDER-20260519-203500",
@@ -174,5 +205,55 @@
       "cloud_invocations audit row written per call.",
       "Capabilities match cloud realities (no supports_activation_steering=true)."
     ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C12_C13_FRESH",
+    "reviewed_at_utc": "2026-05-27T17:41:00Z",
+    "aggregator_run_at_utc": "2026-05-27T19:03:58.446Z",
+    "verdict": "FAIL",
+    "verdict_reason": "OpenAiByokRuntime correctly implements the full ModelRuntime trait against wiremock with real reqwest+SSE streaming, API key never logged (Debug-redacted; verified by wiremock RequestInspector that key only appears in Authorization Bearer header; no other header/body/URL contains it), allowlist gating works, audit rows are emitted. BUT two HBR-INT-005 lane-normalisation obligations are unmet: (1) the runtime does NOT emit FR-EVT-LLM-INFER-START/TOKEN/END events (only its own CloudInvocationAuditRow to a sibling sink), so dashboards cannot project cloud calls through the canonical FR event stream; (2) the runtime does NOT consult MT-128 ConsentGate before live calls — ConsentGate is a standalone module that no cloud adapter invokes. Adversarial: API key never appears in logs/FR events (PASS).",
+    "spec_compliance_status": "PARTIAL",
+    "code_hygiene_status": "OK",
+    "runtime_safety_status": "OK",
+    "agent_swarm_safety_status": "AT_RISK",
+    "hbr_unsatisfied": [
+      "HBR-INT-005"
+    ],
+    "test_coverage_status": "OK",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 2,
+      "MEDIUM": 0,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 2,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-125.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-125.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C12_C13_FRESH",
+    "reviewed_at_utc": "2026-05-27T17:41:00Z",
+    "aggregator_run_at_utc": "2026-05-27T18:50:05.123Z",
+    "verdict": "FAIL",
+    "verdict_reason": "OpenAiByokRuntime correctly implements the full ModelRuntime trait against wiremock with real reqwest+SSE streaming, API key never logged (Debug-redacted; verified by wiremock RequestInspector that key only appears in Authorization Bearer header; no other header/body/URL contains it), allowlist gating works, audit rows are emitted. BUT two HBR-INT-005 lane-normalisation obligations are unmet: (1) the runtime does NOT emit FR-EVT-LLM-INFER-START/TOKEN/END events (only its own CloudInvocationAuditRow to a sibling sink), so dashboards cannot project cloud calls through the canonical FR event stream; (2) the runtime does NOT consult MT-128 ConsentGate before live calls — ConsentGate is a standalone module that no cloud adapter invokes. Adversarial: API key never appears in logs/FR events (PASS).",
+    "spec_compliance_status": "PARTIAL",
+    "code_hygiene_status": "OK",
+    "runtime_safety_status": "OK",
+    "agent_swarm_safety_status": "AT_RISK",
+    "hbr_unsatisfied": [
+      "HBR-INT-005"
+    ],
+    "test_coverage_status": "OK",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 2,
+      "MEDIUM": 0,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 2,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-125.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-125.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
   }
 }

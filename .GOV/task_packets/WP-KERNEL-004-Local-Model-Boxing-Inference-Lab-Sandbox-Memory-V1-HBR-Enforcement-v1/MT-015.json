@@ -7,7 +7,7 @@
   "cluster_subscope": "A.4",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T02:30:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-05-27T19:03:58.446Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -27,7 +27,10 @@
     "src/backend/handshake_core/tests/focus_audit_tests.rs",
     "src/backend/handshake_core/Cargo.toml"
   ],
-  "depends_on_mts": ["MT-007", "MT-014"],
+  "depends_on_mts": [
+    "MT-007",
+    "MT-014"
+  ],
   "unblock_conditions": "MT-014 quiet window foundation; MT-007 ProcessOwnershipLedger so focus audit can correlate foreground PIDs against Handshake-spawned processes.",
   "implementation_notes": "Per spec §6.6.4. Cargo.toml: add `[target.'cfg(windows)'.dependencies] wineventhook = \"<latest>\"`. focus_audit.rs: `FocusAudit::start(run_id: RunId) -> FocusAuditHandle` registers the hook via wineventhook's `WinEventHook::new(EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_FOREGROUND, WINEVENT_OUTOFCONTEXT | WINEVENT_SKIPOWNPROCESS, callback)`. The callback receives the HWND, resolves PID via `GetWindowThreadProcessId`, resolves exe_name via `QueryFullProcessImageNameW`, and appends a row `{ timestamp_utc, hwnd, pid, exe_name, run_id }` to a per-run JSONL file under `../gov_runtime/focus_audit/<run_id>.jsonl`. FocusAuditHandle has a `.stop() -> FocusAuditReport` method that unregisters the hook and returns the in-memory event list. FocusAuditReport: `{ run_id, total_events: usize, handshake_owned_events: Vec<FocusEvent>, foreign_events: Vec<FocusEvent> }`. The `handshake_owned_events` filter: PID matches current Handshake process OR PID exists in ProcessOwnershipLedger with parent_session_id matching any active session for this run_id. The harness assertion `assert_no_handshake_foreground(report)` panics if `report.handshake_owned_events.is_empty() == false`. Note: integration test difficulty — registering a real Win32 hook in a cargo test requires the test to run on a Windows host with a desktop session; for headless CI, gate with `#[cfg_attr(not(target_os = \"windows\"), ignore)]` and document that the test must run on Windows-with-desktop. Unit tests mock the wineventhook crate via a feature flag. Per HBR-QUIET-001 evidence_kind=headless_run_with_focus_audit this is exactly the audit subsystem that supplies the evidence.",
   "proof_commands": [
@@ -35,20 +38,51 @@
   ],
   "risk_if_missed": "Without focus audit, HBR-QUIET-001 'zero focus/Z-order change events during the test window' has no measurement; the quiet-mode invariant is unprovable.",
   "validator_focus": "Hook registration unregisters cleanly on Handle drop (no resource leak); per-run JSONL is human-readable and append-only; PID correlation with ProcessOwnershipLedger is queried via a typed API not raw SQL.",
-  "hbr_obligations": ["HBR-QUIET-001", "HBR-QUIET-003"],
+  "hbr_obligations": [
+    "HBR-QUIET-001",
+    "HBR-QUIET-003"
+  ],
   "spec_anchors": [
     ".GOV/spec/master-spec-v02.186/spec-modules/06-mechanical-integrations.md#6.6"
   ],
-  "acceptance_criteria_refs": ["AC-QUIET-FOCUS-AUDIT"],
+  "acceptance_criteria_refs": [
+    "AC-QUIET-FOCUS-AUDIT"
+  ],
   "lifecycle": {
     "active": false,
-    "status": "PENDING",
-    "validator_verdict": "PENDING",
-    "depends_on": ["MT-007", "MT-014"],
-    "blocks": ["MT-016", "MT-018", "MT-020"]
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "PASS",
+    "depends_on": [
+      "MT-007",
+      "MT-014"
+    ],
+    "blocks": [
+      "MT-016",
+      "MT-018",
+      "MT-020"
+    ],
+    "claimed_by": "KERNEL_BUILDER-20260518-012310",
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "COMPLETED",
+        "validator_verdict": "PENDING",
+        "completed_at_utc": "2026-05-18T07:09:21.162Z"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "previous_completed_at_utc_before_ready_for_validation_20260525": "2026-05-18T07:09:21.162Z",
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-27T19:03:58.446Z"
   },
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260518-012310",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
     "review_response_receipt_id": null
@@ -59,5 +93,54 @@
       "PID correlation uses a typed ProcessOwnershipLedger query, not raw SQL embedded in focus_audit.",
       "Test that requires Windows desktop is clearly gated and documented."
     ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_A4_A2_REDO_WTC",
+    "reviewed_at_utc": "2026-05-27T20:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T19:03:58.446Z",
+    "verdict": "PASS",
+    "verdict_reason": "wineventhook 0.11.0 wired to SYSTEM_FOREGROUND with skip_own_process; per-run JSONL ledger under runtime_root/gov_runtime/focus_audit/; PID correlation via typed OwnedProcessPidSet built from ReclaimableProcess.os_pid (no raw SQL); handle drop unhooks via RAII and explicit .stop() awaits the task.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 0
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-015.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-015.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_A4_A2",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T18:50:05.123Z",
+    "verdict": "FAIL",
+    "verdict_reason": "Focus audit subsystem is entirely absent: no focus_audit.rs, no FocusAuditLedger, no wineventhook dependency, no per-run JSONL; without it HBR-QUIET-001 'zero handshake-owned foreground transitions' is unmeasurable.",
+    "spec_compliance_status": "FAILS",
+    "code_hygiene_status": "MAJOR",
+    "runtime_safety_status": "UNSAFE",
+    "agent_swarm_safety_status": "UNSAFE",
+    "hbr_unsatisfied": [
+      "HBR-QUIET-001",
+      "HBR-QUIET-003"
+    ],
+    "test_coverage_status": "MISSING",
+    "findings_count_by_severity": {
+      "CRITICAL": 1,
+      "HIGH": 1,
+      "MEDIUM": 0,
+      "LOW": 0
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-015.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-015.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
   }
 }

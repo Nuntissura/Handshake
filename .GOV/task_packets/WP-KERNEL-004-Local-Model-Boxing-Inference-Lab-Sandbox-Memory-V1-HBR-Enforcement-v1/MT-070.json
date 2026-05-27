@@ -7,7 +7,7 @@
   "cluster_subscope": "C.1",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:00:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-05-27T19:03:58.446Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -27,7 +27,13 @@
     "src/backend/handshake_core/src/llm_client/local_router.rs",
     "src/backend/handshake_core/tests/llm_client_local_routing_tests.rs"
   ],
-  "depends_on_mts": ["MT-062", "MT-066", "MT-067", "MT-068", "MT-069"],
+  "depends_on_mts": [
+    "MT-062",
+    "MT-066",
+    "MT-067",
+    "MT-068",
+    "MT-069"
+  ],
   "unblock_conditions": "MT-061..MT-069 merged (trait + registry + invariant + ledger integration ready).",
   "implementation_notes": "Per spec §4.2.3 (LlmClient CX-101) every model invocation must flow through LlmClient. Per spec §4.6 + AC-MODEL-RUNTIME-TRAIT every local invocation must additionally route through ModelRuntime. LocalRouter: `struct LocalRouter { registry: Arc<ModelRegistry>, llama_runtime: Arc<dyn ModelRuntime>, candle_runtime: Arc<dyn ModelRuntime> }`; `fn resolve(&self, model_id: ModelId) -> Result<Arc<dyn ModelRuntime>, LlmClientError>` looks up the registration, branches on runtime_binding, returns the right runtime instance. LlmClient::generate becomes: parse provider from ModelRegistration.provider; if Local -> LocalRouter::resolve(id).generate(req); if ExternalCompat -> ExternalCompatLane (spec §3.6.4); if ByokCloud or OfficialCli -> existing cloud branches (cluster C.13 MTs add adapter implementations). Cancellation: LlmClient.cancel(token) calls runtime.cancel(token) so a single cancel surface works across local + cloud. Tests: generate routed to a fake LlamaCppRuntime; cancel cancels mid-stream; switch to a Candle-bound model and verify generate goes through CandleRuntime; ExternalCompat is NOT registered in ProcessOwnershipLedger (verifies MT-066 + MT-069 interaction). MUST NOT call llama_cpp_2::* or candle_core::* directly anywhere in llm_client (engine-agnostic invariant per AC-MODEL-RUNTIME-TRAIT). FR-EVT-LLM-INFER-* events fire from inside LlmClient regardless of branch (observability parity).",
   "proof_commands": [
@@ -35,21 +41,57 @@
   ],
   "risk_if_missed": "Local invocations bypass ModelRuntime (spec §4.6 violation); engine-specific types leak into LlmClient callers; cancellation is per-runtime not unified.",
   "validator_focus": "Grep llm_client for engine-specific imports — zero; LocalRouter resolves both runtime kinds; cancel path covered by test; FR-EVT-LLM-INFER-* events parity verified.",
-  "hbr_obligations": ["HBR-INT-002"],
+  "hbr_obligations": [
+    "HBR-INT-002"
+  ],
   "spec_anchors": [
     ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.2.4",
     ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.6"
   ],
-  "acceptance_criteria_refs": ["AC-MODEL-RUNTIME-TRAIT"],
+  "acceptance_criteria_refs": [
+    "AC-MODEL-RUNTIME-TRAIT"
+  ],
   "lifecycle": {
     "active": false,
-    "status": "PENDING",
-    "validator_verdict": "PENDING",
-    "depends_on": ["MT-062", "MT-066", "MT-067", "MT-068", "MT-069"],
-    "blocks": ["MT-072", "MT-081", "MT-125", "MT-126", "MT-127"]
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "PASS",
+    "depends_on": [
+      "MT-062",
+      "MT-066",
+      "MT-067",
+      "MT-068",
+      "MT-069"
+    ],
+    "blocks": [
+      "MT-072",
+      "MT-081",
+      "MT-125",
+      "MT-126",
+      "MT-127"
+    ],
+    "claimed_by": "KERNEL_BUILDER-20260518-235451",
+    "claimed_at_utc": "2026-05-19T04:34:16Z",
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "COMPLETED",
+        "validator_verdict": "PENDING",
+        "completed_at_utc": "2026-05-19T04:56:21Z"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "previous_completed_at_utc_before_ready_for_validation_20260525": "2026-05-19T04:56:21Z",
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-27T19:03:58.446Z"
   },
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260518-235451",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
     "review_response_receipt_id": null
@@ -60,5 +102,51 @@
       "Cancel surface covered (mid-stream cancel test).",
       "FR-EVT-LLM-INFER-* events emit identically for local + cloud branches."
     ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C1_FRESH",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T19:03:58.446Z",
+    "verdict": "PASS",
+    "verdict_reason": "LocalRouter correctly resolves ModelId -> Arc<dyn ModelRuntime> via registry binding (LlamaCpp/Candle); rejects non-Local provider explicitly. LocalModelRuntimeLlmClient routes provider=local CompletionRequest through ModelRuntime trait, falls back to non-local fallback client when model_id is not a v7 UUID. Cancellation tracked per-ModelId in Mutex<HashMap>, with poisoned-lock recovery via into_inner. MemoryCapsule injection (MT-144) wired into the generate path satisfying HBR-INT-006 capsule + HBR-INT-002 dispatch invariants. FlightRecorder event emitted post-generate with prompt+response SHA256 hashes.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "MINOR",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-070.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-070.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C1_FRESH",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T18:50:05.123Z",
+    "verdict": "PASS",
+    "verdict_reason": "LocalRouter correctly resolves ModelId -> Arc<dyn ModelRuntime> via registry binding (LlamaCpp/Candle); rejects non-Local provider explicitly. LocalModelRuntimeLlmClient routes provider=local CompletionRequest through ModelRuntime trait, falls back to non-local fallback client when model_id is not a v7 UUID. Cancellation tracked per-ModelId in Mutex<HashMap>, with poisoned-lock recovery via into_inner. MemoryCapsule injection (MT-144) wired into the generate path satisfying HBR-INT-006 capsule + HBR-INT-002 dispatch invariants. FlightRecorder event emitted post-generate with prompt+response SHA256 hashes.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "MINOR",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-070.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-070.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
   }
 }

@@ -7,7 +7,7 @@
   "cluster_subscope": "B.2",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:10:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-05-27T19:03:58.446Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -27,7 +27,11 @@
     "src/backend/handshake_core/src/sandbox/mod.rs",
     "src/backend/handshake_core/tests/validation_runner_sandbox_binding_tests.rs"
   ],
-  "depends_on_mts": ["MT-042", "MT-043", "MT-047"],
+  "depends_on_mts": [
+    "MT-042",
+    "MT-043",
+    "MT-047"
+  ],
   "unblock_conditions": "SandboxAdapter trait + selection policy + DockerAdapter merged (DockerAdapter is the KERNEL-003 preservation path).",
   "implementation_notes": "Pre-step: Grep the merged KERNEL-003 code in src/backend/handshake_core/src/kernel/** for the ValidationRunner struct AND its current Docker call site (likely `docker_runner.rs` or similar — record exact path for the validator). Strategy: keep the ValidationRunner struct's public API identical so callers in main don't break — only the internal sandbox dependency changes from `Arc<DockerRunner>` to `Arc<dyn SandboxAdapter>`. validation_runner_binding.rs: `pub struct ValidationProcessSpecBuilder` that translates the existing KERNEL-003 ValidationJob (whatever its shape is in main) into a generic ProcessSpec — preserve the existing image/binds/cmd/env semantics byte-for-byte so behavior parity holds. For the default sandbox-runner choice: use whatever the operator's Work Profile knob (`sandbox.adapter`) says, falling back to the registry's default. CRITICAL: model-written code (validation lane) has stricter NetPolicy than model-process boxing — default to NetPolicy::DenyAll unless the validation job explicitly declares network access in its ValidationJob spec (preserving KERNEL-003 behavior). Edits to ValidationRunner: change its constructor signature to `ValidationRunner::new(sandbox: Arc<dyn SandboxAdapter>, ...)` AND add a `ValidationRunner::from_registry(registry: &SandboxAdapterRegistry, validation_job: &ValidationJob) -> Result<Self, _>` factory that selects the right adapter per the job. Update one call site (the Tauri main.rs or wherever ValidationRunner is constructed) to use the factory. Tests: (a) construct a ValidationRunner with a NoopAdapter (test double from MT-042), submit a fake ValidationJob, assert spawn was called with the correct ProcessSpec shape; (b) assert NetPolicy defaults to DenyAll for validation jobs; (c) golden parity test asserts the new ProcessSpec produced by the builder for a known KERNEL-003 ValidationJob equals the Docker argv KERNEL-003 emitted pre-refactor (capture a fixture from KERNEL-003 sources at audit time and store it under tests/fixtures/kernel_003_validation_argv.json).",
   "proof_commands": [
@@ -35,21 +39,54 @@
   ],
   "risk_if_missed": "Without this binding the KERNEL-003 ValidationRunner stays Docker-only and the cluster B goal of 'one sandbox abstraction shared by model-written code, local-model inference, validation runners, and the swarm-agent harness' fractures; refactoring MTs (MT-054/055) cannot proceed.",
   "validator_focus": "(a) ValidationRunner public API is preserved (no breaking change to callers in main); (b) golden parity fixture matches; (c) NetPolicy default is DenyAll for validation lane; (d) sandbox-adapter dependency is injected (not constructed inside ValidationRunner) so tests can pass NoopAdapter.",
-  "hbr_obligations": ["HBR-INT-001", "HBR-SWARM-001"],
+  "hbr_obligations": [
+    "HBR-INT-001",
+    "HBR-SWARM-001"
+  ],
   "spec_anchors": [
     ".GOV/spec/master-spec-v02.186/spec-modules/03-local-first-infrastructure.md#3.5",
     ".GOV/spec/master-spec-v02.186/spec-modules/06-mechanical-integrations.md#6.4"
   ],
-  "acceptance_criteria_refs": ["AC-SANDBOX-ADAPTER-IMPLS"],
+  "acceptance_criteria_refs": [
+    "AC-SANDBOX-ADAPTER-IMPLS"
+  ],
   "lifecycle": {
     "active": false,
-    "status": "PENDING",
-    "validator_verdict": "PENDING",
-    "depends_on": ["MT-042", "MT-043", "MT-047"],
-    "blocks": ["MT-051", "MT-054", "MT-055"]
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "CONCERN",
+    "depends_on": [
+      "MT-042",
+      "MT-043",
+      "MT-047"
+    ],
+    "blocks": [
+      "MT-051",
+      "MT-054",
+      "MT-055"
+    ],
+    "claimed_by": "KERNEL_BUILDER-20260518-211025",
+    "claimed_at_utc": "2026-05-18T22:31:30Z",
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "COMPLETED",
+        "validator_verdict": "PENDING",
+        "completed_at_utc": "2026-05-18T22:42:30.968Z"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "previous_completed_at_utc_before_ready_for_validation_20260525": "2026-05-18T22:42:30.968Z",
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-27T19:03:58.446Z"
   },
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260518-211025",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
     "review_response_receipt_id": null
@@ -60,5 +97,54 @@
       "NetPolicy default for validation lane MUST be DenyAll (model-written code is untrusted by default per KERNEL-003 posture).",
       "Public API preservation: any change to ValidationRunner::new signature MUST add a factory method, not break existing call sites blindly."
     ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_B_GAPS_REDO_WTC",
+    "reviewed_at_utc": "2026-05-27T22:30:00Z",
+    "aggregator_run_at_utc": "2026-05-27T19:03:58.446Z",
+    "verdict": "CONCERN",
+    "verdict_reason": "ValidationProcessSpecBuilder + ValidationSandboxRunner + select_validation_adapter are implemented and default NetPolicy::DenyAll is enforced; however there is no actual KERNEL-003 ValidationRunner consumer being refactored because, per MT-047 finding and MT-054 migration record, KERNEL-003 has only a non-executing ContainerAdapterStub - the 'preserve existing public API' control is vacuous.",
+    "spec_compliance_status": "PARTIAL",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 1,
+      "MEDIUM": 1,
+      "LOW": 0
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-050.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-050.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_B_GAPS",
+    "reviewed_at_utc": "2026-05-27T17:32:00Z",
+    "aggregator_run_at_utc": "2026-05-27T18:50:05.123Z",
+    "verdict": "FAIL",
+    "verdict_reason": "ValidationRunner binding owned files absent; no src/backend/handshake_core/src/sandbox/validation_runner_binding.rs, no golden parity fixture; KERNEL-003 ValidationRunner remains Docker-coupled, validating the structural concern noted in prior MT-047 reviewer finding ('behavior parity is structurally unachievable').",
+    "spec_compliance_status": "FAILS",
+    "code_hygiene_status": "MAJOR",
+    "runtime_safety_status": "UNSAFE",
+    "agent_swarm_safety_status": "UNSAFE",
+    "hbr_unsatisfied": [
+      "HBR-INT-001",
+      "HBR-SWARM-001"
+    ],
+    "test_coverage_status": "MISSING",
+    "findings_count_by_severity": {
+      "CRITICAL": 1,
+      "HIGH": 1,
+      "MEDIUM": 0,
+      "LOW": 0
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-050.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-050.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
   }
 }

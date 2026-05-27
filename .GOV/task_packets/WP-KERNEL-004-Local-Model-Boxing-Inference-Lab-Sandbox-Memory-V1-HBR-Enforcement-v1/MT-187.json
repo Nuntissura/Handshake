@@ -7,7 +7,7 @@
   "cluster_subscope": "X.2",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:11:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-05-27T19:03:58.446Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -26,7 +26,9 @@
     "src/backend/handshake_core/src/process_ledger/mt_scheduler.rs",
     "src/backend/handshake_core/tests/mt_scheduler_tests.rs"
   ],
-  "depends_on_mts": ["MT-184"],
+  "depends_on_mts": [
+    "MT-184"
+  ],
   "unblock_conditions": "MT-184 MicroTaskJob primitive provides the rows the scheduler orders.",
   "implementation_notes": "Per spec §6.7 swarm-agent harness (lines 6793+) concurrency-invariant principle: a fair scheduler must prevent any single WP, any single escalation tier, or any single LoRA family from monopolizing executor capacity. `FairScheduler::next_for_executor(executor_kind, capabilities, now: SystemTime) -> Option<MicroTaskJob>` computes priority as: `priority = base_tier_weight(escalation_tier) + age_boost(now - created_at_utc) + fairness_penalty(per_wp_recent_claims)`. base_tier_weight: HardGate=1000 (always first), T32B=100, T13BAlt=80, T13B=60, T7BAlt=40, T7B=20. age_boost: +1 per minute waiting (caps at +200 so it can eventually outweigh tier weight, preventing indefinite starvation). fairness_penalty: -50 per recent claim by the same wp_id in the last 60s (cap at -200). Tie-break: FIFO on created_at_utc. The scheduler query uses a Postgres CTE that computes priority server-side and SELECT FOR UPDATE SKIP LOCKED LIMIT 1 (no in-memory re-ranking — avoids race between query and claim). `StarvationGuard` is a metrics emitter: any job whose age > `starvation_threshold_secs` (default 600s) emits FR-EVT-MT-STARVED { job_id, wp_id, age_secs } once per threshold crossing; the diagnostics panel surfaces these. Tests: (a) inject 100 fresh T7B jobs + 1 old T32B job — old job claimed within first 5 picks regardless of fresh job order; (b) inject 50 jobs from same wp_id + 5 from other wp_id — other wp_id jobs claimed proportionally; (c) starvation threshold crossing emits exactly one FR event per crossing (not per query).",
   "proof_commands": [
@@ -34,7 +36,10 @@
   ],
   "risk_if_missed": "Without starvation prevention, a steady stream of high-tier jobs from one WP starves low-tier jobs from another WP indefinitely — folded stub WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry intent (safe parallelism) is violated.",
   "validator_focus": "Priority computed server-side in a single CTE (no out-of-band re-ranking race); FR-EVT-MT-STARVED emitted exactly once per threshold crossing per job; tie-break deterministic via FIFO.",
-  "hbr_obligations": ["HBR-SWARM-001", "HBR-SWARM-002"],
+  "hbr_obligations": [
+    "HBR-SWARM-001",
+    "HBR-SWARM-002"
+  ],
   "spec_anchors": [
     ".GOV/spec/master-spec-v02.186/spec-modules/06-mechanical-integrations.md#6.7"
   ],
@@ -43,17 +48,191 @@
     "PRESERVED_INTENT:WP-1-Micro-Task-Executor-v1 (bounded iteration limits + fairness)"
   ],
   "lifecycle": {
-    "active": false,
-    "status": "PENDING",
+    "active": true,
+    "status": "READY_FOR_VALIDATION",
     "validator_verdict": "PENDING",
-    "depends_on": ["MT-184"],
-    "blocks": ["MT-189"]
+    "depends_on": [
+      "MT-184"
+    ],
+    "blocks": [
+      "MT-189"
+    ],
+    "postgres_test_url_live_evidence_20260525_continuation": {
+      "authoritative_integration_validator_pass": false,
+      "classification": "KERNEL_BUILDER_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+      "not_run_or_not_claimed": [],
+      "artifact_log_root": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs",
+      "implementation_or_hardening_notes": [],
+      "postgres_test_url_redacted": "postgres://postgres:***@127.0.0.1:65432/handshake_test",
+      "proof": [
+        {
+          "log": "postgres-live-micro_task_job_tests-20260525-070454.log",
+          "scope": "micro_task_job_tests",
+          "note": [
+            "Queue primitive and schema tests passed.",
+            "Proof"
+          ],
+          "result": "9 passed"
+        }
+      ],
+      "recorded_by": "KERNEL_BUILDER-POSTGRES-TEST-URL-20260525-CONTINUATION",
+      "mt_ids": [
+        "MT-184",
+        "MT-185",
+        "MT-186",
+        "MT-187",
+        "MT-188",
+        "MT-189"
+      ],
+      "summary": "MT executor/job/loop/cancel/scheduler/outcome/orchestrator live Postgres checks passed for the continuation slice.",
+      "integration_validator_status": "PENDING",
+      "residual_risks": [
+        "Supporting evidence only; Integration Validator verdict remains PENDING.",
+        "Focused Postgres/live-kernel commands were run, not a full workspace cargo test."
+      ],
+      "recorded_at_utc": "2026-05-25T10:56:03.5601331Z",
+      "cargo_target_dir": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target"
+    },
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "READY_FOR_VALIDATION",
+        "validator_verdict": "PENDING"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-27T19:03:58.446Z"
   },
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260524-187",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
     "review_response_receipt_id": null
+  },
+  "implementation_evidence": {
+    "recorded_at_utc": "2026-05-24T01:00:00Z",
+    "recorded_by": "KERNEL_BUILDER-20260524-187",
+    "classification": "IMPLEMENTATION_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+    "authoritative_integration_validator_pass": false,
+    "integration_validator_status": "PENDING",
+    "summary": "MT-187 MT queue starvation prevention (age-based priority + fair scheduling) transitioned PENDING -> CLAIMED -> READY_FOR_VALIDATION. Pre-existing FairScheduler + StarvationGuard scaffold at src/mt_executor/scheduler.rs from prior cluster X.2 work (pure-function priority(), pick_next() with FIFO tie-break, in-memory check() guard). MT-187 adds the production server-side claim path required by the contract validator_focus: (1) claim_next_priority_sql() renders a single Postgres CTE that computes base_tier_weight + age_boost - fairness_penalty entirely server-side and atomically claims via SELECT ... FOR UPDATE SKIP LOCKED LIMIT 1 — no out-of-band re-ranking race (red_team #1); (2) claim_next_priority(pool, session_id) executes the CTE+claim in a single transaction; (3) StarvationGuard::check_with_watermark(pool, job_id, now) uses a new starvation_watermark_at_utc TIMESTAMPTZ column on kernel_micro_task_job for cross-process monotonicity (red_team #2 — survives process restart, not in-memory map); (4) fairness CTE computes per_wp_recent_claims from kernel_micro_task_job.claimed_at_utc rows in the configurable fairness window, not from in-memory counter (red_team #3 — survives restart, correct under multiple parallel scheduler instances). New migration migrations/0026_mt_scheduler_starvation_watermark.sql adds the watermark column + partial index on (wp_id, claimed_at_utc DESC) WHERE claimed_at_utc IS NOT NULL for the fairness window scan. Added contract-named integration test surface tests/mt_scheduler_tests.rs with 16 always-on pure-Rust adversarial assertions + 5 Postgres-gated adversarial assertions registered as a new [[test]] target in src/backend/handshake_core/Cargo.toml (required-features = [\"test-utils\"]). Pure-Rust coverage: (a) old T7B beats fresh T7B same tier; (b) very old T7B aged past age_boost_cap (250 minutes) outweighs fresh T32B (220 > 100) — the anti-starvation invariant; (c) tier-tie-break FIFO on created_at_utc when tier and wp tie; (d) HardGate base_weight 1000 dominates regardless of age (operator pause invariant); (e) age_boost caps at +200 so very-old T7B never outranks HardGate (24h-old T7B priority = 220 not 1460); (f) fairness penalty caps at -200 even with 100 recent claims; (g) fairness penalty does not cross wp (BUSY wp's penalty does not affect OTHER wp); (h) empty candidate list returns None; (i) single-candidate returned regardless of score; (j) StarvationGuard threshold respected (below threshold returns None); (k) StarvationGuard emits exactly once per (job_id, crossing) in-memory; (l) StarvationSignal serde round-trip; (m) claim_next_priority_sql contains FOR UPDATE SKIP LOCKED + LIMIT 1 + the WITH base AS / scored AS CTE shape (red_team #1 proven structurally); (n) claim_next_priority_sql renders all six tier wire forms (hard_gate|t32b|t13b_alt|t13b|t7b_alt|t7b) in the CASE; (o) claim_next_priority_sql embeds configured fairness_window_secs (137 test value verified in INTERVAL '137 seconds'); (p) StarvationConfig::default() field-stable (600/1/200/50/200/60 lock). Postgres-gated coverage (#[ignore]-gated on POSTGRES_TEST_URL): (q) claim_next_priority claims old T32B before 100 fresh T7B mix — anti-starvation end-to-end; (r) fair scheduling under wp-imbalance — 50 BUSY-wp preclaimed rows penalize new BUSY-wp queue so OTHER wp is claimed first; (s) starvation watermark monotonic across simulated process restart — first guard emits signal, fresh guard observes persisted starvation_watermark_at_utc column and stays silent; (t) claim_next_priority drains to None on empty queue (two consecutive Nones); (u) 8-row 8-worker no-double-claim using claim_next_priority — SKIP LOCKED contract still holds on the priority claim path (set-equality on claimed vs enqueued). All three red_team.minimum_controls satisfied: #1 server-side priority CTE proven by mt_187_claim_next_priority_sql_uses_for_update_skip_locked_limit_1 (asserts FOR UPDATE SKIP LOCKED + LIMIT 1 + WITH base / scored CTE) and by Postgres-gated mt_187_pg_claim_next_priority_picks_old_t32b_over_fresh_fleet (proves no client-side re-rank between query and claim); #2 watermark monotonicity proven by mt_187_pg_starvation_watermark_is_monotonic_across_process_restart (drop g1, build g2, second check returns None even though in-memory map was wiped); #3 fairness key from DB rows proven by mt_187_pg_fair_scheduling_rotates_across_wps_under_imbalance (50 BUSY-wp claims persisted in claimed_at_utc force OTHER-wp claim first; no in-memory counter involved). Per-test wp_id prefixes (WP-MT187-<label>-<uuid7>) plus sibling-row rollback (queue.update_state(id, Queued, 'mt187 ... rollback')) tolerate parallel agents on shared kernel_micro_task_job table.",
+    "files_touched": [
+      "src/backend/handshake_core/src/mt_executor/scheduler.rs",
+      "src/backend/handshake_core/src/mt_executor/mod.rs",
+      "src/backend/handshake_core/migrations/0026_mt_scheduler_starvation_watermark.sql",
+      "src/backend/handshake_core/migrations/0026_mt_scheduler_starvation_watermark.down.sql",
+      "src/backend/handshake_core/tests/mt_scheduler_tests.rs",
+      "src/backend/handshake_core/Cargo.toml"
+    ],
+    "proof": {
+      "focused_default": {
+        "command": "cargo test --features test-utils --manifest-path src/backend/handshake_core/Cargo.toml --test mt_scheduler_tests -- --test-threads=1 --nocapture",
+        "exit_code": 0,
+        "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt187-test-run-001.log",
+        "exitcode_file": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt187-test-run-001.exitcode",
+        "note": "16 passed; 0 failed; 5 ignored (Postgres-gated). Compile finished in 14.60s warm (handshake_core lib already linked from prior MT runs). All 16 always-on adversarial assertions ran in <1ms wall clock."
+      },
+      "focused_adjacent_no_regression": {
+        "command": "cargo test --features test-utils --manifest-path src/backend/handshake_core/Cargo.toml --test mt_executor_tests -- --test-threads=1 --nocapture",
+        "exit_code": 0,
+        "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt187-adjacent-no-regression-001.log",
+        "note": "9 passed; 0 failed; 1 ignored. Adjacent X.2 cluster surface (MT-184..MT-189) survives the new claim_next_priority + check_with_watermark surface in src/mt_executor/scheduler.rs."
+      },
+      "focused_lib_scheduler_inmodule": {
+        "command": "cargo test --features test-utils --manifest-path src/backend/handshake_core/Cargo.toml --lib mt_executor::scheduler",
+        "exit_code": 0,
+        "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt187-lib-scheduler-001.log",
+        "note": "5 passed; 0 failed; 0 ignored. In-module tests on scheduler.rs (old_t32b_beats_fresh_t7b_fleet, fairness_penalty_demotes_busy_wp, starvation_guard_emits_once_per_crossing, claim_next_priority_sql_uses_for_update_skip_locked_limit_1, claim_next_priority_sql_renders_all_six_tiers) all pass — the two new SQL-shape tests are the in-module slice of the contract-named integration test surface."
+      }
+    },
+    "residual_risks": [
+      "OWNED-FILES DRIFT: contract owned_files lists src/process_ledger/mt_scheduler.rs; in-tree implementation lives at src/mt_executor/scheduler.rs because the X.2 cluster (MT-184..MT-189) composes siblings under mt_executor/. Migration matches the contract numbering (migrations/0026_mt_scheduler_starvation_watermark.sql). Test file at the contract path (tests/mt_scheduler_tests.rs). IntVal should waive or realign owned_files; moving the source now would cascade across mt_executor/mod.rs re-exports and FairScheduler call sites in MT-189 executor.rs.",
+      "POSTGRES-GATED COVERAGE: 5 of 20 adversarial assertions are #[ignore]-gated on POSTGRES_TEST_URL per the cluster X.1+X.2 spec-realism-gate convention (same pattern as MT-184 micro_task_job_tests). They compile but were not exercised in this session; IntVal should run --ignored against a live Postgres to prove the CTE behaves under real serialization with concurrent claimants.",
+      "FR-EVT-MT-STARVED EMISSION WIRING: the FrEventId::MtStarved enum is registered in src/flight_recorder/fr_event_registry.rs (mt_id, wait_ms schema) but the StarvationGuard does not directly call a FlightRecorder — it returns Option<StarvationSignal> which callers convert into the FR event. The production wiring point is the MT-189 executor.rs loop where StarvationGuard::check_with_watermark is invoked per claim cycle; emission to the FlightRecorder is the executor's responsibility. The test surface asserts the signal shape (job_id, wp_id, age_secs) not the FR event emission itself; that wiring is forward-declared.",
+      "STARVATION GUARD WATERMARK RESET ON RE-QUEUE: if a job is reclaimed (state Failed -> Queued via iteration_n bump), the existing starvation_watermark_at_utc remains set, so the guard will not re-emit even though the wait clock effectively resets. This is intentional for the MT-187 acceptance contract — the watermark tracks lifetime starvation, not per-attempt starvation — but a downstream contract may want a per-claim reset hook. Flag for IntVal decision.",
+      "ANTI-COORDINATION: 2 sibling agents declared running in parallel (MT-185 mt_loop_control_tests.rs, MT-186 mt_cancellation_tests.rs). Both created test files in src/backend/handshake_core/tests/. The MT-187 test file mt_scheduler_tests.rs is uniquely named — no collision. Cargo.toml [[test]] block addition was inserted adjacent to the mt_loop_control_tests block already added by MT-185 (clean insertion, no conflict). MT-186 chose Cargo auto-discovery (no [[test]] entry) to avoid edit conflicts; MT-187 explicitly registers because the test depends on the test-utils feature gate which Cargo auto-discovery does not enforce by default.",
+      "OUT-OF-SCOPE EDITS: src/backend/handshake_core/src/mt_executor/mod.rs re-exports updated to include SchedulerError + StarvationSignal (previously only FairScheduler + StarvationConfig + StarvationGuard were re-exported). Strictly an MT-187 owned-files-adjacent additive change because the new StarvationGuard::check_with_watermark returns Result<Option<StarvationSignal>, SchedulerError> which downstream callers need to handle. Flagging here per the KERNEL_BUILDER subagent envelope contract."
+    ],
+    "postgres_test_url_atomic_claim_hardening_20260525": {
+      "classification": "IMPLEMENTATION_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+      "authoritative_integration_validator_pass": false,
+      "integration_validator_status": "PENDING",
+      "recorded_at_utc": "2026-05-25T04:42:53.818Z",
+      "recorded_by": "KERNEL_BUILDER-POSTGRES-TEST-URL-20260525",
+      "postgres_test_url": "postgres://postgres:postgres@127.0.0.1:65432/handshake_test",
+      "summary": "Live POSTGRES_TEST_URL pass implemented/fixed the residual Postgres paths: MT-189 durable executor smoke, Locus GetMtProgress parity on Postgres, atomic scheduler claim to prevent duplicate SKIP LOCKED claims, checkpoint timestamp precision normalization, and raw_sql schema application for multi-statement Postgres migrations.",
+      "product_changes": [
+        "src/backend/handshake_core/src/storage/postgres.rs implements LocusOperation::GetMtProgress with the same structured progress metadata projection as SQLite.",
+        "src/backend/handshake_core/src/mt_executor/scheduler.rs now claims with one atomic UPDATE ... FROM candidate ... RETURNING job_id statement guarded by FOR UPDATE SKIP LOCKED and state=queued.",
+        "src/backend/handshake_core/src/process_ledger/mt_loop_control.rs normalizes checkpoint created_at_utc to Postgres microsecond precision at creation time.",
+        "src/backend/handshake_core/src/role_mailbox_v1/repo.rs and src/backend/handshake_core/src/mt_executor/scheduler.rs use sqlx::raw_sql for multi-statement schema setup.",
+        "src/backend/handshake_core/tests/observability_span_repo_tests.rs uses sqlx::raw_sql for multi-statement migration setup."
+      ],
+      "proof": [
+        {
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test mt_executor_integration_tests -- --ignored --test-threads=1 --nocapture",
+          "exit_code": 0,
+          "result": "1 passed; 0 failed"
+        },
+        {
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test micro_task_executor_tests locus_mt_progress_workflow_parity_with_emitted_packet_and_mailbox_wait -- --exact --test-threads=1 --nocapture",
+          "exit_code": 0,
+          "result": "1 passed; 0 failed"
+        },
+        {
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test micro_task_executor_tests micro_task_executor_rejects_legacy_workflow_run_job_kind_contract -- --exact --test-threads=1 --nocapture",
+          "exit_code": 0,
+          "result": "1 passed; 0 failed"
+        },
+        {
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test mt_scheduler_tests -- --ignored --test-threads=1 --nocapture",
+          "exit_code": 0,
+          "result": "5 passed; 0 failed"
+        },
+        {
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test mt_scheduler_tests -- --test-threads=1 --nocapture",
+          "exit_code": 0,
+          "result": "16 passed; 0 failed; 5 ignored"
+        },
+        {
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test mt_loop_control_tests -- --ignored --test-threads=1 --nocapture",
+          "exit_code": 0,
+          "result": "7 passed; 0 failed"
+        },
+        {
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test mt_cancellation_tests -- --ignored --test-threads=1 --nocapture",
+          "exit_code": 0,
+          "result": "3 passed; 0 failed"
+        },
+        {
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test observability_span_repo_tests -- --ignored --test-threads=1 --nocapture",
+          "exit_code": 0,
+          "result": "11 passed; 0 failed"
+        },
+        {
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test observability_aggregate_queries_tests -- --ignored --test-threads=1 --nocapture",
+          "exit_code": 0,
+          "result": "1 passed; 0 failed"
+        },
+        {
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --lib process_ledger::mt_loop_control::tests -- --test-threads=1 --nocapture",
+          "exit_code": 0,
+          "result": "7 passed; 0 failed; 1142 filtered out"
+        }
+      ],
+      "verification_caveats": [
+        "A broad cargo test command filtered by process_ledger::mt_loop_control::tests but not scoped with --lib attempted to compile unrelated integration tests and failed on Windows paging-file exhaustion; the corrected --lib command passed.",
+        "Pre-existing warnings remain in unrelated code paths and were not addressed in this session.",
+        "Several modified backend files are untracked in this worktree; tracked-file git diff --check was clean for the tracked subset."
+      ]
+    }
   },
   "red_team": {
     "minimum_controls": [
@@ -61,5 +240,51 @@
       "Starvation metric is monotonic (no flapping) via 'last_emitted_at_utc' watermark per job.",
       "Fairness penalty key (per_wp_recent_claims) computed from kernel_micro_task_job table rows in last 60s window, not from in-memory counter (survives process restart)."
     ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_X_GAPS",
+    "reviewed_at_utc": "2026-05-27T17:56:00Z",
+    "aggregator_run_at_utc": "2026-05-27T19:03:58.446Z",
+    "verdict": "PASS_WITH_NOTES",
+    "verdict_reason": "FairScheduler + StarvationGuard + claim_next_priority Postgres CTE landed with server-side priority computation in a single WITH base AS / scored AS query + FOR UPDATE SKIP LOCKED LIMIT 1 (no client-side re-rank race). 16 always-on + 5 Postgres-gated tests green. Starvation watermark column (starvation_watermark_at_utc) survives process restart (red_team #2). Fairness penalty computed from DB rows (red_team #3). Atomic claim hardening regression 2026-05-25 (single atomic UPDATE...FROM candidate...RETURNING).",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "OK",
+    "runtime_safety_status": "OK",
+    "agent_swarm_safety_status": "OK",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "STRONG",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 2
+    },
+    "paperwork_notes_count": 2,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-187.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-187.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_X_GAPS",
+    "reviewed_at_utc": "2026-05-27T17:56:00Z",
+    "aggregator_run_at_utc": "2026-05-27T18:50:05.123Z",
+    "verdict": "PASS_WITH_NOTES",
+    "verdict_reason": "FairScheduler + StarvationGuard + claim_next_priority Postgres CTE landed with server-side priority computation in a single WITH base AS / scored AS query + FOR UPDATE SKIP LOCKED LIMIT 1 (no client-side re-rank race). 16 always-on + 5 Postgres-gated tests green. Starvation watermark column (starvation_watermark_at_utc) survives process restart (red_team #2). Fairness penalty computed from DB rows (red_team #3). Atomic claim hardening regression 2026-05-25 (single atomic UPDATE...FROM candidate...RETURNING).",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "OK",
+    "runtime_safety_status": "OK",
+    "agent_swarm_safety_status": "OK",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "STRONG",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 2
+    },
+    "paperwork_notes_count": 2,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-187.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-187.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
   }
 }

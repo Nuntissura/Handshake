@@ -7,7 +7,7 @@
   "cluster_subscope": "C.11",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:00:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-05-27T19:03:58.446Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -28,7 +28,10 @@
     "app/src/lib/stores/subquadratic.ts",
     "app/src/components/inference_lab/InferenceLab.svelte"
   ],
-  "depends_on_mts": ["MT-068", "MT-112"],
+  "depends_on_mts": [
+    "MT-068",
+    "MT-112"
+  ],
   "unblock_conditions": "MT-068 + MT-112 merged.",
   "implementation_notes": "Per AC-INFER-LAB-UI-TOGGLES + AC-INFER-LAB-UI-AB-COMPARE. SubquadraticPanel.svelte: variant badge (Mamba2/RWKVv5/v6/v7) prominent; state-vector controls section (commit current state, list of saved states with name + timestamp + bytes, restore selected, persist to disk, rehydrate from disk); subquadratic-specific config (e.g., n_layer, d_state read-only display from model config). Hidden via capability gate. Operator can opt out of subquadratic UI via a Work Profile flag (settings.ui.show_subquadratic_panel) if they're not yet using SSMs.",
   "proof_commands": [
@@ -36,17 +39,24 @@
   ],
   "risk_if_missed": "Operator cannot interact with SSM state vectors through UI.",
   "validator_focus": "Hidden when unsupported; variant badge prominent; opt-out Work Profile flag honoured.",
-  "hbr_obligations": ["HBR-INT-002"],
+  "hbr_obligations": [
+    "HBR-INT-002"
+  ],
   "spec_anchors": [
     ".GOV/spec/master-spec-v02.186/spec-modules/10-product-surfaces.md#10.14"
   ],
-  "acceptance_criteria_refs": ["AC-INFER-LAB-UI-TOGGLES"],
+  "acceptance_criteria_refs": [
+    "AC-INFER-LAB-UI-TOGGLES"
+  ],
   "lifecycle": {
     "active": false,
     "status": "READY_FOR_VALIDATION",
     "validator_verdict": "PENDING",
     "integration_validator_verdict": "PENDING",
-    "depends_on": ["MT-068", "MT-112"],
+    "depends_on": [
+      "MT-068",
+      "MT-112"
+    ],
     "blocks": [],
     "claimed_by": "KERNEL_BUILDER-20260522-171100",
     "claimed_at_utc": "2026-05-23T01:45:00Z",
@@ -85,7 +95,23 @@
           "MT-117 disk persistence: persist/rehydrate buttons wired to the deferred IPC channels with friendly tooltip banners rather than backend error strings. Buttons activate the moment MT-117 ships."
         ]
       }
-    }
+    },
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "READY_FOR_VALIDATION",
+        "validator_verdict": "PENDING"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-27T19:03:58.446Z"
   },
   "handoff": {
     "coder_session": "KERNEL_BUILDER-20260522-171100",
@@ -98,5 +124,51 @@
       "Hidden when unsupported.",
       "Variant badge correct for loaded model."
     ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C11_FRESH",
+    "reviewed_at_utc": "2026-05-27T18:35:00Z",
+    "aggregator_run_at_utc": "2026-05-27T19:03:58.446Z",
+    "verdict": "PASS_WITH_CONCERNS",
+    "verdict_reason": "Subquadratic UI panel + state-vector controls land with capability gating, variant badge, Work Profile opt-out, and explicit MT-117 deferral banners on persist/rehydrate buttons. 10 vitest tests PASS. Concerns: (a) Svelte-to-React/TSX drift — owned_files contract names .svelte components but app stack is React/TSX so files landed as .tsx + lib/ipc/subquadratic.ts (acknowledged drift, same class as MT-091/094/098/102/105/110/112 — repeat across the WP); (b) variant detection deferred — LoadedModelRuntime does not yet carry SSM variant, panel shows 'variant detection pending' fallback; (c) opt-out flag stored in localStorage rather than the Work Profile IPC bridge.",
+    "spec_compliance_status": "PASS",
+    "code_hygiene_status": "PASS",
+    "runtime_safety_status": "PASS",
+    "agent_swarm_safety_status": "PASS",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "PASS",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 3
+    },
+    "paperwork_notes_count": 2,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-113.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-113.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C11_FRESH",
+    "reviewed_at_utc": "2026-05-27T18:35:00Z",
+    "aggregator_run_at_utc": "2026-05-27T18:50:05.123Z",
+    "verdict": "PASS_WITH_CONCERNS",
+    "verdict_reason": "Subquadratic UI panel + state-vector controls land with capability gating, variant badge, Work Profile opt-out, and explicit MT-117 deferral banners on persist/rehydrate buttons. 10 vitest tests PASS. Concerns: (a) Svelte-to-React/TSX drift — owned_files contract names .svelte components but app stack is React/TSX so files landed as .tsx + lib/ipc/subquadratic.ts (acknowledged drift, same class as MT-091/094/098/102/105/110/112 — repeat across the WP); (b) variant detection deferred — LoadedModelRuntime does not yet carry SSM variant, panel shows 'variant detection pending' fallback; (c) opt-out flag stored in localStorage rather than the Work Profile IPC bridge.",
+    "spec_compliance_status": "PASS",
+    "code_hygiene_status": "PASS",
+    "runtime_safety_status": "PASS",
+    "agent_swarm_safety_status": "PASS",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "PASS",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 3
+    },
+    "paperwork_notes_count": 2,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-113.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-113.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
   }
 }

@@ -7,7 +7,7 @@
   "cluster_subscope": "A.4",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T02:30:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-05-27T19:03:58.446Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -27,7 +27,10 @@
     "src/backend/handshake_core/src/operator_foreground/cdp_client.rs",
     "src/backend/handshake_core/tests/cdp_screenshot_tests.rs"
   ],
-  "depends_on_mts": ["MT-007", "MT-014"],
+  "depends_on_mts": [
+    "MT-007",
+    "MT-014"
+  ],
   "unblock_conditions": "MT-014 quiet window foundation; MT-007 ProcessOwnershipLedger so the CDP-driven WebView2 child process is recorded with engine_kind appropriate.",
   "implementation_notes": "Per spec §6.4.1: WebView2 CDP requires setting two env vars before WebView2 process spawn. In app/src-tauri/src/main.rs (find the existing entry point via Glob app/src-tauri/src/*.rs), before `tauri::Builder::default().build()`, set `std::env::set_var(\"WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS\", format!(\"--remote-debugging-port={}\", random_port))` where random_port is chosen via TcpListener::bind(\"127.0.0.1:0\"). Set `std::env::set_var(\"WEBVIEW2_USER_DATA_FOLDER\", per_test_dir)` where per_test_dir is a fresh tempdir each launch. Expose the chosen port via a new IPC channel `kernel.visual_debug.port() -> u16` so test harnesses can find it. cdp_client.rs: thin async CDP client using tokio + websocket (use `tokio-tungstenite` crate; add to Cargo.toml) — implements just enough CDP to call `Page.captureScreenshot { format: \"png\", clip: Option<{x,y,width,height}> }` and `Runtime.evaluate` (for the console-error scan in MT-022). Tauri command `kernel.visual_debug.screenshot(scope: ScreenshotScope, opts: ScreenshotOpts) -> Vec<u8>` where ScreenshotScope = { Full, Element { selector: String }, Region { x, y, w, h } }. The CDP-spawned WebView2 child registers in ProcessOwnershipLedger with `engine_kind = \"webview2_cdp\"`. Tests: spawn the app in test mode, connect via CDP, call captureScreenshot, assert PNG bytes are valid (PNG magic header check). Per AC-VISUAL-DEBUGGER-IMPL the WebView2 instance is never modified outside test scope — confirm by asserting no UI state changes after the screenshot call.",
   "proof_commands": [
@@ -35,20 +38,51 @@
   ],
   "risk_if_missed": "Without CDP wiring the visual debugger has no capture path; HBR-VIS-001 cannot be satisfied via Playwright.",
   "validator_focus": "Random port + per-test user-data-folder are confirmed by reading env vars after init; the CDP-spawned child appears in ProcessOwnershipLedger; no UI state changes from a screenshot call.",
-  "hbr_obligations": ["HBR-VIS-001", "HBR-QUIET-003"],
+  "hbr_obligations": [
+    "HBR-VIS-001",
+    "HBR-QUIET-003"
+  ],
   "spec_anchors": [
     ".GOV/spec/master-spec-v02.186/spec-modules/06-mechanical-integrations.md#6.4"
   ],
-  "acceptance_criteria_refs": ["AC-VISUAL-DEBUGGER-IMPL"],
+  "acceptance_criteria_refs": [
+    "AC-VISUAL-DEBUGGER-IMPL"
+  ],
   "lifecycle": {
     "active": false,
-    "status": "PENDING",
-    "validator_verdict": "PENDING",
-    "depends_on": ["MT-007", "MT-014"],
-    "blocks": ["MT-021", "MT-022", "MT-023"]
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "PASS",
+    "depends_on": [
+      "MT-007",
+      "MT-014"
+    ],
+    "blocks": [
+      "MT-021",
+      "MT-022",
+      "MT-023"
+    ],
+    "claimed_by": "KERNEL_BUILDER-20260518-073535",
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "COMPLETED",
+        "validator_verdict": "PENDING",
+        "completed_at_utc": "2026-05-18T08:45:54.011Z"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "previous_completed_at_utc_before_ready_for_validation_20260525": "2026-05-18T08:45:54.011Z",
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-27T19:03:58.446Z"
   },
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260518-073535",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
     "review_response_receipt_id": null
@@ -59,5 +93,54 @@
       "Per-launch WEBVIEW2_USER_DATA_FOLDER is a tempdir cleaned on Handle drop.",
       "ProcessOwnershipLedger row exists for the CDP-spawned WebView2 child."
     ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_A4_A2_REDO_WTC",
+    "reviewed_at_utc": "2026-05-27T20:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T19:03:58.446Z",
+    "verdict": "PASS",
+    "verdict_reason": "VisualDebugState::initialize allocates a random localhost port via TcpListener::bind(0), creates a per-port WEBVIEW2_USER_DATA_FOLDER under temp_dir, sets WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=--remote-debugging-port=<port> and WEBVIEW2_USER_DATA_FOLDER before Tauri Builder runs; cdp_client.rs provides a typed CDP client with Page.captureScreenshot; ProcessEngineKind::Webview2Cdp is registered.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 1,
+      "LOW": 0
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-018.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-018.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_A4_A2",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T18:50:05.123Z",
+    "verdict": "FAIL",
+    "verdict_reason": "WebView2 CDP wiring absent: no WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS env var, no random remote-debugging-port, no visual_debug.rs, no cdp_client.rs, no Tauri command kernel.visual_debug.screenshot.",
+    "spec_compliance_status": "FAILS",
+    "code_hygiene_status": "MAJOR",
+    "runtime_safety_status": "UNSAFE",
+    "agent_swarm_safety_status": "UNSAFE",
+    "hbr_unsatisfied": [
+      "HBR-VIS-001",
+      "HBR-QUIET-003"
+    ],
+    "test_coverage_status": "MISSING",
+    "findings_count_by_severity": {
+      "CRITICAL": 2,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 0
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-018.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-018.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
   }
 }

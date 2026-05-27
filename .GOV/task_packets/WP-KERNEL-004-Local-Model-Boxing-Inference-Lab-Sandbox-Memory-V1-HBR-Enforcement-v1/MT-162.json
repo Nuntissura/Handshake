@@ -7,7 +7,7 @@
   "cluster_subscope": "D.3",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:21:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-05-27T19:03:58.446Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -26,31 +26,208 @@
     "src/backend/handshake_core/src/memory/calibration.rs",
     "src/backend/handshake_core/tests/calibration_tests.rs"
   ],
-  "depends_on_mts": ["MT-158", "MT-160", "MT-161"],
+  "depends_on_mts": [
+    "MT-158",
+    "MT-160",
+    "MT-161"
+  ],
   "unblock_conditions": "MT-158 (outcome feedback - calibration reads outcome stats), MT-160 (hygiene reports), MT-161 (degradation reports).",
   "implementation_notes": "Per WP-1-FEMS-Calibration-Dashboard preserved_intent: 'memory degradation (bloat, stale dominance, trust drift, embedding gaps) is invisible until it manifests as poor model behavior'. CalibrationSignals struct: `{ bloat: BloatSignal, stale_dominance: StaleDominanceSignal, trust_drift: TrustDriftSignal, embedding_gap: EmbeddingGapSignal, degradation_rate: DegradationRateSignal, hygiene_lag: HygieneLagSignal }`. Each signal type: `{ value: f64, status: SignalStatus (Healthy/Watch/Alert), updated_at_utc, threshold_watch: f64, threshold_alert: f64 }`. Bloat: total item count and bytes growth rate. Stale dominance: fraction of MemoryPack items >30 days old. Trust drift: histogram of trust scores over time. Embedding gap: fraction of items without embeddings. Degradation rate: fraction of recent retrievals that completed in Tiered or Aggressive mode (from MT-161 DegradationReport). Hygiene lag: time since last hygiene run completed (from MT-160). CalibrationCollector: `pub fn collect_snapshot(fems: &dyn FemsAccessor) -> Result<CalibrationSnapshot, CalibrationError>` runs each signal collector independently. IPC: `kernel.memory_calibration.snapshot() -> CalibrationSnapshot` returns the current signals (read-only). Tests: each signal independently computable; SignalStatus thresholds enforced (Healthy if below watch, Watch if between, Alert if above alert); snapshot timestamps populated; IPC returns deterministic shape.",
   "proof_commands": [
-    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target calibration_tests"
+    "rustfmt --edition 2021 --config skip_children=true --check src/backend/handshake_core/src/memory/calibration.rs src/backend/handshake_core/tests/calibration_tests.rs src/backend/handshake_core/tests/fems_v1_integration_tests.rs src/backend/handshake_core/src/model_manual/content.rs app/src-tauri/src/commands/memory_calibration.rs app/src-tauri/src/lib.rs",
+    "CARGO_TARGET_DIR='D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target' cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test calibration_tests",
+    "CARGO_TARGET_DIR='D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target' cargo test --manifest-path app/src-tauri/Cargo.toml memory_calibration --lib",
+    "CARGO_TARGET_DIR='D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target' cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test fems_v1_integration_tests calibration -- --nocapture",
+    "CARGO_TARGET_DIR='D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target' cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test model_manual_tests",
+    "git diff --check -- <MT-162 touched files>",
+    "git diff -U0 -- <MT-162 touched files> | Select-String -Pattern '^\\+.*sqlite' -CaseSensitive"
   ],
   "risk_if_missed": "Without calibration signals memory degradation is invisible to operator until it manifests as bad model output.",
   "validator_focus": "Each signal independently testable; thresholds typed not magic numbers; IPC is read-only.",
-  "hbr_obligations": ["HBR-INT-006"],
+  "hbr_obligations": [
+    "HBR-INT-006"
+  ],
   "spec_anchors": [
     ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.8.3"
   ],
-  "acceptance_criteria_refs": ["AC-DISTILL-LOOP-SAFEGUARDS"],
+  "acceptance_criteria_refs": [
+    "AC-DISTILL-LOOP-SAFEGUARDS"
+  ],
   "lifecycle": {
     "active": false,
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "validator_verdict": "PENDING",
-    "depends_on": ["MT-158", "MT-160", "MT-161"],
-    "blocks": ["MT-168"]
+    "depends_on": [
+      "MT-158",
+      "MT-160",
+      "MT-161"
+    ],
+    "blocks": [
+      "MT-168"
+    ],
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "READY_FOR_VALIDATION",
+        "validator_verdict": "PENDING"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-27T19:03:58.446Z"
   },
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260524-MT162",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
     "review_response_receipt_id": null
+  },
+  "implementation_evidence": {
+    "classification": "IMPLEMENTATION_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+    "recorded_at_utc": "2026-05-24T19:07:26.7853859Z",
+    "recorded_by": "KERNEL_BUILDER-20260524-MT162",
+    "summary": "MT-162 implemented a typed FEMS calibration dashboard feed with six independently collected signals, typed thresholds, per-signal details, source error reporting, a Postgres FEMS aggregation adapter, and the read-only Tauri IPC command kernel.memory_calibration.snapshot. The generated ModelManual projection now exposes memory_calibration_snapshot for no-context model discovery.",
+    "tdd_evidence": {
+      "red": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test calibration_tests failed before implementation with missing CalibrationMetrics, MEMORY_CALIBRATION_SNAPSHOT_COMMAND, calibration_metrics trait method, InvalidThreshold, and details fields.",
+      "green": "calibration_tests, app memory_calibration lib test, fems_v1_integration calibration filter, and model_manual_tests all pass after implementation."
+    },
+    "research_basis": {
+      "sources_checked": [
+        "RAGAS metric documentation and paper patterns",
+        "LangSmith RAG evaluation documentation",
+        "Arize Phoenix tracing and RAG evaluation documentation",
+        "LlamaIndex observability documentation",
+        "OpenInference and OpenTelemetry GenAI conventions",
+        "Pinecone, Weaviate, and Qdrant vector monitoring guidance",
+        "Prometheus alerting practices",
+        "Evidently, NannyML, and Arize drift/threshold guidance",
+        "Hugging Face RAGBench references"
+      ],
+      "patterns_found": [
+        "Calibration dashboards should return read-only snapshots rather than mutating memory state.",
+        "Health signals should be independently collectible so one broken source does not poison the whole snapshot.",
+        "Trust drift is better represented by distribution movement than by average trust alone.",
+        "Operator/model diagnostics need detail fields, sample counts, and explicit partial-source errors."
+      ],
+      "reuse_opportunities": [
+        "Reuse MT-157 bitemporal FEMS visibility and payload projection.",
+        "Reuse MT-160 hygiene timing fields where present.",
+        "Reuse MT-161 degradation and scoring report fields where present.",
+        "Reuse existing Tauri command/state registration and generated ModelManual projection infrastructure."
+      ],
+      "rejected_options": [
+        "Rejected a mutable calibration command because the MT explicitly requires read-only snapshot IPC.",
+        "Rejected a single all-or-nothing collector because the red-team control requires independent signal testability.",
+        "Rejected SQLite or fixture-only storage paths because the WP is PostgreSQL-only."
+      ],
+      "selected_approach": "CalibrationCollector consumes a FemsCalibrationSource trait and asks each signal independently for metrics. PostgresBitemporalMemoryIndex implements the production source by scanning visible FEMS items and aggregating counts, bytes, trust histograms, embedding gaps, retrieval degradation fields, and hygiene timestamps. Tauri exposes the snapshot through kernel_memory_calibration_snapshot with unavailable-state fail-closed behavior.",
+      "risks": [
+        "Degradation and hygiene lag are currently sourced from FEMS payload/projection fields until a durable retrieval/hygiene event projection exists.",
+        "Existing bitemporal items without trust histogram, retrieval, hygiene, or embedding fields may produce conservative defaults.",
+        "Broad unscoped cargo commands still emit many pre-existing crate warnings outside the MT-162 changed surface."
+      ],
+      "mitigations": [
+        "Signal details expose sample counts and source fields so missing data is visible rather than silently hidden.",
+        "Signal-level source errors are retained in snapshot.signal_errors and converted to alert signals without failing the entire snapshot.",
+        "Tests cover threshold validation, zero-item finite ratios, histogram-based trust drift, degradation count arithmetic, bloat details, independent collector errors, IPC command stability, and manual command discovery."
+      ],
+      "validation_plan": [
+        "Run scoped rustfmt over MT-162 touched Rust files.",
+        "Run calibration_tests with test-utils.",
+        "Run app memory_calibration lib test.",
+        "Run fems_v1_integration calibration filter.",
+        "Run model_manual_tests after regenerating app/MODEL_MANUAL.md.",
+        "Run diff checks and no-added-SQLite scan."
+      ]
+    },
+    "behavior_notes": [
+      "CalibrationSignals contains bloat, stale_dominance, trust_drift, embedding_gap, degradation_rate, and hygiene_lag.",
+      "Each CalibrationSignal carries value, status, updated_at_utc, thresholds, and details.",
+      "Trust drift uses histogram distance when current and baseline histograms are available, with average-trust fallback marked in details.",
+      "Zero-item snapshots keep ratio signals finite and healthy.",
+      "The app IPC state returns an unavailable typed error if Postgres storage cannot initialize instead of inventing a healthy placeholder snapshot."
+    ],
+    "files_touched": [
+      "src/backend/handshake_core/src/memory/calibration.rs",
+      "src/backend/handshake_core/tests/calibration_tests.rs",
+      "src/backend/handshake_core/tests/fems_v1_integration_tests.rs",
+      "src/backend/handshake_core/Cargo.toml",
+      "app/src-tauri/src/commands/memory_calibration.rs",
+      "app/src-tauri/src/lib.rs",
+      "src/backend/handshake_core/src/model_manual/content.rs",
+      "app/MODEL_MANUAL.md"
+    ],
+    "out_of_owned_files_touched_pending_operator_waiver": [
+      {
+        "path": "src/backend/handshake_core/tests/fems_v1_integration_tests.rs",
+        "why": "Adapted D.3 integration coverage to the new CalibrationMetrics/FemsCalibrationSource trait surface."
+      },
+      {
+        "path": "src/backend/handshake_core/Cargo.toml",
+        "why": "Registered the new calibration_tests integration target under the existing test-utils feature."
+      },
+      {
+        "path": "app/src-tauri/src/commands/memory_calibration.rs",
+        "why": "Added the Tauri IPC command required by the MT contract."
+      },
+      {
+        "path": "app/src-tauri/src/lib.rs",
+        "why": "Registered the memory calibration IPC state and invoke handler required by the MT contract."
+      },
+      {
+        "path": "src/backend/handshake_core/src/model_manual/content.rs",
+        "why": "Added no-context model manual discovery for the new read-only calibration IPC command."
+      },
+      {
+        "path": "app/MODEL_MANUAL.md",
+        "why": "Regenerated the model manual markdown projection from the typed source so the command is discoverable outside Rust."
+      }
+    ],
+    "proof": {
+      "format": {
+        "command": "rustfmt --edition 2021 --config skip_children=true --check <MT-162 touched Rust files>",
+        "exit_code": 0
+      },
+      "calibration_tests": {
+        "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test calibration_tests",
+        "exit_code": 0,
+        "note": "7 passed; covers signal thresholds, finite zero-item ratios, histogram trust drift, degradation arithmetic, bloat details, source-error isolation, and command constant stability."
+      },
+      "app_ipc": {
+        "command": "cargo test --manifest-path app/src-tauri/Cargo.toml memory_calibration --lib",
+        "exit_code": 0,
+        "note": "1 passed; verifies read-only stable snapshot behavior in app IPC state."
+      },
+      "fems_v1_integration": {
+        "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test fems_v1_integration_tests calibration -- --nocapture",
+        "exit_code": 0,
+        "note": "1 passed; verifies alerting when calibration metrics exceed thresholds."
+      },
+      "model_manual": {
+        "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test model_manual_tests",
+        "exit_code": 0,
+        "note": "8 passed after regenerating app/MODEL_MANUAL.md from the typed source."
+      },
+      "static_scans": {
+        "diff_check": "exit 0; only LF-to-CRLF normalization warnings reported by git on existing touched files.",
+        "no_added_sqlite_lines": true,
+        "no_accidental_llm_or_model_runtime_surface_drift": true
+      }
+    },
+    "residual_risks": [
+      "True degradation-rate and hygiene-lag event sourcing should be hardened once a dedicated retrieval/hygiene projection is available.",
+      "The app command is read-only and compiled, but no frontend panel consumes it in MT-162; the contract assigns the frontend surface to cluster X."
+    ],
+    "repomem_receipts": {
+      "decision": "#2241",
+      "concern": "#2242"
+    }
   },
   "red_team": {
     "minimum_controls": [
@@ -58,5 +235,51 @@
       "Thresholds are typed durable values; not magic numbers in code.",
       "IPC is read-only; the calibration surface cannot mutate FEMS state."
     ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_D_GAPS",
+    "reviewed_at_utc": "2026-05-27T18:25:00Z",
+    "aggregator_run_at_utc": "2026-05-27T19:03:58.446Z",
+    "verdict": "PASS_WITH_NOTES",
+    "verdict_reason": "CalibrationSignals struct lands with the six contracted signals (bloat, stale_dominance, trust_drift, embedding_gap, degradation_rate, hygiene_lag), each carrying value, status (Healthy/Watch/Alert), thresholds, and optional details map. CalibrationCollector consumes a FemsCalibrationSource trait so a broken source does not poison the whole snapshot (signal_errors vector). Tauri IPC kernel.memory_calibration.snapshot is read-only and fails closed when Postgres unavailable. 7 + 1 + 1 + 8 tests reported pass. Two notes: trust_drift falls back to average-trust when histograms missing (marked in details, acceptable); degradation_rate depends on MT-161 DegradationReport which currently collapses tier-errors and load-skips (see MT-161 finding) — this propagates an observability gap upstream.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "OK",
+    "runtime_safety_status": "OK",
+    "agent_swarm_safety_status": "OK",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "STRONG",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 1,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 3,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-162.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-162.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_D_GAPS",
+    "reviewed_at_utc": "2026-05-27T18:25:00Z",
+    "aggregator_run_at_utc": "2026-05-27T18:50:05.123Z",
+    "verdict": "PASS_WITH_NOTES",
+    "verdict_reason": "CalibrationSignals struct lands with the six contracted signals (bloat, stale_dominance, trust_drift, embedding_gap, degradation_rate, hygiene_lag), each carrying value, status (Healthy/Watch/Alert), thresholds, and optional details map. CalibrationCollector consumes a FemsCalibrationSource trait so a broken source does not poison the whole snapshot (signal_errors vector). Tauri IPC kernel.memory_calibration.snapshot is read-only and fails closed when Postgres unavailable. 7 + 1 + 1 + 8 tests reported pass. Two notes: trust_drift falls back to average-trust when histograms missing (marked in details, acceptable); degradation_rate depends on MT-161 DegradationReport which currently collapses tier-errors and load-skips (see MT-161 finding) — this propagates an observability gap upstream.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "OK",
+    "runtime_safety_status": "OK",
+    "agent_swarm_safety_status": "OK",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "STRONG",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 1,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 3,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-162.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-162.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
   }
 }

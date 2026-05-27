@@ -7,7 +7,7 @@
   "cluster_subscope": "A.2",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T02:30:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-05-27T19:03:58.446Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -28,7 +28,11 @@
     "src/backend/handshake_core/src/hbr/vis_gap.rs",
     "src/backend/handshake_core/tests/hbr_vis_gap_tests.rs"
   ],
-  "depends_on_mts": ["MT-006", "MT-022", "MT-023"],
+  "depends_on_mts": [
+    "MT-006",
+    "MT-022",
+    "MT-023"
+  ],
   "unblock_conditions": "MT-006 receipt schema + MT-022 console scan + MT-023 capture matrix exist so the gap emitter has the right context to attach to.",
   "implementation_notes": "Per HBR-VIS-005 evidence_kind=open_blocker_with_missing_surface_named. When MT-022 scan or MT-023 capture-matrix encounters a UI element with no automation handle (e.g., a canvas-rendered control that has no CDP-queryable accessibility tree node, or a native-Win32 child window injected via webview-rust-side that CDP cannot drive), it must: (1) emit a typed `HBR_VIS_GAP` receipt with `{ receipt_kind: \"HBR_VIS_GAP\", schema_version: 1, receipt_uuid: Uuid v7, wp_id, surface_name, surface_path, gap_class: \"no_cdp_handle\"|\"native_child_window\"|\"opaque_canvas\"|\"shadow_root_inaccessible\"|\"other\", proposed_followup_wp: Option<String>, evidence_pointer: Option<String> }`, (2) append a blocker entry to the WP's OPEN_BLOCKERS list (the WP packet.json gets an `open_blockers` array; this MT defines the schema if not already present). The script CLI: `node .GOV/roles_shared/scripts/hbr-vis-gap-emit.mjs --wp <id> --surface <name> --gap-class <class>` produces the receipt + writes the OPEN_BLOCKERS entry. Rust runtime: `VisGap::emit(packet: &mut Packet, gap: VisGap)`. Tests: emit a gap, assert (a) receipt produced in canonical JSON validates against schema, (b) packet's open_blockers array contains the new entry, (c) gov-check umbrella detects open_blockers and blocks PASS closure (this validates the integration with MT-003 matrix check — MT-003 must also check open_blockers count as a separate fail condition).",
   "proof_commands": [
@@ -37,20 +41,51 @@
   ],
   "risk_if_missed": "Without HBR-VIS-005 path, validators silently certify visual coverage despite gaps; the WP ships with unverifiable surfaces.",
   "validator_focus": "Gap receipt validates against schema; OPEN_BLOCKERS entry is structured (not freeform prose); gov-check umbrella blocks closure when open_blockers count > 0.",
-  "hbr_obligations": ["HBR-VIS-001", "HBR-VIS-005"],
+  "hbr_obligations": [
+    "HBR-VIS-001",
+    "HBR-VIS-005"
+  ],
   "spec_anchors": [
     ".GOV/spec/master-spec-v02.186/spec-modules/06-mechanical-integrations.md#6.4"
   ],
-  "acceptance_criteria_refs": ["AC-VISUAL-DEBUGGER-IMPL", "AC-VISUAL-DEBUGGER-IPC"],
+  "acceptance_criteria_refs": [
+    "AC-VISUAL-DEBUGGER-IMPL",
+    "AC-VISUAL-DEBUGGER-IPC"
+  ],
   "lifecycle": {
     "active": false,
-    "status": "PENDING",
-    "validator_verdict": "PENDING",
-    "depends_on": ["MT-006", "MT-022", "MT-023"],
-    "blocks": ["MT-027"]
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "PASS",
+    "depends_on": [
+      "MT-006",
+      "MT-022",
+      "MT-023"
+    ],
+    "blocks": [
+      "MT-027"
+    ],
+    "claimed_by": "KERNEL_BUILDER-20260518-073535",
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "COMPLETED",
+        "validator_verdict": "PENDING",
+        "completed_at_utc": "2026-05-18T10:39:53.639Z"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "previous_completed_at_utc_before_ready_for_validation_20260525": "2026-05-18T10:39:53.639Z",
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-27T19:03:58.446Z"
   },
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260518-073535",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
     "review_response_receipt_id": null
@@ -61,5 +96,54 @@
       "gov-check umbrella checks open_blockers count and blocks PASS when > 0.",
       "Follow-up WP id is optional but encouraged (the receipt schema supports it)."
     ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_A4_A2_REDO_WTC",
+    "reviewed_at_utc": "2026-05-27T20:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T19:03:58.446Z",
+    "verdict": "PASS",
+    "verdict_reason": "hbr-vis-gap-emit.mjs builds canonical-JSON HBR_VIS_GAP receipts with UUID v7, 11 canonical keys, gap_class enum (no_cdp_handle|native_child_window|opaque_canvas|shadow_root_inaccessible|other), and validates against .GOV/roles_shared/schemas/hbr-vis-gap.schema.json; matching Rust module src/backend/handshake_core/src/hbr/vis_gap.rs provides VisGap struct + GapClass enum for runtime emission; test coverage spans both surfaces.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-026.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-026.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_A4_A2",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T18:50:05.123Z",
+    "verdict": "FAIL",
+    "verdict_reason": "HBR-VIS-005 verification-gap blocking-receipt path is not implemented; validators have no structured way to surface 'this surface is uncapturable' instead of silently certifying.",
+    "spec_compliance_status": "FAILS",
+    "code_hygiene_status": "MAJOR",
+    "runtime_safety_status": "CONCERN",
+    "agent_swarm_safety_status": "CONCERN",
+    "hbr_unsatisfied": [
+      "HBR-VIS-001",
+      "HBR-VIS-005"
+    ],
+    "test_coverage_status": "MISSING",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 1,
+      "LOW": 0
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-026.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-026.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
   }
 }

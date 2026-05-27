@@ -7,7 +7,7 @@
   "cluster_subscope": "D.2",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:15:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-05-27T19:03:58.446Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -26,7 +26,16 @@
     "src/backend/handshake_core/src/self_improve/scheduler.rs",
     "src/backend/handshake_core/tests/loop_scheduler_tests.rs"
   ],
-  "depends_on_mts": ["MT-148", "MT-149", "MT-150", "MT-151", "MT-152", "MT-153", "MT-154", "MT-155"],
+  "depends_on_mts": [
+    "MT-148",
+    "MT-149",
+    "MT-150",
+    "MT-151",
+    "MT-152",
+    "MT-153",
+    "MT-154",
+    "MT-155"
+  ],
   "unblock_conditions": "All D.2 supporting MTs land.",
   "implementation_notes": "Per AC-DISTILL-LOOP-SAFEGUARDS: 'HBR-SWARM-002 loop counter cap with FR-EVT-DISTILL-LOOP-CAP receipt'. Per HBR-SWARM-002 the cap value is 25 iterations / 24h rolling window (operator-tunable but defaults to 25). Surface: `pub struct LoopScheduler<'a> { core: &'a LoopCore, sentinel: &'a GoodhartSentinel, gate: &'a LoopPromotionGate, ipc_state: &'a LoopIpcState, flight_recorder: &'a dyn FemsFlightRecorder, budget: IterationBudget }`. IterationBudget: `{ max_iterations_per_24h: u32 (default 25), rolling_window_seconds: u64 (default 86400) }`. Scheduler API: `pub fn try_schedule_next(history: &SchedulerHistory) -> ScheduleDecision`. ScheduleDecision: `{ Schedule, Skip { reason: SkipReason } }`. SkipReason enum: `BudgetExhausted { count_in_window, cap, window_started_at_utc }`, `GoodhartPause { receipt: SentinelReceipt }`, `OperatorPause { reason: String }`, `PendingPromotionReview { iteration_id, ticket_id }`. On BudgetExhausted, emit FR-EVT-DISTILL-LOOP-CAP with { count_in_window, cap, window_started_at_utc, next_eligible_at_utc }. Scheduler is the ONLY caller of `LoopCore::run_one_iteration`. Driver pattern: caller invokes try_schedule_next every N seconds; if Schedule, calls run_one_iteration and records result in history; if Skip, records the skip with reason and waits. Tests: budget enforcement (26th call in 24h returns Skip BudgetExhausted); rolling window shifts correctly (oldest iteration falls out after 24h); Goodhart pause blocks scheduling until unpause; operator pause blocks; pending promotion review for prior iteration blocks; FR-EVT-DISTILL-LOOP-CAP emitted exactly once per cap-skip; scheduler is deterministic given fixed clock injection.",
   "proof_commands": [
@@ -34,23 +43,128 @@
   ],
   "risk_if_missed": "Without the scheduler the loop can run unbounded, HBR-SWARM-002 is violated, and pause receipts are advisory rather than enforced.",
   "validator_focus": "Scheduler is the sole caller of run_one_iteration. Budget uses a true rolling window not a fixed daily reset. Every skip reason is typed.",
-  "hbr_obligations": ["HBR-SWARM-002", "HBR-INT-006"],
+  "hbr_obligations": [
+    "HBR-SWARM-002",
+    "HBR-INT-006"
+  ],
   "spec_anchors": [
     ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.8.3"
   ],
-  "acceptance_criteria_refs": ["AC-DISTILL-LOOP-SAFEGUARDS"],
+  "acceptance_criteria_refs": [
+    "AC-DISTILL-LOOP-SAFEGUARDS"
+  ],
   "lifecycle": {
-    "active": false,
-    "status": "PENDING",
+    "active": true,
+    "status": "READY_FOR_VALIDATION",
     "validator_verdict": "PENDING",
-    "depends_on": ["MT-148", "MT-149", "MT-150", "MT-151", "MT-152", "MT-153", "MT-154", "MT-155"],
-    "blocks": ["MT-167", "MT-170"]
+    "depends_on": [
+      "MT-148",
+      "MT-149",
+      "MT-150",
+      "MT-151",
+      "MT-152",
+      "MT-153",
+      "MT-154",
+      "MT-155"
+    ],
+    "blocks": [
+      "MT-167",
+      "MT-170"
+    ],
+    "claimed_at_utc": "2026-05-23T19:30:00Z",
+    "claimed_by": "KERNEL_BUILDER-20260523-031814-AGT-MT156",
+    "ready_for_validation_at_utc": "2026-05-23T21:15:00Z",
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "READY_FOR_VALIDATION",
+        "validator_verdict": "PENDING"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-27T19:03:58.446Z"
   },
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260523-031814-AGT-MT156",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
     "review_response_receipt_id": null
+  },
+  "implementation_supporting_evidence_20260523_mt156": {
+    "recorded_at_utc": "2026-05-23T21:15:00Z",
+    "recorded_by": "KERNEL_BUILDER-20260523-031814-AGT-MT156",
+    "classification": "IMPLEMENTATION_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+    "authoritative_integration_validator_pass": false,
+    "integration_validator_status": "PENDING",
+    "summary": "MT-156 LoopScheduler transitioned PENDING -> CLAIMED -> READY_FOR_VALIDATION. Prior session deposited the scheduler implementation (src/self_improve/scheduler.rs, ~360 lines, 8 inline tests covering empty-history schedule, at-cap skip, rolling-window-drops-old, operator-pause-blocks, goodhart-pause-blocks, pending-review-blocks, cap_event built/not-built). This session added the contract-named integration test file tests/loop_scheduler_tests.rs (40 tests) covering: HBR-SWARM-002 cap=25 (default budget assertion, 25th still schedules, 26th rejected typed BudgetExhausted with cap=25 + count=25 + next_eligible=window_started+24h), true-rolling-window-not-fixed-reset (burst+wait+burst attack on fixed-window scheduler disproved; aged-out oldest unblocks a single slot; exact-24h-boundary entry filters out under strict-greater-than), pending-review-blocks-then-approve-unblocks end-to-end through MT-154 LoopPromotionGate (submit -> Pending -> scheduler blocks -> gate approve -> scheduler unblocks), goodhart-pause auto-pause end-to-end through MT-153 GoodhartSentinel + MT-155 LoopIpcState (sentinel evaluate fires Pause -> ipc.pause_with_reason succeeds -> scheduler blocks goodhart -> operator unpause -> scheduler resumes), operator-pause-blocks-then-unpause-via-ipc-resumes, skip-reason-priority ordering (operator > goodhart > pending > budget), FR-EVT-DISTILL-LOOP-CAP receipt built ONLY for BudgetExhausted (operator + goodhart + pending all return None preventing double-count in audit replay) + serde round-trip preserving kind constant, SchedulerHistory bounded at 128 entries with oldest-dropped semantics, ScheduleDecision + SkipReason + LoopCapEvent + IterationBudget + SchedulerHistory all serde round-trip, determinism (repeated calls with same inputs yield same decision discriminant + identical skip reasons), try_schedule_next does NOT mutate history (driver records post-Schedule), concurrent 8-thread Arc<history> read yields consistent BudgetExhausted with count_in_window=25, custom budget overrides (smaller cap rejects earlier; smaller window falls out faster; larger cap allows 100), LoopIpcState integration (driver reads pause_reason rationale and forwards as operator_paused string; AlreadyPaused error keeps paused flag sticky). 40/40 integration pass + 8/8 inline pass.",
+    "proof": {
+      "primary_test_run": {
+        "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test loop_scheduler_tests -- --nocapture",
+        "exit_code": 0,
+        "tests_passed": 40,
+        "tests_ignored": 0,
+        "tests_failed": 0,
+        "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt156-validate-20260523-001.log",
+        "note": "test result: ok. 40 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s."
+      },
+      "inline_lib_tests": {
+        "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib self_improve::scheduler -- --nocapture",
+        "exit_code": 0,
+        "tests_passed": 8,
+        "tests_ignored": 0,
+        "tests_failed": 0,
+        "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt156-inline-validate-20260523-001.log",
+        "note": "test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 1077 filtered out; finished in 0.00s. Filter scope confirms scheduler module reachable through lib + dependent crates unchanged."
+      }
+    },
+    "files_touched": [
+      "src/backend/handshake_core/tests/loop_scheduler_tests.rs (NEW; per MT-156 owned_files; 40 integration tests)",
+      ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-156.json (lifecycle PENDING -> CLAIMED -> READY_FOR_VALIDATION; this evidence block added)"
+    ],
+    "implementation_files_verified_unchanged": [
+      "src/backend/handshake_core/src/self_improve/scheduler.rs (prior session, ~360 lines, 8 inline tests covering schedule/skip discriminants; verified unchanged this session)"
+    ],
+    "red_team_minimum_controls_coverage": {
+      "scheduler_is_sole_caller_of_run_one_iteration": "covered structurally — scheduler returns Schedule or Skip typed decision; driver pattern documented in MT-156 contract implementation_notes states 'Scheduler is the ONLY caller of LoopCore::run_one_iteration'. The integration tests do not drive LoopCore directly (LoopCore lives in MT-148 territory) but verify the scheduler returns the typed decision on every public surface so a caller can wire the dispatch loop without guessing — schedule_when_history_empty, schedule_decision_helpers_classify_correctly, try_schedule_next_does_not_mutate_history all prove the scheduler returns a typed decision the caller can dispatch on.",
+      "budget_rolling_window_uses_true_24h_slide_so_cap_cannot_be_evaded_by_burst_plus_wait": "covered — mt156_rolling_window_burst_wait_burst_does_not_evade_cap stamps 13 entries 12h ago + 12 entries 30min ago (total 25 within 24h window) and asserts 26th still rejects with count_in_window=25 + cap=25 + BudgetExhausted typed; mt156_rolling_window_oldest_entry_aging_out_unblocks_one_slot proves a single aged-out entry frees exactly one slot; mt156_count_at_exact_24h_boundary_is_excluded_from_window proves the strict > filter semantics; mt156_count_in_window_strictly_excludes_entries_outside_24h proves 25 entries > 24h all fall out.",
+      "fr_evt_distill_loop_cap_emitted_on_every_cap_skip_so_audit_reconstruction_is_complete": "covered — mt156_cap_event_built_from_budget_exhausted_only proves every BudgetExhausted reason produces a LoopCapEvent with kind=FR-EVT-DISTILL-LOOP-CAP, count_in_window, cap, window_started_at_utc, next_eligible_at_utc (delta == 86400s); mt156_cap_event_returns_none_for_non_budget_skips proves Operator + Goodhart + PendingReview reasons return None so audit replay never double-counts non-budget pauses as cap rejections; mt156_cap_event_serde_round_trip_preserves_fr_event_kind proves byte-for-byte EventLedger replay safety with kind constant surfacing in serialized JSON."
+    },
+    "adversarial_coverage_beyond_minimum": [
+      "mt156_rolling_window_burst_wait_burst_does_not_evade_cap — adversarial 13+12 split stamped at 12h+30min ago proves true rolling-window semantics",
+      "mt156_rolling_window_oldest_entry_aging_out_unblocks_one_slot — slot release granularity",
+      "mt156_count_at_exact_24h_boundary_is_excluded_from_window — strict > vs >= boundary",
+      "mt156_skip_reason_priority_operator_pause_wins_over_all_other_blocks + 3 other priority tests — total ordering when all 4 block conditions co-fire deterministic",
+      "mt156_end_to_end_pending_review_blocks_then_approve_unblocks — cross-cluster MT-154 LoopPromotionGate -> MT-156 scheduler integration through PromotionTicket lifecycle",
+      "mt156_end_to_end_goodhart_detection_then_unpause_resumes_scheduling — cross-cluster MT-153 GoodhartSentinel -> MT-155 LoopIpcState -> MT-156 scheduler integration through SentinelReceipt + PauseReason routing",
+      "mt156_operator_pause_then_unpause_via_ipc_state_resumes_scheduling — MT-155 LoopIpcState -> MT-156 scheduler integration",
+      "mt156_repeated_calls_with_same_inputs_yield_same_decision_discriminant + mt156_repeated_skip_calls_with_same_inputs_yield_same_skip_reason — determinism for fixed (history, now) inputs",
+      "mt156_try_schedule_next_does_not_mutate_history — purity / driver-records-post-Schedule semantics",
+      "mt156_concurrent_schedulers_observe_consistent_counts_under_arc_history — 8-thread Arc-shared history read consistency",
+      "mt156_scheduler_history_is_bounded_under_long_runs + mt156_scheduler_history_ring_drops_oldest_entries — bounded ring-buffer memory safety for long-lived loops",
+      "mt156_cap_event_returns_none_for_non_budget_skips — audit replay double-count defense (3 non-budget variants all return None)",
+      "mt156_cap_event_serde_round_trip_preserves_fr_event_kind — EventLedger replay byte-for-byte safety",
+      "Full ScheduleDecision + SkipReason + IterationBudget + SchedulerHistory serde round-trip per variant (5 SkipReason variants + 2 ScheduleDecision discriminants + budget + history)",
+      "mt156_custom_budget_smaller_cap_rejects_earlier + mt156_custom_budget_smaller_window_falls_out_faster + mt156_custom_budget_larger_cap_allows_more_iterations — IterationBudget operator-tuning surface verified across cap + window axes",
+      "mt156_ipc_pause_state_drives_scheduler_via_pause_reason_string + mt156_already_paused_ipc_error_does_not_change_scheduler_outcome — driver-pattern wiring of LoopIpcState into scheduler operator_paused parameter"
+    ],
+    "out_of_owned_files_edits_pending_operator_review": [],
+    "residual_risks": [
+      "The scheduler is a pure-Rust decision function; the actual dispatch (Schedule -> LoopCore::run_one_iteration call) lives in the loop driver, which is a future MT (likely MT-167 or LoopCore wiring) — this MT proves the typed decision surface but not the driver call-site. Validator should verify the eventual driver respects the priority ordering and emits FR-EVT-DISTILL-LOOP-CAP via the flight recorder on every BudgetExhausted skip.",
+      "FR-EVT-DISTILL-LOOP-CAP emission is symbolic in this MT (LoopScheduler::cap_event returns a typed event the caller publishes); no FemsFlightRecorder subscriber assertion in this test file. The kind constant must be registered in the FEMS event registry (separate MT) for production trace ingest. Validator should verify the production loop emits this event when try_schedule_next returns Skip BudgetExhausted.",
+      "SchedulerHistory bound is 128 entries — adequate for 25/24h rolling window with some operator headroom but a long-paused scheduler that doesn't drain history could theoretically miss old entries; the cap is documented in src/self_improve/scheduler.rs but not surfaced as a runtime configuration knob. Production caller should call SchedulerHistory::count_in_window before push to monitor pressure.",
+      "Concurrency tests run 8 std::thread workers; production async runtime (tauri) was not exercised here. The scheduler is Copy and history is &-borrowed; the implementation is sync-safe and the concurrent-readers test exercises the shared-history hot path. If the production driver wraps scheduler calls in async, the wrapping is downstream.",
+      "Custom budget overrides allow IterationBudget::max_iterations_per_24h to be set higher than 25 (e.g., 100 in mt156_custom_budget_larger_cap_allows_more_iterations) — production deployment must NOT allow operator to override HBR-SWARM-002 cap above 25 without HBR review. This MT proves the surface is operator-tunable as the contract demands but does not gate the operator UI; that gating is downstream MT scope (MT-155 IPC + operator UI surface).",
+      "MockGate is in-process; production wiring to KERNEL-001 PromotionGate transport (durable promotion-receipt store) is not exercised here. The LoopPromotionGate trait surface is the same one production will wire (cross-tested with MT-154 inline tests + integration tests).",
+      "No Integration Validator has reviewed MT-156."
+    ],
+    "caveat": "Supporting implementation/test evidence only. The MT-156 contract proof_command is the test binary; this evidence captures the typed surface + cross-cluster D.2 integration. The actual loop dispatch (Schedule -> LoopCore::run_one_iteration) lives in the loop driver (downstream MT scope) and is outside the scope of this proof."
   },
   "red_team": {
     "minimum_controls": [
@@ -58,5 +172,51 @@
       "Budget rolling window uses true 24h slide so cap cannot be evaded by burst+wait patterns.",
       "FR-EVT-DISTILL-LOOP-CAP emitted on every cap-skip so audit reconstruction is complete."
     ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_D_GAPS",
+    "reviewed_at_utc": "2026-05-27T18:15:00Z",
+    "aggregator_run_at_utc": "2026-05-27T19:03:58.446Z",
+    "verdict": "PASS_WITH_NOTES",
+    "verdict_reason": "LoopScheduler implements try_schedule_next with the contracted skip-reason ordering (operator > goodhart > pending > budget) over a true rolling 24h window. count_in_window uses strict > comparison so an exactly-24h-old entry is excluded. FR-EVT-DISTILL-LOOP-CAP event is built only on BudgetExhausted (cap_event returns None for non-budget skips). 40 integration + 8 inline tests reported pass. CONCERN: IterationBudget::max_iterations_per_24h is a pub u32 with no upper-bound validation at the constructor; operator-tunable above the HBR-SWARM-002 default of 25 without any HBR-review gate enforced in this MT. SchedulerHistory bounded at 128 hard-coded entries (not surfaced as configuration knob).",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "OK",
+    "runtime_safety_status": "OK",
+    "agent_swarm_safety_status": "OK",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "STRONG",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 1,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 2,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-156.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-156.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_D_GAPS",
+    "reviewed_at_utc": "2026-05-27T18:15:00Z",
+    "aggregator_run_at_utc": "2026-05-27T18:50:05.123Z",
+    "verdict": "PASS_WITH_NOTES",
+    "verdict_reason": "LoopScheduler implements try_schedule_next with the contracted skip-reason ordering (operator > goodhart > pending > budget) over a true rolling 24h window. count_in_window uses strict > comparison so an exactly-24h-old entry is excluded. FR-EVT-DISTILL-LOOP-CAP event is built only on BudgetExhausted (cap_event returns None for non-budget skips). 40 integration + 8 inline tests reported pass. CONCERN: IterationBudget::max_iterations_per_24h is a pub u32 with no upper-bound validation at the constructor; operator-tunable above the HBR-SWARM-002 default of 25 without any HBR-review gate enforced in this MT. SchedulerHistory bounded at 128 hard-coded entries (not surfaced as configuration knob).",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "OK",
+    "runtime_safety_status": "OK",
+    "agent_swarm_safety_status": "OK",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "STRONG",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 1,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 2,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-156.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-156.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
   }
 }

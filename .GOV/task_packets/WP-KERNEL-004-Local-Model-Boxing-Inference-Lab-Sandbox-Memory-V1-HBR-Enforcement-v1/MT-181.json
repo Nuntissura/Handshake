@@ -7,7 +7,7 @@
   "cluster_subscope": "X.1",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:05:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-05-27T19:03:58.446Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -26,7 +26,10 @@
     "src/backend/handshake_core/src/role_mailbox/router.rs",
     "src/backend/handshake_core/tests/role_mailbox_router_tests.rs"
   ],
-  "depends_on_mts": ["MT-176", "MT-180"],
+  "depends_on_mts": [
+    "MT-176",
+    "MT-180"
+  ],
   "unblock_conditions": "MT-176 thread types + MT-180 lease primitive merged so router can consume both.",
   "implementation_notes": "Per spec v02.186 §02-system-architecture.md role mailbox subsection [ADD v02.176] line 6153: 'Every actionable Role Mailbox thread SHOULD declare executor_kind_allowlist, claim_mode, lease_duration, takeover_policy, and response_authority_scope ... so local small models, cloud models, reviewers, validators, operators, and workflow automation do not race to answer the same thread.' This MT's `ExecutorRouter` is the pure decision layer. Signature: `pub fn decide(thread: &RoleMailboxThread, current_lease: Option<&RoleMailboxClaimLeaseV1>, executor: &ExecutorIdentity) -> RouteDecision`. `ExecutorIdentity { executor_kind: ExecutorKind (LocalSmallModel|CloudModel|Reviewer|Validator|Operator|WorkflowAutomation), role_id: RoleId, session_id: Uuid v7, capabilities: Vec<Capability> }`. RouteDecision enum: `MayClaim { reason }`, `MayRespondInExistingLease { reason }`, `MayTakeover { predecessor_lease_id, reason }`, `MustWait { reason }`, `Denied { reason }`. Algorithm (pure, no I/O): (1) if executor.executor_kind not in thread.executor_kind_allowlist -> Denied(\"executor_kind not in allowlist\"); (2) if thread.lifecycle_state is terminal (resolved/expired/archived) -> Denied(\"thread in terminal lifecycle state\"); (3) if no current_lease and thread.claim_mode in [Exclusive, Handoff] -> MayClaim; (4) if current_lease.holder_session_id == executor.session_id -> MayRespondInExistingLease; (5) if current_lease.expires_at_utc < now -> MayClaim (stale lease); (6) if thread.takeover_policy permits -> MayTakeover; (7) else MustWait. response_authority_scope check applied per role_id (e.g., MicroTaskCompletionScope requires holder to also hold the linked MT executor lease — forward-declared, MT-189 wires the cross-check). All reasons are typed enums + a free-form String. Tests: exhaustive matrix of (claim_mode × current_lease present × executor_kind match × takeover_policy) — 32+ combinations; assert no panic on any input; golden-fixture covering each RouteDecision variant.",
   "proof_commands": [
@@ -34,7 +37,10 @@
   ],
   "risk_if_missed": "Without role-scoped routing, parallel executors race to claim or respond, the lease primitive (MT-180) loses its decision surface, and the cluster X 'one lawful ownership layer' degrades to mutex-by-database which is harder to audit and reason about.",
   "validator_focus": "Router is pure (no I/O, no clock except `now: SystemTime` injected as a parameter for testability); decision matrix is exhaustive; every Denied/MustWait has a typed reason validators can act on.",
-  "hbr_obligations": ["HBR-SWARM-001", "HBR-SWARM-003"],
+  "hbr_obligations": [
+    "HBR-SWARM-001",
+    "HBR-SWARM-003"
+  ],
   "spec_anchors": [
     ".GOV/spec/master-spec-v02.186/spec-modules/02-system-architecture.md#role-mailbox-claim-lease"
   ],
@@ -43,16 +49,142 @@
   ],
   "lifecycle": {
     "active": false,
-    "status": "PENDING",
-    "validator_verdict": "PENDING",
-    "depends_on": ["MT-176", "MT-180"],
-    "blocks": ["MT-184", "MT-189"]
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "PASS",
+    "depends_on": [
+      "MT-176",
+      "MT-180"
+    ],
+    "blocks": [
+      "MT-184",
+      "MT-189"
+    ],
+    "postgres_test_url_live_evidence_20260525_continuation": {
+      "authoritative_integration_validator_pass": false,
+      "classification": "KERNEL_BUILDER_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+      "not_run_or_not_claimed": [],
+      "artifact_log_root": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs",
+      "implementation_or_hardening_notes": [
+        "Normalized handoff expires_at_utc to Postgres microsecond precision before bundle hashing."
+      ],
+      "postgres_test_url_redacted": "postgres://postgres:***@127.0.0.1:65432/handshake_test",
+      "proof": [
+        {
+          "log": "postgres-live-role_mailbox_v1_tests-mt_177-20260525-resume.log",
+          "scope": "role_mailbox_v1_tests MT-177",
+          "note": [
+            "MT-177 targeted repository lifecycle round trip passed.",
+            "Proof"
+          ],
+          "result": "passed"
+        }
+      ],
+      "recorded_by": "KERNEL_BUILDER-POSTGRES-TEST-URL-20260525-CONTINUATION",
+      "mt_ids": [
+        "MT-176",
+        "MT-177",
+        "MT-178",
+        "MT-179",
+        "MT-180",
+        "MT-181",
+        "MT-182",
+        "MT-183"
+      ],
+      "summary": "Role Mailbox V1 live Postgres suites passed, including repository lifecycle, lease, backpressure, handoff, and exporter coverage.",
+      "integration_validator_status": "PENDING",
+      "residual_risks": [
+        "Supporting evidence only; Integration Validator verdict remains PENDING.",
+        "Focused Postgres/live-kernel commands were run, not a full workspace cargo test."
+      ],
+      "recorded_at_utc": "2026-05-25T10:56:03.5601331Z",
+      "cargo_target_dir": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target"
+    },
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "READY_FOR_VALIDATION",
+        "validator_verdict": "PENDING"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-27T19:03:58.446Z"
   },
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260523-031814-AGT-MT181",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
     "review_response_receipt_id": null
+  },
+  "execution_proof": {
+    "recorded_at_utc": "2026-05-23T03:48:00Z",
+    "recorded_by": "KERNEL_BUILDER-20260523-031814-AGT-MT181",
+    "classification": "IMPLEMENTATION_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+    "summary": "ExecutorRouter (src/backend/handshake_core/src/role_mailbox_v1/router.rs) extended with three additional gates: (0) empty-allowlist deny, (1a) ResponseAuthorityScope::OperatorOnly pre-lease deny for non-Operator executors, (5a) ClaimMode::Open multi-holder respond path with foreign active lease, and (6) full-policy match arm covering TakeoverPolicy::AlwaysWithReason + OperatorOnly+Operator (MayTakeover), TakeoverPolicy::OnLeaseExpiry / Never / OperatorOnly+non-Operator (MustWait). Added integration test file at the contract-named path src/backend/handshake_core/tests/role_mailbox_router_tests.rs with 22 pure-Rust adversarial assertions covering: (1) allowlist gate — wrong-kind / with-foreign-lease / empty allowlist / all-kinds permits / duplicate entries no-panic / conflicting allowlist determinism; (2) resolver — claim_mode deterministic per (Exclusive|Handoff|Open) / holder session match / Never policy MustWait / AlwaysWithReason policy MayTakeover / OperatorOnly + Operator MayTakeover + non-Operator MustWait / OnLeaseExpiry unexpired MustWait / ResponseAuthorityScope OperatorOnly denies non-Operator and permits Operator; (3) adversarial — terminal state denies all (Resolved/Expired/Archived) / clock boundary at expiry MayClaim / clock before expiry MustWait / serde round-trip preserves decision / ClaimMode::Open with foreign lease permits respond; (4) full 5-axis exhaustive matrix (claim_mode × takeover_policy × response_authority_scope × executor_kind × has_lease = 576 combinations) with no-panic + determinism check; (5) RouteDecision serde round-trip all variants + ExecutorKind snake_case wire shape. Registered [[test]] entry in src/backend/handshake_core/Cargo.toml with required-features=['test-utils']. cargo test passes 22/22 integration + 8/8 router lib unit (no regression to adjacent role_mailbox_lease/repo/v1 tests).",
+    "proof": {
+      "focused_router_integration": {
+        "command": "cargo test --features test-utils --manifest-path src/backend/handshake_core/Cargo.toml --test role_mailbox_router_tests -- --nocapture --test-threads=1",
+        "exit_code": 0,
+        "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt181-router-focused-001.log",
+        "tests_passed": 22,
+        "tests_failed": 0,
+        "tests_ignored": 0,
+        "note": "22 router integration tests passed in 0.01s wall clock after 7m 03s compile. No #[ignore]-gated tests; router is pure-Rust."
+      },
+      "adjacent_no_regression": {
+        "command": "cargo test --features test-utils --manifest-path src/backend/handshake_core/Cargo.toml --test role_mailbox_router_tests --test role_mailbox_lease_tests --test role_mailbox_v1_tests --test role_mailbox_repo_tests -- --nocapture --test-threads=1",
+        "exit_code": 0,
+        "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt181-adjacent-002.log",
+        "note": "router 22 passed; lease 11 passed / 20 ignored; v1 9 passed / 2 ignored; repo 7 passed / 11 ignored. Total 49 passing, 33 ignored, 0 failed."
+      },
+      "lib_unit_router": {
+        "command": "cargo test --features test-utils --manifest-path src/backend/handshake_core/Cargo.toml --lib role_mailbox_v1::router",
+        "exit_code": 0,
+        "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt181-lib-router-003.log",
+        "note": "8 in-router unit tests passed (denied_when_executor_kind_not_in_allowlist, may_claim_when_no_active_lease, must_wait_when_lease_held_by_other_no_takeover, may_respond_in_existing_lease_when_session_matches, may_claim_when_lease_expired, may_takeover_with_permissive_policy, denied_when_thread_terminal, exhaustive_matrix_does_not_panic). 1077 lib tests filtered out (focused run); router enhancements did not regress in-module assertions."
+      }
+    },
+    "files_touched": [
+      "src/backend/handshake_core/src/role_mailbox_v1/router.rs",
+      "src/backend/handshake_core/tests/role_mailbox_router_tests.rs",
+      "src/backend/handshake_core/Cargo.toml",
+      ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-181.json"
+    ],
+    "adversarial_tests_added": [
+      "mt_181_allowlist_denies_executor_kind_not_in_allowlist",
+      "mt_181_allowlist_denies_when_allowlist_excludes_executor_even_with_lease",
+      "mt_181_allowlist_empty_denies_all_executors",
+      "mt_181_allowlist_all_kinds_permits_every_executor",
+      "mt_181_allowlist_duplicate_entries_do_not_cause_panic",
+      "mt_181_conflicting_allowlist_membership_resolves_deterministically",
+      "mt_181_resolver_deterministic_per_claim_mode_no_lease",
+      "mt_181_resolver_holder_session_match_returns_respond_in_existing_lease",
+      "mt_181_resolver_other_holder_no_takeover_returns_must_wait",
+      "mt_181_resolver_takeover_policy_always_with_reason_permits_takeover",
+      "mt_181_resolver_takeover_policy_operator_only_permits_operator",
+      "mt_181_resolver_takeover_policy_on_lease_expiry_waits_when_unexpired",
+      "mt_181_resolver_response_authority_scope_operator_only_denies_non_operator",
+      "mt_181_terminal_thread_state_denies_for_all_executors",
+      "mt_181_expired_lease_with_clock_at_expiry_boundary_returns_may_claim",
+      "mt_181_active_lease_with_clock_before_expiry_returns_must_wait",
+      "mt_181_claim_mode_round_trip_via_serde_preserves_router_decision",
+      "mt_181_claim_mode_open_with_active_foreign_lease_permits_respond",
+      "mt_181_exhaustive_matrix_no_panic_5_axis",
+      "mt_181_every_decision_variant_has_non_empty_reason",
+      "mt_181_route_decision_serde_round_trip_all_variants",
+      "mt_181_executor_kind_serde_snake_case_wire_shape"
+    ],
+    "red_team_minimum_controls_addressed": {
+      "now_injected_no_implicit_clock": "Router decide(now: DateTime<Utc>) signature preserved; tests inject now at expiry boundary (mt_181_expired_lease_with_clock_at_expiry_boundary_returns_may_claim) and before expiry (mt_181_active_lease_with_clock_before_expiry_returns_must_wait) to prove no implicit clock dependency.",
+      "exhaustive_combinatorial_sweep": "mt_181_exhaustive_matrix_no_panic_5_axis covers 3 claim_modes × 4 takeover_policies × 4 response_authority_scopes × 6 executor_kinds × 2 has_lease = 576 combinations with no-panic + variant-determinism assertions.",
+      "every_variant_non_empty_reason": "mt_181_every_decision_variant_has_non_empty_reason positively exercises MayClaim / MayRespondInExistingLease / MayTakeover / MustWait / Denied with assert_reason_non_empty helper proving each variant carries a typed RouteReason and (for Denied) a non-empty detail."
+    }
   },
   "red_team": {
     "minimum_controls": [
@@ -60,5 +192,51 @@
       "Property-based test (proptest) generates arbitrary thread + lease + executor combos and asserts no panic.",
       "Every RouteDecision variant has at least one positive test asserting the reason text is non-empty."
     ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_X_GAPS",
+    "reviewed_at_utc": "2026-05-27T17:35:00Z",
+    "aggregator_run_at_utc": "2026-05-27T19:03:58.446Z",
+    "verdict": "PASS",
+    "verdict_reason": "ExecutorRouter::decide is pure (no implicit clock), exhaustive (576-combination matrix sweep), and every RouteDecision variant carries a typed RouteReason. 22/22 integration + 8/8 lib unit tests green. Empty-allowlist, OperatorOnly, terminal-state, clock-boundary edges all covered. Path-shape drift (role_mailbox_v1/ vs role_mailbox/) is the only paperwork note; technique correctness is solid.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "OK",
+    "runtime_safety_status": "OK",
+    "agent_swarm_safety_status": "OK",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "STRONG",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 2
+    },
+    "paperwork_notes_count": 1,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-181.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-181.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_X_GAPS",
+    "reviewed_at_utc": "2026-05-27T17:35:00Z",
+    "aggregator_run_at_utc": "2026-05-27T18:50:05.123Z",
+    "verdict": "PASS",
+    "verdict_reason": "ExecutorRouter::decide is pure (no implicit clock), exhaustive (576-combination matrix sweep), and every RouteDecision variant carries a typed RouteReason. 22/22 integration + 8/8 lib unit tests green. Empty-allowlist, OperatorOnly, terminal-state, clock-boundary edges all covered. Path-shape drift (role_mailbox_v1/ vs role_mailbox/) is the only paperwork note; technique correctness is solid.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "OK",
+    "runtime_safety_status": "OK",
+    "agent_swarm_safety_status": "OK",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "STRONG",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 2
+    },
+    "paperwork_notes_count": 1,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-181.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-181.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
   }
 }

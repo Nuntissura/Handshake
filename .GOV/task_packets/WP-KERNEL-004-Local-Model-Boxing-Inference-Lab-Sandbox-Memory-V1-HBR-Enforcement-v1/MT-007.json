@@ -7,7 +7,7 @@
   "cluster_subscope": "A.1",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T02:30:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-05-27T19:03:58.446Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -28,7 +28,11 @@
     "src/backend/handshake_core/src/process_ledger/writer.rs",
     "src/backend/handshake_core/tests/process_ledger_tests.rs"
   ],
-  "depends_on_mts": ["MT-001", "MT-004", "MT-006"],
+  "depends_on_mts": [
+    "MT-001",
+    "MT-004",
+    "MT-006"
+  ],
   "unblock_conditions": "MT-004 handoff-gate exists (ledger writes integrate with handoff gate evidence pointers); MT-006 violation receipt schema exists (degraded-mode emits a typed FR-EVT-LEDGER-OVERFLOW receipt).",
   "implementation_notes": "Per spec §5.7.1 (AC-PROCESS-LEDGER-PRIMITIVE) the Postgres table `kernel_process_lifecycle` has columns: process_uuid UUID PRIMARY KEY (v7 per HBR-INT-008), parent_session_id TEXT, sandbox_adapter_id TEXT, engine_kind TEXT NOT NULL (enum text: 'llamacpp'|'candle'|'abliteration_tool'|'sandbox_container'|'mechanical_job'|'asr_worker'|'comfyui_worker'|'plugin_process'|'helper_subprocess'|'external_compat'), started_at TIMESTAMPTZ NOT NULL, stopped_at TIMESTAMPTZ NULL, exit_code INTEGER NULL, model_artifact_sha256 TEXT NULL, work_profile_id TEXT NULL, owner_role TEXT NOT NULL, owner_wp TEXT NULL. Indexes on (parent_session_id, started_at) and (engine_kind, started_at). SQL migration file goes under the existing migrations directory (find via `Glob src/backend/**/migrations/**` before authoring; if absent, create src/backend/handshake_core/migrations/ and document the choice in implementation_notes of the next MT). Per spec §5.7.3 (AC-PROCESS-LEDGER-PERF) the writer uses a bounded `tokio::sync::mpsc::channel::<LedgerEvent>(capacity)` where capacity is configurable per Work Profile (default 1024). The spawn thread calls `writer.append_start(event)` which returns `Ok(())` immediately after a non-blocking `try_send`; on channel full, emit a typed `FR-EVT-LEDGER-OVERFLOW` event (using MT-006 receipt format with violation_class=MATRIX_SCHEMA_VIOLATION repurposed — actually add a new EventLedger event kind FR_EVT_LEDGER_OVERFLOW carrying `{ overflow_count, capacity, dropped_event_kind, sampled_event_payload }`) and set a degraded-mode flag readable by the Diagnostics panel (Diagnostics panel wiring is cluster X scope; this MT only sets the flag and exposes it via `process_ledger::is_degraded() -> bool`). NEVER silently drop: every overflow MUST emit the typed event. A dedicated writer task consumes the channel and batches inserts (batch size 32, flush interval 100ms) via sqlx::query. Per spec §5.7.5 (AC-PROCESS-LEDGER-RECLAIM) the reclaim path is a separate MT (MT-008); this MT only ships START/STOP API + perf-safe writer + overflow handling. Tests: stress test fires 10k spawns into a capacity-128 channel and asserts (a) no spawn blocks > 1ms, (b) overflow event emitted with correct overflow_count, (c) degraded-mode flag flips true and back false after drain; correctness test asserts each START has a matching STOP after a process exits.",
   "proof_commands": [
@@ -36,20 +40,59 @@
   ],
   "risk_if_missed": "Without the perf-safe writer, swarm-N spawn bursts (HBR-SWARM-001) block on Postgres and starve the sandbox layer; ledger becomes a bottleneck.",
   "validator_focus": "Stress test shows no spawn-thread blocking; overflow emits a typed event (not a silent drop); STOP row is always written even when START hit overflow.",
-  "hbr_obligations": ["HBR-INT-007", "HBR-INT-008", "HBR-QUIET-003", "HBR-SWARM-001", "HBR-SWARM-002"],
+  "hbr_obligations": [
+    "HBR-INT-007",
+    "HBR-INT-008",
+    "HBR-QUIET-003",
+    "HBR-SWARM-001",
+    "HBR-SWARM-002"
+  ],
   "spec_anchors": [
     ".GOV/spec/master-spec-v02.186/spec-modules/05-security-and-observability.md#5.7"
   ],
-  "acceptance_criteria_refs": ["AC-PROCESS-LEDGER-PRIMITIVE", "AC-PROCESS-LEDGER-PERF"],
+  "acceptance_criteria_refs": [
+    "AC-PROCESS-LEDGER-PRIMITIVE",
+    "AC-PROCESS-LEDGER-PERF"
+  ],
   "lifecycle": {
     "active": false,
-    "status": "PENDING",
-    "validator_verdict": "PENDING",
-    "depends_on": ["MT-001", "MT-004", "MT-006"],
-    "blocks": ["MT-008", "MT-018", "MT-019", "MT-034", "MT-035", "MT-036"]
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "CONCERN",
+    "depends_on": [
+      "MT-001",
+      "MT-004",
+      "MT-006"
+    ],
+    "blocks": [
+      "MT-008",
+      "MT-018",
+      "MT-019",
+      "MT-034",
+      "MT-035",
+      "MT-036"
+    ],
+    "claimed_by": "KERNEL_BUILDER-20260518-012310",
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "COMPLETED",
+        "validator_verdict": "PENDING",
+        "completed_at_utc": "2026-05-18T04:31:22.396Z"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "previous_completed_at_utc_before_ready_for_validation_20260525": "2026-05-18T04:31:22.396Z",
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-27T19:03:58.446Z"
   },
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260518-012310",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
     "review_response_receipt_id": null
@@ -61,5 +104,51 @@
       "process_uuid uses Uuid::now_v7() and the test asserts monotonicity across two sequential mints (HBR-INT-008).",
       "Per CX-503R no SQLite anywhere: this MT must add zero new SQLite dependencies; assert via cargo tree grep test."
     ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_A1_A2",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T19:03:58.446Z",
+    "verdict": "CONCERN",
+    "verdict_reason": "Postgres table + perf-safe batched async writer (mpsc::channel + JoinHandle + ticker flush) is well-structured with degraded-mode signaling, overflow event emission, and Uuid::now_v7() for process_uuid + overflow_uuid. However flush failures in run_writer (lines 347, 352) use `let _ = flush_batch(...).await` which SILENTLY DISCARDS write errors — the batch is cleared on success but on error the batch is held with no retry and no logging, just an internal degraded flag.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "MINOR",
+    "runtime_safety_status": "CONCERN",
+    "agent_swarm_safety_status": "CONCERN",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 1,
+      "MEDIUM": 1,
+      "LOW": 2
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-007.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-007.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_A1_A2",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T18:50:05.123Z",
+    "verdict": "CONCERN",
+    "verdict_reason": "Postgres table + perf-safe batched async writer (mpsc::channel + JoinHandle + ticker flush) is well-structured with degraded-mode signaling, overflow event emission, and Uuid::now_v7() for process_uuid + overflow_uuid. However flush failures in run_writer (lines 347, 352) use `let _ = flush_batch(...).await` which SILENTLY DISCARDS write errors — the batch is cleared on success but on error the batch is held with no retry and no logging, just an internal degraded flag.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "MINOR",
+    "runtime_safety_status": "CONCERN",
+    "agent_swarm_safety_status": "CONCERN",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 1,
+      "MEDIUM": 1,
+      "LOW": 2
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-007.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-007.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
   }
 }

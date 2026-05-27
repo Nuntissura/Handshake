@@ -7,7 +7,7 @@
   "cluster_subscope": "C.5",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:00:00Z",
-  "updated_at_utc": "2026-05-22T22:15:00Z",
+  "updated_at_utc": "2026-05-27T19:03:58.446Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -27,7 +27,10 @@
     "src/backend/handshake_core/tests/kv_cache_security_tests.rs",
     "src/backend/handshake_core/Cargo.toml"
   ],
-  "depends_on_mts": ["MT-093", "MT-094"],
+  "depends_on_mts": [
+    "MT-093",
+    "MT-094"
+  ],
   "unblock_conditions": "MT-093 + MT-094 merged.",
   "implementation_notes": "Per AC-INFER-LAB-8-TECHNIQUES.b implicit security requirement: prefix-share handles must be replay-resistant. Cargo.toml add blake3 = \"1\". Implement KeyedHasher backed by a per-process random key (regenerated on process start; in-memory only; never persisted) so a captured handle cannot be replayed in a future process (handles do not survive restart by design). KvPrefixHandle::derive_id(model_id, content_hash, registered_at_utc) = blake3::keyed_hash(KEYED_HASHER.key(), &concat(model_id.bytes, content_hash, registered_at_utc.timestamp_micros.to_le_bytes())) -> [u8;16] (truncated). Restore validates: (1) handle.prefix_id == derive_id(...) using same components stored in cache entry — mismatch returns Err; (2) handle.content_hash matches cached content_hash; (3) cache entry not expired (within prefix_cache_ttl_seconds of registered_at_utc); (4) cache entry's model_id matches request's model_id (cross-model rejection). Tests: derive then restore -> Ok; tamper content_hash -> Err; tamper model_id -> Err; submit cached handle to different ModelRuntime instance -> Err (per-process key isolation); wait past TTL -> Err (stale-snapshot expiry).",
   "proof_commands": [
@@ -35,22 +38,45 @@
   ],
   "risk_if_missed": "Replay-resistance invariant from MT-063 is only nominally enforced; a malicious handle reuse path slips through.",
   "validator_focus": "All 5 negative tests present; per-process key isolation verified; TTL expiry tested.",
-  "hbr_obligations": ["HBR-INT-002"],
+  "hbr_obligations": [
+    "HBR-INT-002"
+  ],
   "spec_anchors": [
     ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.7.1"
   ],
-  "acceptance_criteria_refs": ["AC-INFER-LAB-8-TECHNIQUES"],
+  "acceptance_criteria_refs": [
+    "AC-INFER-LAB-8-TECHNIQUES"
+  ],
   "lifecycle": {
     "active": false,
     "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "validator_verdict": "FAIL",
     "integration_validator_verdict": "PENDING",
-    "depends_on": ["MT-093", "MT-094"],
+    "depends_on": [
+      "MT-093",
+      "MT-094"
+    ],
     "blocks": [],
     "claimed_by": "KERNEL_BUILDER-20260522-171100",
     "claimed_at_utc": "2026-05-22T22:15:00Z",
     "ready_for_validation_by": "KERNEL_BUILDER-20260522-171100",
-    "ready_for_validation_at_utc": "2026-05-22T22:35:00Z"
+    "ready_for_validation_at_utc": "2026-05-22T22:35:00Z",
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "READY_FOR_VALIDATION",
+        "validator_verdict": "PENDING"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-27T19:03:58.446Z"
   },
   "handoff": {
     "coder_session": "KERNEL_BUILDER-20260522-171100",
@@ -120,5 +146,55 @@
       "risk_reduced": "None — strictly contract-scoped.",
       "waiver_status": "NOT_APPLICABLE"
     }
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C4_C7",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T19:03:58.446Z",
+    "verdict": "FAIL",
+    "verdict_reason": "BLAKE3 keyed-hash primitives (derive_id, from_derived, verify_derived_against) and the per-process KV_PREFIX_KEY are implemented as pure utilities, but NEITHER the per-adapter KV stacks (LlamaCppKvCache, Candle StateVectorHandle) NOR the public technique surface (kv_cache_technique::prefix_commit/restore) invoke them. Every handle produced through the public surface is created via from_scoped_tokens with derived_id=None and the verify_derived_against helper is never called at restore. The replay-resistance invariant the MT was created to enforce is unenforced end-to-end; this is the HIGH gap the prompt called out for C.5.",
+    "spec_compliance_status": "FAILS",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "UNSAFE",
+    "agent_swarm_safety_status": "UNSAFE",
+    "hbr_unsatisfied": [
+      "HBR-INT-002"
+    ],
+    "test_coverage_status": "THIN",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 1,
+      "MEDIUM": 1,
+      "LOW": 0
+    },
+    "paperwork_notes_count": 1,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-095.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-095.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C4_C7",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T18:50:05.123Z",
+    "verdict": "FAIL",
+    "verdict_reason": "BLAKE3 keyed-hash primitives (derive_id, from_derived, verify_derived_against) and the per-process KV_PREFIX_KEY are implemented as pure utilities, but NEITHER the per-adapter KV stacks (LlamaCppKvCache, Candle StateVectorHandle) NOR the public technique surface (kv_cache_technique::prefix_commit/restore) invoke them. Every handle produced through the public surface is created via from_scoped_tokens with derived_id=None and the verify_derived_against helper is never called at restore. The replay-resistance invariant the MT was created to enforce is unenforced end-to-end; this is the HIGH gap the prompt called out for C.5.",
+    "spec_compliance_status": "FAILS",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "UNSAFE",
+    "agent_swarm_safety_status": "UNSAFE",
+    "hbr_unsatisfied": [
+      "HBR-INT-002"
+    ],
+    "test_coverage_status": "THIN",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 1,
+      "MEDIUM": 1,
+      "LOW": 0
+    },
+    "paperwork_notes_count": 1,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-095.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-095.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
   }
 }

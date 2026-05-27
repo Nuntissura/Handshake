@@ -7,7 +7,7 @@
   "cluster_subscope": "C.6",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:00:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-05-27T19:03:58.446Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -26,7 +26,9 @@
     "src/backend/handshake_core/src/model_runtime/techniques/steering_vector_store.rs",
     "src/backend/handshake_core/tests/steering_vector_store_tests.rs"
   ],
-  "depends_on_mts": ["MT-096"],
+  "depends_on_mts": [
+    "MT-096"
+  ],
   "unblock_conditions": "MT-096 activation steering technique merged.",
   "implementation_notes": "Per AC-INFER-LAB-8-TECHNIQUES.c + AC-INFER-LAB-UI-TOGGLES (\"per-technique controls expose ... steering vector intensity + layer-index pickers\"): steering vectors are durable governed artifacts. SteeringVectorArtifact: `{ id: SteeringVectorId, name, layer, hook_point, values_blob_path, intensity, provenance, license_tag, model_compat_tag, created_at_utc, created_by: OperatorId }`. values_blob written via ArtifactStore::put with content hash; metadata row written via KernelActionCatalogV1 action `kernel.steering.register` -> WriteBoxV1. Reload on process start: scan SteeringVectorArtifact rows for current process's models; rehydrate into SteeringHookOps registry. List/search via kernel.steering.list query action. Operator review surface: vectors marked `review_status=PENDING` until operator approves (review-gated writes per cluster A HBR-MAN feedback intent and feedback_no_default_md_files repository-quality principle). Tests: register vector, restart simulated process, vectors rehydrate; license_tag enforced; provenance preserved on round-trip.",
   "proof_commands": [
@@ -34,20 +36,50 @@
   ],
   "risk_if_missed": "Steering vectors are session-only; rebuilt every process restart; operator cannot review or audit them.",
   "validator_focus": "Round-trip preserves provenance + license; review-gated writes; mutations through KernelActionCatalogV1.",
-  "hbr_obligations": ["HBR-INT-002", "HBR-INT-006", "HBR-INT-008"],
+  "hbr_obligations": [
+    "HBR-INT-002",
+    "HBR-INT-006",
+    "HBR-INT-008"
+  ],
   "spec_anchors": [
     ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.7.1"
   ],
-  "acceptance_criteria_refs": ["AC-INFER-LAB-8-TECHNIQUES"],
+  "acceptance_criteria_refs": [
+    "AC-INFER-LAB-8-TECHNIQUES"
+  ],
   "lifecycle": {
     "active": false,
-    "status": "PENDING",
-    "validator_verdict": "PENDING",
-    "depends_on": ["MT-096"],
-    "blocks": ["MT-098", "MT-099"]
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "CONCERN",
+    "depends_on": [
+      "MT-096"
+    ],
+    "blocks": [
+      "MT-098",
+      "MT-099"
+    ],
+    "claimed_by": "KERNEL_BUILDER-20260519-143049",
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "COMPLETED",
+        "validator_verdict": "PENDING",
+        "completed_at_utc": "2026-05-19T18:37:22.632Z"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "previous_completed_at_utc_before_ready_for_validation_20260525": "2026-05-19T18:37:22.632Z",
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-27T19:03:58.446Z"
   },
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260519-143049",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
     "review_response_receipt_id": null
@@ -58,5 +90,57 @@
       "Review-gated promote step before vector becomes active by default.",
       "Mutations through KernelActionCatalogV1 (grep test)."
     ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C6_C7",
+    "reviewed_at_utc": "2026-05-27T19:32:00Z",
+    "aggregator_run_at_utc": "2026-05-27T19:03:58.446Z",
+    "verdict": "CONCERN",
+    "verdict_reason": "SteeringVectorStore is well-shaped: persists SteeringVectorArtifact with provenance, license_tag, content-hashed values blob, and a KernelActionRequestV1 + WriteBoxV1 envelope per KERNEL-002 contract. License_tag is validated as non-empty (red_team #1 met). Mutations route through kernel.steering.register action (red_team #3 met). HOWEVER: red_team control #2 ('review-gated promote step before vector becomes active by default') is NOT enforced. ReviewStatus::Pending is written but no caller reads it before activation. Reload-on-restart functionality is not implemented — the contract requires 'scan SteeringVectorArtifact rows for current process's models; rehydrate into SteeringHookOps registry' but there is no reload helper or call site.",
+    "spec_compliance_status": "PARTIAL",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "CONCERN",
+    "agent_swarm_safety_status": "CONCERN",
+    "hbr_unsatisfied": [
+      "HBR-INT-002",
+      "HBR-INT-006"
+    ],
+    "test_coverage_status": "THIN",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 1,
+      "MEDIUM": 1,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 1,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-097.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-097.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C6_C7",
+    "reviewed_at_utc": "2026-05-27T19:32:00Z",
+    "aggregator_run_at_utc": "2026-05-27T18:50:05.123Z",
+    "verdict": "CONCERN",
+    "verdict_reason": "SteeringVectorStore is well-shaped: persists SteeringVectorArtifact with provenance, license_tag, content-hashed values blob, and a KernelActionRequestV1 + WriteBoxV1 envelope per KERNEL-002 contract. License_tag is validated as non-empty (red_team #1 met). Mutations route through kernel.steering.register action (red_team #3 met). HOWEVER: red_team control #2 ('review-gated promote step before vector becomes active by default') is NOT enforced. ReviewStatus::Pending is written but no caller reads it before activation. Reload-on-restart functionality is not implemented — the contract requires 'scan SteeringVectorArtifact rows for current process's models; rehydrate into SteeringHookOps registry' but there is no reload helper or call site.",
+    "spec_compliance_status": "PARTIAL",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "CONCERN",
+    "agent_swarm_safety_status": "CONCERN",
+    "hbr_unsatisfied": [
+      "HBR-INT-002",
+      "HBR-INT-006"
+    ],
+    "test_coverage_status": "THIN",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 1,
+      "MEDIUM": 1,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 1,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-097.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-097.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
   }
 }

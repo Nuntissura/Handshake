@@ -7,7 +7,7 @@
   "cluster_subscope": "C.2",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:00:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-05-27T19:03:58.446Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -29,7 +29,15 @@
     "src/backend/handshake_core/src/model_runtime/llama_cpp/gguf_loader.rs",
     "src/backend/handshake_core/src/model_runtime/mod.rs"
   ],
-  "depends_on_mts": ["MT-062", "MT-063", "MT-064", "MT-066", "MT-067", "MT-069", "MT-070"],
+  "depends_on_mts": [
+    "MT-062",
+    "MT-063",
+    "MT-064",
+    "MT-066",
+    "MT-067",
+    "MT-069",
+    "MT-070"
+  ],
   "unblock_conditions": "MT-061..MT-070 merged.",
   "implementation_notes": "Per AC-LLAMACPP-ADAPTER (spec §4.6.2): LlamaCppRuntime (DEFAULT) wraps llama-cpp-2 Rust crate; covers ~all GGUF transformer models; required path for KV-cache + KV-quant + self-speculative decoding (§4.7.1g). LlamaCppRuntime struct: `pub struct LlamaCppRuntime { models: Arc<RwLock<HashMap<ModelId, LlamaModelHandle>>>, default_kv_policy: KvCachePolicy, ledger: Arc<ProcessLedgerIntegration> }`. LlamaModelHandle wraps `llama_cpp_2::LlamaModel` + `llama_cpp_2::LlamaContext` + per-model state (LoraStack, KvCacheStats). All llama_cpp_2::* identifiers MUST stay inside this module — public surface uses ModelRuntime trait types only. impl ModelRuntime for LlamaCppRuntime: `async fn load(&mut self, spec: LoadSpec) -> Result<ModelId, ModelRuntimeError>` — verify RuntimeKind == LlamaCpp; verify spec.declared_capabilities.supports_activation_steering == false (LlamaCpp has no hook substrate); compute sha256 of artifact and compare to spec.sha256_expected (ERR LoadError if mismatch); spawn llama_cpp_2 backend (initial CPU; GPU via cuda feature flag if available); mint ModelId via now_v7(); register process with process_ledger; insert into models map. `async fn unload(&mut self, id) -> Result<(), ...>` — drop LlamaModel, mark ledger row terminated, remove from map. generate/score/embed/kv_cache/lora_stack/steering_hooks return placeholder errors NotImplemented (filled in MT-073..MT-080). capabilities returns the declared capabilities from registration. cancel sets a per-context cancel flag. Per spec §3.6.2 model-process spawn MUST go through SandboxAdapter — for llama-cpp-2 in-process, this means the entire handshake_core process is the sandbox boundary (operator-set: in-proc OR llama.cpp server subprocess inside SandboxAdapter). MT-073 picks the spawn mode. UUID v7 for ModelId per HBR-INT-008.",
   "proof_commands": [
@@ -38,21 +46,68 @@
   ],
   "risk_if_missed": "Subsequent llama-cpp-2 MTs lack a module to extend; engine-specific types leak via fragmented re-implementations.",
   "validator_focus": "llama_cpp_2::* identifiers contained inside model_runtime/llama_cpp/**; sha256 mismatch returns LoadError; ModelId uses now_v7(); capability declaration rejects activation_steering=true on this adapter.",
-  "hbr_obligations": ["HBR-INT-002", "HBR-INT-008"],
+  "hbr_obligations": [
+    "HBR-INT-002",
+    "HBR-INT-008"
+  ],
   "spec_anchors": [
     ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.6.2",
     ".GOV/spec/master-spec-v02.186/spec-modules/03-local-first-infrastructure.md#3.6.2"
   ],
-  "acceptance_criteria_refs": ["AC-LLAMACPP-ADAPTER", "AC-MODEL-RUNTIME-TRAIT", "AC-MODEL-CAP-DECL"],
+  "acceptance_criteria_refs": [
+    "AC-LLAMACPP-ADAPTER",
+    "AC-MODEL-RUNTIME-TRAIT",
+    "AC-MODEL-CAP-DECL"
+  ],
   "lifecycle": {
     "active": false,
-    "status": "PENDING",
-    "validator_verdict": "PENDING",
-    "depends_on": ["MT-062", "MT-063", "MT-064", "MT-066", "MT-067", "MT-069", "MT-070"],
-    "blocks": ["MT-073", "MT-074", "MT-075", "MT-076", "MT-077", "MT-078", "MT-079", "MT-080", "MT-090", "MT-093", "MT-109"]
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "PASS",
+    "depends_on": [
+      "MT-062",
+      "MT-063",
+      "MT-064",
+      "MT-066",
+      "MT-067",
+      "MT-069",
+      "MT-070"
+    ],
+    "blocks": [
+      "MT-073",
+      "MT-074",
+      "MT-075",
+      "MT-076",
+      "MT-077",
+      "MT-078",
+      "MT-079",
+      "MT-080",
+      "MT-090",
+      "MT-093",
+      "MT-109"
+    ],
+    "claimed_by": "KERNEL_BUILDER-20260518-235451",
+    "claimed_at_utc": "2026-05-19T05:03:58Z",
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "COMPLETED",
+        "validator_verdict": "PENDING",
+        "completed_at_utc": "2026-05-19T05:12:55Z"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "previous_completed_at_utc_before_ready_for_validation_20260525": "2026-05-19T05:12:55Z",
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-27T19:03:58.446Z"
   },
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260518-235451",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
     "review_response_receipt_id": null
@@ -63,5 +118,51 @@
       "Capability rejection at load (activation_steering=true on LlamaCpp).",
       "sha256 mismatch returns explicit error before adapter accepts the artifact."
     ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C2_FRESH",
+    "reviewed_at_utc": "2026-05-27T18:30:00Z",
+    "aggregator_run_at_utc": "2026-05-27T19:03:58.446Z",
+    "verdict": "PASS",
+    "verdict_reason": "LlamaCppRuntime scaffolding is complete in wtc-kernel-004-fold-v1 with sha256 gate, GGUF magic-byte gate, activation_steering rejection, v7 ModelId mint, and engine-containment.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 1,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-072.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-072.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C2_FRESH",
+    "reviewed_at_utc": "2026-05-27T18:30:00Z",
+    "aggregator_run_at_utc": "2026-05-27T18:50:05.123Z",
+    "verdict": "PASS",
+    "verdict_reason": "LlamaCppRuntime scaffolding is complete in wtc-kernel-004-fold-v1 with sha256 gate, GGUF magic-byte gate, activation_steering rejection, v7 ModelId mint, and engine-containment.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 1,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-072.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-072.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
   }
 }

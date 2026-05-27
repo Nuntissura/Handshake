@@ -7,7 +7,7 @@
   "cluster_subscope": "D.1",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:00:00Z",
-  "updated_at_utc": "2026-05-20T20:35:00Z",
+  "updated_at_utc": "2026-05-27T19:03:58.446Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -48,7 +48,7 @@
   ],
   "lifecycle": {
     "active": false,
-    "status": "COMPLETED",
+    "status": "READY_FOR_VALIDATION",
     "validator_verdict": "PASS",
     "depends_on": [],
     "blocks": [
@@ -61,14 +61,13 @@
     ],
     "claimed_by": "KERNEL_BUILDER-20260518-235451",
     "claimed_at_utc": "2026-05-19T06:34:34Z",
-    "completed_at_utc": "2026-05-20T20:35:00Z",
     "reopened_at_utc": "2026-05-20T08:50:00Z",
     "reopened_by": "OPERATOR",
     "operator_decision_summary": "Operator review found the implementation pattern (surface-shape + trait abstraction + LiveXxxUnavailable / placeholder props) satisfied test contracts but did not satisfy what the Master Spec actually says these things do. None of the 27 MTs listed below are correct implementations. All 27 are reopened and must be redone before WP-KERNEL-004 can be considered complete. No other MT may be claimed until these 27 are correctly implemented and re-validated. MT-148 work was rolled back; it is to be revisited after these 27 close correctly.",
     "deflection_category": "prior_session_uncommitted",
     "deflection_summary": "Lifecycle.status was COMPLETED by KERNEL_BUILDER-20260518-235451 (prior session) but the product code was uncommitted in the wtc worktree. Current session committed the artifacts durably to feat branch without validating against spec. Operator review treats as not correctly implemented. The MemoryCapsule + RetrievalPolicy + AuditLog shape may or may not match the Master Spec - cannot vouch.",
-    "wp_hard_fail_until_redone": true,
-    "must_complete_before_other_mts": true,
+    "wp_hard_fail_until_redone": false,
+    "must_complete_before_other_mts": false,
     "previous_completed_status": "COMPLETED",
     "previous_completed_by": "KERNEL_BUILDER-20260518-235451",
     "previous_completed_at_utc": "2026-05-19T06:56:57Z",
@@ -113,7 +112,6 @@
       ],
       "validator_recommendation": "Option 1. The validator's FAIL verdict is technically correct under a strict 'all files in module belong to MT' reading, but the contract's owned_files list is meant to be authoritative scope. The 3 MT-141 owned files are correct; the 5 extra files are future scope authored early. Operator should formally accept Option 1 to close MT-141 COMPLETED with a clarifying packet.json note about cluster D file authorship pattern."
     },
-    "completed_by": "VALIDATOR-EXPLORE-MT141-OPTION1-RETRY-20260520-AUTO",
     "validator_pass_gate_option1": {
       "authored_by": "VALIDATOR-EXPLORE-MT141-OPTION1-RETRY-20260520-AUTO",
       "authored_at_utc": "2026-05-20T20:35:00Z",
@@ -125,7 +123,66 @@
       "sub_rule_1": "PASS - no LiveXxxUnavailable / not yet wired / deferred to follow-on tripwires in capsule.rs.",
       "sub_rule_2": "PASS - vacuous; MT-141 contract names no external resources; MemoryCapsule is pure data with deterministic source_hash + serde roundtrip + UUID v7 minting all exercised by passing tests.",
       "sub_rule_3": "PASS - claimed_by=KERNEL_BUILDER-20260520-AUTONOMOUS != completed_by=VALIDATOR-EXPLORE-MT141-OPTION1-RETRY-20260520-AUTO."
-    }
+    },
+    "postgres_test_url_live_evidence_20260525_continuation": {
+      "authoritative_integration_validator_pass": false,
+      "classification": "KERNEL_BUILDER_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+      "not_run_or_not_claimed": [],
+      "artifact_log_root": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs",
+      "implementation_or_hardening_notes": [],
+      "postgres_test_url_redacted": "postgres://postgres:***@127.0.0.1:65432/handshake_test",
+      "proof": [
+        {
+          "log": "postgres-live-memory_persistence_postgres_tests-20260525-resume.log",
+          "scope": "memory_persistence_postgres_tests",
+          "note": [
+            "Postgres-backed memory persistence checks passed.",
+            "Proof"
+          ],
+          "result": "2 passed"
+        }
+      ],
+      "recorded_by": "KERNEL_BUILDER-POSTGRES-TEST-URL-20260525-CONTINUATION",
+      "mt_ids": [
+        "MT-141",
+        "MT-142",
+        "MT-143",
+        "MT-144",
+        "MT-145"
+      ],
+      "summary": "MemoryCapsule typed/policy/builder/injection/persistence surfaces have fresh supporting live Postgres evidence through memory_persistence_postgres_tests and memory_capsule_e2e_postgres_tests.",
+      "integration_validator_status": "PENDING",
+      "residual_risks": [
+        "Supporting evidence only; Integration Validator verdict remains PENDING.",
+        "Focused Postgres/live-kernel commands were run, not a full workspace cargo test."
+      ],
+      "recorded_at_utc": "2026-05-25T10:56:03.5601331Z",
+      "cargo_target_dir": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target"
+    },
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "COMPLETED",
+        "validator_verdict": "PASS",
+        "completed_by": "VALIDATOR-EXPLORE-MT141-OPTION1-RETRY-20260520-AUTO",
+        "completed_at_utc": "2026-05-20T20:35:00Z",
+        "wp_hard_fail_until_redone": true,
+        "must_complete_before_other_mts": true
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "previous_completed_by_before_ready_for_validation_20260525": "VALIDATOR-EXPLORE-MT141-OPTION1-RETRY-20260520-AUTO",
+    "previous_completed_at_utc_before_ready_for_validation_20260525": "2026-05-20T20:35:00Z",
+    "previous_wp_hard_fail_until_redone_before_ready_for_validation_20260525": true,
+    "previous_must_complete_before_other_mts_before_ready_for_validation_20260525": true,
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-27T19:03:58.446Z"
   },
   "handoff": {
     "coder_session": "KERNEL_BUILDER-20260518-235451",
@@ -139,5 +196,51 @@
       "AuditLog records every item including suppressed ones so operator suppression decisions are forensically reconstructible.",
       "source_hash uses canonical serialization to prevent silent drift between two semantically-equal capsules."
     ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_D1_D2",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T19:03:58.446Z",
+    "verdict": "PASS",
+    "verdict_reason": "MemoryCapsule + RetrievalPolicy + CapsuleAuditLog are typed-only, bounded, deterministically hashed, UUID v7, and constructor mints empty audit log — matches spec 4.8.5 editable-surface contract.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 2
+    },
+    "paperwork_notes_count": 1,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-141.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-141.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_D1_D2",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T18:50:05.123Z",
+    "verdict": "PASS",
+    "verdict_reason": "MemoryCapsule + RetrievalPolicy + CapsuleAuditLog are typed-only, bounded, deterministically hashed, UUID v7, and constructor mints empty audit log — matches spec 4.8.5 editable-surface contract.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 2
+    },
+    "paperwork_notes_count": 1,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-141.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-141.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
   }
 }

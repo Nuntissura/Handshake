@@ -7,7 +7,7 @@
   "cluster_subscope": "C.4",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:00:00Z",
-  "updated_at_utc": "2026-05-22T20:05:00Z",
+  "updated_at_utc": "2026-05-27T19:03:58.446Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -25,7 +25,10 @@
   "owned_files": [
     "src/backend/handshake_core/tests/inf1_lora_parity_tests.rs"
   ],
-  "depends_on_mts": ["MT-090", "MT-091"],
+  "depends_on_mts": [
+    "MT-090",
+    "MT-091"
+  ],
   "unblock_conditions": "MT-090 + MT-091 merged.",
   "implementation_notes": "Per AC-INFER-LAB-8-TECHNIQUES.a parity gate: behavior must be uniform across both adapters for INF-1 PRODUCTION declaration to hold. Test scenario: register two models — one LlamaCpp (GGUF), one Candle (safetensors) — both fine-tunes of the same base; mount a LoRA designed for that base on each; generate; assert both differ from base; assert license tag carried through; assert FR-EVT-LLM-INFER-LORA-MOUNT fires on both. Skip gracefully when env vars unset. Cross-adapter equivalence is qualitative (not bit-exact; different sampler RNG paths) — assert e.g., perplexity-diff > threshold on a fixed prompt. This is the regression gate for INF-1 across adapter boundary.",
   "proof_commands": [
@@ -33,22 +36,45 @@
   ],
   "risk_if_missed": "Adapter drift in INF-1 unnoticed; LoRA behavior unstable across adapters.",
   "validator_focus": "Skip path documented; qualitative parity threshold reasonable; license tag carried.",
-  "hbr_obligations": ["HBR-INT-002"],
+  "hbr_obligations": [
+    "HBR-INT-002"
+  ],
   "spec_anchors": [
     ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.7.1"
   ],
-  "acceptance_criteria_refs": ["AC-INFER-LAB-8-TECHNIQUES"],
+  "acceptance_criteria_refs": [
+    "AC-INFER-LAB-8-TECHNIQUES"
+  ],
   "lifecycle": {
     "active": false,
     "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "validator_verdict": "CONCERN",
     "integration_validator_verdict": "PENDING",
-    "depends_on": ["MT-090", "MT-091"],
+    "depends_on": [
+      "MT-090",
+      "MT-091"
+    ],
     "blocks": [],
     "claimed_by": "KERNEL_BUILDER-20260522-171100",
     "claimed_at_utc": "2026-05-22T20:05:00Z",
     "ready_for_validation_by": "KERNEL_BUILDER-20260522-171100",
-    "ready_for_validation_at_utc": "2026-05-22T20:35:00Z"
+    "ready_for_validation_at_utc": "2026-05-22T20:35:00Z",
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "READY_FOR_VALIDATION",
+        "validator_verdict": "PENDING"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-27T19:03:58.446Z"
   },
   "handoff": {
     "coder_session": "KERNEL_BUILDER-20260522-171100",
@@ -116,5 +142,51 @@
       "risk_reduced": "None — strictly contract-scoped.",
       "waiver_status": "NOT_APPLICABLE"
     }
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C4_C7",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T19:03:58.446Z",
+    "verdict": "CONCERN",
+    "verdict_reason": "Always-on parity assertions exercise the public technique surface against tagged fakes for both adapters; env-gated real-runtime smoke is the only path that exercises actual LlamaCpp + Candle adapters and is not asserted to produce behavioural divergence. Acceptable as a regression gate but the cross-adapter parity contract is only proven at the surface, not at the model.",
+    "spec_compliance_status": "PARTIAL",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 1,
+      "LOW": 0
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-092.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-092.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C4_C7",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T18:50:05.123Z",
+    "verdict": "CONCERN",
+    "verdict_reason": "Always-on parity assertions exercise the public technique surface against tagged fakes for both adapters; env-gated real-runtime smoke is the only path that exercises actual LlamaCpp + Candle adapters and is not asserted to produce behavioural divergence. Acceptable as a regression gate but the cross-adapter parity contract is only proven at the surface, not at the model.",
+    "spec_compliance_status": "PARTIAL",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 1,
+      "LOW": 0
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-092.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-092.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
   }
 }

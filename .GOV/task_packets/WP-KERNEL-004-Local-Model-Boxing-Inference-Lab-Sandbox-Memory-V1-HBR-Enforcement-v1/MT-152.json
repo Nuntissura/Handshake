@@ -7,7 +7,7 @@
   "cluster_subscope": "D.2",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:11:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-05-27T19:03:58.446Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -26,7 +26,10 @@
     "src/backend/handshake_core/src/self_improve/promotion_floor.rs",
     "src/backend/handshake_core/tests/promotion_floor_tests.rs"
   ],
-  "depends_on_mts": ["MT-148", "MT-151"],
+  "depends_on_mts": [
+    "MT-148",
+    "MT-151"
+  ],
   "unblock_conditions": "MT-148 (loop core) + MT-151 (evaluator producing EvalResult shape).",
   "implementation_notes": "Per AC-DISTILL-LOOP-SAFEGUARDS the floor is: (1) dev PASS rate strictly up, (2) latency p95 not regressed, (3) capsule bytes p95 not regressed, (4) holdout PASS rate not regressed. Surface: `pub struct MultiMetricPromotionFloor { tolerances: PromotionTolerances }` with `pub fn evaluate(baseline: &EvalResult, trial: &EvalResult) -> PromotionDecision`. PromotionTolerances: `{ pub latency_p95_regression_tolerance_pct: f64 (default 5.0), pub capsule_bytes_p95_regression_tolerance_pct: f64 (default 5.0), pub holdout_pass_regression_tolerance_pp: f64 (default 0.0 - no tolerance for holdout regression) }`. PromotionDecision: `{ Approved { delta: MetricDelta }, Rejected { reasons: Vec<FloorReason>, delta: MetricDelta } }`. FloorReason enum: DevPassRateNotImproved, LatencyP95Regressed { baseline_ms, trial_ms, delta_pct }, CapsuleBytesRegressed { baseline_bytes, trial_bytes, delta_pct }, HoldoutPassRegressed { baseline_pass_rate, trial_pass_rate, delta_pp }. MetricDelta: `{ dev_pass_delta_pp, latency_p95_delta_ms, capsule_bytes_p95_delta_bytes, holdout_pass_delta_pp }`. Tolerances are durable typed state (not magic numbers); they live in the loop config and any change to tolerances itself flows through PromotionGate operator review. Tests: floor accepts when all four conditions hold; rejects with each individual FloorReason when one condition fails; rejects with multiple reasons when several fail; tolerance bounds (e.g., 100% latency regression) trigger rejection; floor is pure (no I/O).",
   "proof_commands": [
@@ -34,20 +37,85 @@
   ],
   "risk_if_missed": "Without a multi-metric floor the loop can ship dev-PASS improvements that regress latency, capsule bytes, or holdout PASS; this is the textbook Goodhart failure mode.",
   "validator_focus": "Floor is a pure function (no I/O). Tolerances are durable typed state. Every rejection reason is typed.",
-  "hbr_obligations": ["HBR-INT-006"],
+  "hbr_obligations": [
+    "HBR-INT-006"
+  ],
   "spec_anchors": [
     ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.8.3"
   ],
-  "acceptance_criteria_refs": ["AC-DISTILL-LOOP-SAFEGUARDS"],
+  "acceptance_criteria_refs": [
+    "AC-DISTILL-LOOP-SAFEGUARDS"
+  ],
   "lifecycle": {
-    "active": false,
-    "status": "PENDING",
-    "validator_verdict": "PENDING",
-    "depends_on": ["MT-148", "MT-151"],
-    "blocks": ["MT-153", "MT-154", "MT-156", "MT-167", "MT-170"]
+    "active": true,
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "PASS",
+    "depends_on": [
+      "MT-148",
+      "MT-151"
+    ],
+    "blocks": [
+      "MT-153",
+      "MT-154",
+      "MT-156",
+      "MT-167",
+      "MT-170"
+    ],
+    "claimed_at_utc": "2026-05-23T07:30:00Z",
+    "claimed_by": "KERNEL_BUILDER-20260523-031814-AGT-D2-PG",
+    "claim_note": "Paired D.2 claim with MT-153; assumes MT-148 RFV (parent verified) + MT-151 RFV-pending (parallel session).",
+    "ready_for_validation_at_utc": "2026-05-23T07:55:00Z",
+    "ready_for_validation_note": "promotion_floor.rs implementation verified by sub-agent; 29 integration tests at tests/promotion_floor_tests.rs cover all four gates (dev PASS up, latency p95 not regressed, capsule-bytes p95 not regressed, holdout PASS not regressed), AND logic combinations, typed FloorReason serde round-trip, durable PromotionTolerances defaults, boundary (exactly-at-tolerance, baseline-zero, epsilon-improvement), and floor purity. All 29 integration tests pass; 7 inline lib tests still pass. classification: IMPLEMENTATION_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS.",
+    "post_ready_hardening_20260525": {
+      "classification": "IMPLEMENTATION_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+      "authoritative_integration_validator_pass": false,
+      "recorded_at_utc": "2026-05-25T00:15:32Z",
+      "recorded_by": "KERNEL_BUILDER-20260524-231217",
+      "summary": "Resolved the baseline-zero latency/capsule-bytes JSON evidence gap by replacing unbounded f64::INFINITY rejection delta_pct with a finite f64::MAX sentinel. The floor still fails closed for positive trial values over zero baselines, while serde_json evidence remains finite and operator-facing JSON-safe.",
+      "files_touched": [
+        "src/backend/handshake_core/src/self_improve/promotion_floor.rs"
+      ],
+      "tdd_evidence": {
+        "red": {
+          "command": "$env:CARGO_TARGET_DIR='D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target/wp-kernel-004-promotion-floor-red'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test promotion_floor_tests -- --nocapture",
+          "exit_code": 1,
+          "note": "27 passed, 2 failed; baseline-zero positive trial tests exposed non-finite delta_pct in latency and capsule-bytes rejection reasons."
+        },
+        "green": {
+          "command": "$env:CARGO_TARGET_DIR='D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target/wp-kernel-004-promotion-floor-green'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test promotion_floor_tests -- --nocapture",
+          "exit_code": 0,
+          "note": "29 passed after replacing infinity with finite sentinel."
+        },
+        "focused_final": {
+          "command": "$env:CARGO_TARGET_DIR='D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target/wp-kernel-004-focused-final'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test promotion_floor_tests --test kernel_action_catalog_tests --test editable_surface_tests --test distillation_peft_pipeline_tests --test distillation_content_review_tests -- --nocapture",
+          "exit_code": 0,
+          "note": "68 passed across the focused post-hardening set."
+        }
+      },
+      "residual_risks": [
+        "f64::MAX is intentionally a sentinel for unbounded positive-over-zero regression, not a mathematical percentage; UI copy should render it as unbounded/fail-closed rather than a literal useful percent.",
+        "No Integration Validator has reviewed MT-152."
+      ]
+    },
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "READY_FOR_VALIDATION",
+        "validator_verdict": "PENDING"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-27T19:03:58.446Z"
   },
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260523-031814-AGT-D2-PG",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
     "review_response_receipt_id": null
@@ -58,5 +126,51 @@
       "Tolerances are durable typed state; tolerance changes themselves flow through PromotionGate operator review.",
       "Floor is pure; tests cover every individual rejection reason and combinations."
     ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_D1_D2",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T19:03:58.446Z",
+    "verdict": "PASS",
+    "verdict_reason": "MultiMetricPromotionFloor enforces ALL FOUR spec 4.8.3 criteria (dev PASS strictly up AND latency p95 not regressed beyond tolerance AND capsule bytes not regressed beyond tolerance AND holdout PASS not regressed beyond 0 pp by default). Decision is pure (no I/O), tolerances are typed durable state, every reject carries forensic numbers.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 2
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-152.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-152.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_D1_D2",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T18:50:05.123Z",
+    "verdict": "PASS",
+    "verdict_reason": "MultiMetricPromotionFloor enforces ALL FOUR spec 4.8.3 criteria (dev PASS strictly up AND latency p95 not regressed beyond tolerance AND capsule bytes not regressed beyond tolerance AND holdout PASS not regressed beyond 0 pp by default). Decision is pure (no I/O), tolerances are typed durable state, every reject carries forensic numbers.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 2
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-152.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-152.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
   }
 }

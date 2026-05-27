@@ -7,7 +7,7 @@
   "cluster_subscope": "C.2",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:00:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-05-27T19:03:58.446Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -28,7 +28,9 @@
     "src/backend/handshake_core/src/model_runtime/llama_cpp/adapter.rs",
     "src/backend/handshake_core/tests/llama_cpp_generate_tests.rs"
   ],
-  "depends_on_mts": ["MT-073"],
+  "depends_on_mts": [
+    "MT-073"
+  ],
   "unblock_conditions": "MT-073 loader merged.",
   "implementation_notes": "Per AC-LLAMACPP-ADAPTER + AC-INFER-LAB-8-TECHNIQUES: streaming generate is the default surface. Implement as `async fn generate_stream(&self, req: GenerateRequest) -> TokenStream` returning a Pin<Box<dyn Stream<Item=Result<GeneratedToken, ModelRuntimeError>> + Send>>. Internal loop: tokenize prompt via cached tokenizer, run llama_cpp_2 decode batch by batch, after each token call the sampler (sampler.rs assembles llama_cpp_2 sampler chain from SamplingParams), yield GeneratedToken via async-stream macro or tokio::sync::mpsc + ReceiverStream. Per-token poll the CancellationToken — if cancelled, break loop and yield ModelRuntimeError::Cancelled. Stop sequences: maintain a rolling buffer of last N tokens; after each yield, check decoded suffix against stop_sequences; on match, set finish_reason=StopSequence and break. max_tokens cap enforced. Structured decoding: if req.structured_decoding Some, build a llama_cpp_2 grammar from the JsonSchema (gbnf conversion; partial in this MT, full JSON Schema support deferred to a future WP — return CapabilityNotSupported with explicit error for unsupported features like $ref/oneOf). FR-EVT-LLM-INFER-START / FR-EVT-LLM-INFER-TOKEN / FR-EVT-LLM-INFER-END events fired from generate. Per-request lora_overrides applied via llama-cpp-2 per-call --lora flag (mechanism for MT-090 LoRA hot-swap; this MT only wires the parameter path). Tests (env-gated by HANDSHAKE_TEST_GGUF_PATH): generate 16 tokens on a fixed seed and assert deterministic output; cancel mid-generation and assert Cancelled error within 100ms; stop sequence \"###\" terminates correctly; structured decoding with simple grammar produces JSON-shaped output.",
   "proof_commands": [
@@ -36,21 +38,61 @@
   ],
   "risk_if_missed": "LlamaCppRuntime cannot serve real generate traffic; LlmClient routing has no concrete backend.",
   "validator_focus": "Streaming TokenStream actually streams (not batched-then-yielded); cancellation latency <100ms; stop sequence + max_tokens caps respected; sampling determinism with fixed seed.",
-  "hbr_obligations": ["HBR-INT-002"],
+  "hbr_obligations": [
+    "HBR-INT-002"
+  ],
   "spec_anchors": [
     ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.6.2",
     ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.7.1"
   ],
-  "acceptance_criteria_refs": ["AC-LLAMACPP-ADAPTER", "AC-MODEL-RUNTIME-TRAIT"],
+  "acceptance_criteria_refs": [
+    "AC-LLAMACPP-ADAPTER",
+    "AC-MODEL-RUNTIME-TRAIT"
+  ],
   "lifecycle": {
     "active": false,
-    "status": "PENDING",
-    "validator_verdict": "PENDING",
-    "depends_on": ["MT-073"],
-    "blocks": ["MT-075", "MT-076", "MT-077", "MT-080", "MT-090", "MT-109", "MT-110"]
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "PASS",
+    "depends_on": [
+      "MT-073"
+    ],
+    "blocks": [
+      "MT-075",
+      "MT-076",
+      "MT-077",
+      "MT-078",
+      "MT-079",
+      "MT-080",
+      "MT-090",
+      "MT-109",
+      "MT-110"
+    ],
+    "claimed_by": "KERNEL_BUILDER-20260521-132803",
+    "claimed_at_utc": "2026-05-21T14:26:06.604Z",
+    "integration_validator_verdict": "PENDING",
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "COMPLETED",
+        "validator_verdict": "PENDING",
+        "completed_by": "KERNEL_BUILDER-20260521-132803",
+        "completed_at_utc": "2026-05-21T14:26:06.604Z"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "previous_completed_by_before_ready_for_validation_20260525": "KERNEL_BUILDER-20260521-132803",
+    "previous_completed_at_utc_before_ready_for_validation_20260525": "2026-05-21T14:26:06.604Z",
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-27T19:03:58.446Z"
   },
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260521-132803",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
     "review_response_receipt_id": null
@@ -61,5 +103,131 @@
       "Cancellation latency <100ms verified.",
       "Stop sequence boundary correct (decoded suffix not the raw token boundary)."
     ]
+  },
+  "implementation_supporting_evidence_20260521": {
+    "schema_id": "hsk.mt_implementation_supporting_evidence@1",
+    "recorded_at_utc": "2026-05-21T14:26:06.604Z",
+    "recorded_by": "KERNEL_BUILDER-20260521-132803",
+    "classification": "IMPLEMENTATION_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+    "authoritative_integration_validator_pass": false,
+    "integration_validator_status": "PENDING",
+    "operator_mt_review_status": "DEFERRED_NOT_CURRENT_SESSION_FOCUS",
+    "operator_product_vs_master_spec_review_status": "DEFERRED_NOT_CURRENT_SESSION_FOCUS",
+    "summary": "Cleared MT-074 HOST_NATIVE_LLAMA_CPP_TOOLCHAIN blocker by installing/configuring LLVM/libclang and CMake on the host, using a short artifact-root Cargo target dir to avoid MSBuild FTK1011 path-length failure, and adding an env-gated live GGUF native generation proof. LlamaCppRuntime generate remains an implementation completion claim only; Integration Validator review is still pending.",
+    "previous_blocker": {
+      "blocked_at_utc": "2026-05-19T05:59:14Z",
+      "blocked_by": "HOST_NATIVE_LLAMA_CPP_TOOLCHAIN",
+      "blocking_record": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/RECEIPTS.jsonl",
+      "reason": "Default-build MT-074 scaffolding and tests are implemented, including sampler planning, stop-sequence buffering, generate preflight, typed unloaded-model errors, and a feature-gated native sample/decode loop. The required native streaming acceptance proof cannot run on this host because `cargo check --features model-runtime-engines` fails in `llama-cpp-sys-2` bindgen before Rust typechecking: clang.dll/libclang.dll is missing and LIBCLANG_PATH is not configured. No HANDSHAKE_TEST_GGUF_PATH native fixture proof can run until the native toolchain is available.",
+      "operator_action_needed": "Install/configure LLVM/libclang for the Rust MSVC toolchain and set LIBCLANG_PATH if needed; then rerun `cargo check --features model-runtime-engines --target-dir ../Handshake_Artifacts/handshake-cargo-target` and the HANDSHAKE_TEST_GGUF_PATH generate tests before promoting MT-074 to COMPLETED."
+    },
+    "host_toolchain_resolution": {
+      "llvm_libclang_path": "C:/Program Files/LLVM/bin/libclang.dll",
+      "cmake_path": "C:/Program Files/CMake/bin/cmake.exe",
+      "cargo_target_dir_required": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/t",
+      "reason_short_target_required": "Long artifact-root target dirs reached MSBuild file-tracker FTK1011 path creation failure; short target dir under Handshake_Artifacts passed.",
+      "installs_performed": [
+        {
+          "tool": "LLVM",
+          "installer": "choco install llvm -y --no-progress",
+          "version_observed": "22.1.0",
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/llvm-install-choco-mt074-20260521-153856.log",
+          "exit_code": 0
+        },
+        {
+          "tool": "CMake",
+          "installer": "choco install cmake -y --no-progress --installargs 'ADD_CMAKE_TO_PATH=System'",
+          "version_observed": "4.3.2",
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/cmake-install-choco-mt074-20260521-154745.log",
+          "exit_code": 0
+        }
+      ]
+    },
+    "product_surfaces_changed": [
+      "src/backend/handshake_core/tests/llama_cpp_generate_tests.rs"
+    ],
+    "high_roi_additions": [
+      "Added HANDSHAKE_TEST_GGUF_PATH env-gated live GGUF streaming generation proof to prevent future native-generate regressions from hiding behind unit-only sampler/preflight coverage.",
+      "Recorded the short CARGO_TARGET_DIR requirement so future Windows native llama.cpp checks do not rediscover the MSBuild FTK1011 path-length failure."
+    ],
+    "proof_commands": [
+      {
+        "command": "cargo check --manifest-path src/backend/handshake_core/Cargo.toml --features model-runtime-engines",
+        "exit_code": 0,
+        "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt074-native-check-short-target-20260521-155706.log",
+        "exitcode_file": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt074-native-check-short-target-20260521-155706.log.exitcode",
+        "cargo_target_dir": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/t",
+        "note": "Native llama.cpp feature compile passed after LLVM/libclang and CMake install when using short target dir."
+      },
+      {
+        "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features model-runtime-engines --test llama_cpp_generate_tests -- --nocapture",
+        "exit_code": 0,
+        "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt074-generate-tests-native-live-fixture-20260521-162238.log",
+        "exitcode_file": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt074-generate-tests-native-live-fixture-20260521-162238.log.exitcode",
+        "env": {
+          "HANDSHAKE_TEST_GGUF_PATH": "D:/Local Models/Novaciano/Nanopenis-68M_NSFW_RP-GGUF/Nanopenis-68M_NSFW_RP.gguf"
+        },
+        "note": "8 passed, including env-gated representative GGUF load, loaded-model cancellation, and native streaming generation terminal finish reason proof."
+      },
+      {
+        "command": "cargo fmt --manifest-path src/backend/handshake_core/Cargo.toml --check; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features model-runtime-engines --test llama_cpp_adapter_tests -- --nocapture; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features model-runtime-engines --test llama_cpp_generate_tests -- --nocapture; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features model-runtime-engines --test llama_cpp_loader_tests -- --nocapture; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features model-runtime-engines --test model_runtime_contract_tests -- --nocapture",
+        "exit_code": 0,
+        "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt074-focused-native-suite-after-live-test-20260521-162405.log",
+        "exitcode_file": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt074-focused-native-suite-after-live-test-20260521-162405.log.exitcode",
+        "note": "fmt, adapter, generate, loader, and model-runtime contract checks all returned 0 with native features and live GGUF fixture."
+      }
+    ],
+    "residual_risks": [
+      "No Integration Validator has reviewed MT-074; this is supporting implementation evidence only and must not be treated as authoritative pass.",
+      "Native llama.cpp builds on this Windows host require LIBCLANG_PATH and PATH entries for LLVM/CMake in fresh shells until global environment propagation is confirmed.",
+      "Chocolatey reported pending reboot warnings during LLVM/CMake installs; current shell verification passed, but fresh-shell validation should keep the explicit environment setup documented here.",
+      "Long Cargo target dirs can still fail with MSBuild FTK1011; use the short artifact-root target dir for native feature checks."
+    ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C2_FRESH",
+    "reviewed_at_utc": "2026-05-27T18:30:00Z",
+    "aggregator_run_at_utc": "2026-05-27T19:03:58.446Z",
+    "verdict": "PASS",
+    "verdict_reason": "Streaming generate, sampler, cancellation, and stop-sequence detection implemented; live GGUF fixture passes 8 tests; sampler honors seed for determinism.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 2,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-074.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-074.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C2_FRESH",
+    "reviewed_at_utc": "2026-05-27T18:30:00Z",
+    "aggregator_run_at_utc": "2026-05-27T18:50:05.123Z",
+    "verdict": "PASS",
+    "verdict_reason": "Streaming generate, sampler, cancellation, and stop-sequence detection implemented; live GGUF fixture passes 8 tests; sampler honors seed for determinism.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 2,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-074.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-074.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
   }
 }

@@ -7,7 +7,7 @@
   "cluster_subscope": "D.3",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:23:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-05-27T19:03:58.446Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -26,7 +26,11 @@
     "src/backend/handshake_core/src/memory/retrieval_mode.rs",
     "src/backend/handshake_core/tests/retrieval_mode_tests.rs"
   ],
-  "depends_on_mts": ["MT-141", "MT-142", "MT-143"],
+  "depends_on_mts": [
+    "MT-141",
+    "MT-142",
+    "MT-143"
+  ],
   "unblock_conditions": "MT-141/142/143 ship capsule primitives + TaskType + CapsuleBuilder.",
   "implementation_notes": "Per WP-1-RAG-Retrieval-Mode-Policy preserved_intent: 'Handshake now has rich retrieval substrates and graph signals, but it still needs explicit no-RAG and lower-cost retrieval rules so exact identifiers, authoritative packet state, bounded local-small-model loops, and freshness-sensitive operations do not get blurred into one generic semantic-search path'. RetrievalMode enum: `pub enum RetrievalMode { NoRag (use the canonical key/id lookup), FullText, Vector, Hybrid, GraphAware, AuthoritativeOnly (read directly from JSON authority file) }`. RoutingRule: `{ id: String, predicate: Box<dyn Fn(&RetrievalContext) -> bool>, mode: RetrievalMode, rationale: String }`. RetrievalModePolicy: `pub struct RetrievalModePolicy { rules: Vec<RoutingRule>, default_mode: RetrievalMode }`. RetrievalModeRouter: `pub fn route(ctx: &RetrievalContext) -> (RetrievalMode, String) { /* return mode + matched rule id or 'default' */ }`. Default policy rules (initial set): (1) exact_uuid_in_query -> NoRag; (2) wp_id_pattern -> AuthoritativeOnly (load packet.json directly); (3) hbr_id_pattern -> AuthoritativeOnly (load HANDSHAKE_BUILD_RULES.json directly); (4) spec_anchor_pattern -> AuthoritativeOnly (load spec module); (5) freshness_sensitive task_type -> Vector + outcome-weighted; (6) general_freeform_query -> Hybrid. CapsuleBuilder (MT-143) MUST consult RetrievalModeRouter before dispatching to retrieval; if NoRag or AuthoritativeOnly, skip embedding lookup entirely and return the typed authoritative item. Tests: every default rule routes correctly to its mode; default applies when no rule matches; router is deterministic; CapsuleBuilder honors the routed mode in fixtures.",
   "proof_commands": [
@@ -34,17 +38,85 @@
   ],
   "risk_if_missed": "Without a typed retrieval mode policy every operation defaults to expensive hybrid retrieval; exact-id queries become semantic-search guessing.",
   "validator_focus": "RetrievalMode is closed enum; routing is deterministic; default policy rules cover the documented operation classes; CapsuleBuilder consults the router.",
-  "hbr_obligations": ["HBR-INT-006"],
+  "hbr_obligations": [
+    "HBR-INT-006"
+  ],
   "spec_anchors": [
     ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.8.5"
   ],
-  "acceptance_criteria_refs": ["AC-DISTILL-EDITABLE-SURFACE"],
+  "acceptance_criteria_refs": [
+    "AC-DISTILL-EDITABLE-SURFACE"
+  ],
   "lifecycle": {
     "active": false,
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "validator_verdict": "PENDING",
-    "depends_on": ["MT-141", "MT-142", "MT-143"],
-    "blocks": ["MT-165", "MT-168"]
+    "integration_validator_verdict": "PENDING",
+    "depends_on": [
+      "MT-141",
+      "MT-142",
+      "MT-143"
+    ],
+    "blocks": [
+      "MT-165",
+      "MT-168"
+    ],
+    "claimed_by": "KERNEL_BUILDER-20260523-031814",
+    "claimed_at_utc": "2026-05-23T06:40:00Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260523-031814",
+    "ready_for_validation_at_utc": "2026-05-23T06:45:00Z",
+    "implementation_record": {
+      "classification": "IMPLEMENTATION_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+      "authoritative_integration_validator_pass": false,
+      "summary": "MT-164 RetrievalMode + RetrievalModePolicy + RetrievalModeRouter is on disk (src/memory/retrieval_mode.rs, 225 lines, prior session) with 7 inline #[cfg(test)] tests already covering per-rule happy paths. This session added the integration test file tests/retrieval_mode_tests.rs (16 tests) that the contract owned_files names, covering: first-match-wins ordering proof (uuid query inside wp-id query routes to NoRag), fall-through to default Hybrid, partial-uuid + lowercase-wp + 2-digit-hbr false-positive guards, every OperationClass resolves without panic, serde round-trip for every RetrievalMode and OperationClass variant, default policy declares >= 6 rules with unique ids and named rule ids present, AuthoritativeOnly rules have non-trivial rationale, deterministic routing across 16 invocations.",
+      "spec_realism_gate_self_check": {
+        "sub_rule_1_no_deferred_live_escape": "PASS — retrieval_mode.rs is complete (no '*Unavailable' / 'pending MT-NNN' / 'deferred to follow-on' patterns).",
+        "sub_rule_2_external_resource_touch": "PASS — integration tests exercise the public RetrievalModeRouter API with real RetrievalModePolicy::default_v0() rules; serde round-trip uses real serde_json.",
+        "sub_rule_3_implementer_cannot_self_certify": "PASS — implementation prior session; tests this session; both differ from validator role."
+      },
+      "files_touched": [
+        "src/backend/handshake_core/tests/retrieval_mode_tests.rs (NEW; 16 tests)"
+      ],
+      "implementation_files_verified_unchanged": [
+        "src/backend/handshake_core/src/memory/retrieval_mode.rs (prior session, 225 lines, 7 inline tests)"
+      ],
+      "test_results": {
+        "retrieval_mode_tests": {
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test retrieval_mode_tests -- --nocapture",
+          "exit_code": 0,
+          "tests_passed": 16,
+          "tests_failed": 0,
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt164-validate-20260523-001.log"
+        }
+      },
+      "red_team_coverage": {
+        "retrieval_mode_is_closed_enum": "covered — mt164_retrieval_mode_round_trips_serde_for_every_variant enumerates all 6 variants; widening requires a typed code change that this test catches via missing variant.",
+        "authoritative_only_rules_read_json_authority_directly_cannot_fall_back": "PARTIAL — the integration test asserts the router returns RetrievalMode::AuthoritativeOnly for the documented patterns AND verifies the rationale strings explicitly name the authority files (\"wp_id maps directly to packet.json\", \"hbr_id maps directly to HANDSHAKE_BUILD_RULES.json\", \"spec anchor reads directly from spec module file\"). The actual file-read enforcement (cannot-fall-back-to-vector-search) is the contract of the downstream RAG client that consumes the route result; MT-164 declares the route policy, not the consumer. Validator should verify the CapsuleBuilder (MT-143) honors AuthoritativeOnly by skipping embedding lookup.",
+        "router_is_deterministic": "covered — mt164_router_is_deterministic_across_repeated_invocations runs the same query 16 times and asserts every result matches baseline; mt164_first_match_wins_when_uuid_appears_inside_wp_query additionally pins the rule-iteration order."
+      },
+      "residual_risks": [
+        "AuthoritativeOnly enforcement is split across MT-164 (policy declares the mode) and MT-143/CapsuleBuilder (consumer honors the mode). MT-164 cannot fully guarantee the cannot-fall-back invariant alone.",
+        "Regex patterns (spec_re, wp_re, hbr_re, uuid_re) are tested for documented happy/edge cases but not exhaustively fuzzed. A future hardening MT could property-test against the operator's actual query corpus.",
+        "Default policy rule set is at minimum 6; a future addition of rules above 6 will not trip the >= 6 guard. If exactly-6 is desired, change the assertion to ==.",
+        "No Integration Validator has reviewed MT-164."
+      ]
+    },
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "READY_FOR_VALIDATION",
+        "validator_verdict": "PENDING"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-27T19:03:58.446Z"
   },
   "handoff": {
     "coder_session": null,
@@ -58,5 +130,51 @@
       "AuthoritativeOnly rules read JSON authority files directly; cannot fall back to vector search.",
       "Router is deterministic; same context always routes to same mode."
     ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_D_GAPS",
+    "reviewed_at_utc": "2026-05-27T18:35:00Z",
+    "aggregator_run_at_utc": "2026-05-27T19:03:58.446Z",
+    "verdict": "PASS_WITH_NOTES",
+    "verdict_reason": "RetrievalMode is a closed enum (NoRag, FullText, Vector, Hybrid, GraphAware, AuthoritativeOnly). RetrievalModePolicy::default_v0 ships 6 routing rules covering uuid/wp/hbr/spec patterns plus operation-class fallbacks. Router is deterministic (first-match-wins; rule iteration order pinned). 16 + 7 tests pass per builder. PARTIAL coverage of the 'AuthoritativeOnly cannot fall back to vector search' invariant: MT-164 declares the route policy; the actual cannot-fall-back enforcement is downstream in CapsuleBuilder (MT-143). Builder evidence honestly flags this split. Per-MT scope passes, but the cross-MT contract requires MT-143 inspection for full assurance — outside this sub-reviewer's MT set.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "OK",
+    "runtime_safety_status": "OK",
+    "agent_swarm_safety_status": "OK",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "STRONG",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 2
+    },
+    "paperwork_notes_count": 2,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-164.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-164.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_D_GAPS",
+    "reviewed_at_utc": "2026-05-27T18:35:00Z",
+    "aggregator_run_at_utc": "2026-05-27T18:50:05.123Z",
+    "verdict": "PASS_WITH_NOTES",
+    "verdict_reason": "RetrievalMode is a closed enum (NoRag, FullText, Vector, Hybrid, GraphAware, AuthoritativeOnly). RetrievalModePolicy::default_v0 ships 6 routing rules covering uuid/wp/hbr/spec patterns plus operation-class fallbacks. Router is deterministic (first-match-wins; rule iteration order pinned). 16 + 7 tests pass per builder. PARTIAL coverage of the 'AuthoritativeOnly cannot fall back to vector search' invariant: MT-164 declares the route policy; the actual cannot-fall-back enforcement is downstream in CapsuleBuilder (MT-143). Builder evidence honestly flags this split. Per-MT scope passes, but the cross-MT contract requires MT-143 inspection for full assurance — outside this sub-reviewer's MT set.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "OK",
+    "runtime_safety_status": "OK",
+    "agent_swarm_safety_status": "OK",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "STRONG",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 2
+    },
+    "paperwork_notes_count": 2,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-164.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-164.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
   }
 }

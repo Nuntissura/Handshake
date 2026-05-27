@@ -7,7 +7,7 @@
   "cluster_subscope": "X.1",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:02:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-05-27T19:03:58.446Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -26,7 +26,9 @@
     "src/backend/handshake_core/src/role_mailbox/exporter.rs",
     "src/backend/handshake_core/tests/role_mailbox_exporter_tests.rs"
   ],
-  "depends_on_mts": ["MT-177"],
+  "depends_on_mts": [
+    "MT-177"
+  ],
   "unblock_conditions": "MT-177 repo provides the read surface the exporter consumes.",
   "implementation_notes": "Per spec v02.186 §05-security-and-observability.md lines 5904 and 5962-5967 (Role Mailbox structured projections [ADD v02.168]) and the folded stub intent (always-on deterministic repo export to .GOV/ROLE_MAILBOX/): exporter writes (a) `thread_index.json` containing the compact summary contract (thread_id, title, lifecycle_state, linked_record_kind, linked_record_id, updated_at_utc, message_count) for every non-archived thread, sorted by updated_at_utc descending; (b) per-thread file `threads/<thread_id>.jsonl` with one JSON object per message line in chronological order. Append-only semantics: if a thread file exists, only NEW messages (since the last exported message_id watermark stored in `<thread_id>.watermark`) are appended; existing lines never rewritten. Idempotency: running exporter twice with no new messages writes nothing. Deterministic: same inputs produce byte-identical outputs (stable key ordering via BTreeMap, stable line ordering by message created_at_utc then message_id). The target path is configurable via `MailboxExporterConfig { target_dir: PathBuf }` defaulting to `.GOV/roles_shared/exports/role_mailbox/` relative to the repo root discovered via the same project-root helper used by KERNEL-002. Honors GLOBAL-PORTABILITY-004 (no hardcoded absolute paths). Tests: (a) export an empty repo, expect thread_index.json with []; (b) create 3 threads with 2 messages each, export, expect 3 files + 6 lines; (c) re-run with no new state, expect no file writes (mtime unchanged); (d) add 1 new message to thread 2, re-run, expect only thread-2.jsonl appended by 1 line; (e) goldenfile cross-check on a fixture set.",
   "proof_commands": [
@@ -34,7 +36,9 @@
   ],
   "risk_if_missed": "Without deterministic export, the operator loses the auditable repo-side mailbox view; the folded WP-1-Role-Mailbox-v1 stub's 'always-on deterministic repo export to .GOV/ROLE_MAILBOX/' intent is dropped; LLM-to-LLM coordination loses its safety net.",
   "validator_focus": "Exporter is idempotent (no-op when state unchanged), append-only (never rewrites existing lines), deterministic (golden-fixture byte-identical), and uses repo-root discovery not hardcoded paths.",
-  "hbr_obligations": ["HBR-INT-001"],
+  "hbr_obligations": [
+    "HBR-INT-001"
+  ],
   "spec_anchors": [
     ".GOV/spec/master-spec-v02.186/spec-modules/05-security-and-observability.md#role-mailbox-structured-projections"
   ],
@@ -42,14 +46,78 @@
     "PRESERVED_INTENT:WP-1-Role-Mailbox-v1 (always-on deterministic repo export)"
   ],
   "lifecycle": {
-    "active": false,
-    "status": "PENDING",
-    "validator_verdict": "PENDING",
-    "depends_on": ["MT-177"],
-    "blocks": ["MT-183"]
+    "active": true,
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "PASS",
+    "depends_on": [
+      "MT-177"
+    ],
+    "blocks": [
+      "MT-183"
+    ],
+    "claimed_by": "KERNEL_BUILDER-20260523-031814-AGT-MT178",
+    "claimed_at_utc": "2026-05-23T03:18:14Z",
+    "ready_for_validation_at_utc": "2026-05-23T04:05:00Z",
+    "integration_validator_verdict": "PENDING",
+    "postgres_test_url_live_evidence_20260525_continuation": {
+      "authoritative_integration_validator_pass": false,
+      "classification": "KERNEL_BUILDER_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+      "not_run_or_not_claimed": [],
+      "artifact_log_root": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs",
+      "implementation_or_hardening_notes": [
+        "Normalized handoff expires_at_utc to Postgres microsecond precision before bundle hashing."
+      ],
+      "postgres_test_url_redacted": "postgres://postgres:***@127.0.0.1:65432/handshake_test",
+      "proof": [
+        {
+          "log": "postgres-live-role_mailbox_v1_tests-mt_177-20260525-resume.log",
+          "scope": "role_mailbox_v1_tests MT-177",
+          "note": [
+            "MT-177 targeted repository lifecycle round trip passed.",
+            "Proof"
+          ],
+          "result": "passed"
+        }
+      ],
+      "recorded_by": "KERNEL_BUILDER-POSTGRES-TEST-URL-20260525-CONTINUATION",
+      "mt_ids": [
+        "MT-176",
+        "MT-177",
+        "MT-178",
+        "MT-179",
+        "MT-180",
+        "MT-181",
+        "MT-182",
+        "MT-183"
+      ],
+      "summary": "Role Mailbox V1 live Postgres suites passed, including repository lifecycle, lease, backpressure, handoff, and exporter coverage.",
+      "integration_validator_status": "PENDING",
+      "residual_risks": [
+        "Supporting evidence only; Integration Validator verdict remains PENDING.",
+        "Focused Postgres/live-kernel commands were run, not a full workspace cargo test."
+      ],
+      "recorded_at_utc": "2026-05-25T10:56:03.5601331Z",
+      "cargo_target_dir": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target"
+    },
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "READY_FOR_VALIDATION",
+        "validator_verdict": "PENDING"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-27T19:03:58.446Z"
   },
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260523-031814-AGT-MT178",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
     "review_response_receipt_id": null
@@ -60,5 +128,126 @@
       "Append-only invariant verified by mtime + line-count assertions across multiple re-runs.",
       "Exporter resolves target_dir via repo-root helper (no `D:\\` or `/home/` literals; GLOBAL-PORTABILITY-005)."
     ]
+  },
+  "implementation_supporting_evidence_20260523_mt178": {
+    "schema_id": "hsk.mt_implementation_supporting_evidence@1",
+    "recorded_at_utc": "2026-05-23T04:05:00Z",
+    "recorded_by": "KERNEL_BUILDER-20260523-031814-AGT-MT178",
+    "classification": "IMPLEMENTATION_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+    "authoritative_integration_validator_pass": false,
+    "integration_validator_status": "PENDING",
+    "summary": "MT-178 Role Mailbox deterministic always-on exporter transitioned PENDING -> CLAIMED -> READY_FOR_VALIDATION. The existing src/backend/handshake_core/src/role_mailbox_v1/exporter.rs (MailboxExporter::new(MailboxExporterConfig), MailboxExporterConfig::default_under_repo_root, deterministic sort by updated_at_utc DESC with BTreeMap key-stability, per-thread JSONL appends with watermark cursor, idempotency via path_content_equals on thread_index, archived-thread filtering, ExporterError typed via thiserror) was reviewed and accepted; no in-place edits to the exporter module. A dedicated MT-178 adversarial test file was added at tests/role_mailbox_exporter_tests.rs (the contract-named path) covering: (a) default path matches the MT-178 + CX-218 .GOV/roles_shared/exports/role_mailbox/ contract path under repo root, (b) GLOBAL-PORTABILITY-005 negative-surface check that no `D:\\` or `/home/` or `/Users/` literal appears in the default config, (c) always-on semantics — empty repo still writes `thread_index.json: []`, (d) goldenfile / byte-identical-across-runs deterministic export with fixed timestamps, (e) thread_index.json sorted by updated_at_utc DESC, (f) filename convention `threads/<uuid>.jsonl` + `threads/<uuid>.watermark`, (g) chronological line ordering inside each thread JSONL with message_id tie-break, (h) append-only invariant via byte-prefix snapshot before+after a re-export, (i) idempotency over identical input, (j) archived threads filtered from index, (k) index `message_count` equals per-thread JSONL line count (no silent drops), (l) cross-run index stability when only message_count changes, (m) ExporterError::Io surfaced on uncreatable target_dir instead of panic, (n) constructor surface lock (no opt-out/dry-run flag), plus Postgres-gated adversarial tests: three-thread two-message round-trip with byte-identical output across two fresh target dirs, no-silent-drops cross-check between repo list_thread_messages and JSONL line count, interleaved-thread deterministic (created_at_utc, message_id) ordering, incremental-append-only of exactly N new lines to the affected thread with unaffected file byte-identical, archived-thread excluded from index while JSONL preserved for audit.",
+    "product_surfaces_verified": [
+      "src/backend/handshake_core/src/role_mailbox_v1/exporter.rs",
+      "src/backend/handshake_core/src/role_mailbox_v1/mod.rs",
+      "src/backend/handshake_core/src/role_mailbox_v1/repo.rs",
+      "src/backend/handshake_core/src/role_mailbox_v1/thread.rs",
+      "src/backend/handshake_core/src/role_mailbox_v1/message.rs"
+    ],
+    "files_added": [
+      "src/backend/handshake_core/tests/role_mailbox_exporter_tests.rs"
+    ],
+    "out_of_scope_edits": [
+      {
+        "path": "src/backend/handshake_core/Cargo.toml",
+        "change": "Added [[test]] block declaring role_mailbox_exporter_tests with required-features=['test-utils'] mirroring the role_mailbox_repo_tests / role_mailbox_lease_tests pattern. Necessary because the test binary references RoleMailboxRepository which is gated behind the test-utils feature; without an explicit [[test]] entry Cargo auto-discovery would not gate the feature correctly. Same pattern accepted in MT-177 implementation_supporting_evidence_20260523_mt177r2.out_of_scope_edits.",
+        "waiver_requested": true
+      }
+    ],
+    "contract_deviation_note": "MT-178 expected_diff_shape and owned_files name `src/backend/handshake_core/src/role_mailbox/exporter.rs`, but the existing folded implementation lives under role_mailbox_v1/exporter.rs (the same PATH_SHAPE_DRIFT class flagged in MT-176 implementation_supporting_evidence_20260521.contract_deviation_note and MT-177 implementation_supporting_evidence_20260523_mt177r2.contract_deviation_note). No new product code under role_mailbox/exporter.rs was created — that would duplicate the authoritative implementation. Operator/Integration Validator decision needed on path-shape drift vs. the actual role_mailbox_v1/ tree.",
+    "proof_commands": [
+      {
+        "command": "cargo test --features test-utils --manifest-path src/backend/handshake_core/Cargo.toml --test role_mailbox_exporter_tests -- --nocapture --test-threads=1",
+        "exit_code": 0,
+        "tests_passed": 14,
+        "tests_ignored": 5,
+        "tests_failed": 0,
+        "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt178-test-default-002.log",
+        "note": "14/14 default tests pass; 5 Postgres-gated tests #[ignore]-ed pending POSTGRES_TEST_URL."
+      },
+      {
+        "command": "cargo test --features test-utils --manifest-path src/backend/handshake_core/Cargo.toml --test role_mailbox_v1_tests --test role_mailbox_repo_tests --test role_mailbox_exporter_tests -- --nocapture --test-threads=1",
+        "exit_code": 0,
+        "tests_passed": 30,
+        "tests_ignored": 18,
+        "tests_failed": 0,
+        "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt178-adjacent-001.log",
+        "note": "Adjacent role_mailbox_v1_tests (9 passed/2 ignored) + role_mailbox_repo_tests (7 passed/11 ignored) + role_mailbox_exporter_tests (14 passed/5 ignored) all pass alongside the new MT-178 test binary; no regression from the Cargo.toml [[test]] addition."
+      }
+    ],
+    "adversarial_tests_added": [
+      "mt_178_default_under_repo_root_resolves_below_workspace_root",
+      "mt_178_default_target_matches_contract_path_under_repo_root",
+      "mt_178_empty_repo_always_writes_index_with_empty_array",
+      "mt_178_deterministic_two_runs_byte_identical_for_same_state",
+      "mt_178_thread_index_sorted_by_updated_at_utc_descending",
+      "mt_178_filename_convention_threads_subdir_with_jsonl_extension",
+      "mt_178_chronological_line_ordering_inside_thread_file",
+      "mt_178_append_only_existing_lines_never_rewritten",
+      "mt_178_idempotent_when_no_new_state",
+      "mt_178_archived_threads_excluded_from_index",
+      "mt_178_no_message_count_drift_index_matches_thread_file",
+      "mt_178_index_stable_when_only_message_count_changes",
+      "mt_178_exporter_error_io_path_does_not_panic_under_invalid_target",
+      "mt_178_always_on_constructor_takes_config_only",
+      "mt_178_postgres_round_trip_byte_identical_two_runs",
+      "mt_178_postgres_no_silent_drops_index_count_matches_repo_count",
+      "mt_178_postgres_deterministic_ordering_thread_created_at_message",
+      "mt_178_postgres_incremental_append_only_new_messages",
+      "mt_178_postgres_archived_thread_excluded_from_index_but_messages_preserved"
+    ],
+    "residual_risks": [
+      "5 Postgres-gated adversarial tests (byte-identical round-trip, no-silent-drops index/JSONL cross-check, (created_at, message_id) ordering, incremental-append-only, archived-thread JSONL preservation) require POSTGRES_TEST_URL to actually validate the in-database semantics. Without the live-Postgres run the contract's red_team.minimum_controls #1 + #2 are structurally satisfied by the pure-Rust deterministic tests but not executionally verified against the real repo path — same Postgres-gating class as MT-177 / MT-190 / MT-197.",
+      "PATH_SHAPE_DRIFT: owned_files name role_mailbox/exporter.rs but the implementation is under role_mailbox_v1/exporter.rs (folded preservation slice). Integration Validator decision needed.",
+      "PATH_HELPER_DRIFT: `RuntimeGovernancePaths::role_mailbox_export_dir` resolves to `.handshake/gov/ROLE_MAILBOX/` (runtime governance root), but the MT-178 / CX-218 contract anchors the exporter at `.GOV/roles_shared/exports/role_mailbox/` (repo source root). These are two different directories. The exporter is contract-correct here; the helper is used by `crate::api::role_mailbox` for a different (read-only) read surface. Out of MT-178 scope to reconcile; flagged for downstream cleanup.",
+      "Cargo.toml [[test]] addition is out-of-owned-files; operator waiver requested. The alternative — Cargo auto-discovery — would silently default to feature set [] and bypass the test-utils requirement that other role_mailbox_v1 tests depend on.",
+      "Default test run executes 14 pure-Rust assertions in <2s; Postgres-gated tests require an additional `cargo test -- --ignored` run with POSTGRES_TEST_URL set. WP Integration Validator should plan for that run as part of the WP-KERNEL-004 closeout gate."
+    ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_X1_X2",
+    "reviewed_at_utc": "2026-05-27T15:06:00Z",
+    "aggregator_run_at_utc": "2026-05-27T19:03:58.446Z",
+    "verdict": "PASS",
+    "verdict_reason": "Always-on deterministic exporter writes BTreeMap-sorted thread_index.json + per-thread JSONL with watermark-driven incremental append-only semantics; goldenfile + 14 always-on adversarial assertions cover the append-only and determinism contracts; no hardcoded paths.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 2
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-178.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-178.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_X1_X2",
+    "reviewed_at_utc": "2026-05-27T15:06:00Z",
+    "aggregator_run_at_utc": "2026-05-27T18:50:05.123Z",
+    "verdict": "PASS",
+    "verdict_reason": "Always-on deterministic exporter writes BTreeMap-sorted thread_index.json + per-thread JSONL with watermark-driven incremental append-only semantics; goldenfile + 14 always-on adversarial assertions cover the append-only and determinism contracts; no hardcoded paths.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 2
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-178.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-178.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
   }
 }

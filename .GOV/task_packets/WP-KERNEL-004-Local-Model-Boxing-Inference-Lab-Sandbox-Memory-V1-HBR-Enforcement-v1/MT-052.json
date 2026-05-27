@@ -7,7 +7,7 @@
   "cluster_subscope": "B.2",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:10:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-05-27T19:03:58.446Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -27,7 +27,10 @@
     "src/backend/handshake_core/src/sandbox/mod.rs",
     "src/backend/handshake_core/tests/work_packet_scope_binder_tests.rs"
   ],
-  "depends_on_mts": ["MT-041", "MT-044"],
+  "depends_on_mts": [
+    "MT-041",
+    "MT-044"
+  ],
   "unblock_conditions": "Shared types + at least one functional adapter (WSL2Podman) merged so integration tests can exercise the binds end-to-end.",
   "implementation_notes": "Algorithm: `pub fn bind_specs_from_packet(packet_path: &Path, repo_root: &Path) -> Result<Vec<BindSpec>, ScopeBinderError>`. Steps: (1) read packet.json, parse `scope.allowed_paths: Vec<String>` (glob patterns rooted at repo_root, e.g. \"src/backend/handshake_core/src/sandbox/**\"); (2) for each glob, walk the filesystem (globwalk crate or globset+walkdir) and collect concrete host paths; (3) MERGE overlapping concrete paths into their longest-common-prefix directory so the bind set is small (e.g., paths under src/backend/handshake_core/src/sandbox/ become a single bind on that directory); (4) emit each merged path as BindSpec { host_path: <abs path>, guest_path: \"/workspace/<relative path>\", mode: ReadWrite } — allowed_paths are the ONLY ReadWrite areas inside the guest; (5) ALSO bind read-only the repo root excluding allowed_paths (so the guest can `cargo build` etc but cannot write outside scope) — implement as a BindSpec { host_path: repo_root, guest_path: \"/workspace\", mode: ReadOnly } FIRST, then layer the allowed_paths ReadWrite binds on top so adapters that honor bind ordering see ReadWrite shadows for in-scope paths and ReadOnly for everything else. forbidden_paths is enforced at binder time: if a path matches both an allowed and a forbidden pattern, ScopeBinderError::ForbiddenPathInAllowed is returned. Note in implementation: this MT does NOT yet wire the binder into ValidationRunner or model_runtime; MT-050 callers receive the binds via the ValidationProcessSpecBuilder. Cross-platform path mapping: on Windows the binds use POSIX-style guest paths (/workspace/...) regardless of host backslash convention; the binder normalizes via `path-slash` crate. Tests: (a) a fixture packet with allowed_paths=[\"src/backend/handshake_core/src/sandbox/**\"] produces exactly one merged ReadWrite bind on the sandbox directory; (b) forbidden_paths overlapping with allowed_paths emits the typed error; (c) deeply nested allowed_paths merge into their common ancestor; (d) integration test on WSL2Podman: spawn a container with the binder's output and verify `touch /workspace/forbidden/x` fails with EROFS while `touch /workspace/src/backend/handshake_core/src/sandbox/x` succeeds.",
   "proof_commands": [
@@ -36,21 +39,52 @@
   ],
   "risk_if_missed": "Without binder enforcement the WP scope contract is advisory; a model process or validation runner could write outside the declared allowed_paths and produce 'silent scope creep' defects that the validator only catches by inspecting git diff.",
   "validator_focus": "(a) forbidden_paths overlap is rejected; (b) merge-to-common-ancestor doesn't accidentally widen scope; (c) repo-root ReadOnly + allowed_paths ReadWrite layering actually prevents OS-level writes (integration test on WSL2); (d) Windows-host POSIX guest path normalization is correct.",
-  "hbr_obligations": ["HBR-INT-001", "HBR-QUIET-003"],
+  "hbr_obligations": [
+    "HBR-INT-001",
+    "HBR-QUIET-003"
+  ],
   "spec_anchors": [
     ".GOV/spec/master-spec-v02.186/spec-modules/03-local-first-infrastructure.md#3.5",
     ".GOV/spec/master-spec-v02.186/spec-modules/06-mechanical-integrations.md#6.4"
   ],
-  "acceptance_criteria_refs": ["AC-SANDBOX-ADAPTER-IMPLS"],
+  "acceptance_criteria_refs": [
+    "AC-SANDBOX-ADAPTER-IMPLS"
+  ],
   "lifecycle": {
     "active": false,
-    "status": "PENDING",
-    "validator_verdict": "PENDING",
-    "depends_on": ["MT-041", "MT-044"],
-    "blocks": ["MT-055", "MT-058"]
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "CONCERN",
+    "depends_on": [
+      "MT-041",
+      "MT-044"
+    ],
+    "blocks": [
+      "MT-055",
+      "MT-058"
+    ],
+    "claimed_by": "KERNEL_BUILDER-20260518-211025",
+    "claimed_at_utc": "2026-05-18T22:56:30Z",
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "COMPLETED",
+        "validator_verdict": "PENDING",
+        "completed_at_utc": "2026-05-18T23:06:48.401Z"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "previous_completed_at_utc_before_ready_for_validation_20260525": "2026-05-18T23:06:48.401Z",
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-27T19:03:58.446Z"
   },
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260518-211025",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
     "review_response_receipt_id": null
@@ -61,5 +95,56 @@
       "Common-ancestor merge MUST NOT bind a directory containing files outside the original allowed_paths set; merge algorithm tested against a fixture that has neighbor files at the merge boundary.",
       "Integration test on WSL2 (not just unit test) proves the OS layer actually enforces the bind modes."
     ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_B_GAPS_REDO_WTC",
+    "reviewed_at_utc": "2026-05-27T22:30:00Z",
+    "aggregator_run_at_utc": "2026-05-27T19:03:58.446Z",
+    "verdict": "CONCERN",
+    "verdict_reason": "WorkPacketScopeBinder is implemented with allowed_paths/forbidden_paths parsing, common-ancestor merge, ReadOnly repo-root + ReadWrite overlay layering, forbidden-in-allowed rejection, and absolute-path rejection. The OS-level EROFS enforcement test (WSL2 integration) is not present - the bind contract is asserted at the Rust struct level but not at the OS layer.",
+    "spec_compliance_status": "PARTIAL",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "CONCERN",
+    "agent_swarm_safety_status": "CONCERN",
+    "hbr_unsatisfied": [
+      "HBR-INT-001 partially: the binder output is replay-deterministic for the same FS state, but no integration test verifies the OS layer honors the binds"
+    ],
+    "test_coverage_status": "THIN",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 1,
+      "MEDIUM": 1,
+      "LOW": 0
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-052.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-052.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_B_GAPS",
+    "reviewed_at_utc": "2026-05-27T17:34:00Z",
+    "aggregator_run_at_utc": "2026-05-27T18:50:05.123Z",
+    "verdict": "FAIL",
+    "verdict_reason": "WorkPacketScopeBinder owned files absent; the OS-level filesystem boundary (load-bearing for 'strict no out-of-scope work enforcement') is unimplemented and the WSL2 integration test that would prove EROFS enforcement is missing.",
+    "spec_compliance_status": "FAILS",
+    "code_hygiene_status": "MAJOR",
+    "runtime_safety_status": "UNSAFE",
+    "agent_swarm_safety_status": "UNSAFE",
+    "hbr_unsatisfied": [
+      "HBR-INT-001",
+      "HBR-QUIET-003"
+    ],
+    "test_coverage_status": "MISSING",
+    "findings_count_by_severity": {
+      "CRITICAL": 1,
+      "HIGH": 1,
+      "MEDIUM": 0,
+      "LOW": 0
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-052.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-052.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
   }
 }

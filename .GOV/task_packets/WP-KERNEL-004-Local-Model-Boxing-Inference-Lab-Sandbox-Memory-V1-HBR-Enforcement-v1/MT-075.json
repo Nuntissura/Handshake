@@ -7,7 +7,7 @@
   "cluster_subscope": "C.2",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:00:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-05-27T19:03:58.446Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -27,7 +27,10 @@
     "src/backend/handshake_core/src/model_runtime/llama_cpp/context.rs",
     "src/backend/handshake_core/tests/llama_cpp_kv_cache_tests.rs"
   ],
-  "depends_on_mts": ["MT-063", "MT-074"],
+  "depends_on_mts": [
+    "MT-063",
+    "MT-074"
+  ],
   "unblock_conditions": "MT-063 KvCacheOps trait + MT-074 generate path merged.",
   "implementation_notes": "Per AC-LLAMACPP-ADAPTER + spec §4.7.1b (KV caching PRODUCTION): llama.cpp KV cache quantization shipped 2024 with `--cache-type-k q4_0|q8_0|f16|...` and `--cache-type-v q4_0|q8_0|f16|...`; llama-cpp-2 exposes via LlamaContextParams type_k / type_v. Set quantization path: switching quant level requires context rebuild (cannot mutate existing KV in-place to a new quant); set_quantization records the new policy and triggers a deferred rebuild on next load (or immediate rebuild + invalidate prefix cache if model loaded). Occupancy stats: query llama_cpp_2 LlamaContext::kv_cache_size() or compute manually as `n_ctx * n_layer * n_kv_head * head_dim * (type_size_k + type_size_v)`. Prefix cache: llama.cpp does not have a built-in prefix-share API; implement an in-process LRU layered over llama_cpp_2 by caching `(content_hash, llama_kv_cache_state_snapshot)` tuples. prefix_commit copies the current KV state via llama_state_seq_get_data into a buffer, hashes input tokens, stores LRU entry. prefix_restore uses llama_state_seq_set_data to load the buffer. Replay-resistant: on restore, recompute content_hash from prefix_tokens stored in handle and compare against KvPrefixHandle.content_hash — mismatch returns KvCacheError(\"prefix handle hash mismatch\"). evict_all clears all prefix entries + calls llama_kv_cache_clear. set_quantization with KvQuantSupport::None on a model whose capability says supports_kv_quantization=None returns CapabilityNotSupported. Tests (env-gated): load model, prefix_commit some tokens, generate, prefix_restore returns hit, hit counter increments; tamper handle hash, restore fails; switch quant from f16 to q4 — verify context rebuilt and prefix cache flushed.",
   "proof_commands": [
@@ -35,21 +38,58 @@
   ],
   "risk_if_missed": "KV caching technique (INF-2 PRODUCTION) has no concrete LlamaCppRuntime impl; spec §4.7.1b technique fails AC-INFER-LAB-8-TECHNIQUES.",
   "validator_focus": "Quant switch invalidates prefix cache (correctness); tamper detection on restore; LRU eviction does not leak memory under load; capability gate honored.",
-  "hbr_obligations": ["HBR-INT-002", "HBR-INT-008"],
+  "hbr_obligations": [
+    "HBR-INT-002",
+    "HBR-INT-008"
+  ],
   "spec_anchors": [
     ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.6.2",
     ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.7.1"
   ],
-  "acceptance_criteria_refs": ["AC-LLAMACPP-ADAPTER", "AC-INFER-LAB-8-TECHNIQUES"],
+  "acceptance_criteria_refs": [
+    "AC-LLAMACPP-ADAPTER",
+    "AC-INFER-LAB-8-TECHNIQUES"
+  ],
   "lifecycle": {
     "active": false,
-    "status": "PENDING",
-    "validator_verdict": "PENDING",
-    "depends_on": ["MT-063", "MT-074"],
-    "blocks": ["MT-093", "MT-094", "MT-095", "MT-109"]
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "CONCERN",
+    "depends_on": [
+      "MT-063",
+      "MT-074"
+    ],
+    "blocks": [
+      "MT-093",
+      "MT-094",
+      "MT-095",
+      "MT-109"
+    ],
+    "claimed_by": "KERNEL_BUILDER-20260521-132803",
+    "integration_validator_verdict": "PENDING",
+    "claimed_at_utc": "2026-05-21T15:49:22.274Z",
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "COMPLETED",
+        "validator_verdict": "PENDING",
+        "completed_by": "KERNEL_BUILDER-20260521-132803",
+        "completed_at_utc": "2026-05-21T15:47:23.815Z"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "previous_completed_by_before_ready_for_validation_20260525": "KERNEL_BUILDER-20260521-132803",
+    "previous_completed_at_utc_before_ready_for_validation_20260525": "2026-05-21T15:47:23.815Z",
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-27T19:03:58.446Z"
   },
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260521-132803",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
     "review_response_receipt_id": null
@@ -60,5 +100,137 @@
       "Tamper detection negative test.",
       "LRU eviction bounded (memory does not grow unbounded under 1000 commits)."
     ]
+  },
+  "implementation_supporting_evidence_20260521": {
+    "schema_id": "hsk.mt_implementation_supporting_evidence@1",
+    "recorded_at_utc": "2026-05-21T15:49:22.274Z",
+    "recorded_by": "KERNEL_BUILDER-20260521-132803",
+    "classification": "IMPLEMENTATION_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+    "authoritative_integration_validator_pass": false,
+    "integration_validator_status": "PENDING",
+    "operator_mt_review_status": "DEFERRED_NOT_CURRENT_SESSION_FOCUS",
+    "operator_product_vs_master_spec_review_status": "DEFERRED_NOT_CURRENT_SESSION_FOCUS",
+    "summary": "Implemented LlamaCppRuntime KV cache control with declared capability gating, q4/q8 context-param mapping for newly-created native contexts, quant-switch prefix invalidation, bounded prefix snapshot store with TTL/max-bytes LRU behavior, tamper/mismatched-prefix rejection, and env-gated native GGUF proof. This is supporting implementation/test evidence only; WP remains In Progress and Integration Validator PASS remains pending.",
+    "product_surfaces_changed": [
+      "src/backend/handshake_core/src/model_runtime/llama_cpp/mod.rs",
+      "src/backend/handshake_core/src/model_runtime/llama_cpp/adapter.rs",
+      "src/backend/handshake_core/src/model_runtime/llama_cpp/context.rs",
+      "src/backend/handshake_core/src/model_runtime/llama_cpp/generate.rs",
+      "src/backend/handshake_core/src/model_runtime/llama_cpp/kv_cache_impl.rs",
+      "src/backend/handshake_core/tests/llama_cpp_kv_cache_tests.rs",
+      "src/backend/handshake_core/tests/llama_cpp_generate_tests.rs"
+    ],
+    "implementation_notes": [
+      "Local llama-cpp-2 0.1.146 exposes LlamaContextParams::with_type_k/with_type_v and context state copy/restore, but does not expose a safe exact live KV occupancy API. occupancy() therefore reports prefix snapshot bytes used and an estimated capacity from model dimensions/type size rather than claiming exact engine-live bytes.",
+      "set_quantization is modeled as future-context policy: changing quantization clears stored prefix snapshots and subsequent native contexts use the selected type_k/type_v. It does not mutate an in-flight llama.cpp KV cache in place.",
+      "evict_all clears the in-process prefix snapshot store and calls clear_kv_cache on a fresh native context because the current adapter design uses per-generation contexts rather than one persistent live context.",
+      "Unsupported declared KV quantization levels are rejected before native context construction; no-quant model specs reject q4/q8 requests."
+    ],
+    "external_review_supporting_evidence": {
+      "reviewer_session": "019e4b0c-2fdf-7ad1-8026-2af17c0f48e1",
+      "reviewer_role": "KERNEL_BUILDER_SUBAGENT_SUPPORTING_REVIEW",
+      "classification": "SUPPORTING_REVIEW_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+      "summary": "Subagent reviewed local llama-cpp-2 APIs and identified exact live occupancy as unsupported, plus hardening needs for capability gating, bounded LRU/TTL/max-bytes, quant-switch invalidation, honest stats, and mismatched prompt-prefix validation. The final implementation and tests incorporate those hardening items."
+    },
+    "high_roi_additions": [
+      "Added negative tests for unsupported quantization declarations so future model specs cannot silently enable unavailable KV quantization.",
+      "Added quant-switch prefix-flush coverage to prevent stale F16/q4/q8 state restore after policy changes.",
+      "Added max-bytes bounded LRU coverage to prevent unbounded prefix snapshot growth during repeated commits.",
+      "Added prompt-prefix mismatch generation coverage so restored prefix handles cannot be applied to a different prompt prefix."
+    ],
+    "proof_commands": [
+      {
+        "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features llama-cpp-runtime-engine --test llama_cpp_kv_cache_tests -- --test-threads=1",
+        "exit_code": 101,
+        "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/red-mt075-llama-cpp-kv-cache-20260521-170526.log",
+        "phase": "RED",
+        "note": "Initial RED failed because LlamaCppRuntime had no llama_cpp_kv_cache access surface."
+      },
+      {
+        "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features llama-cpp-runtime-engine --test llama_cpp_kv_cache_tests -- --test-threads=1",
+        "exit_code": 0,
+        "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt075-kv-cache-hardening-after-fix-20260521-182000.log",
+        "phase": "GREEN",
+        "note": "5 passed: native quant/prefix happy path, unsupported quantization rejection, quant-switch flush, max-bytes bounded LRU, mismatched prompt-prefix generation failure."
+      },
+      {
+        "command": "cargo check --manifest-path src/backend/handshake_core/Cargo.toml",
+        "exit_code": 0,
+        "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt075-default-feature-check-disabled-llama-after-cancellation-import-20260521-184500.log",
+        "phase": "DEFAULT_FEATURE_COMPILE",
+        "note": "Default disabled-native compile exits 0; remaining warnings are pre-existing crate noise outside MT-075 llama.cpp files."
+      },
+      {
+        "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features llama-cpp-runtime-engine --test llama_cpp_kv_cache_tests; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features llama-cpp-runtime-engine --test llama_cpp_generate_tests; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features llama-cpp-runtime-engine --test llama_cpp_loader_tests; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features llama-cpp-runtime-engine --test model_runtime_kv_cache_tests; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features llama-cpp-runtime-engine --test model_runtime_contract_tests",
+        "exit_code": 0,
+        "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt075-focused-native-suite-after-cfg-cleanup-20260521-185500.summary.log",
+        "phase": "FOCUSED_NATIVE_SUITE",
+        "note": "kv_cache_exit_code=0, generate_exit_code=0, loader_exit_code=0, model_runtime_kv_cache_exit_code=0, model_runtime_contract_exit_code=0, overall_exit_code=0.",
+        "env": {
+          "CARGO_TARGET_DIR": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/t",
+          "LIBCLANG_PATH": "C:/Program Files/LLVM/bin",
+          "HANDSHAKE_TEST_GGUF_PATH": "D:/Local Models/Novaciano/Nanopenis-68M_NSFW_RP-GGUF/Nanopenis-68M_NSFW_RP.gguf"
+        }
+      },
+      {
+        "command": "cargo check --manifest-path src/backend/handshake_core/Cargo.toml --no-default-features",
+        "exit_code": 101,
+        "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt075-no-default-features-check-20260521-183000.log",
+        "phase": "KNOWN_UNRELATED_BASELINE_FAILURE",
+        "note": "No-default-features check still fails because storage/governance_check_runner modules are feature-gated out while referenced by kernel modules; this is pre-existing/unrelated to MT-075."
+      }
+    ],
+    "residual_risks": [
+      "No Integration Validator has reviewed MT-075; this record must not be treated as authoritative WP pass.",
+      "The original MT goal mentions bytes_used from llama_cpp_2 kv_cache state; the local safe crate does not expose exact live occupancy, so validation should decide whether prefix-snapshot stats plus estimated capacity satisfy the product intent or require unsafe/sys-level extension later.",
+      "Per-generation native context design means evict_all is effective for stored prefix snapshots but does not clear a long-lived live context because such a context is not currently held.",
+      "Native llama.cpp checks still require LLVM/libclang, CMake, short CARGO_TARGET_DIR, and HANDSHAKE_TEST_GGUF_PATH setup on this Windows host."
+    ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C2_FRESH",
+    "reviewed_at_utc": "2026-05-27T18:30:00Z",
+    "aggregator_run_at_utc": "2026-05-27T19:03:58.446Z",
+    "verdict": "CONCERN",
+    "verdict_reason": "KV cache + prefix-share + quant-switch + tamper-detect + bounded LRU all implemented and tested, but occupancy() reports estimated capacity rather than live llama.cpp KV bytes due to wrapper API gap; builder discloses this clearly.",
+    "spec_compliance_status": "PARTIAL",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 1,
+      "LOW": 0
+    },
+    "paperwork_notes_count": 2,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-075.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-075.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C2_FRESH",
+    "reviewed_at_utc": "2026-05-27T18:30:00Z",
+    "aggregator_run_at_utc": "2026-05-27T18:50:05.123Z",
+    "verdict": "CONCERN",
+    "verdict_reason": "KV cache + prefix-share + quant-switch + tamper-detect + bounded LRU all implemented and tested, but occupancy() reports estimated capacity rather than live llama.cpp KV bytes due to wrapper API gap; builder discloses this clearly.",
+    "spec_compliance_status": "PARTIAL",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 1,
+      "LOW": 0
+    },
+    "paperwork_notes_count": 2,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-075.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-075.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
   }
 }

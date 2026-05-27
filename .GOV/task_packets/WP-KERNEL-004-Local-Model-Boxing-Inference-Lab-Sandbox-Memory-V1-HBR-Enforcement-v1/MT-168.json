@@ -7,7 +7,7 @@
   "cluster_subscope": "D.4",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:27:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-05-27T19:03:58.446Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -26,7 +26,18 @@
     "src/backend/handshake_core/tests/fems_integration_e2e_tests.rs",
     "src/backend/handshake_core/tests/fixtures/fems_integration_e2e/spawn_tree.json"
   ],
-  "depends_on_mts": ["MT-157", "MT-158", "MT-159", "MT-160", "MT-161", "MT-162", "MT-163", "MT-164", "MT-165", "MT-166"],
+  "depends_on_mts": [
+    "MT-157",
+    "MT-158",
+    "MT-159",
+    "MT-160",
+    "MT-161",
+    "MT-162",
+    "MT-163",
+    "MT-164",
+    "MT-165",
+    "MT-166"
+  ],
   "unblock_conditions": "All D.3 MTs land.",
   "implementation_notes": "Test flow: (1) build a capsule with RetrievalModeRouter (assert Hybrid mode for general query); (2) build same capsule with exact uuid query (assert NoRag mode); (3) build same capsule with hbr_id_pattern query (assert AuthoritativeOnly mode); (4) inject + record capsule via D.1 path; (5) attach Pass outcome via MT-158, assert per-item scores updated; (6) pin one item via MT-159, assert outcome feedback skips it on next attach; (7) run hygiene job via MT-160, assert one consolidation candidate emitted and pinned items skipped; (8) generate retrieval under simulated load_signal=0.9, assert DegradationReport shows graph + re-rank skipped; (9) read calibration snapshot via MT-162, assert degradation_rate signal updated; (10) run replay via MT-163 against the original capsule, assert replay_succeeded with empty ReplayDifference; (11) export trace via MT-165 with default redaction policy, assert pii redacted in bundle; (12) opt-in a fixture session via DISTILL_CORPUS=true and harvest spawn tree via MT-166, assert candidate emitted only for Pass-outcome parent-child pair; (13) assert bitemporal indexing via MT-157 returns the right items at AsOfQuery snapshots both before and after hygiene invalidation. Run with cargo test --release; logged warning if wall-clock >60s.",
   "proof_commands": [
@@ -34,23 +45,57 @@
   ],
   "risk_if_missed": "Without end-to-end FEMS feedback coverage the 10 folded stubs may individually pass unit tests but fail to compose; the integration validator cannot verify AC-DISTILL-CONTENT-REVIEW and AC-DISTILL-EDITABLE-SURFACE in concert.",
   "validator_focus": "Test exercises every D.3 surface in one run; uses real MT-141 capsules + real RetrievalMode routing; perf logged.",
-  "hbr_obligations": ["HBR-INT-006"],
+  "hbr_obligations": [
+    "HBR-INT-006"
+  ],
   "spec_anchors": [
     ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.8.3",
     ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.8.5",
     ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.8.1",
     ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.8.2"
   ],
-  "acceptance_criteria_refs": ["AC-DISTILL-EDITABLE-SURFACE", "AC-DISTILL-CONTENT-REVIEW", "AC-DISTILL-OPT-IN", "AC-DISTILL-LOOP-SAFEGUARDS"],
+  "acceptance_criteria_refs": [
+    "AC-DISTILL-EDITABLE-SURFACE",
+    "AC-DISTILL-CONTENT-REVIEW",
+    "AC-DISTILL-OPT-IN",
+    "AC-DISTILL-LOOP-SAFEGUARDS"
+  ],
   "lifecycle": {
     "active": false,
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "validator_verdict": "PENDING",
-    "depends_on": ["MT-157", "MT-158", "MT-159", "MT-160", "MT-161", "MT-162", "MT-163", "MT-164", "MT-165", "MT-166"],
-    "blocks": []
+    "depends_on": [
+      "MT-157",
+      "MT-158",
+      "MT-159",
+      "MT-160",
+      "MT-161",
+      "MT-162",
+      "MT-163",
+      "MT-164",
+      "MT-165",
+      "MT-166"
+    ],
+    "blocks": [],
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "READY_FOR_VALIDATION",
+        "validator_verdict": "PENDING"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-27T19:03:58.446Z"
   },
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260524-MT168",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
     "review_response_receipt_id": null
@@ -61,5 +106,187 @@
       "Pinned item skip and content-reviewer invocation asserted at the integration level, not just unit level.",
       "Replay correctness asserted via empty ReplayDifference on round-trip."
     ]
+  },
+  "implementation_evidence": {
+    "classification": "IMPLEMENTATION_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+    "authoritative_integration_validator_pass": false,
+    "integration_validator_status": "PENDING",
+    "recorded_at_utc": "2026-05-24T19:53:47.010Z",
+    "recorded_by": "KERNEL_BUILDER-20260524-190701",
+    "mt_ids": [
+      "MT-168"
+    ],
+    "summary": "MT-168 added the FEMS V1 feedback integration end-to-end test. The test composes the real D.3 trait/API surfaces across retrieval-mode routing, capsule build/record, outcome feedback, pin IPC, hygiene, progressive retrieval degradation, calibration, replay, trace export redaction, spawn-tree distillation, and bitemporal before/after invalidation checks.",
+    "research_basis": {
+      "sources_checked": [
+        "Temporal Workflow Definition determinism and replay constraints: https://docs.temporal.io/workflow-definition#deterministic-constraints",
+        "LangSmith dataset versioning and trace-to-dataset evaluation docs: https://docs.langchain.com/langsmith/manage-datasets",
+        "OpenTelemetry GenAI semantic conventions for observable AI traces: https://opentelemetry.io/docs/specs/semconv/gen-ai/",
+        "Hugging Face dataset cards / dataset governance reference: https://huggingface.co/docs/hub/datasets-cards"
+      ],
+      "relevant_patterns_found": [
+        "Replay/evaluation flows should pin inputs to explicit as-of state and make drift inspectable.",
+        "Trace-derived training examples need content review, provenance, stable identifiers, and a review gate before promotion.",
+        "Trace bundles should redact PII/credentials by default while preserving structured route, scoring, and degradation context."
+      ],
+      "reuse_opportunities": [
+        "Reused the existing FEMS V1 D.3 module surfaces instead of creating product code: BitemporalIndex, OutcomeFeedbackLoop, PinIpcService, HygieneJobRunner, ProgressiveRetriever, CalibrationCollector, ReplayEvaluator, RetrievalModeRouter, RetrievalTraceExporter, and SpawnTreeHarvester.",
+        "Reused the existing fems_integration_e2e spawn_tree.json fixture for the opt-in distillation path.",
+        "Reused CapsuleRecorder / KernelActionSubmitter to exercise the D.1 capsule record action path."
+      ],
+      "rejected_options": [
+        "Rejected adding product code for MT-168 because the contract is an integration test over landed primitives.",
+        "Rejected using the sample_fems_items.json fixture because its item_ids are non-UUID strings and MT-163 replay diff vectors require UUID audit ids.",
+        "Rejected asserting only isolated module tests because MT-168 is specifically about composition across all D.3 surfaces."
+      ],
+      "selected_approach": "Add a single deterministic integration test binary that builds UUID-backed RetrievedItem fixtures, records a capsule through CapsuleRecorder, applies outcome/pin/hygiene/calibration/replay/trace/distillation paths, and asserts every contract step in one run.",
+      "risks": [
+        "Hygiene invalidation is represented by applying the emitted prune candidate to the in-memory bitemporal index inside the test rather than through a persistent write-box adapter.",
+        "The test remains in-memory by design and does not exercise a live Postgres bitemporal adapter.",
+        "The DISTILL_CORPUS opt-in check uses a process environment variable; Rust test parallelism would matter if more env-mutating tests are added to this binary."
+      ],
+      "mitigations": [
+        "The test asserts the review-gated prune candidate before applying the bitemporal invalidation, keeping the review boundary explicit.",
+        "Replay is checked against the same BitemporalIndex adapter used by MT-157/MT-163, preserving deterministic as-of semantics without requiring infrastructure credentials.",
+        "The current binary has one test and uses an EnvVarGuard to restore DISTILL_CORPUS after execution."
+      ],
+      "validation_plan": [
+        "Run the dedicated fems_integration_e2e_tests integration binary.",
+        "Run the existing fems_v1_integration_tests regression suite.",
+        "Run rustfmt --check, git diff --check, and forbidden SQLite/model-runtime scans on touched files."
+      ]
+    },
+    "tdd_evidence": {
+      "red": {
+        "command": "$env:CARGO_TARGET_DIR='D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test fems_integration_e2e_tests",
+        "exit_code": 1,
+        "note": "Initial red run failed with Cargo no test target named fems_integration_e2e_tests, proving the E2E target was absent before implementation."
+      },
+      "green": {
+        "command": "$env:CARGO_TARGET_DIR='D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test fems_integration_e2e_tests",
+        "exit_code": 0,
+        "note": "1 passed: fems_feedback_chain_composes_end_to_end."
+      }
+    },
+    "implementation_evidence": {
+      "files_touched": [
+        "src/backend/handshake_core/tests/fems_integration_e2e_tests.rs",
+        "src/backend/handshake_core/Cargo.toml"
+      ],
+      "owned_files": [
+        "src/backend/handshake_core/tests/fems_integration_e2e_tests.rs",
+        "src/backend/handshake_core/tests/fixtures/fems_integration_e2e/spawn_tree.json"
+      ],
+      "fixture_reuse": [
+        "src/backend/handshake_core/tests/fixtures/fems_integration_e2e/spawn_tree.json existed and was reused unchanged."
+      ],
+      "out_of_owned_files_pending_operator_review": [
+        "src/backend/handshake_core/Cargo.toml (registered fems_integration_e2e_tests integration binary)"
+      ],
+      "product_entry_points": [
+        "RetrievalModeRouter::route",
+        "CapsuleBuilder::build",
+        "CapsuleRecorder::record",
+        "OutcomeFeedbackLoop::record_outcome",
+        "PinIpcService::set",
+        "HygieneJobRunner::run_once",
+        "ProgressiveRetriever::retrieve_progressive",
+        "CalibrationCollector::collect_snapshot",
+        "ReplayEvaluator::replay",
+        "RetrievalTraceExporter::export",
+        "SpawnTreeHarvester::harvest"
+      ],
+      "high_roi_additions": [
+        "One composed regression test verifies all D.3 surfaces interact correctly rather than only passing in isolation.",
+        "UUID-backed fixture items keep replay compatible with MT-163 diff vectors and avoid false failures from older non-UUID fixtures.",
+        "The test records review-gated boundaries: pin FR event, capsule record action id, hygiene prune/consolidation candidates, trace redactions, and distillation candidate-created event.",
+        "Existing fems_v1_integration_tests stayed green, reducing risk of breaking the focused module smoke suite."
+      ]
+    },
+    "proof": [
+      {
+        "command": "$env:CARGO_TARGET_DIR='D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test fems_integration_e2e_tests",
+        "exit_code": 0,
+        "note": "1 passed."
+      },
+      {
+        "command": "$env:CARGO_TARGET_DIR='D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test fems_v1_integration_tests",
+        "exit_code": 0,
+        "note": "13 passed; existing D.3 integration smoke suite remained green."
+      },
+      {
+        "command": "rustfmt --edition 2021 --config skip_children=true --check src/backend/handshake_core/tests/fems_integration_e2e_tests.rs",
+        "exit_code": 0,
+        "note": "Formatting check passed after mechanical rustfmt."
+      },
+      {
+        "command": "git diff --check -- src/backend/handshake_core/tests/fems_integration_e2e_tests.rs src/backend/handshake_core/Cargo.toml",
+        "exit_code": 0,
+        "note": "Whitespace diff check passed; only Git LF->CRLF warning for Cargo.toml."
+      },
+      {
+        "command": "rg -n -i \"sqlite|rusqlite|libsqlite|Sqlite|CompletionRequest|llm_client|openai|model_runtime\" src/backend/handshake_core/tests/fems_integration_e2e_tests.rs src/backend/handshake_core/Cargo.toml",
+        "exit_code": 1,
+        "note": "No matches; exit 1 is ripgrep no-match."
+      }
+    ],
+    "repomem_receipts": {
+      "pre_mislabelled": 2251,
+      "correction": 2252,
+      "decision": 2253,
+      "research_close": 2254,
+      "concern": 2255
+    },
+    "residual_risks": [
+      "No Integration Validator has reviewed MT-168; READY_FOR_VALIDATION is implementer handoff only.",
+      "A live Postgres bitemporal/hygiene write-box adapter path remains outside this test-only microtask proof.",
+      "The initial repomem pre-task receipt #2251 was mislabeled as self-improvement guardrail work; receipt #2252 corrected the active MT-168 scope before implementation."
+    ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_D_GAPS",
+    "reviewed_at_utc": "2026-05-27T18:55:00Z",
+    "aggregator_run_at_utc": "2026-05-27T19:03:58.446Z",
+    "verdict": "PASS_WITH_NOTES",
+    "verdict_reason": "fems_integration_e2e_tests.rs composes all 10 D.3 surfaces (RetrievalModeRouter -> CapsuleBuilder -> CapsuleRecorder -> OutcomeFeedbackLoop -> PinIpcService -> HygieneJobRunner -> ProgressiveRetriever -> CalibrationCollector -> ReplayEvaluator -> RetrievalTraceExporter -> SpawnTreeHarvester) in one test binary; 1 integration test + 13 fems_v1_integration regression remain green per builder evidence. Uses real production trait surfaces with UUID-backed fixture items so replay diff vectors are compatible with MT-163. Hygiene invalidation is applied to in-memory bitemporal index inside the test (real Postgres adapter not exercised). Single composed test exercises every contract step in one run; assertions include pinned-item skip, content-reviewer invocation, replay round-trip, PII redactions, distillation candidate-created event. CONCERN: only ONE composed test in the binary — single test means one failure trashes the whole composition signal; multiple smaller composed tests (e.g., one per AC-DISTILL-*) would isolate seam failures better.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "OK",
+    "runtime_safety_status": "OK",
+    "agent_swarm_safety_status": "OK",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "PARTIAL",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 2
+    },
+    "paperwork_notes_count": 4,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-168.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-168.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_D_GAPS",
+    "reviewed_at_utc": "2026-05-27T18:55:00Z",
+    "aggregator_run_at_utc": "2026-05-27T18:50:05.123Z",
+    "verdict": "PASS_WITH_NOTES",
+    "verdict_reason": "fems_integration_e2e_tests.rs composes all 10 D.3 surfaces (RetrievalModeRouter -> CapsuleBuilder -> CapsuleRecorder -> OutcomeFeedbackLoop -> PinIpcService -> HygieneJobRunner -> ProgressiveRetriever -> CalibrationCollector -> ReplayEvaluator -> RetrievalTraceExporter -> SpawnTreeHarvester) in one test binary; 1 integration test + 13 fems_v1_integration regression remain green per builder evidence. Uses real production trait surfaces with UUID-backed fixture items so replay diff vectors are compatible with MT-163. Hygiene invalidation is applied to in-memory bitemporal index inside the test (real Postgres adapter not exercised). Single composed test exercises every contract step in one run; assertions include pinned-item skip, content-reviewer invocation, replay round-trip, PII redactions, distillation candidate-created event. CONCERN: only ONE composed test in the binary — single test means one failure trashes the whole composition signal; multiple smaller composed tests (e.g., one per AC-DISTILL-*) would isolate seam failures better.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "OK",
+    "runtime_safety_status": "OK",
+    "agent_swarm_safety_status": "OK",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "PARTIAL",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 2
+    },
+    "paperwork_notes_count": 4,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-168.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-168.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
   }
 }

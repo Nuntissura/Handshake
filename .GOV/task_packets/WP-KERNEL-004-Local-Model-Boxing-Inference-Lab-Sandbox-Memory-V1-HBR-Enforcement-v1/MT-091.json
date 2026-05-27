@@ -7,7 +7,7 @@
   "cluster_subscope": "C.4",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:00:00Z",
-  "updated_at_utc": "2026-05-22T17:11:00Z",
+  "updated_at_utc": "2026-05-27T19:03:58.446Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -27,7 +27,10 @@
     "app/src/lib/stores/lora_stack.ts",
     "app/src/components/inference_lab/InferenceLab.svelte"
   ],
-  "depends_on_mts": ["MT-068", "MT-090"],
+  "depends_on_mts": [
+    "MT-068",
+    "MT-090"
+  ],
   "unblock_conditions": "MT-068 capability IPC + MT-090 LoRA technique surface merged.",
   "implementation_notes": "Per AC-INFER-LAB-UI-TOGGLES + AC-INFER-LAB-UI-AB-COMPARE. LoraStackComposer.svelte: shows the current active stack as an ordered list (drag-to-reorder via svelte-dnd-action or HTML5 drag); each row has [LoRA name, strength slider 0..2, unmount button, license tag badge]; bottom of view has [Mount from disk... button] opening a file picker; [Save as Work Profile] button writes settings.exec_policy.lora_stack. Backed by lora_stack.ts store: subscribes to kernel_model_runtime_lora_list updates (polls every 2s or subscribes to FR events when the SSE bridge is available); commits via kernel_model_runtime_lora_mount/_swap/_unmount. Hidden when capabilities.supportsLora==false (per MT-068 IPC; aligns with AC-INFER-LAB-UI-TOGGLES \"toggles for techniques the model's adapter does not support are hidden, not greyed\"). A/B compare per AC-INFER-LAB-UI-AB-COMPARE: clicking a strength slider opens an A/B side-panel showing generation with current strength vs proposed strength on the same prompt; operator commits or discards. License tag badge prominent for adult-production licensing discipline (per GLOBAL-PRODUCTION operator concerns). Backend mutation routes through KernelActionCatalogV1 (no debug-only paths). UI tests via Playwright/CDP (per cluster A.2 RW-4 decision): mount mock LoRA, assert list updates; change strength, assert IPC call fires.",
   "proof_commands": [
@@ -36,22 +39,48 @@
   ],
   "risk_if_missed": "LoRA UI knob missing; INF-1 not operator-controllable through Inference Lab; AC-INFER-LAB-UI-TOGGLES partial.",
   "validator_focus": "Hidden-not-greyed for unsupported adapters; A/B compare flow lands in same Work Profile path; license badge present; KernelActionCatalogV1 routing.",
-  "hbr_obligations": ["HBR-INT-002"],
+  "hbr_obligations": [
+    "HBR-INT-002"
+  ],
   "spec_anchors": [
     ".GOV/spec/master-spec-v02.186/spec-modules/10-product-surfaces.md#10.14"
   ],
-  "acceptance_criteria_refs": ["AC-INFER-LAB-UI-TOGGLES", "AC-INFER-LAB-UI-AB-COMPARE"],
+  "acceptance_criteria_refs": [
+    "AC-INFER-LAB-UI-TOGGLES",
+    "AC-INFER-LAB-UI-AB-COMPARE"
+  ],
   "lifecycle": {
     "active": false,
     "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "validator_verdict": "CONCERN",
     "integration_validator_verdict": "PENDING",
-    "depends_on": ["MT-068", "MT-090"],
-    "blocks": ["MT-092"],
+    "depends_on": [
+      "MT-068",
+      "MT-090"
+    ],
+    "blocks": [
+      "MT-092"
+    ],
     "claimed_by": "KERNEL_BUILDER-20260522-171100",
     "claimed_at_utc": "2026-05-22T17:11:00Z",
     "ready_for_validation_by": "KERNEL_BUILDER-20260522-171100",
-    "ready_for_validation_at_utc": "2026-05-22T19:35:00Z"
+    "ready_for_validation_at_utc": "2026-05-22T19:35:00Z",
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "READY_FOR_VALIDATION",
+        "validator_verdict": "PENDING"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-27T19:03:58.446Z"
   },
   "handoff": {
     "coder_session": "KERNEL_BUILDER-20260522-171100",
@@ -145,5 +174,51 @@
       "risk_reduced": "Prevents the composer from being a paper UI (no backend dispatch) and prevents string-typed invoke calls scattered through the component (centralizes camelCase DTO + strength validation in one binding module, matching the pattern of model_runtime.ts / steering.ts / refusal.ts).",
       "waiver_status": "OPERATOR_WAIVER_REQUIRED_FOR_THIS_MT_OUT_OF_SCOPE_FILE"
     }
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C4_C7",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T19:03:58.446Z",
+    "verdict": "CONCERN",
+    "verdict_reason": "LoRA composer UI lands hidden-not-greyed, license badge per row, mutations through KernelActionCatalogV1; A/B compare (AC-INFER-LAB-UI-AB-COMPARE) is deferred — partial spec satisfaction is a real product gap, not paperwork.",
+    "spec_compliance_status": "PARTIAL",
+    "code_hygiene_status": "MINOR",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 1,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 1,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-091.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-091.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C4_C7",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T18:50:05.123Z",
+    "verdict": "CONCERN",
+    "verdict_reason": "LoRA composer UI lands hidden-not-greyed, license badge per row, mutations through KernelActionCatalogV1; A/B compare (AC-INFER-LAB-UI-AB-COMPARE) is deferred — partial spec satisfaction is a real product gap, not paperwork.",
+    "spec_compliance_status": "PARTIAL",
+    "code_hygiene_status": "MINOR",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 1,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 1,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-091.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-091.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
   }
 }

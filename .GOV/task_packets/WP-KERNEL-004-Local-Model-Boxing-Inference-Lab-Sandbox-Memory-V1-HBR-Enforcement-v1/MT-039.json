@@ -7,7 +7,7 @@
   "cluster_subscope": "A.7",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T02:30:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-05-27T19:03:58.446Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -27,7 +27,10 @@
     ".GOV/templates/REFINEMENT_TEMPLATE.json",
     ".GOV/templates/REFINEMENT_CONTRACT_TEMPLATE.json"
   ],
-  "depends_on_mts": ["MT-002", "MT-038"],
+  "depends_on_mts": [
+    "MT-002",
+    "MT-038"
+  ],
   "unblock_conditions": "MT-002 hydrator + MT-038 role-protocol linkage merged so the template defaults reflect the live wiring.",
   "implementation_notes": "Confirm template paths via Glob before editing (.GOV/templates/ is the most likely location; if not, check .GOV/roles_shared/templates/). TASK_PACKET_TEMPLATE.json: add `hbr: { tags_declared: [\"<auto-infer-from-touched-paths>\"], not_applicable_overrides: [] }` and `acceptance_matrix: { schema_version: 1, hbr: [], hbr_not_applicable: [] }` to the default packet shape. REFINEMENT_TEMPLATE.json: add a new section `hbr_pillar_review: { INT: { applicable: bool, evidence_path }, SWARM: {...}, VIS: {...}, QUIET: {...}, MAN: {...} }` so refinement authors review each pillar before signature. REFINEMENT_CONTRACT_TEMPLATE.json: each MT entry gets `hbr_obligations: [\"<HBR-IDs the MT must satisfy>\"]` as a required field. All edits are additive — preserve every existing field with its current default. If templates do not yet exist as named files, document the discovery in implementation notes and skip rather than invent; the operator-driven RGF that defines templates owns their creation. Tests: Node script `.GOV/roles_shared/checks/template-hbr-fields.mjs` validates each template file has the new HBR fields; gov-check sub-check.",
   "proof_commands": [
@@ -36,20 +39,48 @@
   ],
   "risk_if_missed": "Without template defaults, new WPs ship without HBR fields and require post-hoc retrofit; A.1 enforcement falls short of authoring-time coverage.",
   "validator_focus": "Templates are extended additively (no removed fields); HBR fields have sensible defaults that survive a no-op packet creation; if templates do not exist as files, the MT documents the discovery rather than fabricating templates.",
-  "hbr_obligations": ["HBR-INT-001"],
+  "hbr_obligations": [
+    "HBR-INT-001"
+  ],
   "spec_anchors": [
     ".GOV/spec/master-spec-v02.186/spec-modules/05-security-and-observability.md#5.6"
   ],
-  "acceptance_criteria_refs": ["AC-HBR-AUTHORITY"],
+  "acceptance_criteria_refs": [
+    "AC-HBR-AUTHORITY"
+  ],
   "lifecycle": {
     "active": false,
-    "status": "PENDING",
-    "validator_verdict": "PENDING",
-    "depends_on": ["MT-002", "MT-038"],
-    "blocks": ["MT-040"]
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "PASS",
+    "depends_on": [
+      "MT-002",
+      "MT-038"
+    ],
+    "blocks": [
+      "MT-040"
+    ],
+    "claimed_by": "KERNEL_BUILDER-20260518-073535",
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "COMPLETED",
+        "validator_verdict": "PENDING",
+        "completed_at_utc": "2026-05-18T16:12:32.579Z"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "previous_completed_at_utc_before_ready_for_validation_20260525": "2026-05-18T16:12:32.579Z",
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-27T19:03:58.446Z"
   },
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260518-073535",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
     "review_response_receipt_id": null
@@ -60,5 +91,51 @@
       "If templates do not exist, MT documents the discovery and exits without fabricating.",
       "HBR field defaults are minimal (empty arrays, not pre-populated) to avoid prejudicing applicability."
     ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_A3_A5_A7",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T19:03:58.446Z",
+    "verdict": "PASS",
+    "verdict_reason": "TASK_PACKET_TEMPLATE.md, WORK_PACKET_CONTRACT_TEMPLATE.json, REFINEMENT_TEMPLATE.md, REFINEMENT_CONTRACT_TEMPLATE.json, and MICRO_TASK_CONTRACT_TEMPLATE.json all carry the additive HBR fields with empty-array defaults; the template-hbr-fields.mjs check enforces every field and also verifies the upstream generators (buildDefaultHbrContext/Matrix/Obligations) emit the same defaults.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 1,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-039.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-039.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_A3_A5_A7",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T18:50:05.123Z",
+    "verdict": "PASS",
+    "verdict_reason": "TASK_PACKET_TEMPLATE.md, WORK_PACKET_CONTRACT_TEMPLATE.json, REFINEMENT_TEMPLATE.md, REFINEMENT_CONTRACT_TEMPLATE.json, and MICRO_TASK_CONTRACT_TEMPLATE.json all carry the additive HBR fields with empty-array defaults; the template-hbr-fields.mjs check enforces every field and also verifies the upstream generators (buildDefaultHbrContext/Matrix/Obligations) emit the same defaults.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 1,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-039.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-039.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
   }
 }

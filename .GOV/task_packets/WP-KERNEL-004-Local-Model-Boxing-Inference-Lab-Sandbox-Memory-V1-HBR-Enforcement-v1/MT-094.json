@@ -7,7 +7,7 @@
   "cluster_subscope": "C.5",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:00:00Z",
-  "updated_at_utc": "2026-05-22T21:50:00Z",
+  "updated_at_utc": "2026-05-27T19:03:58.446Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -27,7 +27,10 @@
     "app/src/lib/stores/kv_cache.ts",
     "app/src/components/inference_lab/InferenceLab.svelte"
   ],
-  "depends_on_mts": ["MT-068", "MT-093"],
+  "depends_on_mts": [
+    "MT-068",
+    "MT-093"
+  ],
   "unblock_conditions": "MT-068 IPC + MT-093 technique merged.",
   "implementation_notes": "Per AC-INFER-LAB-UI-TOGGLES + AC-MODEL-RUNTIME-CONTROL-PANEL field set: KV occupancy displayed live in panel; quant picker writes through to settings.exec_policy.kv_cache.quantization. KvCachePanel.svelte: select dropdown for KvQuantSupport (None|Q4|Q8|Q4Q8Mix; mapped from capability set); slider for prefix_cache_ttl_seconds (30..3600); live occupancy bar (polls kernel_model_runtime_kv_occupancy every 2s); hit-rate badge; [Evict all] button calls kernel_model_runtime_kv_evict_all. Per AC-INFER-LAB-UI-TOGGLES \"hidden, not greyed\": when supportsKvQuantization == None, hide the quant picker (kept prefix TTL slider as long as supportsKvPrefixCache == true). A/B compare per AC-INFER-LAB-UI-AB-COMPARE: pick a generation prompt, render side-by-side gen output at current quant vs proposed quant.",
   "proof_commands": [
@@ -36,22 +39,49 @@
   ],
   "risk_if_missed": "INF-2 UI knob missing; operator cannot tune KV cache through Inference Lab.",
   "validator_focus": "Hidden-not-greyed when unsupported; live occupancy actually updates; A/B compare flow present.",
-  "hbr_obligations": ["HBR-INT-002"],
+  "hbr_obligations": [
+    "HBR-INT-002"
+  ],
   "spec_anchors": [
     ".GOV/spec/master-spec-v02.186/spec-modules/10-product-surfaces.md#10.14"
   ],
-  "acceptance_criteria_refs": ["AC-INFER-LAB-UI-TOGGLES", "AC-INFER-LAB-UI-AB-COMPARE", "AC-MODEL-RUNTIME-CONTROL-PANEL"],
+  "acceptance_criteria_refs": [
+    "AC-INFER-LAB-UI-TOGGLES",
+    "AC-INFER-LAB-UI-AB-COMPARE",
+    "AC-MODEL-RUNTIME-CONTROL-PANEL"
+  ],
   "lifecycle": {
     "active": false,
     "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "validator_verdict": "CONCERN",
     "integration_validator_verdict": "PENDING",
-    "depends_on": ["MT-068", "MT-093"],
-    "blocks": ["MT-095"],
+    "depends_on": [
+      "MT-068",
+      "MT-093"
+    ],
+    "blocks": [
+      "MT-095"
+    ],
     "claimed_by": "KERNEL_BUILDER-20260522-171100",
     "claimed_at_utc": "2026-05-22T21:50:00Z",
     "ready_for_validation_by": "KERNEL_BUILDER-20260522-171100",
-    "ready_for_validation_at_utc": "2026-05-22T22:05:00Z"
+    "ready_for_validation_at_utc": "2026-05-22T22:05:00Z",
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "READY_FOR_VALIDATION",
+        "validator_verdict": "PENDING"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-27T19:03:58.446Z"
   },
   "handoff": {
     "coder_session": "KERNEL_BUILDER-20260522-171100",
@@ -125,5 +155,51 @@
       "risk_reduced": "Same as MT-091: prevents the panel from being a paper UI and centralizes the camelCase DTO + quantOptionsFor helper in one binding module.",
       "waiver_status": "OPERATOR_WAIVER_REQUIRED_FOR_THIS_MT_OUT_OF_SCOPE_FILE"
     }
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C4_C7",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T19:03:58.446Z",
+    "verdict": "CONCERN",
+    "verdict_reason": "KV cache panel implements hidden-not-greyed cascade, quant picker, prefix TTL slider, occupancy polling, evict-all with confirm dialog; A/B compare (AC-INFER-LAB-UI-AB-COMPARE) deferred and same poll-flood concern as MT-091 (covered by 2s cap constant).",
+    "spec_compliance_status": "PARTIAL",
+    "code_hygiene_status": "MINOR",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 1,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 1,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-094.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-094.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C4_C7",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T18:50:05.123Z",
+    "verdict": "CONCERN",
+    "verdict_reason": "KV cache panel implements hidden-not-greyed cascade, quant picker, prefix TTL slider, occupancy polling, evict-all with confirm dialog; A/B compare (AC-INFER-LAB-UI-AB-COMPARE) deferred and same poll-flood concern as MT-091 (covered by 2s cap constant).",
+    "spec_compliance_status": "PARTIAL",
+    "code_hygiene_status": "MINOR",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 1,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 1,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-094.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-094.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
   }
 }

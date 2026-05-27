@@ -7,7 +7,7 @@
   "cluster_subscope": "B.3",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:10:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-05-27T19:03:58.446Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -28,7 +28,11 @@
     "src/backend/handshake_core/src/sandbox/mod.rs",
     "src/backend/handshake_core/tests/sandbox_compat_only_tests.rs"
   ],
-  "depends_on_mts": ["MT-043", "MT-047", "MT-054"],
+  "depends_on_mts": [
+    "MT-043",
+    "MT-047",
+    "MT-054"
+  ],
   "unblock_conditions": "Selection policy + DockerAdapter + KERNEL-003 refactor merged.",
   "implementation_notes": "settings_schema.rs: `pub struct SandboxSettings { pub default_adapter: SandboxDefaultAdapterChoice, pub docker_explicit_opt_in: bool }` where `pub enum SandboxDefaultAdapterChoice { Wsl2Podman, WindowsNativeJail }` — NOTE: enum does NOT contain Docker, so by Rust typing the operator cannot set default_adapter=\"docker\" via deserialization (a JSON value of \"docker\" returns a typed serde error). Add `impl Default for SandboxSettings { fn default() -> Self { SandboxSettings { default_adapter: SandboxDefaultAdapterChoice::Wsl2Podman, docker_explicit_opt_in: false } } }`. The bootstrap in MT-048 reads SandboxSettings via settings_schema and feeds the default_adapter choice into SandboxAdapterRegistry::new — this MT updates that wiring. docker-not-default-adapter-check.mjs: a Node-side repo check that (1) reads bootstrap.rs and asserts `SandboxAdapterRegistry::new(AdapterId(\"docker\"))` or string \"docker\" never appears as the default arg in a constructor call; (2) reads .GOV/settings/**/*.json (any operator settings defaults) and verifies `sandbox.default_adapter` is never \"docker\"; (3) emits a structured failure row JSONL on stderr for each violation. Wire the check into `just gov-check` (recipe addition; if cluster A.1 owns justfile, coordinate). Tests: (a) deserializing `{ \"default_adapter\": \"docker\" }` fails with a typed serde error; (b) docker-not-default-adapter-check.mjs passes on the current repo state; (c) docker-not-default-adapter-check.mjs fails on a synthetic fixture where bootstrap.rs has been mutated to default to docker (negative test, exit 2); (d) runtime test: selection.select() called with a ProcessSpec preferring Docker AND docker_explicit_opt_in==false returns SandboxSelectionFailure::DockerNotExplicitlyOptedIn (preserving MT-043 behavior; this MT re-asserts).",
   "proof_commands": [
@@ -38,21 +42,49 @@
   ],
   "risk_if_missed": "Without the lint, a future MT could silently flip Docker to default (settings change in a low-traffic file or a constructor default arg edit) and KERNEL-004's 3-adapter posture collapses back to KERNEL-003's Docker-only world.",
   "validator_focus": "(a) Enum-level enforcement (Rust type system rejects Docker as default); (b) repo check passes on current state AND fails on the negative fixture; (c) wired into gov-check; (d) MT-043 runtime guard re-validated.",
-  "hbr_obligations": ["HBR-INT-001"],
+  "hbr_obligations": [
+    "HBR-INT-001"
+  ],
   "spec_anchors": [
     ".GOV/spec/master-spec-v02.186/spec-modules/03-local-first-infrastructure.md#3.5.2",
     ".GOV/spec/master-spec-v02.186/spec-modules/03-local-first-infrastructure.md#3.5.3"
   ],
-  "acceptance_criteria_refs": ["AC-SANDBOX-ADAPTER-IMPLS"],
+  "acceptance_criteria_refs": [
+    "AC-SANDBOX-ADAPTER-IMPLS"
+  ],
   "lifecycle": {
     "active": false,
-    "status": "PENDING",
-    "validator_verdict": "PENDING",
-    "depends_on": ["MT-043", "MT-047", "MT-054"],
-    "blocks": []
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "PASS",
+    "depends_on": [
+      "MT-043",
+      "MT-047",
+      "MT-054"
+    ],
+    "blocks": [],
+    "claimed_by": "KERNEL_BUILDER-20260518-235451",
+    "claimed_at_utc": "2026-05-19T00:47:10Z",
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "COMPLETED",
+        "validator_verdict": "PENDING",
+        "completed_at_utc": "2026-05-19T01:14:09.224Z"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "previous_completed_at_utc_before_ready_for_validation_20260525": "2026-05-19T01:14:09.224Z",
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-27T19:03:58.446Z"
   },
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260518-235451",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
     "review_response_receipt_id": null
@@ -63,5 +95,53 @@
       "Negative fixture test for the repo check proves the lint actually fires on a Docker-default mutation.",
       "Wired into `just gov-check` so the lint is part of every PR's build-time gate (HBR-INT-001 surface)."
     ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_B_GAPS_REDO_WTC",
+    "reviewed_at_utc": "2026-05-27T22:30:00Z",
+    "aggregator_run_at_utc": "2026-05-27T19:03:58.446Z",
+    "verdict": "PASS",
+    "verdict_reason": "settings_schema.rs implements SandboxDefaultAdapterChoice as a Rust enum that lacks any Docker variant - type-level rejection per the contract; serde deny_unknown_fields adds defense-in-depth. docker-not-default-adapter-check.mjs scans bootstrap.rs and .GOV/settings JSON for Docker defaults with full comment-stripping. sandbox_compat_only_tests.rs covers the type rejection, the WindowsNativeJail rejection, unknown_field rejection, and runtime-side select() guard. Bootstrap uses disallowed_default_adapter_reason() to belt-and-suspenders block Docker-as-default at registry construction.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-056.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-056.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_B_GAPS",
+    "reviewed_at_utc": "2026-05-27T17:38:00Z",
+    "aggregator_run_at_utc": "2026-05-27T18:50:05.123Z",
+    "verdict": "FAIL",
+    "verdict_reason": "settings_schema.rs absent; docker-not-default-adapter-check.mjs absent; the type-system and repo-lint enforcement that locks Docker to compat-only-not-default is not implemented; spec §3.5.3 ('DockerAdapter selected only when operator explicitly opts in') is unenforced.",
+    "spec_compliance_status": "FAILS",
+    "code_hygiene_status": "MAJOR",
+    "runtime_safety_status": "UNSAFE",
+    "agent_swarm_safety_status": "CONCERN",
+    "hbr_unsatisfied": [
+      "HBR-INT-001"
+    ],
+    "test_coverage_status": "MISSING",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 1,
+      "MEDIUM": 1,
+      "LOW": 0
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-056.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-056.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
   }
 }

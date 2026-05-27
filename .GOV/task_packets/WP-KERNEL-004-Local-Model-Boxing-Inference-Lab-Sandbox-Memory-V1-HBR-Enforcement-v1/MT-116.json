@@ -7,7 +7,7 @@
   "cluster_subscope": "C.11",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:00:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-05-27T19:03:58.446Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -30,7 +30,13 @@
     "src/backend/handshake_core/src/model_runtime/candle/rwkv_v7.rs",
     "src/backend/handshake_core/tests/inf9_ssm_steering_tests.rs"
   ],
-  "depends_on_mts": ["MT-065", "MT-082", "MT-085", "MT-086", "MT-087"],
+  "depends_on_mts": [
+    "MT-065",
+    "MT-082",
+    "MT-085",
+    "MT-086",
+    "MT-087"
+  ],
   "unblock_conditions": "MT-082 transformer hooks + MT-085..MT-087 SSM/RWKV base merged.",
   "implementation_notes": "Per refinement INF-9 feature_parity_detail: \"activation steering for SSMs (steering-for-SSM work)\". The HookPoint enum from MT-065 (ResidStream | MlpOut | AttnOut) maps differently for SSMs: ResidStream = output of layer block (after Mamba2 block or RWKV time+channel mix combined); MlpOut = channel-mix output (RWKV) or out_proj (Mamba2); AttnOut = time-mix output (RWKV) or x_proj branch (Mamba2 — approximate). Implementation: each SSM/RWKV variant's per-layer forward calls hook_registry[layer].iter().for_each(|cb| cb(&mut hidden)) after the block computation. Token-by-token semantics: hook fires once per token (vs once per prompt-batch for transformers). CaptureSpec.prompts must be processed sequentially, capturing the activation at the last token of each prompt for steering-vector derivation (matches CAA semantics on transformers). After this MT, capabilities.supportsActivationSteering=true for SSM variants. Tests (env-gated): register zero-vector at layer 5 on Mamba2 -> output unchanged (identity); random vector -> output differs; capture from contrastive prompt pair -> nonzero vector.",
   "proof_commands": [
@@ -38,18 +44,31 @@
   ],
   "risk_if_missed": "INF-9 steering parity missing; operator E-2 breached.",
   "validator_focus": "Identity test (zero vector -> output unchanged); token-by-token hook semantics documented; HookPoint mapping per architecture documented.",
-  "hbr_obligations": ["HBR-INT-002"],
+  "hbr_obligations": [
+    "HBR-INT-002"
+  ],
   "spec_anchors": [
     ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.7.1"
   ],
-  "acceptance_criteria_refs": ["AC-INFER-LAB-8-TECHNIQUES", "AC-CANDLE-ADAPTER"],
+  "acceptance_criteria_refs": [
+    "AC-INFER-LAB-8-TECHNIQUES",
+    "AC-CANDLE-ADAPTER"
+  ],
   "lifecycle": {
     "active": false,
     "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "validator_verdict": "FAIL",
     "integration_validator_verdict": "PENDING",
-    "depends_on": ["MT-065", "MT-082", "MT-085", "MT-086", "MT-087"],
-    "blocks": ["MT-118"],
+    "depends_on": [
+      "MT-065",
+      "MT-082",
+      "MT-085",
+      "MT-086",
+      "MT-087"
+    ],
+    "blocks": [
+      "MT-118"
+    ],
     "claimed_by": "KERNEL_BUILDER-20260522-171100",
     "claimed_at_utc": "2026-05-23T02:40:00Z",
     "ready_for_validation_by": "KERNEL_BUILDER-20260522-171100",
@@ -82,7 +101,23 @@
           "Modifying the existing CandleSteeringHooks impl: MT-116 additions live in a separate appended section; the existing residual-width / register_vector path stays untouched."
         ]
       }
-    }
+    },
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "READY_FOR_VALIDATION",
+        "validator_verdict": "PENDING"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-27T19:03:58.446Z"
   },
   "handoff": {
     "coder_session": "KERNEL_BUILDER-20260522-171100",
@@ -96,5 +131,55 @@
       "HookPoint mapping documented per architecture.",
       "Token-by-token semantics clear."
     ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C11_FRESH",
+    "reviewed_at_utc": "2026-05-27T18:50:00Z",
+    "aggregator_run_at_utc": "2026-05-27T19:03:58.446Z",
+    "verdict": "FAIL",
+    "verdict_reason": "Operator E-2 FULL FEATURE PARITY explicitly requires activation steering for SSMs. MT-116 lands ONLY the SSMHookSite mapping enum, the token-by-token semantics doc-string, and the deferral marker — the per-variant forward-pass wiring is deferred to the same undefined follow-on MT as MT-115. candle_mamba2_capabilities + candle_rwkv_capabilities ship with supports_activation_steering=false (adapter.rs:520,532). The contract's red_team minimum control 'Identity test correctness gate' (zero vector -> output unchanged) is not actually exercised — the env-gated identity_test_real_mamba2_model only prints a SKIP eprintln without HANDSHAKE_TEST_MAMBA2_MODEL_DIR. The 13 passing tests cover mapping correctness + doc-string content + deferral marker, not steering correctness. Per the adversarial prompt: agent_swarm_safety is preserved (fail-closed) but FULL PARITY is breached.",
+    "spec_compliance_status": "FAILS",
+    "code_hygiene_status": "PASS",
+    "runtime_safety_status": "PASS",
+    "agent_swarm_safety_status": "PASS",
+    "hbr_unsatisfied": [
+      "HBR-INT-002"
+    ],
+    "test_coverage_status": "PARTIAL",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 1,
+      "MEDIUM": 1,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 2,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-116.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-116.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C11_FRESH",
+    "reviewed_at_utc": "2026-05-27T18:50:00Z",
+    "aggregator_run_at_utc": "2026-05-27T18:50:05.123Z",
+    "verdict": "FAIL",
+    "verdict_reason": "Operator E-2 FULL FEATURE PARITY explicitly requires activation steering for SSMs. MT-116 lands ONLY the SSMHookSite mapping enum, the token-by-token semantics doc-string, and the deferral marker — the per-variant forward-pass wiring is deferred to the same undefined follow-on MT as MT-115. candle_mamba2_capabilities + candle_rwkv_capabilities ship with supports_activation_steering=false (adapter.rs:520,532). The contract's red_team minimum control 'Identity test correctness gate' (zero vector -> output unchanged) is not actually exercised — the env-gated identity_test_real_mamba2_model only prints a SKIP eprintln without HANDSHAKE_TEST_MAMBA2_MODEL_DIR. The 13 passing tests cover mapping correctness + doc-string content + deferral marker, not steering correctness. Per the adversarial prompt: agent_swarm_safety is preserved (fail-closed) but FULL PARITY is breached.",
+    "spec_compliance_status": "FAILS",
+    "code_hygiene_status": "PASS",
+    "runtime_safety_status": "PASS",
+    "agent_swarm_safety_status": "PASS",
+    "hbr_unsatisfied": [
+      "HBR-INT-002"
+    ],
+    "test_coverage_status": "PARTIAL",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 1,
+      "MEDIUM": 1,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 2,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-116.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-116.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
   }
 }

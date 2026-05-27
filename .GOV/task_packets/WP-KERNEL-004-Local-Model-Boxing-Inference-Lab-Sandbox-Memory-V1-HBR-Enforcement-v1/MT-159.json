@@ -7,7 +7,7 @@
   "cluster_subscope": "D.3",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:18:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-05-27T19:03:58.446Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -21,32 +21,282 @@
   },
   "title": "FEMS pinned core memory: pinned=true items always included before scoring (folded WP-1-FEMS-Pinned-Core-Memory)",
   "goal": "Add `pinned: bool` flag to MemoryItem and ensure pinned items are always included in every MemoryPack before the scoring formula runs on the remaining budget. Ports the Letta/MemGPT 'core memory' pattern. Folded from WP-1-FEMS-Pinned-Core-Memory. Protects operator-marked memories from outcome-loop pruning (MT-158) and from displacement by high-recency low-importance items.",
-  "expected_diff_shape": "Extends src/backend/handshake_core/src/kernel/fems_mt_handoff_memory_context.rs (in main) with `pinned: bool` MemoryItem field. New module src/backend/handshake_core/src/memory/pinned_core.rs (PinnedCoreSelector + PinError types + PinIpc Tauri commands). Postgres migration adds pinned column with index. Tests src/backend/handshake_core/tests/pinned_core_tests.rs.",
+  "expected_diff_shape": "Extends src/backend/handshake_core/src/kernel/fems_mt_handoff_memory_context.rs with explicit `pinned: bool` handoff memory items and pinned-first projection. New module src/backend/handshake_core/src/memory/pinned_core.rs implements PinnedCoreSelector, PinError, PinIpcService, PinSubmitter, and pin/unpin action constants. app/src-tauri/src/commands/memory_pin.rs exposes Postgres-backed Tauri pin/unpin/list commands. Postgres migration indexes pin events in kernel_event_ledger JSONB payloads; no memory_item table or SQLite path is introduced. Tests live in src/backend/handshake_core/tests/pinned_core_tests.rs with adjacent builder, injection, handoff, persistence, and app IPC regression coverage.",
   "owned_files": [
     "src/backend/handshake_core/src/memory/pinned_core.rs",
     "src/backend/handshake_core/tests/pinned_core_tests.rs",
     "src/backend/handshake_core/src/kernel/fems_mt_handoff_memory_context.rs",
     "src/backend/handshake_core/migrations/2026_05_18_fems_pinned.sql"
   ],
-  "depends_on_mts": ["MT-141", "MT-143", "MT-158"],
+  "depends_on_mts": [
+    "MT-141",
+    "MT-143",
+    "MT-158"
+  ],
   "unblock_conditions": "MT-141 (MemoryCapsule), MT-143 (CapsuleBuilder), MT-158 (outcome feedback - pinned items must be protected from outcome-driven score decay).",
-  "implementation_notes": "Per WP-1-FEMS-Pinned-Core-Memory preserved_intent. Surface: extends MemoryItem with `pub pinned: bool` (default false). PinnedCoreSelector: `pub fn select_pack_with_pins(items: &[MemoryItem], budget: MemoryPackBudgets) -> Result<MemoryPack, PinError>` which (1) takes all pinned items first, (2) checks they fit budget (returns PinError::PinnedExceedsBudget if not), (3) runs the existing scoring formula on remaining items with remaining budget, (4) merges into single ordered MemoryPack with pinned items first. The CapsuleBuilder (MT-143) MUST consume this selector instead of the bare scoring path. Outcome feedback tuner (MT-158) MUST skip pinned items when applying score decay (assert via test). IPC: Tauri commands `kernel.memory_pin.set(item_id, pinned: bool, reason: String) -> PinReceipt`, `kernel.memory_pin.list() -> Vec<PinnedItem>`. All pin/unpin flows through KernelActionCatalogV1 (PinMemoryItem / UnpinMemoryItem action variants) and emits FR-EVT-MEMORY-PIN / FR-EVT-MEMORY-UNPIN. Postgres migration: ADD COLUMN pinned BOOLEAN NOT NULL DEFAULT FALSE; CREATE INDEX ON memory_item (pinned) WHERE pinned = TRUE. Tests: pinned items always selected first; budget overflow with pinned-only returns PinError; outcome feedback skips pinned items in tuning; pin/unpin IPC routes through catalog; FR events emitted exactly once per mutation.",
+  "implementation_notes": "Per WP-1-FEMS-Pinned-Core-Memory preserved_intent. Surface: memory pack and FEMS handoff items carry `pinned: bool` with default false. PinnedCoreSelector selects all pinned items first, fails closed if pinned bytes or item count exceed policy budget, then scores only the remaining unpinned candidates. CapsuleBuilder consumes this selector and asks retrievers for pinned-aware headroom before final top_k selection; the FEMS MT handoff retriever preserves explicit pins outside the requested top_k so the builder can enforce the final budget. Outcome feedback tuning from MT-158 skips pinned items. IPC commands `kernel_memory_pin_set`, `kernel_memory_pin_unset`, and `kernel_memory_pin_list` are registered in Tauri and use PostgresKernelActionSubmitter only; unavailable Postgres returns a typed unavailable error rather than a mock success. All pin/unpin mutations flow through KernelActionCatalogV1 actions `kernel.memory_pin.set` / `kernel.memory_pin.unset` and persist action plus manifest events atomically in kernel_event_ledger. FR event IDs are carried in the ledger payload/receipt; there is no separate non-ledger FR side effect. The original memory_item table migration shape was rejected as incompatible with current architecture; the migration adds JSONB indexes over kernel_event_ledger pin events instead.",
   "proof_commands": [
-    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target pinned_core_tests"
+    "rustfmt --edition 2024 --check <MT-159 touched Rust files>",
+    "cargo test --features test-utils --test pinned_core_tests --test memory_builder_tests --test memory_injection_tests --test memory_injection_into_local_router_tests --test kernel_collaboration_memory_handoff_context_tests --test memory_capsule_e2e_tests --test outcome_feedback_tests --test memory_persistence_tests --test memory_persistence_postgres_tests --test memory_capsule_tests --test fems_v1_integration_tests",
+    "cargo check --manifest-path app/src-tauri/Cargo.toml",
+    "POSTGRES_TEST_URL=postgres://postgres:postgres@127.0.0.1:5432/postgres?sslmode=disable cargo test --features test-utils --test pinned_core_tests --test memory_persistence_postgres_tests --test outcome_feedback_tests -- --ignored --test-threads=1",
+    "git diff --check -- <MT-159 touched tracked files>",
+    "rg policy scans for SQLite and memory_item DDL across MT-159 pin files and migration"
   ],
   "risk_if_missed": "Without pinned core memory, operator-marked critical memories (preferences, safety constraints, project identity) can be displaced by high-recency noise; outcome feedback can prune them entirely.",
   "validator_focus": "Pinned items always included first; outcome feedback respects pin flag; pin/unpin flows through KernelActionCatalogV1.",
-  "hbr_obligations": ["HBR-INT-006"],
+  "hbr_obligations": [
+    "HBR-INT-006"
+  ],
   "spec_anchors": [
     ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.8.5"
   ],
-  "acceptance_criteria_refs": ["AC-DISTILL-CONTENT-REVIEW", "AC-DISTILL-EDITABLE-SURFACE"],
+  "acceptance_criteria_refs": [
+    "AC-DISTILL-CONTENT-REVIEW",
+    "AC-DISTILL-EDITABLE-SURFACE"
+  ],
   "lifecycle": {
     "active": false,
-    "status": "PENDING",
-    "validator_verdict": "PENDING",
-    "depends_on": ["MT-141", "MT-143", "MT-158"],
-    "blocks": ["MT-160", "MT-168"]
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "CONCERN",
+    "integration_validator_verdict": "PENDING",
+    "depends_on": [
+      "MT-141",
+      "MT-143",
+      "MT-158"
+    ],
+    "blocks": [
+      "MT-160",
+      "MT-168"
+    ],
+    "claimed_by": "KERNEL_BUILDER-20260524-050725",
+    "claimed_at_utc": "2026-05-24T16:28:11.694Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260524-050725",
+    "ready_for_validation_at_utc": "2026-05-24T16:28:11.694Z",
+    "postgres_test_url_live_evidence_20260525_continuation": {
+      "authoritative_integration_validator_pass": false,
+      "classification": "KERNEL_BUILDER_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+      "not_run_or_not_claimed": [],
+      "artifact_log_root": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs",
+      "implementation_or_hardening_notes": [],
+      "postgres_test_url_redacted": "postgres://postgres:***@127.0.0.1:65432/handshake_test",
+      "proof": [
+        {
+          "scope": "pinned_core_tests",
+          "stderr_log": "postgres-live-pinned_core_tests-debug0-20260525.err.log",
+          "result": "1 passed",
+          "note": "Focused pinned core check passed with POSTGRES_TEST_URL.",
+          "stdout_log": "postgres-live-pinned_core_tests-debug0-20260525.out.log"
+        }
+      ],
+      "recorded_by": "KERNEL_BUILDER-POSTGRES-TEST-URL-20260525-CONTINUATION",
+      "mt_ids": [
+        "MT-159"
+      ],
+      "summary": "Pinned core memory live Postgres suite passed under the bounded runner.",
+      "integration_validator_status": "PENDING",
+      "residual_risks": [
+        "Supporting evidence only; Integration Validator verdict remains PENDING.",
+        "Focused Postgres/live-kernel commands were run, not a full workspace cargo test."
+      ],
+      "recorded_at_utc": "2026-05-25T10:56:03.5601331Z",
+      "cargo_target_dir": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target"
+    },
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "READY_FOR_VALIDATION",
+        "validator_verdict": "PENDING"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-27T19:03:58.446Z"
+  },
+  "implementation_evidence": {
+    "implemented_by": "KERNEL_BUILDER-20260524-050725",
+    "implemented_at_utc": "2026-05-24T16:28:11.694Z",
+    "selected_persistence_path": "kernel_event_ledger_jsonb_pin_events_with_manifest_pointer",
+    "actual_touched_files": [
+      "src/backend/handshake_core/src/memory/pinned_core.rs",
+      "src/backend/handshake_core/tests/pinned_core_tests.rs",
+      "src/backend/handshake_core/src/kernel/fems_mt_handoff_memory_context.rs",
+      "src/backend/handshake_core/migrations/2026_05_18_fems_pinned.sql",
+      "src/backend/handshake_core/migrations/2026_05_18_fems_pinned.down.sql",
+      "app/src-tauri/src/commands/memory_pin.rs",
+      "app/src-tauri/src/lib.rs",
+      "src/backend/handshake_core/Cargo.toml",
+      "src/backend/handshake_core/src/ace/mod.rs",
+      "src/backend/handshake_core/src/kernel/action_catalog.rs",
+      "src/backend/handshake_core/src/memory/builder.rs",
+      "src/backend/handshake_core/src/memory/injection.rs",
+      "src/backend/handshake_core/src/memory/mod.rs",
+      "src/backend/handshake_core/src/memory/persistence_postgres.rs",
+      "src/backend/handshake_core/src/workflows.rs",
+      "src/backend/handshake_core/tests/kernel_collaboration_memory_handoff_context_tests.rs",
+      "src/backend/handshake_core/tests/memory_builder_tests.rs",
+      "src/backend/handshake_core/tests/memory_capsule_e2e_tests.rs",
+      "src/backend/handshake_core/tests/memory_capsule_tests.rs",
+      "src/backend/handshake_core/tests/memory_injection_tests.rs",
+      "src/backend/handshake_core/tests/memory_persistence_tests.rs"
+    ],
+    "out_of_original_owned_files": [
+      {
+        "path": "src/backend/handshake_core/migrations/2026_05_18_fems_pinned.down.sql",
+        "why": "Required to make the new Postgres pin-index migration reversible."
+      },
+      {
+        "path": "app/src-tauri/src/commands/memory_pin.rs",
+        "why": "Required to expose the contract-required pin/unpin/list IPC commands as real Tauri commands."
+      },
+      {
+        "path": "app/src-tauri/src/lib.rs",
+        "why": "Required to register and manage the new Tauri memory pin command state."
+      },
+      {
+        "path": "src/backend/handshake_core/Cargo.toml",
+        "why": "Required to register the contract-named pinned_core_tests target."
+      },
+      {
+        "path": "src/backend/handshake_core/src/ace/mod.rs",
+        "why": "Required to carry the pinned flag in MemoryPackItem outputs consumed by capsule/injection code."
+      },
+      {
+        "path": "src/backend/handshake_core/src/kernel/action_catalog.rs",
+        "why": "Required to register canonical kernel.memory_pin.set and kernel.memory_pin.unset actions."
+      },
+      {
+        "path": "src/backend/handshake_core/src/memory/builder.rs",
+        "why": "Required because MT-159 acceptance explicitly says CapsuleBuilder must consume the pinned selector before scoring."
+      },
+      {
+        "path": "src/backend/handshake_core/src/memory/injection.rs",
+        "why": "Required to fail closed with a typed skip when pinned items exceed injection budget."
+      },
+      {
+        "path": "src/backend/handshake_core/src/memory/mod.rs",
+        "why": "Required to expose pinned-core APIs and constants to adjacent memory modules and tests."
+      },
+      {
+        "path": "src/backend/handshake_core/src/memory/persistence_postgres.rs",
+        "why": "Required to implement production Postgres pin/unpin persistence, replay, idempotency, and atomic action-plus-manifest append."
+      },
+      {
+        "path": "src/backend/handshake_core/src/workflows.rs",
+        "why": "Required to update MemoryPackItem initializers after the new pinned field was added."
+      },
+      {
+        "path": "src/backend/handshake_core/tests/kernel_collaboration_memory_handoff_context_tests.rs",
+        "why": "Required to cover pinned-first handoff projection and pinned handoff budget overflow."
+      },
+      {
+        "path": "src/backend/handshake_core/tests/memory_builder_tests.rs",
+        "why": "Required to cover CapsuleBuilder pinned selector usage, retrieval headroom, and handoff retriever pin preservation."
+      },
+      {
+        "path": "src/backend/handshake_core/tests/memory_capsule_e2e_tests.rs",
+        "why": "Required to update adjacent E2E expectations for pinned-aware retrieval limits."
+      },
+      {
+        "path": "src/backend/handshake_core/tests/memory_capsule_tests.rs",
+        "why": "Required to update MemoryPackItem fixtures after the pinned field was added."
+      },
+      {
+        "path": "src/backend/handshake_core/tests/memory_injection_tests.rs",
+        "why": "Required to assert pinned budget overflow maps to a typed injection skip."
+      },
+      {
+        "path": "src/backend/handshake_core/tests/memory_persistence_tests.rs",
+        "why": "Required to update MemoryPackItem fixtures after the pinned field was added."
+      }
+    ],
+    "test_logs": [
+      {
+        "path": "../../Handshake_Artifacts/wp-kernel-004-test-runs/mt159-pinned-core-red-20260524-001.log",
+        "outcome": "RED: missing pinned-core IPC/types and selector integration before implementation."
+      },
+      {
+        "path": "../../Handshake_Artifacts/wp-kernel-004-test-runs/mt159-handoff-pinned-red-20260524-002.log",
+        "outcome": "RED: FEMS MT handoff did not project explicit pins first or reject pinned token overflow."
+      },
+      {
+        "path": "../../Handshake_Artifacts/wp-kernel-004-test-runs/mt159-handoff-retriever-topk-red-20260524-002.log",
+        "outcome": "RED: handoff retriever top_k truncation could drop a low-score explicit pin before builder selection."
+      },
+      {
+        "path": "../../Handshake_Artifacts/wp-kernel-004-test-runs/mt159-final-targeted-regression-20260524-001.log",
+        "outcome": "PASS: targeted core regression suite passed 73 tests, 0 failed, 4 ignored."
+      },
+      {
+        "path": "../../Handshake_Artifacts/wp-kernel-004-test-runs/mt159-final-tauri-check-20260524-001.log",
+        "outcome": "PASS: app/src-tauri cargo check completed successfully with pre-existing warnings."
+      },
+      {
+        "path": "../../Handshake_Artifacts/wp-kernel-004-test-runs/mt159-final-postgres-ignored-20260524-001.log",
+        "outcome": "PASS: ignored live PostgreSQL suite passed 4 tests, including pin/unpin replay and adjacent persistence/outcome cases."
+      }
+    ],
+    "subagent_evidence": [
+      {
+        "agent": "Schrodinger",
+        "role": "codebase_analysis",
+        "summary": "Confirmed the original memory_item-table contract shape did not match the current event-ledger persistence substrate and identified missing builder/catalog/IPC wiring."
+      },
+      {
+        "agent": "Plato",
+        "role": "research",
+        "summary": "Recommended a Letta/MemGPT-style core-memory tier persisted as event-ledger pin/unpin actions with idempotent replay and no memory_item table."
+      },
+      {
+        "agent": "Dalton",
+        "role": "adversarial_review",
+        "summary": "Initial review found missing Tauri IPC, non-atomic pin+manifest writes, retriever top_k pin loss, and attribution/FR side-effect issues; all were patched before final verification."
+      }
+    ],
+    "static_checks": [
+      "rustfmt --edition 2024 --check passed for MT-159 touched Rust files.",
+      "cargo fmt --manifest-path and cargo fmt --all both hit Windows os error 206 path-length expansion in this checkout; direct rustfmt on touched files was used as the verified formatter check.",
+      "git diff --check passed for MT-159 touched tracked files with only pre-existing CRLF warnings.",
+      "rg found no SQLite/rusqlite/sqlite3 references in MT-159 pin runtime, migration, and test files except the negative assertion in pinned_core_tests.rs.",
+      "rg found no CREATE/ALTER/DROP TABLE memory_item DDL in the MT-159 migration/runtime path except negative assertions in pinned_core_tests.rs.",
+      "rg found no trailing whitespace in MT-159 touched files."
+    ],
+    "risks_and_mitigations": [
+      {
+        "risk": "Pinned memory could be persisted without its manifest pointer after a partial failure.",
+        "mitigation": "Postgres pin/unpin now appends the action event and manifest event through append_kernel_events_atomic; idempotency conflict repair ensures the manifest pointer exists."
+      },
+      {
+        "risk": "A pinned item could be dropped before final selection by an upstream top_k retriever.",
+        "mitigation": "CapsuleBuilder requests pinned-aware headroom and the FEMS MT handoff retriever preserves explicit pins outside requested top_k before builder budget enforcement."
+      },
+      {
+        "risk": "Pin IPC could falsely succeed without durable Postgres persistence.",
+        "mitigation": "Tauri MemoryPinIpcState is Postgres-only; missing Postgres returns a typed unavailable error."
+      },
+      {
+        "risk": "Outcome feedback could still prune operator-protected memories.",
+        "mitigation": "OutcomeScoringTuner skips pinned items; pinned_core_tests and fems_v1_integration_tests assert pinned items are not decayed."
+      },
+      {
+        "risk": "Pin actions could lose caller attribution or emit duplicate non-ledger FR side effects.",
+        "mitigation": "PinIpcService passes caller actor/session into the catalog action request and exposes the ledger FR receipt without a separate flight-recorder side effect."
+      },
+      {
+        "risk": "The original memory_item migration shape would introduce schema drift.",
+        "mitigation": "The migration targets kernel_event_ledger JSONB indexes only and tests assert no memory_item DDL or SQLite path."
+      }
+    ],
+    "residual_risks": [
+      "The generic retriever contract is protected by pinned-aware headroom, but a future retriever with many low-score pins should add a native pinned side channel so pin retrieval is not probabilistic under extreme pin counts.",
+      "The Tauri commands compile and are statically registered; no GUI/browser interaction path exists for these backend commands in MT-159 scope."
+    ]
   },
   "handoff": {
     "coder_session": null,
@@ -60,5 +310,51 @@
       "Outcome feedback tuner skips pinned items so a temporary bad outcome cannot demote a pinned safety constraint.",
       "Pin/unpin flows through KernelActionCatalogV1 with typed FR events."
     ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_D3_D4",
+    "reviewed_at_utc": "2026-05-27T17:30:00Z",
+    "aggregator_run_at_utc": "2026-05-27T19:03:58.446Z",
+    "verdict": "CONCERN",
+    "verdict_reason": "PinnedCoreSelector correctly selects pinned items first and fails closed on budget overflow; pin/unpin flow through KernelActionCatalogV1 with atomic action+manifest append. However, pin/unpin events live in the memory_pin aggregate (MEMORY_PIN_AGGREGATE_TYPE = memory_item) while hygiene reads the pinned flag from the memory_bitemporal_item payload; if pin actions do not also project the pinned flag back into the bitemporal item payload, the production HygieneJobRunner cannot see operator pins via the Postgres path and could prune them. Acceptable as a primitive but the cross-module integration is the live risk.",
+    "spec_compliance_status": "PARTIAL",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "CONCERN",
+    "agent_swarm_safety_status": "CONCERN",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 1,
+      "MEDIUM": 0,
+      "LOW": 0
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-159.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-159.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_D3_D4",
+    "reviewed_at_utc": "2026-05-27T17:30:00Z",
+    "aggregator_run_at_utc": "2026-05-27T18:50:05.123Z",
+    "verdict": "CONCERN",
+    "verdict_reason": "PinnedCoreSelector correctly selects pinned items first and fails closed on budget overflow; pin/unpin flow through KernelActionCatalogV1 with atomic action+manifest append. However, pin/unpin events live in the memory_pin aggregate (MEMORY_PIN_AGGREGATE_TYPE = memory_item) while hygiene reads the pinned flag from the memory_bitemporal_item payload; if pin actions do not also project the pinned flag back into the bitemporal item payload, the production HygieneJobRunner cannot see operator pins via the Postgres path and could prune them. Acceptable as a primitive but the cross-module integration is the live risk.",
+    "spec_compliance_status": "PARTIAL",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "CONCERN",
+    "agent_swarm_safety_status": "CONCERN",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 1,
+      "MEDIUM": 0,
+      "LOW": 0
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-159.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-159.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
   }
 }

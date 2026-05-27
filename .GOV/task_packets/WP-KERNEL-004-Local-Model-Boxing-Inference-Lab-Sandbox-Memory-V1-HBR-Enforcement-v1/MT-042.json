@@ -7,7 +7,7 @@
   "cluster_subscope": "B.1",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:10:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-05-27T19:03:58.446Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -27,7 +27,9 @@
     "src/backend/handshake_core/src/sandbox/mod.rs",
     "src/backend/handshake_core/tests/sandbox_adapter_trait_tests.rs"
   ],
-  "depends_on_mts": ["MT-041"],
+  "depends_on_mts": [
+    "MT-041"
+  ],
   "unblock_conditions": "MT-041 shared types merged; adapter trait can reference ProcessSpec/ProcessHandle/NetPolicy/Signal/ExecResult.",
   "implementation_notes": "Per spec §3.5.1 the trait surface is exactly: `async fn spawn(&self, spec: ProcessSpec) -> Result<ProcessHandle, SandboxAdapterError>`; `async fn exec(&self, handle: &ProcessHandle, cmd: Command) -> Result<ExecResult, SandboxAdapterError>`; `async fn fs_bind(&self, handle: &ProcessHandle, host_path: PathBuf, guest_path: PathBuf, mode: BindMode) -> Result<(), SandboxAdapterError>`; `async fn net_policy(&self, handle: &ProcessHandle, policy: NetPolicy) -> Result<(), SandboxAdapterError>`; `async fn kill(&self, handle: &ProcessHandle, signal: Signal) -> Result<(), SandboxAdapterError>`; `async fn status(&self, handle: &ProcessHandle) -> Result<ProcessStatus, SandboxAdapterError>`; `async fn exit_code(&self, handle: &ProcessHandle) -> Result<Option<i32>, SandboxAdapterError>`; `fn capabilities(&self) -> AdapterCapabilities` (sync; called frequently and must not block). The trait must be `Send + Sync` (every adapter is shared across roles per HBR-SWARM-001). Use `async-trait` crate (already a workspace dep per KERNEL-002) for the async surface. AdapterCapabilities struct per spec §3.5.4: `{ adapter_id: AdapterId, filesystem_isolation_strength: IsolationStrength, network_isolation_strength: IsolationStrength, gpu_passthrough: GpuPassthrough, stdio_throughput_class: ThroughputClass, win32_native_fidelity: bool, cross_machine_portable: bool }` where IsolationStrength={Weak,Strong,VeryStrong}, GpuPassthrough={None,NvidiaCuda,VendorAgnostic}, ThroughputClass={Low,Medium,High}. All derive Serialize+Deserialize+Clone+Debug. Add a `default_no_op_capabilities()` constructor for test doubles that returns IsolationStrength::Weak / GpuPassthrough::None / ThroughputClass::Low / false / false. Tests: (a) compile-time test that a `Box<dyn SandboxAdapter>` is constructible from a NoopAdapter (proves trait object safety), (b) NoopAdapter where spawn/exec/etc return SandboxAdapterError::AdapterUnavailable so unit-test consumers can wire the trait without a real isolation backend, (c) trait_send_sync_test verifies via type assertion that any SandboxAdapter impl is Send+Sync, (d) capabilities() returns a clonable AdapterCapabilities and serde round-trips, (e) lint test (grep test) verifies `pub trait SandboxAdapter` is exactly this 8-method shape (no method added or removed) to catch silent contract drift.",
   "proof_commands": [
@@ -37,21 +39,58 @@
   ],
   "risk_if_missed": "Without the trait fixed first, MT-043 registry, MT-044/046/047 adapters, and every B.2 integration MT cannot proceed; trait-shape drift between adapters becomes the most expensive defect class.",
   "validator_focus": "Trait surface is exactly the 8 methods named by spec §3.5.1 (no extra method, no renamed method); trait is object-safe; AdapterCapabilities fields match spec §3.5.4 verbatim; no adapter-specific crate appears in adapter.rs imports.",
-  "hbr_obligations": ["HBR-INT-001", "HBR-SWARM-001"],
+  "hbr_obligations": [
+    "HBR-INT-001",
+    "HBR-SWARM-001"
+  ],
   "spec_anchors": [
     ".GOV/spec/master-spec-v02.186/spec-modules/03-local-first-infrastructure.md#3.5.1",
     ".GOV/spec/master-spec-v02.186/spec-modules/03-local-first-infrastructure.md#3.5.4"
   ],
-  "acceptance_criteria_refs": ["AC-SANDBOX-ADAPTER-TRAIT", "AC-SANDBOX-CAP-DECL"],
+  "acceptance_criteria_refs": [
+    "AC-SANDBOX-ADAPTER-TRAIT",
+    "AC-SANDBOX-CAP-DECL"
+  ],
   "lifecycle": {
     "active": false,
-    "status": "PENDING",
-    "validator_verdict": "PENDING",
-    "depends_on": ["MT-041"],
-    "blocks": ["MT-043", "MT-044", "MT-045", "MT-046", "MT-047", "MT-048", "MT-049", "MT-050", "MT-053"]
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "PASS",
+    "depends_on": [
+      "MT-041"
+    ],
+    "blocks": [
+      "MT-043",
+      "MT-044",
+      "MT-045",
+      "MT-046",
+      "MT-047",
+      "MT-048",
+      "MT-049",
+      "MT-050",
+      "MT-053"
+    ],
+    "claimed_by": "KERNEL_BUILDER-20260518-073535",
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "COMPLETED",
+        "validator_verdict": "PENDING",
+        "completed_at_utc": "2026-05-18T17:59:24.943Z"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "previous_completed_at_utc_before_ready_for_validation_20260525": "2026-05-18T17:59:24.943Z",
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-27T19:03:58.446Z"
   },
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260518-073535",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
     "review_response_receipt_id": null
@@ -62,5 +101,51 @@
       "Object-safety test asserts Box<dyn SandboxAdapter> compiles (prevents accidental generic method addition).",
       "NoopAdapter is the ONLY test-double allowed; tests must not silently introduce a real adapter without going through MT-044/MT-046/MT-047."
     ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_B1_B2",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T19:03:58.446Z",
+    "verdict": "PASS",
+    "verdict_reason": "SandboxAdapter trait exposes exactly the eight spec-named methods, is Send+Sync via async-trait, and AdapterCapabilities matches §3.5.4 with a minor additive runtime_available field.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 2
+    },
+    "paperwork_notes_count": 1,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-042.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-042.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_B1_B2",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T18:50:05.123Z",
+    "verdict": "PASS",
+    "verdict_reason": "SandboxAdapter trait exposes exactly the eight spec-named methods, is Send+Sync via async-trait, and AdapterCapabilities matches §3.5.4 with a minor additive runtime_available field.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 2
+    },
+    "paperwork_notes_count": 1,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-042.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-042.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
   }
 }

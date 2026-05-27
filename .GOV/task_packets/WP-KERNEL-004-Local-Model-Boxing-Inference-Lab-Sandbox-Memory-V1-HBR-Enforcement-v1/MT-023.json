@@ -7,7 +7,7 @@
   "cluster_subscope": "A.2",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T02:30:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-05-27T19:03:58.446Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -29,7 +29,11 @@
     ".GOV/visual_baselines/.gitignore",
     ".GOV/roles_shared/schemas/hbr-vis-regression.schema.json"
   ],
-  "depends_on_mts": ["MT-021", "MT-022", "MT-006"],
+  "depends_on_mts": [
+    "MT-021",
+    "MT-022",
+    "MT-006"
+  ],
   "unblock_conditions": "MT-021 Playwright + driver; MT-022 console scan (every capture pairs with a scan); MT-006 HBR_VIOLATION receipt schema (visual regression piggybacks on the same canonical-JSON receipt pattern).",
   "implementation_notes": "Per spec §6.4.4. Manifest schema: `interface CaptureMatrixEntry { scenario_id: string; route: string; viewport: { width: number; height: number }; color_scheme: 'light'|'dark'; locale: string; edge_state_tag: 'normal'|'empty'|'error'|'loading'|'multi_item'; wait_for: string; mask_selectors: string[]; baseline_hash: string; }`. playwright.config.ts projects array enumerates the matrix: at minimum the trio required by HBR-VIS-003 (one normal viewport, one constrained viewport, one edge state). Baselines content-addressed: filename is sha256(rendered-png), stored under .GOV/visual_baselines/<sha>.png; the manifest carries baseline_hash. On capture: compute hash, compare against manifest's baseline_hash via pixel-diff threshold; on drift emit HBR_VIS_REGRESSION receipt (canonical-JSON per MT-006 pattern): `{ receipt_kind: \"HBR_VIS_REGRESSION\", schema_version: 1, receipt_uuid: Uuid v7, scenario_id, baseline_hash, captured_hash, pixel_diff_percent, drift_regions: [{x,y,w,h}] }`. .GOV/visual_baselines/.gitignore: explain that baseline PNGs MAY be checked in or stored externally depending on disk-space policy (per [GLOBAL-PORTABILITY-008] this is configurable; default = check in; cap at 100MB total directory size; if exceeded, externalize via configured external-baselines path). hbr-vis-regression.schema.json: JSON schema validated by both the Playwright test and a Node validator (mirrors MT-006 pattern). capture_matrix.spec.ts: walks the matrix, calls page.screenshot per entry with mask_selectors honored (via Playwright's clip + page.locator masking), pairs with MT-022 console scan, on drift emits the receipt. Tests: fixture matrix with two scenarios, one passing one with deliberate drift; assert receipt produced on drift; assert no receipt on identical render.",
   "proof_commands": [
@@ -39,20 +43,52 @@
   ],
   "risk_if_missed": "Without capture matrix, HBR-VIS-003 has no evidence; visual regressions across viewports/states go undetected.",
   "validator_focus": "Baselines are content-addressed (filename == sha256); drift emits the canonical-JSON receipt validated against the schema; mask_selectors actually mask (verify by rendering an animated region and confirming no false drift).",
-  "hbr_obligations": ["HBR-VIS-001", "HBR-VIS-002", "HBR-VIS-003"],
+  "hbr_obligations": [
+    "HBR-VIS-001",
+    "HBR-VIS-002",
+    "HBR-VIS-003"
+  ],
   "spec_anchors": [
     ".GOV/spec/master-spec-v02.186/spec-modules/06-mechanical-integrations.md#6.4"
   ],
-  "acceptance_criteria_refs": ["AC-VISUAL-DEBUGGER-MATRIX"],
+  "acceptance_criteria_refs": [
+    "AC-VISUAL-DEBUGGER-MATRIX"
+  ],
   "lifecycle": {
     "active": false,
-    "status": "PENDING",
-    "validator_verdict": "PENDING",
-    "depends_on": ["MT-021", "MT-022", "MT-006"],
-    "blocks": ["MT-026", "MT-027"]
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "PASS",
+    "depends_on": [
+      "MT-021",
+      "MT-022",
+      "MT-006"
+    ],
+    "blocks": [
+      "MT-026",
+      "MT-027"
+    ],
+    "claimed_by": "KERNEL_BUILDER-20260518-012310",
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "COMPLETED",
+        "validator_verdict": "PENDING",
+        "completed_at_utc": "2026-05-18T10:03:35.034Z"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "previous_completed_at_utc_before_ready_for_validation_20260525": "2026-05-18T10:03:35.034Z",
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-27T19:03:58.446Z"
   },
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260518-012310",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
     "review_response_receipt_id": null
@@ -63,5 +99,55 @@
       "Baseline directory size cap is enforced (test asserts dir < 100MB or external storage configured).",
       "Mask selectors are validated by a fixture with animated content to prove they actually mask."
     ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_A4_A2_REDO_WTC",
+    "reviewed_at_utc": "2026-05-27T20:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T19:03:58.446Z",
+    "verdict": "PASS",
+    "verdict_reason": "playwright.config.ts defines a three-project matrix per HBR-VIS-003 (normal 1280x720 light en-US, constrained 390x844 dark en-US, edge-empty 1024x768 light nl-NL); capture_matrix.ts implements content-addressed baselines (filename = sha256(captured png)), bootstrap-hash mechanic, HBR_VIS_REGRESSION receipt with canonical JSON sorted keys + UUID v7, mask_selectors honored via Playwright locator masks, baseline directory size cap (100MB), and Ajv schema validation against .GOV/roles_shared/schemas/hbr-vis-regression.schema.json.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-023.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-023.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_A4_A2",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T18:50:05.123Z",
+    "verdict": "FAIL",
+    "verdict_reason": "Capture matrix, baseline-hash visual regression receipt, and HBR_VIS_REGRESSION schema are all absent; HBR-VIS-003 has no evidence path.",
+    "spec_compliance_status": "FAILS",
+    "code_hygiene_status": "MAJOR",
+    "runtime_safety_status": "UNSAFE",
+    "agent_swarm_safety_status": "CONCERN",
+    "hbr_unsatisfied": [
+      "HBR-VIS-001",
+      "HBR-VIS-002",
+      "HBR-VIS-003"
+    ],
+    "test_coverage_status": "MISSING",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 1,
+      "MEDIUM": 1,
+      "LOW": 0
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-023.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-023.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
   }
 }

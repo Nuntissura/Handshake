@@ -7,7 +7,7 @@
   "cluster_subscope": "B.1",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:10:00Z",
-  "updated_at_utc": "2026-05-26T16:18:30.139Z",
+  "updated_at_utc": "2026-05-27T19:03:58.446Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -60,7 +60,7 @@
   "lifecycle": {
     "active": false,
     "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "validator_verdict": "CONCERN",
     "depends_on": [
       "MT-041",
       "MT-042",
@@ -188,7 +188,9 @@
         "reason": "MT-045 audit decision has decision.chosen_crate=null and decision.operator_escalation_required=true; MT-046 unblock_conditions require the task to stay BLOCKED instead of hand-rolling Win32 isolation.",
         "operator_action_needed": "Select or approve a Windows-native jail crate/path that satisfies Win32 Job Objects + AppContainer + Restricted Tokens, or revise the packet scope."
       }
-    }
+    },
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-27T19:03:58.446Z"
   },
   "handoff": {
     "coder_session": null,
@@ -202,5 +204,51 @@
       "Non-Windows host test asserts the adapter constructs and returns AdapterUnavailable typed error rather than panicking or refusing to compile.",
       "Integration tests assert AppContainer token state, restricted-token state, denied outside-path access, read-only bind write denial, job child-tree termination, and DenyAll outbound TCP denial."
     ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_B1_B2",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T19:03:58.446Z",
+    "verdict": "CONCERN",
+    "verdict_reason": "WindowsNativeJailAdapter composes rappct AppContainer + a narrow Restricted Token + Job Object bridge with confined unsafe Win32 calls and good fail-loud network policy; capabilities overclaim gpu_passthrough=VendorAgnostic with no actual GPU plumbing, and AppContainer ACL grants have no revoke path so host file ACLs may accumulate across runs.",
+    "spec_compliance_status": "PARTIAL",
+    "code_hygiene_status": "MINOR",
+    "runtime_safety_status": "CONCERN",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 1,
+      "MEDIUM": 2,
+      "LOW": 2
+    },
+    "paperwork_notes_count": 1,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-046.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-046.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_B1_B2",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T18:50:05.123Z",
+    "verdict": "CONCERN",
+    "verdict_reason": "WindowsNativeJailAdapter composes rappct AppContainer + a narrow Restricted Token + Job Object bridge with confined unsafe Win32 calls and good fail-loud network policy; capabilities overclaim gpu_passthrough=VendorAgnostic with no actual GPU plumbing, and AppContainer ACL grants have no revoke path so host file ACLs may accumulate across runs.",
+    "spec_compliance_status": "PARTIAL",
+    "code_hygiene_status": "MINOR",
+    "runtime_safety_status": "CONCERN",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 1,
+      "MEDIUM": 2,
+      "LOW": 2
+    },
+    "paperwork_notes_count": 1,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-046.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-046.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
   }
 }

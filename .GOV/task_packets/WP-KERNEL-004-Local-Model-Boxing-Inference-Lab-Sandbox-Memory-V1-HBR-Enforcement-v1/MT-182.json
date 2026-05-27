@@ -7,7 +7,7 @@
   "cluster_subscope": "X.1",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:06:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-05-27T19:03:58.446Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -26,7 +26,10 @@
     "src/backend/handshake_core/src/role_mailbox/backpressure.rs",
     "src/backend/handshake_core/tests/role_mailbox_backpressure_tests.rs"
   ],
-  "depends_on_mts": ["MT-177", "MT-180"],
+  "depends_on_mts": [
+    "MT-177",
+    "MT-180"
+  ],
   "unblock_conditions": "MT-177 repo provides the pending-message count query; MT-180 lease infrastructure provides session_id binding for rate-limit keys.",
   "implementation_notes": "Pattern mirrors spec §5.7.3 ProcessOwnershipLedger perf safeguards (batched async writes with FR-EVT-LEDGER-OVERFLOW on saturation): `BackpressureGuard::check(role_id, repo) -> BackpressureDecision { Allow | Deny { reason, retry_after_secs } }`. Inbox cap path: query `repo.count_pending_messages_for_role(role_id)`; if >= cap, return Deny with reason=`InboxFull` and retry_after derived from a probe of next expiry/ack. Rate-limit path: in-process token bucket keyed by role_id, configurable refill rate, burst capacity; thread-safe via `tokio::sync::Mutex<HashMap<RoleId, TokenBucket>>` (or atomic-int per-bucket). On Deny, the caller (MT-189 executor + MT-177 repo) MUST: (a) increment a metrics counter; (b) emit a Flight Recorder event `FR-EVT-MAILBOX-BACKPRESSURE { role_id, reason, retry_after_secs, observed_pending }` (event family registered in MT-198); (c) NEVER silently drop the message — return Deny to the caller. Config struct loaded from `kernel.role_mailbox.backpressure` section of Work Profile (forward-compat for KERNEL-005 profile layer; default constants used until profile reads land). Tests: (a) send 256 messages, expect 257th to Deny with InboxFull; (b) send 33 messages in 1 second, expect 33rd to Deny with RateLimitExceeded; (c) wait token-refill window, expect next send to Allow; (d) concurrent senders from 8 tasks — count exact Allow/Deny split matches token bucket math (deterministic with injected clock); (e) FR event emission verified via test stub Flight Recorder.",
   "proof_commands": [
@@ -34,7 +37,10 @@
   ],
   "risk_if_missed": "Without backpressure, a runaway loop (e.g., a misconfigured automation in a takeover-loop) floods the mailbox, exhausts Postgres connection pool, blocks other executors, and overflows the role_mailbox_message table; the cluster X preservation slice loses its bounded-loop invariant.",
   "validator_focus": "No silent drops — every saturation emits FR-EVT-MAILBOX-BACKPRESSURE; token bucket math is deterministic with injected clock; backpressure decisions are observable in metrics and Flight Recorder, never just suppressed.",
-  "hbr_obligations": ["HBR-SWARM-002", "HBR-SWARM-004"],
+  "hbr_obligations": [
+    "HBR-SWARM-002",
+    "HBR-SWARM-004"
+  ],
   "spec_anchors": [
     ".GOV/spec/master-spec-v02.186/spec-modules/05-security-and-observability.md#5.7.3",
     ".GOV/spec/master-spec-v02.186/spec-modules/02-system-architecture.md#role-mailbox-claim-lease"
@@ -43,17 +49,147 @@
     "PRESERVED_INTENT:WP-1-Role-Mailbox-Executor-Routing-Claim-Lease-v1 (backpressure for executor routing)"
   ],
   "lifecycle": {
-    "active": false,
-    "status": "PENDING",
+    "active": true,
+    "status": "READY_FOR_VALIDATION",
     "validator_verdict": "PENDING",
-    "depends_on": ["MT-177", "MT-180"],
-    "blocks": ["MT-189"]
+    "depends_on": [
+      "MT-177",
+      "MT-180"
+    ],
+    "blocks": [
+      "MT-189"
+    ],
+    "claimed_by": "KERNEL_BUILDER-20260523-031814-AGT-MT182",
+    "claimed_at_utc": "2026-05-23T20:55:00Z",
+    "ready_for_validation_at_utc": "2026-05-23T21:14:00Z",
+    "postgres_test_url_live_evidence_20260525_continuation": {
+      "authoritative_integration_validator_pass": false,
+      "classification": "KERNEL_BUILDER_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+      "not_run_or_not_claimed": [],
+      "artifact_log_root": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs",
+      "implementation_or_hardening_notes": [
+        "Normalized handoff expires_at_utc to Postgres microsecond precision before bundle hashing."
+      ],
+      "postgres_test_url_redacted": "postgres://postgres:***@127.0.0.1:65432/handshake_test",
+      "proof": [
+        {
+          "log": "postgres-live-role_mailbox_v1_tests-mt_177-20260525-resume.log",
+          "scope": "role_mailbox_v1_tests MT-177",
+          "note": [
+            "MT-177 targeted repository lifecycle round trip passed.",
+            "Proof"
+          ],
+          "result": "passed"
+        }
+      ],
+      "recorded_by": "KERNEL_BUILDER-POSTGRES-TEST-URL-20260525-CONTINUATION",
+      "mt_ids": [
+        "MT-176",
+        "MT-177",
+        "MT-178",
+        "MT-179",
+        "MT-180",
+        "MT-181",
+        "MT-182",
+        "MT-183"
+      ],
+      "summary": "Role Mailbox V1 live Postgres suites passed, including repository lifecycle, lease, backpressure, handoff, and exporter coverage.",
+      "integration_validator_status": "PENDING",
+      "residual_risks": [
+        "Supporting evidence only; Integration Validator verdict remains PENDING.",
+        "Focused Postgres/live-kernel commands were run, not a full workspace cargo test."
+      ],
+      "recorded_at_utc": "2026-05-25T10:56:03.5601331Z",
+      "cargo_target_dir": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target"
+    },
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "READY_FOR_VALIDATION",
+        "validator_verdict": "PENDING"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-27T19:03:58.446Z"
   },
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260523-031814-AGT-MT182",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
     "review_response_receipt_id": null
+  },
+  "implementation_record": {
+    "recorded_at_utc": "2026-05-23T21:14:00Z",
+    "recorded_by": "KERNEL_BUILDER-20260523-031814-AGT-MT182",
+    "classification": "IMPLEMENTATION_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+    "authoritative_integration_validator_pass": false,
+    "files_touched": [
+      "src/backend/handshake_core/src/role_mailbox_v1/backpressure.rs",
+      "src/backend/handshake_core/src/role_mailbox_v1/mod.rs",
+      "src/backend/handshake_core/tests/role_mailbox_backpressure_tests.rs",
+      "src/backend/handshake_core/Cargo.toml"
+    ],
+    "summary": "Enhanced existing role_mailbox_v1/backpressure.rs with: typed BackpressureReceipt envelope (FR-EVT-MAILBOX-BACKPRESSURE-mirroring degraded-mode receipt), BackpressureClock trait + SystemClock + FixedClock for deterministic token-bucket math (red_team #2), BackpressureGuard::with_recorder + with_allow_sample_rate for FR emission on Deny and sampled emission on Allow (red_team #1), BackpressureGuard::check_via_repo async wrapper that queries MT-177 count_pending_messages_for_role and returns the typed receipt. Added owned-files integration test file tests/role_mailbox_backpressure_tests.rs covering 16 always-on adversarial assertions (inbox-cap 257th deny, rate-limit burst+1 deny, refill window via FixedClock, 8 concurrent senders exact split, FR emit on inbox-full deny, FR emit on rate-limit deny, FR sampled allow, zero-cap starves, zero-burst starves, max-cap u32::MAX admits-then-denies, config + receipt + decision serde round-trip with deny_unknown_fields, no-silent-drop contract, Advisory role id bucket keyed on inner id, default config matches spec §5.7.3) plus 3 Postgres-gated adversarial assertions (check_via_repo observes pending against real repo + emits FR, check_via_repo allows under cap, check_via_repo rate-limit path). All three red_team.minimum_controls satisfied: #1 sampled Allow FR emission via with_allow_sample_rate, #2 injectable BackpressureClock with FixedClock test wiring, #3 default constants documented + linked to spec §5.7.3 in module header.",
+    "proof": {
+      "focused_default": {
+        "command": "cargo test --features test-utils --manifest-path src/backend/handshake_core/Cargo.toml --test role_mailbox_backpressure_tests -- --nocapture --test-threads=1",
+        "exit_code": 0,
+        "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt182-default-001.log",
+        "note": "16 passed; 0 failed; 3 ignored (Postgres-gated #[ignore]-gated)."
+      },
+      "focused_adjacent_no_regression": {
+        "command": "cargo test --features test-utils --manifest-path src/backend/handshake_core/Cargo.toml --test role_mailbox_backpressure_tests --test role_mailbox_lease_tests --test role_mailbox_repo_tests --test role_mailbox_v1_tests -- --nocapture --test-threads=1",
+        "exit_code": 0,
+        "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt182-adjacent-002.log",
+        "note": "See log for per-test totals; expectation: backpressure 16 passed + adjacent suites pass; no regression from backpressure.rs widening or Cargo.toml [[test]] addition."
+      }
+    },
+    "adversarial_tests_added": [
+      "mt_182_inbox_cap_257th_message_denies",
+      "mt_182_rate_limit_burst_plus_one_denies",
+      "mt_182_refill_window_unblocks_via_injected_clock",
+      "mt_182_8_concurrent_senders_exact_allow_deny_split",
+      "mt_182_fr_emit_on_inbox_full_deny",
+      "mt_182_fr_emit_on_rate_limit_deny",
+      "mt_182_fr_emit_sampled_on_allow",
+      "mt_182_zero_cap_starves_all_sends",
+      "mt_182_zero_burst_starves_rate_path",
+      "mt_182_max_cap_admits_below_u32_max",
+      "mt_182_config_serde_round_trip_rejects_unknown_keys",
+      "mt_182_receipt_serde_round_trip",
+      "mt_182_decision_serde_round_trip_discriminated_union",
+      "mt_182_no_silent_drop_contract_decision_carries_reason_and_retry",
+      "mt_182_advisory_role_id_bucket_keyed_on_advisory_id",
+      "mt_182_default_config_matches_spec_5_7_3_budgets",
+      "mt_182_postgres_check_via_repo_observes_pending",
+      "mt_182_postgres_check_via_repo_allows_under_cap",
+      "mt_182_postgres_check_via_repo_rate_limit_path"
+    ],
+    "postgres_gated_tests_count": 3,
+    "out_of_scope_self_evaluation": {
+      "out_of_owned_files": [
+        "src/backend/handshake_core/src/role_mailbox_v1/mod.rs (re-export widening for BackpressureClock, BackpressureReceipt, FixedClock, SystemClock — required so the integration test can import the new public surface)",
+        "src/backend/handshake_core/Cargo.toml ([[test]] entry for the new role_mailbox_backpressure_tests; same Cargo auto-discovery vs. explicit-feature-set defect class as MT-180 — auto-discovery silently defaults to feature set [] and bypasses required-features = [\"test-utils\"])"
+      ],
+      "operator_waiver_requested": true,
+      "rationale": "Same pattern as MT-180: re-exports must accompany new public types or the integration test cannot reach them; the Cargo.toml [[test]] entry is required so cargo links the test binary with the test-utils feature set."
+    },
+    "residual_risks": [
+      "No Integration Validator has reviewed MT-182; this record is supporting evidence only.",
+      "3 Postgres-gated adversarial tests require POSTGRES_TEST_URL to execute against a real Postgres instance. Without the live-Postgres run the check_via_repo path is structurally proven via the pure-Rust check() path but not executionally verified against the MT-177 count_pending_messages_for_role query.",
+      "PATH_SHAPE_DRIFT: owned_files name `src/backend/handshake_core/src/role_mailbox/backpressure.rs` but the implementation lives under `role_mailbox_v1/backpressure.rs` (same role_mailbox vs role_mailbox_v1 drift Integration Validator must decide on for MT-180). The legacy `src/role_mailbox.rs` is the DuckDB export surface; the cluster X.1 mailbox primitives live under `role_mailbox_v1/`.",
+      "FR-EVT-MAILBOX-BACKPRESSURE emission uses FlightRecorderEventType::System as the legacy-enum carrier (legacy FlightRecorderEventType does not yet have a MailboxBackpressure variant — that's MT-198 follow-up adoption work). The canonical FR id is stamped in the payload's `event_id` field per the FrEventId registry, so downstream diagnostics correctly distinguish the event class. Mirrors the MT-077/MT-090 emission pattern.",
+      "BackpressureGuard's try_block_on_emit constructs a current-thread runtime when no tokio runtime handle is available (pure-Rust sync test path). Production callers (MT-189 executor + MT-177 repo) always carry a runtime handle, so this fallback path is bounded to unit tests; if a production caller is ever added without a runtime, the FR emission will create-and-tear-down a runtime per event, which is observability overhead but not a decision-path defect.",
+      "Allow-path sampling is deterministic (counter % allow_sample_rate == 0) and not jittered; saturation trend analytics see exactly 1/N samples but could miss bursty patterns if allow_sample_rate is set high. Default is 0 (disabled) so the bursty-pattern risk only surfaces if an operator opts in to sampling.",
+      "ANTI-COORDINATION: 3 other agents declared running in parallel per dispatch envelope. The cargo check + cargo test runs reported only pre-existing 55 warnings; one cargo invocation hit a build-directory lock and waited transparently — no unrelated-module compile errors observed during this session."
+    ]
   },
   "red_team": {
     "minimum_controls": [
@@ -61,5 +197,51 @@
       "Token bucket uses injected clock; no `std::time::Instant::now()` calls inside the bucket.",
       "Config defaults documented in code comments + linked to spec §5.7.3 pattern."
     ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_X_GAPS",
+    "reviewed_at_utc": "2026-05-27T17:38:00Z",
+    "aggregator_run_at_utc": "2026-05-27T19:03:58.446Z",
+    "verdict": "PASS_WITH_NOTES",
+    "verdict_reason": "BackpressureGuard with typed receipt envelope, injectable clock (BackpressureClock + FixedClock/SystemClock), inbox-cap + token-bucket rate-limit, FR emission on Deny + sampled Allow. 16/16 pure-Rust + 3/3 Postgres-gated tests green. No-silent-drop contract honoured. Two material caveats: (1) FR emission carries FrEventId::MailboxBackpressure in payload but uses legacy FlightRecorderEventType::System enum carrier until MT-198 adoption work lands a typed variant; (2) try_block_on_emit constructs a current-thread runtime on the sync test path — fine for tests, bounded risk in production.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "OK",
+    "runtime_safety_status": "OK",
+    "agent_swarm_safety_status": "OK",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 1,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 1,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-182.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-182.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_X_GAPS",
+    "reviewed_at_utc": "2026-05-27T17:38:00Z",
+    "aggregator_run_at_utc": "2026-05-27T18:50:05.123Z",
+    "verdict": "PASS_WITH_NOTES",
+    "verdict_reason": "BackpressureGuard with typed receipt envelope, injectable clock (BackpressureClock + FixedClock/SystemClock), inbox-cap + token-bucket rate-limit, FR emission on Deny + sampled Allow. 16/16 pure-Rust + 3/3 Postgres-gated tests green. No-silent-drop contract honoured. Two material caveats: (1) FR emission carries FrEventId::MailboxBackpressure in payload but uses legacy FlightRecorderEventType::System enum carrier until MT-198 adoption work lands a typed variant; (2) try_block_on_emit constructs a current-thread runtime on the sync test path — fine for tests, bounded risk in production.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "OK",
+    "runtime_safety_status": "OK",
+    "agent_swarm_safety_status": "OK",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 1,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 1,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-182.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-182.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
   }
 }

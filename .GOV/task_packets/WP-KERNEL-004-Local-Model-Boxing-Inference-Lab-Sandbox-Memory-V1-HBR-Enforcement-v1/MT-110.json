@@ -7,7 +7,7 @@
   "cluster_subscope": "C.10",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:00:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-05-27T19:03:58.446Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -27,7 +27,10 @@
     "app/src/lib/stores/speculative.ts",
     "app/src/components/inference_lab/InferenceLab.svelte"
   ],
-  "depends_on_mts": ["MT-068", "MT-109"],
+  "depends_on_mts": [
+    "MT-068",
+    "MT-109"
+  ],
   "unblock_conditions": "MT-068 IPC + MT-109 technique merged.",
   "implementation_notes": "Per AC-INFER-LAB-UI-TOGGLES. SpeculativeDecodingPanel.svelte: mode select (None|Ngram|DraftModel); Ngram sub-controls (lookback, max_draft sliders); DraftModel sub-controls (model picker scoped to registry models with supportsSpeculativeDraft compatible + max_draft slider); Eagle3 entry visible but marked \"deferred (llama.cpp PR #18039 pending)\" with link to upstream tracking. Live perf-gain bar: subscribes to kernel_model_runtime_spec_stats (polls 2s); shows accept_rate %, observed speedup x. Hidden when supportsSpeculativeDraft=false. A/B compare: pick prompt, generate with spec on/off, show side-by-side latency.",
   "proof_commands": [
@@ -35,23 +38,49 @@
   ],
   "risk_if_missed": "INF-8 UI missing; operator cannot interactively tune speculative mode.",
   "validator_focus": "Eagle3 deferral surfaced (not hidden); draft-model picker scope correct (only compatible models); A/B compare flow present.",
-  "hbr_obligations": ["HBR-INT-002"],
+  "hbr_obligations": [
+    "HBR-INT-002"
+  ],
   "spec_anchors": [
     ".GOV/spec/master-spec-v02.186/spec-modules/10-product-surfaces.md#10.14"
   ],
-  "acceptance_criteria_refs": ["AC-INFER-LAB-UI-TOGGLES", "AC-INFER-LAB-UI-AB-COMPARE"],
+  "acceptance_criteria_refs": [
+    "AC-INFER-LAB-UI-TOGGLES",
+    "AC-INFER-LAB-UI-AB-COMPARE"
+  ],
   "lifecycle": {
     "active": false,
     "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "validator_verdict": "CONCERN",
     "integration_validator_verdict": "PENDING",
-    "depends_on": ["MT-068", "MT-109"],
-    "blocks": ["MT-111"],
+    "depends_on": [
+      "MT-068",
+      "MT-109"
+    ],
+    "blocks": [
+      "MT-111"
+    ],
     "claimed_by": "KERNEL_BUILDER-20260522-171100",
     "claimed_at_utc": "2026-05-23T00:10:00Z",
     "ready_for_validation_by": "KERNEL_BUILDER-20260522-171100",
     "ready_for_validation_at_utc": "2026-05-23T00:20:00Z",
-    "dependency_unblock_note": "MT-109 deferred the Tauri IPC layer (commands/speculative.rs + lib.rs registration); MT-110 needs that IPC to function. Per operator 'work on dependencies first' rule the IPC was built as MT-110 unblock work and committed alongside the UI knob. Out-of-scope file additions: app/src-tauri/src/commands/speculative.rs (NEW, MT-109 deferred owned-file) + app/src-tauri/src/lib.rs (registration + SpeculativeModeOverrides.manage()) + app/src/lib/ipc/speculative.ts (NEW IPC binding). All carry operator-waiver-required notes consistent with MT-091/094 pattern."
+    "dependency_unblock_note": "MT-109 deferred the Tauri IPC layer (commands/speculative.rs + lib.rs registration); MT-110 needs that IPC to function. Per operator 'work on dependencies first' rule the IPC was built as MT-110 unblock work and committed alongside the UI knob. Out-of-scope file additions: app/src-tauri/src/commands/speculative.rs (NEW, MT-109 deferred owned-file) + app/src-tauri/src/lib.rs (registration + SpeculativeModeOverrides.manage()) + app/src/lib/ipc/speculative.ts (NEW IPC binding). All carry operator-waiver-required notes consistent with MT-091/094 pattern.",
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "READY_FOR_VALIDATION",
+        "validator_verdict": "PENDING"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-27T19:03:58.446Z"
   },
   "handoff": {
     "coder_session": null,
@@ -65,5 +94,55 @@
       "Draft-model picker scope filtered by capability.",
       "A/B compare latency display."
     ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C8_C10",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T19:03:58.446Z",
+    "verdict": "CONCERN",
+    "verdict_reason": "app/src/components/inference_lab/SpeculativeDecodingPanel.tsx delivers the operator-facing mode picker with two of three MT-110 red_team minimum_controls satisfied and one partially-satisfied. SATISFIED: (1) Eagle3 deferral message clear (links to PR #18039) — the eagle3_deferred option is always present in the list when the option is visible, and the deferral note 'Eagle3 is deferred until llama.cpp PR #18039 merges and the adapter signals supports_eagle3=true (operator decision E-4)' is rendered as a paragraph below the picker with data-testid='speculative-decoding-panel.eagle3-deferred-note'. (2) Panel hidden when neither supportsSpeculativeDraft nor supportsEagle3 — explicit `if (panelHidden) return null` plus loop early-return. PARTIALLY SATISFIED: (3) Draft-model picker scope filtered by capability — the DraftModel branch in handleModeChange explicitly bails with error 'DraftModel picker UX is a follow-up MT — operator must bind a draft model id first.' — the draft-model picker UX itself is NOT implemented, only acknowledged as deferred. NOT SATISFIED: A/B compare latency display — the contract calls for 'A/B compare: pick prompt, generate with spec on/off, show side-by-side latency'; the implementation has no generate-on/off flow at all (no kernel_model_runtime_spec_stats poll subscription either). The Tauri IPC layer (commands/speculative.rs) was built as MT-110 unblock work for MT-109's deferred scope, which is honestly documented in dependency_unblock_note. Operator stance ('don't fail on paperwork; care about technique correctness') — the Eagle3 deferral handling is exemplary; the draft-model + A/B-compare gaps are real product-feature debt the MT explicitly recorded.",
+    "spec_compliance_status": "PARTIAL",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "OK",
+    "hbr_unsatisfied": [
+      "HBR-INT-002 wire-evidence — SPEC-MODE-CHANGE FR event is declared at the technique surface (MT-109) but not emitted from the Tauri command surface; the commit path does not write a typed FEMS record."
+    ],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 2,
+      "LOW": 2
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-110.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-110.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C8_C10",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T18:50:05.123Z",
+    "verdict": "CONCERN",
+    "verdict_reason": "app/src/components/inference_lab/SpeculativeDecodingPanel.tsx delivers the operator-facing mode picker with two of three MT-110 red_team minimum_controls satisfied and one partially-satisfied. SATISFIED: (1) Eagle3 deferral message clear (links to PR #18039) — the eagle3_deferred option is always present in the list when the option is visible, and the deferral note 'Eagle3 is deferred until llama.cpp PR #18039 merges and the adapter signals supports_eagle3=true (operator decision E-4)' is rendered as a paragraph below the picker with data-testid='speculative-decoding-panel.eagle3-deferred-note'. (2) Panel hidden when neither supportsSpeculativeDraft nor supportsEagle3 — explicit `if (panelHidden) return null` plus loop early-return. PARTIALLY SATISFIED: (3) Draft-model picker scope filtered by capability — the DraftModel branch in handleModeChange explicitly bails with error 'DraftModel picker UX is a follow-up MT — operator must bind a draft model id first.' — the draft-model picker UX itself is NOT implemented, only acknowledged as deferred. NOT SATISFIED: A/B compare latency display — the contract calls for 'A/B compare: pick prompt, generate with spec on/off, show side-by-side latency'; the implementation has no generate-on/off flow at all (no kernel_model_runtime_spec_stats poll subscription either). The Tauri IPC layer (commands/speculative.rs) was built as MT-110 unblock work for MT-109's deferred scope, which is honestly documented in dependency_unblock_note. Operator stance ('don't fail on paperwork; care about technique correctness') — the Eagle3 deferral handling is exemplary; the draft-model + A/B-compare gaps are real product-feature debt the MT explicitly recorded.",
+    "spec_compliance_status": "PARTIAL",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "OK",
+    "hbr_unsatisfied": [
+      "HBR-INT-002 wire-evidence — SPEC-MODE-CHANGE FR event is declared at the technique surface (MT-109) but not emitted from the Tauri command surface; the commit path does not write a typed FEMS record."
+    ],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 2,
+      "LOW": 2
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-110.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-110.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
   }
 }

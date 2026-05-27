@@ -7,7 +7,7 @@
   "cluster_subscope": "A.3",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T02:30:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-05-27T19:03:58.446Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -27,38 +27,127 @@
     ".GOV/roles_shared/checks/hbr-inspector-smoke.mjs",
     "justfile"
   ],
-  "depends_on_mts": ["MT-028", "MT-029", "MT-030", "MT-031", "MT-032"],
+  "depends_on_mts": [
+    "MT-028",
+    "MT-029",
+    "MT-030",
+    "MT-031",
+    "MT-032"
+  ],
   "unblock_conditions": "All A.3 building blocks merged.",
-  "implementation_notes": "End-to-end wire test for AC-INSPECTOR-PLANE-BIND + READONLY + MUTATION-ROUTING + HBR-VIS-004. Flow: (1) Start handshake_core in test mode with `inspector` feature; (2) Inject a synthetic session into EventLedger (one of each event kind covering TraceProjection's seven fields); (3) Start InspectorServer (MT-029) and capture port; (4) HTTP GETs for all read endpoints — assert payloads parse and TraceProjection has all seven fields populated; (5) Invoke equivalent Tauri IPC commands (MT-032) — assert identical payloads byte-for-byte; (6) POST a valid replay-drive envelope (MT-030) — assert 200 + KernelActionCatalogV1 dispatch + EventLedger row emitted; (7) POST an extra-field body — assert 403; (8) Verify no compile-leak: run a compile-check against a synthetic test crate that tries to call a write-side method through the InspectorReadV1 trait and assert it fails to compile (use trybuild crate; add dev-dep if absent). Output JSONL `{ endpoints_passed, ipc_passed, trace_projection_fields, replay_drive_success, compile_leak_detected: false }`. Justfile recipe `hbr-inspector-smoke` wired into gov-check umbrella. The smoke test fails loud on any of the six conditions.",
+  "implementation_notes": "End-to-end wire test for AC-INSPECTOR-PLANE-BIND + READONLY + MUTATION-ROUTING + HBR-VIS-004. Flow: (1) Start handshake_core in test mode with `inspector` feature; (2) Inject a synthetic session into EventLedger (one of each event kind covering TraceProjection's seven fields); (3) Start InspectorServer (MT-029) and capture port; (4) HTTP GETs for all read endpoints — assert payloads parse and TraceProjection has all seven fields populated; (5) Invoke equivalent Tauri IPC commands (MT-032) — assert identical payloads byte-for-byte; (6) POST a valid replay-drive envelope (MT-030) — assert 200 + KernelActionCatalogV1 dispatch + EventLedger row emitted; (7) POST an extra-field body — assert 403; (8) Verify no compile-leak: run a direct rustc compile-check against a synthetic test crate that tries to call a write-side method through the InspectorReadV1 trait and assert it fails to compile. Output JSONL `{ endpoints_passed, ipc_passed, trace_projection_fields, replay_drive_success, compile_leak_detected: false }`. Justfile recipe `hbr-inspector-smoke` wired into gov-check umbrella. The smoke test fails loud on any of the six conditions.",
   "proof_commands": [
-    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target --features inspector a3_inspector_smoke",
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target --no-default-features --features runtime-full,inspector --test a3_inspector_smoke",
     "just hbr-inspector-smoke"
   ],
   "risk_if_missed": "Without the smoke, individual A.3 MTs prove pieces but not integration; a regression that breaks the chain ships green.",
-  "validator_focus": "HTTP and IPC payloads byte-identical; trybuild compile-leak test confirms read-only boundary holds at compile time; smoke fails on any of six conditions.",
-  "hbr_obligations": ["HBR-INT-001", "HBR-INT-003", "HBR-INT-007", "HBR-VIS-001", "HBR-VIS-004"],
+  "validator_focus": "HTTP and IPC payloads byte-identical; direct rustc compile-leak test confirms read-only boundary holds at compile time; smoke fails on any of six conditions.",
+  "hbr_obligations": [
+    "HBR-INT-001",
+    "HBR-INT-003",
+    "HBR-INT-007",
+    "HBR-VIS-001",
+    "HBR-VIS-004"
+  ],
   "spec_anchors": [
     ".GOV/spec/master-spec-v02.186/spec-modules/06-mechanical-integrations.md#6.5"
   ],
-  "acceptance_criteria_refs": ["AC-INSPECTOR-PLANE-BIND", "AC-INSPECTOR-PLANE-READONLY", "AC-INSPECTOR-PLANE-MUTATION-ROUTING"],
+  "acceptance_criteria_refs": [
+    "AC-INSPECTOR-PLANE-BIND",
+    "AC-INSPECTOR-PLANE-READONLY",
+    "AC-INSPECTOR-PLANE-MUTATION-ROUTING"
+  ],
   "lifecycle": {
     "active": false,
-    "status": "PENDING",
-    "validator_verdict": "PENDING",
-    "depends_on": ["MT-028", "MT-029", "MT-030", "MT-031", "MT-032"],
-    "blocks": ["MT-034"]
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "PASS",
+    "depends_on": [
+      "MT-028",
+      "MT-029",
+      "MT-030",
+      "MT-031",
+      "MT-032"
+    ],
+    "blocks": [
+      "MT-034"
+    ],
+    "claimed_by": "KERNEL_BUILDER-20260518-073535",
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "COMPLETED",
+        "validator_verdict": "PENDING",
+        "completed_at_utc": "2026-05-18T12:47:41.211Z"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "previous_completed_at_utc_before_ready_for_validation_20260525": "2026-05-18T12:47:41.211Z",
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-27T19:03:58.446Z"
   },
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260518-073535",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
     "review_response_receipt_id": null
   },
   "red_team": {
     "minimum_controls": [
-      "trybuild compile-leak test confirms the read-only boundary holds at compile time (not just runtime).",
+      "direct rustc compile-leak test confirms the read-only boundary holds at compile time (not just runtime).",
       "HTTP and IPC payloads are byte-identical for the same query (no schema drift between transports).",
       "Smoke fails loud on any of the six conditions."
     ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_A3_A5_A7",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T19:03:58.446Z",
+    "verdict": "PASS",
+    "verdict_reason": "End-to-end smoke spins up the inspector server, hits all read endpoints, asserts HTTP bytes equal serde-IPC bytes, runs a valid replay-drive plus an extra-field 403 attempt, and a separate rustc compile-leak test confirms the read-only boundary holds at compile time.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 2
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-033.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-033.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_A3_A5_A7",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T18:50:05.123Z",
+    "verdict": "PASS",
+    "verdict_reason": "End-to-end smoke spins up the inspector server, hits all read endpoints, asserts HTTP bytes equal serde-IPC bytes, runs a valid replay-drive plus an extra-field 403 attempt, and a separate rustc compile-leak test confirms the read-only boundary holds at compile time.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 2
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-033.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-033.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
   }
 }

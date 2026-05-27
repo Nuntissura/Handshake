@@ -7,7 +7,7 @@
   "cluster_subscope": "C.2",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:00:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-05-27T19:03:58.446Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -29,7 +29,11 @@
     "src/backend/handshake_core/src/flight_recorder/events_llm_infer.rs",
     "src/backend/handshake_core/tests/llama_cpp_perf_stats_tests.rs"
   ],
-  "depends_on_mts": ["MT-074", "MT-075", "MT-076"],
+  "depends_on_mts": [
+    "MT-074",
+    "MT-075",
+    "MT-076"
+  ],
   "unblock_conditions": "MT-074 generate + MT-075 KV cache + MT-076 LoRA merged (events emit from those paths).",
   "implementation_notes": "Per AC-MODEL-RUNTIME-CONTROL-PANEL: §10.13 panel displays per loaded model: id + on-disk artifact path + SHA256, active adapter, KV-cache occupancy, LoRA stack, active steering vectors, ProcessOwnershipLedger row link, live perf stats (tokens/sec, VRAM resident, time-since-last-call). PerfStats struct: `{ total_prompts: u64, total_tokens_generated: u64, prompt_eval_ms_total: u64, gen_eval_ms_total: u64, tokens_per_sec_ema: f32 (exponential moving avg), vram_resident_bytes: u64 (from CUDA runtime if available, 0 on CPU), last_call_at_utc: DateTime<Utc> }`. Collected in generate path: timing markers at decode-prompt-start / first-token / last-token. EMA update on each call. VRAM polling via cuda-rs or llama_cpp_2 GPU stat API (fallback 0 when CPU). FR events: FR-EVT-LLM-INFER-START { model_id, request_id (v7), tokens_in_prompt }, FR-EVT-LLM-INFER-TOKEN { model_id, request_id, token_index, latency_ms } (sampled at every 16th token to avoid flood), FR-EVT-LLM-INFER-END { model_id, request_id, tokens_generated, total_ms, finish_reason }, FR-EVT-LLM-INFER-LORA-MOUNT { model_id, lora_id, strength }, FR-EVT-LLM-INFER-LORA-UNMOUNT { model_id, lora_id }, FR-EVT-LLM-INFER-KV-EVICT { model_id, evicted_entries, reason }, FR-EVT-LLM-INFER-CANCEL { model_id, request_id, at_token_index }, FR-EVT-LLM-INFER-CAPS-LOOKUP { model_id, caller }. Events serialized via existing flight_recorder appender. PerfStats exposed via IPC kernel.model_runtime.perf_stats(model_id) (Tauri command in MT-068 extension).",
   "proof_commands": [
@@ -37,24 +41,193 @@
   ],
   "risk_if_missed": "§10.13 ModelRuntime Control Panel has no data source; perf regressions invisible; cluster X panel work cannot land.",
   "validator_focus": "EMA computation correctness; sampled-event throttling on TOKEN (no flood); VRAM fallback on CPU = 0 (not undefined); per-request request_id uses v7.",
-  "hbr_obligations": ["HBR-INT-002", "HBR-INT-008"],
+  "hbr_obligations": [
+    "HBR-INT-002",
+    "HBR-INT-008"
+  ],
   "spec_anchors": [
     ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.6.2",
     ".GOV/spec/master-spec-v02.186/spec-modules/10-product-surfaces.md#10.13"
   ],
-  "acceptance_criteria_refs": ["AC-LLAMACPP-ADAPTER", "AC-MODEL-RUNTIME-CONTROL-PANEL"],
+  "acceptance_criteria_refs": [
+    "AC-LLAMACPP-ADAPTER",
+    "AC-MODEL-RUNTIME-CONTROL-PANEL"
+  ],
   "lifecycle": {
     "active": false,
-    "status": "PENDING",
-    "validator_verdict": "PENDING",
-    "depends_on": ["MT-074", "MT-075", "MT-076"],
-    "blocks": []
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "PASS",
+    "depends_on": [
+      "MT-074",
+      "MT-075",
+      "MT-076"
+    ],
+    "blocks": [],
+    "claimed_by": "KERNEL_BUILDER-20260522-055512",
+    "claimed_at_utc": "2026-05-22T05:56:53.6970201Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260522-055512",
+    "ready_for_validation_at_utc": "2026-05-22T06:54:10.3080687Z",
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "READY_FOR_VALIDATION",
+        "validator_verdict": "PENDING"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-27T19:03:58.446Z"
   },
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260522-055512",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
     "review_response_receipt_id": null
+  },
+  "implementation_record": {
+    "recorded_at_utc": "2026-05-22T06:54:10.3080687Z",
+    "recorded_by": "KERNEL_BUILDER-20260522-055512",
+    "classification": "IMPLEMENTATION_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+    "authoritative_integration_validator_pass": false,
+    "integration_validator_status": "PENDING",
+    "summary": "Implemented per-model LlamaCppPerfStats with cumulative prompt/token/timing totals, tokens/sec EMA, last-call timestamp, time-since-last-call, and CPU/unsupported VRAM fallback of 0. Generation now resets and reads llama-cpp-2 safe timing APIs, records stats at terminal generation outcomes, and emits FR-EVT-LLM-INFER-START/TOKEN/END through the existing FlightRecorder sink with v7 request_id correlation and every-16th-token sampling. Raw prompt and token text are not persisted in the new telemetry payloads. FR event family constants and registry entries are present for START/TOKEN/END plus LORA/KV/CANCEL/CAPS IDs; only START/TOKEN/END generation emission is wired in this MT.",
+    "research_basis": {
+      "sources_checked": [
+        "llama-cpp-2 0.1.146 local crate timing API: LlamaContext::reset_timings(), LlamaContext::timings(), LlamaTimings t_p_eval_ms/t_eval_ms/n_p_eval/n_eval",
+        "llama.cpp upstream perf context API surfaced by llama-cpp-2",
+        "local LlamaCppRuntime generate/speculative/flight-recorder patterns",
+        "local FlightRecorder LlmInference payload validator and FR event registry"
+      ],
+      "selected_patterns": [
+        "Use llama-cpp-2 safe timing methods instead of parsing printed perf logs.",
+        "Store per-model cumulative stats on LlamaModelHandle behind Arc<Mutex<_>>, mirroring the existing speculative stats sink pattern.",
+        "Reuse FlightRecorderEventType::LlmInference for additive phase-marked START/TOKEN/END payloads so existing validators and sinks continue to work.",
+        "Sample TOKEN telemetry every 16 generated tokens to avoid event floods."
+      ],
+      "rejected_options": [
+        "Parsing llama.cpp stdout/stderr timing or memory breakdown logs because that is brittle and not a structured API.",
+        "Using nvidia-smi/NVML/CUDA-specific shellouts for VRAM because the current safe runtime path has no portable structured resident-VRAM API.",
+        "Adding raw prompt or generated token text to Flight Recorder payloads because the contract only requires IDs, counts, and timing telemetry.",
+        "Adding IPC/Tauri command wiring in this MT because the owned-file scope is handshake_core runtime/FR/test code and MT-068 extension owns IPC command surface."
+      ]
+    },
+    "proof": {
+      "red_test": {
+        "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features llama-cpp-runtime-engine --test llama_cpp_perf_stats_tests -- --nocapture",
+        "exit_code": 101,
+        "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt079-red-perf-stats-native-20260522-001.log",
+        "note": "Failed on missing events_llm_infer module, LlamaCppPerfStats API, FR registry variants, and LlamaCppRuntime::perf_stats before implementation."
+      },
+      "focused_native_perf_stats": {
+        "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features llama-cpp-runtime-engine --test llama_cpp_perf_stats_tests -- --nocapture",
+        "exit_code": 0,
+        "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt079-post-hardening-perf-stats-native-20260522-001.log",
+        "note": "4 passed, 0 failed, including live configured GGUF generation updating perf stats and emitting sampled START/TOKEN/END events."
+      },
+      "default_feature_perf_stats": {
+        "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test llama_cpp_perf_stats_tests -- --nocapture",
+        "exit_code": 0,
+        "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt079-default-perf-stats-20260522-001.log",
+        "note": "3 passed, 0 failed for EMA, v7 request IDs, event builders, sampling, and registry entries without native feature."
+      },
+      "contract_scoped_proof": {
+        "command": "cargo test -p handshake_core --target-dir D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target --test llama_cpp_perf_stats_tests -- --nocapture",
+        "exit_code": 0,
+        "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt079-post-hardening-contract-proof-scoped-20260522-001.log",
+        "note": "3 passed, 0 failed using the packet target-dir path and a scoped --test selector."
+      },
+      "literal_packet_proof_command_caveat": {
+        "command": "cargo test -p handshake_core --target-dir D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target llama_cpp_perf_stats_tests -- --nocapture",
+        "exit_code": 101,
+        "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt079-contract-proof-command-20260522-001.log",
+        "failure": "Cargo compiled unrelated integration tests before applying the name filter and rustc 1.91.1 ICE'd in unrelated tests inf4_refusal_vector_tests/cdp_console_stream_tests. Scoped --test proof above isolates the MT-079 test binary and passes."
+      },
+      "adjacent_regressions_green": [
+        {
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test kernel_flight_recorder_tests -- --nocapture",
+          "exit_code": 0,
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt079-adjacent-flight-recorder-20260522-001.log",
+          "note": "4 passed, 0 failed."
+        },
+        {
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features llama-cpp-runtime-engine --test llama_cpp_generate_tests -- --nocapture",
+          "exit_code": 0,
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt079-adjacent-generate-native-20260522-001.log",
+          "note": "8 passed, 0 failed."
+        },
+        {
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features llama-cpp-runtime-engine --test llama_cpp_score_embed_tests -- --nocapture",
+          "exit_code": 0,
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt079-adjacent-score-embed-native-20260522-001.log",
+          "note": "6 passed, 0 failed."
+        },
+        {
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features llama-cpp-runtime-engine --test llama_cpp_lora_tests -- --nocapture",
+          "exit_code": 0,
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt079-adjacent-lora-native-20260522-001.log",
+          "note": "6 passed, 0 failed."
+        },
+        {
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib fr_event_registry -- --nocapture",
+          "exit_code": 0,
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt079-lib-fr-event-registry-20260522-001.log",
+          "note": "FR event registry unit filter passed."
+        }
+      ],
+      "adjacent_residual_failure": {
+        "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features llama-cpp-runtime-engine --test llama_cpp_speculative_tests -- --nocapture",
+        "exit_code": 101,
+        "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt079-adjacent-speculative-native-20260522-001.log",
+        "isolated_log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt079-adjacent-speculative-ngram-isolated-20260522-001.log",
+        "failure": "3 env-gated speculative tests failed because speculative stats reported zero/missing draft rounds for the configured GGUF/prompt; generation itself and MT-079 perf/event tests passed. This is preserved as adjacent residual risk for validator triage."
+      },
+      "governance_checks": {
+        "json_validation": "MT-079.json and packet.json parsed successfully via PowerShell ConvertFrom-Json.",
+        "ready_receipt": {
+          "command": "just wp-receipt-append ... CODER KERNEL_BUILDER-20260522-055512 STATUS ... CLAIMED READY_FOR_VALIDATION INTEGRATION_VALIDATOR INTEGRATION_VALIDATOR KERNEL004-MT079-READY-20260522 ... MT-079",
+          "exit_code": 0,
+          "timestamp_utc": "2026-05-22T06:57:15.686Z"
+        },
+        "build_order_sync": {
+          "command": "just build-order-sync; node .GOV/roles_shared/checks/build-order-check.mjs",
+          "exit_code": 0,
+          "note": "BUILD_ORDER.md refreshed after packet next_id moved to MT-080."
+        },
+        "topology_sync": {
+          "command": "just gov-check --sync-topology",
+          "exit_code": 1,
+          "note": "Generated GOVERNANCE_TOPOLOGY.json/PUBLIC_SURFACE_CONSOLIDATION updates were synced and topology-bundle-check passed; umbrella gov-check still fails on 6 pre-existing/broad HBR checks."
+        },
+        "gov_check_after_sync": {
+          "command": "just gov-check --sync-topology",
+          "exit_code": 1,
+          "check_details_entry_id": "3ae0c6f00f4415f4",
+          "failing_checks": [
+            "hbr-visual-smoke",
+            "hbr-inspector-smoke",
+            "hbr-swarm-n8",
+            "hbr-swarm-invariants",
+            "template-hbr-fields",
+            "hbr-man-003-scan"
+          ],
+          "note": "build-order-check and topology-bundle-check are green after sync; remaining failures are outside MT-079 runtime/FR implementation."
+        }
+      }
+    },
+    "residual_risks": [
+      "No Integration Validator has reviewed MT-079; this record is Kernel Builder supporting evidence only.",
+      "Only generation calls update LlamaCppPerfStats in this MT. score/embed tests remain green, but score/embed do not yet add perf totals.",
+      "FR-EVT-LLM-INFER-LORA-MOUNT/UNMOUNT, KV-EVICT, CANCEL, and CAPS-LOOKUP IDs are registered but not all emission paths are wired; lora_impl currently lacks a FlightRecorder hook to reuse without broad plumbing.",
+      "The literal packet proof command without --test compiles unrelated integration tests and hit a rustc ICE; use the scoped proof command for MT-079 evidence until the broader unrelated compiler issue is resolved.",
+      "The native speculative suite has a residual env-gated failure with zero/missing draft rounds under the current GGUF/prompt; this may predate MT-079 but remains relevant to Cluster C validator review.",
+      "Cargo output still includes pre-existing crate warnings outside MT-079 files; no MT-079-specific warnings were observed in focused proof logs."
+    ]
   },
   "red_team": {
     "minimum_controls": [
@@ -62,5 +235,51 @@
       "EMA reasonable (test sequence of timing values produces expected EMA).",
       "request_id uses now_v7() (HBR-INT-008)."
     ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C2_FRESH",
+    "reviewed_at_utc": "2026-05-27T18:30:00Z",
+    "aggregator_run_at_utc": "2026-05-27T19:03:58.446Z",
+    "verdict": "PASS",
+    "verdict_reason": "Per-model PerfStats with EMA, CPU VRAM=0 fallback, FR-EVT-LLM-INFER-START/TOKEN/END wired with 16th-token sampling and v7 request_id; LORA/KV/CANCEL/CAPS event IDs registered for future wiring.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 1,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 2,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-079.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-079.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C2_FRESH",
+    "reviewed_at_utc": "2026-05-27T18:30:00Z",
+    "aggregator_run_at_utc": "2026-05-27T18:50:05.123Z",
+    "verdict": "PASS",
+    "verdict_reason": "Per-model PerfStats with EMA, CPU VRAM=0 fallback, FR-EVT-LLM-INFER-START/TOKEN/END wired with 16th-token sampling and v7 request_id; LORA/KV/CANCEL/CAPS event IDs registered for future wiring.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 1,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 2,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-079.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-079.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
   }
 }

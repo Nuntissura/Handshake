@@ -7,7 +7,7 @@
   "cluster_subscope": "C.2",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:00:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-05-27T19:03:58.446Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -28,7 +28,9 @@
     "src/backend/handshake_core/src/model_runtime/llama_cpp/adapter.rs",
     "src/backend/handshake_core/tests/llama_cpp_loader_tests.rs"
   ],
-  "depends_on_mts": ["MT-072"],
+  "depends_on_mts": [
+    "MT-072"
+  ],
   "unblock_conditions": "MT-072 scaffolding merged.",
   "implementation_notes": "Per AC-LLAMACPP-ADAPTER: GGUF transformer load is the default path. LlamaModelParams: `n_gpu_layers: u32 (0 = pure CPU; -1 = offload all; operator-configurable), main_gpu: u32, vocab_only: bool, use_mmap: bool (true default; faster load on Windows + NVMe), use_mlock: bool (false default; mlock not always available on Windows)`. Loader: validate the file magic bytes (GGUF v2/v3) before passing to llama_cpp_2; if magic mismatch, return LoadError(\"not a GGUF v2/v3 artifact\"). Tokenizer extraction: GGUF carries embedded BPE/SentencePiece tokenizer in its metadata; expose `LlamaTokenizer { vocab_size, bos_id, eos_id, special_tokens }` via tokenizer_cache. TokenizerCache: `HashMap<ModelId, Arc<LlamaTokenizer>>` shared across generate calls so tokenize() isn't re-parsing GGUF metadata per request. Context creation: LlamaContextParams with `n_ctx: u32 (operator-set, default 8192), n_batch: u32 (512 default), n_threads: u32 (operator-set, default min(8, num_cpus)), embeddings: bool (true for embed() path), causal_attn: bool (true), n_seq_max: u32 (1 default; raised by self-spec MT-109)`. Per-feature gating: tests/llama_cpp_loader_tests.rs gated by env var HANDSHAKE_TEST_GGUF_PATH — if unset, skip the load test (CI without GPU/large-model fixtures still runs other tests). If env var present, point at a small <2 GiB GGUF on disk (operator provides; e.g., a Qwen2.5-1.5B-Instruct-Q4_K_M.gguf at ~1 GiB). Test: load model, assert ModelId v7, assert tokenizer vocab_size > 0, assert load_duration_ms recorded, unload and assert ledger row terminated.",
   "proof_commands": [
@@ -37,20 +39,50 @@
   ],
   "risk_if_missed": "GGUF load path is incomplete; LlamaCppRuntime never accepts real models; subsequent generate MT cannot proceed.",
   "validator_focus": "GGUF magic-byte validation; tokenizer cache reuse across calls (no re-parse); GPU offload param honored; env-var-gated GGUF fixture skip path is documented.",
-  "hbr_obligations": ["HBR-INT-002", "HBR-INT-008"],
+  "hbr_obligations": [
+    "HBR-INT-002",
+    "HBR-INT-008"
+  ],
   "spec_anchors": [
     ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.6.2"
   ],
-  "acceptance_criteria_refs": ["AC-LLAMACPP-ADAPTER"],
+  "acceptance_criteria_refs": [
+    "AC-LLAMACPP-ADAPTER"
+  ],
   "lifecycle": {
     "active": false,
-    "status": "PENDING",
-    "validator_verdict": "PENDING",
-    "depends_on": ["MT-072"],
-    "blocks": ["MT-074", "MT-075"]
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "PASS",
+    "depends_on": [
+      "MT-072"
+    ],
+    "blocks": [
+      "MT-074",
+      "MT-075"
+    ],
+    "claimed_by": "KERNEL_BUILDER-20260518-235451",
+    "claimed_at_utc": "2026-05-19T05:13:39Z",
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "COMPLETED",
+        "validator_verdict": "PENDING",
+        "completed_at_utc": "2026-05-19T05:36:47Z"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "previous_completed_at_utc_before_ready_for_validation_20260525": "2026-05-19T05:36:47Z",
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-27T19:03:58.446Z"
   },
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260518-235451",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
     "review_response_receipt_id": null
@@ -61,5 +93,51 @@
       "Tokenizer cache hit verified (counter increments).",
       "Env-var gating documented so CI green when GGUF fixture unavailable."
     ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C2_FRESH",
+    "reviewed_at_utc": "2026-05-27T18:30:00Z",
+    "aggregator_run_at_utc": "2026-05-27T19:03:58.446Z",
+    "verdict": "PASS",
+    "verdict_reason": "GGUF loader implements magic-byte gate before native call, tokenizer cache exposes parse_count hit-counter, env-gated test fixture path documented.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 1,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-073.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-073.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C2_FRESH",
+    "reviewed_at_utc": "2026-05-27T18:30:00Z",
+    "aggregator_run_at_utc": "2026-05-27T18:50:05.123Z",
+    "verdict": "PASS",
+    "verdict_reason": "GGUF loader implements magic-byte gate before native call, tokenizer cache exposes parse_count hit-counter, env-gated test fixture path documented.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 1,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-073.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-073.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
   }
 }

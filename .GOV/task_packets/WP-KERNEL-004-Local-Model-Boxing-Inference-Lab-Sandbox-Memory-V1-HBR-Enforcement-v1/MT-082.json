@@ -7,7 +7,7 @@
   "cluster_subscope": "C.3",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:00:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-05-27T19:03:58.446Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -27,7 +27,10 @@
     "src/backend/handshake_core/src/model_runtime/candle/adapter.rs",
     "src/backend/handshake_core/tests/candle_hooks_tests.rs"
   ],
-  "depends_on_mts": ["MT-065", "MT-081"],
+  "depends_on_mts": [
+    "MT-065",
+    "MT-081"
+  ],
   "unblock_conditions": "MT-065 SteeringHookOps trait + MT-081 CandleRuntime scaffolding merged.",
   "implementation_notes": "Per AC-CANDLE-ADAPTER + AC-INFER-LAB-8-TECHNIQUES.c/d/e: CandleRuntime is the hook substrate. candle-core does not have a TransformerLens-style register_hook API out-of-the-box; the implementation pattern (per RW-3 research): wrap the model's forward function so that after each transformer block forward call, a registered closure inspects (capture) and optionally mutates (inject) the residual stream tensor. HookRegistry: `HashMap<LayerIndex, Vec<HookCallback>>` where HookCallback is `Box<dyn Fn(&mut Tensor) -> Result<(), CandleError> + Send + Sync>`. Forward wrapper: each layer i in 0..n_layers calls `block.forward(&hidden)` then iterates registry[i] callbacks. capture(spec): registers a one-shot callback per layer in spec.layers that clones the tensor into a buffer keyed by (layer_id, batch_idx); runs forward pass; collects buffer; returns CaptureResult. register_vector(vec): stores vec in HookRegistry under vec.layer; on subsequent generate calls, a long-lived callback adds vec.values * vec.intensity to the tensor at vec.hook_point. set_active(ids): toggles which registered vectors are active. unregister(id): drops the registry entry. HookPoint enum: ResidStream (residual stream after block forward), MlpOut (just after MLP), AttnOut (just after attention). For ResidStream: hook fires after `block.forward`. For MlpOut/AttnOut: need to instrument inside the block (decompose forward into attn + mlp halves). Some candle-transformers models expose this decomposition; for ones that don't, only ResidStream is supported (return CapabilityNotSupported for other hook points). HookRegistry per ModelId so concurrent generate calls don't interfere. Tests (env-gated): load a small Llama via candle-transformers, capture residual stream at layer 5 on a fixed prompt, assert shape [seq_len, hidden_dim]; register a steering vector of zeros at layer 5 with intensity 1.0, generate, assert output IDENTICAL to base; register with random vector intensity 1.0, generate, assert output DIFFERS from base.",
   "proof_commands": [
@@ -35,21 +38,63 @@
   ],
   "risk_if_missed": "INF-3/INF-4/INF-5 have no hook substrate; cluster C.6/C.7/C.8 cannot land.",
   "validator_focus": "Identity test (zero vector hook -> output unchanged) is the correctness gate; HookRegistry per-ModelId isolation prevents cross-talk; capability for non-ResidStream hook points correctly reported.",
-  "hbr_obligations": ["HBR-INT-002"],
+  "hbr_obligations": [
+    "HBR-INT-002"
+  ],
   "spec_anchors": [
     ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.6.2",
     ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.7.1"
   ],
-  "acceptance_criteria_refs": ["AC-CANDLE-ADAPTER", "AC-INFER-LAB-8-TECHNIQUES"],
+  "acceptance_criteria_refs": [
+    "AC-CANDLE-ADAPTER",
+    "AC-INFER-LAB-8-TECHNIQUES"
+  ],
   "lifecycle": {
     "active": false,
-    "status": "PENDING",
-    "validator_verdict": "PENDING",
-    "depends_on": ["MT-065", "MT-081"],
-    "blocks": ["MT-083", "MT-084", "MT-096", "MT-097", "MT-098", "MT-099", "MT-100", "MT-101", "MT-102", "MT-103", "MT-104", "MT-105", "MT-106", "MT-116"]
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "CONCERN",
+    "depends_on": [
+      "MT-065",
+      "MT-081"
+    ],
+    "blocks": [
+      "MT-083",
+      "MT-084",
+      "MT-096",
+      "MT-097",
+      "MT-098",
+      "MT-099",
+      "MT-100",
+      "MT-101",
+      "MT-102",
+      "MT-103",
+      "MT-104",
+      "MT-105",
+      "MT-106",
+      "MT-116"
+    ],
+    "claimed_by": "KERNEL_BUILDER-20260519-094814",
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "COMPLETED",
+        "validator_verdict": "PENDING",
+        "completed_at_utc": "2026-05-19T10:32:38.973Z"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "previous_completed_at_utc_before_ready_for_validation_20260525": "2026-05-19T10:32:38.973Z",
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-27T19:03:58.446Z"
   },
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260519-094814",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
     "review_response_receipt_id": null
@@ -60,5 +105,55 @@
       "Per-ModelId HookRegistry isolation (concurrent generate cannot leak hooks).",
       "Non-supported HookPoint returns CapabilityNotSupported (not silent no-op)."
     ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C3_FRESH",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T19:03:58.446Z",
+    "verdict": "CONCERN",
+    "verdict_reason": "Real residual-stream hook substrate exists and is wired into the instrumented Llama block loop via `apply_record_and_capture_tensor`; vector application, capture, isolation per ModelId, MlpOut/AttnOut explicit CapabilityNotSupported, and finite-value validation are all present. CONCERN: the public SteeringHookOps impl on bare `CandleSteeringHooks::capture` (hooks.rs:463-490) generates a SYNTHETIC residual row from `scaffold_resid_stream_row(prompt_bytes)` rather than running the model. Only the wrapping `CandleRuntimeSteeringHookOps` (in adapter.rs) drives a real model forward. Callers who obtain the bare `CandleSteeringHooks` (exported from `candle::CandleSteeringHooks`, also returned through `SteeringHookHandle::with_ops(Arc::new(handle.steering_hooks.clone()))` in the SSM-variant fallback at adapter.rs:459-462) will silently get pseudo-random capture data with no model involvement and no error. The MT contract validator_focus says identity test is THE correctness gate — but identity test on the scaffold path is trivially satisfied for any prompt because scaffolding is deterministic and zero-vector is a no-op; this does not prove model-driven correctness.",
+    "spec_compliance_status": "PARTIAL",
+    "code_hygiene_status": "MINOR",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "CONCERN",
+    "hbr_unsatisfied": [
+      "HBR-INT-002 wire evidence still absent — hook substrate does not show ContextBundle/ArtifactStore wiring."
+    ],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 1,
+      "MEDIUM": 1,
+      "LOW": 0
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-082.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-082.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C3_FRESH",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T18:50:05.123Z",
+    "verdict": "CONCERN",
+    "verdict_reason": "Real residual-stream hook substrate exists and is wired into the instrumented Llama block loop via `apply_record_and_capture_tensor`; vector application, capture, isolation per ModelId, MlpOut/AttnOut explicit CapabilityNotSupported, and finite-value validation are all present. CONCERN: the public SteeringHookOps impl on bare `CandleSteeringHooks::capture` (hooks.rs:463-490) generates a SYNTHETIC residual row from `scaffold_resid_stream_row(prompt_bytes)` rather than running the model. Only the wrapping `CandleRuntimeSteeringHookOps` (in adapter.rs) drives a real model forward. Callers who obtain the bare `CandleSteeringHooks` (exported from `candle::CandleSteeringHooks`, also returned through `SteeringHookHandle::with_ops(Arc::new(handle.steering_hooks.clone()))` in the SSM-variant fallback at adapter.rs:459-462) will silently get pseudo-random capture data with no model involvement and no error. The MT contract validator_focus says identity test is THE correctness gate — but identity test on the scaffold path is trivially satisfied for any prompt because scaffolding is deterministic and zero-vector is a no-op; this does not prove model-driven correctness.",
+    "spec_compliance_status": "PARTIAL",
+    "code_hygiene_status": "MINOR",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "CONCERN",
+    "hbr_unsatisfied": [
+      "HBR-INT-002 wire evidence still absent — hook substrate does not show ContextBundle/ArtifactStore wiring."
+    ],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 1,
+      "MEDIUM": 1,
+      "LOW": 0
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-082.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-082.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
   }
 }
