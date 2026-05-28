@@ -10,12 +10,13 @@
 //! trainer subprocess, awaits completion, and assembles the
 //! `DistilledLoraArtifact` provenance.
 //!
-//! Subprocess launch + sandbox + ProcessOwnershipLedger registration
-//! are abstracted behind the [`PeftTrainerExecutor`] trait so the
-//! concrete impl (which depends on cluster-B sandbox adapters +
-//! MT-069 EngineKind=DistillationJob ledger wiring) can land in a
-//! follow-on without touching the orchestrator semantics. The
-//! `ContentReview` gate runs in-process and is fully unit-testable.
+//! Subprocess launch is abstracted behind the [`PeftTrainerExecutor`]
+//! trait. The production [`PythonPeftTrainerExecutor`] env-isolates the
+//! trainer fork (clears the environment, re-injects only an OS-essential
+//! allowlist + `HANDSHAKE_DISTILL_*`) and, when a process ledger is
+//! attached, registers an attributable `ProcessOwnershipLedger` row on
+//! spawn (MT-122). The `ContentReview` gate runs in-process and is fully
+//! unit-testable.
 //!
 //! Adult-production discipline: per GLOBAL-PRODUCTION-002..009 the
 //! pipeline never moralises or rewords operator content. The gates
@@ -23,14 +24,87 @@
 //! operator-driven hyperparams. No automatic content judgement
 //! beyond those.
 
+use std::fs::File;
+use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
+use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
+use uuid::Uuid;
 
-use super::content_review::{ContentReview, ContentReviewConfig, ReviewVerdict};
-use super::corpus_extractor::TrainingCorpus;
+use super::content_review::{
+    ContentReview, ContentReviewConfig, ContentReviewOutcome, ReviewVerdict,
+};
+use super::corpus_extractor::{TrainingCorpus, TrainingTurn};
+use crate::flight_recorder::{FlightRecorder, RecorderError};
+use crate::process_ledger::{record_spawn, LedgerBatcher, ProcessEngineKind, SpawnMeta};
+
+/// Default owner role recorded on the distillation trainer's
+/// ProcessOwnershipLedger row when the caller does not override it.
+const DEFAULT_DISTILL_OWNER_ROLE: &str = "DISTILLATION_PIPELINE";
+
+/// OS-essential environment variables the Python trainer subprocess needs to
+/// launch. SECURITY (MT-122): the trainer MUST NOT inherit the parent's full
+/// environment — a bare fork would leak operator secrets (API keys, tokens,
+/// session credentials) into an out-of-process Python process. We clear the
+/// environment and re-inject only this allowlist plus `HANDSHAKE_DISTILL_*`
+/// configuration. Secret-bearing variables (e.g. `OPENAI_API_KEY`,
+/// `ANTHROPIC_API_KEY`) are intentionally excluded.
+const TRAINER_ENV_ALLOWLIST: &[&str] = &[
+    "PATH",
+    "PATHEXT",
+    "SYSTEMROOT",
+    "WINDIR",
+    "TEMP",
+    "TMP",
+    "TMPDIR",
+    "LANG",
+    "LC_ALL",
+    "LC_CTYPE",
+    "HOME",
+    "USERPROFILE",
+    "PYTHONHOME",
+];
+
+/// Build the isolated environment for the trainer subprocess from a parent
+/// environment iterator: keep only the OS-essential allowlist and
+/// `HANDSHAKE_DISTILL_*` configuration; drop everything else (secrets).
+fn sandboxed_trainer_env<I>(parent: I) -> Vec<(String, String)>
+where
+    I: IntoIterator<Item = (String, String)>,
+{
+    parent
+        .into_iter()
+        .filter(|(key, _)| {
+            TRAINER_ENV_ALLOWLIST
+                .iter()
+                .any(|allowed| allowed.eq_ignore_ascii_case(key))
+                || key.starts_with("HANDSHAKE_DISTILL_")
+        })
+        .collect()
+}
+
+/// Build the ProcessOwnershipLedger row metadata for a distillation trainer
+/// subprocess so the fork is attributable (MT-122 red_team control:
+/// "Subprocess registered + sandboxed; no unguarded fork"). The dedicated
+/// `DistillationJob` engine kind is not yet in `ProcessEngineKind`
+/// (process-ledger / MT-069 schema); the row is recorded as
+/// `HelperSubprocess` with an explicit distillation marker in metadata.
+fn distillation_spawn_meta(pid: u32, owner_role: &str, config: &DistillJobConfig) -> SpawnMeta {
+    let mut meta = SpawnMeta::new(pid, ProcessEngineKind::HelperSubprocess, owner_role);
+    meta.sandbox_adapter = Some("env_clear_allowlist".to_string());
+    meta.mt_id = Some("MT-122".to_string());
+    meta.metadata_blob = serde_json::json!({
+        "subprocess_kind": "distillation_peft_trainer",
+        "mt": "MT-122",
+        "teacher_source": config.teacher_source.cli_arg_value(),
+        "output_lora_dir": config.output_lora_dir.display().to_string(),
+        "env_isolation": "env_clear_allowlist",
+    });
+    meta
+}
 
 /// Operator-tunable hyperparameters. Defaults track common PEFT/LoRA
 /// recipes for ~7B instruct models; operators override per run.
@@ -119,7 +193,9 @@ impl DistillJobConfig {
     /// Returns the Python script path bundled at the repo root. Used by
     /// `PythonPeftTrainerExecutor` and the CLI binary.
     pub fn default_python_script_relative_path() -> PathBuf {
-        PathBuf::from("scripts").join("distill").join("train_lora.py")
+        PathBuf::from("scripts")
+            .join("distill")
+            .join("train_lora.py")
     }
 }
 
@@ -144,9 +220,16 @@ pub enum DistillError {
     #[error("distillation config invalid: {0}")]
     InvalidConfig(String),
     #[error("content review fully rejected the corpus: {pass_count} of {turn_count} turns passed")]
-    NoPassingTurns { turn_count: usize, pass_count: usize },
+    NoPassingTurns {
+        turn_count: usize,
+        pass_count: usize,
+    },
     #[error("corpus jsonl write failed: {0}")]
     CorpusWrite(String),
+    #[error("corpus jsonl read failed: {0}")]
+    CorpusRead(String),
+    #[error("flight recorder write failed: {0}")]
+    FlightRecorder(#[from] RecorderError),
     #[error("PEFT trainer subprocess failed: {0}")]
     TrainerExec(String),
     #[error(
@@ -164,6 +247,15 @@ pub struct CorpusReviewSummary {
     pub pass_count: usize,
     pub quarantine_count: usize,
     pub reject_count: usize,
+}
+
+/// Event-aware corpus review output for callers that need to persist
+/// content-review telemetry through Flight Recorder before training.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct CorpusReviewWithEvents {
+    pub verdicts: Vec<ReviewVerdict>,
+    pub outcomes: Vec<ContentReviewOutcome>,
+    pub summary: CorpusReviewSummary,
 }
 
 /// Abstraction over the actual subprocess launch + sandbox + process
@@ -204,10 +296,7 @@ pub struct PeftProvenanceSidecar {
 impl PeftProvenanceSidecar {
     pub fn read_from(path: &Path) -> Result<Self, DistillError> {
         let raw = std::fs::read_to_string(path).map_err(|err| {
-            DistillError::TrainerExec(format!(
-                "read provenance sidecar {}: {err}",
-                path.display()
-            ))
+            DistillError::TrainerExec(format!("read provenance sidecar {}: {err}", path.display()))
         })?;
         serde_json::from_str(&raw).map_err(|err| {
             DistillError::TrainerExec(format!(
@@ -225,18 +314,22 @@ impl PeftProvenanceSidecar {
 /// construction time so operators can pin the version (Python 3.11+
 /// is required for peft/transformers/torch compatibility).
 ///
-/// The executor is intentionally minimal: it does not register a
-/// ProcessOwnershipLedger row (that wiring lands behind the Tauri
-/// command surface in MT-069 follow-on); it does not enforce a
-/// cluster-B SandboxAdapter (that wiring lands when sandbox runtime
-/// is attached). The subprocess inherits the parent's environment;
-/// callers route through the higher-level kernel orchestrator when
-/// a sandboxed run is required.
+/// SECURITY (MT-122): the trainer subprocess is NOT an unguarded fork.
+/// Its environment is cleared and re-populated from a strict allowlist
+/// ([`sandboxed_trainer_env`]) so operator secrets in the parent
+/// environment never reach the Python process. When a
+/// [`LedgerBatcher`] is attached via [`Self::with_process_ledger`], the
+/// spawn is registered as a `ProcessOwnershipLedger` row (attributable +
+/// reclaimable) before the process is awaited. Without a ledger the run
+/// still env-isolates but is unattributable, so production call sites
+/// SHOULD attach the ledger.
 pub struct PythonPeftTrainerExecutor {
     python_path: PathBuf,
     script_path: PathBuf,
     extra_args: Vec<String>,
     cpu_only: bool,
+    process_ledger: Option<Arc<LedgerBatcher>>,
+    owner_role: String,
 }
 
 impl PythonPeftTrainerExecutor {
@@ -247,13 +340,32 @@ impl PythonPeftTrainerExecutor {
             script_path,
             extra_args: Vec::new(),
             cpu_only: false,
+            process_ledger: None,
+            owner_role: DEFAULT_DISTILL_OWNER_ROLE.to_string(),
         }
+    }
+
+    /// Attach a process ledger so each trainer subprocess is registered
+    /// as an attributable `ProcessOwnershipLedger` row on spawn (MT-122).
+    pub fn with_process_ledger(mut self, ledger: Arc<LedgerBatcher>) -> Self {
+        self.process_ledger = Some(ledger);
+        self
+    }
+
+    /// Override the owner role recorded on the ledger row (defaults to
+    /// `DISTILLATION_PIPELINE`).
+    pub fn with_owner_role(mut self, owner_role: impl Into<String>) -> Self {
+        self.owner_role = owner_role.into();
+        self
     }
 
     /// Convenience: locate the bundled `train_lora.py` at
     /// `<repo_root>/scripts/distill/train_lora.py`.
     pub fn from_repo_root(python_path: PathBuf, repo_root: &Path) -> Self {
-        let script_path = repo_root.join("scripts").join("distill").join("train_lora.py");
+        let script_path = repo_root
+            .join("scripts")
+            .join("distill")
+            .join("train_lora.py");
         Self::new(python_path, script_path)
     }
 
@@ -290,19 +402,32 @@ impl PeftTrainerExecutor for PythonPeftTrainerExecutor {
         let mut command = Command::new(&self.python_path);
         command
             .arg(&self.script_path)
-            .arg("--corpus").arg(&config.corpus_jsonl_path)
-            .arg("--teacher").arg(&config.teacher_model_path)
-            .arg("--student").arg(&config.student_base_model_path)
-            .arg("--teacher-source").arg(config.teacher_source.cli_arg_value())
-            .arg("--out").arg(&config.output_lora_dir)
-            .arg("--license-tag").arg(&config.license_tag)
-            .arg("--operator-signature").arg(&config.operator_signature)
-            .arg("--rank").arg(config.hyperparams.rank.to_string())
-            .arg("--alpha").arg(config.hyperparams.alpha.to_string())
-            .arg("--dropout").arg(config.hyperparams.dropout.to_string())
-            .arg("--epochs").arg(config.hyperparams.epochs.to_string())
-            .arg("--lr").arg(config.hyperparams.learning_rate.to_string())
-            .arg("--batch-size").arg(config.hyperparams.batch_size.to_string());
+            .arg("--corpus")
+            .arg(&config.corpus_jsonl_path)
+            .arg("--teacher")
+            .arg(&config.teacher_model_path)
+            .arg("--student")
+            .arg(&config.student_base_model_path)
+            .arg("--teacher-source")
+            .arg(config.teacher_source.cli_arg_value())
+            .arg("--out")
+            .arg(&config.output_lora_dir)
+            .arg("--license-tag")
+            .arg(&config.license_tag)
+            .arg("--operator-signature")
+            .arg(&config.operator_signature)
+            .arg("--rank")
+            .arg(config.hyperparams.rank.to_string())
+            .arg("--alpha")
+            .arg(config.hyperparams.alpha.to_string())
+            .arg("--dropout")
+            .arg(config.hyperparams.dropout.to_string())
+            .arg("--epochs")
+            .arg(config.hyperparams.epochs.to_string())
+            .arg("--lr")
+            .arg(config.hyperparams.learning_rate.to_string())
+            .arg("--batch-size")
+            .arg(config.hyperparams.batch_size.to_string());
         if let Some(max_steps) = config.max_steps {
             command.arg("--max-steps").arg(max_steps.to_string());
         }
@@ -314,12 +439,46 @@ impl PeftTrainerExecutor for PythonPeftTrainerExecutor {
         }
         command.stdout(Stdio::piped()).stderr(Stdio::piped());
 
-        let output = command.output().map_err(|err| {
-            DistillError::TrainerExec(format!(
-                "spawn python {}: {err}",
-                self.python_path.display()
-            ))
-        })?;
+        // SECURITY (MT-122): never inherit the parent environment — clear it
+        // and re-inject only the OS-essential allowlist + HANDSHAKE_DISTILL_*
+        // so operator secrets cannot leak into the Python trainer subprocess.
+        command.env_clear();
+        command.envs(sandboxed_trainer_env(std::env::vars()));
+
+        // When a process ledger is attached, register the subprocess as an
+        // attributable ProcessOwnershipLedger row before awaiting it, so the
+        // fork is never unguarded/unattributable (MT-122 red_team control).
+        // Without a ledger the run still env-isolates but is unattributed.
+        let output = if let Some(ledger) = &self.process_ledger {
+            let mut child = command.spawn().map_err(|err| {
+                DistillError::TrainerExec(format!(
+                    "spawn python {}: {err}",
+                    self.python_path.display()
+                ))
+            })?;
+            record_spawn(
+                ledger,
+                distillation_spawn_meta(child.id(), &self.owner_role, config),
+            )
+            .map_err(|err| {
+                DistillError::TrainerExec(format!(
+                    "process ledger registration failed for distillation trainer: {err}"
+                ))
+            })?;
+            child.wait_with_output().map_err(|err| {
+                DistillError::TrainerExec(format!(
+                    "await python {}: {err}",
+                    self.python_path.display()
+                ))
+            })?
+        } else {
+            command.output().map_err(|err| {
+                DistillError::TrainerExec(format!(
+                    "spawn python {}: {err}",
+                    self.python_path.display()
+                ))
+            })?
+        };
         if !output.status.success() {
             let stderr_text = String::from_utf8_lossy(&output.stderr).into_owned();
             let exit_code = output.status.code().unwrap_or(-1);
@@ -345,31 +504,105 @@ pub fn review_corpus(
     corpus: &TrainingCorpus,
     review_config: ContentReviewConfig,
 ) -> Result<(Vec<ReviewVerdict>, CorpusReviewSummary), DistillError> {
+    let reviewed = review_corpus_with_events(corpus, review_config)?;
+    Ok((reviewed.verdicts, reviewed.summary))
+}
+
+pub fn review_corpus_with_events(
+    corpus: &TrainingCorpus,
+    review_config: ContentReviewConfig,
+) -> Result<CorpusReviewWithEvents, DistillError> {
     let mut reviewer = ContentReview::new(review_config);
     let mut verdicts = Vec::with_capacity(corpus.turns.len());
+    let mut outcomes = Vec::with_capacity(corpus.turns.len());
     let mut pass_count = 0_usize;
     let mut quarantine_count = 0_usize;
     let mut reject_count = 0_usize;
     for turn in &corpus.turns {
-        let verdict = reviewer
-            .review(turn)
+        let outcome = reviewer
+            .review_with_events(turn)
             .map_err(|err| DistillError::InvalidConfig(format!("content review: {err}")))?;
+        let verdict = outcome.verdict.clone();
         match &verdict {
             ReviewVerdict::Pass { .. } => pass_count += 1,
             ReviewVerdict::Quarantine { .. } => quarantine_count += 1,
             ReviewVerdict::Reject { .. } => reject_count += 1,
         }
         verdicts.push(verdict);
+        outcomes.push(outcome);
     }
-    Ok((
+    Ok(CorpusReviewWithEvents {
         verdicts,
-        CorpusReviewSummary {
+        outcomes,
+        summary: CorpusReviewSummary {
             turn_count: corpus.turns.len(),
             pass_count,
             quarantine_count,
             reject_count,
         },
-    ))
+    })
+}
+
+#[derive(Deserialize)]
+struct TrainingCorpusJsonlRow {
+    id: Option<String>,
+    session_id: Option<String>,
+    model_id: Option<String>,
+    prompt: String,
+    completion: String,
+    finish_reason: Option<String>,
+    license_tag: Option<String>,
+    source_event_ids: Option<Vec<String>>,
+    sourced_at_utc: Option<String>,
+}
+
+/// Read a JSONL corpus from disk into the richer [`TrainingCorpus`]
+/// shape required by ContentReview. Rows written by this module already
+/// carry provenance fields; legacy trainer-minimal rows are accepted by
+/// filling stable fallback metadata before review.
+pub fn read_training_corpus_jsonl(
+    path: &Path,
+    fallback_session_id: &str,
+    fallback_license_tag: &str,
+) -> Result<TrainingCorpus, DistillError> {
+    let file = File::open(path)
+        .map_err(|err| DistillError::CorpusRead(format!("open {}: {err}", path.display())))?;
+    let mut turns = Vec::new();
+    for (idx, raw) in BufReader::new(file).lines().enumerate() {
+        let line_no = idx + 1;
+        let raw = raw.map_err(|err| {
+            DistillError::CorpusRead(format!("read {} line {line_no}: {err}", path.display()))
+        })?;
+        let trimmed = raw.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+        let row: TrainingCorpusJsonlRow = serde_json::from_str(trimmed).map_err(|err| {
+            DistillError::CorpusRead(format!(
+                "parse {} line {line_no} as training row: {err}",
+                path.display()
+            ))
+        })?;
+        turns.push(TrainingTurn {
+            id: row.id.unwrap_or_else(|| format!("jsonl-line-{line_no}")),
+            session_id: row
+                .session_id
+                .unwrap_or_else(|| fallback_session_id.to_string()),
+            model_id: row.model_id.unwrap_or_else(|| "unknown".to_string()),
+            prompt: row.prompt,
+            completion: row.completion,
+            finish_reason: row.finish_reason,
+            license_tag: row
+                .license_tag
+                .unwrap_or_else(|| fallback_license_tag.to_string()),
+            source_event_ids: row.source_event_ids.unwrap_or_default(),
+            sourced_at_utc: row.sourced_at_utc.unwrap_or_default(),
+        });
+    }
+    Ok(TrainingCorpus {
+        session_id: fallback_session_id.to_string(),
+        turns,
+    })
 }
 
 /// Write the passing turns to a JSONL file in the format the Python
@@ -390,8 +623,9 @@ pub fn write_filtered_corpus_jsonl(
     }
     if let Some(parent) = path.parent() {
         if !parent.as_os_str().is_empty() {
-            std::fs::create_dir_all(parent)
-                .map_err(|err| DistillError::CorpusWrite(format!("mkdir {}: {err}", parent.display())))?;
+            std::fs::create_dir_all(parent).map_err(|err| {
+                DistillError::CorpusWrite(format!("mkdir {}: {err}", parent.display()))
+            })?;
         }
     }
     let mut file = std::fs::File::create(path)
@@ -410,9 +644,8 @@ pub fn write_filtered_corpus_jsonl(
             "session_id": turn.session_id,
         })
         .to_string();
-        writeln!(file, "{line}").map_err(|err| {
-            DistillError::CorpusWrite(format!("write {}: {err}", path.display()))
-        })?;
+        writeln!(file, "{line}")
+            .map_err(|err| DistillError::CorpusWrite(format!("write {}: {err}", path.display())))?;
         written += 1;
     }
     Ok(written)
@@ -428,6 +661,60 @@ pub fn distill(
     executor: &dyn PeftTrainerExecutor,
     finished_at_utc: &str,
 ) -> Result<DistilledLoraArtifact, DistillError> {
+    validate_distill_config(&config)?;
+
+    let reviewed = review_corpus_with_events(corpus, review_config)?;
+    finish_distill(
+        corpus,
+        config,
+        reviewed.verdicts,
+        reviewed.summary,
+        executor,
+        finished_at_utc,
+    )
+}
+
+/// Async orchestrator variant for production callers that need
+/// content-review telemetry durably recorded before any trainer gate
+/// can abort the job.
+pub async fn distill_with_flight_recorder<R>(
+    corpus: &TrainingCorpus,
+    config: DistillJobConfig,
+    review_config: ContentReviewConfig,
+    executor: &dyn PeftTrainerExecutor,
+    finished_at_utc: &str,
+    recorder: &R,
+    trace_id: Uuid,
+    job_id: &str,
+) -> Result<DistilledLoraArtifact, DistillError>
+where
+    R: FlightRecorder + ?Sized,
+{
+    if job_id.trim().is_empty() {
+        return Err(DistillError::InvalidConfig(
+            "job_id must not be empty for flight recorder distillation".to_string(),
+        ));
+    }
+    validate_distill_config(&config)?;
+
+    let reviewed = review_corpus_with_events(corpus, review_config)?;
+    for outcome in &reviewed.outcomes {
+        outcome
+            .record_flight_recorder_events(recorder, trace_id, job_id)
+            .await?;
+    }
+
+    finish_distill(
+        corpus,
+        config,
+        reviewed.verdicts,
+        reviewed.summary,
+        executor,
+        finished_at_utc,
+    )
+}
+
+fn validate_distill_config(config: &DistillJobConfig) -> Result<(), DistillError> {
     if config.operator_signature.trim().is_empty() {
         return Err(DistillError::InvalidConfig(
             "operator_signature must not be empty".to_string(),
@@ -438,8 +725,17 @@ pub fn distill(
             "license_tag must not be empty".to_string(),
         ));
     }
+    Ok(())
+}
 
-    let (verdicts, summary) = review_corpus(corpus, review_config)?;
+fn finish_distill(
+    corpus: &TrainingCorpus,
+    config: DistillJobConfig,
+    verdicts: Vec<ReviewVerdict>,
+    summary: CorpusReviewSummary,
+    executor: &dyn PeftTrainerExecutor,
+    finished_at_utc: &str,
+) -> Result<DistilledLoraArtifact, DistillError> {
     if summary.pass_count == 0 {
         return Err(DistillError::NoPassingTurns {
             turn_count: summary.turn_count,
@@ -511,6 +807,67 @@ mod tests {
         }
     }
 
+    fn spawn_meta_config() -> DistillJobConfig {
+        DistillJobConfig {
+            teacher_model_path: PathBuf::from("/models/teacher"),
+            student_base_model_path: PathBuf::from("/models/student"),
+            output_lora_dir: PathBuf::from("/artifacts/lora-out"),
+            corpus_jsonl_path: PathBuf::from("/artifacts/corpus.jsonl"),
+            hyperparams: PeftHyperparams::default(),
+            license_tag: "MIT".to_string(),
+            operator_signature: "op-ilja".to_string(),
+            teacher_source: TeacherSource::CliBridge,
+            max_steps: None,
+        }
+    }
+
+    #[test]
+    fn sandboxed_trainer_env_drops_secrets_and_keeps_allowlist() {
+        // MT-122: the trainer fork must not inherit operator secrets.
+        let parent = vec![
+            ("PATH".to_string(), "/usr/bin".to_string()),
+            ("OPENAI_API_KEY".to_string(), "sk-secret".to_string()),
+            ("ANTHROPIC_API_KEY".to_string(), "sk-ant-secret".to_string()),
+            ("AWS_SECRET_ACCESS_KEY".to_string(), "shhh".to_string()),
+            ("HANDSHAKE_DISTILL_RANK".to_string(), "16".to_string()),
+            ("RANDOM_OPERATOR_VAR".to_string(), "leak-me".to_string()),
+        ];
+        let keys: Vec<String> = sandboxed_trainer_env(parent)
+            .into_iter()
+            .map(|(k, _)| k)
+            .collect();
+        assert!(keys.iter().any(|k| k == "PATH"));
+        assert!(keys.iter().any(|k| k == "HANDSHAKE_DISTILL_RANK"));
+        assert!(!keys.iter().any(|k| k == "OPENAI_API_KEY"));
+        assert!(!keys.iter().any(|k| k == "ANTHROPIC_API_KEY"));
+        assert!(!keys.iter().any(|k| k == "AWS_SECRET_ACCESS_KEY"));
+        assert!(!keys.iter().any(|k| k == "RANDOM_OPERATOR_VAR"));
+    }
+
+    #[test]
+    fn sandboxed_trainer_env_allowlist_is_case_insensitive() {
+        let parent = vec![
+            ("SystemRoot".to_string(), "C:\\Windows".to_string()),
+            ("Path".to_string(), "C:\\bin".to_string()),
+        ];
+        assert_eq!(sandboxed_trainer_env(parent).len(), 2);
+    }
+
+    #[test]
+    fn distillation_spawn_meta_is_attributable() {
+        let meta = distillation_spawn_meta(4242, "DISTILLATION_PIPELINE", &spawn_meta_config());
+        assert_eq!(meta.pid, 4242);
+        assert_eq!(meta.engine_kind, ProcessEngineKind::HelperSubprocess);
+        assert_eq!(meta.owner_role, "DISTILLATION_PIPELINE");
+        assert_eq!(meta.mt_id.as_deref(), Some("MT-122"));
+        assert_eq!(meta.sandbox_adapter.as_deref(), Some("env_clear_allowlist"));
+        assert_eq!(
+            meta.metadata_blob["subprocess_kind"].as_str(),
+            Some("distillation_peft_trainer")
+        );
+        assert_eq!(meta.metadata_blob["mt"].as_str(), Some("MT-122"));
+    }
+
     #[test]
     fn default_hyperparams_match_baseline_recipe() {
         let h = PeftHyperparams::default();
@@ -536,6 +893,27 @@ mod tests {
         assert_eq!(summary.pass_count, 1);
         assert!(summary.quarantine_count >= 1);
         assert!(summary.reject_count >= 1);
+    }
+
+    #[test]
+    fn review_corpus_with_events_exposes_pii_flight_recorder_events() {
+        let corpus = TrainingCorpus {
+            session_id: "s".to_string(),
+            turns: vec![turn("t1", "email alice@example.com", "ok", "MIT")],
+        };
+
+        let reviewed = review_corpus_with_events(&corpus, ContentReviewConfig::defaults()).unwrap();
+        assert_eq!(reviewed.verdicts.len(), 1);
+        assert_eq!(reviewed.outcomes.len(), 1);
+        assert_eq!(reviewed.summary.quarantine_count, 1);
+
+        let events = reviewed.outcomes[0].flight_recorder_events(uuid::Uuid::now_v7(), "job-pii");
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0].job_id.as_deref(), Some("job-pii"));
+        assert_eq!(events[0].event_type.to_string(), "distill.pii_detected");
+        assert_eq!(events[0].payload["pii_kinds"], serde_json::json!(["email"]));
+        let payload_text = serde_json::to_string(&events[0].payload).unwrap();
+        assert!(!payload_text.contains("alice@example.com"));
     }
 
     #[test]
@@ -687,5 +1065,4 @@ mod tests {
         .expect_err("trainer failure");
         assert!(matches!(err, DistillError::TrainerExec(_)));
     }
-
 }
