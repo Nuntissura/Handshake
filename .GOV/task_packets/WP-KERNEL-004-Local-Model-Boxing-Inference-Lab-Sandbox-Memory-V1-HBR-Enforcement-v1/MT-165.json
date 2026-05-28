@@ -7,7 +7,7 @@
   "cluster_subscope": "D.3",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:24:00Z",
-  "updated_at_utc": "2026-05-28T00:01:44.963Z",
+  "updated_at_utc": "2026-05-28T21:52:27.193Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -49,7 +49,7 @@
   ],
   "lifecycle": {
     "active": false,
-    "status": "READY_FOR_VALIDATION",
+    "status": "READY_FOR_VALIDATION_PHASE2",
     "validator_verdict": "FAIL",
     "integration_validator_verdict": "PENDING",
     "depends_on": [
@@ -89,7 +89,24 @@
     "ready_at_utc": "2026-05-25T15:54:56.028Z",
     "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
     "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
-    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z"
+    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z",
+    "updated_at_utc": "2026-05-28T21:52:27.193Z",
+    "phase2_remediation": {
+      "remediated_by": "KERNEL_BUILDER-20260528-211023",
+      "remediated_at_utc": "2026-05-28T21:52:27.193Z",
+      "lane": "Theme-11 D-cluster trace-export redaction",
+      "commit_sha": "e4278be8",
+      "remediated_findings": [
+        "FAIL finding #1: Tarball export now redacts referenced-artifact bytes before embedding (packet.json is in the default allowlist, so credential-bearing artifacts previously exported verbatim). UTF-8 artifacts are scanned+redacted; non-UTF-8 binaries fail closed (ExportError::Redaction) or become [BINARY ARTIFACT REDACTED] when redact_full_item_text is set.",
+        "finding #2: PII detection routed through canonical pii_patterns::scan (the same scanner AC-DISTILL-CONTENT-REVIEW uses) adding Luhn credit cards, real api-key token prefixes, Windows user paths, MAC, IPv4; keyword=value secret check retained so generic credential assignments are not regressed.",
+        "finding #3: noisy ad-hoc phone regex superseded by the shared scanner."
+      ],
+      "deferred_or_residual": "Full NER remains governed-deferred per pii_patterns module / MT-120 implementation_notes (regex-only V1, NER is the existing tracked follow-on). content_hash stays format-independent; artifact-level redaction records appear in the tarball embedded manifest only.",
+      "partial": false,
+      "ack_for": "019e6be3-1603-7777-b7d6-0f345349a2f7",
+      "proof": "cargo test --lib memory::trace_export::tests 9/9 PASS + trace_export_tests 20/20 PASS (no external resource)",
+      "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1 - no per-MT validator; awaiting Phase-2 IV re-judgment"
+    }
   },
   "handoff": {
     "coder_session": "KERNEL_BUILDER-20260523-031814-AGT-MT165-R2",

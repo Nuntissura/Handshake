@@ -7,7 +7,7 @@
   "cluster_subscope": "D.2",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:13:00Z",
-  "updated_at_utc": "2026-05-28T00:01:44.956Z",
+  "updated_at_utc": "2026-05-28T21:52:27.193Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -50,7 +50,7 @@
   ],
   "lifecycle": {
     "active": true,
-    "status": "READY_FOR_VALIDATION",
+    "status": "READY_FOR_VALIDATION_PHASE2",
     "validator_verdict": "PENDING",
     "integration_validator_verdict": "PENDING",
     "depends_on": [
@@ -142,7 +142,22 @@
     "ready_at_utc": "2026-05-25T15:54:56.028Z",
     "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
     "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
-    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z"
+    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z",
+    "updated_at_utc": "2026-05-28T21:52:27.193Z",
+    "phase2_remediation": {
+      "remediated_by": "KERNEL_BUILDER-20260528-211023",
+      "remediated_at_utc": "2026-05-28T21:52:27.193Z",
+      "lane": "Theme-9 D-cluster promotion-gate integrity (ticket-iteration binding)",
+      "commit_sha": "56103c3b",
+      "remediated_findings": [
+        "LoopPromotionGate::submit now asserts gate-returned ticket.iteration_id == request.iteration_id and returns GateError::Io on mismatch, so one iteration cannot inherit another iteration approval evidence (finding #1). Inline MockGate fixture now honors request.iteration_id instead of minting a fresh Uuid (finding #2). New regression test submit_rejects_gate_returned_mismatched_iteration_id."
+      ],
+      "deferred_or_residual": "Production PromotionGate (KERNEL-001) impl is the durable enforcement point; this adapter-level guard is defense-in-depth.",
+      "partial": false,
+      "ack_for": "019e6be3-15fb-72a6-8d00-6e06cbef294f",
+      "proof": "cargo test --lib self_improve::promotion_gate_adapter::tests 5/5 PASS + loop_promotion_gate_tests integration suite green (no external resource)",
+      "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1 - no per-MT validator; awaiting Phase-2 IV re-judgment"
+    }
   },
   "handoff": {
     "coder_session": null,

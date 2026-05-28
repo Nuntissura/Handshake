@@ -7,7 +7,7 @@
   "cluster_subscope": "D.2",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:14:00Z",
-  "updated_at_utc": "2026-05-28T00:01:44.956Z",
+  "updated_at_utc": "2026-05-28T21:52:27.193Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -52,7 +52,7 @@
   ],
   "lifecycle": {
     "active": true,
-    "status": "READY_FOR_VALIDATION",
+    "status": "READY_FOR_VALIDATION_PHASE2",
     "validator_verdict": "FAIL",
     "integration_validator_verdict": "PENDING",
     "depends_on": [
@@ -163,7 +163,24 @@
     "ready_at_utc": "2026-05-25T15:54:56.028Z",
     "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
     "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
-    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z"
+    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z",
+    "updated_at_utc": "2026-05-28T21:52:27.193Z",
+    "phase2_remediation": {
+      "remediated_by": "KERNEL_BUILDER-20260528-211023",
+      "remediated_at_utc": "2026-05-28T21:52:27.193Z",
+      "lane": "Theme-9 D-cluster promotion-gate integrity (operator-review-required IPC)",
+      "commit_sha": "56103c3b",
+      "remediated_findings": [
+        "FAIL finding #1: approve_promotion no longer synthesizes a local approval on the gate-Pending branch (which minted an approval indistinguishable from a real gate decision and cleared review state, defeating operator-review-required). It now fails closed with Err(Gate(ReviewPending)) and leaves pending_reviews/pending_tickets intact.",
+        "finding #2: submit_for_review rejects request/ticket iteration_id mismatch via new LoopIpcError::TicketIterationMismatch and keys both maps on the canonical request iteration_id, removing the HashMap desync.",
+        "finding #3: operator approve-time identity + rationale are recorded via tracing::info! instead of dropped via let _ = rationale."
+      ],
+      "deferred_or_residual": "app/src-tauri/src/main.rs unchanged: approve_promotion public signature is stable, so command wiring needed no edit (and Tauri build is out of headless scope).",
+      "partial": false,
+      "ack_for": "019e6be3-15fc-72c6-ad6f-67e004253700",
+      "proof": "cargo test self_improve_ipc_tests 32/32 PASS incl. new approve_promotion_while_gate_pending_fails_closed_and_keeps_review + submit_for_review_rejects_iteration_id_mismatch (no external resource)",
+      "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1 - no per-MT validator; awaiting Phase-2 IV re-judgment"
+    }
   },
   "handoff": {
     "coder_session": null,
