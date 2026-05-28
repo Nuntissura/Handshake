@@ -124,6 +124,11 @@ hex = "0.4"
 # forge).
 hmac = "0.12"
 subtle = "2"
+# Half-precision float types for CRIT-1 / MT-088 SSM state-vector
+# (de)serialization. Already a transitive dep via candle-core; declared
+# directly so candle/ssm_state.rs can name half::f16 / half::bf16 when
+# packing F16/BF16 SSM tensors to SSMTensorSnapshot bytes.
+half = "2"
 # Real AEAD cipher for MT-150 HBR test-packet corpus holdout encryption.
 # RustCrypto/AEADs ChaCha20-Poly1305 implementation; standardised in RFC 8439.
 # Replaces the prior hand-rolled SHA-256-CTR + HMAC-SHA256 construction that

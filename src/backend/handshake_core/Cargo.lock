@@ -2135,6 +2135,7 @@ dependencies = [
  "futures",
  "futures-util",
  "globset",
+ "half",
  "hex",
  "hmac",
  "idna",

@@ -8,6 +8,8 @@ use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 use sha2::{Digest, Sha256};
 use uuid::Uuid;
 
+#[cfg(feature = "candle-runtime-engine")]
+use super::ssm_state::SsmStateSource;
 use crate::model_runtime::{
     KvCacheHandle, KvCacheOps, KvCacheStats, KvPrefixHandle, KvQuantSupport, ModelId,
     ModelRuntimeError,
@@ -362,6 +364,32 @@ impl StateVectorHandle {
         })
     }
 
+    /// CRIT-1 / MT-088 — build a handle backed by a live SSM model so
+    /// `prefix_commit` pulls from `state_source.extract()` and
+    /// `prefix_restore` writes back via `state_source.restore()`. Use
+    /// this from adapter construction sites; tests stay on
+    /// [`StateVectorHandle::new_in_memory`].
+    #[cfg(feature = "candle-runtime-engine")]
+    pub fn new_in_memory_with_source(
+        value: impl Into<String>,
+        model_id: ModelId,
+        artifact_sha256: impl Into<String>,
+        variant: SSMStateVariant,
+        state_source: Arc<dyn SsmStateSource>,
+    ) -> Result<Self, ModelRuntimeError> {
+        let value = value.into();
+        let ops = InMemoryStateVectorOps::new_with_source(
+            model_id,
+            artifact_sha256,
+            variant,
+            state_source,
+        )?;
+        Ok(Self {
+            id: value,
+            ops: Arc::new(ops),
+        })
+    }
+
     pub fn as_str(&self) -> &str {
         &self.id
     }
@@ -453,10 +481,21 @@ impl KvCacheOps for StateVectorHandle {
 struct InMemoryStateVectorOps {
     model_id: ModelId,
     artifact_sha256: String,
+    // Pre-CRIT-1 placeholder; still the canonical store when no live model
+    // is attached (tests, persistence-only flows). When `state_source` is
+    // populated this is updated as a cache after every commit/restore so
+    // variant() / occupancy() / cached-read paths keep working without
+    // re-locking the model.
     current_snapshot: Mutex<SSMStateSnapshot>,
     entries: Mutex<HashMap<Uuid, StateVectorSnapshotRecord>>,
     hits: Mutex<u64>,
     misses: Mutex<u64>,
+    // CRIT-1 / MT-088: when set, prefix_commit pulls live state from the
+    // attached SSM model and prefix_restore writes back into it. The field
+    // is feature-gated because the SsmStateSource trait lives behind the
+    // candle-runtime-engine feature.
+    #[cfg(feature = "candle-runtime-engine")]
+    state_source: Option<Arc<dyn SsmStateSource>>,
 }
 
 impl InMemoryStateVectorOps {
@@ -472,7 +511,78 @@ impl InMemoryStateVectorOps {
             entries: Mutex::new(HashMap::new()),
             hits: Mutex::new(0),
             misses: Mutex::new(0),
+            #[cfg(feature = "candle-runtime-engine")]
+            state_source: None,
         })
+    }
+
+    /// Build with a live SSM state source (adapter path). The initial
+    /// snapshot is pulled from the source so `variant()` answers correctly
+    /// before any prefix_commit. Returns an error if the declared variant
+    /// does not match the source's first extraction.
+    #[cfg(feature = "candle-runtime-engine")]
+    fn new_with_source(
+        model_id: ModelId,
+        artifact_sha256: impl Into<String>,
+        variant: SSMStateVariant,
+        state_source: Arc<dyn SsmStateSource>,
+    ) -> Result<Self, ModelRuntimeError> {
+        let initial = state_source.extract()?;
+        if initial.variant() != variant {
+            return Err(ModelRuntimeError::KvCacheError(format!(
+                "state-vector source variant mismatch: declared {}, extracted {}",
+                variant,
+                initial.variant()
+            )));
+        }
+        Ok(Self {
+            model_id,
+            artifact_sha256: normalize_artifact_sha256(artifact_sha256)?,
+            current_snapshot: Mutex::new(initial),
+            entries: Mutex::new(HashMap::new()),
+            hits: Mutex::new(0),
+            misses: Mutex::new(0),
+            state_source: Some(state_source),
+        })
+    }
+
+    fn read_live_snapshot(&self) -> Result<SSMStateSnapshot, ModelRuntimeError> {
+        #[cfg(feature = "candle-runtime-engine")]
+        {
+            if let Some(source) = self.state_source.as_ref() {
+                let live = source.extract()?;
+                // Refresh the cached copy so variant() / occupancy() never
+                // disagree with the model.
+                if let Ok(mut cached) = self.current_snapshot.lock() {
+                    *cached = live.clone();
+                }
+                return Ok(live);
+            }
+        }
+        self.current_snapshot
+            .lock()
+            .map(|snapshot| snapshot.clone())
+            .map_err(|_| {
+                ModelRuntimeError::KvCacheError(
+                    "state-vector snapshot lock is poisoned".to_string(),
+                )
+            })
+    }
+
+    fn write_live_snapshot(
+        &self,
+        snapshot: &SSMStateSnapshot,
+    ) -> Result<(), ModelRuntimeError> {
+        #[cfg(feature = "candle-runtime-engine")]
+        {
+            if let Some(source) = self.state_source.as_ref() {
+                source.restore(snapshot)?;
+            }
+        }
+        *self.current_snapshot.lock().map_err(|_| {
+            ModelRuntimeError::KvCacheError("state-vector snapshot lock is poisoned".to_string())
+        })? = snapshot.clone();
+        Ok(())
     }
 
     fn prefix_scope(&self) -> Vec<u8> {
@@ -611,15 +721,9 @@ impl StateVectorOps for InMemoryStateVectorOps {
 
     fn prefix_commit(&self, prefix_tokens: &[u32]) -> Result<KvPrefixHandle, ModelRuntimeError> {
         let handle = KvPrefixHandle::from_scoped_tokens(&self.prefix_scope(), prefix_tokens)?;
-        let snapshot = self
-            .current_snapshot
-            .lock()
-            .map_err(|_| {
-                ModelRuntimeError::KvCacheError(
-                    "state-vector snapshot lock is poisoned".to_string(),
-                )
-            })?
-            .clone();
+        // CRIT-1: pull from live model when a source is attached; falls
+        // back to the cached snapshot otherwise.
+        let snapshot = self.read_live_snapshot()?;
         let record = StateVectorSnapshotRecord::new(
             StateVectorId::new_v7(),
             self.model_id,
@@ -646,9 +750,9 @@ impl StateVectorOps for InMemoryStateVectorOps {
             }
         };
         self.validate_record_for_restore(handle, &record)?;
-        *self.current_snapshot.lock().map_err(|_| {
-            ModelRuntimeError::KvCacheError("state-vector snapshot lock is poisoned".to_string())
-        })? = record.snapshot;
+        // CRIT-1: write back into the live model when a source is attached;
+        // otherwise updates the cached snapshot only.
+        self.write_live_snapshot(&record.snapshot)?;
         self.record_hit()
     }
 
@@ -691,9 +795,7 @@ impl StateVectorOps for InMemoryStateVectorOps {
                 ModelRuntimeError::KvCacheError("state-vector entry lock is poisoned".to_string())
             })?
             .insert(handle.prefix_id(), record.clone());
-        *self.current_snapshot.lock().map_err(|_| {
-            ModelRuntimeError::KvCacheError("state-vector snapshot lock is poisoned".to_string())
-        })? = record.snapshot;
+        self.write_live_snapshot(&record.snapshot)?;
         Ok(())
     }
 }
@@ -825,4 +927,459 @@ fn normalize_artifact_sha256(value: impl Into<String>) -> Result<String, ModelRu
         ));
     }
     Ok(value)
+}
+
+// ----------------------------------------------------------------------------
+// MT-117 — Cross-session state restore (SSM state persistence to disk +
+// rehydration).
+//
+// Per refinement INF-9 feature_parity_detail ("cross-session state
+// restore (state-vector persistence + restore)") + operator E-2.
+//
+// Surfaces in this section:
+//
+// 1. In-process bytes-in / bytes-out:
+//    - persist_to_bytes (snapshot -> envelope JSON bytes)
+//    - load_from_bytes (envelope JSON bytes -> validated envelope)
+//
+// 2. Cross-handle re-mint bridge (resolves MT-114.cross_handle_finding):
+//    - load_into_handle takes a freshly-loaded handle + envelope bytes,
+//      verifies model_artifact_sha256 + variant against the loaded handle,
+//      re-mints a KvPrefixHandle under the loaded handle's prefix_scope,
+//      and seats the snapshot record so the next prefix_restore call
+//      succeeds.
+//
+// 3. ArtifactStore + KernelActionCatalogV1 integration (the disk path):
+//    - persist_to_artifact_store writes the envelope to the kernel
+//      ArtifactStore via write_file_artifact, dispatched through the
+//      catalog action `kernel.subquadratic.persist_state` whose write_box
+//      is the StateVectorPersistBox.
+//    - load_from_artifact_store reads the persisted envelope back from
+//      disk, verifies the manifest content_hash, and revalidates the
+//      envelope integrity before returning it.
+//    - load_from_artifact_store_into_handle wires the above two through
+//      the re-mint bridge so an operator can resume a long-running SSM
+//      session by artifact_id alone after a Handshake process restart.
+//
+// All disk writes go through write_file_artifact, which itself runs
+// atomic temp+fsync+rename per artifact_store_root([CX-503R] PostgreSQL/
+// EventLedger-backed authority does not apply here — state vectors are
+// model artifacts under .handshake/artifacts/L3/, not authority rows).
+// ----------------------------------------------------------------------------
+
+use std::path::Path;
+
+use chrono::{DateTime, Utc};
+
+use crate::model_runtime::{lora::LicenseTag, registry::OperatorId};
+use crate::storage::artifacts::{
+    artifact_root_dir, artifact_root_rel, write_file_artifact, ArtifactClassification,
+    ArtifactError, ArtifactLayer, ArtifactManifest, ArtifactPayloadKind,
+};
+use crate::storage::EntityRef;
+
+/// Envelope-format-version marker — bumped only when the wire format
+/// changes incompatibly. Future MTs introducing tensor-quantization or
+/// streaming compression must bump this and add a migration shim.
+pub const STATE_VECTOR_PERSIST_ENVELOPE_VERSION: &str = "hsk.subquad.state_vector.persist.v1";
+
+/// Stable kernel catalog action_id for the persist-state mutation.
+/// Mirrored in action_catalog::subquadratic_persist_state_action so the
+/// dispatcher and the model_runtime engine name the same action.
+pub const STATE_VECTOR_PERSIST_ACTION_ID: &str = "kernel.subquadratic.persist_state";
+
+/// Stable kernel write_box schema_id for the persist-state mutation.
+pub const STATE_VECTOR_PERSIST_WRITE_BOX_SCHEMA_ID: &str = "hsk.write_box.state_vector_persist@1";
+
+/// Sidecar metadata persisted alongside the snapshot record. Fields per
+/// MT-117 contract narrative; the record already carries the integrity
+/// hashes so this struct keeps the operator-facing audit fields
+/// (who/when/license) without duplicating the cryptographic state.
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct StateVectorPersistMetadata {
+    pub persisted_at_utc: DateTime<Utc>,
+    pub persisted_by: OperatorId,
+    pub license_tag: LicenseTag,
+    pub n_tokens_advanced: u32,
+    pub variant_label: String,
+}
+
+/// Wire-format envelope. Disk I/O writes this; load_from_bytes reads it.
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct StateVectorPersistEnvelope {
+    pub envelope_version: String,
+    pub record: StateVectorSnapshotRecord,
+    pub metadata: StateVectorPersistMetadata,
+}
+
+impl StateVectorPersistEnvelope {
+    pub fn new(
+        record: StateVectorSnapshotRecord,
+        persisted_by: OperatorId,
+        license_tag: LicenseTag,
+        persisted_at_utc: DateTime<Utc>,
+    ) -> Self {
+        let metadata = StateVectorPersistMetadata {
+            persisted_at_utc,
+            persisted_by,
+            license_tag,
+            n_tokens_advanced: record.prefix_token_count,
+            variant_label: record.snapshot.variant().as_str().to_string(),
+        };
+        Self {
+            envelope_version: STATE_VECTOR_PERSIST_ENVELOPE_VERSION.to_string(),
+            record,
+            metadata,
+        }
+    }
+}
+
+/// Record returned by the disk-integration path. Mirrors the envelope's
+/// integrity fields plus the operator-facing artifact_id and on-disk
+/// reference paths so the operator can find the snapshot later through
+/// the ArtifactStore listing without re-loading the payload.
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct StateVectorPersistRecord {
+    pub artifact_id: Uuid,
+    pub artifact_layer: ArtifactLayer,
+    pub artifact_root_rel: String,
+    pub envelope_version: String,
+    pub state_vector_id: StateVectorId,
+    pub model_id: ModelId,
+    pub artifact_sha256: String,
+    pub variant: SSMStateVariant,
+    pub byte_len: u64,
+    pub content_hash: String,
+    pub persisted_at_utc: DateTime<Utc>,
+    pub persisted_by: OperatorId,
+    pub license_tag: LicenseTag,
+}
+
+/// Serialize a handle's snapshot to a portable byte envelope. Operator-
+/// facing audit metadata (who/when/license) lives in the envelope's
+/// metadata field; the record itself carries the cryptographic
+/// integrity (snapshot_hash + content_hash + artifact_sha256 + variant).
+pub fn persist_to_bytes(
+    handle: &StateVectorHandle,
+    prefix_handle: &KvPrefixHandle,
+    persisted_by: OperatorId,
+    license_tag: LicenseTag,
+) -> Result<Vec<u8>, ModelRuntimeError> {
+    let record = handle.export_snapshot(prefix_handle)?;
+    let envelope = StateVectorPersistEnvelope::new(record, persisted_by, license_tag, Utc::now());
+    serde_json::to_vec(&envelope).map_err(|error| {
+        ModelRuntimeError::KvCacheError(format!(
+            "state-vector envelope serialization failed: {error}"
+        ))
+    })
+}
+
+/// Deserialize a byte envelope back into the wire-format struct, with
+/// integrity validation. The envelope version is checked first; future
+/// migration paths land here.
+pub fn load_from_bytes(bytes: &[u8]) -> Result<StateVectorPersistEnvelope, ModelRuntimeError> {
+    let envelope: StateVectorPersistEnvelope = serde_json::from_slice(bytes).map_err(|error| {
+        ModelRuntimeError::KvCacheError(format!(
+            "state-vector envelope deserialization failed: {error}"
+        ))
+    })?;
+    if envelope.envelope_version != STATE_VECTOR_PERSIST_ENVELOPE_VERSION {
+        return Err(ModelRuntimeError::KvCacheError(format!(
+            "state-vector envelope version mismatch: expected {}, got {}",
+            STATE_VECTOR_PERSIST_ENVELOPE_VERSION, envelope.envelope_version
+        )));
+    }
+    envelope.record.validate_integrity()?;
+    Ok(envelope)
+}
+
+/// Cross-handle re-mint bridge (resolves MT-114.cross_handle_finding).
+///
+/// Accepts the freshly-loaded handle on the target model and the
+/// envelope bytes; verifies model_artifact_sha256 + variant against the
+/// loaded handle, re-mints a KvPrefixHandle under the loaded handle's
+/// scope (so the new content_hash matches the loaded model's
+/// prefix_scope), and inserts the snapshot record so subsequent
+/// prefix_restore calls succeed under the new scope.
+///
+/// Returns the freshly re-minted KvPrefixHandle the operator should use
+/// for the subsequent prefix_restore call.
+///
+/// Failure modes (per MT-117 contract):
+/// - envelope version mismatch -> KvCacheError
+/// - sha256 mismatch -> KvCacheError with "snapshot was taken against a
+///   different model artifact; either load that artifact or recapture"
+/// - variant mismatch -> KvCacheError
+/// - record integrity hash mismatch -> KvCacheError
+pub fn load_into_handle(
+    target_handle: &StateVectorHandle,
+    envelope_bytes: &[u8],
+    prefix_tokens: &[u32],
+) -> Result<KvPrefixHandle, ModelRuntimeError> {
+    let envelope = load_from_bytes(envelope_bytes)?;
+
+    let target_artifact_sha = target_handle.artifact_sha256();
+    if envelope.record.artifact_sha256 != target_artifact_sha {
+        return Err(ModelRuntimeError::KvCacheError(format!(
+            "state-vector cross-session restore: snapshot was taken against a different model \
+             artifact (envelope sha256={}, loaded model sha256={}); either load that artifact \
+             or recapture",
+            envelope.record.artifact_sha256, target_artifact_sha
+        )));
+    }
+
+    let target_variant = target_handle.variant();
+    let envelope_variant = envelope.record.snapshot.variant();
+    if envelope_variant != target_variant {
+        return Err(ModelRuntimeError::KvCacheError(format!(
+            "state-vector cross-session restore: variant mismatch (envelope={}, loaded={})",
+            envelope_variant, target_variant
+        )));
+    }
+
+    if envelope.record.prefix_token_count != prefix_tokens.len() as u32 {
+        return Err(ModelRuntimeError::KvCacheError(format!(
+            "state-vector cross-session restore: prefix_tokens length mismatch (envelope token \
+             count={}, supplied tokens={})",
+            envelope.record.prefix_token_count,
+            prefix_tokens.len()
+        )));
+    }
+
+    // Re-mint under the loaded handle's scope and seed it with the
+    // envelope snapshot. KvCacheOps::prefix_commit mints a fresh handle
+    // under the local prefix_scope; the subsequent restore_snapshot_record
+    // call (with a new record whose content_hash matches the re-minted
+    // handle) seats the snapshot in the target cache so the operator's
+    // next prefix_restore call picks up the migrated state.
+    let reminted_handle =
+        <StateVectorHandle as KvCacheOps>::prefix_commit(target_handle, prefix_tokens).map_err(
+            |error| {
+                ModelRuntimeError::KvCacheError(format!(
+                    "state-vector cross-session restore: re-mint prefix_commit failed: {error}"
+                ))
+            },
+        )?;
+
+    let migrated_record = StateVectorSnapshotRecord::from_parts(
+        StateVectorId::new_v7().as_uuid(),
+        target_handle.model_id(),
+        target_artifact_sha,
+        reminted_handle.token_count(),
+        *reminted_handle.content_hash(),
+        envelope.record.snapshot.clone(),
+    )?;
+    migrated_record.validate_integrity().map_err(|error| {
+        ModelRuntimeError::KvCacheError(format!(
+            "state-vector cross-session restore: migrated record integrity check failed: {error}"
+        ))
+    })?;
+
+    target_handle.restore_snapshot_record(&reminted_handle, migrated_record)?;
+
+    Ok(reminted_handle)
+}
+
+fn map_artifact_error(error: ArtifactError) -> ModelRuntimeError {
+    ModelRuntimeError::KvCacheError(format!("state-vector artifact store: {error}"))
+}
+
+fn envelope_content_hash(bytes: &[u8]) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(bytes);
+    hex::encode(hasher.finalize())
+}
+
+/// Persist a committed state-vector snapshot to the kernel ArtifactStore
+/// via the `kernel.subquadratic.persist_state` catalog action.
+///
+/// Returns a `StateVectorPersistRecord` carrying the minted `artifact_id`
+/// plus the on-disk reference paths the operator can use to locate the
+/// persisted bundle later. The envelope on disk is byte-identical to the
+/// envelope returned by `persist_to_bytes` (so load_from_bytes /
+/// load_into_handle continue to be re-usable against the same bytes).
+///
+/// Failure modes (per MT-117 contract):
+/// - export_snapshot fails (unknown handle / tampered content_hash)
+///   -> KvCacheError surfaced as-is from the StateVectorOps surface.
+/// - envelope serialization fails -> KvCacheError.
+/// - ArtifactStore write fails (root-escape / disk full / hash mismatch)
+///   -> KvCacheError via `map_artifact_error`.
+pub fn persist_to_artifact_store(
+    handle: &StateVectorHandle,
+    prefix_handle: &KvPrefixHandle,
+    persisted_by: OperatorId,
+    license_tag: LicenseTag,
+    workspace_root: &Path,
+) -> Result<StateVectorPersistRecord, ModelRuntimeError> {
+    let envelope_bytes = persist_to_bytes(
+        handle,
+        prefix_handle,
+        persisted_by.clone(),
+        license_tag.clone(),
+    )?;
+
+    // Re-parse the just-serialized envelope so the persist record
+    // mirrors the wire-format metadata exactly (notably the
+    // persisted_at_utc minted by persist_to_bytes).
+    let envelope: StateVectorPersistEnvelope =
+        serde_json::from_slice(&envelope_bytes).map_err(|error| {
+            ModelRuntimeError::KvCacheError(format!(
+                "state-vector envelope re-parse for ArtifactStore record failed: {error}"
+            ))
+        })?;
+
+    let content_hash = envelope_content_hash(&envelope_bytes);
+    let artifact_id = Uuid::now_v7();
+    let layer = ArtifactLayer::L3;
+    let variant = envelope.record.snapshot.variant();
+    let filename_hint = format!(
+        "state_vector_{}_{}.envelope.json",
+        variant.as_str(),
+        envelope.record.state_vector_id.as_uuid()
+    );
+    let manifest = ArtifactManifest {
+        artifact_id,
+        layer,
+        kind: ArtifactPayloadKind::Bundle,
+        mime: "application/json".to_string(),
+        filename_hint: Some(filename_hint),
+        created_at: envelope.metadata.persisted_at_utc,
+        created_by_job_id: None,
+        source_entity_refs: vec![
+            EntityRef {
+                entity_kind: "model_id".to_string(),
+                entity_id: envelope.record.model_id.as_uuid().to_string(),
+            },
+            EntityRef {
+                entity_kind: "state_vector_id".to_string(),
+                entity_id: envelope.record.state_vector_id.as_uuid().to_string(),
+            },
+            EntityRef {
+                entity_kind: "subquadratic_variant".to_string(),
+                entity_id: variant.as_str().to_string(),
+            },
+        ],
+        source_artifact_refs: Vec::new(),
+        content_hash: content_hash.clone(),
+        size_bytes: envelope_bytes.len() as u64,
+        // State vectors carry model behavior under operator authorship —
+        // they are not Low-classification public outputs.
+        classification: ArtifactClassification::Medium,
+        exportable: true,
+        retention_ttl_days: None,
+        pinned: Some(false),
+        hash_basis: Some("sha256(state_vector_persist_envelope.json_bytes)".to_string()),
+        hash_exclude_paths: Vec::new(),
+    };
+
+    write_file_artifact(workspace_root, &manifest, &envelope_bytes).map_err(map_artifact_error)?;
+
+    Ok(StateVectorPersistRecord {
+        artifact_id,
+        artifact_layer: layer,
+        artifact_root_rel: artifact_root_rel(layer, artifact_id),
+        envelope_version: envelope.envelope_version,
+        state_vector_id: envelope.record.state_vector_id,
+        model_id: envelope.record.model_id,
+        artifact_sha256: envelope.record.artifact_sha256,
+        variant,
+        byte_len: envelope_bytes.len() as u64,
+        content_hash,
+        persisted_at_utc: envelope.metadata.persisted_at_utc,
+        persisted_by: envelope.metadata.persisted_by,
+        license_tag: envelope.metadata.license_tag,
+    })
+}
+
+/// Read a persisted state-vector envelope back from the kernel
+/// ArtifactStore. Validates manifest content_hash against the actual
+/// payload bytes before deserializing, then revalidates the envelope's
+/// own integrity via load_from_bytes. A drifted manifest (operator-side
+/// edit, partial write, swap-then-restore) is rejected before any
+/// envelope-side logic runs.
+///
+/// Failure modes (per MT-117 contract):
+/// - missing artifact_id (no such directory) -> KvCacheError.
+/// - manifest read/deserialize failure -> KvCacheError.
+/// - payload read failure -> KvCacheError.
+/// - manifest.content_hash != sha256(payload) -> KvCacheError naming the
+///   expected vs actual hash so the operator can re-export.
+/// - envelope version / record integrity failure -> KvCacheError from
+///   load_from_bytes.
+pub fn load_from_artifact_store(
+    artifact_id: Uuid,
+    workspace_root: &Path,
+) -> Result<StateVectorPersistEnvelope, ModelRuntimeError> {
+    let artifact_root = artifact_root_dir(workspace_root, ArtifactLayer::L3, artifact_id);
+    if !artifact_root.exists() {
+        return Err(ModelRuntimeError::KvCacheError(format!(
+            "state-vector artifact_id {artifact_id} not found in ArtifactStore (expected {})",
+            artifact_root.display()
+        )));
+    }
+
+    let manifest_path = artifact_root.join("artifact.json");
+    let payload_path = artifact_root.join("payload");
+
+    let manifest_bytes = std::fs::read(&manifest_path).map_err(|error| {
+        ModelRuntimeError::KvCacheError(format!(
+            "state-vector artifact_id {artifact_id} manifest read failed at {}: {error}",
+            manifest_path.display()
+        ))
+    })?;
+    let manifest: ArtifactManifest = serde_json::from_slice(&manifest_bytes).map_err(|error| {
+        ModelRuntimeError::KvCacheError(format!(
+            "state-vector artifact_id {artifact_id} manifest deserialize failed: {error}"
+        ))
+    })?;
+
+    let payload_bytes = std::fs::read(&payload_path).map_err(|error| {
+        ModelRuntimeError::KvCacheError(format!(
+            "state-vector artifact_id {artifact_id} payload read failed at {}: {error}",
+            payload_path.display()
+        ))
+    })?;
+
+    let actual_hash = envelope_content_hash(&payload_bytes);
+    if actual_hash != manifest.content_hash {
+        return Err(ModelRuntimeError::KvCacheError(format!(
+            "state-vector artifact_id {artifact_id} payload tampered after persist: \
+             expected sha256={}, got sha256={}",
+            manifest.content_hash, actual_hash
+        )));
+    }
+    if manifest.size_bytes != payload_bytes.len() as u64 {
+        return Err(ModelRuntimeError::KvCacheError(format!(
+            "state-vector artifact_id {artifact_id} payload size mismatch: \
+             manifest size_bytes={}, on-disk size_bytes={}",
+            manifest.size_bytes,
+            payload_bytes.len()
+        )));
+    }
+
+    load_from_bytes(&payload_bytes)
+}
+
+/// Operator-facing one-shot: read a persisted envelope from the
+/// ArtifactStore by `artifact_id`, then route it through the cross-handle
+/// re-mint bridge so the loaded handle's prefix_scope is honored. Returns
+/// the re-minted `KvPrefixHandle` the operator should pass to a
+/// subsequent `prefix_restore` call.
+///
+/// This is the public "load_from_disk(artifact_id)" entry point named in
+/// the MT-117 contract narrative.
+pub fn load_from_artifact_store_into_handle(
+    target_handle: &StateVectorHandle,
+    artifact_id: Uuid,
+    prefix_tokens: &[u32],
+    workspace_root: &Path,
+) -> Result<KvPrefixHandle, ModelRuntimeError> {
+    let envelope = load_from_artifact_store(artifact_id, workspace_root)?;
+    let envelope_bytes = serde_json::to_vec(&envelope).map_err(|error| {
+        ModelRuntimeError::KvCacheError(format!(
+            "state-vector envelope re-serialize for cross-handle restore failed: {error}"
+        ))
+    })?;
+    load_into_handle(target_handle, &envelope_bytes, prefix_tokens)
 }
