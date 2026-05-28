@@ -19,11 +19,13 @@
 //! can apply the override locally.
 
 use std::collections::HashMap;
+use std::future::Future;
 use std::sync::RwLock;
 
 use thiserror::Error;
 
 use super::peft_pipeline::DistilledLoraArtifact;
+use crate::model_runtime::ModelRuntimeError;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ReviewStatus {
@@ -209,7 +211,10 @@ impl CandidateRegistry {
         })
     }
 
-    pub fn get(&self, lora_id: &str) -> Result<Option<RegisteredCandidate>, CandidateRegistryError> {
+    pub fn get(
+        &self,
+        lora_id: &str,
+    ) -> Result<Option<RegisteredCandidate>, CandidateRegistryError> {
         let inner = self
             .inner
             .read()
@@ -248,10 +253,7 @@ impl CandidateRegistry {
     /// Returns the mount decision for `lora_id`. The upstream
     /// `LoraStackOps::mount` consults this to honour the
     /// PromotionGate.
-    pub fn mount_status(
-        &self,
-        lora_id: &str,
-    ) -> Result<MountDecision, CandidateRegistryError> {
+    pub fn mount_status(&self, lora_id: &str) -> Result<MountDecision, CandidateRegistryError> {
         let inner = self
             .inner
             .read()
@@ -292,6 +294,51 @@ impl CandidateRegistry {
             }
             other => other,
         })
+    }
+}
+
+/// Error from the mount-side PromotionGate ([`mount_with_promotion_gate`]).
+#[derive(Debug, Error)]
+pub enum DistilledMountError {
+    #[error(transparent)]
+    Registry(#[from] CandidateRegistryError),
+    #[error("mount refused for distilled LoRA {lora_id}: {reason}")]
+    Refused { lora_id: String, reason: String },
+    #[error("LoRA mount failed: {0}")]
+    Mount(ModelRuntimeError),
+}
+
+/// Mount-side PromotionGate enforcement (MT-123 / AC-DISTILL-LOOP-SAFEGUARDS).
+///
+/// This is the executable gate the `CandidateRegistry` exists for: it consults
+/// the registry BEFORE the actual LoRA mount runs, so a Pending or Rejected
+/// distillation candidate cannot be mounted into a production session. The
+/// production caller wraps the real `LoraStackOps::mount(desc, strength)` call
+/// in `mount` and passes the candidate's `lora_id`; externally-provided
+/// (non-candidate) LoRAs pass through untouched. `allow_unpromoted_distill` is
+/// the operator's explicit per-session opt-in
+/// (`settings.exec_policy.allow_unpromoted_distill`).
+///
+/// On `Refuse` the `mount` future is never created/awaited — the gate fails
+/// closed before the LoRA is loaded.
+pub async fn mount_with_promotion_gate<F, Fut>(
+    registry: &CandidateRegistry,
+    lora_id: &str,
+    allow_unpromoted_distill: bool,
+    mount: F,
+) -> Result<(), DistilledMountError>
+where
+    F: FnOnce() -> Fut,
+    Fut: Future<Output = Result<(), ModelRuntimeError>>,
+{
+    match registry.mount_status_with_override(lora_id, allow_unpromoted_distill)? {
+        MountDecision::Refuse { reason } => Err(DistilledMountError::Refused {
+            lora_id: lora_id.to_string(),
+            reason,
+        }),
+        MountDecision::Allow | MountDecision::NotACandidate => {
+            mount().await.map_err(DistilledMountError::Mount)
+        }
     }
 }
 
@@ -340,7 +387,10 @@ mod tests {
         let err = registry
             .promote("l", " ", "2026-05-20T04:01:00Z")
             .expect_err("empty signature");
-        assert!(matches!(err, CandidateRegistryError::EmptySignature("promote")));
+        assert!(matches!(
+            err,
+            CandidateRegistryError::EmptySignature("promote")
+        ));
 
         let event = registry
             .promote("l", "operator-ilja", "2026-05-20T04:02:00Z")
@@ -348,7 +398,10 @@ mod tests {
         assert!(matches!(event, CandidateAuditEvent::Promoted { .. }));
         let entry = registry.get("l").unwrap().unwrap();
         assert_eq!(entry.status, ReviewStatus::Promoted);
-        assert_eq!(entry.promoted_by_operator_signature.as_deref(), Some("operator-ilja"));
+        assert_eq!(
+            entry.promoted_by_operator_signature.as_deref(),
+            Some("operator-ilja")
+        );
     }
 
     #[test]
@@ -360,7 +413,10 @@ mod tests {
         let err = registry
             .reject("l", " ", "bad", "2026-05-20T04:01:00Z")
             .expect_err("empty signature");
-        assert!(matches!(err, CandidateRegistryError::EmptySignature("reject")));
+        assert!(matches!(
+            err,
+            CandidateRegistryError::EmptySignature("reject")
+        ));
 
         let err = registry
             .reject("l", "op", "  ", "2026-05-20T04:01:00Z")
@@ -388,7 +444,10 @@ mod tests {
         let err = registry
             .register("l", artifact(), "2026-05-20T04:01:00Z")
             .expect_err("duplicate");
-        assert!(matches!(err, CandidateRegistryError::DuplicateRegistration(_)));
+        assert!(matches!(
+            err,
+            CandidateRegistryError::DuplicateRegistration(_)
+        ));
     }
 
     #[test]
@@ -515,5 +574,98 @@ mod tests {
         assert_eq!(pending.len(), 1, "only lora-a remains Pending");
         assert_eq!(pending[0].lora_id, "lora-a");
         assert_eq!(pending[0].status, ReviewStatus::Pending);
+    }
+
+    // MT-123: mount-side PromotionGate enforcement. The gate must refuse the
+    // actual mount for Pending/Rejected candidates (fail closed, never reach
+    // the mount future) and allow it for Promoted / non-candidate LoRAs.
+
+    #[tokio::test]
+    async fn mount_gate_refuses_pending_and_skips_mount() {
+        let registry = CandidateRegistry::new();
+        registry
+            .register("cand", artifact(), "2026-05-20T04:00:00Z")
+            .unwrap();
+        let mounted = std::cell::Cell::new(false);
+        let result = mount_with_promotion_gate(&registry, "cand", false, || async {
+            mounted.set(true);
+            Ok::<(), ModelRuntimeError>(())
+        })
+        .await;
+        assert!(
+            matches!(result, Err(DistilledMountError::Refused { .. })),
+            "{result:?}"
+        );
+        assert!(!mounted.get(), "pending candidate must not reach the mount path");
+    }
+
+    #[tokio::test]
+    async fn mount_gate_refuses_rejected_and_skips_mount() {
+        let registry = CandidateRegistry::new();
+        registry
+            .register("cand", artifact(), "2026-05-20T04:00:00Z")
+            .unwrap();
+        registry
+            .reject("cand", "op", "quality drop", "2026-05-20T04:01:00Z")
+            .unwrap();
+        let mounted = std::cell::Cell::new(false);
+        let result = mount_with_promotion_gate(&registry, "cand", false, || async {
+            mounted.set(true);
+            Ok::<(), ModelRuntimeError>(())
+        })
+        .await;
+        assert!(
+            matches!(result, Err(DistilledMountError::Refused { .. })),
+            "{result:?}"
+        );
+        assert!(!mounted.get());
+    }
+
+    #[tokio::test]
+    async fn mount_gate_allows_promoted_and_mounts() {
+        let registry = CandidateRegistry::new();
+        registry
+            .register("cand", artifact(), "2026-05-20T04:00:00Z")
+            .unwrap();
+        registry
+            .promote("cand", "operator-ilja", "2026-05-20T04:02:00Z")
+            .unwrap();
+        let mounted = std::cell::Cell::new(false);
+        mount_with_promotion_gate(&registry, "cand", false, || async {
+            mounted.set(true);
+            Ok::<(), ModelRuntimeError>(())
+        })
+        .await
+        .expect("promoted candidate mounts");
+        assert!(mounted.get());
+    }
+
+    #[tokio::test]
+    async fn mount_gate_passes_through_non_candidate() {
+        let registry = CandidateRegistry::new();
+        let mounted = std::cell::Cell::new(false);
+        mount_with_promotion_gate(&registry, "externally-provided", false, || async {
+            mounted.set(true);
+            Ok::<(), ModelRuntimeError>(())
+        })
+        .await
+        .expect("non-candidate LoRA mounts");
+        assert!(mounted.get());
+    }
+
+    #[tokio::test]
+    async fn mount_gate_override_allows_unpromoted() {
+        let registry = CandidateRegistry::new();
+        registry
+            .register("cand", artifact(), "2026-05-20T04:00:00Z")
+            .unwrap();
+        let mounted = std::cell::Cell::new(false);
+        mount_with_promotion_gate(&registry, "cand", true, || async {
+            mounted.set(true);
+            Ok::<(), ModelRuntimeError>(())
+        })
+        .await
+        .expect("operator override mounts unpromoted candidate");
+        assert!(mounted.get());
     }
 }
