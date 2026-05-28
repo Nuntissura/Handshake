@@ -118,6 +118,12 @@ once_cell = "1.20"
 sha2 = "0.10"
 blake3 = "1"
 hex = "0.4"
+# RustCrypto HMAC. Pairs with sha2::Sha256 to back the MT-029 / MT-030
+# per-run shared-secret inspector envelope authentication (replaces the
+# prior keyless SHA-256 envelope signature that any local process could
+# forge).
+hmac = "0.12"
+subtle = "2"
 # Real AEAD cipher for MT-150 HBR test-packet corpus holdout encryption.
 # RustCrypto/AEADs ChaCha20-Poly1305 implementation; standardised in RFC 8439.
 # Replaces the prior hand-rolled SHA-256-CTR + HMAC-SHA256 construction that
