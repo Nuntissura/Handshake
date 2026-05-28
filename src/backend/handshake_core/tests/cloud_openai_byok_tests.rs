@@ -22,15 +22,20 @@
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
+use async_trait::async_trait;
 use futures::StreamExt;
+use handshake_core::flight_recorder::{
+    EventFilter, FlightRecorder, FlightRecorderEvent, RecorderError,
+};
 use handshake_core::model_runtime::cloud::{
-    ApiKeyProvider, CloudCallKind, CloudCallStatus, CloudInvocationAuditRow,
-    CloudInvocationAuditSink, OpenAiByokError, OpenAiByokRuntime,
+    ApiKeyProvider, CloudCallKind, CloudCallStatus, CloudConsentContext, CloudInvocationAuditRow,
+    CloudInvocationAuditSink, CloudLaneObservability, ConsentDecision, ConsentGate,
+    ConsentGateError, ConsentProvider, OpenAiByokError, OpenAiByokRuntime,
     OPENAI_CHAT_COMPLETIONS_PATH,
 };
 use handshake_core::model_runtime::{
-    CancellationToken, GenPrompt, GenerateRequest, ModelId, ModelRuntime, ProviderKind,
-    SamplingParams, KvCachePolicy, LoadSpec,
+    CancellationToken, GenPrompt, GenerateRequest, KvCachePolicy, LoadSpec, ModelId, ModelRuntime,
+    ProviderKind, SamplingParams,
 };
 use wiremock::matchers::{header, method, path};
 use wiremock::{Mock, MockServer, Request, ResponseTemplate};
@@ -70,6 +75,54 @@ impl RequestInspector {
     }
 }
 
+/// MT-125 remediation: in-memory FlightRecorder that captures every
+/// recorded event so tests can assert FR-EVT-LLM-INFER emission +
+/// adapter tagging. Mirrors the `CapturingSink` shape on the FR side.
+#[derive(Default)]
+struct CapturingFlightRecorder {
+    events: Mutex<Vec<FlightRecorderEvent>>,
+}
+#[async_trait]
+impl FlightRecorder for CapturingFlightRecorder {
+    async fn record_event(&self, event: FlightRecorderEvent) -> Result<(), RecorderError> {
+        self.events.lock().unwrap().push(event);
+        Ok(())
+    }
+    async fn enforce_retention(&self) -> Result<u64, RecorderError> {
+        Ok(0)
+    }
+    async fn list_events(
+        &self,
+        _filter: EventFilter,
+    ) -> Result<Vec<FlightRecorderEvent>, RecorderError> {
+        Ok(self.events.lock().unwrap().clone())
+    }
+}
+
+/// Always-approve consent provider for the success-path test.
+struct ApproveProvider;
+impl ConsentProvider for ApproveProvider {
+    fn prompt_for_decision(
+        &self,
+        _session_id: &str,
+        _lane: &str,
+    ) -> Result<ConsentDecision, ConsentGateError> {
+        Ok(ConsentDecision::Approved)
+    }
+}
+
+/// Always-deny consent provider for the consent-denied test.
+struct DenyProvider;
+impl ConsentProvider for DenyProvider {
+    fn prompt_for_decision(
+        &self,
+        _session_id: &str,
+        _lane: &str,
+    ) -> Result<ConsentDecision, ConsentGateError> {
+        Ok(ConsentDecision::Denied)
+    }
+}
+
 const API_KEY_FIXTURE: &str = "sk-wiremock-NEVER-LOG-THIS-KEY";
 
 fn fixture_runtime(api_base: String, sink: Arc<CapturingSink>) -> OpenAiByokRuntime {
@@ -101,6 +154,7 @@ fn fixture_generate_request(model_id: ModelId, cancel: CancellationToken) -> Gen
         cancel,
         max_tokens: 32,
         stop_sequences: Vec::new(),
+        speculative_mode: None,
         structured_decoding: None,
     }
 }
@@ -169,10 +223,8 @@ async fn openai_byok_generate_streams_tokens_against_wiremock() {
     while let Some(item) = stream.next().await {
         let token = item.expect("stream items are Ok in the success path");
         if let Some(finish) = token.finish_reason {
-            if matches!(
-                finish,
-                handshake_core::model_runtime::FinishReason::Stop
-            ) && token.text.is_empty()
+            if matches!(finish, handshake_core::model_runtime::FinishReason::Stop)
+                && token.text.is_empty()
             {
                 saw_terminal_stop = true;
                 break;
@@ -193,7 +245,10 @@ async fn openai_byok_generate_streams_tokens_against_wiremock() {
         ],
         "stream must yield each delta.content chunk verbatim"
     );
-    assert!(saw_terminal_stop, "stream must terminate with FinishReason::Stop");
+    assert!(
+        saw_terminal_stop,
+        "stream must terminate with FinishReason::Stop"
+    );
 
     let rows = sink.rows.lock().unwrap().clone();
     let chat_rows: Vec<_> = rows
@@ -202,7 +257,9 @@ async fn openai_byok_generate_streams_tokens_against_wiremock() {
         .collect();
     // Expected lifecycle: register_handle Started, generate Started, final Succeeded.
     assert!(
-        chat_rows.iter().any(|r| r.status == CloudCallStatus::Started),
+        chat_rows
+            .iter()
+            .any(|r| r.status == CloudCallStatus::Started),
         "audit must include a Started row"
     );
     assert!(
@@ -257,9 +314,7 @@ async fn openai_byok_cancellation_marks_call_cancelled() {
 
     // The stream must surface a Cancelled terminal token.
     let mut saw_cancelled = false;
-    while let Ok(Some(item)) =
-        tokio::time::timeout(Duration::from_secs(5), stream.next()).await
-    {
+    while let Ok(Some(item)) = tokio::time::timeout(Duration::from_secs(5), stream.next()).await {
         match item {
             Ok(token) => {
                 if matches!(
@@ -330,7 +385,11 @@ async fn openai_byok_api_key_only_appears_as_bearer_auth() {
     }
 
     let snapshot = inspector.snapshot();
-    assert_eq!(snapshot.len(), 1, "exactly one HTTP request must reach the mock");
+    assert_eq!(
+        snapshot.len(),
+        1,
+        "exactly one HTTP request must reach the mock"
+    );
     let inspected = &snapshot[0];
 
     // (a) Authorization header is the only place the api key appears.
@@ -544,11 +603,173 @@ fn cloud_openai_audit_sink_records_call_lifecycle() {
         })
         .expect("audit ok");
     let captured = sink.rows.lock().unwrap();
-    assert!(!captured.is_empty(), "register_handle + record_audit emit rows");
+    assert!(
+        !captured.is_empty(),
+        "register_handle + record_audit emit rows"
+    );
     assert!(
         captured
             .iter()
             .any(|r| r.openai_model_name == "gpt-4o" && r.status == CloudCallStatus::Succeeded),
         "the appended Succeeded row must round-trip via the sink"
     );
+}
+
+// ---------------------------------------------------------------------
+// MT-125 remediation Test A: FR-EVT-LLM-INFER emission with adapter tag
+//
+// With a CapturingFlightRecorder + always-approve ConsentProvider
+// attached via with_lane_observability, a successful streaming
+// generate() must emit at least one FR-EVT-LLM-INFER-START and one
+// FR-EVT-LLM-INFER-END whose payload `adapter` == "openai_byok".
+// ---------------------------------------------------------------------
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn openai_byok_emits_fr_infer_events_with_adapter_tag() {
+    let mock_server = MockServer::start().await;
+    // 20 tokens so a TOKEN sample fires (sample interval is 16) on
+    // top of the guaranteed START + END.
+    let words: Vec<String> = (0..20).map(|i| format!("tok{i} ")).collect();
+    let word_refs: Vec<&str> = words.iter().map(|s| s.as_str()).collect();
+    let payload = sse_payload_for(&word_refs);
+    Mock::given(method("POST"))
+        .and(path(OPENAI_CHAT_COMPLETIONS_PATH))
+        .and(header(
+            "authorization",
+            format!("Bearer {API_KEY_FIXTURE}").as_str(),
+        ))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .insert_header("content-type", "text/event-stream")
+                .set_body_string(payload),
+        )
+        .expect(1)
+        .mount(&mock_server)
+        .await;
+
+    let sink = Arc::new(CapturingSink::default());
+    let recorder = Arc::new(CapturingFlightRecorder::default());
+    let gate = Arc::new(ConsentGate::new());
+    let lane_obs = Arc::new(CloudLaneObservability {
+        flight_recorder: recorder.clone(),
+        consent: Some(CloudConsentContext {
+            gate: gate.clone(),
+            provider: Arc::new(ApproveProvider),
+            session_id: "session-fr-test".to_string(),
+        }),
+    });
+
+    let runtime = fixture_runtime(mock_server.uri(), sink.clone())
+        .with_lane_observability(lane_obs.clone());
+    let handle = runtime
+        .register_handle("gpt-4o-2024-08-06", "2026-05-20T11:00:00Z")
+        .expect("allowlisted");
+
+    let req = fixture_generate_request(handle.model_id, CancellationToken::new());
+    let mut stream = runtime.chat_completions_stream(req);
+    while let Some(item) = stream.next().await {
+        let _ = item.expect("success path items are Ok");
+    }
+
+    // Give the spawned async pipeline a moment to flush the END event
+    // (emitted after the terminal token is sent).
+    tokio::time::sleep(Duration::from_millis(100)).await;
+
+    let events = recorder.events.lock().unwrap().clone();
+    let event_kind = |ev: &FlightRecorderEvent| -> Option<(String, String)> {
+        let phase = ev.payload.get("phase")?.as_str()?.to_string();
+        let adapter = ev.payload.get("adapter")?.as_str()?.to_string();
+        Some((phase, adapter))
+    };
+
+    let start_count = events
+        .iter()
+        .filter(|ev| {
+            matches!(event_kind(ev), Some((phase, adapter))
+                if phase == "start" && adapter == "openai_byok")
+        })
+        .count();
+    let end_count = events
+        .iter()
+        .filter(|ev| {
+            matches!(event_kind(ev), Some((phase, adapter))
+                if phase == "end" && adapter == "openai_byok")
+        })
+        .count();
+
+    assert!(
+        start_count >= 1,
+        "must emit >=1 FR-EVT-LLM-INFER-START with adapter=openai_byok; events={events:?}"
+    );
+    assert!(
+        end_count >= 1,
+        "must emit >=1 FR-EVT-LLM-INFER-END with adapter=openai_byok; events={events:?}"
+    );
+}
+
+// ---------------------------------------------------------------------
+// MT-125 remediation Test B: consent-denied short-circuits before HTTP
+//
+// With a deny ConsentProvider attached, generate() must yield an error
+// item and NEVER reach the wire (wiremock expect 0).
+// ---------------------------------------------------------------------
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn openai_byok_consent_denied_blocks_http_call() {
+    let mock_server = MockServer::start().await;
+    // Permissive mock but EXPECT 0 — a denied consent must not reach
+    // the wire.
+    Mock::given(method("POST"))
+        .and(path(OPENAI_CHAT_COMPLETIONS_PATH))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .insert_header("content-type", "text/event-stream")
+                .set_body_string("data: [DONE]\n\n"),
+        )
+        .expect(0)
+        .mount(&mock_server)
+        .await;
+
+    let sink = Arc::new(CapturingSink::default());
+    let recorder = Arc::new(CapturingFlightRecorder::default());
+    let gate = Arc::new(ConsentGate::new());
+    let lane_obs = Arc::new(CloudLaneObservability {
+        flight_recorder: recorder.clone(),
+        consent: Some(CloudConsentContext {
+            gate: gate.clone(),
+            provider: Arc::new(DenyProvider),
+            session_id: "session-deny-test".to_string(),
+        }),
+    });
+
+    let runtime =
+        fixture_runtime(mock_server.uri(), sink.clone()).with_lane_observability(lane_obs);
+    let handle = runtime
+        .register_handle("gpt-4o", "2026-05-20T11:00:00Z")
+        .expect("allowlisted");
+
+    let req = fixture_generate_request(handle.model_id, CancellationToken::new());
+    let mut stream = runtime.chat_completions_stream(req);
+
+    // The first (and only) stream item must be an error surfacing the
+    // consent denial.
+    let first = stream.next().await.expect("stream yields one item");
+    match first {
+        Err(err) => {
+            let msg = format!("{err}");
+            assert!(
+                msg.contains("consent denied"),
+                "error must surface consent denial, got: {msg}"
+            );
+        }
+        Ok(token) => panic!("expected consent-denied error, got token: {token:?}"),
+    }
+    // No further items.
+    assert!(
+        stream.next().await.is_none(),
+        "consent-denied stream must be a single error item"
+    );
+
+    // And no HTTP request reached wiremock.
+    mock_server.verify().await;
 }
