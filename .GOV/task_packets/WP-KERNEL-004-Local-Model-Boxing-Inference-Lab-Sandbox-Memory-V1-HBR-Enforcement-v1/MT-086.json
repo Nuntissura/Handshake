@@ -7,7 +7,7 @@
   "cluster_subscope": "C.3",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:00:00Z",
-  "updated_at_utc": "2026-05-27T19:03:58.446Z",
+  "updated_at_utc": "2026-05-28T00:01:44.919Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -86,13 +86,15 @@
     "ready_at_utc": "2026-05-25T15:54:56.028Z",
     "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
     "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
-    "validator_verdict_set_at_utc": "2026-05-27T19:03:58.446Z"
+    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z"
   },
   "handoff": {
     "coder_session": "KERNEL_BUILDER-20260519-120841",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
-    "review_response_receipt_id": null
+    "review_response_receipt_id": "019e6be3-15d7-7af4-a03d-e20600f0cca0",
+    "review_response_receipt_actor_role": "INTEGRATION_VALIDATOR",
+    "review_response_receipt_track": "JUDGMENT_OOB_IV_PHASE1_PRE_REMEDIATION"
   },
   "red_team": {
     "minimum_controls": [
@@ -103,7 +105,7 @@
   "integration_validator_review": {
     "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C3_FRESH",
     "reviewed_at_utc": "2026-05-27T00:00:00Z",
-    "aggregator_run_at_utc": "2026-05-27T19:03:58.446Z",
+    "aggregator_run_at_utc": "2026-05-28T00:01:31.342Z",
     "verdict": "CONCERN",
     "verdict_reason": "RWKV v5 and v6 base paths land cleanly via candle_transformers::models::rwkv_v5/rwkv_v6 wrappers; per-token forward loop iterates the sequence and aggregates final logits; capability flags correctly project (subquad=true, lora/steering/kv_prefix_cache=false); steering/LoRA overrides return CapabilityNotSupported. CONCERN: (a) The contract red_team requires 'v5 and v6 state distinct (test asserts state tensor count differs)' — the test asserts both state_tensor_count() == per_layer.len()*3 (i.e., the SAME formula), which does NOT prove v5 and v6 state structures are distinct; they are distinct in candle-transformers internals but the surface-level count is identical, defeating the test gate. (b) v5/v6 generate path iterates seq tokens one at a time even for prefill — candle-transformers RWKV exposes `forward_seq` for batched prefill, used by v7 but NOT by v5/v6; this is a perf regression but not a correctness issue. (c) unversioned RWKV config detection returns an explicit LoadError directing to use rwkv5/rwkv6/rwkv7 model_type — good, but the error message text does not list 'rwkv-5' / 'rwkv_v5' variants that the detector accepts, so the operator may use a marker that works without realising it.",
     "spec_compliance_status": "MEETS",
@@ -128,7 +130,7 @@
   "integration_validator_review_prior": {
     "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C3_FRESH",
     "reviewed_at_utc": "2026-05-27T00:00:00Z",
-    "aggregator_run_at_utc": "2026-05-27T18:50:05.123Z",
+    "aggregator_run_at_utc": "2026-05-27T23:48:44.444Z",
     "verdict": "CONCERN",
     "verdict_reason": "RWKV v5 and v6 base paths land cleanly via candle_transformers::models::rwkv_v5/rwkv_v6 wrappers; per-token forward loop iterates the sequence and aggregates final logits; capability flags correctly project (subquad=true, lora/steering/kv_prefix_cache=false); steering/LoRA overrides return CapabilityNotSupported. CONCERN: (a) The contract red_team requires 'v5 and v6 state distinct (test asserts state tensor count differs)' — the test asserts both state_tensor_count() == per_layer.len()*3 (i.e., the SAME formula), which does NOT prove v5 and v6 state structures are distinct; they are distinct in candle-transformers internals but the surface-level count is identical, defeating the test gate. (b) v5/v6 generate path iterates seq tokens one at a time even for prefill — candle-transformers RWKV exposes `forward_seq` for batched prefill, used by v7 but NOT by v5/v6; this is a perf regression but not a correctness issue. (c) unversioned RWKV config detection returns an explicit LoadError directing to use rwkv5/rwkv6/rwkv7 model_type — good, but the error message text does not list 'rwkv-5' / 'rwkv_v5' variants that the detector accepts, so the operator may use a marker that works without realising it.",
     "spec_compliance_status": "MEETS",
@@ -146,8 +148,8 @@
       "LOW": 2
     },
     "paperwork_notes_count": 0,
-    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-086.review.json",
-    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-086.review.json",
+    "review_artifact_ref": "validator_reports_phase1/MT-086.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1\\validator_reports_phase1\\MT-086.review.json",
     "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
   }
 }

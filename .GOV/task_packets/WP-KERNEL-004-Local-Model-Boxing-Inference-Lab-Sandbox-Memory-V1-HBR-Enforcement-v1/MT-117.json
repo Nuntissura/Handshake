@@ -7,7 +7,7 @@
   "cluster_subscope": "C.11",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:00:00Z",
-  "updated_at_utc": "2026-05-27T19:03:58.446Z",
+  "updated_at_utc": "2026-05-28T00:01:44.938Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -172,13 +172,15 @@
     "ready_at_utc": "2026-05-25T15:54:56.028Z",
     "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
     "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
-    "validator_verdict_set_at_utc": "2026-05-27T19:03:58.446Z"
+    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z"
   },
   "handoff": {
     "coder_session": "KERNEL_BUILDER-20260522-171100",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
-    "review_response_receipt_id": null
+    "review_response_receipt_id": "019e6be3-15ea-7a39-923c-2d8de378f861",
+    "review_response_receipt_actor_role": "INTEGRATION_VALIDATOR",
+    "review_response_receipt_track": "JUDGMENT_OOB_IV_PHASE1_PRE_REMEDIATION"
   },
   "red_team": {
     "minimum_controls": [
@@ -190,7 +192,7 @@
   "integration_validator_review": {
     "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C11_FRESH",
     "reviewed_at_utc": "2026-05-27T18:55:00Z",
-    "aggregator_run_at_utc": "2026-05-27T19:03:58.446Z",
+    "aggregator_run_at_utc": "2026-05-28T00:01:31.342Z",
     "verdict": "PASS",
     "verdict_reason": "Cross-session state restore lands real disk persistence (persist_to_artifact_store + load_from_artifact_store + load_from_artifact_store_into_handle) via ArtifactStore with atomic write_file_artifact (temp+fsync+rename), manifest content_hash gate before envelope parse, sha256/variant validation on target handle, UUIDv7 artifact_ids, registered KernelActionCatalogV1 action 'kernel.subquadratic.persist_state' with write_box schema 'hsk.write_box.state_vector_persist@1'. 21 inf9_cross_session_state_tests PASS plus MT-114 regression (8 PASS). The Spec-Realism Gate sub-rules are correctly self-checked: sub_rule_1 (no deferred-live escape) — resumed the MT and implemented the prior session's deferral in-MT; sub_rule_2 (external resource touch) — real filesystem under .handshake/artifacts/L3/<uuid>/{payload,artifact.json}; sub_rule_3 (implementer cannot self-certify) — claimed_by ≠ validator role. All three red_team minimum controls covered with named tests and adversarial extensions. Operator E-2 'cross-session state restore' parity item: MET.",
     "spec_compliance_status": "PASS",
@@ -213,7 +215,7 @@
   "integration_validator_review_prior": {
     "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C11_FRESH",
     "reviewed_at_utc": "2026-05-27T18:55:00Z",
-    "aggregator_run_at_utc": "2026-05-27T18:50:05.123Z",
+    "aggregator_run_at_utc": "2026-05-27T23:48:44.444Z",
     "verdict": "PASS",
     "verdict_reason": "Cross-session state restore lands real disk persistence (persist_to_artifact_store + load_from_artifact_store + load_from_artifact_store_into_handle) via ArtifactStore with atomic write_file_artifact (temp+fsync+rename), manifest content_hash gate before envelope parse, sha256/variant validation on target handle, UUIDv7 artifact_ids, registered KernelActionCatalogV1 action 'kernel.subquadratic.persist_state' with write_box schema 'hsk.write_box.state_vector_persist@1'. 21 inf9_cross_session_state_tests PASS plus MT-114 regression (8 PASS). The Spec-Realism Gate sub-rules are correctly self-checked: sub_rule_1 (no deferred-live escape) — resumed the MT and implemented the prior session's deferral in-MT; sub_rule_2 (external resource touch) — real filesystem under .handshake/artifacts/L3/<uuid>/{payload,artifact.json}; sub_rule_3 (implementer cannot self-certify) — claimed_by ≠ validator role. All three red_team minimum controls covered with named tests and adversarial extensions. Operator E-2 'cross-session state restore' parity item: MET.",
     "spec_compliance_status": "PASS",
@@ -229,8 +231,8 @@
       "LOW": 2
     },
     "paperwork_notes_count": 3,
-    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-117.review.json",
-    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-117.review.json",
+    "review_artifact_ref": "validator_reports_phase1/MT-117.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1\\validator_reports_phase1\\MT-117.review.json",
     "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
   }
 }

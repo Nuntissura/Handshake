@@ -7,7 +7,7 @@
   "cluster_subscope": "B.4",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:10:00Z",
-  "updated_at_utc": "2026-05-27T19:03:58.446Z",
+  "updated_at_utc": "2026-05-28T00:01:44.904Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -88,13 +88,15 @@
     "ready_at_utc": "2026-05-25T15:54:56.028Z",
     "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
     "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
-    "validator_verdict_set_at_utc": "2026-05-27T19:03:58.446Z"
+    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z"
   },
   "handoff": {
     "coder_session": null,
     "wp_validator_session": null,
     "review_request_receipt_id": null,
-    "review_response_receipt_id": null
+    "review_response_receipt_id": "019e6be3-15c8-769d-8bbc-807055df4fe7",
+    "review_response_receipt_actor_role": "INTEGRATION_VALIDATOR",
+    "review_response_receipt_track": "JUDGMENT_OOB_IV_PHASE1_PRE_REMEDIATION"
   },
   "red_team": {
     "minimum_controls": [
@@ -106,7 +108,7 @@
   "integration_validator_review": {
     "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_B_GAPS_REDO_WTC",
     "reviewed_at_utc": "2026-05-27T22:30:00Z",
-    "aggregator_run_at_utc": "2026-05-27T19:03:58.446Z",
+    "aggregator_run_at_utc": "2026-05-28T00:01:31.342Z",
     "verdict": "CONCERN",
     "verdict_reason": "SandboxEscapeHarness + 10-entry escape catalog (matches MT-058 contract IDs exactly) + sandbox_escape_negative_tests.rs are present. Always-on tests cover catalog completeness, RED detection via StubAdapter::AlwaysAllow, Skipped accounting for unavailable adapters, OS-restriction skip. persist_to_artifacts writes the durable JSON report. Three material concerns: (1) artifact_root hardcodes 'D:/Projects/.../sandbox-escape-results' violating GLOBAL-PORTABILITY-005; (2) the env-gated wsl2/docker/win-native runs are present but the prior LoopbackOnly silent-DenyAll coercion will likely make ESC-NET-LOOPBACK-ONLY-EXTERNAL spuriously Green (no external reach because there is no network at all); (3) ESC-FS-SYMLINK-TRAVERSAL marks Docker and Wsl2Podman as documented_weaker_enforcement_adapters by default - that turns a true escape (symlink leak) into Yellow not Red, which is honest about runtime behavior but reduces the load-bearing assertion.",
     "spec_compliance_status": "PARTIAL",
@@ -129,31 +131,28 @@
     "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
   },
   "integration_validator_review_prior": {
-    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_B_GAPS",
-    "reviewed_at_utc": "2026-05-27T17:40:00Z",
-    "aggregator_run_at_utc": "2026-05-27T18:50:05.123Z",
-    "verdict": "FAIL",
-    "verdict_reason": "Sandbox-escape negative-test catalog product code absent on every git ref. Commit ddd7ed11 ('MT-058 sandbox escape negative tests READY_FOR_VALIDATION', 2026-05-22) touches ZERO product files (verified via git show ddd7ed11 -- src/backend/handshake_core/) despite a commit message describing a 10-entry escape catalog, harness, persist_to_artifacts JSON, and 5/5 always-on tests. Prompt-cited commit hash c3516943 does not exist in this repo. This is the highest-risk-if-absent MT in the batch: it is the load-bearing assertion that the sandbox actually contains escapes.",
-    "spec_compliance_status": "FAILS",
-    "code_hygiene_status": "MAJOR",
-    "runtime_safety_status": "UNSAFE",
-    "agent_swarm_safety_status": "UNSAFE",
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_B_GAPS_REDO_WTC",
+    "reviewed_at_utc": "2026-05-27T22:30:00Z",
+    "aggregator_run_at_utc": "2026-05-27T23:48:44.444Z",
+    "verdict": "CONCERN",
+    "verdict_reason": "SandboxEscapeHarness + 10-entry escape catalog (matches MT-058 contract IDs exactly) + sandbox_escape_negative_tests.rs are present. Always-on tests cover catalog completeness, RED detection via StubAdapter::AlwaysAllow, Skipped accounting for unavailable adapters, OS-restriction skip. persist_to_artifacts writes the durable JSON report. Three material concerns: (1) artifact_root hardcodes 'D:/Projects/.../sandbox-escape-results' violating GLOBAL-PORTABILITY-005; (2) the env-gated wsl2/docker/win-native runs are present but the prior LoopbackOnly silent-DenyAll coercion will likely make ESC-NET-LOOPBACK-ONLY-EXTERNAL spuriously Green (no external reach because there is no network at all); (3) ESC-FS-SYMLINK-TRAVERSAL marks Docker and Wsl2Podman as documented_weaker_enforcement_adapters by default - that turns a true escape (symlink leak) into Yellow not Red, which is honest about runtime behavior but reduces the load-bearing assertion.",
+    "spec_compliance_status": "PARTIAL",
+    "code_hygiene_status": "MINOR",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "CONCERN",
     "hbr_unsatisfied": [
-      "HBR-INT-001",
-      "HBR-QUIET-001",
-      "HBR-QUIET-003",
-      "HBR-SWARM-001"
+      "HBR-QUIET-001: ESC-WIN32-FOREGROUND-INJECT requires a handshake-foreground-inject-probe.exe binary, which is referenced in the fixture spec (escape_attempts.rs:337) but not present in the repo. The Windows lane cannot actually exercise the foreground-inject acid test until that probe binary is built."
     ],
-    "test_coverage_status": "MISSING",
+    "test_coverage_status": "ADEQUATE",
     "findings_count_by_severity": {
-      "CRITICAL": 1,
+      "CRITICAL": 0,
       "HIGH": 2,
-      "MEDIUM": 0,
+      "MEDIUM": 1,
       "LOW": 0
     },
-    "paperwork_notes_count": 2,
-    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-058.review.json",
-    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-058.review.json",
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "validator_reports_phase1/MT-058.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1\\validator_reports_phase1\\MT-058.review.json",
     "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
   }
 }

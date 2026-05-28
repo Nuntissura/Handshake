@@ -7,7 +7,7 @@
   "cluster_subscope": "D.2",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:15:00Z",
-  "updated_at_utc": "2026-05-27T19:03:58.446Z",
+  "updated_at_utc": "2026-05-28T00:01:44.957Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -89,13 +89,15 @@
     "ready_at_utc": "2026-05-25T15:54:56.028Z",
     "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
     "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
-    "validator_verdict_set_at_utc": "2026-05-27T19:03:58.446Z"
+    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z"
   },
   "handoff": {
     "coder_session": "KERNEL_BUILDER-20260523-031814-AGT-MT156",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
-    "review_response_receipt_id": null
+    "review_response_receipt_id": "019e6be3-15fd-78c9-bd4c-38e30d0193f6",
+    "review_response_receipt_actor_role": "INTEGRATION_VALIDATOR",
+    "review_response_receipt_track": "JUDGMENT_OOB_IV_PHASE1_PRE_REMEDIATION"
   },
   "implementation_supporting_evidence_20260523_mt156": {
     "recorded_at_utc": "2026-05-23T21:15:00Z",
@@ -176,7 +178,7 @@
   "integration_validator_review": {
     "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_D_GAPS",
     "reviewed_at_utc": "2026-05-27T18:15:00Z",
-    "aggregator_run_at_utc": "2026-05-27T19:03:58.446Z",
+    "aggregator_run_at_utc": "2026-05-28T00:01:31.342Z",
     "verdict": "PASS_WITH_NOTES",
     "verdict_reason": "LoopScheduler implements try_schedule_next with the contracted skip-reason ordering (operator > goodhart > pending > budget) over a true rolling 24h window. count_in_window uses strict > comparison so an exactly-24h-old entry is excluded. FR-EVT-DISTILL-LOOP-CAP event is built only on BudgetExhausted (cap_event returns None for non-budget skips). 40 integration + 8 inline tests reported pass. CONCERN: IterationBudget::max_iterations_per_24h is a pub u32 with no upper-bound validation at the constructor; operator-tunable above the HBR-SWARM-002 default of 25 without any HBR-review gate enforced in this MT. SchedulerHistory bounded at 128 hard-coded entries (not surfaced as configuration knob).",
     "spec_compliance_status": "MEETS",
@@ -199,7 +201,7 @@
   "integration_validator_review_prior": {
     "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_D_GAPS",
     "reviewed_at_utc": "2026-05-27T18:15:00Z",
-    "aggregator_run_at_utc": "2026-05-27T18:50:05.123Z",
+    "aggregator_run_at_utc": "2026-05-27T23:48:44.444Z",
     "verdict": "PASS_WITH_NOTES",
     "verdict_reason": "LoopScheduler implements try_schedule_next with the contracted skip-reason ordering (operator > goodhart > pending > budget) over a true rolling 24h window. count_in_window uses strict > comparison so an exactly-24h-old entry is excluded. FR-EVT-DISTILL-LOOP-CAP event is built only on BudgetExhausted (cap_event returns None for non-budget skips). 40 integration + 8 inline tests reported pass. CONCERN: IterationBudget::max_iterations_per_24h is a pub u32 with no upper-bound validation at the constructor; operator-tunable above the HBR-SWARM-002 default of 25 without any HBR-review gate enforced in this MT. SchedulerHistory bounded at 128 hard-coded entries (not surfaced as configuration knob).",
     "spec_compliance_status": "MEETS",
@@ -215,8 +217,8 @@
       "LOW": 1
     },
     "paperwork_notes_count": 2,
-    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-156.review.json",
-    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-156.review.json",
+    "review_artifact_ref": "validator_reports_phase1/MT-156.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1\\validator_reports_phase1\\MT-156.review.json",
     "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
   }
 }

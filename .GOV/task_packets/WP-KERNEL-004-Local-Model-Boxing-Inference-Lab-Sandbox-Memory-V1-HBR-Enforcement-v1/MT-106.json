@@ -7,7 +7,7 @@
   "cluster_subscope": "C.9",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:00:00Z",
-  "updated_at_utc": "2026-05-27T19:03:58.446Z",
+  "updated_at_utc": "2026-05-28T00:01:44.931Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -134,13 +134,15 @@
     "ready_at_utc": "2026-05-25T15:54:56.028Z",
     "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
     "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
-    "validator_verdict_set_at_utc": "2026-05-27T19:03:58.446Z"
+    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z"
   },
   "handoff": {
     "coder_session": "KERNEL_BUILDER-20260519-203500",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
-    "review_response_receipt_id": null
+    "review_response_receipt_id": "019e6be3-15e3-7b0f-a5e6-a8a0820afe59",
+    "review_response_receipt_actor_role": "INTEGRATION_VALIDATOR",
+    "review_response_receipt_track": "JUDGMENT_OOB_IV_PHASE1_PRE_REMEDIATION"
   },
   "red_team": {
     "minimum_controls": [
@@ -152,7 +154,7 @@
   "integration_validator_review": {
     "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C8_C10",
     "reviewed_at_utc": "2026-05-27T00:00:00Z",
-    "aggregator_run_at_utc": "2026-05-27T19:03:58.446Z",
+    "aggregator_run_at_utc": "2026-05-28T00:01:31.342Z",
     "verdict": "PASS",
     "verdict_reason": "src/backend/handshake_core/src/distillation/abliterate.rs ships the offline abliteration tool with the OFFLINE-ONLY hot-path invariant honoured at every level. (1) The pure orthogonalisation primitive `orthogonalise_weight_in_place` implements W' = W - (W @ d^T) @ d and is unit-tested against a hand-derived case (and the `weight_is_orthogonal_to` helper proves the result is actually orthogonal within tolerance). (2) `run_abliteration_offline` (feature=candle-runtime-engine) does the real safetensors round-trip via `candle_core::safetensors::load`/`save`, walks tensors, calls `is_abliteration_target_module` (key ends_with('.weight') && contains('.o_proj.') OR contains('.down_proj.')), applies orthogonalisation, refuses to write a no-op artifact when zero target modules match, and writes a `.provenance.json` sidecar. (3) ProcessOwnershipLedger row registration with `engine_kind=ProcessEngineKind::AbliterationTool` is registered BEFORE the heavy I/O (matches MT-069 'ledger is the truth' invariant) and the record_id is captured into AbliterationProvenance.process_ledger_record_id; the integration test exercises the `Some(LedgerBatcher)` path. (4) CLI binary `bin/abliterate.rs` requires `--license-tag` and `--operator-signature` with no defaults; AbliterationConfig::validate refuses empty license_tag with the explicit error 'license_tag must not be empty (MT-106.red_team minimum_controls)'. (5) The hot-path static-analysis test `hot_path_does_not_reference_abliterate_module` walks model_runtime/llama_cpp/generate.rs and model_runtime/candle/generate.rs and asserts FORBIDDEN_REFERENCES (distillation::abliterate, abliterate::orthogonalise, abliterate::run_abliteration_offline) appear nowhere. Paired with `hot_path_invariant_test_actually_walks_at_least_one_runtime_file` to guard against vacuous-true when both generate.rs files are missing. Per operator E-5: NO curated abliterated-model registry path exists in Handshake — abliteration produces a standalone derived artifact + sidecar that the operator handles externally before any optional Skill Bank ingest (the latter is MT-107 territory). Spec §4.7.4 OFFLINE TOOL ONLY invariant fully enforced.",
     "spec_compliance_status": "FULL",
@@ -175,7 +177,7 @@
   "integration_validator_review_prior": {
     "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C8_C10",
     "reviewed_at_utc": "2026-05-27T00:00:00Z",
-    "aggregator_run_at_utc": "2026-05-27T18:50:05.123Z",
+    "aggregator_run_at_utc": "2026-05-27T23:48:44.444Z",
     "verdict": "PASS",
     "verdict_reason": "src/backend/handshake_core/src/distillation/abliterate.rs ships the offline abliteration tool with the OFFLINE-ONLY hot-path invariant honoured at every level. (1) The pure orthogonalisation primitive `orthogonalise_weight_in_place` implements W' = W - (W @ d^T) @ d and is unit-tested against a hand-derived case (and the `weight_is_orthogonal_to` helper proves the result is actually orthogonal within tolerance). (2) `run_abliteration_offline` (feature=candle-runtime-engine) does the real safetensors round-trip via `candle_core::safetensors::load`/`save`, walks tensors, calls `is_abliteration_target_module` (key ends_with('.weight') && contains('.o_proj.') OR contains('.down_proj.')), applies orthogonalisation, refuses to write a no-op artifact when zero target modules match, and writes a `.provenance.json` sidecar. (3) ProcessOwnershipLedger row registration with `engine_kind=ProcessEngineKind::AbliterationTool` is registered BEFORE the heavy I/O (matches MT-069 'ledger is the truth' invariant) and the record_id is captured into AbliterationProvenance.process_ledger_record_id; the integration test exercises the `Some(LedgerBatcher)` path. (4) CLI binary `bin/abliterate.rs` requires `--license-tag` and `--operator-signature` with no defaults; AbliterationConfig::validate refuses empty license_tag with the explicit error 'license_tag must not be empty (MT-106.red_team minimum_controls)'. (5) The hot-path static-analysis test `hot_path_does_not_reference_abliterate_module` walks model_runtime/llama_cpp/generate.rs and model_runtime/candle/generate.rs and asserts FORBIDDEN_REFERENCES (distillation::abliterate, abliterate::orthogonalise, abliterate::run_abliteration_offline) appear nowhere. Paired with `hot_path_invariant_test_actually_walks_at_least_one_runtime_file` to guard against vacuous-true when both generate.rs files are missing. Per operator E-5: NO curated abliterated-model registry path exists in Handshake — abliteration produces a standalone derived artifact + sidecar that the operator handles externally before any optional Skill Bank ingest (the latter is MT-107 territory). Spec §4.7.4 OFFLINE TOOL ONLY invariant fully enforced.",
     "spec_compliance_status": "FULL",
@@ -191,8 +193,8 @@
       "LOW": 2
     },
     "paperwork_notes_count": 0,
-    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-106.review.json",
-    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-106.review.json",
+    "review_artifact_ref": "validator_reports_phase1/MT-106.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1\\validator_reports_phase1\\MT-106.review.json",
     "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
   }
 }

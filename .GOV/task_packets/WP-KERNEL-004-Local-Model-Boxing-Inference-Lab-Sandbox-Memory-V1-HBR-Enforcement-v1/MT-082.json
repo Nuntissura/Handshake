@@ -7,7 +7,7 @@
   "cluster_subscope": "C.3",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:00:00Z",
-  "updated_at_utc": "2026-05-27T19:03:58.446Z",
+  "updated_at_utc": "2026-05-28T00:01:44.917Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -91,13 +91,15 @@
     "ready_at_utc": "2026-05-25T15:54:56.028Z",
     "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
     "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
-    "validator_verdict_set_at_utc": "2026-05-27T19:03:58.446Z"
+    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z"
   },
   "handoff": {
     "coder_session": "KERNEL_BUILDER-20260519-094814",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
-    "review_response_receipt_id": null
+    "review_response_receipt_id": "019e6be3-15d5-7fcb-ab1f-f5c58cded81f",
+    "review_response_receipt_actor_role": "INTEGRATION_VALIDATOR",
+    "review_response_receipt_track": "JUDGMENT_OOB_IV_PHASE1_PRE_REMEDIATION"
   },
   "red_team": {
     "minimum_controls": [
@@ -109,7 +111,7 @@
   "integration_validator_review": {
     "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C3_FRESH",
     "reviewed_at_utc": "2026-05-27T00:00:00Z",
-    "aggregator_run_at_utc": "2026-05-27T19:03:58.446Z",
+    "aggregator_run_at_utc": "2026-05-28T00:01:31.342Z",
     "verdict": "CONCERN",
     "verdict_reason": "Real residual-stream hook substrate exists and is wired into the instrumented Llama block loop via `apply_record_and_capture_tensor`; vector application, capture, isolation per ModelId, MlpOut/AttnOut explicit CapabilityNotSupported, and finite-value validation are all present. CONCERN: the public SteeringHookOps impl on bare `CandleSteeringHooks::capture` (hooks.rs:463-490) generates a SYNTHETIC residual row from `scaffold_resid_stream_row(prompt_bytes)` rather than running the model. Only the wrapping `CandleRuntimeSteeringHookOps` (in adapter.rs) drives a real model forward. Callers who obtain the bare `CandleSteeringHooks` (exported from `candle::CandleSteeringHooks`, also returned through `SteeringHookHandle::with_ops(Arc::new(handle.steering_hooks.clone()))` in the SSM-variant fallback at adapter.rs:459-462) will silently get pseudo-random capture data with no model involvement and no error. The MT contract validator_focus says identity test is THE correctness gate — but identity test on the scaffold path is trivially satisfied for any prompt because scaffolding is deterministic and zero-vector is a no-op; this does not prove model-driven correctness.",
     "spec_compliance_status": "PARTIAL",
@@ -134,7 +136,7 @@
   "integration_validator_review_prior": {
     "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C3_FRESH",
     "reviewed_at_utc": "2026-05-27T00:00:00Z",
-    "aggregator_run_at_utc": "2026-05-27T18:50:05.123Z",
+    "aggregator_run_at_utc": "2026-05-27T23:48:44.444Z",
     "verdict": "CONCERN",
     "verdict_reason": "Real residual-stream hook substrate exists and is wired into the instrumented Llama block loop via `apply_record_and_capture_tensor`; vector application, capture, isolation per ModelId, MlpOut/AttnOut explicit CapabilityNotSupported, and finite-value validation are all present. CONCERN: the public SteeringHookOps impl on bare `CandleSteeringHooks::capture` (hooks.rs:463-490) generates a SYNTHETIC residual row from `scaffold_resid_stream_row(prompt_bytes)` rather than running the model. Only the wrapping `CandleRuntimeSteeringHookOps` (in adapter.rs) drives a real model forward. Callers who obtain the bare `CandleSteeringHooks` (exported from `candle::CandleSteeringHooks`, also returned through `SteeringHookHandle::with_ops(Arc::new(handle.steering_hooks.clone()))` in the SSM-variant fallback at adapter.rs:459-462) will silently get pseudo-random capture data with no model involvement and no error. The MT contract validator_focus says identity test is THE correctness gate — but identity test on the scaffold path is trivially satisfied for any prompt because scaffolding is deterministic and zero-vector is a no-op; this does not prove model-driven correctness.",
     "spec_compliance_status": "PARTIAL",
@@ -152,8 +154,8 @@
       "LOW": 0
     },
     "paperwork_notes_count": 0,
-    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-082.review.json",
-    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-082.review.json",
+    "review_artifact_ref": "validator_reports_phase1/MT-082.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1\\validator_reports_phase1\\MT-082.review.json",
     "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
   }
 }

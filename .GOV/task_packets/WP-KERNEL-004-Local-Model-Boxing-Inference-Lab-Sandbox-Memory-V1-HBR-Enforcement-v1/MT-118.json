@@ -7,7 +7,7 @@
   "cluster_subscope": "C.11",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:00:00Z",
-  "updated_at_utc": "2026-05-27T19:03:58.446Z",
+  "updated_at_utc": "2026-05-28T00:01:44.939Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -131,13 +131,15 @@
     "ready_at_utc": "2026-05-25T15:54:56.028Z",
     "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
     "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
-    "validator_verdict_set_at_utc": "2026-05-27T19:03:58.446Z"
+    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z"
   },
   "handoff": {
     "coder_session": null,
     "wp_validator_session": null,
     "review_request_receipt_id": null,
-    "review_response_receipt_id": null
+    "review_response_receipt_id": "019e6be3-15ea-75fa-bf69-8ecc6532d445",
+    "review_response_receipt_actor_role": "INTEGRATION_VALIDATOR",
+    "review_response_receipt_track": "JUDGMENT_OOB_IV_PHASE1_PRE_REMEDIATION"
   },
   "red_team": {
     "minimum_controls": [
@@ -148,7 +150,7 @@
   "integration_validator_review": {
     "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C11_FRESH",
     "reviewed_at_utc": "2026-05-27T19:00:00Z",
-    "aggregator_run_at_utc": "2026-05-27T19:03:58.446Z",
+    "aggregator_run_at_utc": "2026-05-28T00:01:31.342Z",
     "verdict": "FAIL",
     "verdict_reason": "MT-118 is the named operator-visible FULL FEATURE PARITY gate per E-2 acceptance. The test scaffolding lands per-architecture #[ignore] entry points (Mamba2 + RWKV v5/v6/v7) and 3 always-on guards, but STEP-1 (base load+generate), STEP-2 (LoRA mount), and STEP-3 (activation steering) print DEFERRED markers via eprintln rather than producing deterministic runtime evidence. Only STEP-4 (state-vector commit/restore) + STEP-5 (cross-session disk persist via MT-117 ArtifactStore) + STEP-5b (cross-variant rejection) actually exercise the parity path. The contract's red_team minimum control 'All 5 feature_parity_detail items present per architecture (no commented-out steps)' is satisfied at the structural level (steps are uncommented code paths) but the DEFERRED-via-eprintln pattern is functionally equivalent to commented-out: a validator reading the --ignored log sees [MT-118 STEP-N DEFERRED] markers, not pass/fail evidence. Per operator E-2: 'Operator E-2 FULL FEATURE PARITY acceptance not gated; partial-parity ship could be mistaken for PRODUCTION' is exactly the risk_if_missed wording, and the current state is partial-parity. The MT-118 own classification ('IMPLEMENTATION_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS') + spec_realism_gate_self_check.sub_rule_1='MIXED' acknowledge this.",
     "spec_compliance_status": "FAILS",
@@ -171,7 +173,7 @@
   "integration_validator_review_prior": {
     "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C11_FRESH",
     "reviewed_at_utc": "2026-05-27T19:00:00Z",
-    "aggregator_run_at_utc": "2026-05-27T18:50:05.123Z",
+    "aggregator_run_at_utc": "2026-05-27T23:48:44.444Z",
     "verdict": "FAIL",
     "verdict_reason": "MT-118 is the named operator-visible FULL FEATURE PARITY gate per E-2 acceptance. The test scaffolding lands per-architecture #[ignore] entry points (Mamba2 + RWKV v5/v6/v7) and 3 always-on guards, but STEP-1 (base load+generate), STEP-2 (LoRA mount), and STEP-3 (activation steering) print DEFERRED markers via eprintln rather than producing deterministic runtime evidence. Only STEP-4 (state-vector commit/restore) + STEP-5 (cross-session disk persist via MT-117 ArtifactStore) + STEP-5b (cross-variant rejection) actually exercise the parity path. The contract's red_team minimum control 'All 5 feature_parity_detail items present per architecture (no commented-out steps)' is satisfied at the structural level (steps are uncommented code paths) but the DEFERRED-via-eprintln pattern is functionally equivalent to commented-out: a validator reading the --ignored log sees [MT-118 STEP-N DEFERRED] markers, not pass/fail evidence. Per operator E-2: 'Operator E-2 FULL FEATURE PARITY acceptance not gated; partial-parity ship could be mistaken for PRODUCTION' is exactly the risk_if_missed wording, and the current state is partial-parity. The MT-118 own classification ('IMPLEMENTATION_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS') + spec_realism_gate_self_check.sub_rule_1='MIXED' acknowledge this.",
     "spec_compliance_status": "FAILS",
@@ -187,8 +189,8 @@
       "LOW": 1
     },
     "paperwork_notes_count": 3,
-    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-118.review.json",
-    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-118.review.json",
+    "review_artifact_ref": "validator_reports_phase1/MT-118.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1\\validator_reports_phase1\\MT-118.review.json",
     "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
   }
 }

@@ -7,7 +7,7 @@
   "cluster_subscope": "B.3",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:10:00Z",
-  "updated_at_utc": "2026-05-27T19:03:58.446Z",
+  "updated_at_utc": "2026-05-28T00:01:44.902Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -84,13 +84,15 @@
     "ready_at_utc": "2026-05-25T15:54:56.028Z",
     "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
     "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
-    "validator_verdict_set_at_utc": "2026-05-27T19:03:58.446Z"
+    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z"
   },
   "handoff": {
     "coder_session": "KERNEL_BUILDER-20260518-235451",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
-    "review_response_receipt_id": null
+    "review_response_receipt_id": "019e6be3-15c6-7034-bb5e-5e4d6fa77a8d",
+    "review_response_receipt_actor_role": "INTEGRATION_VALIDATOR",
+    "review_response_receipt_track": "JUDGMENT_OOB_IV_PHASE1_PRE_REMEDIATION"
   },
   "red_team": {
     "minimum_controls": [
@@ -102,7 +104,7 @@
   "integration_validator_review": {
     "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_B_GAPS_REDO_WTC",
     "reviewed_at_utc": "2026-05-27T22:30:00Z",
-    "aggregator_run_at_utc": "2026-05-27T19:03:58.446Z",
+    "aggregator_run_at_utc": "2026-05-28T00:01:31.342Z",
     "verdict": "CONCERN",
     "verdict_reason": "Migration record (.GOV/roles_shared/records/sandbox/WP-KERNEL-004-kernel-003-callsite-migration.json) exists with schema hsk.sandbox_callsite_migration@1 and an exhaustive scan: the conclusion is 'already_migrated_verified' because KERNEL-003 never had a DocketAdapter to migrate from. The repo lint (no-direct-docket-adapter-import-check.mjs) exists and passes 156 files. This means MT-054 lands a durable forward-guard but the 'refactor' is structurally vacuous; the contract assumes a refactor target that does not exist.",
     "spec_compliance_status": "PARTIAL",
@@ -123,29 +125,26 @@
     "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
   },
   "integration_validator_review_prior": {
-    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_B_GAPS",
-    "reviewed_at_utc": "2026-05-27T17:36:00Z",
-    "aggregator_run_at_utc": "2026-05-27T18:50:05.123Z",
-    "verdict": "FAIL",
-    "verdict_reason": "KERNEL-003 callsite migration not performed; no .GOV/roles_shared/records/sandbox/WP-KERNEL-004-kernel-003-callsite-migration.json artifact; no .GOV/roles_shared/checks/no-direct-docket-adapter-import-check.mjs; no edits in src/backend/handshake_core/src/kernel/** to swap DocketAdapter for Arc<dyn SandboxAdapter>.",
-    "spec_compliance_status": "FAILS",
-    "code_hygiene_status": "MAJOR",
-    "runtime_safety_status": "UNSAFE",
-    "agent_swarm_safety_status": "CONCERN",
-    "hbr_unsatisfied": [
-      "HBR-INT-001",
-      "HBR-SWARM-001"
-    ],
-    "test_coverage_status": "MISSING",
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_B_GAPS_REDO_WTC",
+    "reviewed_at_utc": "2026-05-27T22:30:00Z",
+    "aggregator_run_at_utc": "2026-05-27T23:48:44.444Z",
+    "verdict": "CONCERN",
+    "verdict_reason": "Migration record (.GOV/roles_shared/records/sandbox/WP-KERNEL-004-kernel-003-callsite-migration.json) exists with schema hsk.sandbox_callsite_migration@1 and an exhaustive scan: the conclusion is 'already_migrated_verified' because KERNEL-003 never had a DocketAdapter to migrate from. The repo lint (no-direct-docket-adapter-import-check.mjs) exists and passes 156 files. This means MT-054 lands a durable forward-guard but the 'refactor' is structurally vacuous; the contract assumes a refactor target that does not exist.",
+    "spec_compliance_status": "PARTIAL",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
     "findings_count_by_severity": {
-      "CRITICAL": 1,
+      "CRITICAL": 0,
       "HIGH": 1,
       "MEDIUM": 0,
       "LOW": 0
     },
     "paperwork_notes_count": 0,
-    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-054.review.json",
-    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-054.review.json",
+    "review_artifact_ref": "validator_reports_phase1/MT-054.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1\\validator_reports_phase1\\MT-054.review.json",
     "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
   }
 }

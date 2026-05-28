@@ -7,7 +7,7 @@
   "cluster_subscope": "D.4",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:29:00Z",
-  "updated_at_utc": "2026-05-27T19:03:58.446Z",
+  "updated_at_utc": "2026-05-28T00:01:44.967Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -77,13 +77,13 @@
     "ready_at_utc": "2026-05-25T15:54:56.028Z",
     "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
     "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
-    "validator_verdict_set_at_utc": "2026-05-27T19:03:58.446Z"
+    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z"
   },
   "handoff": {
     "coder_session": "KERNEL_BUILDER-20260524-070",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
-    "review_response_receipt_id": null,
+    "review_response_receipt_id": "019e6be3-1606-7732-852c-a0b8c94dd947",
     "implementation_evidence": {
       "recorded_at_utc": "2026-05-24T00:00:00Z",
       "recorded_by": "KERNEL_BUILDER-20260524-070",
@@ -125,7 +125,9 @@
         "FR-EVT-PROMOTION-DECISION_constant_stable_and_serde_round_trip",
         "FR-EVT-GOODHART-PAUSE_carried_in_sentinel_receipt_serde_round_trip"
       ]
-    }
+    },
+    "review_response_receipt_actor_role": "INTEGRATION_VALIDATOR",
+    "review_response_receipt_track": "JUDGMENT_OOB_IV_PHASE1_PRE_REMEDIATION"
   },
   "red_team": {
     "minimum_controls": [
@@ -137,7 +139,7 @@
   "integration_validator_review": {
     "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_D_GAPS",
     "reviewed_at_utc": "2026-05-27T19:05:00Z",
-    "aggregator_run_at_utc": "2026-05-27T19:03:58.446Z",
+    "aggregator_run_at_utc": "2026-05-28T00:01:31.342Z",
     "verdict": "PASS_WITH_NOTES",
     "verdict_reason": "promotion_gate_pause_e2e_tests.rs ships 20 tests covering scenario 1 (operator-review required path), scenario 2 (Goodhart pause / operator unpause), scenario 3 (rejection path). Adversarial coverage includes: forged ticket id returns UnknownTicket; approval-without-pending returns UnknownIteration; double-approval second attempt fails; goodhart-takes-priority-over-pending at scheduler; both-pause-and-pending prefers pause. FR-EVT-LOOP-PAUSE / FR-EVT-LOOP-UNPAUSE / FR-EVT-PROMOTION-DECISION / FR-EVT-GOODHART-PAUSE constants verified. CONCERN: the test drives surface.snapshot() and surface.apply_proposal() MANUALLY rather than through LoopCore.run_one_iteration. The 'apply_proposal NOT called while Pending' assertion is true because the test simply hasn't called apply_proposal yet; it does NOT prove that production LoopCore actually blocks apply during a Pending review. Combined with the MT-154 ticket-binding gap and MT-155 IPC Pending-bypass, the end-to-end gate enforcement remains structurally questionable even though the unit-test invariants pass.",
     "spec_compliance_status": "MEETS",
@@ -160,7 +162,7 @@
   "integration_validator_review_prior": {
     "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_D_GAPS",
     "reviewed_at_utc": "2026-05-27T19:05:00Z",
-    "aggregator_run_at_utc": "2026-05-27T18:50:05.123Z",
+    "aggregator_run_at_utc": "2026-05-27T23:48:44.444Z",
     "verdict": "PASS_WITH_NOTES",
     "verdict_reason": "promotion_gate_pause_e2e_tests.rs ships 20 tests covering scenario 1 (operator-review required path), scenario 2 (Goodhart pause / operator unpause), scenario 3 (rejection path). Adversarial coverage includes: forged ticket id returns UnknownTicket; approval-without-pending returns UnknownIteration; double-approval second attempt fails; goodhart-takes-priority-over-pending at scheduler; both-pause-and-pending prefers pause. FR-EVT-LOOP-PAUSE / FR-EVT-LOOP-UNPAUSE / FR-EVT-PROMOTION-DECISION / FR-EVT-GOODHART-PAUSE constants verified. CONCERN: the test drives surface.snapshot() and surface.apply_proposal() MANUALLY rather than through LoopCore.run_one_iteration. The 'apply_proposal NOT called while Pending' assertion is true because the test simply hasn't called apply_proposal yet; it does NOT prove that production LoopCore actually blocks apply during a Pending review. Combined with the MT-154 ticket-binding gap and MT-155 IPC Pending-bypass, the end-to-end gate enforcement remains structurally questionable even though the unit-test invariants pass.",
     "spec_compliance_status": "MEETS",
@@ -176,8 +178,8 @@
       "LOW": 1
     },
     "paperwork_notes_count": 3,
-    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-170.review.json",
-    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-170.review.json",
+    "review_artifact_ref": "validator_reports_phase1/MT-170.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1\\validator_reports_phase1\\MT-170.review.json",
     "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
   }
 }

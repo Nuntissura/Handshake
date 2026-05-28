@@ -7,7 +7,7 @@
   "cluster_subscope": "C.13",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:00:00Z",
-  "updated_at_utc": "2026-05-27T19:03:58.446Z",
+  "updated_at_utc": "2026-05-28T00:01:44.946Z",
   "contract_repair_log": [
     {
       "at_utc": "2026-05-20T08:00:00Z",
@@ -158,13 +158,15 @@
     "ready_at_utc": "2026-05-25T15:54:56.028Z",
     "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
     "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
-    "validator_verdict_set_at_utc": "2026-05-27T19:03:58.446Z"
+    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z"
   },
   "handoff": {
     "coder_session": "KERNEL_BUILDER-20260519-203500",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
-    "review_response_receipt_id": null
+    "review_response_receipt_id": "019e6be3-15f2-7c0f-9cd8-9bbd39da0e43",
+    "review_response_receipt_actor_role": "INTEGRATION_VALIDATOR",
+    "review_response_receipt_track": "JUDGMENT_OOB_IV_PHASE1_PRE_REMEDIATION"
   },
   "red_team": {
     "minimum_controls": [
@@ -176,7 +178,7 @@
   "integration_validator_review": {
     "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C12_C13_FRESH",
     "reviewed_at_utc": "2026-05-27T17:45:00Z",
-    "aggregator_run_at_utc": "2026-05-27T19:03:58.446Z",
+    "aggregator_run_at_utc": "2026-05-28T00:01:31.342Z",
     "verdict": "PASS_WITH_NOTES",
     "verdict_reason": "CloudLanePanel.tsx + ApiKeyVault.tsx + ConsentPromptModal.tsx components ported from the Svelte contract to React/TSX (framework correction recorded), typecheck. ApiKeyVault NEVER renders the secret value (table shows lane id + 'stored'/'missing' + updated timestamp only); edit form uses input type=password; draftSecret cleared immediately after the parent handler returns; Debug-grep verified. Destructive Delete requires confirm dialog. ConsentPromptModal copy is technical ('First cloud call this session...', 'Approve cloud send', 'Deny'); no moralizing. Tauri commands in commands/cloud_lane.rs route through real SecretsVault + ConsentGate state. ModelRuntimePanel.tsx mounts CloudLanePanel.",
     "spec_compliance_status": "PASSES",
@@ -202,7 +204,7 @@
   "integration_validator_review_prior": {
     "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C12_C13_FRESH",
     "reviewed_at_utc": "2026-05-27T17:45:00Z",
-    "aggregator_run_at_utc": "2026-05-27T18:50:05.123Z",
+    "aggregator_run_at_utc": "2026-05-27T23:48:44.444Z",
     "verdict": "PASS_WITH_NOTES",
     "verdict_reason": "CloudLanePanel.tsx + ApiKeyVault.tsx + ConsentPromptModal.tsx components ported from the Svelte contract to React/TSX (framework correction recorded), typecheck. ApiKeyVault NEVER renders the secret value (table shows lane id + 'stored'/'missing' + updated timestamp only); edit form uses input type=password; draftSecret cleared immediately after the parent handler returns; Debug-grep verified. Destructive Delete requires confirm dialog. ConsentPromptModal copy is technical ('First cloud call this session...', 'Approve cloud send', 'Deny'); no moralizing. Tauri commands in commands/cloud_lane.rs route through real SecretsVault + ConsentGate state. ModelRuntimePanel.tsx mounts CloudLanePanel.",
     "spec_compliance_status": "PASSES",
@@ -221,8 +223,8 @@
       "LOW": 1
     },
     "paperwork_notes_count": 1,
-    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-129.review.json",
-    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-129.review.json",
+    "review_artifact_ref": "validator_reports_phase1/MT-129.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1\\validator_reports_phase1\\MT-129.review.json",
     "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
   }
 }

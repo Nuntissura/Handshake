@@ -7,7 +7,7 @@
   "cluster_subscope": "X.2",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:11:00Z",
-  "updated_at_utc": "2026-05-27T19:03:58.446Z",
+  "updated_at_utc": "2026-05-28T00:01:44.975Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -108,13 +108,15 @@
     "ready_at_utc": "2026-05-25T15:54:56.028Z",
     "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
     "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
-    "validator_verdict_set_at_utc": "2026-05-27T19:03:58.446Z"
+    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z"
   },
   "handoff": {
     "coder_session": "KERNEL_BUILDER-20260524-187",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
-    "review_response_receipt_id": null
+    "review_response_receipt_id": "019e6be3-160e-78d9-ac44-1d2c2e1762d7",
+    "review_response_receipt_actor_role": "INTEGRATION_VALIDATOR",
+    "review_response_receipt_track": "JUDGMENT_OOB_IV_PHASE1_PRE_REMEDIATION"
   },
   "implementation_evidence": {
     "recorded_at_utc": "2026-05-24T01:00:00Z",
@@ -244,7 +246,7 @@
   "integration_validator_review": {
     "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_X_GAPS",
     "reviewed_at_utc": "2026-05-27T17:56:00Z",
-    "aggregator_run_at_utc": "2026-05-27T19:03:58.446Z",
+    "aggregator_run_at_utc": "2026-05-28T00:01:31.342Z",
     "verdict": "PASS_WITH_NOTES",
     "verdict_reason": "FairScheduler + StarvationGuard + claim_next_priority Postgres CTE landed with server-side priority computation in a single WITH base AS / scored AS query + FOR UPDATE SKIP LOCKED LIMIT 1 (no client-side re-rank race). 16 always-on + 5 Postgres-gated tests green. Starvation watermark column (starvation_watermark_at_utc) survives process restart (red_team #2). Fairness penalty computed from DB rows (red_team #3). Atomic claim hardening regression 2026-05-25 (single atomic UPDATE...FROM candidate...RETURNING).",
     "spec_compliance_status": "MEETS",
@@ -267,7 +269,7 @@
   "integration_validator_review_prior": {
     "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_X_GAPS",
     "reviewed_at_utc": "2026-05-27T17:56:00Z",
-    "aggregator_run_at_utc": "2026-05-27T18:50:05.123Z",
+    "aggregator_run_at_utc": "2026-05-27T23:48:44.444Z",
     "verdict": "PASS_WITH_NOTES",
     "verdict_reason": "FairScheduler + StarvationGuard + claim_next_priority Postgres CTE landed with server-side priority computation in a single WITH base AS / scored AS query + FOR UPDATE SKIP LOCKED LIMIT 1 (no client-side re-rank race). 16 always-on + 5 Postgres-gated tests green. Starvation watermark column (starvation_watermark_at_utc) survives process restart (red_team #2). Fairness penalty computed from DB rows (red_team #3). Atomic claim hardening regression 2026-05-25 (single atomic UPDATE...FROM candidate...RETURNING).",
     "spec_compliance_status": "MEETS",
@@ -283,8 +285,8 @@
       "LOW": 2
     },
     "paperwork_notes_count": 2,
-    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-187.review.json",
-    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-187.review.json",
+    "review_artifact_ref": "validator_reports_phase1/MT-187.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1\\validator_reports_phase1\\MT-187.review.json",
     "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
   }
 }

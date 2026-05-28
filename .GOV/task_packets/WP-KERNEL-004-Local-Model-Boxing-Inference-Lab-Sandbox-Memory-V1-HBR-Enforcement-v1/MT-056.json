@@ -7,7 +7,7 @@
   "cluster_subscope": "B.3",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:10:00Z",
-  "updated_at_utc": "2026-05-27T19:03:58.446Z",
+  "updated_at_utc": "2026-05-28T00:01:44.903Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -81,13 +81,15 @@
     "ready_at_utc": "2026-05-25T15:54:56.028Z",
     "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
     "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
-    "validator_verdict_set_at_utc": "2026-05-27T19:03:58.446Z"
+    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z"
   },
   "handoff": {
     "coder_session": "KERNEL_BUILDER-20260518-235451",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
-    "review_response_receipt_id": null
+    "review_response_receipt_id": "019e6be3-15c7-72cc-8e3b-d34e4a4599e1",
+    "review_response_receipt_actor_role": "INTEGRATION_VALIDATOR",
+    "review_response_receipt_track": "JUDGMENT_OOB_IV_PHASE1_PRE_REMEDIATION"
   },
   "red_team": {
     "minimum_controls": [
@@ -99,7 +101,7 @@
   "integration_validator_review": {
     "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_B_GAPS_REDO_WTC",
     "reviewed_at_utc": "2026-05-27T22:30:00Z",
-    "aggregator_run_at_utc": "2026-05-27T19:03:58.446Z",
+    "aggregator_run_at_utc": "2026-05-28T00:01:31.342Z",
     "verdict": "PASS",
     "verdict_reason": "settings_schema.rs implements SandboxDefaultAdapterChoice as a Rust enum that lacks any Docker variant - type-level rejection per the contract; serde deny_unknown_fields adds defense-in-depth. docker-not-default-adapter-check.mjs scans bootstrap.rs and .GOV/settings JSON for Docker defaults with full comment-stripping. sandbox_compat_only_tests.rs covers the type rejection, the WindowsNativeJail rejection, unknown_field rejection, and runtime-side select() guard. Bootstrap uses disallowed_default_adapter_reason() to belt-and-suspenders block Docker-as-default at registry construction.",
     "spec_compliance_status": "MEETS",
@@ -120,28 +122,26 @@
     "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
   },
   "integration_validator_review_prior": {
-    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_B_GAPS",
-    "reviewed_at_utc": "2026-05-27T17:38:00Z",
-    "aggregator_run_at_utc": "2026-05-27T18:50:05.123Z",
-    "verdict": "FAIL",
-    "verdict_reason": "settings_schema.rs absent; docker-not-default-adapter-check.mjs absent; the type-system and repo-lint enforcement that locks Docker to compat-only-not-default is not implemented; spec §3.5.3 ('DockerAdapter selected only when operator explicitly opts in') is unenforced.",
-    "spec_compliance_status": "FAILS",
-    "code_hygiene_status": "MAJOR",
-    "runtime_safety_status": "UNSAFE",
-    "agent_swarm_safety_status": "CONCERN",
-    "hbr_unsatisfied": [
-      "HBR-INT-001"
-    ],
-    "test_coverage_status": "MISSING",
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_B_GAPS_REDO_WTC",
+    "reviewed_at_utc": "2026-05-27T22:30:00Z",
+    "aggregator_run_at_utc": "2026-05-27T23:48:44.444Z",
+    "verdict": "PASS",
+    "verdict_reason": "settings_schema.rs implements SandboxDefaultAdapterChoice as a Rust enum that lacks any Docker variant - type-level rejection per the contract; serde deny_unknown_fields adds defense-in-depth. docker-not-default-adapter-check.mjs scans bootstrap.rs and .GOV/settings JSON for Docker defaults with full comment-stripping. sandbox_compat_only_tests.rs covers the type rejection, the WindowsNativeJail rejection, unknown_field rejection, and runtime-side select() guard. Bootstrap uses disallowed_default_adapter_reason() to belt-and-suspenders block Docker-as-default at registry construction.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
     "findings_count_by_severity": {
       "CRITICAL": 0,
-      "HIGH": 1,
-      "MEDIUM": 1,
-      "LOW": 0
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 1
     },
     "paperwork_notes_count": 0,
-    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-056.review.json",
-    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-056.review.json",
+    "review_artifact_ref": "validator_reports_phase1/MT-056.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1\\validator_reports_phase1\\MT-056.review.json",
     "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
   }
 }

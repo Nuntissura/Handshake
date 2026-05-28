@@ -7,7 +7,7 @@
   "cluster_subscope": "X.1",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:04:00Z",
-  "updated_at_utc": "2026-05-27T19:03:58.446Z",
+  "updated_at_utc": "2026-05-28T00:01:44.970Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -124,13 +124,15 @@
     "ready_at_utc": "2026-05-25T15:54:56.028Z",
     "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
     "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
-    "validator_verdict_set_at_utc": "2026-05-27T19:03:58.446Z"
+    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z"
   },
   "handoff": {
     "coder_session": "KERNEL_BUILDER-20260523-031814-AGT-MT180",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
-    "review_response_receipt_id": null
+    "review_response_receipt_id": "019e6be3-1609-737e-a0b8-4f0d784b0eab",
+    "review_response_receipt_actor_role": "INTEGRATION_VALIDATOR",
+    "review_response_receipt_track": "JUDGMENT_OOB_IV_PHASE1_PRE_REMEDIATION"
   },
   "red_team": {
     "minimum_controls": [
@@ -201,7 +203,7 @@
   "integration_validator_review": {
     "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_X_GAPS",
     "reviewed_at_utc": "2026-05-27T17:32:00Z",
-    "aggregator_run_at_utc": "2026-05-27T19:03:58.446Z",
+    "aggregator_run_at_utc": "2026-05-28T00:01:31.342Z",
     "verdict": "PASS_WITH_NOTES",
     "verdict_reason": "Lease primitive (acquire/extend/release/takeover) lands with FOR UPDATE serialisation + 23505 unique_violation handling + recursive-CTE takeover chain + idempotent extend/release. Partial unique index `idx_role_mailbox_claim_lease_active WHERE released_at_utc IS NULL` enforces 'one active lease per thread' at DB layer. Pure-Rust adversarial tests 11/11 green; 20 Postgres-gated tests proven against live Postgres in the 2026-05-25 continuation. Acceptable predicate divergence vs. contract NOW()-based index (Postgres immutability constraint).",
     "spec_compliance_status": "MEETS",
@@ -224,7 +226,7 @@
   "integration_validator_review_prior": {
     "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_X_GAPS",
     "reviewed_at_utc": "2026-05-27T17:32:00Z",
-    "aggregator_run_at_utc": "2026-05-27T18:50:05.123Z",
+    "aggregator_run_at_utc": "2026-05-27T23:48:44.444Z",
     "verdict": "PASS_WITH_NOTES",
     "verdict_reason": "Lease primitive (acquire/extend/release/takeover) lands with FOR UPDATE serialisation + 23505 unique_violation handling + recursive-CTE takeover chain + idempotent extend/release. Partial unique index `idx_role_mailbox_claim_lease_active WHERE released_at_utc IS NULL` enforces 'one active lease per thread' at DB layer. Pure-Rust adversarial tests 11/11 green; 20 Postgres-gated tests proven against live Postgres in the 2026-05-25 continuation. Acceptable predicate divergence vs. contract NOW()-based index (Postgres immutability constraint).",
     "spec_compliance_status": "MEETS",
@@ -240,8 +242,8 @@
       "LOW": 1
     },
     "paperwork_notes_count": 2,
-    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-180.review.json",
-    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-180.review.json",
+    "review_artifact_ref": "validator_reports_phase1/MT-180.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1\\validator_reports_phase1\\MT-180.review.json",
     "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
   }
 }

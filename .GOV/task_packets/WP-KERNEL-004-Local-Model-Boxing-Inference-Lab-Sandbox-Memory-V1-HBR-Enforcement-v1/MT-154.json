@@ -7,7 +7,7 @@
   "cluster_subscope": "D.2",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:13:00Z",
-  "updated_at_utc": "2026-05-27T19:03:58.446Z",
+  "updated_at_utc": "2026-05-28T00:01:44.956Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -142,13 +142,15 @@
     "ready_at_utc": "2026-05-25T15:54:56.028Z",
     "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
     "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
-    "validator_verdict_set_at_utc": "2026-05-27T19:03:58.446Z"
+    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z"
   },
   "handoff": {
     "coder_session": null,
     "wp_validator_session": null,
     "review_request_receipt_id": null,
-    "review_response_receipt_id": null
+    "review_response_receipt_id": "019e6be3-15fb-72a6-8d00-6e06cbef294f",
+    "review_response_receipt_actor_role": "INTEGRATION_VALIDATOR",
+    "review_response_receipt_track": "JUDGMENT_OOB_IV_PHASE1_PRE_REMEDIATION"
   },
   "red_team": {
     "minimum_controls": [
@@ -160,7 +162,7 @@
   "integration_validator_review": {
     "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_D_GAPS",
     "reviewed_at_utc": "2026-05-27T18:05:00Z",
-    "aggregator_run_at_utc": "2026-05-27T19:03:58.446Z",
+    "aggregator_run_at_utc": "2026-05-28T00:01:31.342Z",
     "verdict": "PASS_WITH_NOTES",
     "verdict_reason": "LoopPromotionGate adapter ships the contracted PromotionRequest/PromotionTicket/PromotionStatus/PromotionApproval/PromotionRejection/GateError types. Evidence bundle (baseline + proposal + eval + floor + sentinel + justification) is preserved and serde round-trips byte-for-byte per builder evidence. require_approved short-circuits Pending and Rejected with typed errors. 29 integration + 4 inline tests reported. HIGH-severity adversarial gap: the trait surface and the MockGate test fixture do NOT bind PromotionTicket.iteration_id to PromotionRequest.iteration_id — the gate is free to return a ticket bearing any iteration_id, breaking the audit linkage. Production code must validate this binding before trusting downstream loop wiring.",
     "spec_compliance_status": "MEETS",
@@ -183,7 +185,7 @@
   "integration_validator_review_prior": {
     "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_D_GAPS",
     "reviewed_at_utc": "2026-05-27T18:05:00Z",
-    "aggregator_run_at_utc": "2026-05-27T18:50:05.123Z",
+    "aggregator_run_at_utc": "2026-05-27T23:48:44.444Z",
     "verdict": "PASS_WITH_NOTES",
     "verdict_reason": "LoopPromotionGate adapter ships the contracted PromotionRequest/PromotionTicket/PromotionStatus/PromotionApproval/PromotionRejection/GateError types. Evidence bundle (baseline + proposal + eval + floor + sentinel + justification) is preserved and serde round-trips byte-for-byte per builder evidence. require_approved short-circuits Pending and Rejected with typed errors. 29 integration + 4 inline tests reported. HIGH-severity adversarial gap: the trait surface and the MockGate test fixture do NOT bind PromotionTicket.iteration_id to PromotionRequest.iteration_id — the gate is free to return a ticket bearing any iteration_id, breaking the audit linkage. Production code must validate this binding before trusting downstream loop wiring.",
     "spec_compliance_status": "MEETS",
@@ -199,8 +201,8 @@
       "LOW": 1
     },
     "paperwork_notes_count": 2,
-    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-154.review.json",
-    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-154.review.json",
+    "review_artifact_ref": "validator_reports_phase1/MT-154.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1\\validator_reports_phase1\\MT-154.review.json",
     "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
   }
 }

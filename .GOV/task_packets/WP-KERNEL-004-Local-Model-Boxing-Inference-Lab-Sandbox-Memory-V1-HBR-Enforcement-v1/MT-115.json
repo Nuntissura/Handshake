@@ -7,7 +7,7 @@
   "cluster_subscope": "C.11",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:00:00Z",
-  "updated_at_utc": "2026-05-27T19:03:58.446Z",
+  "updated_at_utc": "2026-05-28T00:01:44.937Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -142,13 +142,15 @@
     "ready_at_utc": "2026-05-25T15:54:56.028Z",
     "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
     "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
-    "validator_verdict_set_at_utc": "2026-05-27T19:03:58.446Z"
+    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z"
   },
   "handoff": {
     "coder_session": "KERNEL_BUILDER-20260522-171100",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
-    "review_response_receipt_id": null
+    "review_response_receipt_id": "019e6be3-15e8-7e0f-b2f9-b151eba6c4b7",
+    "review_response_receipt_actor_role": "INTEGRATION_VALIDATOR",
+    "review_response_receipt_track": "JUDGMENT_OOB_IV_PHASE1_PRE_REMEDIATION"
   },
   "red_team": {
     "minimum_controls": [
@@ -159,7 +161,7 @@
   "integration_validator_review": {
     "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C11_FRESH",
     "reviewed_at_utc": "2026-05-27T18:45:00Z",
-    "aggregator_run_at_utc": "2026-05-27T19:03:58.446Z",
+    "aggregator_run_at_utc": "2026-05-28T00:01:31.342Z",
     "verdict": "FAIL",
     "verdict_reason": "Operator E-2 explicitly requires FULL FEATURE PARITY including 'LoRA mount/unmount must actually work for SSMs' as a HIGH risk if missed. MT-115 lands ONLY the validation surface (SSMArchitectureTag enum, target-module name lists, validator, deferral marker) and explicitly defers the actual weight-application path that threads the LoRA delta through each variant's candle forward pass to an undefined follow-on MT. candle_mamba2_capabilities + candle_rwkv_capabilities ship with supports_lora=false (adapter.rs:517,529) — capability flag honest, but the parity requirement is unmet. The contract title ('LoRA mount/unmount for Mamba2 + RWKV') and goal ('Implement LoraStackOps for SSM/RWKV variants: LoRA mount/unmount that targets SSM-specific weight tensors...') both promise functional mount/unmount. Real PEFT delta application is the load-bearing acceptance, not the validator. Per the adversarial prompt: 'LoRA mount/unmount that doesn't actually work for SSMs = HIGH'.",
     "spec_compliance_status": "FAILS",
@@ -185,7 +187,7 @@
   "integration_validator_review_prior": {
     "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C11_FRESH",
     "reviewed_at_utc": "2026-05-27T18:45:00Z",
-    "aggregator_run_at_utc": "2026-05-27T18:50:05.123Z",
+    "aggregator_run_at_utc": "2026-05-27T23:48:44.444Z",
     "verdict": "FAIL",
     "verdict_reason": "Operator E-2 explicitly requires FULL FEATURE PARITY including 'LoRA mount/unmount must actually work for SSMs' as a HIGH risk if missed. MT-115 lands ONLY the validation surface (SSMArchitectureTag enum, target-module name lists, validator, deferral marker) and explicitly defers the actual weight-application path that threads the LoRA delta through each variant's candle forward pass to an undefined follow-on MT. candle_mamba2_capabilities + candle_rwkv_capabilities ship with supports_lora=false (adapter.rs:517,529) — capability flag honest, but the parity requirement is unmet. The contract title ('LoRA mount/unmount for Mamba2 + RWKV') and goal ('Implement LoraStackOps for SSM/RWKV variants: LoRA mount/unmount that targets SSM-specific weight tensors...') both promise functional mount/unmount. Real PEFT delta application is the load-bearing acceptance, not the validator. Per the adversarial prompt: 'LoRA mount/unmount that doesn't actually work for SSMs = HIGH'.",
     "spec_compliance_status": "FAILS",
@@ -204,8 +206,8 @@
       "LOW": 0
     },
     "paperwork_notes_count": 3,
-    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-115.review.json",
-    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-115.review.json",
+    "review_artifact_ref": "validator_reports_phase1/MT-115.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1\\validator_reports_phase1\\MT-115.review.json",
     "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
   }
 }

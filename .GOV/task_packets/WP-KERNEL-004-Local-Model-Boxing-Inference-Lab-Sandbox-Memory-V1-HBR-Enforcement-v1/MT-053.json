@@ -7,7 +7,7 @@
   "cluster_subscope": "B.2",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:10:00Z",
-  "updated_at_utc": "2026-05-27T19:03:58.446Z",
+  "updated_at_utc": "2026-05-28T00:01:44.901Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -90,13 +90,15 @@
     "ready_at_utc": "2026-05-25T15:54:56.028Z",
     "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
     "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
-    "validator_verdict_set_at_utc": "2026-05-27T19:03:58.446Z"
+    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z"
   },
   "handoff": {
     "coder_session": "KERNEL_BUILDER-20260518-231133",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
-    "review_response_receipt_id": null
+    "review_response_receipt_id": "019e6be3-15c5-7fc9-970b-40fe902456ee",
+    "review_response_receipt_actor_role": "INTEGRATION_VALIDATOR",
+    "review_response_receipt_track": "JUDGMENT_OOB_IV_PHASE1_PRE_REMEDIATION"
   },
   "red_team": {
     "minimum_controls": [
@@ -108,7 +110,7 @@
   "integration_validator_review": {
     "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_B_GAPS_REDO_WTC",
     "reviewed_at_utc": "2026-05-27T22:30:00Z",
-    "aggregator_run_at_utc": "2026-05-27T19:03:58.446Z",
+    "aggregator_run_at_utc": "2026-05-28T00:01:31.342Z",
     "verdict": "PASS",
     "verdict_reason": "ProcessOwnershipLedger (kernel_process_lifecycle table) + LedgerBatcher + LedgerDecorator + cap_metadata_jsonb + ring-buffer overflow path with FR_EVT_LEDGER_OVERFLOW are all implemented; UUID v7 used; START/STOP record_once guards prevent duplicate STOP rows; Postgres migration SQL is shipped; tests cover ring overflow, metadata cap, batching defaults.",
     "spec_compliance_status": "MEETS",
@@ -129,31 +131,26 @@
     "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
   },
   "integration_validator_review_prior": {
-    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_B_GAPS",
-    "reviewed_at_utc": "2026-05-27T17:35:00Z",
-    "aggregator_run_at_utc": "2026-05-27T18:50:05.123Z",
-    "verdict": "FAIL",
-    "verdict_reason": "ProcessOwnershipLedger module + LedgerDecorator absent; kernel_process_lifecycle Postgres schema migration absent; AC-LOCAL-MODEL-BOXING ('every model process registers START + STOP') is structurally unmet — every spawn is unaudited.",
-    "spec_compliance_status": "FAILS",
-    "code_hygiene_status": "MAJOR",
-    "runtime_safety_status": "UNSAFE",
-    "agent_swarm_safety_status": "UNSAFE",
-    "hbr_unsatisfied": [
-      "HBR-INT-001",
-      "HBR-INT-008",
-      "HBR-QUIET-003",
-      "HBR-SWARM-001"
-    ],
-    "test_coverage_status": "MISSING",
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_B_GAPS_REDO_WTC",
+    "reviewed_at_utc": "2026-05-27T22:30:00Z",
+    "aggregator_run_at_utc": "2026-05-27T23:48:44.444Z",
+    "verdict": "PASS",
+    "verdict_reason": "ProcessOwnershipLedger (kernel_process_lifecycle table) + LedgerBatcher + LedgerDecorator + cap_metadata_jsonb + ring-buffer overflow path with FR_EVT_LEDGER_OVERFLOW are all implemented; UUID v7 used; START/STOP record_once guards prevent duplicate STOP rows; Postgres migration SQL is shipped; tests cover ring overflow, metadata cap, batching defaults.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
     "findings_count_by_severity": {
-      "CRITICAL": 1,
-      "HIGH": 2,
-      "MEDIUM": 0,
-      "LOW": 0
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 1,
+      "LOW": 1
     },
     "paperwork_notes_count": 0,
-    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-053.review.json",
-    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-053.review.json",
+    "review_artifact_ref": "validator_reports_phase1/MT-053.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1\\validator_reports_phase1\\MT-053.review.json",
     "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
   }
 }

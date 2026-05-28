@@ -7,7 +7,7 @@
   "cluster_subscope": "X.4",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:23:00Z",
-  "updated_at_utc": "2026-05-27T19:03:58.446Z",
+  "updated_at_utc": "2026-05-28T00:01:44.984Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -169,13 +169,15 @@
     "ready_at_utc": "2026-05-25T15:54:56.028Z",
     "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
     "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
-    "validator_verdict_set_at_utc": "2026-05-27T19:03:58.446Z"
+    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z"
   },
   "handoff": {
     "coder_session": "KERNEL_BUILDER-20260523-031814-AGT-MT199",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
-    "review_response_receipt_id": null
+    "review_response_receipt_id": "019e6be3-1618-7b3d-8747-3b6277f7d229",
+    "review_response_receipt_actor_role": "INTEGRATION_VALIDATOR",
+    "review_response_receipt_track": "JUDGMENT_OOB_IV_PHASE1_PRE_REMEDIATION"
   },
   "red_team": {
     "minimum_controls": [
@@ -187,7 +189,7 @@
   "integration_validator_review": {
     "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_X_GAPS",
     "reviewed_at_utc": "2026-05-27T18:14:00Z",
-    "aggregator_run_at_utc": "2026-05-27T19:03:58.446Z",
+    "aggregator_run_at_utc": "2026-05-28T00:01:31.342Z",
     "verdict": "PASS_WITH_NOTES",
     "verdict_reason": "SpanFrEmitter + FrRecorder trait + NullFrRecorder + InMemoryStubFrRecorder + PostgresFrRecorder (batched-channel pattern over kernel_event_ledger) landed. SpanFrEmitterConfig honours force_emit_failures bypassing sample_rate. Drop-on-panic emits SpanFailed via std::panic::catch_unwind (red_team #1). Throughput > 500 events/sec on in-memory recorder. 20 integration + 8 lib unit + 29 adjacent no-regression — all green. Force-emit-failures opt-out path explicitly tested. Two real gaps: (1) > 500 ev/s throughput proven on in-memory recorder only, not live Postgres; (2) existing SpanGuard Drop still uses the sync FrSpanRecorder (MT-196 surface), not the new async SpanFrEmitter — callers must opt in.",
     "spec_compliance_status": "MEETS",
@@ -210,7 +212,7 @@
   "integration_validator_review_prior": {
     "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_X_GAPS",
     "reviewed_at_utc": "2026-05-27T18:14:00Z",
-    "aggregator_run_at_utc": "2026-05-27T18:50:05.123Z",
+    "aggregator_run_at_utc": "2026-05-27T23:48:44.444Z",
     "verdict": "PASS_WITH_NOTES",
     "verdict_reason": "SpanFrEmitter + FrRecorder trait + NullFrRecorder + InMemoryStubFrRecorder + PostgresFrRecorder (batched-channel pattern over kernel_event_ledger) landed. SpanFrEmitterConfig honours force_emit_failures bypassing sample_rate. Drop-on-panic emits SpanFailed via std::panic::catch_unwind (red_team #1). Throughput > 500 events/sec on in-memory recorder. 20 integration + 8 lib unit + 29 adjacent no-regression — all green. Force-emit-failures opt-out path explicitly tested. Two real gaps: (1) > 500 ev/s throughput proven on in-memory recorder only, not live Postgres; (2) existing SpanGuard Drop still uses the sync FrSpanRecorder (MT-196 surface), not the new async SpanFrEmitter — callers must opt in.",
     "spec_compliance_status": "MEETS",
@@ -226,8 +228,8 @@
       "LOW": 2
     },
     "paperwork_notes_count": 2,
-    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-199.review.json",
-    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-199.review.json",
+    "review_artifact_ref": "validator_reports_phase1/MT-199.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1\\validator_reports_phase1\\MT-199.review.json",
     "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
   }
 }

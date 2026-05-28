@@ -7,7 +7,7 @@
   "cluster_subscope": "A.2",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T02:30:00Z",
-  "updated_at_utc": "2026-05-27T19:03:58.446Z",
+  "updated_at_utc": "2026-05-28T00:01:44.883Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -85,13 +85,15 @@
     "ready_at_utc": "2026-05-25T15:54:56.028Z",
     "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
     "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
-    "validator_verdict_set_at_utc": "2026-05-27T19:03:58.446Z"
+    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z"
   },
   "handoff": {
     "coder_session": "KERNEL_BUILDER-20260518-012310",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
-    "review_response_receipt_id": null
+    "review_response_receipt_id": "019e6be3-15b2-7119-81d6-5625d415beb1",
+    "review_response_receipt_actor_role": "INTEGRATION_VALIDATOR",
+    "review_response_receipt_track": "JUDGMENT_OOB_IV_PHASE1_PRE_REMEDIATION"
   },
   "red_team": {
     "minimum_controls": [
@@ -103,7 +105,7 @@
   "integration_validator_review": {
     "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_A4_A2_REDO_WTC",
     "reviewed_at_utc": "2026-05-27T20:00:00Z",
-    "aggregator_run_at_utc": "2026-05-27T19:03:58.446Z",
+    "aggregator_run_at_utc": "2026-05-28T00:01:31.342Z",
     "verdict": "PASS",
     "verdict_reason": "playwright.config.ts defines a three-project matrix per HBR-VIS-003 (normal 1280x720 light en-US, constrained 390x844 dark en-US, edge-empty 1024x768 light nl-NL); capture_matrix.ts implements content-addressed baselines (filename = sha256(captured png)), bootstrap-hash mechanic, HBR_VIS_REGRESSION receipt with canonical JSON sorted keys + UUID v7, mask_selectors honored via Playwright locator masks, baseline directory size cap (100MB), and Ajv schema validation against .GOV/roles_shared/schemas/hbr-vis-regression.schema.json.",
     "spec_compliance_status": "MEETS",
@@ -124,30 +126,26 @@
     "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
   },
   "integration_validator_review_prior": {
-    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_A4_A2",
-    "reviewed_at_utc": "2026-05-27T00:00:00Z",
-    "aggregator_run_at_utc": "2026-05-27T18:50:05.123Z",
-    "verdict": "FAIL",
-    "verdict_reason": "Capture matrix, baseline-hash visual regression receipt, and HBR_VIS_REGRESSION schema are all absent; HBR-VIS-003 has no evidence path.",
-    "spec_compliance_status": "FAILS",
-    "code_hygiene_status": "MAJOR",
-    "runtime_safety_status": "UNSAFE",
-    "agent_swarm_safety_status": "CONCERN",
-    "hbr_unsatisfied": [
-      "HBR-VIS-001",
-      "HBR-VIS-002",
-      "HBR-VIS-003"
-    ],
-    "test_coverage_status": "MISSING",
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_A4_A2_REDO_WTC",
+    "reviewed_at_utc": "2026-05-27T20:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T23:48:44.444Z",
+    "verdict": "PASS",
+    "verdict_reason": "playwright.config.ts defines a three-project matrix per HBR-VIS-003 (normal 1280x720 light en-US, constrained 390x844 dark en-US, edge-empty 1024x768 light nl-NL); capture_matrix.ts implements content-addressed baselines (filename = sha256(captured png)), bootstrap-hash mechanic, HBR_VIS_REGRESSION receipt with canonical JSON sorted keys + UUID v7, mask_selectors honored via Playwright locator masks, baseline directory size cap (100MB), and Ajv schema validation against .GOV/roles_shared/schemas/hbr-vis-regression.schema.json.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
     "findings_count_by_severity": {
       "CRITICAL": 0,
-      "HIGH": 1,
-      "MEDIUM": 1,
-      "LOW": 0
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 1
     },
     "paperwork_notes_count": 0,
-    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-023.review.json",
-    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-023.review.json",
+    "review_artifact_ref": "validator_reports_phase1/MT-023.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1\\validator_reports_phase1\\MT-023.review.json",
     "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
   }
 }

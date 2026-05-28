@@ -1190,7 +1190,7 @@
     "validator_audit_summary": {
       "schema": "hsk.wp_validator_audit_summary@1",
       "audit_kind": "INTEGRATION_VALIDATOR_PHASE1_PRE_REMEDIATION",
-      "audited_at_utc": "2026-05-27T19:03:58.446Z",
+      "audited_at_utc": "2026-05-28T00:01:31.342Z",
       "audited_by": "INTEGRATION_VALIDATOR (Opus 4.7) per operator goal 2026-05-27",
       "mts_reviewed": 183,
       "by_verdict": {

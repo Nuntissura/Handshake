@@ -7,7 +7,7 @@
   "cluster_subscope": "D.2",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:14:00Z",
-  "updated_at_utc": "2026-05-27T19:03:58.446Z",
+  "updated_at_utc": "2026-05-28T00:01:44.956Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -163,13 +163,15 @@
     "ready_at_utc": "2026-05-25T15:54:56.028Z",
     "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
     "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
-    "validator_verdict_set_at_utc": "2026-05-27T19:03:58.446Z"
+    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z"
   },
   "handoff": {
     "coder_session": null,
     "wp_validator_session": null,
     "review_request_receipt_id": null,
-    "review_response_receipt_id": null
+    "review_response_receipt_id": "019e6be3-15fc-72c6-ad6f-67e004253700",
+    "review_response_receipt_actor_role": "INTEGRATION_VALIDATOR",
+    "review_response_receipt_track": "JUDGMENT_OOB_IV_PHASE1_PRE_REMEDIATION"
   },
   "red_team": {
     "minimum_controls": [
@@ -181,7 +183,7 @@
   "integration_validator_review": {
     "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_D_GAPS",
     "reviewed_at_utc": "2026-05-27T18:10:00Z",
-    "aggregator_run_at_utc": "2026-05-27T19:03:58.446Z",
+    "aggregator_run_at_utc": "2026-05-28T00:01:31.342Z",
     "verdict": "FAIL",
     "verdict_reason": "MT-155 ships LoopIpcState with status/pause/unpause/list_pending_reviews/approve_promotion/reject_promotion plus a Tauri command surface and 30 + 4 + 6 = 40 reported tests. However the approve_promotion handler has a CRITICAL gate-bypass: when the gate poll returns PromotionStatus::Pending, the handler still synthesizes a local PromotionApproval (operator id, fresh signoff_evidence_id) and removes the entry from pending_reviews (ipc.rs lines 225-238). This means the operator's approve IPC call effectively approves an iteration whose gate has not yet returned Approved — the loop driver downstream can then call apply_proposal because require_approved at the gate is the only barrier, but the IPC has already discarded the pending state. The 'mutations through KernelActionCatalogV1; cannot mutate state without approval' invariant from MT-155 red_team minimum controls is violated at the IPC layer.",
     "spec_compliance_status": "FAILS",
@@ -206,7 +208,7 @@
   "integration_validator_review_prior": {
     "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_D_GAPS",
     "reviewed_at_utc": "2026-05-27T18:10:00Z",
-    "aggregator_run_at_utc": "2026-05-27T18:50:05.123Z",
+    "aggregator_run_at_utc": "2026-05-27T23:48:44.444Z",
     "verdict": "FAIL",
     "verdict_reason": "MT-155 ships LoopIpcState with status/pause/unpause/list_pending_reviews/approve_promotion/reject_promotion plus a Tauri command surface and 30 + 4 + 6 = 40 reported tests. However the approve_promotion handler has a CRITICAL gate-bypass: when the gate poll returns PromotionStatus::Pending, the handler still synthesizes a local PromotionApproval (operator id, fresh signoff_evidence_id) and removes the entry from pending_reviews (ipc.rs lines 225-238). This means the operator's approve IPC call effectively approves an iteration whose gate has not yet returned Approved — the loop driver downstream can then call apply_proposal because require_approved at the gate is the only barrier, but the IPC has already discarded the pending state. The 'mutations through KernelActionCatalogV1; cannot mutate state without approval' invariant from MT-155 red_team minimum controls is violated at the IPC layer.",
     "spec_compliance_status": "FAILS",
@@ -224,8 +226,8 @@
       "LOW": 1
     },
     "paperwork_notes_count": 3,
-    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-155.review.json",
-    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-155.review.json",
+    "review_artifact_ref": "validator_reports_phase1/MT-155.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1\\validator_reports_phase1\\MT-155.review.json",
     "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
   }
 }

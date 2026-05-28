@@ -7,7 +7,7 @@
   "cluster_subscope": "A.4",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T02:30:00Z",
-  "updated_at_utc": "2026-05-27T19:03:58.446Z",
+  "updated_at_utc": "2026-05-28T00:01:44.881Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -90,13 +90,15 @@
     "ready_at_utc": "2026-05-25T15:54:56.028Z",
     "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
     "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
-    "validator_verdict_set_at_utc": "2026-05-27T19:03:58.446Z"
+    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z"
   },
   "handoff": {
     "coder_session": "KERNEL_BUILDER-20260518-073535",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
-    "review_response_receipt_id": null
+    "review_response_receipt_id": "019e6be3-15b1-7a5e-8b30-be8d7cdb6ccc",
+    "review_response_receipt_actor_role": "INTEGRATION_VALIDATOR",
+    "review_response_receipt_track": "JUDGMENT_OOB_IV_PHASE1_PRE_REMEDIATION"
   },
   "red_team": {
     "minimum_controls": [
@@ -108,7 +110,7 @@
   "integration_validator_review": {
     "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_A4_A2_REDO_WTC",
     "reviewed_at_utc": "2026-05-27T20:00:00Z",
-    "aggregator_run_at_utc": "2026-05-27T19:03:58.446Z",
+    "aggregator_run_at_utc": "2026-05-28T00:01:31.342Z",
     "verdict": "CONCERN",
     "verdict_reason": "automation-first-audit.mjs walks the full Tauri command inventory (regex over #[tauri::command] in app/src-tauri/src) and detects forbidden OS-foreground/input APIs (SetForegroundWindow, AllowSetForegroundWindow, LockSetForegroundWindow, SendInput, .set_focus, .unminimize, WebviewWindowBuilder::new); on synthetic fixture it correctly emits FORBIDDEN_OS_FOREGROUND_API violations. However the audit is STATIC SOURCE ANALYSIS only - it never actually calls each Tauri command via IPC nor pairs the call with a live focus-audit/keyboard-injection probe as the MT-020 contract demands.",
     "spec_compliance_status": "PARTIAL",
@@ -131,30 +133,28 @@
     "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
   },
   "integration_validator_review_prior": {
-    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_A4_A2",
-    "reviewed_at_utc": "2026-05-27T00:00:00Z",
-    "aggregator_run_at_utc": "2026-05-27T18:50:05.123Z",
-    "verdict": "FAIL",
-    "verdict_reason": "Automation-first design audit does not exist; the whole-app HBR-QUIET-002 wire test is absent and could not function anyway because every dependency MT (014..019) is also unimplemented.",
-    "spec_compliance_status": "FAILS",
-    "code_hygiene_status": "MAJOR",
-    "runtime_safety_status": "UNSAFE",
-    "agent_swarm_safety_status": "UNSAFE",
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_A4_A2_REDO_WTC",
+    "reviewed_at_utc": "2026-05-27T20:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T23:48:44.444Z",
+    "verdict": "CONCERN",
+    "verdict_reason": "automation-first-audit.mjs walks the full Tauri command inventory (regex over #[tauri::command] in app/src-tauri/src) and detects forbidden OS-foreground/input APIs (SetForegroundWindow, AllowSetForegroundWindow, LockSetForegroundWindow, SendInput, .set_focus, .unminimize, WebviewWindowBuilder::new); on synthetic fixture it correctly emits FORBIDDEN_OS_FOREGROUND_API violations. However the audit is STATIC SOURCE ANALYSIS only - it never actually calls each Tauri command via IPC nor pairs the call with a live focus-audit/keyboard-injection probe as the MT-020 contract demands.",
+    "spec_compliance_status": "PARTIAL",
+    "code_hygiene_status": "MINOR",
+    "runtime_safety_status": "CONCERN",
+    "agent_swarm_safety_status": "CONCERN",
     "hbr_unsatisfied": [
-      "HBR-QUIET-001",
-      "HBR-QUIET-002",
-      "HBR-QUIET-003"
+      "HBR-QUIET-003 (process-lifecycle wiring is in MT-015, but MT-020 does not exercise it during the audit run)"
     ],
-    "test_coverage_status": "MISSING",
+    "test_coverage_status": "THIN",
     "findings_count_by_severity": {
-      "CRITICAL": 1,
-      "HIGH": 0,
+      "CRITICAL": 0,
+      "HIGH": 1,
       "MEDIUM": 0,
       "LOW": 0
     },
     "paperwork_notes_count": 0,
-    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-020.review.json",
-    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-020.review.json",
+    "review_artifact_ref": "validator_reports_phase1/MT-020.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1\\validator_reports_phase1\\MT-020.review.json",
     "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
   }
 }

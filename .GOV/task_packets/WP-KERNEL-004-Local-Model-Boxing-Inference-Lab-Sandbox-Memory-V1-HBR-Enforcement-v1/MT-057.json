@@ -7,7 +7,7 @@
   "cluster_subscope": "B.4",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:10:00Z",
-  "updated_at_utc": "2026-05-27T19:03:58.446Z",
+  "updated_at_utc": "2026-05-28T00:01:44.903Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -95,13 +95,15 @@
     "ready_at_utc": "2026-05-25T15:54:56.028Z",
     "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
     "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
-    "validator_verdict_set_at_utc": "2026-05-27T19:03:58.446Z"
+    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z"
   },
   "handoff": {
     "coder_session": null,
     "wp_validator_session": null,
     "review_request_receipt_id": null,
-    "review_response_receipt_id": null
+    "review_response_receipt_id": "019e6be3-15c7-72fa-8eb6-0c4564ce606b",
+    "review_response_receipt_actor_role": "INTEGRATION_VALIDATOR",
+    "review_response_receipt_track": "JUDGMENT_OOB_IV_PHASE1_PRE_REMEDIATION"
   },
   "red_team": {
     "minimum_controls": [
@@ -113,7 +115,7 @@
   "integration_validator_review": {
     "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_B_GAPS_REDO_WTC",
     "reviewed_at_utc": "2026-05-27T22:30:00Z",
-    "aggregator_run_at_utc": "2026-05-27T19:03:58.446Z",
+    "aggregator_run_at_utc": "2026-05-28T00:01:31.342Z",
     "verdict": "CONCERN",
     "verdict_reason": "CrossAdapterParityHarness + 8 fixture JSONs + sandbox_cross_adapter_parity_tests.rs all exist. Harness wraps each adapter in a LedgerDecorator with InMemoryParityStore, polls status to terminal, drains stop_reason, computes exit_code/stop_reason parity. Always-on stub-adapter path runs every fixture. Real Wsl2Podman + Docker behind feature gates with skip-discipline. Two material gaps: (1) stdout_predicate_passed is unconditionally true (cross_adapter.rs:491) - stdout capture is not wired so the predicate check is vacuous; (2) net_loopback_only fixture expected.exit_code_class is 'any', so the harness cannot detect the silent LoopbackOnly to DenyAll coercion in podman_cli.rs:262 and kernel_003_bridge.rs:245.",
     "spec_compliance_status": "PARTIAL",
@@ -136,29 +138,28 @@
     "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
   },
   "integration_validator_review_prior": {
-    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_B_GAPS",
-    "reviewed_at_utc": "2026-05-27T17:39:00Z",
-    "aggregator_run_at_utc": "2026-05-27T18:50:05.123Z",
-    "verdict": "FAIL",
-    "verdict_reason": "Cross-adapter parity harness product code absent on every git ref. Commit 0f80ce66 ('MT-057 cross-adapter sandbox parity harness READY_FOR_VALIDATION', 2026-05-22) touches ZERO product files (verified via git show 0f80ce66 -- src/backend/handshake_core/) — the commit edited only BUILD_ORDER.md, MT-057.json, packet.json; the detailed message describing CrossAdapterParityHarness and 8 fixtures is unsupported by any diff. Prompt-cited commit hash c37e3979 does not exist in this repo.",
-    "spec_compliance_status": "FAILS",
-    "code_hygiene_status": "MAJOR",
-    "runtime_safety_status": "UNSAFE",
-    "agent_swarm_safety_status": "UNSAFE",
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_B_GAPS_REDO_WTC",
+    "reviewed_at_utc": "2026-05-27T22:30:00Z",
+    "aggregator_run_at_utc": "2026-05-27T23:48:44.444Z",
+    "verdict": "CONCERN",
+    "verdict_reason": "CrossAdapterParityHarness + 8 fixture JSONs + sandbox_cross_adapter_parity_tests.rs all exist. Harness wraps each adapter in a LedgerDecorator with InMemoryParityStore, polls status to terminal, drains stop_reason, computes exit_code/stop_reason parity. Always-on stub-adapter path runs every fixture. Real Wsl2Podman + Docker behind feature gates with skip-discipline. Two material gaps: (1) stdout_predicate_passed is unconditionally true (cross_adapter.rs:491) - stdout capture is not wired so the predicate check is vacuous; (2) net_loopback_only fixture expected.exit_code_class is 'any', so the harness cannot detect the silent LoopbackOnly to DenyAll coercion in podman_cli.rs:262 and kernel_003_bridge.rs:245.",
+    "spec_compliance_status": "PARTIAL",
+    "code_hygiene_status": "MINOR",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
     "hbr_unsatisfied": [
-      "HBR-INT-001",
-      "HBR-SWARM-001"
+      "HBR-INT-001 strict-parity for stdout_bytes is not exercised (auto-pass)"
     ],
-    "test_coverage_status": "MISSING",
+    "test_coverage_status": "THIN",
     "findings_count_by_severity": {
-      "CRITICAL": 1,
-      "HIGH": 1,
+      "CRITICAL": 0,
+      "HIGH": 2,
       "MEDIUM": 0,
       "LOW": 0
     },
-    "paperwork_notes_count": 1,
-    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-057.review.json",
-    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-057.review.json",
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "validator_reports_phase1/MT-057.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1\\validator_reports_phase1\\MT-057.review.json",
     "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
   }
 }

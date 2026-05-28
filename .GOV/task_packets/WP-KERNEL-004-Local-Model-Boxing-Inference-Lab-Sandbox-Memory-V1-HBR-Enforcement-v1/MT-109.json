@@ -7,7 +7,7 @@
   "cluster_subscope": "C.10",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:00:00Z",
-  "updated_at_utc": "2026-05-27T19:03:58.446Z",
+  "updated_at_utc": "2026-05-28T00:01:44.933Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -83,13 +83,15 @@
     "ready_at_utc": "2026-05-25T15:54:56.028Z",
     "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
     "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
-    "validator_verdict_set_at_utc": "2026-05-27T19:03:58.446Z"
+    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z"
   },
   "handoff": {
     "coder_session": null,
     "wp_validator_session": null,
     "review_request_receipt_id": null,
-    "review_response_receipt_id": null
+    "review_response_receipt_id": "019e6be3-15e5-76c0-ba8e-831edbce3784",
+    "review_response_receipt_actor_role": "INTEGRATION_VALIDATOR",
+    "review_response_receipt_track": "JUDGMENT_OOB_IV_PHASE1_PRE_REMEDIATION"
   },
   "red_team": {
     "minimum_controls": [
@@ -101,7 +103,7 @@
   "integration_validator_review": {
     "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C8_C10",
     "reviewed_at_utc": "2026-05-27T00:00:00Z",
-    "aggregator_run_at_utc": "2026-05-27T19:03:58.446Z",
+    "aggregator_run_at_utc": "2026-05-28T00:01:31.342Z",
     "verdict": "PASS",
     "verdict_reason": "src/backend/handshake_core/src/model_runtime/techniques/speculative_decoding.rs delivers the technique-surface validation primitive and all three MT-109 red_team minimum_controls hold: (1) Conservative default = None is enforced by `validate_mode(_, _, None) -> Ok(SpeculativeModeValidation::DisabledOk)` as the always-acceptable branch; the Work Profile knob shape `settings.exec_policy.speculative: Option<SpeculativeMode>` defaults None per the implementation_notes. (2) Eagle3 sub-toggle is structurally present in SpeculativeMode but ALWAYS rejected with `ModelRuntimeError::CapabilityNotSupported { capability: 'eagle3_deferred', adapter }` until capabilities.supports_eagle3=true — and supports_eagle3 is wired through MT-111's eagle3_hook::EAGLE3_AVAILABLE const which is false. The error message explicitly cites 'eagle3_deferred' (not silent) per the spec §4.7.1(g) post-merge-of-llama.cpp-PR-#18039 contract. (3) FR stats sampling — the technique surface declares the canonical event_type strings (FR_EVT_LLM_INFER_SPEC_MODE_CHANGE, FR_EVT_LLM_INFER_SPEC_STATS, FR_EVT_LLM_INFER_SPEC_ACCEPT, FR_EVT_LLM_INFER_SPEC_REJECT) but explicitly does NOT emit per-token; the rustdoc says 'the actual sampling decision is owned by the generate path (MT-077)'. MODE_CHANGE is per-change (naturally bounded). Capability gating: Ngram/DraftModel modes require supports_speculative_draft=true; CandleRuntime/SSMs report false and are correctly rejected. The MT bundles its Tauri IPC layer (commands/speculative.rs) as out-of-scope unblock work explicitly recorded in MT-110's dependency_unblock_note. The technique surface is engine-agnostic and pure (no I/O, no mutation), matching the contract's load-bearing primitive scope.",
     "spec_compliance_status": "FULL",
@@ -124,7 +126,7 @@
   "integration_validator_review_prior": {
     "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C8_C10",
     "reviewed_at_utc": "2026-05-27T00:00:00Z",
-    "aggregator_run_at_utc": "2026-05-27T18:50:05.123Z",
+    "aggregator_run_at_utc": "2026-05-27T23:48:44.444Z",
     "verdict": "PASS",
     "verdict_reason": "src/backend/handshake_core/src/model_runtime/techniques/speculative_decoding.rs delivers the technique-surface validation primitive and all three MT-109 red_team minimum_controls hold: (1) Conservative default = None is enforced by `validate_mode(_, _, None) -> Ok(SpeculativeModeValidation::DisabledOk)` as the always-acceptable branch; the Work Profile knob shape `settings.exec_policy.speculative: Option<SpeculativeMode>` defaults None per the implementation_notes. (2) Eagle3 sub-toggle is structurally present in SpeculativeMode but ALWAYS rejected with `ModelRuntimeError::CapabilityNotSupported { capability: 'eagle3_deferred', adapter }` until capabilities.supports_eagle3=true — and supports_eagle3 is wired through MT-111's eagle3_hook::EAGLE3_AVAILABLE const which is false. The error message explicitly cites 'eagle3_deferred' (not silent) per the spec §4.7.1(g) post-merge-of-llama.cpp-PR-#18039 contract. (3) FR stats sampling — the technique surface declares the canonical event_type strings (FR_EVT_LLM_INFER_SPEC_MODE_CHANGE, FR_EVT_LLM_INFER_SPEC_STATS, FR_EVT_LLM_INFER_SPEC_ACCEPT, FR_EVT_LLM_INFER_SPEC_REJECT) but explicitly does NOT emit per-token; the rustdoc says 'the actual sampling decision is owned by the generate path (MT-077)'. MODE_CHANGE is per-change (naturally bounded). Capability gating: Ngram/DraftModel modes require supports_speculative_draft=true; CandleRuntime/SSMs report false and are correctly rejected. The MT bundles its Tauri IPC layer (commands/speculative.rs) as out-of-scope unblock work explicitly recorded in MT-110's dependency_unblock_note. The technique surface is engine-agnostic and pure (no I/O, no mutation), matching the contract's load-bearing primitive scope.",
     "spec_compliance_status": "FULL",
@@ -140,8 +142,8 @@
       "LOW": 1
     },
     "paperwork_notes_count": 0,
-    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-109.review.json",
-    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-109.review.json",
+    "review_artifact_ref": "validator_reports_phase1/MT-109.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1\\validator_reports_phase1\\MT-109.review.json",
     "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
   }
 }
