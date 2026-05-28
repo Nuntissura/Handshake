@@ -531,10 +531,13 @@ pub fn candle_transformer_capabilities(declared: &ModelCapabilities) -> ModelCap
 
 pub fn candle_mamba2_capabilities(_declared: &ModelCapabilities) -> ModelCapabilities {
     ModelCapabilities {
-        supports_lora: false,
+        // MT-115 / MT-116 (INF-9): the owned Mamba2 forward (mamba2.rs) routes
+        // in_proj/out_proj through the LoRA delta engine and exposes a
+        // residual-stream steering seam, so both techniques now actually work.
+        supports_lora: true,
         supports_kv_prefix_cache: false,
         supports_kv_quantization: KvQuantSupport::None,
-        supports_activation_steering: false,
+        supports_activation_steering: true,
         supports_subquadratic: true,
         supports_speculative_draft: false,
         supports_eagle3: false,
