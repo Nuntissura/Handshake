@@ -131,6 +131,27 @@ impl CandleLoraStack {
         targets
     }
 
+    /// MT-115 (INF-9 LoRA-for-SSM): valid LoRA targets for the owned RWKV v5
+    /// forward. RWKV v5 splits each layer into a time-mix (attention-like)
+    /// block with `receptance`/`key`/`value`/`gate`/`output` Linears and a
+    /// channel-mix (feed-forward) block with `receptance`/`key`/`value`
+    /// Linears — these are the realisable per-layer PEFT targets (the
+    /// time_mix_*/time_decay/time_faaaa interpolation tensors and the GroupNorm
+    /// are scalar/diagonal and intentionally excluded, like Mamba2's A/D/conv).
+    /// Naming mirrors the `rwkv_v5_target()` helper used in the owned forward.
+    pub fn available_rwkv_targets(num_layers: usize) -> Vec<String> {
+        let mut targets = Vec::with_capacity(num_layers * 8);
+        for layer in 0..num_layers {
+            for projection in ["receptance", "key", "value", "gate", "output"] {
+                targets.push(format!("backbone.layers.{layer}.time_mix.{projection}"));
+            }
+            for projection in ["receptance", "key", "value"] {
+                targets.push(format!("backbone.layers.{layer}.channel_mix.{projection}"));
+            }
+        }
+        targets
+    }
+
     pub fn ensure_overrides_mounted(&self, ids: &[LoraId]) -> Result<(), ModelRuntimeError> {
         if ids.is_empty() {
             return Ok(());
