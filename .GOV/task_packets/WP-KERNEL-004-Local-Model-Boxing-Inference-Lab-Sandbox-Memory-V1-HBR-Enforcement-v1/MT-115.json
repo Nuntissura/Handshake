@@ -7,7 +7,7 @@
   "cluster_subscope": "C.11",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:00:00Z",
-  "updated_at_utc": "2026-05-28T00:01:44.937Z",
+  "updated_at_utc": "2026-05-28T20:39:29.605Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -58,7 +58,7 @@
   ],
   "lifecycle": {
     "active": false,
-    "status": "READY_FOR_VALIDATION",
+    "status": "READY_FOR_VALIDATION_PHASE2",
     "validator_verdict": "FAIL",
     "integration_validator_verdict": "PENDING",
     "depends_on": [
@@ -142,7 +142,23 @@
     "ready_at_utc": "2026-05-25T15:54:56.028Z",
     "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
     "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
-    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z"
+    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z",
+    "phase2_remediation": {
+      "remediated_by": "KERNEL_BUILDER-20260528-141638",
+      "remediated_at_utc": "2026-05-28T20:39:29.605Z",
+      "lane": "INF-9 LoRA-for-SSM (Mamba2 + RWKV v5/v6/v7)",
+      "commit_sha": "6c2b4999(mamba2),7808a372(rwkv_v5),370d4095(rwkv_v6),cb5a9101(rwkv_v7)",
+      "remediated_findings": [
+        "HIGH closed: real LoRA mount/unmount now actually works for SSMs. The prior session deferred this because candle_transformers' Mamba2/RWKV wrappers expose no hookable weight slots. Per operator decision (full SSM forward reimplementation), the opaque candle Model wrappers were replaced with Handshake-OWNED forwards (InstrumentedMamba2/RwkvV5/RwkvV6/RwkvV7) that own their projection Linears (Mamba2 in_proj/out_proj; RWKV time_mix/channel_mix) and route each through CandleLoraStack::apply_to_linear_output - the same PEFT delta engine the transformer path uses.",
+        "New available_mamba2_targets / available_rwkv_targets / available_rwkv_v7_targets in lora_impl. candle_mamba2_capabilities + candle_rwkv_capabilities now supports_lora=true (honest - the forward actually applies the delta).",
+        "Proven WITHOUT a downloaded model: per-variant lib unit tests owned_<variant>_lora_mount_diverges_then_unmount_reverts (fixture LoRA on a projection changes logits; unmount reverts exactly), gated by owned_<variant>_forward_matches_candle_transformers_step_by_step which asserts step-by-step logit PARITY vs the upstream candle model from a shared VarMap (bit-exact for v5/v6, ~5e-8 for v7, <1e-4 for Mamba2)."
+      ],
+      "deferred_or_residual": "none for the LoRA-for-SSM HIGH. (RWKV v7a DeepEmbed / v7b DEA return typed CapabilityNotSupported at load - out of base-v7 scope, not part of E-2 parity.)",
+      "partial": false,
+      "ack_for": "019e6be3-15e8-7e0f-b2f9-b151eba6c4b7",
+      "proof": "cargo test --features candle-runtime-engine --lib model_runtime::candle -> 25 passed (incl. 4x parity + 4x LoRA mount/unmount across Mamba2 + RWKV v5/v6/v7)",
+      "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1 - no per-MT validator; awaiting Phase-2 IV re-judgment"
+    }
   },
   "handoff": {
     "coder_session": "KERNEL_BUILDER-20260522-171100",

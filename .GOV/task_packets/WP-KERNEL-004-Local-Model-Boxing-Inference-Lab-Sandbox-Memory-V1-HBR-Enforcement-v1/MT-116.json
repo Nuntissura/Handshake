@@ -7,7 +7,7 @@
   "cluster_subscope": "C.11",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:00:00Z",
-  "updated_at_utc": "2026-05-28T00:01:44.937Z",
+  "updated_at_utc": "2026-05-28T20:39:29.605Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -56,7 +56,7 @@
   ],
   "lifecycle": {
     "active": false,
-    "status": "READY_FOR_VALIDATION",
+    "status": "READY_FOR_VALIDATION_PHASE2",
     "validator_verdict": "FAIL",
     "integration_validator_verdict": "PENDING",
     "depends_on": [
@@ -117,7 +117,23 @@
     "ready_at_utc": "2026-05-25T15:54:56.028Z",
     "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
     "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
-    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z"
+    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z",
+    "phase2_remediation": {
+      "remediated_by": "KERNEL_BUILDER-20260528-141638",
+      "remediated_at_utc": "2026-05-28T20:39:29.605Z",
+      "lane": "INF-9 activation steering for SSMs (Mamba2 + RWKV v5/v6/v7)",
+      "commit_sha": "6c2b4999(mamba2),7808a372(rwkv_v5),370d4095(rwkv_v6),cb5a9101(rwkv_v7)",
+      "remediated_findings": [
+        "HIGH closed: real activation steering now works for SSMs. The owned forwards apply the steering vector at each layer-block residual-stream output via CandleSteeringHooks::apply_record_and_capture_tensor(ResidStream), per ssm_hook_site_for(<arch>, ResidStream). Per-token semantics (SSM hooks fire once per token).",
+        "candle_mamba2_capabilities + candle_rwkv_capabilities now supports_activation_steering=true (honest).",
+        "Identity-test correctness gate (the contract's red_team control) is now actually EXERCISED: per-variant lib unit tests owned_<variant>_steering_zero_is_identity_random_diverges prove a zero vector is an identity and a non-zero vector changes the logits on the REAL owned forward."
+      ],
+      "deferred_or_residual": "none for the steering-for-SSM HIGH. The bare-registry capture() still fails closed (MT-082 design); real activation capture for steering-vector derivation routes through the owned forward + begin/finish_real_capture, unchanged.",
+      "partial": false,
+      "ack_for": "019e6be3-15e9-73a8-bfe6-28a81a0a1a1f",
+      "proof": "cargo test --features candle-runtime-engine --lib model_runtime::candle -> 25 passed (incl. 4x steering identity/divergence across Mamba2 + RWKV v5/v6/v7)",
+      "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1 - no per-MT validator; awaiting Phase-2 IV re-judgment"
+    }
   },
   "handoff": {
     "coder_session": "KERNEL_BUILDER-20260522-171100",
