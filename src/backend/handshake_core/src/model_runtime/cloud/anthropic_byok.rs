@@ -57,6 +57,11 @@ use super::openai_byok::{
     ApiKeyProvider, CloudCallKind, CloudCallStatus, CloudInvocationAuditRow,
     CloudInvocationAuditSink, OpenAiByokError,
 };
+use crate::flight_recorder::events_llm_infer::{
+    infer_end_event, infer_start_event, infer_token_event, new_llm_infer_request_id,
+    should_emit_token_event,
+};
+use crate::model_runtime::cloud::CloudLaneObservability;
 use crate::model_runtime::{
     error::ModelRuntimeError, CancellationToken, Embedding, FinishReason, GenerateRequest,
     GeneratedToken, KvCacheHandle, LoadSpec, LoraStackHandle, ModelCapabilities, ModelId,
@@ -138,10 +143,7 @@ pub enum AnthropicByokError {
     #[error("only ByokCloud provider is supported by AnthropicByokRuntime (got {0:?})")]
     ProviderKindNotSupported(ProviderKind),
     #[error("HTTP request to {url} failed: {source}")]
-    RequestFailed {
-        url: String,
-        source: reqwest::Error,
-    },
+    RequestFailed { url: String, source: reqwest::Error },
     #[error("HTTP response status {status} body {body}")]
     HttpStatus { status: u16, body: String },
     #[error("SSE stream parse failed: {0}")]
@@ -237,6 +239,15 @@ pub struct AnthropicByokRuntime {
     models: RwLock<HashMap<ModelId, AnthropicModelHandle>>,
     declared_capabilities: ModelCapabilities,
     runtime_cancel: CancellationToken,
+    /// MT-126 remediation: optional shared cloud-lane observability.
+    /// When `Some`, the runtime (1) consults the [`ConsentGate`]
+    /// before issuing the live HTTP call and (2) emits
+    /// `FR-EVT-LLM-INFER-{START,TOKEN,END}` events through the
+    /// [`FlightRecorder`] for HBR-INT-005 lane normalisation. When
+    /// `None` the runtime preserves its exact prior behaviour
+    /// (audit-rows only, no consent gate, no FR events). Mirrors the
+    /// OpenAI BYOK sibling (MT-125).
+    lane_obs: Option<Arc<CloudLaneObservability>>,
 }
 
 impl std::fmt::Debug for AnthropicByokRuntime {
@@ -288,7 +299,19 @@ impl AnthropicByokRuntime {
             models: RwLock::new(HashMap::new()),
             declared_capabilities: Self::cloud_capabilities(),
             runtime_cancel: CancellationToken::new(),
+            lane_obs: None,
         }
+    }
+
+    /// MT-126 remediation: attach a shared
+    /// [`CloudLaneObservability`] bundle so the runtime emits
+    /// `FR-EVT-LLM-INFER-{START,TOKEN,END}` events and enforces the
+    /// operator consent gate before live HTTP calls. Builder-style so
+    /// existing construction sites that do not opt in are unaffected.
+    /// Mirrors `OpenAiByokRuntime::with_lane_observability` (MT-125).
+    pub fn with_lane_observability(mut self, lane_obs: Arc<CloudLaneObservability>) -> Self {
+        self.lane_obs = Some(lane_obs);
+        self
     }
 
     /// Extend the allowlist with an additional Anthropic model-name prefix.
@@ -404,7 +427,9 @@ impl AnthropicByokRuntime {
     /// inject lifecycle rows without bringing up the HTTP client;
     /// the live HTTP path emits rows through the same sink.
     pub fn record_audit(&self, row: CloudInvocationAuditRow) -> Result<(), AnthropicByokError> {
-        self.audit_sink.record(row).map_err(AnthropicByokError::from)
+        self.audit_sink
+            .record(row)
+            .map_err(AnthropicByokError::from)
     }
 
     /// Live streaming call to Anthropic's Messages endpoint with
@@ -430,6 +455,26 @@ impl AnthropicByokRuntime {
                 return single_error_stream(ModelRuntimeError::GenerateError(format!("{err}")));
             }
         };
+
+        // MT-126 remediation: per-session/per-lane consent gate. When
+        // an observability bundle with a consent context is attached,
+        // the operator must have consented (or consent now via the
+        // provider) before any cloud bytes leave the process. On
+        // denial we surface a GenerateError and issue NO HTTP request.
+        // Mirrors the OpenAI BYOK sibling (MT-125).
+        if let Some(lane_obs) = self.lane_obs.as_ref() {
+            if let Some(consent) = lane_obs.consent.as_ref() {
+                if let Err(err) = consent.gate.check_or_prompt(
+                    &consent.session_id,
+                    self.adapter_name(),
+                    consent.provider.as_ref(),
+                ) {
+                    return single_error_stream(ModelRuntimeError::GenerateError(format!(
+                        "Anthropic BYOK cloud consent denied: {err}"
+                    )));
+                }
+            }
+        }
 
         let url = format!("{}{}", self.api_base, ANTHROPIC_MESSAGES_PATH);
         let body = MessagesRequest {
@@ -474,6 +519,24 @@ impl AnthropicByokRuntime {
         let model_id = handle.model_id;
         let anthropic_model_name = handle.anthropic_model_name.clone();
 
+        // MT-126 remediation: thread the FlightRecorder (if attached)
+        // + a freshly-minted request id + a best-effort prompt-token
+        // estimate into the async pipeline so it can emit
+        // `FR-EVT-LLM-INFER-{START,TOKEN,END}` events. When no
+        // observability bundle is attached, `flight_recorder` is None
+        // and the pipeline emits NOTHING (exact prior behaviour).
+        // Mirrors the OpenAI BYOK sibling (MT-125).
+        let flight_recorder = self
+            .lane_obs
+            .as_ref()
+            .map(|obs| obs.flight_recorder.clone());
+        let request_id = new_llm_infer_request_id();
+        // Best-effort prompt-token estimate: whitespace-split word
+        // count. The FR-event field need not be exact (the recorder
+        // does not constrain it for cloud lanes); a server-side exact
+        // count is not available before the response.
+        let prompt_tokens_estimate = req.prompt.as_str().split_whitespace().count() as u64;
+
         // The reqwest+SSE pipeline runs inside a spawned task and
         // pumps `GeneratedToken`s onto an mpsc channel; the
         // TokenStream the caller sees is built from the receiver.
@@ -497,8 +560,27 @@ impl AnthropicByokRuntime {
                 finished_at_utc: None,
                 status: CloudCallStatus::Started,
             },
+            LaneFrContext {
+                flight_recorder,
+                model_id,
+                request_id,
+                prompt_tokens_estimate,
+            },
         )
     }
+}
+
+/// MT-126 remediation: bundle of the FlightRecorder emission inputs
+/// threaded into the async streaming pipeline. When `flight_recorder`
+/// is `None` the pipeline emits no FR events (preserving exact prior
+/// behaviour); when `Some` it emits one START, sampled TOKENs, and one
+/// END with `adapter == "anthropic_byok"`. Mirrors the OpenAI BYOK
+/// sibling (MT-125).
+struct LaneFrContext {
+    flight_recorder: Option<Arc<dyn crate::flight_recorder::FlightRecorder>>,
+    model_id: ModelId,
+    request_id: uuid::Uuid,
+    prompt_tokens_estimate: u64,
 }
 
 /// Returns a one-shot stream that yields a single error item. Used
@@ -517,6 +599,7 @@ fn single_error_stream(err: ModelRuntimeError) -> TokenStream {
 /// streaming path. The differences are the named-event dispatch
 /// (Anthropic SSE) and the `event: message_stop` termination marker
 /// (Anthropic's analogue to OpenAI's `[DONE]` sentinel).
+#[allow(clippy::too_many_arguments)]
 fn async_token_stream(
     client: reqwest::Client,
     url: String,
@@ -526,6 +609,7 @@ fn async_token_stream(
     cancel_runtime: CancellationToken,
     audit_sink: Arc<dyn CloudInvocationAuditSink>,
     audit_template: CloudInvocationAuditRow,
+    fr_ctx: LaneFrContext,
 ) -> Pin<Box<dyn Stream<Item = Result<GeneratedToken, ModelRuntimeError>> + Send>> {
     let (sender, receiver) =
         tokio::sync::mpsc::unbounded_channel::<Result<GeneratedToken, ModelRuntimeError>>();
@@ -539,6 +623,7 @@ fn async_token_stream(
         cancel_runtime,
         audit_sink,
         audit_template,
+        fr_ctx,
         sender,
     ));
 
@@ -560,14 +645,36 @@ async fn run_live_stream(
     cancel_runtime: CancellationToken,
     audit_sink: Arc<dyn CloudInvocationAuditSink>,
     audit_template: CloudInvocationAuditRow,
+    fr_ctx: LaneFrContext,
     sender: tokio::sync::mpsc::UnboundedSender<Result<GeneratedToken, ModelRuntimeError>>,
 ) {
     use eventsource_stream::Eventsource;
+
+    let start_instant = std::time::Instant::now();
+    let mut last_token_instant = start_instant;
+
+    // MT-126 remediation: emit FR-EVT-LLM-INFER-START once at the
+    // start of the pipeline. Recorder failures are logged and ignored
+    // — they must never abort generation (HBR-INT-005 observability is
+    // best-effort relative to the live call). Mirrors the OpenAI BYOK
+    // sibling (MT-125).
+    emit_fr_event(
+        &fr_ctx,
+        infer_start_event(
+            fr_ctx.model_id,
+            fr_ctx.request_id,
+            fr_ctx.prompt_tokens_estimate,
+            "",
+            "anthropic_byok",
+        ),
+    )
+    .await;
 
     // Pre-call cancellation: terminate without issuing the
     // request, audit as Cancelled.
     if cancel_req.is_cancelled() || cancel_runtime.is_cancelled() {
         record_final_audit(&audit_sink, &audit_template, CloudCallStatus::Cancelled);
+        emit_fr_end(&fr_ctx, 0, &start_instant, FinishReason::Cancelled).await;
         let _ = sender.send(Ok(terminal_token(FinishReason::Cancelled)));
         return;
     }
@@ -584,6 +691,7 @@ async fn run_live_stream(
         Ok(resp) => resp,
         Err(err) => {
             record_final_audit(&audit_sink, &audit_template, CloudCallStatus::Failed);
+            emit_fr_end(&fr_ctx, 0, &start_instant, FinishReason::Error).await;
             let _ = sender.send(Err(ModelRuntimeError::GenerateError(format!(
                 "Anthropic BYOK request to {url} failed: {err}"
             ))));
@@ -600,6 +708,7 @@ async fn run_live_stream(
         let status = response.status().as_u16();
         let body = response.text().await.unwrap_or_default();
         record_final_audit(&audit_sink, &audit_template, CloudCallStatus::Failed);
+        emit_fr_end(&fr_ctx, 0, &start_instant, FinishReason::Error).await;
         let _ = sender.send(Err(ModelRuntimeError::GenerateError(format!(
             "Anthropic BYOK HTTP {status}: {body}"
         ))));
@@ -613,6 +722,7 @@ async fn run_live_stream(
     while let Some(event) = sse.next().await {
         if cancel_req.is_cancelled() || cancel_runtime.is_cancelled() {
             record_final_audit(&audit_sink, &audit_template, CloudCallStatus::Cancelled);
+            emit_fr_end(&fr_ctx, token_index, &start_instant, FinishReason::Cancelled).await;
             let _ = sender.send(Ok(terminal_token(FinishReason::Cancelled)));
             return;
         }
@@ -621,6 +731,7 @@ async fn run_live_stream(
             Ok(event) => event,
             Err(err) => {
                 record_final_audit(&audit_sink, &audit_template, CloudCallStatus::Failed);
+                emit_fr_end(&fr_ctx, token_index, &start_instant, FinishReason::Error).await;
                 let _ = sender.send(Err(ModelRuntimeError::GenerateError(format!(
                     "Anthropic BYOK SSE parse failure: {err}"
                 ))));
@@ -633,11 +744,9 @@ async fn run_live_stream(
                 let payload: ContentBlockDeltaPayload = match serde_json::from_str(&event.data) {
                     Ok(p) => p,
                     Err(err) => {
-                        record_final_audit(
-                            &audit_sink,
-                            &audit_template,
-                            CloudCallStatus::Failed,
-                        );
+                        record_final_audit(&audit_sink, &audit_template, CloudCallStatus::Failed);
+                        emit_fr_end(&fr_ctx, token_index, &start_instant, FinishReason::Error)
+                            .await;
                         let _ = sender.send(Err(ModelRuntimeError::GenerateError(format!(
                             "Anthropic BYOK content_block_delta JSON parse failure: {err}; payload={}",
                             event.data
@@ -660,6 +769,30 @@ async fn run_live_stream(
                 if let Some(text) = payload.delta.text {
                     if !text.is_empty() {
                         token_index = token_index.saturating_add(1);
+                        // MT-126 remediation: emit a sampled
+                        // FR-EVT-LLM-INFER-TOKEN. token_id is 0 for the
+                        // cloud lane (no local tokenizer ids); latency is
+                        // best-effort inter-token wall time. Mirrors the
+                        // OpenAI BYOK sibling (MT-125).
+                        let now = std::time::Instant::now();
+                        let latency_ms =
+                            now.duration_since(last_token_instant).as_millis() as u64;
+                        last_token_instant = now;
+                        if should_emit_token_event(token_index) {
+                            emit_fr_event(
+                                &fr_ctx,
+                                infer_token_event(
+                                    fr_ctx.model_id,
+                                    fr_ctx.request_id,
+                                    token_index,
+                                    0,
+                                    &text,
+                                    latency_ms,
+                                    "anthropic_byok",
+                                ),
+                            )
+                            .await;
+                        }
                         if sender
                             .send(Ok(GeneratedToken {
                                 token_id: token_index,
@@ -675,6 +808,13 @@ async fn run_live_stream(
                                 &audit_template,
                                 CloudCallStatus::Cancelled,
                             );
+                            emit_fr_end(
+                                &fr_ctx,
+                                token_index,
+                                &start_instant,
+                                FinishReason::Cancelled,
+                            )
+                            .await;
                             return;
                         }
                     }
@@ -696,6 +836,7 @@ async fn run_live_stream(
                 // default to FinishReason::Stop.
                 let finish = pending_finish.unwrap_or(FinishReason::Stop);
                 record_final_audit(&audit_sink, &audit_template, CloudCallStatus::Succeeded);
+                emit_fr_end(&fr_ctx, token_index, &start_instant, finish).await;
                 let _ = sender.send(Ok(terminal_token(finish)));
                 return;
             }
@@ -709,10 +850,59 @@ async fn run_live_stream(
     // Stream ended without an explicit `message_stop`. Treat as a
     // clean server-side close; a truly broken response would have
     // produced an error item above and returned.
+    let finish = pending_finish.unwrap_or(FinishReason::Stop);
     record_final_audit(&audit_sink, &audit_template, CloudCallStatus::Succeeded);
-    let _ = sender.send(Ok(terminal_token(
-        pending_finish.unwrap_or(FinishReason::Stop),
-    )));
+    emit_fr_end(&fr_ctx, token_index, &start_instant, finish).await;
+    let _ = sender.send(Ok(terminal_token(finish)));
+}
+
+/// MT-126 remediation: emit a single FR event through the attached
+/// recorder. When no recorder is attached this is a no-op (exact prior
+/// behaviour). Recorder failures are logged and swallowed — observ-
+/// ability must never abort or fail the live generation. Mirrors the
+/// OpenAI BYOK sibling (MT-125).
+async fn emit_fr_event(
+    fr_ctx: &LaneFrContext,
+    event: crate::flight_recorder::FlightRecorderEvent,
+) {
+    if let Some(recorder) = fr_ctx.flight_recorder.as_ref() {
+        if let Err(err) = recorder.record_event(event).await {
+            tracing::warn!(
+                target: "handshake_core::model_runtime::cloud::anthropic_byok",
+                error = %err,
+                "Anthropic BYOK FR-EVT-LLM-INFER emit failed; generation unaffected"
+            );
+        }
+    }
+}
+
+/// MT-126 remediation: emit the closing FR-EVT-LLM-INFER-END with
+/// best-effort timings. `prompt_eval_ms` is reported as 0 (the cloud
+/// lane has no separate prompt-eval phase visible to the kernel);
+/// `gen_eval_ms` is approximated by total wall time. Mirrors the
+/// OpenAI BYOK sibling (MT-125).
+async fn emit_fr_end(
+    fr_ctx: &LaneFrContext,
+    tokens_generated: u32,
+    start_instant: &std::time::Instant,
+    finish_reason: FinishReason,
+) {
+    let total_ms = start_instant.elapsed().as_millis() as u64;
+    emit_fr_event(
+        fr_ctx,
+        infer_end_event(
+            fr_ctx.model_id,
+            fr_ctx.request_id,
+            fr_ctx.prompt_tokens_estimate,
+            tokens_generated,
+            total_ms,
+            0,
+            total_ms,
+            finish_reason,
+            "anthropic_byok",
+        ),
+    )
+    .await;
 }
 
 /// Records the closing audit row for a streaming call. Failure to
@@ -840,18 +1030,13 @@ impl ModelRuntime for AnthropicByokRuntime {
         // capabilities through `CapabilityNotSupported` rather than
         // fabricating data.
         Err(ModelRuntimeError::CapabilityNotSupported {
-            capability:
-                "score (Anthropic Messages API does not expose per-token logprobs)"
-                    .to_string(),
+            capability: "score (Anthropic Messages API does not expose per-token logprobs)"
+                .to_string(),
             adapter: "anthropic_byok".to_string(),
         })
     }
 
-    async fn embed(
-        &self,
-        _id: ModelId,
-        _text: &str,
-    ) -> Result<Embedding, ModelRuntimeError> {
+    async fn embed(&self, _id: ModelId, _text: &str) -> Result<Embedding, ModelRuntimeError> {
         // Anthropic does not offer a first-party embeddings endpoint
         // as of the 2023-06-01 API version. Operators who want
         // embeddings on the Anthropic stack route through Voyage AI
@@ -881,18 +1066,16 @@ impl ModelRuntime for AnthropicByokRuntime {
 
     fn lora_stack(&self, _id: ModelId) -> Result<LoraStackHandle, ModelRuntimeError> {
         Err(ModelRuntimeError::CapabilityNotSupported {
-            capability:
-                "lora_stack (BYOK cloud lane has no local weights to mount LoRAs onto)"
-                    .to_string(),
+            capability: "lora_stack (BYOK cloud lane has no local weights to mount LoRAs onto)"
+                .to_string(),
             adapter: "anthropic_byok".to_string(),
         })
     }
 
     fn steering_hooks(&self, _id: ModelId) -> Result<SteeringHookHandle, ModelRuntimeError> {
         Err(ModelRuntimeError::CapabilityNotSupported {
-            capability:
-                "steering_hooks (BYOK cloud lane has no residual stream to hook)"
-                    .to_string(),
+            capability: "steering_hooks (BYOK cloud lane has no residual stream to hook)"
+                .to_string(),
             adapter: "anthropic_byok".to_string(),
         })
     }
@@ -1052,10 +1235,7 @@ mod tests {
     fn map_finish_reason_handles_anthropic_vocabulary() {
         assert_eq!(map_finish_reason("end_turn"), Some(FinishReason::Stop));
         assert_eq!(map_finish_reason("max_tokens"), Some(FinishReason::Length));
-        assert_eq!(
-            map_finish_reason("stop_sequence"),
-            Some(FinishReason::Stop)
-        );
+        assert_eq!(map_finish_reason("stop_sequence"), Some(FinishReason::Stop));
         assert_eq!(map_finish_reason("tool_use"), Some(FinishReason::Stop));
         assert_eq!(
             map_finish_reason("cancelled"),
