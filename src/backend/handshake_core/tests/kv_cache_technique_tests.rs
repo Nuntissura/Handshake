@@ -244,6 +244,57 @@ fn kv_cache_prefix_restore_rejects_tampered_handle() {
 }
 
 #[test]
+fn kv_cache_prefix_commit_binds_replay_resistance_and_restore_enforces_it() {
+    // MT-095: the public technique surface must bind a per-process
+    // replay-resistance derivation at commit and verify it at restore — even
+    // though the adapter produces an unbound handle (from_tokens). This is the
+    // end-to-end enforcement the Phase-1 verdict found missing.
+    let model_id = ModelId::new_v7();
+    let stack = Arc::new(RecordingKvCacheOps::new(KvQuantSupport::Q4));
+    let runtime = RecordingRuntime::new(
+        "test_adapter",
+        model_id,
+        ModelCapabilities {
+            supports_kv_prefix_cache: true,
+            supports_kv_quantization: KvQuantSupport::Q4,
+            ..Default::default()
+        },
+        stack.clone(),
+    );
+
+    let commit = kv_cache_technique::prefix_commit(&runtime, model_id, &[1u32, 2, 3, 4])
+        .expect("commit dispatches");
+    // The handle the operator receives carries the MT-095 binding even though
+    // the adapter (RecordingKvCacheOps) minted it via from_tokens (unbound).
+    assert!(
+        commit.prefix_handle.derived_id().is_some(),
+        "commit must bind a replay-resistance derived_id"
+    );
+
+    // A handle the adapter would otherwise accept (same prefix_id +
+    // content_hash) but carrying NO binding must be refused at the surface —
+    // proving the gate is enforced, not bypassable by re-presenting an
+    // unbound handle.
+    let unbound_replay = KvPrefixHandle::from_parts(
+        commit.prefix_handle.prefix_id(),
+        *commit.prefix_handle.content_hash(),
+        commit.prefix_handle.token_count(),
+    )
+    .expect("v7 prefix_id");
+    assert!(unbound_replay.derived_id().is_none());
+    let err = kv_cache_technique::prefix_restore(&runtime, model_id, &unbound_replay)
+        .expect_err("unbound handle must be refused by the MT-095 restore gate");
+    assert!(
+        matches!(err, ModelRuntimeError::KvCacheError(_)),
+        "expected KvCacheError, got {err:?}"
+    );
+
+    // The properly bound handle from commit restores cleanly.
+    kv_cache_technique::prefix_restore(&runtime, model_id, &commit.prefix_handle)
+        .expect("the bound handle restores");
+}
+
+#[test]
 fn kv_cache_technique_event_types_resolve_through_fr_registry() {
     // Independent sanity that the new FR registry variants round-trip
     // the canonical strings advertised by the technique surface.

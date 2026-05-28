@@ -151,3 +151,45 @@ fn kv_security_derive_id_is_deterministic_under_same_inputs() {
     let c = KvPrefixHandle::derive_id(model_id, &CONTENT_B, REGISTERED_T0);
     assert_ne!(a, c);
 }
+
+#[test]
+fn kv_security_bind_derived_then_verify_self_round_trips() {
+    // MT-095: the technique surface binds an unbound (from_scoped_tokens)
+    // handle at commit via bind_derived and self-verifies at restore.
+    let model_id = ModelId::new_v7();
+    let unbound = KvPrefixHandle::from_scoped_tokens(b"scope", &[1, 2, 3]).expect("unbound handle");
+    assert!(unbound.derived_id().is_none());
+    let bound = unbound.bind_derived(model_id, REGISTERED_T0);
+    assert!(bound.derived_id().is_some());
+    bound
+        .verify_self_against(model_id)
+        .expect("a freshly bound handle verifies against itself");
+}
+
+#[test]
+fn kv_security_verify_self_against_rejects_unbound_handle() {
+    // A handle the commit path never bound (legacy/adapter-direct) must fail
+    // closed at the restore gate.
+    let model_id = ModelId::new_v7();
+    let unbound = KvPrefixHandle::from_scoped_tokens(b"scope", &[1, 2, 3]).expect("unbound handle");
+    let err = unbound
+        .verify_self_against(model_id)
+        .expect_err("unbound handle must fail closed");
+    assert!(matches!(err, ModelRuntimeError::KvCacheError(_)), "{err:?}");
+}
+
+#[test]
+fn kv_security_verify_self_against_rejects_cross_model_binding() {
+    // A handle bound under model A, replayed against model B, must reject:
+    // verify re-derives from the handle's own content_hash + registered_at
+    // but under the live model_id, so the keyed hash no longer matches.
+    let model_a = ModelId::new_v7();
+    let model_b = ModelId::new_v7();
+    let bound = KvPrefixHandle::from_scoped_tokens(b"scope", &[1, 2, 3])
+        .expect("unbound handle")
+        .bind_derived(model_a, REGISTERED_T0);
+    let err = bound
+        .verify_self_against(model_b)
+        .expect_err("cross-model replay of a bound handle must reject");
+    assert!(matches!(err, ModelRuntimeError::KvCacheError(_)), "{err:?}");
+}

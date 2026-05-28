@@ -20,6 +20,7 @@ pub use crate::flight_recorder::events_llm_infer::{
     FR_EVT_LLM_INFER_KV_PREFIX_RESTORE, FR_EVT_LLM_INFER_KV_SET_QUANTIZATION,
 };
 
+use chrono::Utc;
 use serde::{Deserialize, Serialize};
 
 use crate::model_runtime::{
@@ -94,7 +95,13 @@ pub fn prefix_commit(
     prefix_tokens: &[u32],
 ) -> Result<KvPrefixCommitReceipt, ModelRuntimeError> {
     let stack = require_kv_prefix_cache(runtime, model_id)?;
-    let prefix_handle = stack.prefix_commit(prefix_tokens)?;
+    // MT-095: bind a per-process replay-resistance derivation onto the handle
+    // the adapter returns (adapters produce handles with no binding via
+    // from_scoped_tokens). This is the public-surface enforcement point that
+    // makes the prefix handle replay-resistant end-to-end; restore verifies it.
+    let prefix_handle = stack
+        .prefix_commit(prefix_tokens)?
+        .bind_derived(model_id, Utc::now().timestamp_micros());
     let occupancy = stack.occupancy();
     Ok(KvPrefixCommitReceipt {
         model_id,
@@ -114,6 +121,10 @@ pub fn prefix_restore(
     prefix_handle: &KvPrefixHandle,
 ) -> Result<KvPrefixRestoreReceipt, ModelRuntimeError> {
     let stack = require_kv_prefix_cache(runtime, model_id)?;
+    // MT-095: enforce replay-resistance before restoring. Rejects handles that
+    // were never bound at commit, had their content_hash tampered, or were
+    // forged/replayed under a different process or model key.
+    prefix_handle.verify_self_against(model_id)?;
     stack.prefix_restore(prefix_handle)?;
     let occupancy = stack.occupancy();
     Ok(KvPrefixRestoreReceipt {

@@ -138,6 +138,11 @@ pub struct KvPrefixHandle {
     // restore path is responsible for re-deriving and comparing.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     derived_id: Option<[u8; 16]>,
+    // MT-095: the commit timestamp bound into `derived_id`. Stored on the
+    // handle so restore can re-derive and verify without the caller having to
+    // track the timestamp externally. `None` for non-derived handles.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    registered_at_utc_micros: Option<i64>,
 }
 
 impl KvPrefixHandle {
@@ -157,6 +162,7 @@ impl KvPrefixHandle {
             content_hash: Self::content_hash_for_scope_and_tokens(cache_scope, prefix_tokens),
             token_count,
             derived_id: None,
+            registered_at_utc_micros: None,
         })
     }
 
@@ -175,6 +181,7 @@ impl KvPrefixHandle {
             content_hash,
             token_count,
             derived_id: None,
+            registered_at_utc_micros: None,
         })
     }
 
@@ -198,7 +205,39 @@ impl KvPrefixHandle {
             content_hash,
             token_count,
             derived_id: Some(derived_id),
+            registered_at_utc_micros: Some(registered_at_utc_micros),
         }
+    }
+
+    /// MT-095: bind a replay-resistance derivation onto an existing handle
+    /// (e.g. one returned by an adapter via `from_scoped_tokens`). Computes
+    /// `derive_id(model_id, content_hash, registered_at_utc_micros)` under the
+    /// per-process key and records both, so a later `verify_self_against` can
+    /// re-derive. This is what the public `kv_cache_technique::prefix_commit`
+    /// surface uses to make the handle replay-resistant end-to-end.
+    pub fn bind_derived(mut self, model_id: ModelId, registered_at_utc_micros: i64) -> Self {
+        self.derived_id = Some(Self::derive_id(
+            model_id,
+            &self.content_hash,
+            registered_at_utc_micros,
+        ));
+        self.registered_at_utc_micros = Some(registered_at_utc_micros);
+        self
+    }
+
+    /// MT-095: restore-time self-verification. Re-derives the binding from
+    /// the handle's own `content_hash` + `registered_at_utc_micros` under the
+    /// live process key and checks it matches `derived_id`. Fails closed when
+    /// the handle was never bound, the content_hash was tampered, or the key
+    /// differs (cross-process / cross-model replay).
+    pub fn verify_self_against(&self, model_id: ModelId) -> Result<(), ModelRuntimeError> {
+        let Some(registered_at) = self.registered_at_utc_micros else {
+            return Err(ModelRuntimeError::KvCacheError(
+                "KV prefix handle has no MT-095 derived binding (commit did not bind it)"
+                    .to_string(),
+            ));
+        };
+        self.verify_derived_against(model_id, &self.content_hash, registered_at)
     }
 
     /// Compute the BLAKE3 keyed-hash binding for replay resistance.
