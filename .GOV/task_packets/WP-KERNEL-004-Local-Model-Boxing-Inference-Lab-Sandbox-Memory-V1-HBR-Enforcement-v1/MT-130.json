@@ -7,7 +7,7 @@
   "cluster_subscope": "C.13",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:00:00Z",
-  "updated_at_utc": "2026-05-28T00:01:44.947Z",
+  "updated_at_utc": "2026-05-28T15:46:46.165Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -54,7 +54,7 @@
   ],
   "lifecycle": {
     "active": false,
-    "status": "READY_FOR_VALIDATION",
+    "status": "READY_FOR_VALIDATION_PHASE2",
     "validator_verdict": "FAIL",
     "integration_validator_verdict": "PENDING",
     "depends_on": [
@@ -152,7 +152,21 @@
     "ready_at_utc": "2026-05-25T15:54:56.028Z",
     "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
     "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
-    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z"
+    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z",
+    "phase2_remediation": {
+      "remediated_by": "KERNEL_BUILDER-20260528-141638",
+      "remediated_at_utc": "2026-05-28T15:46:46.165Z",
+      "lane": "Theme-4 cloud production wiring (cloud+local lane parity)",
+      "commit_sha": "2873e206",
+      "remediated_findings": [
+        "HIGH: the FR-event parity gate no longer papers over the defect by mutating a payload clone. New fr_event_shape_parity_from_real_cloud_emissions stands up two wiremock servers, drives the REAL OpenAiByokRuntime + AnthropicByokRuntime with CapturingFlightRecorder lane-observability, and asserts (a) each lane emits >=1 START + >=1 END, (b) per-lane adapter tag (openai_byok/anthropic_byok), (c) cross-lane START+END payload key-set equality from OBSERVED emissions. The synthetic lane_payload.insert(adapter,...) mutations were removed; HBR-INT-005 parity is now proven against real events."
+      ],
+      "deferred_or_residual": "2 MEDIUMs residual: parity-coverage breadth - local llama_cpp/candle real-load emission needs a GGUF fixture (env-gated), and CLI-bridge emission is structural-only because its invoke is synchronous/no-FR (see MT-127 residual).",
+      "partial": true,
+      "ack_for": "019e6be3-15f2-7e47-8811-03a6b63d722f",
+      "proof": "cargo test cloud_local_parity_smoke 18 passed / 2 ignored (live-API probes)",
+      "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1 - no per-MT validator; awaiting Phase-2 IV re-judgment"
+    }
   },
   "handoff": {
     "coder_session": "KERNEL_BUILDER-20260523-031814-AGT-MT130",

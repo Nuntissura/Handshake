@@ -7,7 +7,7 @@
   "cluster_subscope": "C.13",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:00:00Z",
-  "updated_at_utc": "2026-05-28T00:01:44.945Z",
+  "updated_at_utc": "2026-05-28T15:46:46.165Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -53,7 +53,7 @@
   ],
   "lifecycle": {
     "active": false,
-    "status": "READY_FOR_VALIDATION",
+    "status": "READY_FOR_VALIDATION_PHASE2",
     "validator_verdict": "FAIL",
     "depends_on": [
       "MT-066",
@@ -171,7 +171,22 @@
     "ready_at_utc": "2026-05-25T15:54:56.028Z",
     "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
     "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
-    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z"
+    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z",
+    "phase2_remediation": {
+      "remediated_by": "KERNEL_BUILDER-20260528-141638",
+      "remediated_at_utc": "2026-05-28T15:46:46.165Z",
+      "lane": "Theme-4 cloud production wiring (Official CLI bridge)",
+      "commit_sha": "057edc81,5c97bba6",
+      "remediated_findings": [
+        "HIGH(a) ledger: LiveCliSpawner registers a ProcessOwnershipLedger row (engine_kind=OfficialCliBridge, fails closed - kills child + errors on registration failure) at the spawn site. Added ProcessEngineKind::OfficialCliBridge variant (+as_str+TryFrom), migration 0021 CHECK set entry, and DDL parity coverage. The spawned CLI subprocess is now attributable + reclaimable.",
+        "HIGH(b) env-isolation: secret-bearing env var names (OPENAI_*/ANTHROPIC_*/GEMINI_*/*_API_KEY/*_TOKEN/*SECRET*/*PASSWORD* ...) are scrubbed from the inherited child env so operator shell-exported BYOK credentials no longer leak into every spawned CLI subprocess; PATH/USERPROFILE/APPDATA and other runtime vars are preserved (env_clear breaks Node CLIs). Proven by a real-subprocess integration test (planted secret var absent from child, benign var present)."
+      ],
+      "deferred_or_residual": "FR-EVT-LLM-INFER-START/END emission for the CLI bridge deferred: CliSubprocessSpawner::spawn is synchronous and FlightRecorder::record_event is async, so emission needs an async wrapper around the sync invoke (Spec-Realism: no awkward block_on). Full SandboxAdapter cluster-B isolation wrapping of the subprocess + 1 MEDIUM remain residual.",
+      "partial": true,
+      "ack_for": "019e6be3-15f0-78cd-9468-dd034b0a9a5c",
+      "proof": "cargo test cloud_official_cli_bridge_tests 8/8 (incl live_cli_spawner_records_official_cli_bridge_ledger_row + live_cli_spawner_strips_secret_env_but_keeps_public_env) + process_ledger_tests DDL parity + lib unit official_cli_bridge 12/12 + cargo check --lib clean",
+      "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1 - no per-MT validator; awaiting Phase-2 IV re-judgment"
+    }
   },
   "handoff": {
     "coder_session": "KERNEL_BUILDER-20260519-203500",

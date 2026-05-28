@@ -7,7 +7,7 @@
   "cluster_subscope": "C.6",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:00:00Z",
-  "updated_at_utc": "2026-05-28T00:01:44.925Z",
+  "updated_at_utc": "2026-05-28T15:46:46.165Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -52,7 +52,7 @@
   ],
   "lifecycle": {
     "active": false,
-    "status": "READY_FOR_VALIDATION",
+    "status": "READY_FOR_VALIDATION_PHASE2",
     "validator_verdict": "CONCERN",
     "depends_on": [
       "MT-065",
@@ -85,7 +85,21 @@
     "ready_at_utc": "2026-05-25T15:54:56.028Z",
     "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
     "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
-    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z"
+    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z",
+    "phase2_remediation": {
+      "remediated_by": "KERNEL_BUILDER-20260528-141638",
+      "remediated_at_utc": "2026-05-28T15:46:46.165Z",
+      "lane": "Steering technique surface (refusal/activation steering)",
+      "commit_sha": "63ca4d53",
+      "remediated_findings": [
+        "HIGH(spec event coverage): added FR-EVT-LLM-INFER-STEER-WITHDRAW constant completing the register/withdraw lifecycle taxonomy (unregister-side sibling of STEER-REGISTER) and documented it on the unregister() wrapper. Spec-mandated FR-EVT-LLM-INFER-STEER-{APPLY,WITHDRAW} are now both present (declaration parity with the other STEER constants, which are emitted by the downstream recorder-wired layer)."
+      ],
+      "deferred_or_residual": "NEEDS_EXTERNAL_RESOURCE: production attach_live_runtime() wiring (so steering commands bind a real CandleRuntime in the Tauri load flow instead of only test fixtures) requires a live app + loaded model + GUI and is not backend-provable here. Residual: operator-gating before set_active activates a refusal-overriding vector (HIGH per operator stance) - a consent/gating control not yet added.",
+      "partial": true,
+      "ack_for": "019e6be3-15dd-7ad9-96c7-eab83d4f4674",
+      "proof": "cargo test activation_steering_tests 4/4 (incl WITHDRAW constant assertion)",
+      "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1 - no per-MT validator; awaiting Phase-2 IV re-judgment"
+    }
   },
   "handoff": {
     "coder_session": "KERNEL_BUILDER-20260519-143049",

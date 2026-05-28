@@ -7,7 +7,7 @@
   "cluster_subscope": "C.13",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:00:00Z",
-  "updated_at_utc": "2026-05-28T00:01:44.945Z",
+  "updated_at_utc": "2026-05-28T15:46:46.165Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -52,7 +52,7 @@
   ],
   "lifecycle": {
     "active": false,
-    "status": "READY_FOR_VALIDATION",
+    "status": "READY_FOR_VALIDATION_PHASE2",
     "validator_verdict": "FAIL",
     "depends_on": [
       "MT-125",
@@ -188,7 +188,21 @@
     "ready_at_utc": "2026-05-25T15:54:56.028Z",
     "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
     "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
-    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z"
+    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z",
+    "phase2_remediation": {
+      "remediated_by": "KERNEL_BUILDER-20260528-141638",
+      "remediated_at_utc": "2026-05-28T15:46:46.165Z",
+      "lane": "Theme-4 cloud production wiring (Operator Secrets Vault / ConsentGate)",
+      "commit_sha": "6c6c38b8,ac370414",
+      "remediated_findings": [
+        "HIGH(a) consent wiring: ConsentGate now has real callers - OpenAiByokRuntime (MT-125, 6c6c38b8) and AnthropicByokRuntime (MT-126, ac370414) both consult check_or_prompt before live HTTP calls. The consent gate is no longer caller-less in the cloud lane HTTP paths (the OsKeychainSecretsVault itself already passed Phase-1)."
+      ],
+      "deferred_or_residual": "Two MEDIUMs NOT addressed in this batch: (b) KernelActionCatalogV1 kernel.cloud_secrets.store action requiring operator_signature (HBR-INT-006) - SecretsVault::put() has no operator_signature param; (c) secrecy crate (SecretString + Drop zeroization) not used - secrets are plain String that may linger in heap memory.",
+      "partial": true,
+      "ack_for": "019e6be3-15f1-704b-a798-db25be5ada01",
+      "proof": "satisfied transitively by the MT-125 + MT-126 ConsentGate wiring; cloud_openai_byok_tests 12/12 + cloud_anthropic_byok_tests 15/15",
+      "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1 - no per-MT validator; awaiting Phase-2 IV re-judgment"
+    }
   },
   "handoff": {
     "coder_session": "KERNEL_BUILDER-20260520-115519",
