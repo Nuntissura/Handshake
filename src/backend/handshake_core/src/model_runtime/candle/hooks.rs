@@ -17,6 +17,13 @@ pub struct CandleSteeringHooks {
     model_id: ModelId,
     residual_width: usize,
     registry: Arc<Mutex<HookRegistry>>,
+    /// MT-082: the bare hook registry cannot capture real residual
+    /// activations (no model forward). Production constructs these hooks
+    /// scaffold-disabled, so `capture()` fails closed instead of returning
+    /// synthetic prompt-hashed rows that masquerade as model activations.
+    /// Only `CandleRuntimeSteeringHookOps` (real forward) or an explicit
+    /// test that opts in via `with_scaffold_capture()` produces capture data.
+    scaffold_capture_enabled: bool,
 }
 
 #[derive(Default)]
@@ -35,7 +42,18 @@ impl CandleSteeringHooks {
             model_id,
             residual_width: residual_width.max(1),
             registry: Arc::new(Mutex::new(HookRegistry::default())),
+            scaffold_capture_enabled: false,
         }
+    }
+
+    /// Opt in to scaffold (synthetic, prompt-hashed) `capture()` output.
+    /// This is a TEST/DEV affordance only — it does not run a model. Real
+    /// activation capture in production goes through
+    /// `CandleRuntimeSteeringHookOps` (a real transformer forward); the
+    /// bare registry's `capture()` fails closed unless this is set.
+    pub fn with_scaffold_capture(mut self) -> Self {
+        self.scaffold_capture_enabled = true;
+        self
     }
 
     pub fn model_id(&self) -> ModelId {
@@ -573,6 +591,23 @@ impl SteeringHookOps for CandleSteeringHooks {
         if spec.layers.is_empty() {
             return Err(ModelRuntimeError::SteeringHookError(
                 "capture spec requires at least one layer".to_string(),
+            ));
+        }
+
+        // MT-082: the bare hook registry has no model, so it cannot produce
+        // real residual activations. Fail closed instead of silently returning
+        // synthetic prompt-hashed rows — production callers (the adapter
+        // fallback for non-transformer backends or default/no-feature builds)
+        // must not mistake scaffold data for a model forward. Real capture is
+        // CandleRuntimeSteeringHookOps; explicit test scaffolding opts in via
+        // with_scaffold_capture().
+        if !self.scaffold_capture_enabled {
+            return Err(ModelRuntimeError::SteeringHookError(
+                "bare CandleSteeringHooks cannot capture real residual activations without a \
+                 model forward; route capture through CandleRuntimeSteeringHookOps (a live \
+                 transformer forward), or enable with_scaffold_capture() for explicit test \
+                 scaffolding"
+                    .to_string(),
             ));
         }
 
