@@ -7,7 +7,7 @@
   "cluster_subscope": "C.5",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:00:00Z",
-  "updated_at_utc": "2026-05-28T00:01:44.924Z",
+  "updated_at_utc": "2026-05-28T10:10:31.124Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -49,7 +49,7 @@
   ],
   "lifecycle": {
     "active": false,
-    "status": "READY_FOR_VALIDATION",
+    "status": "READY_FOR_VALIDATION_PHASE2",
     "validator_verdict": "FAIL",
     "integration_validator_verdict": "PENDING",
     "depends_on": [
@@ -76,7 +76,22 @@
     "ready_at_utc": "2026-05-25T15:54:56.028Z",
     "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
     "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
-    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z"
+    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z",
+    "updated_at_utc": "2026-05-28T10:10:31.124Z",
+    "phase2_remediation": {
+      "remediated_by": "KERNEL_BUILDER-20260528-071201",
+      "remediated_at_utc": "2026-05-28T10:10:31.124Z",
+      "lane": "Theme-8 C-cluster correctness (KV replay-resistance)",
+      "commit_sha": "a05c7bf5",
+      "remediated_findings": [
+        "KvPrefixHandle gains bind_derived(model_id,ts) + verify_self_against(model_id) + a stored registered_at_utc_micros. kv_cache_technique::prefix_commit now binds a per-process BLAKE3-keyed replay-resistance derivation onto the adapter-returned handle (which arrives unbound via from_scoped_tokens); prefix_restore verify_self_against before delegating. The primitives are now invoked end-to-end at the public technique surface, the single enforcement point covering both llama_cpp and candle stacks."
+      ],
+      "deferred_or_residual": "the low-level KvCacheHandle facade (no model_id in scope) could still bypass the gate; threading model_id there is an app/runtime follow-on. Feature-gated adapter prefix_commit/restore unchanged (enforcement unified at the technique surface).",
+      "partial": false,
+      "ack_for": "019e6be3-15dc-703c-96fe-73b56f1f6e54",
+      "proof": "cargo test kv_cache_security_tests 11/11 (3 new bind/verify) + kv_cache_technique_tests 10/10 (1 new end-to-end enforcement)",
+      "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1 - no per-MT validator; awaiting Phase-2 IV re-judgment"
+    }
   },
   "handoff": {
     "coder_session": "KERNEL_BUILDER-20260522-171100",
