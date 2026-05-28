@@ -152,6 +152,33 @@ impl CandleLoraStack {
         targets
     }
 
+    /// MT-115 (INF-9 LoRA-for-SSM): valid LoRA targets for the owned RWKV v7
+    /// "Goose" forward. v7 replaces v5/v6's gate Linear with low-rank gate
+    /// tensors (`g1`/`g2`) and adds the decay / ICL-rate / value-residual
+    /// low-rank LoRA-style tensors (`w*`/`a*`/`v*`) plus the per-head key/bonus
+    /// tensors (`k_k`/`k_a`/`r_k`) — none of which are genuine full Linears, so
+    /// they are excluded as PEFT targets (same treatment as v5/v6's
+    /// interpolation tensors and Mamba2's A/D/conv). The realisable per-layer
+    /// PEFT targets are therefore the GENUINE full `candle_nn::Linear`
+    /// projections v7 owns: time-mix `receptance`/`key`/`value`/`output`
+    /// (each `[C, C]`) and channel-mix `key`/`value` (`[dim_ffn, C]` /
+    /// `[C, dim_ffn]`). v7 has NO time-mix `gate` Linear and NO channel-mix
+    /// `receptance` Linear, so this set differs from v5/v6 and gets its own
+    /// helper. Naming mirrors the `rwkv_v7_target()` helper used in the owned
+    /// forward.
+    pub fn available_rwkv_v7_targets(num_layers: usize) -> Vec<String> {
+        let mut targets = Vec::with_capacity(num_layers * 6);
+        for layer in 0..num_layers {
+            for projection in ["receptance", "key", "value", "output"] {
+                targets.push(format!("backbone.layers.{layer}.time_mix.{projection}"));
+            }
+            for projection in ["key", "value"] {
+                targets.push(format!("backbone.layers.{layer}.channel_mix.{projection}"));
+            }
+        }
+        targets
+    }
+
     pub fn ensure_overrides_mounted(&self, ids: &[LoraId]) -> Result<(), ModelRuntimeError> {
         if ids.is_empty() {
             return Ok(());

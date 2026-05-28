@@ -546,10 +546,15 @@ pub fn candle_mamba2_capabilities(_declared: &ModelCapabilities) -> ModelCapabil
 
 pub fn candle_rwkv_capabilities(_declared: &ModelCapabilities) -> ModelCapabilities {
     ModelCapabilities {
-        supports_lora: false,
+        // MT-115 / MT-116 (INF-9): the owned RWKV v5/v6/v7 forwards
+        // (rwkv_v5.rs / rwkv_v6.rs / rwkv_v7.rs) route time-mix/channel-mix
+        // projections through the LoRA delta engine and expose a residual-stream
+        // steering seam, so both techniques now actually work for all three
+        // RWKV variants.
+        supports_lora: true,
         supports_kv_prefix_cache: false,
         supports_kv_quantization: KvQuantSupport::None,
-        supports_activation_steering: false,
+        supports_activation_steering: true,
         supports_subquadratic: true,
         supports_speculative_draft: false,
         supports_eagle3: false,
