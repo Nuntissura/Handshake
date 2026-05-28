@@ -128,7 +128,13 @@ impl CandleSteeringHooks {
             .iter()
             .filter(|vector| vector.layer == layer && vector.hook_point == hook_point)
         {
-            current = Self::apply_vector_to_activation(current, &vector.values)?;
+            current = if vector.is_refusal_ablation() {
+                // Arditi 2024 directional ablation: project the residual out of
+                // the refusal direction rather than additively steering it.
+                Self::ablate_activation_against_direction(current, vector.values.values())?
+            } else {
+                Self::apply_vector_to_activation(current, &vector.values)?
+            };
         }
         Ok(current)
     }
@@ -161,7 +167,7 @@ impl CandleSteeringHooks {
             let mut vector_shape = vec![1_usize; activation.dims().len()];
             let last = vector_shape.len().saturating_sub(1);
             vector_shape[last] = hidden_width;
-            let steering = candle_core::Tensor::from_slice(
+            let direction = candle_core::Tensor::from_slice(
                 vector.values.values(),
                 vector.values.values().len(),
                 activation.device(),
@@ -169,17 +175,61 @@ impl CandleSteeringHooks {
             .and_then(|tensor| tensor.to_dtype(activation.dtype()))
             .and_then(|tensor| tensor.reshape(vector_shape.as_slice()))
             .and_then(|tensor| tensor.broadcast_as(activation.shape()))
-            .and_then(|tensor| (tensor * vector.values.intensity() as f64))
             .map_err(|error| {
                 ModelRuntimeError::SteeringHookError(format!(
                     "failed to build Candle steering tensor: {error}"
                 ))
             })?;
-            current = (&current + steering).map_err(|error| {
-                ModelRuntimeError::SteeringHookError(format!(
-                    "failed to apply Candle steering tensor: {error}"
-                ))
-            })?;
+
+            current = if vector.is_refusal_ablation() {
+                // Arditi 2024 directional ablation on the live tensor path:
+                // current - (current·dir / dir·dir) * dir, broadcast across the
+                // token/batch dims. dir·dir is taken from the raw f32 slice
+                // (cheap, and guards the degenerate zero-direction case).
+                let dir_norm_sq: f64 = vector
+                    .values
+                    .values()
+                    .iter()
+                    .map(|d| (*d as f64) * (*d as f64))
+                    .sum();
+                if !dir_norm_sq.is_finite() || dir_norm_sq == 0.0 {
+                    return Err(ModelRuntimeError::SteeringHookError(
+                        "refusal ablation direction has zero or non-finite L2 norm".to_string(),
+                    ));
+                }
+                let dot = (&current * &direction)
+                    .and_then(|prod| prod.sum_keepdim(last))
+                    .map_err(|error| {
+                        ModelRuntimeError::SteeringHookError(format!(
+                            "failed to compute refusal ablation projection: {error}"
+                        ))
+                    })?;
+                let projection = (dot * (1.0 / dir_norm_sq))
+                    .and_then(|coeff| coeff.broadcast_as(activation.shape()))
+                    .and_then(|coeff| (coeff * &direction))
+                    .map_err(|error| {
+                        ModelRuntimeError::SteeringHookError(format!(
+                            "failed to build refusal ablation projection tensor: {error}"
+                        ))
+                    })?;
+                (&current - projection).map_err(|error| {
+                    ModelRuntimeError::SteeringHookError(format!(
+                        "failed to apply refusal ablation tensor: {error}"
+                    ))
+                })?
+            } else {
+                let steering =
+                    (&direction * vector.values.intensity() as f64).map_err(|error| {
+                        ModelRuntimeError::SteeringHookError(format!(
+                            "failed to scale Candle steering tensor: {error}"
+                        ))
+                    })?;
+                (&current + steering).map_err(|error| {
+                    ModelRuntimeError::SteeringHookError(format!(
+                        "failed to apply Candle steering tensor: {error}"
+                    ))
+                })?
+            };
         }
         Ok(current)
     }
@@ -324,6 +374,59 @@ impl CandleSteeringHooks {
                 } else {
                     Err(ModelRuntimeError::SteeringHookError(
                         "steering vector application produced a non-finite activation".to_string(),
+                    ))
+                }
+            })
+            .collect()
+    }
+
+    /// Directional ablation per Arditi et al. 2024 ("Refusal in LLMs is
+    /// Mediated by a Single Direction"): remove the component of `activation`
+    /// that lies along `direction` by subtracting its projection,
+    /// `new = activation - (activation·dir / dir·dir) * dir`.
+    ///
+    /// This is the operation a [`crate::model_runtime::SteeringVector`] flagged
+    /// via [`crate::model_runtime::SteeringVector::is_refusal_ablation`]
+    /// resolves to, instead of the additive [`Self::apply_vector_to_activation`].
+    /// `direction` need not be unit length — normalising by `dir·dir` makes the
+    /// result the true orthogonal component either way — but refusal directions
+    /// are unit-normalised at extraction, so the projection coefficient reduces
+    /// to the plain dot product. The vector's intensity marker
+    /// (`REFUSAL_ABLATION_INTENSITY`) is deliberately NOT applied here: ablation
+    /// fully removes the projection rather than scaling it.
+    pub fn ablate_activation_against_direction(
+        activation: Vec<f32>,
+        direction: &[f32],
+    ) -> Result<Vec<f32>, ModelRuntimeError> {
+        if activation.len() != direction.len() {
+            return Err(ModelRuntimeError::SteeringHookError(format!(
+                "activation width {} does not match refusal direction width {}",
+                activation.len(),
+                direction.len()
+            )));
+        }
+        let dir_norm_sq: f32 = direction.iter().map(|d| d * d).sum();
+        if !dir_norm_sq.is_finite() || dir_norm_sq == 0.0 {
+            return Err(ModelRuntimeError::SteeringHookError(
+                "refusal ablation direction has zero or non-finite L2 norm".to_string(),
+            ));
+        }
+        let dot: f32 = activation
+            .iter()
+            .zip(direction)
+            .map(|(a, d)| a * d)
+            .sum();
+        let coeff = dot / dir_norm_sq;
+        activation
+            .into_iter()
+            .zip(direction)
+            .map(|(base, dir)| {
+                let value = base - coeff * dir;
+                if value.is_finite() {
+                    Ok(value)
+                } else {
+                    Err(ModelRuntimeError::SteeringHookError(
+                        "refusal ablation produced a non-finite activation".to_string(),
                     ))
                 }
             })
@@ -650,5 +753,149 @@ pub fn ssm_steering_register_deferred_error(arch: SSMArchitectureTag) -> ModelRu
     ModelRuntimeError::CapabilityNotSupported {
         capability: SSM_STEERING_DEFERRED_MARKER.to_string(),
         adapter: format!("candle_{}", arch.as_str()),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::model_runtime::{
+        ContrastiveTechnique, SteeringProvenance, SteeringVector, SteeringVectorValues,
+    };
+
+    fn refusal_vector(layer: LayerIndex, direction: Vec<f32>) -> SteeringVector {
+        let values = SteeringVectorValues::try_new(direction, -1.0).expect("values");
+        SteeringVector::try_new(
+            None,
+            "refusal-test",
+            layer,
+            HookPoint::ResidStream,
+            values,
+            "refusal ablation test vector",
+            Some(SteeringProvenance::Contrastive {
+                positive_prompts: vec!["harmful".to_string()],
+                negative_prompts: vec!["harmless".to_string()],
+                technique: ContrastiveTechnique::RefusalVector,
+            }),
+        )
+        .expect("vector")
+    }
+
+    fn additive_vector(layer: LayerIndex, values: Vec<f32>, intensity: f32) -> SteeringVector {
+        let values = SteeringVectorValues::try_new(values, intensity).expect("values");
+        SteeringVector::try_new(
+            None,
+            "additive-test",
+            layer,
+            HookPoint::ResidStream,
+            values,
+            "additive steering test vector",
+            Some(SteeringProvenance::Manual {
+                author: "tester".to_string(),
+                notes: "n".to_string(),
+            }),
+        )
+        .expect("vector")
+    }
+
+    fn dot(a: &[f32], b: &[f32]) -> f32 {
+        a.iter().zip(b).map(|(x, y)| x * y).sum()
+    }
+
+    #[test]
+    fn ablate_against_unit_direction_removes_projection() {
+        // direction (1,0) unit; activation (3,4); projection coeff = 3 -> (0,4).
+        let out =
+            CandleSteeringHooks::ablate_activation_against_direction(vec![3.0, 4.0], &[1.0, 0.0])
+                .expect("ablate");
+        assert!(out[0].abs() < 1e-6, "x={}", out[0]);
+        assert!((out[1] - 4.0).abs() < 1e-6, "y={}", out[1]);
+        assert!(dot(&out, &[1.0, 0.0]).abs() < 1e-6);
+    }
+
+    #[test]
+    fn ablate_against_non_unit_direction_normalises_by_dir_dot_dir() {
+        // direction (0,2) non-unit; activation (5,7); coeff = (7*2)/4 = 3.5
+        // -> (5,7) - 3.5*(0,2) = (5,0); result orthogonal to direction.
+        let out =
+            CandleSteeringHooks::ablate_activation_against_direction(vec![5.0, 7.0], &[0.0, 2.0])
+                .expect("ablate");
+        assert!((out[0] - 5.0).abs() < 1e-6, "x={}", out[0]);
+        assert!(out[1].abs() < 1e-6, "y={}", out[1]);
+        assert!(dot(&out, &[0.0, 2.0]).abs() < 1e-5);
+    }
+
+    #[test]
+    fn ablate_is_idempotent_after_first_projection_removal() {
+        let once = CandleSteeringHooks::ablate_activation_against_direction(
+            vec![3.0, 4.0, 5.0],
+            &[1.0, 1.0, 0.0],
+        )
+        .expect("ablate once");
+        let twice = CandleSteeringHooks::ablate_activation_against_direction(
+            once.clone(),
+            &[1.0, 1.0, 0.0],
+        )
+        .expect("ablate twice");
+        for (a, b) in once.iter().zip(&twice) {
+            assert!((a - b).abs() < 1e-5, "{a} != {b}");
+        }
+    }
+
+    #[test]
+    fn ablate_rejects_zero_direction() {
+        let err =
+            CandleSteeringHooks::ablate_activation_against_direction(vec![1.0, 2.0], &[0.0, 0.0])
+                .expect_err("zero direction must error");
+        assert!(format!("{err:?}").contains("zero"), "{err:?}");
+    }
+
+    #[test]
+    fn ablate_rejects_width_mismatch() {
+        let err = CandleSteeringHooks::ablate_activation_against_direction(
+            vec![1.0, 2.0, 3.0],
+            &[1.0, 0.0],
+        )
+        .expect_err("width mismatch must error");
+        assert!(format!("{err:?}").contains("width"), "{err:?}");
+    }
+
+    #[test]
+    fn refusal_vector_application_orthogonalises_not_adds() {
+        let layer = LayerIndex::new(14);
+        let vector = refusal_vector(layer, vec![1.0, 0.0, 0.0]);
+        let out = CandleSteeringHooks::apply_vector_snapshot_to_activation(
+            layer,
+            HookPoint::ResidStream,
+            vec![2.0, 5.0, 9.0],
+            std::slice::from_ref(&vector),
+        )
+        .expect("apply");
+        // Orthogonalisation removes the x-component entirely: (0,5,9).
+        assert!(out[0].abs() < 1e-6, "x not projected out: {}", out[0]);
+        assert!((out[1] - 5.0).abs() < 1e-6);
+        assert!((out[2] - 9.0).abs() < 1e-6);
+        assert!(dot(&out, &[1.0, 0.0, 0.0]).abs() < 1e-6);
+        // The additive path with intensity -1 would have produced
+        // (2-1, 5, 9) = (1,5,9); orthogonalisation is provably different.
+        assert!(
+            (out[0] - 1.0).abs() > 1e-3,
+            "refusal vector took the additive path instead of orthogonalising"
+        );
+    }
+
+    #[test]
+    fn non_refusal_vector_still_applies_additively() {
+        let layer = LayerIndex::new(14);
+        let vector = additive_vector(layer, vec![1.0, 1.0, 1.0], 2.0);
+        let out = CandleSteeringHooks::apply_vector_snapshot_to_activation(
+            layer,
+            HookPoint::ResidStream,
+            vec![10.0, 20.0, 30.0],
+            std::slice::from_ref(&vector),
+        )
+        .expect("apply");
+        // base + steering * intensity = base + 1 * 2.
+        assert_eq!(out, vec![12.0, 22.0, 32.0]);
     }
 }

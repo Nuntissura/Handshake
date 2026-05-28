@@ -9,10 +9,13 @@
 //!   activation_steering API (no parallel hook layer per
 //!   MT-100.red_team.minimum_controls).
 //!
-//! The full end-to-end pool eval against a small instruct model is env-gated by
-//! `HANDSHAKE_TEST_REFUSAL_MODEL_DIR`. See `inf3_repe_known_case_test.rs` for the
-//! identical skip-pattern; the eval body documents the eval procedure but cannot
-//! execute on this host until MT-074 (LlamaCppRuntime streaming) is unblocked.
+//! The directional-ablation apply path (Arditi 2024 projection-out) is
+//! implemented in `candle::hooks` and proven by
+//! `refusal_ablation_vector_orthogonalises_through_candle_apply_path` below
+//! plus the `candle::hooks` unit tests. The full end-to-end pool eval against a
+//! live instruct model is still env-gated by `HANDSHAKE_TEST_REFUSAL_MODEL_DIR`
+//! because the generate loop requires a real runtime (MT-074 LlamaCppRuntime
+//! streaming + production runtime attach, MT-096 Theme 4).
 
 use std::{
     collections::{BTreeMap, BTreeSet},
@@ -24,7 +27,8 @@ use std::{
 use async_trait::async_trait;
 use handshake_core::model_runtime::{
     techniques::refusal_vector::{
-        ablate_at_inference, extract_refusal_direction, RefusalDirection, REFUSAL_ABLATION_INTENSITY,
+        ablate_at_inference, extract_refusal_direction, RefusalDirection,
+        REFUSAL_ABLATION_INTENSITY,
     },
     CancellationToken, CaptureResult, CaptureSpec, ContrastiveTechnique, Embedding,
     GenerateRequest, HookPoint, KvCacheHandle, LayerIndex, LoadSpec, LoraStackHandle,
@@ -213,7 +217,11 @@ async fn extract_refusal_direction_returns_unit_vectors_per_layer() {
     let model_id = ModelId::new_v7();
     let hooks = Arc::new(RecordingRefusalHooks::default());
     let runtime = RecordingRefusalRuntime::new(model_id, true, hooks.clone());
-    let layers = vec![LayerIndex::new(10), LayerIndex::new(14), LayerIndex::new(18)];
+    let layers = vec![
+        LayerIndex::new(10),
+        LayerIndex::new(14),
+        LayerIndex::new(18),
+    ];
 
     let directions = extract_refusal_direction(
         &runtime,
@@ -272,21 +280,15 @@ async fn extract_refusal_direction_rejects_empty_pools_and_layers() {
             .expect_err("empty harmful pool must error");
     assert!(format!("{err:?}").contains("harmful"), "{err:?}");
 
-    let err =
-        extract_refusal_direction(&runtime, model_id, harmful_pool(), vec![], layers.clone())
-            .await
-            .expect_err("empty harmless pool must error");
+    let err = extract_refusal_direction(&runtime, model_id, harmful_pool(), vec![], layers.clone())
+        .await
+        .expect_err("empty harmless pool must error");
     assert!(format!("{err:?}").contains("harmless"), "{err:?}");
 
-    let err = extract_refusal_direction(
-        &runtime,
-        model_id,
-        harmful_pool(),
-        harmless_pool(),
-        vec![],
-    )
-    .await
-    .expect_err("empty layers must error");
+    let err =
+        extract_refusal_direction(&runtime, model_id, harmful_pool(), harmless_pool(), vec![])
+            .await
+            .expect_err("empty layers must error");
     assert!(format!("{err:?}").contains("layer"), "{err:?}");
 }
 
@@ -429,15 +431,81 @@ async fn ablate_at_inference_round_trips_operator_prompt_text_verbatim() {
     }
 }
 
+#[tokio::test]
+async fn refusal_ablation_vector_orthogonalises_through_candle_apply_path() {
+    // MT-100 core spec fix: a vector produced by ablate_at_inference must be
+    // applied as Arditi 2024 directional ablation (project the residual out of
+    // the refusal direction), NOT as the default additive steering edit.
+    use handshake_core::model_runtime::candle::CandleSteeringHooks;
+
+    let model_id = ModelId::new_v7();
+    let hooks = Arc::new(RecordingRefusalHooks::default());
+    let runtime = RecordingRefusalRuntime::new(model_id, true, hooks.clone());
+    let layer = LayerIndex::new(14);
+
+    // Unit refusal direction along the x-axis.
+    let direction = RefusalDirection {
+        layer,
+        values: vec![1.0, 0.0],
+    };
+    let vector_id = ablate_at_inference(
+        &runtime,
+        model_id,
+        "orthogonalise-check",
+        "ablation orthogonalisation integration check",
+        direction,
+        harmful_pool(),
+        harmless_pool(),
+    )
+    .await
+    .expect("register");
+
+    let vector = hooks
+        .vectors
+        .lock()
+        .unwrap()
+        .get(&vector_id)
+        .cloned()
+        .expect("vector stored");
+    assert!(
+        vector.is_refusal_ablation(),
+        "ablate_at_inference must flag the vector as a refusal ablation",
+    );
+
+    // Apply through the real Candle apply path. Activation has a non-zero
+    // component along the refusal direction; ablation must remove exactly that.
+    let out = CandleSteeringHooks::apply_vector_snapshot_to_activation(
+        layer,
+        HookPoint::ResidStream,
+        vec![3.0, 7.0],
+        std::slice::from_ref(&vector),
+    )
+    .expect("apply");
+
+    // Projection along (1,0) removed -> (0,7); result orthogonal to direction.
+    assert!(out[0].abs() < 1e-6, "x component not ablated: {}", out[0]);
+    assert!((out[1] - 7.0).abs() < 1e-6, "y component changed: {}", out[1]);
+    let dot = out[0] * 1.0 + out[1] * 0.0;
+    assert!(dot.abs() < 1e-6, "residual not orthogonal to direction: {dot}");
+    // The additive path (intensity -1.0) would have produced (2,7), not (0,7);
+    // assert we did NOT take it.
+    assert!(
+        (out[0] - 2.0).abs() > 1e-3,
+        "refusal vector took the additive path instead of orthogonalising",
+    );
+}
+
 #[test]
 #[allow(unused_variables)]
 fn inf4_refusal_end_to_end_eval_skips_cleanly_or_runs_when_model_dir_set() {
     // Env-gated end-to-end eval (Arditi 2024 refusal-direction reproduction).
     // Skips when HANDSHAKE_TEST_REFUSAL_MODEL_DIR is unset OR not a directory.
-    // The runtime ablation path is currently scaffolded only; live execution
-    // requires MT-074 (LlamaCppRuntime streaming) to unblock. The procedure
-    // documented inline below mirrors MT-100.json implementation_notes so a
-    // no-context implementer can drop in the runtime when MT-074 lands.
+    // The directional-ablation apply path is implemented + unit-tested (see
+    // candle::hooks); what remains gated here is the live generate loop, which
+    // needs a real runtime (MT-074 LlamaCppRuntime streaming + production
+    // runtime attach, MT-096 Theme 4). The procedure documented inline below
+    // mirrors MT-100.json implementation_notes so a no-context implementer can
+    // drop in the runtime when those land.
     const ENV_VAR: &str = "HANDSHAKE_TEST_REFUSAL_MODEL_DIR";
 
     let Ok(model_dir) = env::var(ENV_VAR) else {
@@ -480,4 +548,3 @@ fn inf4_refusal_end_to_end_eval_skips_cleanly_or_runs_when_model_dir_set() {
         model_dir.display(),
     );
 }
-
