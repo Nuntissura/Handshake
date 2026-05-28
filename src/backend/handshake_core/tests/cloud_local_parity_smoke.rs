@@ -64,12 +64,17 @@ use handshake_core::flight_recorder::events_llm_infer::{
     infer_end_event, infer_start_event, infer_token_event, new_llm_infer_request_id,
     FR_EVT_LLM_INFER_END, FR_EVT_LLM_INFER_START, FR_EVT_LLM_INFER_TOKEN,
 };
+use handshake_core::flight_recorder::{
+    EventFilter, FlightRecorder, FlightRecorderEvent, RecorderError,
+};
 use handshake_core::model_runtime::cloud::{
     AnthropicByokRuntime, ApiKeyProvider, CliBridgeConfig, CliInvocationReceipt, CliKind,
-    CliOutputFormat, CliSubprocessSpawner, CloudCallKind, CloudCallStatus,
-    CloudInvocationAuditRow, CloudInvocationAuditSink, ConsentDecision, ConsentGate,
-    ConsentGateError, ConsentProvider, OfficialCliBridgeError, OfficialCliBridgeRuntime,
-    OpenAiByokError, OpenAiByokRuntime,
+    CliOutputFormat, CliSubprocessSpawner, CloudCallKind, CloudCallStatus, CloudConsentContext,
+    CloudInvocationAuditRow, CloudInvocationAuditSink, CloudLaneObservability, ConsentDecision,
+    ConsentGate, ConsentGateError, ConsentProvider, OfficialCliBridgeError,
+    OfficialCliBridgeRuntime, OpenAiByokError, OpenAiByokRuntime, ANTHROPIC_API_KEY_HEADER,
+    ANTHROPIC_API_VERSION, ANTHROPIC_MESSAGES_PATH, ANTHROPIC_VERSION_HEADER,
+    OPENAI_CHAT_COMPLETIONS_PATH,
 };
 use handshake_core::model_runtime::{
     CancellationToken, Embedding, FinishReason, GenPrompt, GenerateRequest, GeneratedToken,
@@ -77,6 +82,8 @@ use handshake_core::model_runtime::{
     ModelId, ModelRuntime, ModelRuntimeError, ProviderKind, RuntimeKind, SamplingParams, Score,
     SteeringHookHandle, TokenStream,
 };
+use wiremock::matchers::{header, method, path};
+use wiremock::{Mock, MockServer, ResponseTemplate};
 
 // ---------------------------------------------------------------------
 // Shared lane labels + capabilities snapshot
@@ -123,6 +130,165 @@ struct StaticKey {
 impl ApiKeyProvider for StaticKey {
     fn fetch_api_key(&self) -> Result<String, OpenAiByokError> {
         Ok(self.key.clone())
+    }
+}
+
+// ---------------------------------------------------------------------
+// Fixture: in-memory FlightRecorder for REAL cloud-emission parity.
+//
+// MT-130 Phase-1 concern: cross-lane FR-event SHAPE parity must be
+// proven from what each lane's RUNTIME actually emits, not from a
+// single shared helper called with different labels. This recorder
+// captures every event a runtime records via its
+// with_lane_observability pipeline so the parity test can compare the
+// START/END payload key sets produced by the live OpenAI vs Anthropic
+// streaming runtimes. Ported (not imported) from the cloud BYOK
+// emits-tests because each integration test is a separate binary and
+// cannot share test-only structs.
+// ---------------------------------------------------------------------
+
+#[derive(Default)]
+struct CapturingFlightRecorder {
+    events: Mutex<Vec<FlightRecorderEvent>>,
+}
+#[async_trait]
+impl FlightRecorder for CapturingFlightRecorder {
+    async fn record_event(&self, event: FlightRecorderEvent) -> Result<(), RecorderError> {
+        self.events.lock().unwrap().push(event);
+        Ok(())
+    }
+    async fn enforce_retention(&self) -> Result<u64, RecorderError> {
+        Ok(0)
+    }
+    async fn list_events(
+        &self,
+        _filter: EventFilter,
+    ) -> Result<Vec<FlightRecorderEvent>, RecorderError> {
+        Ok(self.events.lock().unwrap().clone())
+    }
+}
+
+/// Always-approve consent provider so the real streaming generate path
+/// is not short-circuited by the consent gate. Mirrors `ApproveProvider`
+/// in the cloud BYOK emits-tests.
+struct ApproveProvider;
+impl ConsentProvider for ApproveProvider {
+    fn prompt_for_decision(
+        &self,
+        _session_id: &str,
+        _lane: &str,
+    ) -> Result<ConsentDecision, ConsentGateError> {
+        Ok(ConsentDecision::Approved)
+    }
+}
+
+const FR_PARITY_API_KEY_FIXTURE: &str = "sk-parity-wiremock-NEVER-LOG-THIS-KEY";
+
+/// Build the OpenAI Chat Completions SSE body: one `chat.completion.chunk`
+/// per token, terminating with `[DONE]`. Ported from the OpenAI BYOK
+/// emits-test `sse_payload_for`.
+fn openai_sse_payload_for(tokens: &[&str]) -> String {
+    let mut body = String::new();
+    for (idx, text) in tokens.iter().enumerate() {
+        let finish = if idx + 1 == tokens.len() {
+            Some("stop")
+        } else {
+            None
+        };
+        let chunk = serde_json::json!({
+            "id": format!("chatcmpl-parity-{idx}"),
+            "object": "chat.completion.chunk",
+            "created": 1_700_000_000_u64 + idx as u64,
+            "model": "gpt-4o-2024-08-06",
+            "choices": [{
+                "index": 0,
+                "delta": { "content": text },
+                "finish_reason": finish,
+            }],
+        });
+        body.push_str(&format!("data: {chunk}\n\n"));
+    }
+    body.push_str("data: [DONE]\n\n");
+    body
+}
+
+/// Build the Anthropic Messages SSE body using the named-event wire
+/// shape (`event: <name>\ndata: <json>\n\n`): a `message_start` +
+/// `content_block_start` envelope, one `content_block_delta` per token,
+/// then `content_block_stop` / `message_delta` / `message_stop`. Ported
+/// from the Anthropic BYOK emits-test `sse_payload_for`.
+fn anthropic_sse_payload_for(tokens: &[&str]) -> String {
+    let mut body = String::new();
+
+    let message_start = serde_json::json!({
+        "type": "message_start",
+        "message": {
+            "id": "msg_parity_0001",
+            "type": "message",
+            "role": "assistant",
+            "model": "claude-opus-4-7-20260101",
+            "content": [],
+            "stop_reason": null,
+            "stop_sequence": null,
+            "usage": { "input_tokens": 5, "output_tokens": 0 }
+        }
+    });
+    body.push_str("event: message_start\n");
+    body.push_str(&format!("data: {message_start}\n\n"));
+
+    let block_start = serde_json::json!({
+        "type": "content_block_start",
+        "index": 0,
+        "content_block": { "type": "text", "text": "" }
+    });
+    body.push_str("event: content_block_start\n");
+    body.push_str(&format!("data: {block_start}\n\n"));
+
+    for text in tokens {
+        let chunk = serde_json::json!({
+            "type": "content_block_delta",
+            "index": 0,
+            "delta": { "type": "text_delta", "text": text }
+        });
+        body.push_str("event: content_block_delta\n");
+        body.push_str(&format!("data: {chunk}\n\n"));
+    }
+
+    let block_stop = serde_json::json!({ "type": "content_block_stop", "index": 0 });
+    body.push_str("event: content_block_stop\n");
+    body.push_str(&format!("data: {block_stop}\n\n"));
+
+    let msg_delta = serde_json::json!({
+        "type": "message_delta",
+        "delta": { "stop_reason": "end_turn", "stop_sequence": null },
+        "usage": { "output_tokens": tokens.len() }
+    });
+    body.push_str("event: message_delta\n");
+    body.push_str(&format!("data: {msg_delta}\n\n"));
+
+    let msg_stop = serde_json::json!({ "type": "message_stop" });
+    body.push_str("event: message_stop\n");
+    body.push_str(&format!("data: {msg_stop}\n\n"));
+
+    body
+}
+
+fn fr_parity_generate_request(model_id: ModelId, cancel: CancellationToken) -> GenerateRequest {
+    GenerateRequest {
+        id: model_id,
+        prompt: GenPrompt::new("Say hello."),
+        sampling: SamplingParams {
+            temperature: Some(0.7),
+            ..SamplingParams::default()
+        },
+        lora_overrides: Vec::new(),
+        steering_overrides: Vec::new(),
+        kv_prefix_handle: None,
+        cancel,
+        max_tokens: 32,
+        stop_sequences: Vec::new(),
+        speculative_mode: None,
+        structured_decoding: None,
     }
 }
 
@@ -597,10 +763,250 @@ async fn cloud_lanes_return_capability_not_supported_for_local_only_surfaces() {
 // emit identical SHAPE (different values, same fields) across lanes".
 // This is the load-bearing assertion — operator dashboards must work
 // identically regardless of which lane produced the event.
+//
+// Two complementary tests cover this property:
+//   - `fr_event_shape_parity_from_real_cloud_emissions` proves REAL
+//     cross-lane emission parity: it drives the production
+//     OpenAiByokRuntime and AnthropicByokRuntime against wiremock,
+//     captures the FR events each RUNTIME actually emits, and asserts
+//     the START / END payload key sets are equal across the two lanes
+//     (and that each lane threads its own adapter tag). This is the
+//     load-bearing real-emission parity gate.
+//   - `fr_event_payload_shape_is_uniform_across_lanes_start_token_end`
+//     pins the shared-emitter shape contract: it calls the shared
+//     `infer_*_event` helpers with every lane label and asserts the
+//     helper produces a uniform key set + stable event_id /
+//     schema_version / ordered_index for every one of the five lanes,
+//     including the local + CLI-bridge lanes that have no streaming
+//     runtime to drive in-process here.
 // ---------------------------------------------------------------------
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn fr_event_shape_parity_from_real_cloud_emissions() {
+    // Real-emission cross-lane parity: stand up TWO wiremock servers
+    // (one OpenAI-shaped, one Anthropic-shaped), wire a production
+    // OpenAiByokRuntime + AnthropicByokRuntime to its OWN
+    // CapturingFlightRecorder via with_lane_observability, drain each
+    // ~20-token stream to completion, and compare the FR events each
+    // RUNTIME emitted. This proves dashboard parity from what the lanes
+    // actually emit, not from a single shared helper called twice.
+
+    // ----- OpenAI lane wiremock -----
+    let openai_server = MockServer::start().await;
+    let openai_words: Vec<String> = (0..20).map(|i| format!("tok{i} ")).collect();
+    let openai_refs: Vec<&str> = openai_words.iter().map(|s| s.as_str()).collect();
+    let openai_body = openai_sse_payload_for(&openai_refs);
+    Mock::given(method("POST"))
+        .and(path(OPENAI_CHAT_COMPLETIONS_PATH))
+        .and(header(
+            "authorization",
+            format!("Bearer {FR_PARITY_API_KEY_FIXTURE}").as_str(),
+        ))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .insert_header("content-type", "text/event-stream")
+                .set_body_string(openai_body),
+        )
+        .expect(1)
+        .mount(&openai_server)
+        .await;
+
+    // ----- Anthropic lane wiremock -----
+    let anthropic_server = MockServer::start().await;
+    let anthropic_words: Vec<String> = (0..20).map(|i| format!("tok{i} ")).collect();
+    let anthropic_refs: Vec<&str> = anthropic_words.iter().map(|s| s.as_str()).collect();
+    let anthropic_body = anthropic_sse_payload_for(&anthropic_refs);
+    Mock::given(method("POST"))
+        .and(path(ANTHROPIC_MESSAGES_PATH))
+        .and(header(ANTHROPIC_API_KEY_HEADER, FR_PARITY_API_KEY_FIXTURE))
+        .and(header(ANTHROPIC_VERSION_HEADER, ANTHROPIC_API_VERSION))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .insert_header("content-type", "text/event-stream")
+                .set_body_string(anthropic_body),
+        )
+        .expect(1)
+        .mount(&anthropic_server)
+        .await;
+
+    let reqwest_client = || {
+        reqwest::Client::builder()
+            .timeout(Duration::from_secs(10))
+            .build()
+            .expect("reqwest client builds")
+    };
+
+    // ----- OpenAI runtime with its OWN recorder -----
+    let openai_sink = Arc::new(CapturingSink::default());
+    let openai_recorder = Arc::new(CapturingFlightRecorder::default());
+    let openai_lane_obs = Arc::new(CloudLaneObservability {
+        flight_recorder: openai_recorder.clone(),
+        consent: Some(CloudConsentContext {
+            gate: Arc::new(ConsentGate::new()),
+            provider: Arc::new(ApproveProvider),
+            session_id: "session-fr-parity-openai".to_string(),
+        }),
+    });
+    let openai = OpenAiByokRuntime::with_client(
+        openai_server.uri(),
+        reqwest_client(),
+        Arc::new(StaticKey {
+            key: FR_PARITY_API_KEY_FIXTURE.to_string(),
+        }),
+        openai_sink as Arc<CapturingSink>,
+    )
+    .with_lane_observability(openai_lane_obs);
+    let openai_handle = openai
+        .register_handle("gpt-4o-2024-08-06", "2026-05-20T11:00:00Z")
+        .expect("openai allowlisted");
+
+    // ----- Anthropic runtime with its OWN recorder -----
+    let anthropic_sink = Arc::new(CapturingSink::default());
+    let anthropic_recorder = Arc::new(CapturingFlightRecorder::default());
+    let anthropic_lane_obs = Arc::new(CloudLaneObservability {
+        flight_recorder: anthropic_recorder.clone(),
+        consent: Some(CloudConsentContext {
+            gate: Arc::new(ConsentGate::new()),
+            provider: Arc::new(ApproveProvider),
+            session_id: "session-fr-parity-anthropic".to_string(),
+        }),
+    });
+    let anthropic = AnthropicByokRuntime::with_client(
+        anthropic_server.uri(),
+        reqwest_client(),
+        Arc::new(StaticKey {
+            key: FR_PARITY_API_KEY_FIXTURE.to_string(),
+        }),
+        anthropic_sink as Arc<CapturingSink>,
+    )
+    .with_lane_observability(anthropic_lane_obs);
+    let anthropic_handle = anthropic
+        .register_handle("claude-opus-4-7-20260101", "2026-05-20T11:00:00Z")
+        .expect("anthropic allowlisted");
+
+    // ----- Drain BOTH streams to completion -----
+    let mut openai_stream =
+        openai.chat_completions_stream(fr_parity_generate_request(
+            openai_handle.model_id,
+            CancellationToken::new(),
+        ));
+    while let Some(item) = openai_stream.next().await {
+        item.expect("openai success-path items are Ok");
+    }
+
+    let mut anthropic_stream = anthropic.messages_stream(fr_parity_generate_request(
+        anthropic_handle.model_id,
+        CancellationToken::new(),
+    ));
+    while let Some(item) = anthropic_stream.next().await {
+        item.expect("anthropic success-path items are Ok");
+    }
+
+    // Let each spawned pipeline flush its END event (emitted after the
+    // terminal token is sent on the channel).
+    tokio::time::sleep(Duration::from_millis(150)).await;
+
+    let openai_events = openai_recorder.events.lock().unwrap().clone();
+    let anthropic_events = anthropic_recorder.events.lock().unwrap().clone();
+
+    let phase_of = |ev: &FlightRecorderEvent| -> Option<String> {
+        ev.payload.get("phase")?.as_str().map(|s| s.to_string())
+    };
+    let adapter_of = |ev: &FlightRecorderEvent| -> Option<String> {
+        ev.payload.get("adapter")?.as_str().map(|s| s.to_string())
+    };
+
+    // (a) Each lane emitted >=1 start and >=1 end event.
+    let openai_starts: Vec<&FlightRecorderEvent> = openai_events
+        .iter()
+        .filter(|ev| phase_of(ev).as_deref() == Some("start"))
+        .collect();
+    let openai_ends: Vec<&FlightRecorderEvent> = openai_events
+        .iter()
+        .filter(|ev| phase_of(ev).as_deref() == Some("end"))
+        .collect();
+    let anthropic_starts: Vec<&FlightRecorderEvent> = anthropic_events
+        .iter()
+        .filter(|ev| phase_of(ev).as_deref() == Some("start"))
+        .collect();
+    let anthropic_ends: Vec<&FlightRecorderEvent> = anthropic_events
+        .iter()
+        .filter(|ev| phase_of(ev).as_deref() == Some("end"))
+        .collect();
+
+    assert!(
+        !openai_starts.is_empty(),
+        "openai lane must emit >=1 start event; events={openai_events:?}"
+    );
+    assert!(
+        !openai_ends.is_empty(),
+        "openai lane must emit >=1 end event; events={openai_events:?}"
+    );
+    assert!(
+        !anthropic_starts.is_empty(),
+        "anthropic lane must emit >=1 start event; events={anthropic_events:?}"
+    );
+    assert!(
+        !anthropic_ends.is_empty(),
+        "anthropic lane must emit >=1 end event; events={anthropic_events:?}"
+    );
+
+    // (b) The REAL runtime threads its own adapter tag.
+    assert_eq!(
+        adapter_of(openai_starts[0]).as_deref(),
+        Some(LANE_LABEL_OPENAI_BYOK),
+        "openai lane start event must carry adapter=openai_byok"
+    );
+    assert_eq!(
+        adapter_of(anthropic_starts[0]).as_deref(),
+        Some(LANE_LABEL_ANTHROPIC_BYOK),
+        "anthropic lane start event must carry adapter=anthropic_byok"
+    );
+
+    // (c) Cross-lane SHAPE parity from REAL emissions: the START payload
+    // key set is identical across lanes, and so is the END payload key
+    // set. This replaces the synthetic clone-mutation parity check.
+    let sorted_keys = |ev: &FlightRecorderEvent| -> Vec<String> {
+        let obj = ev
+            .payload
+            .as_object()
+            .expect("FR event payload is a JSON object");
+        let mut keys: Vec<String> = obj.keys().cloned().collect();
+        keys.sort();
+        keys
+    };
+
+    let openai_start_keys = sorted_keys(openai_starts[0]);
+    let anthropic_start_keys = sorted_keys(anthropic_starts[0]);
+    assert_eq!(
+        openai_start_keys, anthropic_start_keys,
+        "REAL START payload key set must be identical across the openai + anthropic lanes \
+         (HBR-INT-005 dashboard parity); openai={openai_start_keys:?} anthropic={anthropic_start_keys:?}"
+    );
+
+    let openai_end_keys = sorted_keys(openai_ends[0]);
+    let anthropic_end_keys = sorted_keys(anthropic_ends[0]);
+    assert_eq!(
+        openai_end_keys, anthropic_end_keys,
+        "REAL END payload key set must be identical across the openai + anthropic lanes \
+         (HBR-INT-005 dashboard parity); openai={openai_end_keys:?} anthropic={anthropic_end_keys:?}"
+    );
+
+    // Both wiremock servers were hit exactly once each.
+    openai_server.verify().await;
+    anthropic_server.verify().await;
+}
 
 #[test]
 fn fr_event_payload_shape_is_uniform_across_lanes_start_token_end() {
+    // This test pins the shared-emitter shape contract: the
+    // `infer_*_event` helpers now set `adapter` from their `lane_label`
+    // argument, so calling them with every lane label and comparing the
+    // resulting key sets proves the helper produces a uniform payload
+    // shape for every one of the five lanes (including the local +
+    // CLI-bridge lanes that have no in-process streaming runtime here).
+    // Real cross-lane emission parity from the live OpenAI + Anthropic
+    // runtimes is covered by `fr_event_shape_parity_from_real_cloud_emissions`.
     let lanes = cloud_lane_labels();
     let mut canonical_start_keys: Option<Vec<String>> = None;
     let mut canonical_token_keys: Option<Vec<String>> = None;
@@ -629,15 +1035,10 @@ fn fr_event_payload_shape_is_uniform_across_lanes_start_token_end() {
             "{lane_label}: schema_version must be uniform across lanes"
         );
 
-        // Per-lane override of the `adapter` field: simulate what each
-        // lane would emit by mutating a clone. This proves the payload
-        // shape (key set) is the same regardless of the adapter value.
-        let mut lane_payload = start_obj.clone();
-        lane_payload.insert(
-            "adapter".to_string(),
-            Value::String(lane_label.to_string()),
-        );
-        let mut keys: Vec<String> = lane_payload.keys().cloned().collect();
+        // The shared helper already sets `adapter` from `lane_label`, so
+        // the START payload's own key set is the contract under test —
+        // no synthetic clone-mutation is needed.
+        let mut keys: Vec<String> = start_obj.clone().keys().cloned().collect();
         keys.sort();
         match &canonical_start_keys {
             None => canonical_start_keys = Some(keys),
@@ -653,12 +1054,7 @@ fn fr_event_payload_shape_is_uniform_across_lanes_start_token_end() {
             .payload
             .as_object()
             .expect("token event payload is an object");
-        let mut lane_payload = token_obj.clone();
-        lane_payload.insert(
-            "adapter".to_string(),
-            Value::String(lane_label.to_string()),
-        );
-        let mut keys: Vec<String> = lane_payload.keys().cloned().collect();
+        let mut keys: Vec<String> = token_obj.clone().keys().cloned().collect();
         keys.sort();
         match &canonical_token_keys {
             None => canonical_token_keys = Some(keys),
@@ -678,12 +1074,7 @@ fn fr_event_payload_shape_is_uniform_across_lanes_start_token_end() {
             .payload
             .as_object()
             .expect("end event payload is an object");
-        let mut lane_payload = end_obj.clone();
-        lane_payload.insert(
-            "adapter".to_string(),
-            Value::String(lane_label.to_string()),
-        );
-        let mut keys: Vec<String> = lane_payload.keys().cloned().collect();
+        let mut keys: Vec<String> = end_obj.clone().keys().cloned().collect();
         keys.sort();
         match &canonical_end_keys {
             None => canonical_end_keys = Some(keys),
