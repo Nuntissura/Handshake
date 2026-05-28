@@ -338,6 +338,40 @@ fn cli_bridge_spawn_meta(
     meta
 }
 
+/// MT-127 remediation (HIGH): returns true if an inherited environment
+/// variable name looks like it carries a credential, so the CLI-bridge
+/// spawner can strip it from the child env before launch. Matches on
+/// case-insensitive secret-bearing substrings. PATH / USERPROFILE /
+/// APPDATA and other runtime vars the CLI needs are intentionally NOT
+/// matched, so the subprocess still starts.
+fn is_secret_bearing_env_name(name: &str) -> bool {
+    const SECRET_SUBSTRINGS: &[&str] = &[
+        "API_KEY",
+        "APIKEY",
+        "SECRET",
+        "TOKEN",
+        "PASSWORD",
+        "PASSWD",
+        "ANTHROPIC_",
+        "OPENAI_",
+        "GEMINI_",
+        "GOOGLE_API",
+        "AWS_SECRET",
+        "AZURE_",
+        "HF_TOKEN",
+        "HUGGINGFACE",
+        "PRIVATE_KEY",
+        "CREDENTIAL",
+        "ACCESS_KEY",
+        "BEARER",
+        "SESSION_KEY",
+    ];
+    let upper = name.to_ascii_uppercase();
+    SECRET_SUBSTRINGS
+        .iter()
+        .any(|needle| upper.contains(needle))
+}
+
 const POST_TIMEOUT_OUTPUT_GRACE: Duration = Duration::from_secs(2);
 
 fn kill_process_tree(pid: u32, child: &mut Child) {
@@ -402,14 +436,26 @@ impl CliSubprocessSpawner for LiveCliSpawner {
 
         let mut cmd = Command::new(&config.executable_path);
         cmd.args(&rendered);
-        // Note: we intentionally do NOT env_clear() here. Node-based
+        // MT-127 remediation (HIGH): we cannot env_clear() — Node-based
         // CLIs (claude, codex, gemini) load runtime DLLs via PATH +
         // USERPROFILE + APPDATA on Windows; stripping the inherited
         // environment causes STATUS_ACCESS_VIOLATION (0xC0000005) at
-        // process startup. Sandbox-grade env scrubbing is the
-        // SandboxAdapter cluster-B integration's responsibility; this
-        // production spawner inherits the parent env and layers
-        // config.env_vars on top.
+        // process startup. But a blind parent-env inherit leaks the
+        // operator's shell-exported BYOK credentials (OPENAI_API_KEY,
+        // ANTHROPIC_API_KEY, ...) into every spawned subprocess. The CLI
+        // bridge authenticates via the operator's subscription login, not
+        // via vendor API-key env vars (BYOK is operationally dormant per
+        // the MT operator clarification), so we scrub secret-bearing var
+        // names from the inherited env while preserving the runtime vars
+        // the CLI needs. config.env_vars is applied AFTER the scrub, so an
+        // explicit operator-provided value is an intentional opt-in.
+        for (key, _value) in std::env::vars_os() {
+            if let Some(name) = key.to_str() {
+                if is_secret_bearing_env_name(name) {
+                    cmd.env_remove(&key);
+                }
+            }
+        }
         for (key, value) in &config.env_vars {
             cmd.env(key, value);
         }
@@ -818,5 +864,35 @@ mod tests {
         );
         // OfficialCliBridge is NOT a regular local model runtime engine.
         assert!(!ProcessEngineKind::OfficialCliBridge.is_regular_model_runtime_engine());
+    }
+
+    #[test]
+    fn secret_bearing_env_names_are_scrubbed_runtime_vars_are_kept() {
+        // MT-127 HIGH: credential-named vars must be stripped from the
+        // inherited child env; the runtime vars Node CLIs need must pass.
+        for secret in [
+            "OPENAI_API_KEY",
+            "ANTHROPIC_API_KEY",
+            "GEMINI_API_KEY",
+            "GOOGLE_API_KEY",
+            "HF_TOKEN",
+            "AWS_SECRET_ACCESS_KEY",
+            "MY_SERVICE_TOKEN",
+            "DB_PASSWORD",
+        ] {
+            assert!(
+                is_secret_bearing_env_name(secret),
+                "{secret} must be treated as secret-bearing"
+            );
+        }
+        for runtime_var in [
+            "PATH", "USERPROFILE", "APPDATA", "LOCALAPPDATA", "SystemRoot", "TEMP", "HOME",
+            "ComSpec",
+        ] {
+            assert!(
+                !is_secret_bearing_env_name(runtime_var),
+                "{runtime_var} is a runtime var and must NOT be scrubbed"
+            );
+        }
     }
 }

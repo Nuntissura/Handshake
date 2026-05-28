@@ -273,3 +273,78 @@ async fn live_cli_spawner_without_ledger_records_no_row() {
         .expect("spawn without ledger must still succeed");
     assert!(receipt.pid.is_some());
 }
+
+/// Host-native config that echoes two inherited env vars so a test can
+/// observe which ones reached the spawned child process.
+#[cfg(windows)]
+fn env_echo_config() -> CliBridgeConfig {
+    CliBridgeConfig {
+        cli_kind: CliKind::Other,
+        executable_path: PathBuf::from(
+            std::env::var("ComSpec").unwrap_or_else(|_| "C:\\Windows\\System32\\cmd.exe".to_string()),
+        ),
+        args_template: vec![
+            "/C".to_string(),
+            "echo SECRET=[%SCRUB_PROBE_API_KEY%] PUBLIC=[%SCRUB_PROBE_PUBLIC_DIR%]".to_string(),
+        ],
+        output_format: CliOutputFormat::RawText,
+        env_vars: HashMap::new(),
+        working_dir: None,
+        timeout_seconds: 30,
+    }
+}
+
+#[cfg(not(windows))]
+fn env_echo_config() -> CliBridgeConfig {
+    CliBridgeConfig {
+        cli_kind: CliKind::Other,
+        executable_path: PathBuf::from("/bin/sh"),
+        args_template: vec![
+            "-c".to_string(),
+            "echo \"SECRET=[$SCRUB_PROBE_API_KEY] PUBLIC=[$SCRUB_PROBE_PUBLIC_DIR]\"".to_string(),
+        ],
+        output_format: CliOutputFormat::RawText,
+        env_vars: HashMap::new(),
+        working_dir: None,
+        timeout_seconds: 30,
+    }
+}
+
+/// MT-127 HIGH remediation, end-to-end: a secret-named env var exported in
+/// the parent (operator shell) MUST NOT leak into the spawned CLI
+/// subprocess, while ordinary runtime vars still pass through. Closes the
+/// "operator's BYOK keys leak into every spawned CLI subprocess" finding.
+#[test]
+fn live_cli_spawner_strips_secret_env_but_keeps_public_env() {
+    let config = env_echo_config();
+    if !config.executable_path.exists() {
+        eprintln!(
+            "skipping env-scrub test; executable missing: {}",
+            config.executable_path.display()
+        );
+        return;
+    }
+
+    // Export a credential-named var (must be scrubbed) and a benign var
+    // (must survive) into this process's env, which the child inherits.
+    std::env::set_var("SCRUB_PROBE_API_KEY", "leaked-NEVER-LOG-xyz");
+    std::env::set_var("SCRUB_PROBE_PUBLIC_DIR", "public-ok-value");
+
+    let receipt = LiveCliSpawner::new()
+        .spawn(&config, "model", "prompt")
+        .expect("env-echo spawn must succeed");
+
+    std::env::remove_var("SCRUB_PROBE_API_KEY");
+    std::env::remove_var("SCRUB_PROBE_PUBLIC_DIR");
+
+    assert!(
+        !receipt.stdout.contains("leaked-NEVER-LOG-xyz"),
+        "secret-named env var leaked into the spawned subprocess: {}",
+        receipt.stdout
+    );
+    assert!(
+        receipt.stdout.contains("public-ok-value"),
+        "benign runtime env var was wrongly scrubbed: {}",
+        receipt.stdout
+    );
+}
