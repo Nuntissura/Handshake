@@ -7,7 +7,7 @@
   "cluster_subscope": "C.12",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:00:00Z",
-  "updated_at_utc": "2026-05-28T00:01:44.941Z",
+  "updated_at_utc": "2026-05-28T07:45:23.999Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -55,7 +55,7 @@
   ],
   "lifecycle": {
     "active": false,
-    "status": "READY_FOR_VALIDATION",
+    "status": "READY_FOR_VALIDATION_PHASE2",
     "validator_verdict": "FAIL",
     "depends_on": [
       "MT-119",
@@ -149,7 +149,22 @@
     "ready_at_utc": "2026-05-25T15:54:56.028Z",
     "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
     "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
-    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z"
+    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z",
+    "updated_at_utc": "2026-05-28T07:45:23.999Z",
+    "phase2_remediation": {
+      "remediated_by": "KERNEL_BUILDER-20260528-071201",
+      "remediated_at_utc": "2026-05-28T07:45:23.999Z",
+      "lane": "Theme-7 C-cluster distillation sandbox + promotion-gate",
+      "commit_sha": "14d11a7b",
+      "remediated_findings": [
+        "PythonPeftTrainerExecutor::run() now env-isolates the trainer fork (command.env_clear() + sandboxed_trainer_env allowlist: OS-essentials + HANDSHAKE_DISTILL_* only; OPENAI/ANTHROPIC/AWS secret vars dropped) and, when a process ledger is attached, registers an attributable ProcessOwnershipLedger row on spawn via record_spawn(distillation_spawn_meta(pid))"
+      ],
+      "deferred_or_residual": "env isolation is unconditional; ledger attribution requires production call sites (Tauri peft.rs / bin peft_train.rs) to attach the LedgerBatcher (app-layer follow-on). engine_kind uses existing HelperSubprocess variant + distillation metadata (a dedicated DistillationJob ProcessEngineKind is process-ledger/MT-069 schema territory, out of MT-122 lane)",
+      "partial": false,
+      "ack_for": "019e6be3-15ed-785f-bdf3-38300b6aa652",
+      "proof": "cargo test distillation::peft_pipeline::tests 10/10 (3 new security tests)",
+      "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1 - no per-MT validator; awaiting Phase-2 IV re-judgment"
+    }
   },
   "handoff": {
     "coder_session": "KERNEL_BUILDER-20260519-203500",
