@@ -7,7 +7,7 @@
   "cluster_subscope": "C.7",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:00:00Z",
-  "updated_at_utc": "2026-05-28T00:01:44.929Z",
+  "updated_at_utc": "2026-05-28T06:48:21.358Z",
   "contract_repair_log": [
     {
       "at_utc": "2026-05-19T23:25:00Z",
@@ -62,7 +62,7 @@
   ],
   "lifecycle": {
     "active": false,
-    "status": "READY_FOR_VALIDATION",
+    "status": "READY_FOR_VALIDATION_PHASE2",
     "validator_verdict": "CONCERN",
     "depends_on": [
       "MT-098",
@@ -137,7 +137,22 @@
     "ready_at_utc": "2026-05-25T15:54:56.028Z",
     "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
     "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
-    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z"
+    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z",
+    "updated_at_utc": "2026-05-28T06:48:21.358Z",
+    "phase2_remediation": {
+      "remediated_by": "KERNEL_BUILDER-20260528-043633",
+      "remediated_at_utc": "2026-05-28T06:48:21.358Z",
+      "lane": "Theme-5 C-cluster refusal/activation gating",
+      "commit_sha": "83fcea07",
+      "remediated_findings": [
+        "(a) operator acknowledgement that the vector disables safety refusal now gates Save and activate; handleSave also guards the activate path"
+      ],
+      "deferred_or_residual": "(b) per-layer effectiveness bars use the unit-vector L2 norm (always approx 1.0); real per-layer refusal-drop measurement needs a new runtime-measurement IPC over refusal_metrics measure_with_runtime, which depends on MT-096 production runtime attach (Theme 4)",
+      "partial": true,
+      "ack_for": "019e6be3-15e0-737b-be6b-31787b6987b2",
+      "proof": "pnpm vitest RefusalVectorWizard.test.tsx 2/2; visual verification NOT run (no headless frontend in this session)",
+      "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1 - no per-MT validator; awaiting Phase-2 IV re-judgment"
+    }
   },
   "handoff": {
     "coder_session": "KERNEL_BUILDER-20260519-203500",
