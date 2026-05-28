@@ -33,6 +33,7 @@ pub fn infer_start_event(
     request_id: Uuid,
     tokens_in_prompt: u64,
     _prompt_preview: &str,
+    adapter: &str,
 ) -> FlightRecorderEvent {
     llm_infer_event(
         model_id,
@@ -46,7 +47,7 @@ pub fn infer_start_event(
             "request_id": request_id.to_string(),
             "model_call_correlation_id": request_id.to_string(),
             "model_id": model_id.to_string(),
-            "adapter": "llama_cpp",
+            "adapter": adapter,
             "tokens_in_prompt": tokens_in_prompt,
             "ordered_index": 0_u64,
             "token_usage": {
@@ -58,6 +59,7 @@ pub fn infer_start_event(
     )
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn infer_token_event(
     model_id: ModelId,
     request_id: Uuid,
@@ -65,6 +67,7 @@ pub fn infer_token_event(
     token_id: u32,
     _token_text: &str,
     latency_ms: u64,
+    adapter: &str,
 ) -> FlightRecorderEvent {
     llm_infer_event(
         model_id,
@@ -78,7 +81,7 @@ pub fn infer_token_event(
             "request_id": request_id.to_string(),
             "model_call_correlation_id": request_id.to_string(),
             "model_id": model_id.to_string(),
-            "adapter": "llama_cpp",
+            "adapter": adapter,
             "token_index": token_index,
             "token_id": token_id,
             "latency_ms": latency_ms,
@@ -102,6 +105,7 @@ pub fn infer_end_event(
     prompt_eval_ms: u64,
     gen_eval_ms: u64,
     finish_reason: FinishReason,
+    adapter: &str,
 ) -> FlightRecorderEvent {
     let completion_tokens = u64::from(tokens_generated);
     llm_infer_event(
@@ -116,7 +120,7 @@ pub fn infer_end_event(
             "request_id": request_id.to_string(),
             "model_call_correlation_id": request_id.to_string(),
             "model_id": model_id.to_string(),
-            "adapter": "llama_cpp",
+            "adapter": adapter,
             "tokens_generated": tokens_generated,
             "total_ms": total_ms,
             "prompt_eval_ms": prompt_eval_ms,
