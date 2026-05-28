@@ -72,6 +72,12 @@ export function RefusalVectorWizard({ modelId, capabilities, nLayers }: Props) {
   const [extractState, setExtractState] = useState<ExtractState>({ status: "idle" });
   const [saveState, setSaveState] = useState<SaveState>({ status: "idle" });
   const [activateAfterSave, setActivateAfterSave] = useState(true);
+  // MT-102: activating a refusal-ablation vector disables the model's safety
+  // refusal behaviour. Require an explicit operator acknowledgement before the
+  // activate path can fire. This is the UI complement to the MT-097 server-side
+  // review gate (activation also requires an Approved review there).
+  const [acknowledgedDisablesRefusal, setAcknowledgedDisablesRefusal] =
+    useState(false);
 
   if (!capabilities?.supportsActivationSteering) {
     return null;
@@ -125,6 +131,7 @@ export function RefusalVectorWizard({ modelId, capabilities, nLayers }: Props) {
     if (extractState.status !== "extracted") return;
     if (selectedLayer === null) return;
     if (!name.trim() || !description.trim()) return;
+    if (activateAfterSave && !acknowledgedDisablesRefusal) return;
     const direction = extractState.directions.find((d) => d.layer === selectedLayer);
     if (!direction) return;
     setSaveState({ status: "saving" });
@@ -165,7 +172,8 @@ export function RefusalVectorWizard({ modelId, capabilities, nLayers }: Props) {
     selectedLayer !== null &&
     name.trim().length > 0 &&
     description.trim().length > 0 &&
-    !saving;
+    !saving &&
+    (!activateAfterSave || acknowledgedDisablesRefusal);
 
   return (
     <section
@@ -323,6 +331,25 @@ export function RefusalVectorWizard({ modelId, capabilities, nLayers }: Props) {
             />
             <span>Activate immediately after save</span>
           </label>
+
+          {activateAfterSave ? (
+            <label
+              className="inference-lab__toggle inference-lab__toggle--warning"
+              data-testid="refusal-vector-wizard.disable-ack-row"
+            >
+              <input
+                type="checkbox"
+                checked={acknowledgedDisablesRefusal}
+                onChange={(event) =>
+                  setAcknowledgedDisablesRefusal(event.target.checked)
+                }
+                data-testid="refusal-vector-wizard.disable-ack"
+              />
+              <span role="alert">
+                I understand this vector is designed to disable safety refusal.
+              </span>
+            </label>
+          ) : null}
 
           <button
             type="button"
