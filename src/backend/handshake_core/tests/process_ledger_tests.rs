@@ -65,6 +65,7 @@ fn postgres_table_contract_declares_process_lifecycle_primitive() {
         "helper_subprocess",
         "external_compat",
         "webview2_cdp",
+        "official_cli_bridge",
     ] {
         assert!(ddl.contains(engine), "missing engine kind {engine}");
     }

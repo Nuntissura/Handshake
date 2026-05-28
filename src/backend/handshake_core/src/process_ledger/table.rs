@@ -147,6 +147,11 @@ pub enum ProcessEngineKind {
     HelperSubprocess,
     ExternalCompat,
     Webview2Cdp,
+    /// MT-127: cloud-lane Official-CLI bridge subprocess (Claude Code,
+    /// Codex CLI, gemini-cli, ...). Spawned via `std::process::Command`
+    /// by `LiveCliSpawner`; attributable + reclaimable but NOT a regular
+    /// local model runtime engine (no LoRA/KV/steering through a CLI).
+    OfficialCliBridge,
 }
 
 impl ProcessEngineKind {
@@ -163,7 +168,12 @@ impl ProcessEngineKind {
             Self::HelperSubprocess => "helper_subprocess",
             Self::ExternalCompat => "external_compat",
             Self::Webview2Cdp => "webview2_cdp",
+            Self::OfficialCliBridge => "official_cli_bridge",
         }
+    }
+
+    pub fn is_regular_model_runtime_engine(self) -> bool {
+        matches!(self, Self::LlamaCpp | Self::Candle)
     }
 }
 
@@ -183,6 +193,7 @@ impl TryFrom<&str> for ProcessEngineKind {
             "helper_subprocess" => Ok(Self::HelperSubprocess),
             "external_compat" => Ok(Self::ExternalCompat),
             "webview2_cdp" => Ok(Self::Webview2Cdp),
+            "official_cli_bridge" | "officialclibridge" => Ok(Self::OfficialCliBridge),
             other => Err(format!("unknown process engine kind: {other}")),
         }
     }

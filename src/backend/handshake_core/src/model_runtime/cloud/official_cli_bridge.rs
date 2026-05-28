@@ -23,13 +23,20 @@
 
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::process::{Command, Stdio};
-use std::sync::{Arc, RwLock};
-use std::time::Duration;
+use std::process::{Child, Command, Output, Stdio};
+use std::sync::{mpsc, Arc, RwLock};
+use std::thread;
+use std::time::{Duration, Instant};
 
+use serde_json::json;
 use thiserror::Error;
 
 use crate::model_runtime::{ModelCapabilities, ModelId};
+use crate::process_ledger::{record_spawn, LedgerBatcher, ProcessEngineKind, SpawnMeta};
+
+/// Default owner role recorded on the CLI bridge subprocess's
+/// ProcessOwnershipLedger row when the caller does not override it.
+const DEFAULT_CLI_BRIDGE_OWNER_ROLE: &str = "OFFICIAL_CLI_BRIDGE";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum CliKind {
@@ -94,9 +101,20 @@ pub enum OfficialCliBridgeError {
     #[error("internal lock poisoned: {0}")]
     LockPoisoned(String),
     #[error("CLI subprocess spawn failed: {reason}")]
-    SpawnFailed { reason: String, exit_code: Option<i32> },
+    SpawnFailed {
+        reason: String,
+        exit_code: Option<i32>,
+    },
     #[error("CLI subprocess exceeded timeout {timeout_seconds}s; sent kill signal")]
-    SpawnTimeout { timeout_seconds: u64, partial_stdout: String },
+    SpawnTimeout {
+        timeout_seconds: u64,
+        partial_stdout: String,
+    },
+    #[error(
+        "ProcessOwnershipLedger registration failed for the CLI bridge subprocess (pid {pid}): \
+         {reason}; the subprocess was killed to avoid leaving an unattributed process"
+    )]
+    LedgerRegistration { pid: u32, reason: String },
 }
 
 /// Abstraction over the sandboxed subprocess spawn. The production
@@ -205,10 +223,7 @@ impl OfficialCliBridgeRuntime {
         }
     }
 
-    pub fn handle_for(
-        &self,
-        model_id: ModelId,
-    ) -> Result<CliBridgeHandle, OfficialCliBridgeError> {
+    pub fn handle_for(&self, model_id: ModelId) -> Result<CliBridgeHandle, OfficialCliBridgeError> {
         let bridges = self
             .bridges
             .read()
@@ -264,15 +279,114 @@ impl OfficialCliBridgeRuntime {
 /// by polling `try_wait` and sending `kill` on overrun.
 ///
 /// PID, exit_code and captured stdout are recorded on the
-/// `CliInvocationReceipt` so callers (including the
-/// ProcessOwnershipLedger when wired by the cluster-B SandboxAdapter
-/// integration) can attribute the run.
-#[derive(Debug, Default, Clone, Copy)]
-pub struct LiveCliSpawner;
+/// `CliInvocationReceipt` so callers can attribute the run.
+///
+/// MT-127 remediation: when a [`LedgerBatcher`] is attached via
+/// [`Self::with_process_ledger`], the spawn is registered as an
+/// attributable + reclaimable `ProcessOwnershipLedger` row
+/// (`engine_kind = OfficialCliBridge`) immediately after the child pid
+/// is captured, mirroring the MT-122 distillation trainer pattern. The
+/// spawner FAILS CLOSED: if ledger registration fails, the just-spawned
+/// child is killed and an error is returned rather than leaving an
+/// unattributed/unreclaimable process running. Without a ledger the run
+/// still works but is unattributed, so production call sites SHOULD
+/// attach the ledger.
+#[derive(Clone)]
+pub struct LiveCliSpawner {
+    process_ledger: Option<Arc<LedgerBatcher>>,
+    owner_role: String,
+}
+
+impl std::fmt::Debug for LiveCliSpawner {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // LedgerBatcher is not Debug (it wraps channels); report only
+        // whether a ledger is attached so LiveCliSpawner stays Debug.
+        f.debug_struct("LiveCliSpawner")
+            .field("process_ledger", &self.process_ledger.is_some())
+            .field("owner_role", &self.owner_role)
+            .finish()
+    }
+}
+
+impl Default for LiveCliSpawner {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// Build the ProcessOwnershipLedger row metadata for a CLI bridge
+/// subprocess so the spawned process is attributable + reclaimable
+/// (MT-127 HIGH remediation). Pure helper extracted so tests can pin
+/// the engine_kind + metadata markers without spawning a subprocess,
+/// mirroring MT-122's `distillation_spawn_meta`.
+fn cli_bridge_spawn_meta(
+    pid: u32,
+    owner_role: &str,
+    model_name: &str,
+    executable_path: &std::path::Path,
+) -> SpawnMeta {
+    let mut meta = SpawnMeta::new(pid, ProcessEngineKind::OfficialCliBridge, owner_role);
+    meta.sandbox_adapter = Some("official_cli_bridge".to_string());
+    meta.model_id = Some(model_name.to_string());
+    meta.mt_id = Some("MT-127".to_string());
+    meta.metadata_blob = json!({
+        "subprocess_kind": "official_cli_bridge",
+        "mt": "MT-127",
+        "model_name": model_name,
+        "executable": executable_path.display().to_string(),
+    });
+    meta
+}
+
+const POST_TIMEOUT_OUTPUT_GRACE: Duration = Duration::from_secs(2);
+
+fn kill_process_tree(pid: u32, child: &mut Child) {
+    #[cfg(windows)]
+    {
+        let pid_arg = pid.to_string();
+        let _ = Command::new("taskkill")
+            .args(["/PID", pid_arg.as_str(), "/T", "/F"])
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status();
+    }
+    let _ = child.kill();
+}
+
+fn wait_with_output_bounded(child: Child, timeout: Duration) -> Option<Output> {
+    let (tx, rx) = mpsc::channel();
+    thread::spawn(move || {
+        let _ = tx.send(child.wait_with_output());
+    });
+    rx.recv_timeout(timeout).ok().and_then(Result::ok)
+}
 
 impl LiveCliSpawner {
-    pub const fn new() -> Self {
-        Self
+    /// Construct a spawner with no process ledger attached. The spawn
+    /// still runs but is unattributed; production call sites SHOULD use
+    /// [`Self::with_process_ledger`] so each CLI subprocess is recorded
+    /// as an attributable ProcessOwnershipLedger row.
+    pub fn new() -> Self {
+        Self {
+            process_ledger: None,
+            owner_role: DEFAULT_CLI_BRIDGE_OWNER_ROLE.to_string(),
+        }
+    }
+
+    /// Attach a process ledger so each CLI bridge subprocess is
+    /// registered as an attributable + reclaimable
+    /// `ProcessOwnershipLedger` row (`engine_kind = OfficialCliBridge`)
+    /// on spawn (MT-127). Fails closed if registration fails.
+    pub fn with_process_ledger(mut self, ledger: Arc<LedgerBatcher>) -> Self {
+        self.process_ledger = Some(ledger);
+        self
+    }
+
+    /// Override the owner role recorded on the ledger row (defaults to
+    /// `OFFICIAL_CLI_BRIDGE`).
+    pub fn with_owner_role(mut self, owner_role: impl Into<String>) -> Self {
+        self.owner_role = owner_role.into();
+        self
     }
 }
 
@@ -306,27 +420,54 @@ impl CliSubprocessSpawner for LiveCliSpawner {
         cmd.stderr(Stdio::piped());
         cmd.stdin(Stdio::null());
 
-        let mut child = cmd.spawn().map_err(|err| OfficialCliBridgeError::SpawnFailed {
-            reason: format!(
-                "failed to spawn {}: {err}",
-                config.executable_path.display()
-            ),
-            exit_code: None,
-        })?;
+        let mut child = cmd
+            .spawn()
+            .map_err(|err| OfficialCliBridgeError::SpawnFailed {
+                reason: format!(
+                    "failed to spawn {}: {err}",
+                    config.executable_path.display()
+                ),
+                exit_code: None,
+            })?;
         let pid = child.id();
 
+        // MT-127 remediation (HIGH): the moment the child pid is known
+        // and the row is attributable, register a ProcessOwnershipLedger
+        // row with engine_kind=OfficialCliBridge so the spawned CLI
+        // subprocess is attributable + reclaimable. Fail closed: if
+        // registration fails, kill the child rather than leaving an
+        // unattributed/unreclaimable process running.
+        if let Some(ledger) = &self.process_ledger {
+            let meta = cli_bridge_spawn_meta(
+                pid,
+                &self.owner_role,
+                model_name,
+                &config.executable_path,
+            );
+            if let Err(err) = record_spawn(ledger, meta) {
+                kill_process_tree(pid, &mut child);
+                return Err(OfficialCliBridgeError::LedgerRegistration {
+                    pid,
+                    reason: err.to_string(),
+                });
+            }
+        }
+
         let timeout = Duration::from_secs(config.timeout_seconds);
-        let started = std::time::Instant::now();
+        let started = Instant::now();
         let exit_status = loop {
             match child.try_wait() {
                 Ok(Some(status)) => break status,
                 Ok(None) => {
                     if started.elapsed() >= timeout {
-                        let _ = child.kill();
-                        let _ = child.wait();
+                        kill_process_tree(pid, &mut child);
+                        let partial_stdout =
+                            wait_with_output_bounded(child, POST_TIMEOUT_OUTPUT_GRACE)
+                                .map(|output| String::from_utf8_lossy(&output.stdout).into_owned())
+                                .unwrap_or_default();
                         return Err(OfficialCliBridgeError::SpawnTimeout {
                             timeout_seconds: config.timeout_seconds,
-                            partial_stdout: String::new(),
+                            partial_stdout,
                         });
                     }
                     std::thread::sleep(Duration::from_millis(25));
@@ -340,12 +481,13 @@ impl CliSubprocessSpawner for LiveCliSpawner {
             }
         };
 
-        let output = child
-            .wait_with_output()
-            .map_err(|err| OfficialCliBridgeError::SpawnFailed {
-                reason: format!("wait_with_output failed: {err}"),
-                exit_code: exit_status.code(),
-            })?;
+        let output =
+            child
+                .wait_with_output()
+                .map_err(|err| OfficialCliBridgeError::SpawnFailed {
+                    reason: format!("wait_with_output failed: {err}"),
+                    exit_code: exit_status.code(),
+                })?;
 
         let stdout = String::from_utf8_lossy(&output.stdout).into_owned();
         let stderr = String::from_utf8_lossy(&output.stderr).into_owned();
@@ -378,6 +520,7 @@ mod tests {
     use super::*;
     use std::collections::HashMap;
     use std::sync::Mutex;
+    use std::time::Instant;
 
     /// Mock spawner that records the last invocation and returns a
     /// configurable canned response.
@@ -429,11 +572,51 @@ mod tests {
         CliBridgeConfig {
             cli_kind: CliKind::ClaudeCode,
             executable_path: temp_exe(),
-            args_template: vec!["--model".to_string(), "{model}".to_string(), "--prompt".to_string(), "{prompt}".to_string()],
+            args_template: vec![
+                "--model".to_string(),
+                "{model}".to_string(),
+                "--prompt".to_string(),
+                "{prompt}".to_string(),
+            ],
             output_format: CliOutputFormat::Json,
             env_vars: HashMap::new(),
             working_dir: None,
             timeout_seconds: 120,
+        }
+    }
+
+    #[cfg(windows)]
+    fn timeout_config() -> CliBridgeConfig {
+        CliBridgeConfig {
+            cli_kind: CliKind::Other,
+            executable_path: PathBuf::from(
+                std::env::var("ComSpec")
+                    .unwrap_or_else(|_| "C:\\Windows\\System32\\cmd.exe".to_string()),
+            ),
+            args_template: vec![
+                "/C".to_string(),
+                "echo {model}-{prompt} && ping -n 6 127.0.0.1 > nul".to_string(),
+            ],
+            output_format: CliOutputFormat::RawText,
+            env_vars: HashMap::new(),
+            working_dir: None,
+            timeout_seconds: 1,
+        }
+    }
+
+    #[cfg(not(windows))]
+    fn timeout_config() -> CliBridgeConfig {
+        CliBridgeConfig {
+            cli_kind: CliKind::Other,
+            executable_path: PathBuf::from("/bin/sh"),
+            args_template: vec![
+                "-c".to_string(),
+                "printf '%s-%s\\n' '{model}' '{prompt}'; sleep 6".to_string(),
+            ],
+            output_format: CliOutputFormat::RawText,
+            env_vars: HashMap::new(),
+            working_dir: None,
+            timeout_seconds: 1,
         }
     }
 
@@ -468,10 +651,7 @@ mod tests {
         let err = runtime
             .register_bridge(bad, "claude-3.5-sonnet", "2026-05-20T06:00:00Z")
             .expect_err("missing exe");
-        assert!(matches!(
-            err,
-            OfficialCliBridgeError::ExecutableNotFound(_)
-        ));
+        assert!(matches!(err, OfficialCliBridgeError::ExecutableNotFound(_)));
 
         // Empty model name.
         let err = runtime
@@ -533,10 +713,7 @@ mod tests {
         let runtime = OfficialCliBridgeRuntime::new(Arc::new(FailingSpawner));
         let unknown = ModelId::new_v7();
         let err = runtime.invoke(unknown, "x").expect_err("unknown model");
-        assert!(matches!(
-            err,
-            OfficialCliBridgeError::ModelNotRegistered(_)
-        ));
+        assert!(matches!(err, OfficialCliBridgeError::ModelNotRegistered(_)));
     }
 
     #[test]
@@ -548,10 +725,30 @@ mod tests {
         let err = runtime
             .invoke(handle.model_id, "hello")
             .expect_err("spawner returned failure");
-        assert!(matches!(
-            err,
-            OfficialCliBridgeError::SpawnFailed { .. }
-        ));
+        assert!(matches!(err, OfficialCliBridgeError::SpawnFailed { .. }));
+    }
+
+    #[test]
+    fn live_spawner_timeout_is_bounded_after_kill() {
+        let config = timeout_config();
+        if !config.executable_path.exists() {
+            eprintln!(
+                "skipping live timeout test; executable missing: {}",
+                config.executable_path.display()
+            );
+            return;
+        }
+
+        let started = Instant::now();
+        let err = LiveCliSpawner::new()
+            .spawn(&config, "model", "prompt")
+            .expect_err("timeout command must fail with SpawnTimeout");
+
+        assert!(matches!(err, OfficialCliBridgeError::SpawnTimeout { .. }));
+        assert!(
+            started.elapsed() < Duration::from_secs(5),
+            "timeout branch must not wait for the full child sleep"
+        );
     }
 
     #[test]
@@ -560,5 +757,66 @@ mod tests {
         assert_eq!(CliKind::CodexCli.label(), "codex_cli");
         assert_eq!(CliKind::GeminiCli.label(), "gemini_cli");
         assert_eq!(CliKind::Other.label(), "other");
+    }
+
+    #[test]
+    fn cli_bridge_spawn_meta_is_attributable() {
+        // MT-127 HIGH remediation: the CLI bridge subprocess must be
+        // recorded as an attributable ProcessOwnershipLedger row with
+        // engine_kind=OfficialCliBridge + a clear MT-127 metadata
+        // marker, mirroring MT-122's distillation_spawn_meta test.
+        let meta = cli_bridge_spawn_meta(
+            7777,
+            DEFAULT_CLI_BRIDGE_OWNER_ROLE,
+            "claude-3.5-sonnet",
+            &PathBuf::from("/usr/local/bin/claude"),
+        );
+        assert_eq!(meta.pid, 7777);
+        assert_eq!(meta.engine_kind, ProcessEngineKind::OfficialCliBridge);
+        assert_eq!(meta.owner_role, "OFFICIAL_CLI_BRIDGE");
+        assert_eq!(meta.mt_id.as_deref(), Some("MT-127"));
+        assert_eq!(meta.sandbox_adapter.as_deref(), Some("official_cli_bridge"));
+        assert_eq!(meta.model_id.as_deref(), Some("claude-3.5-sonnet"));
+        assert_eq!(
+            meta.metadata_blob["subprocess_kind"].as_str(),
+            Some("official_cli_bridge")
+        );
+        assert_eq!(meta.metadata_blob["mt"].as_str(), Some("MT-127"));
+        assert_eq!(
+            meta.metadata_blob["model_name"].as_str(),
+            Some("claude-3.5-sonnet")
+        );
+        assert!(meta.metadata_blob["executable"]
+            .as_str()
+            .unwrap()
+            .contains("claude"));
+    }
+
+    #[test]
+    fn live_cli_spawner_default_owner_role_is_set() {
+        // Default()/new() must yield the canonical owner role so the
+        // ledger row is attributable even when the caller does not
+        // override it; with_owner_role overrides it.
+        let spawner = LiveCliSpawner::default();
+        assert_eq!(spawner.owner_role, "OFFICIAL_CLI_BRIDGE");
+        assert!(spawner.process_ledger.is_none());
+        let custom = LiveCliSpawner::new().with_owner_role("DISTILLATION_PIPELINE");
+        assert_eq!(custom.owner_role, "DISTILLATION_PIPELINE");
+    }
+
+    #[test]
+    fn process_engine_kind_official_cli_bridge_roundtrips() {
+        // The new engine kind must serialize to a stable wire string and
+        // parse back, so ledger reads/writes are consistent.
+        assert_eq!(
+            ProcessEngineKind::OfficialCliBridge.as_str(),
+            "official_cli_bridge"
+        );
+        assert_eq!(
+            ProcessEngineKind::try_from("official_cli_bridge").unwrap(),
+            ProcessEngineKind::OfficialCliBridge
+        );
+        // OfficialCliBridge is NOT a regular local model runtime engine.
+        assert!(!ProcessEngineKind::OfficialCliBridge.is_regular_model_runtime_engine());
     }
 }

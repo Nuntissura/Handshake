@@ -7,11 +7,17 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
+use async_trait::async_trait;
+
 use handshake_core::model_runtime::cloud::{
     CliBridgeConfig, CliInvocationReceipt, CliKind, CliOutputFormat, CliSubprocessSpawner,
-    OfficialCliBridgeError, OfficialCliBridgeRuntime,
+    LiveCliSpawner, OfficialCliBridgeError, OfficialCliBridgeRuntime,
 };
 use handshake_core::model_runtime::ModelId;
+use handshake_core::process_ledger::{
+    LedgerBatcher, LedgerBatcherConfig, LedgerEvent, NoopOverflowSink, ProcessEngineKind,
+    ProcessLedgerError, ProcessLedgerStore,
+};
 
 struct EchoSpawner {
     cancel_reported: Mutex<bool>,
@@ -66,7 +72,11 @@ fn cli_bridge_invoke_routes_through_spawner() {
     });
     let runtime = OfficialCliBridgeRuntime::new(spawner);
     let handle = runtime
-        .register_bridge(fixture_config(), "claude-3.5-sonnet", "2026-05-20T06:30:00Z")
+        .register_bridge(
+            fixture_config(),
+            "claude-3.5-sonnet",
+            "2026-05-20T06:30:00Z",
+        )
         .expect("register");
     let receipt = runtime
         .invoke(handle.model_id, "hello world")
@@ -125,8 +135,141 @@ fn cli_bridge_invoke_unregistered_model_errors() {
     let err = runtime
         .invoke(ModelId::new_v7(), "x")
         .expect_err("unknown model");
-    assert!(matches!(
-        err,
-        OfficialCliBridgeError::ModelNotRegistered(_)
-    ));
+    assert!(matches!(err, OfficialCliBridgeError::ModelNotRegistered(_)));
+}
+
+/// A trivially fast, host-native config: a command that prints + exits
+/// immediately. Used to prove the ledger row is registered the moment
+/// the child pid is known, without paying any timeout.
+#[cfg(windows)]
+fn fast_exit_config() -> CliBridgeConfig {
+    CliBridgeConfig {
+        cli_kind: CliKind::Other,
+        executable_path: PathBuf::from(
+            std::env::var("ComSpec").unwrap_or_else(|_| "C:\\Windows\\System32\\cmd.exe".to_string()),
+        ),
+        args_template: vec!["/C".to_string(), "echo {model}-{prompt}".to_string()],
+        output_format: CliOutputFormat::RawText,
+        env_vars: HashMap::new(),
+        working_dir: None,
+        timeout_seconds: 30,
+    }
+}
+
+#[cfg(not(windows))]
+fn fast_exit_config() -> CliBridgeConfig {
+    CliBridgeConfig {
+        cli_kind: CliKind::Other,
+        executable_path: PathBuf::from("/bin/sh"),
+        args_template: vec![
+            "-c".to_string(),
+            "printf '%s-%s\\n' '{model}' '{prompt}'".to_string(),
+        ],
+        output_format: CliOutputFormat::RawText,
+        env_vars: HashMap::new(),
+        working_dir: None,
+        timeout_seconds: 30,
+    }
+}
+
+/// In-memory ProcessLedgerStore that captures recorded events, mirroring
+/// the established pattern in `process_ledger_tests.rs`.
+#[derive(Clone, Default)]
+struct CapturingLedgerStore {
+    events: Arc<Mutex<Vec<LedgerEvent>>>,
+}
+
+impl CapturingLedgerStore {
+    fn events(&self) -> Vec<LedgerEvent> {
+        self.events.lock().unwrap().clone()
+    }
+}
+
+#[async_trait]
+impl ProcessLedgerStore for CapturingLedgerStore {
+    async fn write_batch(&self, events: Vec<LedgerEvent>) -> Result<(), ProcessLedgerError> {
+        self.events.lock().unwrap().extend(events);
+        Ok(())
+    }
+}
+
+/// MT-127 HIGH remediation, end-to-end: a LiveCliSpawner with an
+/// attached process ledger MUST register an attributable
+/// ProcessOwnershipLedger row (engine_kind=OfficialCliBridge) the moment
+/// the child pid is known. Proves the spawned CLI subprocess is
+/// attributable + reclaimable, closing the MT-127 FAIL gap.
+#[tokio::test]
+async fn live_cli_spawner_records_official_cli_bridge_ledger_row() {
+    let config = fast_exit_config();
+    if !config.executable_path.exists() {
+        eprintln!(
+            "skipping ledger-row test; executable missing: {}",
+            config.executable_path.display()
+        );
+        return;
+    }
+
+    let store = CapturingLedgerStore::default();
+    let (batcher, drain) = LedgerBatcher::manual_for_tests(
+        LedgerBatcherConfig::default(),
+        Arc::new(NoopOverflowSink),
+    )
+    .expect("manual ledger batcher");
+
+    let spawner = LiveCliSpawner::new().with_process_ledger(Arc::new(batcher));
+    let receipt = spawner
+        .spawn(&config, "claude-3.5-sonnet", "hello world")
+        .expect("spawn + ledger registration must succeed");
+    assert!(receipt.pid.is_some(), "live spawn must capture a pid");
+
+    drain
+        .drain_available_to(Arc::new(store.clone()))
+        .await
+        .expect("drain ledger to store");
+
+    let events = store.events();
+    assert_eq!(events.len(), 1, "exactly one ProcessOwnershipLedger row");
+    let LedgerEvent::Start(start) = &events[0] else {
+        panic!("expected a Start event, got {:?}", events[0]);
+    };
+    assert_eq!(
+        start.engine_kind,
+        ProcessEngineKind::OfficialCliBridge,
+        "row must be attributed to engine_kind=OfficialCliBridge"
+    );
+    assert_eq!(start.owner_role, "OFFICIAL_CLI_BRIDGE");
+    assert_eq!(start.os_pid, receipt.pid);
+    assert_eq!(start.mt_id.as_deref(), Some("MT-127"));
+    assert_eq!(
+        start.sandbox_adapter_id.as_deref(),
+        Some("official_cli_bridge")
+    );
+    assert_eq!(
+        start.metadata_jsonb["subprocess_kind"].as_str(),
+        Some("official_cli_bridge")
+    );
+    assert_eq!(start.metadata_jsonb["mt"].as_str(), Some("MT-127"));
+    assert_eq!(
+        start.metadata_jsonb["model_name"].as_str(),
+        Some("claude-3.5-sonnet")
+    );
+}
+
+/// Without a ledger attached the spawner still runs (backward-compatible
+/// construction) but records no row.
+#[tokio::test]
+async fn live_cli_spawner_without_ledger_records_no_row() {
+    let config = fast_exit_config();
+    if !config.executable_path.exists() {
+        eprintln!(
+            "skipping no-ledger test; executable missing: {}",
+            config.executable_path.display()
+        );
+        return;
+    }
+    // Default()/new() yields no ledger; spawn must still succeed.
+    let receipt = LiveCliSpawner::default()
+        .spawn(&config, "model", "prompt")
+        .expect("spawn without ledger must still succeed");
+    assert!(receipt.pid.is_some());
 }
