@@ -7,7 +7,7 @@
   "cluster_subscope": "A.1",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T02:30:00Z",
-  "updated_at_utc": "2026-05-28T00:01:44.867Z",
+  "updated_at_utc": "2026-05-28T23:34:54.519Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -51,7 +51,7 @@
   ],
   "lifecycle": {
     "active": false,
-    "status": "READY_FOR_VALIDATION",
+    "status": "READY_FOR_VALIDATION_PHASE2",
     "validator_verdict": "CONCERN",
     "depends_on": [],
     "blocks": [
@@ -82,7 +82,23 @@
     "ready_at_utc": "2026-05-25T15:54:56.028Z",
     "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
     "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
-    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z"
+    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z",
+    "updated_at_utc": "2026-05-28T23:34:54.519Z",
+    "phase2_remediation": {
+      "remediated_by": "KERNEL_BUILDER-20260528-211023",
+      "remediated_at_utc": "2026-05-28T23:34:54.519Z",
+      "lane": "Theme-12 A-cluster HBR registry version drift (loader self-test + tag-glob doc)",
+      "commit_sha": "5f3dc5df + 5d545a8d (feat applicability)",
+      "remediated_findings": [
+        "finding #1 (HIGH/TEST): hbr-registry-loader.mjs --self-test updated from 24 rules / pre-STOP pillar distribution (v1.1.0) to 29 + STOP:5 (v1.3.0), fixing the failing proof_command.",
+        "finding #3 (LOW/CODE): applicability.rs TAG_GLOBS documents the intentional path-derivable-tag coverage gap (non-path tags become Applicable via declared tags, not globs)."
+      ],
+      "deferred_or_residual": "finding #2 (MEDIUM/SPEC) DEFERRED as spec-debt: the Master Spec narrative at spec-modules/05-security-and-observability.md#5.6.1 still omits the STOP pillar. KERNEL_BUILDER is read-only on .GOV/spec/** per CX-105A, so a spec-writing role (ORCHESTRATOR/INTEGRATION_VALIDATOR/VALIDATOR/ACTIVATION_MANAGER/CLASSIC_ORCHESTRATOR) must apply the spec-narrative edit.",
+      "partial": true,
+      "ack_for": "019e6be3-1540-7d43-925e-072a3e8b9c2a",
+      "proof": "node hbr-registry-loader.mjs --self-test ok (29 active rules); cargo test hbr_registry_tests 5/5",
+      "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1 - no per-MT validator; awaiting Phase-2 IV re-judgment"
+    }
   },
   "handoff": {
     "coder_session": "KERNEL_BUILDER-20260518-012310",

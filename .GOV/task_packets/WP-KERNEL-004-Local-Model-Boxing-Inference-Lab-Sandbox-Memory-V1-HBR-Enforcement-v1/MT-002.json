@@ -7,7 +7,7 @@
   "cluster_subscope": "A.1",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T02:30:00Z",
-  "updated_at_utc": "2026-05-28T00:01:44.868Z",
+  "updated_at_utc": "2026-05-28T23:34:54.519Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -49,7 +49,7 @@
   ],
   "lifecycle": {
     "active": false,
-    "status": "READY_FOR_VALIDATION",
+    "status": "READY_FOR_VALIDATION_PHASE2",
     "validator_verdict": "CONCERN",
     "depends_on": [
       "MT-001"
@@ -77,7 +77,24 @@
     "ready_at_utc": "2026-05-25T15:54:56.028Z",
     "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
     "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
-    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z"
+    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z",
+    "updated_at_utc": "2026-05-28T23:34:54.519Z",
+    "phase2_remediation": {
+      "remediated_by": "KERNEL_BUILDER-20260528-211023",
+      "remediated_at_utc": "2026-05-28T23:34:54.519Z",
+      "lane": "Theme-12 A-cluster HBR matrix hydrator integrity",
+      "commit_sha": "5f3dc5df",
+      "remediated_findings": [
+        "finding #1 (HIGH/CODE): applicableRow now fails closed (throws) on an existing PROVED row lacking validator_verdict=PROVED or a non-empty evidence_pointer, so the hydrator cannot launder a fake-proved acceptance.",
+        "finding #2 (MEDIUM/RUNTIME): hydratePacketFile writes atomically (temp file + rename) so a crash mid-write cannot corrupt the packet.",
+        "finding #3 (LOW/SWARM): atomic rename also makes concurrent idempotent hydrations last-writer-wins without corruption."
+      ],
+      "deferred_or_residual": "Full advisory locking (finding #3) not added; atomic rename + hydration idempotency make double-hydration benign. Existing idempotency test fixture corrected from loose validator_verdict=PASS to canonical PROVED.",
+      "partial": false,
+      "ack_for": "019e6be3-15a4-775c-8bca-1627809345c4",
+      "proof": "node hbr-matrix-hydrate.test.mjs 10/10 (incl 2 new fail-closed negatives); --dry-run on live packet clean",
+      "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1 - no per-MT validator; awaiting Phase-2 IV re-judgment"
+    }
   },
   "handoff": {
     "coder_session": "KERNEL_BUILDER-20260518-012310",

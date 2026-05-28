@@ -7,7 +7,7 @@
   "cluster_subscope": "A.1",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T02:30:00Z",
-  "updated_at_utc": "2026-05-28T00:01:44.870Z",
+  "updated_at_utc": "2026-05-28T23:34:54.519Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -50,7 +50,7 @@
   ],
   "lifecycle": {
     "active": false,
-    "status": "READY_FOR_VALIDATION",
+    "status": "READY_FOR_VALIDATION_PHASE2",
     "validator_verdict": "CONCERN",
     "depends_on": [
       "MT-001",
@@ -78,7 +78,24 @@
     "ready_at_utc": "2026-05-25T15:54:56.028Z",
     "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
     "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
-    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z"
+    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z",
+    "updated_at_utc": "2026-05-28T23:34:54.519Z",
+    "phase2_remediation": {
+      "remediated_by": "KERNEL_BUILDER-20260528-211023",
+      "remediated_at_utc": "2026-05-28T23:34:54.519Z",
+      "lane": "Theme-12 A-cluster HBR handoff-gate STOP + infra-failure",
+      "commit_sha": "5d545a8d",
+      "remediated_findings": [
+        "finding #1 (HIGH/SPEC->CODE): 5 STOP-pillar evidence_kinds added to the CoderToWpValidator transition so a PENDING/BLOCKED STOP row blocks the gate instead of being skipped by omission.",
+        "finding #2 (MEDIUM/CODE): EventLedger append-failure sentinel renamed HBR-HANDOFF-GATE-EVENT-LEDGER -> INFRA-HANDOFF-GATE-EVENT-LEDGER so downstream registry joins do not record a phantom HBR rule.",
+        "finding #3 (LOW/RUNTIME): on ledger-append failure the matrix failing_rules are merged with the infra sentinel instead of dropped."
+      ],
+      "deferred_or_residual": "none",
+      "partial": false,
+      "ack_for": "019e6be3-15a6-72e1-a5e1-e4743e053f43",
+      "proof": "cargo test hbr_handoff_gate_tests 8/8 (incl 3 new: STOP pending blocks, STOP proved passes, ledger-failure merge)",
+      "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1 - no per-MT validator; awaiting Phase-2 IV re-judgment"
+    }
   },
   "handoff": {
     "coder_session": "KERNEL_BUILDER-20260518-012310",
