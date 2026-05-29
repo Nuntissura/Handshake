@@ -11,7 +11,7 @@ use handshake_core::sandbox::{
     parse_podman_status, parse_wsl_list_verbose, parse_wsl_status, podman_run_args,
     windows_path_to_wsl_mount_path, AdapterId, BindMode, BindSpec, Command, GpuPassthrough,
     ImageRef, NetAllowlistEntry, NetPolicy, NetProtocol, ProcessHandle, ProcessSpec, ProcessStatus,
-    RequiredCapability, ResourceLimits, SandboxAdapter, SandboxAdapterError, Signal,
+    RequiredCapability, ResourceLimits, SandboxAdapter, SandboxAdapterError, Signal, TrustClass,
     Wsl2PodmanAdapter, Wsl2PodmanConfig, WSL2_PODMAN_ADAPTER_ID,
 };
 
@@ -70,6 +70,7 @@ fn podman_run_args_map_process_spec_to_default_isolation_controls() {
             timeout_ms: Some(30_000),
         },
         required_capabilities: BTreeSet::from([RequiredCapability::CrossMachinePortable]),
+        trust_class: TrustClass::default(),
         metadata: BTreeMap::new(),
     };
 
@@ -292,6 +293,7 @@ async fn wsl2_podman_spawn_exec_and_cleanup_integration() {
             net_policy: NetPolicy::DenyAll,
             resource_limits: ResourceLimits::default(),
             required_capabilities: BTreeSet::new(),
+            trust_class: TrustClass::default(),
             metadata: BTreeMap::new(),
         })
         .await
@@ -355,6 +357,7 @@ async fn wsl2_podman_spawn_exec_and_cleanup_integration() {
             net_policy: NetPolicy::DenyAll,
             resource_limits: ResourceLimits::default(),
             required_capabilities: BTreeSet::new(),
+            trust_class: TrustClass::default(),
             metadata: BTreeMap::new(),
         })
         .await
@@ -408,6 +411,7 @@ fn spec_with_net_policy(net_policy: NetPolicy) -> ProcessSpec {
         net_policy,
         resource_limits: ResourceLimits::default(),
         required_capabilities: BTreeSet::new(),
+        trust_class: TrustClass::default(),
         metadata: BTreeMap::new(),
     }
 }

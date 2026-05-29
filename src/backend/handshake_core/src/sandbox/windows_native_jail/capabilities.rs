@@ -1,6 +1,6 @@
 use crate::sandbox::{
-    AdapterCapabilities, AdapterId, GpuPassthrough, IsolationStrength, ThroughputClass,
-    WINDOWS_NATIVE_JAIL_ADAPTER_ID,
+    AdapterCapabilities, AdapterId, GpuPassthrough, IsolationStrength, IsolationTier,
+    ThroughputClass, WINDOWS_NATIVE_JAIL_ADAPTER_ID,
 };
 
 pub fn windows_native_jail_target_capabilities() -> AdapterCapabilities {
@@ -13,6 +13,9 @@ pub fn windows_native_jail_target_capabilities() -> AdapterCapabilities {
         stdio_throughput_class: ThroughputClass::Medium,
         win32_native_fidelity: true,
         cross_machine_portable: false,
+        isolation_tier: IsolationTier::Tier1Container,
+        requires_nested_virt: false,
+        supports_snapshot: false,
     }
 }
 
@@ -26,6 +29,9 @@ pub fn windows_native_jail_unavailable_capabilities() -> AdapterCapabilities {
         stdio_throughput_class: ThroughputClass::Low,
         win32_native_fidelity: false,
         cross_machine_portable: false,
+        isolation_tier: IsolationTier::Tier1Container,
+        requires_nested_virt: false,
+        supports_snapshot: false,
     }
 }
 

@@ -8,6 +8,8 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use uuid::Uuid;
 
+use super::adapter::TrustClass;
+
 pub const WINDOWS_NATIVE_JAIL_ADAPTER_ID: &str = "windows_native_jail";
 pub const WINDOWS_NATIVE_JAIL_BACKEND_APPROVED: bool = cfg!(all(
     target_os = "windows",
@@ -98,6 +100,8 @@ pub struct ProcessSpec {
     pub net_policy: NetPolicy,
     pub resource_limits: ResourceLimits,
     pub required_capabilities: BTreeSet<RequiredCapability>,
+    #[serde(default)]
+    pub trust_class: TrustClass,
     pub metadata: BTreeMap<String, String>,
 }
 

@@ -10,7 +10,7 @@ use handshake_core::sandbox::{
     default_no_op_capabilities, AdapterCapabilities, AdapterId, BindMode, BindSpec, Command,
     ExecResult, GpuPassthrough, ImageRef, IsolationStrength, NetPolicy, ProcessHandle, ProcessSpec,
     ProcessStatus, RequiredCapability, ResourceLimits, SandboxAdapter, SandboxAdapterError, Signal,
-    ThroughputClass,
+    ThroughputClass, TrustClass,
 };
 
 #[derive(Debug, Clone)]
@@ -120,6 +120,7 @@ async fn noop_adapter_methods_fail_closed_without_backend() {
         net_policy: NetPolicy::DenyAll,
         resource_limits: ResourceLimits::default(),
         required_capabilities: BTreeSet::from([RequiredCapability::VeryStrongNetworkIsolation]),
+        trust_class: TrustClass::default(),
         metadata: BTreeMap::new(),
     };
     let command = Command {

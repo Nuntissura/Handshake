@@ -3,9 +3,10 @@ use std::{path::PathBuf, sync::Arc};
 use async_trait::async_trait;
 use handshake_core::sandbox::{
     build_registry_from_adapters, AdapterCapabilities, AdapterId, BindMode, Command, ExecResult,
-    GpuPassthrough, IsolationStrength, NetPolicy, ProcessHandle, ProcessSpec, ProcessStatus,
-    SandboxAdapter, SandboxAdapterError, Signal, ThroughputClass, WindowsNativeJailAdapter,
-    DOCKER_ADAPTER_ID, WINDOWS_NATIVE_JAIL_ADAPTER_ID, WSL2_PODMAN_ADAPTER_ID,
+    GpuPassthrough, IsolationStrength, IsolationTier, NetPolicy, ProcessHandle, ProcessSpec,
+    ProcessStatus, SandboxAdapter, SandboxAdapterError, Signal, ThroughputClass,
+    WindowsNativeJailAdapter, DOCKER_ADAPTER_ID, WINDOWS_NATIVE_JAIL_ADAPTER_ID,
+    WSL2_PODMAN_ADAPTER_ID,
 };
 
 #[derive(Debug, Clone)]
@@ -204,6 +205,9 @@ fn wsl2_caps() -> AdapterCapabilities {
         stdio_throughput_class: ThroughputClass::High,
         win32_native_fidelity: false,
         cross_machine_portable: true,
+        isolation_tier: IsolationTier::Tier1Container,
+        requires_nested_virt: false,
+        supports_snapshot: false,
     }
 }
 
@@ -217,6 +221,9 @@ fn docker_caps() -> AdapterCapabilities {
         stdio_throughput_class: ThroughputClass::High,
         win32_native_fidelity: false,
         cross_machine_portable: true,
+        isolation_tier: IsolationTier::Tier1Container,
+        requires_nested_virt: false,
+        supports_snapshot: false,
     }
 }
 

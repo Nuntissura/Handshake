@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use super::{
-    AdapterCapabilities, AdapterId, GpuPassthrough, IsolationStrength, ProcessSpec,
+    AdapterCapabilities, AdapterId, GpuPassthrough, IsolationStrength, IsolationTier, ProcessSpec,
     RequiredCapability, SandboxAdapter, SandboxAdapterRegistry, ThroughputClass, DOCKER_ADAPTER_ID,
     WINDOWS_NATIVE_JAIL_ADAPTER_ID, WINDOWS_NATIVE_JAIL_BACKEND_APPROVED,
 };
@@ -22,6 +22,13 @@ pub enum SandboxSelectionFailure {
     AdapterNotRegistered { adapter_id: AdapterId },
     #[error("docker sandbox selection requires explicit opt-in")]
     DockerNotExplicitlyOptedIn,
+    #[error("{reason}")]
+    IsolationTierUnsatisfied {
+        adapter_id: AdapterId,
+        required_tier: IsolationTier,
+        available_tier: IsolationTier,
+        reason: String,
+    },
     #[error("sandbox work profile override capability mismatch: {override_id}")]
     OverrideCapabilityMismatch {
         override_id: AdapterId,
@@ -110,6 +117,11 @@ fn select_candidate(
     }
     missing.sort();
     if missing.is_empty() {
+        // Master Spec v02.187 §3.5.5: enforce the trust -> isolation-tier
+        // MINIMUM. A capability match is necessary but not sufficient; the
+        // chosen adapter's isolation tier must be at least as strong as the
+        // tier the workload's trust class demands. Never silently downgrade.
+        enforce_isolation_tier_minimum(spec, &capabilities)?;
         return Ok(adapter);
     }
 
@@ -123,6 +135,32 @@ fn select_candidate(
     Err(SandboxSelectionFailure::CapabilityUnsatisfied {
         required: missing,
         available_by_adapter: available_by_adapter(registry),
+    })
+}
+
+fn enforce_isolation_tier_minimum(
+    spec: &ProcessSpec,
+    capabilities: &AdapterCapabilities,
+) -> Result<(), SandboxSelectionFailure> {
+    let required_tier = spec.trust_class.min_isolation_tier();
+    let available_tier = capabilities.isolation_tier;
+    if available_tier.rank() >= required_tier.rank() {
+        return Ok(());
+    }
+
+    Err(SandboxSelectionFailure::IsolationTierUnsatisfied {
+        adapter_id: capabilities.adapter_id.clone(),
+        required_tier,
+        available_tier,
+        reason: format!(
+            "sandbox isolation tier insufficient for trust class {:?}: required minimum tier {:?} (rank {}), but adapter {} provides only tier {:?} (rank {}); refusing to downgrade isolation",
+            spec.trust_class,
+            required_tier,
+            required_tier.rank(),
+            capabilities.adapter_id,
+            available_tier,
+            available_tier.rank(),
+        ),
     })
 }
 

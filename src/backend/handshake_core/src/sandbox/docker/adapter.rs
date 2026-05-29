@@ -13,8 +13,8 @@ use super::kernel_003_bridge::{
 };
 use crate::sandbox::{
     AdapterCapabilities, AdapterId, BindMode, Command, ExecResult, GpuPassthrough,
-    IsolationStrength, NetPolicy, ProcessHandle, ProcessSpec, ProcessStatus, SandboxAdapter,
-    SandboxAdapterError, Signal, ThroughputClass, DOCKER_ADAPTER_ID,
+    IsolationStrength, IsolationTier, NetPolicy, ProcessHandle, ProcessSpec, ProcessStatus,
+    SandboxAdapter, SandboxAdapterError, Signal, ThroughputClass, DOCKER_ADAPTER_ID,
 };
 
 const GPU_PROBE_CACHE_TTL: Duration = Duration::from_secs(60);
@@ -318,6 +318,9 @@ impl SandboxAdapter for DockerAdapter {
             stdio_throughput_class: ThroughputClass::High,
             win32_native_fidelity: false,
             cross_machine_portable: true,
+            isolation_tier: IsolationTier::Tier1Container,
+            requires_nested_virt: false,
+            supports_snapshot: false,
         }
     }
 }

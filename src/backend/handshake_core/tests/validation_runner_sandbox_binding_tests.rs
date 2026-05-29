@@ -8,11 +8,11 @@ use std::{
 use async_trait::async_trait;
 use handshake_core::sandbox::{
     docker_run_args, AdapterCapabilities, AdapterId, BindMode, BindSpec, Command, ExecResult,
-    GpuPassthrough, ImageRef, IsolationStrength, NetPolicy, ProcessHandle, ProcessSpec,
-    ProcessStatus, RequiredCapability, ResourceLimits, SandboxAdapter, SandboxAdapterError,
-    SandboxAdapterRegistry, SandboxSelectionFailure, Signal, ThroughputClass, ValidationJobSpec,
-    ValidationProcessSpecBuilder, ValidationRunnerBindingError, ValidationSandboxRunner,
-    WindowsNativeJailAdapter,
+    GpuPassthrough, ImageRef, IsolationStrength, IsolationTier, NetPolicy, ProcessHandle,
+    ProcessSpec, ProcessStatus, RequiredCapability, ResourceLimits, SandboxAdapter,
+    SandboxAdapterError, SandboxAdapterRegistry, SandboxSelectionFailure, Signal, ThroughputClass,
+    ValidationJobSpec, ValidationProcessSpecBuilder, ValidationRunnerBindingError,
+    ValidationSandboxRunner, WindowsNativeJailAdapter,
 };
 
 #[derive(Debug, Clone)]
@@ -129,7 +129,13 @@ fn validation_job_builder_preserves_explicit_network_policy() {
 
 #[tokio::test]
 async fn injected_validation_runner_spawns_through_sandbox_adapter() {
-    let adapter = RecordingAdapter::new(capabilities("docker", ThroughputClass::High));
+    // Validation jobs run untrusted model-written code, so the builder marks
+    // them UntrustedAgent (Master Spec v02.187 §3.5.4) which demands a Tier-3
+    // microVM-class adapter. Simulate a strong-isolation adapter so this
+    // plumbing test exercises spawn-through without weakening the tier guard.
+    let mut strong = capabilities("docker", ThroughputClass::High);
+    strong.isolation_tier = IsolationTier::Tier3Microvm;
+    let adapter = RecordingAdapter::new(strong);
     let mut registry = SandboxAdapterRegistry::new(AdapterId::new("wsl2_podman"));
     registry.set_docker_explicit_opt_in(true);
     registry.register(Arc::new(adapter.clone()));
@@ -271,6 +277,9 @@ fn capabilities(adapter_id: &str, stdio: ThroughputClass) -> AdapterCapabilities
         stdio_throughput_class: stdio,
         win32_native_fidelity: false,
         cross_machine_portable: true,
+        isolation_tier: IsolationTier::Tier1Container,
+        requires_nested_virt: false,
+        supports_snapshot: false,
     }
 }
 

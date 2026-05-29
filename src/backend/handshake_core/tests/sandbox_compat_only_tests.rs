@@ -7,10 +7,11 @@ use std::{
 use async_trait::async_trait;
 use handshake_core::sandbox::{
     build_registry_from_adapters, select, AdapterCapabilities, AdapterId, BindMode, Command,
-    ExecResult, GpuPassthrough, ImageRef, IsolationStrength, NetPolicy, ProcessHandle, ProcessSpec,
-    ProcessStatus, RequiredCapability, ResourceLimits, SandboxAdapter, SandboxAdapterError,
-    SandboxDefaultAdapterChoice, SandboxSelectionFailure, SandboxSettings, Signal, ThroughputClass,
-    WindowsNativeJailAdapter, DOCKER_ADAPTER_ID, WSL2_PODMAN_ADAPTER_ID,
+    ExecResult, GpuPassthrough, ImageRef, IsolationStrength, IsolationTier, NetPolicy,
+    ProcessHandle, ProcessSpec, ProcessStatus, RequiredCapability, ResourceLimits, SandboxAdapter,
+    SandboxAdapterError, SandboxDefaultAdapterChoice, SandboxSelectionFailure, SandboxSettings,
+    Signal, ThroughputClass, TrustClass, WindowsNativeJailAdapter, DOCKER_ADAPTER_ID,
+    WSL2_PODMAN_ADAPTER_ID,
 };
 
 #[derive(Debug, Clone)]
@@ -245,6 +246,7 @@ fn process_spec(required_capabilities: BTreeSet<RequiredCapability>) -> ProcessS
         net_policy: NetPolicy::DenyAll,
         resource_limits: ResourceLimits::default(),
         required_capabilities,
+        trust_class: TrustClass::Trusted,
         metadata: BTreeMap::new(),
     }
 }
@@ -259,6 +261,9 @@ fn wsl2_caps() -> AdapterCapabilities {
         stdio_throughput_class: ThroughputClass::High,
         win32_native_fidelity: false,
         cross_machine_portable: true,
+        isolation_tier: IsolationTier::Tier1Container,
+        requires_nested_virt: false,
+        supports_snapshot: false,
     }
 }
 
@@ -272,6 +277,9 @@ fn docker_caps() -> AdapterCapabilities {
         stdio_throughput_class: ThroughputClass::High,
         win32_native_fidelity: false,
         cross_machine_portable: true,
+        isolation_tier: IsolationTier::Tier1Container,
+        requires_nested_virt: false,
+        supports_snapshot: false,
     }
 }
 

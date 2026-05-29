@@ -20,7 +20,7 @@ use handshake_core::{
         build_registry_from_adapters_with_ledger, default_no_op_capabilities, AdapterCapabilities,
         AdapterId, BindMode, Command, ExecResult, ImageRef, LedgerDecorator, NetPolicy,
         ProcessHandle, ProcessSpec, ProcessStatus, ResourceLimits, SandboxAdapter,
-        SandboxAdapterError, Signal,
+        SandboxAdapterError, Signal, TrustClass,
     },
 };
 
@@ -417,6 +417,7 @@ impl DecoratorFixture {
             net_policy: NetPolicy::DenyAll,
             resource_limits: ResourceLimits::default(),
             required_capabilities: BTreeSet::new(),
+            trust_class: TrustClass::default(),
             metadata: BTreeMap::from([
                 ("engine_kind".to_string(), "llama_cpp".to_string()),
                 ("model_id".to_string(), "llama".to_string()),

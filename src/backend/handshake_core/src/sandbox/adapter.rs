@@ -16,6 +16,70 @@ pub enum IsolationStrength {
     VeryStrong,
 }
 
+/// Master Spec v02.187 §3.5.3 strong-isolation tier ladder.
+///
+/// Tiers are ordered by escape-resistance strength: a container namespace
+/// jail (Tier 1) is weaker than a syscall-filtering substrate (Tier 2),
+/// which is weaker than a hardware-virtualized microVM (Tier 3). Selection
+/// uses [`IsolationTier::rank`] to compare a candidate adapter's tier
+/// against the minimum tier a workload's [`TrustClass`] demands.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum IsolationTier {
+    /// OS-level container / namespace isolation (Docker, Podman, AppContainer).
+    Tier1Container,
+    /// Syscall-filtering / user-space kernel substrate (e.g. gVisor-class).
+    Tier2Syscall,
+    /// Hardware-virtualized microVM (e.g. Firecracker-class).
+    Tier3Microvm,
+}
+
+impl IsolationTier {
+    /// Comparable strength rank: 1 (weakest) .. 3 (strongest).
+    pub fn rank(self) -> u8 {
+        match self {
+            Self::Tier1Container => 1,
+            Self::Tier2Syscall => 2,
+            Self::Tier3Microvm => 3,
+        }
+    }
+}
+
+/// Master Spec v02.187 §3.5.4 trust classification for a workload.
+///
+/// The trust class determines the minimum isolation tier a workload may run
+/// under (see [`TrustClass::min_isolation_tier`]). The default is the most
+/// conservative class, [`TrustClass::UntrustedAgent`], so that any spec built
+/// without an explicit trust decision is treated as hostile until proven
+/// otherwise.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TrustClass {
+    /// First-party, operator-trusted workloads.
+    Trusted,
+    /// Workloads that passed human/automated review.
+    Reviewed,
+    /// Untrusted agent-authored or external workloads (safe default).
+    UntrustedAgent,
+}
+
+impl Default for TrustClass {
+    fn default() -> Self {
+        Self::UntrustedAgent
+    }
+}
+
+impl TrustClass {
+    /// Minimum isolation tier this trust class is permitted to run under,
+    /// per Master Spec v02.187 §3.5.4.
+    pub fn min_isolation_tier(self) -> IsolationTier {
+        match self {
+            Self::Trusted | Self::Reviewed => IsolationTier::Tier1Container,
+            Self::UntrustedAgent => IsolationTier::Tier3Microvm,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum GpuPassthrough {
@@ -43,6 +107,11 @@ pub struct AdapterCapabilities {
     pub stdio_throughput_class: ThroughputClass,
     pub win32_native_fidelity: bool,
     pub cross_machine_portable: bool,
+    pub isolation_tier: IsolationTier,
+    #[serde(default)]
+    pub requires_nested_virt: bool,
+    #[serde(default)]
+    pub supports_snapshot: bool,
 }
 
 impl AdapterCapabilities {
@@ -61,6 +130,9 @@ pub fn default_no_op_capabilities() -> AdapterCapabilities {
         stdio_throughput_class: ThroughputClass::Low,
         win32_native_fidelity: false,
         cross_machine_portable: false,
+        isolation_tier: IsolationTier::Tier1Container,
+        requires_nested_virt: false,
+        supports_snapshot: false,
     }
 }
 

@@ -1,8 +1,8 @@
 use std::{fs, path::PathBuf};
 
 use handshake_core::sandbox::{
-    AdapterCapabilities, AdapterId, GpuPassthrough, IsolationStrength, ThroughputClass,
-    WSL2_PODMAN_ADAPTER_ID,
+    AdapterCapabilities, AdapterId, GpuPassthrough, IsolationStrength, IsolationTier,
+    ThroughputClass, WSL2_PODMAN_ADAPTER_ID,
 };
 use serde_json::json;
 
@@ -52,6 +52,9 @@ fn sandbox_ipc_tests_payload_shape_matches_frontend_types() {
         stdio_throughput_class: ThroughputClass::High,
         win32_native_fidelity: false,
         cross_machine_portable: true,
+        isolation_tier: IsolationTier::Tier1Container,
+        requires_nested_virt: false,
+        supports_snapshot: false,
     };
 
     assert_eq!(
@@ -64,7 +67,10 @@ fn sandbox_ipc_tests_payload_shape_matches_frontend_types() {
             "gpu_passthrough": "none",
             "stdio_throughput_class": "high",
             "win32_native_fidelity": false,
-            "cross_machine_portable": true
+            "cross_machine_portable": true,
+            "isolation_tier": "tier1_container",
+            "requires_nested_virt": false,
+            "supports_snapshot": false
         })
     );
 

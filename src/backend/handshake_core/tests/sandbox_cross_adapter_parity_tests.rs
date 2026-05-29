@@ -21,7 +21,8 @@ use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
 use handshake_core::sandbox::adapter::{
-    AdapterCapabilities, GpuPassthrough, IsolationStrength, SandboxAdapter, ThroughputClass,
+    AdapterCapabilities, GpuPassthrough, IsolationStrength, IsolationTier, SandboxAdapter,
+    ThroughputClass,
 };
 use handshake_core::sandbox::types::{
     AdapterId, BindMode, Command, ExecResult, NetPolicy, ProcessHandle, ProcessSpec, ProcessStatus,
@@ -440,12 +441,16 @@ impl SandboxAdapter for StubAdapter {
     fn capabilities(&self) -> AdapterCapabilities {
         AdapterCapabilities {
             adapter_id: AdapterId::new(&self.adapter_id),
-            filesystem_isolation_strength: IsolationStrength::Strong,
+            runtime_available: true,
+filesystem_isolation_strength: IsolationStrength::Strong,
             network_isolation_strength: IsolationStrength::Strong,
             gpu_passthrough: GpuPassthrough::None,
             stdio_throughput_class: ThroughputClass::Medium,
             win32_native_fidelity: false,
             cross_machine_portable: false,
+            isolation_tier: IsolationTier::Tier1Container,
+            requires_nested_virt: false,
+            supports_snapshot: false,
         }
     }
 }

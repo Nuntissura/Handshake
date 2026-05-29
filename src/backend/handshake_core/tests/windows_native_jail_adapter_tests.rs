@@ -7,8 +7,8 @@ use std::{
 use handshake_core::sandbox::{
     AdapterId, BindMode, GpuPassthrough, ImageRef, IsolationStrength, NetAllowlistEntry, NetPolicy,
     NetProtocol, ProcessHandle, ProcessSpec, ProcessStatus, RequiredCapability, ResourceLimits,
-    SandboxAdapter, SandboxAdapterError, Signal, ThroughputClass, WindowsNativeJailAdapter,
-    WINDOWS_NATIVE_JAIL_ADAPTER_ID, WINDOWS_NATIVE_JAIL_BACKEND_APPROVED,
+    SandboxAdapter, SandboxAdapterError, Signal, ThroughputClass, TrustClass,
+    WindowsNativeJailAdapter, WINDOWS_NATIVE_JAIL_ADAPTER_ID, WINDOWS_NATIVE_JAIL_BACKEND_APPROVED,
 };
 
 #[test]
@@ -626,6 +626,7 @@ fn process_spec(cmd: Vec<&str>) -> ProcessSpec {
         net_policy: NetPolicy::DenyAll,
         resource_limits: ResourceLimits::default(),
         required_capabilities: BTreeSet::from([RequiredCapability::Win32NativeFidelity]),
+        trust_class: TrustClass::default(),
         metadata: BTreeMap::new(),
     }
 }

@@ -8,9 +8,9 @@ use std::{
 use async_trait::async_trait;
 use handshake_core::sandbox::{
     select, AdapterCapabilities, AdapterId, BindMode, Command, ExecResult, GpuPassthrough,
-    ImageRef, IsolationStrength, NetPolicy, ProcessHandle, ProcessSpec, ProcessStatus,
-    RequiredCapability, ResourceLimits, SandboxAdapter, SandboxAdapterError,
-    SandboxAdapterRegistry, SandboxSelectionFailure, Signal, ThroughputClass,
+    ImageRef, IsolationStrength, IsolationTier, NetPolicy, ProcessHandle, ProcessSpec,
+    ProcessStatus, RequiredCapability, ResourceLimits, SandboxAdapter, SandboxAdapterError,
+    SandboxAdapterRegistry, SandboxSelectionFailure, Signal, ThroughputClass, TrustClass,
     WindowsNativeJailAdapter, DOCKER_ADAPTER_ID, SANDBOX_SELECTION_FAILURE_EVENT_FAMILY,
     WINDOWS_NATIVE_JAIL_ADAPTER_ID,
 };
@@ -481,6 +481,87 @@ fn sandbox_registry_and_selection_have_no_adapter_specific_imports() {
     }
 }
 
+#[test]
+fn trusted_workload_selects_tier1_adapter_ok() {
+    let mut registry = SandboxAdapterRegistry::new(AdapterId::new("wsl2_podman"));
+    registry.register(adapter(wsl2_podman_capabilities()));
+
+    let spec = trust_classed_spec(TrustClass::Trusted);
+    let selected = select(&registry, &spec, None).expect("trusted workload accepts tier-1 adapter");
+
+    assert_eq!(
+        selected.capabilities().adapter_id,
+        AdapterId::new("wsl2_podman")
+    );
+    assert_eq!(
+        selected.capabilities().isolation_tier,
+        IsolationTier::Tier1Container
+    );
+}
+
+#[test]
+fn reviewed_workload_selects_tier1_adapter_ok() {
+    let mut registry = SandboxAdapterRegistry::new(AdapterId::new("wsl2_podman"));
+    registry.register(adapter(wsl2_podman_capabilities()));
+
+    let spec = trust_classed_spec(TrustClass::Reviewed);
+    let selected =
+        select(&registry, &spec, None).expect("reviewed workload accepts tier-1 adapter");
+
+    assert_eq!(
+        selected.capabilities().adapter_id,
+        AdapterId::new("wsl2_podman")
+    );
+}
+
+#[test]
+fn untrusted_agent_workload_fails_isolation_tier_minimum_when_only_tier1_exists() {
+    let mut registry = SandboxAdapterRegistry::new(AdapterId::new("wsl2_podman"));
+    registry.register(adapter(wsl2_podman_capabilities()));
+
+    let spec = trust_classed_spec(TrustClass::UntrustedAgent);
+    let error = expect_selection_error(select(&registry, &spec, None));
+
+    match error {
+        SandboxSelectionFailure::IsolationTierUnsatisfied {
+            required_tier,
+            available_tier,
+            ref reason,
+            ..
+        } => {
+            assert_eq!(required_tier, IsolationTier::Tier3Microvm);
+            assert_eq!(available_tier, IsolationTier::Tier1Container);
+            assert!(
+                reason.contains("tier") || reason.contains("Tier"),
+                "failure reason must name the tier requirement, got: {reason}"
+            );
+        }
+        other => panic!("expected IsolationTierUnsatisfied, got {other:?}"),
+    }
+}
+
+#[test]
+fn untrusted_agent_isolation_tier_failure_routes_through_selection_event() {
+    let mut registry = SandboxAdapterRegistry::new(AdapterId::new("wsl2_podman"));
+    registry.register(adapter(wsl2_podman_capabilities()));
+
+    let spec = trust_classed_spec(TrustClass::UntrustedAgent);
+    let error = expect_selection_error(select(&registry, &spec, None));
+    let event = error.to_event_payload(&spec);
+
+    assert_eq!(event.event_family, SANDBOX_SELECTION_FAILURE_EVENT_FAMILY);
+    assert!(matches!(
+        event.failure,
+        SandboxSelectionFailure::IsolationTierUnsatisfied { .. }
+    ));
+}
+
+fn trust_classed_spec(trust_class: TrustClass) -> ProcessSpec {
+    let mut spec = process_spec(BTreeSet::new());
+    spec.trust_class = trust_class;
+    spec
+}
+
 fn expect_selection_error(
     result: Result<Arc<dyn SandboxAdapter>, SandboxSelectionFailure>,
 ) -> SandboxSelectionFailure {
@@ -508,6 +589,10 @@ fn process_spec(required_capabilities: BTreeSet<RequiredCapability>) -> ProcessS
         net_policy: NetPolicy::DenyAll,
         resource_limits: ResourceLimits::default(),
         required_capabilities,
+        // These legacy fixtures exercise capability matching, not the trust
+        // tier. Mark them Trusted so they still select the available Tier-1
+        // adapters; the dedicated trust-tier suite covers the guard.
+        trust_class: TrustClass::Trusted,
         metadata: BTreeMap::new(),
     }
 }
@@ -522,6 +607,9 @@ fn wsl2_podman_capabilities() -> AdapterCapabilities {
         stdio_throughput_class: ThroughputClass::Medium,
         win32_native_fidelity: false,
         cross_machine_portable: true,
+        isolation_tier: IsolationTier::Tier1Container,
+        requires_nested_virt: false,
+        supports_snapshot: false,
     }
 }
 
@@ -546,6 +634,9 @@ fn docker_capabilities() -> AdapterCapabilities {
         stdio_throughput_class: ThroughputClass::High,
         win32_native_fidelity: false,
         cross_machine_portable: true,
+        isolation_tier: IsolationTier::Tier1Container,
+        requires_nested_virt: false,
+        supports_snapshot: false,
     }
 }
 
@@ -559,6 +650,9 @@ fn high_stdio_capabilities() -> AdapterCapabilities {
         stdio_throughput_class: ThroughputClass::High,
         win32_native_fidelity: false,
         cross_machine_portable: true,
+        isolation_tier: IsolationTier::Tier1Container,
+        requires_nested_virt: false,
+        supports_snapshot: false,
     }
 }
 
@@ -572,6 +666,9 @@ fn all_capabilities(adapter_id: AdapterId) -> AdapterCapabilities {
         stdio_throughput_class: ThroughputClass::High,
         win32_native_fidelity: false,
         cross_machine_portable: true,
+        isolation_tier: IsolationTier::Tier1Container,
+        requires_nested_virt: false,
+        supports_snapshot: false,
     }
 }
 
@@ -585,5 +682,8 @@ fn vendor_gpu_capabilities(adapter_id: AdapterId) -> AdapterCapabilities {
         stdio_throughput_class: ThroughputClass::Medium,
         win32_native_fidelity: false,
         cross_machine_portable: true,
+        isolation_tier: IsolationTier::Tier1Container,
+        requires_nested_virt: false,
+        supports_snapshot: false,
     }
 }

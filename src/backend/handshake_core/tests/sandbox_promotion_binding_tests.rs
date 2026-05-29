@@ -2,7 +2,7 @@ use handshake_core::{
     kernel::{PromotionDecisionKind, PromotionGate},
     sandbox::{
         build_promotion_request, replay_sandbox_promotion_events, AdapterCapabilities, AdapterId,
-        GpuPassthrough, IsolationStrength, ProcessHandle, SandboxPromotionOutcome,
+        GpuPassthrough, IsolationStrength, IsolationTier, ProcessHandle, SandboxPromotionOutcome,
         SandboxPromotionRejectReason, SandboxValidationEvidence, WindowsNativeJailAdapter,
         SANDBOX_PROMOTION_VALIDATED_EVENT_FAMILY, WINDOWS_NATIVE_JAIL_ADAPTER_ID,
     },
@@ -204,5 +204,8 @@ fn strong_capabilities() -> AdapterCapabilities {
         stdio_throughput_class: handshake_core::sandbox::ThroughputClass::High,
         win32_native_fidelity: false,
         cross_machine_portable: true,
+        isolation_tier: IsolationTier::Tier1Container,
+        requires_nested_virt: false,
+        supports_snapshot: false,
     }
 }

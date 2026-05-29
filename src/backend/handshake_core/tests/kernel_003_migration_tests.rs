@@ -10,7 +10,7 @@ use handshake_core::{
     sandbox::{
         build_promotion_request, docker_run_args, podman_run_args, replay_sandbox_promotion_events,
         AdapterCapabilities, AdapterId, BindMode, Command, ExecResult, GpuPassthrough,
-        IsolationStrength, ProcessHandle, ProcessSpec, ProcessStatus, SandboxAdapter,
+        IsolationStrength, IsolationTier, ProcessHandle, ProcessSpec, ProcessStatus, SandboxAdapter,
         SandboxAdapterError, SandboxPromotionOutcome, SandboxValidationEvidence, Signal,
         ThroughputClass, ValidationJobSpec, ValidationProcessSpecBuilder, ValidationSandboxRunner,
         DOCKER_ADAPTER_ID, WSL2_PODMAN_ADAPTER_ID,
@@ -347,5 +347,8 @@ fn strong_capabilities(adapter_id: &str) -> AdapterCapabilities {
         stdio_throughput_class: ThroughputClass::High,
         win32_native_fidelity: false,
         cross_machine_portable: true,
+        isolation_tier: IsolationTier::Tier1Container,
+        requires_nested_virt: false,
+        supports_snapshot: false,
     }
 }

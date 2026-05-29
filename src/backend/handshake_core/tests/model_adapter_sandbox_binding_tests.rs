@@ -14,7 +14,7 @@ use handshake_core::{
     },
     sandbox::{
         AdapterCapabilities, AdapterId, BindMode, Command, ExecResult, GpuPassthrough, ImageRef,
-        IsolationStrength, NetPolicy, ProcessHandle, ProcessSpec, ProcessStatus,
+        IsolationStrength, IsolationTier, NetPolicy, ProcessHandle, ProcessSpec, ProcessStatus,
         RequiredCapability, SandboxAdapter, SandboxAdapterError, SandboxAdapterRegistry,
         SandboxSelectionFailure, Signal, ThroughputClass, WindowsNativeJailAdapter,
     },
@@ -358,6 +358,9 @@ fn capabilities(adapter_id: &str, stdio: ThroughputClass) -> AdapterCapabilities
         stdio_throughput_class: stdio,
         win32_native_fidelity: false,
         cross_machine_portable: true,
+        isolation_tier: IsolationTier::Tier1Container,
+        requires_nested_virt: false,
+        supports_snapshot: false,
     }
 }
 

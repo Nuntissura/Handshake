@@ -13,8 +13,8 @@ use super::podman_cli::{
 use super::wsl_detection::{default_wsl_exe, verify_wsl2_distro};
 use crate::sandbox::{
     AdapterCapabilities, AdapterId, BindMode, Command, ExecResult, GpuPassthrough,
-    IsolationStrength, NetPolicy, ProcessHandle, ProcessSpec, ProcessStatus, SandboxAdapter,
-    SandboxAdapterError, Signal, ThroughputClass,
+    IsolationStrength, IsolationTier, NetPolicy, ProcessHandle, ProcessSpec, ProcessStatus,
+    SandboxAdapter, SandboxAdapterError, Signal, ThroughputClass,
 };
 
 pub const WSL2_PODMAN_ADAPTER_ID: &str = "wsl2_podman";
@@ -333,6 +333,9 @@ impl SandboxAdapter for Wsl2PodmanAdapter {
             stdio_throughput_class: ThroughputClass::High,
             win32_native_fidelity: false,
             cross_machine_portable: true,
+            isolation_tier: IsolationTier::Tier1Container,
+            requires_nested_virt: false,
+            supports_snapshot: false,
         }
     }
 }

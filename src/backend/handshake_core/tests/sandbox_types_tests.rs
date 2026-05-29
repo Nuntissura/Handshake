@@ -8,7 +8,7 @@ use bytes::Bytes;
 use handshake_core::sandbox::{
     AdapterId, BindMode, BindSpec, Command, ExecResult, ImageRef, NetAllowlistEntry, NetPolicy,
     NetProtocol, ProcessHandle, ProcessSpec, ProcessStatus, RequiredCapability, ResourceLimits,
-    SandboxAdapterError, Signal,
+    SandboxAdapterError, Signal, TrustClass,
 };
 
 #[test]
@@ -88,6 +88,7 @@ fn sandbox_types_tests_process_spec_command_and_exec_result_serde_round_trip() {
             RequiredCapability::Win32NativeFidelity,
             RequiredCapability::VeryStrongNetworkIsolation,
         ]),
+        trust_class: TrustClass::Reviewed,
         metadata: BTreeMap::from([("wp".to_string(), "WP-KERNEL-004".to_string())]),
     };
 

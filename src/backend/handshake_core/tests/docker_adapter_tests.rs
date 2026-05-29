@@ -10,7 +10,8 @@ use handshake_core::sandbox::{
     AdapterId, BindMode, BindSpec, Command, DockerAdapter, DockerConfig, GpuPassthrough, ImageRef,
     IsolationStrength, NetAllowlistEntry, NetPolicy, NetProtocol, ProcessHandle, ProcessSpec,
     ProcessStatus, RequiredCapability, ResourceLimits, SandboxAdapter, SandboxAdapterError,
-    SandboxAdapterRegistry, SandboxSelectionFailure, Signal, ThroughputClass, DOCKER_ADAPTER_ID,
+    SandboxAdapterRegistry, SandboxSelectionFailure, Signal, ThroughputClass, TrustClass,
+    DOCKER_ADAPTER_ID,
 };
 
 #[test]
@@ -42,6 +43,7 @@ fn docker_run_args_map_process_spec_to_compat_isolation_controls() {
             timeout_ms: Some(30_000),
         },
         required_capabilities: BTreeSet::from([RequiredCapability::CrossMachinePortable]),
+        trust_class: TrustClass::default(),
         metadata: BTreeMap::new(),
     };
 
@@ -303,6 +305,7 @@ async fn docker_spawn_exec_network_denial_bind_readonly_and_cleanup_integration(
             net_policy: NetPolicy::DenyAll,
             resource_limits: ResourceLimits::default(),
             required_capabilities: BTreeSet::new(),
+            trust_class: TrustClass::default(),
             metadata: BTreeMap::new(),
         })
         .await
@@ -366,6 +369,7 @@ async fn docker_spawn_exec_network_denial_bind_readonly_and_cleanup_integration(
             net_policy: NetPolicy::DenyAll,
             resource_limits: ResourceLimits::default(),
             required_capabilities: BTreeSet::new(),
+            trust_class: TrustClass::default(),
             metadata: BTreeMap::new(),
         })
         .await
@@ -413,6 +417,9 @@ fn spec_with_net_policy(net_policy: NetPolicy) -> ProcessSpec {
         net_policy,
         resource_limits: ResourceLimits::default(),
         required_capabilities: BTreeSet::new(),
+        // Selection-path fixture: keep it trusted so the Tier-1 docker adapter
+        // is selectable; this test covers docker opt-in, not the trust tier.
+        trust_class: TrustClass::Trusted,
         metadata: BTreeMap::new(),
     }
 }

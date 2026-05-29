@@ -8,7 +8,7 @@ use thiserror::Error;
 use super::{
     select, AdapterId, BindSpec, ImageRef, NetPolicy, ProcessHandle, ProcessSpec,
     RequiredCapability, ResourceLimits, SandboxAdapter, SandboxAdapterError,
-    SandboxAdapterRegistry, SandboxSelectionFailure,
+    SandboxAdapterRegistry, SandboxSelectionFailure, TrustClass,
 };
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -104,6 +104,10 @@ impl ValidationProcessSpecBuilder {
             net_policy: job.net_policy.unwrap_or(NetPolicy::DenyAll),
             resource_limits: job.resource_limits,
             required_capabilities: job.required_capabilities,
+            // Model-written-code validation jobs are untrusted-agent work by
+            // construction; carry the safe default so the trust->tier minimum
+            // (Master Spec v02.187 §3.5.5) applies once a Tier-2/3 adapter exists.
+            trust_class: TrustClass::default(),
             metadata,
         })
     }
