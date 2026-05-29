@@ -1,0 +1,16 @@
+{
+  "scenario": "orphan_process",
+  "sessions_examined": 1,
+  "sessions_resumed": 1,
+  "sessions_recovery_failed": 0,
+  "orphan_processes_reclaimed": 2,
+  "operator_decision_requests": 0,
+  "side_effects_applied": 0,
+  "side_effects_already_applied": 0,
+  "operator_cancellations": 0,
+  "fr_event_order": [
+    "FR-EVT-RESTART-RESUME-STARTED",
+    "FR-EVT-RESTART-RESUME-SESSION-RESUMED",
+    "FR-EVT-RESTART-RESUME-COMPLETED"
+  ]
+}

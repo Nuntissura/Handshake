@@ -235,9 +235,8 @@ pub fn subquad_state_commit(
 ) -> Result<SubquadStateCommitResultIpc, String> {
     let model_id = parse_model_id(&request.model_id)?;
     let runtime = require_live_runtime(model_id, state)?;
-    let receipt =
-        subquadratic::state_commit(runtime.as_ref(), model_id, &request.prefix_tokens)
-            .map_err(|error| format!("subquad state_commit dispatch failed: {error}"))?;
+    let receipt = subquadratic::state_commit(runtime.as_ref(), model_id, &request.prefix_tokens)
+        .map_err(|error| format!("subquad state_commit dispatch failed: {error}"))?;
     Ok(SubquadStateCommitResultIpc {
         model_id: receipt.model_id.to_string(),
         event_type: receipt.event_type,

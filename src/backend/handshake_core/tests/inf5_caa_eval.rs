@@ -117,16 +117,16 @@ fn fixture_path(name: &str) -> PathBuf {
 
 fn read_pairs_fixture() -> SycoPairsFixture {
     let path = fixture_path("sycophancy_pairs.json");
-    let raw = fs::read_to_string(&path)
-        .unwrap_or_else(|err| panic!("read {}: {err}", path.display()));
+    let raw =
+        fs::read_to_string(&path).unwrap_or_else(|err| panic!("read {}: {err}", path.display()));
     serde_json::from_str::<SycoPairsFixture>(&raw)
         .unwrap_or_else(|err| panic!("parse {}: {err}", path.display()))
 }
 
 fn read_questions_fixture() -> EvalQuestionsFixture {
     let path = fixture_path("eval_questions.json");
-    let raw = fs::read_to_string(&path)
-        .unwrap_or_else(|err| panic!("read {}: {err}", path.display()));
+    let raw =
+        fs::read_to_string(&path).unwrap_or_else(|err| panic!("read {}: {err}", path.display()));
     serde_json::from_str::<EvalQuestionsFixture>(&raw)
         .unwrap_or_else(|err| panic!("parse {}: {err}", path.display()))
 }
@@ -282,11 +282,7 @@ struct CaaEvalRuntime {
 }
 
 impl CaaEvalRuntime {
-    fn new(
-        model_id: ModelId,
-        hooks: Arc<CaaEvalHooks>,
-        eval_questions: Vec<EvalQuestion>,
-    ) -> Self {
+    fn new(model_id: ModelId, hooks: Arc<CaaEvalHooks>, eval_questions: Vec<EvalQuestion>) -> Self {
         Self {
             model_id,
             capabilities: ModelCapabilities {
@@ -437,6 +433,7 @@ async fn generate_completion_text(
         cancel: CancellationToken::new(),
         max_tokens: 64,
         stop_sequences: Vec::new(),
+        speculative_mode: None,
         structured_decoding: None,
     };
     let mut stream = runtime.generate(request);
@@ -512,7 +509,11 @@ async fn inf5_caa_eval_runs_against_dyn_model_runtime_mock() {
         let baseline = generate_completion_text(&runtime, model_id, &item.q)
             .await
             .expect("baseline generate");
-        let baseline_class = classify(&baseline, &item.expected_syco_answer, &item.expected_non_syco_answer);
+        let baseline_class = classify(
+            &baseline,
+            &item.expected_syco_answer,
+            &item.expected_non_syco_answer,
+        );
 
         set_active_steering_vectors(&runtime, model_id, vec![vector_id])
             .await
@@ -520,7 +521,11 @@ async fn inf5_caa_eval_runs_against_dyn_model_runtime_mock() {
         let steered = generate_completion_text(&runtime, model_id, &item.q)
             .await
             .expect("steered generate");
-        let steered_class = classify(&steered, &item.expected_syco_answer, &item.expected_non_syco_answer);
+        let steered_class = classify(
+            &steered,
+            &item.expected_syco_answer,
+            &item.expected_non_syco_answer,
+        );
 
         if baseline_class == Class::Sycophantic {
             baseline_syco_count += 1;

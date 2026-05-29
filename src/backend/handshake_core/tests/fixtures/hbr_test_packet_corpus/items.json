@@ -1,0 +1,302 @@
+[
+  {
+    "id": "01938b67-1234-7abc-89ef-0a0b0c0d0e0f",
+    "hbr_rule_id": "HBR-INT-001",
+    "packet_under_test": "WP-FIXTURE-0",
+    "expected_first_pass_verdict": "fail",
+    "fixtures": {
+      "index": 0,
+      "pillar": "HBR-INT"
+    }
+  },
+  {
+    "id": "01938b68-1234-7abc-89ef-0b0c0d0e0f10",
+    "hbr_rule_id": "HBR-SWARM-002",
+    "packet_under_test": "WP-FIXTURE-1",
+    "expected_first_pass_verdict": "pass",
+    "fixtures": {
+      "index": 1,
+      "pillar": "HBR-SWARM"
+    }
+  },
+  {
+    "id": "01938b69-1234-7abc-89ef-0c0d0e0f1011",
+    "hbr_rule_id": "HBR-VIS-003",
+    "packet_under_test": "WP-FIXTURE-2",
+    "expected_first_pass_verdict": "pass",
+    "fixtures": {
+      "index": 2,
+      "pillar": "HBR-VIS"
+    }
+  },
+  {
+    "id": "01938b6a-1234-7abc-89ef-0d0e0f101112",
+    "hbr_rule_id": "HBR-QUIET-004",
+    "packet_under_test": "WP-FIXTURE-3",
+    "expected_first_pass_verdict": "fail",
+    "fixtures": {
+      "index": 3,
+      "pillar": "HBR-QUIET"
+    }
+  },
+  {
+    "id": "01938b6b-1234-7abc-89ef-0e0f10111213",
+    "hbr_rule_id": "HBR-MAN-005",
+    "packet_under_test": "WP-FIXTURE-4",
+    "expected_first_pass_verdict": "pass",
+    "fixtures": {
+      "index": 4,
+      "pillar": "HBR-MAN"
+    }
+  },
+  {
+    "id": "01938b6c-1234-7abc-89ef-0f1011121314",
+    "hbr_rule_id": "HBR-INT-006",
+    "packet_under_test": "WP-FIXTURE-5",
+    "expected_first_pass_verdict": "pass",
+    "fixtures": {
+      "index": 5,
+      "pillar": "HBR-INT"
+    }
+  },
+  {
+    "id": "01938b6d-1234-7abc-89ef-101112131415",
+    "hbr_rule_id": "HBR-SWARM-001",
+    "packet_under_test": "WP-FIXTURE-6",
+    "expected_first_pass_verdict": "fail",
+    "fixtures": {
+      "index": 6,
+      "pillar": "HBR-SWARM"
+    }
+  },
+  {
+    "id": "01938b6e-1234-7abc-89ef-111213141516",
+    "hbr_rule_id": "HBR-VIS-002",
+    "packet_under_test": "WP-FIXTURE-7",
+    "expected_first_pass_verdict": "pass",
+    "fixtures": {
+      "index": 7,
+      "pillar": "HBR-VIS"
+    }
+  },
+  {
+    "id": "01938b6f-1234-7abc-89ef-121314151617",
+    "hbr_rule_id": "HBR-QUIET-003",
+    "packet_under_test": "WP-FIXTURE-8",
+    "expected_first_pass_verdict": "pass",
+    "fixtures": {
+      "index": 8,
+      "pillar": "HBR-QUIET"
+    }
+  },
+  {
+    "id": "01938b70-1234-7abc-89ef-131415161718",
+    "hbr_rule_id": "HBR-MAN-004",
+    "packet_under_test": "WP-FIXTURE-9",
+    "expected_first_pass_verdict": "fail",
+    "fixtures": {
+      "index": 9,
+      "pillar": "HBR-MAN"
+    }
+  },
+  {
+    "id": "01938b71-1234-7abc-89ef-141516171819",
+    "hbr_rule_id": "HBR-INT-005",
+    "packet_under_test": "WP-FIXTURE-10",
+    "expected_first_pass_verdict": "pass",
+    "fixtures": {
+      "index": 10,
+      "pillar": "HBR-INT"
+    }
+  },
+  {
+    "id": "01938b72-1234-7abc-89ef-15161718191a",
+    "hbr_rule_id": "HBR-SWARM-006",
+    "packet_under_test": "WP-FIXTURE-11",
+    "expected_first_pass_verdict": "pass",
+    "fixtures": {
+      "index": 11,
+      "pillar": "HBR-SWARM"
+    }
+  },
+  {
+    "id": "01938b73-1234-7abc-89ef-161718191a1b",
+    "hbr_rule_id": "HBR-VIS-001",
+    "packet_under_test": "WP-FIXTURE-12",
+    "expected_first_pass_verdict": "fail",
+    "fixtures": {
+      "index": 12,
+      "pillar": "HBR-VIS"
+    }
+  },
+  {
+    "id": "01938b74-1234-7abc-89ef-1718191a1b1c",
+    "hbr_rule_id": "HBR-QUIET-002",
+    "packet_under_test": "WP-FIXTURE-13",
+    "expected_first_pass_verdict": "pass",
+    "fixtures": {
+      "index": 13,
+      "pillar": "HBR-QUIET"
+    }
+  },
+  {
+    "id": "01938b75-1234-7abc-89ef-18191a1b1c1d",
+    "hbr_rule_id": "HBR-MAN-003",
+    "packet_under_test": "WP-FIXTURE-14",
+    "expected_first_pass_verdict": "pass",
+    "fixtures": {
+      "index": 14,
+      "pillar": "HBR-MAN"
+    }
+  },
+  {
+    "id": "01938b76-1234-7abc-89ef-191a1b1c1d1e",
+    "hbr_rule_id": "HBR-INT-004",
+    "packet_under_test": "WP-FIXTURE-15",
+    "expected_first_pass_verdict": "fail",
+    "fixtures": {
+      "index": 15,
+      "pillar": "HBR-INT"
+    }
+  },
+  {
+    "id": "01938b77-1234-7abc-89ef-1a1b1c1d1e1f",
+    "hbr_rule_id": "HBR-SWARM-005",
+    "packet_under_test": "WP-FIXTURE-16",
+    "expected_first_pass_verdict": "pass",
+    "fixtures": {
+      "index": 16,
+      "pillar": "HBR-SWARM"
+    }
+  },
+  {
+    "id": "01938b78-1234-7abc-89ef-1b1c1d1e1f20",
+    "hbr_rule_id": "HBR-VIS-006",
+    "packet_under_test": "WP-FIXTURE-17",
+    "expected_first_pass_verdict": "pass",
+    "fixtures": {
+      "index": 17,
+      "pillar": "HBR-VIS"
+    }
+  },
+  {
+    "id": "01938b79-1234-7abc-89ef-1c1d1e1f2021",
+    "hbr_rule_id": "HBR-QUIET-001",
+    "packet_under_test": "WP-FIXTURE-18",
+    "expected_first_pass_verdict": "fail",
+    "fixtures": {
+      "index": 18,
+      "pillar": "HBR-QUIET"
+    }
+  },
+  {
+    "id": "01938b7a-1234-7abc-89ef-1d1e1f202122",
+    "hbr_rule_id": "HBR-MAN-002",
+    "packet_under_test": "WP-FIXTURE-19",
+    "expected_first_pass_verdict": "pass",
+    "fixtures": {
+      "index": 19,
+      "pillar": "HBR-MAN"
+    }
+  },
+  {
+    "id": "01938b7b-1234-7abc-89ef-1e1f20212223",
+    "hbr_rule_id": "HBR-INT-003",
+    "packet_under_test": "WP-FIXTURE-20",
+    "expected_first_pass_verdict": "pass",
+    "fixtures": {
+      "index": 20,
+      "pillar": "HBR-INT"
+    }
+  },
+  {
+    "id": "01938b7c-1234-7abc-89ef-1f2021222324",
+    "hbr_rule_id": "HBR-SWARM-004",
+    "packet_under_test": "WP-FIXTURE-21",
+    "expected_first_pass_verdict": "fail",
+    "fixtures": {
+      "index": 21,
+      "pillar": "HBR-SWARM"
+    }
+  },
+  {
+    "id": "01938b7d-1234-7abc-89ef-202122232425",
+    "hbr_rule_id": "HBR-VIS-005",
+    "packet_under_test": "WP-FIXTURE-22",
+    "expected_first_pass_verdict": "pass",
+    "fixtures": {
+      "index": 22,
+      "pillar": "HBR-VIS"
+    }
+  },
+  {
+    "id": "01938b7e-1234-7abc-89ef-212223242526",
+    "hbr_rule_id": "HBR-QUIET-006",
+    "packet_under_test": "WP-FIXTURE-23",
+    "expected_first_pass_verdict": "pass",
+    "fixtures": {
+      "index": 23,
+      "pillar": "HBR-QUIET"
+    }
+  },
+  {
+    "id": "01938b7f-1234-7abc-89ef-222324252627",
+    "hbr_rule_id": "HBR-MAN-001",
+    "packet_under_test": "WP-FIXTURE-24",
+    "expected_first_pass_verdict": "fail",
+    "fixtures": {
+      "index": 24,
+      "pillar": "HBR-MAN"
+    }
+  },
+  {
+    "id": "01938b80-1234-7abc-89ef-232425262728",
+    "hbr_rule_id": "HBR-INT-002",
+    "packet_under_test": "WP-FIXTURE-25",
+    "expected_first_pass_verdict": "pass",
+    "fixtures": {
+      "index": 25,
+      "pillar": "HBR-INT"
+    }
+  },
+  {
+    "id": "01938b81-1234-7abc-89ef-242526272829",
+    "hbr_rule_id": "HBR-SWARM-003",
+    "packet_under_test": "WP-FIXTURE-26",
+    "expected_first_pass_verdict": "pass",
+    "fixtures": {
+      "index": 26,
+      "pillar": "HBR-SWARM"
+    }
+  },
+  {
+    "id": "01938b82-1234-7abc-89ef-25262728292a",
+    "hbr_rule_id": "HBR-VIS-004",
+    "packet_under_test": "WP-FIXTURE-27",
+    "expected_first_pass_verdict": "fail",
+    "fixtures": {
+      "index": 27,
+      "pillar": "HBR-VIS"
+    }
+  },
+  {
+    "id": "01938b83-1234-7abc-89ef-262728292a2b",
+    "hbr_rule_id": "HBR-QUIET-005",
+    "packet_under_test": "WP-FIXTURE-28",
+    "expected_first_pass_verdict": "pass",
+    "fixtures": {
+      "index": 28,
+      "pillar": "HBR-QUIET"
+    }
+  },
+  {
+    "id": "01938b84-1234-7abc-89ef-2728292a2b2c",
+    "hbr_rule_id": "HBR-MAN-006",
+    "packet_under_test": "WP-FIXTURE-29",
+    "expected_first_pass_verdict": "pass",
+    "fixtures": {
+      "index": 29,
+      "pillar": "HBR-MAN"
+    }
+  }
+]

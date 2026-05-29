@@ -2033,3 +2033,323 @@ body {
   flex-direction: column;
   gap: 0.4rem;
 }
+
+/* Main-window v1 shell and deterministic layout */
+
+.app-shell--main-v1 {
+  min-height: 100vh;
+  width: 100vw;
+  max-width: none;
+  padding: 12px 14px 16px;
+  box-sizing: border-box;
+}
+
+.main-window-surface {
+  display: flex;
+  align-items: stretch;
+  gap: 12px;
+  min-height: 0;
+}
+
+.left-rail {
+  width: 240px;
+  min-width: 240px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border: 1px solid var(--hs-color-border);
+  background: var(--hs-color-surface);
+  border-radius: 12px;
+  padding: 10px;
+}
+
+.left-rail--collapsed {
+  width: 44px;
+  min-width: 44px;
+  overflow: hidden;
+}
+
+.module-rail__toggle {
+  border: 1px solid var(--hs-color-border);
+  border-radius: 10px;
+  padding: 8px 10px;
+  background: var(--hs-color-surface);
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.left-rail .rail-section {
+  border-top: 1px solid var(--hs-color-border);
+  padding-top: 10px;
+}
+
+.left-rail .main-button {
+  width: 100%;
+  border: 1px solid var(--hs-color-border);
+  border-radius: 8px;
+  background: var(--hs-color-surface);
+  padding: 8px 10px;
+  margin-bottom: 6px;
+  text-align: left;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.left-rail .main-button:last-child {
+  margin-bottom: 0;
+}
+
+.left-rail .main-button--active {
+  background: var(--hs-color-accent-soft);
+  border-color: var(--hs-color-accent);
+}
+
+.module-buttons,
+.project-tabs {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.app-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+}
+
+.file-drawer {
+  border: 1px solid var(--hs-color-border);
+  border-radius: 12px;
+  background: var(--hs-color-surface);
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+}
+
+.file-drawer--closed {
+  width: 220px;
+  align-self: stretch;
+}
+
+.file-drawer--closed > .workspace-sidebar,
+.file-drawer--closed > *:not(button) {
+  display: none;
+}
+
+.file-drawer--open {
+  gap: 10px;
+}
+
+.main-workarea {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.main-pane-grid {
+  flex: 1;
+  min-height: 360px;
+  --hsk-pane-divider: 8px;
+  display: grid;
+  grid-template-columns:
+    var(--hsk-pane-vertical-split) var(--hsk-pane-divider)
+    calc(100% - var(--hsk-pane-vertical-split) - var(--hsk-pane-divider));
+  grid-template-rows:
+    var(--hsk-pane-horizontal-split) var(--hsk-pane-divider)
+    calc(100% - var(--hsk-pane-horizontal-split) - var(--hsk-pane-divider));
+  gap: 0;
+  min-height: 0;
+  background: rgba(226, 232, 240, 0.15);
+  border-radius: 12px;
+  padding: 2px;
+  box-sizing: border-box;
+}
+
+.main-pane {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--hs-color-surface);
+  border: 1px solid var(--hs-color-border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.main-pane[data-pane-id="pane-a"] {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.main-pane[data-pane-id="pane-b"] {
+  grid-column: 3;
+  grid-row: 1;
+}
+
+.main-pane[data-pane-id="pane-c"] {
+  grid-column: 1;
+  grid-row: 3;
+}
+
+.main-pane[data-pane-id="pane-d"] {
+  grid-column: 3;
+  grid-row: 3;
+}
+
+.main-divider {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  position: relative;
+  border-radius: 999px;
+}
+
+.main-divider:focus-visible {
+  outline: 2px solid var(--hs-color-accent);
+  outline-offset: 2px;
+}
+
+.main-divider--vertical {
+  grid-column: 2;
+  grid-row: 1 / span 3;
+  width: var(--hsk-pane-divider);
+  cursor: col-resize;
+  background: linear-gradient(
+    180deg,
+    rgba(148, 163, 184, 0.2) 0%,
+    rgba(148, 163, 184, 0.45) 50%,
+    rgba(148, 163, 184, 0.2) 100%
+  );
+}
+
+.main-divider--horizontal {
+  grid-column: 1 / span 3;
+  grid-row: 2;
+  height: var(--hsk-pane-divider);
+  cursor: row-resize;
+  background: linear-gradient(
+    90deg,
+    rgba(148, 163, 184, 0.2) 0%,
+    rgba(148, 163, 184, 0.45) 50%,
+    rgba(148, 163, 184, 0.2) 100%
+  );
+}
+
+.main-pane__header {
+  padding: 8px;
+  border-bottom: 1px solid var(--hs-color-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+}
+
+.main-pane__tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  min-width: 0;
+}
+
+.main-pane__tab {
+  border: 1px solid var(--hs-color-border);
+  border-radius: 999px;
+  padding: 4px 8px;
+  font-size: 12px;
+  background: var(--hs-color-bg);
+  cursor: pointer;
+}
+
+.main-pane__tab--active {
+  background: var(--hs-color-accent-soft);
+  border-color: var(--hs-color-accent);
+}
+
+.main-pane__lock {
+  border: 1px solid var(--hs-color-border);
+  border-radius: 8px;
+  padding: 4px 8px;
+  background: var(--hs-color-surface);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.bottom-control-strip {
+  border: 1px solid var(--hs-color-border);
+  border-radius: 10px;
+  background: var(--hs-color-surface);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+}
+
+.bottom-control-strip button {
+  border: 1px solid var(--hs-color-border);
+  border-radius: 8px;
+  padding: 6px 10px;
+  background: var(--hs-color-bg);
+}
+
+.bottom-drawer {
+  border: 1px solid var(--hs-color-border);
+  border-radius: 10px;
+  background: var(--hs-color-surface);
+  padding: 10px;
+  display: grid;
+  gap: 8px;
+}
+
+@media (max-width: 1200px) {
+  .app-layout {
+    width: 100%;
+  }
+
+  .main-window-surface {
+    flex-direction: column;
+  }
+
+  .left-rail,
+  .left-rail.left-rail--open {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .left-rail--collapsed {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .module-buttons,
+  .project-tabs {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .main-button {
+    width: auto;
+  }
+
+  .app-main {
+    width: 100%;
+  }
+
+  .main-workarea {
+    min-height: 520px;
+  }
+
+  .main-pane-grid {
+    min-height: 420px;
+  }
+}

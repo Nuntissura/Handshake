@@ -762,6 +762,8 @@ impl DuckDbFlightRecorder {
                 "terminal_command" => super::FlightRecorderEventType::TerminalCommand,
                 "editor_edit" => super::FlightRecorderEventType::EditorEdit,
                 "llm_inference" => super::FlightRecorderEventType::LlmInference,
+                "llm_infer.spec_accept" => super::FlightRecorderEventType::LlmInferenceSpecAccept,
+                "llm_infer.spec_reject" => super::FlightRecorderEventType::LlmInferenceSpecReject,
                 "tool_call" => super::FlightRecorderEventType::ToolCall,
                 "diagnostic" => super::FlightRecorderEventType::Diagnostic,
                 "micro_task_loop_started" => super::FlightRecorderEventType::MicroTaskLoopStarted,
@@ -954,6 +956,7 @@ impl DuckDbFlightRecorder {
                 "workspace_cross_session.approved" => {
                     super::FlightRecorderEventType::WorkspaceCrossSessionApproved
                 }
+                "distill.pii_detected" => super::FlightRecorderEventType::DistillPiiDetected,
                 "capability_action" => {
                     if payload_type == Some("terminal_command") {
                         super::FlightRecorderEventType::TerminalCommand

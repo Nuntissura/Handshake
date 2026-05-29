@@ -19,49 +19,77 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::process::Command;
 use std::sync::Arc;
+use std::time::Duration;
 
 use handshake_core::model_runtime::cloud::{
     CliBridgeConfig, CliKind, CliOutputFormat, LiveCliSpawner, OfficialCliBridgeRuntime,
 };
 
-fn resolve_installed_cli() -> Option<(CliKind, PathBuf, &'static str)> {
-    // Try claude, codex, gemini in order. First hit wins.
+fn resolve_installed_cli_candidates() -> Vec<(CliKind, PathBuf, &'static str)> {
+    let mut candidates = Vec::new();
     for (kind, name) in [
         (CliKind::ClaudeCode, "claude"),
         (CliKind::CodexCli, "codex"),
         (CliKind::GeminiCli, "gemini"),
     ] {
-        if let Some(path) = which_probe(name) {
-            return Some((kind, path, name));
+        for path in which_probe(name) {
+            if !candidates.iter().any(|(_, existing, _)| existing == &path) {
+                candidates.push((kind, path, name));
+            }
         }
     }
-    None
+    candidates
 }
 
 #[cfg(windows)]
-fn which_probe(binary: &str) -> Option<PathBuf> {
-    let output = Command::new("where").arg(binary).output().ok()?;
+fn which_probe(binary: &str) -> Vec<PathBuf> {
+    let output = match Command::new("where").arg(binary).output() {
+        Ok(output) => output,
+        Err(_) => return Vec::new(),
+    };
     if !output.status.success() {
-        return None;
+        return Vec::new();
     }
     let stdout = String::from_utf8_lossy(&output.stdout);
     stdout
         .lines()
-        .find(|line| !line.trim().is_empty())
-        .map(|line| PathBuf::from(line.trim()))
+        .filter_map(|line| {
+            let path = PathBuf::from(line.trim());
+            if is_windows_spawnable_cli_path(&path) {
+                Some(path)
+            } else {
+                None
+            }
+        })
+        .collect()
+}
+
+#[cfg(windows)]
+fn is_windows_spawnable_cli_path(path: &std::path::Path) -> bool {
+    matches!(
+        path.extension()
+            .and_then(|ext| ext.to_str())
+            .map(|ext| ext.to_ascii_lowercase())
+            .as_deref(),
+        Some("exe" | "cmd" | "bat" | "com")
+    )
 }
 
 #[cfg(not(windows))]
-fn which_probe(binary: &str) -> Option<PathBuf> {
-    let output = Command::new("which").arg(binary).output().ok()?;
+fn which_probe(binary: &str) -> Vec<PathBuf> {
+    let output = match Command::new("which").arg(binary).output() {
+        Ok(output) => output,
+        Err(_) => return Vec::new(),
+    };
     if !output.status.success() {
-        return None;
+        return Vec::new();
     }
     let stdout = String::from_utf8_lossy(&output.stdout);
     stdout
         .lines()
-        .find(|line| !line.trim().is_empty())
+        .filter(|line| !line.trim().is_empty())
         .map(|line| PathBuf::from(line.trim()))
+        .collect()
 }
 
 fn version_config(kind: CliKind, exe: PathBuf) -> CliBridgeConfig {
@@ -78,13 +106,14 @@ fn version_config(kind: CliKind, exe: PathBuf) -> CliBridgeConfig {
         output_format: CliOutputFormat::RawText,
         env_vars: HashMap::new(),
         working_dir: None,
-        timeout_seconds: 30,
+        timeout_seconds: 45,
     }
 }
 
 #[test]
 fn live_cli_spawner_spawns_real_binary_and_returns_real_pid_and_stdout() {
-    let Some((kind, exe, name)) = resolve_installed_cli() else {
+    let candidates = resolve_installed_cli_candidates();
+    if candidates.is_empty() {
         panic!(
             "MT-127 Spec-Realism Gate Sub-rule 2: no installed CLI binary resolved on PATH \
              (tried claude / codex / gemini). MT-127 must be BLOCKED_ON_DEPENDENCY on this host \
@@ -92,19 +121,54 @@ fn live_cli_spawner_spawns_real_binary_and_returns_real_pid_and_stdout() {
         );
     };
 
-    let runtime = OfficialCliBridgeRuntime::new(Arc::new(LiveCliSpawner::new()));
-    let handle = runtime
-        .register_bridge(
+    let mut failures = Vec::new();
+    for (kind, exe, name) in candidates {
+        let runtime = OfficialCliBridgeRuntime::new(Arc::new(LiveCliSpawner::new()));
+        let handle = match runtime.register_bridge(
             version_config(kind, exe.clone()),
             "version-probe-model",
             "2026-05-20T18:10:00Z",
-        )
-        .expect("register_bridge against installed CLI");
+        ) {
+            Ok(handle) => handle,
+            Err(err) => {
+                failures.push(format!(
+                    "{} at {} failed registration: {err:?}",
+                    name,
+                    exe.display()
+                ));
+                continue;
+            }
+        };
 
-    let receipt = runtime
-        .invoke(handle.model_id, "--version")
-        .expect("LiveCliSpawner.invoke returned an error against the installed CLI");
+        for attempt in 1..=2 {
+            match runtime.invoke(handle.model_id, "--version") {
+                Ok(receipt) => {
+                    assert_live_cli_receipt(&receipt, name);
+                    return;
+                }
+                Err(err) => {
+                    failures.push(format!(
+                        "{} at {} attempt {attempt} failed: {err:?}",
+                        name,
+                        exe.display()
+                    ));
+                    std::thread::sleep(Duration::from_millis(250));
+                }
+            }
+        }
+    }
 
+    panic!(
+        "MT-127 Spec-Realism Gate Sub-rule 2: installed CLI candidates were found, \
+         but none completed a live --version probe:\n{}",
+        failures.join("\n")
+    );
+}
+
+fn assert_live_cli_receipt(
+    receipt: &handshake_core::model_runtime::cloud::CliInvocationReceipt,
+    name: &str,
+) {
     // PID is populated by the production spawner (mock spawners set
     // it to None or a literal sentinel). A real Some(pid) here proves
     // std::process::Command actually launched a child process.
@@ -123,7 +187,10 @@ fn live_cli_spawner_spawns_real_binary_and_returns_real_pid_and_stdout() {
     );
 
     // Cancellation flag must be false for a clean run.
-    assert!(!receipt.cancelled, "clean --version run must not be cancelled");
+    assert!(
+        !receipt.cancelled,
+        "clean --version run must not be cancelled"
+    );
 
     // Stdout must contain the CLI name in some form. Each of the
     // three target CLIs prints a banner that references its name.

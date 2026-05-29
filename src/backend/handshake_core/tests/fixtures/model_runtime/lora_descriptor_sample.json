@@ -1,0 +1,1 @@
+{"id":"019e3e8f-0000-7000-8000-000000000001","artifact_path":"fixtures/models/adapters/local-routing-lora.safetensors","sha256":[11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11],"rank":8,"target_modules":["q_proj","v_proj"],"base_model_compat":"local-routing-base","license_tag":"operator-local"}

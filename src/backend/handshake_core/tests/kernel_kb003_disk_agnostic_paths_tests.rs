@@ -32,9 +32,7 @@
 //!      `kb003://<class>/<sha256_prefix16>` with no host-path leak; the
 //!      retention_root is the class default and therefore disk-agnostic.
 
-use handshake_core::kernel::kb003_artifact_classes::{
-    Kb003ArtifactClass, KB003_ARTIFACT_CLASSES,
-};
+use handshake_core::kernel::kb003_artifact_classes::{Kb003ArtifactClass, KB003_ARTIFACT_CLASSES};
 use handshake_core::kernel::kb003_promotion::Kb003ArtifactHandleV1;
 use handshake_core::kernel::sandbox::workspace::SandboxWorkspaceV1;
 
@@ -164,8 +162,14 @@ fn kb003_artifact_handles_are_host_path_free() {
     // MUST NOT contain any host-bound path.
     let cases = [
         (Kb003ArtifactClass::SandboxLog, "deadbeef00000000abcdef"),
-        (Kb003ArtifactClass::ValidationReport, "feedface00000000abcdef"),
-        (Kb003ArtifactClass::PromotionReceipt, "baadf00d00000000abcdef"),
+        (
+            Kb003ArtifactClass::ValidationReport,
+            "feedface00000000abcdef",
+        ),
+        (
+            Kb003ArtifactClass::PromotionReceipt,
+            "baadf00d00000000abcdef",
+        ),
     ];
     for (class, hash) in cases {
         let handle = Kb003ArtifactHandleV1::new(class, hash).expect("handle constructs");
@@ -228,10 +232,7 @@ fn forbidden_shape_detector_is_sound() {
     assert_eq!(forbidden_path_shape("/etc/passwd"), Some("LEADING_SLASH"));
     assert_eq!(forbidden_path_shape("C:/foo"), Some("DRIVE_LETTER"));
     assert_eq!(forbidden_path_shape("d:\\foo"), Some("BACKSLASH"));
-    assert_eq!(
-        forbidden_path_shape("\\\\srv\\share\\f"),
-        Some("BACKSLASH")
-    );
+    assert_eq!(forbidden_path_shape("\\\\srv\\share\\f"), Some("BACKSLASH"));
     assert_eq!(
         forbidden_path_shape("//some/unc/like"),
         Some("UNC_OR_DOUBLE_SLASH")

@@ -275,8 +275,8 @@ mod safetensors_round_trip {
                 .expect("manual_for_tests");
         let store = Arc::new(InMemoryProcessLedgerStore::default());
 
-        let provenance = run_abliteration_offline(&config, Some(&batcher))
-            .expect("abliteration succeeds");
+        let provenance =
+            run_abliteration_offline(&config, Some(&batcher)).expect("abliteration succeeds");
 
         // ---- assertions on the returned provenance ----
         assert_eq!(
@@ -310,10 +310,8 @@ mod safetensors_round_trip {
         );
 
         // ---- assertions on the on-disk output safetensors ----
-        let out_o_proj =
-            read_back_2d(&out_path, "model.layers.0.self_attn.o_proj.weight");
-        let out_down_proj =
-            read_back_2d(&out_path, "model.layers.3.mlp.down_proj.weight");
+        let out_o_proj = read_back_2d(&out_path, "model.layers.0.self_attn.o_proj.weight");
+        let out_down_proj = read_back_2d(&out_path, "model.layers.3.mlp.down_proj.weight");
         let out_q_proj = read_back_2d(&out_path, "model.layers.0.self_attn.q_proj.weight");
         let out_bias = read_back_1d(&out_path, "model.layers.0.self_attn.o_proj.bias");
 
@@ -459,5 +457,4 @@ mod safetensors_round_trip {
             "no output safetensors must be written when abliteration aborts"
         );
     }
-
 }

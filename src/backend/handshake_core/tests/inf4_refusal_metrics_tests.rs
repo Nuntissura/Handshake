@@ -29,8 +29,9 @@ use futures::stream;
 use handshake_core::model_runtime::{
     techniques::refusal_metrics::{
         is_refusal, measure_metrics, measure_with_runtime, AblatedCompletionsByLayer,
-        MeasureWithRuntimeInputs, MeasurementInputs, RefusalMetrics, REFUSAL_PROBE_MAX_TOKENS,
+        MeasureWithRuntimeInputs, MeasurementInputs, RefusalMetrics,
         HARMLESSNESS_PRESERVATION_FLOOR, REFUSAL_DROP_FLOOR, REFUSAL_PATTERN,
+        REFUSAL_PROBE_MAX_TOKENS,
     },
     CancellationToken, CaptureResult, CaptureSpec, Embedding, FinishReason, GenerateRequest,
     GeneratedToken, KvCacheHandle, LayerIndex, LoadSpec, LoraStackHandle, ModelCapabilities,
@@ -359,7 +360,11 @@ async fn measure_with_runtime_drives_full_pipeline_against_dyn_model_runtime() {
         "what is the benign capital of Australia".to_string(),
         "what is the benign square root of 144".to_string(),
     ];
-    let candidate_layers = vec![LayerIndex::new(10), LayerIndex::new(14), LayerIndex::new(18)];
+    let candidate_layers = vec![
+        LayerIndex::new(10),
+        LayerIndex::new(14),
+        LayerIndex::new(18),
+    ];
     let inputs = MeasureWithRuntimeInputs {
         harmful_prompts: harmful_prompts.clone(),
         benign_prompts: benign_prompts.clone(),
@@ -396,7 +401,11 @@ async fn measure_with_runtime_drives_full_pipeline_against_dyn_model_runtime() {
     // Per-layer drop entry for every candidate layer.
     assert_eq!(metrics.per_layer_drop.len(), candidate_layers.len());
     for layer in &candidate_layers {
-        let drop = metrics.per_layer_drop.get(layer).copied().expect("layer in drop map");
+        let drop = metrics
+            .per_layer_drop
+            .get(layer)
+            .copied()
+            .expect("layer in drop map");
         assert!(
             (drop - 1.0).abs() < f32::EPSILON,
             "expected drop=1.0 at layer {}, got {drop}",

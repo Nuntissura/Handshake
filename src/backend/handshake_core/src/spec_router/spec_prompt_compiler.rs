@@ -56,7 +56,9 @@ pub enum SpecPromptCompilerError {
     DuplicatePlaceholderName { name: String },
     #[error("tokenization error: {0}")]
     Tokenization(#[from] TokenizerError),
-    #[error("budget exceeded: stable_prefix_tokens={stable_prefix_tokens} max_total_tokens={max_total_tokens}")]
+    #[error(
+        "budget exceeded: stable_prefix_tokens={stable_prefix_tokens} max_total_tokens={max_total_tokens}"
+    )]
     BudgetExceeded {
         stable_prefix_tokens: u32,
         max_total_tokens: u32,

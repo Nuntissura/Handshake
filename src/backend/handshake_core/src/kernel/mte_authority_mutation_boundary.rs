@@ -110,8 +110,7 @@ pub struct AuthorityBoundaryDenialV1 {
 }
 
 impl AuthorityBoundaryDenialV1 {
-    pub const SCHEMA_VERSION: &'static str =
-        "hsk.kernel.mte.authority_boundary_denial@1";
+    pub const SCHEMA_VERSION: &'static str = "hsk.kernel.mte.authority_boundary_denial@1";
 
     pub fn new(
         actor: AuthorityMutationActor,

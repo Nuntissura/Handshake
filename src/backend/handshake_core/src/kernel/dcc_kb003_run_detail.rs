@@ -76,7 +76,8 @@ mod tests {
     use crate::kernel::dcc_kb003_lane_wake::{DccKb003LaneWakeRowV1, LaneWakeReceiptV1};
     use crate::kernel::kb003_artifact_classes::Kb003ArtifactClass;
     use crate::kernel::sandbox::dcc_projection::{
-        DccDenialSummaryV1, DccSandboxOutcome, DccSandboxProjectionV1, DCC_SANDBOX_PROJECTION_FAMILY_ID,
+        DccDenialSummaryV1, DccSandboxOutcome, DccSandboxProjectionV1,
+        DCC_SANDBOX_PROJECTION_FAMILY_ID,
     };
     use crate::kernel::sandbox::policy::CapabilityDecision;
     use crate::kernel::sandbox::run::SandboxRunStatus;
@@ -122,7 +123,10 @@ mod tests {
             policy_version_id: "POL-1@1".into(),
             denial_id: "DEN-1".into(),
         };
-        let overlay = DccKb003BlockedReasonOverlayV1::new(vec![DccKb003BlockedReasonRowV1::from_reason(reason.clone())]);
+        let overlay =
+            DccKb003BlockedReasonOverlayV1::new(vec![DccKb003BlockedReasonRowV1::from_reason(
+                reason.clone(),
+            )]);
         let wake = LaneWakeReceiptV1::wake(
             crate::kernel::dcc_kb003_blocked_reasons::BlockedLane::Sandbox,
             vec!["kb003://denial/DEN-1".into()],
@@ -130,7 +134,12 @@ mod tests {
             "operator granted network",
         );
         let timeline = vec![DccKb003LaneWakeRowV1::from_receipt(&wake)];
-        let detail = DccKb003RunDetailV1::new(projection, overlay, timeline, vec!["kb003://mt_summary/MTSUM-1".into()]);
+        let detail = DccKb003RunDetailV1::new(
+            projection,
+            overlay,
+            timeline,
+            vec!["kb003://mt_summary/MTSUM-1".into()],
+        );
         assert!(detail.is_self_describing());
     }
 

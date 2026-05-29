@@ -1,16 +1,16 @@
 #[allow(unused_imports)]
 use super::{
-    postgres::PostgresDatabase, sqlite::SqliteDatabase, AccessMode, BlockUpdate,
-    CalendarEventExportMode, CalendarEventStatus, CalendarEventUpsert, CalendarEventVisibility,
-    CalendarEventWindowQuery, CalendarSourceProviderType, CalendarSourceSyncState,
-    CalendarSourceUpsert, CalendarSourceWritePolicy, ControlPlaneStorageConfig,
-    ControlPlaneStorageMode, Database, DefaultStorageGuard, EntityRef, GuardError, JobKind,
-    JobMetrics, JobState, JobStatusUpdate, LoomBlock, LoomBlockContentType, LoomBlockSearchResult,
-    LoomEdgeCreatedBy, LoomEdgeType, LoomSearchFilters, LoomSourceAnchor, LoomViewFilters,
-    LoomViewResponse, LoomViewType, NewAiJob, NewAsset, NewBlock, NewCanvas, NewCanvasEdge,
-    NewCanvasNode, NewDocument, NewLoomBlock, NewLoomEdge, NewNodeExecution, NewWorkspace,
-    OperationType, PlannedOperation, SafetyMode, StorageBackendKind, StorageCapabilityStore,
-    StorageError, StorageGuard, StorageResult, WriteContext,
+    postgres::PostgresDatabase, AccessMode, BlockUpdate, CalendarEventExportMode,
+    CalendarEventStatus, CalendarEventUpsert, CalendarEventVisibility, CalendarEventWindowQuery,
+    CalendarSourceProviderType, CalendarSourceSyncState, CalendarSourceUpsert,
+    CalendarSourceWritePolicy, ControlPlaneStorageConfig, ControlPlaneStorageMode, Database,
+    DefaultStorageGuard, EntityRef, GuardError, JobKind, JobMetrics, JobState, JobStatusUpdate,
+    LoomBlock, LoomBlockContentType, LoomBlockSearchResult, LoomEdgeCreatedBy, LoomEdgeType,
+    LoomSearchFilters, LoomSourceAnchor, LoomViewFilters, LoomViewResponse, LoomViewType, NewAiJob,
+    NewAsset, NewBlock, NewCanvas, NewCanvasEdge, NewCanvasNode, NewDocument, NewLoomBlock,
+    NewLoomEdge, NewNodeExecution, NewWorkspace, OperationType, PlannedOperation, SafetyMode,
+    StorageBackendKind, StorageCapabilityStore, StorageError, StorageGuard, StorageResult,
+    StructuredCollaborationStore, WriteContext,
 };
 use chrono::Duration;
 use chrono::Utc;
@@ -54,55 +54,6 @@ fn assert_metadata_matches_ctx(
         unreachable!("edit_event_id must be valid UUID");
     };
     assert_ne!(parsed, Uuid::nil());
-}
-
-#[cfg(test)]
-async fn sqlite_user_table_names(conn: &mut sqlx::SqliteConnection) -> StorageResult<Vec<String>> {
-    let rows = sqlx::query(
-        r#"
-        SELECT name
-        FROM sqlite_master
-        WHERE type = 'table'
-          AND name NOT LIKE 'sqlite_%'
-          AND name != '_sqlx_migrations'
-        ORDER BY name
-        "#,
-    )
-    .fetch_all(conn)
-    .await?;
-
-    Ok(rows
-        .into_iter()
-        .map(|row| row.get::<String, _>("name"))
-        .collect())
-}
-
-#[cfg(test)]
-async fn sqlite_schema_fingerprint(
-    conn: &mut sqlx::SqliteConnection,
-) -> StorageResult<Vec<String>> {
-    let rows = sqlx::query(
-        r#"
-        SELECT type, name, tbl_name, COALESCE(sql, '') as sql
-        FROM sqlite_master
-        WHERE name NOT LIKE 'sqlite_%'
-          AND name != '_sqlx_migrations'
-        ORDER BY type, name
-        "#,
-    )
-    .fetch_all(conn)
-    .await?;
-
-    Ok(rows
-        .into_iter()
-        .map(|row| {
-            let kind = row.get::<String, _>("type");
-            let name = row.get::<String, _>("name");
-            let table = row.get::<String, _>("tbl_name");
-            let sql = row.get::<String, _>("sql");
-            format!("{kind}|{name}|{table}|{sql}")
-        })
-        .collect())
 }
 
 #[cfg(test)]
@@ -174,14 +125,6 @@ async fn postgres_user_table_names(conn: &mut sqlx::PgConnection) -> StorageResu
         .collect())
 }
 
-/// Build an in-memory SQLite backend for test validation.
-#[allow(dead_code)]
-pub async fn sqlite_backend() -> StorageResult<Arc<dyn super::Database>> {
-    let db = SqliteDatabase::connect("sqlite::memory:", 5).await?;
-    db.run_migrations().await?;
-    Ok(db.into_arc())
-}
-
 /// Build a PostgreSQL backend from POSTGRES_TEST_URL for test validation.
 #[allow(dead_code)]
 pub async fn postgres_backend_from_env() -> StorageResult<Arc<dyn super::Database>> {
@@ -200,6 +143,17 @@ pub async fn postgres_backend_from_env() -> StorageResult<Arc<dyn super::Databas
     let db = PostgresDatabase::connect(&schema_url, 5).await?;
     db.run_migrations().await?;
     Ok(db.into_arc())
+}
+
+/// Build a PostgreSQL backend for tests that may run without local Postgres.
+#[allow(dead_code)]
+pub async fn optional_postgres_backend_from_env() -> StorageResult<Option<Arc<dyn super::Database>>>
+{
+    match postgres_backend_from_env().await {
+        Ok(db) => Ok(Some(db)),
+        Err(StorageError::Validation("POSTGRES_TEST_URL not set for postgres tests")) => Ok(None),
+        Err(err) => Err(err),
+    }
 }
 
 /// Runs the shared storage conformance suite against the provided backend.
@@ -1129,7 +1083,7 @@ async fn loom_source_anchor_round_trip(
     Ok(())
 }
 
-#[cfg(test)]
+#[cfg(any(test, feature = "test-utils"))]
 async fn insert_loom_traversal_perf_fixture(
     db: &Arc<dyn super::Database>,
     workspace_id: &str,
@@ -1138,7 +1092,7 @@ async fn insert_loom_traversal_perf_fixture(
         .await
 }
 
-#[cfg(not(test))]
+#[cfg(not(any(test, feature = "test-utils")))]
 async fn insert_loom_traversal_perf_fixture(
     db: &Arc<dyn super::Database>,
     workspace_id: &str,
@@ -2564,195 +2518,6 @@ async fn guard_blocks_ai_without_context() {
 }
 
 #[tokio::test]
-async fn sqlite_rejects_ai_writes_without_context_with_hsk_403_silent_edit() -> StorageResult<()> {
-    let db = sqlite_backend().await?;
-    let ctx = WriteContext::ai(Some("ai-writer".into()), None, None);
-
-    let res = db
-        .create_workspace(
-            &ctx,
-            NewWorkspace {
-                name: format!("ws-{}", Uuid::now_v7()),
-            },
-        )
-        .await;
-    assert!(matches!(
-        res,
-        Err(StorageError::Guard("HSK-403-SILENT-EDIT"))
-    ));
-
-    Ok(())
-}
-
-#[tokio::test]
-async fn sqlite_persists_mutation_traceability_metadata_on_writes() -> StorageResult<()> {
-    let db = sqlite_backend().await?;
-
-    let contexts = vec![
-        WriteContext::human(Some("human-1".into())),
-        WriteContext::system(Some("system-1".into())),
-        WriteContext::ai(
-            Some("ai-1".into()),
-            Some(Uuid::now_v7()),
-            Some(Uuid::now_v7()),
-        ),
-    ];
-
-    for ctx in contexts {
-        let workspace = db
-            .create_workspace(
-                &ctx,
-                NewWorkspace {
-                    name: format!("ws-{}", Uuid::now_v7()),
-                },
-            )
-            .await?;
-
-        let workspace_row = db
-            .test_fetch_mutation_traceability_row("workspaces", &workspace.id)
-            .await?;
-        assert_metadata_matches_ctx(
-            &workspace_row.last_actor_kind,
-            workspace_row.last_actor_id,
-            workspace_row.last_job_id,
-            workspace_row.last_workflow_id,
-            &workspace_row.edit_event_id,
-            &ctx,
-        );
-
-        let document = db
-            .create_document(
-                &ctx,
-                NewDocument {
-                    workspace_id: workspace.id.clone(),
-                    title: format!("doc-{}", Uuid::now_v7()),
-                },
-            )
-            .await?;
-
-        let document_row = db
-            .test_fetch_mutation_traceability_row("documents", &document.id)
-            .await?;
-        assert_metadata_matches_ctx(
-            &document_row.last_actor_kind,
-            document_row.last_actor_id,
-            document_row.last_job_id,
-            document_row.last_workflow_id,
-            &document_row.edit_event_id,
-            &ctx,
-        );
-
-        let block = db
-            .create_block(
-                &ctx,
-                NewBlock {
-                    id: None,
-                    document_id: document.id.clone(),
-                    kind: "paragraph".into(),
-                    sequence: 1,
-                    raw_content: "hello".into(),
-                    display_content: None,
-                    derived_content: None,
-                    sensitivity: None,
-                    exportable: None,
-                },
-            )
-            .await?;
-
-        let block_row = db
-            .test_fetch_mutation_traceability_row("blocks", &block.id)
-            .await?;
-        assert_metadata_matches_ctx(
-            &block_row.last_actor_kind,
-            block_row.last_actor_id,
-            block_row.last_job_id,
-            block_row.last_workflow_id,
-            &block_row.edit_event_id,
-            &ctx,
-        );
-
-        let canvas = db
-            .create_canvas(
-                &ctx,
-                NewCanvas {
-                    workspace_id: workspace.id.clone(),
-                    title: format!("canvas-{}", Uuid::now_v7()),
-                },
-            )
-            .await?;
-
-        let node_a_id = Uuid::now_v7().to_string();
-        let node_b_id = Uuid::now_v7().to_string();
-        let edge_id = Uuid::now_v7().to_string();
-        db.update_canvas_graph(
-            &ctx,
-            &canvas.id,
-            vec![
-                NewCanvasNode {
-                    id: Some(node_a_id.clone()),
-                    kind: "text".into(),
-                    position_x: 0.0,
-                    position_y: 0.0,
-                    data: None,
-                },
-                NewCanvasNode {
-                    id: Some(node_b_id.clone()),
-                    kind: "text".into(),
-                    position_x: 1.0,
-                    position_y: 1.0,
-                    data: None,
-                },
-            ],
-            vec![NewCanvasEdge {
-                id: Some(edge_id.clone()),
-                from_node_id: node_a_id.clone(),
-                to_node_id: node_b_id.clone(),
-                kind: "direct".into(),
-            }],
-        )
-        .await?;
-
-        let canvas_row = db
-            .test_fetch_mutation_traceability_row("canvases", &canvas.id)
-            .await?;
-        assert_metadata_matches_ctx(
-            &canvas_row.last_actor_kind,
-            canvas_row.last_actor_id,
-            canvas_row.last_job_id,
-            canvas_row.last_workflow_id,
-            &canvas_row.edit_event_id,
-            &ctx,
-        );
-
-        let node_row = db
-            .test_fetch_mutation_traceability_row("canvas_nodes", &node_a_id)
-            .await?;
-        assert_metadata_matches_ctx(
-            &node_row.last_actor_kind,
-            node_row.last_actor_id,
-            node_row.last_job_id,
-            node_row.last_workflow_id,
-            &node_row.edit_event_id,
-            &ctx,
-        );
-
-        let edge_row = db
-            .test_fetch_mutation_traceability_row("canvas_edges", &edge_id)
-            .await?;
-        assert_metadata_matches_ctx(
-            &edge_row.last_actor_kind,
-            edge_row.last_actor_id,
-            edge_row.last_job_id,
-            edge_row.last_workflow_id,
-            &edge_row.edit_event_id,
-            &ctx,
-        );
-    }
-
-    Ok(())
-}
-
-#[tokio::test]
 async fn postgres_rejects_ai_writes_without_context_with_hsk_403_silent_edit() -> StorageResult<()>
 {
     let Some(url) = postgres_test_url() else {
@@ -2986,7 +2751,9 @@ async fn postgres_persists_mutation_traceability_metadata_on_writes() -> Storage
 
 #[tokio::test]
 async fn workflow_node_execution_persists_inputs_and_outputs() -> StorageResult<()> {
-    let db = sqlite_backend().await?;
+    let Some(db) = optional_postgres_backend_from_env().await? else {
+        return Ok(());
+    };
     let job = db
         .create_ai_job(NewAiJob {
             trace_id: Uuid::now_v7(),
@@ -3046,8 +2813,68 @@ async fn workflow_node_execution_persists_inputs_and_outputs() -> StorageResult<
 }
 
 #[tokio::test]
+async fn workflow_node_execution_sets_finished_at_for_terminal_statuses() -> StorageResult<()> {
+    let Some(db) = optional_postgres_backend_from_env().await? else {
+        return Ok(());
+    };
+    let job = db
+        .create_ai_job(NewAiJob {
+            trace_id: Uuid::now_v7(),
+            job_kind: JobKind::WorkflowRun,
+            protocol_id: "p1".into(),
+            profile_id: "profile1".into(),
+            capability_profile_id: "cap1".into(),
+            access_mode: AccessMode::AnalysisOnly,
+            safety_mode: SafetyMode::Normal,
+            entity_refs: Vec::new(),
+            planned_operations: Vec::new(),
+            status_reason: "queued".to_string(),
+            metrics: JobMetrics::zero(),
+            job_inputs: Some(json!({"input": true})),
+        })
+        .await?;
+    let run = db
+        .create_workflow_run(job.job_id, JobState::Running, None)
+        .await?;
+
+    for (sequence, terminal_status) in [(1, JobState::CompletedWithIssues), (2, JobState::Poisoned)]
+    {
+        let exec = db
+            .create_workflow_node_execution(NewNodeExecution {
+                workflow_run_id: run.id,
+                node_id: format!("node-{sequence}"),
+                node_type: "test".into(),
+                status: JobState::Running,
+                sequence,
+                input_payload: Some(json!({"input": true})),
+                started_at: Utc::now(),
+            })
+            .await?;
+
+        let updated = db
+            .update_workflow_node_execution_status(
+                exec.id,
+                terminal_status.clone(),
+                None,
+                Some("terminal".to_string()),
+            )
+            .await?;
+
+        assert_eq!(updated.status, terminal_status);
+        assert!(
+            updated.finished_at.is_some(),
+            "terminal workflow node status should set finished_at"
+        );
+    }
+
+    Ok(())
+}
+
+#[tokio::test]
 async fn stalled_workflows_are_detected_by_heartbeat() -> StorageResult<()> {
-    let db = sqlite_backend().await?;
+    let Some(db) = optional_postgres_backend_from_env().await? else {
+        return Ok(());
+    };
     let job = db
         .create_ai_job(NewAiJob {
             trace_id: Uuid::now_v7(),
@@ -3081,64 +2908,6 @@ async fn stalled_workflows_are_detected_by_heartbeat() -> StorageResult<()> {
     db.heartbeat_workflow(run.id, Utc::now()).await?;
     let after = db.find_stalled_workflows(60).await?;
     assert!(!after.iter().any(|r| r.id == run.id));
-    Ok(())
-}
-
-#[tokio::test]
-async fn migrations_are_replay_safe_sqlite() -> StorageResult<()> {
-    let migrator = sqlx::migrate!("./migrations");
-    let mut conn = sqlx::SqliteConnection::connect("sqlite::memory:").await?;
-
-    migrator.run(&mut conn).await?;
-    let before = sqlite_schema_fingerprint(&mut conn).await?;
-
-    sqlx::query("DROP TABLE IF EXISTS _sqlx_migrations")
-        .execute(&mut conn)
-        .await?;
-
-    migrator.run(&mut conn).await?;
-    let after = sqlite_schema_fingerprint(&mut conn).await?;
-
-    assert_eq!(before, after);
-    Ok(())
-}
-
-#[tokio::test]
-async fn loom_migration_schema_is_portable_sqlite() -> StorageResult<()> {
-    let migrator = sqlx::migrate!("./migrations");
-    let mut conn = sqlx::SqliteConnection::connect("sqlite::memory:").await?;
-
-    migrator.run(&mut conn).await?;
-
-    let tables = sqlite_user_table_names(&mut conn).await?;
-    assert!(tables.iter().any(|name| name == "assets"));
-    assert!(tables.iter().any(|name| name == "loom_blocks"));
-    assert!(tables.iter().any(|name| name == "loom_edges"));
-    assert!(
-        !tables.iter().any(|name| name == "loom_blocks_fts"),
-        "provider-local SQLite FTS tables must not be part of portable migration DDL"
-    );
-
-    Ok(())
-}
-
-#[tokio::test]
-async fn migrations_can_undo_to_baseline_sqlite() -> StorageResult<()> {
-    let migrator = sqlx::migrate!("./migrations");
-    let mut conn = sqlx::SqliteConnection::connect("sqlite::memory:").await?;
-
-    migrator.run(&mut conn).await?;
-    migrator.undo(&mut conn, 0).await?;
-
-    let tables = sqlite_user_table_names(&mut conn).await?;
-    assert!(tables.is_empty());
-
-    let applied_count_row = sqlx::query("SELECT COUNT(*) as count FROM _sqlx_migrations")
-        .fetch_one(&mut conn)
-        .await?;
-    let applied_count = applied_count_row.get::<i64, _>("count");
-    assert_eq!(applied_count, 0);
-
     Ok(())
 }
 
@@ -3221,7 +2990,7 @@ async fn assert_postgres_structured_collab_artifacts_supported() -> StorageResul
             .await?,
         None
     );
-    assert!(!super::locus_sqlite::locus_work_packet_exists(db.as_ref(), "WP-TEST").await?);
+    assert!(!db.locus_work_packet_exists("WP-TEST").await?);
 
     drop(db);
     let mut conn = sqlx::PgConnection::connect(&url).await?;
@@ -3234,10 +3003,6 @@ async fn assert_postgres_structured_collab_artifacts_supported() -> StorageResul
 
 #[tokio::test]
 async fn database_trait_purity() -> StorageResult<()> {
-    let sqlite = sqlite_backend().await?;
-    assert!(sqlite.supports_structured_collab_artifacts());
-    drop(sqlite);
-
     assert_postgres_structured_collab_artifacts_supported().await?;
     Ok(())
 }
@@ -3254,7 +3019,9 @@ async fn postgres_structured_collab_artifacts_are_supported() -> StorageResult<(
 
 #[tokio::test]
 async fn loom_search_graph_filter_backend_support() -> StorageResult<()> {
-    let db = sqlite_backend().await?;
+    let Some(db) = optional_postgres_backend_from_env().await? else {
+        return Ok(());
+    };
 
     let ctx = WriteContext::human(Some("loom-search-proof".into()));
     let workspace = db
@@ -3369,7 +3136,6 @@ fn database_trait_purity_source_regressions() {
         .next()
         .unwrap_or_default();
     let retention_prod = include_str!("retention.rs");
-    let sqlite_storage = include_str!("sqlite.rs");
     let postgres_storage = include_str!("postgres.rs");
     let database_trait_start = storage_mod
         .find("pub trait Database: Send + Sync {")
@@ -3430,7 +3196,7 @@ fn database_trait_purity_source_regressions() {
     assert!(!loom_api_prod.contains("state.storage.loom_search_observability_tier()"));
     assert!(!retention_prod.contains(".as_any()"));
     assert!(retention_prod.contains(".test_update_ai_job_metadata("));
-    for backend_src in [sqlite_storage, postgres_storage] {
+    for backend_src in [postgres_storage] {
         assert!(backend_src.contains("fn supports_locus_runtime(&self) -> bool {"));
         assert!(backend_src.contains("fn supports_structured_collab_artifacts(&self) -> bool {"));
         assert!(backend_src.contains("fn loom_search_observability_tier(&self) -> u8 {"));
@@ -3440,19 +3206,6 @@ fn database_trait_purity_source_regressions() {
         assert!(backend_src.contains("async fn test_fetch_mutation_traceability_row("));
         assert!(!backend_src.contains("fn as_any("));
     }
-}
-
-#[tokio::test]
-async fn database_trait_purity_capability_snapshot_reports_sqlite() -> StorageResult<()> {
-    let db = sqlite_backend().await?;
-    let caps = db.storage_capabilities();
-
-    assert_eq!(caps.backend, StorageBackendKind::Sqlite);
-    assert!(caps.supports_structured_collab_artifacts);
-    assert!(!caps.supports_loom_graph_filtering);
-    assert_eq!(caps.loom_search_observability_tier(), 1);
-
-    Ok(())
 }
 
 #[test]
@@ -3482,21 +3235,12 @@ fn storage_mode_fails_closed_when_postgres_required_without_url() {
 }
 
 #[test]
-fn sqlite_cache_mode_is_not_control_plane_authority() -> StorageResult<()> {
-    let cache =
-        ControlPlaneStorageConfig::resolve(Some("sqlite_cache"), None, Some("sqlite://cache.db"))?;
-    assert_eq!(cache.mode, ControlPlaneStorageMode::SqliteCache);
-    assert!(!cache.mode.is_control_plane_authority());
-    assert_eq!(cache.mode.authority_label(), "cache_projection");
-    assert_eq!(cache.mode.freshness_label(), "derived_or_stale");
-
-    let offline = ControlPlaneStorageConfig::resolve(Some("sqlite_offline"), None, None)?;
-    assert_eq!(offline.mode, ControlPlaneStorageMode::SqliteOffline);
-    assert!(!offline.mode.is_control_plane_authority());
-    assert_eq!(offline.mode.authority_label(), "offline_snapshot");
-    assert_eq!(offline.mode.freshness_label(), "offline_stale");
-
-    Ok(())
+fn unsupported_storage_modes_fail_closed() {
+    let err = ControlPlaneStorageConfig::resolve(Some("legacy_cache"), None, None).unwrap_err();
+    assert!(matches!(
+        err,
+        StorageError::Validation("unsupported storage mode")
+    ));
 }
 
 #[tokio::test]

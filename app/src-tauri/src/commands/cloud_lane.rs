@@ -217,10 +217,8 @@ impl CloudLaneIpcState {
 
     fn lanes_write(
         &self,
-    ) -> Result<
-        std::sync::RwLockWriteGuard<'_, BTreeMap<String, CloudLaneRecord>>,
-        CloudLaneIpcError,
-    > {
+    ) -> Result<std::sync::RwLockWriteGuard<'_, BTreeMap<String, CloudLaneRecord>>, CloudLaneIpcError>
+    {
         self.lanes
             .write()
             .map_err(|err| CloudLaneIpcError::LockPoisoned(err.to_string()))
@@ -403,7 +401,9 @@ pub fn register_cloud_lane_impl(
     }
     let mut guard = state.lanes_write()?;
     if guard.contains_key(lane_id) {
-        return Err(CloudLaneIpcError::LaneAlreadyRegistered(lane_id.to_string()));
+        return Err(CloudLaneIpcError::LaneAlreadyRegistered(
+            lane_id.to_string(),
+        ));
     }
     let now = Utc::now().to_rfc3339();
     let record = CloudLaneRecord {
@@ -485,9 +485,7 @@ pub fn store_api_key_impl(
     if secret.expose_secret().is_empty() {
         return Err(CloudLaneIpcError::EmptySecretValue);
     }
-    state
-        .vault
-        .put(&lane, secret.expose_secret().to_string())?;
+    state.vault.put(&lane, secret.expose_secret().to_string())?;
     let now = Utc::now().to_rfc3339();
     // Update the lane registration record if it exists. (Storing a
     // key for an unregistered lane is allowed; some operator flows
@@ -738,7 +736,10 @@ mod tests {
         let keys = list_stored_keys_impl(&state).expect("list keys");
         assert_eq!(keys.len(), 1);
         assert_eq!(keys[0].lane, "openai-store-test");
-        assert!(keys[0].has_secret, "stored secret visible through round-trip");
+        assert!(
+            keys[0].has_secret,
+            "stored secret visible through round-trip"
+        );
         assert!(
             keys[0].updated_at_utc.is_some(),
             "stored_at timestamp recorded"
@@ -816,12 +817,8 @@ mod tests {
         )
         .expect("store");
 
-        let receipt = delete_api_key_impl(
-            "anthropic-delete-test",
-            "ilja200520260004",
-            &state,
-        )
-        .expect("delete");
+        let receipt = delete_api_key_impl("anthropic-delete-test", "ilja200520260004", &state)
+            .expect("delete");
         assert_eq!(receipt.action, "delete");
         assert_eq!(receipt.event_type, "FR-EVT-CLOUD-LANE-API-KEY-DELETE");
 
@@ -844,12 +841,8 @@ mod tests {
         )
         .expect("register");
         // Lane registered but no secret stored; delete must succeed.
-        let receipt = delete_api_key_impl(
-            "openai-idempotent",
-            "ilja200520260005",
-            &state,
-        )
-        .expect("delete missing secret");
+        let receipt = delete_api_key_impl("openai-idempotent", "ilja200520260005", &state)
+            .expect("delete missing secret");
         assert_eq!(receipt.action, "delete");
     }
 
@@ -916,12 +909,7 @@ mod tests {
         )
         .expect("store");
 
-        remove_cloud_lane_impl(
-            "openai-remove-test",
-            "ilja200520260007",
-            &state,
-        )
-        .expect("remove");
+        remove_cloud_lane_impl("openai-remove-test", "ilja200520260007", &state).expect("remove");
         let lanes = list_cloud_lanes_impl(&state).expect("list lanes");
         assert!(lanes.is_empty());
         let keys = list_stored_keys_impl(&state).expect("list keys");
@@ -941,22 +929,13 @@ mod tests {
         )
         .expect("register");
 
-        let toggled = toggle_cloud_lane_impl(
-            "official-cli-test",
-            false,
-            "ilja200520260008",
-            &state,
-        )
-        .expect("toggle off");
+        let toggled =
+            toggle_cloud_lane_impl("official-cli-test", false, "ilja200520260008", &state)
+                .expect("toggle off");
         assert!(!toggled.enabled);
 
-        let toggled = toggle_cloud_lane_impl(
-            "official-cli-test",
-            true,
-            "ilja200520260009",
-            &state,
-        )
-        .expect("toggle on");
+        let toggled = toggle_cloud_lane_impl("official-cli-test", true, "ilja200520260009", &state)
+            .expect("toggle on");
         assert!(toggled.enabled);
     }
 

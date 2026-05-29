@@ -1,6 +1,11 @@
 use std::collections::HashSet;
 
 use super::action_envelope::{ApprovalPosture, AuthorityEffect, ExpectedWriteBoxRef};
+use crate::memory::hygiene::{
+    HYGIENE_CONSOLIDATION_ACTION_ID, HYGIENE_CONSOLIDATION_INPUT_SCHEMA_ID, HYGIENE_FLAG_ACTION_ID,
+    HYGIENE_FLAG_INPUT_SCHEMA_ID, HYGIENE_PROMOTE_ACTION_ID, HYGIENE_PROMOTE_INPUT_SCHEMA_ID,
+    HYGIENE_PRUNE_ACTION_ID, HYGIENE_PRUNE_INPUT_SCHEMA_ID, HYGIENE_RESULT_SCHEMA_ID,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CapabilityRequirement {
@@ -81,6 +86,18 @@ pub fn kernel002_action_catalog() -> KernelActionCatalogV1 {
             catalog_view_action(),
             crdt_workspace_propose_patch_action(),
             write_box_promote_action(),
+            model_manual_update_section_action(),
+            memory_capsule_record_action(),
+            memory_capsule_policy_table_update_action(),
+            memory_capsule_attach_outcome_action(),
+            memory_pin_set_action(),
+            memory_pin_unset_action(),
+            memory_hygiene_consolidation_action(),
+            memory_hygiene_prune_action(),
+            memory_hygiene_contradiction_flag_action(),
+            memory_hygiene_procedural_promotion_action(),
+            memory_capsule_suppress_action(),
+            subquadratic_persist_state_action(),
             mirror_advisory_capture_action(),
             mirror_advisory_normalize_action(),
             direct_edit_deny_action(),
@@ -121,6 +138,10 @@ pub fn kernel002_action_catalog() -> KernelActionCatalogV1 {
             work_packet_contract_activate_action(),
             microtask_contract_extract_action(),
             local_model_microtask_loop_project_action(),
+            model_runtime_register_model_action(),
+            model_runtime_list_registrations_action(),
+            steering_vector_register_action(),
+            steering_vector_list_action(),
             generated_documentation_status_projection_project_action(),
             coder_handoff_validation_request_project_action(),
             validator_verdict_mediation_project_action(),
@@ -324,6 +345,505 @@ fn write_box_promote_action() -> KernelCatalogActionV1 {
             "write-box-promotion",
             "Validate write-box evidence and append authority events.",
             &["write_box_id", "promotion_state", "event_kind", "validator"],
+        ),
+    }
+}
+
+fn model_manual_update_section_action() -> KernelCatalogActionV1 {
+    KernelCatalogActionV1 {
+        action_id: "kernel.model_manual.update_section",
+        title: "Update Model Manual Section".to_string(),
+        input_schema_id: "hsk.kernel.model_manual_section_update_input@1".to_string(),
+        result_schema_id: "hsk.kernel.model_manual_section_update_result@1".to_string(),
+        role_eligibility: vec![
+            "OPERATOR".to_string(),
+            "KERNEL_BUILDER".to_string(),
+            "WORKFLOW_AUTOMATION".to_string(),
+        ],
+        capability_requirements: vec![
+            capability("kernel.model_manual.update_section"),
+            capability("kernel.write_box.create"),
+        ],
+        expected_write_boxes: vec![expected_box(
+            "ModelManualSectionBox",
+            "hsk.write_box.model_manual_section@1",
+            "manual_section",
+        )],
+        authority_effect: AuthorityEffect::PrePromotionEvidenceOnly,
+        approval_posture: ApprovalPosture::RequiresPromotionGate,
+        promotion_path: promotion_path(
+            "model_manual_section_update_to_write_box",
+            "KernelModelManualSectionUpdateRequestedV1",
+            "STATUS",
+        ),
+        validation_hooks: vec![
+            hook("editable_surface_guard"),
+            hook("schema_validity"),
+            hook("write_box_review_gate"),
+            hook("promotion_gate"),
+        ],
+        dcc_preview: dcc_preview(
+            "model-manual-section-update",
+            "Preview ModelManual section edits as pre-promotion write-box evidence.",
+            &[
+                "manual_section_id",
+                "before_text_hash",
+                "after_text_hash",
+                "validation_state",
+            ],
+        ),
+    }
+}
+
+fn memory_capsule_record_action() -> KernelCatalogActionV1 {
+    KernelCatalogActionV1 {
+        action_id: "kernel.memory_capsule.record",
+        title: "Record Memory Capsule Evidence".to_string(),
+        input_schema_id: "hsk.kernel.memory_capsule_record_input@1".to_string(),
+        result_schema_id: "hsk.kernel.memory_capsule_record_result@1".to_string(),
+        role_eligibility: vec![
+            "CODER".to_string(),
+            "VALIDATOR".to_string(),
+            "KERNEL_BUILDER".to_string(),
+            "WORKFLOW_AUTOMATION".to_string(),
+        ],
+        capability_requirements: vec![
+            capability("kernel.memory_capsule.record"),
+            capability("kernel.write_box.create"),
+        ],
+        expected_write_boxes: vec![expected_box(
+            "MemoryBox",
+            "hsk.write_box.memory@1",
+            "memory_capsule_record",
+        )],
+        authority_effect: AuthorityEffect::PrePromotionEvidenceOnly,
+        approval_posture: ApprovalPosture::RequiresPromotionGate,
+        promotion_path: promotion_path(
+            "memory_capsule_record_to_memory_box",
+            "KernelMemoryCapsuleRecordedV1",
+            "STATUS",
+        ),
+        validation_hooks: vec![
+            hook("schema_validity"),
+            hook("novelty"),
+            hook("contradiction"),
+            hook("dedup"),
+        ],
+        dcc_preview: dcc_preview(
+            "memory-capsule-record",
+            "Record MemoryCapsule metadata as pre-promotion MemoryBox evidence.",
+            &[
+                "capsule_id",
+                "capsule_source_hash",
+                "task_type",
+                "policy",
+                "audit_log",
+                "validation_state",
+            ],
+        ),
+    }
+}
+
+fn memory_capsule_policy_table_update_action() -> KernelCatalogActionV1 {
+    KernelCatalogActionV1 {
+        action_id: "kernel.memory_capsule.policy_table_update",
+        title: "Update Memory Capsule Policy Table".to_string(),
+        input_schema_id: "hsk.kernel.memory_capsule_policy_update_input@1".to_string(),
+        result_schema_id: "hsk.kernel.memory_capsule_policy_update_result@1".to_string(),
+        role_eligibility: vec![
+            "OPERATOR".to_string(),
+            "KERNEL_BUILDER".to_string(),
+            "WORKFLOW_AUTOMATION".to_string(),
+        ],
+        capability_requirements: vec![
+            capability("kernel.memory_capsule.policy_table_update"),
+            capability("kernel.write_box.create"),
+        ],
+        expected_write_boxes: vec![expected_box(
+            "MemoryCapsulePolicyBox",
+            "hsk.write_box.memory_capsule_policy_update@1",
+            "memory_capsule_policy",
+        )],
+        authority_effect: AuthorityEffect::PrePromotionEvidenceOnly,
+        approval_posture: ApprovalPosture::RequiresPromotionGate,
+        promotion_path: promotion_path(
+            "memory_capsule_policy_update_to_write_box",
+            "KernelMemoryCapsulePolicyUpdateRequestedV1",
+            "STATUS",
+        ),
+        validation_hooks: vec![
+            hook("editable_surface_guard"),
+            hook("policy_bounds"),
+            hook("schema_validity"),
+            hook("write_box_review_gate"),
+            hook("promotion_gate"),
+        ],
+        dcc_preview: dcc_preview(
+            "memory-capsule-policy-update",
+            "Preview retrieval policy parameter edits as pre-promotion write-box evidence.",
+            &[
+                "task_type",
+                "parameter",
+                "before_value",
+                "after_value",
+                "validation_state",
+            ],
+        ),
+    }
+}
+
+fn memory_capsule_suppress_action() -> KernelCatalogActionV1 {
+    KernelCatalogActionV1 {
+        action_id: "kernel.memory_capsule.suppress",
+        title: "Suppress Memory Capsule Evidence".to_string(),
+        input_schema_id: "hsk.kernel.memory_capsule_suppression_input@1".to_string(),
+        result_schema_id: "hsk.kernel.memory_capsule_suppression_result@1".to_string(),
+        role_eligibility: vec![
+            "VALIDATOR".to_string(),
+            "KERNEL_BUILDER".to_string(),
+            "OPERATOR".to_string(),
+            "WORKFLOW_AUTOMATION".to_string(),
+        ],
+        capability_requirements: vec![
+            capability("kernel.memory_capsule.suppress"),
+            capability("kernel.write_box.create"),
+        ],
+        expected_write_boxes: vec![expected_box(
+            "MemoryBox",
+            "hsk.write_box.memory@1",
+            "memory_capsule_suppression",
+        )],
+        authority_effect: AuthorityEffect::PrePromotionEvidenceOnly,
+        approval_posture: ApprovalPosture::RequiresPromotionGate,
+        promotion_path: promotion_path(
+            "memory_capsule_suppression_to_memory_box",
+            "KernelMemoryCapsuleSuppressedV1",
+            "STATUS",
+        ),
+        validation_hooks: vec![
+            hook("schema_validity"),
+            hook("capsule_suppression_reason"),
+            hook("write_box_review_gate"),
+            hook("flight_recorder_event"),
+        ],
+        dcc_preview: dcc_preview(
+            "memory-capsule-suppression",
+            "Project MemoryCapsule suppression requests as pre-promotion MemoryBox evidence.",
+            &[
+                "capsule_id",
+                "suppressed_item_ids",
+                "reason",
+                "flight_recorder_event_id",
+                "validation_state",
+            ],
+        ),
+    }
+}
+
+fn memory_capsule_attach_outcome_action() -> KernelCatalogActionV1 {
+    KernelCatalogActionV1 {
+        action_id: "kernel.memory_capsule.attach_outcome",
+        title: "Attach Memory Capsule Outcome".to_string(),
+        input_schema_id: "hsk.kernel.memory_capsule_outcome_input@1".to_string(),
+        result_schema_id: "hsk.kernel.memory_capsule_outcome_result@1".to_string(),
+        role_eligibility: vec![
+            "VALIDATOR".to_string(),
+            "KERNEL_BUILDER".to_string(),
+            "WORKFLOW_AUTOMATION".to_string(),
+        ],
+        capability_requirements: vec![
+            capability("kernel.memory_capsule.attach_outcome"),
+            capability("kernel.write_box.create"),
+        ],
+        expected_write_boxes: vec![expected_box(
+            "MemoryBox",
+            "hsk.write_box.memory@1",
+            "memory_capsule_outcome",
+        )],
+        authority_effect: AuthorityEffect::PrePromotionEvidenceOnly,
+        approval_posture: ApprovalPosture::RequiresPromotionGate,
+        promotion_path: promotion_path(
+            "memory_capsule_outcome_to_memory_box",
+            "KernelMemoryCapsuleOutcomeAttachedV1",
+            "STATUS",
+        ),
+        validation_hooks: vec![
+            hook("schema_validity"),
+            hook("outcome_attribution"),
+            hook("write_box_review_gate"),
+        ],
+        dcc_preview: dcc_preview(
+            "memory-capsule-outcome",
+            "Attach downstream pass/fail/escalation outcomes to MemoryCapsule evidence.",
+            &[
+                "capsule_id",
+                "outcome",
+                "attached_at_utc",
+                "validation_state",
+            ],
+        ),
+    }
+}
+
+fn memory_pin_set_action() -> KernelCatalogActionV1 {
+    KernelCatalogActionV1 {
+        action_id: "kernel.memory_pin.set",
+        title: "Pin Memory Item".to_string(),
+        input_schema_id: "hsk.kernel.memory_pin_input@1".to_string(),
+        result_schema_id: "hsk.kernel.memory_pin_result@1".to_string(),
+        role_eligibility: vec![
+            "OPERATOR".to_string(),
+            "KERNEL_BUILDER".to_string(),
+            "WORKFLOW_AUTOMATION".to_string(),
+        ],
+        capability_requirements: vec![
+            capability("kernel.memory_pin.set"),
+            capability("kernel.write_box.create"),
+        ],
+        expected_write_boxes: vec![expected_box(
+            "MemoryBox",
+            "hsk.write_box.memory@1",
+            "memory_item_pin",
+        )],
+        authority_effect: AuthorityEffect::PrePromotionEvidenceOnly,
+        approval_posture: ApprovalPosture::RequiresPromotionGate,
+        promotion_path: promotion_path(
+            "memory_item_pin_to_memory_box",
+            "KernelMemoryItemPinnedV1",
+            "STATUS",
+        ),
+        validation_hooks: vec![
+            hook("schema_validity"),
+            hook("pin_reason"),
+            hook("write_box_review_gate"),
+            hook("flight_recorder_event"),
+        ],
+        dcc_preview: dcc_preview(
+            "memory-pin",
+            "Project operator-selected core memory pins as pre-promotion MemoryBox evidence.",
+            &[
+                "memory_id",
+                "pinned",
+                "reason",
+                "flight_recorder_event_id",
+                "validation_state",
+            ],
+        ),
+    }
+}
+
+fn memory_pin_unset_action() -> KernelCatalogActionV1 {
+    KernelCatalogActionV1 {
+        action_id: "kernel.memory_pin.unset",
+        title: "Unpin Memory Item".to_string(),
+        input_schema_id: "hsk.kernel.memory_pin_input@1".to_string(),
+        result_schema_id: "hsk.kernel.memory_pin_result@1".to_string(),
+        role_eligibility: vec![
+            "OPERATOR".to_string(),
+            "KERNEL_BUILDER".to_string(),
+            "WORKFLOW_AUTOMATION".to_string(),
+        ],
+        capability_requirements: vec![
+            capability("kernel.memory_pin.unset"),
+            capability("kernel.write_box.create"),
+        ],
+        expected_write_boxes: vec![expected_box(
+            "MemoryBox",
+            "hsk.write_box.memory@1",
+            "memory_item_unpin",
+        )],
+        authority_effect: AuthorityEffect::PrePromotionEvidenceOnly,
+        approval_posture: ApprovalPosture::RequiresPromotionGate,
+        promotion_path: promotion_path(
+            "memory_item_unpin_to_memory_box",
+            "KernelMemoryItemUnpinnedV1",
+            "STATUS",
+        ),
+        validation_hooks: vec![
+            hook("schema_validity"),
+            hook("pin_reason"),
+            hook("write_box_review_gate"),
+            hook("flight_recorder_event"),
+        ],
+        dcc_preview: dcc_preview(
+            "memory-unpin",
+            "Project operator-selected core memory unpinning as pre-promotion MemoryBox evidence.",
+            &[
+                "memory_id",
+                "pinned",
+                "reason",
+                "flight_recorder_event_id",
+                "validation_state",
+            ],
+        ),
+    }
+}
+
+fn memory_hygiene_consolidation_action() -> KernelCatalogActionV1 {
+    memory_hygiene_action(
+        HYGIENE_CONSOLIDATION_ACTION_ID,
+        "Review Memory Hygiene Consolidation Candidate",
+        HYGIENE_CONSOLIDATION_INPUT_SCHEMA_ID,
+        "memory_hygiene_consolidation_candidate",
+        "memory_hygiene_consolidation_to_memory_box",
+        "KernelMemoryHygieneConsolidationCandidateV1",
+        "memory-hygiene-consolidation",
+        "Review near-duplicate MemoryItem consolidation candidates emitted by deterministic FEMS hygiene.",
+        &[
+            "left_memory_id",
+            "right_memory_id",
+            "similarity_evidence",
+            "validation_state",
+        ],
+        "near_duplicate_evidence",
+    )
+}
+
+fn memory_hygiene_prune_action() -> KernelCatalogActionV1 {
+    memory_hygiene_action(
+        HYGIENE_PRUNE_ACTION_ID,
+        "Review Memory Hygiene Prune Candidate",
+        HYGIENE_PRUNE_INPUT_SCHEMA_ID,
+        "memory_hygiene_prune_candidate",
+        "memory_hygiene_prune_to_memory_box",
+        "KernelMemoryHygienePruneCandidateV1",
+        "memory-hygiene-prune",
+        "Review stale low-score MemoryItem invalidation candidates without deleting bitemporal history.",
+        &[
+            "memory_id",
+            "requested_invalidated_at",
+            "score",
+            "validation_state",
+        ],
+        "bitemporal_invalidation_review",
+    )
+}
+
+fn memory_hygiene_contradiction_flag_action() -> KernelCatalogActionV1 {
+    memory_hygiene_action(
+        HYGIENE_FLAG_ACTION_ID,
+        "Review Memory Hygiene Contradiction Flag",
+        HYGIENE_FLAG_INPUT_SCHEMA_ID,
+        "memory_hygiene_contradiction_flag",
+        "memory_hygiene_contradiction_to_memory_box",
+        "KernelMemoryHygieneContradictionFlagV1",
+        "memory-hygiene-contradictions",
+        "Review high-similarity MemoryItems with contradictory pass/fail outcome evidence.",
+        &[
+            "left_memory_id",
+            "right_memory_id",
+            "outcome_evidence",
+            "validation_state",
+        ],
+        "contradiction_outcome_evidence",
+    )
+}
+
+fn memory_hygiene_procedural_promotion_action() -> KernelCatalogActionV1 {
+    memory_hygiene_action(
+        HYGIENE_PROMOTE_ACTION_ID,
+        "Review Memory Hygiene Procedural Promotion",
+        HYGIENE_PROMOTE_INPUT_SCHEMA_ID,
+        "memory_hygiene_procedural_promotion",
+        "memory_hygiene_procedural_promotion_to_memory_box",
+        "KernelMemoryHygieneProceduralPromotionV1",
+        "memory-hygiene-procedural-promotions",
+        "Review high-use, high-pass-rate MemoryItems as procedural memory promotion candidates.",
+        &["memory_id", "use_count", "pass_rate", "validation_state"],
+        "procedural_promotion_threshold",
+    )
+}
+
+fn memory_hygiene_action(
+    action_id: &'static str,
+    title: &str,
+    input_schema_id: &str,
+    write_box_target_id: &str,
+    promotion_path_id: &str,
+    event_kind: &str,
+    panel_id: &str,
+    summary: &str,
+    fields: &[&str],
+    task_hook: &str,
+) -> KernelCatalogActionV1 {
+    KernelCatalogActionV1 {
+        action_id,
+        title: title.to_string(),
+        input_schema_id: input_schema_id.to_string(),
+        result_schema_id: HYGIENE_RESULT_SCHEMA_ID.to_string(),
+        role_eligibility: vec![
+            "OPERATOR".to_string(),
+            "KERNEL_BUILDER".to_string(),
+            "VALIDATOR".to_string(),
+            "WORKFLOW_AUTOMATION".to_string(),
+        ],
+        capability_requirements: vec![capability(action_id), capability("kernel.write_box.create")],
+        expected_write_boxes: vec![expected_box(
+            "MemoryBox",
+            "hsk.write_box.memory@1",
+            write_box_target_id,
+        )],
+        authority_effect: AuthorityEffect::PrePromotionEvidenceOnly,
+        approval_posture: ApprovalPosture::RequiresPromotionGate,
+        promotion_path: promotion_path(promotion_path_id, event_kind, "STATUS"),
+        validation_hooks: vec![
+            hook("schema_validity"),
+            hook(task_hook),
+            hook("write_box_review_gate"),
+        ],
+        dcc_preview: dcc_preview(panel_id, summary, fields),
+    }
+}
+
+fn subquadratic_persist_state_action() -> KernelCatalogActionV1 {
+    KernelCatalogActionV1 {
+        action_id: "kernel.subquadratic.persist_state",
+        title: "Persist SSM/RWKV State Vector to ArtifactStore".to_string(),
+        input_schema_id: "hsk.kernel.subquadratic_persist_state_input@1".to_string(),
+        result_schema_id: "hsk.kernel.subquadratic_persist_state_result@1".to_string(),
+        role_eligibility: vec![
+            "KERNEL_BUILDER".to_string(),
+            "CODER".to_string(),
+            "OPERATOR".to_string(),
+            "WORKFLOW_AUTOMATION".to_string(),
+        ],
+        capability_requirements: vec![
+            capability("kernel.subquadratic.persist_state"),
+            capability("kernel.write_box.create"),
+        ],
+        expected_write_boxes: vec![expected_box(
+            "ArtifactBox",
+            "hsk.write_box.state_vector_persist@1",
+            "state_vector_persist",
+        )],
+        authority_effect: AuthorityEffect::PrePromotionEvidenceOnly,
+        approval_posture: ApprovalPosture::RequiresPromotionGate,
+        promotion_path: promotion_path(
+            "state_vector_persist_to_artifact_store",
+            "KernelStateVectorPersistedV1",
+            "STATUS",
+        ),
+        validation_hooks: vec![
+            hook("schema_validity"),
+            hook("envelope_version"),
+            hook("artifact_sha256_match"),
+            hook("variant_match"),
+            hook("content_hash"),
+        ],
+        dcc_preview: dcc_preview(
+            "subquadratic-state-vector-persist",
+            "Persist a committed SSM/RWKV state vector to the ArtifactStore for cross-session restore.",
+            &[
+                "artifact_id",
+                "state_vector_id",
+                "model_id",
+                "variant",
+                "artifact_sha256",
+                "byte_len",
+                "content_hash",
+                "persisted_by",
+                "license_tag",
+            ],
         ),
     }
 }
@@ -749,7 +1269,13 @@ fn locus_work_tracking_project_action() -> KernelCatalogActionV1 {
         dcc_preview: dcc_preview(
             "locus-work-tracking-reset",
             "Project WP/MT tracking, dependency readiness, occupancy, Task Board rows, and Flight Recorder events from product authority.",
-            &["wp_id", "mt_id", "status", "active_session_ids", "blocked_by"],
+            &[
+                "wp_id",
+                "mt_id",
+                "status",
+                "active_session_ids",
+                "blocked_by",
+            ],
         ),
     }
 }
@@ -1144,8 +1670,7 @@ fn role_mailbox_inbox_evidence_bridge_project_action() -> KernelCatalogActionV1 
         action_id: "kernel.role_mailbox_inbox_evidence_bridge.project",
         title: "Project Role Mailbox Inbox Evidence Bridge".to_string(),
         input_schema_id: "hsk.kernel.role_mailbox_inbox_evidence_bridge_query@1".to_string(),
-        result_schema_id: "hsk.kernel.role_mailbox_inbox_evidence_bridge_projection@1"
-            .to_string(),
+        result_schema_id: "hsk.kernel.role_mailbox_inbox_evidence_bridge_projection@1".to_string(),
         role_eligibility: vec![
             "CODER".to_string(),
             "VALIDATOR".to_string(),
@@ -1153,9 +1678,7 @@ fn role_mailbox_inbox_evidence_bridge_project_action() -> KernelCatalogActionV1 
             "KERNEL_BUILDER".to_string(),
             "OPERATOR".to_string(),
         ],
-        capability_requirements: vec![capability(
-            "kernel.role_mailbox_inbox_evidence_bridge.read",
-        )],
+        capability_requirements: vec![capability("kernel.role_mailbox_inbox_evidence_bridge.read")],
         expected_write_boxes: vec![expected_box(
             "ReadOnlyProjectionBox",
             "hsk.write_box.readonly_projection@1",
@@ -1298,8 +1821,7 @@ fn fems_memory_poisoning_drift_guardrails_evaluate_action() -> KernelCatalogActi
         action_id: "kernel.fems_memory_poisoning_drift_guardrails.evaluate",
         title: "Evaluate FEMS Memory Poisoning and Drift Guardrails".to_string(),
         input_schema_id: "hsk.kernel.fems_memory_poisoning_drift_guardrails@1".to_string(),
-        result_schema_id: "hsk.kernel.fems_memory_poisoning_drift_guardrail_report@1"
-            .to_string(),
+        result_schema_id: "hsk.kernel.fems_memory_poisoning_drift_guardrail_report@1".to_string(),
         role_eligibility: vec![
             "CODER".to_string(),
             "VALIDATOR".to_string(),
@@ -1363,9 +1885,7 @@ fn fems_mt_handoff_memory_context_project_action() -> KernelCatalogActionV1 {
             "LOCAL_SMALL_MODEL".to_string(),
             "WORKFLOW_AUTOMATION".to_string(),
         ],
-        capability_requirements: vec![capability(
-            "kernel.fems_mt_handoff_memory_context.project",
-        )],
+        capability_requirements: vec![capability("kernel.fems_mt_handoff_memory_context.project")],
         expected_write_boxes: vec![expected_box(
             "ReadOnlyProjectionBox",
             "hsk.write_box.readonly_projection@1",
@@ -1519,9 +2039,7 @@ fn local_first_mcp_posture_project_action() -> KernelCatalogActionV1 {
             "LOCAL_SMALL_MODEL".to_string(),
             "WORKFLOW_AUTOMATION".to_string(),
         ],
-        capability_requirements: vec![capability(
-            "kernel.local_first_mcp_posture.project",
-        )],
+        capability_requirements: vec![capability("kernel.local_first_mcp_posture.project")],
         expected_write_boxes: vec![expected_box(
             "ReadOnlyProjectionBox",
             "hsk.write_box.readonly_projection@1",
@@ -1570,9 +2088,7 @@ fn git_engine_decision_gate_project_action() -> KernelCatalogActionV1 {
             "KERNEL_BUILDER".to_string(),
             "WORKFLOW_AUTOMATION".to_string(),
         ],
-        capability_requirements: vec![capability(
-            "kernel.git_engine_decision_gate.project",
-        )],
+        capability_requirements: vec![capability("kernel.git_engine_decision_gate.project")],
         expected_write_boxes: vec![expected_box(
             "ReadOnlyProjectionBox",
             "hsk.write_box.readonly_projection@1",
@@ -1621,9 +2137,7 @@ fn session_anti_pattern_registry_project_action() -> KernelCatalogActionV1 {
             "KERNEL_BUILDER".to_string(),
             "WORKFLOW_AUTOMATION".to_string(),
         ],
-        capability_requirements: vec![capability(
-            "kernel.session_anti_pattern_registry.project",
-        )],
+        capability_requirements: vec![capability("kernel.session_anti_pattern_registry.project")],
         expected_write_boxes: vec![expected_box(
             "ReadOnlyProjectionBox",
             "hsk.write_box.readonly_projection@1",
@@ -1671,9 +2185,7 @@ fn governance_pack_instantiation_project_action() -> KernelCatalogActionV1 {
             "KERNEL_BUILDER".to_string(),
             "WORKFLOW_AUTOMATION".to_string(),
         ],
-        capability_requirements: vec![capability(
-            "kernel.governance_pack_instantiation.project",
-        )],
+        capability_requirements: vec![capability("kernel.governance_pack_instantiation.project")],
         expected_write_boxes: vec![expected_box(
             "ReadOnlyProjectionBox",
             "hsk.write_box.readonly_projection@1",
@@ -1968,8 +2480,7 @@ fn markdown_mirror_sync_drift_guard_project_action() -> KernelCatalogActionV1 {
         action_id: "kernel.markdown_mirror_sync_drift_guard.project",
         title: "Project Markdown Mirror Sync Drift Guard".to_string(),
         input_schema_id: "hsk.kernel.markdown_mirror_sync_drift_guard@1".to_string(),
-        result_schema_id: "hsk.kernel.markdown_mirror_sync_drift_guard_projection@1"
-            .to_string(),
+        result_schema_id: "hsk.kernel.markdown_mirror_sync_drift_guard_projection@1".to_string(),
         role_eligibility: vec![
             "CODER".to_string(),
             "VALIDATOR".to_string(),
@@ -2224,8 +2735,7 @@ fn local_model_microtask_loop_project_action() -> KernelCatalogActionV1 {
         action_id: "kernel.local_model_microtask_loop.project",
         title: "Project Local Model Fresh-Context Microtask Loop".to_string(),
         input_schema_id: "hsk.kernel.local_model_fresh_context_mt_loop@1".to_string(),
-        result_schema_id: "hsk.kernel.local_model_fresh_context_mt_loop_projection@1"
-            .to_string(),
+        result_schema_id: "hsk.kernel.local_model_fresh_context_mt_loop_projection@1".to_string(),
         role_eligibility: vec![
             "CODER".to_string(),
             "VALIDATOR".to_string(),
@@ -2269,6 +2779,189 @@ fn local_model_microtask_loop_project_action() -> KernelCatalogActionV1 {
                 "retry_budget",
                 "verifier_role",
                 "final_outcome",
+            ],
+        ),
+    }
+}
+
+fn model_runtime_register_model_action() -> KernelCatalogActionV1 {
+    KernelCatalogActionV1 {
+        action_id: "kernel.model_runtime.register_model",
+        title: "Register Model Runtime Binding".to_string(),
+        input_schema_id: "hsk.kernel.model_runtime_register_model_input@1".to_string(),
+        result_schema_id: "hsk.kernel.model_runtime_register_model_result@1".to_string(),
+        role_eligibility: vec![
+            "OPERATOR".to_string(),
+            "KERNEL_BUILDER".to_string(),
+            "WORKFLOW_AUTOMATION".to_string(),
+        ],
+        capability_requirements: vec![
+            capability("kernel.model_runtime.register_model"),
+            capability("kernel.write_box.create"),
+        ],
+        expected_write_boxes: vec![expected_box(
+            "ArtifactBox",
+            "hsk.write_box.artifact@1",
+            "model_runtime_registration",
+        )],
+        authority_effect: AuthorityEffect::PrePromotionEvidenceOnly,
+        approval_posture: ApprovalPosture::RequiresPromotionGate,
+        promotion_path: promotion_path(
+            "model_runtime_register_model_to_artifact_box",
+            "KernelModelRuntimeRegistrationRequestedV1",
+            "STATUS",
+        ),
+        validation_hooks: vec![
+            hook("model_runtime_registration_schema"),
+            hook("model_runtime_binding_capability_consistency"),
+            hook("model_id_uuid_v7"),
+            hook("write_box_review_gate"),
+        ],
+        dcc_preview: dcc_preview(
+            "model-runtime-registration",
+            "Preview local model runtime registration as pre-promotion ArtifactBox evidence.",
+            &[
+                "model_id",
+                "runtime_binding",
+                "artifact_path",
+                "sha256",
+                "declared_capabilities",
+                "validation_state",
+            ],
+        ),
+    }
+}
+
+fn model_runtime_list_registrations_action() -> KernelCatalogActionV1 {
+    KernelCatalogActionV1 {
+        action_id: "kernel.model_runtime.list_registrations",
+        title: "List Model Runtime Registrations".to_string(),
+        input_schema_id: "hsk.kernel.model_runtime_list_registrations_input@1".to_string(),
+        result_schema_id: "hsk.kernel.model_runtime_list_registrations_result@1".to_string(),
+        role_eligibility: vec![
+            "CODER".to_string(),
+            "VALIDATOR".to_string(),
+            "KERNEL_BUILDER".to_string(),
+            "WORKFLOW_AUTOMATION".to_string(),
+        ],
+        capability_requirements: vec![capability("kernel.model_runtime.list_registrations")],
+        expected_write_boxes: vec![expected_box(
+            "ReadOnlyProjectionBox",
+            "hsk.write_box.readonly_projection@1",
+            "model_runtime_registration",
+        )],
+        authority_effect: AuthorityEffect::ProjectionOnly,
+        approval_posture: ApprovalPosture::NoApprovalRequired,
+        promotion_path: promotion_path(
+            "model_runtime_registration_projection",
+            "KernelModelRuntimeRegistrationsProjectedV1",
+            "STATUS",
+        ),
+        validation_hooks: vec![
+            hook("model_runtime_registration_projection_schema"),
+            hook("deterministic_model_registration_order"),
+            hook("no_authority_mutation"),
+        ],
+        dcc_preview: dcc_preview(
+            "model-runtime-registrations",
+            "Project registered local model runtime bindings without mutating registry authority.",
+            &[
+                "model_id",
+                "runtime_binding",
+                "base_model_tag",
+                "declared_capabilities",
+                "registered_at_utc",
+            ],
+        ),
+    }
+}
+
+fn steering_vector_register_action() -> KernelCatalogActionV1 {
+    KernelCatalogActionV1 {
+        action_id: "kernel.steering.register",
+        title: "Register Steering Vector Artifact".to_string(),
+        input_schema_id: "hsk.kernel.steering_vector_register_input@1".to_string(),
+        result_schema_id: "hsk.kernel.steering_vector_register_result@1".to_string(),
+        role_eligibility: vec![
+            "OPERATOR".to_string(),
+            "KERNEL_BUILDER".to_string(),
+            "WORKFLOW_AUTOMATION".to_string(),
+        ],
+        capability_requirements: vec![
+            capability("kernel.steering.register"),
+            capability("kernel.write_box.create"),
+        ],
+        expected_write_boxes: vec![expected_box(
+            "ArtifactBox",
+            "hsk.write_box.artifact@1",
+            "steering_vector_artifact",
+        )],
+        authority_effect: AuthorityEffect::PrePromotionEvidenceOnly,
+        approval_posture: ApprovalPosture::RequiresPromotionGate,
+        promotion_path: promotion_path(
+            "steering_vector_register_to_artifact_box",
+            "KernelSteeringVectorRegistrationRequestedV1",
+            "STATUS",
+        ),
+        validation_hooks: vec![
+            hook("steering_vector_schema"),
+            hook("steering_vector_license_tag"),
+            hook("steering_vector_provenance"),
+            hook("write_box_v1_required"),
+        ],
+        dcc_preview: dcc_preview(
+            "steering-vector-register",
+            "Preview steering vector metadata and values as pre-promotion ArtifactBox evidence.",
+            &[
+                "steering_vector_id",
+                "model_compat_tag",
+                "license_tag",
+                "values_sha256",
+                "review_status",
+            ],
+        ),
+    }
+}
+
+fn steering_vector_list_action() -> KernelCatalogActionV1 {
+    KernelCatalogActionV1 {
+        action_id: "kernel.steering.list",
+        title: "List Steering Vector Artifacts".to_string(),
+        input_schema_id: "hsk.kernel.steering_vector_list_input@1".to_string(),
+        result_schema_id: "hsk.kernel.steering_vector_list_result@1".to_string(),
+        role_eligibility: vec![
+            "CODER".to_string(),
+            "VALIDATOR".to_string(),
+            "KERNEL_BUILDER".to_string(),
+            "WORKFLOW_AUTOMATION".to_string(),
+        ],
+        capability_requirements: vec![capability("kernel.steering.list")],
+        expected_write_boxes: vec![expected_box(
+            "ReadOnlyProjectionBox",
+            "hsk.write_box.readonly_projection@1",
+            "steering_vector_artifact",
+        )],
+        authority_effect: AuthorityEffect::ProjectionOnly,
+        approval_posture: ApprovalPosture::NoApprovalRequired,
+        promotion_path: promotion_path(
+            "steering_vector_artifact_projection",
+            "KernelSteeringVectorArtifactsProjectedV1",
+            "STATUS",
+        ),
+        validation_hooks: vec![
+            hook("steering_vector_projection_schema"),
+            hook("model_compat_tag_filter"),
+            hook("no_authority_mutation"),
+        ],
+        dcc_preview: dcc_preview(
+            "steering-vector-list",
+            "Project reviewed steering vector artifacts for a model compatibility tag without authority mutation.",
+            &[
+                "model_compat_tag",
+                "steering_vector_id",
+                "review_status",
+                "values_sha256",
+                "created_at_utc",
             ],
         ),
     }
@@ -2392,9 +3085,7 @@ fn validator_verdict_mediation_project_action() -> KernelCatalogActionV1 {
             "KERNEL_BUILDER".to_string(),
             "WORKFLOW_AUTOMATION".to_string(),
         ],
-        capability_requirements: vec![capability(
-            "kernel.validator_verdict_mediation.project",
-        )],
+        capability_requirements: vec![capability("kernel.validator_verdict_mediation.project")],
         expected_write_boxes: vec![expected_box(
             "ReadOnlyProjectionBox",
             "hsk.write_box.readonly_projection@1",
@@ -2599,9 +3290,7 @@ fn locus_mt_validation_work_graph_project_action() -> KernelCatalogActionV1 {
             "KERNEL_BUILDER".to_string(),
             "WORKFLOW_AUTOMATION".to_string(),
         ],
-        capability_requirements: vec![capability(
-            "kernel.locus_mt_validation_work_graph.project",
-        )],
+        capability_requirements: vec![capability("kernel.locus_mt_validation_work_graph.project")],
         expected_write_boxes: vec![expected_box(
             "ReadOnlyProjectionBox",
             "hsk.write_box.readonly_projection@1",

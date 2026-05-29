@@ -23,10 +23,10 @@ use chrono::{DateTime, Utc};
 use handshake_core::{
     memory::{
         CapsuleAuditEntry, CapsuleAuditLog, CapsuleRecord, CapsuleRecorder, DegradationTier,
-        PostgresKernelActionSubmitter, RetrievalPolicy, TaskType, MEMORY_CAPSULE_AGGREGATE_TYPE,
-        MEMORY_CAPSULE_RECORD_ACTION_ID, MEMORY_CAPSULE_SOURCE_COMPONENT,
+        MEMORY_CAPSULE_AGGREGATE_TYPE, MEMORY_CAPSULE_RECORD_ACTION_ID,
+        MEMORY_CAPSULE_SOURCE_COMPONENT, PostgresKernelActionSubmitter, RetrievalPolicy, TaskType,
     },
-    storage::{tests::postgres_backend_from_env, StorageError},
+    storage::{StorageError, tests::postgres_backend_from_env},
 };
 use uuid::Uuid;
 
@@ -43,7 +43,7 @@ async fn postgres_or_environment_blocked() -> std::sync::Arc<dyn handshake_core:
     }
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 #[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
 async fn capsule_recorder_persists_via_kernel_action_catalog_against_postgres() {
     let db = postgres_or_environment_blocked().await;
@@ -105,7 +105,7 @@ async fn capsule_recorder_persists_via_kernel_action_catalog_against_postgres() 
     );
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 #[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
 async fn capsule_recorder_postgres_dedup_collapses_duplicate_submissions() {
     let db = postgres_or_environment_blocked().await;

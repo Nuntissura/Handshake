@@ -1,0 +1,3 @@
+DROP INDEX IF EXISTS idx_kernel_event_ledger_memory_pin_payload_pinned;
+DROP INDEX IF EXISTS idx_kernel_event_ledger_memory_pin_manifest;
+DROP INDEX IF EXISTS idx_kernel_event_ledger_memory_pin_item;

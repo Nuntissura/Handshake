@@ -30,6 +30,8 @@ pub struct FemsMtHandoffMemoryItemV1 {
     pub provenance_ref: String,
     pub token_count: u32,
     pub base_score_x100: u8,
+    #[serde(default)]
+    pub pinned: bool,
     pub predecessor_recommended: bool,
     pub source_attempt_failed: bool,
 }
@@ -193,16 +195,23 @@ pub fn project_fems_mt_handoff_memory_context(
         .iter()
         .map(String::as_str)
         .collect();
-    let mut scored_items: Vec<(u8, &FemsMtHandoffMemoryItemV1)> = context
+    let mut scored_items: Vec<(bool, u8, &FemsMtHandoffMemoryItemV1)> = context
         .carried_items
         .iter()
-        .map(|item| (adjusted_score_x100(item, &recommended_ids), item))
+        .map(|item| {
+            (
+                item.pinned,
+                adjusted_score_x100(item, &recommended_ids),
+                item,
+            )
+        })
         .collect();
     scored_items.sort_by(|left, right| {
         right
             .0
             .cmp(&left.0)
-            .then_with(|| left.1.item_id.cmp(&right.1.item_id))
+            .then_with(|| right.1.cmp(&left.1))
+            .then_with(|| left.2.item_id.cmp(&right.2.item_id))
     });
 
     let mut selected_item_ids = Vec::new();
@@ -210,7 +219,7 @@ pub fn project_fems_mt_handoff_memory_context(
     let mut deterministic_reduction_markers = Vec::new();
     let mut effective_handoff_tokens = 0u32;
 
-    for (score, item) in scored_items {
+    for (_pinned, score, item) in scored_items {
         if effective_handoff_tokens.saturating_add(item.token_count) > context.max_handoff_tokens {
             dropped_item_ids.push(item.item_id.clone());
             deterministic_reduction_markers.push(format!(
@@ -279,7 +288,12 @@ fn validate_carried_items(
     context: &FemsMtHandoffMemoryContextV1,
 ) {
     let mut item_ids = HashSet::new();
+    let mut pinned_token_count = 0u32;
     for item in &context.carried_items {
+        if item.pinned {
+            pinned_token_count = pinned_token_count.saturating_add(item.token_count);
+        }
+
         if !item_ids.insert(item.item_id.as_str()) {
             errors.push(FemsMtHandoffMemoryContextValidationError {
                 field: "carried_items.item_id",
@@ -329,6 +343,13 @@ fn validate_carried_items(
                 message: "failed-attempt handoff items must be marked as failed-source evidence",
             });
         }
+    }
+
+    if pinned_token_count > context.max_handoff_tokens {
+        errors.push(FemsMtHandoffMemoryContextValidationError {
+            field: "carried_items.pinned",
+            message: "pinned handoff items must fit before scored handoff reduction",
+        });
     }
 }
 

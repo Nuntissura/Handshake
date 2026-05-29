@@ -12,6 +12,7 @@ use uuid::Uuid;
 
 use crate::model_runtime::{GenPrompt, GenerateRequest};
 
+use super::pinned_core::PinError;
 use super::{
     BuildContext, BuilderError, CapsuleBuilder, CapsulePolicyTable, FemsRetriever, MemoryCapsule,
     RetrievalPolicy, TaskType,
@@ -71,6 +72,11 @@ impl<'a> CapsuleInjector<'a> {
             Err(BuilderError::Fems(_)) => {
                 return Ok(InjectionDecision::Skip {
                     reason: SkipReason::FemsUnavailable,
+                });
+            }
+            Err(BuilderError::PinnedCore(PinError::PinnedExceedsBudget { .. })) => {
+                return Ok(InjectionDecision::Skip {
+                    reason: SkipReason::BudgetExceededAfterPin,
                 });
             }
             Err(error) => return Err(InjectionError::Builder(error)),
@@ -411,11 +417,8 @@ pub trait MemoryCapsuleInjection: Send + Sync {
         call_ctx: &ModelCallContext,
     ) -> Result<InjectionDecision, InjectionError>;
 
-    fn suppress_capsule(
-        &self,
-        handle: CapsuleHandle,
-        reason: String,
-    ) -> Result<(), InjectionError>;
+    fn suppress_capsule(&self, handle: CapsuleHandle, reason: String)
+    -> Result<(), InjectionError>;
 }
 
 /// Owned, `Send + Sync` variant of [`CapsuleInjector`] suitable for storage
@@ -496,6 +499,11 @@ impl MemoryCapsuleInjection for SharedCapsuleInjector {
             Err(BuilderError::Fems(_)) => {
                 return Ok(InjectionDecision::Skip {
                     reason: SkipReason::FemsUnavailable,
+                });
+            }
+            Err(BuilderError::PinnedCore(PinError::PinnedExceedsBudget { .. })) => {
+                return Ok(InjectionDecision::Skip {
+                    reason: SkipReason::BudgetExceededAfterPin,
                 });
             }
             Err(error) => return Err(InjectionError::Builder(error)),

@@ -78,7 +78,12 @@ pub async fn refusal_extract(
     let model_id = preflight_capability_and_loaded(&request.model_id, state)?;
     let runtime = require_live_runtime(model_id, state, "refusal_extract")?;
 
-    let layers: Vec<LayerIndex> = request.layers.iter().copied().map(LayerIndex::new).collect();
+    let layers: Vec<LayerIndex> = request
+        .layers
+        .iter()
+        .copied()
+        .map(LayerIndex::new)
+        .collect();
 
     let directions: Vec<RefusalDirection> = extract_refusal_direction(
         runtime.as_ref(),
@@ -259,7 +264,9 @@ mod tests {
 
         let mut bad = request(model_id);
         bad.harmful_prompts.clear();
-        let err = refusal_extract(bad, &state).await.expect_err("empty harmful");
+        let err = refusal_extract(bad, &state)
+            .await
+            .expect_err("empty harmful");
         assert!(err.contains("harmful"), "{err}");
 
         let mut bad = request(model_id);
@@ -382,10 +389,7 @@ mod tests {
             .await
             .expect_err("adapter reports unloaded model");
 
-        assert!(
-            err.contains(STEERING_CAPTURE_NOT_AVAILABLE_PREFIX),
-            "{err}"
-        );
+        assert!(err.contains(STEERING_CAPTURE_NOT_AVAILABLE_PREFIX), "{err}");
         assert!(err.contains("not loaded"), "{err}");
     }
 }

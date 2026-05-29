@@ -23,6 +23,7 @@
 //!   lookup happens before any event read (no in-memory shortcut per
 //!   MT-119 red_team minimum_controls).
 
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use uuid::Uuid;
 
@@ -55,7 +56,7 @@ pub struct LlmInferenceEvent {
 }
 
 /// One assembled training turn (prompt + completion + provenance).
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TrainingTurn {
     pub id: String,
     pub session_id: String,
@@ -159,10 +160,13 @@ pub fn assemble_turns(
                 reason: "no FR-EVT-LLM-INFER-TOKEN phase between START and END".to_string(),
             });
         }
-        let prompt = start.prompt.clone().ok_or_else(|| ExtractionError::MalformedTriple {
-            correlation_id: correlation_id.clone(),
-            reason: "FR-EVT-LLM-INFER-START missing prompt payload".to_string(),
-        })?;
+        let prompt = start
+            .prompt
+            .clone()
+            .ok_or_else(|| ExtractionError::MalformedTriple {
+                correlation_id: correlation_id.clone(),
+                reason: "FR-EVT-LLM-INFER-START missing prompt payload".to_string(),
+            })?;
         let completion = tokens
             .iter()
             .map(|t| t.token_text.clone().unwrap_or_default())
@@ -451,8 +455,8 @@ mod tests {
                 None,
             ),
         ];
-        let err = assemble_turns(&events, "s", "MIT", "2026-05-20T00:00:00Z")
-            .expect_err("missing END");
+        let err =
+            assemble_turns(&events, "s", "MIT", "2026-05-20T00:00:00Z").expect_err("missing END");
         assert!(matches!(
             err,
             ExtractionError::MalformedTriple { ref reason, .. } if reason.contains("END")
@@ -481,8 +485,8 @@ mod tests {
                 Some("stop"),
             ),
         ];
-        let err = assemble_turns(&events, "s", "MIT", "2026-05-20T00:00:00Z")
-            .expect_err("no token");
+        let err =
+            assemble_turns(&events, "s", "MIT", "2026-05-20T00:00:00Z").expect_err("no token");
         assert!(matches!(
             err,
             ExtractionError::MalformedTriple { ref reason, .. } if reason.contains("TOKEN")
@@ -491,7 +495,8 @@ mod tests {
 
     #[test]
     fn assemble_rejects_empty_license_tag() {
-        let err = assemble_turns(&[], "s", "  ", "2026-05-20T00:00:00Z").expect_err("empty license");
+        let err =
+            assemble_turns(&[], "s", "  ", "2026-05-20T00:00:00Z").expect_err("empty license");
         assert!(matches!(err, ExtractionError::EmptyLicenseTag));
     }
 }

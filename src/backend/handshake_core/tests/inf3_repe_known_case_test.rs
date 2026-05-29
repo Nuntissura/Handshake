@@ -105,16 +105,16 @@ fn fixture_path(name: &str) -> PathBuf {
 
 fn read_prompt_fixture(name: &str) -> PromptFixture {
     let path = fixture_path(name);
-    let raw = fs::read_to_string(&path)
-        .unwrap_or_else(|err| panic!("read {}: {err}", path.display()));
+    let raw =
+        fs::read_to_string(&path).unwrap_or_else(|err| panic!("read {}: {err}", path.display()));
     serde_json::from_str::<PromptFixture>(&raw)
         .unwrap_or_else(|err| panic!("parse {}: {err}", path.display()))
 }
 
 fn read_eval_fixture() -> EvalCompletionsFixture {
     let path = fixture_path("eval_completions.json");
-    let raw = fs::read_to_string(&path)
-        .unwrap_or_else(|err| panic!("read {}: {err}", path.display()));
+    let raw =
+        fs::read_to_string(&path).unwrap_or_else(|err| panic!("read {}: {err}", path.display()));
     serde_json::from_str::<EvalCompletionsFixture>(&raw)
         .unwrap_or_else(|err| panic!("parse {}: {err}", path.display()))
 }
@@ -282,7 +282,10 @@ fn canned_completion_for(prompt: &str, items: &[EvalItem], active_layer: Option<
     let Some(item) = matched else {
         return "a generic unrelated completion".to_string();
     };
-    let words: Vec<&str> = item.reference_honest_completion.split_whitespace().collect();
+    let words: Vec<&str> = item
+        .reference_honest_completion
+        .split_whitespace()
+        .collect();
     let take = match active_layer {
         None => 0,
         Some(14) => (words.len() * 3) / 4,
@@ -454,20 +457,10 @@ async fn run_repe_eval(
         .copied()
         .map(LayerIndex::new)
         .collect();
-    let positive_capture = capture(
-        runtime,
-        model_id,
-        positives.prompts.clone(),
-        layers.clone(),
-    )
-    .await?;
-    let negative_capture = capture(
-        runtime,
-        model_id,
-        negatives.prompts.clone(),
-        layers.clone(),
-    )
-    .await?;
+    let positive_capture =
+        capture(runtime, model_id, positives.prompts.clone(), layers.clone()).await?;
+    let negative_capture =
+        capture(runtime, model_id, negatives.prompts.clone(), layers.clone()).await?;
 
     let mut directions: BTreeMap<u32, Vec<f32>> = BTreeMap::new();
     for layer in &layers {
@@ -476,18 +469,26 @@ async fn run_repe_eval(
         // We mimic that by reusing the per-pool mean rows: take the per-row
         // mean of the positive capture minus the per-row mean of the negative
         // capture at this layer.
-        let positive_rows = positive_capture.activations.get(layer).cloned().ok_or_else(|| {
-            ModelRuntimeError::SteeringHookError(format!(
-                "positive capture missing layer {}",
-                layer.as_u32()
-            ))
-        })?;
-        let negative_rows = negative_capture.activations.get(layer).cloned().ok_or_else(|| {
-            ModelRuntimeError::SteeringHookError(format!(
-                "negative capture missing layer {}",
-                layer.as_u32()
-            ))
-        })?;
+        let positive_rows = positive_capture
+            .activations
+            .get(layer)
+            .cloned()
+            .ok_or_else(|| {
+                ModelRuntimeError::SteeringHookError(format!(
+                    "positive capture missing layer {}",
+                    layer.as_u32()
+                ))
+            })?;
+        let negative_rows = negative_capture
+            .activations
+            .get(layer)
+            .cloned()
+            .ok_or_else(|| {
+                ModelRuntimeError::SteeringHookError(format!(
+                    "negative capture missing layer {}",
+                    layer.as_u32()
+                ))
+            })?;
         let mut combined = positive_rows.clone();
         let positive_count = combined.len();
         combined.extend(negative_rows.iter().cloned());
@@ -536,10 +537,11 @@ async fn run_repe_eval(
         // Baseline: no steering active. Embed item.reference_honest_completion
         // once per item; compare to baseline completion.
         set_active_steering_vectors(runtime, model_id, Vec::new()).await?;
-        let baseline_completion =
-            generate_completion_text(runtime, model_id, &item.prompt).await?;
+        let baseline_completion = generate_completion_text(runtime, model_id, &item.prompt).await?;
         let baseline_embed = runtime.embed(model_id, &baseline_completion).await?;
-        let reference_embed = runtime.embed(model_id, &item.reference_honest_completion).await?;
+        let reference_embed = runtime
+            .embed(model_id, &item.reference_honest_completion)
+            .await?;
         let baseline_sim = cosine_similarity(&baseline_embed.vector, &reference_embed.vector);
 
         for layer_u32 in CANDIDATE_LAYERS {
@@ -593,6 +595,7 @@ async fn generate_completion_text(
         cancel: CancellationToken::new(),
         max_tokens: 32,
         stop_sequences: Vec::new(),
+        speculative_mode: None,
         structured_decoding: None,
     };
     let mut stream = runtime.generate(request);

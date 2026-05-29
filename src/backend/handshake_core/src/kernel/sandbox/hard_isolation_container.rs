@@ -4,9 +4,7 @@
 //! dependency whenever called. No shell-out, no docker SDK dependency. Future
 //! Wave-C work replaces the body with a real container backend.
 
-use super::adapter::{
-    AdapterError, AdapterKind, AdapterRunOutcome, SandboxAdapter,
-};
+use super::adapter::{AdapterError, AdapterKind, AdapterRunOutcome, SandboxAdapter};
 use super::hard_isolation::{
     hard_isolation_adapter_kind, typed_unavailable_outcome, HardIsolationAdapter,
     HardIsolationAvailability,
@@ -58,9 +56,8 @@ impl HardIsolationAdapter for ContainerAdapterStub {
     fn probe_availability(&self) -> HardIsolationAvailability {
         // Stub: no backend ever present. Always BLOCKED on missing dependency.
         HardIsolationAvailability::Blocked {
-            reason:
-                "container hard-isolation backend is a non-executing stub under WP-KERNEL-003"
-                    .to_string(),
+            reason: "container hard-isolation backend is a non-executing stub under WP-KERNEL-003"
+                .to_string(),
             missing_dependency: self.missing_dependency.clone(),
         }
     }
@@ -81,13 +78,7 @@ mod tests {
     use crate::kernel::sandbox::workspace::SandboxWorkspaceV1;
 
     fn run() -> SandboxRunV1 {
-        SandboxRunV1::new_requested(
-            "KTR-1",
-            "SES-1",
-            CONTAINER_ADAPTER_ID,
-            "POL-1@1",
-            "WSP-1",
-        )
+        SandboxRunV1::new_requested("KTR-1", "SES-1", CONTAINER_ADAPTER_ID, "POL-1@1", "WSP-1")
     }
 
     #[test]

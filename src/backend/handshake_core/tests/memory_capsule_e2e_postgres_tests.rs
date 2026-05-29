@@ -13,15 +13,20 @@
 //!  - Sub-rule 1: no LiveXxxUnavailable / todo / unimplemented paths.
 //!  - Sub-rule 2: real resource = Postgres via `postgres_backend_from_env`,
 //!    matching the convention in `tests/kernel_postgres_event_ledger_tests.rs`.
-//!    `#[ignore]`-gated; run with `cargo test -- --ignored` after setting
-//!    `POSTGRES_TEST_URL`.
+//!    `#[ignore]`-gated; run with `cargo test -- --ignored`. When
+//!    `POSTGRES_TEST_URL` is unset the test starts a bounded Docker Postgres
+//!    fixture and cleans it up through a guard.
 //!  - Sub-rule 3: a separate validator session signs off on the behaviour.
 
 use std::{
     cell::RefCell,
+    error::Error,
     fs,
     path::{Path, PathBuf},
+    process::{Command, Output, Stdio},
     sync::Arc,
+    thread,
+    time::{Duration, Instant},
 };
 
 use chrono::Utc;
@@ -30,35 +35,50 @@ use handshake_core::{
         CapsuleBuilder, CapsuleFlightRecorderEvent, CapsulePolicyTable, CapsuleRecord,
         CapsuleRecorder, FemsError, FemsFlightRecorder, FemsFlightRecorderError, FemsRetriever,
         GetCapsuleRequest, InjectionDecision, ListRecentCapsulesRequest, MemoryCapsuleIpcStore,
-        ModelCallContext, PostgresKernelActionSubmitter, PostgresMemoryCapsuleStore,
-        RetrievedItem, SuppressItemRequest, TaskType, MEMORY_CAPSULE_AGGREGATE_TYPE,
+        ModelCallContext, PostgresKernelActionSubmitter, PostgresMemoryCapsuleStore, RetrievedItem,
+        SuppressItemRequest, TaskType, MEMORY_CAPSULE_AGGREGATE_TYPE,
         MEMORY_CAPSULE_RECORD_ACTION_ID,
     },
-    storage::{tests::postgres_backend_from_env, StorageError},
+    storage::{postgres::PostgresDatabase, Database, StorageResult},
 };
 use serde::Deserialize;
+use sqlx::Connection;
+use uuid::Uuid;
 
 const QUERY: &str = "how do I add a new HBR rule applicability tag";
 const ROLE_ID: &str = "KERNEL_BUILDER";
 const SESSION_ID: &str = "KERNEL_BUILDER-MT-147-POSTGRES";
 const FIXTURE_RELATIVE_PATH: &str = "tests/fixtures/memory_capsule_e2e/sample_fems_items.json";
+const POSTGRES_READY_TIMEOUT: Duration = Duration::from_secs(45);
 
-async fn postgres_or_environment_blocked() -> Arc<dyn handshake_core::storage::Database> {
-    match postgres_backend_from_env().await {
-        Ok(db) => db,
-        Err(StorageError::Validation(msg)) if msg.contains("POSTGRES_TEST_URL not set") => {
-            panic!(
-                "ENVIRONMENT_BLOCKED: MT-147 memory capsule E2E tests require POSTGRES_TEST_URL; {msg}"
-            );
-        }
-        Err(err) => panic!("failed to init postgres backend: {err:?}"),
-    }
+async fn postgres_backend_from_url(url: &str) -> StorageResult<Arc<dyn Database>> {
+    let mut conn = sqlx::PgConnection::connect(url).await?;
+    let schema = format!("memory_capsule_e2e_{}", Uuid::now_v7().simple());
+    sqlx::query(&format!("CREATE SCHEMA {schema}"))
+        .execute(&mut conn)
+        .await?;
+    drop(conn);
+
+    let sep = if url.contains('?') { "&" } else { "?" };
+    let schema_url = format!("{url}{sep}options=-csearch_path%3D{schema}");
+
+    let db = PostgresDatabase::connect(&schema_url, 5).await?;
+    db.run_migrations().await?;
+    Ok(db.into_arc())
 }
 
-#[tokio::test]
-#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "starts real Postgres; run explicitly with `cargo test -- --ignored`"]
 async fn capsule_builder_injector_recorder_and_ipc_compose_over_real_postgres() {
-    let db = postgres_or_environment_blocked().await;
+    let fixture = PostgresFixture::start().expect("postgres fixture");
+    let db = postgres_backend_from_url(fixture.url())
+        .await
+        .unwrap_or_else(|error| {
+            panic!(
+                "failed to init postgres backend: {error:?}\n{}",
+                fixture.diagnostics()
+            )
+        });
 
     let fixture_items = load_fixture_items();
     let fems = TestFemsAdapter::new(fixture_items);
@@ -220,7 +240,8 @@ impl FemsFlightRecorder for RecordingFemsFlightRecorder {
 }
 
 fn load_fixture_items() -> Vec<RetrievedItem> {
-    let fixture_path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(Path::new(FIXTURE_RELATIVE_PATH));
+    let fixture_path =
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(Path::new(FIXTURE_RELATIVE_PATH));
     let raw = fs::read_to_string(&fixture_path).unwrap_or_else(|error| {
         panic!(
             "MT-147 fixture file is required at {}: {error}",
@@ -236,7 +257,10 @@ fn load_fixture_items() -> Vec<RetrievedItem> {
     // Sanity-check the fixture is the same one the in-memory MT-147 e2e uses so
     // we are exercising the spec-required path, not an ad-hoc test fixture.
     assert_eq!(fixture.schema_version, "sample_fems_items.v1");
-    assert_eq!(fixture.fixture_id, "mt-147-memory-capsule-e2e-sample-fems-items");
+    assert_eq!(
+        fixture.fixture_id,
+        "mt-147-memory-capsule-e2e-sample-fems-items"
+    );
     assert_eq!(fixture.wp_id, "WP-KERNEL-004");
     assert_eq!(fixture.mt_id, "MT-147");
     fixture.items
@@ -252,4 +276,212 @@ struct FixtureFile {
     #[allow(dead_code)]
     intended_task_type: String,
     items: Vec<RetrievedItem>,
+}
+
+struct PostgresFixture {
+    url: String,
+    container_name: Option<String>,
+}
+
+impl PostgresFixture {
+    fn start() -> Result<Self, Box<dyn Error>> {
+        if let Ok(url) = std::env::var("POSTGRES_TEST_URL") {
+            if !url.trim().is_empty() {
+                return Ok(Self {
+                    url,
+                    container_name: None,
+                });
+            }
+        }
+
+        let suffix = Uuid::now_v7().to_string().replace('-', "");
+        let container_name = format!("handshake-mt147-pg-{}", &suffix[..12]);
+        let run = Command::new("docker")
+            .args([
+                "run",
+                "--rm",
+                "-d",
+                "--name",
+                &container_name,
+                "-e",
+                "POSTGRES_USER=handshake",
+                "-e",
+                "POSTGRES_PASSWORD=handshake",
+                "-e",
+                "POSTGRES_DB=handshake_test",
+                "-e",
+                "POSTGRES_INITDB_ARGS=--nosync",
+                "--tmpfs",
+                "/var/lib/postgresql/data:rw,noexec,nosuid,size=256m",
+                "-p",
+                "127.0.0.1::5432",
+                "postgres:16-alpine",
+                "postgres",
+                "-c",
+                "fsync=off",
+                "-c",
+                "full_page_writes=off",
+                "-c",
+                "synchronous_commit=off",
+            ])
+            .output()?;
+        assert_success(run, "docker run postgres:16-alpine");
+        let mut guard = PostgresContainerGuard::new(container_name);
+        let container_name = guard.name();
+
+        let port_output = Command::new("docker")
+            .args(["port", container_name, "5432/tcp"])
+            .output()?;
+        assert_success(port_output.clone(), "docker port postgres");
+        let port_line = String::from_utf8(port_output.stdout)?;
+        let port = port_line
+            .trim()
+            .rsplit(':')
+            .next()
+            .filter(|value| !value.is_empty())
+            .ok_or("docker port output did not contain a mapped port")?;
+
+        let deadline = Instant::now() + POSTGRES_READY_TIMEOUT;
+        loop {
+            let ready = Command::new("docker")
+                .args([
+                    "exec",
+                    container_name,
+                    "pg_isready",
+                    "-U",
+                    "handshake",
+                    "-d",
+                    "handshake_test",
+                ])
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
+                .status()?;
+            if ready.success() {
+                break;
+            }
+            if Instant::now() >= deadline {
+                let logs = Command::new("docker")
+                    .args(["logs", "--tail", "120", container_name])
+                    .output()
+                    .ok()
+                    .map(output_text)
+                    .unwrap_or_else(|| "docker logs unavailable".to_string());
+                let _ = Command::new("docker")
+                    .args(["stop", container_name])
+                    .stdout(Stdio::null())
+                    .stderr(Stdio::null())
+                    .status();
+                return Err(format!(
+                    "timed out waiting {:?} for PostgreSQL test container {container_name}\n{logs}",
+                    POSTGRES_READY_TIMEOUT
+                )
+                .into());
+            }
+            thread::sleep(Duration::from_millis(500));
+        }
+
+        Ok(Self {
+            url: format!(
+                "postgres://handshake:handshake@127.0.0.1:{port}/handshake_test?sslmode=disable"
+            ),
+            container_name: Some(guard.release()),
+        })
+    }
+
+    fn url(&self) -> &str {
+        &self.url
+    }
+
+    fn diagnostics(&self) -> String {
+        let Some(container_name) = &self.container_name else {
+            return "external POSTGRES_TEST_URL supplied; no fixture container diagnostics available"
+                .to_string();
+        };
+
+        let inspect = Command::new("docker")
+            .args([
+                "inspect",
+                container_name,
+                "--format",
+                "Status={{.State.Status}} Health={{if .State.Health}}{{.State.Health.Status}}{{end}} Exit={{.State.ExitCode}} Error={{.State.Error}}",
+            ])
+            .output()
+            .ok()
+            .map(output_text)
+            .unwrap_or_else(|| "docker inspect unavailable".to_string());
+        let logs = Command::new("docker")
+            .args(["logs", "--tail", "160", container_name])
+            .output()
+            .ok()
+            .map(output_text)
+            .unwrap_or_else(|| "docker logs unavailable".to_string());
+
+        format!("container: {container_name}\ninspect:\n{inspect}\nlogs:\n{logs}")
+    }
+}
+
+impl Drop for PostgresFixture {
+    fn drop(&mut self) {
+        if let Some(container_name) = &self.container_name {
+            let _ = Command::new("docker")
+                .args(["stop", container_name])
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
+                .status();
+        }
+    }
+}
+
+struct PostgresContainerGuard {
+    container_name: Option<String>,
+}
+
+impl PostgresContainerGuard {
+    fn new(container_name: String) -> Self {
+        Self {
+            container_name: Some(container_name),
+        }
+    }
+
+    fn name(&self) -> &str {
+        self.container_name
+            .as_deref()
+            .expect("container guard must hold a name")
+    }
+
+    fn release(&mut self) -> String {
+        self.container_name
+            .take()
+            .expect("container guard must hold a name")
+    }
+}
+
+impl Drop for PostgresContainerGuard {
+    fn drop(&mut self) {
+        if let Some(container_name) = &self.container_name {
+            let _ = Command::new("docker")
+                .args(["stop", container_name])
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
+                .status();
+        }
+    }
+}
+
+fn assert_success(output: Output, label: &str) {
+    assert!(
+        output.status.success(),
+        "{label} failed\nstdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
+
+fn output_text(output: Output) -> String {
+    format!(
+        "status: {}\nstdout:\n{}\nstderr:\n{}",
+        output.status,
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    )
 }

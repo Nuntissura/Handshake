@@ -1,0 +1,1 @@
+{"supports_lora":true,"supports_kv_prefix_cache":true,"supports_kv_quantization":"q4_q8_mix","supports_activation_steering":true,"supports_subquadratic":false,"supports_speculative_draft":true,"supports_eagle3":false}

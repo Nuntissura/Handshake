@@ -77,9 +77,13 @@ pub enum LaneSettlementBuildError {
     /// Pass requires attached approval evidence.
     PassWithoutApproval,
     /// Pass requires every MT to be Completed + Accepted.
-    PassWithUnclosedMts { unclosed_count: u32 },
+    PassWithUnclosedMts {
+        unclosed_count: u32,
+    },
     /// Approval is malformed (missing field).
-    ApprovalMissingField { field: &'static str },
+    ApprovalMissingField {
+        field: &'static str,
+    },
     /// Approval looks fixture-like (mirrors gate-level guard).
     ApprovalLooksFixture,
     EmptyWpId,
@@ -193,9 +197,7 @@ impl MteLaneSettlementV1 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::kernel::mte_aggregate_summary::{
-        MtePromotionCounts, MteStatusCounts,
-    };
+    use crate::kernel::mte_aggregate_summary::{MtePromotionCounts, MteStatusCounts};
 
     fn aggregate_all_accepted(n: u32) -> MteAggregateSummaryV1 {
         MteAggregateSummaryV1 {
@@ -234,14 +236,7 @@ mod tests {
         let agg = aggregate_all_accepted(2);
         let mut bad = good_approval();
         bad.operator_id = "".into();
-        let err = MteLaneSettlementV1::settle_pass(
-            "WP-X",
-            agg,
-            bad,
-            vec![],
-            "ok",
-        )
-        .unwrap_err();
+        let err = MteLaneSettlementV1::settle_pass("WP-X", agg, bad, vec![], "ok").unwrap_err();
         match err {
             LaneSettlementBuildError::ApprovalMissingField { field } => {
                 assert_eq!(field, "operator_id");
@@ -255,14 +250,7 @@ mod tests {
         let agg = aggregate_all_accepted(1);
         let mut bad = good_approval();
         bad.operator_id = "kernel-proof-fixture".into();
-        let err = MteLaneSettlementV1::settle_pass(
-            "WP-X",
-            agg,
-            bad,
-            vec![],
-            "ok",
-        )
-        .unwrap_err();
+        let err = MteLaneSettlementV1::settle_pass("WP-X", agg, bad, vec![], "ok").unwrap_err();
         assert_eq!(err, LaneSettlementBuildError::ApprovalLooksFixture);
     }
 
@@ -270,14 +258,8 @@ mod tests {
     fn pass_with_unclosed_mts_refused() {
         let mut agg = aggregate_all_accepted(3);
         agg.promotion_counts.accepted = 2; // one MT not yet accepted
-        let err = MteLaneSettlementV1::settle_pass(
-            "WP-X",
-            agg,
-            good_approval(),
-            vec![],
-            "ok",
-        )
-        .unwrap_err();
+        let err = MteLaneSettlementV1::settle_pass("WP-X", agg, good_approval(), vec![], "ok")
+            .unwrap_err();
         match err {
             LaneSettlementBuildError::PassWithUnclosedMts { unclosed_count } => {
                 assert!(unclosed_count >= 1);
@@ -319,28 +301,17 @@ mod tests {
     #[test]
     fn non_pass_helper_refuses_pass_verdict() {
         let agg = aggregate_all_accepted(0);
-        let err = MteLaneSettlementV1::settle_non_pass(
-            "WP-X",
-            MteLaneVerdict::Pass,
-            agg,
-            vec![],
-            "x",
-        )
-        .unwrap_err();
+        let err =
+            MteLaneSettlementV1::settle_non_pass("WP-X", MteLaneVerdict::Pass, agg, vec![], "x")
+                .unwrap_err();
         assert_eq!(err, LaneSettlementBuildError::PassWithoutApproval);
     }
 
     #[test]
     fn empty_wp_id_refused() {
         let agg = aggregate_all_accepted(0);
-        let err = MteLaneSettlementV1::settle_pass(
-            "",
-            agg,
-            good_approval(),
-            vec![],
-            "x",
-        )
-        .unwrap_err();
+        let err =
+            MteLaneSettlementV1::settle_pass("", agg, good_approval(), vec![], "x").unwrap_err();
         assert_eq!(err, LaneSettlementBuildError::EmptyWpId);
     }
 }

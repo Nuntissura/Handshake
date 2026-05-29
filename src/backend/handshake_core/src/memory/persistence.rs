@@ -7,15 +7,15 @@ use uuid::Uuid;
 use super::capsule::{CapsuleAuditLog, MemoryCapsule, RetrievalPolicy, TaskType};
 use crate::kernel::{
     action_envelope::{
-        validate_kernel_action_request, ApprovalPosture, AuthorityEffect, ExpectedWriteBoxRef,
-        KernelActionRequestV1, KernelActorRef, KernelSessionRef, KernelTargetRef,
-        ValidationRequirement,
+        ApprovalPosture, AuthorityEffect, ExpectedWriteBoxRef, KernelActionRequestV1,
+        KernelActorRef, KernelSessionRef, KernelTargetRef, ValidationRequirement,
+        validate_kernel_action_request,
     },
     context_bundle::{canonical_json_bytes, sha256_hex},
     write_boxes::{
-        validate_write_box_common, MemoryBox, WriteBoxCommon, WriteBoxKind, WriteBoxLifecycleState,
-        WriteBoxOwnerRef, WriteBoxPayloadRef, WriteBoxReplayMetadataV1, WriteBoxTargetRef,
-        WriteBoxValidationState, WriteBoxValidationStatus,
+        MemoryBox, WriteBoxCommon, WriteBoxKind, WriteBoxLifecycleState, WriteBoxOwnerRef,
+        WriteBoxPayloadRef, WriteBoxReplayMetadataV1, WriteBoxTargetRef, WriteBoxValidationState,
+        WriteBoxValidationStatus, validate_write_box_common,
     },
 };
 

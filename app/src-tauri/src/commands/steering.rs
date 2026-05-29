@@ -239,16 +239,17 @@ pub async fn steering_capture(
     validate_prompts_and_layers(&request.prompts, &request.layers)?;
     let model_id = preflight_capability_and_loaded(&request.model_id, state)?;
     let runtime = require_live_runtime(model_id, state, "capture")?;
-    let layers: Vec<LayerIndex> = request.layers.iter().copied().map(LayerIndex::new).collect();
+    let layers: Vec<LayerIndex> = request
+        .layers
+        .iter()
+        .copied()
+        .map(LayerIndex::new)
+        .collect();
 
-    let capture_result = activation_steering::capture(
-        runtime.as_ref(),
-        model_id,
-        request.prompts.clone(),
-        layers,
-    )
-    .await
-    .map_err(|error| capture_not_available_message(&error.to_string()))?;
+    let capture_result =
+        activation_steering::capture(runtime.as_ref(), model_id, request.prompts.clone(), layers)
+            .await
+            .map_err(|error| capture_not_available_message(&error.to_string()))?;
 
     let activations_by_layer: Vec<LayerActivationsIpc> = capture_result
         .activations
@@ -276,19 +277,11 @@ pub async fn steering_register_vector(
     let runtime = require_live_runtime(model_id, state, "register_vector")?;
 
     let vector = build_steering_vector(&request)?;
-    let vector_id = activation_steering::register_steering_vector(
-        runtime.as_ref(),
-        model_id,
-        vector.clone(),
-    )
-    .await
-    .map_err(|error| format!("steering register dispatch failed: {error}"))?;
 
     // MT-097 persistence: when a SteeringVectorStore is attached, persist the
-    // operator-authored vector as a pre-promotion ArtifactBox so it survives
-    // process restarts and flows into the promotion gate. Without a store
-    // (test mode), we still surface the adapter-assigned id so callers can
-    // verify the live dispatch worked.
+    // operator-authored vector as a pre-promotion ArtifactBox before mutating
+    // live runtime hook state. Without a store (test mode), dispatch directly
+    // so test-only adapters can still exercise live steering hooks.
     if let Some(store) = store.store() {
         let license_tag = request
             .license_tag
@@ -313,10 +306,7 @@ pub async fn steering_register_vector(
         )
         .map_err(|error| format!("operator id invalid: {error}"))?;
         let persist_request = PersistSteeringVectorRequest {
-            vector: SteeringVector {
-                id: vector_id,
-                ..vector
-            },
+            vector: vector.clone(),
             license_tag,
             model_compat_tag,
             created_by,
@@ -326,6 +316,18 @@ pub async fn steering_register_vector(
         store
             .persist(persist_request)
             .map_err(|error| format!("steering vector persist failed: {error}"))?;
+    }
+
+    let vector_id =
+        activation_steering::register_steering_vector(runtime.as_ref(), model_id, vector.clone())
+            .await
+            .map_err(|error| format!("steering register dispatch failed: {error}"))?;
+    if vector_id != vector.id {
+        let _ = activation_steering::unregister(runtime.as_ref(), model_id, vector_id).await;
+        return Err(format!(
+            "steering register dispatch returned unexpected vector id {}; expected {}",
+            vector_id, vector.id
+        ));
     }
 
     Ok(SteeringVectorIdIpc {
@@ -345,9 +347,13 @@ pub async fn steering_set_active(
     let model_id = preflight_capability_and_loaded(&request.model_id, state)?;
     let runtime = require_live_runtime(model_id, state, "set_active")?;
 
-    activation_steering::set_active_steering_vectors(runtime.as_ref(), model_id, parsed_ids.clone())
-        .await
-        .map_err(|error| format!("steering set_active dispatch failed: {error}"))?;
+    activation_steering::set_active_steering_vectors(
+        runtime.as_ref(),
+        model_id,
+        parsed_ids.clone(),
+    )
+    .await
+    .map_err(|error| format!("steering set_active dispatch failed: {error}"))?;
 
     Ok(SteeringSetActiveResultIpc {
         active_ids: parsed_ids.into_iter().map(|id| id.to_string()).collect(),
@@ -451,7 +457,12 @@ fn build_steering_vector(
 fn build_provenance(provenance: &SteeringProvenanceIpc) -> Result<SteeringProvenance, String> {
     match provenance.technique.trim() {
         "manual" => Ok(SteeringProvenance::Manual {
-            author: provenance.author.clone().unwrap_or_default().trim().to_string(),
+            author: provenance
+                .author
+                .clone()
+                .unwrap_or_default()
+                .trim()
+                .to_string(),
             notes: provenance.notes.clone().unwrap_or_default(),
         }),
         "repe" => Ok(SteeringProvenance::Contrastive {
@@ -564,7 +575,7 @@ fn steering_handle_id(handle: &SteeringHookHandle) -> String {
 
 #[cfg(test)]
 mod tests {
-    use std::{path::PathBuf, sync::Arc};
+    use std::{fs, path::PathBuf, sync::Arc};
 
     use chrono::Utc;
     use handshake_core::model_runtime::{
@@ -841,6 +852,48 @@ mod tests {
             .expect("list returns artifacts");
         assert_eq!(listed.len(), 1);
         assert_eq!(listed[0].license_tag, "Permissive");
+    }
+
+    #[tokio::test]
+    async fn steering_register_vector_does_not_mutate_runtime_when_persistence_fails() {
+        let tempdir = tempfile::tempdir().expect("tempdir");
+        let root_file = tempdir.path().join("not-a-directory");
+        fs::write(&root_file, b"blocks artifact directory creation").expect("root file");
+        let store = Arc::new(SteeringVectorStore::new(&root_file));
+        let store_state = SteeringVectorStoreState::new(store);
+
+        let model_id = ModelId::new_v7();
+        let state = state_with_candle_model(model_id);
+        let hooks = attach_fake_runtime(&state, model_id);
+
+        let request = SteeringRegisterVectorRequestIpc {
+            model_id: model_id.to_string(),
+            name: "calm".to_string(),
+            layer: 12,
+            hook_point: "resid_stream".to_string(),
+            values: vec![0.1, 0.2, 0.3, 0.4],
+            intensity: 1.0,
+            description: "must not reach runtime when persist fails".to_string(),
+            provenance: SteeringProvenanceIpc {
+                technique: "repe".to_string(),
+                positive_prompts: vec!["pos".to_string()],
+                negative_prompts: vec!["neg".to_string()],
+                author: Some("operator-ilja".to_string()),
+                notes: None,
+            },
+            license_tag: Some("Permissive".to_string()),
+            model_compat_tag: Some("local-test-base".to_string()),
+        };
+
+        let error = steering_register_vector(request, &state, &store_state)
+            .await
+            .expect_err("persistence failure must reject command");
+
+        assert!(error.contains("steering vector persist failed"), "{error}");
+        assert!(
+            hooks.vectors.lock().unwrap().is_empty(),
+            "runtime must not accept a vector when persistence fails"
+        );
     }
 
     #[tokio::test]

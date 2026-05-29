@@ -716,9 +716,7 @@ pub fn derive_promotion_preview_fields(
     }
 }
 
-fn validation_check_summaries_from_report(
-    report: &CrdtPromotionValidationReportV1,
-) -> Vec<String> {
+fn validation_check_summaries_from_report(report: &CrdtPromotionValidationReportV1) -> Vec<String> {
     let mut summaries = Vec::new();
     summaries.push(format!(
         "promotion_decision: {}",
@@ -727,10 +725,7 @@ fn validation_check_summaries_from_report(
             CrdtPromotionValidationDecision::Denied => "DENIED",
         }
     ));
-    summaries.push(format!(
-        "document_schema_id: {}",
-        report.document_schema_id
-    ));
+    summaries.push(format!("document_schema_id: {}", report.document_schema_id));
     summaries.push(format!(
         "state_vector: {} / latest_update_seq: {}",
         report.state_vector, report.latest_update_seq
@@ -1135,11 +1130,7 @@ fn validate_state_refs(
                 message: "promotion preview must have stable element id",
             });
         }
-        require_non_empty(
-            errors,
-            "promotion_previews.state_vector",
-            &row.state_vector,
-        );
+        require_non_empty(errors, "promotion_previews.state_vector", &row.state_vector);
         require_non_empty(
             errors,
             "promotion_previews.idempotency_key",

@@ -20,11 +20,9 @@ use crate::ai_ready_data::records::{
 
 pub mod calendar;
 pub mod kb003_storage;
-pub(crate) mod locus_sqlite;
 pub mod loom;
 pub mod postgres;
 pub mod retention;
-pub mod sqlite;
 
 pub use calendar::*;
 pub use loom::*;
@@ -38,7 +36,6 @@ pub type StorageResult<T> = Result<T, StorageError>;
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum StorageBackendKind {
-    Sqlite,
     Postgres,
 }
 
@@ -46,24 +43,17 @@ pub const DATABASE_URL_ENV: &str = "DATABASE_URL";
 pub const HANDSHAKE_STORAGE_MODE_ENV: &str = "HANDSHAKE_STORAGE_MODE";
 pub const HANDSHAKE_CONTROL_PLANE_REQUIRES_POSTGRES_ENV: &str =
     "HANDSHAKE_CONTROL_PLANE_REQUIRES_POSTGRES";
-const DEFAULT_SQLITE_DATABASE_URL: &str = "sqlite://data/handshake.db";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ControlPlaneStorageMode {
     PostgresPrimary,
-    SqliteCache,
-    SqliteOffline,
-    Test,
 }
 
 impl ControlPlaneStorageMode {
     pub fn as_str(&self) -> &'static str {
         match self {
             Self::PostgresPrimary => "postgres_primary",
-            Self::SqliteCache => "sqlite_cache",
-            Self::SqliteOffline => "sqlite_offline",
-            Self::Test => "test",
         }
     }
 
@@ -74,18 +64,12 @@ impl ControlPlaneStorageMode {
     pub fn authority_label(&self) -> &'static str {
         match self {
             Self::PostgresPrimary => "primary_authority",
-            Self::SqliteCache => "cache_projection",
-            Self::SqliteOffline => "offline_snapshot",
-            Self::Test => "test_fixture",
         }
     }
 
     pub fn freshness_label(&self) -> &'static str {
         match self {
             Self::PostgresPrimary => "current_source_of_truth",
-            Self::SqliteCache => "derived_or_stale",
-            Self::SqliteOffline => "offline_stale",
-            Self::Test => "test_controlled",
         }
     }
 }
@@ -102,9 +86,6 @@ impl FromStr for ControlPlaneStorageMode {
     fn from_str(value: &str) -> Result<Self, Self::Err> {
         match value.trim().to_ascii_lowercase().as_str() {
             "postgres_primary" => Ok(Self::PostgresPrimary),
-            "sqlite_cache" => Ok(Self::SqliteCache),
-            "sqlite_offline" => Ok(Self::SqliteOffline),
-            "test" => Ok(Self::Test),
             _ => Err(StorageError::Validation("unsupported storage mode")),
         }
     }
@@ -157,17 +138,6 @@ impl ControlPlaneStorageConfig {
                 }
                 url.to_string()
             }
-            ControlPlaneStorageMode::SqliteCache
-            | ControlPlaneStorageMode::SqliteOffline
-            | ControlPlaneStorageMode::Test => {
-                let url = non_empty(database_url).unwrap_or(DEFAULT_SQLITE_DATABASE_URL);
-                if !url.starts_with("sqlite://") {
-                    return Err(StorageError::Validation(
-                        "sqlite storage modes require a SQLite DATABASE_URL",
-                    ));
-                }
-                url.to_string()
-            }
         };
 
         Ok(Self { mode, database_url })
@@ -210,7 +180,6 @@ pub struct StorageCapabilitySnapshot {
 impl StorageCapabilitySnapshot {
     pub fn loom_search_observability_tier(&self) -> u8 {
         match self.backend {
-            StorageBackendKind::Sqlite => 1,
             StorageBackendKind::Postgres => 2,
         }
     }
@@ -2475,7 +2444,7 @@ pub trait Database: Send + Sync {
         Err(StorageError::NotImplemented("test loom metrics backend"))
     }
 
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-utils"))]
     async fn test_insert_loom_traversal_perf_fixture(
         &self,
         workspace_id: &str,
@@ -2521,11 +2490,9 @@ where
             self.loom_search_observability_tier(),
             self.supports_loom_graph_filtering(),
         ) {
-            (1, false) => StorageBackendKind::Sqlite,
-            (1, true) => StorageBackendKind::Sqlite,
             (2, _) => StorageBackendKind::Postgres,
             (_, true) => StorageBackendKind::Postgres,
-            _ => StorageBackendKind::Sqlite,
+            _ => StorageBackendKind::Postgres,
         };
 
         StorageCapabilitySnapshot {
@@ -2542,7 +2509,8 @@ where
     T: Database + ?Sized,
 {
     async fn locus_work_packet_exists(&self, wp_id: &str) -> StorageResult<bool> {
-        locus_sqlite::locus_work_packet_exists(self, wp_id).await
+        let row = Database::structured_collab_work_packet_row(self, wp_id).await?;
+        Ok(row.is_some())
     }
 
     async fn execute_locus_operation(
@@ -2556,7 +2524,8 @@ where
         &self,
         wp_id: &str,
     ) -> StorageResult<Option<(String, String)>> {
-        locus_sqlite::locus_task_board_get_status_and_metadata(self, wp_id).await
+        let row = Database::structured_collab_work_packet_row(self, wp_id).await?;
+        Ok(row.map(|row| (row.task_board_status, row.metadata)))
     }
 
     async fn locus_task_board_update_work_packet(
@@ -2579,7 +2548,11 @@ where
     }
 
     async fn locus_task_board_list_rows(&self) -> StorageResult<Vec<(String, String, String)>> {
-        locus_sqlite::locus_task_board_list_rows(self).await
+        let rows = Database::structured_collab_work_packet_rows(self).await?;
+        Ok(rows
+            .into_iter()
+            .map(|row| (row.wp_id, row.task_board_status, row.metadata))
+            .collect())
     }
 
     async fn structured_collab_work_packet_row(
@@ -2627,21 +2600,37 @@ pub async fn init_storage() -> Result<Arc<dyn Database>, StorageError> {
     init_storage_with_config(&config).await
 }
 
-pub async fn init_storage_with_config(
+#[derive(Clone)]
+pub struct ControlPlaneStorage {
+    pub database: Arc<dyn Database>,
+    pub postgres_pool: sqlx::postgres::PgPool,
+}
+
+pub async fn init_control_plane_storage() -> Result<ControlPlaneStorage, StorageError> {
+    let config = ControlPlaneStorageConfig::from_env()?;
+    init_control_plane_storage_with_config(&config).await
+}
+
+pub async fn init_control_plane_storage_with_config(
     config: &ControlPlaneStorageConfig,
-) -> Result<Arc<dyn Database>, StorageError> {
+) -> Result<ControlPlaneStorage, StorageError> {
     match config.mode {
-        ControlPlaneStorageMode::SqliteCache
-        | ControlPlaneStorageMode::SqliteOffline
-        | ControlPlaneStorageMode::Test => {
-            let db = sqlite::SqliteDatabase::connect(&config.database_url, 5).await?;
-            db.run_migrations().await?;
-            Ok(db.into_arc())
-        }
         ControlPlaneStorageMode::PostgresPrimary => {
             let db = postgres::PostgresDatabase::connect(&config.database_url, 5).await?;
             db.run_migrations().await?;
-            Ok(db.into_arc())
+            let postgres_pool = db.pool().clone();
+            Ok(ControlPlaneStorage {
+                database: db.into_arc(),
+                postgres_pool,
+            })
         }
     }
+}
+
+pub async fn init_storage_with_config(
+    config: &ControlPlaneStorageConfig,
+) -> Result<Arc<dyn Database>, StorageError> {
+    Ok(init_control_plane_storage_with_config(config)
+        .await?
+        .database)
 }

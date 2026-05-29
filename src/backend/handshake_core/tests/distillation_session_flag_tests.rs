@@ -22,14 +22,14 @@ fn default_deny_default_session_returns_false() {
 #[test]
 fn mark_with_signature_sets_then_unsets() {
     let store = InMemorySessionFlagStore::default();
-    let record = mark_for_distillation(&store, "s", true, "op", "2026-05-20T00:00:00Z")
-        .expect("set true");
+    let record =
+        mark_for_distillation(&store, "s", true, "op", "2026-05-20T00:00:00Z").expect("set true");
     assert_eq!(record.previous_flag, false);
     assert_eq!(record.new_flag, true);
     assert!(get_distill_flag(&store, "s").unwrap());
 
-    let record = mark_for_distillation(&store, "s", false, "op", "2026-05-20T00:01:00Z")
-        .expect("set false");
+    let record =
+        mark_for_distillation(&store, "s", false, "op", "2026-05-20T00:01:00Z").expect("set false");
     assert_eq!(record.previous_flag, true);
     assert_eq!(record.new_flag, false);
     assert!(!get_distill_flag(&store, "s").unwrap());
@@ -84,8 +84,7 @@ fn corpus_extractor_honours_session_flag_via_store_backed_adapter() {
     // After the operator marks the session, extraction succeeds (empty
     // corpus because the ledger is empty - we are gating, not asserting
     // turn content here).
-    mark_for_distillation(&*store, "s", true, "op-ilja", "2026-05-20T00:00:01Z")
-        .expect("mark");
+    mark_for_distillation(&*store, "s", true, "op-ilja", "2026-05-20T00:00:01Z").expect("mark");
     let corpus = extractor
         .extract("s", "MIT", "2026-05-20T00:00:02Z")
         .expect("opt-in");

@@ -1,3 +1,6 @@
+use handshake_core::kernel::write_boxes::{
+    WriteBoxKind, WriteBoxLifecycleState, WriteBoxValidationState,
+};
 use handshake_core::kernel::{
     action_catalog::{kernel002_action_catalog, validate_kernel_action_catalog},
     action_envelope::{ApprovalPosture, AuthorityEffect},
@@ -25,9 +28,6 @@ use handshake_core::kernel::{
         DccWriteBoxQueueRowV1,
     },
     KernelActor, KernelEvent, KernelEventType, NewKernelEvent,
-};
-use handshake_core::kernel::write_boxes::{
-    WriteBoxKind, WriteBoxLifecycleState, WriteBoxValidationState,
 };
 
 #[test]
@@ -498,7 +498,10 @@ fn kernel_dcc_promotion_preview_fields_populate_state_vector_idempotency_and_eve
         .validation_check_summaries
         .iter()
         .any(|summary| summary.contains("state_vector: sv-fresh-1")));
-    assert!(matches!(fields.stale_risk, DccPromotionPreviewStaleRisk::None));
+    assert!(matches!(
+        fields.stale_risk,
+        DccPromotionPreviewStaleRisk::None
+    ));
 }
 
 #[test]
@@ -533,7 +536,10 @@ fn kernel_dcc_promotion_preview_stale_risk_reflects_idempotency_duplicate_and_st
         "sv-newer",
         &[promotion_idempotency_key("bridge-preview-2", "requested")],
     );
-    assert!(matches!(both.stale_risk, DccPromotionPreviewStaleRisk::Both));
+    assert!(matches!(
+        both.stale_risk,
+        DccPromotionPreviewStaleRisk::Both
+    ));
     assert!(both
         .expected_event_kinds
         .contains(&"KernelCrdtPromotionRejectedV1".to_string()));

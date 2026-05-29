@@ -437,7 +437,8 @@ fn artifact(artifact_id: &str, request_id: &str, file_stem: &str) -> ProductScre
 // --- MT-045 capture E2E + dep checks -----------------------------------------
 
 #[test]
-fn kernel_product_screenshot_capture_browser_adapter_returns_typed_dependency_missing_for_unavailable_node() {
+fn kernel_product_screenshot_capture_browser_adapter_returns_typed_dependency_missing_for_unavailable_node(
+) {
     let artifact_root = tempfile::tempdir().expect("temp artifact root");
     let request = request(
         "request.dep.missing.node",
@@ -480,10 +481,7 @@ fn kernel_product_screenshot_capture_browser_adapter_returns_typed_dependency_mi
 #[test]
 #[ignore = "requires Node + Playwright; opt in with --ignored"]
 fn kernel_product_screenshot_capture_browser_adapter_e2e_produces_decodable_pngs_for_every_scope() {
-    use axum::{
-        routing::get,
-        Router,
-    };
+    use axum::{routing::get, Router};
     use std::net::SocketAddr;
     use tokio::net::TcpListener;
     use tokio::runtime::Builder;
@@ -495,9 +493,7 @@ fn kernel_product_screenshot_capture_browser_adapter_e2e_produces_decodable_pngs
         .expect("tokio runtime");
 
     let listener = runtime
-        .block_on(async {
-            TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0))).await
-        })
+        .block_on(async { TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0))).await })
         .expect("bind ephemeral port");
     let local_addr = listener.local_addr().expect("local addr");
     let app: Router = Router::new().route(
@@ -517,7 +513,10 @@ fn kernel_product_screenshot_capture_browser_adapter_e2e_produces_decodable_pngs
 
     let source_url = format!("http://{}/", local_addr);
     for (scope, target_ref) in [
-        (ScreenshotCaptureScope::FullApp, "app://handshake".to_string()),
+        (
+            ScreenshotCaptureScope::FullApp,
+            "app://handshake".to_string(),
+        ),
         (
             ScreenshotCaptureScope::Panel,
             "panel://kernel-dcc-panel".to_string(),

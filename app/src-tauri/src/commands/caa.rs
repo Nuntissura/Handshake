@@ -33,8 +33,7 @@ use tauri::State;
 use super::model_runtime::{parse_model_id, ModelRuntimeState};
 use super::steering::STEERING_CAPTURE_NOT_AVAILABLE_PREFIX;
 
-pub const KERNEL_MODEL_RUNTIME_CAA_EXTRACT_IPC_CHANNEL: &str =
-    "kernel_model_runtime_caa_extract";
+pub const KERNEL_MODEL_RUNTIME_CAA_EXTRACT_IPC_CHANNEL: &str = "kernel_model_runtime_caa_extract";
 
 /// FR event tag emitted on a successful CAA vector extract + register. Mirrors
 /// the steering register surface so the UI can correlate CAA extract events
@@ -298,7 +297,10 @@ mod tests {
 
         let mut bad = request(model_id);
         bad.description = "".to_string();
-        assert!(caa_extract(bad, &state).await.unwrap_err().contains("description"));
+        assert!(caa_extract(bad, &state)
+            .await
+            .unwrap_err()
+            .contains("description"));
 
         let mut bad = request(model_id);
         bad.pairs.clear();
@@ -306,11 +308,17 @@ mod tests {
 
         let mut bad = request(model_id);
         bad.pairs[0].positive = "  ".to_string();
-        assert!(caa_extract(bad, &state).await.unwrap_err().contains("positive"));
+        assert!(caa_extract(bad, &state)
+            .await
+            .unwrap_err()
+            .contains("positive"));
 
         let mut bad = request(model_id);
         bad.pairs[0].negative = "".to_string();
-        assert!(caa_extract(bad, &state).await.unwrap_err().contains("negative"));
+        assert!(caa_extract(bad, &state)
+            .await
+            .unwrap_err()
+            .contains("negative"));
     }
 
     #[tokio::test]
@@ -400,10 +408,7 @@ mod tests {
             .await
             .expect_err("adapter reports unloaded model");
 
-        assert!(
-            err.contains(STEERING_CAPTURE_NOT_AVAILABLE_PREFIX),
-            "{err}"
-        );
+        assert!(err.contains(STEERING_CAPTURE_NOT_AVAILABLE_PREFIX), "{err}");
         assert!(err.contains("not loaded"), "{err}");
     }
 

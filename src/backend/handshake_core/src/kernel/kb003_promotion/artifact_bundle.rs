@@ -54,8 +54,7 @@ impl Kb003ArtifactHandleV1 {
         class: Kb003ArtifactClass,
         content_sha256: impl Into<String>,
     ) -> Result<Self, ArtifactBundleError> {
-        let meta = metadata_for(class)
-            .ok_or(ArtifactBundleError::UnknownArtifactClass)?;
+        let meta = metadata_for(class).ok_or(ArtifactBundleError::UnknownArtifactClass)?;
         let content_sha256 = content_sha256.into();
         if content_sha256.trim().is_empty() {
             return Err(ArtifactBundleError::MissingContentHash);
@@ -177,8 +176,14 @@ mod tests {
     // MT-040 acceptance: every artifact has stable handle and hash.
     #[test]
     fn handle_is_stable_and_includes_hash_prefix() {
-        let a = h(Kb003ArtifactClass::SandboxLog, "abcdef0123456789aabbccddeeff0011");
-        let b = h(Kb003ArtifactClass::SandboxLog, "abcdef0123456789aabbccddeeff0011");
+        let a = h(
+            Kb003ArtifactClass::SandboxLog,
+            "abcdef0123456789aabbccddeeff0011",
+        );
+        let b = h(
+            Kb003ArtifactClass::SandboxLog,
+            "abcdef0123456789aabbccddeeff0011",
+        );
         assert_eq!(a.handle, b.handle, "same class+hash => same handle");
         assert!(a.handle.starts_with("kb003://sandbox_log/"));
         assert!(a.handle.contains("abcdef0123456789"));
@@ -194,7 +199,10 @@ mod tests {
         let full = "abcdef0123456789aabbccddeeff0011223344556677889900aabbccddeeff00";
         assert_eq!(full.len(), 64, "test fixture must be a full sha256");
         let h = Kb003ArtifactHandleV1::new(Kb003ArtifactClass::SandboxLog, full).unwrap();
-        assert_eq!(h.content_sha256, full, "handle must retain full 64-hex hash");
+        assert_eq!(
+            h.content_sha256, full,
+            "handle must retain full 64-hex hash"
+        );
         // The visual handle still carries only the 16-hex prefix.
         assert!(h.handle.contains(&full[..16]));
         assert!(!h.handle.contains(&full[16..]));
@@ -206,7 +214,10 @@ mod tests {
         let collide_b = "0000000000000000bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
         let a = Kb003ArtifactHandleV1::new(Kb003ArtifactClass::SandboxLog, collide_a).unwrap();
         let b = Kb003ArtifactHandleV1::new(Kb003ArtifactClass::SandboxLog, collide_b).unwrap();
-        assert_eq!(a.handle, b.handle, "visual handles collide on 16-hex prefix");
+        assert_eq!(
+            a.handle, b.handle,
+            "visual handles collide on 16-hex prefix"
+        );
         assert_ne!(
             a.content_sha256, b.content_sha256,
             "full content_sha256 must distinguish them"
@@ -215,8 +226,7 @@ mod tests {
 
     #[test]
     fn handle_refuses_empty_hash() {
-        let err = Kb003ArtifactHandleV1::new(Kb003ArtifactClass::ValidationReport, "")
-            .unwrap_err();
+        let err = Kb003ArtifactHandleV1::new(Kb003ArtifactClass::ValidationReport, "").unwrap_err();
         assert_eq!(err, ArtifactBundleError::MissingContentHash);
     }
 
@@ -231,7 +241,10 @@ mod tests {
         assert!(!shot.exportable_by_default, "screenshots are export-gated");
 
         let red = h(Kb003ArtifactClass::RedactionNote, "0123456789abcdef");
-        assert!(!red.exportable_by_default, "redaction notes are export-gated");
+        assert!(
+            !red.exportable_by_default,
+            "redaction notes are export-gated"
+        );
     }
 
     #[test]

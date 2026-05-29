@@ -4,9 +4,7 @@
 //! hypervisor backend at this stub level), BLOCKED elsewhere on missing
 //! runtime dependency. Never executes anything.
 
-use super::adapter::{
-    AdapterError, AdapterKind, AdapterRunOutcome, SandboxAdapter,
-};
+use super::adapter::{AdapterError, AdapterKind, AdapterRunOutcome, SandboxAdapter};
 use super::hard_isolation::{
     hard_isolation_adapter_kind, typed_unavailable_outcome, HardIsolationAdapter,
     HardIsolationAvailability,
@@ -72,9 +70,8 @@ impl HardIsolationAdapter for MicroVmAdapterStub {
     fn probe_availability(&self) -> HardIsolationAvailability {
         match self.host() {
             HostKind::Windows => HardIsolationAvailability::Unsupported {
-                reason:
-                    "microVM hard-isolation stub does not support Windows hosts at this tier"
-                        .into(),
+                reason: "microVM hard-isolation stub does not support Windows hosts at this tier"
+                    .into(),
                 host_kind: HostKind::Windows.as_str().to_string(),
             },
             other => HardIsolationAvailability::Blocked {

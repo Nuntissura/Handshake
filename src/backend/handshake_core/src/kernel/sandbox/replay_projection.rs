@@ -143,9 +143,9 @@ pub const FORBIDDEN_REPLAY_INPUT_KINDS: &[&str] = &[
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chrono::Utc;
     use crate::kernel::sandbox::denial::DenialKind;
     use crate::kernel::sandbox::run::{SandboxRunId, SandboxRunStatus};
+    use chrono::Utc;
 
     #[test]
     fn reconstructor_uses_only_durable_inputs() {
@@ -189,7 +189,10 @@ mod tests {
         let projection = reconstruct_projection(inputs);
         assert_eq!(projection.outcome, DccSandboxOutcome::DeniedByPolicy);
         assert!(projection.denial.is_some());
-        assert_eq!(projection.capability_rows.len(), SandboxCapability::ALL.len());
+        assert_eq!(
+            projection.capability_rows.len(),
+            SandboxCapability::ALL.len()
+        );
         assert!(
             projection.is_self_describing(),
             "replay must yield a self-describing projection (MT-010 contract)"

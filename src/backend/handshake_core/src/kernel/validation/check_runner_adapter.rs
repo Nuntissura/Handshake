@@ -26,13 +26,9 @@ use std::sync::Arc;
 
 use uuid::Uuid;
 
-use crate::governance_check_runner::{
-    CheckDescriptor, CheckResult, CheckRunner, CheckRunnerError,
-};
+use crate::governance_check_runner::{CheckDescriptor, CheckResult, CheckRunner, CheckRunnerError};
 
-use super::descriptor::{
-    DescriptorAdmissionError, DescriptorAllowlist, ValidationDescriptor,
-};
+use super::descriptor::{DescriptorAdmissionError, DescriptorAllowlist, ValidationDescriptor};
 use super::report::DescriptorOutcome;
 use super::status::ValidationStatus;
 
@@ -180,9 +176,7 @@ mod tests {
     use async_trait::async_trait;
 
     use crate::flight_recorder::{FlightRecorder, FlightRecorderEvent, RecorderError};
-    use crate::kernel::validation::descriptor::{
-        DescriptorInput, DescriptorKind, NoSandboxEscape,
-    };
+    use crate::kernel::validation::descriptor::{DescriptorInput, DescriptorKind, NoSandboxEscape};
     use crate::kernel::validation::status::ValidationStatus;
 
     /// Bare flight recorder that drops every event. The product `CheckRunner`
@@ -254,9 +248,9 @@ mod tests {
             .await
             .expect_err("denied descriptor must surface typed admission error");
         match err {
-            ValidationCheckRunnerError::Admission(
-                DescriptorAdmissionError::NotInAllowlist { name },
-            ) => {
+            ValidationCheckRunnerError::Admission(DescriptorAdmissionError::NotInAllowlist {
+                name,
+            }) => {
                 assert_eq!(name, "not_registered");
             }
             other => panic!("expected Admission::NotInAllowlist, got {other:?}"),
@@ -277,12 +271,15 @@ mod tests {
         let descriptor = NamedDescriptor("allowed_check");
         let ctx = ValidationContext::new(Uuid::now_v7(), "validation.descriptor")
             .with_capabilities(vec!["governance.check.run".into()]);
-        let outcome = runner.execute(&descriptor, &ctx).await
+        let outcome = runner
+            .execute(&descriptor, &ctx)
+            .await
             .expect("allowed descriptor must dispatch");
         assert_eq!(outcome.descriptor_name, "allowed_check");
         assert!(
             matches!(outcome.status, ValidationStatus::Unsupported { .. }),
-            "expected Unsupported (kind-probe), got {:?}", outcome.status
+            "expected Unsupported (kind-probe), got {:?}",
+            outcome.status
         );
     }
 
@@ -300,12 +297,15 @@ mod tests {
         let descriptor = NamedDescriptor("allowed_check");
         let ctx = ValidationContext::new(Uuid::now_v7(), "validation.descriptor");
         // granted_capabilities deliberately empty so the capability gate denies.
-        let outcome = runner.execute(&descriptor, &ctx).await
+        let outcome = runner
+            .execute(&descriptor, &ctx)
+            .await
             .expect("allowed descriptor must dispatch");
         assert_eq!(outcome.descriptor_name, "allowed_check");
         assert!(
             matches!(outcome.status, ValidationStatus::Blocked { .. }),
-            "expected Blocked (capability-gate), got {:?}", outcome.status
+            "expected Blocked (capability-gate), got {:?}",
+            outcome.status
         );
     }
 
@@ -354,13 +354,12 @@ mod tests {
         assert!(matches!(fail, ValidationStatus::Fail { ref reason } if reason.contains("rule x")));
 
         // Blocked
-        let blocked = check_result_to_validation_status(&CheckResult::Blocked(
-            CheckBlockedDetails {
+        let blocked =
+            check_result_to_validation_status(&CheckResult::Blocked(CheckBlockedDetails {
                 reason: "missing capability".into(),
                 missing_capabilities: vec!["governance.check.run".into()],
-            },
-        ))
-        .unwrap();
+            }))
+            .unwrap();
         assert!(matches!(blocked, ValidationStatus::Blocked { .. }));
 
         // AdvisoryOnly
@@ -375,15 +374,14 @@ mod tests {
         assert!(matches!(adv, ValidationStatus::AdvisoryOnly { .. }));
 
         // Unsupported
-        let unsup = check_result_to_validation_status(&CheckResult::Unsupported(
-            CheckUnsupportedDetails {
+        let unsup =
+            check_result_to_validation_status(&CheckResult::Unsupported(CheckUnsupportedDetails {
                 check_kind: "validation.descriptor".into(),
                 reason: "unknown check_kind".into(),
                 remediation: None,
                 supported_kinds: Vec::new(),
-            },
-        ))
-        .unwrap();
+            }))
+            .unwrap();
         assert!(matches!(unsup, ValidationStatus::Unsupported { .. }));
     }
 }

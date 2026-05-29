@@ -46,10 +46,9 @@ impl PiiKind {
             // High: leaks of credentials or financial primary keys.
             PiiKind::ApiKey | PiiKind::CreditCard => PiiSeverity::High,
             // Medium: contact identifiers + machine fingerprints.
-            PiiKind::Email
-            | PiiKind::Phone
-            | PiiKind::WindowsUserPath
-            | PiiKind::MacAddress => PiiSeverity::Medium,
+            PiiKind::Email | PiiKind::Phone | PiiKind::WindowsUserPath | PiiKind::MacAddress => {
+                PiiSeverity::Medium
+            }
             // Low: IPv4 addresses (may be public infra).
             PiiKind::Ipv4 => PiiSeverity::Low,
         }
@@ -269,7 +268,9 @@ mod tests {
     #[test]
     fn email_detection_positive_and_negative() {
         let hits = scan("contact me at alice@example.com please");
-        assert!(hits.iter().any(|d| d.kind == PiiKind::Email && d.matched == "alice@example.com"));
+        assert!(hits
+            .iter()
+            .any(|d| d.kind == PiiKind::Email && d.matched == "alice@example.com"));
         // Plain prose without an @ symbol must not match.
         let hits = scan("no email here, just text");
         assert!(!hits.iter().any(|d| d.kind == PiiKind::Email));
@@ -279,10 +280,7 @@ mod tests {
     fn phone_detection_e164_and_dashed_formats() {
         let hits = scan("Call +1 555 123 4567 or 555-987-6543");
         assert!(hits.iter().any(|d| d.kind == PiiKind::Phone));
-        let phones: Vec<_> = hits
-            .iter()
-            .filter(|d| d.kind == PiiKind::Phone)
-            .collect();
+        let phones: Vec<_> = hits.iter().filter(|d| d.kind == PiiKind::Phone).collect();
         assert!(phones.len() >= 2, "{phones:?}");
     }
 
@@ -312,10 +310,8 @@ mod tests {
         let hits = scan(r"path is C:\Users\Ilja Smets\file.txt");
         // Path stops at the user-name segment (no space allowed by
         // the regex), so the match is `C:\Users\Ilja`.
-        assert!(hits
-            .iter()
-            .any(|d| d.kind == PiiKind::WindowsUserPath
-                && d.matched.eq_ignore_ascii_case(r"C:\Users\Ilja")));
+        assert!(hits.iter().any(|d| d.kind == PiiKind::WindowsUserPath
+            && d.matched.eq_ignore_ascii_case(r"C:\Users\Ilja")));
     }
 
     #[test]

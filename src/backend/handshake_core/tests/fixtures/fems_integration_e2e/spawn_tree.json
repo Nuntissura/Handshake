@@ -1,0 +1,31 @@
+[
+  {
+    "session_id": "00000000-0000-7000-8000-000000000001",
+    "parent_message": "what is the goal of WP-KERNEL-004",
+    "child_response": "to land local model boxing + inference lab + sandbox + FEMS V1",
+    "parent_role": "orchestrator",
+    "child_role": "coder",
+    "parent_message_id": "00000000-0000-7000-8000-000000000010",
+    "child_message_id": "00000000-0000-7000-8000-000000000011",
+    "child_outcome": {
+      "outcome": "pass",
+      "mt_id": "MT-141",
+      "validator_verdict_id": "00000000-0000-7000-8000-000000000020"
+    }
+  },
+  {
+    "session_id": "00000000-0000-7000-8000-000000000001",
+    "parent_message": "review the failed attempt rationale",
+    "child_response": "the eval ran but failed contract violation X",
+    "parent_role": "orchestrator",
+    "child_role": "validator",
+    "parent_message_id": "00000000-0000-7000-8000-000000000012",
+    "child_message_id": "00000000-0000-7000-8000-000000000013",
+    "child_outcome": {
+      "outcome": "fail",
+      "mt_id": "MT-142",
+      "validator_verdict_id": "00000000-0000-7000-8000-000000000021",
+      "failure_class": "validator_rejected"
+    }
+  }
+]

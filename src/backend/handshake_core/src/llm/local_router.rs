@@ -222,6 +222,7 @@ impl LocalModelRuntimeLlmClient {
             cancel,
             max_tokens: req.max_tokens.unwrap_or(self.profile.max_context_tokens),
             stop_sequences: req.stop_sequences.clone(),
+            speculative_mode: None,
             structured_decoding: None,
         }
     }

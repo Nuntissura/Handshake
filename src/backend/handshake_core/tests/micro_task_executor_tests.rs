@@ -16,8 +16,8 @@ use handshake_core::role_mailbox::{
 };
 use handshake_core::runtime_governance::RuntimeGovernancePaths;
 use handshake_core::storage::{
-    sqlite::SqliteDatabase, AccessMode, AiJobListFilter, Database, JobKind, JobMetrics, JobState,
-    NewAiJob, SafetyMode, StorageError,
+    tests::optional_postgres_backend_from_env, AccessMode, AiJobListFilter, Database, JobKind,
+    JobMetrics, JobState, NewAiJob, SafetyMode, StorageError,
 };
 use handshake_core::workflows::locus::{
     derive_governed_action_preview, derive_governed_action_previews,
@@ -188,14 +188,15 @@ impl LlmClient for QueuedLlmClient {
 
 async fn setup_state(
     llm_client: Arc<dyn LlmClient>,
-) -> Result<AppState, Box<dyn std::error::Error>> {
-    let sqlite = SqliteDatabase::connect("sqlite::memory:", 5).await?;
-    sqlite.run_migrations().await?;
+) -> Result<Option<AppState>, Box<dyn std::error::Error>> {
+    let Some(storage) = optional_postgres_backend_from_env().await? else {
+        return Ok(None);
+    };
 
     let flight_recorder = Arc::new(DuckDbFlightRecorder::new_in_memory(32)?);
 
     let state = AppState {
-        storage: sqlite.into_arc(),
+        storage,
         flight_recorder: flight_recorder.clone(),
         diagnostics: flight_recorder,
         llm_client,
@@ -203,25 +204,26 @@ async fn setup_state(
         session_registry: Arc::new(SessionRegistry::new(SessionSchedulerConfig::default())),
     };
     seed_locus_work_packet(&state, "WP-TEST").await?;
-    Ok(state)
+    Ok(Some(state))
 }
 
 async fn setup_state_without_seed(
     llm_client: Arc<dyn LlmClient>,
-) -> Result<AppState, Box<dyn std::error::Error>> {
-    let sqlite = SqliteDatabase::connect("sqlite::memory:", 5).await?;
-    sqlite.run_migrations().await?;
+) -> Result<Option<AppState>, Box<dyn std::error::Error>> {
+    let Some(storage) = optional_postgres_backend_from_env().await? else {
+        return Ok(None);
+    };
 
     let flight_recorder = Arc::new(DuckDbFlightRecorder::new_in_memory(32)?);
 
-    Ok(AppState {
-        storage: sqlite.into_arc(),
+    Ok(Some(AppState {
+        storage,
         flight_recorder: flight_recorder.clone(),
         diagnostics: flight_recorder,
         llm_client,
         capability_registry: Arc::new(CapabilityRegistry::new()),
         session_registry: Arc::new(SessionRegistry::new(SessionSchedulerConfig::default())),
-    })
+    }))
 }
 
 async fn run_locus_job(
@@ -515,7 +517,9 @@ async fn micro_task_executor_completes_single_mt_and_emits_events(
     let llm_client: Arc<dyn LlmClient> = Arc::new(QueuedLlmClient::new(vec![
         "work complete <mt_complete>yes</mt_complete>".to_string(),
     ]));
-    let state = setup_state(llm_client).await?;
+    let Some(state) = setup_state(llm_client).await? else {
+        return Ok(());
+    };
 
     let job = state
         .storage
@@ -617,7 +621,9 @@ async fn micro_task_executor_persists_locus_lifecycle_and_session_occupancy(
     let llm_client: Arc<dyn LlmClient> = Arc::new(QueuedLlmClient::new(vec![
         "work complete <mt_complete>yes</mt_complete>".to_string(),
     ]));
-    let state = setup_state(llm_client).await?;
+    let Some(state) = setup_state(llm_client).await? else {
+        return Ok(());
+    };
     let trace_id = Uuid::now_v7();
 
     let job = state
@@ -734,7 +740,9 @@ async fn micro_task_executor_spec_router_creates_locus_work_packet_when_routing_
     let _test_guard = test_guard();
     let llm_client: Arc<dyn LlmClient> =
         Arc::new(QueuedLlmClient::new(vec!["# Spec Artifact".to_string()]));
-    let state = setup_state(llm_client).await?;
+    let Some(state) = setup_state(llm_client).await? else {
+        return Ok(());
+    };
     let trace_id = Uuid::now_v7();
     let repo_root = handshake_core::capability_registry_workflow::repo_root_from_manifest_dir()?;
     let prompt_rel = PathBuf::from("data")
@@ -851,7 +859,9 @@ async fn locus_create_and_close_wp_emit_structured_work_packet_packet_and_summar
     let root = dir.path().to_path_buf();
     let _workspace_guard = WorkspaceEnvGuard::activate(&root);
     let llm_client: Arc<dyn LlmClient> = Arc::new(QueuedLlmClient::new(vec![]));
-    let state = setup_state_without_seed(llm_client).await?;
+    let Some(state) = setup_state_without_seed(llm_client).await? else {
+        return Ok(());
+    };
     let wp_id = "WP-PROFILE";
     let software_delivery_extension = json!({
         "extension_schema_id": "hsk.profile.software_delivery@1",
@@ -1097,7 +1107,9 @@ async fn locus_schema_registry_rejects_unregistered_allowed_action_ids(
     let root = dir.path().to_path_buf();
     let _workspace_guard = WorkspaceEnvGuard::activate(&root);
     let llm_client: Arc<dyn LlmClient> = Arc::new(QueuedLlmClient::new(vec![]));
-    let state = setup_state(llm_client).await?;
+    let Some(state) = setup_state(llm_client).await? else {
+        return Ok(());
+    };
 
     let gov_root = root.join(".handshake").join("gov");
     std::fs::create_dir_all(&gov_root)?;
@@ -1185,7 +1197,9 @@ async fn locus_written_work_packet_summary_validation_rejects_unregistered_next_
     let root = dir.path().to_path_buf();
     let _workspace_guard = WorkspaceEnvGuard::activate(&root);
     let llm_client: Arc<dyn LlmClient> = Arc::new(QueuedLlmClient::new(vec![]));
-    let _state = setup_state(llm_client).await?;
+    let Some(_state) = setup_state(llm_client).await? else {
+        return Ok(());
+    };
 
     let summary_path = root
         .join(".handshake")
@@ -1221,7 +1235,9 @@ async fn locus_written_work_packet_summary_validation_rejects_family_illegal_nex
     let root = dir.path().to_path_buf();
     let _workspace_guard = WorkspaceEnvGuard::activate(&root);
     let llm_client: Arc<dyn LlmClient> = Arc::new(QueuedLlmClient::new(vec![]));
-    let _state = setup_state(llm_client).await?;
+    let Some(_state) = setup_state(llm_client).await? else {
+        return Ok(());
+    };
 
     let summary_path = root
         .join(".handshake")
@@ -1257,7 +1273,9 @@ async fn locus_sync_task_board_emits_structured_index_and_view(
     let root = dir.path().to_path_buf();
     let _workspace_guard = WorkspaceEnvGuard::activate(&root);
     let llm_client: Arc<dyn LlmClient> = Arc::new(QueuedLlmClient::new(vec![]));
-    let state = setup_state_without_seed(llm_client).await?;
+    let Some(state) = setup_state_without_seed(llm_client).await? else {
+        return Ok(());
+    };
     let wp_id = "WP-RESEARCH";
     let research_extension = json!({
         "extension_schema_id": "hsk.profile.research@1",
@@ -1483,7 +1501,9 @@ async fn locus_sync_task_board_validation_reports_authority_scope_drift(
     let root = dir.path().to_path_buf();
     let _workspace_guard = WorkspaceEnvGuard::activate(&root);
     let llm_client: Arc<dyn LlmClient> = Arc::new(QueuedLlmClient::new(vec![]));
-    let state = setup_state(llm_client).await?;
+    let Some(state) = setup_state(llm_client).await? else {
+        return Ok(());
+    };
 
     let gov_root = root.join(".handshake").join("gov");
     std::fs::create_dir_all(&gov_root)?;
@@ -1523,7 +1543,9 @@ async fn locus_task_board_validation_reports_authoritative_row_drift(
     let root = dir.path().to_path_buf();
     let _workspace_guard = WorkspaceEnvGuard::activate(&root);
     let llm_client: Arc<dyn LlmClient> = Arc::new(QueuedLlmClient::new(vec![]));
-    let state = setup_state(llm_client).await?;
+    let Some(state) = setup_state(llm_client).await? else {
+        return Ok(());
+    };
 
     let gov_root = root.join(".handshake").join("gov");
     std::fs::create_dir_all(&gov_root)?;
@@ -1583,7 +1605,9 @@ async fn locus_bind_session_normalizes_and_deduplicates_session_ids(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let _test_guard = test_guard();
     let llm_client: Arc<dyn LlmClient> = Arc::new(QueuedLlmClient::new(vec![]));
-    let state = setup_state(llm_client).await?;
+    let Some(state) = setup_state(llm_client).await? else {
+        return Ok(());
+    };
 
     run_locus_job(
         &state,
@@ -1761,7 +1785,9 @@ async fn locus_register_mts_emits_structured_micro_task_packet_and_summary_with_
     let dir = tempdir()?;
     let _env = WorkspaceEnvGuard::activate(dir.path());
     let llm_client: Arc<dyn LlmClient> = Arc::new(QueuedLlmClient::new(vec![]));
-    let state = setup_state(llm_client).await?;
+    let Some(state) = setup_state(llm_client).await? else {
+        return Ok(());
+    };
     let research_extension = json!({
         "extension_schema_id": "hsk.profile.research.exploratory@1",
         "extension_schema_version": "1",
@@ -1967,7 +1993,9 @@ async fn locus_written_micro_task_summary_validation_reports_authority_scope_dri
     let dir = tempdir()?;
     let _env = WorkspaceEnvGuard::activate(dir.path());
     let llm_client: Arc<dyn LlmClient> = Arc::new(QueuedLlmClient::new(vec![]));
-    let state = setup_state(llm_client).await?;
+    let Some(state) = setup_state(llm_client).await? else {
+        return Ok(());
+    };
 
     run_locus_job(
         &state,
@@ -2013,7 +2041,9 @@ async fn locus_register_mts_rejects_unregistered_summary_next_action(
     let dir = tempdir()?;
     let _env = WorkspaceEnvGuard::activate(dir.path());
     let llm_client: Arc<dyn LlmClient> = Arc::new(QueuedLlmClient::new(vec![]));
-    let state = setup_state(llm_client).await?;
+    let Some(state) = setup_state(llm_client).await? else {
+        return Ok(());
+    };
 
     let mut tracked_mt = base_tracked_micro_task_value("MT-NEXT-ACTION-DRIFT");
     tracked_mt["metadata"]["structured_collaboration_summary"] = json!({
@@ -2063,7 +2093,9 @@ async fn locus_register_mts_rejects_family_illegal_summary_next_action(
     let dir = tempdir()?;
     let _env = WorkspaceEnvGuard::activate(dir.path());
     let llm_client: Arc<dyn LlmClient> = Arc::new(QueuedLlmClient::new(vec![]));
-    let state = setup_state(llm_client).await?;
+    let Some(state) = setup_state(llm_client).await? else {
+        return Ok(());
+    };
 
     let mut tracked_mt = base_tracked_micro_task_value("MT-FAMILY-NEXT-ACTION-DRIFT");
     tracked_mt["metadata"]["structured_collaboration_summary"] = json!({
@@ -2113,7 +2145,9 @@ async fn locus_register_mts_returns_machine_readable_validation_for_summary_deta
     let dir = tempdir()?;
     let _env = WorkspaceEnvGuard::activate(dir.path());
     let llm_client: Arc<dyn LlmClient> = Arc::new(QueuedLlmClient::new(vec![]));
-    let state = setup_state(llm_client).await?;
+    let Some(state) = setup_state(llm_client).await? else {
+        return Ok(());
+    };
 
     let mut tracked_mt = base_tracked_micro_task_value("MT-DRIFT");
     tracked_mt["metadata"]["structured_collaboration_summary"] = json!({
@@ -2166,7 +2200,9 @@ async fn locus_register_mts_returns_machine_readable_validation_for_unknown_sche
     let dir = tempdir()?;
     let _env = WorkspaceEnvGuard::activate(dir.path());
     let llm_client: Arc<dyn LlmClient> = Arc::new(QueuedLlmClient::new(vec![]));
-    let state = setup_state(llm_client).await?;
+    let Some(state) = setup_state(llm_client).await? else {
+        return Ok(());
+    };
 
     let mut tracked_mt = base_tracked_micro_task_value("MT-BAD-SCHEMA");
     tracked_mt["schema_version"] = Value::String("999".to_string());
@@ -2201,7 +2237,9 @@ async fn locus_register_mts_returns_machine_readable_validation_for_unknown_prof
     let dir = tempdir()?;
     let _env = WorkspaceEnvGuard::activate(dir.path());
     let llm_client: Arc<dyn LlmClient> = Arc::new(QueuedLlmClient::new(vec![]));
-    let state = setup_state(llm_client).await?;
+    let Some(state) = setup_state(llm_client).await? else {
+        return Ok(());
+    };
 
     let mut tracked_mt = base_tracked_micro_task_value("MT-UNKNOWN-EXT");
     tracked_mt["project_profile_kind"] = Value::String("research".to_string());
@@ -2244,7 +2282,9 @@ async fn locus_register_mts_returns_machine_readable_validation_for_incompatible
     let dir = tempdir()?;
     let _env = WorkspaceEnvGuard::activate(dir.path());
     let llm_client: Arc<dyn LlmClient> = Arc::new(QueuedLlmClient::new(vec![]));
-    let state = setup_state(llm_client).await?;
+    let Some(state) = setup_state(llm_client).await? else {
+        return Ok(());
+    };
 
     let mut tracked_mt = base_tracked_micro_task_value("MT-BREAKING-EXT");
     tracked_mt["project_profile_kind"] = Value::String("research".to_string());
@@ -2286,7 +2326,9 @@ async fn micro_task_executor_escalates_and_hard_gates_after_budget_exhaustion(
     let llm_client: Arc<dyn LlmClient> = Arc::new(QueuedLlmClient::new(vec![
         "attempted complete <mt_complete>yes</mt_complete>".to_string(),
     ]));
-    let state = setup_state(llm_client).await?;
+    let Some(state) = setup_state(llm_client).await? else {
+        return Ok(());
+    };
 
     let job = state
         .storage
@@ -2348,7 +2390,9 @@ EVIDENCE:
 </mt_complete>"#
             .to_string(),
     ]));
-    let state = setup_state(llm_client).await?;
+    let Some(state) = setup_state(llm_client).await? else {
+        return Ok(());
+    };
 
     let job = state
         .storage
@@ -2523,7 +2567,9 @@ async fn micro_task_executor_emits_model_swap_events_on_model_change(
         "done <mt_complete>yes</mt_complete>".to_string(),
     ]));
     let llm_client: Arc<dyn LlmClient> = llm.clone();
-    let state = setup_state(llm_client).await?;
+    let Some(state) = setup_state(llm_client).await? else {
+        return Ok(());
+    };
 
     let job = state
         .storage
@@ -2723,7 +2769,9 @@ async fn micro_task_executor_emits_model_swap_failed_when_policy_disallows_swaps
         "done <mt_complete>yes</mt_complete>".to_string(),
     ]));
     let llm_client: Arc<dyn LlmClient> = llm.clone();
-    let state = setup_state(llm_client).await?;
+    let Some(state) = setup_state(llm_client).await? else {
+        return Ok(());
+    };
 
     let job = state
         .storage
@@ -2853,7 +2901,9 @@ async fn micro_task_executor_emits_model_swap_runtime_failure_and_rollback_when_
         .with_swap_error("boom"),
     );
     let llm_client: Arc<dyn LlmClient> = llm.clone();
-    let state = setup_state(llm_client).await?;
+    let Some(state) = setup_state(llm_client).await? else {
+        return Ok(());
+    };
 
     let job = state
         .storage
@@ -2985,7 +3035,9 @@ async fn micro_task_executor_emits_model_swap_timeout_and_rollback_on_runtime_ti
         .with_swap_delay_ms(50),
     );
     let llm_client: Arc<dyn LlmClient> = llm.clone();
-    let state = setup_state(llm_client).await?;
+    let Some(state) = setup_state(llm_client).await? else {
+        return Ok(());
+    };
 
     let job = state
         .storage
@@ -3117,7 +3169,9 @@ async fn micro_task_executor_resumes_from_pause_and_emits_workflow_recovery(
     let llm_client: Arc<dyn LlmClient> = Arc::new(QueuedLlmClient::new(vec![
         "resume and complete <mt_complete>yes</mt_complete>".to_string(),
     ]));
-    let state = setup_state(llm_client).await?;
+    let Some(state) = setup_state(llm_client).await? else {
+        return Ok(());
+    };
 
     let job = state
         .storage
@@ -6463,7 +6517,9 @@ async fn micro_task_executor_rejects_legacy_workflow_run_job_kind_contract(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let _test_guard = test_guard();
     let llm_client: Arc<dyn LlmClient> = Arc::new(QueuedLlmClient::new(vec![]));
-    let state = setup_state(llm_client).await?;
+    let Some(state) = setup_state(llm_client).await? else {
+        return Ok(());
+    };
 
     let result = state
         .storage
@@ -6499,7 +6555,9 @@ async fn locus_mt_progress_workflow_parity_with_emitted_packet_and_mailbox_wait(
     let root = dir.path().to_path_buf();
     let _workspace_guard = WorkspaceEnvGuard::activate(&root);
     let llm_client: Arc<dyn LlmClient> = Arc::new(QueuedLlmClient::new(vec![]));
-    let state = setup_state(llm_client).await?;
+    let Some(state) = setup_state(llm_client).await? else {
+        return Ok(());
+    };
 
     let gov_root = root.join(".handshake").join("gov");
     std::fs::create_dir_all(&gov_root)?;

@@ -66,10 +66,12 @@ impl VisualValidationGateDescriptorV1 {
             self.descriptor_id, self.pass_criterion_short
         );
         match self.posture {
-            VisualGatePosture::Blocking => ValidationStatus::fail(reason)
-                .expect("non-empty reason"),
-            VisualGatePosture::AdvisoryOnly => ValidationStatus::advisory(reason)
-                .expect("non-empty note"),
+            VisualGatePosture::Blocking => {
+                ValidationStatus::fail(reason).expect("non-empty reason")
+            }
+            VisualGatePosture::AdvisoryOnly => {
+                ValidationStatus::advisory(reason).expect("non-empty note")
+            }
         }
     }
 
@@ -155,7 +157,10 @@ mod tests {
         let d = VisualValidationGateDescriptorV1::new(
             "VVG-3",
             VisualGatePosture::Blocking,
-            vec![VisualEvidenceItem::screenshot("ART-3"), VisualEvidenceItem::dom_dump("ART-4")],
+            vec![
+                VisualEvidenceItem::screenshot("ART-3"),
+                VisualEvidenceItem::dom_dump("ART-4"),
+            ],
             "DOM sanity",
         );
         let row = DccKb003VisualValidationGateRowV1::from_descriptor(&d);

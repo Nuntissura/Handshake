@@ -98,7 +98,10 @@ impl ValidationStatus {
         Ok(Self::SkippedWithReason { reason })
     }
 
-    pub fn error(code: impl Into<String>, detail: impl Into<String>) -> Result<Self, StatusBuildError> {
+    pub fn error(
+        code: impl Into<String>,
+        detail: impl Into<String>,
+    ) -> Result<Self, StatusBuildError> {
         let code = code.into();
         let detail = detail.into();
         if code.trim().is_empty() {
@@ -192,9 +195,15 @@ mod tests {
         assert!(!ValidationStatus::pass().blocks_promotion());
         assert!(ValidationStatus::fail("x").unwrap().blocks_promotion());
         assert!(ValidationStatus::blocked("y").unwrap().blocks_promotion());
-        assert!(ValidationStatus::error("E", "d").unwrap().blocks_promotion());
-        assert!(!ValidationStatus::advisory("note").unwrap().blocks_promotion());
-        assert!(!ValidationStatus::unsupported("a").unwrap().blocks_promotion());
+        assert!(ValidationStatus::error("E", "d")
+            .unwrap()
+            .blocks_promotion());
+        assert!(!ValidationStatus::advisory("note")
+            .unwrap()
+            .blocks_promotion());
+        assert!(!ValidationStatus::unsupported("a")
+            .unwrap()
+            .blocks_promotion());
         assert!(!ValidationStatus::skipped("r").unwrap().blocks_promotion());
     }
 

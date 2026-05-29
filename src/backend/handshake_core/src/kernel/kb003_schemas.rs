@@ -20,8 +20,7 @@ use uuid::Uuid;
 pub const SCHEMA_KERNEL_SANDBOX_RUN_V1: &str = "hsk.kernel.sandbox_run@1";
 pub const SCHEMA_KERNEL_SANDBOX_POLICY_V1: &str = "hsk.kernel.sandbox_policy@1";
 pub const SCHEMA_KERNEL_SANDBOX_WORKSPACE_V1: &str = "hsk.kernel.sandbox_workspace@1";
-pub const SCHEMA_KERNEL_SANDBOX_ARTIFACT_BUNDLE_V1: &str =
-    "hsk.kernel.sandbox_artifact_bundle@1";
+pub const SCHEMA_KERNEL_SANDBOX_ARTIFACT_BUNDLE_V1: &str = "hsk.kernel.sandbox_artifact_bundle@1";
 pub const SCHEMA_KERNEL_VALIDATION_RUN_V1: &str = "hsk.kernel.validation_run@1";
 pub const SCHEMA_KERNEL_PROMOTION_DECISION_V1: &str = "hsk.kernel.promotion_decision@1";
 pub const SCHEMA_KERNEL_PROMOTION_RECEIPT_V1: &str = "hsk.kernel.promotion_receipt@1";
@@ -80,7 +79,14 @@ pub struct Kb003EventEnvelope {
 }
 
 impl Kb003EventEnvelope {
-    pub fn new(event_type: &str, run_id: Uuid, actor: &str, session: &str, task: &str, ts_utc: &str) -> Self {
+    pub fn new(
+        event_type: &str,
+        run_id: Uuid,
+        actor: &str,
+        session: &str,
+        task: &str,
+        ts_utc: &str,
+    ) -> Self {
         Self {
             event_type: event_type.to_string(),
             schema_version: "kb003_event_envelope_v1".to_string(),
@@ -106,7 +112,10 @@ mod tests {
     #[test]
     fn schema_ids_are_versioned_and_namespaced() {
         for id in KB003_SCHEMA_IDS {
-            assert!(id.starts_with("hsk.kernel."), "schema id {id} missing repo namespace");
+            assert!(
+                id.starts_with("hsk.kernel."),
+                "schema id {id} missing repo namespace"
+            );
             assert!(id.contains('@'), "schema id {id} missing version separator");
             let (_, version) = id.rsplit_once('@').unwrap();
             assert!(!version.is_empty(), "schema id {id} has empty version");
@@ -116,7 +125,10 @@ mod tests {
     #[test]
     fn event_types_are_kb003_namespaced() {
         for ev in KB003_EVENT_TYPES {
-            assert!(ev.starts_with("kb003."), "event type {ev} missing kb003 namespace");
+            assert!(
+                ev.starts_with("kb003."),
+                "event type {ev} missing kb003 namespace"
+            );
         }
     }
 

@@ -22,14 +22,32 @@
 //! [`KernelActionRejection`] / [`MemoryIpcError::Store`] just like every other production
 //! error in this codebase.
 
-use std::sync::Arc;
+use std::{future::Future, sync::Arc};
 
+use chrono::Utc;
 use serde_json::{json, Value};
 use uuid::Uuid;
 
+use super::hygiene::{
+    hygiene_submission, HygieneActionSubmitter, HygieneCandidate, HygieneError,
+    ProceduralPromotion, HYGIENE_CONSOLIDATION_ACTION_ID, HYGIENE_FLAG_ACTION_ID,
+    HYGIENE_PAYLOAD_SCHEMA_ID, HYGIENE_PROMOTE_ACTION_ID, HYGIENE_PRUNE_ACTION_ID,
+    MEMORY_HYGIENE_SOURCE_COMPONENT,
+};
 use super::ipc::{MemoryCapsuleIpcStore, MemoryIpcError};
+use super::outcome_feedback::{
+    outcome_attach_submission, OutcomeAttachSubmitter, OutcomeAttribution, OutcomeError,
+    OutcomeReceipt, OUTCOME_ATTACH_ACTION_ID,
+};
 use super::persistence::{
     CapsuleRecord, KernelActionRejection, KernelActionSubmission, KernelActionSubmitter,
+    RecordReceipt,
+};
+use super::pinned_core::{
+    action_id_for_pin_state, fr_event_for_pin_state, pin_submission, PinError, PinReceipt,
+    PinSubmitter, PinnedItem, MEMORY_PIN_AGGREGATE_TYPE, MEMORY_PIN_MANIFEST_AGGREGATE_ID,
+    MEMORY_PIN_MANIFEST_AGGREGATE_TYPE, MEMORY_PIN_SOURCE_COMPONENT, PIN_MEMORY_ACTION_ID,
+    PIN_MEMORY_PAYLOAD_SCHEMA_ID, UNPIN_MEMORY_ACTION_ID,
 };
 use crate::kernel::{
     action_catalog::{kernel002_action_catalog, KernelActionCatalogV1, KernelCatalogActionV1},
@@ -45,8 +63,15 @@ pub const MEMORY_CAPSULE_AGGREGATE_TYPE: &str = "memory_capsule";
 /// action persistence so operators can filter MT-145/MT-146 traffic in queries.
 pub const MEMORY_CAPSULE_SOURCE_COMPONENT: &str = "memory_capsule_kernel_action_catalog";
 
-/// Tokio-blocking helper compatible with both async (current Handle) and sync test contexts.
-fn block_on<F: std::future::Future>(future: F) -> F::Output {
+/// Tokio bridge for synchronous memory traits backed by async Postgres storage.
+///
+/// When already inside Tokio, this uses `block_in_place` and therefore requires a
+/// multi-thread runtime. Sync IPC integration tests that call this bridge from async
+/// tests must use `#[tokio::test(flavor = "multi_thread")]`.
+fn block_on<F>(future: F) -> F::Output
+where
+    F: Future,
+{
     match tokio::runtime::Handle::try_current() {
         Ok(handle) => tokio::task::block_in_place(|| handle.block_on(future)),
         Err(_) => {
@@ -116,12 +141,43 @@ impl KernelActionSubmitter for PostgresKernelActionSubmitter {
         validate_submission_against_catalog(action, &submission)?;
 
         // 2. Build a kernel event ledger entry and persist it.
-        let event = build_capsule_action_event(&submission, action)?;
+        let target = primary_action_target(&submission)?;
+        let aggregate_type = aggregate_type_for_target_kind(&target.target_kind)?;
+        let event = build_catalog_action_event(&submission, action)?;
 
-        let db = Arc::clone(&self.db);
-        let persisted = block_on(async move { db.append_kernel_event(event).await });
+        let append_db = Arc::clone(&self.db);
+        let persisted = block_on(async move { append_db.append_kernel_event(event).await });
         match persisted {
             Ok(_) => Ok(()),
+            Err(error) if is_kernel_event_idempotency_conflict(&error) => {
+                let lookup_db = Arc::clone(&self.db);
+                let idempotency_key = submission.request.idempotency_key.clone();
+                let aggregate_type = aggregate_type.to_string();
+                let aggregate_id = target.target_id.clone();
+                let events = block_on(async move {
+                    lookup_db
+                        .list_kernel_events_for_aggregate(&aggregate_type, &aggregate_id)
+                        .await
+                })
+                .map_err(|lookup_error| KernelActionRejection {
+                    code: "kernel_event_ledger_idempotency_lookup_failed".to_string(),
+                    reason: format!(
+                        "checking duplicate memory capsule action in kernel_event_ledger failed: {lookup_error}"
+                    ),
+                })?;
+                if events.iter().any(|event| {
+                    event.idempotency_key == idempotency_key
+                        && same_capsule_submission_semantics(&event.payload, &submission)
+                }) {
+                    return Ok(());
+                }
+                Err(KernelActionRejection {
+                    code: "kernel_event_ledger_append_failed".to_string(),
+                    reason: format!(
+                        "appending memory capsule action to kernel_event_ledger failed: {error}"
+                    ),
+                })
+            }
             Err(error) => Err(KernelActionRejection {
                 code: "kernel_event_ledger_append_failed".to_string(),
                 reason: format!(
@@ -130,6 +186,315 @@ impl KernelActionSubmitter for PostgresKernelActionSubmitter {
             }),
         }
     }
+}
+
+fn is_kernel_event_idempotency_conflict(error: &StorageError) -> bool {
+    matches!(
+        error,
+        StorageError::Validation(message) if *message == "kernel event idempotency conflict"
+    )
+}
+
+fn same_capsule_submission_semantics(
+    stored_payload: &Value,
+    submission: &KernelActionSubmission,
+) -> bool {
+    stored_payload
+        .get("catalog_action_id")
+        .and_then(Value::as_str)
+        == Some(submission.request.action_id.as_str())
+        && stored_payload
+            .get("request")
+            .and_then(|request| request.get("idempotency_key"))
+            .and_then(Value::as_str)
+            == Some(submission.request.idempotency_key.as_str())
+        && semantic_write_box_payload(
+            stored_payload
+                .get("write_box_envelope")
+                .and_then(|envelope| envelope.get("payload")),
+        ) == semantic_write_box_payload(Some(&submission.write_box_envelope.payload))
+}
+
+fn semantic_write_box_payload(payload: Option<&Value>) -> Option<Value> {
+    let payload = payload?;
+    match payload.get("schema_id").and_then(Value::as_str)? {
+        "hsk.memory_capsule.record_payload@1" => Some(json!({
+            "schema_id": "hsk.memory_capsule.record_payload@1",
+            "record": payload.get("record")?,
+        })),
+        "hsk.memory_capsule.outcome_payload@1" => {
+            let attribution = payload.get("attribution")?;
+            Some(json!({
+                "schema_id": "hsk.memory_capsule.outcome_payload@1",
+                "capsule_id": attribution.get("capsule_id")?,
+                "outcome": attribution.get("outcome")?,
+            }))
+        }
+        "hsk.memory_pin.payload@1" => {
+            let pinned_item = payload.get("pinned_item")?;
+            Some(json!({
+                "schema_id": "hsk.memory_pin.payload@1",
+                "pinned_item": pinned_item,
+                "flight_recorder_event_id": payload.get("flight_recorder_event_id")?,
+            }))
+        }
+        HYGIENE_PAYLOAD_SCHEMA_ID => Some(json!({
+            "schema_id": HYGIENE_PAYLOAD_SCHEMA_ID,
+            "action_id": payload.get("action_id")?,
+            "candidate": payload.get("candidate")?,
+        })),
+        _ => Some(payload.clone()),
+    }
+}
+
+impl OutcomeAttachSubmitter for PostgresKernelActionSubmitter {
+    fn attach_outcome(
+        &self,
+        attribution: OutcomeAttribution,
+    ) -> Result<OutcomeReceipt, OutcomeError> {
+        let receipt = OutcomeReceipt {
+            receipt_id: Uuid::now_v7(),
+            capsule_id: attribution.capsule_id,
+            action_id: OUTCOME_ATTACH_ACTION_ID.to_string(),
+            recorded_at_utc: Utc::now(),
+        };
+        let submission = outcome_attach_submission(&attribution, &receipt)?;
+        self.submit(submission)
+            .map_err(|error| OutcomeError::Rejected {
+                code: error.code,
+                reason: error.reason,
+            })?;
+        Ok(receipt)
+    }
+}
+
+impl HygieneActionSubmitter for PostgresKernelActionSubmitter {
+    fn submit_consolidation_candidate(
+        &self,
+        left: Uuid,
+        right: Uuid,
+    ) -> Result<Uuid, HygieneError> {
+        self.submit_hygiene_candidate(HygieneCandidate::Consolidation { left, right })
+    }
+
+    fn submit_prune(
+        &self,
+        memory_id: Uuid,
+        at: chrono::DateTime<Utc>,
+    ) -> Result<Uuid, HygieneError> {
+        self.submit_hygiene_candidate(HygieneCandidate::Prune {
+            memory_id,
+            requested_invalidated_at: at,
+        })
+    }
+
+    fn submit_contradiction_flag(&self, left: Uuid, right: Uuid) -> Result<Uuid, HygieneError> {
+        self.submit_hygiene_candidate(HygieneCandidate::ContradictionFlag { left, right })
+    }
+
+    fn submit_procedural_promotion(
+        &self,
+        candidate: ProceduralPromotion,
+    ) -> Result<Uuid, HygieneError> {
+        self.submit_hygiene_candidate(HygieneCandidate::ProceduralPromotion { candidate })
+    }
+}
+
+impl PostgresKernelActionSubmitter {
+    fn submit_hygiene_candidate(&self, candidate: HygieneCandidate) -> Result<Uuid, HygieneError> {
+        let receipt = RecordReceipt {
+            record_id: Uuid::now_v7(),
+            write_box_envelope_id: Uuid::now_v7(),
+            persisted_at_utc: Utc::now(),
+        };
+        let submission = hygiene_submission(&candidate, &receipt)?;
+        self.submit(submission)
+            .map_err(|error| HygieneError::Rejected {
+                code: error.code,
+                reason: error.reason,
+            })?;
+        Ok(receipt.record_id)
+    }
+}
+
+impl PinSubmitter for PostgresKernelActionSubmitter {
+    fn set_pin(&self, item: PinnedItem) -> Result<PinReceipt, PinError> {
+        let receipt = PinReceipt {
+            receipt_id: Uuid::now_v7(),
+            memory_id: item.memory_id,
+            pinned: item.pinned,
+            action_id: action_id_for_pin_state(item.pinned).to_string(),
+            fr_event_kind: fr_event_for_pin_state(item.pinned).to_string(),
+        };
+        let submission = pin_submission(&item, &receipt)?;
+        let action = self
+            .catalog
+            .action(&submission.request.action_id)
+            .ok_or_else(|| PinError::Rejected {
+                code: "kernel_action_unknown".to_string(),
+                reason: format!(
+                    "action_id {} is not registered in KernelActionCatalogV1 catalog {}",
+                    submission.request.action_id, self.catalog.catalog_id
+                ),
+            })?;
+        validate_submission_against_catalog(action, &submission).map_err(|error| {
+            PinError::Rejected {
+                code: error.code,
+                reason: error.reason,
+            }
+        })?;
+        let action_event = build_catalog_action_event(&submission, action).map_err(|error| {
+            PinError::Rejected {
+                code: error.code,
+                reason: error.reason,
+            }
+        })?;
+        let manifest_event = pin_manifest_pointer_event(item.memory_id)?;
+        let db = Arc::clone(&self.db);
+        let atomic_result = block_on(async move {
+            db.append_kernel_events_atomic(vec![action_event, manifest_event])
+                .await
+        });
+        match atomic_result {
+            Ok(_) => {}
+            Err(error) if is_kernel_event_idempotency_conflict(&error) => {
+                if !self.existing_pin_submission_matches(&submission)? {
+                    return Err(PinError::Rejected {
+                        code: "memory_pin_atomic_idempotency_conflict".to_string(),
+                        reason: "kernel_event_ledger idempotency conflict did not match the existing memory pin event semantics".to_string(),
+                    });
+                }
+                self.append_pin_manifest_pointer(item.memory_id)?;
+            }
+            Err(error) => {
+                return Err(PinError::Rejected {
+                    code: "memory_pin_atomic_append_failed".to_string(),
+                    reason: error.to_string(),
+                });
+            }
+        }
+        Ok(receipt)
+    }
+
+    fn list_pinned(&self) -> Result<Vec<PinnedItem>, PinError> {
+        let db = Arc::clone(&self.db);
+        let manifest_events = block_on(async move {
+            db.list_kernel_events_for_aggregate(
+                MEMORY_PIN_MANIFEST_AGGREGATE_TYPE,
+                MEMORY_PIN_MANIFEST_AGGREGATE_ID,
+            )
+            .await
+        })
+        .map_err(|error| PinError::Rejected {
+            code: "memory_pin_manifest_read_failed".to_string(),
+            reason: error.to_string(),
+        })?;
+
+        let mut memory_ids = Vec::new();
+        for event in manifest_events {
+            if let Some(memory_id) = event.payload.get("memory_id").and_then(Value::as_str) {
+                if !memory_ids.iter().any(|known| known == memory_id) {
+                    memory_ids.push(memory_id.to_string());
+                }
+            }
+        }
+
+        let mut pinned = Vec::new();
+        for memory_id in memory_ids {
+            let db = Arc::clone(&self.db);
+            let events = block_on(async move {
+                db.list_kernel_events_for_aggregate(MEMORY_PIN_AGGREGATE_TYPE, &memory_id)
+                    .await
+            })
+            .map_err(|error| PinError::Rejected {
+                code: "memory_pin_item_read_failed".to_string(),
+                reason: error.to_string(),
+            })?;
+
+            let mut latest_sequence = i64::MIN;
+            let mut latest_item = None;
+            for event in events {
+                if event.event_sequence > latest_sequence {
+                    if let Some(item) = decode_pin_payload(&event.payload) {
+                        latest_sequence = event.event_sequence;
+                        latest_item = Some(item);
+                    }
+                }
+            }
+            if let Some(item) = latest_item {
+                if item.pinned {
+                    pinned.push(item);
+                }
+            }
+        }
+        pinned.sort_by(|left, right| left.memory_id.cmp(&right.memory_id));
+        Ok(pinned)
+    }
+}
+
+impl PostgresKernelActionSubmitter {
+    fn existing_pin_submission_matches(
+        &self,
+        submission: &KernelActionSubmission,
+    ) -> Result<bool, PinError> {
+        let target = primary_action_target(submission).map_err(|error| PinError::Rejected {
+            code: error.code,
+            reason: error.reason,
+        })?;
+        let db = Arc::clone(&self.db);
+        let events = block_on(async move {
+            db.list_kernel_events_for_aggregate(MEMORY_PIN_AGGREGATE_TYPE, &target.target_id)
+                .await
+        })
+        .map_err(|error| PinError::Rejected {
+            code: "memory_pin_idempotency_lookup_failed".to_string(),
+            reason: error.to_string(),
+        })?;
+
+        Ok(events.iter().any(|event| {
+            event.idempotency_key == submission.request.idempotency_key
+                && same_capsule_submission_semantics(&event.payload, submission)
+        }))
+    }
+
+    fn append_pin_manifest_pointer(&self, memory_id: Uuid) -> Result<(), PinError> {
+        let event = pin_manifest_pointer_event(memory_id)?;
+        let db = Arc::clone(&self.db);
+        match block_on(async move { db.append_kernel_event(event).await }) {
+            Ok(_) => Ok(()),
+            Err(error) if is_kernel_event_idempotency_conflict(&error) => Ok(()),
+            Err(error) => Err(PinError::Rejected {
+                code: "memory_pin_manifest_append_failed".to_string(),
+                reason: error.to_string(),
+            }),
+        }
+    }
+}
+
+fn pin_manifest_pointer_event(memory_id: Uuid) -> Result<NewKernelEvent, PinError> {
+    let payload = json!({
+        "schema_id": "hsk.memory_pin.manifest_pointer@1",
+        "memory_id": memory_id.to_string(),
+    });
+    NewKernelEvent::builder(
+        "KTR-MEMORY-PIN-MANIFEST",
+        "SR-MEMORY-PIN-MANIFEST",
+        KernelEventType::ArtifactProposed,
+        KernelActor::System("memory_pin_manifest".to_string()),
+    )
+    .aggregate(
+        MEMORY_PIN_MANIFEST_AGGREGATE_TYPE,
+        MEMORY_PIN_MANIFEST_AGGREGATE_ID,
+    )
+    .idempotency_key(format!("memory_pin_manifest_pointer:{memory_id}"))
+    .event_version("kernel_event_v1")
+    .source_component(MEMORY_PIN_SOURCE_COMPONENT)
+    .payload(payload)
+    .build()
+    .map_err(|error| PinError::Rejected {
+        code: "memory_pin_manifest_event_build_failed".to_string(),
+        reason: error.to_string(),
+    })
 }
 
 fn validate_submission_against_catalog(
@@ -157,8 +522,10 @@ fn validate_submission_against_catalog(
     if !matches!(
         action.authority_effect,
         AuthorityEffect::PrePromotionEvidenceOnly
-    ) || !matches!(action.approval_posture, ApprovalPosture::RequiresPromotionGate)
-    {
+    ) || !matches!(
+        action.approval_posture,
+        ApprovalPosture::RequiresPromotionGate
+    ) {
         return Err(KernelActionRejection {
             code: "kernel_action_unsupported_posture".to_string(),
             reason: format!(
@@ -170,24 +537,25 @@ fn validate_submission_against_catalog(
     Ok(())
 }
 
-fn build_capsule_action_event(
+fn build_catalog_action_event(
     submission: &KernelActionSubmission,
     action: &KernelCatalogActionV1,
 ) -> Result<NewKernelEvent, KernelActionRejection> {
-    let capsule_id = primary_capsule_id(submission)?;
+    let target = primary_action_target(submission)?;
+    let aggregate_type = aggregate_type_for_target_kind(&target.target_kind)?;
     let payload = capsule_action_payload(submission, action);
 
     NewKernelEvent::builder(
-        format!("KTR-MEMORY-CAPSULE-{}", capsule_id),
-        format!("SR-MEMORY-CAPSULE-{}", capsule_id),
+        format!("KTR-MEMORY-ACTION-{}", target.target_id),
+        format!("SR-MEMORY-ACTION-{}", target.target_id),
         KernelEventType::ArtifactProposed,
         KernelActor::ModelAdapter(submission.request.actor.actor_id.clone()),
     )
-    .aggregate(MEMORY_CAPSULE_AGGREGATE_TYPE, capsule_id.clone())
+    .aggregate(aggregate_type, target.target_id.clone())
     .idempotency_key(submission.request.idempotency_key.clone())
     .correlation_id(submission.request.trace_id.clone())
     .event_version("kernel_event_v1")
-    .source_component(MEMORY_CAPSULE_SOURCE_COMPONENT)
+    .source_component(source_component_for_action(action.action_id))
     .payload(payload)
     .build()
     .map_err(|err| KernelActionRejection {
@@ -196,6 +564,59 @@ fn build_capsule_action_event(
     })
 }
 
+#[derive(Debug, Clone)]
+struct ActionTarget {
+    target_id: String,
+    target_kind: String,
+}
+
+fn primary_action_target(
+    submission: &KernelActionSubmission,
+) -> Result<ActionTarget, KernelActionRejection> {
+    submission
+        .request
+        .target_ids
+        .iter()
+        .find(|target| {
+            target.target_kind == "memory_capsule" || target.target_kind == "memory_item"
+        })
+        .map(|target| ActionTarget {
+            target_id: target.target_id.clone(),
+            target_kind: target.target_kind.clone(),
+        })
+        .ok_or_else(|| KernelActionRejection {
+            code: "kernel_action_missing_supported_target".to_string(),
+            reason:
+                "memory action submission must reference a memory_capsule or memory_item target_id"
+                    .to_string(),
+        })
+}
+
+fn aggregate_type_for_target_kind(
+    target_kind: &str,
+) -> Result<&'static str, KernelActionRejection> {
+    match target_kind {
+        "memory_capsule" => Ok(MEMORY_CAPSULE_AGGREGATE_TYPE),
+        "memory_item" => Ok(MEMORY_PIN_AGGREGATE_TYPE),
+        _ => Err(KernelActionRejection {
+            code: "kernel_action_unsupported_target_kind".to_string(),
+            reason: format!("unsupported memory action target_kind {target_kind}"),
+        }),
+    }
+}
+
+fn source_component_for_action(action_id: &str) -> &'static str {
+    match action_id {
+        PIN_MEMORY_ACTION_ID | UNPIN_MEMORY_ACTION_ID => MEMORY_PIN_SOURCE_COMPONENT,
+        HYGIENE_CONSOLIDATION_ACTION_ID
+        | HYGIENE_PRUNE_ACTION_ID
+        | HYGIENE_FLAG_ACTION_ID
+        | HYGIENE_PROMOTE_ACTION_ID => MEMORY_HYGIENE_SOURCE_COMPONENT,
+        _ => MEMORY_CAPSULE_SOURCE_COMPONENT,
+    }
+}
+
+#[cfg(test)]
 fn primary_capsule_id(
     submission: &KernelActionSubmission,
 ) -> Result<String, KernelActionRejection> {
@@ -210,6 +631,16 @@ fn primary_capsule_id(
             reason: "memory capsule submission must reference a memory_capsule target_id"
                 .to_string(),
         })
+}
+
+fn decode_pin_payload(payload: &Value) -> Option<PinnedItem> {
+    let pin_payload = payload
+        .get("write_box_envelope")
+        .and_then(|envelope| envelope.get("payload"))?;
+    if pin_payload.get("schema_id")?.as_str()? != PIN_MEMORY_PAYLOAD_SCHEMA_ID {
+        return None;
+    }
+    serde_json::from_value(pin_payload.get("pinned_item")?.clone()).ok()
 }
 
 fn capsule_action_payload(
@@ -254,9 +685,10 @@ impl PostgresMemoryCapsuleStore {
             "schema_id": "hsk.memory_capsule.store_record_payload@1",
             "record": record,
         });
-        let record_canonical = serde_json::to_vec(&payload).map_err(|err| MemoryIpcError::Store {
-            message: format!("memory capsule store payload serialization failed: {err}"),
-        })?;
+        let record_canonical =
+            serde_json::to_vec(&payload).map_err(|err| MemoryIpcError::Store {
+                message: format!("memory capsule store payload serialization failed: {err}"),
+            })?;
         let record_hash = {
             use sha2::Digest;
             let mut hasher = sha2::Sha256::new();
@@ -339,10 +771,7 @@ impl PostgresMemoryCapsuleStore {
             KernelEventType::ArtifactProposed,
             KernelActor::System("memory_capsule_store_manifest".to_string()),
         )
-        .aggregate(
-            MEMORY_CAPSULE_AGGREGATE_TYPE,
-            CAPSULE_MANIFEST_AGGREGATE_ID,
-        )
+        .aggregate(MEMORY_CAPSULE_AGGREGATE_TYPE, CAPSULE_MANIFEST_AGGREGATE_ID)
         .idempotency_key(format!("memory_capsule_manifest_pointer:{capsule_id}"))
         .event_version("kernel_event_v1")
         .source_component(MEMORY_CAPSULE_SOURCE_COMPONENT)
@@ -416,6 +845,17 @@ mod tests {
     use super::*;
     use crate::memory::ipc::MEMORY_CAPSULE_SUPPRESS_ACTION_ID;
     use crate::memory::persistence::MEMORY_CAPSULE_RECORD_ACTION_ID;
+
+    #[test]
+    fn block_on_runs_inside_multi_thread_runtime() {
+        let runtime = tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(2)
+            .enable_all()
+            .build()
+            .expect("test runtime must build");
+        let value = runtime.block_on(async { block_on(async { 42 }) });
+        assert_eq!(value, 42);
+    }
 
     #[test]
     fn primary_capsule_id_returns_target_id_when_kind_matches() {
@@ -499,9 +939,8 @@ mod tests {
                 envelope_id: Uuid::now_v7(),
                 payload_schema_id: MEMORY_CAPSULE_RECORD_PAYLOAD_SCHEMA_ID.to_string(),
                 payload: serde_json::json!({}),
-                payload_sha256:
-                    "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
-                        .to_string(),
+                payload_sha256: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+                    .to_string(),
                 write_box: MemoryBox {
                     common: WriteBoxCommon {
                         write_box_id: Uuid::now_v7().to_string(),

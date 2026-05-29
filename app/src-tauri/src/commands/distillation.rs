@@ -362,7 +362,11 @@ pub async fn list_jobs_inner(
         .list_events(EventFilter::default())
         .await
         .map_err(|err| format!("flight recorder query failed: {err}"))?;
-    Ok(aggregate_distill_jobs(events.iter().filter(|event| is_distill_event(&event.event_type))))
+    Ok(aggregate_distill_jobs(
+        events
+            .iter()
+            .filter(|event| is_distill_event(&event.event_type)),
+    ))
 }
 
 pub fn extract_corpus_inner(
@@ -399,7 +403,11 @@ pub fn promote_candidate_inner(
     }
     let now_utc = Utc::now().to_rfc3339();
     registry
-        .promote(request.lora_id.trim(), request.operator_signature.trim(), &now_utc)
+        .promote(
+            request.lora_id.trim(),
+            request.operator_signature.trim(),
+            &now_utc,
+        )
         .map_err(map_candidate_err)?;
     Ok(CandidateActionReceiptIpc {
         lora_id: request.lora_id,
@@ -451,6 +459,7 @@ fn is_distill_event(event_type: &FlightRecorderEventType) -> bool {
             | FlightRecorderEventType::DistillCheckpointCreated
             | FlightRecorderEventType::DistillEvalCompleted
             | FlightRecorderEventType::DistillPromotionDecided
+            | FlightRecorderEventType::DistillPiiDetected
     )
 }
 
@@ -533,6 +542,14 @@ fn aggregate_distill_jobs<'a>(
                     }
                 }
             }
+            FlightRecorderEventType::DistillPiiDetected => {
+                if entry.queued_at_utc.is_none() {
+                    entry.queued_at_utc = Some(ts.clone());
+                }
+                entry.finished_at_utc = Some(ts.clone());
+                entry.status = TrainingJobStatusIpc::Error;
+                entry.error_message = Some("PII detected during content review".to_string());
+            }
             _ => {}
         }
     }
@@ -608,10 +625,22 @@ mod tests {
     #[test]
     fn list_sessions_returns_only_opted_in_rows_through_real_store() {
         let store = flag_store();
-        mark_for_distillation(store.as_ref(), "s-opted-in", true, "op", "2026-05-20T04:00:00Z")
-            .expect("opt in");
-        mark_for_distillation(store.as_ref(), "s-opted-out", false, "op", "2026-05-20T04:01:00Z")
-            .expect("opt out");
+        mark_for_distillation(
+            store.as_ref(),
+            "s-opted-in",
+            true,
+            "op",
+            "2026-05-20T04:00:00Z",
+        )
+        .expect("opt in");
+        mark_for_distillation(
+            store.as_ref(),
+            "s-opted-out",
+            false,
+            "op",
+            "2026-05-20T04:01:00Z",
+        )
+        .expect("opt out");
 
         let result = list_sessions_inner(store.as_ref()).expect("list");
         assert_eq!(result.len(), 1);
@@ -636,10 +665,18 @@ mod tests {
     fn list_candidates_returns_pending_only_through_real_registry() {
         let registry = CandidateRegistry::new();
         registry
-            .register("lora-pending", artifact("lora-pending"), "2026-05-20T05:00:00Z")
+            .register(
+                "lora-pending",
+                artifact("lora-pending"),
+                "2026-05-20T05:00:00Z",
+            )
             .expect("register pending");
         registry
-            .register("lora-promoted", artifact("lora-promoted"), "2026-05-20T05:01:00Z")
+            .register(
+                "lora-promoted",
+                artifact("lora-promoted"),
+                "2026-05-20T05:01:00Z",
+            )
             .expect("register promoted");
         registry
             .promote("lora-promoted", "op-ilja", "2026-05-20T05:02:00Z")
@@ -675,7 +712,10 @@ mod tests {
 
         let entry = registry.get("lora-1").unwrap().expect("entry");
         assert_eq!(entry.status, ReviewStatus::Promoted);
-        assert_eq!(entry.promoted_by_operator_signature.as_deref(), Some("op-ilja"));
+        assert_eq!(
+            entry.promoted_by_operator_signature.as_deref(),
+            Some("op-ilja")
+        );
 
         // The Pending list is now empty (the candidate moved to Promoted).
         let listed = list_candidates_inner(&registry).expect("list");
@@ -941,6 +981,41 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn list_jobs_surfaces_distill_pii_detected_as_error() {
+        use serde_json::json;
+        use uuid::Uuid;
+
+        let ledger = TestEventLedger::new();
+        let trace = Uuid::now_v7();
+
+        ledger.push(
+            FlightRecorderEvent::new(
+                FlightRecorderEventType::DistillPiiDetected,
+                FlightRecorderActor::System,
+                trace,
+                json!({
+                    "type": "distill.pii_detected",
+                    "fr_event_id": "FR-EVT-DISTILL-PII-DETECT",
+                    "turn_id": "turn-pii",
+                    "pii_kinds": ["email"],
+                    "severity": "Medium"
+                }),
+            )
+            .with_job_id("job-pii"),
+        );
+
+        let recorder_arc: Arc<dyn FlightRecorder> = Arc::new(ledger);
+        let result = list_jobs_inner(Some(&recorder_arc)).await.expect("list");
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].job_id, "job-pii");
+        assert_eq!(result[0].status, TrainingJobStatusIpc::Error);
+        assert_eq!(
+            result[0].error_message.as_deref(),
+            Some("PII detected during content review")
+        );
+    }
+
+    #[tokio::test]
     async fn list_jobs_marks_running_for_in_flight_distill_pipeline() {
         // SR-Gate Sub-rule 2 evidence: status transitions are real, not
         // hardcoded. A dataset+teacher pair without eval surfaces as
@@ -1021,7 +1096,10 @@ mod tests {
         })
         .expect("serialize");
         assert_eq!(value.get("loraId").and_then(|v| v.as_str()), Some("l"));
-        assert_eq!(value.get("status").and_then(|v| v.as_str()), Some("Pending"));
+        assert_eq!(
+            value.get("status").and_then(|v| v.as_str()),
+            Some("Pending")
+        );
         assert_eq!(
             value.get("teacherModelPath").and_then(|v| v.as_str()),
             Some("t")

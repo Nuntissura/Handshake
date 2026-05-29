@@ -9,14 +9,52 @@ use handshake_core::distillation::{
     content_review::ContentReviewConfig,
     corpus_extractor::{TrainingCorpus, TrainingTurn},
     peft_pipeline::{
-        distill, DistillError, DistillJobConfig, PeftHyperparams, PeftTrainerExecutor,
+        distill, distill_with_flight_recorder, review_corpus_with_events, DistillError,
+        DistillJobConfig, PeftHyperparams, PeftTrainerExecutor,
     },
 };
+use handshake_core::flight_recorder::{
+    EventFilter, FlightRecorder, FlightRecorderEvent, FlightRecorderEventType, RecorderError,
+};
+use std::sync::Mutex;
+use uuid::Uuid;
+
+#[derive(Default)]
+struct MemoryFlightRecorder {
+    events: Mutex<Vec<FlightRecorderEvent>>,
+}
+
+#[async_trait::async_trait]
+impl FlightRecorder for MemoryFlightRecorder {
+    async fn record_event(&self, event: FlightRecorderEvent) -> Result<(), RecorderError> {
+        event.validate()?;
+        self.events.lock().expect("recorder lock").push(event);
+        Ok(())
+    }
+
+    async fn enforce_retention(&self) -> Result<u64, RecorderError> {
+        Ok(0)
+    }
+
+    async fn list_events(
+        &self,
+        _filter: EventFilter,
+    ) -> Result<Vec<FlightRecorderEvent>, RecorderError> {
+        Ok(self.events.lock().expect("recorder lock").clone())
+    }
+}
 
 struct StubExecutor;
 impl PeftTrainerExecutor for StubExecutor {
     fn run(&self, _config: &DistillJobConfig) -> Result<(), DistillError> {
         Ok(())
+    }
+}
+
+struct NeverCalledExecutor;
+impl PeftTrainerExecutor for NeverCalledExecutor {
+    fn run(&self, _config: &DistillJobConfig) -> Result<(), DistillError> {
+        panic!("executor must not run when content review yields zero passing turns");
     }
 }
 
@@ -31,6 +69,20 @@ fn turn(id: &str, prompt: &str, completion: &str, license: &str) -> TrainingTurn
         license_tag: license.to_string(),
         source_event_ids: vec!["e1".to_string()],
         sourced_at_utc: "2026-05-20T04:00:00Z".to_string(),
+    }
+}
+
+fn distill_config(tmp: &tempfile::TempDir) -> DistillJobConfig {
+    DistillJobConfig {
+        teacher_model_path: tmp.path().join("teacher"),
+        student_base_model_path: tmp.path().join("student"),
+        output_lora_dir: tmp.path().join("lora"),
+        corpus_jsonl_path: tmp.path().join("corpus.jsonl"),
+        hyperparams: PeftHyperparams::default(),
+        license_tag: "MIT".to_string(),
+        operator_signature: "op-ilja".to_string(),
+        teacher_source: handshake_core::distillation::peft_pipeline::TeacherSource::CliBridge,
+        max_steps: None,
     }
 }
 
@@ -82,6 +134,84 @@ fn peft_pipeline_distill_writes_filtered_jsonl_and_invokes_executor() {
 
     let raw = std::fs::read_to_string(&corpus_path).unwrap();
     assert_eq!(raw.lines().count(), 2);
+}
+
+#[test]
+fn peft_pipeline_review_corpus_with_events_exposes_sanitized_pii_fr_event() {
+    let corpus = TrainingCorpus {
+        session_id: "s".to_string(),
+        turns: vec![turn("t1", "email alice@example.com", "ok", "MIT")],
+    };
+
+    let reviewed = review_corpus_with_events(&corpus, ContentReviewConfig::defaults())
+        .expect("review corpus with events");
+    assert_eq!(reviewed.verdicts.len(), 1);
+    assert_eq!(reviewed.outcomes.len(), 1);
+    assert_eq!(reviewed.summary.quarantine_count, 1);
+
+    let events =
+        reviewed.outcomes[0].flight_recorder_events(uuid::Uuid::now_v7(), "job-review-corpus-pii");
+    assert_eq!(events.len(), 1);
+    assert_eq!(
+        events[0].event_type,
+        FlightRecorderEventType::DistillPiiDetected
+    );
+    assert_eq!(events[0].event_type.to_string(), "distill.pii_detected");
+    assert_eq!(events[0].job_id.as_deref(), Some("job-review-corpus-pii"));
+    assert_eq!(events[0].payload["pii_kinds"], serde_json::json!(["email"]));
+    let payload_text = serde_json::to_string(&events[0].payload).unwrap();
+    assert!(!payload_text.contains("alice@example.com"));
+}
+
+#[tokio::test]
+async fn peft_pipeline_distill_with_flight_recorder_records_sanitized_pii_before_zero_pass_abort() {
+    let corpus = TrainingCorpus {
+        session_id: "s".to_string(),
+        turns: vec![turn(
+            "t1",
+            "email alice@example.com about the training run",
+            "No raw source text may be logged.",
+            "MIT",
+        )],
+    };
+    let tmp = tempfile::tempdir().unwrap();
+    let recorder = MemoryFlightRecorder::default();
+    let job_id = "job-distill-pii-zero-pass";
+
+    let err = distill_with_flight_recorder(
+        &corpus,
+        distill_config(&tmp),
+        ContentReviewConfig::defaults(),
+        &NeverCalledExecutor,
+        "2026-05-20T04:00:00Z",
+        &recorder,
+        Uuid::now_v7(),
+        job_id,
+    )
+    .await
+    .expect_err("all-quarantined corpus should still abort");
+
+    assert!(
+        matches!(err, DistillError::NoPassingTurns { .. }),
+        "unexpected error: {err:?}"
+    );
+
+    let events = recorder
+        .list_events(EventFilter::default())
+        .await
+        .expect("list recorded events");
+    assert_eq!(events.len(), 1);
+    assert_eq!(
+        events[0].event_type,
+        FlightRecorderEventType::DistillPiiDetected
+    );
+    assert_eq!(events[0].job_id.as_deref(), Some(job_id));
+    assert_eq!(events[0].payload["pii_kinds"], serde_json::json!(["email"]));
+    let payload_text = serde_json::to_string(&events[0].payload).unwrap();
+    assert!(!payload_text.contains("alice@example.com"));
+    assert!(!payload_text.contains("raw_prompt"));
+    assert!(!payload_text.contains("raw_completion"));
+    assert!(!payload_text.contains("email alice"));
 }
 
 #[test]

@@ -59,10 +59,7 @@ pub struct CleanupPlanner<'a> {
 }
 
 impl<'a> CleanupPlanner<'a> {
-    pub fn new(
-        workspace: &'a SandboxWorkspaceV1,
-        temp_root_relative: impl Into<String>,
-    ) -> Self {
+    pub fn new(workspace: &'a SandboxWorkspaceV1, temp_root_relative: impl Into<String>) -> Self {
         let temp = temp_root_relative.into();
         // Preserved by default: every declared output root.
         let preserved = workspace.output_roots_relative.clone();
@@ -195,10 +192,7 @@ mod tests {
     fn out_of_workspace_target_is_rejected() {
         let w = ws();
         let p = CleanupPlanner::new(&w, "handshake-product/kb003/work/x/tmp");
-        let plan = p.plan(&[(
-            CleanupAction::DeleteFile,
-            "../../../etc/passwd".to_string(),
-        )]);
+        let plan = p.plan(&[(CleanupAction::DeleteFile, "../../../etc/passwd".to_string())]);
         assert!(plan.planned.is_empty());
         assert_eq!(plan.rejected.len(), 1);
     }
@@ -252,9 +246,6 @@ mod tests {
         let p = CleanupPlanner::new(&w, "handshake-product/kb003/work/x/tmp");
         let plan = p.plan(&[]);
         assert_eq!(plan.workspace_id, w.workspace_id);
-        assert!(plan
-            .preserved_paths
-            .iter()
-            .any(|p| p.ends_with("/out")));
+        assert!(plan.preserved_paths.iter().any(|p| p.ends_with("/out")));
     }
 }

@@ -39,9 +39,7 @@ pub enum MteBlockedReason {
     /// No sandbox slot, no worker, or queue backpressure.
     CapacityExceeded { detail: String },
     /// An upstream MT/dependency is missing or not yet completed.
-    DependencyMissing {
-        missing_dependency_id: String,
-    },
+    DependencyMissing { missing_dependency_id: String },
     /// Sandbox policy version changed under the MT; replay denied.
     PolicyChange {
         old_policy_version_id: String,
@@ -94,9 +92,7 @@ impl MteBlockedReason {
             Self::PolicyChange {
                 old_policy_version_id,
                 new_policy_version_id,
-            } => format!(
-                "policy changed {old_policy_version_id} -> {new_policy_version_id}"
-            ),
+            } => format!("policy changed {old_policy_version_id} -> {new_policy_version_id}"),
             Self::OperatorPaused { reason } => format!("operator paused: {reason}"),
             Self::DownstreamWait { waiting_on } => format!("waiting on {waiting_on}"),
             Self::ResourceExhausted {
@@ -162,10 +158,7 @@ impl MteEligibilityCheck {
         if !inputs.capacity_available {
             return MteEligibilityVerdict::Ineligible {
                 reason: MteBlockedReason::CapacityExceeded {
-                    detail: inputs
-                        .capacity_detail
-                        .unwrap_or("no detail")
-                        .to_string(),
+                    detail: inputs.capacity_detail.unwrap_or("no detail").to_string(),
                 },
             };
         }
@@ -249,9 +242,7 @@ mod tests {
     #[test]
     fn all_six_variants_carry_distinct_tags() {
         let variants = vec![
-            MteBlockedReason::CapacityExceeded {
-                detail: "x".into(),
-            },
+            MteBlockedReason::CapacityExceeded { detail: "x".into() },
             MteBlockedReason::DependencyMissing {
                 missing_dependency_id: "MT-0".into(),
             },
@@ -271,8 +262,7 @@ mod tests {
                 cap: 100,
             },
         ];
-        let mut tags: std::collections::BTreeSet<&'static str> =
-            std::collections::BTreeSet::new();
+        let mut tags: std::collections::BTreeSet<&'static str> = std::collections::BTreeSet::new();
         for v in &variants {
             tags.insert(v.tag());
             assert!(!v.rationale_short().is_empty());

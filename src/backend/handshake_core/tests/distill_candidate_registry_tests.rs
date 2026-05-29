@@ -6,9 +6,7 @@
 use std::path::PathBuf;
 
 use handshake_core::distillation::{
-    candidate_registry::{
-        CandidateAuditEvent, CandidateRegistry, MountDecision, ReviewStatus,
-    },
+    candidate_registry::{CandidateAuditEvent, CandidateRegistry, MountDecision, ReviewStatus},
     peft_pipeline::{DistilledLoraArtifact, PeftHyperparams},
 };
 
@@ -71,9 +69,7 @@ fn candidate_registry_reject_locks_mount_until_override() {
     let decision = registry.mount_status("lora-3").unwrap();
     assert!(matches!(decision, MountDecision::Refuse { .. }));
     // Override flips to Allow for experimental sessions.
-    let decision = registry
-        .mount_status_with_override("lora-3", true)
-        .unwrap();
+    let decision = registry.mount_status_with_override("lora-3", true).unwrap();
     assert_eq!(decision, MountDecision::Allow);
 }
 

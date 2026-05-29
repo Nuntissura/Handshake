@@ -44,9 +44,13 @@
 
 use std::{env, path::PathBuf, process::ExitCode};
 
-use handshake_core::distillation::peft_pipeline::{
-    DistillJobConfig, PeftHyperparams, PeftProvenanceSidecar, PeftTrainerExecutor,
-    PythonPeftTrainerExecutor, TeacherSource,
+use chrono::Utc;
+use handshake_core::distillation::{
+    content_review::ContentReviewConfig,
+    peft_pipeline::{
+        distill, read_training_corpus_jsonl, review_corpus, DistillError, DistillJobConfig,
+        PeftHyperparams, PeftProvenanceSidecar, PythonPeftTrainerExecutor, TeacherSource,
+    },
 };
 
 fn main() -> ExitCode {
@@ -68,16 +72,40 @@ fn run_cli(args: Vec<String>) -> Result<String, String> {
         return Ok(help_text().to_string());
     }
     let trainer_args = parsed.into_trainer_args()?;
+    let corpus = read_training_corpus_jsonl(
+        &trainer_args.corpus_jsonl,
+        "peft-train-cli",
+        &trainer_args.license_tag,
+    )
+    .map_err(|err| err.to_string())?;
+    let (_verdicts, summary) =
+        review_corpus(&corpus, ContentReviewConfig::defaults()).map_err(|err| err.to_string())?;
+    if summary.pass_count == 0 {
+        return Err(format!(
+            "PII/content review blocked PEFT training: {}",
+            DistillError::NoPassingTurns {
+                turn_count: summary.turn_count,
+                pass_count: summary.pass_count,
+            }
+        ));
+    }
     let executor = trainer_args.build_executor()?;
 
-    // The CLI bypasses the full `distill()` ContentReview pipeline
-    // because the corpus on disk has already been gated (the upstream
-    // workflow writes the filtered JSONL before invoking this CLI).
-    // The CLI is the subprocess driver: it spawns the Python trainer,
-    // reads the provenance sidecar, and prints a machine-readable
-    // result.
-    let config = trainer_args.into_config();
-    executor.run(&config).map_err(|err| err.to_string())?;
+    // The CLI is a direct subprocess driver, but it is no longer a raw
+    // corpus bypass: it reviews the JSONL in-process, writes a separate
+    // filtered corpus under the LoRA output directory, then trains only
+    // on passing rows.
+    let mut config = trainer_args.into_config();
+    config.corpus_jsonl_path = config.output_lora_dir.join("filtered_corpus.jsonl");
+    let finished_at_utc = Utc::now().to_rfc3339();
+    distill(
+        &corpus,
+        config.clone(),
+        ContentReviewConfig::defaults(),
+        &executor,
+        &finished_at_utc,
+    )
+    .map_err(|err| err.to_string())?;
 
     // Read the provenance sidecar written by the Python trainer.
     let provenance_path = config.output_lora_dir.join("provenance.json");
@@ -127,8 +155,8 @@ impl TrainerArgs {
             Some(path) => path.clone(),
             None => locate_default_script()?,
         };
-        let executor = PythonPeftTrainerExecutor::new(python_path, script_path)
-            .with_cpu_only(self.cpu_only);
+        let executor =
+            PythonPeftTrainerExecutor::new(python_path, script_path).with_cpu_only(self.cpu_only);
         Ok(executor)
     }
 
@@ -246,9 +274,7 @@ impl ParsedArgs {
         // a teacher_source label is provided; CLI_BRIDGE and BYOK use
         // routing semantics rather than a local model path. The Python
         // trainer records this verbatim into the provenance sidecar.
-        let teacher = self
-            .teacher
-            .unwrap_or_else(|| PathBuf::from("placeholder"));
+        let teacher = self.teacher.unwrap_or_else(|| PathBuf::from("placeholder"));
         let teacher_source = self.teacher_source.unwrap_or_default();
 
         let default_hp = PeftHyperparams::default();
@@ -334,7 +360,10 @@ fn locate_default_script() -> Result<PathBuf, String> {
             )
         })?
         .to_path_buf();
-    let script_path = repo_root.join("scripts").join("distill").join("train_lora.py");
+    let script_path = repo_root
+        .join("scripts")
+        .join("distill")
+        .join("train_lora.py");
     if !script_path.is_file() {
         return Err(format!(
             "default trainer script not found at {}",
@@ -386,20 +415,34 @@ mod tests {
     #[test]
     fn parse_args_records_all_known_flags() {
         let args: Vec<String> = vec![
-            "--corpus-jsonl", "corpus.jsonl",
-            "--student-base", "synthetic",
-            "--teacher-source", "BYOK",
-            "--teacher", "anthropic-cli",
-            "--out-lora", "lora_out",
-            "--license-tag", "MIT",
-            "--operator-signature", "op-ilja",
-            "--max-steps", "2",
-            "--learning-rate", "0.0001",
-            "--rank", "8",
-            "--alpha", "16",
-            "--dropout", "0.1",
-            "--epochs", "2",
-            "--batch-size", "2",
+            "--corpus-jsonl",
+            "corpus.jsonl",
+            "--student-base",
+            "synthetic",
+            "--teacher-source",
+            "BYOK",
+            "--teacher",
+            "anthropic-cli",
+            "--out-lora",
+            "lora_out",
+            "--license-tag",
+            "MIT",
+            "--operator-signature",
+            "op-ilja",
+            "--max-steps",
+            "2",
+            "--learning-rate",
+            "0.0001",
+            "--rank",
+            "8",
+            "--alpha",
+            "16",
+            "--dropout",
+            "0.1",
+            "--epochs",
+            "2",
+            "--batch-size",
+            "2",
             "--cpu-only",
         ]
         .into_iter()
@@ -427,11 +470,16 @@ mod tests {
     #[test]
     fn parse_args_defaults_teacher_source_to_cli_bridge() {
         let args: Vec<String> = vec![
-            "--corpus-jsonl", "c.jsonl",
-            "--student-base", "synthetic",
-            "--out-lora", "out",
-            "--license-tag", "MIT",
-            "--operator-signature", "op",
+            "--corpus-jsonl",
+            "c.jsonl",
+            "--student-base",
+            "synthetic",
+            "--out-lora",
+            "out",
+            "--license-tag",
+            "MIT",
+            "--operator-signature",
+            "op",
         ]
         .into_iter()
         .map(String::from)
@@ -444,11 +492,16 @@ mod tests {
     #[test]
     fn parse_args_rejects_empty_license_tag() {
         let args: Vec<String> = vec![
-            "--corpus-jsonl", "c.jsonl",
-            "--student-base", "synthetic",
-            "--out-lora", "out",
-            "--license-tag", "  ",
-            "--operator-signature", "op",
+            "--corpus-jsonl",
+            "c.jsonl",
+            "--student-base",
+            "synthetic",
+            "--out-lora",
+            "out",
+            "--license-tag",
+            "  ",
+            "--operator-signature",
+            "op",
         ]
         .into_iter()
         .map(String::from)
@@ -461,11 +514,16 @@ mod tests {
     #[test]
     fn parse_args_rejects_empty_operator_signature() {
         let args: Vec<String> = vec![
-            "--corpus-jsonl", "c.jsonl",
-            "--student-base", "synthetic",
-            "--out-lora", "out",
-            "--license-tag", "MIT",
-            "--operator-signature", "  ",
+            "--corpus-jsonl",
+            "c.jsonl",
+            "--student-base",
+            "synthetic",
+            "--out-lora",
+            "out",
+            "--license-tag",
+            "MIT",
+            "--operator-signature",
+            "  ",
         ]
         .into_iter()
         .map(String::from)
@@ -499,12 +557,18 @@ mod tests {
     #[test]
     fn parse_args_teacher_source_accepts_lowercase_and_mixed() {
         let args: Vec<String> = vec![
-            "--corpus-jsonl", "c.jsonl",
-            "--student-base", "synthetic",
-            "--out-lora", "out",
-            "--license-tag", "MIT",
-            "--operator-signature", "op",
-            "--teacher-source", "local_larger",
+            "--corpus-jsonl",
+            "c.jsonl",
+            "--student-base",
+            "synthetic",
+            "--out-lora",
+            "out",
+            "--license-tag",
+            "MIT",
+            "--operator-signature",
+            "op",
+            "--teacher-source",
+            "local_larger",
         ]
         .into_iter()
         .map(String::from)
@@ -525,5 +589,60 @@ mod tests {
             let parsed = TeacherSource::from_cli_arg(arg).expect("round-trip");
             assert_eq!(parsed, variant);
         }
+    }
+
+    #[test]
+    fn run_cli_rejects_pii_corpus_before_spawning_trainer() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let corpus_path = tmp.path().join("raw-corpus.jsonl");
+        let out_lora_dir = tmp.path().join("lora-out");
+        let raw_line = serde_json::json!({
+            "id": "turn-pii",
+            "session_id": "session-1",
+            "model_id": "teacher-1",
+            "prompt": "Contact alice@example.com before training.",
+            "completion": "No raw source text may be logged.",
+            "finish_reason": "stop",
+            "license_tag": "MIT",
+            "source_event_ids": ["evt-1"],
+            "sourced_at_utc": "2026-05-20T04:00:00Z"
+        })
+        .to_string();
+        std::fs::write(&corpus_path, format!("{raw_line}\n")).expect("write corpus");
+
+        let err = run_cli(vec![
+            "--corpus-jsonl".to_string(),
+            corpus_path.to_string_lossy().to_string(),
+            "--student-base".to_string(),
+            "synthetic".to_string(),
+            "--out-lora".to_string(),
+            out_lora_dir.to_string_lossy().to_string(),
+            "--license-tag".to_string(),
+            "MIT".to_string(),
+            "--operator-signature".to_string(),
+            "op-ilja".to_string(),
+            "--python".to_string(),
+            "definitely-missing-python".to_string(),
+            "--script".to_string(),
+            tmp.path()
+                .join("definitely-missing-trainer.py")
+                .to_string_lossy()
+                .to_string(),
+            "--cpu-only".to_string(),
+        ])
+        .expect_err("PII corpus should fail before subprocess launch");
+
+        assert!(
+            err.contains("PII") || err.contains("NoPassingTurns") || err.contains("no passing"),
+            "unexpected error: {err}"
+        );
+        assert!(
+            !err.contains("trainer script missing"),
+            "content review must run before trainer availability checks: {err}"
+        );
+        assert!(
+            !out_lora_dir.join("provenance.json").exists(),
+            "trainer must not run for PII-only corpus"
+        );
     }
 }

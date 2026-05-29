@@ -84,8 +84,13 @@ impl MteValidationVerdict {
 #[serde(tag = "kind", rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum MtePromotionOutcomeView {
     NotAttempted,
-    Accepted { receipt_id: String },
-    Rejected { reason_tag: String, rationale: String },
+    Accepted {
+        receipt_id: String,
+    },
+    Rejected {
+        reason_tag: String,
+        rationale: String,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -197,7 +202,10 @@ impl MtePerMtSummaryV1 {
     pub fn is_passed_and_accepted(&self) -> bool {
         self.status == MteMtStatus::Completed
             && matches!(self.validation_verdict, MteValidationVerdict::Pass)
-            && matches!(self.promotion_outcome, MtePromotionOutcomeView::Accepted { .. })
+            && matches!(
+                self.promotion_outcome,
+                MtePromotionOutcomeView::Accepted { .. }
+            )
     }
 }
 

@@ -131,9 +131,18 @@ CREATE INDEX IF NOT EXISTS ix_kb003_promotion_receipts_decision
 
 pub const KB003_MIGRATIONS_V1: &[(&str, &str)] = &[
     ("kb003_sandbox_runs_v1", MIGRATION_KB003_SANDBOX_RUNS_V1),
-    ("kb003_sandbox_policies_v1", MIGRATION_KB003_SANDBOX_POLICIES_V1),
-    ("kb003_validation_runs_v1", MIGRATION_KB003_VALIDATION_RUNS_V1),
-    ("kb003_promotion_receipts_v1", MIGRATION_KB003_PROMOTION_RECEIPTS_V1),
+    (
+        "kb003_sandbox_policies_v1",
+        MIGRATION_KB003_SANDBOX_POLICIES_V1,
+    ),
+    (
+        "kb003_validation_runs_v1",
+        MIGRATION_KB003_VALIDATION_RUNS_V1,
+    ),
+    (
+        "kb003_promotion_receipts_v1",
+        MIGRATION_KB003_PROMOTION_RECEIPTS_V1,
+    ),
 ];
 
 // ---------------------------------------------------------------------------
@@ -222,7 +231,10 @@ pub trait Kb003Storage {
         guard_authority_write(self.authority_mode())?;
         self.do_update_sandbox_run_status(run_id, new_status)
     }
-    fn insert_sandbox_policy_version(&mut self, policy: &SandboxPolicyV1) -> Kb003StorageResult<()> {
+    fn insert_sandbox_policy_version(
+        &mut self,
+        policy: &SandboxPolicyV1,
+    ) -> Kb003StorageResult<()> {
         guard_authority_write(self.authority_mode())?;
         self.do_insert_sandbox_policy_version(policy)
     }
@@ -274,10 +286,19 @@ pub trait Kb003Storage {
         run_id: &str,
         new_status: SandboxRunStatus,
     ) -> Kb003StorageResult<()>;
-    fn do_insert_sandbox_policy_version(&mut self, policy: &SandboxPolicyV1) -> Kb003StorageResult<()>;
+    fn do_insert_sandbox_policy_version(
+        &mut self,
+        policy: &SandboxPolicyV1,
+    ) -> Kb003StorageResult<()>;
     fn do_insert_validation_run(&mut self, row: &ValidationRunRowV1) -> Kb003StorageResult<()>;
-    fn do_insert_promotion_decision(&mut self, row: &PromotionDecisionRowV1) -> Kb003StorageResult<()>;
-    fn do_insert_promotion_receipt(&mut self, row: &PromotionReceiptRowV1) -> Kb003StorageResult<String>;
+    fn do_insert_promotion_decision(
+        &mut self,
+        row: &PromotionDecisionRowV1,
+    ) -> Kb003StorageResult<()>;
+    fn do_insert_promotion_receipt(
+        &mut self,
+        row: &PromotionReceiptRowV1,
+    ) -> Kb003StorageResult<String>;
 }
 
 // ---------------------------------------------------------------------------
@@ -357,7 +378,10 @@ impl Kb003Storage for InMemoryKb003Storage {
         Ok(())
     }
 
-    fn do_insert_sandbox_policy_version(&mut self, policy: &SandboxPolicyV1) -> Kb003StorageResult<()> {
+    fn do_insert_sandbox_policy_version(
+        &mut self,
+        policy: &SandboxPolicyV1,
+    ) -> Kb003StorageResult<()> {
         if self
             .policies
             .iter()
@@ -377,12 +401,18 @@ impl Kb003Storage for InMemoryKb003Storage {
         Ok(())
     }
 
-    fn do_insert_promotion_decision(&mut self, row: &PromotionDecisionRowV1) -> Kb003StorageResult<()> {
+    fn do_insert_promotion_decision(
+        &mut self,
+        row: &PromotionDecisionRowV1,
+    ) -> Kb003StorageResult<()> {
         self.promotion_decisions.push(row.clone());
         Ok(())
     }
 
-    fn do_insert_promotion_receipt(&mut self, row: &PromotionReceiptRowV1) -> Kb003StorageResult<String> {
+    fn do_insert_promotion_receipt(
+        &mut self,
+        row: &PromotionReceiptRowV1,
+    ) -> Kb003StorageResult<String> {
         if let Some(existing) = self
             .promotion_receipts
             .iter()
@@ -439,10 +469,16 @@ impl InMemoryKb003Storage {
             .validation_runs
             .iter()
             .find(|v| v.sandbox_run_id == run_id);
-        let decision = validation
-            .and_then(|v| self.promotion_decisions.iter().find(|d| d.validation_run_id == v.validation_run_id));
-        let receipt = decision
-            .and_then(|d| self.promotion_receipts.iter().find(|r| r.decision_id == d.decision_id));
+        let decision = validation.and_then(|v| {
+            self.promotion_decisions
+                .iter()
+                .find(|d| d.validation_run_id == v.validation_run_id)
+        });
+        let receipt = decision.and_then(|d| {
+            self.promotion_receipts
+                .iter()
+                .find(|r| r.decision_id == d.decision_id)
+        });
         Ok(ReplayDurableBag {
             run,
             policy,
@@ -460,8 +496,8 @@ impl InMemoryKb003Storage {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chrono::Utc;
     use crate::kernel::sandbox::run::SandboxRunId;
+    use chrono::Utc;
     use serde_json::json;
 
     fn fresh_run() -> SandboxRunV1 {
@@ -547,7 +583,9 @@ mod tests {
             summary_json: json!({"checks": ["lint", "fmt", "unit", "schema"]}),
         };
         store.insert_validation_run(&vr).unwrap();
-        let bag = store.load_replay_bag(&run_id, &policy.version_id()).unwrap();
+        let bag = store
+            .load_replay_bag(&run_id, &policy.version_id())
+            .unwrap();
         assert!(bag.validation.is_some());
         assert_eq!(bag.validation.unwrap().verdict, "PASS");
     }

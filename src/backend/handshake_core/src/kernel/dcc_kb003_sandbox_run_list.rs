@@ -56,7 +56,10 @@ impl DccKb003SandboxRunListV1 {
     pub const FAMILY_ID: &'static str = "hsk.dcc.kb003.sandbox_run_list@1";
 
     pub fn from_projections(projections: &[DccSandboxProjectionV1]) -> Self {
-        let rows: Vec<_> = projections.iter().map(DccKb003SandboxRunListRowV1::from_projection).collect();
+        let rows: Vec<_> = projections
+            .iter()
+            .map(DccKb003SandboxRunListRowV1::from_projection)
+            .collect();
         Self {
             projection_family_id: Self::FAMILY_ID.to_string(),
             rows,
@@ -144,6 +147,9 @@ mod tests {
     fn empty_list_is_valid_state() {
         let list = DccKb003SandboxRunListV1::from_projections(&[]);
         assert!(list.is_empty());
-        assert_eq!(list.projection_family_id, DccKb003SandboxRunListV1::FAMILY_ID);
+        assert_eq!(
+            list.projection_family_id,
+            DccKb003SandboxRunListV1::FAMILY_ID
+        );
     }
 }

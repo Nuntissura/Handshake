@@ -36,10 +36,7 @@ pub enum HardIsolationAvailability {
     },
     /// Host platform / build configuration cannot support this isolation tier.
     /// Example: microVM tier on Windows when no hypervisor backend is present.
-    Unsupported {
-        reason: String,
-        host_kind: String,
-    },
+    Unsupported { reason: String, host_kind: String },
     /// Tier could theoretically run on this host, but a required dependency is
     /// missing. Example: container tier with no docker/podman binary in PATH.
     Blocked {
@@ -273,8 +270,7 @@ mod tests {
             reason: "not installed".into(),
             missing_dependency: "podman".into(),
         };
-        let outcome =
-            typed_unavailable_outcome(&run, &kind, "container", &avail, None).unwrap();
+        let outcome = typed_unavailable_outcome(&run, &kind, "container", &avail, None).unwrap();
         match outcome {
             AdapterRunOutcome::Denied(d) => {
                 assert_eq!(d.kind, DenialKind::AdapterUnavailable);

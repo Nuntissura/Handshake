@@ -97,9 +97,17 @@ mod tests {
     #[test]
     fn secret_like_keys_rejected() {
         let mut m = EnvironmentManifest::new();
-        for bad in ["API_KEY", "SECRET_TOKEN", "password", "AWS_SECRET_ACCESS_KEY"] {
+        for bad in [
+            "API_KEY",
+            "SECRET_TOKEN",
+            "password",
+            "AWS_SECRET_ACCESS_KEY",
+        ] {
             let err = m.insert(bad, "value").unwrap_err();
-            assert!(matches!(err, EnvironmentManifestError::KeyNotAllowed { .. }));
+            assert!(matches!(
+                err,
+                EnvironmentManifestError::KeyNotAllowed { .. }
+            ));
         }
         assert!(m.fields.is_empty());
     }
@@ -107,6 +115,9 @@ mod tests {
     #[test]
     fn empty_key_rejected() {
         let mut m = EnvironmentManifest::new();
-        assert_eq!(m.insert("", "x").unwrap_err(), EnvironmentManifestError::EmptyKey);
+        assert_eq!(
+            m.insert("", "x").unwrap_err(),
+            EnvironmentManifestError::EmptyKey
+        );
     }
 }

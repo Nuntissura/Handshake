@@ -12,9 +12,16 @@
   "app": {
     "windows": [
       {
+        "label": "main",
         "title": "app",
         "width": 800,
-        "height": 600
+        "height": 600,
+        "visible": false,
+        "focus": false,
+        "focusable": false,
+        "skipTaskbar": true,
+        "alwaysOnBottom": true,
+        "decorations": false
       }
     ],
     "security": {

@@ -27,7 +27,9 @@ impl CloudInvocationAuditSink for NopSink {
 #[test]
 fn secrets_vault_round_trips_secret_value() {
     let vault = InMemorySecretsVault::default();
-    vault.put("openai", "sk-test-round-trip".to_string()).unwrap();
+    vault
+        .put("openai", "sk-test-round-trip".to_string())
+        .unwrap();
     let value = vault.get("openai").expect("get");
     assert_eq!(value, "sk-test-round-trip");
 }

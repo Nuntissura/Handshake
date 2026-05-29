@@ -1,0 +1,1336 @@
+{
+  "schema_version": "sample_fems_items.v1",
+  "fixture_id": "mt-147-memory-capsule-e2e-sample-fems-items",
+  "wp_id": "WP-KERNEL-004",
+  "mt_id": "MT-147",
+  "intended_task_type": "kernel_builder_mt_implementation",
+  "retrieval_profile": {
+    "top_k": 12,
+    "capsule_budget_bytes": 65536,
+    "scoring_formula_version": "retrieval_scoring_formula_v0",
+    "notes": "Pinned items sort ahead of score. Items marked budget_drop_candidate or top_k_drop_candidate are intended to exercise exclusion paths."
+  },
+  "items": [
+    {
+      "item_id": "mt147-pinned-scope-authority",
+      "memory_class": "procedural",
+      "type": "kernel_builder_note",
+      "summary": "Pinned MT-147 scope authority for fixture-only work",
+      "content": "MT-147 is limited to the sample FEMS item fixture. Touch only the requested JSON path and keep product code and governance files unchanged.",
+      "structured": {
+        "corpus_style": "hbr_test_packet",
+        "category": "scope_guard",
+        "hbr_ids": [],
+        "expected_selection": "pinned_include",
+        "reuse_systems": ["capsule_builder", "memory_pack_audit"],
+        "exclusion_reason": null
+      },
+      "trust_level": "trusted",
+      "confidence": 0.98,
+      "scope_refs": [
+        {
+          "artefact_type": "work_packet",
+          "artefact_id": "018f6d3a-1f00-7a2b-8c3d-000000000004",
+          "selector": "WP-KERNEL-004#MT-147"
+        }
+      ],
+      "source_refs": [
+        {
+          "kind": "artifact",
+          "id": "packet://WP-KERNEL-004/MT-147/scope",
+          "hash": "0000000000000000000000000000000000000000000000000000000000000001",
+          "selector": "$.task.owned_file",
+          "created_at": "2026-05-19T00:00:00Z",
+          "classification": "packet_scope"
+        }
+      ],
+      "score": 0.52,
+      "score_breakdown": {
+        "similarity": 0.52,
+        "recency": 0.98,
+        "authority": 1.0,
+        "budget_fit": 0.9
+      },
+      "capsule_bytes": 4600,
+      "token_estimate": 1150,
+      "pinned": true
+    },
+    {
+      "item_id": "mt147-pinned-no-sqlite-fixture-boundary",
+      "memory_class": "procedural",
+      "type": "kernel_builder_note",
+      "summary": "Pinned no-SQLite boundary for fixture construction",
+      "content": "The MT-147 fixture is file-backed JSON only. Do not open, seed, migrate, or depend on SQLite when consuming this sample corpus.",
+      "structured": {
+        "corpus_style": "hbr_test_packet",
+        "category": "fixture_boundary",
+        "hbr_ids": [],
+        "expected_selection": "pinned_include",
+        "reuse_systems": ["serde_json_fixture_loader", "fems_retriever_test_double"],
+        "exclusion_reason": null
+      },
+      "trust_level": "trusted",
+      "confidence": 0.97,
+      "scope_refs": [
+        {
+          "artefact_type": "work_packet",
+          "artefact_id": "018f6d3a-1f00-7a2b-8c3d-000000000004",
+          "selector": "WP-KERNEL-004#MT-147"
+        }
+      ],
+      "source_refs": [
+        {
+          "kind": "artifact",
+          "id": "packet://WP-KERNEL-004/MT-147/no-sqlite",
+          "hash": "0000000000000000000000000000000000000000000000000000000000000002",
+          "selector": "$.task.constraints.no_sqlite",
+          "created_at": "2026-05-19T00:00:00Z",
+          "classification": "operator_constraint"
+        }
+      ],
+      "score": 0.49,
+      "score_breakdown": {
+        "similarity": 0.49,
+        "recency": 0.98,
+        "authority": 1.0,
+        "budget_fit": 0.92
+      },
+      "capsule_bytes": 4200,
+      "token_estimate": 1050,
+      "pinned": true
+    },
+    {
+      "item_id": "mt147-hbr-int-001-ledger-replay",
+      "memory_class": "semantic",
+      "type": "hbr_rule",
+      "summary": "HBR-INT-001 requires test evidence with ledger replay",
+      "content": "HBR-INT-001 is applicable when a packet depends on observable product behavior. The handoff matrix must prove it with a test run and ledger replay evidence pointer.",
+      "structured": {
+        "corpus_style": "hbr_test_packet",
+        "category": "hbr_rule",
+        "hbr_ids": ["HBR-INT-001"],
+        "expected_selection": "score_include",
+        "reuse_systems": ["hbr_registry", "handoff_gate", "kernel_event_ledger"],
+        "exclusion_reason": null
+      },
+      "trust_level": "trusted",
+      "confidence": 0.96,
+      "scope_refs": [
+        {
+          "artefact_type": "hbr_rule",
+          "artefact_id": "018f6d3a-1f00-7a2b-8c3d-000000000101",
+          "selector": "HBR-INT-001"
+        }
+      ],
+      "source_refs": [
+        {
+          "kind": "doc_block",
+          "id": "hbr://registry/HBR-INT-001",
+          "hash": "0000000000000000000000000000000000000000000000000000000000000003",
+          "selector": "$.rules[?(@.id=='HBR-INT-001')]",
+          "created_at": "2026-05-19T00:00:00Z",
+          "classification": "hbr_registry_rule"
+        }
+      ],
+      "score": 0.99,
+      "score_breakdown": {
+        "similarity": 0.99,
+        "recency": 0.91,
+        "authority": 0.96,
+        "budget_fit": 0.91
+      },
+      "capsule_bytes": 5800,
+      "token_estimate": 1450,
+      "pinned": false
+    },
+    {
+      "item_id": "mt147-hbr-int-007-trace-replay",
+      "memory_class": "semantic",
+      "type": "hbr_rule",
+      "summary": "HBR-INT-007 checks trace projection replay evidence",
+      "content": "HBR-INT-007 should be proved when acceptance depends on replayable trace projection. The packet style expects a concrete artifact pointer, not prose-only assurance.",
+      "structured": {
+        "corpus_style": "hbr_test_packet",
+        "category": "hbr_rule",
+        "hbr_ids": ["HBR-INT-007"],
+        "expected_selection": "score_include",
+        "reuse_systems": ["trace_projection_tests", "hbr_matrix_check"],
+        "exclusion_reason": null
+      },
+      "trust_level": "trusted",
+      "confidence": 0.95,
+      "scope_refs": [
+        {
+          "artefact_type": "hbr_rule",
+          "artefact_id": "018f6d3a-1f00-7a2b-8c3d-000000000107",
+          "selector": "HBR-INT-007"
+        }
+      ],
+      "source_refs": [
+        {
+          "kind": "doc_block",
+          "id": "hbr://registry/HBR-INT-007",
+          "hash": "0000000000000000000000000000000000000000000000000000000000000004",
+          "selector": "$.rules[?(@.id=='HBR-INT-007')]",
+          "created_at": "2026-05-19T00:00:00Z",
+          "classification": "hbr_registry_rule"
+        }
+      ],
+      "score": 0.982,
+      "score_breakdown": {
+        "similarity": 0.982,
+        "recency": 0.9,
+        "authority": 0.95,
+        "budget_fit": 0.9
+      },
+      "capsule_bytes": 6100,
+      "token_estimate": 1525,
+      "pinned": false
+    },
+    {
+      "item_id": "mt147-hbr-int-008-uuid-v7-sweep",
+      "memory_class": "semantic",
+      "type": "hbr_rule",
+      "summary": "HBR-INT-008 expects UUID v7 checks for new identifiers",
+      "content": "HBR-INT-008 is proved by checking touched files for UUID v4 regressions and by asserting new generated identifiers use UUID v7 where the kernel contract requires ordered IDs.",
+      "structured": {
+        "corpus_style": "hbr_test_packet",
+        "category": "hbr_rule",
+        "hbr_ids": ["HBR-INT-008"],
+        "expected_selection": "score_include",
+        "reuse_systems": ["uuid_v7_sweep_guard", "memory_capsule_tests"],
+        "exclusion_reason": null
+      },
+      "trust_level": "trusted",
+      "confidence": 0.94,
+      "scope_refs": [
+        {
+          "artefact_type": "hbr_rule",
+          "artefact_id": "018f6d3a-1f00-7a2b-8c3d-000000000108",
+          "selector": "HBR-INT-008"
+        }
+      ],
+      "source_refs": [
+        {
+          "kind": "doc_block",
+          "id": "hbr://registry/HBR-INT-008",
+          "hash": "0000000000000000000000000000000000000000000000000000000000000005",
+          "selector": "$.rules[?(@.id=='HBR-INT-008')]",
+          "created_at": "2026-05-19T00:00:00Z",
+          "classification": "hbr_registry_rule"
+        }
+      ],
+      "score": 0.976,
+      "score_breakdown": {
+        "similarity": 0.976,
+        "recency": 0.89,
+        "authority": 0.94,
+        "budget_fit": 0.93
+      },
+      "capsule_bytes": 5200,
+      "token_estimate": 1300,
+      "pinned": false
+    },
+    {
+      "item_id": "mt147-hbr-man-001-manual-diff",
+      "memory_class": "semantic",
+      "type": "hbr_rule",
+      "summary": "HBR-MAN-001 keeps manual diff evidence with the same change",
+      "content": "HBR-MAN-001 expects the acceptance matrix to carry proof that manually authored or inspected diffs are evidenced in the same work context as the implementation.",
+      "structured": {
+        "corpus_style": "hbr_test_packet",
+        "category": "hbr_rule",
+        "hbr_ids": ["HBR-MAN-001"],
+        "expected_selection": "score_include",
+        "reuse_systems": ["hbr_matrix_hydrate", "git_diff_review"],
+        "exclusion_reason": null
+      },
+      "trust_level": "trusted",
+      "confidence": 0.93,
+      "scope_refs": [
+        {
+          "artefact_type": "hbr_rule",
+          "artefact_id": "018f6d3a-1f00-7a2b-8c3d-000000000201",
+          "selector": "HBR-MAN-001"
+        }
+      ],
+      "source_refs": [
+        {
+          "kind": "doc_block",
+          "id": "hbr://registry/HBR-MAN-001",
+          "hash": "0000000000000000000000000000000000000000000000000000000000000006",
+          "selector": "$.rules[?(@.id=='HBR-MAN-001')]",
+          "created_at": "2026-05-19T00:00:00Z",
+          "classification": "hbr_registry_rule"
+        }
+      ],
+      "score": 0.968,
+      "score_breakdown": {
+        "similarity": 0.968,
+        "recency": 0.88,
+        "authority": 0.93,
+        "budget_fit": 0.94
+      },
+      "capsule_bytes": 4800,
+      "token_estimate": 1200,
+      "pinned": false
+    },
+    {
+      "item_id": "mt147-hbr-man-002-no-context-manual",
+      "memory_class": "semantic",
+      "type": "hbr_rule",
+      "summary": "HBR-MAN-002 requires no-context model operation coverage",
+      "content": "HBR-MAN-002 is relevant when a fresh model must operate the product or fixture without hidden chat history. The fixture should contain enough context to map each item deterministically.",
+      "structured": {
+        "corpus_style": "hbr_test_packet",
+        "category": "hbr_rule",
+        "hbr_ids": ["HBR-MAN-002"],
+        "expected_selection": "score_include",
+        "reuse_systems": ["manual_no_context_harness", "model_manual_tests"],
+        "exclusion_reason": null
+      },
+      "trust_level": "trusted",
+      "confidence": 0.92,
+      "scope_refs": [
+        {
+          "artefact_type": "hbr_rule",
+          "artefact_id": "018f6d3a-1f00-7a2b-8c3d-000000000202",
+          "selector": "HBR-MAN-002"
+        }
+      ],
+      "source_refs": [
+        {
+          "kind": "doc_block",
+          "id": "hbr://registry/HBR-MAN-002",
+          "hash": "0000000000000000000000000000000000000000000000000000000000000007",
+          "selector": "$.rules[?(@.id=='HBR-MAN-002')]",
+          "created_at": "2026-05-19T00:00:00Z",
+          "classification": "hbr_registry_rule"
+        }
+      ],
+      "score": 0.96,
+      "score_breakdown": {
+        "similarity": 0.96,
+        "recency": 0.87,
+        "authority": 0.92,
+        "budget_fit": 0.94
+      },
+      "capsule_bytes": 4700,
+      "token_estimate": 1175,
+      "pinned": false
+    },
+    {
+      "item_id": "mt147-hbr-swarm-001-concurrency",
+      "memory_class": "semantic",
+      "type": "hbr_rule",
+      "summary": "HBR-SWARM-001 covers concurrent session test behavior",
+      "content": "HBR-SWARM-001 is used for packet paths that claim multi-session or parallel-agent safety. Evidence should prove concurrent behavior rather than only single-session success.",
+      "structured": {
+        "corpus_style": "hbr_test_packet",
+        "category": "hbr_rule",
+        "hbr_ids": ["HBR-SWARM-001"],
+        "expected_selection": "score_include",
+        "reuse_systems": ["swarm_harness", "role_session_registry"],
+        "exclusion_reason": null
+      },
+      "trust_level": "trusted",
+      "confidence": 0.91,
+      "scope_refs": [
+        {
+          "artefact_type": "hbr_rule",
+          "artefact_id": "018f6d3a-1f00-7a2b-8c3d-000000000301",
+          "selector": "HBR-SWARM-001"
+        }
+      ],
+      "source_refs": [
+        {
+          "kind": "doc_block",
+          "id": "hbr://registry/HBR-SWARM-001",
+          "hash": "0000000000000000000000000000000000000000000000000000000000000008",
+          "selector": "$.rules[?(@.id=='HBR-SWARM-001')]",
+          "created_at": "2026-05-19T00:00:00Z",
+          "classification": "hbr_registry_rule"
+        }
+      ],
+      "score": 0.951,
+      "score_breakdown": {
+        "similarity": 0.951,
+        "recency": 0.86,
+        "authority": 0.91,
+        "budget_fit": 0.86
+      },
+      "capsule_bytes": 7200,
+      "token_estimate": 1800,
+      "pinned": false
+    },
+    {
+      "item_id": "mt147-budget-drop-oversized-handoff-ledger",
+      "memory_class": "episodic",
+      "type": "budget_drop_candidate",
+      "summary": "Oversized handoff ledger fragment should drop under default budget",
+      "content": "This synthetic ledger fragment is intentionally bulky. It ranks high enough to be considered before several useful items, but capsule_bytes should force a budget exclusion when the default MT builder budget is used.",
+      "structured": {
+        "corpus_style": "hbr_test_packet",
+        "category": "budget_candidate",
+        "hbr_ids": ["HBR-INT-001", "HBR-SWARM-001"],
+        "expected_selection": "budget_drop_candidate",
+        "reuse_systems": ["capsule_audit_log", "budget_suppression_reason"],
+        "exclusion_reason": "budget"
+      },
+      "trust_level": "trusted",
+      "confidence": 0.88,
+      "scope_refs": [
+        {
+          "artefact_type": "memory_candidate",
+          "artefact_id": "018f6d3a-1f00-7a2b-8c3d-000000000901",
+          "selector": "budget-drop:handoff-ledger"
+        }
+      ],
+      "source_refs": [
+        {
+          "kind": "span",
+          "id": "scratchpad://MT-147/oversized-handoff-ledger",
+          "hash": "0000000000000000000000000000000000000000000000000000000000000009",
+          "selector": "lines=1-240",
+          "created_at": "2026-05-19T00:00:00Z",
+          "classification": "budget_drop_candidate"
+        }
+      ],
+      "score": 0.946,
+      "score_breakdown": {
+        "similarity": 0.946,
+        "recency": 0.84,
+        "authority": 0.88,
+        "budget_fit": 0.05
+      },
+      "capsule_bytes": 43000,
+      "token_estimate": 10750,
+      "pinned": false
+    },
+    {
+      "item_id": "mt147-modelmanual-startup-run-commands",
+      "memory_class": "procedural",
+      "type": "model_manual_snippet",
+      "summary": "ModelManual startup snippet for local fixture tests",
+      "content": "A no-context model should load the JSON fixture with serde_json, map item_type into RetrievedItem.type, and run only non-destructive parse or unit-test commands.",
+      "structured": {
+        "corpus_style": "model_manual",
+        "category": "startup_commands",
+        "hbr_ids": ["HBR-MAN-002"],
+        "expected_selection": "score_include",
+        "reuse_systems": ["model_manual", "serde_json"],
+        "exclusion_reason": null
+      },
+      "trust_level": "trusted",
+      "confidence": 0.9,
+      "scope_refs": [
+        {
+          "artefact_type": "manual_section",
+          "artefact_id": "018f6d3a-1f00-7a2b-8c3d-000000000401",
+          "selector": "ModelManual#startup"
+        }
+      ],
+      "source_refs": [
+        {
+          "kind": "doc_block",
+          "id": "manual://model/manual/startup",
+          "hash": "000000000000000000000000000000000000000000000000000000000000000a",
+          "selector": "#startup-and-run-commands",
+          "created_at": "2026-05-19T00:00:00Z",
+          "classification": "model_manual_snippet"
+        }
+      ],
+      "score": 0.939,
+      "score_breakdown": {
+        "similarity": 0.939,
+        "recency": 0.89,
+        "authority": 0.9,
+        "budget_fit": 0.92
+      },
+      "capsule_bytes": 5300,
+      "token_estimate": 1325,
+      "pinned": false
+    },
+    {
+      "item_id": "mt147-modelmanual-input-output-contract",
+      "memory_class": "procedural",
+      "type": "model_manual_snippet",
+      "summary": "ModelManual input and output contract for RetrievedItem mapping",
+      "content": "Each fixture item carries item_id, memory_class, item_type, summary, content, structured, trust_level, confidence, scope_refs, source_refs, score, score_breakdown, capsule_bytes, token_estimate, and pinned.",
+      "structured": {
+        "corpus_style": "model_manual",
+        "category": "io_contract",
+        "hbr_ids": ["HBR-MAN-002"],
+        "expected_selection": "score_include",
+        "reuse_systems": ["RetrievedItem", "FemsSourceRef", "FemsEntityRef"],
+        "exclusion_reason": null
+      },
+      "trust_level": "trusted",
+      "confidence": 0.9,
+      "scope_refs": [
+        {
+          "artefact_type": "manual_section",
+          "artefact_id": "018f6d3a-1f00-7a2b-8c3d-000000000402",
+          "selector": "ModelManual#inputs-outputs"
+        }
+      ],
+      "source_refs": [
+        {
+          "kind": "doc_block",
+          "id": "manual://model/manual/io-contract",
+          "hash": "000000000000000000000000000000000000000000000000000000000000000b",
+          "selector": "#expected-inputs-and-outputs",
+          "created_at": "2026-05-19T00:00:00Z",
+          "classification": "model_manual_snippet"
+        }
+      ],
+      "score": 0.932,
+      "score_breakdown": {
+        "similarity": 0.932,
+        "recency": 0.88,
+        "authority": 0.9,
+        "budget_fit": 0.93
+      },
+      "capsule_bytes": 5000,
+      "token_estimate": 1250,
+      "pinned": false
+    },
+    {
+      "item_id": "mt147-kernel-builder-procedure-cap-policy",
+      "memory_class": "procedural",
+      "type": "kernel_builder_note",
+      "summary": "Kernel builder procedure for default capsule policy",
+      "content": "For KernelBuilderMtImplementation, default retrieval uses top_k 12, capsule_budget_bytes 65536, tiered graceful degradation, and retrieval_scoring_formula_v0.",
+      "structured": {
+        "corpus_style": "kernel_builder",
+        "category": "capsule_policy",
+        "hbr_ids": [],
+        "expected_selection": "score_include",
+        "reuse_systems": ["CapsulePolicyTable", "RetrievalPolicy"],
+        "exclusion_reason": null
+      },
+      "trust_level": "trusted",
+      "confidence": 0.89,
+      "scope_refs": [
+        {
+          "artefact_type": "source_module",
+          "artefact_id": "018f6d3a-1f00-7a2b-8c3d-000000000501",
+          "selector": "memory::policy_table"
+        }
+      ],
+      "source_refs": [
+        {
+          "kind": "job_step",
+          "id": "kernel_builder://capsule-policy/defaults",
+          "hash": "000000000000000000000000000000000000000000000000000000000000000c",
+          "selector": "CapsulePolicyTable::default_policy_for",
+          "created_at": "2026-05-19T00:00:00Z",
+          "classification": "kernel_builder_procedure"
+        }
+      ],
+      "score": 0.925,
+      "score_breakdown": {
+        "similarity": 0.925,
+        "recency": 0.87,
+        "authority": 0.89,
+        "budget_fit": 0.94
+      },
+      "capsule_bytes": 4900,
+      "token_estimate": 1225,
+      "pinned": false
+    },
+    {
+      "item_id": "mt147-validator-scratchpad-hbr-matrix-gap",
+      "memory_class": "working",
+      "type": "validator_scratchpad",
+      "summary": "Validator scratchpad says matrix rows need concrete evidence pointers",
+      "content": "Scratchpad fragment: pending HBR rows without evidence_pointer should block coder-to-validator handoff. Tests should inspect both included pack items and dropped audit entries.",
+      "structured": {
+        "corpus_style": "validator_scratchpad",
+        "category": "acceptance_gap",
+        "hbr_ids": ["HBR-INT-001", "HBR-INT-007"],
+        "expected_selection": "score_include",
+        "reuse_systems": ["HandoffGate", "CapsuleAuditLog"],
+        "exclusion_reason": null
+      },
+      "trust_level": "scratchpad",
+      "confidence": 0.84,
+      "scope_refs": [
+        {
+          "artefact_type": "validator_note",
+          "artefact_id": "018f6d3a-1f00-7a2b-8c3d-000000000601",
+          "selector": "scratchpad#hbr-matrix-gap"
+        }
+      ],
+      "source_refs": [
+        {
+          "kind": "span",
+          "id": "scratchpad://validator/MT-147/hbr-matrix-gap",
+          "hash": "000000000000000000000000000000000000000000000000000000000000000d",
+          "selector": "lines=9-18",
+          "created_at": "2026-05-19T00:00:00Z",
+          "classification": "validator_scratchpad"
+        }
+      ],
+      "score": 0.918,
+      "score_breakdown": {
+        "similarity": 0.918,
+        "recency": 0.85,
+        "authority": 0.78,
+        "budget_fit": 0.92
+      },
+      "capsule_bytes": 5100,
+      "token_estimate": 1275,
+      "pinned": false
+    },
+    {
+      "item_id": "mt147-budget-drop-large-modelmanual",
+      "memory_class": "procedural",
+      "type": "budget_drop_candidate",
+      "summary": "Large ModelManual excerpt should lose to smaller focused items",
+      "content": "This entry simulates a full manual excerpt that repeats navigation, recovery, safety, and run commands. It is useful but oversized for a compact capsule and should be dropped when bytes are tight.",
+      "structured": {
+        "corpus_style": "model_manual",
+        "category": "budget_candidate",
+        "hbr_ids": ["HBR-MAN-002"],
+        "expected_selection": "budget_drop_candidate",
+        "reuse_systems": ["capsule_audit_log", "memory_pack_budgets"],
+        "exclusion_reason": "budget"
+      },
+      "trust_level": "trusted",
+      "confidence": 0.86,
+      "scope_refs": [
+        {
+          "artefact_type": "manual_section",
+          "artefact_id": "018f6d3a-1f00-7a2b-8c3d-000000000403",
+          "selector": "ModelManual#full-excerpt"
+        }
+      ],
+      "source_refs": [
+        {
+          "kind": "doc_block",
+          "id": "manual://model/manual/full-excerpt",
+          "hash": "000000000000000000000000000000000000000000000000000000000000000e",
+          "selector": "#complete-model-manual",
+          "created_at": "2026-05-19T00:00:00Z",
+          "classification": "budget_drop_candidate"
+        }
+      ],
+      "score": 0.911,
+      "score_breakdown": {
+        "similarity": 0.911,
+        "recency": 0.84,
+        "authority": 0.86,
+        "budget_fit": 0.22
+      },
+      "capsule_bytes": 12000,
+      "token_estimate": 3000,
+      "pinned": false
+    },
+    {
+      "item_id": "mt147-kernel-builder-source-hash-note",
+      "memory_class": "procedural",
+      "type": "kernel_builder_note",
+      "summary": "Kernel builder note about deterministic source hashes",
+      "content": "Memory capsule source hashes should be deterministic for equivalent pack items. Fixture consumers can sort by item_id when deriving expected source hashes.",
+      "structured": {
+        "corpus_style": "kernel_builder",
+        "category": "determinism",
+        "hbr_ids": ["HBR-INT-008"],
+        "expected_selection": "top_k_drop_candidate",
+        "reuse_systems": ["MemoryCapsule::new", "MemoryPack::compute_hash"],
+        "exclusion_reason": "top_k"
+      },
+      "trust_level": "trusted",
+      "confidence": 0.87,
+      "scope_refs": [
+        {
+          "artefact_type": "source_module",
+          "artefact_id": "018f6d3a-1f00-7a2b-8c3d-000000000502",
+          "selector": "memory::capsule"
+        }
+      ],
+      "source_refs": [
+        {
+          "kind": "job_step",
+          "id": "kernel_builder://memory/source-hash",
+          "hash": "000000000000000000000000000000000000000000000000000000000000000f",
+          "selector": "MemoryCapsule::new",
+          "created_at": "2026-05-19T00:00:00Z",
+          "classification": "kernel_builder_procedure"
+        }
+      ],
+      "score": 0.904,
+      "score_breakdown": {
+        "similarity": 0.904,
+        "recency": 0.83,
+        "authority": 0.87,
+        "budget_fit": 0.98
+      },
+      "capsule_bytes": 2400,
+      "token_estimate": 600,
+      "pinned": false
+    },
+    {
+      "item_id": "mt147-hbr-quiet-004-foreground-warning",
+      "memory_class": "semantic",
+      "type": "hbr_rule",
+      "summary": "HBR-QUIET-004 applies to foreground exception warnings",
+      "content": "HBR-QUIET-004 requires foreground interaction to be declared before it runs. MT-147 is a non-GUI fixture task, so this is useful context but not needed in the compact capsule.",
+      "structured": {
+        "corpus_style": "hbr_test_packet",
+        "category": "hbr_rule",
+        "hbr_ids": ["HBR-QUIET-004"],
+        "expected_selection": "top_k_drop_candidate",
+        "reuse_systems": ["foreground_exception_tests", "operator_warning_bridge"],
+        "exclusion_reason": "top_k"
+      },
+      "trust_level": "trusted",
+      "confidence": 0.82,
+      "scope_refs": [
+        {
+          "artefact_type": "hbr_rule",
+          "artefact_id": "018f6d3a-1f00-7a2b-8c3d-000000000404",
+          "selector": "HBR-QUIET-004"
+        }
+      ],
+      "source_refs": [
+        {
+          "kind": "doc_block",
+          "id": "hbr://registry/HBR-QUIET-004",
+          "hash": "0000000000000000000000000000000000000000000000000000000000000010",
+          "selector": "$.rules[?(@.id=='HBR-QUIET-004')]",
+          "created_at": "2026-05-19T00:00:00Z",
+          "classification": "hbr_registry_rule"
+        }
+      ],
+      "score": 0.896,
+      "score_breakdown": {
+        "similarity": 0.896,
+        "recency": 0.82,
+        "authority": 0.82,
+        "budget_fit": 0.95
+      },
+      "capsule_bytes": 3900,
+      "token_estimate": 975,
+      "pinned": false
+    },
+    {
+      "item_id": "mt147-validator-scratchpad-pending-row",
+      "memory_class": "working",
+      "type": "validator_scratchpad",
+      "summary": "Validator scratchpad records a pending row failure mode",
+      "content": "Scratchpad fragment: a PROVED row with validator_verdict PASS instead of PROVED should fail. This catches near-miss matrix hydration bugs.",
+      "structured": {
+        "corpus_style": "validator_scratchpad",
+        "category": "failure_mode",
+        "hbr_ids": ["HBR-INT-007"],
+        "expected_selection": "top_k_drop_candidate",
+        "reuse_systems": ["hbr_handoff_gate_tests", "hbr_matrix_check"],
+        "exclusion_reason": "top_k"
+      },
+      "trust_level": "scratchpad",
+      "confidence": 0.79,
+      "scope_refs": [
+        {
+          "artefact_type": "validator_note",
+          "artefact_id": "018f6d3a-1f00-7a2b-8c3d-000000000602",
+          "selector": "scratchpad#pending-row"
+        }
+      ],
+      "source_refs": [
+        {
+          "kind": "span",
+          "id": "scratchpad://validator/MT-147/pending-row",
+          "hash": "0000000000000000000000000000000000000000000000000000000000000011",
+          "selector": "lines=21-28",
+          "created_at": "2026-05-19T00:00:00Z",
+          "classification": "validator_scratchpad"
+        }
+      ],
+      "score": 0.888,
+      "score_breakdown": {
+        "similarity": 0.888,
+        "recency": 0.8,
+        "authority": 0.76,
+        "budget_fit": 0.95
+      },
+      "capsule_bytes": 3600,
+      "token_estimate": 900,
+      "pinned": false
+    },
+    {
+      "item_id": "mt147-kernel-builder-deterministic-sort",
+      "memory_class": "procedural",
+      "type": "kernel_builder_note",
+      "summary": "Kernel builder deterministic sort order for retrieved items",
+      "content": "CapsuleBuilder sorts retrieved items by pinned descending, score descending, then item_id ascending. Tests can use this fixture to assert top-k and audit order.",
+      "structured": {
+        "corpus_style": "kernel_builder",
+        "category": "selection_order",
+        "hbr_ids": ["HBR-INT-008"],
+        "expected_selection": "top_k_drop_candidate",
+        "reuse_systems": ["CapsuleBuilder", "CapsuleAuditLog"],
+        "exclusion_reason": "top_k"
+      },
+      "trust_level": "trusted",
+      "confidence": 0.85,
+      "scope_refs": [
+        {
+          "artefact_type": "source_module",
+          "artefact_id": "018f6d3a-1f00-7a2b-8c3d-000000000503",
+          "selector": "memory::builder::compare_retrieved_items"
+        }
+      ],
+      "source_refs": [
+        {
+          "kind": "job_step",
+          "id": "kernel_builder://retrieval/sort-order",
+          "hash": "0000000000000000000000000000000000000000000000000000000000000012",
+          "selector": "compare_retrieved_items",
+          "created_at": "2026-05-19T00:00:00Z",
+          "classification": "kernel_builder_procedure"
+        }
+      ],
+      "score": 0.879,
+      "score_breakdown": {
+        "similarity": 0.879,
+        "recency": 0.8,
+        "authority": 0.85,
+        "budget_fit": 0.97
+      },
+      "capsule_bytes": 3300,
+      "token_estimate": 825,
+      "pinned": false
+    },
+    {
+      "item_id": "mt147-modelmanual-navigation-paths",
+      "memory_class": "procedural",
+      "type": "model_manual_snippet",
+      "summary": "ModelManual navigation path for memory capsule tests",
+      "content": "Navigation path: src/backend/handshake_core/tests/fixtures/memory_capsule_e2e/sample_fems_items.json feeds local fixture structs, which map to RetrievedItem values.",
+      "structured": {
+        "corpus_style": "model_manual",
+        "category": "navigation",
+        "hbr_ids": ["HBR-MAN-002"],
+        "expected_selection": "top_k_drop_candidate",
+        "reuse_systems": ["test_fixtures", "RetrievedItem"],
+        "exclusion_reason": "top_k"
+      },
+      "trust_level": "trusted",
+      "confidence": 0.83,
+      "scope_refs": [
+        {
+          "artefact_type": "manual_section",
+          "artefact_id": "018f6d3a-1f00-7a2b-8c3d-000000000404",
+          "selector": "ModelManual#navigation"
+        }
+      ],
+      "source_refs": [
+        {
+          "kind": "doc_block",
+          "id": "manual://model/manual/navigation",
+          "hash": "0000000000000000000000000000000000000000000000000000000000000013",
+          "selector": "#navigation-paths",
+          "created_at": "2026-05-19T00:00:00Z",
+          "classification": "model_manual_snippet"
+        }
+      ],
+      "score": 0.871,
+      "score_breakdown": {
+        "similarity": 0.871,
+        "recency": 0.79,
+        "authority": 0.83,
+        "budget_fit": 0.94
+      },
+      "capsule_bytes": 4100,
+      "token_estimate": 1025,
+      "pinned": false
+    },
+    {
+      "item_id": "mt147-topk-drop-old-hbr-packet-note",
+      "memory_class": "episodic",
+      "type": "budget_drop_candidate",
+      "summary": "Older HBR packet note should be outside a 12-item capsule",
+      "content": "This old note mentions an HBR packet hydration run but carries no unique MT-147 action. It is intentionally below the inclusion line for top-k tests.",
+      "structured": {
+        "corpus_style": "hbr_test_packet",
+        "category": "low_relevance_candidate",
+        "hbr_ids": ["HBR-INT-001"],
+        "expected_selection": "top_k_drop_candidate",
+        "reuse_systems": ["hbr_matrix_hydrate"],
+        "exclusion_reason": "top_k"
+      },
+      "trust_level": "derived",
+      "confidence": 0.72,
+      "scope_refs": [
+        {
+          "artefact_type": "memory_candidate",
+          "artefact_id": "018f6d3a-1f00-7a2b-8c3d-000000000902",
+          "selector": "top-k-drop:old-hbr-note"
+        }
+      ],
+      "source_refs": [
+        {
+          "kind": "span",
+          "id": "scratchpad://MT-147/old-hbr-note",
+          "hash": "0000000000000000000000000000000000000000000000000000000000000014",
+          "selector": "lines=30-34",
+          "created_at": "2026-05-19T00:00:00Z",
+          "classification": "top_k_drop_candidate"
+        }
+      ],
+      "score": 0.862,
+      "score_breakdown": {
+        "similarity": 0.862,
+        "recency": 0.62,
+        "authority": 0.7,
+        "budget_fit": 0.96
+      },
+      "capsule_bytes": 3500,
+      "token_estimate": 875,
+      "pinned": false
+    },
+    {
+      "item_id": "mt147-validator-scratchpad-trace-todo",
+      "memory_class": "working",
+      "type": "validator_scratchpad",
+      "summary": "Validator scratchpad trace replay TODO is useful but not core",
+      "content": "Scratchpad fragment: add a follow-up to inspect trace projection receipts if the capsule includes HBR-INT-007 but lacks a matching source_ref selector.",
+      "structured": {
+        "corpus_style": "validator_scratchpad",
+        "category": "followup",
+        "hbr_ids": ["HBR-INT-007"],
+        "expected_selection": "top_k_drop_candidate",
+        "reuse_systems": ["trace_projection_tests", "source_refs"],
+        "exclusion_reason": "top_k"
+      },
+      "trust_level": "scratchpad",
+      "confidence": 0.73,
+      "scope_refs": [
+        {
+          "artefact_type": "validator_note",
+          "artefact_id": "018f6d3a-1f00-7a2b-8c3d-000000000603",
+          "selector": "scratchpad#trace-todo"
+        }
+      ],
+      "source_refs": [
+        {
+          "kind": "span",
+          "id": "scratchpad://validator/MT-147/trace-todo",
+          "hash": "0000000000000000000000000000000000000000000000000000000000000015",
+          "selector": "lines=36-44",
+          "created_at": "2026-05-19T00:00:00Z",
+          "classification": "validator_scratchpad"
+        }
+      ],
+      "score": 0.853,
+      "score_breakdown": {
+        "similarity": 0.853,
+        "recency": 0.76,
+        "authority": 0.7,
+        "budget_fit": 0.96
+      },
+      "capsule_bytes": 3100,
+      "token_estimate": 775,
+      "pinned": false
+    },
+    {
+      "item_id": "mt147-hbr-vis-005-diagnostic-snapshot",
+      "memory_class": "semantic",
+      "type": "hbr_rule",
+      "summary": "HBR-VIS-005 diagnostic snapshot context is adjacent but lower value",
+      "content": "HBR-VIS-005 is useful when a visual debugging surface is opaque. MT-147 is a JSON fixture path, so this item should normally be excluded by top-k.",
+      "structured": {
+        "corpus_style": "hbr_test_packet",
+        "category": "hbr_rule",
+        "hbr_ids": ["HBR-VIS-005"],
+        "expected_selection": "top_k_drop_candidate",
+        "reuse_systems": ["hbr_vis_gap_tests", "diagnostic_screenshot_artifacts"],
+        "exclusion_reason": "top_k"
+      },
+      "trust_level": "trusted",
+      "confidence": 0.75,
+      "scope_refs": [
+        {
+          "artefact_type": "hbr_rule",
+          "artefact_id": "018f6d3a-1f00-7a2b-8c3d-000000000505",
+          "selector": "HBR-VIS-005"
+        }
+      ],
+      "source_refs": [
+        {
+          "kind": "doc_block",
+          "id": "hbr://registry/HBR-VIS-005",
+          "hash": "0000000000000000000000000000000000000000000000000000000000000016",
+          "selector": "$.rules[?(@.id=='HBR-VIS-005')]",
+          "created_at": "2026-05-19T00:00:00Z",
+          "classification": "hbr_registry_rule"
+        }
+      ],
+      "score": 0.842,
+      "score_breakdown": {
+        "similarity": 0.842,
+        "recency": 0.74,
+        "authority": 0.75,
+        "budget_fit": 0.97
+      },
+      "capsule_bytes": 3000,
+      "token_estimate": 750,
+      "pinned": false
+    },
+    {
+      "item_id": "mt147-kernel-builder-scope-ref-mapping",
+      "memory_class": "procedural",
+      "type": "kernel_builder_note",
+      "summary": "Kernel builder note for scope_refs mapping",
+      "content": "Fixture structs should map each scope_refs entry to FemsEntityRef using artefact_type, artefact_id, and selector. Do not replace missing scope_refs with defaults.",
+      "structured": {
+        "corpus_style": "kernel_builder",
+        "category": "mapping_note",
+        "hbr_ids": [],
+        "expected_selection": "top_k_drop_candidate",
+        "reuse_systems": ["FemsEntityRef", "serde"],
+        "exclusion_reason": "top_k"
+      },
+      "trust_level": "trusted",
+      "confidence": 0.81,
+      "scope_refs": [
+        {
+          "artefact_type": "source_module",
+          "artefact_id": "018f6d3a-1f00-7a2b-8c3d-000000000504",
+          "selector": "ace::FemsEntityRef"
+        }
+      ],
+      "source_refs": [
+        {
+          "kind": "entity",
+          "id": "rust://handshake_core/ace/FemsEntityRef",
+          "hash": "0000000000000000000000000000000000000000000000000000000000000017",
+          "selector": "struct FemsEntityRef",
+          "created_at": "2026-05-19T00:00:00Z",
+          "classification": "rust_type_surface"
+        }
+      ],
+      "score": 0.833,
+      "score_breakdown": {
+        "similarity": 0.833,
+        "recency": 0.78,
+        "authority": 0.81,
+        "budget_fit": 0.96
+      },
+      "capsule_bytes": 3200,
+      "token_estimate": 800,
+      "pinned": false
+    },
+    {
+      "item_id": "mt147-modelmanual-common-failure-modes",
+      "memory_class": "procedural",
+      "type": "model_manual_snippet",
+      "summary": "ModelManual common failure modes for fixture consumers",
+      "content": "Common failures are deserializing item_type directly into the renamed RetrievedItem type field, omitting structured, or using null source_ref hashes when the fixture expects explicit fields.",
+      "structured": {
+        "corpus_style": "model_manual",
+        "category": "failure_modes",
+        "hbr_ids": ["HBR-MAN-002"],
+        "expected_selection": "top_k_drop_candidate",
+        "reuse_systems": ["serde_rename", "fixture_struct_mapping"],
+        "exclusion_reason": "top_k"
+      },
+      "trust_level": "trusted",
+      "confidence": 0.82,
+      "scope_refs": [
+        {
+          "artefact_type": "manual_section",
+          "artefact_id": "018f6d3a-1f00-7a2b-8c3d-000000000405",
+          "selector": "ModelManual#failure-modes"
+        }
+      ],
+      "source_refs": [
+        {
+          "kind": "doc_block",
+          "id": "manual://model/manual/failure-modes",
+          "hash": "0000000000000000000000000000000000000000000000000000000000000018",
+          "selector": "#common-failure-modes",
+          "created_at": "2026-05-19T00:00:00Z",
+          "classification": "model_manual_snippet"
+        }
+      ],
+      "score": 0.821,
+      "score_breakdown": {
+        "similarity": 0.821,
+        "recency": 0.77,
+        "authority": 0.82,
+        "budget_fit": 0.94
+      },
+      "capsule_bytes": 4300,
+      "token_estimate": 1075,
+      "pinned": false
+    },
+    {
+      "item_id": "mt147-validator-scratchpad-false-positive-risk",
+      "memory_class": "working",
+      "type": "validator_scratchpad",
+      "summary": "Validator scratchpad flags false positive capsule assertions",
+      "content": "Scratchpad fragment: asserting only item count can miss wrong ordering, pinned leakage, and budget suppression regressions. Check item ids and audit suppression reasons.",
+      "structured": {
+        "corpus_style": "validator_scratchpad",
+        "category": "test_risk",
+        "hbr_ids": ["HBR-INT-001"],
+        "expected_selection": "top_k_drop_candidate",
+        "reuse_systems": ["CapsuleAuditLog", "MemoryPack"],
+        "exclusion_reason": "top_k"
+      },
+      "trust_level": "scratchpad",
+      "confidence": 0.74,
+      "scope_refs": [
+        {
+          "artefact_type": "validator_note",
+          "artefact_id": "018f6d3a-1f00-7a2b-8c3d-000000000604",
+          "selector": "scratchpad#false-positive-risk"
+        }
+      ],
+      "source_refs": [
+        {
+          "kind": "span",
+          "id": "scratchpad://validator/MT-147/false-positive-risk",
+          "hash": "0000000000000000000000000000000000000000000000000000000000000019",
+          "selector": "lines=46-52",
+          "created_at": "2026-05-19T00:00:00Z",
+          "classification": "validator_scratchpad"
+        }
+      ],
+      "score": 0.808,
+      "score_breakdown": {
+        "similarity": 0.808,
+        "recency": 0.74,
+        "authority": 0.7,
+        "budget_fit": 0.95
+      },
+      "capsule_bytes": 3700,
+      "token_estimate": 925,
+      "pinned": false
+    },
+    {
+      "item_id": "mt147-topk-drop-duplicate-stale-rule",
+      "memory_class": "semantic",
+      "type": "budget_drop_candidate",
+      "summary": "Duplicate stale HBR rule note should not displace focused items",
+      "content": "This stale duplicate repeats that HBR-INT-001 needs evidence. It is intentionally lower-scored so top-k should exclude it after stronger HBR and ModelManual records are selected.",
+      "structured": {
+        "corpus_style": "hbr_test_packet",
+        "category": "duplicate_candidate",
+        "hbr_ids": ["HBR-INT-001"],
+        "expected_selection": "top_k_drop_candidate",
+        "reuse_systems": ["retrieval_dedup_followup"],
+        "exclusion_reason": "top_k"
+      },
+      "trust_level": "derived",
+      "confidence": 0.68,
+      "scope_refs": [
+        {
+          "artefact_type": "memory_candidate",
+          "artefact_id": "018f6d3a-1f00-7a2b-8c3d-000000000903",
+          "selector": "top-k-drop:duplicate-rule"
+        }
+      ],
+      "source_refs": [
+        {
+          "kind": "kv",
+          "id": "memory://stale/hbr-int-001-duplicate",
+          "hash": "000000000000000000000000000000000000000000000000000000000000001a",
+          "selector": "key=hbr-int-001-duplicate",
+          "created_at": "2026-05-19T00:00:00Z",
+          "classification": "top_k_drop_candidate"
+        }
+      ],
+      "score": 0.792,
+      "score_breakdown": {
+        "similarity": 0.792,
+        "recency": 0.52,
+        "authority": 0.64,
+        "budget_fit": 0.97
+      },
+      "capsule_bytes": 2800,
+      "token_estimate": 700,
+      "pinned": false
+    },
+    {
+      "item_id": "mt147-kernel-builder-source-ref-classification",
+      "memory_class": "procedural",
+      "type": "kernel_builder_note",
+      "summary": "Kernel builder note for source_ref classification fields",
+      "content": "Each source_ref in this fixture includes kind, id, hash, selector, created_at, and classification so local tests do not need fallback provenance defaults.",
+      "structured": {
+        "corpus_style": "kernel_builder",
+        "category": "mapping_note",
+        "hbr_ids": [],
+        "expected_selection": "top_k_drop_candidate",
+        "reuse_systems": ["FemsSourceRef", "source_uri_for_item"],
+        "exclusion_reason": "top_k"
+      },
+      "trust_level": "trusted",
+      "confidence": 0.8,
+      "scope_refs": [
+        {
+          "artefact_type": "source_module",
+          "artefact_id": "018f6d3a-1f00-7a2b-8c3d-000000000505",
+          "selector": "ace::FemsSourceRef"
+        }
+      ],
+      "source_refs": [
+        {
+          "kind": "entity",
+          "id": "rust://handshake_core/ace/FemsSourceRef",
+          "hash": "000000000000000000000000000000000000000000000000000000000000001b",
+          "selector": "struct FemsSourceRef",
+          "created_at": "2026-05-19T00:00:00Z",
+          "classification": "rust_type_surface"
+        }
+      ],
+      "score": 0.774,
+      "score_breakdown": {
+        "similarity": 0.774,
+        "recency": 0.74,
+        "authority": 0.8,
+        "budget_fit": 0.96
+      },
+      "capsule_bytes": 3400,
+      "token_estimate": 850,
+      "pinned": false
+    },
+    {
+      "item_id": "mt147-hbr-int-004-crdt-adjacent",
+      "memory_class": "semantic",
+      "type": "hbr_rule",
+      "summary": "HBR-INT-004 CRDT context is adjacent to kernel work but not central",
+      "content": "HBR-INT-004 is relevant for CRDT validity paths. It is included as an adjacent HBR-style rule fragment but should not rank above the memory capsule and handoff rules for MT-147.",
+      "structured": {
+        "corpus_style": "hbr_test_packet",
+        "category": "hbr_rule",
+        "hbr_ids": ["HBR-INT-004"],
+        "expected_selection": "top_k_drop_candidate",
+        "reuse_systems": ["kernel_crdt_validity_guard_tests"],
+        "exclusion_reason": "top_k"
+      },
+      "trust_level": "trusted",
+      "confidence": 0.77,
+      "scope_refs": [
+        {
+          "artefact_type": "hbr_rule",
+          "artefact_id": "018f6d3a-1f00-7a2b-8c3d-000000000104",
+          "selector": "HBR-INT-004"
+        }
+      ],
+      "source_refs": [
+        {
+          "kind": "doc_block",
+          "id": "hbr://registry/HBR-INT-004",
+          "hash": "000000000000000000000000000000000000000000000000000000000000001c",
+          "selector": "$.rules[?(@.id=='HBR-INT-004')]",
+          "created_at": "2026-05-19T00:00:00Z",
+          "classification": "hbr_registry_rule"
+        }
+      ],
+      "score": 0.748,
+      "score_breakdown": {
+        "similarity": 0.748,
+        "recency": 0.7,
+        "authority": 0.77,
+        "budget_fit": 0.96
+      },
+      "capsule_bytes": 3000,
+      "token_estimate": 750,
+      "pinned": false
+    },
+    {
+      "item_id": "mt147-modelmanual-recovery-steps",
+      "memory_class": "procedural",
+      "type": "model_manual_snippet",
+      "summary": "ModelManual recovery steps for malformed fixture JSON",
+      "content": "Recovery path: run a JSON parser, inspect the reported line, fix only the fixture file, then rerun the parser before attempting Rust deserialization.",
+      "structured": {
+        "corpus_style": "model_manual",
+        "category": "recovery",
+        "hbr_ids": ["HBR-MAN-002"],
+        "expected_selection": "top_k_drop_candidate",
+        "reuse_systems": ["PowerShell ConvertFrom-Json", "serde_json"],
+        "exclusion_reason": "top_k"
+      },
+      "trust_level": "trusted",
+      "confidence": 0.79,
+      "scope_refs": [
+        {
+          "artefact_type": "manual_section",
+          "artefact_id": "018f6d3a-1f00-7a2b-8c3d-000000000406",
+          "selector": "ModelManual#recovery"
+        }
+      ],
+      "source_refs": [
+        {
+          "kind": "doc_block",
+          "id": "manual://model/manual/recovery",
+          "hash": "000000000000000000000000000000000000000000000000000000000000001d",
+          "selector": "#recovery-steps",
+          "created_at": "2026-05-19T00:00:00Z",
+          "classification": "model_manual_snippet"
+        }
+      ],
+      "score": 0.711,
+      "score_breakdown": {
+        "similarity": 0.711,
+        "recency": 0.68,
+        "authority": 0.79,
+        "budget_fit": 0.96
+      },
+      "capsule_bytes": 3200,
+      "token_estimate": 800,
+      "pinned": false
+    },
+    {
+      "item_id": "mt147-validator-scratchpad-archive-stale-optional",
+      "memory_class": "episodic",
+      "type": "validator_scratchpad",
+      "summary": "Stale optional validator note should be excluded by top-k",
+      "content": "Scratchpad fragment: optional archive note for a superseded capsule prototype. It remains in the 30-item fixture only to give exclusion tests a low-score tail item.",
+      "structured": {
+        "corpus_style": "validator_scratchpad",
+        "category": "low_relevance_tail",
+        "hbr_ids": [],
+        "expected_selection": "top_k_drop_candidate",
+        "reuse_systems": ["capsule_audit_log"],
+        "exclusion_reason": "top_k"
+      },
+      "trust_level": "scratchpad",
+      "confidence": 0.61,
+      "scope_refs": [
+        {
+          "artefact_type": "validator_note",
+          "artefact_id": "018f6d3a-1f00-7a2b-8c3d-000000000605",
+          "selector": "scratchpad#archive-stale-optional"
+        }
+      ],
+      "source_refs": [
+        {
+          "kind": "span",
+          "id": "scratchpad://validator/MT-147/archive-stale-optional",
+          "hash": "000000000000000000000000000000000000000000000000000000000000001e",
+          "selector": "lines=70-74",
+          "created_at": "2026-05-19T00:00:00Z",
+          "classification": "validator_scratchpad"
+        }
+      ],
+      "score": 0.62,
+      "score_breakdown": {
+        "similarity": 0.62,
+        "recency": 0.41,
+        "authority": 0.58,
+        "budget_fit": 0.97
+      },
+      "capsule_bytes": 2600,
+      "token_estimate": 650,
+      "pinned": false
+    }
+  ]
+}
+

@@ -133,7 +133,9 @@ mod tests {
         let s2 = Kb003PerMtSummaryV1::blocked(
             "MT-002",
             0,
-            BlockedReason::MissingApproval { missing_field: "operator_id".into() },
+            BlockedReason::MissingApproval {
+                missing_field: "operator_id".into(),
+            },
             None,
             None,
             vec![],
@@ -141,7 +143,9 @@ mod tests {
         let s3 = Kb003PerMtSummaryV1::blocked(
             "MT-003",
             0,
-            BlockedReason::MissingApproval { missing_field: "operator_id".into() },
+            BlockedReason::MissingApproval {
+                missing_field: "operator_id".into(),
+            },
             None,
             None,
             vec![],
@@ -149,7 +153,10 @@ mod tests {
         let s4 = Kb003PerMtSummaryV1::failed(
             "MT-004",
             0,
-            BlockedReason::AdapterUnavailable { adapter_kind: "microvm".into(), host_detail: "no kvm".into() },
+            BlockedReason::AdapterUnavailable {
+                adapter_kind: "microvm".into(),
+                host_detail: "no kvm".into(),
+            },
             vec![],
         );
         let agg = Kb003AggregateRunSummaryV1::from_per_mt("WP-KERNEL-003", &[s1, s2, s3, s4]);

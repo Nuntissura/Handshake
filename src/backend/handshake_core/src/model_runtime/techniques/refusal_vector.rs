@@ -23,9 +23,8 @@ use std::collections::BTreeMap;
 
 use crate::model_runtime::{
     techniques::activation_steering::{capture, register_steering_vector},
-    ContrastiveTechnique, HookPoint, LayerIndex, ModelId, ModelRuntime,
-    ModelRuntimeError, SteeringProvenance, SteeringVector, SteeringVectorId,
-    SteeringVectorValues,
+    ContrastiveTechnique, HookPoint, LayerIndex, ModelId, ModelRuntime, ModelRuntimeError,
+    SteeringProvenance, SteeringVector, SteeringVectorId, SteeringVectorValues,
 };
 
 /// Intensity value that flags a steering vector as a *refusal ablation* rather
@@ -230,10 +229,7 @@ mod tests {
             vec![vec![1.0, 2.0], vec![3.0, 4.0, 5.0]],
         );
         let err = mean_activations(&rows, LayerIndex::new(7)).expect_err("width mismatch");
-        assert!(
-            format!("{err:?}").contains("row width"),
-            "{err:?}"
-        );
+        assert!(format!("{err:?}").contains("row width"), "{err:?}");
     }
 
     #[test]

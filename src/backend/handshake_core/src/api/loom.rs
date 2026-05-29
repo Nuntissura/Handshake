@@ -1085,7 +1085,7 @@ mod tests {
     use crate::capabilities::CapabilityRegistry;
     use crate::flight_recorder::{duckdb::DuckDbFlightRecorder, EventFilter};
     use crate::llm::ollama::InMemoryLlmClient;
-    use crate::storage::{sqlite::SqliteDatabase, Database, NewWorkspace};
+    use crate::storage::{tests::optional_postgres_backend_from_env, Database, NewWorkspace};
     use once_cell::sync::Lazy;
     use std::sync::{Arc, Mutex};
     use tempfile::TempDir;
@@ -1128,14 +1128,15 @@ mod tests {
         }
     }
 
-    async fn setup_state() -> Result<AppState, Box<dyn std::error::Error>> {
-        let sqlite = SqliteDatabase::connect("sqlite::memory:", 5).await?;
-        sqlite.run_migrations().await?;
+    async fn setup_state() -> Result<Option<AppState>, Box<dyn std::error::Error>> {
+        let Some(storage) = optional_postgres_backend_from_env().await? else {
+            return Ok(None);
+        };
 
         let flight_recorder = Arc::new(DuckDbFlightRecorder::new_in_memory(7)?);
 
-        Ok(AppState {
-            storage: sqlite.into_arc(),
+        Ok(Some(AppState {
+            storage,
             flight_recorder: flight_recorder.clone(),
             diagnostics: flight_recorder,
             llm_client: Arc::new(InMemoryLlmClient::new("ok".into())),
@@ -1143,7 +1144,7 @@ mod tests {
             session_registry: Arc::new(crate::workflows::SessionRegistry::new(
                 crate::workflows::SessionSchedulerConfig::default(),
             )),
-        })
+        }))
     }
 
     async fn create_workspace(state: &AppState) -> Result<String, Box<dyn std::error::Error>> {
@@ -1189,7 +1190,9 @@ mod tests {
             temp.path().to_string_lossy().as_ref(),
         );
 
-        let state = setup_state().await?;
+        let Some(state) = setup_state().await? else {
+            return Ok(());
+        };
         let workspace_id = create_workspace(&state).await?;
 
         let bytes = b"hello loom".to_vec();
@@ -1233,7 +1236,9 @@ mod tests {
 
     #[tokio::test]
     async fn view_and_search_emit_events() -> Result<(), Box<dyn std::error::Error>> {
-        let state = setup_state().await?;
+        let Some(state) = setup_state().await? else {
+            return Ok(());
+        };
         let workspace_id = create_workspace(&state).await?;
 
         let _ = create_loom_block(
@@ -1304,7 +1309,9 @@ mod tests {
 
     #[tokio::test]
     async fn loom_search_backend_tier() -> Result<(), Box<dyn std::error::Error>> {
-        let state = setup_state().await?;
+        let Some(state) = setup_state().await? else {
+            return Ok(());
+        };
         let workspace_id = create_workspace(&state).await?;
 
         let _ = create_loom_block(
@@ -1378,7 +1385,9 @@ mod tests {
 
     #[tokio::test]
     async fn graph_traversal_and_metrics_routes_work() -> Result<(), Box<dyn std::error::Error>> {
-        let state = setup_state().await?;
+        let Some(state) = setup_state().await? else {
+            return Ok(());
+        };
         let workspace_id = create_workspace(&state).await?;
 
         let start_block = create_loom_block(

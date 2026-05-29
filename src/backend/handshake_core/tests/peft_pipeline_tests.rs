@@ -68,7 +68,10 @@ fn locate_script() -> PathBuf {
         .and_then(Path::parent)
         .and_then(Path::parent)
         .expect("handshake_core lives under src/backend/handshake_core");
-    repo_root.join("scripts").join("distill").join("train_lora.py")
+    repo_root
+        .join("scripts")
+        .join("distill")
+        .join("train_lora.py")
 }
 
 #[test]
@@ -150,8 +153,14 @@ fn peft_pipeline_subprocess_self_check_via_real_python() {
         );
         // Real-resource evidence: the OK line contains real version
         // strings from the installed peft/transformers/torch packages.
-        assert!(stdout.contains("peft="), "self-check must report peft version");
-        assert!(stdout.contains("torch="), "self-check must report torch version");
+        assert!(
+            stdout.contains("peft="),
+            "self-check must report peft version"
+        );
+        assert!(
+            stdout.contains("torch="),
+            "self-check must report torch version"
+        );
     } else {
         let code = output.status.code().unwrap_or(-1);
         let stderr = String::from_utf8_lossy(&output.stderr);
@@ -164,8 +173,7 @@ fn peft_pipeline_subprocess_self_check_via_real_python() {
              got code {code}, stderr: {stderr}"
         );
         assert!(
-            stderr.contains("dependencies not installed")
-                || stderr.contains("import error"),
+            stderr.contains("dependencies not installed") || stderr.contains("import error"),
             "code 3 stderr must point operators at the install gap (got: {stderr})"
         );
     }
@@ -273,12 +281,18 @@ fn peft_pipeline_end_to_end_subprocess_produces_safetensors() {
 
     // Adapter config must exist.
     let adapter_config_path = out_dir.join("adapter_config.json");
-    assert!(adapter_config_path.is_file(), "adapter_config.json must exist");
+    assert!(
+        adapter_config_path.is_file(),
+        "adapter_config.json must exist"
+    );
     let adapter_config: serde_json::Value = serde_json::from_str(
         &std::fs::read_to_string(&adapter_config_path).expect("read adapter_config"),
     )
     .expect("parse adapter_config");
-    assert!(adapter_config.is_object(), "adapter_config must be a JSON object");
+    assert!(
+        adapter_config.is_object(),
+        "adapter_config must be a JSON object"
+    );
 
     // Provenance sidecar must exist + contain the expected fields.
     let provenance_path = out_dir.join("provenance.json");
@@ -287,8 +301,8 @@ fn peft_pipeline_end_to_end_subprocess_produces_safetensors() {
         "provenance.json must exist at {}",
         provenance_path.display()
     );
-    let provenance = PeftProvenanceSidecar::read_from(&provenance_path)
-        .expect("parse provenance sidecar");
+    let provenance =
+        PeftProvenanceSidecar::read_from(&provenance_path).expect("parse provenance sidecar");
     assert_eq!(provenance.teacher_source, "CLI_BRIDGE");
     assert_eq!(provenance.license_tag, "MIT");
     assert_eq!(provenance.operator_signature, "op-mt122-test");

@@ -31,9 +31,7 @@ use chrono::Utc;
 use futures::stream;
 use handshake_core::{
     ace::{FemsSourceRef, FemsSourceRefKind},
-    flight_recorder::{
-        EventFilter, FlightRecorder, FlightRecorderEvent, RecorderError,
-    },
+    flight_recorder::{EventFilter, FlightRecorder, FlightRecorderEvent, RecorderError},
     llm::{
         local_router::{LocalModelRuntimeLlmClient, LocalRouter},
         CompletionRequest, CompletionResponse, LlmClient, LlmError, ModelProfile,
@@ -209,11 +207,7 @@ impl FlightRecorder for CapturingFlightRecorder {
         &self,
         _filter: EventFilter,
     ) -> Result<Vec<FlightRecorderEvent>, RecorderError> {
-        Ok(self
-            .events
-            .lock()
-            .expect("events lock")
-            .clone())
+        Ok(self.events.lock().expect("events lock").clone())
     }
 }
 
@@ -398,10 +392,7 @@ struct WiredClient {
     model_id: ModelId,
 }
 
-fn build_wired_client(
-    fixture_items: Vec<RetrievedItem>,
-    context: ModelCallContext,
-) -> WiredClient {
+fn build_wired_client(fixture_items: Vec<RetrievedItem>, context: ModelCallContext) -> WiredClient {
     let model_id = ModelId::new_v7();
     let mut registry = ModelRegistry::default();
     registry
@@ -410,11 +401,7 @@ fn build_wired_client(
 
     let llama_runtime = Arc::new(RecordingRuntime::new("llama-mt144", &["t1 ", "t2 ", "t3"]));
     let candle_runtime = Arc::new(RecordingRuntime::new("candle-mt144", &["wrong"]));
-    let router = LocalRouter::new(
-        Arc::new(registry),
-        llama_runtime.clone(),
-        candle_runtime,
-    );
+    let router = LocalRouter::new(Arc::new(registry), llama_runtime.clone(), candle_runtime);
 
     let fems_retriever: Arc<FixtureFemsRetriever> =
         Arc::new(FixtureFemsRetriever::new(fixture_items));
@@ -673,7 +660,11 @@ async fn local_router_capsule_injection_handles_skip_when_fems_returns_no_items(
         original.to_string(),
         wired.model_id.to_string(),
     );
-    let response = wired.client.completion(req).await.expect("empty-pack completion");
+    let response = wired
+        .client
+        .completion(req)
+        .await
+        .expect("empty-pack completion");
 
     let captured = wired.runtime.last_request();
     let prompt_text = captured.prompt.as_str();

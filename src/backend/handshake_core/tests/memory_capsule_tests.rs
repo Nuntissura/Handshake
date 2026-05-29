@@ -5,7 +5,7 @@ use handshake_core::ace::{
     MemoryPackItem, MemoryPolicy,
 };
 use handshake_core::memory::{
-    DegradationTier, MemoryCapsule, RetrievalPolicy, TaskType, RETRIEVAL_SCORING_FORMULA_V0,
+    DegradationTier, MemoryCapsule, RETRIEVAL_SCORING_FORMULA_V0, RetrievalPolicy, TaskType,
 };
 
 fn sample_pack(item_order: &[&str]) -> MemoryPack {
@@ -52,6 +52,7 @@ fn sample_item(id: &str) -> MemoryPackItem {
             created_at: None,
             classification: None,
         }],
+        pinned: false,
         last_verified_at: Some("2026-05-19T00:00:00Z".to_string()),
     }
 }

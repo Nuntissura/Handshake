@@ -49,29 +49,55 @@ pub enum BlockedDisposition {
 pub enum BlockedReason {
     // ------------------------- Sandbox lane -------------------------
     /// Sandbox adapter (process, container, microVM) not available on host.
-    AdapterUnavailable { adapter_kind: String, host_detail: String },
+    AdapterUnavailable {
+        adapter_kind: String,
+        host_detail: String,
+    },
     /// Policy denied a required capability.
-    PolicyDenied { capability: String, policy_version_id: String, denial_id: String },
+    PolicyDenied {
+        capability: String,
+        policy_version_id: String,
+        denial_id: String,
+    },
     /// Workspace materializer reported a boundary violation.
-    WorkspaceBoundaryViolation { workspace_id: String, attempted_path: String },
+    WorkspaceBoundaryViolation {
+        workspace_id: String,
+        attempted_path: String,
+    },
     /// Sandbox resource cap (cpu, memory, disk, wall-time) hit.
-    ResourceCapExceeded { cap_kind: String, observed: String, limit: String },
+    ResourceCapExceeded {
+        cap_kind: String,
+        observed: String,
+        limit: String,
+    },
     /// Cancellation propagated from operator/upstream before completion.
     Cancelled { upstream_reason: String },
 
     // ------------------------ Validation lane -----------------------
     /// Descriptor referenced an artifact that is not present.
-    MissingArtifact { expected_artifact_ref: String, descriptor_id: String },
+    MissingArtifact {
+        expected_artifact_ref: String,
+        descriptor_id: String,
+    },
     /// Required tool/adapter for the descriptor is unsupported on host.
-    UnsupportedAdapter { adapter: String, descriptor_id: String },
+    UnsupportedAdapter {
+        adapter: String,
+        descriptor_id: String,
+    },
     /// Operator/policy explicitly skipped this descriptor.
-    SkippedByPolicy { descriptor_id: String, reason: String },
+    SkippedByPolicy {
+        descriptor_id: String,
+        reason: String,
+    },
 
     // ------------------------ Promotion lane ------------------------
     /// Operator approval evidence missing.
     MissingApproval { missing_field: String },
     /// Validation report blocks promotion.
-    ValidationFailure { validation_run_id: String, blocking_outcomes: Vec<String> },
+    ValidationFailure {
+        validation_run_id: String,
+        blocking_outcomes: Vec<String>,
+    },
     /// Idempotency conflict (replay collision with different payload).
     IdempotencyConflict { idempotency_key: String },
     /// Downstream durable-storage write failed; retryable.
@@ -140,32 +166,60 @@ impl BlockedReason {
     /// Operator-facing single-line summary.
     pub fn rationale_short(&self) -> String {
         match self {
-            Self::AdapterUnavailable { adapter_kind, host_detail } => {
+            Self::AdapterUnavailable {
+                adapter_kind,
+                host_detail,
+            } => {
                 format!("adapter '{adapter_kind}' unavailable on host: {host_detail}")
             }
-            Self::PolicyDenied { capability, policy_version_id, denial_id } => {
+            Self::PolicyDenied {
+                capability,
+                policy_version_id,
+                denial_id,
+            } => {
                 format!("policy {policy_version_id} denied '{capability}' (denial {denial_id})")
             }
-            Self::WorkspaceBoundaryViolation { workspace_id, attempted_path } => {
+            Self::WorkspaceBoundaryViolation {
+                workspace_id,
+                attempted_path,
+            } => {
                 format!("workspace {workspace_id} boundary violated by '{attempted_path}'")
             }
-            Self::ResourceCapExceeded { cap_kind, observed, limit } => {
+            Self::ResourceCapExceeded {
+                cap_kind,
+                observed,
+                limit,
+            } => {
                 format!("{cap_kind} cap exceeded (observed={observed} limit={limit})")
             }
             Self::Cancelled { upstream_reason } => format!("cancelled: {upstream_reason}"),
-            Self::MissingArtifact { expected_artifact_ref, descriptor_id } => {
-                format!("descriptor {descriptor_id} requires missing artifact {expected_artifact_ref}")
+            Self::MissingArtifact {
+                expected_artifact_ref,
+                descriptor_id,
+            } => {
+                format!(
+                    "descriptor {descriptor_id} requires missing artifact {expected_artifact_ref}"
+                )
             }
-            Self::UnsupportedAdapter { adapter, descriptor_id } => {
+            Self::UnsupportedAdapter {
+                adapter,
+                descriptor_id,
+            } => {
                 format!("descriptor {descriptor_id} needs unsupported adapter '{adapter}'")
             }
-            Self::SkippedByPolicy { descriptor_id, reason } => {
+            Self::SkippedByPolicy {
+                descriptor_id,
+                reason,
+            } => {
                 format!("descriptor {descriptor_id} skipped by policy: {reason}")
             }
             Self::MissingApproval { missing_field } => {
                 format!("operator approval missing field '{missing_field}'")
             }
-            Self::ValidationFailure { validation_run_id, blocking_outcomes } => format!(
+            Self::ValidationFailure {
+                validation_run_id,
+                blocking_outcomes,
+            } => format!(
                 "validation run {validation_run_id} blocks promotion: {}",
                 blocking_outcomes.join(",")
             ),
@@ -224,11 +278,17 @@ impl DccKb003BlockedReasonOverlayV1 {
         self.rows.is_empty()
     }
 
-    pub fn rows_for_lane(&self, lane: BlockedLane) -> impl Iterator<Item = &DccKb003BlockedReasonRowV1> {
+    pub fn rows_for_lane(
+        &self,
+        lane: BlockedLane,
+    ) -> impl Iterator<Item = &DccKb003BlockedReasonRowV1> {
         self.rows.iter().filter(move |r| r.lane == lane)
     }
 
-    pub fn rows_for_disposition(&self, d: BlockedDisposition) -> impl Iterator<Item = &DccKb003BlockedReasonRowV1> {
+    pub fn rows_for_disposition(
+        &self,
+        d: BlockedDisposition,
+    ) -> impl Iterator<Item = &DccKb003BlockedReasonRowV1> {
         self.rows.iter().filter(move |r| r.disposition == d)
     }
 }
@@ -239,18 +299,52 @@ mod tests {
 
     fn all_variants() -> Vec<BlockedReason> {
         vec![
-            BlockedReason::AdapterUnavailable { adapter_kind: "microvm".into(), host_detail: "no kvm".into() },
-            BlockedReason::PolicyDenied { capability: "NETWORK".into(), policy_version_id: "POL-1@1".into(), denial_id: "DEN-1".into() },
-            BlockedReason::WorkspaceBoundaryViolation { workspace_id: "WSP-1".into(), attempted_path: "/etc/x".into() },
-            BlockedReason::ResourceCapExceeded { cap_kind: "wall_time_s".into(), observed: "120".into(), limit: "60".into() },
-            BlockedReason::Cancelled { upstream_reason: "operator_abort".into() },
-            BlockedReason::MissingArtifact { expected_artifact_ref: "ART-1".into(), descriptor_id: "DESC-1".into() },
-            BlockedReason::UnsupportedAdapter { adapter: "axe-core".into(), descriptor_id: "DESC-2".into() },
-            BlockedReason::SkippedByPolicy { descriptor_id: "DESC-3".into(), reason: "feature flag off".into() },
-            BlockedReason::MissingApproval { missing_field: "operator_id".into() },
-            BlockedReason::ValidationFailure { validation_run_id: "VR-1".into(), blocking_outcomes: vec!["FAIL".into()] },
-            BlockedReason::IdempotencyConflict { idempotency_key: "IK-1".into() },
-            BlockedReason::StorageWriteFailure { storage_error: "conn refused".into() },
+            BlockedReason::AdapterUnavailable {
+                adapter_kind: "microvm".into(),
+                host_detail: "no kvm".into(),
+            },
+            BlockedReason::PolicyDenied {
+                capability: "NETWORK".into(),
+                policy_version_id: "POL-1@1".into(),
+                denial_id: "DEN-1".into(),
+            },
+            BlockedReason::WorkspaceBoundaryViolation {
+                workspace_id: "WSP-1".into(),
+                attempted_path: "/etc/x".into(),
+            },
+            BlockedReason::ResourceCapExceeded {
+                cap_kind: "wall_time_s".into(),
+                observed: "120".into(),
+                limit: "60".into(),
+            },
+            BlockedReason::Cancelled {
+                upstream_reason: "operator_abort".into(),
+            },
+            BlockedReason::MissingArtifact {
+                expected_artifact_ref: "ART-1".into(),
+                descriptor_id: "DESC-1".into(),
+            },
+            BlockedReason::UnsupportedAdapter {
+                adapter: "axe-core".into(),
+                descriptor_id: "DESC-2".into(),
+            },
+            BlockedReason::SkippedByPolicy {
+                descriptor_id: "DESC-3".into(),
+                reason: "feature flag off".into(),
+            },
+            BlockedReason::MissingApproval {
+                missing_field: "operator_id".into(),
+            },
+            BlockedReason::ValidationFailure {
+                validation_run_id: "VR-1".into(),
+                blocking_outcomes: vec!["FAIL".into()],
+            },
+            BlockedReason::IdempotencyConflict {
+                idempotency_key: "IK-1".into(),
+            },
+            BlockedReason::StorageWriteFailure {
+                storage_error: "conn refused".into(),
+            },
         ]
     }
 
@@ -287,15 +381,33 @@ mod tests {
 
     #[test]
     fn overlay_partitions_by_lane_and_disposition() {
-        let rows: Vec<_> = all_variants().into_iter().map(DccKb003BlockedReasonRowV1::from_reason).collect();
+        let rows: Vec<_> = all_variants()
+            .into_iter()
+            .map(DccKb003BlockedReasonRowV1::from_reason)
+            .collect();
         let overlay = DccKb003BlockedReasonOverlayV1::new(rows);
         assert!(!overlay.is_empty());
         assert!(overlay.rows_for_lane(BlockedLane::Sandbox).count() >= 1);
         assert!(overlay.rows_for_lane(BlockedLane::Validation).count() >= 1);
         assert!(overlay.rows_for_lane(BlockedLane::Promotion).count() >= 1);
-        assert!(overlay.rows_for_disposition(BlockedDisposition::Retry).count() >= 1);
-        assert!(overlay.rows_for_disposition(BlockedDisposition::Escalate).count() >= 1);
-        assert!(overlay.rows_for_disposition(BlockedDisposition::Gate).count() >= 1);
+        assert!(
+            overlay
+                .rows_for_disposition(BlockedDisposition::Retry)
+                .count()
+                >= 1
+        );
+        assert!(
+            overlay
+                .rows_for_disposition(BlockedDisposition::Escalate)
+                .count()
+                >= 1
+        );
+        assert!(
+            overlay
+                .rows_for_disposition(BlockedDisposition::Gate)
+                .count()
+                >= 1
+        );
     }
 
     #[test]

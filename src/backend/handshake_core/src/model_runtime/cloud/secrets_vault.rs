@@ -340,7 +340,9 @@ mod tests {
     #[test]
     fn vault_api_key_provider_debug_does_not_render_secret() {
         let vault = Arc::new(InMemorySecretsVault::default());
-        vault.put("openai", "sk-DO-NOT-LOG-THIS".to_string()).unwrap();
+        vault
+            .put("openai", "sk-DO-NOT-LOG-THIS".to_string())
+            .unwrap();
         let provider = VaultApiKeyProvider::new(vault, "openai");
         let dbg = format!("{provider:?}");
         assert!(!dbg.contains("sk-DO-NOT-LOG-THIS"));

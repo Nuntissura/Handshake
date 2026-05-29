@@ -1,0 +1,16 @@
+{
+  "scenario": "event_seq_gap",
+  "sessions_examined": 1,
+  "sessions_resumed": 0,
+  "sessions_recovery_failed": 1,
+  "orphan_processes_reclaimed": 0,
+  "operator_decision_requests": 1,
+  "side_effects_applied": 0,
+  "side_effects_already_applied": 0,
+  "operator_cancellations": 0,
+  "fr_event_order": [
+    "FR-EVT-RESTART-RESUME-STARTED",
+    "FR-EVT-RESTART-RESUME-SESSION-RECOVERY-FAILED",
+    "FR-EVT-RESTART-RESUME-COMPLETED"
+  ]
+}

@@ -11,12 +11,13 @@ use handshake_core::{
     kernel::action_envelope::{ApprovalPosture, AuthorityEffect},
     memory::{
         CapsuleAuditEntry, CapsuleBuilder, CapsuleFlightRecorderEvent, CapsulePolicyTable,
-        CapsuleRecord, CapsuleRecorder, FemsError, FemsFlightRecorder, FemsFlightRecorderError,
-        FemsRetriever, GetCapsuleRequest, InjectionDecision, KernelActionRejection,
-        KernelActionSubmission, KernelActionSubmitter, ListRecentCapsulesRequest, MemoryCapsule,
-        MemoryCapsuleIpcStore, MemoryIpcError, MemoryIpcService, ModelCallContext, RetrievedItem,
-        SuppressItemRequest, TaskType, FR_EVT_CAPSULE_INJECTED, FR_EVT_CAPSULE_SUPPRESSED,
-        MEMORY_CAPSULE_RECORD_ACTION_ID, MEMORY_CAPSULE_SUPPRESS_ACTION_ID,
+        CapsuleRecord, CapsuleRecorder, FR_EVT_CAPSULE_INJECTED, FR_EVT_CAPSULE_SUPPRESSED,
+        FemsError, FemsFlightRecorder, FemsFlightRecorderError, FemsRetriever, GetCapsuleRequest,
+        InjectionDecision, KernelActionRejection, KernelActionSubmission, KernelActionSubmitter,
+        ListRecentCapsulesRequest, MEMORY_CAPSULE_RECORD_ACTION_ID,
+        MEMORY_CAPSULE_SUPPRESS_ACTION_ID, MemoryCapsule, MemoryCapsuleIpcStore, MemoryIpcError,
+        MemoryIpcService, ModelCallContext, RetrievedItem, SuppressItemRequest, TaskType,
+        pinned_aware_retrieval_limit,
     },
 };
 use serde::Deserialize;
@@ -49,7 +50,10 @@ fn capsule_builder_injector_recorder_and_ipc_compose_over_fixture() {
     assert_fixture_selection_contract(&built_capsule, &expected_included_ids);
     assert_eq!(
         fems.calls(),
-        vec![(QUERY.to_string(), expected_policy.top_k)]
+        vec![(
+            QUERY.to_string(),
+            pinned_aware_retrieval_limit(expected_policy.top_k)
+        )]
     );
 
     let flight_recorder = RecordingFemsFlightRecorder::default();
@@ -68,8 +72,14 @@ fn capsule_builder_injector_recorder_and_ipc_compose_over_fixture() {
     assert_eq!(
         fems.calls(),
         vec![
-            (QUERY.to_string(), expected_policy.top_k),
-            (QUERY.to_string(), expected_policy.top_k),
+            (
+                QUERY.to_string(),
+                pinned_aware_retrieval_limit(expected_policy.top_k)
+            ),
+            (
+                QUERY.to_string(),
+                pinned_aware_retrieval_limit(expected_policy.top_k)
+            ),
         ]
     );
 

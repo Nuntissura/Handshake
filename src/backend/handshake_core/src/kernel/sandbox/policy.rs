@@ -246,7 +246,10 @@ mod tests {
         assert!(vid1.starts_with("POL-"));
         let bumped = pol.bump_version("added network for diag");
         assert_ne!(vid1, bumped.version_id());
-        assert_eq!(bumped.policy_id, pol.policy_id, "policy_id is stable across versions");
+        assert_eq!(
+            bumped.policy_id, pol.policy_id,
+            "policy_id is stable across versions"
+        );
         assert_eq!(bumped.policy_version, 2);
     }
 
@@ -258,8 +261,10 @@ mod tests {
             evidence_ref: CapabilityEvidenceRef::new("ART-evidence-1"),
             approval_ref: Some(OperatorApprovalRef::new("APR-1")),
         };
-        pol.overrides
-            .push((SandboxCapability::Network, CapabilityDecision::Allow(grant.clone())));
+        pol.overrides.push((
+            SandboxCapability::Network,
+            CapabilityDecision::Allow(grant.clone()),
+        ));
         match pol.decide(SandboxCapability::Network) {
             CapabilityDecision::Allow(g) => assert_eq!(g, grant),
             other => panic!("expected Allow(grant), got {:?}", other),
@@ -279,8 +284,10 @@ mod tests {
             evidence_ref: CapabilityEvidenceRef::new(""),
             approval_ref: None,
         };
-        pol.overrides
-            .push((SandboxCapability::Network, CapabilityDecision::Allow(bad_grant)));
+        pol.overrides.push((
+            SandboxCapability::Network,
+            CapabilityDecision::Allow(bad_grant),
+        ));
         match pol.validate_grants() {
             Err(PolicyBuildError::CapabilityGrantMissingEvidence { capability }) => {
                 assert_eq!(capability, SandboxCapability::Network);

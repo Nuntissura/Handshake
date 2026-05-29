@@ -76,9 +76,7 @@ mod tests {
             NormalisedStorageErrorKind::Deadlock
         );
         assert_eq!(
-            NormalisedStorageErrorKind::classify_message(
-                "Postgres: DEADLOCK on transaction 4711"
-            ),
+            NormalisedStorageErrorKind::classify_message("Postgres: DEADLOCK on transaction 4711"),
             NormalisedStorageErrorKind::Deadlock
         );
     }
@@ -86,7 +84,9 @@ mod tests {
     #[test]
     fn unique_violation_messages_classify_consistently() {
         assert_eq!(
-            NormalisedStorageErrorKind::classify_message("duplicate key value violates unique constraint"),
+            NormalisedStorageErrorKind::classify_message(
+                "duplicate key value violates unique constraint"
+            ),
             NormalisedStorageErrorKind::UniqueViolation
         );
         assert_eq!(

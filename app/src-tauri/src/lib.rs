@@ -22,11 +22,14 @@ mod commands {
     pub mod distillation;
     pub mod kv_cache;
     pub mod lora;
+    pub mod memory_calibration;
     pub mod memory_capsule;
+    pub mod memory_pin;
     pub mod model_runtime;
     pub mod peft;
     pub mod refusal;
     pub mod sandbox;
+    pub mod self_improve;
     pub mod session_distill;
     pub mod speculative;
     pub mod steering;
@@ -88,8 +91,18 @@ macro_rules! handshake_invoke_handlers {
             commands::memory_capsule::kernel_memory_capsule_get,
             commands::memory_capsule::kernel_memory_capsule_suppress_item,
             commands::memory_capsule::kernel_memory_capsule_suppress_capsule,
+            commands::memory_calibration::kernel_memory_calibration_snapshot,
+            commands::memory_pin::kernel_memory_pin_set,
+            commands::memory_pin::kernel_memory_pin_unset,
+            commands::memory_pin::kernel_memory_pin_list,
             commands::sandbox::kernel_sandbox_list_adapters,
             commands::sandbox::kernel_sandbox_capabilities,
+            commands::self_improve::kernel_self_improve_status,
+            commands::self_improve::kernel_self_improve_pause,
+            commands::self_improve::kernel_self_improve_unpause,
+            commands::self_improve::kernel_self_improve_review_pending,
+            commands::self_improve::kernel_self_improve_approve_promotion,
+            commands::self_improve::kernel_self_improve_reject_promotion,
             commands::steering::kernel_model_runtime_steering_capture,
             commands::steering::kernel_model_runtime_steering_register_vector,
             commands::steering::kernel_model_runtime_steering_set_active,
@@ -176,8 +189,18 @@ macro_rules! handshake_invoke_handlers {
             commands::memory_capsule::kernel_memory_capsule_get,
             commands::memory_capsule::kernel_memory_capsule_suppress_item,
             commands::memory_capsule::kernel_memory_capsule_suppress_capsule,
+            commands::memory_calibration::kernel_memory_calibration_snapshot,
+            commands::memory_pin::kernel_memory_pin_set,
+            commands::memory_pin::kernel_memory_pin_unset,
+            commands::memory_pin::kernel_memory_pin_list,
             commands::sandbox::kernel_sandbox_list_adapters,
             commands::sandbox::kernel_sandbox_capabilities,
+            commands::self_improve::kernel_self_improve_status,
+            commands::self_improve::kernel_self_improve_pause,
+            commands::self_improve::kernel_self_improve_unpause,
+            commands::self_improve::kernel_self_improve_review_pending,
+            commands::self_improve::kernel_self_improve_approve_promotion,
+            commands::self_improve::kernel_self_improve_reject_promotion,
             commands::steering::kernel_model_runtime_steering_capture,
             commands::steering::kernel_model_runtime_steering_register_vector,
             commands::steering::kernel_model_runtime_steering_set_active,
@@ -319,6 +342,31 @@ fn peft_job_spawner_state() -> commands::peft::PeftJobSpawnerState {
             )
         }
     }
+}
+
+fn distillation_jobs_state_from_app_data_root(
+    app_data_root: &Path,
+) -> Result<commands::distillation::DistillationJobsState, String> {
+    let recorder_root = app_data_root.join("flight_recorder");
+    std::fs::create_dir_all(&recorder_root).map_err(|error| {
+        format!(
+            "create Tauri distillation flight recorder root {}: {error}",
+            recorder_root.display()
+        )
+    })?;
+    let recorder_path = recorder_root.join("distillation_jobs.duckdb");
+    let recorder = handshake_core::flight_recorder::duckdb::DuckDbFlightRecorder::new_on_path(
+        &recorder_path,
+        7,
+    )
+    .map_err(|error| {
+        format!(
+            "open Tauri distillation flight recorder {}: {error}",
+            recorder_path.display()
+        )
+    })?;
+    let recorder: Arc<dyn handshake_core::flight_recorder::FlightRecorder> = Arc::new(recorder);
+    Ok(commands::distillation::DistillationJobsState::new(recorder))
 }
 
 fn steering_vector_store_state() -> Result<commands::steering::SteeringVectorStoreState, String> {
@@ -818,17 +866,14 @@ pub fn run() {
         .manage(commands::speculative::SpeculativeModeOverrides::default())
         .manage(steering_store_state)
         .manage(commands::memory_capsule::MemoryCapsuleIpcState::default())
+        .manage(commands::memory_calibration::MemoryCalibrationIpcState::from_env_or_unavailable())
+        .manage(commands::memory_pin::MemoryPinIpcState::from_env_or_unavailable())
         .manage(commands::session_distill::SessionDistillState::default())
         // MT-124: Distillation Queue UI (DistillationQueue.tsx) reads
-        // through the production CandidateRegistry (MT-123) + the
-        // production FlightRecorder for FR-EVT-DISTILL-* job state.
-        // The CandidateRegistry default is the in-memory production
-        // impl; the FlightRecorder lane defaults to detached until the
-        // orchestrator wires the DuckDB recorder in a follow-on (the
-        // detached lane returns an empty list, which the UI surfaces
-        // as a real empty-state, not a placeholder array).
+        // through the production CandidateRegistry (MT-123). The
+        // app-data-root FlightRecorder is managed in setup after Tauri
+        // resolves the platform data directory.
         .manage(commands::distillation::DistillationCandidateState::default())
-        .manage(commands::distillation::DistillationJobsState::default())
         // MT-122: PEFT training job spawner state. The Python interpreter +
         // trainer script are resolved at construction time from the workspace
         // root. If resolution fails the runtime falls back to a detached
@@ -837,6 +882,13 @@ pub fn run() {
         .manage(peft_job_spawner_state())
         .manage(cloud_lane_state)
         .manage(sandbox_registry)
+        // MT-155: self-improvement loop IPC. Default state holds a fresh
+        // LoopIpcState (24h iteration budget = 25 per HBR-SWARM-002). The
+        // production PromotionGateSubmitter wiring lives in a follow-on MT
+        // alongside the scheduler binding (MT-156); until then the approve
+        // command returns a typed GateUnavailable error so the operator
+        // gets a real failure instead of a placeholder success.
+        .manage(commands::self_improve::SelfImproveIpcState::default())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_opener::init())
@@ -848,7 +900,14 @@ pub fn run() {
                 .path()
                 .app_data_dir()
                 .map_err(|e| std::io::Error::other(e.to_string()))?;
+            let distillation_jobs_state =
+                distillation_jobs_state_from_app_data_root(&app_data_root).map_err(|error| {
+                    std::io::Error::other(format!(
+                        "MT-124 distillation jobs FlightRecorder init failed: {error}"
+                    ))
+                })?;
             app.manage(session_chat_log::SessionChatLogState::new(app_data_root));
+            app.manage(distillation_jobs_state);
 
             let state = OrchestratorState::default();
             state.spawn(orchestrator_workdir())?;
@@ -875,4 +934,56 @@ pub fn run() {
     builder
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use handshake_core::flight_recorder::{
+        EventFilter, FlightRecorderActor, FlightRecorderEvent, FlightRecorderEventType,
+    };
+    use serde_json::json;
+
+    #[tokio::test]
+    async fn distillation_jobs_state_from_app_data_root_attaches_writable_duckdb_recorder() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let state = distillation_jobs_state_from_app_data_root(tmp.path())
+            .expect("app data root should create a writable distillation jobs recorder");
+        let recorder = state
+            .recorder()
+            .expect("recorder should be attached")
+            .clone();
+
+        let event = FlightRecorderEvent::new(
+            FlightRecorderEventType::DistillPiiDetected,
+            FlightRecorderActor::System,
+            Uuid::now_v7(),
+            json!({
+                "type": "distill.pii_detected",
+                "fr_event_id": "FR-EVT-DISTILL-PII-DETECT",
+                "turn_id": "turn-app-root-recorder",
+                "pii_kinds": ["email"],
+                "severity": "High"
+            }),
+        )
+        .with_job_id("job-app-root-recorder");
+
+        recorder
+            .record_event(event)
+            .await
+            .expect("app recorder should accept valid distill event");
+        let events = recorder
+            .list_events(EventFilter {
+                job_id: Some("job-app-root-recorder".to_string()),
+                ..EventFilter::default()
+            })
+            .await
+            .expect("app recorder should list recorded distill events");
+
+        assert_eq!(events.len(), 1);
+        assert_eq!(
+            events[0].event_type,
+            FlightRecorderEventType::DistillPiiDetected
+        );
+    }
 }

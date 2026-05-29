@@ -1241,21 +1241,22 @@ mod tests {
     };
     use crate::llm::ollama::InMemoryLlmClient;
     use crate::storage::{
-        sqlite::SqliteDatabase, AccessMode, Database, EntityRef, JobKind, JobMetrics, JobState,
-        JobStatusUpdate, NewAiJob, PlannedOperation, SafetyMode,
+        tests::optional_postgres_backend_from_env, AccessMode, Database, EntityRef, JobKind,
+        JobMetrics, JobState, JobStatusUpdate, NewAiJob, PlannedOperation, SafetyMode,
     };
     use axum::extract::{Path, State};
     use serde_json::json;
     use std::sync::Arc;
 
-    async fn setup_state() -> Result<AppState, Box<dyn std::error::Error>> {
-        let sqlite = SqliteDatabase::connect("sqlite::memory:", 5).await?;
-        sqlite.run_migrations().await?;
+    async fn setup_state() -> Result<Option<AppState>, Box<dyn std::error::Error>> {
+        let Some(storage) = optional_postgres_backend_from_env().await? else {
+            return Ok(None);
+        };
 
         let flight_recorder = Arc::new(DuckDbFlightRecorder::new_in_memory(7)?);
 
-        Ok(AppState {
-            storage: sqlite.into_arc(),
+        Ok(Some(AppState {
+            storage,
             flight_recorder: flight_recorder.clone(),
             diagnostics: flight_recorder,
             llm_client: Arc::new(InMemoryLlmClient::new("ok".into())),
@@ -1263,7 +1264,7 @@ mod tests {
             session_registry: Arc::new(crate::workflows::SessionRegistry::new(
                 crate::workflows::SessionSchedulerConfig::default(),
             )),
-        })
+        }))
     }
 
     fn selection_v1(doc_text: &str, start: usize, end: usize) -> SelectionRangeV1 {
@@ -1283,7 +1284,9 @@ mod tests {
     #[tokio::test]
     async fn verify_atelier_apply_provenance_accepts_matching_job_output(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let state = setup_state().await?;
+        let Some(state) = setup_state().await? else {
+            return Ok(());
+        };
 
         let doc_id = "doc-1".to_string();
         let doc_text = "Hello world\nSecond line";
@@ -1401,7 +1404,9 @@ mod tests {
     #[tokio::test]
     async fn verify_atelier_apply_provenance_rejects_selection_mismatch_as_stale(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let state = setup_state().await?;
+        let Some(state) = setup_state().await? else {
+            return Ok(());
+        };
 
         let doc_text = "Hello world\nSecond line";
         let selection = selection_v1(doc_text, 6, 11);
@@ -1506,7 +1511,9 @@ mod tests {
     #[tokio::test]
     async fn verify_atelier_apply_provenance_rejects_patchset_mismatch_as_provenance_mismatch(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let state = setup_state().await?;
+        let Some(state) = setup_state().await? else {
+            return Ok(());
+        };
 
         let doc_text = "Hello world\nSecond line";
         let selection = selection_v1(doc_text, 6, 11);
@@ -1616,7 +1623,9 @@ mod tests {
     #[tokio::test]
     async fn replace_blocks_rejects_ai_when_context_missing(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let state = setup_state().await?;
+        let Some(state) = setup_state().await? else {
+            return Ok(());
+        };
 
         let seed_ctx = WriteContext::human(Some("tester".into()));
         let workspace = state
@@ -1702,7 +1711,9 @@ mod tests {
     #[tokio::test]
     async fn replace_blocks_accepts_ai_and_persists_traceability(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let state = setup_state().await?;
+        let Some(state) = setup_state().await? else {
+            return Ok(());
+        };
 
         let seed_ctx = WriteContext::human(Some("tester".into()));
         let workspace = state

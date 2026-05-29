@@ -114,7 +114,10 @@ pub enum PromotionRejectionReason {
     /// decision still exists in durable storage but the operator surface did
     /// not update. Surfaces as a soft rejection that the orchestrator should
     /// retry.
-    ProjectionRebuildFailure { projection_family_id: String, detail: String },
+    ProjectionRebuildFailure {
+        projection_family_id: String,
+        detail: String,
+    },
 }
 
 impl PromotionRejectionReason {
@@ -220,22 +223,18 @@ impl PromotionRejectionReason {
                 policy_version_id: policy_version_id.clone(),
                 capability: capability.clone(),
             },
-            Self::MissingApproval { missing_field } => {
-                CanonicalRejectionPayload::MissingApproval {
-                    missing_field: missing_field.clone(),
-                }
-            }
+            Self::MissingApproval { missing_field } => CanonicalRejectionPayload::MissingApproval {
+                missing_field: missing_field.clone(),
+            },
             Self::MissingArtifact {
                 expected_artifact_ref,
                 ..
             } => CanonicalRejectionPayload::MissingArtifact {
                 expected_artifact_ref: expected_artifact_ref.clone(),
             },
-            Self::PostgresFailure { storage_error } => {
-                CanonicalRejectionPayload::PostgresFailure {
-                    error_kind: NormalisedStorageErrorKind::classify_message(storage_error),
-                }
-            }
+            Self::PostgresFailure { storage_error } => CanonicalRejectionPayload::PostgresFailure {
+                error_kind: NormalisedStorageErrorKind::classify_message(storage_error),
+            },
             Self::ProjectionRebuildFailure {
                 projection_family_id,
                 ..
@@ -297,7 +296,10 @@ pub struct PromotionDecisionV1 {
 }
 
 impl PromotionDecisionV1 {
-    pub fn accepted(sandbox_run_id: impl Into<String>, validation_run_id: impl Into<String>) -> Self {
+    pub fn accepted(
+        sandbox_run_id: impl Into<String>,
+        validation_run_id: impl Into<String>,
+    ) -> Self {
         Self {
             schema_version: SCHEMA_KERNEL_PROMOTION_DECISION_V1.to_string(),
             decision_id: format!("PD-{}", Uuid::now_v7()),
@@ -385,7 +387,11 @@ mod tests {
             tags.insert(r.tag());
             assert!(!r.rationale_short().is_empty());
         }
-        assert_eq!(tags.len(), 8, "every rejection variant must carry a unique tag");
+        assert_eq!(
+            tags.len(),
+            8,
+            "every rejection variant must carry a unique tag"
+        );
     }
 
     // MT-043: every non-PASS rejection records its typed reason (no `Rejected`
@@ -417,7 +423,10 @@ mod tests {
         let d = PromotionDecisionV1::rejected("SBX-1", "VR-1", r);
         let j = serde_json::to_string(&d).unwrap();
         assert!(j.contains("\"kind\":\"REJECTED\""), "got {j}");
-        assert!(j.contains("\"reason_kind\":\"MISSING_ARTIFACT\""), "got {j}");
+        assert!(
+            j.contains("\"reason_kind\":\"MISSING_ARTIFACT\""),
+            "got {j}"
+        );
         let back: PromotionDecisionV1 = serde_json::from_str(&j).unwrap();
         assert_eq!(back, d);
     }

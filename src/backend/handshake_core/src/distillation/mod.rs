@@ -1,4 +1,6 @@
 pub mod abliterate;
+pub mod abliterate_review;
+pub mod candidate;
 pub mod candidate_registry;
 pub mod content_review;
 pub mod corpus_extractor;
@@ -10,3 +12,4 @@ pub mod pii_patterns;
 pub mod redaction;
 pub mod scoring;
 pub mod session_flag;
+pub mod spawn_tree_harvester;

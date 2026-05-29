@@ -3,11 +3,11 @@ use std::{cell::RefCell, collections::BTreeMap};
 use handshake_core::{
     ace::{FemsSourceRef, FemsSourceRefKind},
     memory::{
-        attach_capsule_to_generate_request, CapsuleBuilder, CapsuleFlightRecorderEvent,
-        CapsuleInjector, CapsulePolicyTable, DegradationTier, FemsError, FemsFlightRecorder,
-        FemsFlightRecorderError, FemsRetriever, InjectionDecision, ModelCallContext,
-        RetrievalPolicy, RetrievedItem, SkipReason, TaskType, FR_EVT_CAPSULE_INJECTED,
-        FR_EVT_CAPSULE_SUPPRESSED, RETRIEVAL_SCORING_FORMULA_V0,
+        CapsuleBuilder, CapsuleFlightRecorderEvent, CapsuleInjector, CapsulePolicyTable,
+        DegradationTier, FR_EVT_CAPSULE_INJECTED, FR_EVT_CAPSULE_SUPPRESSED, FemsError,
+        FemsFlightRecorder, FemsFlightRecorderError, FemsRetriever, InjectionDecision,
+        ModelCallContext, RETRIEVAL_SCORING_FORMULA_V0, RetrievalPolicy, RetrievedItem, SkipReason,
+        TaskType, attach_capsule_to_generate_request, pinned_aware_retrieval_limit,
     },
     model_runtime::{CancellationToken, GenPrompt, GenerateRequest, ModelId, SamplingParams},
 };
@@ -221,7 +221,10 @@ fn fems_retriever_unavailable_skips_without_recording_injection() {
             reason: SkipReason::FemsUnavailable
         }
     );
-    assert_eq!(fems.calls(), vec![("build query".to_string(), 12)]);
+    assert_eq!(
+        fems.calls(),
+        vec![("build query".to_string(), pinned_aware_retrieval_limit(12))]
+    );
     assert!(recorder.events().is_empty());
 }
 
@@ -440,6 +443,7 @@ fn generate_request(prompt: &str) -> GenerateRequest {
         cancel: CancellationToken::new(),
         max_tokens: 42,
         stop_sequences: vec!["STOP".to_string()],
+        speculative_mode: None,
         structured_decoding: None,
     }
 }

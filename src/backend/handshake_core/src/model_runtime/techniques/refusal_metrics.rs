@@ -26,7 +26,9 @@ use futures_util::StreamExt;
 use regex::Regex;
 
 use crate::model_runtime::{
-    techniques::refusal_vector::{ablate_at_inference, extract_refusal_direction, RefusalDirection},
+    techniques::refusal_vector::{
+        ablate_at_inference, extract_refusal_direction, RefusalDirection,
+    },
     CancellationToken, GenPrompt, GenerateRequest, LayerIndex, ModelId, ModelRuntime,
     ModelRuntimeError, SamplingParams, SteeringVectorId,
 };
@@ -275,8 +277,7 @@ pub async fn measure_with_runtime(
     // Step 2: per-candidate-layer ablated completions.
     let mut ablated_harmful_completions_by_layer =
         Vec::with_capacity(inputs.candidate_layers.len());
-    let mut per_layer_best: Vec<(LayerIndex, f32, SteeringVectorId, RefusalDirection)> =
-        Vec::new();
+    let mut per_layer_best: Vec<(LayerIndex, f32, SteeringVectorId, RefusalDirection)> = Vec::new();
     let base_refusal_for_step = refusal_rate(&base_harmful_completions);
     for layer in &inputs.candidate_layers {
         let directions = extract_refusal_direction(
@@ -304,18 +305,13 @@ pub async fn measure_with_runtime(
             inputs.benign_prompts.clone(),
         )
         .await?;
-        super::activation_steering::set_active_steering_vectors(
-            runtime,
-            model_id,
-            vec![vector_id],
-        )
-        .await?;
+        super::activation_steering::set_active_steering_vectors(runtime, model_id, vec![vector_id])
+            .await?;
 
         let mut completions = Vec::with_capacity(inputs.harmful_prompts.len());
         for prompt in &inputs.harmful_prompts {
-            completions.push(
-                generate_completion_text(runtime, model_id, prompt, max_tokens).await?,
-            );
+            completions
+                .push(generate_completion_text(runtime, model_id, prompt, max_tokens).await?);
         }
 
         let layer_drop = base_refusal_for_step - refusal_rate(&completions);
@@ -358,16 +354,11 @@ pub async fn measure_with_runtime(
             inputs.benign_prompts.clone(),
         )
         .await?;
-        super::activation_steering::set_active_steering_vectors(
-            runtime,
-            model_id,
-            vec![vector_id],
-        )
-        .await?;
+        super::activation_steering::set_active_steering_vectors(runtime, model_id, vec![vector_id])
+            .await?;
         for prompt in &inputs.benign_prompts {
-            ablated_benign_completions.push(
-                generate_completion_text(runtime, model_id, prompt, max_tokens).await?,
-            );
+            ablated_benign_completions
+                .push(generate_completion_text(runtime, model_id, prompt, max_tokens).await?);
         }
         super::activation_steering::unregister(runtime, model_id, vector_id).await?;
     } else {
@@ -436,6 +427,7 @@ async fn generate_completion_text(
         cancel: CancellationToken::new(),
         max_tokens,
         stop_sequences: Vec::new(),
+        speculative_mode: None,
         structured_decoding: None,
     };
     let mut stream = runtime.generate(request);

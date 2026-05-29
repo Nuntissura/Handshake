@@ -7,9 +7,9 @@
 //! `generate.rs`) is enforced by `tests/abliterate_tool_tests.rs`.
 //!
 //! Per WP-KERNEL-004 wp_validator_final_disposition the model I/O path
-//! uses `candle_core::safetensors::load` / `save` (option_c), so this
-//! binary is gated on the `candle-runtime-engine` cargo feature in
-//! Cargo.toml `[[bin]] required-features`. Build with
+//! uses the Candle safetensors adapter (option_c), so this binary is
+//! gated on the `candle-runtime-engine` cargo feature in Cargo.toml
+//! `[[bin]] required-features`. Build with
 //! `cargo build --bin abliterate --features candle-runtime-engine`.
 //!
 //! Usage:
@@ -122,20 +122,14 @@ where
     while let Some(arg) = iter.next() {
         match arg.as_str() {
             "--help" | "-h" => cli.help = true,
-            "--base-model" => {
-                cli.base_model = Some(PathBuf::from(next_value(&mut iter, &arg)?))
-            }
+            "--base-model" => cli.base_model = Some(PathBuf::from(next_value(&mut iter, &arg)?)),
             "--refusal-direction" => {
                 cli.refusal_direction = Some(PathBuf::from(next_value(&mut iter, &arg)?))
             }
-            "--out-model" => {
-                cli.out_model = Some(PathBuf::from(next_value(&mut iter, &arg)?))
-            }
+            "--out-model" => cli.out_model = Some(PathBuf::from(next_value(&mut iter, &arg)?)),
             "--license-tag" => cli.license_tag = Some(next_value(&mut iter, &arg)?),
             "--provenance-note" => cli.provenance_note = Some(next_value(&mut iter, &arg)?),
-            "--operator-signature" => {
-                cli.operator_signature = Some(next_value(&mut iter, &arg)?)
-            }
+            "--operator-signature" => cli.operator_signature = Some(next_value(&mut iter, &arg)?),
             other => return Err(format!("unknown argument: {other}")),
         }
     }

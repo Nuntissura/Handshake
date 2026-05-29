@@ -41,7 +41,7 @@ async fn postgres_or_environment_blocked() -> Arc<dyn handshake_core::storage::D
     }
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 #[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
 async fn memory_ipc_list_and_get_round_trips_via_postgres_store() {
     let db = postgres_or_environment_blocked().await;
@@ -77,7 +77,7 @@ async fn memory_ipc_list_and_get_round_trips_via_postgres_store() {
     assert_eq!(fetched.record.task_type, record.task_type);
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 #[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
 async fn memory_ipc_suppression_persists_through_postgres_store_durably() {
     let db = postgres_or_environment_blocked().await;

@@ -10,14 +10,15 @@ use super::capsule::{
     CapsuleAuditEntry, CapsuleAuditLog, MemoryCapsule, MemoryCapsuleError, RetrievalPolicy,
     TaskType,
 };
+use super::pinned_core::{PinError, PinnedBudget, PinnedCoreSelector};
 use super::policy_table::{CapsulePolicyTable, RETRIEVAL_SCORING_FORMULA_V0};
 use crate::ace::{
     FemsEntityRef, FemsSourceRef, FemsSourceRefKind, MemoryPack, MemoryPackBudgets,
     MemoryPackDeterminismMode, MemoryPackItem, MemoryPolicy,
 };
 use crate::kernel::fems_mt_handoff_memory_context::{
-    project_fems_mt_handoff_memory_context, FemsMtHandoffItemKind, FemsMtHandoffMemoryContextV1,
-    FemsMtHandoffMemoryItemV1,
+    FemsMtHandoffItemKind, FemsMtHandoffMemoryContextV1, FemsMtHandoffMemoryItemV1,
+    project_fems_mt_handoff_memory_context,
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -54,6 +55,8 @@ pub trait FemsRetriever {
     fn retrieve(&self, query: &str, top_k: u32) -> Result<Vec<RetrievedItem>, FemsError>;
 }
 
+pub const PINNED_RETRIEVAL_HEADROOM: u32 = 64;
+
 pub struct CapsuleBuilder<'a> {
     fems: &'a dyn FemsRetriever,
     policy_table: &'a CapsulePolicyTable,
@@ -79,7 +82,9 @@ impl<'a> CapsuleBuilder<'a> {
         };
         validate_policy(&policy)?;
 
-        let retrieved = self.fems.retrieve(&ctx.query, policy.top_k)?;
+        let retrieved = self
+            .fems
+            .retrieve(&ctx.query, pinned_aware_retrieval_limit(policy.top_k))?;
         for item in &retrieved {
             validate_retrieved_item(item)?;
         }
@@ -88,6 +93,10 @@ impl<'a> CapsuleBuilder<'a> {
         capsule.audit = audit;
         Ok(capsule)
     }
+}
+
+pub fn pinned_aware_retrieval_limit(policy_top_k: u32) -> u32 {
+    policy_top_k.saturating_add(PINNED_RETRIEVAL_HEADROOM)
 }
 
 fn validate_policy(policy: &RetrievalPolicy) -> Result<(), BuilderError> {
@@ -169,28 +178,21 @@ fn build_pack_and_audit(
     retrieved: &[RetrievedItem],
     policy: &RetrievalPolicy,
 ) -> Result<(MemoryPack, CapsuleAuditLog), BuilderError> {
+    let selection = PinnedCoreSelector::select_pack_with_pins(
+        retrieved,
+        PinnedBudget {
+            max_items: policy.top_k,
+            max_bytes: policy.capsule_budget_bytes,
+        },
+    )?;
+
+    let included_ids = selection
+        .ordered_items
+        .iter()
+        .map(|item| item.item_id.clone())
+        .collect::<BTreeSet<_>>();
     let mut candidates = retrieved.to_vec();
     candidates.sort_by(|left, right| compare_retrieved_items(left, right));
-
-    let mut included_ids = BTreeSet::new();
-    let mut used_bytes = 0u64;
-    let mut included_items = Vec::new();
-
-    for item in &candidates {
-        let include = if item.pinned {
-            true
-        } else if included_items.len() >= policy.top_k as usize {
-            false
-        } else {
-            used_bytes.saturating_add(item.capsule_bytes) <= policy.capsule_budget_bytes
-        };
-
-        if include {
-            used_bytes = used_bytes.saturating_add(item.capsule_bytes);
-            included_ids.insert(item.item_id.clone());
-            included_items.push(item.clone());
-        }
-    }
 
     let audit = CapsuleAuditLog {
         entries: candidates
@@ -198,7 +200,7 @@ fn build_pack_and_audit(
             .map(|item| audit_entry_for(item, included_ids.contains(&item.item_id)))
             .collect(),
     };
-    let mut pack = memory_pack_from_items(included_items, policy)?;
+    let mut pack = memory_pack_from_items(selection.ordered_items, policy)?;
     pack.memory_pack_hash = pack
         .compute_hash()
         .map_err(|error| BuilderError::MemoryPackHash(error.to_string()))?;
@@ -272,6 +274,7 @@ fn memory_pack_item_from(item: RetrievedItem) -> MemoryPackItem {
         confidence: item.confidence,
         scope_refs: item.scope_refs,
         source_refs: item.source_refs,
+        pinned: item.pinned,
         last_verified_at: None,
     }
 }
@@ -345,7 +348,7 @@ impl FemsMtHandoffRetriever {
 }
 
 impl FemsRetriever for FemsMtHandoffRetriever {
-    fn retrieve(&self, _query: &str, top_k: u32) -> Result<Vec<RetrievedItem>, FemsError> {
+    fn retrieve(&self, _query: &str, _top_k: u32) -> Result<Vec<RetrievedItem>, FemsError> {
         let projection =
             project_fems_mt_handoff_memory_context(&self.context).map_err(|errors| {
                 FemsError::new(format!(
@@ -362,7 +365,6 @@ impl FemsRetriever for FemsMtHandoffRetriever {
         projection
             .selected_item_ids
             .iter()
-            .take(top_k as usize)
             .map(|item_id| {
                 let item = self
                     .context
@@ -416,7 +418,7 @@ fn retrieved_item_from_handoff(item: &FemsMtHandoffMemoryItemV1, pinned: bool) -
         ]),
         capsule_bytes,
         token_estimate: item.token_count,
-        pinned,
+        pinned: item.pinned || pinned,
     }
 }
 
@@ -462,6 +464,8 @@ pub enum BuilderError {
     },
     #[error("{0}")]
     Capsule(#[from] MemoryCapsuleError),
+    #[error("{0}")]
+    PinnedCore(#[from] PinError),
     #[error("memory pack hash failed: {0}")]
     MemoryPackHash(String),
 }

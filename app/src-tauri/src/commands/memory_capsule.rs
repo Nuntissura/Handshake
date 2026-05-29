@@ -22,9 +22,9 @@ use handshake_core::{
         FemsFlightRecorderError, KernelActionRejection, KernelActionSubmission,
         KernelActionSubmitter, ListRecentCapsulesRequest, MemoryCapsuleIpcStore, MemoryIpcError,
         MemoryIpcService, PostgresKernelActionSubmitter, PostgresMemoryCapsuleStore,
-        SuppressCapsuleRequest, SuppressItemRequest, SuppressionReceipt, MEMORY_CAPSULE_GET_COMMAND,
-        MEMORY_CAPSULE_LIST_RECENT_COMMAND, MEMORY_CAPSULE_SUPPRESS_CAPSULE_COMMAND,
-        MEMORY_CAPSULE_SUPPRESS_ITEM_COMMAND,
+        SuppressCapsuleRequest, SuppressItemRequest, SuppressionReceipt,
+        MEMORY_CAPSULE_GET_COMMAND, MEMORY_CAPSULE_LIST_RECENT_COMMAND,
+        MEMORY_CAPSULE_SUPPRESS_CAPSULE_COMMAND, MEMORY_CAPSULE_SUPPRESS_ITEM_COMMAND,
     },
     storage::Database,
 };

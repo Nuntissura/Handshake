@@ -24,10 +24,7 @@ pub enum NoSqliteTripwireError {
     #[error(
         "KB003 authority write refused: control-plane mode `{mode}` is not PostgresPrimary (policy {policy})"
     )]
-    NonPostgresAuthority {
-        mode: String,
-        policy: &'static str,
-    },
+    NonPostgresAuthority { mode: String, policy: &'static str },
 }
 
 /// Modes the tripwire recognises. Mirrors `ControlPlaneStorageMode` so this
@@ -83,7 +80,8 @@ mod tests {
             AuthorityMode::SqliteOffline,
             AuthorityMode::Test,
         ] {
-            let err = guard_authority_write(mode_under_test).expect_err("KB003 must refuse non-Postgres authority");
+            let err = guard_authority_write(mode_under_test)
+                .expect_err("KB003 must refuse non-Postgres authority");
             match err {
                 NoSqliteTripwireError::NonPostgresAuthority { mode: m, policy } => {
                     assert_eq!(policy, KB003_NO_SQLITE_AUTHORITY_POLICY_ID);

@@ -64,9 +64,8 @@ pub fn select_adapter<'a>(
                 _ => None,
             })
     };
-    let try_process = || -> Option<&'a dyn SandboxAdapter> {
-        registry.process_tier.first().copied()
-    };
+    let try_process =
+        || -> Option<&'a dyn SandboxAdapter> { registry.process_tier.first().copied() };
     let try_wasm = || -> Option<&'a dyn SandboxAdapter> { registry.wasm.first().copied() };
 
     let record_fallback = |fallbacks: &mut Vec<AdapterFallbackEvidenceV1>,
@@ -150,13 +149,7 @@ fn describe_unavailable_chain(
             let states: Vec<String> = registry
                 .hard_isolation
                 .iter()
-                .map(|a| {
-                    format!(
-                        "{}={}",
-                        a.kind().id,
-                        a.probe_availability().short_label()
-                    )
-                })
+                .map(|a| format!("{}={}", a.kind().id, a.probe_availability().short_label()))
                 .collect();
             if states.is_empty() {
                 "no HardIsolation adapters registered".to_string()
@@ -193,7 +186,11 @@ mod tests {
         let r =
             select_adapter(&registry, AdapterIsolationTier::HardIsolation).expect("must fall back");
         assert_eq!(r.adapter.kind().tier, AdapterIsolationTier::Process);
-        assert_eq!(r.fallbacks.len(), 1, "fallback MUST be recorded as evidence");
+        assert_eq!(
+            r.fallbacks.len(),
+            1,
+            "fallback MUST be recorded as evidence"
+        );
         let ev = &r.fallbacks[0];
         assert_eq!(ev.requested_tier, AdapterIsolationTier::HardIsolation);
         assert_eq!(ev.fell_back_to_tier, AdapterIsolationTier::Process);

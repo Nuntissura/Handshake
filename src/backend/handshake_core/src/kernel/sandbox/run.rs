@@ -17,7 +17,6 @@ use uuid::Uuid;
 use super::cancellation::TerminalCause;
 use super::policy::SandboxCapability;
 
-
 /// Lifecycle status for a sandbox run.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
@@ -149,7 +148,10 @@ mod tests {
     fn run_id_is_prefixed_and_unique() {
         let a = SandboxRunId::new();
         let b = SandboxRunId::new();
-        assert!(a.as_str().starts_with("SBX-"), "id must use SBX- prefix for routing");
+        assert!(
+            a.as_str().starts_with("SBX-"),
+            "id must use SBX- prefix for routing"
+        );
         assert_ne!(a, b, "ids must be unique");
     }
 

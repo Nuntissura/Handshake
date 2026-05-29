@@ -12,8 +12,8 @@ use super::{
         DccDirectEditDenialRowV1, DccEvidenceItemV1, DccEvidenceKind, DccFreshnessBadgeV1,
         DccMvpRuntimeSurfaceV1, DccPanelKind, DccPromotionPreviewRowV1,
         DccPromotionPreviewStaleRisk, DccProposalStateV1, DccProposalStatus, DccRuntimePanelV1,
-        DccSelectedWorkProjectionV1, DccSessionRuntimeStateV1, DccStableElementIdV1,
-        DccWorkItemV1, DccWorktreeStateV1, DccWriteBoxQueueRowV1,
+        DccSelectedWorkProjectionV1, DccSessionRuntimeStateV1, DccStableElementIdV1, DccWorkItemV1,
+        DccWorktreeStateV1, DccWriteBoxQueueRowV1,
     },
     direct_edit_guard::{
         guard_direct_edit_attempt, DirectEditAttemptV1, DirectEditDecisionStatus,

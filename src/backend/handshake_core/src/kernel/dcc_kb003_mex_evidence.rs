@@ -122,7 +122,11 @@ mod tests {
             vec![
                 MexEvidenceItemV1::new(MexEvidenceKind::McpCallTrace, "ART-1", "tool:fs.read"),
                 MexEvidenceItemV1::new(MexEvidenceKind::AcpRelayReceipt, "ART-2", "broker:acp"),
-                MexEvidenceItemV1::new(MexEvidenceKind::EngineDeterminismRecord, "ART-3", "engine:checkrunner"),
+                MexEvidenceItemV1::new(
+                    MexEvidenceKind::EngineDeterminismRecord,
+                    "ART-3",
+                    "engine:checkrunner",
+                ),
             ],
         );
         let json = bundle.portable_json().unwrap();
@@ -141,6 +145,9 @@ mod tests {
             ],
         );
         assert_eq!(bundle.items_for(MexEvidenceKind::McpCallTrace).count(), 2);
-        assert_eq!(bundle.items_for(MexEvidenceKind::AcpRelayReceipt).count(), 1);
+        assert_eq!(
+            bundle.items_for(MexEvidenceKind::AcpRelayReceipt).count(),
+            1
+        );
     }
 }

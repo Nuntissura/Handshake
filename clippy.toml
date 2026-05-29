@@ -1,3 +1,5 @@
 disallowed-methods = [
     { path = "uuid::Uuid::new_v4", reason = "Use Uuid::now_v7() per HBR-INT-008" },
+    { path = "tauri::webview::WebviewWindowBuilder::new", reason = "Use QuietWindowBuilder so model-driven work cannot pop, focus, or foreground windows" },
+    { path = "tauri::window::WindowBuilder::new", reason = "Use QuietWindowBuilder so model-driven work cannot pop, focus, or foreground windows" },
 ]

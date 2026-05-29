@@ -3,13 +3,13 @@ use std::{cell::RefCell, collections::BTreeMap};
 use handshake_core::{
     ace::{FemsSourceRef, FemsSourceRefKind},
     kernel::fems_mt_handoff_memory_context::{
-        FemsMtHandoffItemKind, FemsMtHandoffMemoryContextV1, FemsMtHandoffMemoryItemV1,
-        FemsMtHandoffReason, FOLDED_FEMS_MT_HANDOFF_MEMORY_CONTEXT_STUB_ID,
+        FOLDED_FEMS_MT_HANDOFF_MEMORY_CONTEXT_STUB_ID, FemsMtHandoffItemKind,
+        FemsMtHandoffMemoryContextV1, FemsMtHandoffMemoryItemV1, FemsMtHandoffReason,
     },
     memory::{
         BuildContext, CapsuleBuilder, CapsulePolicyTable, DegradationTier, FemsError,
-        FemsMtHandoffRetriever, FemsRetriever, RetrievalPolicy, RetrievedItem, TaskType,
-        RETRIEVAL_SCORING_FORMULA_V0,
+        FemsMtHandoffRetriever, FemsRetriever, RETRIEVAL_SCORING_FORMULA_V0, RetrievalPolicy,
+        RetrievedItem, TaskType, pinned_aware_retrieval_limit,
     },
 };
 
@@ -48,6 +48,27 @@ impl FemsRetriever for TestFemsRetriever {
     }
 }
 
+struct TopKHonoringFemsRetriever {
+    items: Vec<RetrievedItem>,
+    calls: RefCell<Vec<(String, u32)>>,
+}
+
+impl TopKHonoringFemsRetriever {
+    fn new(items: Vec<RetrievedItem>) -> Self {
+        Self {
+            items,
+            calls: RefCell::new(Vec::new()),
+        }
+    }
+}
+
+impl FemsRetriever for TopKHonoringFemsRetriever {
+    fn retrieve(&self, query: &str, top_k: u32) -> Result<Vec<RetrievedItem>, FemsError> {
+        self.calls.borrow_mut().push((query.to_string(), top_k));
+        Ok(self.items.iter().take(top_k as usize).cloned().collect())
+    }
+}
+
 #[test]
 fn capsule_builder_empty_retrieval_returns_empty_capsule_with_policy() {
     let fems = TestFemsRetriever::with_items(Vec::new());
@@ -65,7 +86,7 @@ fn capsule_builder_empty_retrieval_returns_empty_capsule_with_policy() {
     assert!(capsule.audit.entries.is_empty());
     assert_eq!(
         fems.calls.borrow().as_slice(),
-        &[("build query".to_string(), 12)]
+        &[("build query".to_string(), pinned_aware_retrieval_limit(12))]
     );
 }
 
@@ -92,7 +113,7 @@ fn capsule_builder_honors_override_policy_and_records_budget_drops() {
 
     assert_eq!(
         fems.calls.borrow().as_slice(),
-        &[("build query".to_string(), 3)]
+        &[("build query".to_string(), pinned_aware_retrieval_limit(3))]
     );
     assert_eq!(
         capsule
@@ -109,6 +130,40 @@ fn capsule_builder_honors_override_policy_and_records_budget_drops() {
     assert!(!dropped.included);
     assert_eq!(dropped.suppression_reason.as_deref(), Some("budget"));
     assert_eq!(dropped.score_breakdown["capsule_bytes"], 40.0);
+}
+
+#[test]
+fn capsule_builder_asks_for_pinned_headroom_before_final_top_k_selection() {
+    let mut items = Vec::new();
+    for index in 0..64 {
+        items.push(retrieved(
+            &format!("high-score-{index:02}"),
+            1.0 - (index as f64 * 0.001),
+            10,
+            false,
+        ));
+    }
+    items.push(retrieved("pinned-low-score", 0.01, 10, true));
+    let fems = TopKHonoringFemsRetriever::new(items);
+    let table = CapsulePolicyTable;
+    let builder = CapsuleBuilder::new(&fems, &table);
+    let mut ctx = context();
+    ctx.override_policy = Some(RetrievalPolicy {
+        top_k: 1,
+        capsule_budget_bytes: 100,
+        task_type: TaskType::KernelBuilderMtImplementation,
+        scoring_formula_version: RETRIEVAL_SCORING_FORMULA_V0.to_string(),
+        graceful_degradation_tier: DegradationTier::Strict,
+    });
+
+    let capsule = builder.build(ctx).unwrap();
+
+    assert_eq!(
+        fems.calls.borrow().as_slice(),
+        &[("build query".to_string(), pinned_aware_retrieval_limit(1))]
+    );
+    assert_eq!(capsule.pack.items.len(), 1);
+    assert_eq!(capsule.pack.items[0].memory_id, "pinned-low-score");
 }
 
 #[test]
@@ -207,6 +262,45 @@ fn fems_mt_handoff_retriever_maps_projection_items_to_retrieved_items() {
 }
 
 #[test]
+fn fems_mt_handoff_retriever_preserves_explicit_pins_outside_requested_top_k() {
+    let mut context = sample_handoff_context();
+    context.carried_items = vec![
+        handoff_item(
+            "item-procedure-recommended",
+            FemsMtHandoffItemKind::RecommendedProceduralItem,
+            20,
+            70,
+            true,
+        ),
+        handoff_item(
+            "item-high-score",
+            FemsMtHandoffItemKind::MemoryPackItem,
+            10,
+            100,
+            false,
+        ),
+        handoff_item(
+            "item-explicit-pinned-low-score",
+            FemsMtHandoffItemKind::MemoryPackItem,
+            10,
+            1,
+            false,
+        ),
+    ];
+    context.carried_items[2].pinned = true;
+    let retriever = FemsMtHandoffRetriever::new(context);
+
+    let items = retriever.retrieve("handoff", 1).unwrap();
+
+    assert!(
+        items
+            .iter()
+            .any(|item| item.item_id == "item-explicit-pinned-low-score" && item.pinned)
+    );
+    assert!(items.len() > 1);
+}
+
+#[test]
 fn capsule_builder_composes_with_real_fems_mt_handoff_retriever() {
     // Spec-Realism Gate Sub-rule 2: this test exercises CapsuleBuilder
     // against the REAL production FemsMtHandoffRetriever from FEMS V1
@@ -241,7 +335,10 @@ fn capsule_builder_composes_with_real_fems_mt_handoff_retriever() {
 
     // The build context task type drives policy lookup; the capsule must
     // carry the production default for that task type.
-    assert_eq!(capsule.policy.task_type, TaskType::KernelBuilderMtImplementation);
+    assert_eq!(
+        capsule.policy.task_type,
+        TaskType::KernelBuilderMtImplementation
+    );
 }
 
 fn context() -> BuildContext {
@@ -313,6 +410,7 @@ fn handoff_item(
         provenance_ref: format!("provenance://{item_id}"),
         token_count,
         base_score_x100,
+        pinned: false,
         predecessor_recommended,
         source_attempt_failed: false,
     }

@@ -1,15 +1,5 @@
-use handshake_core::storage::tests::{
-    postgres_backend_from_env, run_calendar_storage_conformance, sqlite_backend,
-};
+use handshake_core::storage::tests::{postgres_backend_from_env, run_calendar_storage_conformance};
 use handshake_core::storage::StorageError;
-
-#[tokio::test]
-async fn sqlite_calendar_storage_conformance() {
-    let db = sqlite_backend().await.expect("sqlite backend");
-    run_calendar_storage_conformance(db)
-        .await
-        .expect("sqlite calendar storage conformance");
-}
 
 #[tokio::test]
 async fn postgres_calendar_storage_conformance() {

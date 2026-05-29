@@ -5,6 +5,7 @@
 //! centralized observability via Flight Recorder.
 
 pub mod guard;
+pub mod local_router;
 pub mod ollama;
 pub mod openai_compat;
 pub mod registry;
@@ -17,6 +18,7 @@ use thiserror::Error;
 use unicode_normalization::UnicodeNormalization;
 use uuid::Uuid;
 
+use crate::model_runtime::CancellationToken;
 use crate::workflows::ModelSwapRequestV0_4;
 use guard::CloudEscalationBundleV0_4;
 
@@ -41,6 +43,14 @@ pub trait LlmClient: Send + Sync {
     /// Implementers MUST emit a Flight Recorder event with `trace_id`,
     /// `model_id`, and `TokenUsage` per §4.2.3.2.
     async fn completion(&self, req: CompletionRequest) -> Result<CompletionResponse, LlmError>;
+
+    /// Cancels an in-flight request when the underlying provider exposes a
+    /// model-specific cancellation path. The default implementation cancels
+    /// the supplied token so callers can rely on fail-closed local state even
+    /// for providers without remote cancellation support.
+    fn cancel(&self, _model_id: &str, token: CancellationToken) {
+        token.cancel();
+    }
 
     /// Swaps the active model in the underlying provider runtime (best-effort),
     /// honoring the Model Swap Protocol budgets and timeout.

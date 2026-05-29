@@ -18,9 +18,9 @@
 //! is implemented as a pure orthogonalisation function so it can be
 //! unit-tested in-tree without I/O. The full safetensors round-trip and
 //! optional ProcessOwnershipLedger spawn-time registration are
-//! orchestrated by `run_abliteration_offline`, which uses
-//! `candle_core::safetensors::load`/`save` (operator decision: option_c
-//! per WP-KERNEL-004 wp_validator_final_disposition; avoids the
+//! orchestrated by `run_abliteration_offline`, which delegates native
+//! safetensors I/O to the Candle adapter boundary (operator decision:
+//! option_c per WP-KERNEL-004 wp_validator_final_disposition; avoids the
 //! llama-cpp-2 + LLVM/libclang dependency that blocked MT-074).
 //!
 //! Target modules per kabachuha/abliterate.cpp pattern and MT-106
@@ -35,8 +35,6 @@ use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-#[cfg(feature = "candle-runtime-engine")]
-use std::collections::HashMap;
 #[cfg(feature = "candle-runtime-engine")]
 use std::io::Read;
 
@@ -242,10 +240,9 @@ pub fn is_abliteration_target_module(key: &str) -> bool {
 /// writes the resulting tensor set to `out_model_path`.
 ///
 /// This is the offline-tool entrypoint and is gated on the
-/// `candle-runtime-engine` cargo feature, which brings in
-/// `candle_core::safetensors`. The bin/abliterate.rs binary declares
-/// the same `required-features` so operators always invoke it with the
-/// Candle backend wired in.
+/// `candle-runtime-engine` cargo feature. The bin/abliterate.rs binary
+/// declares the same `required-features` so operators always invoke it
+/// with the Candle backend wired in.
 ///
 /// `ledger` is optional: production callers pass a live
 /// `LedgerBatcher` so the abliteration job appears in the
@@ -315,58 +312,8 @@ pub fn run_abliteration_offline(
         None
     };
 
-    // Tensor load + transform + save via Candle safetensors helpers.
-    let device = candle_core::Device::Cpu;
-    let input_tensors = candle_core::safetensors::load(&config.base_model_path, &device)
-        .map_err(|err| {
-            AbliterationError::Io(format!(
-                "candle_core::safetensors::load({}) failed: {err}",
-                config.base_model_path.display()
-            ))
-        })?;
-
-    if input_tensors.is_empty() {
-        return Err(AbliterationError::Io(format!(
-            "base safetensors {} contains no tensors",
-            config.base_model_path.display()
-        )));
-    }
-
-    let mut output_tensors: HashMap<String, candle_core::Tensor> = HashMap::new();
-    let mut orthogonalised_weight_keys: Vec<String> = Vec::new();
-
-    for (name, tensor) in input_tensors.into_iter() {
-        if !is_abliteration_target_module(&name) {
-            output_tensors.insert(name, tensor);
-            continue;
-        }
-
-        let transformed = orthogonalise_candle_tensor(&name, &tensor, &direction.values)?;
-        orthogonalised_weight_keys.push(name.clone());
-        output_tensors.insert(name, transformed);
-    }
-
-    orthogonalised_weight_keys.sort();
-
-    // Refuse to write a no-op artifact: if zero target modules matched
-    // it almost certainly means the operator pointed at the wrong file
-    // or the refusal direction width is wrong. Better to fail loudly
-    // than to ship a "abliterated" model that is byte-identical to the
-    // input.
-    if orthogonalised_weight_keys.is_empty() {
-        return Err(AbliterationError::WeightTransform(format!(
-            "no target modules matched in {}; expected at least one tensor whose key contains \
-             `.o_proj.` or `.down_proj.` and ends with `.weight`",
-            config.base_model_path.display()
-        )));
-    }
-
-    candle_core::safetensors::save(&output_tensors, &config.out_model_path).map_err(|err| {
-        AbliterationError::Io(format!(
-            "candle_core::safetensors::save({}) failed: {err}",
-            config.out_model_path.display()
-        ))
-    })?;
+    let orthogonalised_weight_keys =
+        crate::model_runtime::candle::run_abliteration_model_io(config, &direction.values)?;
 
     let provenance = AbliterationProvenance {
         base_model_sha256,
@@ -384,9 +331,8 @@ pub fn run_abliteration_offline(
     // §4.8 content-review pipelines can read it without re-deriving the
     // hash chain. Path is `{out_model_path}.provenance.json`.
     let provenance_path = provenance_sidecar_path(&config.out_model_path);
-    let provenance_bytes = serde_json::to_vec_pretty(&provenance).map_err(|err| {
-        AbliterationError::Io(format!("serialize provenance failed: {err}"))
-    })?;
+    let provenance_bytes = serde_json::to_vec_pretty(&provenance)
+        .map_err(|err| AbliterationError::Io(format!("serialize provenance failed: {err}")))?;
     std::fs::write(&provenance_path, &provenance_bytes).map_err(|err| {
         AbliterationError::Io(format!(
             "write provenance sidecar {} failed: {err}",
@@ -438,58 +384,6 @@ fn sha256_of_bytes(bytes: &[u8]) -> String {
     hex::encode(hasher.finalize())
 }
 
-/// Reads a 2-D F32 tensor into a row-major Vec<f32>, runs
-/// [`orthogonalise_weight_in_place`], and returns a new Tensor of the
-/// same shape/dtype on CPU. Rejects non-F32 tensors and tensors whose
-/// last dim does not match the refusal-direction width — both
-/// conditions would silently corrupt the output model otherwise.
-#[cfg(feature = "candle-runtime-engine")]
-fn orthogonalise_candle_tensor(
-    name: &str,
-    tensor: &candle_core::Tensor,
-    direction: &[f32],
-) -> Result<candle_core::Tensor, AbliterationError> {
-    let shape = tensor.shape();
-    let dims = shape.dims();
-    if dims.len() != 2 {
-        return Err(AbliterationError::WeightTransform(format!(
-            "target module {name} is not a 2-D Linear weight (shape={dims:?}); abliteration \
-             only orthogonalises Linear-layer weights",
-        )));
-    }
-    let rows = dims[0];
-    let cols = dims[1];
-    if cols != direction.len() {
-        return Err(AbliterationError::WeightTransform(format!(
-            "target module {name} has cols={cols} but refusal direction has length \
-             {}; cannot orthogonalise",
-            direction.len()
-        )));
-    }
-    if tensor.dtype() != candle_core::DType::F32 {
-        return Err(AbliterationError::WeightTransform(format!(
-            "target module {name} dtype={:?} is not F32; cast to F32 before abliterating",
-            tensor.dtype()
-        )));
-    }
-    let cpu_tensor = tensor.to_device(&candle_core::Device::Cpu).map_err(|err| {
-        AbliterationError::WeightTransform(format!(
-            "tensor {name} to_device(CPU) failed: {err}"
-        ))
-    })?;
-    let mut data: Vec<f32> = cpu_tensor.flatten_all().and_then(|t| t.to_vec1::<f32>()).map_err(
-        |err| AbliterationError::WeightTransform(format!("tensor {name} flatten/to_vec1 failed: {err}")),
-    )?;
-
-    orthogonalise_weight_in_place(&mut data, rows, cols, direction)?;
-
-    candle_core::Tensor::from_vec(data, (rows, cols), &candle_core::Device::Cpu).map_err(|err| {
-        AbliterationError::WeightTransform(format!(
-            "rebuilding tensor {name} from orthogonalised data failed: {err}"
-        ))
-    })
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -523,8 +417,8 @@ mod tests {
     #[test]
     fn orthogonalise_rejects_dimension_mismatch() {
         let mut weight = vec![1.0_f32; 6];
-        let err = orthogonalise_weight_in_place(&mut weight, 3, 2, &[1.0])
-            .expect_err("dim mismatch");
+        let err =
+            orthogonalise_weight_in_place(&mut weight, 3, 2, &[1.0]).expect_err("dim mismatch");
         assert!(format!("{err}").contains("direction length"));
     }
 

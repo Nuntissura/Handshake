@@ -30,6 +30,8 @@ use crate::kernel::{
 use async_trait::async_trait;
 use chrono::{NaiveDateTime, Utc};
 use serde_json::{json, Value};
+#[cfg(any(test, feature = "test-utils"))]
+use sqlx::QueryBuilder;
 use sqlx::{
     postgres::{PgPool, PgPoolOptions, PgRow},
     Executor, Postgres, Row,
@@ -40,11 +42,15 @@ use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::workflows::locus::types::{
-    LocusBindSessionParams, LocusCloseWpParams, LocusCompleteMtParams, LocusCreateWpParams,
-    LocusDeleteWpParams, LocusGateKind, LocusGateWpParams, LocusOperation,
-    LocusRecordIterationParams, LocusRegisterMtsParams, LocusStartMtParams,
-    LocusUnbindSessionParams, LocusUpdateWpParams, MicroTaskIterationOutcome, MicroTaskStatus,
-    RoutingPolicy, TaskBoardStatus, TrackedMicroTask, WorkPacketPhase, WorkPacketStatus,
+    executor_eligibility_policy_ids_for_family, governed_action_ids_for_family,
+    queue_automation_rule_ids_for_reason, resolve_queue_reason_with_mailbox_context,
+    transition_rule_ids_for_family, LocusBindSessionParams, LocusCloseWpParams,
+    LocusCompleteMtParams, LocusCreateWpParams, LocusDeleteWpParams, LocusGateKind,
+    LocusGateWpParams, LocusGetMtProgressParams, LocusOperation, LocusRecordIterationParams,
+    LocusRegisterMtsParams, LocusStartMtParams, LocusUnbindSessionParams, LocusUpdateWpParams,
+    MicroTaskIterationOutcome, MicroTaskStatus, RoutingPolicy, TaskBoardStatus, TrackedMicroTask,
+    TrackedMicroTaskArtifactV1, WorkPacketPhase, WorkPacketStatus, WorkflowQueueReasonCode,
+    WorkflowStateFamily,
 };
 
 pub struct PostgresDatabase {
@@ -286,6 +292,159 @@ fn micro_task_status_str(status: MicroTaskStatus) -> &'static str {
         MicroTaskStatus::Failed => "failed",
         MicroTaskStatus::Blocked => "blocked",
         MicroTaskStatus::Skipped => "skipped",
+    }
+}
+
+fn micro_task_workflow_state_with_mailbox(
+    status: MicroTaskStatus,
+    has_pending_mailbox_wait: bool,
+) -> (WorkflowStateFamily, WorkflowQueueReasonCode) {
+    let (family, base_reason) = match status {
+        MicroTaskStatus::Pending => (
+            WorkflowStateFamily::Ready,
+            WorkflowQueueReasonCode::ReadyForLocalSmallModel,
+        ),
+        MicroTaskStatus::InProgress => (
+            WorkflowStateFamily::Active,
+            WorkflowQueueReasonCode::ReadyForLocalSmallModel,
+        ),
+        MicroTaskStatus::Completed => (
+            WorkflowStateFamily::Done,
+            WorkflowQueueReasonCode::ValidationWait,
+        ),
+        MicroTaskStatus::Failed => (
+            WorkflowStateFamily::Blocked,
+            WorkflowQueueReasonCode::BlockedError,
+        ),
+        MicroTaskStatus::Blocked => (
+            WorkflowStateFamily::Blocked,
+            WorkflowQueueReasonCode::BlockedMissingContext,
+        ),
+        MicroTaskStatus::Skipped => (
+            WorkflowStateFamily::Canceled,
+            WorkflowQueueReasonCode::BlockedPolicy,
+        ),
+    };
+    let reason = resolve_queue_reason_with_mailbox_context(base_reason, has_pending_mailbox_wait);
+    (family, reason)
+}
+
+fn tracked_mt_progress_metadata(tracked_mt: &TrackedMicroTask) -> Value {
+    let has_pending_mailbox_wait = tracked_mt
+        .metadata
+        .get("has_pending_mailbox_wait")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let (workflow_state_family, queue_reason_code) =
+        micro_task_workflow_state_with_mailbox(tracked_mt.status, has_pending_mailbox_wait);
+    let summary_ref = tracked_mt
+        .summary_record_path
+        .clone()
+        .or_else(|| {
+            tracked_mt
+                .metadata
+                .get("structured_collaboration_summary_path")
+                .and_then(Value::as_str)
+                .map(ToOwned::to_owned)
+        })
+        .unwrap_or_default();
+
+    let mut artifact_json = serde_json::to_value(TrackedMicroTaskArtifactV1 {
+        schema_id: tracked_mt.schema_id.clone(),
+        schema_version: tracked_mt.schema_version.clone(),
+        record_id: tracked_mt.record_id.clone(),
+        record_kind: tracked_mt.record_kind.clone(),
+        project_profile_kind: tracked_mt.project_profile_kind,
+        profile_extension: tracked_mt.profile_extension.clone(),
+        updated_at: tracked_mt.updated_at.to_rfc3339(),
+        mirror_state: tracked_mt.mirror_state,
+        authority_refs: tracked_mt.authority_refs.clone(),
+        evidence_refs: tracked_mt.evidence_refs.clone(),
+        mirror_contract: None,
+        workflow_state_family,
+        queue_reason_code,
+        allowed_action_ids: governed_action_ids_for_family(workflow_state_family),
+        transition_rule_ids: transition_rule_ids_for_family(workflow_state_family),
+        queue_automation_rule_ids: queue_automation_rule_ids_for_reason(queue_reason_code),
+        executor_eligibility_policy_ids: executor_eligibility_policy_ids_for_family(
+            workflow_state_family,
+        ),
+        summary_ref,
+        mt_id: tracked_mt.mt_id.clone(),
+        wp_id: tracked_mt.wp_id.clone(),
+        name: tracked_mt.name.clone(),
+        scope: tracked_mt.scope.clone(),
+        files: tracked_mt.files.clone(),
+        done_criteria: tracked_mt.done_criteria.clone(),
+        status: tracked_mt.status,
+        active_session_ids: tracked_mt.active_session_ids.clone(),
+        iterations: tracked_mt.iterations.clone(),
+        current_iteration: tracked_mt.current_iteration,
+        max_iterations: tracked_mt.max_iterations,
+        validation_result: tracked_mt.validation_result.clone(),
+        escalation: tracked_mt.escalation.clone(),
+        started_at: tracked_mt.started_at,
+        completed_at: tracked_mt.completed_at,
+        duration_ms: tracked_mt.duration_ms,
+        depends_on: tracked_mt.depends_on.clone(),
+        metadata: tracked_mt.metadata.clone(),
+    })
+    .unwrap_or_else(|_| tracked_mt.metadata.clone());
+
+    if let Some(obj) = artifact_json.as_object_mut() {
+        obj.insert(
+            "active_session_ids".to_string(),
+            Value::Array(
+                tracked_mt
+                    .active_session_ids
+                    .iter()
+                    .cloned()
+                    .map(Value::String)
+                    .collect(),
+            ),
+        );
+    }
+
+    apply_canonical_overrides_to_progress_metadata(&mut artifact_json, tracked_mt);
+
+    artifact_json
+}
+
+fn apply_canonical_overrides_to_progress_metadata(
+    artifact_json: &mut Value,
+    tracked_mt: &TrackedMicroTask,
+) {
+    let Some(obj) = artifact_json.as_object_mut() else {
+        return;
+    };
+    let workflow_state_family = obj
+        .get("workflow_state_family")
+        .and_then(|value| serde_json::from_value::<WorkflowStateFamily>(value.clone()).ok());
+    if let Some(family) = workflow_state_family {
+        let canonical_actions: Vec<String> = governed_action_ids_for_family(family)
+            .iter()
+            .map(|action| (*action).to_string())
+            .collect();
+        if let Ok(value) = serde_json::to_value(&canonical_actions) {
+            obj.insert("allowed_action_ids".to_string(), value);
+        }
+    }
+
+    let has_pending_mailbox_wait = tracked_mt
+        .metadata
+        .get("has_pending_mailbox_wait")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    if !has_pending_mailbox_wait {
+        return;
+    }
+    let base_reason = obj
+        .get("queue_reason_code")
+        .and_then(|value| serde_json::from_value::<WorkflowQueueReasonCode>(value.clone()).ok())
+        .unwrap_or(WorkflowQueueReasonCode::ReadyForLocalSmallModel);
+    let resolved = resolve_queue_reason_with_mailbox_context(base_reason, true);
+    if let Ok(value) = serde_json::to_value(resolved) {
+        obj.insert("queue_reason_code".to_string(), value);
     }
 }
 
@@ -957,6 +1116,50 @@ async fn unbind_session(pool: &PgPool, params: LocusUnbindSessionParams) -> Stor
     }))
 }
 
+async fn get_mt_progress(pool: &PgPool, params: LocusGetMtProgressParams) -> StorageResult<Value> {
+    let row = sqlx::query_as::<
+        _,
+        (
+            String,
+            String,
+            String,
+            String,
+            Option<i64>,
+            Option<i64>,
+            String,
+        ),
+    >(
+        r#"
+        SELECT mt_id, wp_id, name, status, current_iteration, escalation_level, metadata
+        FROM micro_tasks
+        WHERE mt_id = $1
+        "#,
+    )
+    .bind(&params.mt_id)
+    .fetch_optional(pool)
+    .await?;
+
+    let Some((mt_id, wp_id, name, status, current_iteration, escalation_level, metadata)) = row
+    else {
+        return Err(StorageError::NotFound("micro_task"));
+    };
+
+    let metadata_json: Value = match serde_json::from_str::<TrackedMicroTask>(&metadata) {
+        Ok(tracked_mt) => tracked_mt_progress_metadata(&tracked_mt),
+        Err(_) => serde_json::from_str(&metadata).unwrap_or_else(|_| json!({})),
+    };
+
+    Ok(json!({
+        "mt_id": mt_id,
+        "wp_id": wp_id,
+        "name": name,
+        "status": status,
+        "current_iteration": current_iteration,
+        "escalation_level": escalation_level,
+        "metadata": metadata_json,
+    }))
+}
+
 pub(crate) async fn execute_locus_operation(
     postgres: &PostgresDatabase,
     op: LocusOperation,
@@ -974,12 +1177,12 @@ pub(crate) async fn execute_locus_operation(
         LocusOperation::UnbindSession(params) => unbind_session(pool, params).await,
         LocusOperation::RecordIteration(params) => record_iteration(pool, params).await,
         LocusOperation::CompleteMt(params) => complete_mt(pool, params).await,
+        LocusOperation::GetMtProgress(params) => get_mt_progress(pool, params).await,
         other => Err(StorageError::NotImplemented(match other {
             LocusOperation::AddDependency(_)
             | LocusOperation::RemoveDependency(_)
             | LocusOperation::QueryReady(_)
             | LocusOperation::GetWpStatus(_)
-            | LocusOperation::GetMtProgress(_)
             | LocusOperation::SyncTaskBoard(_) => "locus operation not yet supported for postgres",
             _ => "unsupported locus operation",
         })),
@@ -1503,7 +1706,7 @@ fn map_session_checkpoint_row(row: PgRow) -> StorageResult<SessionCheckpoint> {
 
 fn map_session_message(row: PgRow) -> StorageResult<SessionMessage> {
     let attachments_raw: String = row.get("attachments");
-    let token_count: Option<i64> = row.get("token_count");
+    let token_count = map_optional_i64_flexible(&row, "token_count");
     let redacted: bool = row.get("redacted");
     let tool_call_id: Option<String> = row.get("tool_call_id");
 
@@ -1926,6 +2129,15 @@ fn map_i64_flexible(row: &PgRow, column: &str) -> i64 {
     row.try_get::<i64, _>(column)
         .or_else(|_| row.try_get::<i32, _>(column).map(i64::from))
         .expect("integer column should decode as i64 or i32")
+}
+
+fn map_optional_i64_flexible(row: &PgRow, column: &str) -> Option<i64> {
+    row.try_get::<Option<i64>, _>(column)
+        .or_else(|_| {
+            row.try_get::<Option<i32>, _>(column)
+                .map(|value| value.map(i64::from))
+        })
+        .expect("nullable integer column should decode as i64 or i32")
 }
 
 fn map_f64_from_f32(row: &PgRow, column: &str) -> f64 {
@@ -2354,20 +2566,28 @@ impl super::Database for PostgresDatabase {
         Ok(())
     }
 
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-utils"))]
     async fn test_insert_loom_traversal_perf_fixture(
         &self,
         workspace_id: &str,
         total_blocks: usize,
     ) -> StorageResult<String> {
+        if total_blocks == 0 {
+            return Err(StorageError::Validation(
+                "loom traversal perf fixture requires at least one block",
+            ));
+        }
+
+        const INSERT_CHUNK_ROWS: usize = 1_000;
+
         let created_at = Utc::now();
         let derived_json = serde_json::to_string(&super::LoomBlockDerived::default())?;
         let start_block_id = "perf-block-00000".to_string();
         let mut tx = self.pool.begin().await?;
 
-        for idx in 0..total_blocks {
-            let block_id = format!("perf-block-{idx:05}");
-            sqlx::query(
+        for chunk_start in (0..total_blocks).step_by(INSERT_CHUNK_ROWS) {
+            let chunk_end = (chunk_start + INSERT_CHUNK_ROWS).min(total_blocks);
+            let mut builder: QueryBuilder<Postgres> = QueryBuilder::new(
                 r#"
                 INSERT INTO loom_blocks (
                     block_id,
@@ -2385,22 +2605,33 @@ impl super::Database for PostgresDatabase {
                     derived_json,
                     preview_status
                 )
-                VALUES ($1, $2, 'note', $3, FALSE, 'system', $4, $5, $6, 0, 0, 0, $7, 'not_generated')
                 "#,
-            )
-            .bind(&block_id)
-            .bind(workspace_id)
-            .bind(format!("Perf Block {idx}"))
-            .bind(Uuid::now_v7().to_string())
-            .bind(created_at)
-            .bind(created_at)
-            .bind(&derived_json)
-            .execute(&mut *tx)
-            .await?;
+            );
 
-            if idx > 0 {
-                let previous_block_id = format!("perf-block-{:05}", idx - 1);
-                sqlx::query(
+            builder.push_values(chunk_start..chunk_end, |mut row, idx| {
+                row.push_bind(format!("perf-block-{idx:05}"))
+                    .push_bind(workspace_id)
+                    .push(" 'note' ")
+                    .push_bind(format!("Perf Block {idx}"))
+                    .push(" 0 ")
+                    .push(" 'system' ")
+                    .push_bind(Uuid::now_v7().to_string())
+                    .push_bind(created_at)
+                    .push_bind(created_at)
+                    .push(" 0 ")
+                    .push(" 0 ")
+                    .push(" 0 ")
+                    .push_bind(&derived_json)
+                    .push(" 'none' ");
+            });
+
+            builder.build().execute(&mut *tx).await?;
+        }
+
+        if total_blocks > 1 {
+            for chunk_start in (1..total_blocks).step_by(INSERT_CHUNK_ROWS) {
+                let chunk_end = (chunk_start + INSERT_CHUNK_ROWS).min(total_blocks);
+                let mut builder: QueryBuilder<Postgres> = QueryBuilder::new(
                     r#"
                     INSERT INTO loom_edges (
                         edge_id,
@@ -2409,20 +2640,24 @@ impl super::Database for PostgresDatabase {
                         target_block_id,
                         edge_type,
                         created_by,
-                        created_at,
-                        updated_at
+                        created_at
                     )
-                    VALUES ($1, $2, $3, $4, 'mention', 'user', $5, $6)
                     "#,
-                )
-                .bind(Uuid::now_v7().to_string())
-                .bind(workspace_id)
-                .bind(previous_block_id)
-                .bind(&block_id)
-                .bind(created_at)
-                .bind(created_at)
-                .execute(&mut *tx)
-                .await?;
+                );
+
+                builder.push_values(chunk_start..chunk_end, |mut row, idx| {
+                    let block_id = format!("perf-block-{idx:05}");
+                    let previous_block_id = format!("perf-block-{:05}", idx - 1);
+                    row.push_bind(Uuid::now_v7().to_string())
+                        .push_bind(workspace_id)
+                        .push_bind(previous_block_id)
+                        .push_bind(block_id)
+                        .push(" 'mention' ")
+                        .push(" 'user' ")
+                        .push_bind(created_at);
+                });
+
+                builder.build().execute(&mut *tx).await?;
             }
         }
 
@@ -8176,7 +8411,7 @@ impl super::Database for PostgresDatabase {
             SET status = $1,
                 output_payload = COALESCE($2, output_payload),
                 error_message = COALESCE($3, error_message),
-                finished_at = CASE WHEN $1 IN ('completed','failed','cancelled','stalled') THEN $4 ELSE finished_at END,
+                finished_at = CASE WHEN $1 IN ('completed','completed_with_issues','failed','cancelled','stalled','poisoned') THEN $4 ELSE finished_at END,
                 updated_at = $4
             WHERE id = $5
             RETURNING
