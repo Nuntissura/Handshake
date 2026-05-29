@@ -73,6 +73,13 @@ poweroff -f"#;
 pub const SANDBOX_MODE_METADATA_KEY: &str = "hsk.sandbox.mode";
 /// The `SANDBOX_MODE_METADATA_KEY` value that selects the persistent-VM model.
 pub const SANDBOX_MODE_PERSISTENT: &str = "persistent";
+/// `ProcessSpec.metadata` key carrying the persistent-VM idle timeout in
+/// milliseconds (Master Spec §3.5.7 #6 idle auto-kill). When present and > 0,
+/// `spawn` arms a background reaper that terminates the persistent VM after it
+/// has been idle that long; absent/0 leaves the VM alive until an explicit
+/// `kill`. Carried in metadata to mirror the existing persistent-mode marker
+/// rather than churn the shared `ProcessSpec` struct across its 40+ call sites.
+pub const SANDBOX_IDLE_TIMEOUT_METADATA_KEY: &str = "hsk.sandbox.idle_timeout_ms";
 
 /// Marker the idle `/init` prints exactly once at boot. The snapshot/restore
 /// state-preservation test asserts this appears exactly once in the serial log
@@ -296,6 +303,12 @@ struct HandleState {
     /// `Some` for a persistent handle (snapshot/restore model); `None` for the
     /// ephemeral default model.
     persistent: Option<PersistentVm>,
+    /// Idle auto-kill (§3.5.7 #6) configuration for a persistent handle: when
+    /// `Some`, the idle reaper terminates the VM once `last_active` is older than
+    /// this many ms. `None` disables auto-reap.
+    idle_timeout_ms: Option<u64>,
+    /// Last time this handle saw activity (spawn or snapshot); drives idle reaping.
+    last_active: Instant,
 }
 
 impl Default for HandleState {
@@ -308,6 +321,8 @@ impl Default for HandleState {
             killed: false,
             binds: Vec::new(),
             persistent: None,
+            idle_timeout_ms: None,
+            last_active: Instant::now(),
         }
     }
 }
@@ -381,6 +396,86 @@ impl CloudHypervisorAdapter {
         })
     }
 
+    /// Enumerate the live persistent (snapshot-capable) handle ids this adapter
+    /// is currently tracking in-process (Master Spec v02.187 §3.5.7 #8 —
+    /// discovery for reclaim). Killed and ephemeral handles are excluded.
+    pub fn live_persistent_handle_ids(&self) -> Vec<Uuid> {
+        self.handles
+            .lock()
+            .map(|map| {
+                map.iter()
+                    .filter(|(_, state)| state.persistent.is_some() && !state.killed)
+                    .map(|(id, _)| *id)
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+
+    /// WSL scratch roots of the persistent VMs this adapter currently owns
+    /// in-process — used to distinguish live VMs from on-disk orphans.
+    fn live_vm_roots(&self) -> Vec<String> {
+        self.handles
+            .lock()
+            .map(|map| {
+                map.values()
+                    .filter(|state| !state.killed)
+                    .filter_map(|state| state.persistent.as_ref().map(|vm| vm.vm_root.clone()))
+                    .filter(|root| !root.is_empty())
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+
+    /// Discover persistent/restore VM scratch roots left on disk that this
+    /// adapter does NOT own in-process — orphans from a crashed or restarted
+    /// prior run (Master Spec v02.187 §3.5.7 #8/#9 — no leaked VMs across
+    /// restart). Returns absolute WSL dir paths.
+    pub async fn discover_orphan_vm_dirs(&self) -> Vec<String> {
+        let listing = match run_wsl_sh(
+            &self.config,
+            &format!(
+                "ls -1d {wd}/persistent-* {wd}/restore-* 2>/dev/null || true",
+                wd = sh_quote_wsl(&self.config.work_dir)
+            ),
+            PROBE_TIMEOUT_MS,
+        )
+        .await
+        {
+            Ok(listing) => listing,
+            Err(_) => return Vec::new(),
+        };
+        let live = self.live_vm_roots();
+        String::from_utf8_lossy(&listing.stdout)
+            .lines()
+            .map(|line| line.trim().to_string())
+            .filter(|line| !line.is_empty() && !live.contains(line))
+            .collect()
+    }
+
+    /// Reclaim orphaned persistent/restore VMs left on disk by a prior run:
+    /// best-effort terminate any Cloud Hypervisor process still bound to the
+    /// orphan's scratch root, then remove the scratch dir. Returns the number of
+    /// orphan roots cleaned. Safe to call at adapter bring-up for crash recovery
+    /// (it never touches a VM this adapter currently owns). Master Spec §3.5.7 #9.
+    pub async fn reclaim_orphan_vm_dirs(&self) -> usize {
+        let orphans = self.discover_orphan_vm_dirs().await;
+        let mut reclaimed = 0;
+        for dir in orphans {
+            // Terminate any CH process whose argv references this scratch root
+            // (its --api-socket / --initramfs live under it).
+            let _ = run_wsl_sh(
+                &self.config,
+                &format!("pkill -f {d} 2>/dev/null || true", d = sh_quote_wsl(&dir)),
+                PROBE_TIMEOUT_MS,
+            )
+            .await;
+            if remove_wsl_path(&self.config, &dir).await {
+                reclaimed += 1;
+            }
+        }
+        reclaimed
+    }
+
     fn ensure_handle(&self, handle: &ProcessHandle) -> Result<(), SandboxAdapterError> {
         if handle.adapter_id != AdapterId::new(CLOUD_HYPERVISOR_ADAPTER_ID) {
             return Err(SandboxAdapterError::ProcessHandleStale {
@@ -447,7 +542,10 @@ impl CloudHypervisorAdapter {
     /// registers a persistent handle. Absolute WSL paths are used throughout so
     /// the snapshot config records an absolute serial path that a restored VM
     /// resolves regardless of the CH process working directory.
-    async fn spawn_persistent(&self) -> Result<ProcessHandle, SandboxAdapterError> {
+    async fn spawn_persistent(
+        &self,
+        idle_timeout_ms: Option<u64>,
+    ) -> Result<ProcessHandle, SandboxAdapterError> {
         let vm_id = Uuid::now_v7().simple().to_string();
         let vm_root = format!("{}/persistent-{vm_id}", self.config.work_dir);
         let api_socket = format!("{vm_root}/ch.sock");
@@ -521,6 +619,7 @@ impl CloudHypervisorAdapter {
         // adapter Arc drops.
         let mut hstate = HandleState::default();
         hstate.persistent = Some(vm);
+        hstate.idle_timeout_ms = idle_timeout_ms;
         self.handles
             .lock()
             .map_err(|error| spawn_failed(format!("handle registry poisoned: {error}")))?
@@ -529,7 +628,53 @@ impl CloudHypervisorAdapter {
             .lock()
             .await
             .insert(handle.id, child);
+
+        // Idle auto-kill (Master Spec v02.187 §3.5.7 #6): if an idle timeout was
+        // requested, arm a background reaper so a persistent VM whose owner never
+        // calls kill() still self-reaps once idle (reinforces CX-503D).
+        if idle_timeout_ms.is_some() {
+            self.spawn_idle_reaper(handle.clone());
+        }
         Ok(handle)
+    }
+
+    /// Mark a handle as active (resets its idle clock). Called on spawn and on
+    /// snapshot so the idle reaper only fires after genuine inactivity.
+    fn touch_activity(&self, id: Uuid) {
+        if let Ok(mut map) = self.handles.lock() {
+            if let Some(state) = map.get_mut(&id) {
+                state.last_active = Instant::now();
+            }
+        }
+    }
+
+    /// Background idle reaper for a persistent handle (§3.5.7 #6). Polls the
+    /// handle's `last_active`; once idle longer than its `idle_timeout_ms`, it
+    /// terminates the VM. Exits cleanly when the handle is killed or removed.
+    fn spawn_idle_reaper(&self, handle: ProcessHandle) {
+        let adapter = self.clone();
+        tokio::spawn(async move {
+            loop {
+                tokio::time::sleep(Duration::from_millis(500)).await;
+                let (killed, timeout_ms, last_active) = match adapter.handles.lock() {
+                    Ok(map) => match map.get(&handle.id) {
+                        Some(state) => (state.killed, state.idle_timeout_ms, state.last_active),
+                        None => return,
+                    },
+                    Err(_) => return,
+                };
+                if killed {
+                    return;
+                }
+                match timeout_ms {
+                    Some(ms) if last_active.elapsed() >= Duration::from_millis(ms) => {
+                        let _ = adapter.kill(&handle, Signal::Term).await;
+                        return;
+                    }
+                    _ => continue,
+                }
+            }
+        });
     }
 }
 
@@ -564,7 +709,12 @@ impl SandboxAdapter for CloudHypervisorAdapter {
             .map(|value| value == SANDBOX_MODE_PERSISTENT)
             .unwrap_or(false);
         if persistent {
-            return self.spawn_persistent().await;
+            let idle_timeout_ms = spec
+                .metadata
+                .get(SANDBOX_IDLE_TIMEOUT_METADATA_KEY)
+                .and_then(|value| value.trim().parse::<u64>().ok())
+                .filter(|value| *value > 0);
+            return self.spawn_persistent(idle_timeout_ms).await;
         }
 
         // Ephemeral model: the VM itself is not booted here, a fresh VM is
@@ -883,6 +1033,9 @@ impl SandboxAdapter for CloudHypervisorAdapter {
         handle: &ProcessHandle,
     ) -> Result<SnapshotRef, SandboxAdapterError> {
         self.ensure_handle(handle)?;
+        // Snapshotting is activity: reset the idle clock so the reaper does not
+        // race a VM that is actively being checkpointed.
+        self.touch_activity(handle.id);
         let vm = self
             .handles
             .lock()

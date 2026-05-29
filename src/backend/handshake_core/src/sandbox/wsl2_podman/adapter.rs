@@ -8,7 +8,7 @@ use async_trait::async_trait;
 use super::gpu_probe::{probe_gpu_passthrough, GpuProbeCache};
 use super::podman_cli::{
     parse_podman_exit_code, parse_podman_rootless_info, parse_podman_status, podman_exec_args,
-    podman_run_args, run_podman_command,
+    podman_run_args, run_podman_command, windows_path_to_wsl_mount_path,
 };
 use super::wsl_detection::{default_wsl_exe, verify_wsl2_distro};
 use crate::sandbox::{
@@ -184,6 +184,64 @@ impl SandboxAdapter for Wsl2PodmanAdapter {
         Err(spawn_failed(
             "post-spawn fs_bind unsupported on Podman; declare in ProcessSpec.binds",
         ))
+    }
+
+    async fn copy_in(
+        &self,
+        handle: &ProcessHandle,
+        host_path: PathBuf,
+        guest_path: PathBuf,
+    ) -> Result<(), SandboxAdapterError> {
+        self.ensure_handle(handle)?;
+        // Podman runs inside WSL2, so the host side of `podman cp` must be a
+        // WSL mount path (/mnt/<drive>/...), not a raw Windows path.
+        let args = vec![
+            "cp".to_string(),
+            windows_path_to_wsl_mount_path(&host_path),
+            format!(
+                "{}:{}",
+                handle.sandbox_internal_id,
+                guest_path.to_string_lossy()
+            ),
+        ];
+        let output =
+            run_podman_command(&self.config, &args, None, Some(self.config.command_timeout_ms()))
+                .await?;
+        if output.exit_code != 0 {
+            return Err(SandboxAdapterError::CopyFailed {
+                adapter_id: AdapterId::new(WSL2_PODMAN_ADAPTER_ID),
+                reason: output.stderr_text(),
+            });
+        }
+        Ok(())
+    }
+
+    async fn copy_out(
+        &self,
+        handle: &ProcessHandle,
+        guest_path: PathBuf,
+        host_path: PathBuf,
+    ) -> Result<(), SandboxAdapterError> {
+        self.ensure_handle(handle)?;
+        let args = vec![
+            "cp".to_string(),
+            format!(
+                "{}:{}",
+                handle.sandbox_internal_id,
+                guest_path.to_string_lossy()
+            ),
+            windows_path_to_wsl_mount_path(&host_path),
+        ];
+        let output =
+            run_podman_command(&self.config, &args, None, Some(self.config.command_timeout_ms()))
+                .await?;
+        if output.exit_code != 0 {
+            return Err(SandboxAdapterError::CopyFailed {
+                adapter_id: AdapterId::new(WSL2_PODMAN_ADAPTER_ID),
+                reason: output.stderr_text(),
+            });
+        }
+        Ok(())
     }
 
     async fn net_policy(

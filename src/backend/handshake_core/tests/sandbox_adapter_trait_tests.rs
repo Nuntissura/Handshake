@@ -185,10 +185,13 @@ fn sandbox_adapter_trait_source_has_exact_public_method_shape() {
         .filter(|line| line.starts_with("async fn ") || line.starts_with("fn "))
         .collect::<Vec<_>>();
 
+    // 8 core methods + the Master Spec v02.187 §3.5.7 additive methods:
+    // snapshot/restore (#7) and copy_in/copy_out (#4) = 12.
     assert_eq!(
         declarations.len(),
-        8,
-        "SandboxAdapter must expose exactly the eight spec methods: {declarations:?}"
+        12,
+        "SandboxAdapter must expose exactly the core 8 methods plus the §3.5.7 \
+         additive methods snapshot/restore/copy_in/copy_out: {declarations:?}"
     );
 
     for method in [
@@ -199,6 +202,10 @@ fn sandbox_adapter_trait_source_has_exact_public_method_shape() {
         "kill",
         "status",
         "exit_code",
+        "snapshot",
+        "restore",
+        "copy_in",
+        "copy_out",
         "capabilities",
     ] {
         assert!(
@@ -244,4 +251,27 @@ fn assert_adapter_unavailable<T: std::fmt::Debug>(result: Result<T, SandboxAdapt
         }
         other => panic!("expected AdapterUnavailable, got {other:?}"),
     }
+}
+
+#[tokio::test]
+async fn copy_in_out_default_is_unsupported() {
+    // Master Spec §3.5.7 #4: the trait exposes copy_in/copy_out; adapters with no
+    // live per-file channel (the default) return a typed CopyUnsupported rather
+    // than silently succeeding or panicking.
+    let adapter = NoopAdapter::default();
+    let handle = ProcessHandle::new(AdapterId::new("noop"), None, "noop-copy");
+    let r_in = adapter
+        .copy_in(&handle, PathBuf::from("/tmp/h"), PathBuf::from("/g"))
+        .await;
+    assert!(
+        matches!(r_in, Err(SandboxAdapterError::CopyUnsupported { .. })),
+        "default copy_in must be CopyUnsupported, got {r_in:?}"
+    );
+    let r_out = adapter
+        .copy_out(&handle, PathBuf::from("/g"), PathBuf::from("/tmp/h"))
+        .await;
+    assert!(
+        matches!(r_out, Err(SandboxAdapterError::CopyUnsupported { .. })),
+        "default copy_out must be CopyUnsupported, got {r_out:?}"
+    );
 }

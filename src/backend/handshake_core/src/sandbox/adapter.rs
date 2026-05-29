@@ -199,5 +199,41 @@ pub trait SandboxAdapter: Send + Sync {
         })
     }
 
+    /// Copy a file/directory from the host into the running sandbox at
+    /// `guest_path` (Master Spec v02.187 §3.5.7 #4 — first-class filesystem
+    /// namespace; callers must never shell out to `cp`/`cat` themselves).
+    /// Adapters with a live, host-reachable guest filesystem (e.g. a persistent
+    /// container) override this; the default is a typed
+    /// [`SandboxAdapterError::CopyUnsupported`] for adapters whose isolation
+    /// model has no live per-file channel (use `fs_bind` there instead).
+    async fn copy_in(
+        &self,
+        handle: &ProcessHandle,
+        host_path: PathBuf,
+        guest_path: PathBuf,
+    ) -> Result<(), SandboxAdapterError> {
+        let _ = (handle, host_path, guest_path);
+        Err(SandboxAdapterError::CopyUnsupported {
+            adapter_id: self.capabilities().adapter_id,
+        })
+    }
+
+    /// Copy a file/directory out of the running sandbox at `guest_path` to the
+    /// host `host_path` (§3.5.7 #4). Mirrors [`copy_in`]; the default returns
+    /// [`SandboxAdapterError::CopyUnsupported`].
+    ///
+    /// [`copy_in`]: SandboxAdapter::copy_in
+    async fn copy_out(
+        &self,
+        handle: &ProcessHandle,
+        guest_path: PathBuf,
+        host_path: PathBuf,
+    ) -> Result<(), SandboxAdapterError> {
+        let _ = (handle, guest_path, host_path);
+        Err(SandboxAdapterError::CopyUnsupported {
+            adapter_id: self.capabilities().adapter_id,
+        })
+    }
+
     fn capabilities(&self) -> AdapterCapabilities;
 }

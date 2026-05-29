@@ -12,8 +12,8 @@ use std::collections::BTreeMap;
 use handshake_core::sandbox::{
     AdapterId, Command, CloudHypervisorAdapter, CloudHypervisorConfig, ImageRef, IsolationTier,
     NetPolicy, ProcessSpec, ProcessStatus, ResourceLimits, SandboxAdapter, SandboxAdapterError,
-    Signal, TrustClass, CLOUD_HYPERVISOR_ADAPTER_ID, SANDBOX_MODE_METADATA_KEY,
-    SANDBOX_MODE_PERSISTENT,
+    Signal, TrustClass, CLOUD_HYPERVISOR_ADAPTER_ID, SANDBOX_IDLE_TIMEOUT_METADATA_KEY,
+    SANDBOX_MODE_METADATA_KEY, SANDBOX_MODE_PERSISTENT,
 };
 
 fn skip_message(error: &SandboxAdapterError) -> String {
@@ -229,6 +229,112 @@ async fn cloud_hypervisor_restored_survives_original_teardown() {
     );
 
     let _ = adapter.kill(&restored, Signal::Kill).await;
+}
+
+/// §3.5.7 #6: a persistent VM with an idle timeout must self-reap when left idle
+/// (no owner kill, no activity) — orphaned-sandbox auto-reaping.
+#[tokio::test]
+async fn cloud_hypervisor_persistent_vm_idle_auto_kills() {
+    let adapter = match CloudHypervisorAdapter::try_new(CloudHypervisorConfig::default()).await {
+        Ok(adapter) => adapter,
+        Err(error) => {
+            require_or_skip(&error);
+            return;
+        }
+    };
+
+    let mut spec = persistent_spec();
+    spec.metadata.insert(
+        SANDBOX_IDLE_TIMEOUT_METADATA_KEY.to_string(),
+        "4000".to_string(),
+    );
+    let handle = adapter
+        .spawn(spec)
+        .await
+        .expect("spawn persistent microVM with idle timeout");
+    assert!(
+        adapter.live_persistent_handle_ids().contains(&handle.id),
+        "freshly spawned persistent handle must be live"
+    );
+
+    // No activity at all: the reaper must auto-kill within idle_timeout + slack.
+    let mut reaped = false;
+    for _ in 0..20 {
+        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+        if !adapter.live_persistent_handle_ids().contains(&handle.id) {
+            reaped = true;
+            break;
+        }
+    }
+    assert!(reaped, "idle persistent VM must self-reap via the idle reaper");
+    match adapter.status(&handle).await {
+        Ok(ProcessStatus::Killed { .. }) => {}
+        other => panic!("expected Killed after idle reap, got {other:?}"),
+    }
+}
+
+/// §3.5.7 #8/#9: the adapter must enumerate its live persistent handles and
+/// reclaim on-disk orphans from a crashed/restarted prior run — without ever
+/// removing a VM it currently owns.
+#[tokio::test]
+async fn cloud_hypervisor_enumerate_and_reclaim_orphans() {
+    let adapter = match CloudHypervisorAdapter::try_new(CloudHypervisorConfig::default()).await {
+        Ok(adapter) => adapter,
+        Err(error) => {
+            require_or_skip(&error);
+            return;
+        }
+    };
+
+    let handle = adapter
+        .spawn(persistent_spec())
+        .await
+        .expect("spawn persistent microVM");
+    assert!(
+        adapter.live_persistent_handle_ids().contains(&handle.id),
+        "spawned persistent handle must be enumerated as live"
+    );
+
+    // Fabricate an on-disk orphan the adapter does NOT own (simulating a VM left
+    // by a crashed prior run).
+    let wd = adapter.config().work_dir().to_string();
+    let orphan = format!("{wd}/persistent-orphan-test-{}", uuid::Uuid::now_v7().simple());
+    let mk = std::process::Command::new("wsl.exe")
+        .args([
+            "-d",
+            "Ubuntu",
+            "-e",
+            "sh",
+            "-c",
+            &format!("mkdir -p '{orphan}' && : > '{orphan}/ch.sock'"),
+        ])
+        .status()
+        .expect("create orphan dir");
+    assert!(mk.success(), "fabricating orphan dir must succeed");
+
+    let found = adapter.discover_orphan_vm_dirs().await;
+    assert!(
+        found.iter().any(|d| d == &orphan),
+        "fabricated orphan must be discovered; got {found:?}"
+    );
+
+    let reclaimed = adapter.reclaim_orphan_vm_dirs().await;
+    assert!(reclaimed >= 1, "must reclaim at least the fabricated orphan");
+    assert!(
+        !adapter.discover_orphan_vm_dirs().await.iter().any(|d| d == &orphan),
+        "orphan must be gone after reclaim"
+    );
+    // Reclaim must NOT have touched the live VM.
+    assert!(
+        adapter.live_persistent_handle_ids().contains(&handle.id),
+        "reclaim must not remove the live VM this adapter owns"
+    );
+
+    adapter.kill(&handle, Signal::Kill).await.expect("kill live handle");
+    assert!(
+        !adapter.live_persistent_handle_ids().contains(&handle.id),
+        "killed handle must no longer be enumerated"
+    );
 }
 
 /// Real microVM boot: spawn a handle, exec a command inside a freshly booted

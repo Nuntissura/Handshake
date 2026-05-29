@@ -175,6 +175,62 @@ impl SandboxAdapter for DockerAdapter {
         ))
     }
 
+    async fn copy_in(
+        &self,
+        handle: &ProcessHandle,
+        host_path: PathBuf,
+        guest_path: PathBuf,
+    ) -> Result<(), SandboxAdapterError> {
+        self.ensure_handle(handle)?;
+        let args = vec![
+            "cp".to_string(),
+            host_path.to_string_lossy().to_string(),
+            format!(
+                "{}:{}",
+                handle.sandbox_internal_id,
+                guest_path.to_string_lossy()
+            ),
+        ];
+        let output =
+            run_docker_command(&self.config, &args, None, Some(self.config.command_timeout_ms()))
+                .await?;
+        if output.exit_code != 0 {
+            return Err(SandboxAdapterError::CopyFailed {
+                adapter_id: AdapterId::new(DOCKER_ADAPTER_ID),
+                reason: output.stderr_text(),
+            });
+        }
+        Ok(())
+    }
+
+    async fn copy_out(
+        &self,
+        handle: &ProcessHandle,
+        guest_path: PathBuf,
+        host_path: PathBuf,
+    ) -> Result<(), SandboxAdapterError> {
+        self.ensure_handle(handle)?;
+        let args = vec![
+            "cp".to_string(),
+            format!(
+                "{}:{}",
+                handle.sandbox_internal_id,
+                guest_path.to_string_lossy()
+            ),
+            host_path.to_string_lossy().to_string(),
+        ];
+        let output =
+            run_docker_command(&self.config, &args, None, Some(self.config.command_timeout_ms()))
+                .await?;
+        if output.exit_code != 0 {
+            return Err(SandboxAdapterError::CopyFailed {
+                adapter_id: AdapterId::new(DOCKER_ADAPTER_ID),
+                reason: output.stderr_text(),
+            });
+        }
+        Ok(())
+    }
+
     async fn net_policy(
         &self,
         handle: &ProcessHandle,

@@ -294,6 +294,13 @@ pub enum SandboxAdapterError {
         adapter_id: AdapterId,
         reason: String,
     },
+    #[error("sandbox adapter {adapter_id} does not support copy_in/copy_out")]
+    CopyUnsupported { adapter_id: AdapterId },
+    #[error("sandbox adapter {adapter_id} copy_in/copy_out failed: {reason}")]
+    CopyFailed {
+        adapter_id: AdapterId,
+        reason: String,
+    },
 }
 
 fn format_capability_set(capabilities: &BTreeSet<RequiredCapability>) -> String {
