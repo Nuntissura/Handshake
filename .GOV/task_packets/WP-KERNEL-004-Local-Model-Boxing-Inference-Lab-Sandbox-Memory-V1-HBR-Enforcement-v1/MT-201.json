@@ -1,0 +1,129 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "mt_id": "201",
+  "created_at_utc": "2026-05-29T00:00:00Z",
+  "updated_at_utc": "2026-05-29T06:30:00Z",
+  "cluster": "B",
+  "cluster_subscope": "sandbox-strong-isolation-tier",
+  "title": "Sandbox strong-isolation tier: Tier-2 gVisor + Tier-3 Cloud Hypervisor microVM (Master Spec v02.187 §3.5)",
+  "goal": "Implement the Master Spec v02.187 §3.5 isolation-tier model and strong-isolation adapters as real, working product code: the IsolationTier/TrustClass model and trust-keyed selection, a real Tier-3 CloudHypervisorAdapter (boots a Cloud Hypervisor microVM under WSL2+KVM, runs code, captures output), real read-write fs_bind, a real Tier-2 gVisor adapter, real microVM snapshot/restore, and the frontend capability type mirror. Folded into WP-KERNEL-004 per operator instruction (signature ilja290520260357).",
+  "owned_files": [
+    "src/backend/handshake_core/src/sandbox/adapter.rs",
+    "src/backend/handshake_core/src/sandbox/types.rs",
+    "src/backend/handshake_core/src/sandbox/selection.rs",
+    "src/backend/handshake_core/src/sandbox/bootstrap.rs",
+    "src/backend/handshake_core/src/sandbox/cloud_hypervisor/mod.rs",
+    "src/backend/handshake_core/src/sandbox/cloud_hypervisor/adapter.rs",
+    "src/backend/handshake_core/src/sandbox/gvisor/mod.rs",
+    "src/backend/handshake_core/src/sandbox/gvisor/adapter.rs",
+    "src/backend/handshake_core/tests/sandbox_isolation_tier_tests.rs",
+    "src/backend/handshake_core/tests/sandbox_selection_tests.rs",
+    "src/backend/handshake_core/tests/cloud_hypervisor_adapter_tests.rs",
+    "src/backend/handshake_core/tests/gvisor_adapter_tests.rs",
+    "app/src/components/diagnostics/sandbox/types.ts"
+  ],
+  "proof_commands": [
+    "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --target-dir ../Handshake_Artifacts/handshake-cargo-target --test sandbox_isolation_tier_tests",
+    "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --target-dir ../Handshake_Artifacts/handshake-cargo-target --test sandbox_selection_tests",
+    "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --target-dir ../Handshake_Artifacts/handshake-cargo-target --test cloud_hypervisor_adapter_tests -- --nocapture",
+    "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --target-dir ../Handshake_Artifacts/handshake-cargo-target --test gvisor_adapter_tests -- --nocapture"
+  ],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.187/spec-modules/03-local-first-infrastructure.md#3.5.5",
+    ".GOV/spec/master-spec-v02.187/spec-modules/03-local-first-infrastructure.md#3.5.6",
+    ".GOV/spec/master-spec-v02.187/spec-modules/03-local-first-infrastructure.md#3.5.7"
+  ],
+  "host_dependencies": {
+    "note": "Strong-isolation tiers require Linux+KVM; on the Windows 11 host this is provided by WSL2. Real deps installed (operator-authorized): WSL2 Ubuntu, Cloud Hypervisor v52.0 + ch-remote, Firecracker-CI vmlinux-6.1.102, busybox initramfs, gVisor runsc release-20260525, /dev/kvm rw (wsl.conf boot hook + kvm group). Adapters fail-closed AdapterUnavailable on hosts lacking these.",
+    "wsl_setup_root": "WSL:/home/ilja_smets/handshake-sandbox"
+  },
+  "lifecycle": {
+    "status": "READY_FOR_VALIDATION",
+    "depends_on": [],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING",
+    "claimed_by": "KERNEL_BUILDER-20260529-020021",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260529-020021",
+    "completed_by": null
+  },
+  "scope": {
+    "summary": "Real implementation of the v02.187 §3.5 strong-isolation sandbox tier (no mocks): tier model + trust-keyed selection + CloudHypervisor Tier-3 microVM + fs_bind + gVisor Tier-2 + snapshot/restore + frontend type.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/sandbox/**",
+      "src/backend/handshake_core/tests/sandbox_*.rs",
+      "src/backend/handshake_core/tests/cloud_hypervisor_adapter_tests.rs",
+      "src/backend/handshake_core/tests/gvisor_adapter_tests.rs",
+      "app/src/components/diagnostics/sandbox/types.ts"
+    ],
+    "forbidden_paths": [".GOV/**"],
+    "acceptance_criteria": [
+      {"id": "AC-SANDBOX-ISOLATION-TIERS", "status": "PROVED", "requirement": "IsolationTier{Tier1Container,Tier2Syscall,Tier3Microvm} + TrustClass{Trusted,Reviewed,UntrustedAgent default} + min_isolation_tier mapping; AdapterCapabilities gains isolation_tier/requires_nested_virt/supports_snapshot; ProcessSpec gains trust_class.", "evidence_commit": "2e30b770", "evidence": "cargo test sandbox_isolation_tier_tests 6/6"},
+      {"id": "AC-SANDBOX-MICROVM-ADAPTER", "status": "PROVED", "requirement": "Real CloudHypervisorAdapter (Tier3Microvm) boots a Cloud Hypervisor microVM under WSL2+KVM and runs code in-guest, capturing real stdout + exit code; ephemeral microVM per exec.", "evidence_commit": "51b3607a", "evidence": "cloud_hypervisor_adapter_tests: real microVM stdout handshake-microvm-ok + Linux, rc=0; nonzero rc=7"},
+      {"id": "AC-SANDBOX-TRUST-SELECTION", "status": "PROVED", "requirement": "Trust-keyed selection routes UntrustedAgent to the weakest available tier >= Tier-3 (microVM), keeps Trusted/Reviewed on Tier-1, and fails closed (IsolationTierUnsatisfied) when no satisfying adapter exists. Never downgrades.", "evidence_commit": "85d3b98b", "evidence": "sandbox_selection_tests: untrusted->Tier3 routing + trusted->Tier1 + fail-closed cases"},
+      {"id": "AC-SANDBOX-FS-BIND", "status": "PROVED", "requirement": "Real read-write fs_bind: host workspace dir baked into the microVM (initramfs-bake) and changes written back to the host via serial-tar. Reserved-path rejection.", "evidence_commit": "eb7dadcd", "evidence": "cloud_hypervisor_fs_bind_read_write_writes_back_to_host: host output.txt == MODIFIED-IN-VM"},
+      {"id": "AC-SANDBOX-GVISOR-TIER2", "status": "PROVED", "requirement": "Real Tier-2 GvisorAdapter runs commands in a gVisor (runsc) syscall sandbox via WSL2; registered; never the silent default.", "evidence_commit": "7fc79938", "evidence": "gvisor_adapter_tests: real sandbox gvisor-tier2-ok + Linux rc=0; nonzero rc=7"},
+      {"id": "AC-SANDBOX-SNAPSHOT-RESTORE", "status": "PROVED", "requirement": "Real CH microVM snapshot/restore (persistent-VM mode + ch-remote pause/snapshot + cloud-hypervisor --restore) preserves running in-RAM state across restore; trait gains snapshot/restore (default Unsupported); supports_snapshot=true.", "evidence_commit": "f2a97650", "evidence": "cloud_hypervisor_snapshot_restore_preserves_running_state PASS: in-RAM TICK counter continued across restore (before=1 -> after=4) = resumed from captured memory, not rebooted. SandboxAdapter gains default snapshot/restore (typed SnapshotUnsupported); LedgerDecorator delegates snapshot + records a restore START; SnapshotRef.observe_path reattaches the restored serial stream. cloud_hypervisor_adapter_tests 5/5 green."},
+      {"id": "AC-SANDBOX-FRONTEND-TYPE", "status": "PROVED", "requirement": "Frontend AdapterCapabilities TS type mirrors the new fields + IsolationTier.", "evidence_commit": "6841209d", "evidence": "app/src/components/diagnostics/sandbox/types.ts (additive; full pnpm build not run in this env)"}
+    ],
+    "proof_targets": [
+      "sandbox_isolation_tier_tests",
+      "sandbox_selection_tests",
+      "cloud_hypervisor_adapter_tests",
+      "gvisor_adapter_tests"
+    ]
+  },
+  "validator_focus": [
+    "Confirm the strong-isolation adapters genuinely boot real sandboxes (not mocks) where WSL2+KVM is available; confirm AdapterUnavailable fail-closed where not.",
+    "Confirm the trust->tier selection cannot place untrusted-agent code on a Tier-1 shared-kernel adapter.",
+    "Confirm fs_bind write-back cannot escape the declared bind path; reserved guest paths rejected.",
+    "Confirm snapshot/restore preserves state and that exec-into-persistent-VM (vsock agent) is explicitly deferred, not faked."
+  ],
+  "risk_if_missed": "Without strong isolation, untrusted agent-written code runs in shared-kernel containers (host-compromise on escape). Without trust-keyed routing, the tier model is advisory only.",
+  "known_followups": [
+    "exec-into-persistent-VM via a vsock guest agent (snapshot/restore VMs are currently snapshot-only, not exec-into).",
+    "virtio-fs/disk live fs_bind requires a virtio-fs/virtio-pci-capable guest kernel (current Firecracker kernel lacks them; initramfs-bake is used).",
+    "reconcile the older kernel/sandbox MicroVmAdapterStub (MT-018/020 HardIsolationAdapter layer) with the new sandbox/ Tier-3 CloudHypervisorAdapter.",
+    "frontend: run pnpm build/tests + add diagnostics table rows for the new capability fields.",
+    "persist /dev/kvm permissions verified across a full WSL shutdown cycle."
+  ],
+  "hbr_obligations": [],
+  "handoff": {
+    "coder_session": "KERNEL_BUILDER-20260529-020021",
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "A 'real' adapter could secretly mock execution; mitigated by integration tests that boot actual microVMs/sandboxes and assert in-guest output.",
+      "Trust-tier guard could be bypassed if selection picks the default adapter without re-checking tier; covered by the routing fix + end-to-end test.",
+      "fs_bind write-back could overwrite host paths outside the bind; mitigated by per-bind guest-path validation + bind-scoped copy-back."
+    ],
+    "minimum_controls": [
+      "Every strong-isolation adapter has a real integration test that boots an actual sandbox and asserts real in-guest output.",
+      "Selection fails closed (typed IsolationTierUnsatisfied) rather than downgrading untrusted workloads.",
+      "Adapters declare runtime_available only when the real runtime is present (try_new probe)."
+    ]
+  }
+}
