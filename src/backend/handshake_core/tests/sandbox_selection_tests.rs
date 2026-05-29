@@ -556,6 +556,61 @@ fn untrusted_agent_isolation_tier_failure_routes_through_selection_event() {
     ));
 }
 
+#[test]
+fn untrusted_agent_workload_selects_tier3_microvm_when_available() {
+    // End-to-end of increments 1+2: with a Tier-3 microVM adapter registered
+    // alongside the Tier-1 default, an untrusted-agent workload MUST be routed
+    // to the Tier-3 adapter — not rejected, and never downgraded to Tier-1.
+    let mut registry = SandboxAdapterRegistry::new(AdapterId::new("wsl2_podman"));
+    registry.register(adapter(wsl2_podman_capabilities())); // Tier-1 (registry default)
+    registry.register(adapter(microvm_tier3_capabilities())); // Tier-3 microVM
+
+    let spec = trust_classed_spec(TrustClass::UntrustedAgent);
+    let selected = select(&registry, &spec, None)
+        .expect("untrusted-agent workload must select the Tier-3 microVM adapter when present");
+
+    assert_eq!(
+        selected.capabilities().isolation_tier,
+        IsolationTier::Tier3Microvm
+    );
+    assert_eq!(
+        selected.capabilities().adapter_id,
+        AdapterId::new("cloud_hypervisor")
+    );
+}
+
+#[test]
+fn trusted_workload_still_prefers_tier1_even_when_tier3_present() {
+    // A trusted workload does not need (and should not pay for) a microVM:
+    // with both tiers available it stays on the Tier-1 default.
+    let mut registry = SandboxAdapterRegistry::new(AdapterId::new("wsl2_podman"));
+    registry.register(adapter(wsl2_podman_capabilities()));
+    registry.register(adapter(microvm_tier3_capabilities()));
+
+    let spec = trust_classed_spec(TrustClass::Trusted);
+    let selected = select(&registry, &spec, None).expect("trusted workload selects an adapter");
+    assert_eq!(
+        selected.capabilities().isolation_tier,
+        IsolationTier::Tier1Container
+    );
+}
+
+fn microvm_tier3_capabilities() -> AdapterCapabilities {
+    AdapterCapabilities {
+        adapter_id: AdapterId::new("cloud_hypervisor"),
+        runtime_available: true,
+        filesystem_isolation_strength: IsolationStrength::VeryStrong,
+        network_isolation_strength: IsolationStrength::VeryStrong,
+        gpu_passthrough: GpuPassthrough::None,
+        stdio_throughput_class: ThroughputClass::Medium,
+        win32_native_fidelity: false,
+        cross_machine_portable: true,
+        isolation_tier: IsolationTier::Tier3Microvm,
+        requires_nested_virt: true,
+        supports_snapshot: false,
+    }
+}
+
 fn trust_classed_spec(trust_class: TrustClass) -> ProcessSpec {
     let mut spec = process_spec(BTreeSet::new());
     spec.trust_class = trust_class;

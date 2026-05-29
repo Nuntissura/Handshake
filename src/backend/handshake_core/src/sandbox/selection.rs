@@ -81,7 +81,65 @@ pub fn select(
     }
 
     let default_id = registry.default_adapter_id().clone();
-    select_candidate(registry, spec, &default_id, false)
+    match select_candidate(registry, spec, &default_id, false) {
+        Ok(adapter) => Ok(adapter),
+        // Master Spec v02.187 §3.5.5: if the default adapter's isolation tier is
+        // below the trust class minimum (e.g. an untrusted-agent workload with a
+        // Tier-1 default), do NOT fail outright — search the registry for the
+        // weakest registered adapter whose tier satisfies the minimum. Only the
+        // tier mismatch triggers the search; capability mismatches keep their
+        // existing error.
+        Err(SandboxSelectionFailure::IsolationTierUnsatisfied { .. }) => {
+            select_by_minimum_tier(registry, spec)
+        }
+        Err(other) => Err(other),
+    }
+}
+
+/// Pick the WEAKEST registered adapter whose isolation tier satisfies the
+/// workload's trust-class minimum and whose capabilities match. Returns the
+/// typed tier/capability failure when none qualifies (never downgrades).
+fn select_by_minimum_tier(
+    registry: &SandboxAdapterRegistry,
+    spec: &ProcessSpec,
+) -> Result<Arc<dyn SandboxAdapter>, SandboxSelectionFailure> {
+    let required_tier = spec.trust_class.min_isolation_tier();
+    let mut best: Option<(u8, Arc<dyn SandboxAdapter>)> = None;
+    for caps in registry.list() {
+        if caps.adapter_id.as_str() == DOCKER_ADAPTER_ID && !registry.docker_explicit_opt_in() {
+            continue;
+        }
+        if !caps.runtime_available {
+            continue;
+        }
+        if caps.isolation_tier.rank() < required_tier.rank() {
+            continue;
+        }
+        if !missing_required_capabilities(spec, &caps).is_empty() {
+            continue;
+        }
+        let Some(adapter) = registry.get(&caps.adapter_id) else {
+            continue;
+        };
+        let rank = caps.isolation_tier.rank();
+        if best.as_ref().map(|(r, _)| rank < *r).unwrap_or(true) {
+            best = Some((rank, adapter));
+        }
+    }
+    if let Some((_, adapter)) = best {
+        return Ok(adapter);
+    }
+
+    // Nothing satisfies the tier minimum: re-emit the deterministic tier
+    // failure against the default adapter.
+    let default_id = registry.default_adapter_id().clone();
+    if let Some(default_adapter) = registry.get(&default_id) {
+        enforce_isolation_tier_minimum(spec, &default_adapter.capabilities())?;
+    }
+    Err(SandboxSelectionFailure::CapabilityUnsatisfied {
+        required: spec.required_capabilities.iter().copied().collect(),
+        available_by_adapter: available_by_adapter(registry),
+    })
 }
 
 fn select_candidate(
