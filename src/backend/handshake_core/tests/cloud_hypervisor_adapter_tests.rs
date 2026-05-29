@@ -23,6 +23,21 @@ fn skip_message(error: &SandboxAdapterError) -> String {
     )
 }
 
+/// Turn the runtime-unavailable skip into a hard failure when the operator
+/// asserts the host SHOULD have the runtime by setting `HANDSHAKE_CH_REQUIRE`.
+/// Without it, a regression that makes `try_new` wrongly report unavailable
+/// would silently pass every test (return == PASS). With it set, such a
+/// regression panics. On genuinely non-WSL hosts (env unset) it just prints the
+/// skip message and lets the caller `return`.
+fn require_or_skip(error: &SandboxAdapterError) {
+    if std::env::var("HANDSHAKE_CH_REQUIRE").is_ok() {
+        panic!(
+            "HANDSHAKE_CH_REQUIRE is set but the Cloud Hypervisor adapter is unavailable: {error}"
+        );
+    }
+    eprintln!("{}", skip_message(error));
+}
+
 fn sample_spec() -> ProcessSpec {
     ProcessSpec {
         id: AdapterId::new("ch-test-spec"),
@@ -92,7 +107,7 @@ async fn cloud_hypervisor_snapshot_restore_preserves_running_state() {
     let adapter = match CloudHypervisorAdapter::try_new(CloudHypervisorConfig::default()).await {
         Ok(adapter) => adapter,
         Err(error) => {
-            eprintln!("{}", skip_message(&error));
+            require_or_skip(&error);
             return;
         }
     };
@@ -132,6 +147,90 @@ async fn cloud_hypervisor_snapshot_restore_preserves_running_state() {
     let _ = adapter.kill(&restored, Signal::Kill).await;
 }
 
+/// A snapshot must be RE-RESTORABLE: restoring it twice yields two independent
+/// VMs, and tearing one down must not destroy the snapshot or the other VM's
+/// console (regression guard for the restore-owns-snapshot-dir clobber bug).
+#[tokio::test]
+async fn cloud_hypervisor_snapshot_restores_twice_independently() {
+    let adapter = match CloudHypervisorAdapter::try_new(CloudHypervisorConfig::default()).await {
+        Ok(adapter) => adapter,
+        Err(error) => {
+            require_or_skip(&error);
+            return;
+        }
+    };
+
+    let handle = adapter
+        .spawn(persistent_spec())
+        .await
+        .expect("spawn persistent microVM");
+    let n0 = wait_for_tick(&adapter, &handle, 0, "before snapshot").await;
+    let snapshot = adapter.snapshot(&handle).await.expect("snapshot");
+
+    // First restore from the snapshot.
+    let r1 = adapter
+        .restore(&snapshot)
+        .await
+        .expect("first restore from snapshot");
+    let r1_tick = wait_for_tick(&adapter, &r1, n0, "first restore").await;
+
+    // Second restore FROM THE SAME snapshot must still succeed (the snapshot was
+    // not consumed/destroyed by the first restore).
+    let r2 = adapter
+        .restore(&snapshot)
+        .await
+        .expect("second restore from the same snapshot (must not be consumed)");
+    let r2_tick = wait_for_tick(&adapter, &r2, n0, "second restore").await;
+
+    eprintln!("--- DOUBLE RESTORE: n0={n0}, r1={r1_tick}, r2={r2_tick} ---");
+
+    // Tearing down the first restored VM must not affect the second: r2 keeps
+    // ticking on its OWN console after r1 is killed.
+    adapter.kill(&r1, Signal::Kill).await.expect("kill r1");
+    let r2_after = wait_for_tick(&adapter, &r2, r2_tick, "r2 after r1 kill").await;
+    assert!(
+        r2_after > r2_tick,
+        "second restored VM must survive the first's teardown: {r2_tick} -> {r2_after}"
+    );
+
+    let _ = adapter.kill(&r2, Signal::Kill).await;
+    let _ = adapter.kill(&handle, Signal::Kill).await;
+}
+
+/// A restored VM must keep its OWN serial console alive after the ORIGINAL VM is
+/// torn down (regression guard for the shared-serial-log ordering hazard, where
+/// killing the original deleted the serial the restored VM was still writing).
+#[tokio::test]
+async fn cloud_hypervisor_restored_survives_original_teardown() {
+    let adapter = match CloudHypervisorAdapter::try_new(CloudHypervisorConfig::default()).await {
+        Ok(adapter) => adapter,
+        Err(error) => {
+            require_or_skip(&error);
+            return;
+        }
+    };
+
+    let handle = adapter
+        .spawn(persistent_spec())
+        .await
+        .expect("spawn persistent microVM");
+    let n0 = wait_for_tick(&adapter, &handle, 0, "before snapshot").await;
+    let snapshot = adapter.snapshot(&handle).await.expect("snapshot");
+    let restored = adapter.restore(&snapshot).await.expect("restore");
+    let r_tick = wait_for_tick(&adapter, &restored, n0, "restored").await;
+
+    // Tear down the ORIGINAL; the restored VM's console must survive and keep
+    // advancing (it writes to its own restore-owned serial log).
+    adapter.kill(&handle, Signal::Kill).await.expect("kill original");
+    let r_after = wait_for_tick(&adapter, &restored, r_tick, "restored after original kill").await;
+    assert!(
+        r_after > r_tick,
+        "restored VM console must survive original teardown: {r_tick} -> {r_after}"
+    );
+
+    let _ = adapter.kill(&restored, Signal::Kill).await;
+}
+
 /// Real microVM boot: spawn a handle, exec a command inside a freshly booted
 /// Cloud Hypervisor microVM, and assert on the captured guest stdout + exit
 /// code. Also asserts the Tier-3 capability shape.
@@ -140,7 +239,7 @@ async fn cloud_hypervisor_boots_real_microvm_and_captures_stdout() {
     let adapter = match CloudHypervisorAdapter::try_new(CloudHypervisorConfig::default()).await {
         Ok(adapter) => adapter,
         Err(error) => {
-            eprintln!("{}", skip_message(&error));
+            require_or_skip(&error);
             return;
         }
     };
@@ -210,7 +309,7 @@ async fn cloud_hypervisor_propagates_nonzero_exit_code() {
     let adapter = match CloudHypervisorAdapter::try_new(CloudHypervisorConfig::default()).await {
         Ok(adapter) => adapter,
         Err(error) => {
-            eprintln!("{}", skip_message(&error));
+            require_or_skip(&error);
             return;
         }
     };
@@ -254,7 +353,7 @@ async fn cloud_hypervisor_fs_bind_rejects_reserved_guest_path() {
     let adapter = match CloudHypervisorAdapter::try_new(CloudHypervisorConfig::default()).await {
         Ok(adapter) => adapter,
         Err(error) => {
-            eprintln!("{}", skip_message(&error));
+            require_or_skip(&error);
             return;
         }
     };
@@ -290,7 +389,7 @@ async fn cloud_hypervisor_fs_bind_read_write_writes_back_to_host() {
     let adapter = match CloudHypervisorAdapter::try_new(CloudHypervisorConfig::default()).await {
         Ok(adapter) => adapter,
         Err(error) => {
-            eprintln!("{}", skip_message(&error));
+            require_or_skip(&error);
             return;
         }
     };

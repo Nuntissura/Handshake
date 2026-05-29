@@ -443,7 +443,7 @@ impl CloudHypervisorAdapter {
     /// Boot a long-lived idle persistent VM with an API socket (the snapshot/
     /// restore model). Builds a per-VM idle initramfs (busybox + an `/init` that
     /// loops printing TICK and never powers off), launches CH as a retained
-    /// background child, waits for the API socket + serial log to appear, and
+    /// background child, waits for the API socket to appear, and
     /// registers a persistent handle. Absolute WSL paths are used throughout so
     /// the snapshot config records an absolute serial path that a restored VM
     /// resolves regardless of the CH process working directory.
@@ -492,8 +492,10 @@ impl CloudHypervisorAdapter {
             }
         };
 
-        // Wait for the guest to boot far enough to create the API socket AND emit
-        // its one-shot boot marker on the serial console.
+        // Wait for the guest to boot far enough that CH creates the API socket
+        // (the readiness signal). The idle `/init` also emits HSK-BOOT-ONCE on
+        // the serial console, but that marker is asserted by the snapshot test,
+        // not gated here.
         if let Err(error) =
             wait_for_wsl_path(&self.config, &api_socket, PERSISTENT_BOOT_TIMEOUT_MS).await
         {
@@ -511,16 +513,22 @@ impl CloudHypervisorAdapter {
             serial_log,
             vm_root,
         };
-        self.persistent_children
-            .lock()
-            .await
-            .insert(handle.id, child);
+        // Register the handle state FIRST (the fallible std-lock insert); only
+        // after it succeeds do we park the retained CH child. If we parked the
+        // child first and the handles lock were poisoned, the early return would
+        // strand a live CH process with no `handles` entry — unreachable by
+        // `kill` (which resolves the VM via `handles`) and leaked until the whole
+        // adapter Arc drops.
         let mut hstate = HandleState::default();
         hstate.persistent = Some(vm);
         self.handles
             .lock()
             .map_err(|error| spawn_failed(format!("handle registry poisoned: {error}")))?
             .insert(handle.id, hstate);
+        self.persistent_children
+            .lock()
+            .await
+            .insert(handle.id, child);
         Ok(handle)
     }
 }
@@ -531,6 +539,21 @@ impl SandboxAdapter for CloudHypervisorAdapter {
         // Re-probe so a handle is never minted against a runtime that has gone
         // away (mirrors DockerAdapter::ensure_runtime_available).
         verify_available(&self.config).await?;
+
+        // Network policy is declared at create time (Master Spec §3.5.7 #5). CH
+        // microVMs boot with no network device, so deny-all / loopback-only / an
+        // empty allowlist are satisfied by construction; a NON-empty allowlist
+        // cannot be honored without a tap/virtio-net bind, so fail closed at
+        // spawn instead of silently accepting an unenforceable policy (the
+        // separate net_policy() applies the same guard for post-spawn calls).
+        if let NetPolicy::Allowlist(entries) = &spec.net_policy {
+            if !entries.is_empty() {
+                return Err(net_policy_failed(
+                    "cloud_hypervisor microVMs boot with no network device; a non-empty \
+                     net_policy allowlist cannot be honored and fails closed at spawn",
+                ));
+            }
+        }
 
         // Persistent-VM model (snapshot/restore): boot a long-lived idle VM with
         // an API socket. Selected ONLY when the caller marks the spec; otherwise
@@ -798,9 +821,19 @@ impl SandboxAdapter for CloudHypervisorAdapter {
             // Dropping the Child terminates the CH process (kill_on_drop). Also
             // issue an explicit kill so termination does not depend solely on
             // drop ordering, then best-effort clean the socket + scratch root.
-            if let Some(mut child) = self.persistent_children.lock().await.remove(&handle.id) {
+            //
+            // Take the child OUT of the registry under a tight lock scope and
+            // wait OUTSIDE the lock with a bound: holding the async mutex across
+            // an unbounded `child.wait().await` would serialize every other
+            // persistent spawn/restore/kill on the same lock, and a wedged CH
+            // child would hold it forever, deadlocking the whole persistent path.
+            let child = self.persistent_children.lock().await.remove(&handle.id);
+            if let Some(mut child) = child {
                 let _ = child.start_kill();
-                let _ = child.wait().await;
+                // kill_on_drop(true) still reaps the process if the wait elapses.
+                let _ =
+                    tokio::time::timeout(Duration::from_millis(PROBE_TIMEOUT_MS), child.wait())
+                        .await;
             }
             let _ = remove_wsl_path(&self.config, &vm.api_socket).await;
             let _ = remove_wsl_path(&self.config, &vm.vm_root).await;
@@ -903,6 +936,11 @@ impl SandboxAdapter for CloudHypervisorAdapter {
         )
         .await?;
         if pause.exit_code != 0 {
+            // Pause may have left the VM in an indeterminate state; best-effort
+            // resume + drop the empty snapshot dir created above so a failed
+            // capture leaves no wedged VM or stray dir.
+            best_effort_resume(&self.config, &vm.api_socket).await;
+            let _ = remove_wsl_path(&self.config, &snap_ref.snapshot_dir).await;
             return Err(snapshot_failed(format!(
                 "ch-remote pause failed (exit {}): {}",
                 pause.exit_code,
@@ -927,6 +965,11 @@ impl SandboxAdapter for CloudHypervisorAdapter {
         )
         .await?;
         if snapshot.exit_code != 0 {
+            // VM is paused (pause succeeded above); resume it and drop the
+            // partial snapshot dir so a failed capture leaves no wedged VM or
+            // half-written snapshot behind.
+            best_effort_resume(&self.config, &vm.api_socket).await;
+            let _ = remove_wsl_path(&self.config, &snap_ref.snapshot_dir).await;
             return Err(snapshot_failed(format!(
                 "ch-remote snapshot failed (exit {}): {}",
                 snapshot.exit_code,
@@ -946,6 +989,10 @@ impl SandboxAdapter for CloudHypervisorAdapter {
         )
         .await?;
         if !String::from_utf8_lossy(&verify.stdout).contains("HSK_SNAP_OK") {
+            // Snapshot reported success but the expected artifacts are absent;
+            // resume the paused VM and drop the partial dir.
+            best_effort_resume(&self.config, &vm.api_socket).await;
+            let _ = remove_wsl_path(&self.config, &snap_ref.snapshot_dir).await;
             return Err(snapshot_failed(format!(
                 "snapshot dir `{}` is missing config.json/state.json after ch-remote snapshot",
                 snap_ref.snapshot_dir
@@ -955,12 +1002,15 @@ impl SandboxAdapter for CloudHypervisorAdapter {
         Ok(snap_ref)
     }
 
-    /// Restore a snapshot into a brand-new persistent VM that resumes from the
-    /// captured live state (no reboot). Boots a fresh CH child with
-    /// `--restore source_url=file://<dir>,resume=true` on a new API socket and
-    /// returns a new persistent [`ProcessHandle`]. The restored guest's serial
-    /// output goes to the original serial path recorded in the snapshot config
-    /// (an absolute WSL path), so callers read continued state from there.
+    /// Restore a snapshot into a brand-new, fully independent persistent VM that
+    /// resumes from the captured live state (no reboot). The snapshot is first
+    /// copied into a per-restore scratch root and the copy's CH `serial.file` is
+    /// rewritten to a restore-owned log; CH then restores from the COPY with
+    /// `--restore source_url=file://<copy>,resume=true` on a new API socket. The
+    /// original snapshot is left intact (re-restorable; two restores are
+    /// independent), and the restored guest writes its serial to its own log, so
+    /// tearing down the original VM cannot delete the snapshot or the restored
+    /// VM's console.
     async fn restore(
         &self,
         snapshot: &SnapshotRef,
@@ -973,15 +1023,63 @@ impl SandboxAdapter for CloudHypervisorAdapter {
             )));
         }
 
-        // New API socket for the restored VM. The serial path is NOT re-set: CH
-        // resumes writing to the absolute serial path baked into the snapshot
-        // config (the original VM's serial log).
-        let api_socket = format!(
-            "{}/restore-{}.sock",
-            self.config.work_dir,
-            Uuid::now_v7().simple()
-        );
-        let _ = remove_wsl_path(&self.config, &api_socket).await;
+        // Restore into a FULLY INDEPENDENT sandbox (Master Spec v02.187 §3.5.7
+        // #7: a captured state is "re-spawned … never mutated in place as
+        // authority"). We do NOT restore from the snapshot dir directly and we
+        // do NOT reuse the original VM's serial log:
+        //   * Restoring from the snapshot dir made the dir the restored VM's
+        //     scratch root, so kill() recursively deleted the snapshot —
+        //     single-use capture + double-restore clobber.
+        //   * Reusing the original's baked-in serial path tied the restored VM's
+        //     console to the original's; killing the original unlinked it.
+        // Instead, copy the snapshot into a per-restore scratch root, rewrite the
+        // copy's CH `serial.file` to a restore-owned log, and restore from the
+        // COPY. The original snapshot is left intact and re-restorable, and the
+        // restored VM owns its own console + scratch.
+        let restore_root =
+            format!("{}/restore-{}", self.config.work_dir, Uuid::now_v7().simple());
+        let restore_serial = format!("{restore_root}/serial.log");
+        let restore_config = format!("{restore_root}/config.json");
+        let api_socket = format!("{restore_root}/ch.sock");
+
+        // `serial.file` is the CH VmConfig field (verified against a live
+        // snapshot). Prefer jq, fall back to python3 — both JSON-aware so the
+        // rewrite is not a fragile text substitution.
+        let prep = run_wsl_sh(
+            &self.config,
+            &format!(
+                "set -e; rm -rf {root}; mkdir -p {root}; cp -a {src}/. {root}/; \
+                 test -f {cfg} || {{ echo HSK_NO_CONFIG; exit 1; }}; \
+                 if command -v jq >/dev/null 2>&1; then \
+                   jq --arg f {ser} '.serial.file=$f' {cfg} > {cfg}.tmp && mv {cfg}.tmp {cfg}; \
+                 elif command -v python3 >/dev/null 2>&1; then \
+                   python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); d.setdefault(\"serial\",{{}})[\"file\"]=sys.argv[2]; json.dump(d,open(sys.argv[1],\"w\"))' {cfg} {ser}; \
+                 else echo HSK_NO_JSON_TOOL; exit 1; fi; \
+                 echo HSK_RESTORE_PREP_OK",
+                root = sh_quote_wsl(&restore_root),
+                src = sh_quote_wsl(&snapshot.snapshot_dir),
+                cfg = sh_quote_wsl(&restore_config),
+                ser = sh_quote_wsl(&restore_serial),
+            ),
+            self.config.command_timeout_ms,
+        )
+        .await;
+        let prep = match prep {
+            Ok(prep) => prep,
+            Err(error) => {
+                let _ = remove_wsl_path(&self.config, &restore_root).await;
+                return Err(error);
+            }
+        };
+        if !String::from_utf8_lossy(&prep.stdout).contains("HSK_RESTORE_PREP_OK") {
+            let _ = remove_wsl_path(&self.config, &restore_root).await;
+            return Err(snapshot_failed(format!(
+                "failed to prepare independent restore copy from `{}` (exit {}): {}",
+                snapshot.snapshot_dir,
+                prep.exit_code,
+                prep.stderr_text()
+            )));
+        }
 
         let restore_args = vec![
             "-d".to_string(),
@@ -991,13 +1089,21 @@ impl SandboxAdapter for CloudHypervisorAdapter {
             "--api-socket".to_string(),
             api_socket.clone(),
             "--restore".to_string(),
-            format!("source_url=file://{},resume=true", snapshot.snapshot_dir),
+            format!("source_url=file://{restore_root},resume=true"),
         ];
 
         let child = spawn_persistent_child(self.config.wsl_exe(), &restore_args)?;
 
         // Wait for the restored VM's API socket to appear (proves CH came up).
-        wait_for_wsl_path(&self.config, &api_socket, PERSISTENT_BOOT_TIMEOUT_MS).await?;
+        // On timeout, clean the whole restore root (mirrors spawn_persistent's
+        // clean-on-every-failure discipline); the `child` drops on this early
+        // return, so kill_on_drop reaps the process.
+        if let Err(error) =
+            wait_for_wsl_path(&self.config, &api_socket, PERSISTENT_BOOT_TIMEOUT_MS).await
+        {
+            let _ = remove_wsl_path(&self.config, &restore_root).await;
+            return Err(error);
+        }
 
         let handle = ProcessHandle::new(
             AdapterId::new(CLOUD_HYPERVISOR_ADAPTER_ID),
@@ -1005,26 +1111,29 @@ impl SandboxAdapter for CloudHypervisorAdapter {
             format!("hsk-ch-restored-{}", Uuid::now_v7().simple()),
         );
 
-        // The restored VM owns the snapshot dir as its scratch root for cleanup.
-        // Its serial path is the original absolute path baked into the snapshot
-        // config; the SnapshotRef carries that path as `observe_path`, so the
-        // restored handle can read the continued TICK stream from there.
+        // The restored VM owns its private restore root (the snapshot COPY) as
+        // its scratch + console. kill() reclaims only this copy, never the
+        // original snapshot, so the capture stays re-restorable and two restores
+        // from one snapshot are fully independent.
         let vm = PersistentVm {
             api_socket,
-            serial_log: snapshot.observe_path.clone().unwrap_or_default(),
-            vm_root: snapshot.snapshot_dir.clone(),
+            serial_log: restore_serial,
+            vm_root: restore_root,
         };
 
-        self.persistent_children
-            .lock()
-            .await
-            .insert(handle.id, child);
+        // Register handle state FIRST (fallible std-lock), then park the retained
+        // child — same ordering rationale as spawn_persistent: never strand a
+        // live CH child without a reachable `handles` entry on a poisoned lock.
         let mut state = HandleState::default();
         state.persistent = Some(vm);
         self.handles
             .lock()
             .map_err(|error| snapshot_failed(format!("handle registry poisoned: {error}")))?
             .insert(handle.id, state);
+        self.persistent_children
+            .lock()
+            .await
+            .insert(handle.id, child);
 
         Ok(handle)
     }
@@ -1137,10 +1246,10 @@ async fn verify_available(config: &CloudHypervisorConfig) -> Result<(), SandboxA
     // 2. ch binary, kernel and initramfs all exist inside WSL, and 3. /dev/kvm
     // is readable+writable. A single `test` chain keeps this to one wsl call.
     let probe_script = format!(
-        "test -x '{bin}' && test -f '{kernel}' && test -f '{initramfs}' && test -r /dev/kvm && test -w /dev/kvm && echo CH_OK",
-        bin = config.ch_bin(),
-        kernel = config.kernel(),
-        initramfs = config.initramfs(),
+        "test -x {bin} && test -f {kernel} && test -f {initramfs} && test -r /dev/kvm && test -w /dev/kvm && echo CH_OK",
+        bin = sh_quote_wsl(config.ch_bin()),
+        kernel = sh_quote_wsl(config.kernel()),
+        initramfs = sh_quote_wsl(config.initramfs()),
     );
     let probe = run_host_command(
         config.wsl_exe(),
@@ -1216,6 +1325,20 @@ async fn remove_serial_log(config: &CloudHypervisorConfig, serial_log: &str) -> 
     .await
     .map(|output| output.exit_code == 0)
     .unwrap_or(false)
+}
+
+/// Best-effort `ch-remote resume` of a persistent VM that a failed snapshot
+/// attempt left paused, so a failed capture does not wedge the source VM in the
+/// paused state. Errors are ignored (the VM may already be gone or never paused).
+async fn best_effort_resume(config: &CloudHypervisorConfig, api_socket: &str) {
+    let _ = run_host_command(
+        config.wsl_exe(),
+        &ch_remote_args(config, api_socket, &["resume".to_string()]),
+        None,
+        Some(PROBE_TIMEOUT_MS),
+        Uuid::nil(),
+    )
+    .await;
 }
 
 /// Recursively remove a WSL-side path (per-exec scratch root). Best-effort.

@@ -10,10 +10,37 @@
 //!
 //! The boot recipe (kernel + initramfs + a base64-encoded command passed on the
 //! kernel cmdline via `hsk.cmd=`) is verified end-to-end on the host WSL2
-//! Ubuntu distribution. The initramfs `/init` decodes the command, runs it,
-//! frames its combined stdout/stderr between `---HSK-BEGIN---` and
-//! `---HSK-END rc=<code>---` markers on the serial console, then powers the VM
-//! off.
+//! Ubuntu distribution. In the ephemeral-per-exec model the initramfs `/init`
+//! decodes the command, runs it, frames its combined stdout/stderr between
+//! `---HSK-BEGIN---` and `---HSK-END rc=<code>---` markers on the serial
+//! console, then powers that per-exec VM off.
+//!
+//! # Persistent-VM + snapshot/restore model
+//!
+//! Selecting [`SANDBOX_MODE_PERSISTENT`] via the [`SANDBOX_MODE_METADATA_KEY`]
+//! spec metadata switches `spawn` to a long-lived idle microVM driven over a
+//! Cloud Hypervisor API socket (it loops, never powers off). Such handles
+//! support [`SandboxAdapter::snapshot`] (`ch-remote pause` + `snapshot`) and
+//! [`SandboxAdapter::restore`] (`--restore … resume=true`), which resume a
+//! captured VM from its in-RAM state (not a reboot) — the foundation of the
+//! validate-then-promote flow (Master Spec v02.187 §3.5.7 #7). `exec` on a
+//! persistent handle currently fails closed (it needs a vsock guest agent, out
+//! of scope); use the ephemeral path for `exec`.
+//!
+//! # Environment / host dependencies
+//!
+//! Every host path defaults to a proven WSL2 layout and is overridable via a
+//! `HANDSHAKE_CH_*` environment variable (see [`CloudHypervisorConfig`] for the
+//! full table) so the adapter stays disk-agnostic ([GLOBAL-PORTABILITY]).
+//!
+//! # Failure modes / recovery
+//!
+//! On a host without WSL2 + KVM + the staged VM artifacts, `try_new` returns
+//! [`crate::sandbox::SandboxAdapterError::AdapterUnavailable`]; the bootstrap
+//! registry skips the adapter rather than failing sandbox bring-up. Snapshot
+//! steps that fail after pause best-effort resume the source VM and drop the
+//! partial snapshot dir; persistent VMs are reclaimed by an explicit `kill`
+//! (the retained child also reaps on drop via `kill_on_drop`).
 
 pub mod adapter;
 

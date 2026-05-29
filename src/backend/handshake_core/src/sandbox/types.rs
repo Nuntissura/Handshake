@@ -304,3 +304,56 @@ fn format_capability_set(capabilities: &BTreeSet<RequiredCapability>) -> String 
         .join(", ");
     format!("[{values}]")
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use super::super::adapter::{
+        AdapterCapabilities, GpuPassthrough, IsolationStrength, IsolationTier, ThroughputClass,
+    };
+
+    #[test]
+    fn snapshot_ref_serde_round_trips_observe_path() {
+        let with = SnapshotRef::new(AdapterId::new("cloud_hypervisor"), "/snap/dir")
+            .with_observe_path("/persistent/serial.log");
+        let json = serde_json::to_string(&with).expect("serialize SnapshotRef");
+        let back: SnapshotRef = serde_json::from_str(&json).expect("deserialize SnapshotRef");
+        assert_eq!(back, with);
+        assert_eq!(back.observe_path.as_deref(), Some("/persistent/serial.log"));
+    }
+
+    #[test]
+    fn snapshot_ref_decodes_legacy_row_without_observe_path() {
+        // A persisted row written before observe_path existed must decode to
+        // None (the field is #[serde(default)]) — back-compat guard.
+        let legacy = r#"{"id":"01890000-0000-7000-8000-000000000000","adapter_id":"cloud_hypervisor","snapshot_dir":"/snap/dir","created_at_utc":"2026-05-29T00:00:00Z"}"#;
+        let decoded: SnapshotRef = serde_json::from_str(legacy).expect("decode legacy SnapshotRef");
+        assert_eq!(decoded.observe_path, None);
+        assert_eq!(decoded.snapshot_dir, "/snap/dir");
+    }
+
+    #[test]
+    fn adapter_capabilities_round_trips_snapshot_tier_flags() {
+        // The pre-existing capabilities round-trip test only covers the
+        // all-false no-op defaults; assert the snapshot-tier `true` shape too.
+        let caps = AdapterCapabilities {
+            adapter_id: AdapterId::new("cloud_hypervisor"),
+            runtime_available: true,
+            filesystem_isolation_strength: IsolationStrength::VeryStrong,
+            network_isolation_strength: IsolationStrength::VeryStrong,
+            gpu_passthrough: GpuPassthrough::None,
+            stdio_throughput_class: ThroughputClass::Low,
+            win32_native_fidelity: false,
+            cross_machine_portable: true,
+            isolation_tier: IsolationTier::Tier3Microvm,
+            requires_nested_virt: true,
+            supports_snapshot: true,
+        };
+        let json = serde_json::to_string(&caps).expect("serialize capabilities");
+        let back: AdapterCapabilities =
+            serde_json::from_str(&json).expect("deserialize capabilities");
+        assert_eq!(back, caps);
+        assert!(back.supports_snapshot);
+        assert!(back.requires_nested_virt);
+    }
+}

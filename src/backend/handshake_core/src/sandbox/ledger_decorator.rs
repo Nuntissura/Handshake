@@ -96,14 +96,25 @@ impl LedgerDecorator {
         exit_code: Option<i32>,
         stop_reason: impl Into<String>,
     ) -> Result<(), SandboxAdapterError> {
-        if !self.stopped.lock().unwrap().insert(handle.id) {
+        if !self
+            .stopped
+            .lock()
+            .map_err(|error| SandboxAdapterError::AdapterUnavailable {
+                adapter_id: handle.adapter_id.clone(),
+                reason: format!("ledger decorator state poisoned: {error}"),
+            })?
+            .insert(handle.id)
+        {
             return Ok(());
         }
 
         let start = self
             .starts
             .lock()
-            .unwrap()
+            .map_err(|error| SandboxAdapterError::AdapterUnavailable {
+                adapter_id: handle.adapter_id.clone(),
+                reason: format!("ledger decorator state poisoned: {error}"),
+            })?
             .get(&handle.id)
             .cloned()
             .unwrap_or_else(|| {
@@ -136,7 +147,13 @@ impl SandboxAdapter for LedgerDecorator {
                 reason: format!("process ledger START write failed: {error}"),
             }
         })?;
-        self.starts.lock().unwrap().insert(handle.id, start);
+        self.starts
+            .lock()
+            .map_err(|error| SandboxAdapterError::SpawnFailed {
+                adapter_id: handle.adapter_id.clone(),
+                reason: format!("ledger decorator state poisoned: {error}"),
+            })?
+            .insert(handle.id, start);
         Ok(handle)
     }
 
@@ -231,7 +248,13 @@ impl SandboxAdapter for LedgerDecorator {
                 reason: format!("process ledger START write failed (restore): {error}"),
             }
         })?;
-        self.starts.lock().unwrap().insert(handle.id, start);
+        self.starts
+            .lock()
+            .map_err(|error| SandboxAdapterError::SpawnFailed {
+                adapter_id: handle.adapter_id.clone(),
+                reason: format!("ledger decorator state poisoned: {error}"),
+            })?
+            .insert(handle.id, start);
         Ok(handle)
     }
 
