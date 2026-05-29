@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use super::types::{
     AdapterId, BindMode, Command, ExecResult, NetPolicy, ProcessHandle, ProcessSpec, ProcessStatus,
-    SandboxAdapterError, Signal,
+    SandboxAdapterError, Signal, SnapshotRef,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -166,6 +166,38 @@ pub trait SandboxAdapter: Send + Sync {
     async fn status(&self, handle: &ProcessHandle) -> Result<ProcessStatus, SandboxAdapterError>;
 
     async fn exit_code(&self, handle: &ProcessHandle) -> Result<Option<i32>, SandboxAdapterError>;
+
+    /// Capture the full live state of a running sandbox into a restorable
+    /// snapshot (Master Spec v02.187 §3.5.7 #7 — the validate-then-promote
+    /// flow). Adapters that cannot pause-and-checkpoint a live instance — every
+    /// adapter except the hardware-virtualized microVM tier today — keep the
+    /// default, which returns a typed
+    /// [`SandboxAdapterError::SnapshotUnsupported`]. Only adapters whose
+    /// [`AdapterCapabilities::supports_snapshot`] is `true` override this.
+    async fn snapshot(
+        &self,
+        handle: &ProcessHandle,
+    ) -> Result<SnapshotRef, SandboxAdapterError> {
+        let _ = handle;
+        Err(SandboxAdapterError::SnapshotUnsupported {
+            adapter_id: self.capabilities().adapter_id,
+        })
+    }
+
+    /// Restore a previously captured snapshot into a fresh sandbox instance that
+    /// resumes from the captured live state (no reboot). Mirrors [`snapshot`];
+    /// the default returns [`SandboxAdapterError::SnapshotUnsupported`].
+    ///
+    /// [`snapshot`]: SandboxAdapter::snapshot
+    async fn restore(
+        &self,
+        snapshot: &SnapshotRef,
+    ) -> Result<ProcessHandle, SandboxAdapterError> {
+        let _ = snapshot;
+        Err(SandboxAdapterError::SnapshotUnsupported {
+            adapter_id: self.capabilities().adapter_id,
+        })
+    }
 
     fn capabilities(&self) -> AdapterCapabilities;
 }

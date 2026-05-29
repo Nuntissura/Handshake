@@ -201,6 +201,50 @@ pub struct ExecResult {
     pub duration_ms: u64,
 }
 
+/// Reference to a persisted sandbox snapshot (Master Spec v02.187 §3.5.7 #7).
+///
+/// A snapshot captures the full live state of a running sandbox (for a
+/// hardware-virtualized microVM this is the paused CPU + RAM + device state) so
+/// it can later be restored into a fresh sandbox instance that resumes exactly
+/// where the original left off — the foundation of the validate-then-promote
+/// flow. `snapshot_dir` is the adapter-specific location of the on-disk capture;
+/// for the Cloud Hypervisor adapter it is the WSL-side absolute directory that
+/// holds `config.json`, `state.json`, and the memory-range files.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SnapshotRef {
+    pub id: Uuid,
+    pub adapter_id: AdapterId,
+    pub snapshot_dir: String,
+    pub created_at_utc: DateTime<Utc>,
+    /// Optional adapter-side path where the snapshot's live output stream
+    /// continues to be observable after a restore (for the Cloud Hypervisor
+    /// adapter this is the original VM's absolute serial-log path, which the
+    /// restored VM keeps appending to). Lets callers confirm that restored
+    /// state resumed rather than rebooted. `None` when the adapter exposes no
+    /// such observation channel.
+    #[serde(default)]
+    pub observe_path: Option<String>,
+}
+
+impl SnapshotRef {
+    pub fn new(adapter_id: AdapterId, snapshot_dir: impl Into<String>) -> Self {
+        Self {
+            id: Uuid::now_v7(),
+            adapter_id,
+            snapshot_dir: snapshot_dir.into(),
+            created_at_utc: Utc::now(),
+            observe_path: None,
+        }
+    }
+
+    /// Attach the adapter-side live-state observation path (see
+    /// [`SnapshotRef::observe_path`]).
+    pub fn with_observe_path(mut self, observe_path: impl Into<String>) -> Self {
+        self.observe_path = Some(observe_path.into());
+        self
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Command {
     pub argv: Vec<String>,
@@ -242,6 +286,13 @@ pub enum SandboxAdapterError {
     CapabilityUnsatisfied {
         required: BTreeSet<RequiredCapability>,
         available: BTreeSet<RequiredCapability>,
+    },
+    #[error("sandbox adapter {adapter_id} does not support snapshot/restore")]
+    SnapshotUnsupported { adapter_id: AdapterId },
+    #[error("sandbox adapter {adapter_id} snapshot/restore failed: {reason}")]
+    SnapshotFailed {
+        adapter_id: AdapterId,
+        reason: String,
     },
 }
 

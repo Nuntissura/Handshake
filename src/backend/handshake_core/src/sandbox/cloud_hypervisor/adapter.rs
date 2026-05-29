@@ -9,14 +9,17 @@ use std::{
 use async_trait::async_trait;
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use bytes::Bytes;
-use tokio::{io::AsyncWriteExt, process::Command as TokioCommand};
+use tokio::{
+    io::AsyncWriteExt,
+    process::{Child, Command as TokioCommand},
+};
 use uuid::Uuid;
 
 use crate::sandbox::wsl2_podman::wsl_detection::default_wsl_exe;
 use crate::sandbox::{
     AdapterCapabilities, AdapterId, BindMode, Command, ExecResult, GpuPassthrough,
     IsolationStrength, IsolationTier, NetPolicy, ProcessHandle, ProcessSpec, ProcessStatus,
-    SandboxAdapter, SandboxAdapterError, Signal, ThroughputClass,
+    SandboxAdapter, SandboxAdapterError, Signal, SnapshotRef, ThroughputClass,
 };
 
 #[cfg(windows)]
@@ -63,6 +66,41 @@ if [ -n "$RW" ]; then
 fi
 poweroff -f"#;
 
+/// `ProcessSpec.metadata` key whose value `"persistent"` switches `spawn` from
+/// the default ephemeral-per-exec model to the persistent-VM model required for
+/// snapshot/restore. Any other value (or absence) keeps the proven ephemeral
+/// path byte-for-byte unchanged.
+pub const SANDBOX_MODE_METADATA_KEY: &str = "hsk.sandbox.mode";
+/// The `SANDBOX_MODE_METADATA_KEY` value that selects the persistent-VM model.
+pub const SANDBOX_MODE_PERSISTENT: &str = "persistent";
+
+/// Marker the idle `/init` prints exactly once at boot. The snapshot/restore
+/// state-preservation test asserts this appears exactly once in the serial log
+/// (a second occurrence after restore would mean the VM rebooted instead of
+/// resuming from the captured RAM state).
+const HSK_BOOT_ONCE_MARKER: &str = "HSK-BOOT-ONCE";
+
+/// The idle `/init` baked into the persistent-VM initramfs. It mounts the
+/// synthetic filesystems, installs busybox applets, prints the one-shot boot
+/// marker, then loops forever printing `TICK-<n>` to the serial console (one per
+/// second). It NEVER powers off, so the VM stays live for `ch-remote pause` +
+/// `snapshot`. The incrementing TICK counter is the observable RAM state that
+/// proves a restore resumed rather than rebooted.
+const IDLE_INIT_SCRIPT: &str = r#"#!/bin/busybox sh
+/bin/busybox mkdir -p /proc /sys /dev /bin
+/bin/busybox mount -t proc proc /proc
+/bin/busybox mount -t sysfs sysfs /sys
+/bin/busybox --install -s /bin
+echo "HSK-BOOT-ONCE"
+i=0
+while true; do echo "TICK-$i"; i=$((i+1)); /bin/busybox sleep 1; done"#;
+
+/// How long to wait for the persistent VM's API socket to appear after the CH
+/// child is launched (the guest must boot far enough to create it).
+const PERSISTENT_BOOT_TIMEOUT_MS: u64 = 30_000;
+/// Poll interval while waiting for the API socket / serial log to appear.
+const PERSISTENT_POLL_INTERVAL_MS: u64 = 250;
+
 /// Proven-working defaults for the host WSL2 sandbox layout. Every field is
 /// overridable via a `HANDSHAKE_CH_*` environment variable so the adapter stays
 /// disk-agnostic per [GLOBAL-PORTABILITY] (no hardcoded absolute path is baked
@@ -70,6 +108,10 @@ poweroff -f"#;
 const DEFAULT_DISTRO: &str = "Ubuntu";
 const DEFAULT_WORK_DIR: &str = "/home/ilja_smets/handshake-sandbox";
 const DEFAULT_CH_BIN: &str = "/home/ilja_smets/handshake-sandbox/bin/cloud-hypervisor";
+/// `ch-remote` CLI used to drive a live persistent VM (pause + snapshot). Lives
+/// beside `cloud-hypervisor` in the proven layout; derived from `ch_bin`'s
+/// directory when unset, overridable via `HANDSHAKE_CH_REMOTE_BIN`.
+const DEFAULT_CH_REMOTE_BIN: &str = "/home/ilja_smets/handshake-sandbox/bin/ch-remote";
 const DEFAULT_KERNEL: &str = "/home/ilja_smets/handshake-sandbox/vmlinux-6.1.102";
 const DEFAULT_INITRAMFS: &str = "/home/ilja_smets/handshake-sandbox/initramfs.cpio";
 /// WSL-side busybox used as the only guest userland baked into the per-exec
@@ -106,6 +148,7 @@ pub struct CloudHypervisorConfig {
     distro: String,
     wsl_exe: PathBuf,
     ch_bin: String,
+    ch_remote_bin: String,
     kernel: String,
     initramfs: String,
     busybox: String,
@@ -126,6 +169,10 @@ impl CloudHypervisorConfig {
 
     pub fn ch_bin(&self) -> &str {
         &self.ch_bin
+    }
+
+    pub fn ch_remote_bin(&self) -> &str {
+        &self.ch_remote_bin
     }
 
     pub fn kernel(&self) -> &str {
@@ -170,6 +217,7 @@ impl Default for CloudHypervisorConfig {
                 .map(PathBuf::from)
                 .unwrap_or_else(|_| default_wsl_exe()),
             ch_bin: env_string("HANDSHAKE_CH_BIN", DEFAULT_CH_BIN),
+            ch_remote_bin: env_string("HANDSHAKE_CH_REMOTE_BIN", DEFAULT_CH_REMOTE_BIN),
             kernel: env_string("HANDSHAKE_CH_KERNEL", DEFAULT_KERNEL),
             initramfs: env_string("HANDSHAKE_CH_INITRAMFS", DEFAULT_INITRAMFS),
             busybox: env_string("HANDSHAKE_CH_BUSYBOX", DEFAULT_BUSYBOX),
@@ -219,15 +267,35 @@ struct BindRecord {
     mode: BindMode,
 }
 
-/// Per-handle bookkeeping for the ephemeral-microVM model. Each `exec` boots a
-/// brand-new VM, so we only need to remember the last status, a kill flag, and
-/// the declared binds to bake into the next exec's initramfs.
+/// WSL-side paths and scratch roots that identify one live persistent VM. The
+/// CH child process itself is held separately (see [`PersistentChildren`])
+/// because [`Child`] is neither `Clone` nor `Debug`.
+#[derive(Debug, Clone)]
+struct PersistentVm {
+    /// Absolute WSL path of the CH API socket driving this VM (pause/snapshot).
+    api_socket: String,
+    /// Absolute WSL path of the serial log this VM (and any VM restored from its
+    /// snapshot) writes to. Always absolute so the restored VM resolves it
+    /// regardless of the CH process working directory.
+    serial_log: String,
+    /// Per-VM scratch root inside WSL holding the idle initramfs build tree +
+    /// cpio; removed on `kill` for atomic cleanup.
+    vm_root: String,
+}
+
+/// Per-handle bookkeeping. The ephemeral-microVM model (default) boots a
+/// brand-new VM per `exec`, so it only needs the last status, a kill flag, and
+/// the declared binds to bake into the next exec's initramfs. A persistent
+/// handle additionally carries its live-VM identity in [`PersistentVm`].
 #[derive(Debug)]
 struct HandleState {
     status: ProcessStatus,
     exit_code: Option<i32>,
     killed: bool,
     binds: Vec<BindRecord>,
+    /// `Some` for a persistent handle (snapshot/restore model); `None` for the
+    /// ephemeral default model.
+    persistent: Option<PersistentVm>,
 }
 
 impl Default for HandleState {
@@ -239,14 +307,23 @@ impl Default for HandleState {
             exit_code: None,
             killed: false,
             binds: Vec::new(),
+            persistent: None,
         }
     }
 }
+
+/// Live CH child processes for persistent handles, keyed by handle id. Kept out
+/// of [`HandleState`] (and thus out of `Debug`) because [`Child`] is not
+/// `Clone`/`Debug`. `kill_on_drop(true)` means dropping the [`Child`] also
+/// terminates the CH process, so removing an entry here tears down the VM.
+type PersistentChildren = Arc<tokio::sync::Mutex<HashMap<Uuid, Child>>>;
 
 #[derive(Debug, Clone)]
 pub struct CloudHypervisorAdapter {
     config: CloudHypervisorConfig,
     handles: Arc<Mutex<HashMap<Uuid, HandleState>>>,
+    /// Live CH child processes for persistent handles. Skipped in `Debug`.
+    persistent_children: PersistentChildren,
 }
 
 impl CloudHypervisorAdapter {
@@ -265,11 +342,43 @@ impl CloudHypervisorAdapter {
         Ok(Self {
             config,
             handles: Arc::new(Mutex::new(HashMap::new())),
+            persistent_children: Arc::new(tokio::sync::Mutex::new(HashMap::new())),
         })
     }
 
     pub fn config(&self) -> &CloudHypervisorConfig {
         &self.config
+    }
+
+    /// Read the current serial-console log for a persistent handle (the VM's
+    /// `TICK-<n>` stream). Returns `None` for an ephemeral handle, a stale
+    /// handle, or when the log cannot be read. Exposed so callers (and the
+    /// snapshot/restore test) can observe live guest state — e.g. to confirm a
+    /// restored VM's counter continued rather than resetting.
+    pub async fn read_handle_serial(&self, handle: &ProcessHandle) -> Option<String> {
+        let serial_log = self
+            .handles
+            .lock()
+            .ok()
+            .and_then(|map| {
+                map.get(&handle.id)
+                    .and_then(|state| state.persistent.as_ref().map(|vm| vm.serial_log.clone()))
+            })
+            .filter(|path| !path.is_empty())?;
+        read_serial_log(&self.config, &serial_log)
+            .await
+            .map(|bytes| String::from_utf8_lossy(&bytes).to_string())
+    }
+
+    /// WSL-side serial-log path for a persistent handle (the absolute path the
+    /// VM, and any VM restored from its snapshot, writes its console to).
+    /// Returns `None` for ephemeral or stale handles.
+    pub fn handle_serial_log_path(&self, handle: &ProcessHandle) -> Option<String> {
+        self.handles.lock().ok().and_then(|map| {
+            map.get(&handle.id)
+                .and_then(|state| state.persistent.as_ref().map(|vm| vm.serial_log.clone()))
+                .filter(|path| !path.is_empty())
+        })
     }
 
     fn ensure_handle(&self, handle: &ProcessHandle) -> Result<(), SandboxAdapterError> {
@@ -330,15 +439,113 @@ impl CloudHypervisorAdapter {
             format!("size={}M", self.config.memory_mib),
         ]
     }
+
+    /// Boot a long-lived idle persistent VM with an API socket (the snapshot/
+    /// restore model). Builds a per-VM idle initramfs (busybox + an `/init` that
+    /// loops printing TICK and never powers off), launches CH as a retained
+    /// background child, waits for the API socket + serial log to appear, and
+    /// registers a persistent handle. Absolute WSL paths are used throughout so
+    /// the snapshot config records an absolute serial path that a restored VM
+    /// resolves regardless of the CH process working directory.
+    async fn spawn_persistent(&self) -> Result<ProcessHandle, SandboxAdapterError> {
+        let vm_id = Uuid::now_v7().simple().to_string();
+        let vm_root = format!("{}/persistent-{vm_id}", self.config.work_dir);
+        let api_socket = format!("{vm_root}/ch.sock");
+        let serial_log = format!("{vm_root}/serial.log");
+        let idle_cpio = format!("{vm_root}/idle.cpio");
+
+        if let Err(error) = build_idle_initramfs(&self.config, &vm_root, &idle_cpio).await {
+            let _ = remove_wsl_path(&self.config, &vm_root).await;
+            return Err(error);
+        }
+
+        // Boot args for the persistent idle VM (absolute serial path so the
+        // snapshot config is CWD-independent).
+        let boot_args = vec![
+            "-d".to_string(),
+            self.config.distro.clone(),
+            "-e".to_string(),
+            self.config.ch_bin.clone(),
+            "--api-socket".to_string(),
+            api_socket.clone(),
+            "--kernel".to_string(),
+            self.config.kernel.clone(),
+            "--initramfs".to_string(),
+            idle_cpio.clone(),
+            "--cmdline".to_string(),
+            "console=ttyS0".to_string(),
+            "--serial".to_string(),
+            format!("file={serial_log}"),
+            "--console".to_string(),
+            "off".to_string(),
+            "--cpus".to_string(),
+            format!("boot={}", self.config.vcpus),
+            "--memory".to_string(),
+            format!("size={}M", self.config.memory_mib),
+        ];
+
+        let child = match spawn_persistent_child(self.config.wsl_exe(), &boot_args) {
+            Ok(child) => child,
+            Err(error) => {
+                let _ = remove_wsl_path(&self.config, &vm_root).await;
+                return Err(error);
+            }
+        };
+
+        // Wait for the guest to boot far enough to create the API socket AND emit
+        // its one-shot boot marker on the serial console.
+        if let Err(error) =
+            wait_for_wsl_path(&self.config, &api_socket, PERSISTENT_BOOT_TIMEOUT_MS).await
+        {
+            let _ = remove_wsl_path(&self.config, &vm_root).await;
+            return Err(error);
+        }
+
+        let handle = ProcessHandle::new(
+            AdapterId::new(CLOUD_HYPERVISOR_ADAPTER_ID),
+            None,
+            format!("hsk-ch-persistent-{vm_id}"),
+        );
+        let vm = PersistentVm {
+            api_socket,
+            serial_log,
+            vm_root,
+        };
+        self.persistent_children
+            .lock()
+            .await
+            .insert(handle.id, child);
+        let mut hstate = HandleState::default();
+        hstate.persistent = Some(vm);
+        self.handles
+            .lock()
+            .map_err(|error| spawn_failed(format!("handle registry poisoned: {error}")))?
+            .insert(handle.id, hstate);
+        Ok(handle)
+    }
 }
 
 #[async_trait]
 impl SandboxAdapter for CloudHypervisorAdapter {
-    async fn spawn(&self, _spec: ProcessSpec) -> Result<ProcessHandle, SandboxAdapterError> {
+    async fn spawn(&self, spec: ProcessSpec) -> Result<ProcessHandle, SandboxAdapterError> {
         // Re-probe so a handle is never minted against a runtime that has gone
-        // away (mirrors DockerAdapter::ensure_runtime_available). The VM itself
-        // is not booted here: the ephemeral model boots a fresh VM per exec.
+        // away (mirrors DockerAdapter::ensure_runtime_available).
         verify_available(&self.config).await?;
+
+        // Persistent-VM model (snapshot/restore): boot a long-lived idle VM with
+        // an API socket. Selected ONLY when the caller marks the spec; otherwise
+        // the proven ephemeral-per-exec path below is byte-for-byte unchanged.
+        let persistent = spec
+            .metadata
+            .get(SANDBOX_MODE_METADATA_KEY)
+            .map(|value| value == SANDBOX_MODE_PERSISTENT)
+            .unwrap_or(false);
+        if persistent {
+            return self.spawn_persistent().await;
+        }
+
+        // Ephemeral model: the VM itself is not booted here, a fresh VM is
+        // booted per exec.
         let handle = ProcessHandle::new(
             AdapterId::new(CLOUD_HYPERVISOR_ADAPTER_ID),
             None,
@@ -359,6 +566,27 @@ impl SandboxAdapter for CloudHypervisorAdapter {
         self.ensure_handle(handle)?;
         if cmd.argv.is_empty() {
             return Err(spawn_failed("Command.argv must not be empty"));
+        }
+        // TODO(snapshot-exec): exec into a *running* persistent VM needs a vsock
+        // guest agent (the idle initramfs only loops printing TICK; it has no
+        // command channel). That is OUT OF SCOPE for the snapshot/restore work;
+        // ephemeral exec is unchanged. Until the guest agent lands, exec on a
+        // persistent handle fails closed rather than silently doing nothing.
+        if self
+            .handles
+            .lock()
+            .map(|map| {
+                map.get(&handle.id)
+                    .map(|state| state.persistent.is_some())
+                    .unwrap_or(false)
+            })
+            .unwrap_or(false)
+        {
+            return Err(spawn_failed(
+                "exec into a persistent (snapshot-capable) VM is not yet supported; \
+                 it requires a vsock guest agent (out of scope). Use the ephemeral \
+                 spawn (omit the `hsk.sandbox.mode=persistent` marker) for exec.",
+            ));
         }
         if self
             .handles
@@ -556,10 +784,28 @@ impl SandboxAdapter for CloudHypervisorAdapter {
         _signal: Signal,
     ) -> Result<(), SandboxAdapterError> {
         self.ensure_handle(handle)?;
-        // Mark the handle killed. Any in-flight cloud-hypervisor child for this
-        // handle is terminated by run_host_command's kill_on_drop once the
-        // owning exec future is dropped; for the ephemeral model there is no
-        // long-lived VM to signal between execs.
+
+        // Persistent handle: terminate the live CH child and clean its socket +
+        // scratch root. For the ephemeral model there is no long-lived VM to
+        // signal between execs (any in-flight child is reaped by
+        // run_host_command's kill_on_drop once its exec future is dropped).
+        let persistent = self
+            .handles
+            .lock()
+            .ok()
+            .and_then(|map| map.get(&handle.id).and_then(|state| state.persistent.clone()));
+        if let Some(vm) = persistent {
+            // Dropping the Child terminates the CH process (kill_on_drop). Also
+            // issue an explicit kill so termination does not depend solely on
+            // drop ordering, then best-effort clean the socket + scratch root.
+            if let Some(mut child) = self.persistent_children.lock().await.remove(&handle.id) {
+                let _ = child.start_kill();
+                let _ = child.wait().await;
+            }
+            let _ = remove_wsl_path(&self.config, &vm.api_socket).await;
+            let _ = remove_wsl_path(&self.config, &vm.vm_root).await;
+        }
+
         if let Ok(mut map) = self.handles.lock() {
             if let Some(state) = map.get_mut(&handle.id) {
                 state.killed = true;
@@ -591,6 +837,198 @@ impl SandboxAdapter for CloudHypervisorAdapter {
             .and_then(|map| map.get(&handle.id).and_then(|state| state.exit_code)))
     }
 
+    /// Capture the full live state of a persistent VM (Master Spec v02.187
+    /// §3.5.7 #7). Pauses the guest via `ch-remote pause`, then `ch-remote
+    /// snapshot file://<dir>` into a fresh, empty, per-snapshot directory
+    /// (CH requires the destination to exist and be empty). The resulting
+    /// `config.json` + `state.json` + memory-range files fully describe the
+    /// paused CPU + RAM + device state so [`restore`] can resume it.
+    ///
+    /// [`restore`]: CloudHypervisorAdapter::restore
+    async fn snapshot(
+        &self,
+        handle: &ProcessHandle,
+    ) -> Result<SnapshotRef, SandboxAdapterError> {
+        self.ensure_handle(handle)?;
+        let vm = self
+            .handles
+            .lock()
+            .ok()
+            .and_then(|map| map.get(&handle.id).and_then(|state| state.persistent.clone()))
+            .ok_or_else(|| {
+                snapshot_failed(
+                    "snapshot requires a persistent handle; spawn with metadata \
+                     `hsk.sandbox.mode=persistent` (the ephemeral model has no live VM to capture)",
+                )
+            })?;
+
+        // Record the original VM's absolute serial path as the snapshot's
+        // observation channel: CH bakes this same absolute path into the
+        // snapshot config, so the restored VM keeps appending its TICK stream
+        // there. Carrying it on the SnapshotRef lets `restore` reattach serial
+        // observation (otherwise the restored handle has no readable console).
+        let snap_ref = SnapshotRef::new(
+            AdapterId::new(CLOUD_HYPERVISOR_ADAPTER_ID),
+            format!("{}/snap-{}", self.config.work_dir, Uuid::now_v7().simple()),
+        )
+        .with_observe_path(vm.serial_log.clone());
+
+        // CH requires the snapshot destination to exist and be empty.
+        let mkdir = run_wsl_sh(
+            &self.config,
+            &format!(
+                "rm -rf {dir} && mkdir -p {dir} && echo HSK_SNAPDIR_OK",
+                dir = sh_quote_wsl(&snap_ref.snapshot_dir)
+            ),
+            PROBE_TIMEOUT_MS,
+        )
+        .await?;
+        if mkdir.exit_code != 0
+            || !String::from_utf8_lossy(&mkdir.stdout).contains("HSK_SNAPDIR_OK")
+        {
+            return Err(snapshot_failed(format!(
+                "failed to prepare empty snapshot dir `{}`: {}",
+                snap_ref.snapshot_dir,
+                mkdir.stderr_text()
+            )));
+        }
+
+        // 1. Pause the live guest so the captured memory is consistent.
+        let pause = run_host_command(
+            self.config.wsl_exe(),
+            &ch_remote_args(&self.config, &vm.api_socket, &["pause".to_string()]),
+            None,
+            Some(PROBE_TIMEOUT_MS),
+            handle.id,
+        )
+        .await?;
+        if pause.exit_code != 0 {
+            return Err(snapshot_failed(format!(
+                "ch-remote pause failed (exit {}): {}",
+                pause.exit_code,
+                pause.stderr_text()
+            )));
+        }
+
+        // 2. Snapshot to the prepared dir (positional file:// URL).
+        let snapshot = run_host_command(
+            self.config.wsl_exe(),
+            &ch_remote_args(
+                &self.config,
+                &vm.api_socket,
+                &[
+                    "snapshot".to_string(),
+                    format!("file://{}", snap_ref.snapshot_dir),
+                ],
+            ),
+            None,
+            Some(self.config.command_timeout_ms),
+            handle.id,
+        )
+        .await?;
+        if snapshot.exit_code != 0 {
+            return Err(snapshot_failed(format!(
+                "ch-remote snapshot failed (exit {}): {}",
+                snapshot.exit_code,
+                snapshot.stderr_text()
+            )));
+        }
+
+        // Verify CH actually produced the expected snapshot artifacts so a
+        // silent partial capture cannot masquerade as success.
+        let verify = run_wsl_sh(
+            &self.config,
+            &format!(
+                "test -f {dir}/config.json && test -f {dir}/state.json && echo HSK_SNAP_OK",
+                dir = sh_quote_wsl(&snap_ref.snapshot_dir)
+            ),
+            PROBE_TIMEOUT_MS,
+        )
+        .await?;
+        if !String::from_utf8_lossy(&verify.stdout).contains("HSK_SNAP_OK") {
+            return Err(snapshot_failed(format!(
+                "snapshot dir `{}` is missing config.json/state.json after ch-remote snapshot",
+                snap_ref.snapshot_dir
+            )));
+        }
+
+        Ok(snap_ref)
+    }
+
+    /// Restore a snapshot into a brand-new persistent VM that resumes from the
+    /// captured live state (no reboot). Boots a fresh CH child with
+    /// `--restore source_url=file://<dir>,resume=true` on a new API socket and
+    /// returns a new persistent [`ProcessHandle`]. The restored guest's serial
+    /// output goes to the original serial path recorded in the snapshot config
+    /// (an absolute WSL path), so callers read continued state from there.
+    async fn restore(
+        &self,
+        snapshot: &SnapshotRef,
+    ) -> Result<ProcessHandle, SandboxAdapterError> {
+        verify_available(&self.config).await?;
+        if snapshot.adapter_id != AdapterId::new(CLOUD_HYPERVISOR_ADAPTER_ID) {
+            return Err(snapshot_failed(format!(
+                "snapshot was produced by adapter `{}`, not cloud_hypervisor",
+                snapshot.adapter_id
+            )));
+        }
+
+        // New API socket for the restored VM. The serial path is NOT re-set: CH
+        // resumes writing to the absolute serial path baked into the snapshot
+        // config (the original VM's serial log).
+        let api_socket = format!(
+            "{}/restore-{}.sock",
+            self.config.work_dir,
+            Uuid::now_v7().simple()
+        );
+        let _ = remove_wsl_path(&self.config, &api_socket).await;
+
+        let restore_args = vec![
+            "-d".to_string(),
+            self.config.distro.clone(),
+            "-e".to_string(),
+            self.config.ch_bin.clone(),
+            "--api-socket".to_string(),
+            api_socket.clone(),
+            "--restore".to_string(),
+            format!("source_url=file://{},resume=true", snapshot.snapshot_dir),
+        ];
+
+        let child = spawn_persistent_child(self.config.wsl_exe(), &restore_args)?;
+
+        // Wait for the restored VM's API socket to appear (proves CH came up).
+        wait_for_wsl_path(&self.config, &api_socket, PERSISTENT_BOOT_TIMEOUT_MS).await?;
+
+        let handle = ProcessHandle::new(
+            AdapterId::new(CLOUD_HYPERVISOR_ADAPTER_ID),
+            None,
+            format!("hsk-ch-restored-{}", Uuid::now_v7().simple()),
+        );
+
+        // The restored VM owns the snapshot dir as its scratch root for cleanup.
+        // Its serial path is the original absolute path baked into the snapshot
+        // config; the SnapshotRef carries that path as `observe_path`, so the
+        // restored handle can read the continued TICK stream from there.
+        let vm = PersistentVm {
+            api_socket,
+            serial_log: snapshot.observe_path.clone().unwrap_or_default(),
+            vm_root: snapshot.snapshot_dir.clone(),
+        };
+
+        self.persistent_children
+            .lock()
+            .await
+            .insert(handle.id, child);
+        let mut state = HandleState::default();
+        state.persistent = Some(vm);
+        self.handles
+            .lock()
+            .map_err(|error| snapshot_failed(format!("handle registry poisoned: {error}")))?
+            .insert(handle.id, state);
+
+        Ok(handle)
+    }
+
     fn capabilities(&self) -> AdapterCapabilities {
         AdapterCapabilities {
             adapter_id: AdapterId::new(CLOUD_HYPERVISOR_ADAPTER_ID),
@@ -603,7 +1041,9 @@ impl SandboxAdapter for CloudHypervisorAdapter {
             cross_machine_portable: true,
             isolation_tier: IsolationTier::Tier3Microvm,
             requires_nested_virt: true,
-            supports_snapshot: false,
+            // The persistent-VM model implements real pause+snapshot+restore via
+            // Cloud Hypervisor + ch-remote (Master Spec v02.187 §3.5.7 #7).
+            supports_snapshot: true,
         }
     }
 }
@@ -953,6 +1393,129 @@ async fn build_per_exec_initramfs(
     Ok(())
 }
 
+/// Build the per-VM idle initramfs for the persistent-VM model: a fresh
+/// `<vm_root>/ir` tree with busybox + the idle `/init` (which loops printing
+/// TICK and never powers off), packed to `<idle_cpio>` via `cpio -o -H newc`.
+/// This mirrors `build_per_exec_initramfs` but bakes in no binds and uses the
+/// idle init script instead of the per-exec one.
+async fn build_idle_initramfs(
+    config: &CloudHypervisorConfig,
+    vm_root: &str,
+    idle_cpio: &str,
+) -> Result<(), SandboxAdapterError> {
+    let ir = format!("{vm_root}/ir");
+    let mut script = String::new();
+    script.push_str("set -e; ");
+    script.push_str(&format!(
+        "rm -rf {root}; mkdir -p {ir_bin}; cp {busybox} {ir}/bin/busybox; ",
+        root = sh_quote_wsl(vm_root),
+        ir_bin = sh_quote_wsl(&format!("{ir}/bin")),
+        busybox = sh_quote_wsl(config.busybox()),
+        ir = sh_quote_wsl(&ir),
+    ));
+    script.push_str(&format!(
+        "cat > {init} <<'HSKIDLEEOF'\n{body}\nHSKIDLEEOF\n",
+        init = sh_quote_wsl(&format!("{ir}/init")),
+        body = IDLE_INIT_SCRIPT,
+    ));
+    script.push_str(&format!(
+        "chmod +x {init}; ",
+        init = sh_quote_wsl(&format!("{ir}/init"))
+    ));
+    script.push_str(&format!(
+        "(cd {ir} && find . -print0 | cpio --null -o -H newc 2>/dev/null > {cpio}); echo HSK_IDLE_OK",
+        ir = sh_quote_wsl(&ir),
+        cpio = sh_quote_wsl(idle_cpio),
+    ));
+
+    let output = run_wsl_sh(config, &script, PROBE_TIMEOUT_MS).await?;
+    if output.exit_code != 0 || !String::from_utf8_lossy(&output.stdout).contains("HSK_IDLE_OK") {
+        return Err(spawn_failed(format!(
+            "idle initramfs build failed (exit {}): {}",
+            output.exit_code,
+            output.stderr_text()
+        )));
+    }
+    Ok(())
+}
+
+/// Spawn a long-lived `wsl.exe ... cloud-hypervisor ...` child for a persistent
+/// VM and RETAIN the [`Child`] (unlike `run_host_command`, which waits for the
+/// process to exit). `kill_on_drop(true)` means dropping the returned child also
+/// terminates the CH process, so the adapter can tear the VM down deterministically.
+fn spawn_persistent_child(
+    wsl_exe: &Path,
+    args: &[String],
+) -> Result<Child, SandboxAdapterError> {
+    let mut command = TokioCommand::new(wsl_exe);
+    command
+        .args(args)
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .kill_on_drop(true);
+    hide_command_window(&mut command);
+    command.spawn().map_err(|error| {
+        SandboxAdapterError::AdapterUnavailable {
+            adapter_id: AdapterId::new(CLOUD_HYPERVISOR_ADAPTER_ID),
+            reason: format!(
+                "failed to spawn persistent cloud-hypervisor via `{}`: {error}",
+                wsl_exe.to_string_lossy()
+            ),
+        }
+    })
+}
+
+/// Poll inside WSL until `path` exists (the API socket / serial log a booting
+/// persistent VM creates) or `timeout_ms` elapses. Used to confirm a persistent
+/// or restored VM actually came up before a handle is minted against it.
+async fn wait_for_wsl_path(
+    config: &CloudHypervisorConfig,
+    path: &str,
+    timeout_ms: u64,
+) -> Result<(), SandboxAdapterError> {
+    let deadline = Instant::now() + Duration::from_millis(timeout_ms);
+    loop {
+        let probe = run_wsl_sh(
+            config,
+            &format!(
+                "test -e {p} && echo HSK_PATH_OK || echo HSK_PATH_MISSING",
+                p = sh_quote_wsl(path)
+            ),
+            PROBE_TIMEOUT_MS,
+        )
+        .await?;
+        if String::from_utf8_lossy(&probe.stdout).contains("HSK_PATH_OK") {
+            return Ok(());
+        }
+        if Instant::now() >= deadline {
+            return Err(snapshot_failed(format!(
+                "persistent VM did not create `{path}` within {timeout_ms}ms (CH failed to boot)"
+            )));
+        }
+        tokio::time::sleep(Duration::from_millis(PERSISTENT_POLL_INTERVAL_MS)).await;
+    }
+}
+
+/// Build the `wsl.exe -d <distro> -e <ch_remote> --api-socket <sock> <sub...>`
+/// argv used to drive a live persistent VM (pause / snapshot).
+fn ch_remote_args(
+    config: &CloudHypervisorConfig,
+    api_socket: &str,
+    subcommand: &[String],
+) -> Vec<String> {
+    let mut args = vec![
+        "-d".to_string(),
+        config.distro().to_string(),
+        "-e".to_string(),
+        config.ch_remote_bin().to_string(),
+        "--api-socket".to_string(),
+        api_socket.to_string(),
+    ];
+    args.extend(subcommand.iter().cloned());
+    args
+}
+
 /// Extract the base64 serial-tar between `---HSK-FILES-BEGIN---` and
 /// `---HSK-FILES-END---`, decode + untar it inside WSL to a staging dir, then
 /// copy each ReadWrite bind's guest-path contents back to its host bind path
@@ -1158,6 +1721,13 @@ fn net_policy_failed(reason: impl ToString) -> SandboxAdapterError {
     }
 }
 
+fn snapshot_failed(reason: impl ToString) -> SandboxAdapterError {
+    SandboxAdapterError::SnapshotFailed {
+        adapter_id: AdapterId::new(CLOUD_HYPERVISOR_ADAPTER_ID),
+        reason: reason.to_string(),
+    }
+}
+
 fn unavailable(reason: impl ToString) -> SandboxAdapterError {
     SandboxAdapterError::AdapterUnavailable {
         adapter_id: AdapterId::new(CLOUD_HYPERVISOR_ADAPTER_ID),
@@ -1176,6 +1746,35 @@ fn timed_out(handle_id: Uuid, timeout_ms: u64) -> SandboxAdapterError {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn idle_init_loops_and_never_powers_off() {
+        // The idle init must print the one-shot boot marker, loop printing TICK,
+        // and NEVER poweroff (otherwise the VM cannot be paused + snapshotted).
+        assert!(IDLE_INIT_SCRIPT.contains(HSK_BOOT_ONCE_MARKER));
+        assert!(IDLE_INIT_SCRIPT.contains("TICK-$i"));
+        assert!(IDLE_INIT_SCRIPT.contains("while true"));
+        assert!(
+            !IDLE_INIT_SCRIPT.contains("poweroff"),
+            "idle init must not power off the persistent VM"
+        );
+    }
+
+    #[test]
+    fn persistent_mode_marker_constants() {
+        assert_eq!(SANDBOX_MODE_METADATA_KEY, "hsk.sandbox.mode");
+        assert_eq!(SANDBOX_MODE_PERSISTENT, "persistent");
+    }
+
+    #[test]
+    fn ch_remote_args_shape() {
+        let config = CloudHypervisorConfig::default();
+        let args = ch_remote_args(&config, "/run/ch.sock", &["pause".to_string()]);
+        assert_eq!(args[0], "-d");
+        assert!(args.contains(&"--api-socket".to_string()));
+        assert!(args.contains(&"/run/ch.sock".to_string()));
+        assert_eq!(args.last().unwrap(), "pause");
+    }
 
     #[test]
     fn parses_begin_end_markers_with_zero_exit() {
@@ -1263,6 +1862,7 @@ mod tests {
             distro: DEFAULT_DISTRO.to_string(),
             wsl_exe: PathBuf::from("wsl.exe"),
             ch_bin: DEFAULT_CH_BIN.to_string(),
+            ch_remote_bin: DEFAULT_CH_REMOTE_BIN.to_string(),
             kernel: DEFAULT_KERNEL.to_string(),
             initramfs: DEFAULT_INITRAMFS.to_string(),
             busybox: DEFAULT_BUSYBOX.to_string(),

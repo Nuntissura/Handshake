@@ -12,7 +12,8 @@ use std::collections::BTreeMap;
 use handshake_core::sandbox::{
     AdapterId, Command, CloudHypervisorAdapter, CloudHypervisorConfig, ImageRef, IsolationTier,
     NetPolicy, ProcessSpec, ProcessStatus, ResourceLimits, SandboxAdapter, SandboxAdapterError,
-    TrustClass, CLOUD_HYPERVISOR_ADAPTER_ID,
+    Signal, TrustClass, CLOUD_HYPERVISOR_ADAPTER_ID, SANDBOX_MODE_METADATA_KEY,
+    SANDBOX_MODE_PERSISTENT,
 };
 
 fn skip_message(error: &SandboxAdapterError) -> String {
@@ -36,6 +37,99 @@ fn sample_spec() -> ProcessSpec {
         trust_class: TrustClass::UntrustedAgent,
         metadata: BTreeMap::new(),
     }
+}
+
+fn persistent_spec() -> ProcessSpec {
+    let mut spec = sample_spec();
+    spec.metadata.insert(
+        SANDBOX_MODE_METADATA_KEY.to_string(),
+        SANDBOX_MODE_PERSISTENT.to_string(),
+    );
+    spec
+}
+
+fn last_tick(serial: &str) -> Option<u64> {
+    serial
+        .lines()
+        .filter_map(|line| line.trim().strip_prefix("TICK-"))
+        .filter_map(|n| n.trim().parse::<u64>().ok())
+        .max()
+}
+
+/// Poll the persistent VM's serial console until it emits a TICK strictly
+/// greater than `above` (up to ~40s), returning the highest TICK-N seen. The
+/// `above` bound matters for the restored VM: it appends to the SAME serial log
+/// that already holds the pre-snapshot ticks, so we must wait for a genuinely
+/// NEW tick (proof the VM resumed and kept counting) rather than re-reading a
+/// stale one. On timeout, dump the raw serial so a failure is diagnosable.
+async fn wait_for_tick(
+    adapter: &CloudHypervisorAdapter,
+    handle: &handshake_core::sandbox::ProcessHandle,
+    above: u64,
+    label: &str,
+) -> u64 {
+    let mut last = String::new();
+    for _ in 0..40 {
+        last = adapter.read_handle_serial(handle).await.unwrap_or_default();
+        if let Some(n) = last_tick(&last) {
+            if n > above {
+                return n;
+            }
+        }
+        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+    }
+    panic!(
+        "{label}: persistent VM emitted no TICK greater than {above} within ~40s. Raw serial follows:\n{last}"
+    );
+}
+
+/// Real snapshot/restore: boot a persistent idle microVM, snapshot it, restore
+/// into a fresh VM, and prove the in-RAM running state (a serial TICK counter)
+/// CONTINUED across the restore — i.e. the VM was resumed from captured memory,
+/// not rebooted. Backs the validate-then-promote flow (spec v02.187 §3.5.7 #7).
+#[tokio::test]
+async fn cloud_hypervisor_snapshot_restore_preserves_running_state() {
+    let adapter = match CloudHypervisorAdapter::try_new(CloudHypervisorConfig::default()).await {
+        Ok(adapter) => adapter,
+        Err(error) => {
+            eprintln!("{}", skip_message(&error));
+            return;
+        }
+    };
+    assert!(
+        adapter.capabilities().supports_snapshot,
+        "Tier-3 microVM adapter must declare supports_snapshot"
+    );
+
+    let handle = adapter
+        .spawn(persistent_spec())
+        .await
+        .expect("spawn persistent microVM");
+    // The guest boots a few seconds after spawn returns (spawn only waits for
+    // the API socket), so poll for the first TICK rather than guessing a sleep.
+    let n_before = wait_for_tick(&adapter, &handle, 0, "before snapshot").await;
+
+    let snapshot = adapter
+        .snapshot(&handle)
+        .await
+        .expect("snapshot the persistent microVM");
+    let restored = adapter
+        .restore(&snapshot)
+        .await
+        .expect("restore a fresh microVM from the snapshot");
+    // Require a TICK strictly greater than n_before: proof the restored VM
+    // resumed the in-RAM counter and kept incrementing (not a reboot, not a
+    // stale read of the pre-snapshot ticks in the shared serial log).
+    let n_after = wait_for_tick(&adapter, &restored, n_before, "after restore").await;
+
+    eprintln!("--- SNAPSHOT/RESTORE: TICK before={n_before}, after={n_after} ---");
+    assert!(
+        n_after > n_before,
+        "restored microVM must CONTINUE the in-RAM counter (state preserved, resumed not rebooted): {n_before} -> {n_after}"
+    );
+
+    let _ = adapter.kill(&handle, Signal::Kill).await;
+    let _ = adapter.kill(&restored, Signal::Kill).await;
 }
 
 /// Real microVM boot: spawn a handle, exec a command inside a freshly booted

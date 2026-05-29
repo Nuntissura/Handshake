@@ -14,7 +14,7 @@ use crate::process_ledger::{
 
 use super::{
     AdapterCapabilities, BindMode, Command, ExecResult, NetPolicy, ProcessHandle, ProcessSpec,
-    ProcessStatus, SandboxAdapter, SandboxAdapterError, Signal,
+    ProcessStatus, SandboxAdapter, SandboxAdapterError, Signal, SnapshotRef,
 };
 
 #[derive(Clone)]
@@ -199,6 +199,40 @@ impl SandboxAdapter for LedgerDecorator {
 
     async fn exit_code(&self, handle: &ProcessHandle) -> Result<Option<i32>, SandboxAdapterError> {
         self.inner.exit_code(handle).await
+    }
+
+    async fn snapshot(
+        &self,
+        handle: &ProcessHandle,
+    ) -> Result<SnapshotRef, SandboxAdapterError> {
+        // Delegate to the wrapped adapter so snapshot capability is preserved
+        // through the ledger decorator (e.g. a wrapped CloudHypervisorAdapter).
+        self.inner.snapshot(handle).await
+    }
+
+    async fn restore(
+        &self,
+        snapshot: &SnapshotRef,
+    ) -> Result<ProcessHandle, SandboxAdapterError> {
+        let handle = self.inner.restore(snapshot).await?;
+        // A restored instance is a freshly-running sandbox; record a START so
+        // the process ledger keeps a STOP partner for it on kill/status.
+        let start =
+            ProcessStart::new(ProcessEngineKind::SandboxContainer, "KERNEL_BUILDER", None)
+                .with_process_uuid(handle.id)
+                .with_sandbox_adapter_id(handle.adapter_id.as_str().to_string())
+                .with_sandbox_internal_id(handle.sandbox_internal_id.clone())
+                .with_sandbox_capabilities_snapshot(capabilities_snapshot(
+                    &self.inner.capabilities(),
+                ));
+        self.ledger.record_start(start.clone()).map_err(|error| {
+            SandboxAdapterError::SpawnFailed {
+                adapter_id: handle.adapter_id.clone(),
+                reason: format!("process ledger START write failed (restore): {error}"),
+            }
+        })?;
+        self.starts.lock().unwrap().insert(handle.id, start);
+        Ok(handle)
     }
 
     fn capabilities(&self) -> AdapterCapabilities {
