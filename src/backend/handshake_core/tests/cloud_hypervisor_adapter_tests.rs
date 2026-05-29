@@ -152,10 +152,11 @@ async fn cloud_hypervisor_propagates_nonzero_exit_code() {
     );
 }
 
-/// `fs_bind` is intentionally not yet supported and must fail closed with a
-/// typed error rather than silently faking a bind.
+/// `fs_bind` must still fail closed for an unsafe guest mount point (one that
+/// collides with the kernel/synthetic filesystems the init script owns), even
+/// though real binds are now supported.
 #[tokio::test]
-async fn cloud_hypervisor_fs_bind_is_unsupported_typed_error() {
+async fn cloud_hypervisor_fs_bind_rejects_reserved_guest_path() {
     let adapter = match CloudHypervisorAdapter::try_new(CloudHypervisorConfig::default()).await {
         Ok(adapter) => adapter,
         Err(error) => {
@@ -173,13 +174,98 @@ async fn cloud_hypervisor_fs_bind_is_unsupported_typed_error() {
         .fs_bind(
             &handle,
             std::path::PathBuf::from("D:/host"),
-            std::path::PathBuf::from("/guest"),
+            std::path::PathBuf::from("/proc"),
             handshake_core::sandbox::BindMode::ReadOnly,
         )
         .await
-        .expect_err("fs_bind must fail closed");
+        .expect_err("fs_bind must reject reserved guest paths");
     assert!(
         matches!(err, SandboxAdapterError::BindGuestPathInvalid { .. }),
-        "fs_bind must return a typed unsupported error, got {err:?}"
+        "fs_bind must return a typed invalid-guest-path error, got {err:?}"
     );
+}
+
+/// REAL read-write filesystem bind. Bakes a host directory into the per-exec
+/// microVM at `/work`, runs a command that reads the baked-in file AND writes a
+/// new file, then asserts the new file is written back to the *host* directory
+/// (the genuine write-back path — no mock anywhere).
+#[tokio::test]
+async fn cloud_hypervisor_fs_bind_read_write_writes_back_to_host() {
+    use std::fs;
+
+    let adapter = match CloudHypervisorAdapter::try_new(CloudHypervisorConfig::default()).await {
+        Ok(adapter) => adapter,
+        Err(error) => {
+            eprintln!("{}", skip_message(&error));
+            return;
+        }
+    };
+
+    // Unique Windows host temp dir with a baked-in input file.
+    let host_dir = std::env::temp_dir().join(format!(
+        "hsk-ch-fsbind-{}",
+        uuid::Uuid::now_v7().simple()
+    ));
+    fs::create_dir_all(&host_dir).expect("create host bind dir");
+    fs::write(host_dir.join("input.txt"), "hello-from-host").expect("write input.txt");
+
+    let handle = adapter
+        .spawn(sample_spec())
+        .await
+        .expect("spawn cloud_hypervisor handle");
+
+    adapter
+        .fs_bind(
+            &handle,
+            host_dir.clone(),
+            std::path::PathBuf::from("/work"),
+            handshake_core::sandbox::BindMode::ReadWrite,
+        )
+        .await
+        .expect("fs_bind ReadWrite /work");
+
+    let cmd = Command {
+        argv: vec![
+            "sh".to_string(),
+            "-c".to_string(),
+            "cat /work/input.txt; echo; echo MODIFIED-IN-VM > /work/output.txt; echo wrote"
+                .to_string(),
+        ],
+        env_overlay: BTreeMap::new(),
+        stdin: None,
+        timeout_ms: None,
+    };
+
+    let result = adapter
+        .exec(&handle, cmd)
+        .await
+        .expect("exec inside real microVM with RW bind");
+
+    let stdout = String::from_utf8_lossy(&result.stdout);
+    eprintln!("--- REAL MICROVM (fs_bind RW) STDOUT BEGIN ---");
+    eprintln!("{stdout}");
+    eprintln!(
+        "--- REAL MICROVM (fs_bind RW) STDOUT END (exit_code={}, {} ms) ---",
+        result.exit_code, result.duration_ms
+    );
+
+    assert!(
+        stdout.contains("hello-from-host"),
+        "guest must read the baked-in host file via /work; got: {stdout:?}"
+    );
+    assert_eq!(result.exit_code, 0, "command must exit 0; got {stdout:?}");
+
+    // The genuine write-back: the host temp dir must now contain output.txt
+    // with the content the guest wrote.
+    let written = fs::read_to_string(host_dir.join("output.txt"))
+        .expect("output.txt must be written back to the host bind dir");
+    let written_trimmed = written.trim_end_matches(['\r', '\n']);
+    eprintln!("--- HOST WRITE-BACK output.txt = {written_trimmed:?} ---");
+    assert_eq!(
+        written_trimmed, "MODIFIED-IN-VM",
+        "host output.txt must contain the value written inside the microVM"
+    );
+
+    // Clean up the host temp dir.
+    let _ = fs::remove_dir_all(&host_dir);
 }
