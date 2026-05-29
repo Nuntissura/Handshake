@@ -2,6 +2,7 @@
 
 pub mod adapter;
 pub mod bootstrap;
+pub mod cloud_hypervisor;
 pub mod docker;
 pub mod ledger_decorator;
 pub mod promotion_binding;
@@ -16,6 +17,7 @@ pub mod wsl2_podman;
 
 pub use adapter::*;
 pub use bootstrap::*;
+pub use cloud_hypervisor::*;
 pub use docker::*;
 pub use ledger_decorator::*;
 pub use promotion_binding::*;

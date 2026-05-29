@@ -5,9 +5,10 @@ use tracing::warn;
 use crate::process_ledger::LedgerBatcher;
 
 use super::{
-    AdapterId, DockerAdapter, DockerConfig, LedgerDecorator, SandboxAdapter, SandboxAdapterError,
-    SandboxAdapterRegistry, SandboxSettings, Wsl2PodmanAdapter, Wsl2PodmanConfig,
-    DOCKER_ADAPTER_ID, WINDOWS_NATIVE_JAIL_ADAPTER_ID, WSL2_PODMAN_ADAPTER_ID,
+    AdapterId, CloudHypervisorAdapter, CloudHypervisorConfig, DockerAdapter, DockerConfig,
+    LedgerDecorator, SandboxAdapter, SandboxAdapterError, SandboxAdapterRegistry, SandboxSettings,
+    Wsl2PodmanAdapter, Wsl2PodmanConfig, CLOUD_HYPERVISOR_ADAPTER_ID, DOCKER_ADAPTER_ID,
+    WINDOWS_NATIVE_JAIL_ADAPTER_ID, WSL2_PODMAN_ADAPTER_ID,
 };
 
 pub const WINDOWS_NATIVE_JAIL_MT045_DECISION_RECORD: &str =
@@ -50,6 +51,19 @@ pub async fn build_default_registry_async() -> Result<SandboxAdapterRegistry, Sa
         Ok(adapter) => adapters.push(Arc::new(adapter)),
         Err(error) => warn!(
             adapter_id = DOCKER_ADAPTER_ID,
+            error = %error,
+            "skipping unavailable sandbox adapter during bootstrap"
+        ),
+    }
+
+    // Tier-3 hardware-virtualized microVM. Available only on WSL2 + KVM hosts;
+    // try_new performs a real availability probe and returns AdapterUnavailable
+    // elsewhere so this block silently skips. It is never the default adapter;
+    // selection reaches it only via a Tier-3 isolation requirement.
+    match CloudHypervisorAdapter::try_new(CloudHypervisorConfig::default()).await {
+        Ok(adapter) => adapters.push(Arc::new(adapter)),
+        Err(error) => warn!(
+            adapter_id = CLOUD_HYPERVISOR_ADAPTER_ID,
             error = %error,
             "skipping unavailable sandbox adapter during bootstrap"
         ),
@@ -141,9 +155,13 @@ pub fn build_registry_from_adapters_with_ledger(
 }
 
 fn implicit_default_fallback_allowed(adapter_id: &AdapterId) -> bool {
+    // cloud_hypervisor is a heavyweight Tier-3 microVM reached only via an
+    // explicit Tier-3 isolation requirement; it must never be silently chosen
+    // as the everyday implicit default, alongside docker (compat-only) and the
+    // Win32-native jail (requires explicit selection).
     !matches!(
         adapter_id.as_str(),
-        DOCKER_ADAPTER_ID | WINDOWS_NATIVE_JAIL_ADAPTER_ID
+        DOCKER_ADAPTER_ID | WINDOWS_NATIVE_JAIL_ADAPTER_ID | CLOUD_HYPERVISOR_ADAPTER_ID
     )
 }
 
