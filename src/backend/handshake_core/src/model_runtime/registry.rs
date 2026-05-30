@@ -150,6 +150,20 @@ impl ModelRegistry {
         Ok(())
     }
 
+    /// Remove a model's registration entirely (and its loaded marker if present).
+    /// Used by the production unload flow (MT-202) after the live runtime adapter
+    /// has been detached and dropped, so a load/unload cycle does not leave a
+    /// stale registration tombstone behind.
+    pub fn unregister(&mut self, id: ModelId) -> Result<(), ModelRuntimeError> {
+        if self.registrations.remove(&id).is_none() {
+            return Err(ModelRuntimeError::UnloadError(format!(
+                "model is not registered: {id}"
+            )));
+        }
+        self.loaded_model_ids.remove(&id);
+        Ok(())
+    }
+
     pub fn is_loaded(&self, id: ModelId) -> bool {
         self.loaded_model_ids.contains_key(&id)
     }

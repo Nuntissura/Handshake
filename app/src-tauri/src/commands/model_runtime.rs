@@ -1,15 +1,23 @@
 use std::{
     collections::HashMap,
+    path::PathBuf,
     sync::{Arc, RwLock},
 };
 
+use chrono::Utc;
 use handshake_core::model_runtime::{
-    KvQuantSupport, ModelCapabilities, ModelId, ModelRegistration, ModelRegistry, ModelRuntime,
-    RuntimeBinding,
+    candle::CandleRuntime, BaseModelTag, KvCachePolicy, KvQuantSupport, LoadSpec, ModelCapabilities,
+    ModelId, ModelRegistration, ModelRegistry, ModelRuntime, OperatorId, ProviderKind, RuntimeBinding,
+    RuntimeKind, SamplingParams,
 };
 use serde::{Deserialize, Serialize};
 use tauri::State;
 use uuid::Uuid;
+
+pub const KERNEL_MODEL_RUNTIME_LOAD_IPC_CHANNEL: &str = "kernel_model_runtime_load";
+pub const KERNEL_MODEL_RUNTIME_UNLOAD_IPC_CHANNEL: &str = "kernel_model_runtime_unload";
+pub const FR_EVT_LLM_MODEL_LOAD: &str = "FR-EVT-LLM-MODEL-LOAD";
+pub const FR_EVT_LLM_MODEL_UNLOAD: &str = "FR-EVT-LLM-MODEL-UNLOAD";
 
 pub const KERNEL_MODEL_RUNTIME_CAPABILITIES_IPC_CHANNEL: &str = "kernel_model_runtime_capabilities";
 pub const KERNEL_MODEL_RUNTIME_LIST_LOADED_IPC_CHANNEL: &str = "kernel_model_runtime_list_loaded";
@@ -66,8 +74,8 @@ impl ModelRuntimeState {
     ///
     /// Called by the model load flow when a CandleRuntime adapter completes
     /// `load()` and exposes activation hooks per MT-082. Tests attach a fake
-    /// adapter shaped like CandleRuntime via the same path.
-    #[allow(dead_code)] // wired by tests + future production load flow
+    /// adapter shaped like CandleRuntime via the same path. The production
+    /// caller is `kernel_model_runtime_load` (MT-202).
     pub fn attach_live_runtime(
         &self,
         model_id: ModelId,
@@ -81,8 +89,9 @@ impl ModelRuntimeState {
     }
 
     /// Detach a live runtime adapter. Returns the removed runtime if any.
-    /// Called by the model unload flow.
-    #[allow(dead_code)] // wired by tests + future production unload flow
+    /// Called by the model unload flow (`kernel_model_runtime_unload`, MT-202).
+    /// Dropping the returned `Arc` frees the per-model `CandleRuntime` and its
+    /// loaded weights — detaching the sole owning `Arc` IS the unload.
     pub fn detach_live_runtime(
         &self,
         model_id: ModelId,
@@ -92,6 +101,37 @@ impl ModelRuntimeState {
             .write()
             .map_err(|_| "live runtime registry lock poisoned".to_string())?;
         Ok(guard.remove(&model_id))
+    }
+
+    /// Production: register a freshly-loaded model and mark it loaded under a
+    /// single write lock. Used by `kernel_model_runtime_load` (MT-202) after
+    /// `CandleRuntime::load()` returns the runtime-minted `ModelId`. This is the
+    /// non-test sibling of `register_for_tests` + `mark_loaded_for_tests`.
+    pub fn register_loaded(&self, registration: ModelRegistration) -> Result<(), String> {
+        let model_id = registration.model_id;
+        let mut registry = self
+            .registry
+            .write()
+            .map_err(|_| "model runtime registry lock poisoned".to_string())?;
+        registry
+            .register(registration)
+            .map_err(|error| error.to_string())?;
+        registry
+            .mark_loaded(model_id)
+            .map_err(|error| error.to_string())?;
+        Ok(())
+    }
+
+    /// Production: remove a model's registration after its live runtime has been
+    /// detached. Used by `kernel_model_runtime_unload` (MT-202).
+    pub fn unregister(&self, model_id: ModelId) -> Result<(), String> {
+        let mut registry = self
+            .registry
+            .write()
+            .map_err(|_| "model runtime registry lock poisoned".to_string())?;
+        registry
+            .unregister(model_id)
+            .map_err(|error| error.to_string())
     }
 
     /// Resolve the live `ModelRuntime` for `model_id` if one is attached.
@@ -279,6 +319,152 @@ pub async fn kernel_model_runtime_list_loaded(
 ) -> Result<Vec<LoadedModelRuntimeIpc>, String> {
     let _ = KERNEL_MODEL_RUNTIME_LIST_LOADED_IPC_CHANNEL;
     model_runtime_list_loaded(state.inner())
+}
+
+/// MT-202 production model-load request. The caller supplies the artifact path
+/// and its expected sha256 (the integrity gate — `CandleRuntime::load` verifies
+/// the file hash against this value and fails loud on mismatch).
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ModelLoadRequest {
+    pub artifact_path: String,
+    pub sha256_expected: String,
+    pub base_model_tag: String,
+    pub registered_by: String,
+}
+
+/// MT-202 THE-ONE-THING: the production model-load flow.
+///
+/// Constructs a REAL `CandleRuntime` (not a fake), loads the local model
+/// artifact, then registers + marks-loaded + `attach_live_runtime` under the
+/// runtime-minted `ModelId`. This is the first non-test caller of
+/// `attach_live_runtime`, and it is what lights up `preflight_capability_and_loaded`
+/// (registry capability + is_loaded) and `require_live_runtime` (live adapter)
+/// for every inference-lab IPC command (steering / refusal / CAA / LoRA / KV),
+/// which otherwise fail-closed with the typed `capture_not_available` prefix.
+///
+/// One `CandleRuntime` owns one loaded model; the runtime is moved into the
+/// `Arc<dyn ModelRuntime>` stored in `live_runtimes`. Unload detaches and drops
+/// that sole `Arc`, freeing the weights.
+#[tauri::command]
+pub async fn kernel_model_runtime_load(
+    request: ModelLoadRequest,
+    state: State<'_, ModelRuntimeState>,
+) -> Result<String, String> {
+    let _ = KERNEL_MODEL_RUNTIME_LOAD_IPC_CHANNEL;
+    model_runtime_load(request, state.inner()).await
+}
+
+/// Inner load logic (testable with `&ModelRuntimeState`). See
+/// `kernel_model_runtime_load` for the full contract.
+pub async fn model_runtime_load(
+    request: ModelLoadRequest,
+    state: &ModelRuntimeState,
+) -> Result<String, String> {
+    let artifact_path = PathBuf::from(request.artifact_path.trim());
+    if artifact_path.as_os_str().is_empty() {
+        return Err("artifact_path must not be empty".to_string());
+    }
+    let base_model_tag = request.base_model_tag.trim();
+    if base_model_tag.is_empty() {
+        return Err("base_model_tag must not be empty".to_string());
+    }
+    let registered_by = OperatorId::try_new(request.registered_by.trim())
+        .map_err(|error| error.to_string())?;
+    let sha256 = decode_sha256_hex(&request.sha256_expected)?;
+
+    // Permissive base capabilities; the candle arch-detection path
+    // (transformer/mamba2/rwkv) finalizes the real capability set, which we then
+    // read back from the runtime and register as the authoritative record.
+    let base_capabilities = ModelCapabilities {
+        supports_lora: true,
+        supports_kv_prefix_cache: true,
+        supports_kv_quantization: KvQuantSupport::None,
+        supports_activation_steering: true,
+        supports_subquadratic: false,
+        supports_speculative_draft: false,
+        supports_eagle3: false,
+    };
+
+    let spec = LoadSpec {
+        artifact_path: artifact_path.clone(),
+        sha256_expected: request.sha256_expected.trim().to_string(),
+        runtime_kind: RuntimeKind::Candle,
+        sampling_defaults: SamplingParams::default(),
+        kv_cache_policy: KvCachePolicy::default(),
+        declared_capabilities: base_capabilities,
+        provider: ProviderKind::Local,
+        engine_origin: Some("candle".to_string()),
+        external_engine_import: None,
+    };
+
+    let mut runtime = CandleRuntime::default();
+    let model_id = runtime.load(spec).await.map_err(|error| {
+        eprintln!("{FR_EVT_LLM_MODEL_LOAD}: load failed: {error}");
+        error.to_string()
+    })?;
+
+    // Register the capabilities the runtime actually reports for the loaded model
+    // so the registry capability gate matches the live adapter exactly.
+    let capabilities = runtime
+        .capabilities(model_id)
+        .map_err(|error| error.to_string())?
+        .clone();
+
+    let registration = ModelRegistration {
+        model_id,
+        artifact_path,
+        sha256,
+        runtime_binding: RuntimeBinding::Candle,
+        declared_capabilities: capabilities,
+        base_model_tag: BaseModelTag::new(base_model_tag),
+        registered_at_utc: Utc::now(),
+        registered_by,
+        provider: ProviderKind::Local,
+    };
+    state.register_loaded(registration)?;
+    state.attach_live_runtime(model_id, Arc::new(runtime))?;
+
+    eprintln!("{FR_EVT_LLM_MODEL_LOAD}: model_id={model_id} binding=candle");
+    Ok(model_id.to_string())
+}
+
+/// MT-202 production model-unload flow. Detaches and drops the live runtime
+/// (freeing the model weights) and removes the registration. A subsequent
+/// inference-lab command on this `model_id` then fails its loaded/live gates.
+#[tauri::command]
+pub async fn kernel_model_runtime_unload(
+    model_id: String,
+    state: State<'_, ModelRuntimeState>,
+) -> Result<(), String> {
+    let _ = KERNEL_MODEL_RUNTIME_UNLOAD_IPC_CHANNEL;
+    model_runtime_unload(&model_id, state.inner()).await
+}
+
+/// Inner unload logic (testable with `&ModelRuntimeState`). See
+/// `kernel_model_runtime_unload` for the full contract.
+pub async fn model_runtime_unload(
+    model_id: &str,
+    state: &ModelRuntimeState,
+) -> Result<(), String> {
+    let parsed = parse_model_id(model_id)?;
+    // Detaching the sole owning Arc frees the CandleRuntime + loaded weights.
+    let detached = state.detach_live_runtime(parsed)?;
+    let unregistered = state.unregister(parsed);
+    drop(detached);
+    // If neither a live runtime nor a registration existed, surface the typed
+    // "not registered" error from unregister; otherwise the unload succeeded.
+    unregistered?;
+    eprintln!("{FR_EVT_LLM_MODEL_UNLOAD}: model_id={parsed}");
+    Ok(())
+}
+
+fn decode_sha256_hex(value: &str) -> Result<[u8; 32], String> {
+    let bytes = hex::decode(value.trim())
+        .map_err(|error| format!("sha256_expected is not valid hex: {error}"))?;
+    bytes
+        .try_into()
+        .map_err(|_| "sha256_expected must be exactly 32 bytes (64 hex chars)".to_string())
 }
 
 /// MT-068 capability introspection IPC body.
@@ -520,5 +706,155 @@ mod tests {
         // Declared capabilities for Candle binding = activation_steering ENABLED.
         assert_eq!(result.supports_activation_steering, true);
         assert_eq!(result.supports_lora, true);
+    }
+
+    // ----- MT-202 production model-load flow (THE-ONE-THING) -----
+
+    fn load_request(artifact: &str, sha256: &str) -> ModelLoadRequest {
+        ModelLoadRequest {
+            artifact_path: artifact.to_string(),
+            sha256_expected: sha256.to_string(),
+            base_model_tag: "mt202-test-base".to_string(),
+            registered_by: "operator-mt202".to_string(),
+        }
+    }
+
+    #[tokio::test]
+    async fn model_load_rejects_invalid_sha256_hex() {
+        let state = ModelRuntimeState::default();
+        let err = model_runtime_load(load_request("some/model.safetensors", "not-hex"), &state)
+            .await
+            .expect_err("invalid sha256 hex must be rejected");
+        assert!(err.contains("not valid hex"), "{err}");
+    }
+
+    #[tokio::test]
+    async fn model_load_rejects_empty_artifact_path() {
+        let state = ModelRuntimeState::default();
+        let err = model_runtime_load(load_request("   ", &"ab".repeat(32)), &state)
+            .await
+            .expect_err("empty artifact_path must be rejected");
+        assert!(err.contains("artifact_path must not be empty"), "{err}");
+    }
+
+    #[tokio::test]
+    async fn model_load_rejects_empty_base_model_tag() {
+        let state = ModelRuntimeState::default();
+        let mut req = load_request("some/model.safetensors", &"ab".repeat(32));
+        req.base_model_tag = "  ".to_string();
+        let err = model_runtime_load(req, &state)
+            .await
+            .expect_err("empty base_model_tag must be rejected");
+        assert!(err.contains("base_model_tag must not be empty"), "{err}");
+    }
+
+    #[tokio::test]
+    async fn model_load_rejects_nonexistent_artifact_file() {
+        // Valid 64-hex sha so we pass decode and reach CandleRuntime::load, which
+        // validates the artifact is a real file and fails loud when it is not.
+        let state = ModelRuntimeState::default();
+        let err = model_runtime_load(
+            load_request("D:/__handshake_no_such_model__/model.safetensors", &"ab".repeat(32)),
+            &state,
+        )
+        .await
+        .expect_err("nonexistent artifact must fail loud");
+        assert!(
+            err.to_lowercase().contains("artifact"),
+            "expected a missing-artifact error, got: {err}"
+        );
+    }
+
+    #[tokio::test]
+    async fn model_unload_unknown_id_returns_not_registered() {
+        let state = ModelRuntimeState::default();
+        let unknown = ModelId::new_v7().to_string();
+        let err = model_runtime_unload(&unknown, &state)
+            .await
+            .expect_err("unloading an unknown model must error");
+        assert!(err.contains("not registered"), "{err}");
+    }
+
+    /// THE-ONE-THING real proof (Spec-Realism Gate sub-rules 1 & 2). Loads a REAL
+    /// candle-loadable safetensors Llama model from disk, asserts a REAL
+    /// `CandleRuntime` is attached, and runs a REAL activation-steering capture
+    /// (real `model.forward`) that returns real activations — not a fake adapter
+    /// and not the `capture_not_available` fail-closed path. Then proves unload
+    /// detaches + frees.
+    ///
+    /// Env-gated because the model artifact is ~9 MB and is not committed to the
+    /// product repo. Run with:
+    ///   HANDSHAKE_TEST_CANDLE_LLAMA_MODEL=<.../model.safetensors>
+    ///   HANDSHAKE_TEST_CANDLE_LLAMA_SHA256=<hex>
+    /// Skips cleanly (the default-CI error-path tests above cover the wiring
+    /// structurally) when the env var is absent.
+    #[tokio::test]
+    async fn model_load_attaches_real_candle_runtime_and_capture_returns_real_activations() {
+        use handshake_core::model_runtime::{techniques::activation_steering, LayerIndex};
+
+        let Some(artifact) = std::env::var_os("HANDSHAKE_TEST_CANDLE_LLAMA_MODEL") else {
+            eprintln!(
+                "SKIP model_load_attaches_real_candle_runtime_...: \
+                 HANDSHAKE_TEST_CANDLE_LLAMA_MODEL not set"
+            );
+            return;
+        };
+        let artifact = artifact.to_string_lossy().to_string();
+        let sha256 = std::env::var("HANDSHAKE_TEST_CANDLE_LLAMA_SHA256")
+            .expect("HANDSHAKE_TEST_CANDLE_LLAMA_SHA256 required when the model path is set");
+
+        let state = ModelRuntimeState::default();
+        let model_id_str = model_runtime_load(load_request(&artifact, &sha256), &state)
+            .await
+            .expect("real candle model load succeeds");
+        let model_id = parse_model_id(&model_id_str).expect("returned model id parses");
+
+        // THE-ONE-THING: a REAL CandleRuntime is attached for the loaded model.
+        let runtime = state
+            .live_runtime(model_id)
+            .expect("live runtime lock")
+            .expect("a live runtime is attached after load");
+        let caps = runtime.capabilities(model_id).expect("real capabilities");
+        assert!(
+            caps.supports_activation_steering,
+            "a Llama candle model must report activation steering support"
+        );
+
+        // REAL capture: runs the real forward pass and returns real activations.
+        let result = activation_steering::capture(
+            runtime.as_ref(),
+            model_id,
+            vec!["The capital of France is".to_string()],
+            vec![LayerIndex::new(0), LayerIndex::new(1)],
+        )
+        .await
+        .expect("real activation capture (must NOT be capture_not_available)");
+        assert!(result.tokens_seen > 0, "real forward must see tokens");
+        assert!(
+            !result.activations.is_empty(),
+            "real capture must return per-layer activations"
+        );
+        for (layer, per_token) in &result.activations {
+            assert!(
+                !per_token.is_empty(),
+                "layer {layer:?} must have per-token activation rows"
+            );
+            assert!(
+                per_token.iter().all(|row| !row.is_empty()),
+                "activation rows must be non-empty (real residual-stream width)"
+            );
+        }
+
+        // Unload detaches and frees: the live runtime is gone afterwards.
+        model_runtime_unload(&model_id_str, &state)
+            .await
+            .expect("unload succeeds");
+        assert!(
+            state
+                .live_runtime(model_id)
+                .expect("live runtime lock")
+                .is_none(),
+            "live runtime must be detached after unload"
+        );
     }
 }
