@@ -49,6 +49,12 @@ pub const KERNEL_MODEL_RUNTIME_STEERING_UNREGISTER_IPC_CHANNEL: &str =
     "kernel_model_runtime_steering_unregister";
 pub const KERNEL_MODEL_RUNTIME_STEERING_LIST_VECTORS_IPC_CHANNEL: &str =
     "kernel_model_runtime_steering_list_vectors";
+pub const KERNEL_MODEL_RUNTIME_STEERING_APPROVE_IPC_CHANNEL: &str =
+    "kernel_model_runtime_steering_approve";
+/// App-layer lifecycle event id for an operator review approval of a steering
+/// vector (`Pending -> Approved`). The review gate (MT-097) makes activation
+/// depend on this transition having happened.
+pub const FR_EVT_LLM_INFER_STEER_APPROVE: &str = "FR-EVT-LLM-INFER-STEER-APPROVE";
 
 /// Operator-facing prefix indicating the model is not actually available for
 /// steering capture (e.g. not loaded, hook config mismatch). The MT-098 UI
@@ -123,6 +129,19 @@ pub struct SteeringVectorIdIpc {
 pub struct SteeringSetActiveRequestIpc {
     pub model_id: String,
     pub vector_ids: Vec<String>,
+    /// MT-100/102: explicit operator acknowledgement that activating a
+    /// refusal-disabling vector disables the model's safety refusal. Required
+    /// server-side (not just in the UI) before any refusal-ablation vector can
+    /// be activated. Ignored for non-refusal vectors. Defaults to `false`.
+    #[serde(default)]
+    pub disables_refusal_acknowledged: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SteeringApproveRequestIpc {
+    pub vector_id: String,
+    pub approver: String,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -187,9 +206,19 @@ pub async fn kernel_model_runtime_steering_register_vector(
 pub async fn kernel_model_runtime_steering_set_active(
     request: SteeringSetActiveRequestIpc,
     state: State<'_, ModelRuntimeState>,
+    store: State<'_, SteeringVectorStoreState>,
 ) -> Result<SteeringSetActiveResultIpc, String> {
     let _ = KERNEL_MODEL_RUNTIME_STEERING_SET_ACTIVE_IPC_CHANNEL;
-    steering_set_active(request, state.inner()).await
+    steering_set_active(request, state.inner(), store.inner()).await
+}
+
+#[tauri::command]
+pub async fn kernel_model_runtime_steering_approve(
+    request: SteeringApproveRequestIpc,
+    store: State<'_, SteeringVectorStoreState>,
+) -> Result<SteeringMutationResultIpc, String> {
+    let _ = KERNEL_MODEL_RUNTIME_STEERING_APPROVE_IPC_CHANNEL;
+    steering_approve(request, store.inner()).await
 }
 
 #[tauri::command]
@@ -339,6 +368,7 @@ pub async fn steering_register_vector(
 pub async fn steering_set_active(
     request: SteeringSetActiveRequestIpc,
     state: &ModelRuntimeState,
+    store: &SteeringVectorStoreState,
 ) -> Result<SteeringSetActiveResultIpc, String> {
     let mut parsed_ids = Vec::with_capacity(request.vector_ids.len());
     for vector_id in &request.vector_ids {
@@ -346,6 +376,36 @@ pub async fn steering_set_active(
     }
     let model_id = preflight_capability_and_loaded(&request.model_id, state)?;
     let runtime = require_live_runtime(model_id, state, "set_active")?;
+
+    // MT-097/100/102: when a SteeringVectorStore is attached (production), the
+    // activation path is gated SERVER-SIDE, not just in the React UI:
+    //  - MT-097: every vector must be review-Approved (`ensure_activatable`),
+    //    so a `Pending`/`Denied` vector cannot be activated.
+    //  - MT-100/102: activating a refusal-disabling (ablation) vector additionally
+    //    requires the explicit operator acknowledgement, so a non-UI IPC caller
+    //    cannot silently disable safety refusal.
+    if let Some(store) = store.store() {
+        store
+            .ensure_activatable(&parsed_ids)
+            .map_err(|error| format!("steering set_active blocked by review gate: {error}"))?;
+        let mut requires_refusal_ack = false;
+        for id in &parsed_ids {
+            if store
+                .is_refusal_ablation(*id)
+                .map_err(|error| format!("steering set_active refusal check failed: {error}"))?
+            {
+                requires_refusal_ack = true;
+                break;
+            }
+        }
+        if requires_refusal_ack && !request.disables_refusal_acknowledged {
+            return Err(
+                "steering set_active blocked: activating a refusal-disabling vector requires \
+                 explicit operator acknowledgement (disablesRefusalAcknowledged=true)"
+                    .to_string(),
+            );
+        }
+    }
 
     activation_steering::set_active_steering_vectors(
         runtime.as_ref(),
@@ -358,6 +418,28 @@ pub async fn steering_set_active(
     Ok(SteeringSetActiveResultIpc {
         active_ids: parsed_ids.into_iter().map(|id| id.to_string()).collect(),
         event_type: FR_EVT_LLM_INFER_STEER_ACTIVE.to_string(),
+    })
+}
+
+/// MT-097 operator review approval (`Pending -> Approved`). Activation
+/// (`steering_set_active`) rejects any vector that has not been approved here,
+/// which is what makes the persisted `ReviewStatus` load-bearing on the
+/// production path. Requires an attached `SteeringVectorStore`.
+pub async fn steering_approve(
+    request: SteeringApproveRequestIpc,
+    store: &SteeringVectorStoreState,
+) -> Result<SteeringMutationResultIpc, String> {
+    let vector_id = parse_vector_id(&request.vector_id)?;
+    let approver = OperatorId::try_new(request.approver.trim())
+        .map_err(|error| format!("approver operator id invalid: {error}"))?;
+    let store = store
+        .store()
+        .ok_or_else(|| "steering approve requires an attached SteeringVectorStore".to_string())?;
+    store
+        .approve(vector_id, &approver)
+        .map_err(|error| format!("steering approve failed: {error}"))?;
+    Ok(SteeringMutationResultIpc {
+        event_type: FR_EVT_LLM_INFER_STEER_APPROVE.to_string(),
     })
 }
 
@@ -960,8 +1042,10 @@ mod tests {
             SteeringSetActiveRequestIpc {
                 model_id: model_id.to_string(),
                 vector_ids: vec![id.to_string()],
+                disables_refusal_acknowledged: false,
             },
             &state,
+            &SteeringVectorStoreState::detached(),
         )
         .await
         .expect("set_active dispatches");
@@ -971,6 +1055,150 @@ mod tests {
         assert_eq!(result.active_ids[0], id.to_string());
         let active = hooks.active.lock().unwrap();
         assert!(active.contains(&id));
+    }
+
+    // ----- MT-097/100/102 server-side review + refusal-disable gate -----
+
+    fn manual_vector(name: &str) -> SteeringVector {
+        SteeringVector::try_new(
+            None,
+            name,
+            LayerIndex::new(2),
+            HookPoint::ResidStream,
+            SteeringVectorValues::try_new(vec![0.1, 0.2, 0.3, 0.4], 1.0).unwrap(),
+            "manual steering vector",
+            Some(SteeringProvenance::Manual {
+                author: "operator-ilja".to_string(),
+                notes: String::new(),
+            }),
+        )
+        .expect("manual vector")
+    }
+
+    fn refusal_ablation_vector(name: &str) -> SteeringVector {
+        SteeringVector::try_new(
+            None,
+            name,
+            LayerIndex::new(2),
+            HookPoint::ResidStream,
+            SteeringVectorValues::try_new(vec![0.1, 0.2, 0.3, 0.4], -1.0).unwrap(),
+            "refusal-direction ablation vector",
+            Some(SteeringProvenance::Contrastive {
+                positive_prompts: vec!["harmful".to_string()],
+                negative_prompts: vec!["harmless".to_string()],
+                technique: ContrastiveTechnique::RefusalVector,
+            }),
+        )
+        .expect("refusal vector")
+    }
+
+    fn persist_pending(vector: &SteeringVector) -> (tempfile::TempDir, Arc<SteeringVectorStore>) {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let store = Arc::new(SteeringVectorStore::new(dir.path()));
+        store
+            .persist(PersistSteeringVectorRequest {
+                vector: vector.clone(),
+                license_tag: "SourceModelLicenseOnly".to_string(),
+                model_compat_tag: "test-compat".to_string(),
+                created_by: OperatorId::new("operator-ilja"),
+                session_id: "test-session".to_string(),
+                role_id: "operator".to_string(),
+            })
+            .expect("persist vector");
+        (dir, store)
+    }
+
+    fn set_active_request(model_id: ModelId, id: SteeringVectorId, ack: bool) -> SteeringSetActiveRequestIpc {
+        SteeringSetActiveRequestIpc {
+            model_id: model_id.to_string(),
+            vector_ids: vec![id.to_string()],
+            disables_refusal_acknowledged: ack,
+        }
+    }
+
+    #[tokio::test]
+    async fn steering_set_active_review_gate_blocks_pending_and_allows_after_approve() {
+        let model_id = ModelId::new_v7();
+        let state = state_with_candle_model(model_id);
+        let hooks = attach_fake_runtime(&state, model_id);
+
+        let vector = manual_vector("calm");
+        let id = vector.id;
+        hooks.vectors.lock().unwrap().insert(id, vector.clone());
+
+        let (_dir, store_arc) = persist_pending(&vector);
+        let store = SteeringVectorStoreState::new(store_arc.clone());
+
+        // Pending -> blocked by the MT-097 review gate; never reaches the adapter.
+        let err = steering_set_active(set_active_request(model_id, id, false), &state, &store)
+            .await
+            .expect_err("a Pending vector must be blocked from activation");
+        assert!(err.contains("review gate"), "{err}");
+        assert!(!hooks.active.lock().unwrap().contains(&id));
+
+        // Operator approval -> activation now succeeds through the same path.
+        store
+            .store()
+            .unwrap()
+            .approve(id, &OperatorId::new("operator-ilja"))
+            .expect("approve");
+        let ok = steering_set_active(set_active_request(model_id, id, false), &state, &store)
+            .await
+            .expect("approved vector activates");
+        assert_eq!(ok.active_ids, vec![id.to_string()]);
+        assert!(hooks.active.lock().unwrap().contains(&id));
+    }
+
+    #[tokio::test]
+    async fn steering_set_active_refusal_ablation_requires_server_side_acknowledgement() {
+        let model_id = ModelId::new_v7();
+        let state = state_with_candle_model(model_id);
+        let hooks = attach_fake_runtime(&state, model_id);
+
+        let vector = refusal_ablation_vector("disable-refusal");
+        let id = vector.id;
+        hooks.vectors.lock().unwrap().insert(id, vector.clone());
+
+        let (_dir, store_arc) = persist_pending(&vector);
+        store_arc
+            .approve(id, &OperatorId::new("operator-ilja"))
+            .expect("approve");
+        let store = SteeringVectorStoreState::new(store_arc);
+
+        // Approved, but no acknowledgement -> blocked server-side (MT-100/102),
+        // independent of any UI. A non-UI IPC caller cannot silently disable refusal.
+        let err = steering_set_active(set_active_request(model_id, id, false), &state, &store)
+            .await
+            .expect_err("refusal-ablation activation without acknowledgement must be blocked");
+        assert!(err.contains("acknowledgement"), "{err}");
+        assert!(!hooks.active.lock().unwrap().contains(&id));
+
+        // Explicit acknowledgement -> activates.
+        let ok = steering_set_active(set_active_request(model_id, id, true), &state, &store)
+            .await
+            .expect("acknowledged refusal-ablation activates");
+        assert_eq!(ok.active_ids, vec![id.to_string()]);
+        assert!(hooks.active.lock().unwrap().contains(&id));
+    }
+
+    #[tokio::test]
+    async fn steering_approve_transitions_pending_to_approved() {
+        let vector = manual_vector("calm");
+        let id = vector.id;
+        let (_dir, store_arc) = persist_pending(&vector);
+        let store = SteeringVectorStoreState::new(store_arc.clone());
+
+        let result = steering_approve(
+            SteeringApproveRequestIpc {
+                vector_id: id.to_string(),
+                approver: "operator-ilja".to_string(),
+            },
+            &store,
+        )
+        .await
+        .expect("approve succeeds");
+        assert_eq!(result.event_type, FR_EVT_LLM_INFER_STEER_APPROVE);
+        store_arc.ensure_activatable(&[id]).expect("approved vector is now activatable");
     }
 
     #[tokio::test]

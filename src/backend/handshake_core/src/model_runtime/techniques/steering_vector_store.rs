@@ -24,8 +24,9 @@ use crate::{
         },
     },
     model_runtime::{
-        HookPoint, LayerIndex, ModelRuntimeError, OperatorId, SteeringHookHandle,
-        SteeringProvenance, SteeringVector, SteeringVectorId, SteeringVectorValues,
+        ContrastiveTechnique, HookPoint, LayerIndex, ModelRuntimeError, OperatorId,
+        SteeringHookHandle, SteeringProvenance, SteeringVector, SteeringVectorId,
+        SteeringVectorValues,
     },
 };
 
@@ -307,6 +308,25 @@ impl SteeringVectorStore {
             }
         }
         Ok(())
+    }
+
+    /// True when the persisted vector is a refusal-direction ablation
+    /// (`Contrastive { technique: RefusalVector }`). The production `set_active`
+    /// gate requires an explicit operator acknowledgement before activating such
+    /// a vector (MT-100/102) — independent of any UI gesture — because activating
+    /// it disables the model's safety-refusal behaviour. A non-UI IPC caller must
+    /// therefore still pass the acknowledgement.
+    pub fn is_refusal_ablation(
+        &self,
+        id: SteeringVectorId,
+    ) -> Result<bool, SteeringVectorStoreError> {
+        Ok(matches!(
+            self.load_artifact(id)?.derivation_provenance,
+            SteeringProvenance::Contrastive {
+                technique: ContrastiveTechnique::RefusalVector,
+                ..
+            }
+        ))
     }
 
     /// Review-gated activation: rejects unless every vector is `Approved`,
