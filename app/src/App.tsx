@@ -1,6 +1,7 @@
 import "./App.css";
 import {
   type CSSProperties,
+  type JSX,
   type KeyboardEvent,
   type PointerEvent as ReactPointerEvent,
   useEffect,
@@ -16,6 +17,7 @@ import { InferenceLab } from "./components/inference_lab";
 import { FontManagerView } from "./components/FontManagerView";
 import { MediaDownloaderView } from "./components/MediaDownloaderView";
 import { ModelRuntimePanel } from "./components/model_runtime_panel";
+import { SwarmControlRoom } from "./components/swarm";
 import {
   getKernelDccProjection,
   triggerKernelDccAction,
@@ -50,6 +52,7 @@ type PaneTabId =
   | "kernel-dcc"
   | "inference-lab"
   | "model-runtime"
+  | "swarm"
   | "problems"
   | "jobs"
   | "timeline";
@@ -85,6 +88,7 @@ const TAB_LABEL_BY_ID: Record<PaneTabId, string> = {
   "kernel-dcc": "Kernel DCC",
   "inference-lab": "Inference Lab",
   "model-runtime": "Model Runtime",
+  swarm: "Swarm",
   problems: "Problems",
   jobs: "Jobs",
   timeline: "Timeline",
@@ -129,14 +133,14 @@ const MODULE_DEFINITIONS: {
     id: "LAB",
     label: "LAB",
     dataId: "module-lab",
-    tabs: ["inference-lab", "model-runtime", "fonts", "kernel-dcc"],
+    tabs: ["inference-lab", "model-runtime", "swarm", "fonts", "kernel-dcc"],
     defaultTab: "inference-lab",
   },
   {
     id: "STUDIO",
     label: "STUDIO",
     dataId: "module-studio",
-    tabs: ["model-runtime", "inference-lab", "fonts", "kernel-dcc"],
+    tabs: ["model-runtime", "swarm", "inference-lab", "fonts", "kernel-dcc"],
     defaultTab: "model-runtime",
   },
 ];
@@ -466,6 +470,8 @@ function App() {
       content = <InferenceLab />;
     } else if (pane.activeTab === "model-runtime") {
       content = <ModelRuntimePanel />;
+    } else if (pane.activeTab === "swarm") {
+      content = <SwarmControlRoom />;
     } else if (pane.activeTab === "problems") {
       content = <ProblemsView onSelect={setSelection} />;
     } else if (pane.activeTab === "jobs") {
