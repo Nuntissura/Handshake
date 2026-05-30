@@ -16,7 +16,7 @@ pub use replay_drive::{
     ReplayDriveActionDispatcher, ReplayDriveError, ReplayDriveEventLedger,
     ReplayDriveEventReceipt, ReplayDriveRequest, ReplayDriveResponse, ReplayDriveService,
     VerifiedWriteBoxV1Envelope, WriteBoxEnvelopeVerifier, WriteBoxV1Envelope,
-    PER_RUN_SECRET_HEADER, REPLAY_DRIVE_RESPONSE_SCHEMA_ID, REPLAY_DRIVE_ROUTE,
+    PER_RUN_SECRET_HEADER, PER_RUN_SECRET_LEN, REPLAY_DRIVE_RESPONSE_SCHEMA_ID, REPLAY_DRIVE_ROUTE,
     WRITE_BOX_V1_ENVELOPE_SCHEMA_ID,
 };
 #[cfg(feature = "inspector")]

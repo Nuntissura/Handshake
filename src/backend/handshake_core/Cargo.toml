@@ -72,6 +72,17 @@ path = "src/bin/mt046_token_probe.rs"
 required-features = ["win-native-integration"]
 test = false
 
+# MT-058 — live Win32 foreground-steal payload for ESC-WIN32-FOREGROUND-INJECT
+# (the HBR-QUIET-001 acid test). Built on the Windows CI lane with
+# `--features win-native-integration`; produces
+# `handshake-foreground-inject-probe.exe`, whose absolute path Cargo exposes to
+# the integration-test crate as CARGO_BIN_EXE_handshake-foreground-inject-probe.
+[[bin]]
+name = "handshake-foreground-inject-probe"
+path = "src/bin/handshake-foreground-inject-probe.rs"
+required-features = ["win-native-integration"]
+test = false
+
 [[bin]]
 name = "model_manual_md_gen"
 path = "src/bin/model_manual_md_gen.rs"
@@ -124,6 +135,11 @@ hex = "0.4"
 # forge).
 hmac = "0.12"
 subtle = "2"
+# OS cryptographically-secure RNG for the MT-029 inspector per-run secret.
+# Replaces Uuid::now_v7(), whose value embeds the launch millisecond and
+# leaves only a small random tail; getrandom draws the secret straight from
+# the operating-system CSPRNG so it carries no launch-time structure.
+getrandom = "0.2"
 # Half-precision float types for CRIT-1 / MT-088 SSM state-vector
 # (de)serialization. Already a transitive dep via candle-core; declared
 # directly so candle/ssm_state.rs can name half::f16 / half::bf16 when
@@ -167,7 +183,7 @@ wiremock = "0.6"
 rappct = { version = "0.13.3", default-features = false }
 wineventhook = "0.11.0"
 windows = { version = "0.62.2", features = ["Win32_Foundation", "Win32_UI_Input_KeyboardAndMouse", "Win32_UI_WindowsAndMessaging"] }
-windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Security", "Win32_Security_Authorization", "Win32_Storage_FileSystem", "Win32_System_Console", "Win32_System_JobObjects", "Win32_System_Pipes", "Win32_System_Threading", "Win32_System_WindowsProgramming", "Win32_UI_WindowsAndMessaging"] }
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Graphics_Gdi", "Win32_Security", "Win32_Security_Authorization", "Win32_Storage_FileSystem", "Win32_System_Console", "Win32_System_JobObjects", "Win32_System_LibraryLoader", "Win32_System_Pipes", "Win32_System_Threading", "Win32_System_WindowsProgramming", "Win32_UI_Input_KeyboardAndMouse", "Win32_UI_WindowsAndMessaging"] }
 
 [features]
 default = ["runtime-full"]

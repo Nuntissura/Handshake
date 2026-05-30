@@ -252,6 +252,64 @@ async fn escape_harness_env_gated_docker_real_runtime() {
     }
 }
 
+/// MT-058 — ESC-WIN32-FOREGROUND-INJECT (HBR-QUIET-001 acid test) against the
+/// real WindowsNativeJailAdapter, using the live
+/// `handshake-foreground-inject-probe` binary.
+///
+/// Cargo builds the probe as a `[[bin]]` (required-features =
+/// win-native-integration) and exposes its absolute path as
+/// `CARGO_BIN_EXE_handshake-foreground-inject-probe`. We forward that path to
+/// the catalog through `FOREGROUND_INJECT_PROBE_ENV` so the catalog embeds an
+/// absolute `cmd[0]` and `WindowsNativeJailAdapter::resolve_executable` takes
+/// the absolute-path fast path (no fragile PATH lookup, no "binary does not
+/// exist").
+///
+/// The probe genuinely attempts a Win32 foreground steal
+/// (AttachThreadInput + SetForegroundWindow + SendInput). Inside the jail the
+/// steal must be denied, so the attempt classifies Green; a Red here means the
+/// QUIET guarantee leaked and blocks WP integration.
+#[cfg(all(target_os = "windows", feature = "win-native-integration"))]
+#[tokio::test]
+async fn escape_harness_win_native_foreground_inject_acid_test() {
+    use handshake_core::sandbox::WindowsNativeJailAdapter;
+    use handshake_core::test_harness::escape_attempts::FOREGROUND_INJECT_PROBE_ENV;
+
+    let probe_exe = env!("CARGO_BIN_EXE_handshake-foreground-inject-probe");
+    // The catalog reads this when constructing the Win32 attempt's cmd[0].
+    std::env::set_var(FOREGROUND_INJECT_PROBE_ENV, probe_exe);
+
+    let adapter_slot = match WindowsNativeJailAdapter::try_new().await {
+        Ok(adapter) => EscapeAdapterSlot::Available(Arc::new(adapter)),
+        Err(SandboxAdapterError::AdapterUnavailable { reason, .. })
+        | Err(SandboxAdapterError::SpawnFailed { reason, .. }) => {
+            EscapeAdapterSlot::Unavailable { reason }
+        }
+        Err(error) => panic!("WindowsNativeJail integration setup failed unexpectedly: {error:?}"),
+    };
+
+    let harness = SandboxEscapeHarness::new(target_os())
+        .with_adapter(AdapterId::new(WINDOWS_NATIVE_JAIL_ADAPTER_ID), adapter_slot);
+    let catalog = escape_catalog();
+    let report = harness.run(&catalog).await;
+    let path = report
+        .persist_to_artifacts(&artifact_root())
+        .expect("persist results JSON");
+    eprintln!(
+        "[windows_native_jail escape report] {} rows, written to {path:?}",
+        report.rows.len()
+    );
+
+    if report.has_any_red() {
+        for red in report.red_attempts() {
+            eprintln!(
+                "RED: {} on {}: exit_code={:?}",
+                red.attempt_id, red.adapter_id, red.exit_code
+            );
+        }
+        panic!("escape negative-test suite recorded RED verdicts under windows_native_jail");
+    }
+}
+
 // ----------------------------------------------------------------------------
 // Stub adapter — fakes per-attempt "deny" or "allow" behavior so the
 // harness mechanics can be tested without any real sandbox runtime.

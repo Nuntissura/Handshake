@@ -106,6 +106,34 @@ pub struct EscapeAttempt {
     pub os_restriction: Option<&'static str>,
 }
 
+/// Environment variable the integration-test driver sets to the absolute
+/// path of the built `handshake-foreground-inject-probe` binary.
+///
+/// Cargo exposes that path to the test crate as
+/// `CARGO_BIN_EXE_handshake-foreground-inject-probe` (only available inside
+/// integration tests/examples/benches, not in the library crate where this
+/// catalog lives). The driver forwards it through this env var so the catalog
+/// can embed an ABSOLUTE path into `cmd[0]`. The `WindowsNativeJailAdapter`'s
+/// `resolve_executable` takes the `is_absolute()` fast-path for an absolute
+/// command, so the probe resolves deterministically to the cargo-built artifact
+/// instead of relying on a fragile `which::which` PATH lookup.
+pub const FOREGROUND_INJECT_PROBE_ENV: &str = "HANDSHAKE_FOREGROUND_INJECT_PROBE";
+
+/// Default bare command name when the env override is absent. Kept so the
+/// catalog is well-formed on hosts where the probe was not built; on such
+/// hosts the Win32 attempt is OS-restricted and Skipped before spawn anyway.
+const FOREGROUND_INJECT_PROBE_DEFAULT: &str = "handshake-foreground-inject-probe.exe";
+
+/// Resolve the foreground-inject probe command. Prefers the absolute path the
+/// test driver injects via [`FOREGROUND_INJECT_PROBE_ENV`]; falls back to the
+/// bare exe name otherwise.
+fn foreground_inject_probe_cmd() -> String {
+    std::env::var(FOREGROUND_INJECT_PROBE_ENV)
+        .ok()
+        .filter(|value| !value.trim().is_empty())
+        .unwrap_or_else(|| FOREGROUND_INJECT_PROBE_DEFAULT.to_string())
+}
+
 /// The catalog. Stable across MT-058 — additions belong to a future
 /// MT, not to silently extend this one.
 pub fn escape_catalog() -> Vec<EscapeAttempt> {
@@ -344,7 +372,7 @@ pub fn escape_catalog() -> Vec<EscapeAttempt> {
             spec: ProcessSpec {
                 id: AdapterId::new("placeholder"),
                 image_or_root: ImageRef::new("windows:nativejail"),
-                cmd: vec!["handshake-foreground-inject-probe.exe".to_string()],
+                cmd: vec![foreground_inject_probe_cmd()],
                 env: Map::new(),
                 cwd: None,
                 binds: vec![],

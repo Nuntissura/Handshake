@@ -61,8 +61,9 @@ async fn a3_inspector_smoke_http_ipc_trace_projection_and_replay_drive(
         "kernel.inspector.port must expose a live port"
     );
 
-    let endpoints_passed = assert_http_read_endpoints(&client, &base, &snapshot).await?;
-    let ipc_passed = assert_ipc_equivalent_payloads(&client, &base, &snapshot).await?;
+    let endpoints_passed =
+        assert_http_read_endpoints(&client, &base, &secret_hex, &snapshot).await?;
+    let ipc_passed = assert_ipc_equivalent_payloads(&client, &base, &secret_hex, &snapshot).await?;
     let trace_projection = snapshot
         .trace_projection(SessionId::new(SESSION_ID))
         .expect("synthetic TraceProjection");
@@ -143,6 +144,7 @@ fn a3_inspector_smoke_compile_leak_is_detected() -> Result<(), Box<dyn Error>> {
 async fn assert_http_read_endpoints(
     client: &reqwest::Client,
     base: &str,
+    secret_hex: &str,
     snapshot: &InspectorReadSnapshot,
 ) -> Result<usize, Box<dyn Error>> {
     let session_id = SessionId::new(SESSION_ID);
@@ -152,6 +154,7 @@ async fn assert_http_read_endpoints(
     assert_endpoint_matches(
         client,
         format!("{base}/inspector/v1/sessions"),
+        secret_hex,
         snapshot.list_sessions(),
     )
     .await?;
@@ -160,6 +163,7 @@ async fn assert_http_read_endpoints(
     assert_endpoint_matches(
         client,
         format!("{base}/inspector/v1/sessions/{SESSION_ID}"),
+        secret_hex,
         snapshot
             .session_state(session_id.clone())
             .expect("session state"),
@@ -170,6 +174,7 @@ async fn assert_http_read_endpoints(
     assert_endpoint_matches(
         client,
         format!("{base}/inspector/v1/event-ledger/tail?n=64"),
+        secret_hex,
         snapshot.event_ledger_tail(64),
     )
     .await?;
@@ -178,6 +183,7 @@ async fn assert_http_read_endpoints(
     assert_endpoint_matches(
         client,
         format!("{base}/inspector/v1/process-ledger/active"),
+        secret_hex,
         snapshot.process_ledger_active(),
     )
     .await?;
@@ -186,6 +192,7 @@ async fn assert_http_read_endpoints(
     assert_endpoint_matches(
         client,
         format!("{base}/inspector/v1/workspace/{WORKSPACE_ID}"),
+        secret_hex,
         snapshot
             .workspace_state_read(workspace_id)
             .expect("workspace state"),
@@ -196,6 +203,7 @@ async fn assert_http_read_endpoints(
     assert_endpoint_matches(
         client,
         format!("{base}/inspector/v1/trace/{SESSION_ID}"),
+        secret_hex,
         snapshot
             .trace_projection(session_id)
             .expect("trace projection"),
@@ -206,6 +214,7 @@ async fn assert_http_read_endpoints(
     assert_endpoint_matches(
         client,
         format!("{base}/inspector/v1/models"),
+        secret_hex,
         snapshot.loaded_models(),
     )
     .await?;
@@ -217,6 +226,7 @@ async fn assert_http_read_endpoints(
 async fn assert_ipc_equivalent_payloads(
     client: &reqwest::Client,
     base: &str,
+    secret_hex: &str,
     snapshot: &InspectorReadSnapshot,
 ) -> Result<usize, Box<dyn Error>> {
     let session_id = SessionId::new(SESSION_ID);
@@ -225,6 +235,7 @@ async fn assert_ipc_equivalent_payloads(
     assert_http_bytes_equal_ipc_bytes(
         client,
         format!("{base}/inspector/v1/sessions"),
+        secret_hex,
         snapshot.list_sessions(),
     )
     .await?;
@@ -233,6 +244,7 @@ async fn assert_ipc_equivalent_payloads(
     assert_http_bytes_equal_ipc_bytes(
         client,
         format!("{base}/inspector/v1/sessions/{SESSION_ID}"),
+        secret_hex,
         snapshot
             .session_state(session_id.clone())
             .expect("session state"),
@@ -243,6 +255,7 @@ async fn assert_ipc_equivalent_payloads(
     assert_http_bytes_equal_ipc_bytes(
         client,
         format!("{base}/inspector/v1/event-ledger/tail?n=64"),
+        secret_hex,
         snapshot.event_ledger_tail(64),
     )
     .await?;
@@ -251,6 +264,7 @@ async fn assert_ipc_equivalent_payloads(
     assert_http_bytes_equal_ipc_bytes(
         client,
         format!("{base}/inspector/v1/process-ledger/active"),
+        secret_hex,
         snapshot.process_ledger_active(),
     )
     .await?;
@@ -259,6 +273,7 @@ async fn assert_ipc_equivalent_payloads(
     assert_http_bytes_equal_ipc_bytes(
         client,
         format!("{base}/inspector/v1/trace/{SESSION_ID}"),
+        secret_hex,
         snapshot
             .trace_projection(session_id)
             .expect("trace projection"),
@@ -269,6 +284,7 @@ async fn assert_ipc_equivalent_payloads(
     assert_http_bytes_equal_ipc_bytes(
         client,
         format!("{base}/inspector/v1/models"),
+        secret_hex,
         snapshot.loaded_models(),
     )
     .await?;
@@ -281,6 +297,7 @@ async fn assert_ipc_equivalent_payloads(
 async fn assert_endpoint_matches<T>(
     client: &reqwest::Client,
     url: String,
+    secret_hex: &str,
     expected: T,
 ) -> Result<(), Box<dyn Error>>
 where
@@ -288,6 +305,7 @@ where
 {
     let body = client
         .get(url)
+        .header(PER_RUN_SECRET_HEADER, secret_hex)
         .send()
         .await?
         .error_for_status()?
@@ -301,6 +319,7 @@ where
 async fn assert_http_bytes_equal_ipc_bytes<T>(
     client: &reqwest::Client,
     url: String,
+    secret_hex: &str,
     ipc_value: T,
 ) -> Result<(), Box<dyn Error>>
 where
@@ -308,6 +327,7 @@ where
 {
     let http_bytes = client
         .get(url)
+        .header(PER_RUN_SECRET_HEADER, secret_hex)
         .send()
         .await?
         .error_for_status()?

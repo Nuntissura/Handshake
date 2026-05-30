@@ -8,10 +8,11 @@ use std::{
 use axum::{
     extract::{
         ws::{Message, WebSocketUpgrade},
-        Path, Query, State,
+        ConnectInfo, Path, Query, Request, State,
     },
     http::{HeaderMap, StatusCode},
-    response::IntoResponse,
+    middleware::{self, Next},
+    response::{IntoResponse, Response},
     routing::{get, post},
     Json, Router,
 };
@@ -145,11 +146,20 @@ impl InspectorServer {
             "inspector server bound; clients must present X-Handshake-Inspector-Secret"
         );
         let task = tokio::spawn(async move {
-            let _ = axum::serve(listener, app)
-                .with_graceful_shutdown(async {
-                    let _ = shutdown_rx.await;
-                })
-                .await;
+            // `into_make_service_with_connect_info` makes the peer
+            // `SocketAddr` available to handlers/middleware via
+            // `ConnectInfo<SocketAddr>` so every per-run-secret reject can
+            // be audit-logged with the rejected peer address (MT-029
+            // §6.5.5 reject log contract: timestamp, route, peer_addr,
+            // reason).
+            let _ = axum::serve(
+                listener,
+                app.into_make_service_with_connect_info::<SocketAddr>(),
+            )
+            .with_graceful_shutdown(async {
+                let _ = shutdown_rx.await;
+            })
+            .await;
         });
 
         Ok(InspectorServerHandle {
@@ -165,14 +175,12 @@ impl InspectorServer {
 struct InspectorState {
     reader: Arc<dyn InspectorReadV1>,
     replay_drive: Arc<ReplayDriveService>,
-    secret: Arc<PerRunSecret>,
 }
 
 fn inspector_router(reader: Arc<dyn InspectorReadV1>, secret: Arc<PerRunSecret>) -> Router {
     let state = InspectorState {
         reader,
         replay_drive: Arc::new(ReplayDriveService::with_per_run_secret(secret.clone())),
-        secret,
     };
     Router::new()
         .route("/inspector/v1/sessions", get(list_sessions))
@@ -187,7 +195,76 @@ fn inspector_router(reader: Arc<dyn InspectorReadV1>, secret: Arc<PerRunSecret>)
         .route("/inspector/v1/models", get(loaded_models))
         .route("/inspector/v1/event-stream", get(event_stream))
         .route("/inspector/v1/replay-drive", post(replay_drive))
+        // MT-029 spec §6.5.5: the per-run shared-secret header is required
+        // on EVERY inspector request — reads, the event-stream upgrade, and
+        // the replay-drive write. Enforcing it as a single router-wide
+        // middleware layer (rather than per-route) means a newly added
+        // route is authenticated by default and cannot silently ship
+        // unauthenticated. Missing/wrong header -> 401, audit-logged with
+        // (timestamp via tracing, route, peer_addr, reason).
+        .layer(middleware::from_fn_with_state(
+            secret.clone(),
+            require_per_run_secret,
+        ))
         .with_state(state)
+}
+
+/// Router-wide authentication middleware: rejects any request whose
+/// `X-Handshake-Inspector-Secret` header is missing or does not
+/// constant-time-match the per-run secret. Every reject is audit-logged
+/// with the request route, the peer socket address, and a machine-readable
+/// reason. `tracing` stamps each event with a timestamp, satisfying the
+/// §6.5.5 (timestamp, route, peer_addr, reason) reject-log contract.
+async fn require_per_run_secret(
+    State(secret): State<Arc<PerRunSecret>>,
+    ConnectInfo(peer_addr): ConnectInfo<SocketAddr>,
+    request: Request,
+    next: Next,
+) -> Response {
+    let route = request.uri().path().to_string();
+    let headers = request.headers();
+    match classify_per_run_secret(headers, &secret) {
+        SecretCheck::Ok => next.run(request).await,
+        SecretCheck::Missing => {
+            audit_reject(&route, peer_addr, "missing_per_run_secret_header");
+            InspectorHttpError::unauthorized("missing_or_invalid_per_run_secret").into_response()
+        }
+        SecretCheck::Mismatch => {
+            audit_reject(&route, peer_addr, "per_run_secret_header_mismatch");
+            InspectorHttpError::unauthorized("missing_or_invalid_per_run_secret").into_response()
+        }
+    }
+}
+
+/// Emit a structured 401 reject audit record. `tracing` attaches the
+/// timestamp; we attach the route, peer_addr, and reason. Centralised so
+/// the read paths, the event-stream upgrade, and the replay-drive write all
+/// log identically.
+fn audit_reject(route: &str, peer_addr: SocketAddr, reason: &'static str) {
+    tracing::warn!(
+        target: "handshake_core::inspector_read",
+        route = %route,
+        peer_addr = %peer_addr,
+        reason = reason,
+        "rejected inspector request: per-run shared-secret check failed"
+    );
+}
+
+enum SecretCheck {
+    Ok,
+    Missing,
+    Mismatch,
+}
+
+fn classify_per_run_secret(headers: &HeaderMap, expected: &PerRunSecret) -> SecretCheck {
+    let Some(raw) = headers.get(PER_RUN_SECRET_HEADER) else {
+        return SecretCheck::Missing;
+    };
+    if per_run_secret_value_matches(raw, expected) {
+        SecretCheck::Ok
+    } else {
+        SecretCheck::Mismatch
+    }
 }
 
 async fn list_sessions(State(state): State<InspectorState>) -> Json<Vec<SessionSummary>> {
@@ -266,21 +343,13 @@ async fn event_stream(
 
 async fn replay_drive(
     State(state): State<InspectorState>,
-    headers: HeaderMap,
     body: String,
 ) -> Result<Json<ReplayDriveResponse>, InspectorHttpError> {
-    // MT-029 spec §6.5.5: enforce the per-run shared-secret header before
-    // any envelope inspection. Reject + audit-log if missing or mismatched.
-    if !per_run_secret_header_matches(&headers, &state.secret) {
-        tracing::warn!(
-            target: "handshake_core::inspector_read",
-            route = "/inspector/v1/replay-drive",
-            "rejected replay_drive: missing or mismatched X-Handshake-Inspector-Secret"
-        );
-        return Err(InspectorHttpError::unauthorized(
-            "missing_or_invalid_per_run_secret",
-        ));
-    }
+    // MT-029 spec §6.5.5: the per-run shared-secret header is enforced for
+    // this route (and every other inspector route) by the router-wide
+    // `require_per_run_secret` middleware, so by the time this handler runs
+    // the header is already validated. The HMAC envelope signature check
+    // below is the second, independent factor for the write path.
     state
         .replay_drive
         .handle_body(&body)
@@ -288,11 +357,15 @@ async fn replay_drive(
         .map_err(InspectorHttpError::from_replay_drive)
 }
 
-fn per_run_secret_header_matches(headers: &HeaderMap, expected: &PerRunSecret) -> bool {
+/// Constant-time comparison of a raw header value against the expected
+/// per-run secret hex. Reused by the router-wide middleware. Length is
+/// compared first (non-secret) then bytes are compared in constant time so
+/// a matching-length wrong secret does not leak via timing.
+fn per_run_secret_value_matches(
+    raw: &axum::http::HeaderValue,
+    expected: &PerRunSecret,
+) -> bool {
     use subtle::ConstantTimeEq;
-    let Some(raw) = headers.get(PER_RUN_SECRET_HEADER) else {
-        return false;
-    };
     let Ok(value) = raw.to_str() else {
         return false;
     };

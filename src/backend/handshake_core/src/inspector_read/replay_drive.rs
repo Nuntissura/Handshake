@@ -11,10 +11,13 @@
 //!   fail-closed parallel-mutation attempt.
 //!
 //! Per-run shared-secret authentication (MT-029 spec §6.5.5 + MT-030 CRIT-4
-//! remediation): every inspector launch generates a fresh UUIDv7 secret that
-//! callers MUST present (a) as the `X-Handshake-Inspector-Secret` HTTP header
-//! enforced by the server (MT-029) and (b) as the HMAC-SHA256 key over the
-//! envelope contents (MT-030). The keyless `sha256(canonical_json({schema_id,
+//! remediation): every inspector launch generates a fresh CSPRNG secret
+//! (256 bits from the OS RNG; previously a UUIDv7, which leaked the launch
+//! timestamp) that callers MUST present (a) as the
+//! `X-Handshake-Inspector-Secret` HTTP header enforced by the server on
+//! EVERY route — reads, the event-stream upgrade, and the replay-drive
+//! write — via a single router-wide middleware (MT-029) and (b) as the
+//! HMAC-SHA256 key over the envelope contents (MT-030). The keyless `sha256(canonical_json({schema_id,
 //! signer, write_box}))` signature it replaces let any local process forge a
 //! passing envelope under any signer name; HMAC-SHA256 binds the signature to
 //! knowledge of the per-launch secret, so forgery requires reading operator-
@@ -26,7 +29,6 @@ use hmac::{Hmac, Mac};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use sha2::Sha256;
-use uuid::Uuid;
 
 use crate::kernel::{
     action_catalog::{kernel002_action_catalog, KernelActionCatalogV1, KernelCatalogActionV1},
@@ -44,50 +46,80 @@ pub const REPLAY_DRIVE_RESPONSE_SCHEMA_ID: &str = "hsk.inspector.replay_drive.re
 /// secret in hex form. MT-029 spec §6.5.5.
 pub const PER_RUN_SECRET_HEADER: &str = "x-handshake-inspector-secret";
 
+/// Number of CSPRNG bytes [`PerRunSecret::generate`] draws per inspector
+/// launch. 32 bytes = 256 bits of entropy, comfortably above the 128-bit
+/// minimum the MT-029 secret must carry and matching the HMAC-SHA256 block
+/// the secret keys.
+pub const PER_RUN_SECRET_LEN: usize = 32;
+
 /// Per-launch shared secret used both as the inspector HTTP header value
 /// (MT-029) and as the HMAC-SHA256 key over the envelope canonical bytes
-/// (MT-030). The bytes are a UUIDv7 so they carry a launch timestamp and
-/// rotate per process start; the operator sees the hex form printed at
-/// launch and can include it when calling the inspector plane.
+/// (MT-030). The bytes are drawn from the operating-system CSPRNG
+/// (`getrandom`/`OsRng`) so they carry no launch-time structure and cannot
+/// be derived from the process start instant; they rotate per process
+/// start. The operator sees the hex form printed at launch and can include
+/// it when calling the inspector plane.
+///
+/// History: this previously used `Uuid::now_v7()`, whose 128-bit value
+/// embeds a millisecond launch timestamp and a small random tail (~48
+/// unpredictable bits in the worst case), letting an attacker who knows
+/// roughly when the inspector launched brute-force the remaining bits. The
+/// CSPRNG draw closes that predictability gap.
 #[derive(Clone, PartialEq, Eq)]
 pub struct PerRunSecret {
-    bytes: [u8; 16],
+    bytes: Vec<u8>,
 }
 
 impl PerRunSecret {
-    /// Generate a fresh secret from `Uuid::now_v7()`. Call once per
-    /// inspector launch.
+    /// Generate a fresh secret from the OS cryptographically-secure RNG.
+    /// Call once per inspector launch. Draws [`PER_RUN_SECRET_LEN`] bytes
+    /// (256 bits) of OS entropy; panics only if the OS RNG is unavailable,
+    /// which is a fail-closed posture — the inspector must not bind with a
+    /// weak or empty secret.
     pub fn generate() -> Self {
-        Self {
-            bytes: *Uuid::now_v7().as_bytes(),
-        }
+        let mut bytes = vec![0u8; PER_RUN_SECRET_LEN];
+        getrandom::getrandom(&mut bytes)
+            .expect("OS CSPRNG must be available to mint the inspector per-run secret");
+        Self { bytes }
     }
 
     /// Construct from raw bytes — used for tests that need determinism
     /// and for the inspector launch path that reads an operator-supplied
     /// secret. Production callers should prefer [`PerRunSecret::generate`].
-    pub fn from_bytes(bytes: [u8; 16]) -> Self {
-        Self { bytes }
+    /// Accepts any byte length so 16-byte legacy fixtures and 32-byte
+    /// CSPRNG secrets both round-trip.
+    pub fn from_bytes(bytes: impl Into<Vec<u8>>) -> Self {
+        Self {
+            bytes: bytes.into(),
+        }
     }
 
-    /// Construct from a hex string (32 hex chars / 16 bytes). Returns
-    /// `None` on length mismatch or non-hex input.
+    /// Construct from a hex string (even number of hex chars). Returns
+    /// `None` on odd length, empty input, or non-hex input.
     pub fn from_hex(hex_str: &str) -> Option<Self> {
         let bytes = hex::decode(hex_str).ok()?;
-        if bytes.len() != 16 {
+        if bytes.is_empty() {
             return None;
         }
-        let mut out = [0u8; 16];
-        out.copy_from_slice(&bytes);
-        Some(Self { bytes: out })
+        Some(Self { bytes })
     }
 
     pub fn as_bytes(&self) -> &[u8] {
         &self.bytes
     }
 
+    /// Length of the secret in bytes. Used by tests/diagnostics to assert
+    /// the secret carries at least 128 bits of entropy.
+    pub fn len(&self) -> usize {
+        self.bytes.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.bytes.is_empty()
+    }
+
     pub fn to_hex(&self) -> String {
-        hex::encode(self.bytes)
+        hex::encode(&self.bytes)
     }
 }
 
