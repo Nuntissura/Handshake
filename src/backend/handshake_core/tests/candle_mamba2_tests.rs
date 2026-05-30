@@ -117,6 +117,92 @@ fn candle_mamba2_tiny_model_prefill_step_and_reset_advance_ssm_state() {
     );
 }
 
+/// MT-088/089: prove SSM prefix restore has a REAL runtime effect. The reset
+/// that `generate()` performs before its forward loop must not wipe a freshly
+/// restored prefix. Default-CI, real candle Mamba2 forward (no mock, no env).
+///
+/// Without the `suppress_next_reset` fix this test fails: the restored-state
+/// continuation logits would equal a fresh forward (reset wiped the restore),
+/// not the continuous post-4-token-forward logits.
+#[test]
+fn candle_mamba2_prefix_restore_survives_generate_reset_and_continues_state() {
+    let device = Device::Cpu;
+    let varmap = VarMap::new();
+    let vb = VarBuilder::from_varmap(&varmap, DType::F32, &device);
+    let config = candle_transformers::models::mamba2::Config {
+        d_model: 4,
+        n_layer: 1,
+        vocab_size: 8,
+        d_state: 2,
+        expand: 2,
+        headdim: 4,
+        ngroups: 1,
+        pad_vocab_size_multiple: 1,
+    };
+    let mut model = CandleMamba2Model::from_varbuilder_for_model(
+        ModelId::new_v7(),
+        config,
+        vec![7],
+        vb,
+        &device,
+    )
+    .expect("tiny Mamba2 model constructs");
+    let hooks = CandleSteeringHooks::new_for_model(ModelId::new_v7(), 4);
+
+    let tok = |ids: &[u32]| {
+        Tensor::new(ids, &device)
+            .and_then(|tensor| tensor.reshape((1, ids.len())))
+            .unwrap()
+    };
+
+    // Continuous reference: forward 4 tokens, snapshot the pos-4 SSM state, then
+    // forward a 5th token from that state -> reference continuation logits.
+    let _ = model
+        .forward(&tok(&[1, 2, 3, 4]), &hooks, &[], &[])
+        .expect("prefill 4 tokens");
+    let snapshot = model
+        .extract_ssm_snapshot()
+        .expect("commit SSM snapshot at pos 4");
+    let continuous = model
+        .forward(&tok(&[5]), &hooks, &[], &[])
+        .expect("continuous 5th-token forward")
+        .flatten_all()
+        .and_then(|t| t.to_vec1::<f32>())
+        .unwrap();
+
+    // Dirty the live state with an independent generation pass.
+    model.reset_generation_state().expect("independent reset");
+    let _ = model
+        .forward(&tok(&[6, 6, 6]), &hooks, &[], &[])
+        .expect("dirtying forward");
+
+    // Restore the pos-4 snapshot. This arms reset-suppression so the next
+    // generate()-style reset preserves the restored prefix.
+    model
+        .restore_ssm_snapshot(&snapshot)
+        .expect("restore SSM snapshot");
+    // generate() calls reset_generation_state before forwarding; with the fix it
+    // is suppressed exactly once here so the restored prefix survives.
+    model
+        .reset_generation_state()
+        .expect("reset is suppressed for the restored prefix");
+    let restored = model
+        .forward(&tok(&[5]), &hooks, &[], &[])
+        .expect("restored 5th-token forward")
+        .flatten_all()
+        .and_then(|t| t.to_vec1::<f32>())
+        .unwrap();
+
+    assert_eq!(continuous.len(), restored.len());
+    for (c, r) in continuous.iter().zip(&restored) {
+        assert!(
+            (c - r).abs() < 1.0e-4,
+            "restored continuation logits must equal the continuous post-4-token-forward \
+             logits (got {c} vs {r}); a non-suppressed reset would have wiped the restored prefix"
+        );
+    }
+}
+
 #[tokio::test]
 async fn candle_mamba2_env_model_loads_and_can_generate_when_available() {
     let Some(model_dir) = env::var_os("HANDSHAKE_TEST_MAMBA2_MODEL_DIR") else {

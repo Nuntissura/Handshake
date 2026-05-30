@@ -381,6 +381,12 @@ pub struct CandleMamba2Model {
     dtype: DType,
     device: Device,
     lora_stack: CandleLoraStack,
+    /// MT-088/089: when `restore_ssm_snapshot` writes a restored prefix into
+    /// `state`, the next `reset_generation_state` (which `generate()` calls
+    /// unconditionally before the forward loop) must NOT wipe it. Restore arms
+    /// this; the next reset honours and disarms it, then resets normally again.
+    /// Without this, SSM prefix restore had zero runtime effect.
+    suppress_next_reset: bool,
 }
 
 impl CandleMamba2Model {
@@ -433,6 +439,7 @@ impl CandleMamba2Model {
             dtype,
             device: device.clone(),
             lora_stack,
+            suppress_next_reset: false,
         })
     }
 
@@ -543,6 +550,13 @@ impl TransformerModel for CandleMamba2Model {
     }
 
     fn reset_generation_state(&mut self) -> Result<(), ModelRuntimeError> {
+        // MT-088/089: a freshly restored prefix must survive the reset that
+        // `generate()` performs before its forward loop. Honour the arm once,
+        // then disarm so subsequent independent generations reset normally.
+        if self.suppress_next_reset {
+            self.suppress_next_reset = false;
+            return Ok(());
+        }
         self.reset_state()
     }
 
@@ -610,6 +624,10 @@ impl TransformerModel for CandleMamba2Model {
         for (index, snap) in ssm_states.iter().enumerate() {
             self.state.hs[index] = snapshot_to_tensor(snap, &self.device)?;
         }
+        // MT-088/089: arm reset-suppression so the very next
+        // `reset_generation_state` (invoked unconditionally by `generate()`)
+        // preserves this restored prefix instead of wiping it.
+        self.suppress_next_reset = true;
         Ok(())
     }
 }
