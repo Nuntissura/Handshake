@@ -531,6 +531,37 @@ impl SwarmCoordinator {
             .consecutive_failures(fp)
     }
 
+    /// Test-only: the live `Arc<dyn ModelRuntime>` registered for an instance,
+    /// so the env-gated real parallel test can drive a genuine generate against
+    /// exactly the session the coordinator spawned.
+    #[cfg(test)]
+    pub(crate) fn session_runtime_for_test(
+        &self,
+        instance_id: ModelInstanceId,
+    ) -> Option<Arc<dyn crate::model_runtime::ModelRuntime>> {
+        self.inner
+            .registry
+            .lock()
+            .expect("registry poisoned")
+            .get(&instance_id)
+            .map(|h| h.runtime.clone())
+    }
+
+    /// Test-only: the runtime-minted `ModelId` registered for an instance (the
+    /// id the factory's load returned, which the candle generate path needs).
+    #[cfg(test)]
+    pub(crate) fn session_model_id_for_test(
+        &self,
+        instance_id: ModelInstanceId,
+    ) -> Option<ModelId> {
+        self.inner
+            .registry
+            .lock()
+            .expect("registry poisoned")
+            .get(&instance_id)
+            .map(|h| h.model_id)
+    }
+
     /// Number of breaker signatures currently tracked (observability + the
     /// unbounded-growth guard test, C5).
     pub fn breaker_signature_count(&self) -> usize {

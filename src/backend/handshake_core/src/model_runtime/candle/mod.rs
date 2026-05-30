@@ -27,7 +27,10 @@ pub mod transformer;
 
 #[cfg(feature = "candle-runtime-engine")]
 pub use abliteration_io::run_abliteration_model_io;
-pub use adapter::{validate_candle_load_spec, CandleRuntime, CANDLE_NATIVE_FEATURE_DISABLED};
+pub use adapter::{
+    load_local_candle_model, validate_candle_load_spec, CandleRuntime, LoadedCandleModel,
+    CANDLE_NATIVE_FEATURE_DISABLED,
+};
 pub use device::{
     select_candle_device, CandleDeviceKind, CandleDevicePreference, CandleDeviceSelection,
 };

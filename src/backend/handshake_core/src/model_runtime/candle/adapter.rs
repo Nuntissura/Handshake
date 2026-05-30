@@ -484,6 +484,70 @@ impl ModelRuntime for CandleRuntime {
     }
 }
 
+/// Outcome of [`load_local_candle_model`]: an owned, loaded [`CandleRuntime`]
+/// plus the runtime-minted [`ModelId`] and the capabilities the runtime
+/// actually reports for the loaded model.
+///
+/// The runtime is returned BY VALUE (owned) so the caller decides ownership:
+/// the app's single-load IPC moves it into one `Arc<dyn ModelRuntime>`; the
+/// swarm production factory keeps the owning `Arc` inside its teardown closure
+/// so dropping that `Arc` (the only strong reference) runs `Drop` and frees the
+/// model — the D1 teardown contract.
+pub struct LoadedCandleModel {
+    pub runtime: CandleRuntime,
+    pub model_id: ModelId,
+    pub capabilities: ModelCapabilities,
+}
+
+/// Build + load a local candle model the same way the production single-load
+/// IPC (`kernel_model_runtime_load`) does, factored so the swarm production
+/// factory reuses the EXACT proven path instead of duplicating it.
+///
+/// Builds the permissive base [`LoadSpec`] (the candle arch-detection finalises
+/// the real capability set), constructs a real [`CandleRuntime`], drives
+/// `load()` (which verifies the artifact sha256 and fails loud on mismatch /
+/// missing file), then reads back the capabilities the runtime reports for the
+/// loaded model. No fakes, no placeholders: a genuine load or a typed
+/// [`ModelRuntimeError`].
+pub async fn load_local_candle_model(
+    artifact_path: std::path::PathBuf,
+    sha256_expected: String,
+) -> Result<LoadedCandleModel, ModelRuntimeError> {
+    // Permissive base capabilities; the candle arch-detection path
+    // (transformer/mamba2/rwkv) finalises the real capability set, which we read
+    // back from the runtime and surface as the authoritative record.
+    let base_capabilities = ModelCapabilities {
+        supports_lora: true,
+        supports_kv_prefix_cache: true,
+        supports_kv_quantization: KvQuantSupport::None,
+        supports_activation_steering: true,
+        supports_subquadratic: false,
+        supports_speculative_draft: false,
+        supports_eagle3: false,
+    };
+
+    let spec = LoadSpec {
+        artifact_path,
+        sha256_expected,
+        runtime_kind: RuntimeKind::Candle,
+        sampling_defaults: crate::model_runtime::SamplingParams::default(),
+        kv_cache_policy: crate::model_runtime::KvCachePolicy::default(),
+        declared_capabilities: base_capabilities,
+        provider: ProviderKind::Local,
+        engine_origin: Some("candle".to_string()),
+        external_engine_import: None,
+    };
+
+    let mut runtime = CandleRuntime::default();
+    let model_id = runtime.load(spec).await?;
+    let capabilities = runtime.capabilities(model_id)?.clone();
+    Ok(LoadedCandleModel {
+        runtime,
+        model_id,
+        capabilities,
+    })
+}
+
 pub fn validate_candle_load_spec(spec: &LoadSpec) -> Result<(), ModelRuntimeError> {
     if spec.runtime_kind != RuntimeKind::Candle {
         return Err(ModelRuntimeError::LoadError(format!(

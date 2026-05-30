@@ -34,6 +34,7 @@ mod commands {
     pub mod speculative;
     pub mod steering;
     pub mod subquadratic;
+    pub mod swarm_runtime;
     #[cfg(test)]
     pub mod testing;
 }
@@ -914,6 +915,12 @@ pub fn run() {
                 })?;
             app.manage(session_chat_log::SessionChatLogState::new(app_data_root));
             app.manage(distillation_jobs_state);
+
+            // MT-204: the production multi-model SWARM coordinator. Built inside
+            // `setup` so the background ledger writer + lease reaper spawn into
+            // the live Tauri async runtime. Later swarm commands (MT-205) and the
+            // cloud routing policy (MT-206) drive this managed coordinator.
+            app.manage(commands::swarm_runtime::SwarmRuntimeState::production());
 
             let state = OrchestratorState::default();
             state.spawn(orchestrator_workdir())?;

@@ -2863,6 +2863,7 @@ dependencies = [
  "eventsource-stream",
  "futures",
  "futures-util",
+ "getrandom 0.2.16",
  "globset",
  "half",
  "hex",

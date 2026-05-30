@@ -6,9 +6,9 @@ use std::{
 
 use chrono::Utc;
 use handshake_core::model_runtime::{
-    candle::CandleRuntime, BaseModelTag, KvCachePolicy, KvQuantSupport, LoadSpec, ModelCapabilities,
-    ModelId, ModelRegistration, ModelRegistry, ModelRuntime, OperatorId, ProviderKind, RuntimeBinding,
-    RuntimeKind, SamplingParams,
+    candle::{load_local_candle_model, LoadedCandleModel},
+    BaseModelTag, KvQuantSupport, ModelCapabilities, ModelId, ModelRegistration, ModelRegistry,
+    ModelRuntime, OperatorId, ProviderKind, RuntimeBinding,
 };
 use serde::{Deserialize, Serialize};
 use tauri::State;
@@ -31,6 +31,19 @@ pub const FR_EVT_LLM_INFER_CAPS_LOOKUP: &str = "FR-EVT-LLM-INFER-CAPS-LOOKUP";
 ///   models) and MT-096 steering commands dispatch into the adapter's live
 ///   `steering_hooks(model_id)` SteeringHookOps. Tests compose real
 ///   CandleRuntime-shaped fakes through this same path.
+///
+/// ## Multiple concurrent instances (MT-204)
+///
+/// Both maps are keyed by `ModelId`, so this state already holds MANY concurrent
+/// loaded models cleanly — each `kernel_model_runtime_load` mints a fresh
+/// `ModelId` and attaches its own owning `Arc<dyn ModelRuntime>`; loads and
+/// unloads of different models are fully independent. This is the single-load
+/// IPC surface. The orchestrated SWARM multi-instance authority is the managed
+/// `SwarmRuntimeState` / `SwarmCoordinator` (see `commands::swarm_runtime`),
+/// whose `ModelInstanceId = (model_id, instance)` registry lets the SAME
+/// artifact run as several concurrent instances. The two coexist without
+/// contention: the coordinator owns its sessions' runtimes inside its own
+/// registry + teardown closures and never reaches into `live_runtimes`.
 #[derive(Default)]
 pub struct ModelRuntimeState {
     registry: RwLock<ModelRegistry>,
@@ -373,43 +386,20 @@ pub async fn model_runtime_load(
         .map_err(|error| error.to_string())?;
     let sha256 = decode_sha256_hex(&request.sha256_expected)?;
 
-    // Permissive base capabilities; the candle arch-detection path
-    // (transformer/mamba2/rwkv) finalizes the real capability set, which we then
-    // read back from the runtime and register as the authoritative record.
-    let base_capabilities = ModelCapabilities {
-        supports_lora: true,
-        supports_kv_prefix_cache: true,
-        supports_kv_quantization: KvQuantSupport::None,
-        supports_activation_steering: true,
-        supports_subquadratic: false,
-        supports_speculative_draft: false,
-        supports_eagle3: false,
-    };
-
-    let spec = LoadSpec {
-        artifact_path: artifact_path.clone(),
-        sha256_expected: request.sha256_expected.trim().to_string(),
-        runtime_kind: RuntimeKind::Candle,
-        sampling_defaults: SamplingParams::default(),
-        kv_cache_policy: KvCachePolicy::default(),
-        declared_capabilities: base_capabilities,
-        provider: ProviderKind::Local,
-        engine_origin: Some("candle".to_string()),
-        external_engine_import: None,
-    };
-
-    let mut runtime = CandleRuntime::default();
-    let model_id = runtime.load(spec).await.map_err(|error| {
-        eprintln!("{FR_EVT_LLM_MODEL_LOAD}: load failed: {error}");
-        error.to_string()
-    })?;
-
-    // Register the capabilities the runtime actually reports for the loaded model
-    // so the registry capability gate matches the live adapter exactly.
-    let capabilities = runtime
-        .capabilities(model_id)
-        .map_err(|error| error.to_string())?
-        .clone();
+    // Reuse the shared, proven candle-load path (the same helper the swarm
+    // production factory uses) so the single-load IPC and the swarm never drift.
+    // It builds the permissive base LoadSpec, constructs a real CandleRuntime,
+    // verifies the artifact sha256 + loads, and reads back the real capabilities.
+    let LoadedCandleModel {
+        runtime,
+        model_id,
+        capabilities,
+    } = load_local_candle_model(artifact_path.clone(), request.sha256_expected.trim().to_string())
+        .await
+        .map_err(|error| {
+            eprintln!("{FR_EVT_LLM_MODEL_LOAD}: load failed: {error}");
+            error.to_string()
+        })?;
 
     let registration = ModelRegistration {
         model_id,

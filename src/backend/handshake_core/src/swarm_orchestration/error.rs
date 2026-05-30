@@ -26,6 +26,7 @@ pub enum SwarmErrorClass {
     DuplicateInstance,
     InvalidStateTransition,
     FactoryFailed,
+    ProviderNotConfigured,
     ReclaimFailed,
     LedgerFailed,
     EventSinkFailed,
@@ -44,6 +45,7 @@ impl SwarmErrorClass {
             Self::DuplicateInstance => "duplicate_instance",
             Self::InvalidStateTransition => "invalid_state_transition",
             Self::FactoryFailed => "factory_failed",
+            Self::ProviderNotConfigured => "provider_not_configured",
             Self::ReclaimFailed => "reclaim_failed",
             Self::LedgerFailed => "ledger_failed",
             Self::EventSinkFailed => "event_sink_failed",
@@ -96,6 +98,14 @@ pub enum SwarmError {
     #[error("SWARM_FACTORY_FAILED: {0}")]
     FactoryFailed(String),
 
+    /// A spawn targeted a provider lane (cloud BYOK / official CLI) whose
+    /// runtime prerequisites are absent at spawn time — most commonly no
+    /// operator API key in the secrets vault, or the official CLI binary not on
+    /// PATH. This is a genuine runtime condition, NOT a fake/placeholder: the
+    /// lane is architecturally wired but the operator has not configured it.
+    #[error("SWARM_PROVIDER_NOT_CONFIGURED: provider={provider} detail={detail}")]
+    ProviderNotConfigured { provider: String, detail: String },
+
     #[error("SWARM_RECLAIM_FAILED: {0}")]
     ReclaimFailed(String),
 
@@ -126,6 +136,7 @@ impl SwarmError {
             Self::DuplicateInstance(_) => SwarmErrorClass::DuplicateInstance,
             Self::InvalidStateTransition { .. } => SwarmErrorClass::InvalidStateTransition,
             Self::FactoryFailed(_) => SwarmErrorClass::FactoryFailed,
+            Self::ProviderNotConfigured { .. } => SwarmErrorClass::ProviderNotConfigured,
             Self::ReclaimFailed(_) => SwarmErrorClass::ReclaimFailed,
             Self::LedgerFailed(_) => SwarmErrorClass::LedgerFailed,
             Self::EventSinkFailed(_) => SwarmErrorClass::EventSinkFailed,
@@ -145,6 +156,7 @@ impl SwarmError {
             | Self::EventSinkFailed(m)
             | Self::Internal(m) => m,
             Self::BudgetExhausted { dimension } => dimension,
+            Self::ProviderNotConfigured { detail, .. } => detail,
             _ => "",
         }
     }

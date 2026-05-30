@@ -8,6 +8,7 @@ use std::fmt;
 use serde::{Deserialize, Serialize};
 
 use crate::model_runtime::ModelId;
+use crate::model_runtime::ProviderKind;
 use crate::model_runtime::registry::RuntimeBinding;
 
 /// Identifies one *instance* of a model in the swarm. The same `ModelId` may
@@ -39,6 +40,17 @@ impl fmt::Display for ModelInstanceId {
 pub struct SpawnRequest {
     pub instance_id: ModelInstanceId,
     pub runtime_binding: RuntimeBinding,
+    /// Provider lane the production factory dispatches on. `None` means a local
+    /// runtime selected by `runtime_binding` (candle / llama.cpp). `Some(Local)`
+    /// is equivalent. `Some(ByokCloud | OfficialCli)` routes to the cloud
+    /// adapters; `runtime_binding` is then ignored for runtime selection (cloud
+    /// has no local engine). Kept optional so existing local-only callers and
+    /// the `new` constructor stay source-compatible.
+    pub provider: Option<ProviderKind>,
+    /// Cloud-lane model name (e.g. `claude-sonnet-4`, `gpt-4o`) the factory
+    /// passes to the cloud adapter's allowlisted `load`. Required for cloud
+    /// providers; ignored for local.
+    pub cloud_model_name: Option<String>,
     /// Role that owns the spawned process (recorded in the process ledger).
     pub owner_role: String,
     /// Optional governance attribution carried into the ledger.
@@ -48,8 +60,13 @@ pub struct SpawnRequest {
     pub mt_id: Option<String>,
     /// Parent session that requested this spawn (ledger lineage + reclaim key).
     pub parent_session_id: String,
-    /// SHA-256 of the model artifact, for ledger + audit. Optional because a
-    /// cloud-backed or test session may not have a local artifact.
+    /// Filesystem path to the local model artifact (safetensors / GGUF) the
+    /// production factory loads for a local runtime. Optional because a
+    /// cloud-backed or test session has no local artifact.
+    pub model_artifact_path: Option<String>,
+    /// SHA-256 of the model artifact, for ledger + audit + the candle/llama
+    /// integrity gate. Optional because a cloud-backed or test session may not
+    /// have a local artifact.
     pub model_artifact_sha256: Option<String>,
 }
 
@@ -63,14 +80,46 @@ impl SpawnRequest {
         Self {
             instance_id,
             runtime_binding,
+            provider: None,
+            cloud_model_name: None,
             owner_role: owner_role.into(),
             owner_wp: None,
             role_id: None,
             wp_id: None,
             mt_id: None,
             parent_session_id: parent_session_id.into(),
+            model_artifact_path: None,
             model_artifact_sha256: None,
         }
+    }
+
+    /// Set the local model artifact path + its expected sha256 (the integrity
+    /// gate). Required for a local spawn (candle / llama.cpp).
+    pub fn with_local_artifact(
+        mut self,
+        path: impl Into<String>,
+        sha256: impl Into<String>,
+    ) -> Self {
+        self.model_artifact_path = Some(path.into());
+        self.model_artifact_sha256 = Some(sha256.into());
+        self
+    }
+
+    /// The local model artifact path, if set.
+    pub fn model_artifact_path(&self) -> Option<&str> {
+        self.model_artifact_path.as_deref()
+    }
+
+    /// Route this request to a cloud provider lane (BYOK cloud / official CLI).
+    /// `model_name` is the allowlisted cloud model the adapter `load`s.
+    pub fn with_cloud_provider(
+        mut self,
+        provider: ProviderKind,
+        model_name: impl Into<String>,
+    ) -> Self {
+        self.provider = Some(provider);
+        self.cloud_model_name = Some(model_name.into());
+        self
     }
 
     pub fn with_wp(mut self, wp_id: impl Into<String>) -> Self {
