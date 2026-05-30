@@ -18,7 +18,7 @@
         {
           "family": "transformer",
           "env_var": "HANDSHAKE_TEST_CANDLE_MODEL_DIR",
-          "coverage": ["load", "generate", "activation_capture", "zero_vector_identity", "lora_mount"]
+          "coverage": ["load", "generate", "activation_capture", "zero_vector_identity", "lora_mount", "refusal_extract", "refusal_ablation"]
         },
         {
           "family": "mamba2",

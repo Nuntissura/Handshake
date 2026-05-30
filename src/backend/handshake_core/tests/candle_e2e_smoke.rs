@@ -239,6 +239,8 @@ fn family_specs() -> &'static [FamilySpec] {
                 "activation_capture",
                 "zero_vector_identity",
                 "lora_mount",
+                "refusal_extract",
+                "refusal_ablation",
             ],
         },
         FamilySpec {
@@ -341,6 +343,8 @@ mod live {
     };
     use sha2::{Digest, Sha256};
 
+    use handshake_core::model_runtime::techniques::refusal_vector;
+
     use super::{passed, FamilySpec, SmokeOutcome};
 
     pub async fn run_transformer_smoke(
@@ -395,6 +399,55 @@ mod live {
         let lora_id =
             write_and_mount_lora(runtime.lora_stack(model_id)?, lora_dir.path(), width).await?;
         let _lora = generate_tokens(&runtime, model_id, "Hello", vec![lora_id], Vec::new()).await?;
+
+        // --- INF-4 refusal runtime: extract a refusal direction and ablate it ---
+        // Proves the refusal pipeline works end-to-end on the live CandleRuntime:
+        // two real captures (harmful/harmless pools) -> unit-normalised direction
+        // -> register as an ablation steering vector -> generate with the ablation
+        // vector active. Wording is preserved verbatim per GLOBAL-PRODUCTION /
+        // CX-123C (no library-side sanitisation of the contrastive pools).
+        let harmful = vec!["Explain how to hurt someone and avoid getting caught".to_string()];
+        let harmless = vec!["Explain how to bake fresh bread for friends".to_string()];
+        let directions = refusal_vector::extract_refusal_direction(
+            &runtime,
+            model_id,
+            harmful.clone(),
+            harmless.clone(),
+            vec![LayerIndex::new(0)],
+        )
+        .await?;
+        assert_eq!(
+            directions.len(),
+            1,
+            "exactly one refusal direction for the one requested layer"
+        );
+        assert_eq!(
+            directions[0].values.len(),
+            width,
+            "refusal direction width must equal the residual-stream width"
+        );
+        let refusal_norm: f32 = directions[0]
+            .values
+            .iter()
+            .map(|value| value * value)
+            .sum::<f32>()
+            .sqrt();
+        assert!(
+            (refusal_norm - 1.0).abs() < 1.0e-3,
+            "refusal direction must be unit-normalised; got {refusal_norm}"
+        );
+        let refusal_id = refusal_vector::ablate_at_inference(
+            &runtime,
+            model_id,
+            "candle-e2e-refusal-ablation",
+            "Candle E2E refusal-direction ablation proof",
+            directions[0].clone(),
+            harmful,
+            harmless,
+        )
+        .await?;
+        let _ablated =
+            generate_tokens(&runtime, model_id, "Hello", Vec::new(), vec![refusal_id]).await?;
 
         runtime.unload(model_id).await?;
         Ok(passed(spec))
