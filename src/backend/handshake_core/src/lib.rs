@@ -203,6 +203,8 @@ pub mod session_checkpoint;
 #[cfg(feature = "runtime-full")]
 pub mod storage;
 #[cfg(feature = "runtime-full")]
+pub mod swarm_orchestration;
+#[cfg(feature = "runtime-full")]
 pub mod terminal;
 #[cfg(feature = "runtime-full")]
 pub mod test_harness;
