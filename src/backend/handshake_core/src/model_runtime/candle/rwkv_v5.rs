@@ -505,6 +505,10 @@ pub struct CandleRwkvV5Model {
     eos_token_ids: Vec<u32>,
     device: Device,
     lora_stack: CandleLoraStack,
+    /// MT-088/089: restore arms this so the next `reset_generation_state`
+    /// (called unconditionally by `generate()`) preserves the restored SSM
+    /// prefix instead of wiping it. See CandleMamba2Model for the rationale.
+    suppress_next_reset: bool,
 }
 
 impl CandleRwkvV5Model {
@@ -555,6 +559,7 @@ impl CandleRwkvV5Model {
             eos_token_ids,
             device: device.clone(),
             lora_stack,
+            suppress_next_reset: false,
         })
     }
 
@@ -643,6 +648,12 @@ impl TransformerModel for CandleRwkvV5Model {
     }
 
     fn reset_generation_state(&mut self) -> Result<(), ModelRuntimeError> {
+        // MT-088/089: preserve a freshly restored prefix across generate()'s
+        // pre-loop reset; honour the arm once, then disarm.
+        if self.suppress_next_reset {
+            self.suppress_next_reset = false;
+            return Ok(());
+        }
         self.reset_state()
     }
 
@@ -675,7 +686,11 @@ impl TransformerModel for CandleRwkvV5Model {
                 )));
             }
         };
-        rwkv_v5_restore_state(&mut self.state, &self.device, token_shift, ssm)
+        rwkv_v5_restore_state(&mut self.state, &self.device, token_shift, ssm)?;
+        // MT-088/089: arm reset-suppression so generate()'s pre-loop reset keeps
+        // this restored prefix.
+        self.suppress_next_reset = true;
+        Ok(())
     }
 }
 

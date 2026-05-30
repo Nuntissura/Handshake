@@ -235,6 +235,73 @@ fn candle_rwkv_models_reject_steering_and_lora_overrides() {
     assert_override_rejected(v6.forward(&token, &hooks, &[], &[LoraId::new_v7()]));
 }
 
+/// MT-088/089 (RWKV): prove SSM prefix restore has a real runtime effect for
+/// RWKV too — the reset generate() performs before its forward loop must not
+/// wipe a freshly restored prefix. Default-CI, real candle RWKV v5 forward.
+/// Without the suppress_next_reset fix the restored continuation would equal a
+/// fresh forward, not the continuous post-4-token-forward logits.
+#[test]
+fn candle_rwkv_v5_prefix_restore_survives_generate_reset_and_continues_state() {
+    let device = Device::Cpu;
+    let varmap = VarMap::new();
+    let vb = VarBuilder::from_varmap(&varmap, DType::F32, &device);
+    let mut model = CandleRwkvV5Model::from_varbuilder_for_model(
+        ModelId::new_v7(),
+        tiny_rwkv_config(),
+        vec![7],
+        vb,
+        &device,
+    )
+    .expect("tiny RWKV v5 model constructs");
+    let hooks = CandleSteeringHooks::new_for_model(ModelId::new_v7(), 4);
+    let tok = |ids: &[u32]| {
+        Tensor::new(ids, &device)
+            .and_then(|tensor| tensor.reshape((1, ids.len())))
+            .unwrap()
+    };
+
+    let _ = model
+        .forward(&tok(&[1, 2, 3, 4]), &hooks, &[], &[])
+        .expect("prefill 4 tokens");
+    let snapshot = model
+        .extract_ssm_snapshot()
+        .expect("commit SSM snapshot at pos 4");
+    let continuous = model
+        .forward(&tok(&[5]), &hooks, &[], &[])
+        .expect("continuous 5th-token forward")
+        .flatten_all()
+        .and_then(|t| t.to_vec1::<f32>())
+        .unwrap();
+
+    model.reset_generation_state().expect("independent reset");
+    let _ = model
+        .forward(&tok(&[6, 6, 6]), &hooks, &[], &[])
+        .expect("dirtying forward");
+
+    model
+        .restore_ssm_snapshot(&snapshot)
+        .expect("restore SSM snapshot");
+    model
+        .reset_generation_state()
+        .expect("reset is suppressed for the restored prefix");
+    let restored = model
+        .forward(&tok(&[5]), &hooks, &[], &[])
+        .expect("restored 5th-token forward")
+        .flatten_all()
+        .and_then(|t| t.to_vec1::<f32>())
+        .unwrap();
+
+    assert_eq!(continuous.len(), restored.len());
+    for (c, r) in continuous.iter().zip(&restored) {
+        assert!(
+            (c - r).abs() < 1.0e-4,
+            "RWKV v5 restored continuation logits must equal the continuous \
+             post-4-token-forward logits (got {c} vs {r}); a non-suppressed reset \
+             would have wiped the restored prefix"
+        );
+    }
+}
+
 #[tokio::test]
 async fn candle_rwkv_generic_config_returns_version_marker_error_instead_of_llama_fallback() {
     let tempdir = tempfile::tempdir().unwrap();
