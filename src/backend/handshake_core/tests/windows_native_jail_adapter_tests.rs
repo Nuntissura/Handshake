@@ -25,7 +25,7 @@ fn windows_native_jail_capabilities_are_centralized_and_do_not_claim_portability
         IsolationStrength::VeryStrong
     );
     assert_eq!(caps.network_isolation_strength, IsolationStrength::Strong);
-    assert_eq!(caps.gpu_passthrough, GpuPassthrough::VendorAgnostic);
+    assert_eq!(caps.gpu_passthrough, GpuPassthrough::None);
     assert_eq!(caps.stdio_throughput_class, ThroughputClass::Medium);
     assert!(caps.win32_native_fidelity);
     assert!(!caps.cross_machine_portable);
@@ -163,7 +163,7 @@ async fn windows_native_jail_try_new_reports_runtime_capabilities_after_mt045_ap
         IsolationStrength::VeryStrong
     );
     assert_eq!(caps.network_isolation_strength, IsolationStrength::Strong);
-    assert_eq!(caps.gpu_passthrough, GpuPassthrough::VendorAgnostic);
+    assert_eq!(caps.gpu_passthrough, GpuPassthrough::None);
     assert_eq!(caps.stdio_throughput_class, ThroughputClass::Medium);
     assert!(caps.win32_native_fidelity);
     assert!(!caps.cross_machine_portable);

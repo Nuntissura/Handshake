@@ -109,10 +109,29 @@ fn podman_run_args_map_process_spec_to_default_isolation_controls() {
 
 #[test]
 fn loopback_and_allowlist_network_policies_have_explicit_spawn_modes() {
+    // Master Spec v02.188 §3.5.1 #5 / §3.5.7: NetPolicy::LoopbackOnly MUST
+    // actually reach host 127.0.0.1 services. The honest rootless-podman
+    // realization is slirp4netns user-mode networking with
+    // allow_host_loopback=true — NOT "none" (which is the DenyAll value and
+    // would be a silent network-policy downgrade).
+    const LOOPBACK_MODE: &str = "slirp4netns:port_handler=slirp4netns,allow_host_loopback=true";
+
     let loopback_args =
         podman_run_args(&spec_with_net_policy(NetPolicy::LoopbackOnly)).expect("loopback args");
-    assert!(contains_pair(&loopback_args, "--network", "none"));
+    assert!(
+        contains_pair(&loopback_args, "--network", LOOPBACK_MODE),
+        "LoopbackOnly must spawn with the honest slirp4netns loopback mode; got {loopback_args:?}"
+    );
+    // Anti-regression: LoopbackOnly must NEVER silently collapse to the
+    // DenyAll value "none".
+    assert!(
+        !contains_pair(&loopback_args, "--network", "none"),
+        "LoopbackOnly must NOT be silently downgraded to --network=none (that is DenyAll's value)"
+    );
 
+    // A loopback-only allowlist (e.g. a llama-server on 127.0.0.1:11434) is a
+    // request to reach a host loopback service; it must resolve to the same
+    // honest loopback mode, not a silent deny.
     let allowlist_args = podman_run_args(&spec_with_net_policy(NetPolicy::Allowlist(vec![
         NetAllowlistEntry {
             host: "127.0.0.1".to_string(),
@@ -121,7 +140,22 @@ fn loopback_and_allowlist_network_policies_have_explicit_spawn_modes() {
         },
     ])))
     .expect("allowlist args");
-    assert!(contains_pair(&allowlist_args, "--network", "none"));
+    assert!(
+        contains_pair(&allowlist_args, "--network", LOOPBACK_MODE),
+        "loopback allowlist must reach host loopback via slirp4netns; got {allowlist_args:?}"
+    );
+    assert!(
+        !contains_pair(&allowlist_args, "--network", "none"),
+        "loopback allowlist must NOT be silently downgraded to --network=none"
+    );
+
+    // DenyAll keeps its honest no-network value and must stay distinct from
+    // the loopback path.
+    let deny_args = podman_run_args(&spec_with_net_policy(NetPolicy::DenyAll)).expect("deny args");
+    assert!(
+        contains_pair(&deny_args, "--network", "none"),
+        "DenyAll must remain --network=none; got {deny_args:?}"
+    );
 
     let external_allowlist = podman_run_args(&spec_with_net_policy(NetPolicy::Allowlist(vec![
         NetAllowlistEntry {

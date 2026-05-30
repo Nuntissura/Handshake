@@ -256,13 +256,30 @@ fn guest_path_to_podman_path(path: &Path) -> Result<String, SandboxAdapterError>
     Ok(value)
 }
 
+/// Podman `--network` value for loopback-only access to host services
+/// (Master Spec v02.188 §3.5.1 #5 "loopback-only" network policy honesty,
+/// §3.5.7). slirp4netns user-mode networking with `allow_host_loopback=true`
+/// is the field-standard rootless-podman path that lets the workload reach a
+/// host service bound on 127.0.0.1 (e.g. a llama-server on 127.0.0.1:11434)
+/// WITHOUT granting external/internet egress. This is the honest realization of
+/// `NetPolicy::LoopbackOnly` — it MUST NOT collapse to `none` (which is the
+/// `DenyAll` value and would silently deny the loopback the policy promised).
+const PODMAN_LOOPBACK_NETWORK_MODE: &str =
+    "slirp4netns:port_handler=slirp4netns,allow_host_loopback=true";
+
 fn network_mode(policy: &NetPolicy) -> Result<String, SandboxAdapterError> {
     match policy {
         NetPolicy::DenyAll => Ok("none".to_string()),
-        NetPolicy::LoopbackOnly => Ok("none".to_string()),
+        // Honest loopback path: reach host 127.0.0.1 services, no external egress.
+        // NEVER downgrade to "none" — that is the DenyAll value and would be a
+        // silent network-policy downgrade (spec §3.5.1 #5 honesty requirement).
+        NetPolicy::LoopbackOnly => Ok(PODMAN_LOOPBACK_NETWORK_MODE.to_string()),
         NetPolicy::Allowlist(entries) => {
             if entries.iter().all(is_loopback_allowlist_entry) {
-                Ok("none".to_string())
+                // A loopback-only allowlist (e.g. 127.0.0.1:11434) expects to
+                // reach a host loopback service; honor it with the same honest
+                // slirp4netns loopback mode rather than silently denying it.
+                Ok(PODMAN_LOOPBACK_NETWORK_MODE.to_string())
             } else {
                 Err(SandboxAdapterError::NetPolicyApplyFailed {
                     adapter_id: AdapterId::new(WSL2_PODMAN_ADAPTER_ID),

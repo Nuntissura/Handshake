@@ -240,12 +240,34 @@ fn guest_path_to_docker_path(path: &Path) -> Result<String, SandboxAdapterError>
     Ok(value)
 }
 
+/// Loud, typed failure for any loopback-only network policy on the Docker
+/// bridge. Master Spec v02.188 §3.5.1 #5 requires `NetPolicy::LoopbackOnly`
+/// to actually reach host 127.0.0.1 services. Unlike rootless podman, the
+/// Docker CLI exposes no slirp4netns / `allow_host_loopback` mode at this argv
+/// layer (`--network=none` denies all traffic; `--network=host` would drop ALL
+/// isolation — neither is an honest "loopback-only" realization). Rather than
+/// silently downgrade to `none` (the DenyAll value), this adapter fails closed
+/// and LOUD so callers can route loopback workloads to the WSL2-podman adapter,
+/// which honestly wires slirp4netns loopback.
+fn docker_loopback_unsupported() -> SandboxAdapterError {
+    SandboxAdapterError::NetPolicyApplyFailed {
+        adapter_id: AdapterId::new(DOCKER_ADAPTER_ID),
+        reason: "Docker bridge cannot honestly realize NetPolicy::LoopbackOnly: the Docker CLI has no slirp4netns/allow_host_loopback mode at this layer (--network=none denies all, --network=host drops isolation). Refusing to silently downgrade loopback-only to none; route loopback workloads to the WSL2-podman adapter or implement a host-loopback proxy".to_string(),
+    }
+}
+
 fn network_mode(policy: &NetPolicy) -> Result<String, SandboxAdapterError> {
     match policy {
-        NetPolicy::DenyAll | NetPolicy::LoopbackOnly => Ok("none".to_string()),
+        NetPolicy::DenyAll => Ok("none".to_string()),
+        // NEVER silently map LoopbackOnly to "none" (the DenyAll value): that is
+        // a silent network-policy downgrade (spec §3.5.1 #5 honesty). Fail loud.
+        NetPolicy::LoopbackOnly => Err(docker_loopback_unsupported()),
         NetPolicy::Allowlist(entries) => {
             if entries.iter().all(is_loopback_allowlist_entry) {
-                Ok("none".to_string())
+                // A loopback-only allowlist (e.g. 127.0.0.1:11434) is a
+                // loopback-reach request; the Docker bridge cannot honestly
+                // honor it here, so it fails loud rather than denying silently.
+                Err(docker_loopback_unsupported())
             } else {
                 Err(SandboxAdapterError::NetPolicyApplyFailed {
                     adapter_id: AdapterId::new(DOCKER_ADAPTER_ID),

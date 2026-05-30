@@ -92,10 +92,31 @@ fn docker_network_policies_fail_closed_until_firewall_seeding_exists() {
         docker_run_args(&spec_with_net_policy(NetPolicy::DenyAll), "ctr").expect("deny args");
     assert!(contains_pair(&deny_all, "--network", "none"));
 
-    let loopback =
-        docker_run_args(&spec_with_net_policy(NetPolicy::LoopbackOnly), "ctr").expect("loopback");
-    assert!(contains_pair(&loopback, "--network", "none"));
+    // Master Spec v02.188 §3.5.1 #5 / §3.5.7 network-policy honesty: the Docker
+    // CLI has no slirp4netns/allow_host_loopback mode at this argv layer, so it
+    // MUST NOT silently downgrade LoopbackOnly to --network=none (the DenyAll
+    // value). It fails LOUD with a typed NetPolicyApplyFailed instead.
+    let loopback = docker_run_args(&spec_with_net_policy(NetPolicy::LoopbackOnly), "ctr");
+    match loopback {
+        Err(SandboxAdapterError::NetPolicyApplyFailed { adapter_id, reason }) => {
+            assert_eq!(adapter_id, AdapterId::new(DOCKER_ADAPTER_ID));
+            assert!(
+                reason.contains("LoopbackOnly"),
+                "loud error must name the policy it refused; got {reason}"
+            );
+            assert!(
+                reason.contains("downgrade"),
+                "loud error must explain it is refusing a silent downgrade; got {reason}"
+            );
+        }
+        other => panic!(
+            "LoopbackOnly must fail loud on the Docker bridge, NOT silently become --network=none; got {other:?}"
+        ),
+    }
 
+    // A loopback-only allowlist (e.g. llama-server on 127.0.0.1:11434) is also a
+    // loopback-reach request; the Docker bridge must fail loud the same way
+    // rather than silently denying it with --network=none.
     let loopback_allowlist = docker_run_args(
         &spec_with_net_policy(NetPolicy::Allowlist(vec![NetAllowlistEntry {
             host: "127.0.0.1".to_string(),
@@ -103,9 +124,19 @@ fn docker_network_policies_fail_closed_until_firewall_seeding_exists() {
             protocol: NetProtocol::Tcp,
         }])),
         "ctr",
-    )
-    .expect("loopback allowlist");
-    assert!(contains_pair(&loopback_allowlist, "--network", "none"));
+    );
+    match loopback_allowlist {
+        Err(SandboxAdapterError::NetPolicyApplyFailed { adapter_id, reason }) => {
+            assert_eq!(adapter_id, AdapterId::new(DOCKER_ADAPTER_ID));
+            assert!(
+                reason.contains("LoopbackOnly"),
+                "loud error must name the policy it refused; got {reason}"
+            );
+        }
+        other => panic!(
+            "loopback allowlist must fail loud on the Docker bridge, NOT silently become --network=none; got {other:?}"
+        ),
+    }
 
     let external_allowlist = docker_run_args(
         &spec_with_net_policy(NetPolicy::Allowlist(vec![NetAllowlistEntry {

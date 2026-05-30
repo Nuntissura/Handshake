@@ -9,7 +9,7 @@
     },
     "cwd": null,
     "binds": [],
-    "net_policy": "loopback_only",
+    "net_policy": "deny_all",
     "resource_limits": {
       "memory_bytes": null,
       "cpu_cores": null,
@@ -31,7 +31,7 @@
     },
     "cwd": null,
     "binds": [],
-    "net_policy": "loopback_only",
+    "net_policy": "deny_all",
     "resource_limits": {
       "memory_bytes": null,
       "cpu_cores": null,
