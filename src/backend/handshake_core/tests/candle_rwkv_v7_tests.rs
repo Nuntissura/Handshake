@@ -133,8 +133,8 @@ fn candle_rwkv_v7_rejects_steering_and_lora_overrides() {
         .and_then(|tensor| tensor.reshape((1, 1)))
         .unwrap();
 
-    assert_capability_error(model.forward(&token, &hooks, &[SteeringVectorId::new_v7()], &[]));
-    assert_capability_error(model.forward(&token, &hooks, &[], &[LoraId::new_v7()]));
+    assert_override_rejected(model.forward(&token, &hooks, &[SteeringVectorId::new_v7()], &[]));
+    assert_override_rejected(model.forward(&token, &hooks, &[], &[LoraId::new_v7()]));
 }
 
 #[test]
@@ -176,7 +176,9 @@ async fn candle_runtime_loads_tiny_rwkv_v7_and_clamps_capabilities() {
 
     assert_eq!(capabilities, &candle_rwkv_capabilities(&declared_caps()));
     assert!(capabilities.supports_subquadratic);
-    assert!(!capabilities.supports_lora);
+    // MT-115: LoRA wired for RWKV v7. MT-089/steering-ssm: steering stays false
+    // (capture fails closed via the adapter) until SSM capture is wired.
+    assert!(capabilities.supports_lora);
     assert!(!capabilities.supports_activation_steering);
 }
 
@@ -198,7 +200,7 @@ async fn candle_rwkv_v7_env_model_loads_and_can_generate_when_available() {
         .expect("env RWKV v7 model loads");
     let capabilities = runtime.capabilities(model_id).unwrap();
     assert!(capabilities.supports_subquadratic);
-    assert!(!capabilities.supports_lora);
+    assert!(capabilities.supports_lora);
     assert!(!capabilities.supports_kv_prefix_cache);
 
     let mut stream = runtime.generate(GenerateRequest {
@@ -333,13 +335,16 @@ fn insert_ones(
     );
 }
 
-fn assert_capability_error(result: Result<Tensor, ModelRuntimeError>) {
+// MT-115/116 + MT-089: the owned RWKV v7 forward now wires LoRA and a steering
+// apply-seam, so an override naming an UNREGISTERED steering vector or UNMOUNTED
+// LoRA no longer returns CapabilityNotSupported -- it fails because the named
+// override is not known/mounted. The safety property is unchanged: the forward
+// never SILENTLY applies an override it cannot resolve. (SSM steering stays gated
+// off as a capability because real-forward capture is fail-closed.)
+fn assert_override_rejected(result: Result<Tensor, ModelRuntimeError>) {
     assert!(
-        matches!(
-            result,
-            Err(ModelRuntimeError::CapabilityNotSupported { .. })
-        ),
-        "expected CapabilityNotSupported, got {result:?}"
+        result.is_err(),
+        "forward must reject an unregistered/unmounted override, got Ok: {result:?}"
     );
 }
 

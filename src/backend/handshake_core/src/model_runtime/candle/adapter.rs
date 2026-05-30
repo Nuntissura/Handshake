@@ -531,13 +531,21 @@ pub fn candle_transformer_capabilities(declared: &ModelCapabilities) -> ModelCap
 
 pub fn candle_mamba2_capabilities(_declared: &ModelCapabilities) -> ModelCapabilities {
     ModelCapabilities {
-        // MT-115 / MT-116 (INF-9): the owned Mamba2 forward (mamba2.rs) routes
-        // in_proj/out_proj through the LoRA delta engine and exposes a
-        // residual-stream steering seam, so both techniques now actually work.
+        // MT-115: the owned Mamba2 forward (mamba2.rs) routes in_proj/out_proj
+        // through the LoRA delta engine, so LoRA is genuinely wired.
         supports_lora: true,
         supports_kv_prefix_cache: false,
         supports_kv_quantization: KvQuantSupport::None,
-        supports_activation_steering: true,
+        // MT-089 / cross-cluster steering-ssm (honest declaration): activation
+        // steering is NOT usable end-to-end for SSM. The forward exposes an
+        // apply seam, but CandleRuntime::steering_hooks wires real-forward
+        // CAPTURE (CandleRuntimeSteeringHookOps) only for the Transformer
+        // backend; SSM falls through to the bare hooks whose capture() fails
+        // closed (hooks.rs). Declaring true here was a lie that let the steering
+        // capability gate pass for SSM and then fail closed at capture. Stays
+        // false per the MT-116 deferral until SSM real-forward capture is wired
+        // and identity-test correctness is proven.
+        supports_activation_steering: false,
         supports_subquadratic: true,
         supports_speculative_draft: false,
         supports_eagle3: false,
@@ -546,15 +554,16 @@ pub fn candle_mamba2_capabilities(_declared: &ModelCapabilities) -> ModelCapabil
 
 pub fn candle_rwkv_capabilities(_declared: &ModelCapabilities) -> ModelCapabilities {
     ModelCapabilities {
-        // MT-115 / MT-116 (INF-9): the owned RWKV v5/v6/v7 forwards
-        // (rwkv_v5.rs / rwkv_v6.rs / rwkv_v7.rs) route time-mix/channel-mix
-        // projections through the LoRA delta engine and expose a residual-stream
-        // steering seam, so both techniques now actually work for all three
-        // RWKV variants.
+        // MT-115: the owned RWKV v5/v6/v7 forwards route time-mix/channel-mix
+        // projections through the LoRA delta engine, so LoRA is genuinely wired.
         supports_lora: true,
         supports_kv_prefix_cache: false,
         supports_kv_quantization: KvQuantSupport::None,
-        supports_activation_steering: true,
+        // MT-089 / cross-cluster steering-ssm (honest): same as Mamba2 — SSM
+        // activation-steering CAPTURE fails closed via the adapter (real-forward
+        // hooks are Transformer-only), so steering is not usable end-to-end.
+        // False until SSM capture is wired (MT-116 deferral).
+        supports_activation_steering: false,
         supports_subquadratic: true,
         supports_speculative_draft: false,
         supports_eagle3: false,

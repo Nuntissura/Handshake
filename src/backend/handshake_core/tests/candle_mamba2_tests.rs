@@ -56,7 +56,11 @@ fn candle_mamba2_capabilities_are_base_path_only() {
 
     let actual = candle_mamba2_capabilities(&declared);
 
-    assert!(!actual.supports_lora);
+    // MT-115: LoRA is genuinely wired for the owned Mamba2 forward, so lora is
+    // honestly supported. MT-089/steering-ssm: activation steering is NOT
+    // usable end-to-end (capture fails closed via the adapter), so it stays
+    // false until SSM real-forward capture is wired.
+    assert!(actual.supports_lora);
     assert!(!actual.supports_kv_prefix_cache);
     assert_eq!(actual.supports_kv_quantization, KvQuantSupport::None);
     assert!(!actual.supports_activation_steering);
@@ -220,7 +224,7 @@ async fn candle_mamba2_env_model_loads_and_can_generate_when_available() {
         .expect("env Mamba2 model loads");
     let capabilities = runtime.capabilities(model_id).unwrap();
     assert!(capabilities.supports_subquadratic);
-    assert!(!capabilities.supports_lora);
+    assert!(capabilities.supports_lora);
     assert!(!capabilities.supports_kv_prefix_cache);
 
     let mut stream = runtime.generate(handshake_core::model_runtime::GenerateRequest {
