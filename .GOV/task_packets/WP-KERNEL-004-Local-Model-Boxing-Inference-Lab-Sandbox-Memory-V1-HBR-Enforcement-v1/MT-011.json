@@ -7,7 +7,7 @@
   "cluster_subscope": "A.6",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T02:30:00Z",
-  "updated_at_utc": "2026-05-28T00:01:44.875Z",
+  "updated_at_utc": "2026-05-31T03:00:43.000Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -49,7 +49,7 @@
   ],
   "lifecycle": {
     "active": false,
-    "status": "READY_FOR_VALIDATION",
+    "status": "READY_FOR_VALIDATION_PHASE2",
     "validator_verdict": "CONCERN",
     "depends_on": [
       "MT-010"
@@ -75,7 +75,22 @@
     "ready_at_utc": "2026-05-25T15:54:56.028Z",
     "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
     "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
-    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z"
+    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z",
+    "updated_at_utc": "2026-05-31T03:00:43.000Z",
+    "phase2_remediation": {
+      "remediated_by": "KERNEL_BUILDER-20260531-030043",
+      "remediated_at_utc": "2026-05-31T03:00:43.000Z",
+      "lane": "WP-KERNEL-004 Phase-2 A-cluster: HBR-MAN-001 config_key false-positive flood",
+      "commit_sha": "7a84dadf",
+      "remediated_findings": [
+        "finding #1 (HIGH/CODE): detectConfigKeys in hbr-man-001-paired-diff.mjs over-fired on every changed `name:` line in any patch that merely contained a *Config/*Settings/*Options struct anywhere (455 false config_key surfaces on a single workflows.rs change). Rewritten to brace-track struct-definition bodies and emit config_key only for changed field lines INSIDE a config-relevant struct body. Struct literals, enum variants, and ordinary struct fields no longer false-fire."
+      ],
+      "deferred_or_residual": "None. The MEDIUM/LOW findings folded into the same detector rewrite (the false-positive surface was the root concern); no spec-debt residual.",
+      "partial": false,
+      "ack_for": "019e6be3-15ab-7138-ac0a-a961453e961e",
+      "proof": "node --test .GOV/roles_shared/checks/hbr-man-001-paired-diff.test.mjs -> 10/10 pass, including two new MT-011 cases: a *Config-struct field IS flagged as config_key; ordinary struct fields and enum variant fields are NOT flagged even when the file contains a *Config struct (regression guard for the 455-flood).",
+      "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1 - no per-MT validator; awaiting Phase-2 IV re-judgment"
+    }
   },
   "handoff": {
     "coder_session": "KERNEL_BUILDER-20260518-012310",
