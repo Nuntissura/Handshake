@@ -919,6 +919,23 @@ pub fn run() {
                 .path()
                 .app_data_dir()
                 .map_err(|e| std::io::Error::other(e.to_string()))?;
+            // rank-3: a DuckDB Flight Recorder for the swarm, so deployed
+            // swarm/VM lifecycle events persist + are queryable (board drill-down
+            // + audit). Best-effort: on init failure the swarm falls back to the
+            // structured-stderr FR sink rather than failing app startup.
+            let swarm_recorder: Option<Arc<dyn handshake_core::flight_recorder::FlightRecorder>> = {
+                let _ = std::fs::create_dir_all(&app_data_root);
+                let path = app_data_root.join("swarm_flight_recorder.duckdb");
+                match handshake_core::flight_recorder::duckdb::DuckDbFlightRecorder::new_on_path(
+                    &path, 7,
+                ) {
+                    Ok(rec) => Some(Arc::new(rec)),
+                    Err(error) => {
+                        eprintln!("swarm flight recorder init failed ({error}); using stderr sink");
+                        None
+                    }
+                }
+            };
             let distillation_jobs_state =
                 distillation_jobs_state_from_app_data_root(&app_data_root).map_err(|error| {
                     std::io::Error::other(format!(
@@ -932,7 +949,12 @@ pub fn run() {
             // `setup` so the background ledger writer + lease reaper spawn into
             // the live Tauri async runtime. Later swarm commands (MT-205) and the
             // cloud routing policy (MT-206) drive this managed coordinator.
-            let swarm_state = commands::swarm_runtime::SwarmRuntimeState::production();
+            let swarm_state = match swarm_recorder {
+                Some(recorder) => {
+                    commands::swarm_runtime::SwarmRuntimeState::production_with_fr_recorder(recorder)
+                }
+                None => commands::swarm_runtime::SwarmRuntimeState::production(),
+            };
             // rank-4: start the single board forwarder (broadcast -> typed
             // swarm://event deltas) before managing the state moves it.
             let board_events = swarm_state.board_events();

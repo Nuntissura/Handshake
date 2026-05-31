@@ -72,9 +72,10 @@ use handshake_core::process_ledger::{
     ProcessLedgerOverflowSink, ProcessLedgerStore,
 };
 use handshake_core::model_runtime::cloud::SecretsVault;
+use handshake_core::flight_recorder::FlightRecorder;
 use handshake_core::swarm_orchestration::{
-    BroadcastSwarmSink, CloudLaneFactoryConfig, FanoutSwarmSink, FlightRecorderSwarmSink,
-    LiveSession, ModelInstanceId, ModelSessionFactory, ModelSessionState,
+    BroadcastSwarmSink, CloudLaneFactoryConfig, DurableSwarmFrBridge, FanoutSwarmSink,
+    FlightRecorderSwarmSink, LiveSession, ModelInstanceId, ModelSessionFactory, ModelSessionState,
     ProductionModelSessionFactory, RunBudget, SpawnRequest, SwarmConfig, SwarmCoordinator,
     SwarmError, SwarmEvent, SwarmEventSink, SwarmResult,
 };
@@ -212,6 +213,10 @@ pub struct SwarmRuntimeState {
     /// this (alongside the FR sink); the Tauri board forwarder subscribes here and
     /// re-emits typed deltas to the React board, replacing the 1500ms poll.
     board_events: Arc<BroadcastSwarmSink>,
+    /// rank-3: the durable FR bridge drain task (when a recorder is wired). Held
+    /// so it lives for the app's lifetime; dropping it stops persisting swarm
+    /// events. `None` when no recorder was supplied (the eprintln fallback).
+    _fr_drain_task: Option<tokio::task::JoinHandle<()>>,
 }
 
 impl std::fmt::Debug for SwarmRuntimeState {
@@ -272,6 +277,37 @@ impl SwarmRuntimeState {
     /// sink, with the supplied [`CloudLaneFactoryConfig`]. Starts the lease/TTL
     /// reaper so stale sessions are reclaimed for the app's lifetime.
     pub fn production_with_cloud(cloud: CloudLaneFactoryConfig) -> Self {
+        Self::production_with_cloud_and_recorder(cloud, None)
+    }
+
+    /// rank-3: production swarm runtime that PERSISTS every SwarmEvent into
+    /// `recorder` (the deployed app passes the app-data-root DuckDB Flight
+    /// Recorder) via the DurableSwarmFrBridge, so swarm/VM lifecycle events are
+    /// durable + replayable for the board drill-down + audit -- not just stderr.
+    /// Mirrors `production()`'s cloud-lane wiring.
+    pub fn production_with_fr_recorder(recorder: Arc<dyn FlightRecorder>) -> Self {
+        let vault: Arc<dyn SecretsVault> = Arc::new(
+            handshake_core::model_runtime::cloud::secrets_vault::OsKeychainSecretsVault::new(
+                handshake_core::model_runtime::cloud::secrets_vault::HANDSHAKE_KEYCHAIN_SERVICE,
+            ),
+        );
+        let anthropic_lane = std::env::var("HANDSHAKE_SWARM_ANTHROPIC_LANE")
+            .ok()
+            .filter(|s| !s.trim().is_empty())
+            .unwrap_or_else(|| "anthropic".to_string());
+        let openai_lane = std::env::var("HANDSHAKE_SWARM_OPENAI_LANE")
+            .ok()
+            .filter(|s| !s.trim().is_empty())
+            .unwrap_or_else(|| "openai".to_string());
+        let cloud =
+            CloudLaneFactoryConfig::from_vault(vault, Some(anthropic_lane), Some(openai_lane));
+        Self::production_with_cloud_and_recorder(cloud, Some(recorder))
+    }
+
+    fn production_with_cloud_and_recorder(
+        cloud: CloudLaneFactoryConfig,
+        recorder: Option<Arc<dyn FlightRecorder>>,
+    ) -> Self {
         let store = InProcessLedgerStore::default();
         let overflow = Arc::new(CountingOverflowSink::default());
         let (ledger, writer_task) = LedgerBatcher::spawn(
@@ -303,13 +339,30 @@ impl SwarmRuntimeState {
         });
 
         let trace_id = Uuid::now_v7();
-        let fr_sink: Arc<dyn SwarmEventSink> =
-            Arc::new(FlightRecorderSwarmSink::new(trace_id, |event| {
-                eprintln!(
-                    "{FR_EVT_SWARM_LIFECYCLE}: {}",
-                    serde_json::to_string(&event.payload).unwrap_or_default()
-                );
-            }));
+        // rank-3: when a recorder is supplied, persist every SwarmEvent durably
+        // via the bridge (sync sink emit -> bounded channel -> async record_event);
+        // otherwise fall back to structured stderr. Hold the bridge drain task.
+        let (fr_sink, fr_drain): (Arc<dyn SwarmEventSink>, Option<tokio::task::JoinHandle<()>>) =
+            match recorder {
+                Some(rec) => {
+                    let (bridge, drain) = DurableSwarmFrBridge::spawn(rec, 1024);
+                    let sink: Arc<dyn SwarmEventSink> =
+                        Arc::new(FlightRecorderSwarmSink::new(trace_id, move |fr_event| {
+                            bridge.emit(fr_event);
+                        }));
+                    (sink, Some(drain))
+                }
+                None => {
+                    let sink: Arc<dyn SwarmEventSink> =
+                        Arc::new(FlightRecorderSwarmSink::new(trace_id, |event| {
+                            eprintln!(
+                                "{FR_EVT_SWARM_LIFECYCLE}: {}",
+                                serde_json::to_string(&event.payload).unwrap_or_default()
+                            );
+                        }));
+                    (sink, None)
+                }
+            };
         // rank-4: fan out to BOTH the FR sink and the live board broadcast, so one
         // coordinator drives durable capture + the live operator board.
         let board_events = Arc::new(BroadcastSwarmSink::new(1024));
@@ -328,6 +381,7 @@ impl SwarmRuntimeState {
             concurrency_cap: concurrency,
             _writer_task: writer_task,
             board_events,
+            _fr_drain_task: fr_drain,
         }
     }
 
