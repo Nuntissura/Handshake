@@ -668,10 +668,18 @@ fn mt_118_each_profile_has_unique_env_var_and_label() {
 
 #[test]
 fn mt_118_all_ssm_architectures_declare_full_parity_capabilities() {
-    // MT-115 + MT-116 parity matrix: every SSM/RWKV architecture must now
-    // advertise the techniques its owned forward implements. No architecture
-    // is left behind (the regression this guards against is a future change
-    // that re-disables one variant's capability flag).
+    // MT-115 + MT-116 parity matrix: every SSM/RWKV architecture advertises the
+    // techniques its owned forward genuinely supports END TO END. LoRA and
+    // subquadratic are fully wired (true). Activation steering is HONESTLY
+    // deferred (false): the owned forward implements the residual-stream steering
+    // PRIMITIVE (proven by mt_118_steering_primitive_parity_across_architectures),
+    // but external steering-vector CAPTURE via steering_hooks() fails closed for
+    // SSM backends (bare CandleSteeringHooks has no model forward), so declaring
+    // the capability true would be a lie -- the gate passes then capture errors.
+    // Per the MT-089/steering-ssm honesty fix (commit 1018e034) + MT-116
+    // deferral, supports_activation_steering stays false until SSM real-forward
+    // capture is wired. This matches the honest caps asserted by the
+    // candle_mamba2 / candle_rwkv / candle_rwkv_v7 suites.
     for profile in PROFILES {
         let caps = arch_capabilities(profile.arch_tag);
         assert!(
@@ -680,8 +688,9 @@ fn mt_118_all_ssm_architectures_declare_full_parity_capabilities() {
             profile.label
         );
         assert!(
-            caps.supports_activation_steering,
-            "[MT-118] {} must declare supports_activation_steering=true",
+            !caps.supports_activation_steering,
+            "[MT-118] {} must declare supports_activation_steering=false (SSM real-forward \
+             capture deferred per MT-116; apply-primitive parity proven separately)",
             profile.label
         );
         assert!(
