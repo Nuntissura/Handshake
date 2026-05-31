@@ -568,6 +568,56 @@ async fn proof_3_lease_expiry_reaper_reclaims_cancels_records() {
 }
 
 // ===========================================================================
+// RANK-7: a per-spawn time_box drives reaping independently of the config TTL.
+// ===========================================================================
+
+#[tokio::test(flavor = "multi_thread")]
+async fn rank7_time_boxed_session_is_reaped_at_its_box_while_untimed_survives() {
+    let (ledger, _drain) = ledger_pair();
+    let factory = Arc::new(ControllableFactory::new(
+        FactoryBehavior::Succeed,
+        Duration::from_millis(1),
+        ledger.clone(),
+    ));
+    let sink = Arc::new(RecordingSwarmSink::new());
+
+    // Configured lease_ttl is LONG (60s) so an untimed session never expires
+    // during the test; the reaper scans frequently.
+    let budget = RunBudget::defaulted(4).with_concurrency(4);
+    let config = SwarmConfig::new(budget)
+        .with_lease_ttl(Duration::from_secs(60))
+        .with_reaper_scan_interval(Duration::from_millis(20));
+    let coordinator = SwarmCoordinator::new(config, factory, sink.clone(), ledger);
+    coordinator.start_reaper();
+
+    // A is time-boxed to 30ms; B uses the 60s default (no time_box).
+    let a = instance(0);
+    let b = instance(1);
+    coordinator
+        .spawn_session(spawn_req(a).with_time_box(Duration::from_millis(30)))
+        .await
+        .unwrap();
+    coordinator.spawn_session(spawn_req(b)).await.unwrap();
+    assert_eq!(coordinator.live_session_count(), 2);
+
+    // Wait past A's box + a scan interval; B's 60s lease is nowhere near expiry.
+    tokio::time::sleep(Duration::from_millis(200)).await;
+
+    assert!(
+        coordinator.session_state(a).is_none(),
+        "the time-boxed session must be reaped at its box (no new teardown code)"
+    );
+    assert!(
+        coordinator.session_state(b).is_some(),
+        "the untimed session (60s lease) must survive"
+    );
+    assert_eq!(coordinator.live_session_count(), 1);
+    assert!(sink.contains(SwarmFrEventId::LeaseExpired));
+
+    coordinator.stop_reaper();
+}
+
+// ===========================================================================
 // PROOF 4: failure-fingerprint breaker trips after threshold + suppresses.
 // ===========================================================================
 

@@ -727,8 +727,12 @@ impl SwarmCoordinator {
         permit: OwnedSemaphorePermit,
     ) -> Result<(), (LiveSession, OwnedSemaphorePermit)> {
         let now = Utc::now();
+        // rank-7: a per-spawn time_box overrides the configured lease_ttl, so a
+        // time-boxed (e.g. calendar-scheduled) session expires after its box and
+        // the existing reaper reclaims it -- no new teardown path.
+        let lease_lifetime = request.time_box.unwrap_or(self.inner.config.lease_ttl);
         let expires_at = now
-            + chrono::Duration::from_std(self.inner.config.lease_ttl)
+            + chrono::Duration::from_std(lease_lifetime)
                 .unwrap_or_else(|_| chrono::Duration::seconds(300));
         let instance_id = request.instance_id;
         let process_uuid = live.process_record_id.as_uuid();

@@ -78,6 +78,12 @@ pub struct SpawnRequest {
     /// inside. Ties a session to its isolated worktree for per-worktree state
     /// recovery and board grouping. `None` for a session not bound to a worktree.
     pub worktree_id: Option<String>,
+    /// rank-7 time-boxing: an optional per-spawn lease lifetime. When set, the
+    /// session's claim lease expires after this duration instead of the
+    /// coordinator's configured `lease_ttl`; with no lease renewal the EXISTING
+    /// reaper reclaims it at expiry -- a time-boxed (e.g. calendar-scheduled)
+    /// session needs NO new teardown code. `None` uses the configured lease_ttl.
+    pub time_box: Option<std::time::Duration>,
 }
 
 impl SpawnRequest {
@@ -102,6 +108,7 @@ impl SpawnRequest {
             model_artifact_sha256: None,
             swarm_id: None,
             worktree_id: None,
+            time_box: None,
         }
     }
 
@@ -153,6 +160,14 @@ impl SpawnRequest {
     /// Bind this session to a VM/sandbox worktree (per-worktree recovery + board).
     pub fn with_worktree(mut self, worktree_id: impl Into<String>) -> Self {
         self.worktree_id = Some(worktree_id.into());
+        self
+    }
+
+    /// rank-7: time-box this session -- its lease expires after `ttl` and the
+    /// existing reaper reclaims it (no renewal). For calendar-scheduled / bounded
+    /// runs; reuses the lease+reaper teardown path (no new teardown code).
+    pub fn with_time_box(mut self, ttl: std::time::Duration) -> Self {
+        self.time_box = Some(ttl);
         self
     }
 
