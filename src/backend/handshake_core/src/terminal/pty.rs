@@ -613,7 +613,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "spawns a real shell under ConPTY; headless agent/CI hosts have no console host so the child never progresses and child.wait() hangs (spawn itself succeeds). Run with --ignored on a real interactive desktop. The reader->scrollback->broadcast data path is covered headless-safely by the pump_reader_* tests."]
+    #[ignore = "spawns a real shell under ConPTY. Empirically (Windows host, 2026-05-31): spawn succeeds and the pseudoconsole emits its initial ESC[6n cursor-position probe, but in a headless agent/CI context there is no attached console host to answer the DSR handshake, so the child does not run to completion within the wait window — only the ESC[6n probe is captured and wait_for_exit times out (it does NOT literally hang child.wait). Run with --ignored on a real interactive desktop session, where the console host answers the handshake and the child completes. The reader->scrollback->broadcast data pump is covered headless-safely by the always-on pump_reader_* + scrollback_cap tests."]
     fn echo_round_trip_via_args() {
         let session = PtySession::spawn(echo_config("HANDSHAKE_PTY_OK")).expect("spawn");
         let (out, exit) = run_to_completion(&session);
@@ -626,7 +626,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "spawns a real shell under ConPTY; headless agent/CI hosts have no console host so the child never progresses and child.wait() hangs (spawn itself succeeds). Run with --ignored on a real interactive desktop. The reader->scrollback->broadcast data path is covered headless-safely by the pump_reader_* tests."]
+    #[ignore = "spawns a real shell under ConPTY. Empirically (Windows host, 2026-05-31): spawn succeeds and the pseudoconsole emits its initial ESC[6n cursor-position probe, but in a headless agent/CI context there is no attached console host to answer the DSR handshake, so the child does not run to completion within the wait window — only the ESC[6n probe is captured and wait_for_exit times out (it does NOT literally hang child.wait). Run with --ignored on a real interactive desktop session, where the console host answers the handshake and the child completes. The reader->scrollback->broadcast data pump is covered headless-safely by the always-on pump_reader_* + scrollback_cap tests."]
     fn interactive_stdin_round_trip() {
         // Launch an interactive shell, write a command to stdin, and confirm the
         // command's output appears in scrollback (the stdin -> output path). We
@@ -661,7 +661,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "spawns a real shell under ConPTY; headless agent/CI hosts have no console host so the child never progresses and child.wait() hangs (spawn itself succeeds). Run with --ignored on a real interactive desktop. The reader->scrollback->broadcast data path is covered headless-safely by the pump_reader_* tests."]
+    #[ignore = "spawns a real shell under ConPTY. Empirically (Windows host, 2026-05-31): spawn succeeds and the pseudoconsole emits its initial ESC[6n cursor-position probe, but in a headless agent/CI context there is no attached console host to answer the DSR handshake, so the child does not run to completion within the wait window — only the ESC[6n probe is captured and wait_for_exit times out (it does NOT literally hang child.wait). Run with --ignored on a real interactive desktop session, where the console host answers the handshake and the child completes. The reader->scrollback->broadcast data pump is covered headless-safely by the always-on pump_reader_* + scrollback_cap tests."]
     fn live_broadcast_delivers_to_early_subscriber() {
         // A subscriber attached BEFORE output flows must see the Exit event on
         // the live broadcast (the interactive-panel attach path). Use the
@@ -687,7 +687,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "spawns a real shell under ConPTY; headless agent/CI hosts have no console host so the child never progresses and child.wait() hangs (spawn itself succeeds). Run with --ignored on a real interactive desktop. The reader->scrollback->broadcast data path is covered headless-safely by the pump_reader_* tests."]
+    #[ignore = "spawns a real shell under ConPTY. Empirically (Windows host, 2026-05-31): spawn succeeds and the pseudoconsole emits its initial ESC[6n cursor-position probe, but in a headless agent/CI context there is no attached console host to answer the DSR handshake, so the child does not run to completion within the wait window — only the ESC[6n probe is captured and wait_for_exit times out (it does NOT literally hang child.wait). Run with --ignored on a real interactive desktop session, where the console host answers the handshake and the child completes. The reader->scrollback->broadcast data pump is covered headless-safely by the always-on pump_reader_* + scrollback_cap tests."]
     fn resize_does_not_error() {
         let mut cfg = PtySpawnConfig::default();
         if cfg!(windows) {
@@ -701,7 +701,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "spawns a real shell under ConPTY; headless agent/CI hosts have no console host so the child never progresses and child.wait() hangs (spawn itself succeeds). Run with --ignored on a real interactive desktop. The reader->scrollback->broadcast data path is covered headless-safely by the pump_reader_* tests."]
+    #[ignore = "spawns a real shell under ConPTY. Empirically (Windows host, 2026-05-31): spawn succeeds and the pseudoconsole emits its initial ESC[6n cursor-position probe, but in a headless agent/CI context there is no attached console host to answer the DSR handshake, so the child does not run to completion within the wait window — only the ESC[6n probe is captured and wait_for_exit times out (it does NOT literally hang child.wait). Run with --ignored on a real interactive desktop session, where the console host answers the handshake and the child completes. The reader->scrollback->broadcast data pump is covered headless-safely by the always-on pump_reader_* + scrollback_cap tests."]
     fn child_exit_is_surfaced() {
         let session = PtySession::spawn(echo_config("x")).expect("spawn");
         let (_out, exit) = run_to_completion(&session);
@@ -728,7 +728,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "spawns a real shell under ConPTY; headless agent/CI hosts have no console host so the child never progresses and child.wait() hangs (spawn itself succeeds). Run with --ignored on a real interactive desktop. The reader->scrollback->broadcast data path is covered headless-safely by the pump_reader_* tests."]
+    #[ignore = "spawns a real shell under ConPTY. Empirically (Windows host, 2026-05-31): spawn succeeds and the pseudoconsole emits its initial ESC[6n cursor-position probe, but in a headless agent/CI context there is no attached console host to answer the DSR handshake, so the child does not run to completion within the wait window — only the ESC[6n probe is captured and wait_for_exit times out (it does NOT literally hang child.wait). Run with --ignored on a real interactive desktop session, where the console host answers the handshake and the child completes. The reader->scrollback->broadcast data pump is covered headless-safely by the always-on pump_reader_* + scrollback_cap tests."]
     fn scrollback_snapshot_backfills() {
         let session = PtySession::spawn(echo_config("BACKFILL_MARKER")).expect("spawn");
         let (_out, _exit) = run_to_completion(&session);
