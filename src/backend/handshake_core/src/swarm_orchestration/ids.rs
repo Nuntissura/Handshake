@@ -78,6 +78,20 @@ pub struct SpawnRequest {
     /// inside. Ties a session to its isolated worktree for per-worktree state
     /// recovery and board grouping. `None` for a session not bound to a worktree.
     pub worktree_id: Option<String>,
+    /// Operator-assigned on-disk place for this session (absolute OR repo-relative,
+    /// disk-agnostic). RECORDED ATTRIBUTION ONLY today: it is carried into the
+    /// ledger / side-table / transcript for "where does this session live" answers
+    /// and as the bridge to future VM-execution routing. It is NOT resolved,
+    /// created, or used as a real cwd here — the swarm session runs in-process.
+    /// `None` for a session with no assigned disk location.
+    pub working_dir: Option<String>,
+    /// Operator-intended isolation tier for this session (mirrors
+    /// [`crate::sandbox::adapter::IsolationTier`]). RECORDED ONLY: it captures the
+    /// operator's "run this in a container / syscall-jail / microVM" intent at
+    /// spawn time as the bridge to future sandbox-VM execution routing. It is NOT
+    /// enforced — nothing reads it to select an execution substrate today; the
+    /// session still runs in-process. `None` for no recorded tier.
+    pub isolation_tier: Option<crate::sandbox::adapter::IsolationTier>,
     /// rank-7 time-boxing: an optional per-spawn lease lifetime. When set, the
     /// session's claim lease expires after this duration instead of the
     /// coordinator's configured `lease_ttl`; with no lease renewal the EXISTING
@@ -108,6 +122,8 @@ impl SpawnRequest {
             model_artifact_sha256: None,
             swarm_id: None,
             worktree_id: None,
+            working_dir: None,
+            isolation_tier: None,
             time_box: None,
         }
     }
@@ -163,6 +179,24 @@ impl SpawnRequest {
         self
     }
 
+    /// Record the operator-assigned on-disk place for this session. RECORDED
+    /// ATTRIBUTION ONLY — see the `working_dir` field doc; not resolved or used as
+    /// a cwd here.
+    pub fn with_working_dir(mut self, working_dir: impl Into<String>) -> Self {
+        self.working_dir = Some(working_dir.into());
+        self
+    }
+
+    /// Record the operator-intended isolation tier. RECORDED ONLY — see the
+    /// `isolation_tier` field doc; not enforced (the session runs in-process).
+    pub fn with_isolation_tier(
+        mut self,
+        tier: crate::sandbox::adapter::IsolationTier,
+    ) -> Self {
+        self.isolation_tier = Some(tier);
+        self
+    }
+
     /// rank-7: time-box this session -- its lease expires after `ttl` and the
     /// existing reaper reclaims it (no renewal). For calendar-scheduled / bounded
     /// runs; reuses the lease+reaper teardown path (no new teardown code).
@@ -177,6 +211,16 @@ impl SpawnRequest {
 
     pub fn worktree_id(&self) -> Option<&str> {
         self.worktree_id.as_deref()
+    }
+
+    /// The operator-assigned on-disk place, if recorded (attribution only).
+    pub fn working_dir(&self) -> Option<&str> {
+        self.working_dir.as_deref()
+    }
+
+    /// The operator-intended isolation tier, if recorded (not enforced).
+    pub fn isolation_tier(&self) -> Option<crate::sandbox::adapter::IsolationTier> {
+        self.isolation_tier
     }
 
     pub fn with_artifact_sha256(mut self, sha256: impl Into<String>) -> Self {

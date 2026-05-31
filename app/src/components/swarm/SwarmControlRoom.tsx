@@ -2,15 +2,28 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   cancelSession,
   listActiveSessions,
+  listWorktrees,
   resourceSnapshot,
   spawnSession,
+  type SwarmIsolationTier,
   type SwarmProvider,
   type SwarmResourceSnapshot,
   type SwarmRuntimeBinding,
   type SwarmSession,
   type SwarmSpawnRequest,
+  type SwarmWorktree,
 } from "../../lib/ipc/swarm_runtime";
 import { OperatorChat } from "./OperatorChat";
+
+/** Sentinel option that reveals the free-text "new worktree" input. */
+export const NEW_WORKTREE_SENTINEL = "__new__";
+
+/** Isolation tiers offered in the recorded-only selector (none + the 3 tiers). */
+export const ISOLATION_TIER_OPTIONS: ReadonlyArray<{ value: SwarmIsolationTier; label: string }> = [
+  { value: "tier1_container", label: "tier1_container (shared-kernel container)" },
+  { value: "tier2_syscall", label: "tier2_syscall (syscall-filtered)" },
+  { value: "tier3_microvm", label: "tier3_microvm (hardware-isolated microVM)" },
+];
 
 // SwarmControlRoom: the real operator surface for the multi-model swarm. Polls
 // the live coordinator (list + resource snapshot), spawns local artifacts or
@@ -29,6 +42,16 @@ function errorMessage(error: unknown): string {
   if (error instanceof Error) return error.message;
   if (typeof error === "string") return error;
   return "Unknown error";
+}
+
+/**
+ * Resolve the worktree the operator actually assigned from the picker state:
+ * when the "+ New worktree…" sentinel is selected, the free-text value wins;
+ * otherwise the chosen existing id. Trimmed; blank => "" (unassigned, honest).
+ */
+export function effectiveWorktreeId(selection: string, newValue: string): string {
+  const raw = selection === NEW_WORKTREE_SENTINEL ? newValue : selection;
+  return raw.trim();
 }
 
 export type SessionsState =
@@ -61,10 +84,33 @@ export function useSwarmRoom() {
   const [spawnError, setSpawnError] = useState<string | null>(null);
   const [spawnNotice, setSpawnNotice] = useState<string | null>(null);
 
+  // Worktree / disk-location / isolation-tier ASSIGNMENT state (governance glue
+  // #2: assign a session a place on disk or a VM/sandbox worktree). All recorded
+  // attribution only — none of these route execution today (honest).
+  //
+  // `worktreeSelection` is the <select> value: a discovered worktree id, the
+  // NEW_WORKTREE_SENTINEL (reveal the free-text input), or "" (unassigned).
+  const [worktrees, setWorktrees] = useState<SwarmWorktree[]>([]);
+  const [worktreeSelection, setWorktreeSelection] = useState("");
+  const [newWorktreeId, setNewWorktreeId] = useState("");
+  const [workingDir, setWorkingDir] = useState("");
+  const [isolationTier, setIsolationTier] = useState<SwarmIsolationTier | "">("");
+
   // Selected session for the operator chat box (composite instance id).
   const [chatInstanceId, setChatInstanceId] = useState<string | null>(null);
 
   const pollRef = useRef<number | null>(null);
+
+  const refreshWorktrees = useCallback(async () => {
+    try {
+      const rows = await listWorktrees();
+      setWorktrees(rows);
+    } catch {
+      // Discovery is best-effort: a failure here must NOT block spawning, since
+      // the form always also offers a free-text "new worktree" entry. Keep the
+      // last good list (or empty) and stay silent.
+    }
+  }, []);
 
   const refresh = useCallback(async () => {
     try {
@@ -86,6 +132,7 @@ export function useSwarmRoom() {
     const tick = async () => {
       if (!active) return;
       await refresh();
+      await refreshWorktrees();
     };
     void tick();
     pollRef.current = window.setInterval(() => {
@@ -98,7 +145,7 @@ export function useSwarmRoom() {
         pollRef.current = null;
       }
     };
-  }, [refresh]);
+  }, [refresh, refreshWorktrees]);
 
   const handleSpawn = useCallback(async () => {
     setSpawnError(null);
@@ -113,6 +160,17 @@ export function useSwarmRoom() {
       } else {
         request.cloudModelName = cloudModelName.trim();
       }
+
+      // Worktree / disk-location / isolation-tier ASSIGNMENT (recorded only;
+      // does NOT route execution). Provider-independent: local AND cloud
+      // sessions can be assigned. Blank => omit so the backend records `None`
+      // (honest "unassigned"), mirroring the form-trim contract.
+      const wt = effectiveWorktreeId(worktreeSelection, newWorktreeId);
+      if (wt) request.worktreeId = wt;
+      const wd = workingDir.trim();
+      if (wd) request.workingDir = wd;
+      if (isolationTier) request.isolationTier = isolationTier;
+
       const id = await spawnSession(request);
       setSpawnNotice(`Spawned session ${id.composite}`);
       // Auto-select the new local session for the chat box.
@@ -120,6 +178,7 @@ export function useSwarmRoom() {
         setChatInstanceId(id.composite);
       }
       await refresh();
+      await refreshWorktrees();
     } catch (error) {
       // Surface the REAL backend error verbatim (e.g. PROVIDER_NOT_CONFIGURED,
       // FactoryFailed sha mismatch, missing artifact).
@@ -134,7 +193,12 @@ export function useSwarmRoom() {
     sha256,
     cloudModelName,
     instance,
+    worktreeSelection,
+    newWorktreeId,
+    workingDir,
+    isolationTier,
     refresh,
+    refreshWorktrees,
   ]);
 
   const handleCancel = useCallback(
@@ -173,6 +237,15 @@ export function useSwarmRoom() {
     setCloudModelName,
     instance,
     setInstance,
+    worktrees,
+    worktreeSelection,
+    setWorktreeSelection,
+    newWorktreeId,
+    setNewWorktreeId,
+    workingDir,
+    setWorkingDir,
+    isolationTier,
+    setIsolationTier,
     spawning,
     spawnError,
     spawnNotice,
@@ -254,11 +327,22 @@ export function SwarmSpawnSection({ room }: { room: SwarmRoom }) {
     setCloudModelName,
     instance,
     setInstance,
+    worktrees,
+    worktreeSelection,
+    setWorktreeSelection,
+    newWorktreeId,
+    setNewWorktreeId,
+    workingDir,
+    setWorkingDir,
+    isolationTier,
+    setIsolationTier,
     spawning,
     spawnError,
     spawnNotice,
     handleSpawn,
   } = room;
+
+  const showNewWorktreeInput = worktreeSelection === NEW_WORKTREE_SENTINEL;
 
   return (
     <form
@@ -346,6 +430,84 @@ export function SwarmSpawnSection({ room }: { room: SwarmRoom }) {
         </label>
       )}
 
+      {/* Worktree / disk-location / isolation-tier ASSIGNMENT (governance glue
+          #2). Provider-independent — local AND cloud sessions can be assigned.
+          Recorded attribution only: none of these route execution today. */}
+      <fieldset
+        className="swarm-spawn-form__assignment"
+        data-testid="swarm-spawn-assignment"
+      >
+        <legend>Assignment (optional)</legend>
+
+        <div className="swarm-spawn-form__row">
+          <label>
+            <span>VM / sandbox worktree</span>
+            <select
+              value={worktreeSelection}
+              data-testid="swarm-spawn-worktree-select"
+              onChange={(event) => setWorktreeSelection(event.target.value)}
+            >
+              <option value="">— Unassigned —</option>
+              {worktrees.map((wt) => (
+                <option key={wt.worktreeId} value={wt.worktreeId}>
+                  {wt.worktreeId} ({wt.liveSessionCount} live)
+                </option>
+              ))}
+              <option value={NEW_WORKTREE_SENTINEL}>+ New worktree…</option>
+            </select>
+          </label>
+        </div>
+
+        {showNewWorktreeInput ? (
+          <label className="swarm-spawn-form__full">
+            <span>New worktree name</span>
+            <input
+              type="text"
+              value={newWorktreeId}
+              placeholder="e.g. wt-feature-x"
+              data-testid="swarm-spawn-worktree-new"
+              onChange={(event) => setNewWorktreeId(event.target.value)}
+            />
+          </label>
+        ) : null}
+
+        <label className="swarm-spawn-form__full">
+          <span>Working dir (on disk)</span>
+          <input
+            type="text"
+            value={workingDir}
+            placeholder="e.g. D:/work/wt-foo or ./worktrees/foo (optional)"
+            data-testid="swarm-spawn-working-dir"
+            onChange={(event) => setWorkingDir(event.target.value)}
+          />
+        </label>
+
+        <div className="swarm-spawn-form__row">
+          <label>
+            <span>Isolation tier</span>
+            <select
+              value={isolationTier}
+              data-testid="swarm-spawn-isolation-tier"
+              onChange={(event) =>
+                setIsolationTier(event.target.value as SwarmIsolationTier | "")
+              }
+            >
+              <option value="">— None —</option>
+              {ISOLATION_TIER_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+        <p className="swarm-notice" data-testid="swarm-isolation-note">
+          Execution isolation is recorded, not yet enforced — the session runs
+          in-process; VM execution is a future step. The worktree and working dir
+          are recorded as assignment/attribution and do not route execution today.
+        </p>
+      </fieldset>
+
       <div className="swarm-spawn-form__actions">
         <button type="submit" disabled={spawning} data-testid="swarm-spawn-submit">
           {spawning ? "Spawning..." : "Spawn session"}
@@ -394,6 +556,7 @@ export function SwarmSessionsSection({ room }: { room: SwarmRoom }) {
               <th>State</th>
               <th>Provider</th>
               <th>Binding</th>
+              <th>Worktree</th>
               <th>Source</th>
               <th>Actions</th>
             </tr>
@@ -414,6 +577,12 @@ export function SwarmSessionsSection({ room }: { room: SwarmRoom }) {
                   <td>{session.state}</td>
                   <td>{session.provider}</td>
                   <td>{session.runtimeBinding}</td>
+                  <td
+                    data-testid={`swarm-session-worktree-${composite}`}
+                    title={session.workingDir ?? undefined}
+                  >
+                    {session.worktreeId ?? "—"}
+                  </td>
                   <td title={session.artifactPath ?? session.cloudModelName ?? ""}>
                     {session.artifactPath
                       ? session.artifactPath.split(/[/\\]/).pop()

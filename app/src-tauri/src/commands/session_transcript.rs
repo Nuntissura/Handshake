@@ -160,6 +160,12 @@ pub struct SessionSummary {
     pub provider: Option<String>,
     pub title: Option<String>,
     pub counts: SourceCounts,
+    /// Operator-assigned VM/sandbox worktree for this session, lifted from the FR
+    /// SwarmEvent payload (`$.worktree_id`, recorded at spawn). Lets the replay
+    /// surface answer "find a worktree's sessions". `None` for chat sessions and
+    /// for swarm sessions spawned without a worktree assignment. RECORDED ONLY.
+    #[serde(default)]
+    pub worktree_id: Option<String>,
 }
 
 /// Response of `kernel_session_transcript_get`.
@@ -429,6 +435,8 @@ fn discover_chat_sessions(state: &SessionTranscriptState) -> Vec<SessionSummary>
                 chat: rows.len() as u64,
                 ..Default::default()
             },
+            // Chat (UUID) sessions are not worktree-bound swarm sessions.
+            worktree_id: None,
         });
     }
     out
@@ -452,7 +460,8 @@ async fn discover_fr_sessions(state: &SessionTranscriptState) -> Vec<SessionSumm
         "SELECT json_extract_string(payload, '$.instance_id') AS sid, \
          CAST(EXTRACT(EPOCH FROM min(timestamp)) AS DOUBLE), \
          CAST(EXTRACT(EPOCH FROM max(timestamp)) AS DOUBLE), \
-         count(*), any_value(model_id) \
+         count(*), any_value(model_id), \
+         any_value(json_extract_string(payload, '$.worktree_id')) \
          FROM events \
          WHERE json_extract_string(payload, '$.instance_id') IS NOT NULL \
          GROUP BY sid",
@@ -466,7 +475,8 @@ async fn discover_fr_sessions(state: &SessionTranscriptState) -> Vec<SessionSumm
         let max_epoch: f64 = row.get(2)?;
         let count: i64 = row.get(3)?;
         let model_id: Option<String> = row.get(4)?;
-        Ok((sid, min_epoch, max_epoch, count, model_id))
+        let worktree_id: Option<String> = row.get(5)?;
+        Ok((sid, min_epoch, max_epoch, count, model_id, worktree_id))
     });
     let rows = match rows {
         Ok(r) => r,
@@ -474,11 +484,16 @@ async fn discover_fr_sessions(state: &SessionTranscriptState) -> Vec<SessionSumm
     };
     let mut out = Vec::new();
     for row in rows.flatten() {
-        let (sid, min_epoch, max_epoch, count, model_id) = row;
+        let (sid, min_epoch, max_epoch, count, model_id, worktree_id) = row;
         if sid.trim().is_empty() {
             continue;
         }
         let (split_model, provider) = split_instance_id(&sid);
+        // Normalize a blank/whitespace recorded worktree to None (honest
+        // "unassigned"), matching the spawn-side trimming rule.
+        let worktree_id = worktree_id
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty());
         out.push(SessionSummary {
             session_id: sid.clone(),
             kind: "swarm".to_string(),
@@ -491,6 +506,7 @@ async fn discover_fr_sessions(state: &SessionTranscriptState) -> Vec<SessionSumm
                 fr: count.max(0) as u64,
                 ..Default::default()
             },
+            worktree_id,
         });
     }
     out
@@ -663,6 +679,9 @@ mod tests {
                 "fr_event_id": "FR-EVT-SWARM-SESSION-SPAWNED",
                 "instance_id": instance,
                 "process_uuid": "33333333-3333-3333-3333-333333333333",
+                // Recorded worktree assignment as it lands in the SwarmEvent
+                // payload at spawn (coordinator copies SpawnRequest.worktree_id).
+                "worktree_id": "wt-recovery-1",
             }),
         );
         e.timestamp = at(secs);
@@ -797,12 +816,15 @@ mod tests {
                     fr: 3,
                     ..Default::default()
                 },
+                worktree_id: Some("wt-x".to_string()),
             }],
         };
         save_session_index(&root, &doc).expect("save");
         let loaded = load_session_index(&root).expect("load");
         assert_eq!(loaded.sessions.len(), 1);
         assert_eq!(loaded.sessions[0].session_id, "m#0");
+        // The recorded worktree assignment survives the index round-trip.
+        assert_eq!(loaded.sessions[0].worktree_id.as_deref(), Some("wt-x"));
         // Missing file -> empty doc, not an error.
         let empty_root = tmp.path().join("other");
         let empty = load_session_index(&empty_root).expect("load empty");
@@ -879,6 +901,13 @@ mod tests {
             fr_sessions.iter().any(|s| s.session_id == instance),
             "fr sessions: {fr_sessions:?}"
         );
+        // The recorded worktree assignment in the SwarmEvent payload surfaces on
+        // the session summary so the replay surface can find a worktree's sessions.
+        let fr_row = fr_sessions
+            .iter()
+            .find(|s| s.session_id == instance)
+            .expect("fr session present");
+        assert_eq!(fr_row.worktree_id.as_deref(), Some("wt-recovery-1"));
         let merged = merge_summaries(chat_sessions, fr_sessions);
         assert!(merged.iter().any(|s| s.session_id == chat_session));
         assert!(merged.iter().any(|s| s.session_id == instance));
@@ -938,12 +967,14 @@ mod tests {
                 terminal: 3,
                 process: 4,
             },
+            worktree_id: Some("wt-x".to_string()),
         };
         let v = serde_json::to_value(&summary).unwrap();
-        for key in ["sessionId", "startedAt", "lastActivityAt", "modelId"] {
+        for key in ["sessionId", "startedAt", "lastActivityAt", "modelId", "worktreeId"] {
             assert!(v.get(key).is_some(), "expected camelCase {key}");
         }
-        for key in ["session_id", "started_at", "last_activity_at", "model_id"] {
+        assert_eq!(v["worktreeId"], serde_json::json!("wt-x"));
+        for key in ["session_id", "started_at", "last_activity_at", "model_id", "worktree_id"] {
             assert!(v.get(key).is_none(), "snake_case {key} must not leak");
         }
         // SourceCounts keys are single-word -> unchanged by camelCase.
@@ -984,6 +1015,7 @@ mod tests {
             provider: None,
             title: None,
             counts: SourceCounts::default(),
+            worktree_id: None,
         }];
         let fr = vec![SessionSummary {
             session_id: "b".to_string(),
@@ -994,6 +1026,7 @@ mod tests {
             provider: None,
             title: None,
             counts: SourceCounts::default(),
+            worktree_id: Some("wt-b".to_string()),
         }];
         let merged = merge_summaries(chat, fr);
         assert_eq!(merged.len(), 2);

@@ -96,6 +96,7 @@ pub const KERNEL_SWARM_LIST_ACTIVE_SESSIONS_IPC_CHANNEL: &str =
     "kernel_swarm_list_active_sessions";
 pub const KERNEL_SWARM_RESOURCE_SNAPSHOT_IPC_CHANNEL: &str = "kernel_swarm_resource_snapshot";
 pub const KERNEL_SWARM_CHAT_GENERATE_IPC_CHANNEL: &str = "kernel_swarm_chat_generate";
+pub const KERNEL_SWARM_LIST_WORKTREES_IPC_CHANNEL: &str = "kernel_swarm_list_worktrees";
 
 /// Max tokens a single chat-box generate will produce. Bounded so an operator
 /// chat turn cannot run away (HBR loop-cap spirit) — the UI runs short turns.
@@ -162,6 +163,15 @@ struct TrackedSession {
     artifact_path: Option<String>,
     /// For cloud sessions, the allowlisted cloud model name. `None` for local.
     cloud_model_name: Option<String>,
+    /// Operator-assigned VM/sandbox worktree (mirrors the SpawnRequest; the
+    /// coordinator also carries it for board grouping). RECORDED ONLY.
+    worktree_id: Option<String>,
+    /// Operator-assigned on-disk place (attribution only; never executed). The
+    /// SpawnRequest carries no companion on the SwarmEvent, so this side-table is
+    /// the surfacing path for the list/board/transcript rows.
+    working_dir: Option<String>,
+    /// Operator-intended isolation tier (RECORDED ONLY, not enforced).
+    isolation_tier: Option<SwarmIsolationTierIpc>,
 }
 
 /// Shared app-side side-table of tracked sessions keyed by instance id.
@@ -191,6 +201,14 @@ impl ModelSessionFactory for TrackingFactory {
             provider: request.provider.unwrap_or(ProviderKind::Local),
             artifact_path: request.model_artifact_path().map(|s| s.to_string()),
             cloud_model_name: request.cloud_model_name.clone(),
+            // Recorded assignment/attribution, drained from the SAME SpawnRequest
+            // at the SAME atomic insert point as the runtime handle — no second
+            // post-spawn insert, so there is no race with a fast list/generate.
+            worktree_id: request.worktree_id().map(|s| s.to_string()),
+            working_dir: request.working_dir().map(|s| s.to_string()),
+            isolation_tier: request
+                .isolation_tier()
+                .map(SwarmIsolationTierIpc::from_isolation_tier),
         };
         self.table
             .lock()
@@ -655,6 +673,49 @@ impl SwarmRuntimeBindingIpc {
     }
 }
 
+/// Operator-intended isolation tier the spawn form records on a session. Mirrors
+/// `handshake_core::sandbox::adapter::IsolationTier` 1:1 (snake_case serde
+/// matches the core wire vocabulary). Deliberately a thin IPC enum rather than a
+/// re-export of the core type, so the app IPC boundary stays decoupled from a
+/// core type whose primary purpose (execution-substrate selection) is OUT OF
+/// SCOPE here. RECORDED ONLY — nothing maps this to an execution substrate today.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SwarmIsolationTierIpc {
+    Tier1Container,
+    Tier2Syscall,
+    Tier3Microvm,
+}
+
+impl SwarmIsolationTierIpc {
+    fn to_isolation_tier(self) -> handshake_core::sandbox::adapter::IsolationTier {
+        use handshake_core::sandbox::adapter::IsolationTier;
+        match self {
+            Self::Tier1Container => IsolationTier::Tier1Container,
+            Self::Tier2Syscall => IsolationTier::Tier2Syscall,
+            Self::Tier3Microvm => IsolationTier::Tier3Microvm,
+        }
+    }
+
+    fn from_isolation_tier(tier: handshake_core::sandbox::adapter::IsolationTier) -> Self {
+        use handshake_core::sandbox::adapter::IsolationTier;
+        match tier {
+            IsolationTier::Tier1Container => Self::Tier1Container,
+            IsolationTier::Tier2Syscall => Self::Tier2Syscall,
+            IsolationTier::Tier3Microvm => Self::Tier3Microvm,
+        }
+    }
+
+    /// Stable wire string (matches the snake_case serde + the TS union).
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::Tier1Container => "tier1_container",
+            Self::Tier2Syscall => "tier2_syscall",
+            Self::Tier3Microvm => "tier3_microvm",
+        }
+    }
+}
+
 /// Spawn request from the control-room form. For a local spawn the operator
 /// supplies the artifact path + its expected sha256 (the integrity gate) and a
 /// runtime binding (candle / llama.cpp). For a cloud spawn the operator picks a
@@ -682,6 +743,22 @@ pub struct SwarmSpawnRequestIpc {
     /// Parent session id for ledger lineage (defaults to an operator tag).
     #[serde(default)]
     pub parent_session_id: Option<String>,
+    /// Optional VM/sandbox worktree this session is ASSIGNED to (board swimlane +
+    /// per-worktree recovery grouping). Blank/whitespace => None (unassigned,
+    /// honest). RECORDED ONLY: it does NOT route execution into a VM today.
+    #[serde(default)]
+    pub worktree_id: Option<String>,
+    /// Optional on-disk place the operator assigns the session (absolute OR
+    /// repo-relative; disk-agnostic — the path is recorded verbatim, NOT resolved,
+    /// created, or used as a cwd here). Blank/whitespace => None. Recorded
+    /// attribution only.
+    #[serde(default)]
+    pub working_dir: Option<String>,
+    /// OPTIONAL recorded-only isolation tier the operator intends for this session
+    /// (tier1_container | tier2_syscall | tier3_microvm). RECORDED as the bridge to
+    /// future VM execution; NOT enforced — the session still runs in-process.
+    #[serde(default)]
+    pub isolation_tier: Option<SwarmIsolationTierIpc>,
 }
 
 /// Identifier for a spawned session returned to the UI. The composite string
@@ -716,6 +793,13 @@ pub struct SwarmSessionIpc {
     pub runtime_binding: String,
     pub artifact_path: Option<String>,
     pub cloud_model_name: Option<String>,
+    /// Operator-assigned VM/sandbox worktree (board swimlane / recovery group).
+    /// `None` => unassigned. RECORDED ONLY (no VM execution today).
+    pub worktree_id: Option<String>,
+    /// Operator-assigned on-disk place (attribution only; never executed/resolved).
+    pub working_dir: Option<String>,
+    /// Operator-intended isolation tier (RECORDED ONLY, not enforced).
+    pub isolation_tier: Option<SwarmIsolationTierIpc>,
 }
 
 /// Resource budget snapshot for the control-room resource bar.
@@ -819,6 +903,13 @@ pub async fn kernel_swarm_list_active_sessions(
     state: State<'_, SwarmRuntimeState>,
 ) -> Result<Vec<SwarmSessionIpc>, String> {
     let _ = KERNEL_SWARM_LIST_ACTIVE_SESSIONS_IPC_CHANNEL;
+    Ok(list_active_sessions_inner(&state))
+}
+
+/// Testable body of `kernel_swarm_list_active_sessions` (the command is a thin
+/// `State` -> `&SwarmRuntimeState` shim so the mapping is provable in unit tests
+/// without fabricating a `tauri::State`).
+fn list_active_sessions_inner(state: &SwarmRuntimeState) -> Vec<SwarmSessionIpc> {
     let mut rows: Vec<SwarmSessionIpc> = state
         .live_tracked_sessions()
         .into_iter()
@@ -829,6 +920,9 @@ pub async fn kernel_swarm_list_active_sessions(
             runtime_binding: tracked.runtime_binding.adapter_id().to_string(),
             artifact_path: tracked.artifact_path,
             cloud_model_name: tracked.cloud_model_name,
+            worktree_id: tracked.worktree_id,
+            working_dir: tracked.working_dir,
+            isolation_tier: tracked.isolation_tier,
         })
         .collect();
     // Stable ordering for the table (by model id then instance).
@@ -838,7 +932,58 @@ pub async fn kernel_swarm_list_active_sessions(
             .cmp(&b.instance_id.model_id)
             .then(a.instance_id.instance.cmp(&b.instance_id.instance))
     });
-    Ok(rows)
+    rows
+}
+
+/// One distinct worktree the operator can pick when assigning a new session, with
+/// the count of LIVE sessions currently assigned to it. Drives the spawn-form
+/// worktree combobox (existing-pick) alongside its always-present free-text "new"
+/// entry.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SwarmWorktreeIpc {
+    pub worktree_id: String,
+    /// Count of LIVE sessions currently assigned to this worktree.
+    pub live_session_count: usize,
+}
+
+/// Discover the DISTINCT non-empty worktree ids currently assigned across the
+/// LIVE coordinator registry (reconciled side-table), each with its live session
+/// count. Live-only is the honest v1: it needs no new core seam and no FR/DuckDB
+/// dependency in the swarm command path. The UI always ALSO offers a free-text
+/// "new worktree" entry, so live-only discovery never blocks assigning a brand-new
+/// worktree. (A live+recent union over `json_extract_string(payload,'$.worktree_id')`
+/// against the FR store — the same pattern `discover_fr_sessions` uses — is the
+/// cheap follow-on.)
+#[tauri::command]
+pub async fn kernel_swarm_list_worktrees(
+    state: State<'_, SwarmRuntimeState>,
+) -> Result<Vec<SwarmWorktreeIpc>, String> {
+    let _ = KERNEL_SWARM_LIST_WORKTREES_IPC_CHANNEL;
+    Ok(list_worktrees_inner(&state))
+}
+
+/// Testable body of `kernel_swarm_list_worktrees`. Distinct non-empty worktree
+/// ids across the live registry with their live session counts; reconciled
+/// against the coordinator each call via `live_tracked_sessions()`.
+fn list_worktrees_inner(state: &SwarmRuntimeState) -> Vec<SwarmWorktreeIpc> {
+    let coordinator = state.coordinator();
+    let mut counts: std::collections::BTreeMap<String, usize> = std::collections::BTreeMap::new();
+    for (iid, _tracked, _st) in state.live_tracked_sessions() {
+        if let Some((_swarm, Some(worktree))) = coordinator.session_grouping(iid) {
+            let trimmed = worktree.trim();
+            if !trimmed.is_empty() {
+                *counts.entry(trimmed.to_string()).or_insert(0) += 1;
+            }
+        }
+    }
+    counts
+        .into_iter()
+        .map(|(worktree_id, live_session_count)| SwarmWorktreeIpc {
+            worktree_id,
+            live_session_count,
+        })
+        .collect()
 }
 
 // ---------------------------------------------------------------------------
@@ -862,6 +1007,9 @@ pub struct SwarmBoardCardIpc {
     pub runtime_binding: String,
     pub swarm_id: Option<String>,
     pub worktree_id: Option<String>,
+    /// Operator-assigned on-disk place (from the app side-table; attribution only).
+    /// Surfaced for the card tooltip; `None` when unassigned. RECORDED ONLY.
+    pub working_dir: Option<String>,
 }
 
 /// Reconcilable board snapshot the React hook fetches on mount + on resync.
@@ -908,6 +1056,7 @@ pub async fn kernel_swarm_board_snapshot(
                 runtime_binding: tracked.runtime_binding.adapter_id().to_string(),
                 swarm_id,
                 worktree_id,
+                working_dir: tracked.working_dir,
             }
         })
         .collect();
@@ -1085,9 +1234,45 @@ fn provider_str(provider: ProviderKind) -> &'static str {
     }
 }
 
+/// Trim an optional operator-supplied string to `Some(trimmed)` only when it is
+/// non-empty after trimming; blank/whitespace => `None` (the honest "unassigned"
+/// state). Shared by the worktree/working_dir recording so both apply the same
+/// rule in both provider arms.
+fn trimmed_opt(value: &Option<String>) -> Option<String> {
+    value
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(str::to_string)
+}
+
+/// Apply the operator-assigned, RECORDED-ONLY worktree / working-dir / isolation
+/// tier onto a built [`SpawnRequest`]. Shared tail for both provider arms so the
+/// recording rule (blank => unassigned) is identical for local and cloud. None of
+/// these route execution — they are attribution + the bridge to future VM work.
+fn apply_recorded_assignment(
+    mut spawn: SpawnRequest,
+    request: &SwarmSpawnRequestIpc,
+) -> SpawnRequest {
+    if let Some(wt) = trimmed_opt(&request.worktree_id) {
+        spawn = spawn.with_worktree(wt);
+    }
+    if let Some(wd) = trimmed_opt(&request.working_dir) {
+        spawn = spawn.with_working_dir(wd);
+    }
+    if let Some(tier) = request.isolation_tier {
+        spawn = spawn.with_isolation_tier(tier.to_isolation_tier());
+    }
+    spawn
+}
+
 /// Build the typed [`SpawnRequest`] from the IPC DTO, validating that the
 /// provider-appropriate fields are present. Local requires artifact path +
-/// sha256 + runtime binding; cloud requires a cloud model name.
+/// sha256 + runtime binding; cloud requires a cloud model name. After the
+/// provider-specific build, the shared tail records the operator-assigned
+/// worktree / working_dir / isolation_tier (blank worktree/working_dir =>
+/// unassigned; no new error paths — an unassigned session is valid, mirroring
+/// `swarm_id`'s optionality).
 fn build_spawn_request(request: &SwarmSpawnRequestIpc) -> Result<SpawnRequest, String> {
     let model_id = ModelId::new_v7();
     let instance_id = ModelInstanceId::new(model_id, request.instance);
@@ -1099,7 +1284,7 @@ fn build_spawn_request(request: &SwarmSpawnRequestIpc) -> Result<SpawnRequest, S
         .unwrap_or("operator-swarm-control-room")
         .to_string();
 
-    match request.provider {
+    let spawn = match request.provider {
         SwarmProviderIpc::Local => {
             let binding = request
                 .runtime_binding
@@ -1119,10 +1304,8 @@ fn build_spawn_request(request: &SwarmSpawnRequestIpc) -> Result<SpawnRequest, S
                 .ok_or_else(|| {
                     "local spawn requires sha256_expected (the integrity gate)".to_string()
                 })?;
-            Ok(
-                SpawnRequest::new(instance_id, binding, "operator", parent)
-                    .with_local_artifact(path.to_string(), sha.to_string()),
-            )
+            SpawnRequest::new(instance_id, binding, "operator", parent)
+                .with_local_artifact(path.to_string(), sha.to_string())
         }
         SwarmProviderIpc::ByokCloud | SwarmProviderIpc::OfficialCli => {
             let model_name = request
@@ -1134,15 +1317,12 @@ fn build_spawn_request(request: &SwarmSpawnRequestIpc) -> Result<SpawnRequest, S
             // runtime_binding is ignored for cloud runtime selection but the
             // SpawnRequest constructor needs a value; Candle is a harmless
             // placeholder the cloud dispatch path never reads for engine choice.
-            Ok(SpawnRequest::new(
-                instance_id,
-                RuntimeBinding::Candle,
-                "operator",
-                parent,
-            )
-            .with_cloud_provider(request.provider.to_provider_kind(), model_name.to_string()))
+            SpawnRequest::new(instance_id, RuntimeBinding::Candle, "operator", parent)
+                .with_cloud_provider(request.provider.to_provider_kind(), model_name.to_string())
         }
-    }
+    };
+
+    Ok(apply_recorded_assignment(spawn, request))
 }
 
 /// Parse a `<model_id>#<instance>` composite back into a [`ModelInstanceId`].
@@ -1198,6 +1378,26 @@ mod tests {
             cloud_model_name: None,
             instance: 0,
             parent_session_id: None,
+            worktree_id: None,
+            working_dir: None,
+            isolation_tier: None,
+        }
+    }
+
+    /// A minimal cloud `SwarmSpawnRequestIpc` for tests, with the recorded
+    /// assignment fields defaulted to unassigned. `model` is the cloud model name.
+    fn cloud_request(model: &str) -> SwarmSpawnRequestIpc {
+        SwarmSpawnRequestIpc {
+            provider: SwarmProviderIpc::ByokCloud,
+            artifact_path: None,
+            sha256_expected: None,
+            runtime_binding: None,
+            cloud_model_name: Some(model.to_string()),
+            instance: 0,
+            parent_session_id: None,
+            worktree_id: None,
+            working_dir: None,
+            isolation_tier: None,
         }
     }
 
@@ -1231,18 +1431,33 @@ mod tests {
 
     #[test]
     fn build_spawn_request_cloud_requires_model_name() {
-        let req = SwarmSpawnRequestIpc {
-            provider: SwarmProviderIpc::ByokCloud,
-            artifact_path: None,
-            sha256_expected: None,
-            runtime_binding: None,
-            cloud_model_name: None,
-            instance: 0,
-            parent_session_id: None,
-        };
+        let mut req = cloud_request("gpt-4o");
+        req.cloud_model_name = None;
         let err = build_spawn_request(&req).expect_err("cloud requires model name");
         assert!(err.contains("cloud_model_name"), "{err}");
 
+        let req = cloud_request("gpt-4o");
+        let spawn = build_spawn_request(&req).expect("valid cloud request");
+        assert_eq!(spawn.provider, Some(ProviderKind::ByokCloud));
+        assert_eq!(spawn.cloud_model_name.as_deref(), Some("gpt-4o"));
+    }
+
+    #[test]
+    fn build_spawn_request_applies_trimmed_worktree_working_dir_and_tier() {
+        // Local arm: worktree + working_dir trimmed; tier mapped 1:1.
+        let mut req = local_request("some/model.safetensors");
+        req.worktree_id = Some("  wt-a  ".to_string());
+        req.working_dir = Some("  D:/work/wt-a  ".to_string());
+        req.isolation_tier = Some(SwarmIsolationTierIpc::Tier3Microvm);
+        let spawn = build_spawn_request(&req).expect("valid local request");
+        assert_eq!(spawn.worktree_id(), Some("wt-a"));
+        assert_eq!(spawn.working_dir(), Some("D:/work/wt-a"));
+        assert_eq!(
+            spawn.isolation_tier(),
+            Some(handshake_core::sandbox::adapter::IsolationTier::Tier3Microvm)
+        );
+
+        // Cloud arm: same recording rule applies after the cloud build.
         let req = SwarmSpawnRequestIpc {
             provider: SwarmProviderIpc::ByokCloud,
             artifact_path: None,
@@ -1251,10 +1466,53 @@ mod tests {
             cloud_model_name: Some("gpt-4o".to_string()),
             instance: 0,
             parent_session_id: None,
+            worktree_id: Some("\twt-cloud\n".to_string()),
+            working_dir: Some("./worktrees/cloud".to_string()),
+            isolation_tier: Some(SwarmIsolationTierIpc::Tier1Container),
         };
         let spawn = build_spawn_request(&req).expect("valid cloud request");
-        assert_eq!(spawn.provider, Some(ProviderKind::ByokCloud));
-        assert_eq!(spawn.cloud_model_name.as_deref(), Some("gpt-4o"));
+        assert_eq!(spawn.worktree_id(), Some("wt-cloud"));
+        assert_eq!(spawn.working_dir(), Some("./worktrees/cloud"));
+        assert_eq!(
+            spawn.isolation_tier(),
+            Some(handshake_core::sandbox::adapter::IsolationTier::Tier1Container)
+        );
+    }
+
+    #[test]
+    fn build_spawn_request_blank_worktree_and_working_dir_are_none() {
+        // Blank / whitespace-only => None (honest "unassigned"), both arms.
+        let mut req = local_request("some/model.safetensors");
+        req.worktree_id = Some("   ".to_string());
+        req.working_dir = Some("".to_string());
+        req.isolation_tier = None;
+        let spawn = build_spawn_request(&req).expect("valid local request");
+        assert_eq!(spawn.worktree_id(), None);
+        assert_eq!(spawn.working_dir(), None);
+        assert_eq!(spawn.isolation_tier(), None);
+
+        // Omitted entirely (serde default None) => None as well.
+        let req = local_request("some/model.safetensors");
+        let spawn = build_spawn_request(&req).expect("valid local request");
+        assert_eq!(spawn.worktree_id(), None);
+        assert_eq!(spawn.working_dir(), None);
+        assert_eq!(spawn.isolation_tier(), None);
+    }
+
+    #[test]
+    fn swarm_isolation_tier_ipc_round_trips_through_core() {
+        use handshake_core::sandbox::adapter::IsolationTier;
+        for (ipc, core) in [
+            (SwarmIsolationTierIpc::Tier1Container, IsolationTier::Tier1Container),
+            (SwarmIsolationTierIpc::Tier2Syscall, IsolationTier::Tier2Syscall),
+            (SwarmIsolationTierIpc::Tier3Microvm, IsolationTier::Tier3Microvm),
+        ] {
+            assert_eq!(ipc.to_isolation_tier(), core);
+            assert_eq!(SwarmIsolationTierIpc::from_isolation_tier(core), ipc);
+            // Wire string matches the snake_case serde the TS union declares.
+            let json = serde_json::to_string(&ipc).expect("serialize tier");
+            assert_eq!(json, format!("\"{}\"", ipc.as_str()));
+        }
     }
 
     #[test]
@@ -1279,15 +1537,7 @@ mod tests {
     async fn cloud_spawn_without_lane_surfaces_provider_not_configured_through_command_layer() {
         let state = SwarmRuntimeState::production(std::path::Path::new(""));
         let coordinator = state.coordinator();
-        let req = SwarmSpawnRequestIpc {
-            provider: SwarmProviderIpc::ByokCloud,
-            artifact_path: None,
-            sha256_expected: None,
-            runtime_binding: None,
-            cloud_model_name: Some("gpt-4o".to_string()),
-            instance: 0,
-            parent_session_id: None,
-        };
+        let req = cloud_request("gpt-4o");
         let spawn = build_spawn_request(&req).expect("valid cloud request");
         let err = coordinator
             .spawn_session(spawn)
@@ -1354,16 +1604,12 @@ mod tests {
             None,
         );
         let coordinator = state.coordinator();
-        let req = SwarmSpawnRequestIpc {
-            provider: SwarmProviderIpc::ByokCloud,
-            artifact_path: None,
-            sha256_expected: None,
-            runtime_binding: None,
-            // An allowlisted Claude family model name (anthropic allowlist).
-            cloud_model_name: Some("claude-sonnet-4".to_string()),
-            instance: 0,
-            parent_session_id: None,
-        };
+        // Assign the spawn to a worktree so the recorded grouping + the
+        // list_worktrees discovery are provable end-to-end through the real
+        // coordinator (not just the pure build_spawn_request mapping).
+        let mut req = cloud_request("claude-sonnet-4");
+        req.worktree_id = Some("  wt-x  ".to_string());
+        req.working_dir = Some("D:/work/wt-x".to_string());
         let spawn = build_spawn_request(&req).expect("valid cloud request");
         let iid = coordinator
             .spawn_session(spawn)
@@ -1372,12 +1618,31 @@ mod tests {
         assert_eq!(coordinator.live_session_count(), 1);
         // The session is tracked and resolvable (real Arc<dyn ModelRuntime>).
         assert!(state.resolve_runtime(iid).is_some());
+        // The coordinator reports the trimmed worktree in its grouping (drives the
+        // board swimlane), and list_worktrees enumerates it with a live count of 1.
+        assert_eq!(coordinator.session_grouping(iid), Some((None, Some("wt-x".to_string()))));
+        let worktrees = list_worktrees_inner(&state);
+        assert_eq!(worktrees.len(), 1);
+        assert_eq!(worktrees[0].worktree_id, "wt-x");
+        assert_eq!(worktrees[0].live_session_count, 1);
+        // The list/board rows surface the recorded working_dir attribution.
+        let sessions = list_active_sessions_inner(&state);
+        let row = sessions
+            .iter()
+            .find(|s| s.instance_id.composite == iid.to_string())
+            .expect("session row present");
+        assert_eq!(row.worktree_id.as_deref(), Some("wt-x"));
+        assert_eq!(row.working_dir.as_deref(), Some("D:/work/wt-x"));
         // Clean teardown: cancel evicts the session with no orphan.
         coordinator
             .cancel_session(iid, "test_cancel")
             .await
             .expect("cancel");
         assert_eq!(coordinator.live_session_count(), 0);
+        // After cancel the worktree no longer appears (live-only discovery is
+        // reconciled against the registry each call).
+        let worktrees = list_worktrees_inner(&state);
+        assert!(worktrees.is_empty(), "worktrees: {worktrees:?}");
     }
 
     /// A configured lane whose vault has NO key still surfaces the honest
@@ -1391,15 +1656,7 @@ mod tests {
             None,
         );
         let coordinator = state.coordinator();
-        let req = SwarmSpawnRequestIpc {
-            provider: SwarmProviderIpc::ByokCloud,
-            artifact_path: None,
-            sha256_expected: None,
-            runtime_binding: None,
-            cloud_model_name: Some("claude-sonnet-4".to_string()),
-            instance: 0,
-            parent_session_id: None,
-        };
+        let req = cloud_request("claude-sonnet-4");
         let spawn = build_spawn_request(&req).expect("valid cloud request");
         let err = coordinator
             .spawn_session(spawn)
@@ -1424,15 +1681,7 @@ mod tests {
             None,
         );
         let coordinator = state.coordinator();
-        let req = SwarmSpawnRequestIpc {
-            provider: SwarmProviderIpc::ByokCloud,
-            artifact_path: None,
-            sha256_expected: None,
-            runtime_binding: None,
-            cloud_model_name: Some("definitely-not-a-claude-model".to_string()),
-            instance: 0,
-            parent_session_id: None,
-        };
+        let req = cloud_request("definitely-not-a-claude-model");
         let spawn = build_spawn_request(&req).expect("valid cloud request");
         let err = coordinator
             .spawn_session(spawn)
@@ -1463,16 +1712,8 @@ mod tests {
         let coordinator = state.coordinator();
 
         // Cloud spawn (instance 0) — credentialed, builds a live session.
-        let cloud_req = build_spawn_request(&SwarmSpawnRequestIpc {
-            provider: SwarmProviderIpc::ByokCloud,
-            artifact_path: None,
-            sha256_expected: None,
-            runtime_binding: None,
-            cloud_model_name: Some("claude-sonnet-4".to_string()),
-            instance: 0,
-            parent_session_id: None,
-        })
-        .expect("valid cloud request");
+        let cloud_req =
+            build_spawn_request(&cloud_request("claude-sonnet-4")).expect("valid cloud request");
 
         // Local spawn (instance 1) — nonexistent artifact fails the real load.
         let local_req = build_spawn_request(&local_request(

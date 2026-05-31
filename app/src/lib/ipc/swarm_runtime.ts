@@ -8,6 +8,14 @@ import { invoke } from "@tauri-apps/api/core";
 export type SwarmProvider = "local" | "byok_cloud" | "official_cli";
 export type SwarmRuntimeBinding = "candle" | "llama_cpp";
 
+/**
+ * Recorded-only isolation tier the operator INTENDS for a session. Mirrors the
+ * core `IsolationTier` vocabulary. RECORDED as a bridge to future VM execution;
+ * it is NOT enforced today — the session runs in-process regardless. The spawn
+ * UI surfaces this with a mandatory "recorded, not enforced" honesty note.
+ */
+export type SwarmIsolationTier = "tier1_container" | "tier2_syscall" | "tier3_microvm";
+
 export interface SwarmSpawnRequest {
   provider: SwarmProvider;
   /** Local: required. On-disk model artifact (safetensors / GGUF). */
@@ -22,6 +30,24 @@ export interface SwarmSpawnRequest {
   instance?: number;
   /** Parent session id for ledger lineage. */
   parentSessionId?: string;
+  /**
+   * Optional VM/sandbox worktree this session is ASSIGNED to. Drives the board
+   * swimlane + per-worktree recovery grouping. Recorded attribution only: it
+   * does NOT route execution into a VM today. Blank/whitespace => omit (the
+   * backend records `None` = honest "unassigned").
+   */
+  worktreeId?: string;
+  /**
+   * Optional on-disk place the operator assigns the session to (absolute OR
+   * repo-relative; disk-agnostic). Recorded verbatim — never resolved, created,
+   * or used as a real cwd here. Blank/whitespace => omit.
+   */
+  workingDir?: string;
+  /**
+   * Optional recorded-only isolation tier (see {@link SwarmIsolationTier}).
+   * Recorded as the bridge to future VM execution; NOT enforced.
+   */
+  isolationTier?: SwarmIsolationTier;
 }
 
 export interface SwarmInstanceId {
@@ -38,6 +64,20 @@ export interface SwarmSession {
   runtimeBinding: string;
   artifactPath: string | null;
   cloudModelName: string | null;
+  /** Assigned VM/sandbox worktree (board swimlane + recovery grouping), or null. */
+  worktreeId: string | null;
+  /** Recorded on-disk working dir attribution, or null. Never executed in. */
+  workingDir: string | null;
+}
+
+/**
+ * A worktree the operator can assign sessions to, surfaced for discovery so the
+ * spawn form can offer existing worktrees alongside a free-text "new" entry.
+ */
+export interface SwarmWorktree {
+  worktreeId: string;
+  /** Count of LIVE sessions currently assigned to this worktree. */
+  liveSessionCount: number;
 }
 
 export interface SwarmResourceSnapshot {
@@ -67,6 +107,16 @@ export async function cancelSession(instanceId: string): Promise<void> {
 
 export async function listActiveSessions(): Promise<SwarmSession[]> {
   return await invoke<SwarmSession[]>("kernel_swarm_list_active_sessions");
+}
+
+/**
+ * Distinct worktrees currently in use across live sessions (for the spawn-form
+ * worktree picker). The form ALSO always offers a free-text "new worktree"
+ * entry, so an empty/stale discovery list never blocks assigning a brand-new
+ * worktree.
+ */
+export async function listWorktrees(): Promise<SwarmWorktree[]> {
+  return await invoke<SwarmWorktree[]>("kernel_swarm_list_worktrees");
 }
 
 export async function resourceSnapshot(): Promise<SwarmResourceSnapshot> {
