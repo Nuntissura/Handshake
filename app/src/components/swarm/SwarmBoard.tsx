@@ -151,7 +151,8 @@ function SwarmCard({ card, onCancel }: { card: SwarmBoardCard; onCancel: () => v
         borderRadius: 6,
         padding: "6px 8px",
         marginBottom: 6,
-        background: "var(--card-bg, #fff)",
+        background: "var(--hs-color-surface)",
+        color: "var(--hs-color-text)",
         fontSize: 12,
       }}
       title={`${card.instanceId.composite} · ${card.provider} · ${card.runtimeBinding}`}
@@ -170,7 +171,9 @@ function SwarmCard({ card, onCancel }: { card: SwarmBoardCard; onCancel: () => v
         >
           {card.provider}
         </span>
-        {card.worktreeId && <span style={{ fontSize: 10, color: "#6b7280" }}>wt:{card.worktreeId}</span>}
+        {card.worktreeId && (
+          <span style={{ fontSize: 10, color: "var(--hs-color-text-subtle)" }}>wt:{card.worktreeId}</span>
+        )}
       </div>
       {!terminal && (
         <button onClick={onCancel} style={{ marginTop: 4, fontSize: 10 }}>
@@ -193,7 +196,7 @@ export function SwarmBoard() {
     <div className="swarm-board" data-testid="swarm-board">
       <header style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 8 }}>
         <strong>Swarm board</strong>
-        <span style={{ fontSize: 12, color: "#6b7280" }}>
+        <span style={{ fontSize: 12, color: "var(--hs-color-text-subtle)" }}>
           {booting} booting · {running} running · {cards.length} total
         </span>
         {lagged && (
@@ -207,13 +210,13 @@ export function SwarmBoard() {
       </header>
 
       {lanes.length === 0 && (
-        <div style={{ color: "#6b7280", fontSize: 13, padding: 12 }}>No active sessions.</div>
+        <div style={{ color: "var(--hs-color-text-subtle)", fontSize: 13, padding: 12 }}>No active sessions.</div>
       )}
 
       {lanes.map((lane) => (
         <section key={lane.key} style={{ marginBottom: 16 }}>
           <h4 style={{ margin: "4px 0", fontSize: 13 }}>
-            {lane.label} <span style={{ color: "#6b7280", fontWeight: 400 }}>({lane.total})</span>
+            {lane.label} <span style={{ color: "var(--hs-color-text-subtle)", fontWeight: 400 }}>({lane.total})</span>
           </h4>
           <div
             className="board-columns"

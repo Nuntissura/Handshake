@@ -2516,3 +2516,195 @@ body {
   resize: vertical;
   padding: 0.4rem 0.5rem;
 }
+
+/* ------------------------------------------------------------------ */
+/* Global Settings menu (SettingsMenu.tsx) + header gear trigger      */
+/* ------------------------------------------------------------------ */
+
+.settings-gear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--hs-color-border);
+  border-radius: 10px;
+  background: var(--hs-color-surface);
+  color: var(--hs-color-text);
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.settings-gear:hover {
+  background: var(--hs-color-accent-soft);
+  border-color: var(--hs-color-accent);
+}
+
+.settings-menu__backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.28);
+  z-index: 21;
+}
+
+/* Reuses .ans001-drawer for surface/border/shadow; bump z-index above backdrop. */
+.settings-menu {
+  z-index: 22;
+}
+
+.settings-section {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--hs-color-border);
+}
+
+.settings-section:first-of-type {
+  border-top: none;
+  padding-top: 0;
+}
+
+.settings-section__title {
+  margin: 0 0 12px 0;
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--hs-color-text-subtle);
+}
+
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 0;
+}
+
+.settings-row__main {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.settings-row__label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--hs-color-text);
+}
+
+.settings-row__control {
+  flex: 0 0 auto;
+}
+
+input.settings-row__control:disabled {
+  background: var(--hs-color-bg);
+  border: 1px solid var(--hs-color-border);
+  border-radius: 8px;
+  padding: 6px 10px;
+  color: var(--hs-color-text-subtle);
+  font-size: 13px;
+  min-width: 180px;
+  text-align: right;
+  cursor: not-allowed;
+}
+
+.settings-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--hs-color-text);
+}
+
+.settings-note {
+  display: inline-block;
+  font-size: 12px;
+  color: var(--hs-color-text-subtle);
+  font-style: italic;
+}
+
+.settings-about {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 14px;
+  color: var(--hs-color-text);
+}
+
+/* ------------------------------------------------------------------ */
+/* Disclosure primitive (common/Disclosure.tsx) — accessible collapsible */
+/* section used by the swarm operator surface. Theme-token only.        */
+/* ------------------------------------------------------------------ */
+
+.swarm-operator-surface {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.disclosure {
+  border: 1px solid var(--hs-color-border);
+  border-radius: 12px;
+  background: var(--hs-color-surface);
+  overflow: hidden;
+}
+
+.disclosure__summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 14px 16px;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  cursor: pointer;
+  text-align: left;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--hs-color-text);
+}
+
+.disclosure__summary:hover {
+  background: var(--hs-color-accent-soft);
+}
+
+.disclosure__chevron {
+  display: inline-block;
+  font-size: 12px;
+  color: var(--hs-color-text-subtle);
+  transition: transform 0.12s ease;
+  transform: rotate(0deg);
+}
+
+.disclosure[data-open="true"] .disclosure__chevron {
+  transform: rotate(90deg);
+}
+
+.disclosure__title {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.disclosure__count {
+  flex: 0 0 auto;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--hs-color-text-subtle);
+  background: var(--hs-color-bg);
+  border: 1px solid var(--hs-color-border);
+  border-radius: 999px;
+  padding: 2px 10px;
+  white-space: nowrap;
+}
+
+.disclosure__panel {
+  padding: 16px;
+  border-top: 1px solid var(--hs-color-border);
+}
+
+.disclosure__panel[hidden] {
+  display: none;
+}

@@ -17,7 +17,9 @@ import { InferenceLab } from "./components/inference_lab";
 import { FontManagerView } from "./components/FontManagerView";
 import { MediaDownloaderView } from "./components/MediaDownloaderView";
 import { ModelRuntimePanel } from "./components/model_runtime_panel";
-import { SwarmControlRoom } from "./components/swarm";
+import { SwarmOperatorSurface } from "./components/swarm";
+import { SettingsMenu } from "./components/SettingsMenu";
+import { loadSwarmBoardDefaultOpen } from "./lib/globalSettings";
 import {
   getKernelDccProjection,
   triggerKernelDccAction,
@@ -219,6 +221,7 @@ function App() {
   const [projectDrawerOpen, setProjectDrawerOpen] = useState(true);
   const [fileDrawerOpen, setFileDrawerOpen] = useState(true);
   const [bottomDrawerOpen, setBottomDrawerOpen] = useState(true);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [splitWeights, setSplitWeights] = useState<SplitWeights>({ vertical: 0.5, horizontal: 0.55 });
   const paneGridRef = useRef<HTMLDivElement>(null);
 
@@ -471,7 +474,7 @@ function App() {
     } else if (pane.activeTab === "model-runtime") {
       content = <ModelRuntimePanel />;
     } else if (pane.activeTab === "swarm") {
-      content = <SwarmControlRoom />;
+      content = <SwarmOperatorSurface boardDefaultOpen={loadSwarmBoardDefaultOpen()} />;
     } else if (pane.activeTab === "problems") {
       content = <ProblemsView onSelect={setSelection} />;
     } else if (pane.activeTab === "jobs") {
@@ -561,6 +564,17 @@ function App() {
           <div className="app-header-right">
             <ViewModeToggle value={viewMode} onChange={setViewMode} />
             <SystemStatus />
+            <button
+              type="button"
+              className="settings-gear"
+              aria-label="Open settings"
+              aria-haspopup="dialog"
+              onClick={() => setSettingsOpen(true)}
+              data-stable-id="settings-gear"
+              data-testid="settings-gear"
+            >
+              ⚙
+            </button>
           </div>
         </header>
 
@@ -793,6 +807,12 @@ function App() {
         }}
       />
       <Ans001TimelineDrawer isOpen={ans001TimelineOpen} onClose={() => setAns001TimelineOpen(false)} />
+      <SettingsMenu
+        isOpen={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        viewMode={viewMode}
+        onViewModeChange={setViewMode}
+      />
       {exportScope && (
         <DebugBundleExport
           isOpen={true}
