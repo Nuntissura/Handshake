@@ -46,5 +46,16 @@
     "FR write failure stalling teardown -> infallible sink trait + out-of-band DuckDB error absorption + overflow counter."
   ],
   "validation_strategy": "Each item ships with crash-injection / fail-scenario tests per the operator mandate: clone-safety regression (two restores differ), OOM containment (only the offending VM dies), admission refusal (typed, not host thrash), escalate-on-failure + ForceLocal-blocks-egress, mass-reclaim after host kill, time-boxed lease auto-reap, scheduled-fire FR event emission, board-card-moves-on-pushed-event (WebDriver visual where a display is available).",
-  "next_action": "Implement rank-1 (snapshot-clone uniqueness, CRITICAL security, headless-provable) FIRST with adversarial sub-agent review, then rank-2 grouping key (structural unlock), then proceed down the plan. GUI-dependent final smokes (rank-4 visual) flagged for a display session."
+  "next_action": "Implement rank-1 (snapshot-clone uniqueness, CRITICAL security, headless-provable) FIRST with adversarial sub-agent review, then rank-2 grouping key (structural unlock), then proceed down the plan. GUI-dependent final smokes (rank-4 visual) flagged for a display session.",
+  "implementation_progress": {
+    "updated_at_utc": "2026-05-31T08:30:00.000Z",
+    "consolidated_checkpoint": "swarm_orchestration 59/59 + cloud_hypervisor 13/13 lib tests; app-crate build exit 0 (cumulative). feat branch.",
+    "rank_1_snapshot_clone_uniqueness": {"status": "DONE", "commits": ["36919ac6 clone-safety gate", "1f1d4f4c TOCTOU race + leak fix (adversarial review)"], "note": "Refuses a second concurrently-live restore of one snapshot (CH resume cannot reseed guest identity). Reservation under the gate lock closes the TOCTOU; released on every failure path. Known documented limit: keys on snapshot_dir (copy-bypass needs guest VMGenID, CH does not expose). Adversarially reviewed."},
+    "rank_2_grouping_key": {"status": "DONE", "commits": ["7ee5e0b7"], "note": "SpawnRequest swarm_id/worktree_id + builders; SessionHandle carries them; coordinator session_grouping() read API; reaper STOP metadata_jsonb records them. Tested."},
+    "rank_3_flight_recorder": {"status": "PARTIAL", "commits": ["bbdf4cdf worktree+sched FR-EVT-SWARM ids", "8bff1e07 DurableSwarmFrBridge (sync sink -> async recorder + dropped counter)"], "remaining": "App wiring: construct DurableSwarmFrBridge in SwarmRuntimeState with the shared app-data-root DuckDB recorder (behind duckdb-flight-recorder feature) so deployed events persist. Mechanism tested in default CI via a fake recorder."},
+    "rank_5_overload_escalation": {"status": "DONE", "commits": ["83770700"], "note": "LocalOutcome::Overloaded escalates to cloud without tripping the local breaker; ForceLocal blocks egress. Tested (escalate / no-breaker-trip / ForceLocal-blocks)."},
+    "rank_4_live_ui_push": {"status": "TODO", "note": "Backend (UiBroadcastSwarmSink -> tokio::broadcast -> Tauri emit) implementable headlessly; final visual/WebDriver smoke needs a display session."},
+    "rank_6_admission": {"status": "TODO", "note": "Cold-start semaphore (separate from run-concurrency), committed-memory budget (no overcommit) + CH balloon, per-device token-bucket rate_limits in ResourceLimits. Backend, headless-testable."},
+    "rank_7_calendar": {"status": "TODO", "note": "tokio-cron-scheduler -> coordinator.spawn/cancel (new dep); time-boxing reuses lease-TTL+reaper (free); ICS export via icalendar. The FR-EVT-SWARM-SCHED ids are already added (rank-3)."}
+  }
 }
