@@ -176,14 +176,29 @@ impl CloudLaneFactoryConfig {
     /// [`crate::model_runtime::cloud::CliBridgeModelRuntime`] when the CLI is
     /// present and returns an honest not-configured reason when it is absent.
     pub fn with_official_cli(
-        mut self,
+        self,
         spawner: Arc<dyn crate::model_runtime::cloud::CliSubprocessSpawner>,
         config_template: crate::model_runtime::cloud::CliBridgeConfig,
     ) -> Self {
-        self.official_cli = Some(Arc::new(CliBridgeCloudRuntimeBuilder::new(
-            spawner,
-            config_template,
-        )) as Arc<dyn CloudRuntimeBuilder>);
+        self.with_official_cli_observed(spawner, config_template, None)
+    }
+
+    /// Like [`Self::with_official_cli`] but threads a
+    /// [`crate::model_runtime::cloud::CloudLaneObservability`] into the CLI lane
+    /// so the built runtime emits `FR-EVT-LLM-INFER-{START,TOKEN,END}` (the
+    /// recorder-carrying production constructors pass `Some(..)`; `None` keeps
+    /// the lane FR-INFER-silent but otherwise identical).
+    pub fn with_official_cli_observed(
+        mut self,
+        spawner: Arc<dyn crate::model_runtime::cloud::CliSubprocessSpawner>,
+        config_template: crate::model_runtime::cloud::CliBridgeConfig,
+        observability: Option<Arc<crate::model_runtime::cloud::CloudLaneObservability>>,
+    ) -> Self {
+        let mut builder = CliBridgeCloudRuntimeBuilder::new(spawner, config_template);
+        if let Some(obs) = observability {
+            builder = builder.with_observability(obs);
+        }
+        self.official_cli = Some(Arc::new(builder) as Arc<dyn CloudRuntimeBuilder>);
         self
     }
 
@@ -222,6 +237,11 @@ impl CloudLaneFactoryConfig {
 pub struct CliBridgeCloudRuntimeBuilder {
     spawner: Arc<dyn crate::model_runtime::cloud::CliSubprocessSpawner>,
     config_template: crate::model_runtime::cloud::CliBridgeConfig,
+    /// Optional cloud-lane observability threaded into the built
+    /// [`crate::model_runtime::cloud::CliBridgeModelRuntime`] so its `generate`
+    /// emits `FR-EVT-LLM-INFER-{START,TOKEN,END}`. `None` => no FR-INFER events
+    /// (e.g. a recorder-less wiring); generation is identical either way.
+    lane_obs: Option<Arc<crate::model_runtime::cloud::CloudLaneObservability>>,
 }
 
 impl CliBridgeCloudRuntimeBuilder {
@@ -232,7 +252,18 @@ impl CliBridgeCloudRuntimeBuilder {
         Self {
             spawner,
             config_template,
+            lane_obs: None,
         }
+    }
+
+    /// Attach cloud-lane observability so the built CLI runtime emits
+    /// `FR-EVT-LLM-INFER-*` events.
+    pub fn with_observability(
+        mut self,
+        lane_obs: Arc<crate::model_runtime::cloud::CloudLaneObservability>,
+    ) -> Self {
+        self.lane_obs = Some(lane_obs);
+        self
     }
 
     /// Build the OfficialCli `LoadSpec`: provider=OfficialCli, engine_origin
@@ -279,6 +310,12 @@ impl CloudRuntimeBuilder for CliBridgeCloudRuntimeBuilder {
             self.spawner.clone(),
             self.config_template.clone(),
         );
+        // Thread the cloud-lane observability so the CLI lane emits
+        // FR-EVT-LLM-INFER-{START,TOKEN,END} like the BYOK siblings, when a
+        // recorder was wired (production_with_*_recorder).
+        if let Some(obs) = self.lane_obs.clone() {
+            rt = rt.with_lane_observability(obs);
+        }
         let model_id = rt
             .load(self.cli_load_spec(model_name))
             .await

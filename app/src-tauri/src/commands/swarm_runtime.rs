@@ -374,7 +374,18 @@ impl SwarmRuntimeState {
         // Missing/corrupt/unconfigured config => None => the lane stays an honest
         // ProviderNotConfigured.
         let cloud = match load_official_cli_lane(app_data_root, &ledger) {
-            Some((spawner, config)) => cloud.with_official_cli(spawner, config),
+            Some((spawner, config)) => {
+                // When a Flight Recorder is wired, thread it as cloud-lane
+                // observability so the CLI lane emits FR-EVT-LLM-INFER-* like the
+                // BYOK siblings. No recorder => FR-INFER-silent, otherwise identical.
+                let observability = recorder.clone().map(|fr| {
+                    Arc::new(handshake_core::model_runtime::cloud::CloudLaneObservability {
+                        flight_recorder: fr,
+                        consent: None,
+                    })
+                });
+                cloud.with_official_cli_observed(spawner, config, observability)
+            }
             None => cloud,
         };
 

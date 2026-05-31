@@ -35,18 +35,64 @@
 //!   usability-not-feature lane; capabilities are all-false).
 
 use std::sync::Arc;
+use std::time::Instant;
 
 use async_trait::async_trait;
 use futures::stream;
+use uuid::Uuid;
 
 use super::official_cli_bridge::{
     CliBridgeConfig, CliSubprocessSpawner, OfficialCliBridgeRuntime,
 };
+use super::CloudLaneObservability;
+use crate::flight_recorder::events_llm_infer::{
+    infer_end_event, infer_start_event, infer_token_event, new_llm_infer_request_id,
+    should_emit_token_event,
+};
+use crate::flight_recorder::{FlightRecorder, FlightRecorderEvent};
 use crate::model_runtime::{
     error::ModelRuntimeError, CancellationToken, Embedding, FinishReason, GenerateRequest,
     GeneratedToken, KvCacheHandle, LoadSpec, LoraStackHandle, ModelCapabilities, ModelId,
     ModelRuntime, ProviderKind, Score, SteeringHookHandle, TokenStream,
 };
+
+/// Best-effort emit of an `FR-EVT-LLM-INFER-*` event through the cloud-lane
+/// recorder. Mirrors the BYOK siblings' posture (`anthropic_byok.rs`): a
+/// recorder error is logged and ignored — observability NEVER affects
+/// generation. A `None` recorder is a no-op (the lane was built without
+/// observability).
+async fn emit_infer(recorder: &Option<Arc<dyn FlightRecorder>>, event: FlightRecorderEvent) {
+    if let Some(recorder) = recorder.as_ref() {
+        if let Err(err) = recorder.record_event(event).await {
+            tracing::debug!(
+                target: "handshake_core::model_runtime::cloud::cli_bridge",
+                error = %err,
+                "official CLI bridge FR-EVT-LLM-INFER emit failed; generation unaffected"
+            );
+        }
+    }
+}
+
+/// Async stream state carried through `stream::unfold` so the CLI bridge can
+/// emit the lane-normalised `FR-EVT-LLM-INFER-{START,TOKEN,END}` events on the
+/// ASYNC side of the channel (where `record_event().await` is legal) while the
+/// blocking spawn thread only ever produces tokens. START is emitted lazily on
+/// the first poll, TOKEN is emitted on the sampled indices
+/// (`should_emit_token_event`), and END is emitted exactly once when the
+/// producer channel closes — so START/END are always paired even for an empty
+/// or immediately-failing generation.
+struct InferEmitStreamState {
+    rx: tokio::sync::mpsc::UnboundedReceiver<Result<GeneratedToken, ModelRuntimeError>>,
+    recorder: Option<Arc<dyn FlightRecorder>>,
+    model_id: ModelId,
+    request_id: Uuid,
+    start: Instant,
+    prompt_tokens: u64,
+    started: bool,
+    generated: u32,
+    finish: FinishReason,
+    ended: bool,
+}
 
 /// Adapter name surfaced through [`ModelRuntime::adapter_name`] and used as the
 /// `adapter` field on `CapabilityNotSupported` errors. Matches the CLI bridge
@@ -141,6 +187,12 @@ pub struct CliBridgeModelRuntime {
     runtime_cancel: CancellationToken,
     /// Declared capabilities: all-false (the CLI bridge is a usability lane).
     declared_capabilities: ModelCapabilities,
+    /// Optional cloud-lane observability. When present, `generate()` emits
+    /// `FR-EVT-LLM-INFER-{START,TOKEN,END}` through the FlightRecorder for
+    /// HBR-INT-005 lane normalisation, mirroring the BYOK siblings
+    /// ([`super::AnthropicByokRuntime::with_lane_observability`]). Emission is
+    /// best-effort and never affects generation.
+    lane_obs: Option<Arc<CloudLaneObservability>>,
 }
 
 impl std::fmt::Debug for CliBridgeModelRuntime {
@@ -164,7 +216,18 @@ impl CliBridgeModelRuntime {
             config_template,
             runtime_cancel: CancellationToken::new(),
             declared_capabilities: OfficialCliBridgeRuntime::cli_bridge_capabilities(),
+            lane_obs: None,
         }
+    }
+
+    /// Thread a [`CloudLaneObservability`] bundle so `generate()` emits
+    /// `FR-EVT-LLM-INFER-{START,TOKEN,END}` through the FlightRecorder
+    /// (HBR-INT-005 lane normalisation), mirroring
+    /// [`super::AnthropicByokRuntime::with_lane_observability`]. Best-effort: a
+    /// recorder error is logged and ignored; generation is unaffected.
+    pub fn with_lane_observability(mut self, lane_obs: Arc<CloudLaneObservability>) -> Self {
+        self.lane_obs = Some(lane_obs);
+        self
     }
 
     /// The CLI model name (allowlisted by the operator's config + spec) is
@@ -185,6 +248,17 @@ impl CliBridgeModelRuntime {
 
         let (tx, rx) =
             tokio::sync::mpsc::unbounded_channel::<Result<GeneratedToken, ModelRuntimeError>>();
+
+        // Observability is read on the ASYNC side (the unfold below) where
+        // `record_event().await` is legal; the blocking spawn thread only ever
+        // produces tokens. A coarse prompt-token proxy (whitespace word count)
+        // is used because the CLI does not expose tokenisation — it is for the
+        // observability payload only, never billing/control.
+        let recorder = self.lane_obs.as_ref().map(|o| o.flight_recorder.clone());
+        let request_id = new_llm_infer_request_id();
+        let prompt_tokens = req.prompt.text.split_whitespace().count() as u64;
+        let infer_start = Instant::now();
+        let infer_model_id = req.id;
 
         let spawner = Arc::clone(&self.spawner);
         let config = self.config_template.clone();
@@ -275,8 +349,96 @@ impl CliBridgeModelRuntime {
             // `tx` drops here -> the receiver stream ends.
         });
 
-        Box::pin(stream::unfold(rx, |mut rx| async move {
-            rx.recv().await.map(|item| (item, rx))
+        let state = InferEmitStreamState {
+            rx,
+            recorder,
+            model_id: infer_model_id,
+            request_id,
+            start: infer_start,
+            prompt_tokens,
+            started: false,
+            generated: 0,
+            finish: FinishReason::Stop,
+            ended: false,
+        };
+
+        Box::pin(stream::unfold(state, |mut st| async move {
+            // START: emitted lazily on the first poll, before the first token,
+            // so START/END are paired even for an empty/immediately-failing run.
+            if !st.started {
+                st.started = true;
+                emit_infer(
+                    &st.recorder,
+                    infer_start_event(
+                        st.model_id,
+                        st.request_id,
+                        st.prompt_tokens,
+                        "",
+                        CLI_BRIDGE_ADAPTER,
+                    ),
+                )
+                .await;
+            }
+            match st.rx.recv().await {
+                Some(item) => {
+                    match &item {
+                        Ok(token) => {
+                            if let Some(reason) = token.finish_reason {
+                                // The terminal token carries the real outcome.
+                                st.finish = reason;
+                            } else if !token.text.is_empty() {
+                                st.generated = st.generated.saturating_add(1);
+                                // TOKEN: sampled (matches the BYOK siblings) so a
+                                // long generation does not flood the recorder.
+                                if should_emit_token_event(st.generated) {
+                                    let latency = st.start.elapsed().as_millis() as u64;
+                                    emit_infer(
+                                        &st.recorder,
+                                        infer_token_event(
+                                            st.model_id,
+                                            st.request_id,
+                                            st.generated,
+                                            token.token_id,
+                                            &token.text,
+                                            latency,
+                                            CLI_BRIDGE_ADAPTER,
+                                        ),
+                                    )
+                                    .await;
+                                }
+                            }
+                        }
+                        Err(_) => {
+                            // An honest error item ends the run as Error.
+                            st.finish = FinishReason::Error;
+                        }
+                    }
+                    Some((item, st))
+                }
+                None => {
+                    // Producer channel closed -> emit END exactly once.
+                    if !st.ended {
+                        st.ended = true;
+                        let total = st.start.elapsed().as_millis() as u64;
+                        emit_infer(
+                            &st.recorder,
+                            infer_end_event(
+                                st.model_id,
+                                st.request_id,
+                                st.prompt_tokens,
+                                st.generated,
+                                total,
+                                0,
+                                total,
+                                st.finish,
+                                CLI_BRIDGE_ADAPTER,
+                            ),
+                        )
+                        .await;
+                    }
+                    None
+                }
+            }
         }))
     }
 }
@@ -728,6 +890,122 @@ mod tests {
             rt.steering_hooks(id),
             Err(ModelRuntimeError::CapabilityNotSupported { .. })
         ));
+    }
+
+    /// Capturing FlightRecorder: collects each event's payload so the test can
+    /// assert the FR-EVT-LLM-INFER phases were emitted.
+    #[derive(Default)]
+    struct CollectingRecorder {
+        payloads: Mutex<Vec<serde_json::Value>>,
+    }
+    #[async_trait]
+    impl FlightRecorder for CollectingRecorder {
+        async fn record_event(
+            &self,
+            event: FlightRecorderEvent,
+        ) -> Result<(), crate::flight_recorder::RecorderError> {
+            self.payloads.lock().unwrap().push(event.payload);
+            Ok(())
+        }
+        async fn enforce_retention(&self) -> Result<u64, crate::flight_recorder::RecorderError> {
+            Ok(0)
+        }
+        async fn list_events(
+            &self,
+            _filter: crate::flight_recorder::EventFilter,
+        ) -> Result<Vec<FlightRecorderEvent>, crate::flight_recorder::RecorderError> {
+            Ok(Vec::new())
+        }
+    }
+
+    /// When a `CloudLaneObservability` is threaded in, `generate()` emits
+    /// FR-EVT-LLM-INFER-{START,TOKEN,END} through the recorder — START once
+    /// before tokens, END once after, a sampled TOKEN at index 16, all carrying
+    /// the same request_id correlation. Generation output is unchanged.
+    #[tokio::test]
+    async fn generate_emits_fr_evt_llm_infer_start_token_end() {
+        use crate::flight_recorder::events_llm_infer::{
+            FR_EVT_LLM_INFER_END, FR_EVT_LLM_INFER_START, FR_EVT_LLM_INFER_TOKEN,
+        };
+
+        let recorder = Arc::new(CollectingRecorder::default());
+        let obs = Arc::new(CloudLaneObservability {
+            flight_recorder: recorder.clone() as Arc<dyn FlightRecorder>,
+            consent: None,
+        });
+        // 20 single-byte chunks => 20 generated tokens => token index 16 fires a
+        // sampled TOKEN event (LLM_INFER_TOKEN_SAMPLE_INTERVAL = 16).
+        let chunks: Vec<Vec<u8>> = (0..20).map(|_| b"x".to_vec()).collect();
+        let mut rt = CliBridgeModelRuntime::new(Arc::new(ChunkSpawner { chunks }), good_config())
+            .with_lane_observability(obs);
+        let spec = crate::model_runtime::LoadSpec {
+            artifact_path: PathBuf::new(),
+            sha256_expected: String::new(),
+            runtime_kind: crate::model_runtime::RuntimeKind::Candle,
+            sampling_defaults: SamplingParams::default(),
+            kv_cache_policy: crate::model_runtime::KvCachePolicy::default(),
+            declared_capabilities: ModelCapabilities::default(),
+            provider: ProviderKind::OfficialCli,
+            engine_origin: Some("claude-sonnet".to_string()),
+            external_engine_import: None,
+        };
+        let id = rt.load(spec).await.expect("load");
+
+        // Drain the stream fully so START/TOKEN/END all flush.
+        let mut stream = rt.generate(gen_req(id));
+        let mut generated = 0usize;
+        while let Some(item) = stream.next().await {
+            let token = item.expect("no error item");
+            if token.finish_reason.is_none() && !token.text.is_empty() {
+                generated += 1;
+            }
+        }
+        assert_eq!(generated, 20, "all 20 stdout tokens stream through");
+
+        let payloads = recorder.payloads.lock().unwrap().clone();
+        let ids: Vec<String> = payloads
+            .iter()
+            .filter_map(|p| p.get("event_id").and_then(|v| v.as_str()).map(String::from))
+            .collect();
+        let count = |needle: &str| ids.iter().filter(|e| e.as_str() == needle).count();
+        assert_eq!(count(FR_EVT_LLM_INFER_START), 1, "exactly one START: {ids:?}");
+        assert_eq!(count(FR_EVT_LLM_INFER_END), 1, "exactly one END: {ids:?}");
+        assert!(count(FR_EVT_LLM_INFER_TOKEN) >= 1, "at least one sampled TOKEN: {ids:?}");
+        // START precedes END; all share one request_id correlation.
+        let start_idx = ids.iter().position(|e| e == FR_EVT_LLM_INFER_START).unwrap();
+        let end_idx = ids.iter().rposition(|e| e == FR_EVT_LLM_INFER_END).unwrap();
+        assert!(start_idx < end_idx, "START must precede END");
+        let req_ids: std::collections::HashSet<String> = payloads
+            .iter()
+            .filter_map(|p| p.get("request_id").and_then(|v| v.as_str()).map(String::from))
+            .collect();
+        assert_eq!(req_ids.len(), 1, "all infer events share one request_id: {req_ids:?}");
+
+        // The END event reports the real generated-token count.
+        let end = payloads
+            .iter()
+            .find(|p| p.get("event_id").and_then(|v| v.as_str()) == Some(FR_EVT_LLM_INFER_END))
+            .unwrap();
+        assert_eq!(end.get("tokens_generated").and_then(|v| v.as_u64()), Some(20));
+    }
+
+    /// Without observability, generate() emits NO FR events but produces the
+    /// same tokens — observability is purely additive.
+    #[tokio::test]
+    async fn generate_without_observability_emits_no_fr_events_same_output() {
+        let (rt, id) = loaded_runtime(Arc::new(ChunkSpawner {
+            chunks: vec![b"a".to_vec(), b"b".to_vec()],
+        }))
+        .await;
+        let mut stream = rt.generate(gen_req(id));
+        let mut out = String::new();
+        while let Some(item) = stream.next().await {
+            let token = item.expect("ok");
+            if token.finish_reason.is_none() {
+                out.push_str(&token.text);
+            }
+        }
+        assert_eq!(out, "ab");
     }
 
     /// Utf8ChunkDecoder unit coverage: split codepoint carries forward.
