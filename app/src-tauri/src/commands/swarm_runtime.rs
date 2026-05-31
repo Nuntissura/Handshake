@@ -217,6 +217,22 @@ pub struct SwarmRuntimeState {
     /// so it lives for the app's lifetime; dropping it stops persisting swarm
     /// events. `None` when no recorder was supplied (the eprintln fallback).
     _fr_drain_task: Option<tokio::task::JoinHandle<()>>,
+    /// Integrated Terminal capture seam (spec §10.1). When wired (by lib.rs from
+    /// the managed `TerminalRuntimeState`), a swarm spawn ALSO opens a read-only
+    /// AiJob capture session bound to the swarm_id swimlane, so the operator can
+    /// inspect that swarm's background work in the Terminal panel and the spawn
+    /// lifecycle is trace-linked into the Flight Recorder. `None` keeps the
+    /// existing behavior unchanged (capture is opt-in, never faked).
+    terminal_capture: Option<handshake_core::terminal::TerminalRuntime>,
+    /// Live capture sinks keyed by swarm instance_id. When the capture seam is
+    /// wired, `attach_spawn_capture` opens a read-only AiJob capture session per
+    /// spawn and stores its [`CaptureSink`] here; `kernel_swarm_chat_generate`
+    /// then feeds the REAL generated token stream into the matching sink, so the
+    /// "inspect all background work" panel carries a live stream of the model's
+    /// actual output (not a synthetic marker). Closed + removed on session
+    /// cancel / reconcile so the sink's leak guard never has to fire for the
+    /// normal path.
+    capture_sinks: Arc<Mutex<HashMap<String, Arc<handshake_core::terminal::CaptureSink>>>>,
 }
 
 impl std::fmt::Debug for SwarmRuntimeState {
@@ -382,6 +398,101 @@ impl SwarmRuntimeState {
             _writer_task: writer_task,
             board_events,
             _fr_drain_task: fr_drain,
+            terminal_capture: None,
+            capture_sinks: Arc::new(Mutex::new(HashMap::new())),
+        }
+    }
+
+    /// Wire the Integrated Terminal capture seam so each swarm spawn opens a
+    /// read-only capture session bound to the swarm_id swimlane. Called by
+    /// lib.rs with the managed `TerminalRuntimeState`'s runtime handle. Builder
+    /// style so existing constructors stay unchanged.
+    pub fn with_terminal_capture(
+        mut self,
+        runtime: handshake_core::terminal::TerminalRuntime,
+    ) -> Self {
+        self.terminal_capture = Some(runtime);
+        self
+    }
+
+    /// The capture-seam runtime handle, if wired.
+    pub fn terminal_capture(&self) -> Option<handshake_core::terminal::TerminalRuntime> {
+        self.terminal_capture.clone()
+    }
+
+    /// Open a read-only capture session bound to a swarm spawn (the first real
+    /// swarm producer of the §10.1 capture seam) and RETAIN its [`CaptureSink`]
+    /// keyed by instance_id, so the live generated-token producer
+    /// (`kernel_swarm_chat_generate`) can fan the model's REAL output into it.
+    /// Returns the capture session id when the seam is wired, else `None`. The
+    /// session is tagged with the swarm_id / instance_id swimlane so the board +
+    /// Terminal panel correlate.
+    ///
+    /// The seeded line is an explicit lifecycle banner (not faked model output):
+    /// the live model output is appended to this SAME session by the generate
+    /// path as tokens are produced.
+    pub async fn attach_spawn_capture(
+        &self,
+        swarm_id: Option<String>,
+        instance_id: String,
+    ) -> Option<String> {
+        let runtime = self.terminal_capture.clone()?;
+        let binding = handshake_core::terminal::SessionBinding {
+            swarm_id,
+            worktree_id: None,
+            instance_id: Some(instance_id.clone()),
+        };
+        let (info, sink) = runtime
+            .create_capture_session(binding, Some(format!("swarm:{instance_id}")))
+            .await;
+        // Lifecycle banner so the panel shows the session opened + when. This is
+        // an honest banner, clearly bracketed, NOT a stand-in for model output —
+        // the real producer (the generated token stream) appends below it.
+        sink.feed(
+            format!("[handshake] capture session opened for swarm instance {instance_id}\r\n")
+                .as_bytes(),
+        )
+        .await;
+        // Retain the sink so the generate path can feed the live token stream
+        // into this same capture session.
+        self.capture_sinks
+            .lock()
+            .expect("capture sink table poisoned")
+            .insert(instance_id, Arc::new(sink));
+        Some(info.session_id)
+    }
+
+    /// The retained capture sink for a swarm instance, if the capture seam is
+    /// wired and a session was opened for it. Used by the generate path to fan
+    /// the live token stream into the "inspect all background work" panel.
+    pub fn capture_sink_for(
+        &self,
+        instance_id: &str,
+    ) -> Option<Arc<handshake_core::terminal::CaptureSink>> {
+        self.capture_sinks
+            .lock()
+            .expect("capture sink table poisoned")
+            .get(instance_id)
+            .cloned()
+    }
+
+    /// Close + remove the retained capture sink for an instance (on session
+    /// cancel / reconcile). The sink's own leak guard would eventually reap an
+    /// orphaned session, but closing here is the clean, FR-recorded path.
+    pub async fn close_capture_sink(&self, instance_id: &str, exit_code: i32) {
+        let sink = self
+            .capture_sinks
+            .lock()
+            .expect("capture sink table poisoned")
+            .remove(instance_id);
+        if let Some(sink) = sink {
+            // Only close if we hold the last reference; otherwise a concurrent
+            // generate is still feeding and will be the one to drop it. We drop
+            // our Arc; if it was the last, Drop's leak guard reaps it. To get a
+            // clean FR close we try to unwrap to the owned sink.
+            if let Ok(owned) = Arc::try_unwrap(sink) {
+                owned.close(exit_code).await;
+            }
         }
     }
 
@@ -601,7 +712,15 @@ pub async fn kernel_swarm_spawn_session(
     let spawn = build_spawn_request(&request)?;
     let instance_id = spawn.instance_id;
     match coordinator.spawn_session(spawn).await {
-        Ok(iid) => Ok(iid.into()),
+        Ok(iid) => {
+            // §10.1 capture seam (first real swarm producer): when wired, open a
+            // read-only capture session bound to this swarm's swimlane so the
+            // operator can inspect its background work in the Terminal panel.
+            let _ = state
+                .attach_spawn_capture(request.parent_session_id.clone(), iid.to_string())
+                .await;
+            Ok(iid.into())
+        }
         Err(error) => {
             // Reconcile the side-table: a failed spawn must not leave a tracked
             // entry (the TrackingFactory only inserts on success, but a
@@ -627,6 +746,9 @@ pub async fn kernel_swarm_cancel_session(
         .cancel_session(iid, "operator_cancel")
         .await
         .map_err(|error| error.to_string());
+    // Close the §10.1 capture session bound to this instance so the Terminal
+    // panel marks it exited (and does not leak a ghost capture tab).
+    state.close_capture_sink(&iid.to_string(), 0).await;
     // Reconcile regardless of outcome so a now-terminal session leaves the table.
     let _ = state.resolve_runtime(iid);
     result
@@ -833,6 +955,18 @@ pub async fn kernel_swarm_chat_generate(
         structured_decoding: None,
     };
 
+    // §10.1 capture seam — REAL live producer: if a capture session was opened
+    // for this instance at spawn, fan the model's generated token stream into it
+    // as tokens are produced, so the "inspect all background work" panel shows
+    // the live output of this background model run (redacted by the sink). This
+    // is the actual model output, not a synthetic marker.
+    let capture_sink = state.capture_sink_for(&iid.to_string());
+    if let Some(sink) = &capture_sink {
+        // Echo the prompt turn so the captured transcript is self-describing.
+        sink.feed(format!("\r\n$ generate: {trimmed}\r\n").as_bytes())
+            .await;
+    }
+
     let mut stream = runtime.generate(request);
     let mut text = String::new();
     let mut token_count = 0usize;
@@ -843,6 +977,13 @@ pub async fn kernel_swarm_chat_generate(
             Ok(token) => {
                 text.push_str(&token.text);
                 token_count += 1;
+                // Live fan-out: each produced token's text streams into the
+                // capture session immediately (the live background-work stream).
+                if let Some(sink) = &capture_sink {
+                    if !token.text.is_empty() {
+                        sink.feed(token.text.as_bytes()).await;
+                    }
+                }
                 if let Some(reason) = token.finish_reason {
                     finish_reason = Some(format!("{reason:?}").to_lowercase());
                 }
@@ -854,6 +995,10 @@ pub async fn kernel_swarm_chat_generate(
         }
     }
     drop(stream);
+    if let Some(sink) = &capture_sink {
+        // Terminate the captured turn with a newline so the next turn is framed.
+        sink.feed(b"\r\n").await;
+    }
 
     // Return the session to READY for the next turn (best-effort).
     let _ = coordinator.transition(iid, ModelSessionState::Ready);

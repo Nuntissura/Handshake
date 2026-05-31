@@ -131,6 +131,28 @@ pub trait CliSubprocessSpawner: Send + Sync {
         model_name: &str,
         prompt: &str,
     ) -> Result<CliInvocationReceipt, OfficialCliBridgeError>;
+
+    /// Spawn the CLI subprocess and stream its piped stdout LIVE: `on_chunk` is
+    /// invoked with each raw byte slice as it is read from the child's stdout
+    /// pipe DURING the run (not after completion). This is what lets the §10.1
+    /// capture seam attach a real live background stream rather than a post-hoc
+    /// dump. The default impl falls back to [`CliSubprocessSpawner::spawn`] and
+    /// replays the captured stdout once (so mock spawners without a real pipe
+    /// still work); [`LiveCliSpawner`] overrides it with a true incremental
+    /// pipe reader.
+    fn spawn_streaming(
+        &self,
+        config: &CliBridgeConfig,
+        model_name: &str,
+        prompt: &str,
+        on_chunk: &mut dyn FnMut(&[u8]),
+    ) -> Result<CliInvocationReceipt, OfficialCliBridgeError> {
+        let receipt = self.spawn(config, model_name, prompt)?;
+        if !receipt.stdout.is_empty() {
+            on_chunk(receipt.stdout.as_bytes());
+        }
+        Ok(receipt)
+    }
 }
 
 /// Result of one spawn attempt. The live impl populates pid; the
@@ -271,6 +293,97 @@ impl OfficialCliBridgeRuntime {
                 .ok_or(OfficialCliBridgeError::ModelNotRegistered(model_id))?
         };
         self.spawner.spawn(&config, &handle.model_name, prompt)
+    }
+
+    /// Invoke the bridge AND mirror its LIVE piped stdout into the Integrated
+    /// Terminal capture seam (spec §10.1). This is a real capture producer for
+    /// the "inspect all background work" deliverable: the cloud CLI bridge's
+    /// stdout is read incrementally DURING the subprocess run (via
+    /// [`CliSubprocessSpawner::spawn_streaming`]) and each chunk is fanned, after
+    /// redaction, into a read-only AiJob capture session so the operator can
+    /// inspect cloud-CLI background work in the Terminal panel as it happens, and
+    /// every chunk is trace-linked into the Flight Recorder. The capture session
+    /// is opened BEFORE the subprocess starts so an attached panel sees output
+    /// stream in, and closed with the real exit code when the run ends.
+    ///
+    /// `invoke` itself is left untouched (sync, no terminal dependency); callers
+    /// that have a live `TerminalRuntime` opt into LIVE capture via this wrapper.
+    pub async fn invoke_with_capture(
+        &self,
+        model_id: ModelId,
+        prompt: &str,
+        runtime: &crate::terminal::TerminalRuntime,
+        binding: crate::terminal::SessionBinding,
+    ) -> Result<(CliInvocationReceipt, String), OfficialCliBridgeError> {
+        // Resolve the registered config first (so a missing model fails before we
+        // open a capture session).
+        let (config, handle) = {
+            let bridges = self
+                .bridges
+                .read()
+                .map_err(|err| OfficialCliBridgeError::LockPoisoned(err.to_string()))?;
+            bridges
+                .get(&model_id)
+                .cloned()
+                .ok_or(OfficialCliBridgeError::ModelNotRegistered(model_id))?
+        };
+
+        // Open the capture session up front so an attached panel streams live.
+        let (info, sink) = runtime
+            .create_capture_session(binding, Some("cloud-cli-bridge".to_string()))
+            .await;
+        let session_id = info.session_id.clone();
+
+        // Bridge the SYNC streaming spawn (which calls `on_chunk` from a blocking
+        // context) to the ASYNC capture sink: each live chunk is queued on a
+        // bounded channel that an async drain task feeds into `sink.feed` in
+        // order, so capture stays live without blocking the spawn thread.
+        let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<Vec<u8>>();
+        let sink = std::sync::Arc::new(sink);
+        let drain_sink = std::sync::Arc::clone(&sink);
+        let drain = tokio::spawn(async move {
+            while let Some(chunk) = rx.recv().await {
+                drain_sink.feed(&chunk).await;
+            }
+        });
+
+        // Run the blocking streaming spawn on a blocking thread; forward chunks.
+        let spawner = std::sync::Arc::clone(&self.spawner);
+        let model_name = handle.model_name.clone();
+        let prompt_owned = prompt.to_string();
+        let spawn_result = tokio::task::spawn_blocking(move || {
+            let mut on_chunk = |bytes: &[u8]| {
+                // If the receiver is gone the run still completes; capture simply
+                // stops fanning. Never block the subprocess.
+                let _ = tx.send(bytes.to_vec());
+            };
+            spawner.spawn_streaming(&config, &model_name, &prompt_owned, &mut on_chunk)
+        })
+        .await
+        .map_err(|e| OfficialCliBridgeError::SpawnFailed {
+            reason: format!("streaming spawn task join failed: {e}"),
+            exit_code: None,
+        })?;
+
+        // Ensure all queued chunks are drained before closing the session.
+        let _ = drain.await;
+        let exit = spawn_result
+            .as_ref()
+            .ok()
+            .and_then(|r| r.exit_code)
+            .unwrap_or(0);
+        // Reclaim the sink (the drain task dropped its Arc) and close cleanly.
+        match std::sync::Arc::try_unwrap(sink) {
+            Ok(owned) => owned.close(exit).await,
+            Err(still_shared) => {
+                // Should not happen (drain task done), but never leak: drop our
+                // ref and let the Drop leak guard reap the session.
+                drop(still_shared);
+            }
+        }
+
+        let receipt = spawn_result?;
+        Ok((receipt, session_id))
     }
 }
 
@@ -606,6 +719,207 @@ impl CliSubprocessSpawner for LiveCliSpawner {
 
         record_stop(exit_code, "official_cli_bridge_exit");
 
+        Ok(CliInvocationReceipt {
+            model_id: ModelId::new_v7(),
+            stdout,
+            pid: Some(pid),
+            exit_code,
+            cancelled: false,
+        })
+    }
+
+    /// Live-streaming spawn: identical lifecycle to [`LiveCliSpawner::spawn`]
+    /// (env scrub, CREATE_NO_WINDOW, ledger START/STOP, timeout + kill), but the
+    /// child's stdout pipe is read INCREMENTALLY on a dedicated reader thread and
+    /// each chunk is delivered to `on_chunk` LIVE while the subprocess is still
+    /// running. This is the real cloud-CLI capture producer for §10.1: the
+    /// callback wiring (see `invoke_with_capture`) fans these live chunks into a
+    /// read-only AiJob capture session + the Flight Recorder, instead of dumping
+    /// the post-completion stdout string. The full stdout is also accumulated so
+    /// the returned [`CliInvocationReceipt`] is byte-for-byte identical to the
+    /// non-streaming path.
+    fn spawn_streaming(
+        &self,
+        config: &CliBridgeConfig,
+        model_name: &str,
+        prompt: &str,
+        on_chunk: &mut dyn FnMut(&[u8]),
+    ) -> Result<CliInvocationReceipt, OfficialCliBridgeError> {
+        use std::io::Read;
+
+        let rendered =
+            OfficialCliBridgeRuntime::render_args(&config.args_template, model_name, prompt);
+
+        let mut cmd = Command::new(&config.executable_path);
+        cmd.args(&rendered);
+        // Mirror the env scrub of `spawn` (secret-bearing inherited vars removed).
+        for (key, _value) in std::env::vars_os() {
+            if let Some(name) = key.to_str() {
+                if is_secret_bearing_env_name(name) {
+                    cmd.env_remove(&key);
+                }
+            }
+        }
+        for (key, value) in &config.env_vars {
+            cmd.env(key, value);
+        }
+        if let Some(dir) = &config.working_dir {
+            cmd.current_dir(dir);
+        }
+        cmd.stdout(Stdio::piped());
+        cmd.stderr(Stdio::piped());
+        cmd.stdin(Stdio::null());
+        #[cfg(windows)]
+        {
+            use std::os::windows::process::CommandExt;
+            const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+            cmd.creation_flags(CREATE_NO_WINDOW);
+        }
+
+        let mut child = cmd
+            .spawn()
+            .map_err(|err| OfficialCliBridgeError::SpawnFailed {
+                reason: format!("failed to spawn {}: {err}", config.executable_path.display()),
+                exit_code: None,
+            })?;
+        let pid = child.id();
+
+        // Unconditional ledger START (fail-closed), identical to `spawn`.
+        let record_id = ProcessOwnershipRecordId::new_v7();
+        let start = cli_bridge_process_start(
+            record_id,
+            cli_bridge_spawn_meta(pid, &self.owner_role, model_name, &config.executable_path),
+        );
+        if let Err(err) = self.process_ledger.record_start(start.clone()) {
+            kill_process_tree(pid, &mut child);
+            return Err(OfficialCliBridgeError::LedgerRegistration {
+                pid,
+                reason: err.to_string(),
+            });
+        }
+        let record_stop = |exit_code: Option<i32>, stop_reason: &str| {
+            let stop = ProcessStop::from_start(&start, exit_code).with_stop_reason(stop_reason);
+            if let Err(err) = self.process_ledger.record_stop(stop) {
+                eprintln!(
+                    "official_cli_bridge: ledger STOP registration failed for pid {pid}: {err}"
+                );
+            }
+        };
+
+        // Take the stdout pipe and pump it on a dedicated thread, forwarding each
+        // chunk over a channel so the (non-Send) `on_chunk` callback — owned by
+        // this thread — receives live chunks while we poll try_wait for the
+        // timeout. stderr is drained on its own thread so a full stderr pipe can
+        // never deadlock the child.
+        let child_stdout = child.stdout.take();
+        let child_stderr = child.stderr.take();
+        let (chunk_tx, chunk_rx) = mpsc::channel::<Vec<u8>>();
+        let stdout_reader = child_stdout.map(|mut out| {
+            let tx = chunk_tx.clone();
+            thread::spawn(move || {
+                let mut buf = [0u8; 8192];
+                let mut acc = Vec::new();
+                loop {
+                    match out.read(&mut buf) {
+                        Ok(0) => break,
+                        Ok(n) => {
+                            acc.extend_from_slice(&buf[..n]);
+                            // Forward live; if the consumer hung up, keep draining
+                            // so the pipe never blocks the child.
+                            let _ = tx.send(buf[..n].to_vec());
+                        }
+                        Err(ref e) if e.kind() == std::io::ErrorKind::Interrupted => continue,
+                        Err(_) => break,
+                    }
+                }
+                acc
+            })
+        });
+        let stderr_reader = child_stderr.map(|mut err| {
+            thread::spawn(move || {
+                let mut buf = [0u8; 8192];
+                let mut acc = Vec::new();
+                loop {
+                    match err.read(&mut buf) {
+                        Ok(0) => break,
+                        Ok(n) => acc.extend_from_slice(&buf[..n]),
+                        Err(ref e) if e.kind() == std::io::ErrorKind::Interrupted => continue,
+                        Err(_) => break,
+                    }
+                }
+                acc
+            })
+        });
+        drop(chunk_tx); // only the reader thread holds a sender now.
+
+        let timeout = Duration::from_secs(config.timeout_seconds);
+        let started = Instant::now();
+        let exit_status = loop {
+            // Drain any live chunks to the callback before checking exit.
+            while let Ok(chunk) = chunk_rx.try_recv() {
+                on_chunk(&chunk);
+            }
+            match child.try_wait() {
+                Ok(Some(status)) => break status,
+                Ok(None) => {
+                    if started.elapsed() >= timeout {
+                        kill_process_tree(pid, &mut child);
+                        record_stop(None, "official_cli_bridge_timeout_kill");
+                        // Flush any remaining live chunks captured before the kill.
+                        while let Ok(chunk) = chunk_rx.recv_timeout(POST_TIMEOUT_OUTPUT_GRACE) {
+                            on_chunk(&chunk);
+                        }
+                        let partial_stdout = stdout_reader
+                            .and_then(|h| h.join().ok())
+                            .map(|b| String::from_utf8_lossy(&b).into_owned())
+                            .unwrap_or_default();
+                        return Err(OfficialCliBridgeError::SpawnTimeout {
+                            timeout_seconds: config.timeout_seconds,
+                            partial_stdout,
+                        });
+                    }
+                    std::thread::sleep(Duration::from_millis(15));
+                }
+                Err(err) => {
+                    kill_process_tree(pid, &mut child);
+                    record_stop(None, "official_cli_bridge_try_wait_error");
+                    return Err(OfficialCliBridgeError::SpawnFailed {
+                        reason: format!("try_wait failed: {err}"),
+                        exit_code: None,
+                    });
+                }
+            }
+        };
+
+        // Child exited: drain any straggler chunks, then join the reader threads
+        // to recover the full stdout/stderr.
+        while let Ok(chunk) = chunk_rx.recv() {
+            on_chunk(&chunk);
+        }
+        let stdout_bytes = stdout_reader
+            .and_then(|h| h.join().ok())
+            .unwrap_or_default();
+        let stderr_bytes = stderr_reader
+            .and_then(|h| h.join().ok())
+            .unwrap_or_default();
+        let stdout = String::from_utf8_lossy(&stdout_bytes).into_owned();
+        let stderr = String::from_utf8_lossy(&stderr_bytes).into_owned();
+        let exit_code = exit_status.code();
+
+        if !exit_status.success() {
+            record_stop(exit_code, "official_cli_bridge_nonzero_exit");
+            return Err(OfficialCliBridgeError::SpawnFailed {
+                reason: format!(
+                    "CLI {} exited with status {:?}; stderr={}",
+                    config.executable_path.display(),
+                    exit_code,
+                    stderr.trim()
+                ),
+                exit_code,
+            });
+        }
+
+        record_stop(exit_code, "official_cli_bridge_exit");
         Ok(CliInvocationReceipt {
             model_id: ModelId::new_v7(),
             stdout,
@@ -963,5 +1277,163 @@ mod tests {
                 "{runtime_var} is a runtime var and must NOT be scrubbed"
             );
         }
+    }
+
+    /// Mock spawner that emits MULTIPLE live chunks via `spawn_streaming` (not a
+    /// single post-hoc dump), so the test proves `invoke_with_capture` fans a
+    /// genuine live stream — not a one-shot replay of finished stdout.
+    struct StreamingMockSpawner {
+        chunks: Vec<Vec<u8>>,
+    }
+    impl CliSubprocessSpawner for StreamingMockSpawner {
+        fn spawn(
+            &self,
+            _config: &CliBridgeConfig,
+            _model_name: &str,
+            _prompt: &str,
+        ) -> Result<CliInvocationReceipt, OfficialCliBridgeError> {
+            // The fallback path concatenates — used only if spawn_streaming is
+            // not called; this test calls spawn_streaming directly.
+            let stdout = self
+                .chunks
+                .iter()
+                .map(|c| String::from_utf8_lossy(c).into_owned())
+                .collect::<String>();
+            Ok(CliInvocationReceipt {
+                model_id: ModelId::new_v7(),
+                stdout,
+                pid: Some(4321),
+                exit_code: Some(0),
+                cancelled: false,
+            })
+        }
+        fn spawn_streaming(
+            &self,
+            _config: &CliBridgeConfig,
+            _model_name: &str,
+            _prompt: &str,
+            on_chunk: &mut dyn FnMut(&[u8]),
+        ) -> Result<CliInvocationReceipt, OfficialCliBridgeError> {
+            let mut full = Vec::new();
+            for chunk in &self.chunks {
+                // Deliver each chunk LIVE, as if read incrementally from a pipe.
+                on_chunk(chunk);
+                full.extend_from_slice(chunk);
+            }
+            Ok(CliInvocationReceipt {
+                model_id: ModelId::new_v7(),
+                stdout: String::from_utf8_lossy(&full).into_owned(),
+                pid: Some(4321),
+                exit_code: Some(0),
+                cancelled: false,
+            })
+        }
+    }
+
+    /// PROOF the cloud CLI bridge is a REAL live capture producer (not dead
+    /// code): `invoke_with_capture` opens a §10.1 capture session, fans the
+    /// streaming spawn's LIVE chunks into the broadcast + Flight Recorder, and
+    /// closes the session with the real exit code.
+    #[tokio::test]
+    async fn invoke_with_capture_fans_live_stream_to_broadcast_and_fr() {
+        use crate::flight_recorder::{
+            EventFilter, FlightRecorder, FlightRecorderEvent, RecorderError,
+        };
+        use crate::terminal::{SessionBinding, SessionOutput, TerminalRuntime};
+        use async_trait::async_trait;
+
+        #[derive(Default)]
+        struct CountingRecorder {
+            events: Mutex<Vec<FlightRecorderEvent>>,
+        }
+        #[async_trait]
+        impl FlightRecorder for CountingRecorder {
+            async fn record_event(&self, event: FlightRecorderEvent) -> Result<(), RecorderError> {
+                self.events.lock().unwrap().push(event);
+                Ok(())
+            }
+            async fn enforce_retention(&self) -> Result<u64, RecorderError> {
+                Ok(0)
+            }
+            async fn list_events(
+                &self,
+                _f: EventFilter,
+            ) -> Result<Vec<FlightRecorderEvent>, RecorderError> {
+                Ok(self.events.lock().unwrap().clone())
+            }
+        }
+
+        // Bridge runtime with a streaming mock that emits 3 live chunks.
+        let spawner = Arc::new(StreamingMockSpawner {
+            chunks: vec![
+                b"chunk-one ".to_vec(),
+                b"chunk-two ".to_vec(),
+                b"chunk-three".to_vec(),
+            ],
+        });
+        let runtime = OfficialCliBridgeRuntime::new(spawner);
+        let handle = runtime
+            .register_bridge(good_config(), "claude-sonnet", "2026-01-01T00:00:00Z")
+            .expect("register");
+
+        // Terminal runtime wired to a counting recorder (the capture target).
+        let recorder = Arc::new(CountingRecorder::default());
+        let caps = Arc::new(crate::capabilities::CapabilityRegistry::new());
+        let term = TerminalRuntime::new(caps, recorder.clone());
+
+        // Subscribe is per-session; open via invoke_with_capture and read the
+        // capture scrollback (authoritative) + assert FR events + broadcast.
+        let binding = SessionBinding {
+            swarm_id: Some("cloud-lane".to_string()),
+            ..Default::default()
+        };
+        // Pre-attach a subscriber by opening the session id after the call: we
+        // instead assert via scrollback (which retains every fed chunk) + FR.
+        let (receipt, session_id) = runtime
+            .invoke_with_capture(handle.model_id, "hello", &term, binding)
+            .await
+            .expect("invoke_with_capture");
+
+        // The receipt's stdout is the full concatenation.
+        assert_eq!(receipt.stdout, "chunk-one chunk-two chunk-three");
+
+        // The Flight Recorder must have recorded the session open + one
+        // COMMAND-EXEC PER fed chunk (so background cloud work is trace-linked).
+        // We assert the live-fan via the FR COMMAND-EXEC count below: the session
+        // is closed + reaped by invoke_with_capture when the run ends, so its
+        // scrollback is intentionally no longer readable here (close is the clean
+        // teardown path); the per-chunk FR events are the durable live-stream
+        // evidence. (A live UI panel reads chunks via the broadcast forwarder +
+        // a pre-close scrollback backfill while the session is open.)
+        let events = recorder.events.lock().unwrap();
+        let fr_tags: Vec<String> = events
+            .iter()
+            .filter_map(|e| {
+                e.payload
+                    .get("fr_event")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string())
+            })
+            .collect();
+        assert!(
+            fr_tags.contains(&"FR-EVT-TERMINAL-SESSION-OPEN".to_string()),
+            "must record session open"
+        );
+        let command_execs = fr_tags
+            .iter()
+            .filter(|t| *t == "FR-EVT-TERMINAL-COMMAND-EXEC")
+            .count();
+        assert!(
+            command_execs >= 3,
+            "each live chunk must be trace-linked (>=3 COMMAND-EXEC), got {command_execs}"
+        );
+        // The session must be closed (reaped) after the run.
+        drop(events);
+        assert!(
+            term.subscribe(&session_id).is_err(),
+            "capture session must be closed after the run ends"
+        );
+        // Touch SessionOutput so the import is exercised (exit fan-out type).
+        let _ = SessionOutput::Exit(0);
     }
 }

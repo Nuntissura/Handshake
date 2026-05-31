@@ -185,6 +185,12 @@ jsonschema = "0.17"
 which = "8"
 icalendar = "0.17.10"
 tokio-cron-scheduler = "0.15.1"
+# Cross-platform PTY abstraction (wezterm). Backs the interactive Integrated
+# Terminal PtySession: spawns a shell under a real pseudo-terminal (ConPTY on
+# Windows, openpty on Unix) so xterm.js gets genuine TTY behavior. The crate
+# manages the ConPTY console window itself; CREATE_NO_WINDOW is not regressed at
+# any of the existing CLI/MCP/PEFT/screenshot spawn sites.
+portable-pty = "0.9.0"
 
 [dev-dependencies]
 tempfile = "3"

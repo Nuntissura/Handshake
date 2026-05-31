@@ -40,6 +40,7 @@ mod commands {
     pub mod swarm_runtime;
     pub mod swarm_schedule;
     pub mod swarm_schedule_store;
+    pub mod terminal;
     #[cfg(test)]
     pub mod testing;
 }
@@ -164,6 +165,14 @@ macro_rules! handshake_invoke_handlers {
             visual_debug::kernel_visual_debug_dom_snapshot,
             visual_debug::kernel_visual_debug_console_stream_start,
             visual_debug::kernel_visual_debug_console_stream_stop,
+            commands::terminal::kernel_terminal_create_session,
+            commands::terminal::kernel_terminal_write_stdin,
+            commands::terminal::kernel_terminal_resize,
+            commands::terminal::kernel_terminal_close_session,
+            commands::terminal::kernel_terminal_list_sessions,
+            commands::terminal::kernel_terminal_run_command,
+            commands::terminal::kernel_terminal_scrollback,
+            commands::terminal::kernel_terminal_authorize_interactive,
         ]
     };
     ($($extra:path),+ $(,)?) => {
@@ -279,6 +288,14 @@ macro_rules! handshake_invoke_handlers {
             visual_debug::kernel_visual_debug_dom_snapshot,
             visual_debug::kernel_visual_debug_console_stream_start,
             visual_debug::kernel_visual_debug_console_stream_stop,
+            commands::terminal::kernel_terminal_create_session,
+            commands::terminal::kernel_terminal_write_stdin,
+            commands::terminal::kernel_terminal_resize,
+            commands::terminal::kernel_terminal_close_session,
+            commands::terminal::kernel_terminal_list_sessions,
+            commands::terminal::kernel_terminal_run_command,
+            commands::terminal::kernel_terminal_scrollback,
+            commands::terminal::kernel_terminal_authorize_interactive,
             $($extra),+
         ]
     };
@@ -985,12 +1002,35 @@ pub fn run() {
             // same DuckDB Flight Recorder. Clone the handle before the match below
             // consumes `swarm_recorder` into the swarm runtime constructor.
             let schedule_recorder = swarm_recorder.clone();
-            let swarm_state = match swarm_recorder {
+            // INTEGRATED TERMINAL (spec §10.1): build the production
+            // `TerminalRuntime` bound to the SAME durable DuckDB Flight Recorder
+            // the swarm path uses, so `FR-EVT-TERMINAL-SESSION-OPEN / -COMMAND-EXEC
+            // / -SESSION-CLOSE` land in the same recorder as the swarm lifecycle
+            // events. The capability registry is the canonical one (validates the
+            // `terminal.interact` gate). The runtime is wired only when the durable
+            // recorder exists; if the swarm FR init fell back to the stderr sink
+            // (None) the terminal capture seam stays UNWIRED rather than faked
+            // (honest-disabled), matching the swarm's best-effort fallback.
+            let terminal_recorder = swarm_recorder.clone();
+            let terminal_runtime: Option<handshake_core::terminal::TerminalRuntime> =
+                terminal_recorder.map(|recorder| {
+                    let capabilities =
+                        Arc::new(handshake_core::capabilities::CapabilityRegistry::new());
+                    handshake_core::terminal::TerminalRuntime::new(capabilities, recorder)
+                });
+            let mut swarm_state = match swarm_recorder {
                 Some(recorder) => {
                     commands::swarm_runtime::SwarmRuntimeState::production_with_fr_recorder(recorder)
                 }
                 None => commands::swarm_runtime::SwarmRuntimeState::production(),
             };
+            // Wire the §10.1 capture seam: each swarm spawn opens a read-only
+            // AiJob capture session bound to its swarm_id swimlane through the
+            // SAME terminal runtime the panel reads. Only when both the terminal
+            // runtime and the swarm recorder were built (i.e. the durable FR is up).
+            if let Some(runtime) = terminal_runtime.clone() {
+                swarm_state = swarm_state.with_terminal_capture(runtime);
+            }
             // rank-4: start the single board forwarder (broadcast -> typed
             // swarm://event deltas) before managing the state moves it.
             let board_events = swarm_state.board_events();
@@ -1022,6 +1062,42 @@ pub fn run() {
                 app.handle().clone(),
                 board_events,
             );
+
+            // INTEGRATED TERMINAL (spec §10.1): manage the TerminalRuntimeState so
+            // the `kernel_terminal_*` commands resolve it, then start the output
+            // forwarder. The runtime has a PER-SESSION output broadcast (interactive
+            // PTYs + read-only capture sessions are created dynamically by IPC and
+            // by background producers like the swarm spawn path), so unlike the
+            // swarm board's single broadcast there is no one channel to forward.
+            // The reaper-style watcher below reconciles `list_sessions()` and spawns
+            // exactly one `spawn_terminal_forwarder` per newly-observed session id,
+            // mirroring `spawn_swarm_board_forwarder` per session: each forwarder
+            // re-emits `terminal://output` / `terminal://exit` and `terminal://resync`
+            // on broadcast lag. When the durable FR is down the terminal runtime is
+            // unwired (honest-disabled) and the commands return a real
+            // "terminal runtime not available" error rather than faking output.
+            if let Some(runtime) = terminal_runtime {
+                app.manage(commands::terminal::TerminalRuntimeState::from_runtime(
+                    runtime.clone(),
+                ));
+                let forwarder_app = app.handle().clone();
+                tauri::async_runtime::spawn(async move {
+                    use std::collections::HashSet;
+                    let mut forwarded: HashSet<String> = HashSet::new();
+                    loop {
+                        for info in runtime.list_sessions() {
+                            if forwarded.insert(info.session_id.clone()) {
+                                commands::terminal::spawn_terminal_forwarder(
+                                    forwarder_app.clone(),
+                                    runtime.clone(),
+                                    info.session_id,
+                                );
+                            }
+                        }
+                        tokio::time::sleep(std::time::Duration::from_millis(250)).await;
+                    }
+                });
+            }
 
             let state = OrchestratorState::default();
             state.spawn(orchestrator_workdir())?;

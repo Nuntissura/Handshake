@@ -1,4 +1,7 @@
+import { useCallback, useState } from "react";
+
 import { Disclosure } from "../common/Disclosure";
+import { TerminalPanel } from "../terminal/TerminalPanel";
 import { OperatorChat } from "./OperatorChat";
 import { SwarmBoard } from "./SwarmBoard";
 import {
@@ -35,6 +38,20 @@ export function SwarmOperatorSurface({
 }: SwarmOperatorSurfaceProps) {
   const room = useSwarmRoom();
 
+  // Off-main-window terminal drawer wiring. The board's per-lane "Inspect
+  // terminal" affordance knows a swarm_id; clicking it bumps `terminalOpenSignal`
+  // (which force-opens the collapsed-by-default Terminal disclosure via the
+  // Disclosure openSignal one-shot) and records the swarm_id to focus. The panel
+  // resolves that swarm_id to its first captured session and selects its tab.
+  // This is what makes the captured-background-work surface REACHABLE in the
+  // product instead of shipping dark.
+  const [terminalFocusSwarmId, setTerminalFocusSwarmId] = useState<string | null>(null);
+  const [terminalOpenSignal, setTerminalOpenSignal] = useState(0);
+  const handleInspectTerminal = useCallback((swarmId: string) => {
+    setTerminalFocusSwarmId(swarmId);
+    setTerminalOpenSignal((n) => n + 1);
+  }, []);
+
   // Resource budget badge: in-use/cap, or an exhausted chip.
   let resourceBadge: string | undefined;
   if (room.snapshot.status === "ready") {
@@ -68,8 +85,19 @@ export function SwarmOperatorSurface({
         lazy
         data-testid="swarm-board-disclosure"
       >
-        <SwarmBoard />
+        <SwarmBoard onInspectTerminal={handleInspectTerminal} />
       </Disclosure>
+
+      {/* Off-main-window integrated terminal drawer (WP-KERNEL-004). Collapsed
+          by default + lazy via its own Disclosure host, so a closed panel costs
+          nothing. Mounted here (NOT in the main window) so it is reachable on
+          demand and the board's "Inspect terminal" affordance can reveal +
+          focus a swarm's captured session. This is the "inspect all background
+          work" capture surface. */}
+      <TerminalPanel
+        focusSwarmId={terminalFocusSwarmId}
+        openSignal={terminalOpenSignal}
+      />
 
       <Disclosure
         id="resource-budget"

@@ -5,6 +5,9 @@ import {
   ABOUT_INFO,
   SWARM_RECONCILE_INTERVAL_SETTING,
   SWARM_RESOURCE_POLL_INTERVAL_SETTING,
+  TERMINAL_DEFAULT_SHELL_SETTING,
+  TERMINAL_MAX_SCROLLBACK_SETTING,
+  TERMINAL_OUTPUT_LOGGING_SETTING,
   THEME_SETTING,
   loadSwarmBoardDefaultOpen,
   saveSwarmBoardDefaultOpen,
@@ -161,6 +164,15 @@ export function SettingsMenu({
               <span>{boardDefaultOpen ? "Open" : "Collapsed"}</span>
             </label>
           </div>
+        </section>
+
+        {/* Terminal --------------------------------------------------------- */}
+        <section className="settings-section" data-stable-id="settings-section-terminal">
+          <h4 className="settings-section__title">Terminal</h4>
+
+          <NotYetWiredRow setting={TERMINAL_DEFAULT_SHELL_SETTING} />
+          <NotYetWiredRow setting={TERMINAL_MAX_SCROLLBACK_SETTING} />
+          <NotYetWiredRow setting={TERMINAL_OUTPUT_LOGGING_SETTING} />
         </section>
 
         {/* Layout ----------------------------------------------------------- */}

@@ -1,4 +1,4 @@
-import { useId, useState, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 
 // Disclosure: a small, accessible, reusable collapsible section primitive.
 //
@@ -27,6 +27,16 @@ export interface DisclosureProps {
   lazy?: boolean;
   /** Collapsible body. */
   children: ReactNode;
+  /**
+   * An external "open me now" signal. Each time this value CHANGES to a new
+   * non-undefined value, the disclosure force-opens (and marks itself
+   * ever-opened so lazy children mount). The disclosure stays internally
+   * uncontrolled afterwards — the operator can still collapse it — so this is a
+   * one-shot programmatic open, not a controlled-open prop. Used by the board's
+   * "Inspect terminal" affordance to reveal the off-main-window terminal drawer
+   * on demand. Undefined = no external open driver (default).
+   */
+  openSignal?: number;
   "data-testid"?: string;
 }
 
@@ -37,6 +47,7 @@ export function Disclosure({
   defaultOpen = false,
   lazy = false,
   children,
+  openSignal,
   "data-testid": dataTestId,
 }: DisclosureProps) {
   const [open, setOpen] = useState<boolean>(defaultOpen);
@@ -44,6 +55,27 @@ export function Disclosure({
   // after the operator collapses the section again. Tracked as state (not a ref)
   // so it is render-safe.
   const [everOpened, setEverOpened] = useState<boolean>(defaultOpen);
+
+  // One-shot programmatic open: whenever the parent bumps `openSignal` to a new
+  // value, force this disclosure open. We seed the ref with the initial mount
+  // value so a statically-provided signal does not override `defaultOpen`; only
+  // a *change* (the board's "Inspect terminal" click) triggers an open. The
+  // disclosure remains operator-collapsible afterwards (uncontrolled), so this
+  // only ever *reveals* the section; it never pins it open. Tracking the applied
+  // signal in a ref (not state) avoids an extra render.
+  const appliedSignal = useRef<number | undefined>(openSignal);
+  useEffect(() => {
+    if (openSignal === undefined || openSignal === appliedSignal.current) return;
+    appliedSignal.current = openSignal;
+    // Genuine external-driver -> React-state sync (an operator click in a SIBLING
+    // component reveals this drawer). This is exactly the effect use the lint
+    // rule's own guidance permits ("update React state when an external event
+    // occurs"); it is not a derivable-during-render value, so disable the
+    // cascading-render heuristic here with that rationale.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setOpen(true);
+    setEverOpened(true);
+  }, [openSignal]);
   const reactId = useId();
   const panelId = `disclosure-panel-${id}-${reactId}`;
   const buttonId = `disclosure-button-${id}-${reactId}`;

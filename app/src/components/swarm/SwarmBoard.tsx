@@ -10,6 +10,11 @@ import {
   type SwarmBoardCard,
   type SwarmBoardDelta,
 } from "../../lib/ipc/swarm_runtime";
+import {
+  defaultTerminalIpc,
+  type TerminalIpc,
+  type TerminalSession,
+} from "../../lib/ipc/terminal";
 
 // rank-4: the live operator board (Jira-style). The board is a READ-MODEL
 // PROJECTION of the coordinator's SwarmEvents -- columns = ModelSessionState,
@@ -184,9 +189,59 @@ function SwarmCard({ card, onCancel }: { card: SwarmBoardCard; onCancel: () => v
   );
 }
 
+/**
+ * Set of swarm_ids that currently have at least one captured terminal session.
+ * The board's per-lane "Inspect terminal" affordance is enabled ONLY for swarms
+ * present in this set; otherwise it is honestly disabled (never a faked button
+ * that opens an empty tab). Refetched on mount and on a slow safety-net interval,
+ * mirroring the board's own reconcile cadence.
+ */
+function useSwarmsWithTerminals(ipc: TerminalIpc): Set<string> {
+  const [swarms, setSwarms] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    let alive = true;
+    const load = async () => {
+      try {
+        const sessions: TerminalSession[] = await ipc.listSessions();
+        if (!alive) return;
+        const next = new Set<string>();
+        for (const s of sessions) if (s.swarmId) next.add(s.swarmId);
+        setSwarms(next);
+      } catch {
+        // No terminal backend yet -> no swarms have terminals -> all disabled.
+        if (alive) setSwarms(new Set());
+      }
+    };
+    void load();
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === "visible") void load();
+    }, 10_000);
+    return () => {
+      alive = false;
+      window.clearInterval(timer);
+    };
+  }, [ipc]);
+
+  return swarms;
+}
+
+export interface SwarmBoardProps {
+  /**
+   * Called when the operator clicks a lane's "Inspect terminal" affordance.
+   * App.tsx owns the off-main-window TerminalPanel, so it provides this to open
+   * + focus the swarm's captured session. When omitted, the affordance renders
+   * disabled with an honest "not wired" title rather than a dead no-op.
+   */
+  onInspectTerminal?: (swarmId: string) => void;
+  /** Injectable terminal IPC (tests pass a stub). */
+  terminalIpc?: TerminalIpc;
+}
+
 /** The live swarm operator board. */
-export function SwarmBoard() {
+export function SwarmBoard({ onInspectTerminal, terminalIpc = defaultTerminalIpc }: SwarmBoardProps = {}) {
   const { board, lagged, reconcile } = useSwarmBoard();
+  const swarmsWithTerminals = useSwarmsWithTerminals(terminalIpc);
   const cards = Object.values(board.cards);
   const lanes = groupIntoLanes(cards);
   const booting = cards.filter((c) => BOOTING.has(c.state)).length;
@@ -213,10 +268,35 @@ export function SwarmBoard() {
         <div style={{ color: "var(--hs-color-text-subtle)", fontSize: 13, padding: 12 }}>No active sessions.</div>
       )}
 
-      {lanes.map((lane) => (
+      {lanes.map((lane) => {
+        const swarmId = lane.key.startsWith("swarm:") ? lane.key.slice("swarm:".length) : null;
+        const hasTerminal = swarmId !== null && swarmsWithTerminals.has(swarmId);
+        const inspectEnabled = hasTerminal && !!onInspectTerminal;
+        return (
         <section key={lane.key} style={{ marginBottom: 16 }}>
-          <h4 style={{ margin: "4px 0", fontSize: 13 }}>
-            {lane.label} <span style={{ color: "var(--hs-color-text-subtle)", fontWeight: 400 }}>({lane.total})</span>
+          <h4 style={{ margin: "4px 0", fontSize: 13, display: "flex", alignItems: "center", gap: 8 }}>
+            <span>
+              {lane.label} <span style={{ color: "var(--hs-color-text-subtle)", fontWeight: 400 }}>({lane.total})</span>
+            </span>
+            {swarmId !== null && (
+              <button
+                type="button"
+                data-testid={`swarm-inspect-terminal-${swarmId}`}
+                data-stable-id={`swarm-board.lane.${lane.key}.inspect-terminal`}
+                disabled={!inspectEnabled}
+                onClick={inspectEnabled ? () => onInspectTerminal?.(swarmId) : undefined}
+                title={
+                  !hasTerminal
+                    ? "No captured terminal session for this swarm yet"
+                    : !onInspectTerminal
+                      ? "Terminal panel not wired"
+                      : "Inspect this swarm's captured terminal"
+                }
+                style={{ fontSize: 11, fontWeight: 400 }}
+              >
+                Inspect terminal
+              </button>
+            )}
           </h4>
           <div
             className="board-columns"
@@ -247,7 +327,8 @@ export function SwarmBoard() {
             ))}
           </div>
         </section>
-      ))}
+        );
+      })}
     </div>
   );
 }

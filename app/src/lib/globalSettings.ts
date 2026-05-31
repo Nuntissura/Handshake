@@ -78,6 +78,37 @@ export const THEME_SETTING: NotYetWiredSetting = {
   note: "Not yet wired — light is the only theme",
 };
 
+// --- Terminal (WP-KERNEL-004) -------------------------------------------------
+// These three settings describe the integrated terminal panel but are not yet
+// wired to a persisted setter / backend config, so they render as honest
+// "not yet wired" rows. When the backend TerminalRuntime exposes config
+// (default shell, scrollback cap, output-logging policy), promote each to a real
+// load/save pair like the swarm-board-default-open setting above.
+
+/** Default shell launched for new HumanDev sessions — backend-config-owned. */
+export const TERMINAL_DEFAULT_SHELL_SETTING: NotYetWiredSetting = {
+  id: "terminal-default-shell",
+  label: "Terminal default shell",
+  fixedValueLabel: "System default (backend-chosen)",
+  note: "Not yet wired — backend picks the shell",
+};
+
+/** Max xterm scrollback lines (flood bound). Fixed in TerminalView for now. */
+export const TERMINAL_MAX_SCROLLBACK_SETTING: NotYetWiredSetting = {
+  id: "terminal-max-scrollback",
+  label: "Terminal max scrollback",
+  fixedValueLabel: "5000 lines",
+  note: "Not yet wired — fixed at 5000 lines",
+};
+
+/** Output-logging policy (Flight Recorder capture of terminal output). */
+export const TERMINAL_OUTPUT_LOGGING_SETTING: NotYetWiredSetting = {
+  id: "terminal-output-logging",
+  label: "Terminal output logging policy",
+  fixedValueLabel: "Capture to Flight Recorder (redacted)",
+  note: "Not yet wired — backend redacts + records captured output",
+};
+
 /**
  * About / build info. No build/version string is surfaced anywhere in the app
  * recon, so we honestly report "n/a" rather than inventing one.
