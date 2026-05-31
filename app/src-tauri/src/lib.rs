@@ -19,6 +19,8 @@ mod visual_debug;
 
 mod commands {
     pub mod caa;
+    pub mod cli_bridge_config;
+    pub mod cli_bridge_store;
     pub mod cloud_lane;
     pub mod distillation;
     pub mod focus_audit;
@@ -153,6 +155,11 @@ macro_rules! handshake_invoke_handlers {
             commands::cloud_lane::list_stored_keys,
             commands::cloud_lane::grant_consent,
             commands::cloud_lane::deny_consent,
+            commands::cli_bridge_config::kernel_cli_bridge_get_config,
+            commands::cli_bridge_config::kernel_cli_bridge_set_config,
+            commands::cli_bridge_config::kernel_cli_bridge_clear_config,
+            commands::cli_bridge_config::kernel_cli_bridge_list_presets,
+            commands::cli_bridge_config::kernel_cli_bridge_test_config,
             manual::model_manual_get,
             manual::model_manual_list_commands,
             manual::model_manual_search,
@@ -276,6 +283,11 @@ macro_rules! handshake_invoke_handlers {
             commands::cloud_lane::list_stored_keys,
             commands::cloud_lane::grant_consent,
             commands::cloud_lane::deny_consent,
+            commands::cli_bridge_config::kernel_cli_bridge_get_config,
+            commands::cli_bridge_config::kernel_cli_bridge_set_config,
+            commands::cli_bridge_config::kernel_cli_bridge_clear_config,
+            commands::cli_bridge_config::kernel_cli_bridge_list_presets,
+            commands::cli_bridge_config::kernel_cli_bridge_test_config,
             manual::model_manual_get,
             manual::model_manual_list_commands,
             manual::model_manual_search,
@@ -990,6 +1002,14 @@ pub fn run() {
             // moved into the SessionChatLogState below so the scheduler bootstrap
             // (further down) still has a disk-agnostic store root to bind to.
             let schedule_store_root = app_data_root.clone();
+            // CLI-bridge operator config state: the settings-menu config surface
+            // (kernel_cli_bridge_* commands) reads/writes a disk-backed config under
+            // the SAME app_data_root. When configured, the production swarm runtime
+            // (load_official_cli_lane, above) flips `official_cli` from None to a live
+            // CliBridgeCloudRuntimeBuilder at next launch. No API key is stored.
+            app.manage(commands::cli_bridge_config::CliBridgeConfigState::new(
+                &schedule_store_root,
+            ));
             app.manage(session_chat_log::SessionChatLogState::new(app_data_root));
             app.manage(distillation_jobs_state);
 
@@ -1020,9 +1040,14 @@ pub fn run() {
                 });
             let mut swarm_state = match swarm_recorder {
                 Some(recorder) => {
-                    commands::swarm_runtime::SwarmRuntimeState::production_with_fr_recorder(recorder)
+                    commands::swarm_runtime::SwarmRuntimeState::production_with_fr_recorder(
+                        recorder,
+                        &schedule_store_root,
+                    )
                 }
-                None => commands::swarm_runtime::SwarmRuntimeState::production(),
+                None => commands::swarm_runtime::SwarmRuntimeState::production(
+                    &schedule_store_root,
+                ),
             };
             // Wire the §10.1 capture seam: each swarm spawn opens a read-only
             // AiJob capture session bound to its swarm_id swimlane through the

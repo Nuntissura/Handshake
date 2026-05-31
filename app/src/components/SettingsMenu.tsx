@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { ViewModeToggle } from "./ViewModeToggle";
+import { CliBridgeConfigPanel } from "./CliBridgeConfigPanel";
 import type { ViewMode } from "../lib/viewMode";
+import type { CliBridgeConfigIpc } from "../lib/ipc/cli_bridge_config";
 import {
   ABOUT_INFO,
   SWARM_RECONCILE_INTERVAL_SETTING,
@@ -32,6 +34,13 @@ type SettingsMenuProps = {
    * "not yet wired" note rather than a dead no-op button.
    */
   onResetLayout?: () => void;
+  /**
+   * Optional: injected IPC client for the embedded CLI-bridge config panel.
+   * Production omits it (the panel uses the real Tauri-backed default). Tests
+   * pass a controlled mock so the panel can mount without `@tauri-apps/api`'s
+   * `invoke` rejecting under jsdom (which otherwise floods act() warnings).
+   */
+  cliBridgeIpc?: CliBridgeConfigIpc;
 };
 
 function NotYetWiredRow({ setting }: { setting: NotYetWiredSetting }) {
@@ -61,6 +70,7 @@ export function SettingsMenu({
   onViewModeChange,
   onSwarmBoardDefaultOpenChange,
   onResetLayout,
+  cliBridgeIpc,
 }: SettingsMenuProps) {
   // Seeded once from localStorage at mount. This menu is the only writer of the
   // board-default key, so the local state stays authoritative without a re-sync
@@ -164,6 +174,16 @@ export function SettingsMenu({
               <span>{boardDefaultOpen ? "Open" : "Collapsed"}</span>
             </label>
           </div>
+        </section>
+
+        {/* CLI Bridge ------------------------------------------------------- */}
+        <section
+          className="settings-section"
+          data-stable-id="settings-section-cli-bridge"
+          data-testid="settings-section-cli-bridge"
+        >
+          <h4 className="settings-section__title">CLI Bridge (Official-CLI swarm lane)</h4>
+          <CliBridgeConfigPanel ipc={cliBridgeIpc} />
         </section>
 
         {/* Terminal --------------------------------------------------------- */}

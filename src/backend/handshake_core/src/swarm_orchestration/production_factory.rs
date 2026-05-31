@@ -186,6 +186,28 @@ impl CloudLaneFactoryConfig {
         )) as Arc<dyn CloudRuntimeBuilder>);
         self
     }
+
+    /// `from_vault` + the official-CLI lane in one shot. `cli` is `Some((spawner,
+    /// config))` when the operator has configured the CLI bridge (the lane goes
+    /// live), and `None` when they have not (the lane stays `None` → an honest
+    /// `ProviderNotConfigured` on an OfficialCli spawn). Reuses
+    /// [`Self::from_vault`] + [`Self::with_official_cli`] verbatim — no new
+    /// builder logic. `spawner` is the `LiveCliSpawner` in production.
+    pub fn from_vault_with_cli(
+        vault: Arc<dyn crate::model_runtime::cloud::SecretsVault>,
+        anthropic_lane: Option<String>,
+        openai_lane: Option<String>,
+        cli: Option<(
+            Arc<dyn crate::model_runtime::cloud::CliSubprocessSpawner>,
+            crate::model_runtime::cloud::CliBridgeConfig,
+        )>,
+    ) -> Self {
+        let base = Self::from_vault(vault, anthropic_lane, openai_lane);
+        match cli {
+            Some((spawner, cfg)) => base.with_official_cli(spawner, cfg),
+            None => base,
+        }
+    }
 }
 
 /// A real cloud-runtime builder for the official-CLI bridge lane. Mirrors
@@ -1752,6 +1774,50 @@ mod tests {
             .expect("present CLI builds a runtime");
         assert_eq!(built.runtime.adapter_name(), "official_cli_bridge");
         assert_eq!(built.model_id.as_uuid().get_version_num(), 7);
+    }
+
+    /// `from_vault_with_cli` populates `official_cli` to `Some(..)` when a
+    /// `(spawner, config)` is supplied (operator configured the bridge), and
+    /// leaves it `None` when not (honest unconfigured default). This is the seam
+    /// the production swarm constructor uses to flip the lane on/off from the
+    /// stored CLI-bridge config.
+    #[test]
+    fn from_vault_with_cli_populates_official_cli_when_configured() {
+        use crate::model_runtime::cloud::{InMemorySecretsVault, SecretsVault};
+        let vault: Arc<dyn SecretsVault> = Arc::new(InMemorySecretsVault::default());
+
+        // None -> official_cli stays None.
+        let unconfigured = CloudLaneFactoryConfig::from_vault_with_cli(
+            vault.clone(),
+            Some("anthropic".to_string()),
+            Some("openai".to_string()),
+            None,
+        );
+        assert!(
+            unconfigured.official_cli.is_none(),
+            "no CLI config => official_cli lane stays None"
+        );
+
+        // Some((spawner, config)) -> official_cli becomes Some.
+        let spawner: Arc<dyn CliSubprocessSpawner> = Arc::new(MockCliSpawner);
+        let configured = CloudLaneFactoryConfig::from_vault_with_cli(
+            vault,
+            Some("anthropic".to_string()),
+            Some("openai".to_string()),
+            Some((spawner, cli_config_present())),
+        );
+        assert!(
+            configured.official_cli.is_some(),
+            "supplied CLI config => official_cli lane goes live"
+        );
+        assert_eq!(
+            configured
+                .official_cli
+                .as_ref()
+                .expect("official_cli")
+                .provider(),
+            ProviderKind::OfficialCli
+        );
     }
 
     /// Test 5: factory `create()` dispatches a ProviderKind::OfficialCli spawn

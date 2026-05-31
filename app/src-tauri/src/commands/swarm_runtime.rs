@@ -58,6 +58,7 @@
 //! or a shared vault handle).
 
 use std::collections::HashMap;
+use std::path::Path;
 use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
@@ -71,7 +72,9 @@ use handshake_core::process_ledger::{
     LedgerBatcher, LedgerBatcherConfig, LedgerEvent, LedgerOverflowEvent, ProcessLedgerError,
     ProcessLedgerOverflowSink, ProcessLedgerStore,
 };
-use handshake_core::model_runtime::cloud::SecretsVault;
+use handshake_core::model_runtime::cloud::{
+    CliBridgeConfig, CliSubprocessSpawner, LiveCliSpawner, SecretsVault,
+};
 use handshake_core::flight_recorder::FlightRecorder;
 use handshake_core::swarm_orchestration::{
     BroadcastSwarmSink, CloudLaneFactoryConfig, DurableSwarmFrBridge, FanoutSwarmSink,
@@ -245,6 +248,30 @@ impl std::fmt::Debug for SwarmRuntimeState {
     }
 }
 
+/// Load the operator's stored CLI-bridge config from `<app_data_root>` and, if
+/// it is configured + valid, build the `(spawner, config)` pair that flips the
+/// official_cli swarm lane live. Returns `None` when the config is missing,
+/// corrupt, or unconfigured (the honest unconfigured default — the lane stays
+/// `None` and a CLI spawn reports `ProviderNotConfigured`).
+///
+/// The `LiveCliSpawner` is built from the SAME `ledger` the swarm factory uses
+/// (`LiveCliSpawner::new` requires a `LedgerBatcher`), so every CLI-bridge
+/// subprocess START/STOP row is attributable + reclaimable in the live ledger.
+fn load_official_cli_lane(
+    app_data_root: &Path,
+    ledger: &LedgerBatcher,
+) -> Option<(Arc<dyn CliSubprocessSpawner>, CliBridgeConfig)> {
+    let store = super::cli_bridge_store::CliBridgeConfigStore::new(app_data_root);
+    let doc = store.load().ok()?;
+    if !doc.configured {
+        return None;
+    }
+    let config = doc.to_cli_bridge_config().ok()?;
+    let spawner: Arc<dyn CliSubprocessSpawner> =
+        Arc::new(LiveCliSpawner::new(Arc::new(ledger.clone())));
+    Some((spawner, config))
+}
+
 impl SwarmRuntimeState {
     /// Build the production swarm runtime with the cloud lane wired to the
     /// host OS keychain vault (the same `OsKeychainSecretsVault` the cloud-lane
@@ -253,7 +280,7 @@ impl SwarmRuntimeState {
     /// typed `ProviderNotConfigured` otherwise. Lane ids default to
     /// `"anthropic"` / `"openai"` and can be overridden via
     /// `HANDSHAKE_SWARM_ANTHROPIC_LANE` / `HANDSHAKE_SWARM_OPENAI_LANE`.
-    pub fn production() -> Self {
+    pub fn production(app_data_root: &Path) -> Self {
         let vault: Arc<dyn SecretsVault> = Arc::new(
             handshake_core::model_runtime::cloud::secrets_vault::OsKeychainSecretsVault::new(
                 handshake_core::model_runtime::cloud::secrets_vault::HANDSHAKE_KEYCHAIN_SERVICE,
@@ -272,7 +299,7 @@ impl SwarmRuntimeState {
             Some(anthropic_lane),
             Some(openai_lane),
         );
-        Self::production_with_cloud(cloud)
+        Self::production_with_cloud_and_recorder(cloud, None, app_data_root)
     }
 
     /// Build the production swarm runtime with an explicit cloud-lane config
@@ -293,7 +320,11 @@ impl SwarmRuntimeState {
     /// sink, with the supplied [`CloudLaneFactoryConfig`]. Starts the lease/TTL
     /// reaper so stale sessions are reclaimed for the app's lifetime.
     pub fn production_with_cloud(cloud: CloudLaneFactoryConfig) -> Self {
-        Self::production_with_cloud_and_recorder(cloud, None)
+        // No app_data_root => no stored CLI-bridge config is loaded; the
+        // official_cli lane stays None (the explicit-cloud seam is for callers
+        // that wire the lane themselves or do not need it). A relative,
+        // never-present path resolves to the unconfigured default in `load`.
+        Self::production_with_cloud_and_recorder(cloud, None, Path::new(""))
     }
 
     /// rank-3: production swarm runtime that PERSISTS every SwarmEvent into
@@ -301,7 +332,10 @@ impl SwarmRuntimeState {
     /// Recorder) via the DurableSwarmFrBridge, so swarm/VM lifecycle events are
     /// durable + replayable for the board drill-down + audit -- not just stderr.
     /// Mirrors `production()`'s cloud-lane wiring.
-    pub fn production_with_fr_recorder(recorder: Arc<dyn FlightRecorder>) -> Self {
+    pub fn production_with_fr_recorder(
+        recorder: Arc<dyn FlightRecorder>,
+        app_data_root: &Path,
+    ) -> Self {
         let vault: Arc<dyn SecretsVault> = Arc::new(
             handshake_core::model_runtime::cloud::secrets_vault::OsKeychainSecretsVault::new(
                 handshake_core::model_runtime::cloud::secrets_vault::HANDSHAKE_KEYCHAIN_SERVICE,
@@ -317,12 +351,13 @@ impl SwarmRuntimeState {
             .unwrap_or_else(|| "openai".to_string());
         let cloud =
             CloudLaneFactoryConfig::from_vault(vault, Some(anthropic_lane), Some(openai_lane));
-        Self::production_with_cloud_and_recorder(cloud, Some(recorder))
+        Self::production_with_cloud_and_recorder(cloud, Some(recorder), app_data_root)
     }
 
     fn production_with_cloud_and_recorder(
         cloud: CloudLaneFactoryConfig,
         recorder: Option<Arc<dyn FlightRecorder>>,
+        app_data_root: &Path,
     ) -> Self {
         let store = InProcessLedgerStore::default();
         let overflow = Arc::new(CountingOverflowSink::default());
@@ -331,6 +366,17 @@ impl SwarmRuntimeState {
             overflow,
             LedgerBatcherConfig::default(),
         );
+
+        // Flip the official_cli swarm lane live from the operator's stored
+        // CLI-bridge config (WP-KERNEL-004 follow-up). The spawner is built from
+        // the SAME `ledger` the factory uses, so CLI-bridge subprocess START/STOP
+        // rows land in the live ledger (no throwaway, no unattributed process).
+        // Missing/corrupt/unconfigured config => None => the lane stays an honest
+        // ProviderNotConfigured.
+        let cloud = match load_official_cli_lane(app_data_root, &ledger) {
+            Some((spawner, config)) => cloud.with_official_cli(spawner, config),
+            None => cloud,
+        };
 
         let sessions: SessionTable = Arc::new(Mutex::new(HashMap::new()));
 
@@ -1120,7 +1166,7 @@ mod tests {
 
     #[tokio::test]
     async fn swarm_runtime_state_constructs_and_exposes_a_live_coordinator() {
-        let state = SwarmRuntimeState::production();
+        let state = SwarmRuntimeState::production(std::path::Path::new(""));
         let coordinator = state.coordinator();
         // Fresh coordinator: no live sessions, budget headroom present.
         assert_eq!(coordinator.live_session_count(), 0);
@@ -1220,7 +1266,7 @@ mod tests {
     /// the way out of the command as a string error — no placeholder success.
     #[tokio::test]
     async fn cloud_spawn_without_lane_surfaces_provider_not_configured_through_command_layer() {
-        let state = SwarmRuntimeState::production();
+        let state = SwarmRuntimeState::production(std::path::Path::new(""));
         let coordinator = state.coordinator();
         let req = SwarmSpawnRequestIpc {
             provider: SwarmProviderIpc::ByokCloud,
@@ -1252,7 +1298,7 @@ mod tests {
     /// successful create).
     #[tokio::test]
     async fn local_spawn_nonexistent_artifact_fails_and_leaves_no_tracked_session() {
-        let state = SwarmRuntimeState::production();
+        let state = SwarmRuntimeState::production(std::path::Path::new(""));
         let coordinator = state.coordinator();
         let req = local_request("D:/__handshake_no_such_swarm_app_model__/model.safetensors");
         let spawn = build_spawn_request(&req).expect("valid local request");
@@ -1269,7 +1315,7 @@ mod tests {
     /// (the chat command then surfaces a typed "no longer live" error).
     #[tokio::test]
     async fn resolve_runtime_unknown_instance_is_none() {
-        let state = SwarmRuntimeState::production();
+        let state = SwarmRuntimeState::production(std::path::Path::new(""));
         let iid = ModelInstanceId::new(ModelId::new_v7(), 0);
         assert!(state.resolve_runtime(iid).is_none());
     }

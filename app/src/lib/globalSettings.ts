@@ -109,6 +109,26 @@ export const TERMINAL_OUTPUT_LOGGING_SETTING: NotYetWiredSetting = {
   note: "Not yet wired — backend redacts + records captured output",
 };
 
+// --- CLI Bridge (WP-KERNEL-004 follow-up) ------------------------------------
+// The official CLI-bridge operator config is a GENUINELY WIRED setting, but its
+// state lives in the backend (atomic JSON under app_data_root via the
+// `kernel_cli_bridge_*` Tauri commands), NOT in localStorage — so it is owned by
+// `CliBridgeConfigPanel` + `app/src/lib/ipc/cli_bridge_config.ts`, not by a
+// load/save pair here. This descriptor exists only so the settings surface has a
+// single honest place to document the activation contract: the official_cli
+// swarm lane reads the stored config at `production()` construction, so a saved
+// config takes effect at the NEXT app launch (no hot-reload). The panel surfaces
+// this in its status note; do NOT imply live activation anywhere in the UI.
+export const CLI_BRIDGE_CONFIG_SETTING = {
+  id: "cli-bridge-config",
+  label: "CLI Bridge (Official-CLI swarm lane)",
+  /** Backend-owned; configured via the panel's IPC client, not localStorage. */
+  storage: "backend",
+  /** The lane goes live on the next app start, not immediately. */
+  activation: "next-launch",
+  note: "Backend-owned config; takes effect at next app launch.",
+} as const;
+
 /**
  * About / build info. No build/version string is surfaced anywhere in the app
  * recon, so we honestly report "n/a" rather than inventing one.
