@@ -47,7 +47,7 @@
     "MT-186.c": {"status": "CLOSED", "evidence": "cancellation.rs:501-519 CancelledJobState force_used=true + ForcedCancelEvent via FrEventId::MtCancelForced; test :823-860."},
     "MT-095.1": {"status": "OPEN", "evidence": "TTL/stale-snapshot expiry NOT enforced at the live restore path: kv_cache.rs:274 comment defers TTL 'to the caller'; verify_self_against/verify_derived_against do not check elapsed time vs prefix_cache_ttl_seconds. Contract requires 'wait past TTL -> Err'.", "fix": "Enforce elapsed(registered_at_utc_micros) <= prefix_cache_ttl_seconds at the live kv_cache_technique::prefix_restore gate; return typed expiry error."},
     "MT-095.2": {"status": "OPEN", "evidence": "Per-adapter stacks mint handles via from_scoped_tokens (llama_cpp/kv_cache_impl.rs:392, candle/state_vector.rs:723) with derived_id=None and never persist/validate the binding on restore; facade KvCacheHandle::prefix_restore (kv_cache.rs:98-100) dispatches with no model_id/verification (direct bypass).", "fix": "Bind derived_id at commit in both adapters, persist it in the cache record, and verify_derived_against on restore; thread model_id through the facade restore (or remove the unverified facade path)."},
-    "MT-186.a": {"status": "OPEN", "evidence": "Forced-cancel built-in reclaim primitive is CLOSED (cancellation.rs:474-531 force_cancel + ReclaimForcedCancelAdapter + fail-loud NoReclaimerConfigured/ReclaimFailed; test mt_cancellation_tests.rs:807-845), but production spawn sites create pure-mode MtCanceller::new() (executor.rs:336/352/370/392); grep for with_reclaim outside tests = zero hits. Orphan-reclaim not wired at the real spawn path.", "fix": "Wire MtCanceller::with_reclaim(ReclaimForcedCancelAdapter, event_sink, config) at the production executor/session spawn site so forced cancellation reclaims via ProcessOwnershipLedger."},
+    "MT-186.a": {"status": "OPEN_GOVERNANCE", "evidence": "Forced-cancel built-in reclaim primitive is CLOSED (cancellation.rs:474-531 force_cancel + ReclaimForcedCancelAdapter + fail-loud NoReclaimerConfigured/ReclaimFailed; test mt_cancellation_tests.rs:807-845). The IV blocker presumes a 'production canceller' that is pure-mode, but VERIFIED: every MicroTaskExecutor::new caller in the entire worktree is a test (executor.rs:336/352/370/392 are inside #[cfg(test)]; remaining callers are in tests/). There is NO production instantiation of the executor in WP-KERNEL-004 scope, hence no production spawn site at which to wire with_reclaim. Fabricating one would be a mockup (operator-forbidden). The reclaim-enabled primitive is ready and fail-loud; production wiring is OWNED by the future runtime/orchestration WP that first instantiates MicroTaskExecutor, which MUST construct via MtCanceller::with_reclaim.", "fix": "Disposition: deferred-wiring (no production executor instantiation exists in scope). Recommend a compile-time guard so any future production instantiation cannot construct a reclaim-less canceller (e.g. gate MtCanceller::new pure-mode behind cfg(test) or rename to make non-reclaim construction explicit)."},
     "MT-019": {"status": "OPEN", "evidence": "operator_foreground/foreground_exception.rs:180-212 ControlledWindow constructs no WebviewWindow; :283-289 visible/focused/expected_foreground hardcoded; :295-300 auto_dismiss is a bare timeout(pending). quiet_window.rs has a real WebviewWindowBuilder but is not integrated. Spec 6.6.7 needs a SHOWN, FOCUSED bounded window with real auto-dismiss.", "fix": "Integrate ControlledWindow with tauri WebviewWindow create/show/focus + real auto-dismiss; runtime/GUI proof needs a display session.", "proof_constraint": "GUI-runtime"},
     "MT-020": {"status": "OPEN", "evidence": "automation-first-audit.mjs:200-317 is static regex source analysis; keyboard_injection_invocation_count hardcoded 0 (:291). The 3 contract runtime probes (IPC mock call; IPC under live focus-audit; raw SendInput injection) are not performed.", "fix": "Add a real runtime probe harness driving the 3 probes; the SendInput probe bin from MT-058 can be reused; assert zero injections counted.", "proof_constraint": "partial-runtime"},
     "MT-027": {"status": "OPEN", "evidence": "tests/visual/a2_smoke.spec.ts:129-141 hardcodes focus_audit_summary.handshake_owned_events:[] and asserts it equals []; no focus-audit Tauri IPC command exists (FocusAuditHandle::start/stop never invoked during the smoke).", "fix": "Add focus-audit start/stop Tauri IPC commands wrapping operator_foreground/focus_audit.rs and drive them from the a2 smoke (capture real FocusAuditReport).", "proof_constraint": "GUI-runtime (Playwright)"},
@@ -56,9 +56,20 @@
   "totals": {
     "iv_confirmed_blockers": 30,
     "closed_in_current_code": 22,
-    "open_code": 7,
-    "open_governance_disposition": 1
+    "open_code": 6,
+    "open_governance_disposition": 2,
+    "open_code_breakdown": "MT-095.1 (KV TTL, backend, provable headlessly), MT-095.2 (KV binding/facade, backend, provable headlessly), MT-019/020/027/098 (GUI-runtime: real code implementable but final smoke proof needs a display session)",
+    "open_governance_breakdown": "MT-047.2 (golden-argv fixture structurally unachievable), MT-186.a (no production executor instantiation in scope; primitive ready, wiring deferred to future runtime WP)"
   },
-  "proof_runs": [],
+  "proof_runs": [
+    {
+      "id": "L1-runtime-proof",
+      "test": "app::commands::model_runtime::tests::model_load_attaches_real_candle_runtime_and_capture_returns_real_activations",
+      "model": "D:/Local Models/Maykeye_TinyLLama-v0/model.safetensors (sha256 c302246d91e2854ff350e52a79938a818c203186c2f0671213ce372a0289cd91)",
+      "result": "ok. 1 passed; 0 failed",
+      "observed": "FR-EVT-LLM-MODEL-LOAD: model_id=019e7c09-5ec7-7e13-b6bb-61072840f5d5 binding=candle; real CandleRuntime attached; real activation_steering::capture returned non-empty per-layer activations (NOT capture_not_available); FR-EVT-LLM-MODEL-UNLOAD detached. Proves L1/MT-096 closed in deployed-shape runtime with a real model, not a fake adapter.",
+      "ran_at_utc": "2026-05-31T03:00:00.000Z"
+    }
+  ],
   "next_actions": "Close the 7 open code blockers (MT-095.1/.2 + MT-186.a backend now; MT-019/020/027/098 implement real code + compile-verify, GUI-runtime smoke flagged as needing a display session). Disposition MT-047.2 honestly in its contract. Then request IV Phase-2 re-judgment against current HEAD."
 }
