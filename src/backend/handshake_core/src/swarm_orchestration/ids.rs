@@ -181,6 +181,14 @@ impl SpawnRequest {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RunBudget {
     pub max_concurrent: usize,
+    /// rank-6 admission: max concurrent COLD STARTS (factory.create / model+VM
+    /// boot), bounded SEPARATELY from `max_concurrent`. VM/sandbox boot (TAP/CNI
+    /// setup) is the scale wall at high parallelism, so the number of SIMULTANEOUS
+    /// boots is throttled independently from the number of RUNNING sessions: an
+    /// admitted spawn waits for a boot slot, then releases it once booted so a
+    /// running session never holds a boot slot. Defaults to `max_concurrent` (no
+    /// extra throttle) until set lower via `with_cold_start_concurrency`.
+    pub max_concurrent_cold_starts: usize,
     pub max_lifetime_spawns: u64,
     pub max_total_tokens: Option<u64>,
     pub max_total_cost_micros: Option<u64>,
@@ -197,6 +205,7 @@ impl RunBudget {
         let max_concurrent = n.min(cpus).max(1);
         Self {
             max_concurrent,
+            max_concurrent_cold_starts: max_concurrent,
             max_lifetime_spawns:
                 crate::test_harness::invariants::HBR_SWARM_002_LOOP_CAP as u64,
             max_total_tokens: None,
@@ -206,6 +215,14 @@ impl RunBudget {
 
     pub fn with_concurrency(mut self, max_concurrent: usize) -> Self {
         self.max_concurrent = max_concurrent.max(1);
+        self
+    }
+
+    /// rank-6 admission: bound the number of SIMULTANEOUS cold starts (model/VM
+    /// boots) below the run-concurrency, so a burst of admitted spawns does not
+    /// stampede the boot/networking layer (TAP/CNI is the scale wall). Clamped >= 1.
+    pub fn with_cold_start_concurrency(mut self, max_concurrent_cold_starts: usize) -> Self {
+        self.max_concurrent_cold_starts = max_concurrent_cold_starts.max(1);
         self
     }
 

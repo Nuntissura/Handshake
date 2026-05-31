@@ -153,6 +153,10 @@ struct Inner {
     /// Per-instance respawn counters (anti-storm) + budget accounting.
     accounting: Mutex<Accounting>,
     semaphore: Arc<Semaphore>,
+    /// rank-6 admission: bounds SIMULTANEOUS cold starts (factory.create / boot)
+    /// separately from `semaphore` (run-concurrency). Held only during boot, so a
+    /// burst of admitted spawns does not stampede the boot/networking layer.
+    cold_start_semaphore: Arc<Semaphore>,
     /// Monotonic lifetime spawn counter — never decremented. The hard ceiling
     /// is `budget.max_lifetime_spawns` (HBR-SWARM-002 loop-cap semantics).
     lifetime_spawns: AtomicU64,
@@ -193,12 +197,15 @@ impl SwarmCoordinator {
         ledger: LedgerBatcher,
     ) -> Self {
         let semaphore = Arc::new(Semaphore::new(config.budget.max_concurrent.max(1)));
+        let cold_start_semaphore =
+            Arc::new(Semaphore::new(config.budget.max_concurrent_cold_starts.max(1)));
         let breaker = FailureFingerprintBreaker::new(config.breaker);
         let inner = Arc::new(Inner {
             registry: Mutex::new(HashMap::new()),
             breaker: Mutex::new(breaker),
             accounting: Mutex::new(Accounting::default()),
             semaphore,
+            cold_start_semaphore,
             lifetime_spawns: AtomicU64::new(0),
             config,
             factory,
@@ -321,7 +328,21 @@ impl SwarmCoordinator {
         // factory failure stops its own START before returning, leaving no
         // orphan. The coordinator owns the STOP symmetrically on every terminal
         // path. (See `terminate` / `reap_expired`.)
-        match inner.factory.create(&request).await {
+        // (3b) Cold-start admission: bound SIMULTANEOUS boots separately from
+        // run-concurrency. An admitted spawn waits here for a boot slot, then
+        // releases it the instant boot completes (the permit is scoped to the
+        // create() call), so a RUNNING session never holds a boot slot. The
+        // boot/networking layer (TAP/CNI) is the scale wall, not the running count.
+        let create_result = {
+            let _boot_permit = inner
+                .cold_start_semaphore
+                .clone()
+                .acquire_owned()
+                .await
+                .expect("cold-start semaphore is never closed");
+            inner.factory.create(&request).await
+        };
+        match create_result {
             Ok(live) => {
                 // (4a) ATOMIC dedup + insert (D2). Hold the registry lock across
                 // BOTH the duplicate check and the insert so two concurrent

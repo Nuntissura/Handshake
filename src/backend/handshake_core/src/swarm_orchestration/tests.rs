@@ -354,6 +354,64 @@ async fn rank2_spawned_session_carries_swarm_and_worktree_grouping() {
 }
 
 // ===========================================================================
+// RANK-6: cold-start admission bounds SIMULTANEOUS boots below run-concurrency.
+// ===========================================================================
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn rank6_cold_start_bound_throttles_concurrent_boots_below_run_concurrency() {
+    let (ledger, _drain) = ledger_pair();
+    let factory = Arc::new(ControllableFactory::new(
+        FactoryBehavior::Succeed,
+        Duration::from_millis(40),
+        ledger.clone(),
+    ));
+    let peak = factory.peak_in_flight.clone();
+    let sink = Arc::new(RecordingSwarmSink::new());
+
+    // Run-concurrency is WIDE (16) so it never bottlenecks; the cold-start bound
+    // is 2, so at most 2 boots run simultaneously even under a burst of admitted
+    // spawns (the boot/networking layer is the scale wall, not the running count).
+    let budget = RunBudget::defaulted(16)
+        .with_concurrency(16)
+        .with_lifetime_spawns(64)
+        .with_cold_start_concurrency(2);
+    let coordinator = Arc::new(SwarmCoordinator::new(
+        SwarmConfig::new(budget),
+        factory.clone(),
+        sink.clone(),
+        ledger,
+    ));
+
+    // Fire 8 parallel spawns. All are ADMITTED by run-concurrency, but they QUEUE
+    // on the cold-start bound, so boots happen at most 2 at a time -- none rejected
+    // (this is what distinguishes cold-start admission from the concurrency cap).
+    let n = 8usize;
+    let mut js = JoinSet::new();
+    let accepted = Arc::new(AtomicUsize::new(0));
+    for i in 0..n {
+        let c = coordinator.clone();
+        let acc = accepted.clone();
+        js.spawn(async move {
+            if c.spawn_session(spawn_req(instance(i as u32))).await.is_ok() {
+                acc.fetch_add(1, Ordering::SeqCst);
+            }
+        });
+    }
+    while js.join_next().await.is_some() {}
+
+    assert!(
+        peak.load(Ordering::SeqCst) <= 2,
+        "cold-start bound must cap simultaneous boots at 2; saw peak {}",
+        peak.load(Ordering::SeqCst)
+    );
+    assert_eq!(
+        accepted.load(Ordering::SeqCst),
+        n,
+        "all spawns are admitted (queued on the boot bound, not rejected)"
+    );
+}
+
+// ===========================================================================
 // PROOF 1: concurrency cap holds under N>cap parallel spawns.
 // ===========================================================================
 
