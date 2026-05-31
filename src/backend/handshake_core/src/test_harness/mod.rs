@@ -1,3 +1,4 @@
+pub mod crdt_workspace;
 pub mod cross_adapter;
 pub mod escape_attempts;
 pub mod invariants;
@@ -14,4 +15,7 @@ pub use scenarios::{
     ScenarioRegistry,
 };
 pub use session::{SessionResult, SessionStep};
-pub use swarm::{ContentionEvent, SwarmHarness, SwarmHarnessError, SwarmReport, SwarmScenario};
+pub use swarm::{
+    ContentionEvent, SwarmCrdtWorkspaceSummary, SwarmHarness, SwarmHarnessError, SwarmReport,
+    SwarmScenario, SHARED_LEASE_RESOURCE,
+};

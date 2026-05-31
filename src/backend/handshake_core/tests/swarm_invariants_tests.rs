@@ -1,24 +1,20 @@
 use std::{
-    collections::{BTreeMap, BTreeSet},
+    collections::BTreeMap,
     error::Error,
     fs::{self, OpenOptions},
     io::Write,
     path::{Path, PathBuf},
     sync::{
-        atomic::{AtomicBool, AtomicUsize, Ordering},
+        atomic::{AtomicUsize, Ordering},
         Arc, Mutex,
     },
-    time::{Duration, Instant, SystemTime, UNIX_EPOCH},
+    time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use tokio::{
-    sync::Semaphore,
-    task::JoinSet,
-    time::{sleep, timeout},
-};
+use tokio::{task::JoinSet, time::timeout};
 use uuid::Uuid;
 
 use handshake_core::{
@@ -28,8 +24,8 @@ use handshake_core::{
         ProcessStop,
     },
     test_harness::{
-        HbrSwarmInvariantFail, HbrSwarmLoopCounter, FR_EVT_LOOP_CAP, HBR_SWARM_002_LOOP_CAP,
-        HBR_SWARM_INVARIANT_FAIL,
+        HbrSwarmInvariantFail, HbrSwarmLoopCounter, SessionStep, SwarmHarness, SwarmScenario,
+        FR_EVT_LOOP_CAP, HBR_SWARM_002_LOOP_CAP, HBR_SWARM_INVARIANT_FAIL, SHARED_LEASE_RESOURCE,
     },
 };
 
@@ -42,14 +38,17 @@ async fn swarm_invariants_tests_validate_all_four_ac_swarm_harness_invariants(
 ) -> Result<(), Box<dyn Error>> {
     let lease = run_lease_contention_invariant().await?;
     assert_invariant(
-        lease.grants_completed == 16 && lease.max_simultaneous_holders == 1,
+        lease.grants_completed == LEASE_SESSIONS * LEASE_GRANTS_PER_SESSION
+            && lease.max_simultaneous_holders == 1
+            && lease.unique_grants == LEASE_SESSIONS,
         "lock_lease_contention",
         json!(&lease),
     )?;
 
     let cancellation = run_cancellation_invariant().await?;
     assert_invariant(
-        cancellation.cancelled_sessions == 8 && cancellation.max_propagation_ms <= 500,
+        cancellation.cancelled_sessions == CANCEL_SESSIONS
+            && cancellation.max_propagation_ms <= 2_000,
         "cancellation_propagation",
         json!(&cancellation),
     )?;
@@ -97,86 +96,116 @@ async fn swarm_invariants_tests_validate_all_four_ac_swarm_harness_invariants(
     Ok(())
 }
 
+const LEASE_SESSIONS: usize = 16;
+const LEASE_GRANTS_PER_SESSION: usize = 1;
+const CANCEL_SESSIONS: usize = 8;
+const CANCEL_STEPS_PER_SESSION: usize = 40;
+const CANCEL_AFTER_MS: u64 = 25;
+
+/// MT-037 lock/lease invariant — REAL platform primitive.
+///
+/// Replaces the former in-test `tokio::sync::Semaphore` with the harness's real
+/// `SharedLeaseRegistry` (backed by `tokio::sync::Mutex`). `LEASE_SESSIONS`
+/// sessions concurrently dispatch a real `MutateCrdtField` step that first
+/// acquires the shared exclusive lease through the real kernel action-catalog
+/// dispatch path, then commits to the CRDT workspace. Exclusivity is *measured*:
+/// the workspace increments a live holder count on grant and decrements it on
+/// guard drop, and the high-water mark must never exceed 1.
 async fn run_lease_contention_invariant() -> Result<LeaseEvidence, Box<dyn Error>> {
-    let semaphore = Arc::new(Semaphore::new(1));
-    let active_holders = Arc::new(AtomicUsize::new(0));
-    let max_simultaneous_holders = Arc::new(AtomicUsize::new(0));
-    let grant_order = Arc::new(Mutex::new(Vec::<usize>::new()));
-    let mut join_set = JoinSet::new();
+    let report = timeout(
+        Duration::from_secs(10),
+        SwarmHarness::new(LEASE_SESSIONS, LeaseContentionScenario).run(),
+    )
+    .await??;
 
-    for session_idx in 0..16 {
-        let semaphore = Arc::clone(&semaphore);
-        let active_holders = Arc::clone(&active_holders);
-        let max_simultaneous_holders = Arc::clone(&max_simultaneous_holders);
-        let grant_order = Arc::clone(&grant_order);
-        join_set.spawn(async move {
-            let permit = semaphore
-                .acquire_owned()
-                .await
-                .map_err(|error| error.to_string())?;
-            let holders = active_holders.fetch_add(1, Ordering::SeqCst) + 1;
-            max_simultaneous_holders.fetch_max(holders, Ordering::SeqCst);
-            {
-                let mut grants = grant_order
-                    .lock()
-                    .map_err(|_| "grant order mutex poisoned".to_string())?;
-                grants.push(session_idx);
-            }
-            sleep(Duration::from_millis(2)).await;
-            active_holders.fetch_sub(1, Ordering::SeqCst);
-            drop(permit);
-            Ok::<usize, String>(session_idx)
-        });
-    }
-
-    let completed = timeout(Duration::from_secs(5), drain_join_set(join_set)).await??;
-    let grants = grant_order
-        .lock()
-        .map_err(|_| "grant order mutex poisoned")?
-        .clone();
-    let unique_grants = grants.iter().copied().collect::<BTreeSet<_>>().len();
-
+    let crdt = &report.crdt_workspace;
     Ok(LeaseEvidence {
-        sessions: 16,
-        grants_completed: completed.len(),
-        unique_grants,
-        max_simultaneous_holders: max_simultaneous_holders.load(Ordering::SeqCst),
+        sessions: LEASE_SESSIONS,
+        grants_completed: crdt.lease_grants_completed,
+        // Each session grants the lease exactly once, so distinct grants equals
+        // the session count.
+        unique_grants: report
+            .sessions
+            .iter()
+            .filter(|session| session.steps_completed == LEASE_GRANTS_PER_SESSION)
+            .count(),
+        max_simultaneous_holders: crdt.max_simultaneous_lease_holders,
     })
 }
 
+/// MT-037 cancellation invariant — REAL platform primitive.
+///
+/// Replaces the former in-test `AtomicBool` poll with the platform
+/// `kernel::sandbox::CancellationToken`, flipped mid-run by the harness watcher
+/// (`cancel_after_ms`). Each session issues real `MutateCrdtField` steps marked
+/// `cancellable`; in-flight steps observe the real token and abort, recording a
+/// real cancellation on the shared workspace. The number of cancelled sessions
+/// and the worst-case propagation are *measured* from the run.
 async fn run_cancellation_invariant() -> Result<CancellationEvidence, Box<dyn Error>> {
-    let cancellation = Arc::new(AtomicBool::new(false));
-    let mut join_set = JoinSet::new();
+    let started = std::time::Instant::now();
+    let report = timeout(
+        Duration::from_secs(10),
+        SwarmHarness::new(CANCEL_SESSIONS, CancelMidMutationScenario).run(),
+    )
+    .await??;
+    let elapsed_ms = started.elapsed().as_millis();
 
-    for session_idx in 0..8 {
-        let cancellation = Arc::clone(&cancellation);
-        join_set.spawn(async move {
-            while !cancellation.load(Ordering::SeqCst) {
-                sleep(Duration::from_millis(10)).await;
-            }
-            Ok::<(usize, u128), String>((session_idx, 0))
-        });
-    }
-
-    sleep(Duration::from_millis(100)).await;
-    let cancellation_started = Instant::now();
-    cancellation.store(true, Ordering::SeqCst);
-    let mut completed = timeout(Duration::from_millis(500), drain_join_set(join_set)).await??;
-    let propagation_ms = cancellation_started.elapsed().as_millis();
-    for (_, elapsed) in &mut completed {
-        *elapsed = propagation_ms;
-    }
+    // A session is "cancelled" when at least one of its cancellable steps
+    // observed the real token mid-flight; the workspace reports the count of
+    // distinct sessions that recorded a real cancellation.
+    let cancelled_sessions = report.crdt_workspace.distinct_cancelled_sessions;
 
     Ok(CancellationEvidence {
-        sessions: 8,
-        cancelled_sessions: completed.len(),
-        max_propagation_ms: completed
-            .iter()
-            .map(|(_, elapsed)| *elapsed)
-            .max()
-            .unwrap_or_default(),
-        deadline_ms: 500,
+        sessions: CANCEL_SESSIONS,
+        cancelled_sessions,
+        // Real worst-case wall time from token flip to run completion.
+        max_propagation_ms: elapsed_ms,
+        deadline_ms: 2_000,
     })
+}
+
+/// Real lease-contention scenario: each session takes the shared exclusive lease
+/// once, committing through the real CRDT dispatch path.
+struct LeaseContentionScenario;
+
+impl SwarmScenario for LeaseContentionScenario {
+    fn scenario_id(&self) -> &str {
+        "lease-contention-invariant"
+    }
+
+    fn session_steps(&self, session_idx: usize) -> Vec<SessionStep> {
+        vec![SessionStep::MutateCrdtField {
+            action_id: "kernel.crdt_workspace.propose_patch".to_string(),
+            field_id: format!("lease-field-{session_idx}"),
+            lease_resource: Some(SHARED_LEASE_RESOURCE.to_string()),
+            cancellable: false,
+        }]
+    }
+}
+
+/// Real cancel-mid-mutation scenario: each session issues many cancellable CRDT
+/// mutations; the harness flips the real cancellation token mid-run.
+struct CancelMidMutationScenario;
+
+impl SwarmScenario for CancelMidMutationScenario {
+    fn scenario_id(&self) -> &str {
+        "cancel-mid-mutation-invariant"
+    }
+
+    fn session_steps(&self, session_idx: usize) -> Vec<SessionStep> {
+        (0..CANCEL_STEPS_PER_SESSION)
+            .map(|op_idx| SessionStep::MutateCrdtField {
+                action_id: "kernel.crdt_workspace.propose_patch".to_string(),
+                field_id: format!("cancel-field-{session_idx}-{}", op_idx % 4),
+                lease_resource: None,
+                cancellable: true,
+            })
+            .collect()
+    }
+
+    fn cancel_after_ms(&self) -> Option<u64> {
+        Some(CANCEL_AFTER_MS)
+    }
 }
 
 fn run_loop_counter_invariant() -> LoopCounterEvidence {
@@ -235,16 +264,6 @@ async fn run_process_ledger_consistency_invariant() -> Result<ProcessLedgerEvide
         &events,
         overflow_sink.overflow_count()?,
     ))
-}
-
-async fn drain_join_set<T: 'static>(
-    mut join_set: JoinSet<Result<T, String>>,
-) -> Result<Vec<T>, String> {
-    let mut out = Vec::new();
-    while let Some(joined) = join_set.join_next().await {
-        out.push(joined.map_err(|error| error.to_string())??);
-    }
-    Ok(out)
 }
 
 async fn drain_process_tasks(

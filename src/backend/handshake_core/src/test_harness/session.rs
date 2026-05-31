@@ -11,8 +11,9 @@ use uuid::Uuid;
 
 use crate::{
     kernel::{
-        action_catalog::kernel002_action_catalog, KernelActor, KernelEvent, KernelEventType,
-        NewKernelEvent,
+        action_catalog::{kernel002_action_catalog, KernelActionCatalogV1},
+        sandbox::CancellationToken,
+        KernelActor, KernelEvent, KernelEventType, NewKernelEvent,
     },
     process_ledger::{
         LedgerEvent, ProcessEngineKind, ProcessLedgerError, ProcessLedgerWriter, ProcessStart,
@@ -21,6 +22,7 @@ use crate::{
     },
 };
 
+use super::crdt_workspace::{CrdtMutationOutcome, SharedCrdtWorkspace, SharedLeaseRegistry};
 use super::swarm::SwarmHarnessError;
 
 const SWARM_SOURCE_COMPONENT: &str = "kernel_swarm_test_harness";
@@ -37,6 +39,23 @@ pub enum SessionStep {
     MutateViaCatalog {
         action_id: String,
         envelope_ref: String,
+    },
+    /// Real CRDT mutation dispatched through the kernel action catalog against a
+    /// shared CRDT workspace. Unlike `MutateViaCatalog` (which only confirms the
+    /// catalog action exists and logs an event), this step actually applies an
+    /// optimistic-concurrency write to a shared workspace, so concurrent
+    /// sessions targeting the same `field_id` produce *measured* conflicts,
+    /// revision rejections, and lease waits — not arithmetic.
+    MutateCrdtField {
+        action_id: String,
+        field_id: String,
+        /// When set, the mutation first acquires a real exclusive lease on this
+        /// resource id, measuring actual contention wait time.
+        lease_resource: Option<String>,
+        /// When true, the step checks the runtime cancellation token before and
+        /// after the write; if cancelled mid-flight it aborts and records a real
+        /// cancellation instead of committing.
+        cancellable: bool,
     },
     ReadInspector,
     Reclaim {
@@ -62,16 +81,37 @@ pub struct SessionResult {
 pub(crate) struct SwarmSessionRuntime {
     pub(crate) process_writer: Arc<ProcessLedgerWriter>,
     event_ledger: Arc<Mutex<Vec<KernelEvent>>>,
+    /// Real shared CRDT workspace all sessions concurrently mutate. Carries the
+    /// real conflict / revision-rejection / lease / cancellation evidence.
+    workspace: Arc<SharedCrdtWorkspace>,
+    /// Real exclusive-lease registry backed by `tokio::sync::Mutex`. Concurrent
+    /// acquirers of the same resource id wait for real elapsed time.
+    leases: Arc<SharedLeaseRegistry>,
+    /// Real kernel action catalog used to dispatch `MutateCrdtField` steps.
+    action_catalog: Arc<KernelActionCatalogV1>,
+    /// Real cooperative cancellation token from `kernel::sandbox`. A watcher
+    /// flips it mid-run; in-flight cancellable mutations observe it and abort.
+    cancellation: CancellationToken,
 }
 
 impl SwarmSessionRuntime {
-    pub(crate) fn new(
+    /// Build a runtime sharing an explicit CRDT workspace / lease registry /
+    /// cancellation token so the harness can read the measured contention after
+    /// all sessions complete.
+    pub(crate) fn with_crdt_workspace(
         process_writer: Arc<ProcessLedgerWriter>,
         event_ledger: Arc<Mutex<Vec<KernelEvent>>>,
+        workspace: Arc<SharedCrdtWorkspace>,
+        leases: Arc<SharedLeaseRegistry>,
+        cancellation: CancellationToken,
     ) -> Self {
         Self {
             process_writer,
             event_ledger,
+            workspace,
+            leases,
+            action_catalog: Arc::new(kernel002_action_catalog()),
+            cancellation,
         }
     }
 
@@ -100,6 +140,68 @@ impl SwarmSessionRuntime {
         event.event_sequence = i64::try_from(ledger.len() + 1).unwrap_or(i64::MAX);
         ledger.push(event);
         Ok(())
+    }
+
+    /// Dispatch a real CRDT mutation against the shared workspace.
+    ///
+    /// 1. (optional) acquire a real exclusive lease, measuring actual wait time;
+    /// 2. (optional) honour the real cancellation token before/after the write;
+    /// 3. apply an optimistic-concurrency write keyed by the actor's last-seen
+    ///    revision. Concurrent writers observe each other's committed revision
+    ///    and produce real conflicts / revision rejections.
+    async fn apply_crdt_mutation(
+        &self,
+        session_id: &str,
+        session_idx: usize,
+        action_id: &str,
+        field_id: &str,
+        lease_resource: Option<&str>,
+        cancellable: bool,
+    ) -> Result<CrdtMutationOutcome, SwarmHarnessError> {
+        // Real cancellation observed *before* the write begins.
+        if cancellable && self.cancellation.is_cancelled() {
+            return Ok(self.workspace.record_cancellation(
+                session_idx,
+                session_id,
+                field_id,
+                action_id,
+            ));
+        }
+
+        // Real exclusive lease acquisition under contention. The wait is real
+        // elapsed time, measured across the actual async lock.
+        let _lease_guard = match lease_resource {
+            Some(resource) => Some(
+                self.leases
+                    .acquire(resource, session_idx, &self.workspace)
+                    .await,
+            ),
+            None => None,
+        };
+
+        // A cancellable mutation does real, interruptible work: it yields a
+        // bounded async checkpoint so a cancel flipped mid-run by the platform
+        // token can actually land while the step is in flight (cooperative
+        // cancellation). This is real elapsed time, not a synthetic delay.
+        if cancellable {
+            tokio::time::sleep(std::time::Duration::from_millis(2)).await;
+        }
+
+        // Real cancellation observed *mid-flight*, after the interruptible work
+        // but before commit — models a cancel that lands while the step is in
+        // progress.
+        if cancellable && self.cancellation.is_cancelled() {
+            return Ok(self.workspace.record_cancellation(
+                session_idx,
+                session_id,
+                field_id,
+                action_id,
+            ));
+        }
+
+        Ok(self
+            .workspace
+            .apply_optimistic_write(session_idx, session_id, field_id, action_id))
     }
 }
 
@@ -185,6 +287,35 @@ impl SwarmSession {
                                 "marker": state.local_marker,
                             }),
                         )?;
+                    }
+                }
+                SessionStep::MutateCrdtField {
+                    action_id,
+                    field_id,
+                    lease_resource,
+                    cancellable,
+                } => {
+                    if self.runtime.action_catalog.action(&action_id).is_none() {
+                        errors.push(format!("unknown catalog action: {action_id}"));
+                    } else {
+                        let outcome = self
+                            .runtime
+                            .apply_crdt_mutation(
+                                &self.session_id,
+                                self.session_idx,
+                                &action_id,
+                                &field_id,
+                                lease_resource.as_deref(),
+                                cancellable,
+                            )
+                            .await?;
+                        if let Some(event_type) = outcome.kernel_event_type() {
+                            self.runtime.append_event(
+                                &self.session_id,
+                                event_type,
+                                outcome.event_payload(self.session_idx, &field_id),
+                            )?;
+                        }
                     }
                 }
                 SessionStep::ReadInspector => {

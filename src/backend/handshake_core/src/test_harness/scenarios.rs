@@ -31,6 +31,10 @@ impl SwarmScenario for RegisteredSwarmScenario {
     fn session_steps(&self, session_idx: usize) -> Vec<SessionStep> {
         self.inner.session_steps(session_idx)
     }
+
+    fn cancel_after_ms(&self) -> Option<u64> {
+        self.inner.cancel_after_ms()
+    }
 }
 
 #[derive(Clone, Default)]
