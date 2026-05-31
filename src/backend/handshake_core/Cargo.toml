@@ -103,6 +103,15 @@ name = "peft_train"
 path = "src/bin/peft_train.rs"
 test = false
 
+# MT-027 — headless driver for the a2 visual smoke focus audit. Runs the real
+# `operator_foreground::focus_audit` FocusAuditHandle over a supplied run_id and
+# prints the genuine FocusAuditReport JSON, so the smoke never hardcodes
+# `handshake_owned_events: []`.
+[[bin]]
+name = "focus-audit-probe"
+path = "src/bin/focus-audit-probe.rs"
+test = false
+
 [dependencies]
 axum = { version = "0.7", features = ["ws"] }
 serde = { version = "1", features = ["derive"] }

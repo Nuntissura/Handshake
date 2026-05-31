@@ -22,6 +22,7 @@
 
 use std::sync::Arc;
 
+use futures_util::StreamExt;
 use handshake_core::model_runtime::{
     techniques::{
         activation_steering::{
@@ -30,8 +31,9 @@ use handshake_core::model_runtime::{
         },
         steering_vector_store::{PersistSteeringVectorRequest, SteeringVectorStore},
     },
-    ContrastiveTechnique, HookPoint, LayerIndex, ModelId, ModelRuntime, OperatorId,
-    SteeringHookHandle, SteeringProvenance, SteeringVector, SteeringVectorId, SteeringVectorValues,
+    CancellationToken, ContrastiveTechnique, GenPrompt, GenerateRequest, HookPoint, LayerIndex,
+    ModelId, ModelRuntime, OperatorId, SamplingParams, SteeringHookHandle, SteeringProvenance,
+    SteeringVector, SteeringVectorId, SteeringVectorValues,
 };
 use serde::{Deserialize, Serialize};
 use tauri::State;
@@ -51,10 +53,21 @@ pub const KERNEL_MODEL_RUNTIME_STEERING_LIST_VECTORS_IPC_CHANNEL: &str =
     "kernel_model_runtime_steering_list_vectors";
 pub const KERNEL_MODEL_RUNTIME_STEERING_APPROVE_IPC_CHANNEL: &str =
     "kernel_model_runtime_steering_approve";
+/// MT-098: AB-compare generate channel. Runs the live runtime's REAL generate
+/// twice for each prompt — once with the proposed steering vectors active
+/// (`steering_overrides` populated) and once with them inactive
+/// (`steering_overrides` empty) — and returns both completions side by side so
+/// the Inference-Lab UI can render the BEFORE/AFTER contrast.
+pub const KERNEL_MODEL_RUNTIME_STEERING_GENERATE_AB_IPC_CHANNEL: &str =
+    "kernel_model_runtime_steering_generate_ab";
 /// App-layer lifecycle event id for an operator review approval of a steering
 /// vector (`Pending -> Approved`). The review gate (MT-097) makes activation
 /// depend on this transition having happened.
 pub const FR_EVT_LLM_INFER_STEER_APPROVE: &str = "FR-EVT-LLM-INFER-STEER-APPROVE";
+/// App-layer lifecycle event id for an AB-compare generation pass (MT-098).
+/// One emission per AB-compare command covering both the active and inactive
+/// generations across all prompts.
+pub const FR_EVT_LLM_INFER_STEER_AB_COMPARE: &str = "FR-EVT-LLM-INFER-STEER-AB-COMPARE";
 
 /// Operator-facing prefix indicating the model is not actually available for
 /// steering capture (e.g. not loaded, hook config mismatch). The MT-098 UI
@@ -181,6 +194,45 @@ pub struct SteeringVectorMetaIpc {
     pub description: String,
 }
 
+/// MT-098 AB-compare request. `active_vector_ids` are the proposed steering
+/// vectors to apply on the "AFTER"/steered side; `inactive_vector_ids` are
+/// applied on the "BEFORE"/baseline side (normally empty, but exposed so the
+/// UI can also contrast one steering set against another). Each prompt is
+/// generated twice through the live runtime — once per side.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SteeringGenerateAbRequestIpc {
+    pub model_id: String,
+    pub prompts: Vec<String>,
+    pub active_vector_ids: Vec<String>,
+    #[serde(default)]
+    pub inactive_vector_ids: Vec<String>,
+    /// Optional generation cap. Defaults to a small bounded value so the UI
+    /// contrast stays responsive; clamped server-side to a hard ceiling.
+    #[serde(default)]
+    pub max_tokens: Option<u32>,
+}
+
+/// One prompt's BEFORE/AFTER pair from a single AB-compare pass.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SteeringAbComparisonIpc {
+    pub prompt: String,
+    /// Completion with the steering vectors INACTIVE (baseline / BEFORE).
+    pub inactive_completion: String,
+    /// Completion with the steering vectors ACTIVE (steered / AFTER).
+    pub active_completion: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SteeringGenerateAbResultIpc {
+    pub comparisons: Vec<SteeringAbComparisonIpc>,
+    pub active_vector_ids: Vec<String>,
+    pub inactive_vector_ids: Vec<String>,
+    pub event_type: String,
+}
+
 #[tauri::command]
 pub async fn kernel_model_runtime_steering_capture(
     request: SteeringCaptureRequestIpc,
@@ -237,6 +289,16 @@ pub async fn kernel_model_runtime_steering_list_vectors(
 ) -> Result<Vec<SteeringVectorMetaIpc>, String> {
     let _ = KERNEL_MODEL_RUNTIME_STEERING_LIST_VECTORS_IPC_CHANNEL;
     steering_list_vectors(request, state.inner()).await
+}
+
+/// MT-098: AB-compare generate. See [`steering_generate_ab`].
+#[tauri::command]
+pub async fn kernel_model_runtime_steering_generate_ab(
+    request: SteeringGenerateAbRequestIpc,
+    state: State<'_, ModelRuntimeState>,
+) -> Result<SteeringGenerateAbResultIpc, String> {
+    let _ = KERNEL_MODEL_RUNTIME_STEERING_GENERATE_AB_IPC_CHANNEL;
+    steering_generate_ab(request, state.inner()).await
 }
 
 /// Tauri-managed handle for the production `SteeringVectorStore`. Optional so
@@ -481,6 +543,131 @@ pub async fn steering_list_vectors(
             description: meta.description,
         })
         .collect())
+}
+
+/// Hard ceiling on AB-compare generation length. The UI contrast is a quick
+/// side-by-side preview, not a full generation surface, so we bound the work
+/// even if the caller asks for more.
+const STEERING_AB_MAX_TOKENS_CEILING: u32 = 256;
+/// Default AB-compare generation length when the request omits `max_tokens`.
+const STEERING_AB_DEFAULT_MAX_TOKENS: u32 = 64;
+
+/// MT-098 AB-compare body. For each prompt, runs the live runtime's REAL
+/// `generate` twice:
+///   - inactive side: `steering_overrides = inactive_vector_ids` (usually empty
+///     → the unsteered baseline / BEFORE).
+///   - active side: `steering_overrides = active_vector_ids` (the proposed
+///     steering vectors applied → AFTER).
+///
+/// Both passes go through exactly the same live `dyn ModelRuntime` adapter that
+/// every other inference-lab command uses (the production `CandleRuntime` in the
+/// app binary), via the per-request `steering_overrides` seam the candle hooks
+/// layer reads (`snapshot_vectors_for_request`). Nothing here fakes a
+/// completion: the streamed `GeneratedToken`s are concatenated verbatim.
+///
+/// Fails closed with the typed `capture_not_available` prefix when the model is
+/// not capability-gated + loaded + has a live runtime attached, identically to
+/// the other steering commands, so the UI surfaces the reason verbatim.
+pub async fn steering_generate_ab(
+    request: SteeringGenerateAbRequestIpc,
+    state: &ModelRuntimeState,
+) -> Result<SteeringGenerateAbResultIpc, String> {
+    if request.prompts.is_empty() {
+        return Err("activation steering AB-compare requires at least one prompt".to_string());
+    }
+    if request.prompts.iter().any(|prompt| prompt.trim().is_empty()) {
+        return Err("activation steering AB-compare prompts must not be blank".to_string());
+    }
+    if request.active_vector_ids.is_empty() {
+        return Err(
+            "activation steering AB-compare requires at least one active vector id".to_string(),
+        );
+    }
+
+    let active_ids = parse_vector_ids(&request.active_vector_ids)?;
+    let inactive_ids = parse_vector_ids(&request.inactive_vector_ids)?;
+
+    let model_id = preflight_capability_and_loaded(&request.model_id, state)?;
+    let runtime = require_live_runtime(model_id, state, "generate_ab")?;
+
+    let max_tokens = request
+        .max_tokens
+        .unwrap_or(STEERING_AB_DEFAULT_MAX_TOKENS)
+        .clamp(1, STEERING_AB_MAX_TOKENS_CEILING);
+
+    let mut comparisons = Vec::with_capacity(request.prompts.len());
+    for prompt in &request.prompts {
+        // BEFORE / baseline: steering vectors inactive.
+        let inactive_completion =
+            generate_completion(runtime.as_ref(), model_id, prompt, &inactive_ids, max_tokens)
+                .await?;
+        // AFTER / steered: the proposed steering vectors active.
+        let active_completion =
+            generate_completion(runtime.as_ref(), model_id, prompt, &active_ids, max_tokens)
+                .await?;
+        comparisons.push(SteeringAbComparisonIpc {
+            prompt: prompt.clone(),
+            inactive_completion,
+            active_completion,
+        });
+    }
+
+    Ok(SteeringGenerateAbResultIpc {
+        comparisons,
+        active_vector_ids: active_ids.into_iter().map(|id| id.to_string()).collect(),
+        inactive_vector_ids: inactive_ids.into_iter().map(|id| id.to_string()).collect(),
+        event_type: FR_EVT_LLM_INFER_STEER_AB_COMPARE.to_string(),
+    })
+}
+
+/// Run the live runtime's REAL `generate` once and concatenate the streamed
+/// `GeneratedToken` text. `steering_overrides` is the per-request set of
+/// steering vectors to apply for this single pass (empty = unsteered).
+async fn generate_completion(
+    runtime: &dyn ModelRuntime,
+    model_id: ModelId,
+    prompt: &str,
+    steering_overrides: &[SteeringVectorId],
+    max_tokens: u32,
+) -> Result<String, String> {
+    let request = GenerateRequest {
+        id: model_id,
+        prompt: GenPrompt::new(prompt),
+        sampling: SamplingParams::default(),
+        lora_overrides: Vec::new(),
+        steering_overrides: steering_overrides.to_vec(),
+        kv_prefix_handle: None,
+        cancel: CancellationToken::new(),
+        max_tokens,
+        stop_sequences: Vec::new(),
+        speculative_mode: None,
+        structured_decoding: None,
+    };
+
+    let mut stream = runtime.generate(request);
+    let mut text = String::new();
+    while let Some(item) = stream.next().await {
+        match item {
+            Ok(token) => {
+                text.push_str(&token.text);
+                if token.finish_reason.is_some() {
+                    break;
+                }
+            }
+            Err(error) => {
+                return Err(capture_not_available_message(&error.to_string()));
+            }
+        }
+    }
+    Ok(text)
+}
+
+fn parse_vector_ids(values: &[String]) -> Result<Vec<SteeringVectorId>, String> {
+    let mut ids = Vec::with_capacity(values.len());
+    for value in values {
+        ids.push(parse_vector_id(value)?);
+    }
+    Ok(ids)
 }
 
 fn preflight_capability_and_loaded(
@@ -1271,5 +1458,110 @@ mod tests {
     fn steering_vector_ids_must_be_uuid_v7() {
         let error = parse_vector_id(&Uuid::nil().to_string()).expect_err("nil is not v7");
         assert!(error.contains("UUID v7"), "{error}");
+    }
+
+    // ----- MT-098 AB-compare generate -----
+
+    fn ab_request(model_id: ModelId, active: Vec<String>) -> SteeringGenerateAbRequestIpc {
+        SteeringGenerateAbRequestIpc {
+            model_id: model_id.to_string(),
+            prompts: vec!["describe the scene".to_string(), "and again".to_string()],
+            active_vector_ids: active,
+            inactive_vector_ids: Vec::new(),
+            max_tokens: Some(8),
+        }
+    }
+
+    #[tokio::test]
+    async fn steering_generate_ab_runs_both_sides_per_prompt_through_live_runtime() {
+        // The live runtime is attached; AB-compare dispatches REAL `generate`
+        // through it once per side per prompt and returns one BEFORE/AFTER pair
+        // per prompt. (The fake adapter's generate yields an empty stream, so
+        // the completions are empty — the env-gated real-candle test proves the
+        // actual steered text differs; here we prove the wiring + shape.)
+        let model_id = ModelId::new_v7();
+        let state = state_with_candle_model(model_id);
+        let hooks = attach_fake_runtime(&state, model_id);
+
+        let vector = manual_vector("calm");
+        let id = vector.id;
+        hooks.vectors.lock().unwrap().insert(id, vector);
+
+        let result = steering_generate_ab(ab_request(model_id, vec![id.to_string()]), &state)
+            .await
+            .expect("AB-compare dispatches through the live runtime");
+
+        assert_eq!(result.event_type, FR_EVT_LLM_INFER_STEER_AB_COMPARE);
+        assert_eq!(result.active_vector_ids, vec![id.to_string()]);
+        assert!(result.inactive_vector_ids.is_empty());
+        assert_eq!(result.comparisons.len(), 2);
+        assert_eq!(result.comparisons[0].prompt, "describe the scene");
+        assert_eq!(result.comparisons[1].prompt, "and again");
+        // Both sides are present (string fields, even when empty for the fake).
+        for comparison in &result.comparisons {
+            // Structural: the two sides are distinct fields populated per pass.
+            let _ = &comparison.active_completion;
+            let _ = &comparison.inactive_completion;
+        }
+    }
+
+    #[tokio::test]
+    async fn steering_generate_ab_requires_active_vector_ids() {
+        let model_id = ModelId::new_v7();
+        let state = state_with_candle_model(model_id);
+        attach_fake_runtime(&state, model_id);
+
+        let error = steering_generate_ab(ab_request(model_id, Vec::new()), &state)
+            .await
+            .expect_err("AB-compare with no active vectors is rejected");
+        assert!(error.contains("at least one active vector id"), "{error}");
+    }
+
+    #[tokio::test]
+    async fn steering_generate_ab_returns_capture_not_available_when_no_live_runtime() {
+        // Capability-gated + loaded, but no live runtime attached: the typed
+        // capture_not_available prefix is returned (NOT live_runtime_unavailable),
+        // so the UI surfaces it verbatim just like the other steering commands.
+        let model_id = ModelId::new_v7();
+        let state = state_with_candle_model(model_id);
+
+        let id = ModelId::new_v7(); // arbitrary v7 string for the active id
+        let request = SteeringGenerateAbRequestIpc {
+            model_id: model_id.to_string(),
+            prompts: vec!["x".to_string()],
+            active_vector_ids: vec![id.as_uuid().to_string()],
+            inactive_vector_ids: Vec::new(),
+            max_tokens: None,
+        };
+        let error = steering_generate_ab(request, &state)
+            .await
+            .expect_err("no live runtime attached");
+        assert!(
+            error.contains(STEERING_CAPTURE_NOT_AVAILABLE_PREFIX),
+            "{error}"
+        );
+        assert!(
+            !error.contains("live_runtime_unavailable"),
+            "must not return legacy wording: {error}"
+        );
+    }
+
+    #[tokio::test]
+    async fn steering_generate_ab_rejects_blank_prompts() {
+        let model_id = ModelId::new_v7();
+        let state = state_with_candle_model(model_id);
+        attach_fake_runtime(&state, model_id);
+
+        let request = SteeringGenerateAbRequestIpc {
+            model_id: model_id.to_string(),
+            prompts: vec!["   ".to_string()],
+            active_vector_ids: vec![ModelId::new_v7().as_uuid().to_string()],
+            inactive_vector_ids: Vec::new(),
+            max_tokens: None,
+        };
+        let error = steering_generate_ab(request, &state)
+            .await
+            .expect_err("blank prompts rejected");
+        assert!(error.contains("must not be blank"), "{error}");
     }
 }

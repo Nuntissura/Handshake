@@ -4,6 +4,7 @@ import {
   registerVector,
   type LayerActivations,
 } from "../../lib/ipc/steering";
+import { ABCompare } from "./ABCompare";
 
 type Props = {
   modelId: string;
@@ -77,6 +78,10 @@ export function ContrastiveCaptureWizard({ modelId, nLayers, onVectorSaved }: Pr
   const [captureState, setCaptureState] = useState<CaptureState>({ status: "idle" });
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  // MT-098: the most recently saved (registered) vector, used to drive the
+  // live AB-compare panel. Only a registered vector has an id the live runtime
+  // can resolve via `steering_overrides`.
+  const [savedVector, setSavedVector] = useState<{ id: string; name: string } | null>(null);
 
   const positiveList = splitPrompts(positivePrompts);
   const negativeList = splitPrompts(negativePrompts);
@@ -132,10 +137,11 @@ export function ContrastiveCaptureWizard({ modelId, nLayers, onVectorSaved }: Pr
     if (!canSave) return;
     setSaving(true);
     setSaveError(null);
+    const savedName = vectorName.trim();
     try {
-      await registerVector({
+      const result = await registerVector({
         modelId,
-        name: vectorName.trim(),
+        name: savedName,
         layer: captureState.layer,
         hookPoint: "resid_stream",
         values: captureState.diffVector,
@@ -148,6 +154,9 @@ export function ContrastiveCaptureWizard({ modelId, nLayers, onVectorSaved }: Pr
         },
         licenseTag: license,
       });
+      // MT-098: remember the registered vector so the operator can immediately
+      // run a live AB-compare of this proposed vector active vs inactive.
+      setSavedVector({ id: result.vectorId, name: savedName });
       setVectorName("");
       setDescription("");
       setCaptureState({ status: "idle" });
@@ -297,15 +306,21 @@ export function ContrastiveCaptureWizard({ modelId, nLayers, onVectorSaved }: Pr
         </div>
       ) : null}
 
-      <details className="inference-lab__ab-compare" data-testid="contrastive-capture-wizard.ab-compare">
-        <summary>A/B compare (live generation)</summary>
-        <p className="muted">
-          Side-by-side generation with the proposed vector active vs inactive runs through the
-          live CandleRuntime adapter (MT-082). If the runtime is not attached to this model in
-          the current session, capture returns a typed capture_not_available reason which the
-          wizard surfaces verbatim above.
+      {savedVector ? (
+        <ABCompare
+          modelId={modelId}
+          activeVectorId={savedVector.id}
+          vectorName={savedVector.name}
+        />
+      ) : (
+        <p
+          className="muted"
+          data-testid="contrastive-capture-wizard.ab-compare-hint"
+        >
+          Save a captured vector to run a live A/B compare (proposed vector
+          active vs inactive) through the CandleRuntime adapter.
         </p>
-      </details>
+      )}
     </section>
   );
 }

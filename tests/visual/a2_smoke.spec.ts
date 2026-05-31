@@ -9,6 +9,12 @@ import {
   captureMatrixEntryFromProject,
 } from "./capture_matrix";
 
+import {
+  withFocusAudit,
+  type FocusAuditEvent,
+  type FocusAuditOutcome,
+} from "./focus_audit_driver";
+
 type SmokeReportRow = {
   schema_id: "hsk.visual.a2_smoke_report@1";
   report_version: 1;
@@ -23,7 +29,13 @@ type SmokeReportRow = {
   dom_snapshot_root: string | null;
   focus_audit_summary: {
     run_id: string;
-    handshake_owned_events: unknown[];
+    // MT-027: this is now the REAL FocusAuditReport.handshake_owned_events,
+    // driven by the live focus-audit hook (Tauri IPC or the focus-audit-probe
+    // binary), not a hardcoded empty array.
+    handshake_owned_events: FocusAuditEvent[];
+    audit_source: "tauri_ipc" | "probe_binary";
+    audit_status: "audited" | "unsupported_platform";
+    total_foreground_events: number | null;
   };
   gap_receipts: string[];
   total_duration_ms: number;
@@ -33,6 +45,14 @@ const DEFAULT_WP_ID = "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Me
 
 function repoRoot(): string {
   return path.resolve(__dirname, "..", "..");
+}
+
+function focusAuditRuntimeRoot(testInfo: import("playwright").TestInfo): string {
+  // Land the real focus-audit JSONL evidence inside the test artifact tree so
+  // the audit is disk-agnostic and does not pollute the repo. The ledger is
+  // written under <root>/gov_runtime/focus_audit/<run_id>.jsonl by the core.
+  return process.env.HANDSHAKE_FOCUS_AUDIT_RUNTIME_ROOT
+    ?? testInfo.outputPath("focus-audit-runtime");
 }
 
 function smokeRunId(): string {
@@ -94,26 +114,56 @@ test("A.2 visual debugger stack smoke", async ({ page }, testInfo) => {
   const startedAt = Date.now();
   const runId = smokeRunId();
   const entry = captureMatrixEntryFromProject(testInfo);
-  const result = await captureAndCompareEntry(page, entry, {
-    baselineRoot: testInfo.outputPath("baselines"),
-    receiptRoot: testInfo.outputPath("receipts"),
-    allowBootstrap: true,
-    projectName: testInfo.project.name,
-  });
 
-  const surfaceCount = await page.locator(entry.wait_for).count();
-  const gaps = surfaceCount === 0
-    ? [{
-      surfaceName: `visual smoke ${entry.scenario_id}`,
-      surfacePath: entry.wait_for,
-      gapClass: "no_cdp_handle",
-      evidencePointer: result.receipt_path ?? undefined,
-    }]
+  // MT-027: drive the REAL foreground focus audit around the visual capture.
+  // The hook is open for the entire capture/gap/DOM-snapshot scenario; HBR-QUIET-001
+  // requires that no Handshake-owned window stole the foreground during it.
+  let captureResult: Awaited<ReturnType<typeof captureAndCompareEntry>> | null = null;
+  let gaps: Array<{
+    surfaceName: string;
+    surfacePath: string;
+    gapClass: string;
+    evidencePointer?: string;
+  }> = [];
+  let gapReceipts: string[] = [];
+  let domSnapshotRoot: string | null = null;
+
+  const auditOutcome: FocusAuditOutcome = await withFocusAudit(
+    page,
+    runId,
+    focusAuditRuntimeRoot(testInfo),
+    async () => {
+      captureResult = await captureAndCompareEntry(page, entry, {
+        baselineRoot: testInfo.outputPath("baselines"),
+        receiptRoot: testInfo.outputPath("receipts"),
+        allowBootstrap: true,
+        projectName: testInfo.project.name,
+      });
+
+      const surfaceCount = await page.locator(entry.wait_for).count();
+      gaps = surfaceCount === 0
+        ? [{
+          surfaceName: `visual smoke ${entry.scenario_id}`,
+          surfacePath: entry.wait_for,
+          gapClass: "no_cdp_handle",
+          evidencePointer: captureResult.receipt_path ?? undefined,
+        }]
+        : [];
+      gapReceipts = gaps
+        .map((gap) => emitVisGapReceipt(gap))
+        .filter((receipt): receipt is string => Boolean(receipt));
+      domSnapshotRoot = await cdpDomSnapshotRoot(page);
+    },
+  );
+
+  if (!captureResult) {
+    throw new Error("visual capture scenario did not run inside the focus audit");
+  }
+  const result = captureResult as Awaited<ReturnType<typeof captureAndCompareEntry>>;
+
+  const ownedEvents = auditOutcome.kind === "report"
+    ? auditOutcome.report.handshake_owned_events
     : [];
-  const gapReceipts = gaps
-    .map((gap) => emitVisGapReceipt(gap))
-    .filter((receipt): receipt is string => Boolean(receipt));
-  const domSnapshotRoot = await cdpDomSnapshotRoot(page);
   const row: SmokeReportRow = {
     schema_id: "hsk.visual.a2_smoke_report@1",
     report_version: 1,
@@ -127,8 +177,13 @@ test("A.2 visual debugger stack smoke", async ({ page }, testInfo) => {
     console_errors_seen: 0,
     dom_snapshot_root: domSnapshotRoot,
     focus_audit_summary: {
-      run_id: runId,
-      handshake_owned_events: [],
+      run_id: auditOutcome.kind === "report" ? auditOutcome.report.run_id : runId,
+      handshake_owned_events: ownedEvents,
+      audit_source: auditOutcome.source,
+      audit_status: auditOutcome.kind === "report" ? "audited" : "unsupported_platform",
+      total_foreground_events: auditOutcome.kind === "report"
+        ? auditOutcome.report.total_events
+        : null,
     },
     gap_receipts: gapReceipts,
     total_duration_ms: Date.now() - startedAt,
@@ -138,6 +193,24 @@ test("A.2 visual debugger stack smoke", async ({ page }, testInfo) => {
   expect(row.drifts_detected).toBe(0);
   expect(row.gaps_detected).toBe(0);
   expect(row.console_errors_seen).toBe(0);
-  expect(row.focus_audit_summary.handshake_owned_events).toEqual([]);
   expect(row.dom_snapshot_root).toBeTruthy();
+
+  if (auditOutcome.kind === "report") {
+    // HBR-QUIET-001: the REAL audit must show no Handshake-owned foreground
+    // event during the captured run. This is no longer a tautology — the
+    // vector is the genuine FocusAuditReport.handshake_owned_events.
+    expect(row.focus_audit_summary.handshake_owned_events).toEqual([]);
+  } else {
+    // The Win32 foreground hook is unavailable on this host (e.g. the Linux dev
+    // lane). Fail honestly rather than asserting an empty array we never
+    // measured: require the audit to report the real unsupported-platform
+    // status, and skip the QUIET assertion on a host that cannot enforce it.
+    expect(row.focus_audit_summary.audit_status).toBe("unsupported_platform");
+    test.skip(
+      true,
+      `focus audit unavailable on ${process.platform}: ${
+        auditOutcome.kind === "unsupported_platform" ? auditOutcome.detail : ""
+      }`,
+    );
+  }
 });

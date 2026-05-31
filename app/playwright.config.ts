@@ -94,6 +94,10 @@ process.env.NODE_PATH = [
 export default defineConfig({
   testDir: repoRoot,
   testMatch: ["tests/visual/**/*.spec.ts"],
+  // MT-027 (defect 1): build the real focus-audit-probe binary before any
+  // visual spec runs so the headless a2 smoke exercises the genuine foreground
+  // audit instead of hard-failing with "binary not found" on a clean target.
+  globalSetup: path.join(repoRoot, "tests", "visual", "global_setup.ts"),
   timeout: 30_000,
   workers: 1,
   fullyParallel: false,

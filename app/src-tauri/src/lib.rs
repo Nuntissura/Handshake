@@ -8,6 +8,7 @@ use std::{
 };
 
 mod fonts;
+mod foreground_exception_window;
 mod foreground_warning;
 mod inspector;
 mod manual;
@@ -20,6 +21,8 @@ mod commands {
     pub mod caa;
     pub mod cloud_lane;
     pub mod distillation;
+    pub mod focus_audit;
+    pub mod foreground_exception;
     pub mod kv_cache;
     pub mod lora;
     pub mod memory_calibration;
@@ -118,6 +121,10 @@ macro_rules! handshake_invoke_handlers {
             commands::steering::kernel_model_runtime_steering_unregister,
             commands::steering::kernel_model_runtime_steering_list_vectors,
             commands::steering::kernel_model_runtime_steering_approve,
+            commands::steering::kernel_model_runtime_steering_generate_ab,
+            commands::focus_audit::kernel_operator_foreground_focus_audit_start,
+            commands::focus_audit::kernel_operator_foreground_focus_audit_stop,
+            commands::foreground_exception::foreground_exception_window_open,
             commands::refusal::kernel_model_runtime_refusal_extract,
             commands::caa::kernel_model_runtime_caa_extract,
             commands::session_distill::kernel_session_mark_for_distillation,
@@ -225,6 +232,10 @@ macro_rules! handshake_invoke_handlers {
             commands::steering::kernel_model_runtime_steering_unregister,
             commands::steering::kernel_model_runtime_steering_list_vectors,
             commands::steering::kernel_model_runtime_steering_approve,
+            commands::steering::kernel_model_runtime_steering_generate_ab,
+            commands::focus_audit::kernel_operator_foreground_focus_audit_start,
+            commands::focus_audit::kernel_operator_foreground_focus_audit_stop,
+            commands::foreground_exception::foreground_exception_window_open,
             commands::refusal::kernel_model_runtime_refusal_extract,
             commands::caa::kernel_model_runtime_caa_extract,
             commands::session_distill::kernel_session_mark_for_distillation,
@@ -908,6 +919,11 @@ pub fn run() {
         // command returns a typed GateUnavailable error so the operator
         // gets a real failure instead of a placeholder success.
         .manage(commands::self_improve::SelfImproveIpcState::default())
+        // MT-027: focus-audit IPC state holds the live `FocusAuditHandle`
+        // map across the start -> (visual run) -> stop round-trip so the a2
+        // smoke can drive the real Win32 foreground audit instead of asserting
+        // a hardcoded empty `handshake_owned_events` vector.
+        .manage(commands::focus_audit::FocusAuditIpcState::new())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_opener::init())

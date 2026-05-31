@@ -1,4 +1,5 @@
 use std::{
+    fmt,
     fs::{self, OpenOptions},
     future::pending,
     io::Write,
@@ -177,10 +178,31 @@ impl ForegroundExceptionHandle {
         &self.log_path
     }
 
+    /// Build a bounded controlled window backed by an in-process recording
+    /// surface (no real display). Use this on headless / seam-level paths and in
+    /// tests; the app layer uses [`Self::bounded_window_with_surface`] to attach
+    /// a real Tauri-backed window.
     pub fn bounded_window(
         &self,
         label: impl Into<String>,
         url: impl Into<String>,
+    ) -> Result<ControlledWindow, ForegroundExceptionError> {
+        self.bounded_window_with_surface(
+            label,
+            url,
+            Arc::new(RecordingControlledWindowSurface::shown_and_focused()),
+        )
+    }
+
+    /// Build a bounded controlled window over a caller-supplied real-window
+    /// surface. The `surface` MUST already have created/shown/focused a real
+    /// bounded window before this returns — `visible()`/`focused()` report the
+    /// live surface state, and `auto_dismiss_at_deadline`/`dismiss` close it.
+    pub fn bounded_window_with_surface(
+        &self,
+        label: impl Into<String>,
+        url: impl Into<String>,
+        surface: Arc<dyn ControlledWindowSurface>,
     ) -> Result<ControlledWindow, ForegroundExceptionError> {
         let label = label.into();
         let url = url.into();
@@ -208,6 +230,7 @@ impl ForegroundExceptionHandle {
             dismissed: Arc::new(AtomicBool::new(false)),
             label,
             url,
+            surface,
         })
     }
 
@@ -258,7 +281,88 @@ impl ForegroundExceptionHandle {
     }
 }
 
-#[derive(Debug, Clone)]
+/// Real-window seam for the controlled foreground-exception window.
+///
+/// `handshake_core` cannot depend on `tauri`, so the app layer implements this
+/// trait over a real `tauri::WebviewWindow`. The implementation is responsible
+/// for actually CREATING, SHOWING, and FOCUSING a bounded window, for reporting
+/// its live visibility/focus state, and for CLOSING it on dismissal. A
+/// logging-only path is no longer permitted: spec §6.6.7 requires a shown,
+/// focused, bounded window with real auto-dismiss.
+///
+/// All methods are synchronous and may be invoked from inside async dismissal;
+/// implementations that must hop to the UI/main thread should block internally
+/// (the app surface does this via `run_on_main_thread`).
+pub trait ControlledWindowSurface: Send + Sync {
+    /// True once the real window has been created and shown.
+    fn is_visible(&self) -> Result<bool, ForegroundExceptionError>;
+    /// True once the real window has received focus.
+    fn is_focused(&self) -> Result<bool, ForegroundExceptionError>;
+    /// Close/destroy the real window. Must be idempotent-safe: it is only ever
+    /// called once by `ControlledWindow` (guarded by the `dismissed` flag), but
+    /// closing an already-closed window must not panic.
+    fn close(&self) -> Result<(), ForegroundExceptionError>;
+}
+
+impl fmt::Debug for dyn ControlledWindowSurface {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("ControlledWindowSurface")
+    }
+}
+
+/// Test/headless surface that records lifecycle transitions without a real
+/// display. Used by seam-level tests and by `bounded_window` callers that have
+/// no Tauri runtime (the real window is wired at the app layer via
+/// [`ForegroundExceptionHandle::bounded_window_with_surface`]).
+#[derive(Debug, Default)]
+pub struct RecordingControlledWindowSurface {
+    shown: AtomicBool,
+    focused: AtomicBool,
+    closed: AtomicBool,
+    close_calls: std::sync::atomic::AtomicU32,
+}
+
+impl RecordingControlledWindowSurface {
+    /// Build a surface that is already shown + focused, modelling a window the
+    /// app layer created and brought to the foreground before handing control
+    /// back to the bounded-window state machine.
+    pub fn shown_and_focused() -> Self {
+        Self {
+            shown: AtomicBool::new(true),
+            focused: AtomicBool::new(true),
+            closed: AtomicBool::new(false),
+            close_calls: std::sync::atomic::AtomicU32::new(0),
+        }
+    }
+
+    pub fn is_closed(&self) -> bool {
+        self.closed.load(Ordering::SeqCst)
+    }
+
+    pub fn close_calls(&self) -> u32 {
+        self.close_calls.load(Ordering::SeqCst)
+    }
+}
+
+impl ControlledWindowSurface for RecordingControlledWindowSurface {
+    fn is_visible(&self) -> Result<bool, ForegroundExceptionError> {
+        // A closed window is no longer visible.
+        Ok(self.shown.load(Ordering::SeqCst) && !self.closed.load(Ordering::SeqCst))
+    }
+
+    fn is_focused(&self) -> Result<bool, ForegroundExceptionError> {
+        Ok(self.focused.load(Ordering::SeqCst) && !self.closed.load(Ordering::SeqCst))
+    }
+
+    fn close(&self) -> Result<(), ForegroundExceptionError> {
+        self.close_calls.fetch_add(1, Ordering::SeqCst);
+        self.closed.store(true, Ordering::SeqCst);
+        self.focused.store(false, Ordering::SeqCst);
+        Ok(())
+    }
+}
+
+#[derive(Clone)]
 pub struct ControlledWindow {
     exception_id: Uuid,
     wp_id: String,
@@ -269,6 +373,20 @@ pub struct ControlledWindow {
     dismissed: Arc<AtomicBool>,
     label: String,
     url: String,
+    surface: Arc<dyn ControlledWindowSurface>,
+}
+
+impl fmt::Debug for ControlledWindow {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("ControlledWindow")
+            .field("exception_id", &self.exception_id)
+            .field("wp_id", &self.wp_id)
+            .field("label", &self.label)
+            .field("url", &self.url)
+            .field("max_duration", &self.max_duration)
+            .field("dismissed", &self.dismissed.load(Ordering::SeqCst))
+            .finish()
+    }
 }
 
 impl ControlledWindow {
@@ -280,18 +398,32 @@ impl ControlledWindow {
         &self.url
     }
 
+    /// Live visibility of the real bounded window, read from the surface. A
+    /// dismissed/closed window reports `false`.
     pub fn visible(&self) -> bool {
-        true
+        if self.dismissed.load(Ordering::SeqCst) {
+            return false;
+        }
+        self.surface.is_visible().unwrap_or(false)
     }
 
+    /// Live focus state of the real bounded window, read from the surface. A
+    /// dismissed/closed window reports `false`.
     pub fn focused(&self) -> bool {
-        true
+        if self.dismissed.load(Ordering::SeqCst) {
+            return false;
+        }
+        self.surface.is_focused().unwrap_or(false)
     }
 
     pub fn expected_foreground(&self) -> bool {
         true
     }
 
+    /// Wait for the bounded deadline, then CLOSE the real window and record the
+    /// end row. The close is enforced via `tokio::time::timeout` against the
+    /// configured `max_duration` -- it is not best-effort: even if the window
+    /// never closes itself, the timeout fires and `dismiss` tears it down.
     pub async fn auto_dismiss_at_deadline(
         &self,
     ) -> Result<ControlledWindowDismissal, ForegroundExceptionError> {
@@ -309,6 +441,11 @@ impl ControlledWindow {
                 label: self.label.clone(),
             });
         }
+
+        // Tear down the real window first so it cannot outlive its bound, then
+        // record the audit rows. The dismissed flag is already set, so a failure
+        // here still leaves the window in a terminal state for the audit trail.
+        self.surface.close()?;
 
         self.append_row(
             "CONTROLLED_WINDOW_DISMISSED",
@@ -385,6 +522,8 @@ pub enum ForegroundExceptionError {
     InvalidWindowUrl,
     #[error("FOREGROUND_WINDOW_ALREADY_DISMISSED: {label}")]
     AlreadyDismissed { label: String },
+    #[error("FOREGROUND_WINDOW_SURFACE: {0}")]
+    WindowSurface(String),
     #[error("FOREGROUND_IO: {0}")]
     Io(#[from] std::io::Error),
     #[error("FOREGROUND_JSON: {0}")]

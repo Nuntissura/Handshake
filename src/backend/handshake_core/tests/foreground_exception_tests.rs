@@ -1,14 +1,16 @@
 use std::{fs, time::Duration};
 
 use chrono::Utc;
+use std::sync::Arc;
+
 use handshake_core::operator_foreground::{
     focus_audit::{
         assert_no_handshake_foreground, FocusAuditEvent, FocusAuditReport, OwnedProcessPidSet,
     },
     foreground_exception::{
         ForegroundException, ForegroundExceptionLogRow, ForegroundPacketPolicy,
-        RecordingForegroundWarningSink, DIAG_BANNER_REQUEST_EVENT_TYPE,
-        FOREGROUND_EXCEPTION_LOG_DIR,
+        RecordingControlledWindowSurface, RecordingForegroundWarningSink,
+        DIAG_BANNER_REQUEST_EVENT_TYPE, FOREGROUND_EXCEPTION_LOG_DIR,
     },
 };
 use serde_json::Value;
@@ -126,6 +128,61 @@ async fn controlled_window_auto_dismisses_at_deadline_and_records_end_row() {
             "FOREGROUND_EXCEPTION_END",
         ]
     );
+}
+
+#[tokio::test]
+async fn controlled_window_lifecycle_closes_real_surface_at_deadline() {
+    // Proves the full lifecycle against the real seam: a surface that models a
+    // shown+focused real window is created, reports visible+focused while live,
+    // and is actually CLOSED (surface.close invoked exactly once) when the
+    // bounded deadline fires. This is the seam-level proof for the app-layer
+    // Tauri window, which implements the same ControlledWindowSurface trait.
+    let temp = tempfile::tempdir().expect("temp dir");
+    let sink = RecordingForegroundWarningSink::default();
+    let handle = ForegroundException::declare(
+        ForegroundPacketPolicy::new("WP-KERNEL-004-FOREGROUND", true),
+        "bounded real-surface controlled window",
+        Duration::from_millis(5),
+        temp.path(),
+        &sink,
+    )
+    .expect("foreground exception declared");
+
+    let surface = Arc::new(RecordingControlledWindowSurface::shown_and_focused());
+    let window = handle
+        .bounded_window_with_surface(
+            "foreground-real-window",
+            "handshake://foreground-real",
+            surface.clone(),
+        )
+        .expect("controlled window over real surface");
+
+    // While live the window reports the live surface state, not a hardcoded true.
+    assert!(window.visible(), "shown surface must report visible");
+    assert!(window.focused(), "focused surface must report focused");
+    assert!(window.expected_foreground());
+    assert!(!surface.is_closed(), "surface must still be open pre-deadline");
+
+    let dismissal = window
+        .auto_dismiss_at_deadline()
+        .await
+        .expect("auto-dismiss succeeds");
+    assert_eq!(dismissal.reason, "auto-dismiss-timeout");
+
+    // The real window was actually torn down exactly once at the deadline.
+    assert!(surface.is_closed(), "auto-dismiss must close the real window");
+    assert_eq!(
+        surface.close_calls(),
+        1,
+        "auto-dismiss must close the surface exactly once"
+    );
+    // Post-dismiss the window reports not-visible / not-focused.
+    assert!(!window.visible(), "closed window is not visible");
+    assert!(!window.focused(), "closed window is not focused");
+
+    // A second dismiss is rejected and does not re-close the surface.
+    assert!(window.dismiss("second-close").is_err());
+    assert_eq!(surface.close_calls(), 1, "surface closed only once total");
 }
 
 #[test]
