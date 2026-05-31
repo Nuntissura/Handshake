@@ -309,6 +309,17 @@ struct HandleState {
     idle_timeout_ms: Option<u64>,
     /// Last time this handle saw activity (spawn or snapshot); drives idle reaping.
     last_active: Instant,
+    /// MT (snapshot-clone uniqueness): for a handle produced by `restore()`, the
+    /// source `SnapshotRef.snapshot_dir` it was restored FROM. `None` for spawned
+    /// (non-restored) handles. Used to enforce clone-safety: a single snapshot
+    /// must not be resumed into two concurrently-LIVE VMs, because Cloud
+    /// Hypervisor resume preserves the guest's in-memory identity (system UUID,
+    /// entropy pool, any baked-in secrets) — there is no VMGenID device to
+    /// reseed a resumed guest, so two live restores of one snapshot would
+    /// silently share identity/secrets/RNG (the Firecracker random-for-clones
+    /// caveat). The original host-side isolation (separate scratch/console/socket)
+    /// does NOT cover guest-internal identity.
+    restored_from: Option<String>,
 }
 
 impl Default for HandleState {
@@ -323,6 +334,7 @@ impl Default for HandleState {
             persistent: None,
             idle_timeout_ms: None,
             last_active: Instant::now(),
+            restored_from: None,
         }
     }
 }
@@ -1176,6 +1188,35 @@ impl SandboxAdapter for CloudHypervisorAdapter {
             )));
         }
 
+        // Snapshot-clone uniqueness gate: refuse to resume a snapshot that is
+        // ALREADY live in another VM. CH resume preserves the guest's in-memory
+        // identity/entropy (there is no VMGenID device to reseed a resumed
+        // guest), so a second CONCURRENT restore would silently replicate the
+        // guest's system UUID, entropy pool, and any baked-in secrets across two
+        // live VMs. The per-restore scratch/console/socket isolation below covers
+        // only HOST-side resources, not guest-internal identity. Sequential
+        // restore-after-kill is fine (the prior VM is flagged `killed`); only
+        // concurrently-live clones are refused.
+        {
+            let guard = self
+                .handles
+                .lock()
+                .map_err(|error| snapshot_failed(format!("handle registry poisoned: {error}")))?;
+            if snapshot_has_live_clone(
+                guard.values().map(|s| (s.restored_from.as_deref(), s.killed)),
+                &snapshot.snapshot_dir,
+            ) {
+                return Err(snapshot_failed(format!(
+                    "snapshot `{}` is already restored into a live VM; refusing a concurrent \
+                     clone -- Cloud Hypervisor resume cannot reseed a running guest's identity \
+                     (no VMGenID device), so two live restores would silently share the guest \
+                     system UUID, entropy pool, and any baked-in secrets. Kill the existing \
+                     restored VM first, or capture distinct per-worktree snapshots.",
+                    snapshot.snapshot_dir
+                )));
+            }
+        }
+
         // Restore into a FULLY INDEPENDENT sandbox (Master Spec v02.187 §3.5.7
         // #7: a captured state is "re-spawned … never mutated in place as
         // authority"). We do NOT restore from the snapshot dir directly and we
@@ -1279,6 +1320,10 @@ impl SandboxAdapter for CloudHypervisorAdapter {
         // live CH child without a reachable `handles` entry on a poisoned lock.
         let mut state = HandleState::default();
         state.persistent = Some(vm);
+        // Record the source snapshot so the clone-safety gate refuses a second
+        // concurrent restore of the same snapshot; kill() flags this handle
+        // `killed`, which releases the snapshot for a subsequent sequential restore.
+        state.restored_from = Some(snapshot.snapshot_dir.clone());
         self.handles
             .lock()
             .map_err(|error| snapshot_failed(format!("handle registry poisoned: {error}")))?
@@ -1997,6 +2042,25 @@ fn net_policy_failed(reason: impl ToString) -> SandboxAdapterError {
     }
 }
 
+/// Snapshot-clone uniqueness check (pure, unit-testable). Given each handle's
+/// `(restored_from, killed)` provenance, return `true` when resuming
+/// `snapshot_dir` would create a SECOND concurrently-live VM from the same
+/// snapshot — i.e. a live (non-killed) handle was already restored from it.
+///
+/// CH resume cannot reseed a running guest's identity/entropy (no VMGenID
+/// device), so two live restores of one snapshot silently share the guest
+/// system UUID, entropy pool, and any baked-in secrets. `restore()` refuses when
+/// this returns `true`. Killed handles are excluded (a snapshot is released for a
+/// subsequent sequential restore once its prior VM is torn down).
+fn snapshot_has_live_clone<'a>(
+    handles: impl Iterator<Item = (Option<&'a str>, bool)>,
+    snapshot_dir: &str,
+) -> bool {
+    handles
+        .filter(|(_, killed)| !*killed)
+        .any(|(restored_from, _)| restored_from == Some(snapshot_dir))
+}
+
 fn snapshot_failed(reason: impl ToString) -> SandboxAdapterError {
     SandboxAdapterError::SnapshotFailed {
         adapter_id: AdapterId::new(CLOUD_HYPERVISOR_ADAPTER_ID),
@@ -2022,6 +2086,34 @@ fn timed_out(handle_id: Uuid, timeout_ms: u64) -> SandboxAdapterError {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn snapshot_clone_safety_refuses_concurrent_live_restore() {
+        let dir = "/snap/golden-a";
+        // No handles yet -> safe to restore.
+        assert!(!snapshot_has_live_clone(std::iter::empty(), dir));
+
+        // A live handle restored from this snapshot -> a second restore is a clone.
+        let live = vec![(Some(dir), false)];
+        assert!(snapshot_has_live_clone(live.into_iter(), dir));
+
+        // Unrelated live restore + a spawned (None) handle -> still safe.
+        let others = vec![(Some("/snap/other-b"), false), (None, false)];
+        assert!(!snapshot_has_live_clone(others.into_iter(), dir));
+    }
+
+    #[test]
+    fn snapshot_clone_safety_allows_sequential_restore_after_kill() {
+        let dir = "/snap/golden-a";
+        // The prior restore of this snapshot was killed (torn down) -> the
+        // snapshot is released; a fresh sequential restore is NOT a live clone.
+        let after_kill = vec![(Some(dir), true)];
+        assert!(!snapshot_has_live_clone(after_kill.into_iter(), dir));
+
+        // But if one clone is killed and ANOTHER is still live, refuse.
+        let one_live = vec![(Some(dir), true), (Some(dir), false)];
+        assert!(snapshot_has_live_clone(one_live.into_iter(), dir));
+    }
 
     #[test]
     fn idle_init_loops_and_never_powers_off() {
