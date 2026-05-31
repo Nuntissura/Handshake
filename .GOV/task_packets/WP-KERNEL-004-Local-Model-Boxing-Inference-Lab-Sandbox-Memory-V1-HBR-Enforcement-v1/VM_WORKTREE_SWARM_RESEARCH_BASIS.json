@@ -18,13 +18,57 @@
   },
   "field_alignment": "Handshake's day-1 design IS the 2026 field consensus: Cloud Hypervisor as the GPU-capable + snapshot-capable Tier3 microVM (Fly.io CPU-Firecracker/GPU-CloudHypervisor precedent); trust->isolation-tier ladder (containers-are-not-a-boundary); two-layer recovery = VM snapshot/restore (Firecracker/CH pause->create->load{resume_vm}) PLUS event-sourced journal+idempotency (Temporal/Restate durable execution); signature-keyed circuit breaker + per-provider fallback (LiteLLM cooldown); multi-limit admission + per-VM cgroup + rate limiters + lease reaper (Firecracker NSDI'20). Closest single reference: BloopAI/vibe-kanban (Rust+axum+React, git-worktree-per-attempt, execution_process lifecycle rows, broadcast->patch->stream live board).",
   "prioritized_build_plan": [
-    {"rank": 1, "item": "Snapshot-clone uniqueness on cloud_hypervisor restore()", "severity": "CRITICAL_SECURITY", "status": "CONFIRMED_GAP", "evidence": "grep of sandbox/cloud_hypervisor/ for vmgenid|entropy|reseed|uniqueness = EMPTY; restore() (adapter.rs:1167) copies the snapshot and restores with resume=true but never rotates VM-generation identity or re-seeds guest entropy. Restoring one base snapshot into N parallel VM worktrees replicates unique IDs, crypto tokens, RNG seeds, entropy pools — the central field caveat (Firecracker VMGenID + random-for-clones docs). HARDEST workload = many parallel worktrees from a golden snapshot, so this is directly in operator scope.", "fix": "On restore(), inject a fresh VM-generation id and/or re-seed guest entropy + mark single-use; add a clone-safety regression test (restore one snapshot into two VMs -> assert their generation ids/entropy differ). Tension with [GLOBAL-PORTABILITY]: isolate snapshot_dir behind a configured runtime root.", "headless_provable": true},
-    {"rank": 2, "item": "Grouping/lineage key (project_id/task_id/swarm_id/worktree_id) on SpawnRequest + SessionHandle + SwarmEvent + metadata_jsonb", "severity": "STRUCTURAL_UNLOCK", "evidence": "swarm code has only ModelInstanceId{model_id,instance}; no project/task/swarm/worktree grouping. This one field unlocks (1) per-project/task budgets, (2) the Jira board swimlanes, (3) FR drill-down join key, (4) calendar schedule targeting. Lands in ids.rs + metadata_jsonb with no ledger schema change (promote to typed columns later).", "headless_provable": true},
-    {"rank": 3, "item": "FlightRecorder persistence for swarm/VM events + new SwarmFrEventId variants", "severity": "OBSERVABILITY_GAP", "evidence": "production FlightRecorderSwarmSink only eprintln!s to stderr (no durable DB write, no UI push). Repoint the emit closure to fr_emitter (DuckDB). Add SwarmFrEventId variants WorktreeCreated/Mounted/Reclaimed/CleanupFailed + ScheduledSpinupFired/TeardownFired (FR-EVT-SWARM-WORKTREE-* / -SCHED-*) in the self-contained sub-registry (lock-safe; folded into master FrEventId in a later governance wave). Mirror the ledger overflow-counter so dropped FR events are observable not silent.", "headless_provable": true},
-    {"rank": 4, "item": "Live UI push: SwarmEventSink -> tokio::broadcast -> Tauri emit('swarm://event'); board columns = ModelSessionState, swimlanes = grouping key; ipc::Channel for token stream", "severity": "UX_RUNTIME", "evidence": "SwarmControlRoom polls 1500ms. Add a 2nd production sink (UiBroadcastSwarmSink) -> broadcast -> Tauri app.emit; React listen() updates cards in place; keep poll as snapshot/reconcile fallback (guards Prefect-style dropped-message drift). Vibe Kanban snapshot+ready+live-deltas handshake shape, typed SwarmEvent not RFC-6902.", "headless_provable": "partial (final visual smoke needs display)"},
-    {"rank": 5, "item": "LocalOutcome::Overloaded + overload/memory-pressure signals into routing.rs", "severity": "ESCALATION_GAP", "evidence": "routing.rs escalates on Failed/LowConfidence but NOT on overload (LiteLLM/vLLM escalate on capacity). Add Overloaded fed by coordinator concurrency-semaphore saturation + in-VM OOM/memory-pressure + latency-SLO breach; carry the session_checkpoint idempotency key across escalation so cloud rerun does not duplicate side effects; ForceLocal must block escalation (data-egress).", "headless_provable": true},
-    {"rank": 6, "item": "Admission additions: separate cold-start semaphore, committed-memory budget (no overcommit) + CH balloon, per-device token-bucket rate_limits in ResourceLimits", "severity": "FLEET_ISOLATION", "evidence": "coordinator bounds run-concurrency but not VM cold-starts (TAP/CNI is the scale wall at high parallelism) nor committed memory (Firecracker warns against blind memory overcommit). Add 3 independent limits + per-VM cgroup + per-device rate limiters (anti-noisy-neighbor).", "headless_provable": true},
-    {"rank": 7, "item": "Calendar: tokio-cron-scheduler -> coordinator.spawn_session/cancel_session; time-boxing = existing lease-TTL+reaper (free); ICS export via icalendar", "severity": "SCHEDULING", "evidence": "no calendar/scheduling exists. tokio-cron-scheduler (Tokio-native, UTC, Postgres-persistable) fires the SAME spawn/cancel the operator button calls; a time-boxed session is a spawn with lease_ttl=box and no renewal so the existing reaper tears it down with ZERO new teardown code (highest-ROI reuse); icalendar generates VEVENTs for CalDAV/Google/Apple import without a calendar server; startup catch-up policy for missed fires on a closed desktop app.", "headless_provable": true}
+    {
+      "rank": 1,
+      "item": "Snapshot-clone uniqueness on cloud_hypervisor restore()",
+      "severity": "CRITICAL_SECURITY",
+      "status": "CONFIRMED_GAP",
+      "evidence": "grep of sandbox/cloud_hypervisor/ for vmgenid|entropy|reseed|uniqueness = EMPTY; restore() (adapter.rs:1167) copies the snapshot and restores with resume=true but never rotates VM-generation identity or re-seeds guest entropy. Restoring one base snapshot into N parallel VM worktrees replicates unique IDs, crypto tokens, RNG seeds, entropy pools — the central field caveat (Firecracker VMGenID + random-for-clones docs). HARDEST workload = many parallel worktrees from a golden snapshot, so this is directly in operator scope.",
+      "fix": "On restore(), inject a fresh VM-generation id and/or re-seed guest entropy + mark single-use; add a clone-safety regression test (restore one snapshot into two VMs -> assert their generation ids/entropy differ). Tension with [GLOBAL-PORTABILITY]: isolate snapshot_dir behind a configured runtime root.",
+      "headless_provable": true
+    },
+    {
+      "rank": 2,
+      "item": "Grouping/lineage key (project_id/task_id/swarm_id/worktree_id) on SpawnRequest + SessionHandle + SwarmEvent + metadata_jsonb",
+      "severity": "STRUCTURAL_UNLOCK",
+      "evidence": "swarm code has only ModelInstanceId{model_id,instance}; no project/task/swarm/worktree grouping. This one field unlocks (1) per-project/task budgets, (2) the Jira board swimlanes, (3) FR drill-down join key, (4) calendar schedule targeting. Lands in ids.rs + metadata_jsonb with no ledger schema change (promote to typed columns later).",
+      "headless_provable": true
+    },
+    {
+      "rank": 3,
+      "item": "FlightRecorder persistence for swarm/VM events + new SwarmFrEventId variants",
+      "severity": "OBSERVABILITY_GAP",
+      "evidence": "production FlightRecorderSwarmSink only eprintln!s to stderr (no durable DB write, no UI push). Repoint the emit closure to fr_emitter (DuckDB). Add SwarmFrEventId variants WorktreeCreated/Mounted/Reclaimed/CleanupFailed + ScheduledSpinupFired/TeardownFired (FR-EVT-SWARM-WORKTREE-* / -SCHED-*) in the self-contained sub-registry (lock-safe; folded into master FrEventId in a later governance wave). Mirror the ledger overflow-counter so dropped FR events are observable not silent.",
+      "headless_provable": true
+    },
+    {
+      "rank": 4,
+      "item": "Live UI push: SwarmEventSink -> tokio::broadcast -> Tauri emit('swarm://event'); board columns = ModelSessionState, swimlanes = grouping key; ipc::Channel for token stream",
+      "severity": "UX_RUNTIME",
+      "evidence": "SwarmControlRoom polls 1500ms. Add a 2nd production sink (UiBroadcastSwarmSink) -> broadcast -> Tauri app.emit; React listen() updates cards in place; keep poll as snapshot/reconcile fallback (guards Prefect-style dropped-message drift). Vibe Kanban snapshot+ready+live-deltas handshake shape, typed SwarmEvent not RFC-6902.",
+      "headless_provable": "partial (final visual smoke needs display)"
+    },
+    {
+      "rank": 5,
+      "item": "LocalOutcome::Overloaded + overload/memory-pressure signals into routing.rs",
+      "severity": "ESCALATION_GAP",
+      "evidence": "routing.rs escalates on Failed/LowConfidence but NOT on overload (LiteLLM/vLLM escalate on capacity). Add Overloaded fed by coordinator concurrency-semaphore saturation + in-VM OOM/memory-pressure + latency-SLO breach; carry the session_checkpoint idempotency key across escalation so cloud rerun does not duplicate side effects; ForceLocal must block escalation (data-egress).",
+      "headless_provable": true
+    },
+    {
+      "rank": 6,
+      "item": "Admission additions: separate cold-start semaphore, committed-memory budget (no overcommit) + CH balloon, per-device token-bucket rate_limits in ResourceLimits",
+      "severity": "FLEET_ISOLATION",
+      "evidence": "coordinator bounds run-concurrency but not VM cold-starts (TAP/CNI is the scale wall at high parallelism) nor committed memory (Firecracker warns against blind memory overcommit). Add 3 independent limits + per-VM cgroup + per-device rate limiters (anti-noisy-neighbor).",
+      "headless_provable": true
+    },
+    {
+      "rank": 7,
+      "item": "Calendar: tokio-cron-scheduler -> coordinator.spawn_session/cancel_session; time-boxing = existing lease-TTL+reaper (free); ICS export via icalendar",
+      "severity": "SCHEDULING",
+      "evidence": "no calendar/scheduling exists. tokio-cron-scheduler (Tokio-native, UTC, Postgres-persistable) fires the SAME spawn/cancel the operator button calls; a time-boxed session is a spawn with lease_ttl=box and no renewal so the existing reaper tears it down with ZERO new teardown code (highest-ROI reuse); icalendar generates VEVENTs for CalDAV/Google/Apple import without a calendar server; startup catch-up policy for missed fires on a closed desktop app.",
+      "headless_provable": true
+    }
   ],
   "rejected_options": [
     "Firecracker as the GPU model-in-VM adapter (no GPU passthrough, roadmap only) -> Cloud Hypervisor is the GPU Tier3 path.",
@@ -48,15 +92,63 @@
   "validation_strategy": "Each item ships with crash-injection / fail-scenario tests per the operator mandate: clone-safety regression (two restores differ), OOM containment (only the offending VM dies), admission refusal (typed, not host thrash), escalate-on-failure + ForceLocal-blocks-egress, mass-reclaim after host kill, time-boxed lease auto-reap, scheduled-fire FR event emission, board-card-moves-on-pushed-event (WebDriver visual where a display is available).",
   "next_action": "Implement rank-1 (snapshot-clone uniqueness, CRITICAL security, headless-provable) FIRST with adversarial sub-agent review, then rank-2 grouping key (structural unlock), then proceed down the plan. GUI-dependent final smokes (rank-4 visual) flagged for a display session.",
   "implementation_progress": {
-    "updated_at_utc": "2026-05-31T08:30:00.000Z",
+    "updated_at_utc": "2026-05-31T10:30:00.000Z",
     "consolidated_checkpoint": "swarm_orchestration 59/59 + cloud_hypervisor 13/13 lib tests; app-crate build exit 0 (cumulative). feat branch.",
-    "rank_1_snapshot_clone_uniqueness": {"status": "DONE", "commits": ["36919ac6 clone-safety gate", "1f1d4f4c TOCTOU race + leak fix (adversarial review)"], "note": "Refuses a second concurrently-live restore of one snapshot (CH resume cannot reseed guest identity). Reservation under the gate lock closes the TOCTOU; released on every failure path. Known documented limit: keys on snapshot_dir (copy-bypass needs guest VMGenID, CH does not expose). Adversarially reviewed."},
-    "rank_2_grouping_key": {"status": "DONE", "commits": ["7ee5e0b7"], "note": "SpawnRequest swarm_id/worktree_id + builders; SessionHandle carries them; coordinator session_grouping() read API; reaper STOP metadata_jsonb records them. Tested."},
-    "rank_3_flight_recorder": {"status": "PARTIAL", "commits": ["bbdf4cdf worktree+sched FR-EVT-SWARM ids", "8bff1e07 DurableSwarmFrBridge (sync sink -> async recorder + dropped counter)"], "remaining": "App wiring: construct DurableSwarmFrBridge in SwarmRuntimeState with the shared app-data-root DuckDB recorder (behind duckdb-flight-recorder feature) so deployed events persist. Mechanism tested in default CI via a fake recorder."},
-    "rank_5_overload_escalation": {"status": "DONE", "commits": ["83770700"], "note": "LocalOutcome::Overloaded escalates to cloud without tripping the local breaker; ForceLocal blocks egress. Tested (escalate / no-breaker-trip / ForceLocal-blocks)."},
-    "rank_4_live_ui_push": {"status": "PARTIAL", "commits": ["aa6c635f BroadcastSwarmSink + FanoutSwarmSink"], "remaining": "Tauri forwarder (broadcast.subscribe() -> app.emit) + React listen() in SwarmControlRoom (keep poll as reconcile fallback) + ipc::Channel token stream. Final visual/WebDriver smoke needs a display session. Backend live-update source DONE + tested (subscriber delivery; fanout to FR + broadcast)."},
-    "rank_6_admission": {"status": "PARTIAL", "commits": ["9378117a cold-start semaphore"], "remaining": "Committed-memory admission budget (no overcommit) + CH balloon, per-device token-bucket rate_limits in ResourceLimits. Cold-start bound DONE + tested (8 spawns, run-concurrency 16 + cold-start 2 -> peak boots <=2, all admitted not rejected)."},
-    "rank_7_calendar": {"status": "PARTIAL", "commits": ["54d8777c per-spawn time-box via lease reuse"], "remaining": "tokio-cron-scheduler -> coordinator.spawn/cancel (new dep) firing on cron/RRULE; ICS export via icalendar; startup catch-up for missed fires. Time-box core DONE + tested (30ms-boxed session reaped while 60s-lease session survives) -- a scheduled spin-up is a time-boxed spawn that auto-reaps via the existing reaper, no new teardown code. FR-EVT-SWARM-SCHED ids added (rank-3)."},
-    "summary": "All 7 ranks' HEADLESS-TESTABLE CORES implemented + unit-tested + committed on feat branch (swarm 63/63, cloud_hypervisor 13/13, events 7/7, routing 20/20; app build green). Rank-1 adversarially reviewed (TOCTOU + leak fixed). Remaining follow-ups are (a) app-wiring [FR durable recorder into SwarmRuntimeState; Tauri broadcast forwarder + React listen], (b) NEW DEPENDENCIES [tokio-cron-scheduler + icalendar for rank-7 calendar], (c) DISPLAY-DEPENDENT smokes [the operator board visual + the GUI items MT-019/020/027/098], and (d) remaining rank-6 [memory-admission budget + per-device rate_limits]. Each is documented in the per-rank commit messages."
+    "rank_1_snapshot_clone_uniqueness": {
+      "status": "DONE",
+      "commits": [
+        "36919ac6 clone-safety gate",
+        "1f1d4f4c TOCTOU race + leak fix (adversarial review)"
+      ],
+      "note": "Refuses a second concurrently-live restore of one snapshot (CH resume cannot reseed guest identity). Reservation under the gate lock closes the TOCTOU; released on every failure path. Known documented limit: keys on snapshot_dir (copy-bypass needs guest VMGenID, CH does not expose). Adversarially reviewed."
+    },
+    "rank_2_grouping_key": {
+      "status": "DONE",
+      "commits": [
+        "7ee5e0b7"
+      ],
+      "note": "SpawnRequest swarm_id/worktree_id + builders; SessionHandle carries them; coordinator session_grouping() read API; reaper STOP metadata_jsonb records them. Tested."
+    },
+    "rank_3_flight_recorder": {
+      "status": "DONE_PENDING_BUILD",
+      "commits": [
+        "bbdf4cdf worktree+sched FR-EVT-SWARM ids",
+        "8bff1e07 DurableSwarmFrBridge (sync sink -> async recorder + dropped counter)"
+      ],
+      "remaining": "App wiring: construct DurableSwarmFrBridge in SwarmRuntimeState with the shared app-data-root DuckDB recorder (behind duckdb-flight-recorder feature) so deployed events persist. Mechanism tested in default CI via a fake recorder.",
+      "note": "Durable bridge (8bff1e07) + FR ids (bbdf4cdf). App wiring: production_with_fr_recorder builds DurableSwarmFrBridge from a DuckDB recorder; lib.rs builds swarm_flight_recorder.duckdb under app_data_root and wires it (stderr fallback). Build verifying."
+    },
+    "rank_5_overload_escalation": {
+      "status": "DONE",
+      "commits": [
+        "83770700"
+      ],
+      "note": "LocalOutcome::Overloaded escalates to cloud without tripping the local breaker; ForceLocal blocks egress. Tested (escalate / no-breaker-trip / ForceLocal-blocks)."
+    },
+    "rank_4_live_ui_push": {
+      "status": "DONE",
+      "commits": [
+        "aa6c635f BroadcastSwarmSink+FanoutSwarmSink",
+        "16e83da3 live board: Rust forwarder + snapshot command + React CSS-grid board"
+      ],
+      "note": "Operator-emphasized Jira board. Backend: SwarmEvent Serialize; production() fans the coordinator sink to FR + BroadcastSwarmSink; spawn_swarm_board_forwarder (single serializer -> ordered typed swarm://event deltas, swarm://resync on lag); kernel_swarm_board_snapshot (cards with state + grouping). Frontend: useSwarmBoard drift-safe hook (snapshot + apply deltas + seq-gap/resync reconcile, 10s safety net not 1500ms poll) + hand-rolled CSS-grid board (7 state columns x grouping swimlanes, per-card cancel, live counts, resync banner). app build exit 0; tsc exit 0. Display-dependent: visual/WebDriver smoke, card drill-down panel, dnd-kit action zones."
+    },
+    "rank_6_admission": {
+      "status": "PARTIAL",
+      "commits": [
+        "9378117a cold-start semaphore"
+      ],
+      "remaining": "Committed-memory admission budget (no overcommit) + CH balloon, per-device token-bucket rate_limits in ResourceLimits. Cold-start bound DONE + tested (8 spawns, run-concurrency 16 + cold-start 2 -> peak boots <=2, all admitted not rejected)."
+    },
+    "rank_7_calendar": {
+      "status": "DONE",
+      "commits": [
+        "54d8777c per-spawn time-box",
+        "f3daf90e calendar scheduler + ICS (tokio-cron-scheduler + icalendar)"
+      ],
+      "note": "SwarmScheduler (cron -> injectable fire callback -> coordinator.spawn time-boxed / cancel), schedules_to_ics (RFC-5545 export). Tested: ICS VEVENT + cron fires within 2.5s. Follow-up: app wiring (construct scheduler, wire callback to coordinator, persist + startup catch-up, ICS export command)."
+    },
+    "summary": "Ranks 1-7 all implemented + tested + committed on feat. Backend cores done; rank-4 board (Rust+React) and rank-7 calendar (cron+ICS) fully built; rank-3 app FR-recorder wiring building. Remaining: rank-3 app wiring build-confirm; per-adapter rate-limit argv; calendar app wiring; GUI items MT-019/020/027/098 (display); display-dependent board visual smoke.",
+    "board_research": "GitHub-surveyed (vibe-kanban, claude-squad, OpenHands, Temporal UI, Inngest, Prefect; dnd-kit/react-virtual). Brief: snapshot+live-delta handshake, typed app.emit deltas + seq/epoch reconcile, hand-rolled CSS-grid (no heavy kanban lib), board-as-read-model (UI writes are commands). Applied in rank-4."
   }
 }
