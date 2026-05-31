@@ -348,12 +348,26 @@ impl MockGate {
             }),
         );
     }
+    fn reject(&self, ticket_id: Uuid, reason: &str) {
+        self.inner.lock().unwrap().insert(
+            ticket_id,
+            MockTicketState::Rejected(PromotionRejection {
+                rejected_by: OperatorId::new("test-op"),
+                rejected_at_utc: Utc::now(),
+                rejection_reason: reason.to_string(),
+            }),
+        );
+    }
 }
 impl PromotionGateSubmitter for MockGate {
-    fn submit(&self, _r: PromotionRequest) -> Result<PromotionTicket, GateError> {
+    fn submit(&self, r: PromotionRequest) -> Result<PromotionTicket, GateError> {
+        // A correct gate binds the issued ticket to the request's
+        // iteration_id (MT-154 finding #1). LoopPromotionGate::submit rejects
+        // any ticket whose iteration_id is detached from the request, so a
+        // ticket carrying a random iteration_id would never reach poll().
         let t = PromotionTicket {
             ticket_id: Uuid::now_v7(),
-            iteration_id: Uuid::now_v7(),
+            iteration_id: r.iteration_id,
             submitted_at_utc: Utc::now(),
         };
         self.inner
@@ -417,11 +431,20 @@ fn promotion_gate_blocks_apply_until_approved() {
         justification_text: "test".to_string(),
     };
     let ticket = adapter.submit(request).unwrap();
-    // Apply path is blocked while pending.
+    // Safety property part 1: the apply path is blocked while the ticket is
+    // pending operator review. require_approved must NOT yield an approval.
     assert!(matches!(
         adapter.require_approved(&ticket).unwrap_err(),
         GateError::ReviewPending
     ));
+    // Safety property part 2: a rejected ticket is likewise non-appliable —
+    // an unapproved promotion of any kind must never produce an approval.
+    gate.reject(ticket.ticket_id, "operator declined");
+    assert!(matches!(
+        adapter.require_approved(&ticket).unwrap_err(),
+        GateError::ReviewRejected { .. }
+    ));
+    // Only an explicit approval unblocks the apply path.
     gate.approve(ticket.ticket_id);
     let approval = adapter.require_approved(&ticket).unwrap();
     assert_eq!(approval.approved_by.as_str(), "test-op");
