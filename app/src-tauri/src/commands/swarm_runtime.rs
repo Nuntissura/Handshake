@@ -36,9 +36,26 @@
 //! `coordinator.session_state(iid)`, dropping entries the coordinator has
 //! already evicted (terminal / reaped) so the table cannot leak.
 //!
-//! The cloud lane is left UNCONFIGURED by default: a cloud swarm spawn returns a
-//! typed `ProviderNotConfigured` until BYOK credentials are wired through the
-//! existing `OsKeychainSecretsVault` + BYOK adapters (MT-206).
+//! The cloud lane is wired (MT-206) to the SAME `OsKeychainSecretsVault` the
+//! cloud-lane control panel writes BYOK keys into, via
+//! `CloudLaneFactoryConfig::from_vault`. A cloud swarm spawn then constructs a
+//! REAL anthropic/openai BYOK `ModelRuntime` when the operator has stored a key
+//! under the configured lane id, and returns a typed `ProviderNotConfigured`
+//! (genuine runtime condition) when no key is present — never a placeholder.
+//! Local and cloud sessions therefore run in parallel through one coordinator:
+//! local candle/llama sessions are real on-host engines; cloud sessions are the
+//! real provider HTTP/SSE path when credentialed.
+//!
+//! ## Cloud-lane vault wiring
+//!
+//! `production()` builds an `OsKeychainSecretsVault` under
+//! `HANDSHAKE_KEYCHAIN_SERVICE` (the same namespace `lib.rs` builds the
+//! cloud-lane panel's vault with) and binds the anthropic lane id from
+//! `HANDSHAKE_SWARM_ANTHROPIC_LANE` (default `"anthropic"`) and the openai lane
+//! id from `HANDSHAKE_SWARM_OPENAI_LANE` (default `"openai"`). Store a key under
+//! that lane id via the cloud-lane control panel to enable the lane. Use
+//! `production_with_cloud_vault` to inject a specific vault + lane ids (tests,
+//! or a shared vault handle).
 
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
@@ -54,6 +71,7 @@ use handshake_core::process_ledger::{
     LedgerBatcher, LedgerBatcherConfig, LedgerEvent, LedgerOverflowEvent, ProcessLedgerError,
     ProcessLedgerOverflowSink, ProcessLedgerStore,
 };
+use handshake_core::model_runtime::cloud::SecretsVault;
 use handshake_core::swarm_orchestration::{
     CloudLaneFactoryConfig, FlightRecorderSwarmSink, LiveSession, ModelInstanceId,
     ModelSessionFactory, ModelSessionState, ProductionModelSessionFactory, RunBudget, SpawnRequest,
@@ -202,11 +220,53 @@ impl std::fmt::Debug for SwarmRuntimeState {
 }
 
 impl SwarmRuntimeState {
-    /// Build the production swarm runtime: real ledger batcher + in-process
-    /// store, the production factory (cloud unconfigured) wrapped in a
-    /// [`TrackingFactory`], and a structured flight-recorder sink. Starts the
-    /// lease/TTL reaper so stale sessions are reclaimed for the app's lifetime.
+    /// Build the production swarm runtime with the cloud lane wired to the
+    /// host OS keychain vault (the same `OsKeychainSecretsVault` the cloud-lane
+    /// control panel uses). A cloud spawn constructs a real BYOK runtime when
+    /// the operator has stored a key under the configured lane id, and returns a
+    /// typed `ProviderNotConfigured` otherwise. Lane ids default to
+    /// `"anthropic"` / `"openai"` and can be overridden via
+    /// `HANDSHAKE_SWARM_ANTHROPIC_LANE` / `HANDSHAKE_SWARM_OPENAI_LANE`.
     pub fn production() -> Self {
+        let vault: Arc<dyn SecretsVault> = Arc::new(
+            handshake_core::model_runtime::cloud::secrets_vault::OsKeychainSecretsVault::new(
+                handshake_core::model_runtime::cloud::secrets_vault::HANDSHAKE_KEYCHAIN_SERVICE,
+            ),
+        );
+        let anthropic_lane = std::env::var("HANDSHAKE_SWARM_ANTHROPIC_LANE")
+            .ok()
+            .filter(|s| !s.trim().is_empty())
+            .unwrap_or_else(|| "anthropic".to_string());
+        let openai_lane = std::env::var("HANDSHAKE_SWARM_OPENAI_LANE")
+            .ok()
+            .filter(|s| !s.trim().is_empty())
+            .unwrap_or_else(|| "openai".to_string());
+        let cloud = CloudLaneFactoryConfig::from_vault(
+            vault,
+            Some(anthropic_lane),
+            Some(openai_lane),
+        );
+        Self::production_with_cloud(cloud)
+    }
+
+    /// Build the production swarm runtime with an explicit cloud-lane config
+    /// built from a caller-supplied vault + lane ids. This is the seam tests
+    /// (and alternate wirings) use to inject an `InMemorySecretsVault` so the
+    /// cloud dispatch path is provable without touching the OS keychain.
+    pub fn production_with_cloud_vault(
+        vault: Arc<dyn SecretsVault>,
+        anthropic_lane: Option<String>,
+        openai_lane: Option<String>,
+    ) -> Self {
+        let cloud = CloudLaneFactoryConfig::from_vault(vault, anthropic_lane, openai_lane);
+        Self::production_with_cloud(cloud)
+    }
+
+    /// Core constructor: real ledger batcher + in-process store, the production
+    /// factory wrapped in a [`TrackingFactory`], a structured flight-recorder
+    /// sink, with the supplied [`CloudLaneFactoryConfig`]. Starts the lease/TTL
+    /// reaper so stale sessions are reclaimed for the app's lifetime.
+    pub fn production_with_cloud(cloud: CloudLaneFactoryConfig) -> Self {
         let store = InProcessLedgerStore::default();
         let overflow = Arc::new(CountingOverflowSink::default());
         let (ledger, writer_task) = LedgerBatcher::spawn(
@@ -221,16 +281,17 @@ impl SwarmRuntimeState {
         // `build_production_swarm_coordinator`) so the production factory can be
         // wrapped with the TrackingFactory that feeds the app-side side-table.
         // Concurrency cap from CPU parallelism; the lifetime ceiling is
-        // HBR-SWARM-002's loop cap (RunBudget default). Cloud lane unconfigured
-        // until BYOK credentials are wired (MT-206): a cloud spawn returns a
-        // typed ProviderNotConfigured today.
+        // HBR-SWARM-002's loop cap (RunBudget default). The cloud lane is wired
+        // from the supplied `CloudLaneFactoryConfig` (MT-206): a cloud spawn
+        // builds a real BYOK runtime when the operator has stored a key, and
+        // returns a typed ProviderNotConfigured otherwise.
         let concurrency =
             handshake_core::swarm_orchestration::default_swarm_concurrency().max(1);
         let budget = RunBudget::defaulted(concurrency).with_concurrency(concurrency);
         let config = SwarmConfig::new(budget);
 
         let production_factory =
-            ProductionModelSessionFactory::new(ledger.clone(), CloudLaneFactoryConfig::unconfigured());
+            ProductionModelSessionFactory::new(ledger.clone(), cloud);
         let factory = Arc::new(TrackingFactory {
             inner: production_factory,
             table: sessions.clone(),
@@ -885,5 +946,179 @@ mod tests {
         let state = SwarmRuntimeState::production();
         let iid = ModelInstanceId::new(ModelId::new_v7(), 0);
         assert!(state.resolve_runtime(iid).is_none());
+    }
+
+    // ---- MT-206: vault-backed cloud lane dispatch (no live network) ----
+
+    use handshake_core::model_runtime::cloud::InMemorySecretsVault;
+
+    /// With a vault holding an anthropic key under the configured lane, a cloud
+    /// ByokCloud spawn for an allowlisted model BUILDS a real session: the
+    /// anthropic BYOK runtime is constructed, its allowlist-gated `load` mints a
+    /// ModelId, the coordinator registers a live session, and the TrackingFactory
+    /// records it. This proves the cloud builder dispatch SUCCESS shape without a
+    /// live HTTP call (the runtime is real; no generate is issued here).
+    #[tokio::test]
+    async fn configured_cloud_lane_builds_a_live_cloud_session() {
+        let vault = Arc::new(InMemorySecretsVault::default());
+        vault
+            .put("anthropic", "sk-ant-test-key-do-not-log".to_string())
+            .expect("store anthropic key");
+        let state = SwarmRuntimeState::production_with_cloud_vault(
+            vault,
+            Some("anthropic".to_string()),
+            // No openai lane so ByokCloud resolves to the anthropic builder.
+            None,
+        );
+        let coordinator = state.coordinator();
+        let req = SwarmSpawnRequestIpc {
+            provider: SwarmProviderIpc::ByokCloud,
+            artifact_path: None,
+            sha256_expected: None,
+            runtime_binding: None,
+            // An allowlisted Claude family model name (anthropic allowlist).
+            cloud_model_name: Some("claude-sonnet-4".to_string()),
+            instance: 0,
+            parent_session_id: None,
+        };
+        let spawn = build_spawn_request(&req).expect("valid cloud request");
+        let iid = coordinator
+            .spawn_session(spawn)
+            .await
+            .expect("configured cloud spawn builds a live session");
+        assert_eq!(coordinator.live_session_count(), 1);
+        // The session is tracked and resolvable (real Arc<dyn ModelRuntime>).
+        assert!(state.resolve_runtime(iid).is_some());
+        // Clean teardown: cancel evicts the session with no orphan.
+        coordinator
+            .cancel_session(iid, "test_cancel")
+            .await
+            .expect("cancel");
+        assert_eq!(coordinator.live_session_count(), 0);
+    }
+
+    /// A configured lane whose vault has NO key still surfaces the honest
+    /// `ProviderNotConfigured` (the credential preflight in the builder fails).
+    #[tokio::test]
+    async fn configured_lane_without_key_surfaces_provider_not_configured() {
+        let vault = Arc::new(InMemorySecretsVault::default());
+        let state = SwarmRuntimeState::production_with_cloud_vault(
+            vault,
+            Some("anthropic".to_string()),
+            None,
+        );
+        let coordinator = state.coordinator();
+        let req = SwarmSpawnRequestIpc {
+            provider: SwarmProviderIpc::ByokCloud,
+            artifact_path: None,
+            sha256_expected: None,
+            runtime_binding: None,
+            cloud_model_name: Some("claude-sonnet-4".to_string()),
+            instance: 0,
+            parent_session_id: None,
+        };
+        let spawn = build_spawn_request(&req).expect("valid cloud request");
+        let err = coordinator
+            .spawn_session(spawn)
+            .await
+            .expect_err("no key -> not configured");
+        assert!(is_provider_not_configured(&err), "got {err}");
+        assert_eq!(coordinator.live_session_count(), 0);
+    }
+
+    /// A non-allowlisted cloud model name fails the adapter's real allowlist
+    /// gate inside `load`, surfaced honestly as ProviderNotConfigured (genuine
+    /// runtime condition), leaving no live session / no orphan ledger START.
+    #[tokio::test]
+    async fn configured_lane_rejects_non_allowlisted_model_honestly() {
+        let vault = Arc::new(InMemorySecretsVault::default());
+        vault
+            .put("anthropic", "sk-ant-test-key".to_string())
+            .expect("store key");
+        let state = SwarmRuntimeState::production_with_cloud_vault(
+            vault,
+            Some("anthropic".to_string()),
+            None,
+        );
+        let coordinator = state.coordinator();
+        let req = SwarmSpawnRequestIpc {
+            provider: SwarmProviderIpc::ByokCloud,
+            artifact_path: None,
+            sha256_expected: None,
+            runtime_binding: None,
+            cloud_model_name: Some("definitely-not-a-claude-model".to_string()),
+            instance: 0,
+            parent_session_id: None,
+        };
+        let spawn = build_spawn_request(&req).expect("valid cloud request");
+        let err = coordinator
+            .spawn_session(spawn)
+            .await
+            .expect_err("non-allowlisted model rejected");
+        assert!(is_provider_not_configured(&err), "got {err}");
+        assert_eq!(coordinator.live_session_count(), 0);
+    }
+
+    /// MIXED local + cloud parallel spawn through ONE coordinator: a cloud
+    /// session (real anthropic BYOK runtime, credentialed via the vault) and a
+    /// local candle session spawned concurrently. The local artifact does not
+    /// exist so the local spawn fails the real load honestly (FactoryFailed)
+    /// while the cloud session is live — proving both lanes route through the
+    /// same coordinator independently. (A real local model is exercised by the
+    /// env-gated candle proof in `production_factory.rs`.)
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    async fn mixed_local_and_cloud_spawn_route_through_one_coordinator() {
+        let vault = Arc::new(InMemorySecretsVault::default());
+        vault
+            .put("anthropic", "sk-ant-test-key".to_string())
+            .expect("store key");
+        let state = SwarmRuntimeState::production_with_cloud_vault(
+            vault,
+            Some("anthropic".to_string()),
+            None,
+        );
+        let coordinator = state.coordinator();
+
+        // Cloud spawn (instance 0) — credentialed, builds a live session.
+        let cloud_req = build_spawn_request(&SwarmSpawnRequestIpc {
+            provider: SwarmProviderIpc::ByokCloud,
+            artifact_path: None,
+            sha256_expected: None,
+            runtime_binding: None,
+            cloud_model_name: Some("claude-sonnet-4".to_string()),
+            instance: 0,
+            parent_session_id: None,
+        })
+        .expect("valid cloud request");
+
+        // Local spawn (instance 1) — nonexistent artifact fails the real load.
+        let local_req = build_spawn_request(&local_request(
+            "D:/__handshake_no_such_mixed_model__/model.safetensors",
+        ))
+        .expect("valid local request");
+        // Distinct instance index so the two sessions are independent.
+        let local_req = SpawnRequest {
+            instance_id: ModelInstanceId::new(local_req.instance_id.model_id, 1),
+            ..local_req
+        };
+
+        let c1 = coordinator.clone();
+        let c2 = coordinator.clone();
+        let (cloud_res, local_res) = tokio::join!(
+            async move { c1.spawn_session(cloud_req).await },
+            async move { c2.spawn_session(local_req).await },
+        );
+        let cloud_iid = cloud_res.expect("cloud session live");
+        assert!(
+            matches!(local_res, Err(SwarmError::FactoryFailed(_))),
+            "local spawn fails the real load honestly: {local_res:?}"
+        );
+        // Exactly the cloud session is live through the shared coordinator.
+        assert_eq!(coordinator.live_session_count(), 1);
+        coordinator
+            .cancel_session(cloud_iid, "test_cancel")
+            .await
+            .expect("cancel cloud");
+        assert_eq!(coordinator.live_session_count(), 0);
     }
 }

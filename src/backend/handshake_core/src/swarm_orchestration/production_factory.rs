@@ -121,6 +121,281 @@ impl CloudLaneFactoryConfig {
             openai: None,
         }
     }
+
+    /// Build a cloud-lane config from a real operator secrets vault (the same
+    /// [`SecretsVault`] the cloud-lane control panel writes BYOK keys into).
+    /// Each provider is wired to a [`VaultCloudRuntimeBuilder`] keyed by the
+    /// lane id the operator stored the key under, so a cloud spawn actually
+    /// constructs a live BYOK runtime when the operator has configured the lane.
+    /// If a key is absent at spawn time the builder returns an honest
+    /// not-configured reason which the factory surfaces as
+    /// [`SwarmError::ProviderNotConfigured`] — never a placeholder.
+    ///
+    /// `anthropic_lane` / `openai_lane` are the vault lane ids (the same lane
+    /// ids the cloud-lane registration uses). Pass `None` for a provider the
+    /// operator has not registered; that provider then reports not-configured.
+    pub fn from_vault(
+        vault: Arc<dyn crate::model_runtime::cloud::SecretsVault>,
+        anthropic_lane: Option<String>,
+        openai_lane: Option<String>,
+    ) -> Self {
+        let anthropic = anthropic_lane.map(|lane| {
+            Arc::new(VaultCloudRuntimeBuilder::new(
+                CloudProviderFlavor::Anthropic,
+                vault.clone(),
+                lane,
+            )) as Arc<dyn CloudRuntimeBuilder>
+        });
+        let openai = openai_lane.map(|lane| {
+            Arc::new(VaultCloudRuntimeBuilder::new(
+                CloudProviderFlavor::OpenAi,
+                vault.clone(),
+                lane,
+            )) as Arc<dyn CloudRuntimeBuilder>
+        });
+        Self { anthropic, openai }
+    }
+}
+
+/// Which concrete BYOK adapter a [`VaultCloudRuntimeBuilder`] constructs. Both
+/// adapters already implement [`ModelRuntime`] (load / generate / score / embed
+/// / cancel) so the swarm factory wraps them with no further glue.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CloudProviderFlavor {
+    Anthropic,
+    OpenAi,
+}
+
+impl CloudProviderFlavor {
+    fn provider_kind(self) -> ProviderKind {
+        // Both BYOK flavors live on the ByokCloud provider lane; the flavor
+        // selects which concrete adapter/wire-protocol is constructed.
+        ProviderKind::ByokCloud
+    }
+
+    fn default_api_base(self) -> &'static str {
+        match self {
+            // Bare host (no `/v1`); the adapters append their documented paths.
+            CloudProviderFlavor::Anthropic => "https://api.anthropic.com",
+            CloudProviderFlavor::OpenAi => "https://api.openai.com/v1",
+        }
+    }
+
+    fn adapter_label(self) -> &'static str {
+        match self {
+            CloudProviderFlavor::Anthropic => "anthropic_byok",
+            CloudProviderFlavor::OpenAi => "openai_byok",
+        }
+    }
+}
+
+/// A real cloud-runtime builder backed by the operator [`SecretsVault`] and the
+/// shipped BYOK adapters. On `build_loaded` it:
+///
+/// 1. Fetches the operator API key for its lane from the vault. If the key is
+///    absent (`NoSecretForLane`) it returns an honest not-configured reason —
+///    the factory turns that into [`SwarmError::ProviderNotConfigured`]. The
+///    key is fetched on demand per `build` and never stored on the builder.
+/// 2. Constructs the concrete BYOK adapter ([`AnthropicByokRuntime`] /
+///    [`OpenAiByokRuntime`]) with a [`VaultApiKeyProvider`] (so the live
+///    generate path re-fetches the key per call) + a real tracing audit sink.
+/// 3. Drives the adapter's real `load(LoadSpec{provider: ByokCloud,
+///    engine_origin: model_name})`, which allowlist-gates the model name and
+///    mints the runtime-keyed [`ModelId`]. A non-allowlisted model name or a
+///    load failure surfaces as a not-configured reason (genuine runtime
+///    condition).
+///
+/// The returned [`CloudLiveRuntime`] hands the swarm an `Arc<dyn ModelRuntime>`
+/// whose `generate` is the adapter's real HTTP/SSE streaming path — so a cloud
+/// session spawned through the coordinator runs the real provider when the
+/// operator has stored a key, and fails honestly when they have not.
+pub struct VaultCloudRuntimeBuilder {
+    flavor: CloudProviderFlavor,
+    vault: Arc<dyn crate::model_runtime::cloud::SecretsVault>,
+    lane: String,
+    api_base: String,
+}
+
+impl VaultCloudRuntimeBuilder {
+    pub fn new(
+        flavor: CloudProviderFlavor,
+        vault: Arc<dyn crate::model_runtime::cloud::SecretsVault>,
+        lane: impl Into<String>,
+    ) -> Self {
+        Self {
+            flavor,
+            vault,
+            lane: lane.into(),
+            api_base: flavor.default_api_base().to_string(),
+        }
+    }
+
+    /// Override the provider API base (e.g. an Azure/OpenAI-compatible gateway
+    /// or a test server). Defaults to the official provider host.
+    pub fn with_api_base(mut self, api_base: impl Into<String>) -> Self {
+        self.api_base = api_base.into();
+        self
+    }
+
+    /// Construct the BYOK adapter's `ApiKeyProvider` bound to this lane. The
+    /// provider re-fetches the secret from the vault on every call, so the key
+    /// is never cached in the adapter struct (matches the BYOK redaction
+    /// contract).
+    ///
+    /// We use a local `DynVaultApiKeyProvider` rather than the crate's
+    /// `VaultApiKeyProvider<V>` because the latter is generic over a sized
+    /// concrete vault, whereas the swarm wiring carries an erased
+    /// `Arc<dyn SecretsVault>` (one config can mix vault impls). The local
+    /// provider holds the trait object and dispatches dynamically.
+    fn key_provider(
+        &self,
+    ) -> Arc<dyn crate::model_runtime::cloud::ApiKeyProvider> {
+        Arc::new(DynVaultApiKeyProvider {
+            vault: self.vault.clone(),
+            lane: self.lane.clone(),
+        })
+    }
+
+    /// Build the cloud `LoadSpec` for the BYOK adapters: provider=ByokCloud,
+    /// engine_origin carries the allowlisted cloud model name. The local-only
+    /// fields (artifact_path / sha256) are unused by the cloud adapters' load
+    /// (they read only `provider` + `engine_origin`), so a synthetic empty
+    /// artifact path + empty sha is the honest no-local-artifact shape.
+    fn cloud_load_spec(&self, model_name: &str) -> crate::model_runtime::LoadSpec {
+        use crate::model_runtime::{
+            KvCachePolicy, LoadSpec, ModelCapabilities, RuntimeKind, SamplingParams,
+        };
+        LoadSpec {
+            artifact_path: std::path::PathBuf::new(),
+            sha256_expected: String::new(),
+            runtime_kind: RuntimeKind::Candle, // unused by cloud load; placeholder
+            sampling_defaults: SamplingParams::default(),
+            kv_cache_policy: KvCachePolicy::default(),
+            declared_capabilities: ModelCapabilities::default(),
+            provider: ProviderKind::ByokCloud,
+            engine_origin: Some(model_name.to_string()),
+            external_engine_import: None,
+        }
+    }
+}
+
+#[async_trait]
+impl CloudRuntimeBuilder for VaultCloudRuntimeBuilder {
+    fn provider(&self) -> ProviderKind {
+        self.flavor.provider_kind()
+    }
+
+    async fn build_loaded(&self, model_name: &str) -> Result<CloudLiveRuntime, String> {
+        // (1) Honest credential preflight: a missing key is the genuine
+        // not-configured runtime condition. We fetch through the SAME vault
+        // lane the live generate path will use so there is no divergence
+        // between "configured" here and "usable" at generate time.
+        if let Err(err) = self.vault.get(&self.lane) {
+            return Err(format!(
+                "no API key in the operator secrets vault for lane '{}' ({}); store a key via the \
+                 cloud-lane control panel to enable the {} lane",
+                self.lane,
+                err,
+                self.flavor.adapter_label(),
+            ));
+        }
+
+        let key_provider = self.key_provider();
+        let audit_sink: Arc<dyn crate::model_runtime::cloud::CloudInvocationAuditSink> =
+            Arc::new(TracingCloudAuditSink::new(self.flavor.adapter_label()));
+
+        // (2)+(3): construct the concrete BYOK adapter and drive its REAL
+        // allowlist-gated load to mint the runtime-keyed ModelId. A
+        // non-allowlisted model name or any load failure is a genuine runtime
+        // condition surfaced as a not-configured reason.
+        let (runtime, model_id): (Arc<dyn ModelRuntime>, ModelId) = match self.flavor {
+            CloudProviderFlavor::Anthropic => {
+                let mut rt = crate::model_runtime::cloud::AnthropicByokRuntime::new(
+                    self.api_base.clone(),
+                    key_provider,
+                    audit_sink,
+                );
+                let id = rt
+                    .load(self.cloud_load_spec(model_name))
+                    .await
+                    .map_err(|e| {
+                        format!("anthropic BYOK load for model '{model_name}' failed: {e}")
+                    })?;
+                (Arc::new(rt), id)
+            }
+            CloudProviderFlavor::OpenAi => {
+                let mut rt = crate::model_runtime::cloud::OpenAiByokRuntime::new(
+                    self.api_base.clone(),
+                    key_provider,
+                    audit_sink,
+                );
+                let id = rt
+                    .load(self.cloud_load_spec(model_name))
+                    .await
+                    .map_err(|e| {
+                        format!("openai BYOK load for model '{model_name}' failed: {e}")
+                    })?;
+                (Arc::new(rt), id)
+            }
+        };
+
+        Ok(CloudLiveRuntime { runtime, model_id })
+    }
+}
+
+/// Erased-vault [`ApiKeyProvider`] for the swarm cloud lane. Holds an
+/// `Arc<dyn SecretsVault>` + a lane id and re-fetches the secret on every call,
+/// so the key is never cached in the adapter struct (BYOK redaction contract).
+/// The secret string is returned by value to the adapter and dropped after the
+/// HTTP request is sent; it never enters Debug/Display here.
+struct DynVaultApiKeyProvider {
+    vault: Arc<dyn crate::model_runtime::cloud::SecretsVault>,
+    lane: String,
+}
+
+impl crate::model_runtime::cloud::ApiKeyProvider for DynVaultApiKeyProvider {
+    fn fetch_api_key(
+        &self,
+    ) -> Result<String, crate::model_runtime::cloud::OpenAiByokError> {
+        self.vault.get(&self.lane).map_err(|err| {
+            crate::model_runtime::cloud::OpenAiByokError::ApiKeyFetch(format!("{err}"))
+        })
+    }
+}
+
+/// Real cloud-invocation audit sink: emits each [`CloudInvocationAuditRow`]
+/// through `tracing` at INFO with the adapter label. This is a genuine,
+/// leak-free observability sink (the API key is never part of the row), not a
+/// mock — every BYOK lifecycle row (Started/Succeeded/Failed/Cancelled) is
+/// recorded to the structured log. A Postgres-backed sink can replace this
+/// without touching the adapters (the runtime is sink-agnostic).
+struct TracingCloudAuditSink {
+    adapter: &'static str,
+}
+
+impl TracingCloudAuditSink {
+    fn new(adapter: &'static str) -> Self {
+        Self { adapter }
+    }
+}
+
+impl crate::model_runtime::cloud::CloudInvocationAuditSink for TracingCloudAuditSink {
+    fn record(
+        &self,
+        row: crate::model_runtime::cloud::CloudInvocationAuditRow,
+    ) -> Result<(), crate::model_runtime::cloud::OpenAiByokError> {
+        tracing::info!(
+            target: "handshake_core::swarm_orchestration::cloud_audit",
+            adapter = self.adapter,
+            model_id = %row.model_id,
+            model_name = %row.openai_model_name,
+            status = ?row.status,
+            started_at = %row.started_at_utc,
+            finished_at = ?row.finished_at_utc,
+            "cloud BYOK invocation audit row"
+        );
+        Ok(())
+    }
 }
 
 /// Seam that builds a live cloud `ModelRuntime` for a given allowlisted model
@@ -1076,5 +1351,206 @@ mod tests {
                 .session_model_id_for_test(*self)
                 .expect("a model id is registered for the instance")
         }
+    }
+
+    // ---- DEFAULT-CI: VaultCloudRuntimeBuilder dispatch (no live network). ----
+
+    use crate::model_runtime::cloud::{InMemorySecretsVault, SecretsVault};
+
+    /// The vault-backed builder, with a key stored for its lane and an
+    /// allowlisted Claude model, BUILDS a real anthropic BYOK runtime (its
+    /// allowlist-gated `load` mints a ModelId). No HTTP call is issued — this
+    /// proves the configured -> builds-a-session-shape dispatch.
+    #[tokio::test]
+    async fn vault_builder_configured_builds_real_byok_runtime() {
+        let vault: Arc<dyn SecretsVault> = Arc::new(InMemorySecretsVault::default());
+        vault
+            .put("anthropic", "sk-ant-test-do-not-log".to_string())
+            .expect("store key");
+        let builder = VaultCloudRuntimeBuilder::new(
+            CloudProviderFlavor::Anthropic,
+            vault,
+            "anthropic",
+        );
+        let built = builder
+            .build_loaded("claude-sonnet-4")
+            .await
+            .expect("configured lane builds a runtime");
+        assert_eq!(built.runtime.adapter_name(), "anthropic_byok");
+        // The minted model id is the runtime-keyed handle (UUID v7).
+        assert_eq!(built.model_id.as_uuid().get_version_num(), 7);
+    }
+
+    /// Unconfigured lane (no key in the vault) -> honest not-configured reason
+    /// (the factory turns this into ProviderNotConfigured).
+    #[tokio::test]
+    async fn vault_builder_unconfigured_returns_not_configured_reason() {
+        let vault: Arc<dyn SecretsVault> = Arc::new(InMemorySecretsVault::default());
+        let builder =
+            VaultCloudRuntimeBuilder::new(CloudProviderFlavor::OpenAi, vault, "openai");
+        // CloudLiveRuntime is not Debug (owns trait objects), so match rather
+        // than expect_err.
+        let err = match builder.build_loaded("gpt-4o").await {
+            Ok(_) => panic!("expected not-configured error"),
+            Err(e) => e,
+        };
+        assert!(err.contains("no API key"), "{err}");
+        assert!(err.contains("openai"), "{err}");
+    }
+
+    /// Through the factory: a from_vault config with a stored key dispatches a
+    /// ByokCloud spawn to a real builder, records a START, and the session tears
+    /// down with a matching STOP (no orphan) — the configured cloud SUCCESS path.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn from_vault_factory_cloud_spawn_records_start_and_stop() {
+        let vault: Arc<dyn SecretsVault> = Arc::new(InMemorySecretsVault::default());
+        vault
+            .put("openai", "sk-test-openai".to_string())
+            .expect("store key");
+        let cloud = CloudLaneFactoryConfig::from_vault(
+            vault,
+            None,
+            Some("openai".to_string()),
+        );
+        let (ledger, drain) = ledger_pair();
+        let store = Arc::new(InMemoryStore::default());
+        let sink = Arc::new(RecordingSwarmSink::new());
+        let factory = Arc::new(ProductionModelSessionFactory::new(ledger.clone(), cloud));
+        let coordinator = SwarmCoordinator::new(
+            crate::swarm_orchestration::SwarmConfig::new(
+                RunBudget::defaulted(4).with_concurrency(4),
+            ),
+            factory,
+            sink,
+            ledger,
+        );
+        let iid = instance(0);
+        let req = SpawnRequest::new(iid, RuntimeBinding::Candle, "swarm_prod_test", "parent-1")
+            .with_cloud_provider(ProviderKind::ByokCloud, "gpt-4o");
+        coordinator
+            .spawn_session(req)
+            .await
+            .expect("configured cloud spawn builds a live session");
+        assert_eq!(coordinator.live_session_count(), 1);
+        coordinator
+            .cancel_session(iid, "test_cancel")
+            .await
+            .expect("cancel");
+        assert_eq!(coordinator.live_session_count(), 0);
+        let rows = drained(&drain, store).await;
+        let starts = rows
+            .iter()
+            .filter(|e| e.kind() == LedgerEventKind::Start)
+            .count();
+        let stops = rows
+            .iter()
+            .filter(|e| e.kind() == LedgerEventKind::Stop)
+            .count();
+        assert_eq!(starts, 1, "one START for the cloud session");
+        assert_eq!(stops, 1, "one STOP — no orphan");
+    }
+
+    // ---- ENV-GATED REAL CLOUD SPAWN+GENERATE (live BYOK credentials). ----
+
+    /// Spawn a REAL cloud BYOK session through the production factory + a real
+    /// secrets vault holding a live key, run a REAL `generate` against the
+    /// provider, and assert tokens were produced + the ledger is symmetric.
+    ///
+    /// Env-gated (no committed credentials). Run with, e.g.:
+    ///   HANDSHAKE_TEST_CLOUD_PROVIDER=anthropic   (or `openai`)
+    ///   HANDSHAKE_TEST_CLOUD_API_KEY=<live key>
+    ///   HANDSHAKE_TEST_CLOUD_MODEL=claude-sonnet-4-...   (allowlisted family)
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn real_cloud_spawn_generate_when_credentialed() {
+        use crate::model_runtime::{GenPrompt, GenerateRequest, SamplingParams};
+        use futures::StreamExt;
+
+        let Some(provider) = std::env::var("HANDSHAKE_TEST_CLOUD_PROVIDER").ok() else {
+            eprintln!("SKIP real_cloud_spawn_generate: HANDSHAKE_TEST_CLOUD_PROVIDER not set");
+            return;
+        };
+        let Some(api_key) = std::env::var("HANDSHAKE_TEST_CLOUD_API_KEY").ok() else {
+            eprintln!("SKIP real_cloud_spawn_generate: HANDSHAKE_TEST_CLOUD_API_KEY not set");
+            return;
+        };
+        let model = std::env::var("HANDSHAKE_TEST_CLOUD_MODEL")
+            .expect("HANDSHAKE_TEST_CLOUD_MODEL required when the provider+key are set");
+
+        let (flavor, lane) = match provider.as_str() {
+            "anthropic" => (CloudProviderFlavor::Anthropic, "anthropic"),
+            "openai" => (CloudProviderFlavor::OpenAi, "openai"),
+            other => panic!("unknown HANDSHAKE_TEST_CLOUD_PROVIDER: {other}"),
+        };
+        let vault: Arc<dyn SecretsVault> = Arc::new(InMemorySecretsVault::default());
+        vault.put(lane, api_key).expect("store live key");
+        let cloud = match flavor {
+            CloudProviderFlavor::Anthropic => {
+                CloudLaneFactoryConfig::from_vault(vault, Some(lane.to_string()), None)
+            }
+            CloudProviderFlavor::OpenAi => {
+                CloudLaneFactoryConfig::from_vault(vault, None, Some(lane.to_string()))
+            }
+        };
+
+        let (ledger, drain) = ledger_pair();
+        let store = Arc::new(InMemoryStore::default());
+        let sink = Arc::new(RecordingSwarmSink::new());
+        let factory = Arc::new(ProductionModelSessionFactory::new(ledger.clone(), cloud));
+        let coordinator = Arc::new(SwarmCoordinator::new(
+            crate::swarm_orchestration::SwarmConfig::new(
+                RunBudget::defaulted(2).with_concurrency(2),
+            ),
+            factory,
+            sink,
+            ledger,
+        ));
+        let iid = instance(0);
+        let req = SpawnRequest::new(iid, RuntimeBinding::Candle, "swarm_prod_test", "parent-1")
+            .with_cloud_provider(ProviderKind::ByokCloud, &model);
+        coordinator
+            .spawn_session(req)
+            .await
+            .expect("real cloud spawn");
+        assert_eq!(coordinator.live_session_count(), 1);
+
+        let runtime = coordinator
+            .session_runtime_for_test(iid)
+            .expect("live cloud runtime");
+        let model_id = coordinator
+            .session_model_id_for_test(iid)
+            .expect("cloud model id");
+        let gen = GenerateRequest {
+            id: model_id,
+            prompt: GenPrompt::new("Say the single word: ping"),
+            sampling: SamplingParams::default(),
+            lora_overrides: vec![],
+            steering_overrides: vec![],
+            kv_prefix_handle: None,
+            cancel: CancellationToken::new(),
+            max_tokens: 8,
+            stop_sequences: vec![],
+            speculative_mode: None,
+            structured_decoding: None,
+        };
+        let mut stream = runtime.generate(gen);
+        let mut produced = 0usize;
+        while let Some(item) = stream.next().await {
+            if item.is_ok() {
+                produced += 1;
+            }
+        }
+        assert!(produced > 0, "real cloud generate produced tokens");
+        drop(stream);
+
+        coordinator
+            .cancel_session(iid, "test_done")
+            .await
+            .expect("cancel");
+        assert_eq!(coordinator.live_session_count(), 0);
+        let rows = drained(&drain, store).await;
+        let starts = rows.iter().filter(|e| e.kind() == LedgerEventKind::Start).count();
+        let stops = rows.iter().filter(|e| e.kind() == LedgerEventKind::Stop).count();
+        assert_eq!(starts, 1);
+        assert_eq!(stops, 1);
     }
 }

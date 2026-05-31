@@ -49,6 +49,7 @@ pub mod events;
 pub mod factory;
 pub mod ids;
 pub mod production_factory;
+pub mod routing;
 pub mod state;
 
 #[cfg(test)]
@@ -68,6 +69,10 @@ pub use factory::{LiveSession, ModelSessionFactory, SessionTeardown};
 pub use ids::{BudgetRemaining, ModelInstanceId, RunBudget, SpawnRequest};
 pub use production_factory::{
     build_production_swarm_coordinator, default_swarm_concurrency, CloudLaneFactoryConfig,
-    CloudLiveRuntime, CloudRuntimeBuilder, ProductionModelSessionFactory,
+    CloudLiveRuntime, CloudProviderFlavor, CloudRuntimeBuilder, ProductionModelSessionFactory,
+    VaultCloudRuntimeBuilder,
+};
+pub use routing::{
+    RoutingDecision, RoutingPolicy, RoutingPolicyConfig, SwarmRoutingError, TaskClass, TaskTier,
 };
 pub use state::ModelSessionState;
