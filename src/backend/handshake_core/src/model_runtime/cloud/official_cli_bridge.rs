@@ -153,6 +153,30 @@ pub trait CliSubprocessSpawner: Send + Sync {
         }
         Ok(receipt)
     }
+
+    /// Cancellable variant of [`CliSubprocessSpawner::spawn_streaming`]: in
+    /// addition to the live `on_chunk` fan-out it consults `should_cancel`
+    /// between reads and, when it observes a set cancellation, kills the child
+    /// subprocess and returns a receipt with `cancelled = true` rather than
+    /// running the CLI to completion. This is what lets the swarm
+    /// `CliBridgeModelRuntime` honour the request/runtime `CancellationToken`
+    /// by actually killing the backing process (poll-based token — see
+    /// [`crate::model_runtime::CancellationToken`]).
+    ///
+    /// The DEFAULT impl ignores `should_cancel` and delegates to
+    /// [`CliSubprocessSpawner::spawn_streaming`], so existing mock/test spawners
+    /// that do not override it keep compiling and behaving exactly as before.
+    /// [`LiveCliSpawner`] overrides it with a real per-iteration kill check.
+    fn spawn_streaming_cancellable(
+        &self,
+        config: &CliBridgeConfig,
+        model_name: &str,
+        prompt: &str,
+        on_chunk: &mut dyn FnMut(&[u8]),
+        _should_cancel: &dyn Fn() -> bool,
+    ) -> Result<CliInvocationReceipt, OfficialCliBridgeError> {
+        self.spawn_streaming(config, model_name, prompt, on_chunk)
+    }
 }
 
 /// Result of one spawn attempt. The live impl populates pid; the
@@ -256,6 +280,22 @@ impl OfficialCliBridgeRuntime {
         bridges
             .get(&model_id)
             .map(|(_, handle)| handle.clone())
+            .ok_or(OfficialCliBridgeError::ModelNotRegistered(model_id))
+    }
+
+    /// Remove a registered CLI bridge handle (the `unload` counterpart to
+    /// [`register_bridge`]). Returns the removed handle so callers can audit
+    /// the teardown, or [`OfficialCliBridgeError::ModelNotRegistered`] if the
+    /// model was never registered / already unloaded. A CLI bridge owns no
+    /// local weights, so removal of the map entry is the full free.
+    pub fn unregister(&self, model_id: ModelId) -> Result<CliBridgeHandle, OfficialCliBridgeError> {
+        let mut bridges = self
+            .bridges
+            .write()
+            .map_err(|err| OfficialCliBridgeError::LockPoisoned(err.to_string()))?;
+        bridges
+            .remove(&model_id)
+            .map(|(_, handle)| handle)
             .ok_or(OfficialCliBridgeError::ModelNotRegistered(model_id))
     }
 
@@ -893,6 +933,215 @@ impl CliSubprocessSpawner for LiveCliSpawner {
 
         // Child exited: drain any straggler chunks, then join the reader threads
         // to recover the full stdout/stderr.
+        while let Ok(chunk) = chunk_rx.recv() {
+            on_chunk(&chunk);
+        }
+        let stdout_bytes = stdout_reader
+            .and_then(|h| h.join().ok())
+            .unwrap_or_default();
+        let stderr_bytes = stderr_reader
+            .and_then(|h| h.join().ok())
+            .unwrap_or_default();
+        let stdout = String::from_utf8_lossy(&stdout_bytes).into_owned();
+        let stderr = String::from_utf8_lossy(&stderr_bytes).into_owned();
+        let exit_code = exit_status.code();
+
+        if !exit_status.success() {
+            record_stop(exit_code, "official_cli_bridge_nonzero_exit");
+            return Err(OfficialCliBridgeError::SpawnFailed {
+                reason: format!(
+                    "CLI {} exited with status {:?}; stderr={}",
+                    config.executable_path.display(),
+                    exit_code,
+                    stderr.trim()
+                ),
+                exit_code,
+            });
+        }
+
+        record_stop(exit_code, "official_cli_bridge_exit");
+        Ok(CliInvocationReceipt {
+            model_id: ModelId::new_v7(),
+            stdout,
+            pid: Some(pid),
+            exit_code,
+            cancelled: false,
+        })
+    }
+
+    /// Cancellable live-streaming spawn: identical lifecycle to
+    /// [`LiveCliSpawner::spawn_streaming`] (env scrub, CREATE_NO_WINDOW, ledger
+    /// START/STOP, live `on_chunk` fan-out, timeout + kill) plus ONE additional
+    /// check per poll iteration: when `should_cancel()` returns true the child
+    /// process tree is killed (`kill_process_tree`), a STOP row with reason
+    /// `official_cli_bridge_cancel_kill` is recorded, any straggler chunks are
+    /// flushed, and a receipt with `cancelled = true` is returned. This is the
+    /// real deterministic-cancellation backstop the swarm adapter relies on to
+    /// honour the request/runtime `CancellationToken`.
+    fn spawn_streaming_cancellable(
+        &self,
+        config: &CliBridgeConfig,
+        model_name: &str,
+        prompt: &str,
+        on_chunk: &mut dyn FnMut(&[u8]),
+        should_cancel: &dyn Fn() -> bool,
+    ) -> Result<CliInvocationReceipt, OfficialCliBridgeError> {
+        use std::io::Read;
+
+        let rendered =
+            OfficialCliBridgeRuntime::render_args(&config.args_template, model_name, prompt);
+
+        let mut cmd = Command::new(&config.executable_path);
+        cmd.args(&rendered);
+        for (key, _value) in std::env::vars_os() {
+            if let Some(name) = key.to_str() {
+                if is_secret_bearing_env_name(name) {
+                    cmd.env_remove(&key);
+                }
+            }
+        }
+        for (key, value) in &config.env_vars {
+            cmd.env(key, value);
+        }
+        if let Some(dir) = &config.working_dir {
+            cmd.current_dir(dir);
+        }
+        cmd.stdout(Stdio::piped());
+        cmd.stderr(Stdio::piped());
+        cmd.stdin(Stdio::null());
+        #[cfg(windows)]
+        {
+            use std::os::windows::process::CommandExt;
+            const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+            cmd.creation_flags(CREATE_NO_WINDOW);
+        }
+
+        let mut child = cmd
+            .spawn()
+            .map_err(|err| OfficialCliBridgeError::SpawnFailed {
+                reason: format!("failed to spawn {}: {err}", config.executable_path.display()),
+                exit_code: None,
+            })?;
+        let pid = child.id();
+
+        let record_id = ProcessOwnershipRecordId::new_v7();
+        let start = cli_bridge_process_start(
+            record_id,
+            cli_bridge_spawn_meta(pid, &self.owner_role, model_name, &config.executable_path),
+        );
+        if let Err(err) = self.process_ledger.record_start(start.clone()) {
+            kill_process_tree(pid, &mut child);
+            return Err(OfficialCliBridgeError::LedgerRegistration {
+                pid,
+                reason: err.to_string(),
+            });
+        }
+        let record_stop = |exit_code: Option<i32>, stop_reason: &str| {
+            let stop = ProcessStop::from_start(&start, exit_code).with_stop_reason(stop_reason);
+            if let Err(err) = self.process_ledger.record_stop(stop) {
+                eprintln!(
+                    "official_cli_bridge: ledger STOP registration failed for pid {pid}: {err}"
+                );
+            }
+        };
+
+        let child_stdout = child.stdout.take();
+        let child_stderr = child.stderr.take();
+        let (chunk_tx, chunk_rx) = mpsc::channel::<Vec<u8>>();
+        let stdout_reader = child_stdout.map(|mut out| {
+            let tx = chunk_tx.clone();
+            thread::spawn(move || {
+                let mut buf = [0u8; 8192];
+                let mut acc = Vec::new();
+                loop {
+                    match out.read(&mut buf) {
+                        Ok(0) => break,
+                        Ok(n) => {
+                            acc.extend_from_slice(&buf[..n]);
+                            let _ = tx.send(buf[..n].to_vec());
+                        }
+                        Err(ref e) if e.kind() == std::io::ErrorKind::Interrupted => continue,
+                        Err(_) => break,
+                    }
+                }
+                acc
+            })
+        });
+        let stderr_reader = child_stderr.map(|mut err| {
+            thread::spawn(move || {
+                let mut buf = [0u8; 8192];
+                let mut acc = Vec::new();
+                loop {
+                    match err.read(&mut buf) {
+                        Ok(0) => break,
+                        Ok(n) => acc.extend_from_slice(&buf[..n]),
+                        Err(ref e) if e.kind() == std::io::ErrorKind::Interrupted => continue,
+                        Err(_) => break,
+                    }
+                }
+                acc
+            })
+        });
+        drop(chunk_tx);
+
+        let timeout = Duration::from_secs(config.timeout_seconds);
+        let started = Instant::now();
+        let exit_status = loop {
+            // Drain any live chunks to the callback before checking exit/cancel.
+            while let Ok(chunk) = chunk_rx.try_recv() {
+                on_chunk(&chunk);
+            }
+            // Deterministic cancellation: kill the child and return a cancelled
+            // receipt rather than running the CLI to completion.
+            if should_cancel() {
+                kill_process_tree(pid, &mut child);
+                record_stop(None, "official_cli_bridge_cancel_kill");
+                while let Ok(chunk) = chunk_rx.recv_timeout(POST_TIMEOUT_OUTPUT_GRACE) {
+                    on_chunk(&chunk);
+                }
+                let stdout_bytes = stdout_reader
+                    .and_then(|h| h.join().ok())
+                    .unwrap_or_default();
+                let _ = stderr_reader.and_then(|h| h.join().ok());
+                return Ok(CliInvocationReceipt {
+                    model_id: ModelId::new_v7(),
+                    stdout: String::from_utf8_lossy(&stdout_bytes).into_owned(),
+                    pid: Some(pid),
+                    exit_code: None,
+                    cancelled: true,
+                });
+            }
+            match child.try_wait() {
+                Ok(Some(status)) => break status,
+                Ok(None) => {
+                    if started.elapsed() >= timeout {
+                        kill_process_tree(pid, &mut child);
+                        record_stop(None, "official_cli_bridge_timeout_kill");
+                        while let Ok(chunk) = chunk_rx.recv_timeout(POST_TIMEOUT_OUTPUT_GRACE) {
+                            on_chunk(&chunk);
+                        }
+                        let partial_stdout = stdout_reader
+                            .and_then(|h| h.join().ok())
+                            .map(|b| String::from_utf8_lossy(&b).into_owned())
+                            .unwrap_or_default();
+                        return Err(OfficialCliBridgeError::SpawnTimeout {
+                            timeout_seconds: config.timeout_seconds,
+                            partial_stdout,
+                        });
+                    }
+                    std::thread::sleep(Duration::from_millis(15));
+                }
+                Err(err) => {
+                    kill_process_tree(pid, &mut child);
+                    record_stop(None, "official_cli_bridge_try_wait_error");
+                    return Err(OfficialCliBridgeError::SpawnFailed {
+                        reason: format!("try_wait failed: {err}"),
+                        exit_code: None,
+                    });
+                }
+            }
+        };
+
         while let Ok(chunk) = chunk_rx.recv() {
             on_chunk(&chunk);
         }

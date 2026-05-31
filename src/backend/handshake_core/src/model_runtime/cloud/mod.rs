@@ -5,6 +5,7 @@ use std::sync::Arc;
 use crate::flight_recorder::FlightRecorder;
 
 pub mod anthropic_byok;
+pub mod cli_bridge_runtime;
 pub mod consent_gate;
 pub mod official_cli_bridge;
 pub mod openai_byok;
@@ -41,6 +42,7 @@ pub use anthropic_byok::{
     ANTHROPIC_API_VERSION, ANTHROPIC_MESSAGES_PATH, ANTHROPIC_VERSION_HEADER,
     DEFAULT_ANTHROPIC_MODEL_ALLOWLIST,
 };
+pub use cli_bridge_runtime::CliBridgeModelRuntime;
 pub use consent_gate::{ConsentDecision, ConsentGate, ConsentGateError, ConsentProvider};
 pub use official_cli_bridge::{
     CliBridgeConfig, CliBridgeHandle, CliInvocationReceipt, CliKind, CliOutputFormat,

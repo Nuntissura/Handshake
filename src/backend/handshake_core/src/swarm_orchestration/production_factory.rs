@@ -109,6 +109,11 @@ pub struct CloudLaneFactoryConfig {
     pub anthropic: Option<Arc<dyn CloudRuntimeBuilder>>,
     /// Builder for an openai BYOK runtime (same contract as `anthropic`).
     pub openai: Option<Arc<dyn CloudRuntimeBuilder>>,
+    /// Builder for the official-CLI bridge runtime (claude/codex/gemini CLI).
+    /// Wired for [`ProviderKind::OfficialCli`] spawns; when `None` an
+    /// OfficialCli spawn returns [`SwarmError::ProviderNotConfigured`] until the
+    /// operator configures the CLI bridge.
+    pub official_cli: Option<Arc<dyn CloudRuntimeBuilder>>,
 }
 
 impl CloudLaneFactoryConfig {
@@ -119,6 +124,7 @@ impl CloudLaneFactoryConfig {
         Self {
             anthropic: None,
             openai: None,
+            official_cli: None,
         }
     }
 
@@ -153,7 +159,112 @@ impl CloudLaneFactoryConfig {
                 lane,
             )) as Arc<dyn CloudRuntimeBuilder>
         });
-        Self { anthropic, openai }
+        // The vault path is BYOK-only; the official-CLI lane is configured via
+        // [`CloudLaneFactoryConfig::with_official_cli`].
+        Self {
+            anthropic,
+            openai,
+            official_cli: None,
+        }
+    }
+
+    /// Configure (or override) the official-CLI bridge lane on this config.
+    /// `spawner` is the live byte source (`LiveCliSpawner` in production) and
+    /// `config_template` is the operator CLI config every cloud `load()`
+    /// registers. After this call an [`ProviderKind::OfficialCli`] spawn
+    /// dispatches to a [`CliBridgeCloudRuntimeBuilder`] which builds a real
+    /// [`crate::model_runtime::cloud::CliBridgeModelRuntime`] when the CLI is
+    /// present and returns an honest not-configured reason when it is absent.
+    pub fn with_official_cli(
+        mut self,
+        spawner: Arc<dyn crate::model_runtime::cloud::CliSubprocessSpawner>,
+        config_template: crate::model_runtime::cloud::CliBridgeConfig,
+    ) -> Self {
+        self.official_cli = Some(Arc::new(CliBridgeCloudRuntimeBuilder::new(
+            spawner,
+            config_template,
+        )) as Arc<dyn CloudRuntimeBuilder>);
+        self
+    }
+}
+
+/// A real cloud-runtime builder for the official-CLI bridge lane. Mirrors
+/// [`VaultCloudRuntimeBuilder`] but the "credential preflight" becomes a
+/// CLI-executable-exists / configured-bridge preflight: a missing/unconfigured
+/// CLI yields an honest not-configured reason that the factory surfaces as
+/// [`SwarmError::ProviderNotConfigured`]. On success it drives the real
+/// [`CliBridgeModelRuntime::load`] (which re-validates the config and mints the
+/// runtime-keyed [`ModelId`]) and hands the swarm an `Arc<dyn ModelRuntime>`
+/// whose `generate` streams the CLI's live stdout as tokens — auto-captured by
+/// the swarm capture seam into the in-app terminal panel.
+pub struct CliBridgeCloudRuntimeBuilder {
+    spawner: Arc<dyn crate::model_runtime::cloud::CliSubprocessSpawner>,
+    config_template: crate::model_runtime::cloud::CliBridgeConfig,
+}
+
+impl CliBridgeCloudRuntimeBuilder {
+    pub fn new(
+        spawner: Arc<dyn crate::model_runtime::cloud::CliSubprocessSpawner>,
+        config_template: crate::model_runtime::cloud::CliBridgeConfig,
+    ) -> Self {
+        Self {
+            spawner,
+            config_template,
+        }
+    }
+
+    /// Build the OfficialCli `LoadSpec`: provider=OfficialCli, engine_origin
+    /// carries the allowlisted CLI model name. Mirrors
+    /// [`VaultCloudRuntimeBuilder::cloud_load_spec`] but on the OfficialCli lane.
+    fn cli_load_spec(&self, model_name: &str) -> crate::model_runtime::LoadSpec {
+        use crate::model_runtime::{
+            KvCachePolicy, LoadSpec, ModelCapabilities, RuntimeKind, SamplingParams,
+        };
+        LoadSpec {
+            artifact_path: std::path::PathBuf::new(),
+            sha256_expected: String::new(),
+            runtime_kind: RuntimeKind::Candle, // unused by the CLI bridge load
+            sampling_defaults: SamplingParams::default(),
+            kv_cache_policy: KvCachePolicy::default(),
+            declared_capabilities: ModelCapabilities::default(),
+            provider: ProviderKind::OfficialCli,
+            engine_origin: Some(model_name.to_string()),
+            external_engine_import: None,
+        }
+    }
+}
+
+#[async_trait]
+impl CloudRuntimeBuilder for CliBridgeCloudRuntimeBuilder {
+    fn provider(&self) -> ProviderKind {
+        ProviderKind::OfficialCli
+    }
+
+    async fn build_loaded(&self, model_name: &str) -> Result<CloudLiveRuntime, String> {
+        // Honest CLI-executable preflight: a missing/unconfigured CLI is the
+        // genuine not-configured runtime condition (the factory turns this into
+        // ProviderNotConfigured). `register_bridge`'s own exe-exists check at
+        // load() is the second, redundant honest guard.
+        if !self.config_template.executable_path.exists() {
+            return Err(format!(
+                "official CLI executable not found at '{}'; configure the CLI bridge \
+                 (claude/codex/gemini) path to enable the official_cli lane",
+                self.config_template.executable_path.display()
+            ));
+        }
+
+        let mut rt = crate::model_runtime::cloud::CliBridgeModelRuntime::new(
+            self.spawner.clone(),
+            self.config_template.clone(),
+        );
+        let model_id = rt
+            .load(self.cli_load_spec(model_name))
+            .await
+            .map_err(|e| format!("official CLI bridge load for model '{model_name}' failed: {e}"))?;
+        Ok(CloudLiveRuntime {
+            runtime: Arc::new(rt),
+            model_id,
+        })
     }
 }
 
@@ -601,7 +712,7 @@ impl ProductionModelSessionFactory {
 
         let builder = match provider {
             ProviderKind::ByokCloud => self.cloud.openai.as_ref().or(self.cloud.anthropic.as_ref()),
-            ProviderKind::OfficialCli => self.cloud.anthropic.as_ref(),
+            ProviderKind::OfficialCli => self.cloud.official_cli.as_ref(),
             _ => None,
         };
         let Some(builder) = builder else {
@@ -1043,6 +1154,7 @@ mod tests {
         let cloud = CloudLaneFactoryConfig {
             openai: Some(Arc::new(UnconfiguredOpenAi)),
             anthropic: None,
+            official_cli: None,
         };
         let factory = ProductionModelSessionFactory::new(ledger, cloud);
         let req = SpawnRequest::new(
@@ -1181,6 +1293,7 @@ mod tests {
                 unloaded: unloaded.clone(),
             })),
             anthropic: None,
+            official_cli: None,
         };
         let sink = Arc::new(RecordingSwarmSink::new());
         let factory = Arc::new(ProductionModelSessionFactory::new(ledger.clone(), cloud));
@@ -1552,5 +1665,163 @@ mod tests {
         let stops = rows.iter().filter(|e| e.kind() == LedgerEventKind::Stop).count();
         assert_eq!(starts, 1);
         assert_eq!(stops, 1);
+    }
+
+    // ---- DEFAULT-CI: official-CLI bridge cloud lane (no real subprocess). ----
+
+    use crate::model_runtime::cloud::official_cli_bridge::{
+        CliBridgeConfig as TestCliBridgeConfig, CliInvocationReceipt, CliKind, CliOutputFormat,
+        CliSubprocessSpawner, OfficialCliBridgeError,
+    };
+
+    fn cli_temp_exe() -> std::path::PathBuf {
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("Cargo.toml")
+    }
+
+    fn cli_config_present() -> TestCliBridgeConfig {
+        TestCliBridgeConfig {
+            cli_kind: CliKind::ClaudeCode,
+            executable_path: cli_temp_exe(),
+            args_template: vec!["--prompt".to_string(), "{prompt}".to_string()],
+            output_format: CliOutputFormat::RawText,
+            env_vars: std::collections::HashMap::new(),
+            working_dir: None,
+            timeout_seconds: 120,
+        }
+    }
+
+    /// Mock CLI byte source: emits a couple of stdout chunks (so the built
+    /// runtime's `generate` is a real streaming path), no real subprocess.
+    struct MockCliSpawner;
+    impl CliSubprocessSpawner for MockCliSpawner {
+        fn spawn(
+            &self,
+            _config: &TestCliBridgeConfig,
+            _model_name: &str,
+            _prompt: &str,
+        ) -> Result<CliInvocationReceipt, OfficialCliBridgeError> {
+            Ok(CliInvocationReceipt {
+                model_id: ModelId::new_v7(),
+                stdout: "ok".to_string(),
+                pid: Some(7),
+                exit_code: Some(0),
+                cancelled: false,
+            })
+        }
+        fn spawn_streaming(
+            &self,
+            _config: &TestCliBridgeConfig,
+            _model_name: &str,
+            _prompt: &str,
+            on_chunk: &mut dyn FnMut(&[u8]),
+        ) -> Result<CliInvocationReceipt, OfficialCliBridgeError> {
+            on_chunk(b"ok");
+            Ok(CliInvocationReceipt {
+                model_id: ModelId::new_v7(),
+                stdout: "ok".to_string(),
+                pid: Some(7),
+                exit_code: Some(0),
+                cancelled: false,
+            })
+        }
+    }
+
+    /// Test 4: `CliBridgeCloudRuntimeBuilder::build_loaded` returns a
+    /// not-configured reason when the CLI executable is absent, and a real
+    /// runtime when it is present.
+    #[tokio::test]
+    async fn cli_builder_not_configured_when_cli_absent_and_real_when_present() {
+        // Absent CLI -> honest not-configured reason.
+        let mut absent = cli_config_present();
+        absent.executable_path =
+            std::path::PathBuf::from("D:/__handshake_no_such_cli__/claude.exe");
+        let builder_absent =
+            CliBridgeCloudRuntimeBuilder::new(Arc::new(MockCliSpawner), absent);
+        let err = match builder_absent.build_loaded("claude-sonnet").await {
+            Ok(_) => panic!("expected not-configured for an absent CLI"),
+            Err(e) => e,
+        };
+        assert!(err.contains("not found"), "{err}");
+
+        // Present CLI (a file that exists) -> real CliBridgeModelRuntime.
+        let builder_present =
+            CliBridgeCloudRuntimeBuilder::new(Arc::new(MockCliSpawner), cli_config_present());
+        let built = builder_present
+            .build_loaded("claude-sonnet")
+            .await
+            .expect("present CLI builds a runtime");
+        assert_eq!(built.runtime.adapter_name(), "official_cli_bridge");
+        assert_eq!(built.model_id.as_uuid().get_version_num(), 7);
+    }
+
+    /// Test 5: factory `create()` dispatches a ProviderKind::OfficialCli spawn
+    /// to the official_cli builder (records START==STOP, no orphan), and a
+    /// not-configured variant returns ProviderNotConfigured with the
+    /// `official_cli` provider label.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn factory_dispatches_official_cli_to_cli_builder() {
+        // Configured: official_cli lane wired with a present CLI + mock spawner.
+        let (ledger, drain) = ledger_pair();
+        let store = Arc::new(InMemoryStore::default());
+        let cloud = CloudLaneFactoryConfig {
+            anthropic: None,
+            openai: None,
+            official_cli: Some(Arc::new(CliBridgeCloudRuntimeBuilder::new(
+                Arc::new(MockCliSpawner),
+                cli_config_present(),
+            ))),
+        };
+        let sink = Arc::new(RecordingSwarmSink::new());
+        let factory = Arc::new(ProductionModelSessionFactory::new(ledger.clone(), cloud));
+        let coordinator = SwarmCoordinator::new(
+            crate::swarm_orchestration::SwarmConfig::new(
+                RunBudget::defaulted(4).with_concurrency(4),
+            ),
+            factory,
+            sink,
+            ledger,
+        );
+        let iid = instance(0);
+        let req = SpawnRequest::new(iid, RuntimeBinding::Candle, "swarm_prod_test", "parent-1")
+            .with_cloud_provider(ProviderKind::OfficialCli, "claude-sonnet");
+        coordinator
+            .spawn_session(req)
+            .await
+            .expect("official_cli spawn dispatches to the CLI builder");
+        assert_eq!(coordinator.live_session_count(), 1);
+        coordinator
+            .cancel_session(iid, "test_cancel")
+            .await
+            .expect("cancel");
+        assert_eq!(coordinator.live_session_count(), 0);
+        let rows = drained(&drain, store).await;
+        let starts = rows
+            .iter()
+            .filter(|e| e.kind() == LedgerEventKind::Start)
+            .count();
+        let stops = rows
+            .iter()
+            .filter(|e| e.kind() == LedgerEventKind::Stop)
+            .count();
+        assert_eq!(starts, 1, "one START for the official_cli session");
+        assert_eq!(stops, 1, "one STOP — no orphan");
+
+        // Not-configured variant: official_cli=None -> ProviderNotConfigured.
+        let (ledger2, _drain2) = ledger_pair();
+        let factory2 = ProductionModelSessionFactory::local_only(ledger2);
+        let req2 = SpawnRequest::new(
+            instance(1),
+            RuntimeBinding::Candle,
+            "swarm_prod_test",
+            "parent-1",
+        )
+        .with_cloud_provider(ProviderKind::OfficialCli, "claude-sonnet");
+        let err = create_err(&factory2, &req2).await;
+        match err {
+            SwarmError::ProviderNotConfigured { provider, .. } => {
+                assert_eq!(provider, "official_cli");
+            }
+            other => panic!("expected ProviderNotConfigured, got {other}"),
+        }
     }
 }
