@@ -46,6 +46,16 @@ pub enum SwarmFrEventId {
     BreakerTripped,
     LeaseExpired,
     SpawnRejected,
+    // rank-3: VM/sandbox worktree lifecycle (each emits one FR event so the
+    // Flight Recorder can replay/audit per-worktree state and the board can
+    // drill down by worktree).
+    WorktreeCreated,
+    WorktreeMounted,
+    WorktreeReclaimed,
+    WorktreeCleanupFailed,
+    // rank-7 groundwork: calendar-scheduled spin-up / teardown fires.
+    ScheduledSpinupFired,
+    ScheduledTeardownFired,
 }
 
 impl SwarmFrEventId {
@@ -62,6 +72,12 @@ impl SwarmFrEventId {
             Self::BreakerTripped => "FR-EVT-SWARM-BREAKER-TRIPPED",
             Self::LeaseExpired => "FR-EVT-SWARM-LEASE-EXPIRED",
             Self::SpawnRejected => "FR-EVT-SWARM-SPAWN-REJECTED",
+            Self::WorktreeCreated => "FR-EVT-SWARM-WORKTREE-CREATED",
+            Self::WorktreeMounted => "FR-EVT-SWARM-WORKTREE-MOUNTED",
+            Self::WorktreeReclaimed => "FR-EVT-SWARM-WORKTREE-RECLAIMED",
+            Self::WorktreeCleanupFailed => "FR-EVT-SWARM-WORKTREE-CLEANUP-FAILED",
+            Self::ScheduledSpinupFired => "FR-EVT-SWARM-SCHED-SPINUP-FIRED",
+            Self::ScheduledTeardownFired => "FR-EVT-SWARM-SCHED-TEARDOWN-FIRED",
         }
     }
 
@@ -78,6 +94,12 @@ impl SwarmFrEventId {
             Self::BreakerTripped,
             Self::LeaseExpired,
             Self::SpawnRejected,
+            Self::WorktreeCreated,
+            Self::WorktreeMounted,
+            Self::WorktreeReclaimed,
+            Self::WorktreeCleanupFailed,
+            Self::ScheduledSpinupFired,
+            Self::ScheduledTeardownFired,
         ]
     }
 
@@ -381,6 +403,30 @@ mod tests {
                 "non-canonical char in {s}"
             );
         }
+    }
+
+    #[test]
+    fn swarm_event_ids_include_worktree_and_scheduled_lifecycle() {
+        // rank-3: the VM/worktree + calendar-scheduled lifecycle ids are wired
+        // into the table (so coordinator/worktree/scheduler code can stamp them).
+        let ids: std::collections::HashSet<&str> =
+            SwarmFrEventId::all().iter().map(|i| i.as_str()).collect();
+        for expected in [
+            "FR-EVT-SWARM-WORKTREE-CREATED",
+            "FR-EVT-SWARM-WORKTREE-MOUNTED",
+            "FR-EVT-SWARM-WORKTREE-RECLAIMED",
+            "FR-EVT-SWARM-WORKTREE-CLEANUP-FAILED",
+            "FR-EVT-SWARM-SCHED-SPINUP-FIRED",
+            "FR-EVT-SWARM-SCHED-TEARDOWN-FIRED",
+        ] {
+            assert!(ids.contains(expected), "missing FR-EVT-SWARM id: {expected}");
+        }
+        // Every canonical string is unique (no two variants collide).
+        assert_eq!(
+            ids.len(),
+            SwarmFrEventId::all().len(),
+            "duplicate canonical FR-EVT-SWARM id string"
+        );
     }
 
     #[test]
