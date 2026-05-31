@@ -50,6 +50,7 @@ pub mod factory;
 pub mod ids;
 pub mod production_factory;
 pub mod routing;
+pub mod schedule;
 pub mod state;
 
 #[cfg(test)]
