@@ -6009,6 +6009,28 @@ pub trait FlightRecorder: Send + Sync {
         &self,
         filter: EventFilter,
     ) -> Result<Vec<FlightRecorderEvent>, RecorderError>;
+
+    /// Lists ALL events for a session keyed by the swarm composite `instance_id`
+    /// (`<model_id>#<instance>`), matching `session_span_id = id` OR
+    /// `payload.instance_id = id`. This is the "raw seam" the unified
+    /// per-session transcript needs: `EventFilter` exposes only
+    /// `model_session_id` (which swarm/terminal/inference events do NOT set), and
+    /// `list_events` hard-caps at 200 rows — neither is sufficient to join the
+    /// three id-spaces or to replay a long session.
+    ///
+    /// Ordering is ascending by timestamp; there is NO row cap (the caller may
+    /// time-window via `from`/`to`). The default implementation returns an empty
+    /// vec so a non-DuckDB recorder degrades honestly (the transcript reports the
+    /// FR lane as `unavailable` rather than fabricating rows). DuckDB-backed
+    /// recorders override this with a scoped `SELECT`.
+    async fn list_session_scoped_events(
+        &self,
+        _session_id: &str,
+        _from: Option<DateTime<Utc>>,
+        _to: Option<DateTime<Utc>>,
+    ) -> Result<Vec<FlightRecorderEvent>, RecorderError> {
+        Ok(Vec::new())
+    }
 }
 
 // ---------------------------------------------------------------------------

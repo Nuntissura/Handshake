@@ -201,6 +201,8 @@ pub mod self_improve;
 #[cfg(feature = "runtime-full")]
 pub mod session_checkpoint;
 #[cfg(feature = "runtime-full")]
+pub mod session_transcript;
+#[cfg(feature = "runtime-full")]
 pub mod storage;
 #[cfg(feature = "runtime-full")]
 pub mod swarm_orchestration;

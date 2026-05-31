@@ -1,6 +1,7 @@
 import { useCallback, useState } from "react";
 
 import { Disclosure } from "../common/Disclosure";
+import { SessionReplayPanel } from "../session/SessionReplayPanel";
 import { TerminalPanel } from "../terminal/TerminalPanel";
 import { OperatorChat } from "./OperatorChat";
 import { SwarmBoard } from "./SwarmBoard";
@@ -52,6 +53,20 @@ export function SwarmOperatorSurface({
     setTerminalOpenSignal((n) => n + 1);
   }, []);
 
+  // Off-main-window Session Replay drawer wiring. The board's per-card "Review
+  // session" affordance knows a session's composite instance_id (the canonical
+  // session id); clicking it bumps `replayOpenSignal` (force-opening the
+  // collapsed-by-default Session Replay disclosure) and records the session id to
+  // preselect. This makes the UNIFIED per-session audit record REACHABLE in the
+  // product — the "go back and look when things go wrong" surface — instead of
+  // shipping dark.
+  const [replayFocusSessionId, setReplayFocusSessionId] = useState<string | null>(null);
+  const [replayOpenSignal, setReplayOpenSignal] = useState(0);
+  const handleReviewSession = useCallback((instanceId: string) => {
+    setReplayFocusSessionId(instanceId);
+    setReplayOpenSignal((n) => n + 1);
+  }, []);
+
   // Resource budget badge: in-use/cap, or an exhausted chip.
   let resourceBadge: string | undefined;
   if (room.snapshot.status === "ready") {
@@ -85,7 +100,10 @@ export function SwarmOperatorSurface({
         lazy
         data-testid="swarm-board-disclosure"
       >
-        <SwarmBoard onInspectTerminal={handleInspectTerminal} />
+        <SwarmBoard
+          onInspectTerminal={handleInspectTerminal}
+          onReviewSession={handleReviewSession}
+        />
       </Disclosure>
 
       {/* Off-main-window integrated terminal drawer (WP-KERNEL-004). Collapsed
@@ -97,6 +115,18 @@ export function SwarmOperatorSurface({
       <TerminalPanel
         focusSwarmId={terminalFocusSwarmId}
         openSignal={terminalOpenSignal}
+      />
+
+      {/* Off-main-window unified Session Replay drawer (WP-KERNEL-004 governance
+          glue #1). Collapsed-by-default + lazy via its own Disclosure host, so a
+          closed panel costs nothing. Mounted here (NOT in the main window) so it
+          is reachable on demand: the board's per-card "Review session" affordance
+          reveals + preselects a session's UNIFIED record (chat + terminal + FR +
+          process, one ordered timeline). This is the audit substrate for
+          Handshake self-hosting this repo's governance. */}
+      <SessionReplayPanel
+        focusSessionId={replayFocusSessionId}
+        openSignal={replayOpenSignal}
       />
 
       <Disclosure

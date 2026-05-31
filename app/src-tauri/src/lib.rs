@@ -36,6 +36,7 @@ mod commands {
     pub mod sandbox;
     pub mod self_improve;
     pub mod session_distill;
+    pub mod session_transcript;
     pub mod speculative;
     pub mod steering;
     pub mod subquadratic;
@@ -180,6 +181,8 @@ macro_rules! handshake_invoke_handlers {
             commands::terminal::kernel_terminal_run_command,
             commands::terminal::kernel_terminal_scrollback,
             commands::terminal::kernel_terminal_authorize_interactive,
+            commands::session_transcript::kernel_session_list,
+            commands::session_transcript::kernel_session_transcript_get,
         ]
     };
     ($($extra:path),+ $(,)?) => {
@@ -308,6 +311,8 @@ macro_rules! handshake_invoke_handlers {
             commands::terminal::kernel_terminal_run_command,
             commands::terminal::kernel_terminal_scrollback,
             commands::terminal::kernel_terminal_authorize_interactive,
+            commands::session_transcript::kernel_session_list,
+            commands::session_transcript::kernel_session_transcript_get,
             $($extra),+
         ]
     };
@@ -1038,6 +1043,22 @@ pub fn run() {
                         Arc::new(handshake_core::capabilities::CapabilityRegistry::new());
                     handshake_core::terminal::TerminalRuntime::new(capabilities, recorder)
                 });
+            // UNIFIED PER-SESSION RECORD (governance glue #1): the transcript
+            // aggregator reads the SAME durable recorder (both FR seams) +
+            // app_data_root (chat.jsonl discovery) + the live terminal runtime
+            // (still-open capture scrollback enrichment) the swarm/terminal paths
+            // use. Built BEFORE `swarm_recorder` + `terminal_runtime` are consumed
+            // below so it shares their handles. When the durable FR fell back to
+            // the stderr sink (`None`), the FR/terminal/process lanes report
+            // `unavailable` and only `chat.jsonl` is read (honest-disabled).
+            let transcript_recorder = swarm_recorder.clone();
+            let transcript_app_data_root = schedule_store_root.clone();
+            let transcript_terminal = terminal_runtime.clone();
+            app.manage(commands::session_transcript::SessionTranscriptState::new(
+                transcript_recorder,
+                transcript_app_data_root,
+                transcript_terminal,
+            ));
             let mut swarm_state = match swarm_recorder {
                 Some(recorder) => {
                     commands::swarm_runtime::SwarmRuntimeState::production_with_fr_recorder(

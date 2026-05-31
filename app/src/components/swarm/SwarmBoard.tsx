@@ -145,7 +145,16 @@ const STATE_COLOR: Record<string, string> = {
   CANCELLED: "#6b7280",
 };
 
-function SwarmCard({ card, onCancel }: { card: SwarmBoardCard; onCancel: () => void }) {
+function SwarmCard({
+  card,
+  onCancel,
+  onReviewSession,
+}: {
+  card: SwarmBoardCard;
+  onCancel: () => void;
+  /** Open the unified Session Replay for this card's composite instance_id. */
+  onReviewSession?: (instanceId: string) => void;
+}) {
   const terminal = card.state === "COMPLETED" || card.state === "FAILED" || card.state === "CANCELLED";
   return (
     <div
@@ -180,11 +189,29 @@ function SwarmCard({ card, onCancel }: { card: SwarmBoardCard; onCancel: () => v
           <span style={{ fontSize: 10, color: "var(--hs-color-text-subtle)" }}>wt:{card.worktreeId}</span>
         )}
       </div>
-      {!terminal && (
-        <button onClick={onCancel} style={{ marginTop: 4, fontSize: 10 }}>
-          Cancel
+      <div style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 4 }}>
+        {!terminal && (
+          <button onClick={onCancel} style={{ fontSize: 10 }}>
+            Cancel
+          </button>
+        )}
+        {/* Review session: opens the off-main-window unified Session Replay for
+            this session (the audit "go back and look" surface). Honestly
+            disabled when the surface has not wired the handler — never a dead
+            button. Available for both live and terminal cards: the durable
+            record is reviewable AFTER completion, which is the whole point. */}
+        <button
+          type="button"
+          data-testid={`swarm-review-session-${card.instanceId.composite}`}
+          data-stable-id={`swarm-board.card.${card.instanceId.composite}.review-session`}
+          disabled={!onReviewSession}
+          onClick={onReviewSession ? () => onReviewSession(card.instanceId.composite) : undefined}
+          title={onReviewSession ? "Review this session's unified record" : "Session Replay panel not wired"}
+          style={{ fontSize: 10 }}
+        >
+          Review session
         </button>
-      )}
+      </div>
     </div>
   );
 }
@@ -234,12 +261,20 @@ export interface SwarmBoardProps {
    * disabled with an honest "not wired" title rather than a dead no-op.
    */
   onInspectTerminal?: (swarmId: string) => void;
+  /**
+   * Called when the operator clicks a card's "Review session" affordance. The
+   * surface owns the off-main-window SessionReplayPanel, so it provides this to
+   * open + preselect the session's unified transcript (the swarm composite
+   * instance_id is the canonical session id). When omitted, the affordance is
+   * honestly disabled with a "not wired" title rather than a dead no-op.
+   */
+  onReviewSession?: (instanceId: string) => void;
   /** Injectable terminal IPC (tests pass a stub). */
   terminalIpc?: TerminalIpc;
 }
 
 /** The live swarm operator board. */
-export function SwarmBoard({ onInspectTerminal, terminalIpc = defaultTerminalIpc }: SwarmBoardProps = {}) {
+export function SwarmBoard({ onInspectTerminal, onReviewSession, terminalIpc = defaultTerminalIpc }: SwarmBoardProps = {}) {
   const { board, lagged, reconcile } = useSwarmBoard();
   const swarmsWithTerminals = useSwarmsWithTerminals(terminalIpc);
   const cards = Object.values(board.cards);
@@ -321,6 +356,7 @@ export function SwarmBoard({ onInspectTerminal, terminalIpc = defaultTerminalIpc
                     key={cardKey(card.instanceId)}
                     card={card}
                     onCancel={() => void cancelSession(card.instanceId.composite)}
+                    onReviewSession={onReviewSession}
                   />
                 ))}
               </div>
