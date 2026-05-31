@@ -1177,7 +1177,15 @@ pub fn load_into_handle(
 
     target_handle.restore_snapshot_record(&reminted_handle, migrated_record)?;
 
-    Ok(reminted_handle)
+    // MT-095: bind the re-minted handle so the operator's subsequent restore
+    // through the gated KvCacheHandle chokepoint (subquadratic::state_restore /
+    // kv_cache_technique::prefix_restore) verifies it instead of fail-closing on
+    // a missing binding. A cross-session reload is a fresh commit into THIS
+    // process's cache, so it is bound like one (under the live process key +
+    // now()); the prefix-cache TTL then measures from reload time. bind_derived
+    // preserves prefix_id / content_hash / token_count, so the snapshot record
+    // seated above (and the direct KvCacheOps trait restore path) still match.
+    Ok(reminted_handle.bind_derived(target_handle.model_id(), Utc::now().timestamp_micros()))
 }
 
 fn map_artifact_error(error: ArtifactError) -> ModelRuntimeError {

@@ -158,6 +158,15 @@ fn process_restart_simulation_via_load_into_handle() {
     // content_hash differs from prefix_a's content_hash (different model_id).
     assert_eq!(reminted_prefix.token_count(), 3);
 
+    // MT-095 regression guard: the re-minted cross-session handle is BOUND, so a
+    // subsequent restore through the gated KvCacheHandle chokepoint
+    // (subquadratic::state_restore / kv_cache_technique::prefix_restore) verifies
+    // it instead of fail-closing as unbound. Without the load_into_handle binding
+    // fix this would reject and break cross-session state recovery.
+    reminted_prefix
+        .verify_self_against(handle_b.model_id())
+        .expect("re-minted cross-session handle must be bound for the gated restore path");
+
     // Subsequent prefix_restore via KvCacheOps must succeed on handle_b.
     handle_b
         .prefix_restore(&reminted_prefix)
