@@ -32,7 +32,10 @@ use serde_json::json;
 use thiserror::Error;
 
 use crate::model_runtime::{ModelCapabilities, ModelId};
-use crate::process_ledger::{record_spawn, LedgerBatcher, ProcessEngineKind, SpawnMeta};
+use crate::process_ledger::{
+    LedgerBatcher, ProcessEngineKind, ProcessOwnershipRecordId, ProcessStart, ProcessStop,
+    SpawnMeta,
+};
 
 /// Default owner role recorded on the CLI bridge subprocess's
 /// ProcessOwnershipLedger row when the caller does not override it.
@@ -281,36 +284,33 @@ impl OfficialCliBridgeRuntime {
 /// PID, exit_code and captured stdout are recorded on the
 /// `CliInvocationReceipt` so callers can attribute the run.
 ///
-/// MT-127 remediation: when a [`LedgerBatcher`] is attached via
-/// [`Self::with_process_ledger`], the spawn is registered as an
-/// attributable + reclaimable `ProcessOwnershipLedger` row
-/// (`engine_kind = OfficialCliBridge`) immediately after the child pid
-/// is captured, mirroring the MT-122 distillation trainer pattern. The
-/// spawner FAILS CLOSED: if ledger registration fails, the just-spawned
-/// child is killed and an error is returned rather than leaving an
-/// unattributed/unreclaimable process running. Without a ledger the run
-/// still works but is unattributed, so production call sites SHOULD
-/// attach the ledger.
+/// MT-127 remediation (MT-122-class): a [`LedgerBatcher`] is MANDATORY at
+/// construction. Every CLI-bridge subprocess spawn is registered as an
+/// attributable + reclaimable `ProcessOwnershipLedger` START row
+/// (`engine_kind = OfficialCliBridge`) immediately after the child pid is
+/// captured, and a matching STOP row is recorded after the child exits,
+/// mirroring the MT-122 distillation trainer pattern. There is NO
+/// unattributed code path: the spawner FAILS CLOSED — if START registration
+/// fails, the just-spawned child is killed and an error is returned rather
+/// than leaving an unattributed/unreclaimable process running. A genuinely
+/// absent runtime (the binary never spawns) still surfaces an honest typed
+/// [`OfficialCliBridgeError::SpawnFailed`]; no row is faked when no process
+/// is created.
 #[derive(Clone)]
 pub struct LiveCliSpawner {
-    process_ledger: Option<Arc<LedgerBatcher>>,
+    process_ledger: Arc<LedgerBatcher>,
     owner_role: String,
 }
 
 impl std::fmt::Debug for LiveCliSpawner {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        // LedgerBatcher is not Debug (it wraps channels); report only
-        // whether a ledger is attached so LiveCliSpawner stays Debug.
+        // LedgerBatcher is not Debug (it wraps channels); the ledger is
+        // always attached now, so report only that it is present so
+        // LiveCliSpawner stays Debug.
         f.debug_struct("LiveCliSpawner")
-            .field("process_ledger", &self.process_ledger.is_some())
+            .field("process_ledger", &"<attached>")
             .field("owner_role", &self.owner_role)
             .finish()
-    }
-}
-
-impl Default for LiveCliSpawner {
-    fn default() -> Self {
-        Self::new()
     }
 }
 
@@ -336,6 +336,28 @@ fn cli_bridge_spawn_meta(
         "executable": executable_path.display().to_string(),
     });
     meta
+}
+
+/// Build the `ProcessStart` row for a CLI-bridge subprocess from its
+/// `SpawnMeta`. Mirrors `process_ledger::record_spawn`'s internal build but
+/// returns the fully-built `ProcessStart` so the caller can record the
+/// matching `ProcessStop` on completion. MT-127 (MT-122-class remediation)
+/// requires BOTH a START and a STOP row so the spawned CLI subprocess is
+/// attributable AND reclaimable across its full lifecycle.
+fn cli_bridge_process_start(record_id: ProcessOwnershipRecordId, meta: SpawnMeta) -> ProcessStart {
+    let mut start = ProcessStart::new(meta.engine_kind, meta.owner_role.clone(), meta.owner_wp)
+        .with_process_uuid(record_id.as_uuid())
+        .with_os_pid(meta.pid)
+        .with_metadata_jsonb(meta.metadata_blob)
+        .with_sandbox_capabilities_snapshot(meta.sandbox_capabilities_snapshot);
+    start.started_at = meta.started_at_utc;
+    if let Some(sandbox_adapter) = meta.sandbox_adapter {
+        start = start.with_sandbox_adapter_id(sandbox_adapter);
+    }
+    if let Some(mt_id) = meta.mt_id {
+        start = start.with_mt_id(mt_id);
+    }
+    start
 }
 
 /// MT-127 remediation (HIGH): returns true if an inherited environment
@@ -396,24 +418,17 @@ fn wait_with_output_bounded(child: Child, timeout: Duration) -> Option<Output> {
 }
 
 impl LiveCliSpawner {
-    /// Construct a spawner with no process ledger attached. The spawn
-    /// still runs but is unattributed; production call sites SHOULD use
-    /// [`Self::with_process_ledger`] so each CLI subprocess is recorded
-    /// as an attributable ProcessOwnershipLedger row.
-    pub fn new() -> Self {
+    /// Construct a spawner with a MANDATORY process ledger (MT-127,
+    /// MT-122-class). Every CLI-bridge subprocess this spawner launches is
+    /// registered as an attributable + reclaimable `ProcessOwnershipLedger`
+    /// row (`engine_kind = OfficialCliBridge`): a START row the moment the
+    /// child pid is known and a matching STOP row after it exits. There is
+    /// no unattributed construction path.
+    pub fn new(process_ledger: Arc<LedgerBatcher>) -> Self {
         Self {
-            process_ledger: None,
+            process_ledger,
             owner_role: DEFAULT_CLI_BRIDGE_OWNER_ROLE.to_string(),
         }
-    }
-
-    /// Attach a process ledger so each CLI bridge subprocess is
-    /// registered as an attributable + reclaimable
-    /// `ProcessOwnershipLedger` row (`engine_kind = OfficialCliBridge`)
-    /// on spawn (MT-127). Fails closed if registration fails.
-    pub fn with_process_ledger(mut self, ledger: Arc<LedgerBatcher>) -> Self {
-        self.process_ledger = Some(ledger);
-        self
     }
 
     /// Override the owner role recorded on the ledger row (defaults to
@@ -477,27 +492,42 @@ impl CliSubprocessSpawner for LiveCliSpawner {
             })?;
         let pid = child.id();
 
-        // MT-127 remediation (HIGH): the moment the child pid is known
-        // and the row is attributable, register a ProcessOwnershipLedger
-        // row with engine_kind=OfficialCliBridge so the spawned CLI
-        // subprocess is attributable + reclaimable. Fail closed: if
-        // registration fails, kill the child rather than leaving an
-        // unattributed/unreclaimable process running.
-        if let Some(ledger) = &self.process_ledger {
-            let meta = cli_bridge_spawn_meta(
+        // MT-127 remediation (MT-122-class): ledger registration is
+        // UNCONDITIONAL. The moment the child pid is known the spawn is
+        // registered as an attributable ProcessOwnershipLedger START row
+        // (engine_kind=OfficialCliBridge) so the spawned CLI subprocess is
+        // attributable + reclaimable. Fail closed: if START registration
+        // fails, kill the child rather than leaving an unattributed/
+        // unreclaimable process running. The matching STOP row is recorded
+        // on EVERY exit path below (success, non-zero exit, timeout, wait
+        // error) via `record_stop`, so the ledger reflects the full
+        // lifecycle and there is no unattributed code path.
+        let record_id = ProcessOwnershipRecordId::new_v7();
+        let start = cli_bridge_process_start(
+            record_id,
+            cli_bridge_spawn_meta(pid, &self.owner_role, model_name, &config.executable_path),
+        );
+        if let Err(err) = self.process_ledger.record_start(start.clone()) {
+            kill_process_tree(pid, &mut child);
+            return Err(OfficialCliBridgeError::LedgerRegistration {
                 pid,
-                &self.owner_role,
-                model_name,
-                &config.executable_path,
-            );
-            if let Err(err) = record_spawn(ledger, meta) {
-                kill_process_tree(pid, &mut child);
-                return Err(OfficialCliBridgeError::LedgerRegistration {
-                    pid,
-                    reason: err.to_string(),
-                });
-            }
+                reason: err.to_string(),
+            });
         }
+
+        // Record the matching STOP row for the now-finished subprocess. Best
+        // effort: the process has already exited (or been killed) by the time
+        // this runs, so a STOP write failure must not resurrect the child; it
+        // is surfaced only as a debug log so the primary spawn outcome is
+        // preserved.
+        let record_stop = |exit_code: Option<i32>, stop_reason: &str| {
+            let stop = ProcessStop::from_start(&start, exit_code).with_stop_reason(stop_reason);
+            if let Err(err) = self.process_ledger.record_stop(stop) {
+                eprintln!(
+                    "official_cli_bridge: ledger STOP registration failed for pid {pid}: {err}"
+                );
+            }
+        };
 
         let timeout = Duration::from_secs(config.timeout_seconds);
         let started = Instant::now();
@@ -507,6 +537,9 @@ impl CliSubprocessSpawner for LiveCliSpawner {
                 Ok(None) => {
                     if started.elapsed() >= timeout {
                         kill_process_tree(pid, &mut child);
+                        // The child was killed on timeout; record the STOP row
+                        // so the killed process is reconciled in the ledger.
+                        record_stop(None, "official_cli_bridge_timeout_kill");
                         let partial_stdout =
                             wait_with_output_bounded(child, POST_TIMEOUT_OUTPUT_GRACE)
                                 .map(|output| String::from_utf8_lossy(&output.stdout).into_owned())
@@ -519,6 +552,10 @@ impl CliSubprocessSpawner for LiveCliSpawner {
                     std::thread::sleep(Duration::from_millis(25));
                 }
                 Err(err) => {
+                    // try_wait failed: the child's fate is unknown, kill it so
+                    // it is not orphaned, then record the STOP row.
+                    kill_process_tree(pid, &mut child);
+                    record_stop(None, "official_cli_bridge_try_wait_error");
                     return Err(OfficialCliBridgeError::SpawnFailed {
                         reason: format!("try_wait failed: {err}"),
                         exit_code: None,
@@ -527,19 +564,26 @@ impl CliSubprocessSpawner for LiveCliSpawner {
             }
         };
 
-        let output =
-            child
-                .wait_with_output()
-                .map_err(|err| OfficialCliBridgeError::SpawnFailed {
+        let output = match child.wait_with_output() {
+            Ok(output) => output,
+            Err(err) => {
+                record_stop(exit_status.code(), "official_cli_bridge_wait_output_error");
+                return Err(OfficialCliBridgeError::SpawnFailed {
                     reason: format!("wait_with_output failed: {err}"),
                     exit_code: exit_status.code(),
-                })?;
+                });
+            }
+        };
 
         let stdout = String::from_utf8_lossy(&output.stdout).into_owned();
         let stderr = String::from_utf8_lossy(&output.stderr).into_owned();
         let exit_code = output.status.code();
 
+        // The child has exited; record the matching STOP row with its real
+        // exit code on both the failure and success paths so the
+        // ProcessOwnershipLedger reflects the full lifecycle unconditionally.
         if !output.status.success() {
+            record_stop(exit_code, "official_cli_bridge_nonzero_exit");
             return Err(OfficialCliBridgeError::SpawnFailed {
                 reason: format!(
                     "CLI {} exited with status {:?}; stderr={}",
@@ -550,6 +594,8 @@ impl CliSubprocessSpawner for LiveCliSpawner {
                 exit_code,
             });
         }
+
+        record_stop(exit_code, "official_cli_bridge_exit");
 
         Ok(CliInvocationReceipt {
             model_id: ModelId::new_v7(),
@@ -612,6 +658,20 @@ mod tests {
         // Use a file that definitely exists on every host the test
         // runs on. cargo's manifest dir always exists.
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("Cargo.toml")
+    }
+
+    /// Build a real, manually-drained `LedgerBatcher` for tests. The ledger is
+    /// mandatory on `LiveCliSpawner` (MT-127, MT-122-class), so every test
+    /// that constructs a live spawner attaches one. The drain side is dropped
+    /// when the caller does not inspect rows; the batcher's in-memory channel
+    /// still accepts START/STOP writes without a backing store.
+    fn test_ledger() -> Arc<crate::process_ledger::LedgerBatcher> {
+        let (batcher, _drain) = crate::process_ledger::LedgerBatcher::manual_for_tests(
+            crate::process_ledger::LedgerBatcherConfig::default(),
+            Arc::new(crate::process_ledger::NoopOverflowSink),
+        )
+        .expect("manual ledger batcher for tests");
+        Arc::new(batcher)
     }
 
     fn good_config() -> CliBridgeConfig {
@@ -786,7 +846,7 @@ mod tests {
         }
 
         let started = Instant::now();
-        let err = LiveCliSpawner::new()
+        let err = LiveCliSpawner::new(test_ledger())
             .spawn(&config, "model", "prompt")
             .expect_err("timeout command must fail with SpawnTimeout");
 
@@ -840,13 +900,13 @@ mod tests {
 
     #[test]
     fn live_cli_spawner_default_owner_role_is_set() {
-        // Default()/new() must yield the canonical owner role so the
-        // ledger row is attributable even when the caller does not
-        // override it; with_owner_role overrides it.
-        let spawner = LiveCliSpawner::default();
+        // new() must yield the canonical owner role so the ledger row is
+        // attributable even when the caller does not override it;
+        // with_owner_role overrides it. The ledger is mandatory (MT-127,
+        // MT-122-class): there is no ledger-less construction path.
+        let spawner = LiveCliSpawner::new(test_ledger());
         assert_eq!(spawner.owner_role, "OFFICIAL_CLI_BRIDGE");
-        assert!(spawner.process_ledger.is_none());
-        let custom = LiveCliSpawner::new().with_owner_role("DISTILLATION_PIPELINE");
+        let custom = LiveCliSpawner::new(test_ledger()).with_owner_role("DISTILLATION_PIPELINE");
         assert_eq!(custom.owner_role, "DISTILLATION_PIPELINE");
     }
 

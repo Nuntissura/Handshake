@@ -19,6 +19,16 @@ use handshake_core::process_ledger::{
     ProcessLedgerError, ProcessLedgerStore,
 };
 
+/// Build a real, manually-drained `LedgerBatcher` for tests that construct a
+/// `LiveCliSpawner` but do not inspect the recorded rows. The ledger is
+/// mandatory on the spawner (MT-127, MT-122-class).
+fn test_ledger() -> Arc<LedgerBatcher> {
+    let (batcher, _drain) =
+        LedgerBatcher::manual_for_tests(LedgerBatcherConfig::default(), Arc::new(NoopOverflowSink))
+            .expect("manual ledger batcher for tests");
+    Arc::new(batcher)
+}
+
 struct EchoSpawner {
     cancel_reported: Mutex<bool>,
 }
@@ -193,13 +203,15 @@ impl ProcessLedgerStore for CapturingLedgerStore {
     }
 }
 
-/// MT-127 HIGH remediation, end-to-end: a LiveCliSpawner with an
-/// attached process ledger MUST register an attributable
-/// ProcessOwnershipLedger row (engine_kind=OfficialCliBridge) the moment
-/// the child pid is known. Proves the spawned CLI subprocess is
-/// attributable + reclaimable, closing the MT-127 FAIL gap.
+/// MT-127 remediation (MT-122-class), end-to-end: the LiveCliSpawner's
+/// ProcessOwnershipLedger registration is UNCONDITIONAL. The ledger is
+/// mandatory at construction, so every CLI-bridge subprocess spawn records
+/// an attributable START row (engine_kind=OfficialCliBridge) the moment the
+/// child pid is known AND a matching STOP row after the child exits. Proves
+/// the spawned CLI subprocess is always attributable + reclaimable across
+/// its full lifecycle, closing the optional-ledger (MT-122-class) gap.
 #[tokio::test]
-async fn live_cli_spawner_records_official_cli_bridge_ledger_row() {
+async fn live_cli_spawner_records_official_cli_bridge_start_and_stop_rows() {
     let config = fast_exit_config();
     if !config.executable_path.exists() {
         eprintln!(
@@ -216,7 +228,8 @@ async fn live_cli_spawner_records_official_cli_bridge_ledger_row() {
     )
     .expect("manual ledger batcher");
 
-    let spawner = LiveCliSpawner::new().with_process_ledger(Arc::new(batcher));
+    // The ledger is MANDATORY: there is no ledger-less / optional builder.
+    let spawner = LiveCliSpawner::new(Arc::new(batcher));
     let receipt = spawner
         .spawn(&config, "claude-3.5-sonnet", "hello world")
         .expect("spawn + ledger registration must succeed");
@@ -228,14 +241,19 @@ async fn live_cli_spawner_records_official_cli_bridge_ledger_row() {
         .expect("drain ledger to store");
 
     let events = store.events();
-    assert_eq!(events.len(), 1, "exactly one ProcessOwnershipLedger row");
+    assert_eq!(
+        events.len(),
+        2,
+        "exactly one START and one matching STOP ProcessOwnershipLedger row, got {events:?}"
+    );
+
     let LedgerEvent::Start(start) = &events[0] else {
-        panic!("expected a Start event, got {:?}", events[0]);
+        panic!("expected the first event to be a Start, got {:?}", events[0]);
     };
     assert_eq!(
         start.engine_kind,
         ProcessEngineKind::OfficialCliBridge,
-        "row must be attributed to engine_kind=OfficialCliBridge"
+        "START row must be attributed to engine_kind=OfficialCliBridge"
     );
     assert_eq!(start.owner_role, "OFFICIAL_CLI_BRIDGE");
     assert_eq!(start.os_pid, receipt.pid);
@@ -253,25 +271,26 @@ async fn live_cli_spawner_records_official_cli_bridge_ledger_row() {
         start.metadata_jsonb["model_name"].as_str(),
         Some("claude-3.5-sonnet")
     );
-}
 
-/// Without a ledger attached the spawner still runs (backward-compatible
-/// construction) but records no row.
-#[tokio::test]
-async fn live_cli_spawner_without_ledger_records_no_row() {
-    let config = fast_exit_config();
-    if !config.executable_path.exists() {
-        eprintln!(
-            "skipping no-ledger test; executable missing: {}",
-            config.executable_path.display()
-        );
-        return;
-    }
-    // Default()/new() yields no ledger; spawn must still succeed.
-    let receipt = LiveCliSpawner::default()
-        .spawn(&config, "model", "prompt")
-        .expect("spawn without ledger must still succeed");
-    assert!(receipt.pid.is_some());
+    let LedgerEvent::Stop(stop) = &events[1] else {
+        panic!("expected the second event to be a Stop, got {:?}", events[1]);
+    };
+    // The STOP row must reconcile to the SAME process: same uuid, same pid,
+    // same engine_kind/owner_role, so the row is attributable + reclaimable
+    // across its full lifecycle.
+    assert_eq!(
+        stop.process_uuid, start.process_uuid,
+        "STOP must reference the same ProcessOwnership row uuid as START"
+    );
+    assert_eq!(stop.os_pid, receipt.pid);
+    assert_eq!(stop.engine_kind, ProcessEngineKind::OfficialCliBridge);
+    assert_eq!(stop.owner_role, "OFFICIAL_CLI_BRIDGE");
+    assert_eq!(stop.exit_code, receipt.exit_code);
+    assert_eq!(
+        stop.stop_reason.as_deref(),
+        Some("official_cli_bridge_exit"),
+        "clean exit must record the canonical stop reason"
+    );
 }
 
 /// Host-native config that echoes two inherited env vars so a test can
@@ -330,7 +349,7 @@ fn live_cli_spawner_strips_secret_env_but_keeps_public_env() {
     std::env::set_var("SCRUB_PROBE_API_KEY", "leaked-NEVER-LOG-xyz");
     std::env::set_var("SCRUB_PROBE_PUBLIC_DIR", "public-ok-value");
 
-    let receipt = LiveCliSpawner::new()
+    let receipt = LiveCliSpawner::new(test_ledger())
         .spawn(&config, "model", "prompt")
         .expect("env-echo spawn must succeed");
 

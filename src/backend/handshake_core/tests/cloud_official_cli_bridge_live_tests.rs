@@ -24,6 +24,18 @@ use std::time::Duration;
 use handshake_core::model_runtime::cloud::{
     CliBridgeConfig, CliKind, CliOutputFormat, LiveCliSpawner, OfficialCliBridgeRuntime,
 };
+use handshake_core::process_ledger::{LedgerBatcher, LedgerBatcherConfig, NoopOverflowSink};
+
+/// Build a real, manually-drained `LedgerBatcher` for the live tests. The
+/// ledger is mandatory on `LiveCliSpawner` (MT-127, MT-122-class); these
+/// tests assert real-binary spawn behavior, not ledger rows, so the drain
+/// side is dropped.
+fn test_ledger() -> Arc<LedgerBatcher> {
+    let (batcher, _drain) =
+        LedgerBatcher::manual_for_tests(LedgerBatcherConfig::default(), Arc::new(NoopOverflowSink))
+            .expect("manual ledger batcher for live tests");
+    Arc::new(batcher)
+}
 
 fn resolve_installed_cli_candidates() -> Vec<(CliKind, PathBuf, &'static str)> {
     let mut candidates = Vec::new();
@@ -123,7 +135,7 @@ fn live_cli_spawner_spawns_real_binary_and_returns_real_pid_and_stdout() {
 
     let mut failures = Vec::new();
     for (kind, exe, name) in candidates {
-        let runtime = OfficialCliBridgeRuntime::new(Arc::new(LiveCliSpawner::new()));
+        let runtime = OfficialCliBridgeRuntime::new(Arc::new(LiveCliSpawner::new(test_ledger())));
         let handle = match runtime.register_bridge(
             version_config(kind, exe.clone()),
             "version-probe-model",
@@ -235,7 +247,7 @@ fn live_cli_spawner_surfaces_spawn_failure_for_missing_binary() {
         timeout_seconds: 5,
     };
 
-    let runtime = OfficialCliBridgeRuntime::new(Arc::new(LiveCliSpawner::new()));
+    let runtime = OfficialCliBridgeRuntime::new(Arc::new(LiveCliSpawner::new(test_ledger())));
     let handle = runtime
         .register_bridge(config, "bogus-model", "2026-05-20T18:10:00Z")
         .expect("register_bridge passes because the file exists, even though it is not executable");
