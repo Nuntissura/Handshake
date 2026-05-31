@@ -73,6 +73,14 @@ impl McpTransport for StdioTransport {
             .stdout(Stdio::piped())
             .stderr(Stdio::null())
             .kill_on_drop(true);
+        // HBR-QUIET: a backgrounded MCP server must not pop a console window on
+        // Windows. tokio's Command exposes creation_flags as an inherent method
+        // on Windows, so no CommandExt import is needed here.
+        #[cfg(windows)]
+        {
+            const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+            command.creation_flags(CREATE_NO_WINDOW);
+        }
 
         let mut child = command
             .spawn()

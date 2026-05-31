@@ -467,6 +467,14 @@ impl PeftTrainerExecutor for PythonPeftTrainerExecutor {
             command.arg(arg);
         }
         command.stdout(Stdio::piped()).stderr(Stdio::piped());
+        // HBR-QUIET: the Python trainer is backgrounded by Handshake and must
+        // not pop a console window on Windows.
+        #[cfg(windows)]
+        {
+            use std::os::windows::process::CommandExt;
+            const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+            command.creation_flags(CREATE_NO_WINDOW);
+        }
 
         // SECURITY (MT-122): never inherit the parent environment — clear it
         // and re-inject only the OS-essential allowlist + HANDSHAKE_DISTILL_*

@@ -9,6 +9,21 @@ use chrono::{SecondsFormat, Utc};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
+/// HBR-QUIET: suppress the console window Windows would otherwise pop when the
+/// screenshot adapter shells out to `node`. No-op off Windows.
+fn hide_console_window(command: &mut Command) {
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        command.creation_flags(CREATE_NO_WINDOW);
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = command;
+    }
+}
+
 pub const FOLDED_PRODUCT_SCREENSHOT_VISUAL_VALIDATION_STUB_ID: &str =
     "WP-1-Product-Screenshot-Visual-Validation-v1";
 
@@ -517,8 +532,10 @@ pub fn capture_product_screenshot_from_browser_adapter(
     // Pre-flight dep checks: surface actionable AdapterDependencyMissing errors
     // before spawning the adapter, so the operator never sees a generic ENOENT
     // or a successful spawn followed by a "playwright not found" stack trace.
-    let node_version_status = Command::new(adapter_config.node_binary.trim())
-        .arg("--version")
+    let mut node_version_cmd = Command::new(adapter_config.node_binary.trim());
+    node_version_cmd.arg("--version");
+    hide_console_window(&mut node_version_cmd);
+    let node_version_status = node_version_cmd
         .output()
         .ok()
         .map(|output| output.status.success())
@@ -544,7 +561,8 @@ pub fn capture_product_screenshot_from_browser_adapter(
         sanitize_artifact_segment(&request.request_id)
     ));
 
-    let output = Command::new(adapter_config.node_binary.trim())
+    let mut adapter_cmd = Command::new(adapter_config.node_binary.trim());
+    adapter_cmd
         .arg(adapter_config.adapter_script_path.trim())
         .arg("--scope")
         .arg(scope_cli_value(request.scope))
@@ -557,8 +575,9 @@ pub fn capture_product_screenshot_from_browser_adapter(
         .arg("--width")
         .arg(request.width.to_string())
         .arg("--height")
-        .arg(request.height.to_string())
-        .output()?;
+        .arg(request.height.to_string());
+    hide_console_window(&mut adapter_cmd);
+    let output = adapter_cmd.output()?;
 
     if !output.status.success() {
         return Err(ProductScreenshotExecutionError::AdapterFailed {

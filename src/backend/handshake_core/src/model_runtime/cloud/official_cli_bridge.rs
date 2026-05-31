@@ -480,6 +480,15 @@ impl CliSubprocessSpawner for LiveCliSpawner {
         cmd.stdout(Stdio::piped());
         cmd.stderr(Stdio::piped());
         cmd.stdin(Stdio::null());
+        // HBR-QUIET: the Node-based cloud CLI (claude / codex / gemini) is
+        // backgrounded by Handshake and must not pop a console window on
+        // Windows. std::process::Command exposes creation_flags via CommandExt.
+        #[cfg(windows)]
+        {
+            use std::os::windows::process::CommandExt;
+            const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+            cmd.creation_flags(CREATE_NO_WINDOW);
+        }
 
         let mut child = cmd
             .spawn()
