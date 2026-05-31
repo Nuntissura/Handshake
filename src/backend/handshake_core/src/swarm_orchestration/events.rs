@@ -441,6 +441,64 @@ impl DurableSwarmFrBridge {
     }
 }
 
+/// rank-4: live-update broadcast source for the operator board. Implements
+/// `SwarmEventSink` by re-publishing each `SwarmEvent` into a `tokio::broadcast`
+/// channel; the Tauri layer subscribes and forwards to `app.emit("swarm://event")`
+/// so the React board updates IN PLACE (replacing the 1500ms poll). A slow
+/// subscriber observes `RecvError::Lagged` and full-snapshot reconciles, which
+/// guards against silent board drift (the Vibe-Kanban snapshot+live-deltas shape).
+pub struct BroadcastSwarmSink {
+    tx: tokio::sync::broadcast::Sender<SwarmEvent>,
+}
+
+impl BroadcastSwarmSink {
+    pub fn new(capacity: usize) -> Self {
+        let (tx, _rx) = tokio::sync::broadcast::channel(capacity.max(1));
+        Self { tx }
+    }
+
+    /// Subscribe to the live `SwarmEvent` stream (the Tauri forwarder / tests).
+    pub fn subscribe(&self) -> tokio::sync::broadcast::Receiver<SwarmEvent> {
+        self.tx.subscribe()
+    }
+
+    /// Current live subscriber count (0 = no board open; emit is a cheap no-op).
+    pub fn receiver_count(&self) -> usize {
+        self.tx.receiver_count()
+    }
+}
+
+impl SwarmEventSink for BroadcastSwarmSink {
+    fn emit(&self, event: SwarmEvent) {
+        // `send` errors only when there are no receivers (no board open) — fine.
+        // A full ring drops the OLDEST for slow receivers, who see Lagged and
+        // reconcile. Never blocks the coordinator.
+        let _ = self.tx.send(event);
+    }
+}
+
+/// Composes multiple `SwarmEventSink`s so one coordinator drives BOTH durable
+/// Flight-Recorder persistence AND the live board broadcast (and any future sink)
+/// from a single emit. Each child's emit is infallible per the trait, so one
+/// cannot block another.
+pub struct FanoutSwarmSink {
+    sinks: Vec<std::sync::Arc<dyn SwarmEventSink>>,
+}
+
+impl FanoutSwarmSink {
+    pub fn new(sinks: Vec<std::sync::Arc<dyn SwarmEventSink>>) -> Self {
+        Self { sinks }
+    }
+}
+
+impl SwarmEventSink for FanoutSwarmSink {
+    fn emit(&self, event: SwarmEvent) {
+        for sink in &self.sinks {
+            sink.emit(event.clone());
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -573,6 +631,56 @@ mod tests {
                 == Some("FR-EVT-SWARM-SESSION-READY")),
             "the swarm SessionReady event must be durably recorded; got {} events",
             events.len()
+        );
+    }
+
+    struct TestRecordingSink {
+        events: std::sync::Arc<Mutex<Vec<SwarmEvent>>>,
+    }
+
+    impl SwarmEventSink for TestRecordingSink {
+        fn emit(&self, event: SwarmEvent) {
+            self.events.lock().unwrap().push(event);
+        }
+    }
+
+    #[tokio::test]
+    async fn broadcast_swarm_sink_delivers_to_subscribers() {
+        // rank-4: the live board source re-publishes each event to subscribers.
+        let sink = BroadcastSwarmSink::new(16);
+        let mut rx = sink.subscribe();
+        assert_eq!(sink.receiver_count(), 1);
+        let iid = ModelInstanceId::new(crate::model_runtime::ModelId::new_v7(), 1);
+        sink.emit(SwarmEvent::SessionReady { instance_id: iid });
+        assert_eq!(
+            rx.recv().await.expect("subscriber receives the event"),
+            SwarmEvent::SessionReady { instance_id: iid }
+        );
+    }
+
+    #[tokio::test]
+    async fn fanout_swarm_sink_emits_to_every_child() {
+        // rank-4: one coordinator drives BOTH the live broadcast AND a durable
+        // sink from a single emit.
+        let broadcast = std::sync::Arc::new(BroadcastSwarmSink::new(16));
+        let mut rx = broadcast.subscribe();
+        let collected = std::sync::Arc::new(Mutex::new(Vec::new()));
+        let recording = std::sync::Arc::new(TestRecordingSink {
+            events: collected.clone(),
+        });
+        let fanout = FanoutSwarmSink::new(vec![broadcast.clone(), recording.clone()]);
+
+        let iid = ModelInstanceId::new(crate::model_runtime::ModelId::new_v7(), 2);
+        fanout.emit(SwarmEvent::SessionReady { instance_id: iid });
+
+        assert_eq!(
+            rx.recv().await.expect("broadcast child delivered"),
+            SwarmEvent::SessionReady { instance_id: iid }
+        );
+        assert_eq!(
+            collected.lock().unwrap().len(),
+            1,
+            "the recording child also received the event"
         );
     }
 }
