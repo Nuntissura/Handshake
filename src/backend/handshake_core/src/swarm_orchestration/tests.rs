@@ -353,6 +353,75 @@ async fn rank2_spawned_session_carries_swarm_and_worktree_grouping() {
     assert_eq!(coordinator.session_grouping(iid2), Some((None, None)));
 }
 
+/// The read-only `live_instances_in_swarm` accessor enumerates EXACTLY the live
+/// instances registered under a swarm — including manually-spawned ones — and
+/// excludes other swarms, ungrouped sessions, terminal sessions, blank queries,
+/// and unknown swarms. This is the authoritative source the calendar teardown
+/// uses to cancel ALL sessions in a swarm.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn live_instances_in_swarm_enumerates_all_live_and_excludes_terminal_and_other_swarms() {
+    use std::collections::HashSet;
+
+    let (ledger, _drain) = ledger_pair();
+    let factory = Arc::new(ControllableFactory::new(
+        FactoryBehavior::Succeed,
+        Duration::from_millis(1),
+        ledger.clone(),
+    ));
+    let sink = Arc::new(RecordingSwarmSink::new());
+    let budget = RunBudget::defaulted(16)
+        .with_concurrency(16)
+        .with_lifetime_spawns(16);
+    let coordinator = SwarmCoordinator::new(SwarmConfig::new(budget), factory, sink, ledger);
+
+    // Three sessions in alpha, one in beta, one ungrouped.
+    let a1 = instance(1);
+    let a2 = instance(2);
+    let a3 = instance(3);
+    let b1 = instance(4);
+    let u1 = instance(5);
+    for (iid, swarm) in [(a1, Some("swarm-alpha")), (a2, Some("swarm-alpha")), (a3, Some("swarm-alpha")), (b1, Some("swarm-beta"))] {
+        let mut req = spawn_req(iid);
+        if let Some(s) = swarm {
+            req = req.with_swarm(s);
+        }
+        coordinator.spawn_session(req).await.unwrap();
+    }
+    coordinator.spawn_session(spawn_req(u1)).await.unwrap(); // ungrouped
+
+    let alpha: HashSet<_> = coordinator
+        .live_instances_in_swarm("swarm-alpha")
+        .into_iter()
+        .collect();
+    assert_eq!(alpha, HashSet::from([a1, a2, a3]), "all three alpha sessions");
+    assert_eq!(
+        coordinator.live_instances_in_swarm("swarm-beta"),
+        vec![b1],
+        "exactly the one beta session"
+    );
+
+    // Blank query and unknown swarm both return empty — a teardown must never
+    // fan out to ungrouped or unrelated sessions.
+    assert!(coordinator.live_instances_in_swarm("").is_empty());
+    assert!(coordinator.live_instances_in_swarm("   ").is_empty());
+    assert!(coordinator.live_instances_in_swarm("swarm-unknown").is_empty());
+
+    // Cancelling a2 makes it terminal -> the accessor drops it (no dead id).
+    coordinator
+        .cancel_session(a2, "test_teardown")
+        .await
+        .unwrap();
+    let alpha_after: HashSet<_> = coordinator
+        .live_instances_in_swarm("swarm-alpha")
+        .into_iter()
+        .collect();
+    assert_eq!(
+        alpha_after,
+        HashSet::from([a1, a3]),
+        "terminal session excluded after cancel"
+    );
+}
+
 // ===========================================================================
 // RANK-6: cold-start admission bounds SIMULTANEOUS boots below run-concurrency.
 // ===========================================================================

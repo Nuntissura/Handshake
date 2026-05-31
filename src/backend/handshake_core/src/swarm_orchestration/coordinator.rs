@@ -619,6 +619,43 @@ impl SwarmCoordinator {
             .map(|h| (h.swarm_id.clone(), h.worktree_id.clone()))
     }
 
+    /// Read-only snapshot of every **live** (non-terminal) instance currently
+    /// registered under `swarm_id`. This is the authoritative per-swarm
+    /// enumeration the operator-board and the calendar teardown need to cancel
+    /// ALL sessions in a swarm — including ones spawned manually, not just by a
+    /// scheduler — without reaching into the private registry.
+    ///
+    /// Semantics + hardening:
+    /// * **Exact-match, non-empty:** only handles whose `swarm_id == Some(q)` for
+    ///   the queried `q` are returned. Sessions with no swarm (`None`) never
+    ///   match, and a blank/whitespace query returns empty rather than matching
+    ///   sessions that happen to carry an empty swarm id — a teardown must never
+    ///   fan out to unrelated sessions.
+    /// * **Terminal excluded:** already-stopped/failed/cancelled handles are
+    ///   filtered out, so the caller never tries to re-cancel a dead id.
+    /// * **Snapshot, not a live view:** the returned `Vec` is a point-in-time
+    ///   copy taken under the registry lock and released before return — NO lock
+    ///   is held across the caller's subsequent async `cancel_session` calls. The
+    ///   caller MUST re-check `session_state` before cancelling each id, because
+    ///   an instance can become terminal (reaped by its time-box, completed, or
+    ///   cancelled concurrently) between this snapshot and the cancel; that
+    ///   re-check makes the benign TOCTOU a no-op.
+    pub fn live_instances_in_swarm(&self, swarm_id: &str) -> Vec<ModelInstanceId> {
+        let swarm_id = swarm_id.trim();
+        if swarm_id.is_empty() {
+            return Vec::new();
+        }
+        self.inner
+            .registry
+            .lock()
+            .expect("registry poisoned")
+            .values()
+            .filter(|h| !h.state.is_terminal())
+            .filter(|h| h.swarm_id.as_deref() == Some(swarm_id))
+            .map(|h| h.instance_id)
+            .collect()
+    }
+
     /// Test-only: the live `Arc<dyn ModelRuntime>` registered for an instance,
     /// so the env-gated real parallel test can drive a genuine generate against
     /// exactly the session the coordinator spawned.

@@ -240,30 +240,42 @@ impl FireContext {
     }
 }
 
-/// Cancel every live session this scheduler spun up under `swarm_id`. Returns
-/// how many were actually cancelled.
+/// Cancel every live session under `swarm_id` — including sessions spawned
+/// manually, not just by this scheduler. Returns how many were actually
+/// cancelled.
 ///
-/// The coordinator (off-limits to edit this wave) exposes per-instance
-/// `cancel_session`/`session_state` but NO per-swarm instance iterator, so the
-/// scheduler owns the attribution table: each scheduled `SpinUp` records its
-/// minted `ModelInstanceId` under its swarm, and this teardown drains that
-/// swarm's recorded instances and cancels each via the coordinator's real
-/// `cancel_session` path (token cancel + teardown + ledger STOP + evict). A
-/// `Teardown` schedule is thus the explicit complement to a `SpinUp`'s time-box
-/// reaping. Instances already terminal/reaped are skipped (reconciled away) via
-/// `session_state`, so the table cannot leak.
+/// The authoritative source is the coordinator's read-only
+/// `live_instances_in_swarm(swarm_id)` accessor, which enumerates ALL live
+/// instances registered under the swarm. We additionally drain the scheduler's
+/// own attribution table for this swarm and union in any recorded id the
+/// snapshot missed (covers the race where a just-spawned instance is recorded
+/// by `SpinUp` but a marginally-stale snapshot has not observed it yet); the
+/// drain also guarantees the table cannot leak. Each target is cancelled via
+/// the coordinator's real `cancel_session` path (token cancel + teardown +
+/// ledger STOP + evict). A `Teardown` schedule is thus the explicit complement
+/// to a `SpinUp`'s time-box reaping. Instances already terminal/reaped are
+/// skipped (re-checked via `session_state`), so no dead id is re-cancelled.
 async fn cancel_swarm_sessions(
     coordinator: &Arc<SwarmCoordinator>,
     swarm_id: &str,
     scheduled_instances: &Arc<Mutex<BTreeMap<String, Vec<ModelInstanceId>>>>,
 ) -> usize {
-    let instances: Vec<ModelInstanceId> = {
+    // Authoritative: every live session in this swarm, manually-spawned included.
+    let mut instances: Vec<ModelInstanceId> = coordinator.live_instances_in_swarm(swarm_id);
+    {
+        // Drain this swarm's recorded instances (prevents the table from
+        // leaking) and union any not already in the authoritative snapshot.
         let mut table = scheduled_instances
             .lock()
             .expect("scheduled instances poisoned");
-        // Drain this swarm's recorded instances; teardown cancels all of them.
-        table.remove(swarm_id).unwrap_or_default()
-    };
+        if let Some(recorded) = table.remove(swarm_id) {
+            for iid in recorded {
+                if !instances.contains(&iid) {
+                    instances.push(iid);
+                }
+            }
+        }
+    }
     let mut cancelled = 0usize;
     for iid in instances {
         // Skip instances the coordinator has already evicted (reaped via the
