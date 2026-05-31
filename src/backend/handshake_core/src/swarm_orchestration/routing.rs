@@ -102,6 +102,13 @@ pub enum LocalOutcome {
     /// The local attempt produced output but the caller deemed confidence below
     /// its acceptance threshold. Escalate.
     LowConfidence,
+    /// rank-5 (load-based escalation): the local tier is OVERLOADED -- concurrency
+    /// saturated, in-VM memory pressure / OOM risk, or a latency-SLO breach. The
+    /// model itself is healthy, so this escalates the task to cloud to RELIEVE
+    /// load WITHOUT tripping the local breaker (overload is transient capacity,
+    /// not a lane fault -- penalizing the breaker would wrongly suppress a healthy
+    /// local lane). `ForceLocal` still blocks escalation (data-residency).
+    Overloaded,
 }
 
 /// Outcome of a prior CLOUD attempt against a specific provider, fed back so the
@@ -351,6 +358,10 @@ impl RoutingPolicy {
                 LocalOutcome::Failed | LocalOutcome::LowConfidence => {
                     self.record_lane_failure(LOCAL_KEY, now);
                 }
+                // Overload escalates (via `route`'s is_some() check) but does NOT
+                // record a lane failure: the local lane is healthy, just saturated.
+                // Tripping its breaker on transient load would wrongly suppress it.
+                LocalOutcome::Overloaded => {}
             }
         }
     }
@@ -637,6 +648,41 @@ mod tests {
         let r = req(TaskClass::ForceLocal).with_local_outcome(LocalOutcome::Failed);
         // ForceLocal stays local (data residency); one failure does not trip the
         // breaker (default threshold 5), so it still routes local.
+        assert_eq!(p.route(&r, Instant::now()).unwrap().tier(), TaskTier::Local);
+    }
+
+    // ---- rank-5: load-based escalation (Overloaded) ----
+
+    #[test]
+    fn overload_escalates_routine_to_cloud() {
+        let mut p = policy();
+        let r = req(TaskClass::Routine).with_local_outcome(LocalOutcome::Overloaded);
+        assert_eq!(p.route(&r, Instant::now()).unwrap().tier(), TaskTier::Cloud);
+    }
+
+    #[test]
+    fn overload_does_not_trip_local_breaker() {
+        // Overload is transient capacity, not a lane fault: many overloads must
+        // NOT suppress the healthy local lane (unlike repeated Failed). After 10
+        // overload escalations, a fresh routine (no outcome) still routes local.
+        let mut p = policy();
+        let now = Instant::now();
+        for _ in 0..10 {
+            let r = req(TaskClass::Routine).with_local_outcome(LocalOutcome::Overloaded);
+            let _ = p.route(&r, now);
+        }
+        assert_eq!(
+            p.route(&req(TaskClass::Routine), now).unwrap().tier(),
+            TaskTier::Local
+        );
+    }
+
+    #[test]
+    fn force_local_blocks_overload_escalation() {
+        // Data-residency is non-negotiable: overload must not push a force-local
+        // task to cloud (no data egress under load).
+        let mut p = policy();
+        let r = req(TaskClass::ForceLocal).with_local_outcome(LocalOutcome::Overloaded);
         assert_eq!(p.route(&r, Instant::now()).unwrap().tier(), TaskTier::Local);
     }
 
