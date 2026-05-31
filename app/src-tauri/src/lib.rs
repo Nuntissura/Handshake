@@ -76,6 +76,7 @@ macro_rules! handshake_invoke_handlers {
             commands::swarm_runtime::kernel_swarm_cancel_session,
             commands::swarm_runtime::kernel_swarm_list_active_sessions,
             commands::swarm_runtime::kernel_swarm_resource_snapshot,
+            commands::swarm_runtime::kernel_swarm_board_snapshot,
             commands::swarm_runtime::kernel_swarm_chat_generate,
             commands::lora::kernel_model_runtime_lora_mount,
             commands::lora::kernel_model_runtime_lora_unmount,
@@ -182,6 +183,7 @@ macro_rules! handshake_invoke_handlers {
             commands::swarm_runtime::kernel_swarm_cancel_session,
             commands::swarm_runtime::kernel_swarm_list_active_sessions,
             commands::swarm_runtime::kernel_swarm_resource_snapshot,
+            commands::swarm_runtime::kernel_swarm_board_snapshot,
             commands::swarm_runtime::kernel_swarm_chat_generate,
             commands::lora::kernel_model_runtime_lora_mount,
             commands::lora::kernel_model_runtime_lora_unmount,
@@ -930,7 +932,15 @@ pub fn run() {
             // `setup` so the background ledger writer + lease reaper spawn into
             // the live Tauri async runtime. Later swarm commands (MT-205) and the
             // cloud routing policy (MT-206) drive this managed coordinator.
-            app.manage(commands::swarm_runtime::SwarmRuntimeState::production());
+            let swarm_state = commands::swarm_runtime::SwarmRuntimeState::production();
+            // rank-4: start the single board forwarder (broadcast -> typed
+            // swarm://event deltas) before managing the state moves it.
+            let board_events = swarm_state.board_events();
+            app.manage(swarm_state);
+            commands::swarm_runtime::spawn_swarm_board_forwarder(
+                app.handle().clone(),
+                board_events,
+            );
 
             let state = OrchestratorState::default();
             state.spawn(orchestrator_workdir())?;

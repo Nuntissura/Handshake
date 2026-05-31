@@ -73,9 +73,10 @@ use handshake_core::process_ledger::{
 };
 use handshake_core::model_runtime::cloud::SecretsVault;
 use handshake_core::swarm_orchestration::{
-    CloudLaneFactoryConfig, FlightRecorderSwarmSink, LiveSession, ModelInstanceId,
-    ModelSessionFactory, ModelSessionState, ProductionModelSessionFactory, RunBudget, SpawnRequest,
-    SwarmConfig, SwarmCoordinator, SwarmError, SwarmResult,
+    BroadcastSwarmSink, CloudLaneFactoryConfig, FanoutSwarmSink, FlightRecorderSwarmSink,
+    LiveSession, ModelInstanceId, ModelSessionFactory, ModelSessionState,
+    ProductionModelSessionFactory, RunBudget, SpawnRequest, SwarmConfig, SwarmCoordinator,
+    SwarmError, SwarmEvent, SwarmEventSink, SwarmResult,
 };
 use serde::{Deserialize, Serialize};
 use tauri::State;
@@ -207,6 +208,10 @@ pub struct SwarmRuntimeState {
     /// records the value it constructed the budget with for the resource bar.
     concurrency_cap: usize,
     _writer_task: tokio::task::JoinHandle<Result<(), ProcessLedgerError>>,
+    /// rank-4: the live board broadcast source. The coordinator's sink fans out to
+    /// this (alongside the FR sink); the Tauri board forwarder subscribes here and
+    /// re-emits typed deltas to the React board, replacing the 1500ms poll.
+    board_events: Arc<BroadcastSwarmSink>,
 }
 
 impl std::fmt::Debug for SwarmRuntimeState {
@@ -298,12 +303,20 @@ impl SwarmRuntimeState {
         });
 
         let trace_id = Uuid::now_v7();
-        let sink = Arc::new(FlightRecorderSwarmSink::new(trace_id, |event| {
-            eprintln!(
-                "{FR_EVT_SWARM_LIFECYCLE}: {}",
-                serde_json::to_string(&event.payload).unwrap_or_default()
-            );
-        }));
+        let fr_sink: Arc<dyn SwarmEventSink> =
+            Arc::new(FlightRecorderSwarmSink::new(trace_id, |event| {
+                eprintln!(
+                    "{FR_EVT_SWARM_LIFECYCLE}: {}",
+                    serde_json::to_string(&event.payload).unwrap_or_default()
+                );
+            }));
+        // rank-4: fan out to BOTH the FR sink and the live board broadcast, so one
+        // coordinator drives durable capture + the live operator board.
+        let board_events = Arc::new(BroadcastSwarmSink::new(1024));
+        let sink: Arc<dyn SwarmEventSink> = Arc::new(FanoutSwarmSink::new(vec![
+            fr_sink,
+            board_events.clone() as Arc<dyn SwarmEventSink>,
+        ]));
 
         let coordinator = SwarmCoordinator::new(config, factory, sink, ledger);
         coordinator.start_reaper();
@@ -314,6 +327,7 @@ impl SwarmRuntimeState {
             sessions,
             concurrency_cap: concurrency,
             _writer_task: writer_task,
+            board_events,
         }
     }
 
@@ -326,6 +340,12 @@ impl SwarmRuntimeState {
     /// `cancel_session` / `session_state` / `remaining` on this.
     pub fn coordinator(&self) -> Arc<SwarmCoordinator> {
         self.coordinator.clone()
+    }
+
+    /// rank-4: the live board broadcast source. The Tauri board forwarder
+    /// subscribes here (`board_events().subscribe()`) and re-emits typed deltas.
+    pub fn board_events(&self) -> Arc<BroadcastSwarmSink> {
+        self.board_events.clone()
     }
 
     /// The durable swarm ledger rows recorded so far (observability + the
@@ -586,6 +606,113 @@ pub async fn kernel_swarm_list_active_sessions(
             .then(a.instance_id.instance.cmp(&b.instance_id.instance))
     });
     Ok(rows)
+}
+
+// ---------------------------------------------------------------------------
+// rank-4: live operator board (Jira-style). Board = a READ-MODEL projection of
+// SwarmEvents: columns = ModelSessionState, swimlanes = the rank-2 grouping key
+// (swarm_id / worktree_id), cards = sessions. The React board calls
+// `kernel_swarm_board_snapshot` on mount + on resync, then applies pushed
+// `swarm://event` deltas in place; a `seq` gap or `swarm://resync` triggers a
+// full reconcile. UI writes are COMMANDS (spawn/cancel/escalate), never direct
+// column mutations.
+// ---------------------------------------------------------------------------
+
+/// One board card = one live session, with its lifecycle state (the column) and
+/// the swarm/worktree grouping (the swimlane).
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SwarmBoardCardIpc {
+    pub instance_id: SwarmInstanceIdIpc,
+    pub state: String,
+    pub provider: String,
+    pub runtime_binding: String,
+    pub swarm_id: Option<String>,
+    pub worktree_id: Option<String>,
+}
+
+/// Reconcilable board snapshot the React hook fetches on mount + on resync.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SwarmBoardSnapshotIpc {
+    pub cards: Vec<SwarmBoardCardIpc>,
+    pub live_sessions: usize,
+}
+
+/// A pushed live delta: a monotonic `seq` + the typed SwarmEvent. The board
+/// applies it in place; a gap in `seq` means a missed event -> full reconcile.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SwarmBoardDeltaIpc {
+    pub seq: u64,
+    pub event: SwarmEvent,
+}
+
+/// Emitted when the broadcast receiver lagged (dropped events) so the board does
+/// a full snapshot reconcile instead of applying a partial stream.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SwarmBoardResyncIpc {
+    pub dropped: u64,
+}
+
+/// Board snapshot: the live sessions as cards with state + grouping, for the
+/// initial render and every reconcile.
+#[tauri::command]
+pub async fn kernel_swarm_board_snapshot(
+    state: State<'_, SwarmRuntimeState>,
+) -> Result<SwarmBoardSnapshotIpc, String> {
+    let coordinator = state.coordinator();
+    let mut cards: Vec<SwarmBoardCardIpc> = state
+        .live_tracked_sessions()
+        .into_iter()
+        .map(|(iid, tracked, st)| {
+            let (swarm_id, worktree_id) = coordinator.session_grouping(iid).unwrap_or((None, None));
+            SwarmBoardCardIpc {
+                instance_id: iid.into(),
+                state: st.as_str().to_string(),
+                provider: provider_str(tracked.provider).to_string(),
+                runtime_binding: tracked.runtime_binding.adapter_id().to_string(),
+                swarm_id,
+                worktree_id,
+            }
+        })
+        .collect();
+    cards.sort_by(|a, b| {
+        a.instance_id
+            .model_id
+            .cmp(&b.instance_id.model_id)
+            .then(a.instance_id.instance.cmp(&b.instance_id.instance))
+    });
+    Ok(SwarmBoardSnapshotIpc {
+        live_sessions: cards.len(),
+        cards,
+    })
+}
+
+/// rank-4: forward live SwarmEvents to the React board. ONE forwarder task (a
+/// single serializer -> ordered deltas) subscribes to the broadcast and re-emits
+/// each as a typed `swarm://event` with a monotonic seq; a lagged (dropped)
+/// receiver emits `swarm://resync` so the board reconciles rather than drifting.
+/// Called once from the Tauri setup with the managed state's `board_events()`.
+pub fn spawn_swarm_board_forwarder(app: tauri::AppHandle, board: Arc<BroadcastSwarmSink>) {
+    use tauri::Emitter;
+    let mut rx = board.subscribe();
+    tauri::async_runtime::spawn(async move {
+        let mut seq: u64 = 0;
+        loop {
+            match rx.recv().await {
+                Ok(event) => {
+                    seq = seq.saturating_add(1);
+                    let _ = app.emit("swarm://event", SwarmBoardDeltaIpc { seq, event });
+                }
+                Err(tokio::sync::broadcast::error::RecvError::Lagged(dropped)) => {
+                    let _ = app.emit("swarm://resync", SwarmBoardResyncIpc { dropped });
+                }
+                Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
+            }
+        }
+    });
 }
 
 /// Snapshot the swarm resource budget for the control-room resource bar.

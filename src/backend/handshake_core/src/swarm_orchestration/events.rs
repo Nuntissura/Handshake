@@ -21,6 +21,7 @@
 
 use std::sync::Mutex;
 
+use serde::{Deserialize, Serialize};
 use serde_json::json;
 
 use crate::flight_recorder::{FlightRecorderActor, FlightRecorderEvent, FlightRecorderEventType};
@@ -108,8 +109,10 @@ impl SwarmFrEventId {
     }
 }
 
-/// Typed lifecycle event emitted by the coordinator.
-#[derive(Debug, Clone, PartialEq, Eq)]
+/// Typed lifecycle event emitted by the coordinator. `Serialize`/`Deserialize`
+/// so the rank-4 board forwarder can `app.emit` it to the React operator board as
+/// a typed delta (externally-tagged JSON), and tests can round-trip it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum SwarmEvent {
     SessionSpawned {
         instance_id: ModelInstanceId,

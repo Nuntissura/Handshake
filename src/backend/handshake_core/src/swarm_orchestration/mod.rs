@@ -64,8 +64,10 @@ pub use coordinator::{
 };
 pub use error::{SwarmError, SwarmErrorClass, SwarmResult};
 pub use events::{
-    FlightRecorderSwarmSink, RecordingSwarmSink, SwarmEvent, SwarmEventSink, SwarmFrEventId,
+    BroadcastSwarmSink, DurableSwarmFrBridge, FanoutSwarmSink, FlightRecorderSwarmSink,
+    RecordingSwarmSink, SwarmEvent, SwarmEventSink, SwarmFrEventId,
 };
+pub use schedule::{schedules_to_ics, ScheduledAction, ScheduledFire, SwarmSchedule, SwarmScheduler};
 pub use factory::{LiveSession, ModelSessionFactory, SessionTeardown};
 pub use ids::{BudgetRemaining, ModelInstanceId, RunBudget, SpawnRequest};
 pub use production_factory::{
