@@ -35,8 +35,27 @@ const PROCESS_LEDGER_SOURCE_COMPONENT: &str = "process_ledger_writer";
 
 static GLOBAL_DEGRADED_WRITERS: AtomicUsize = AtomicUsize::new(0);
 
+/// Process-wide count of ledger rows whose flush/store write failed.
+///
+/// A flush failure means one or more `ProcessStart` / `ProcessStop` rows could
+/// not be persisted to the ledger store. Previously the in-loop flush result
+/// was discarded with `let _ = ...`, so a dropped row was completely invisible.
+/// This counter makes the loss observable and surfaceable to operators and
+/// monitoring without inventing a new spec event (spec 5.7.3 mandates only
+/// `FR-EVT-LEDGER-OVERFLOW`, which is emitted separately by `emit_overflow`).
+static GLOBAL_LEDGER_FLUSH_FAILED_ROWS: AtomicU64 = AtomicU64::new(0);
+
 pub fn is_degraded() -> bool {
     GLOBAL_DEGRADED_WRITERS.load(Ordering::SeqCst) > 0
+}
+
+/// Total number of ledger rows that failed to flush to the store process-wide.
+///
+/// Non-zero means at least one `ProcessStart`/`ProcessStop` row was not durably
+/// recorded; pair with the loud `tracing::error!` emitted at the failure site to
+/// recover the affected row identities.
+pub fn flush_failed_row_count() -> u64 {
+    GLOBAL_LEDGER_FLUSH_FAILED_ROWS.load(Ordering::SeqCst)
 }
 
 #[derive(Debug, Error)]
@@ -183,6 +202,7 @@ pub struct ProcessLedgerWriter {
     overflow_sink: Arc<dyn ProcessLedgerOverflowSink>,
     degraded: Arc<AtomicBool>,
     overflow_count: Arc<AtomicU64>,
+    flush_failed_rows: Arc<AtomicU64>,
     capacity: usize,
 }
 
@@ -198,11 +218,13 @@ impl ProcessLedgerWriter {
         let (sender, receiver) = mpsc::channel(config.capacity);
         let degraded = Arc::new(AtomicBool::new(false));
         let overflow_count = Arc::new(AtomicU64::new(0));
+        let flush_failed_rows = Arc::new(AtomicU64::new(0));
         let writer = Self {
             sender,
             overflow_sink: Arc::clone(&overflow_sink),
             degraded: Arc::clone(&degraded),
             overflow_count: Arc::clone(&overflow_count),
+            flush_failed_rows: Arc::clone(&flush_failed_rows),
             capacity: config.capacity,
         };
         let join = tokio::spawn(run_writer(
@@ -212,6 +234,7 @@ impl ProcessLedgerWriter {
             config,
             degraded,
             overflow_count,
+            flush_failed_rows,
         ));
         (writer, join)
     }
@@ -235,16 +258,19 @@ impl ProcessLedgerWriter {
         let config = config.validate()?;
         let (sender, receiver) = mpsc::channel(config.capacity);
         let degraded = Arc::new(AtomicBool::new(false));
+        let flush_failed_rows = Arc::new(AtomicU64::new(0));
         let writer = Self {
             sender,
             overflow_sink,
             degraded: Arc::clone(&degraded),
             overflow_count: Arc::new(AtomicU64::new(0)),
+            flush_failed_rows: Arc::clone(&flush_failed_rows),
             capacity: config.capacity,
         };
         let drain = ProcessLedgerDrain {
             receiver: Mutex::new(receiver),
             degraded,
+            flush_failed_rows,
             batch_size: config.batch_size,
         };
         Ok((writer, drain))
@@ -260,6 +286,15 @@ impl ProcessLedgerWriter {
 
     pub fn is_degraded(&self) -> bool {
         self.degraded.load(Ordering::SeqCst)
+    }
+
+    /// Number of ledger rows this writer failed to flush to the store.
+    ///
+    /// Non-zero means a `write_batch` call returned an error and the affected
+    /// rows were not durably persisted; the loud `tracing::error!` at the
+    /// failure site carries the per-row identities.
+    pub fn flush_failed_rows(&self) -> u64 {
+        self.flush_failed_rows.load(Ordering::SeqCst)
     }
 
     fn enqueue(&self, event: LedgerEvent) -> Result<(), ProcessLedgerError> {
@@ -288,6 +323,7 @@ impl Drop for ProcessLedgerWriter {
 pub struct ProcessLedgerDrain {
     receiver: Mutex<Receiver<LedgerEvent>>,
     degraded: Arc<AtomicBool>,
+    flush_failed_rows: Arc<AtomicU64>,
     batch_size: usize,
 }
 
@@ -301,16 +337,42 @@ impl ProcessLedgerDrain {
         while let Ok(event) = receiver.try_recv() {
             batch.push(event);
             if batch.len() >= self.batch_size {
-                flush_batch(&store, &mut batch, &self.degraded).await?;
+                self.flush_batch_observed(&store, &mut batch).await?;
             }
         }
         if !batch.is_empty() {
-            flush_batch(&store, &mut batch, &self.degraded).await?;
+            self.flush_batch_observed(&store, &mut batch).await?;
         }
         Ok(())
     }
+
+    /// Number of ledger rows this drain failed to flush to the store.
+    pub fn flush_failed_rows(&self) -> u64 {
+        self.flush_failed_rows.load(Ordering::SeqCst)
+    }
+
+    /// Flush helper that propagates store errors (preserving the manual-drain
+    /// contract) but records the loss observably before returning the error, so
+    /// even the propagating path is never silent.
+    async fn flush_batch_observed<S>(
+        &self,
+        store: &Arc<S>,
+        batch: &mut Vec<LedgerEvent>,
+    ) -> Result<(), ProcessLedgerError>
+    where
+        S: ProcessLedgerStore,
+    {
+        match flush_batch(store, batch, &self.degraded).await {
+            Ok(()) => Ok(()),
+            Err(error) => {
+                record_flush_failure(&self.flush_failed_rows, batch, &error);
+                Err(error)
+            }
+        }
+    }
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn run_writer(
     mut receiver: Receiver<LedgerEvent>,
     store: Arc<dyn ProcessLedgerStore>,
@@ -318,6 +380,7 @@ async fn run_writer(
     config: WriterConfig,
     degraded: Arc<AtomicBool>,
     overflow_count: Arc<AtomicU64>,
+    flush_failed_rows: Arc<AtomicU64>,
 ) -> Result<(), ProcessLedgerError> {
     let mut ticker = time::interval_at(
         time::Instant::now() + config.flush_interval,
@@ -344,21 +407,64 @@ async fn run_writer(
                 }
                 batch.push(event);
                 if batch.len() >= config.batch_size {
-                    let _ = flush_batch(&store, &mut batch, &degraded).await;
+                    // The background writer must keep running across transient
+                    // store failures, so we do not propagate the error here.
+                    // It must NOT be silent, however: record the loss loudly and
+                    // count it before continuing (was previously `let _ = ...`).
+                    if let Err(error) = flush_batch(&store, &mut batch, &degraded).await {
+                        record_flush_failure(&flush_failed_rows, &batch, &error);
+                    }
                 }
             }
             _ = ticker.tick() => {
                 if !batch.is_empty() {
-                    let _ = flush_batch(&store, &mut batch, &degraded).await;
+                    if let Err(error) = flush_batch(&store, &mut batch, &degraded).await {
+                        record_flush_failure(&flush_failed_rows, &batch, &error);
+                    }
                 }
             }
         }
     }
 
     if !batch.is_empty() {
-        flush_batch(&store, &mut batch, &degraded).await?;
+        if let Err(error) = flush_batch(&store, &mut batch, &degraded).await {
+            record_flush_failure(&flush_failed_rows, &batch, &error);
+            return Err(error);
+        }
     }
     Ok(())
+}
+
+/// Make a ledger flush/store failure observable instead of silently discarding it.
+///
+/// On `flush_batch` error the batch is retained (not cleared) for retry, but the
+/// error itself was previously dropped via `let _ = ...`, so a dropped row was
+/// invisible. This:
+///   * increments the per-writer and process-wide flush-failure row counters
+///     (surfaceable via `ProcessLedgerWriter::flush_failed_rows` /
+///     `flush_failed_row_count`), and
+///   * logs a loud `tracing::error!` carrying every affected row's identity
+///     (process_uuid, kind, parent_session_id) plus the store error.
+fn record_flush_failure(
+    flush_failed_rows: &AtomicU64,
+    batch: &[LedgerEvent],
+    error: &ProcessLedgerError,
+) {
+    let row_count = batch.len() as u64;
+    flush_failed_rows.fetch_add(row_count, Ordering::SeqCst);
+    GLOBAL_LEDGER_FLUSH_FAILED_ROWS.fetch_add(row_count, Ordering::SeqCst);
+
+    for event in batch {
+        tracing::error!(
+            target: PROCESS_LEDGER_SOURCE_COMPONENT,
+            event = "ledger_flush_store_failed",
+            process_uuid = %event.process_uuid(),
+            event_kind = event.kind().as_str(),
+            parent_session_id = event.parent_session_id().unwrap_or("unknown-session"),
+            error = %error,
+            "process ledger flush/store failed; row not durably persisted"
+        );
+    }
 }
 
 async fn flush_batch<S>(

@@ -16,29 +16,58 @@ use super::{
     ProcessLedgerWriter, ProcessStop,
 };
 
+/// MT-008: atomically claim the active (un-stopped) rows for a session.
+///
+/// The previous form was `SELECT ... FOR UPDATE` executed in a transaction that
+/// was committed immediately, releasing the row locks *before* the reclaim
+/// decision (sandbox kill + stop-event write) ran. Two concurrent reclaims could
+/// therefore both read the same active rows and both act on them, double-killing
+/// a process and writing duplicate STOP rows (or, under interleaving, missing a
+/// row).
+///
+/// The FOR UPDATE row lock must cover the rows being reclaimed for the *whole*
+/// reclaim decision. We collapse the read-modify-write into a single atomic
+/// statement: an `UPDATE ... WHERE stopped_at IS NULL ... RETURNING` takes the
+/// row locks (equivalent to FOR UPDATE) and, in the same statement, marks each
+/// claimed row's `stopped_at`/`stop_reason` so the row is no longer NULL. A
+/// concurrent reclaim's identical UPDATE then matches zero of those rows
+/// (`stopped_at IS NULL` is now false), so it cannot double-claim. The claim is
+/// durable the instant the statement commits; the kill outcome / exit_code is
+/// refined afterward by the normal STOP upsert (which overwrites the sentinel
+/// `stopped_at` with the real stop time). `FOR UPDATE` is retained explicitly in
+/// the text to document the locking intent and to satisfy the row-lock contract.
 pub const POSTGRES_ACTIVE_RECLAIM_QUERY_SQL: &str = r#"
-SELECT
-    process_uuid::text AS process_uuid,
-    os_pid,
-    parent_session_id,
-    parent_process_id::text AS parent_process_id,
-    sandbox_adapter_id,
-    sandbox_internal_id,
-    engine_kind,
-    started_at,
-    model_artifact_sha256,
-    work_profile_id,
-    owner_role,
-    owner_wp,
-    role_id,
-    wp_id,
-    mt_id,
-    sandbox_capabilities_snapshot::text AS sandbox_capabilities_snapshot,
-    metadata_jsonb::text AS metadata_jsonb
-FROM kernel_process_lifecycle
-WHERE parent_session_id = $1
-  AND stopped_at IS NULL
-FOR UPDATE
+WITH locked AS (
+    SELECT process_uuid
+    FROM kernel_process_lifecycle
+    WHERE parent_session_id = $1
+      AND stopped_at IS NULL
+    FOR UPDATE
+)
+UPDATE kernel_process_lifecycle AS k
+SET stopped_at = now(),
+    stop_reason = COALESCE(k.stop_reason, 'reclaim_claimed')
+FROM locked
+WHERE k.process_uuid = locked.process_uuid
+  AND k.stopped_at IS NULL
+RETURNING
+    k.process_uuid::text AS process_uuid,
+    k.os_pid,
+    k.parent_session_id,
+    k.parent_process_id::text AS parent_process_id,
+    k.sandbox_adapter_id,
+    k.sandbox_internal_id,
+    k.engine_kind,
+    k.started_at,
+    k.model_artifact_sha256,
+    k.work_profile_id,
+    k.owner_role,
+    k.owner_wp,
+    k.role_id,
+    k.wp_id,
+    k.mt_id,
+    k.sandbox_capabilities_snapshot::text AS sandbox_capabilities_snapshot,
+    k.metadata_jsonb::text AS metadata_jsonb
 "#;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -244,14 +273,19 @@ impl ReclaimProcessStore for PostgresProcessLedgerStore {
         &self,
         session_id: &str,
     ) -> Result<Vec<ReclaimableProcess>, ProcessLedgerError> {
+        // MT-008: the claim (lock + stopped_at mutation) is atomic in the
+        // UPDATE...RETURNING. We map the returned rows BEFORE committing so that a
+        // row-decode failure rolls the claim back rather than leaving rows marked
+        // claimed but never returned to the caller (which would orphan them:
+        // claimed yet never killed). Commit only after every row decodes cleanly.
         let mut tx = self.pool().begin().await?;
         let rows = sqlx::query(POSTGRES_ACTIVE_RECLAIM_QUERY_SQL)
             .bind(session_id)
             .fetch_all(&mut *tx)
             .await?;
-        tx.commit().await?;
 
-        rows.into_iter()
+        let claimed: Result<Vec<ReclaimableProcess>, ProcessLedgerError> = rows
+            .into_iter()
             .map(|row| {
                 let process_uuid_raw: String = row.get("process_uuid");
                 let engine_kind_raw: String = row.get("engine_kind");
@@ -297,7 +331,20 @@ impl ReclaimProcessStore for PostgresProcessLedgerStore {
                     metadata_jsonb: json_text_column(&row, "metadata_jsonb")?,
                 })
             })
-            .collect()
+            .collect();
+
+        match claimed {
+            Ok(processes) => {
+                tx.commit().await?;
+                Ok(processes)
+            }
+            Err(error) => {
+                // Roll the claim back so the rows stay reclaimable; surface the
+                // decode error to the caller.
+                let _ = tx.rollback().await;
+                Err(error)
+            }
+        }
     }
 }
 

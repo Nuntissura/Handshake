@@ -8,13 +8,15 @@ use async_trait::async_trait;
 use bytes::Bytes;
 use serde_json::json;
 
+use std::sync::atomic::{AtomicU64, Ordering};
+
 use handshake_core::{
     process_ledger::{
-        cap_metadata_jsonb, LedgerBatcher, LedgerBatcherConfig, LedgerEvent, LedgerEventKind,
-        LedgerOverflowEvent, ProcessEngineKind, ProcessLedgerError, ProcessLedgerOverflowSink,
-        ProcessLedgerStore, ProcessStart, ProcessStop, PROCESS_LEDGER_BATCH_SIZE,
-        PROCESS_LEDGER_FLUSH_INTERVAL_MS, PROCESS_LEDGER_METADATA_CAP_BYTES,
-        PROCESS_LEDGER_RING_CAPACITY,
+        cap_metadata_jsonb, flush_failed_row_count, LedgerBatcher, LedgerBatcherConfig, LedgerEvent,
+        LedgerEventKind, LedgerOverflowEvent, ProcessEngineKind, ProcessLedgerError,
+        ProcessLedgerOverflowSink, ProcessLedgerStore, ProcessStart, ProcessStop,
+        PROCESS_LEDGER_BATCH_SIZE, PROCESS_LEDGER_FLUSH_INTERVAL_MS,
+        PROCESS_LEDGER_METADATA_CAP_BYTES, PROCESS_LEDGER_RING_CAPACITY,
     },
     sandbox::{
         build_registry_from_adapters_with_ledger, default_no_op_capabilities, AdapterCapabilities,
@@ -23,6 +25,20 @@ use handshake_core::{
         SandboxAdapterError, Signal, TrustClass,
     },
 };
+
+/// `flush_failed_row_count()` is a PROCESS-WIDE monotonic counter, so any two
+/// tests that assert on its delta would race when the binary runs its tests
+/// concurrently (the default). Tests that read the global counter take this
+/// guard for the full duration of their measurement window so their deltas stay
+/// deterministic. Poison is recovered (a panicking sibling test must not wedge
+/// the rest of the suite on this lock).
+static FLUSH_COUNTER_GUARD: Mutex<()> = Mutex::new(());
+
+fn lock_flush_counter() -> std::sync::MutexGuard<'static, ()> {
+    FLUSH_COUNTER_GUARD
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+}
 
 #[test]
 fn ledger_batcher_uses_mt053_batch_flush_and_ring_defaults() {
@@ -260,6 +276,132 @@ async fn bootstrap_with_ledger_wraps_registered_adapters_without_changing_select
     assert_eq!(events[0].process_uuid(), handle.id);
 }
 
+// MT-007: a ledger flush/store failure must be OBSERVABLE (counted + logged
+// loud) instead of being silently swallowed. Before the fix, the drain path's
+// flush errors were the only observable ones and the background writer used
+// `let _ = flush_batch(...)`, so a dropped ProcessStart/ProcessStop row produced
+// no signal at all. These tests prove the failure is now surfaced.
+
+#[tokio::test]
+async fn drain_flush_store_failure_is_observable_and_counted() {
+    let failing = FailingProcessLedgerStore::default();
+    let overflow = InMemoryOverflowSink::default();
+    let (batcher, drain) = LedgerBatcher::manual_for_tests(
+        LedgerBatcherConfig {
+            capacity: 16,
+            batch_size: 4,
+            flush_interval: std::time::Duration::from_millis(250),
+        },
+        Arc::new(overflow),
+    )
+    .expect("manual batcher");
+
+    // Serialize against other global-counter tests so the exact `== 2` delta
+    // below is not perturbed by a concurrent flush-failure in a sibling test.
+    let _counter_guard = lock_flush_counter();
+    let before = flush_failed_row_count();
+
+    // Enqueue two rows whose identity we can later confirm was counted.
+    batcher
+        .record_start(
+            ProcessStart::new(
+                ProcessEngineKind::SandboxContainer,
+                "KERNEL_BUILDER",
+                Some("WP-KERNEL-004".to_string()),
+            )
+            .with_process_uuid(uuid::Uuid::nil()),
+        )
+        .expect("enqueue start");
+    batcher
+        .record_stop(
+            ProcessStop::from_start(
+                &ProcessStart::new(
+                    ProcessEngineKind::SandboxContainer,
+                    "KERNEL_BUILDER",
+                    Some("WP-KERNEL-004".to_string()),
+                )
+                .with_process_uuid(uuid::Uuid::nil()),
+                Some(0),
+            ),
+        )
+        .expect("enqueue stop");
+
+    // The drain path propagates the store error (manual-drain contract) AND
+    // records the loss observably before returning it.
+    let result = drain.drain_available_to(Arc::new(failing.clone())).await;
+    assert!(
+        result.is_err(),
+        "failing store must surface an error to the drain caller"
+    );
+
+    // Observable signal 1: per-drain counter incremented by the number of rows.
+    assert_eq!(
+        drain.flush_failed_rows(),
+        2,
+        "drain must count both dropped rows"
+    );
+    // Observable signal 2: process-wide counter incremented.
+    assert_eq!(
+        flush_failed_row_count() - before,
+        2,
+        "process-wide flush-failed counter must reflect the dropped rows"
+    );
+    // The store actually rejected the write (no rows persisted).
+    assert_eq!(failing.attempts(), 1);
+}
+
+#[tokio::test]
+async fn background_writer_flush_failure_is_counted_not_silently_dropped() {
+    let failing = Arc::new(FailingProcessLedgerStore::default());
+    let overflow = Arc::new(InMemoryOverflowSink::default());
+    // Serialize against the exact-delta test so neither perturbs the other's
+    // process-wide counter window.
+    let _counter_guard = lock_flush_counter();
+    let before = flush_failed_row_count();
+
+    // batch_size = 1 forces an immediate flush attempt per enqueued row through
+    // the background `run_writer` select-loop path (the one that previously used
+    // `let _ = flush_batch(...)`).
+    let (batcher, join) = LedgerBatcher::spawn(
+        failing.clone(),
+        overflow,
+        LedgerBatcherConfig {
+            capacity: 16,
+            batch_size: 1,
+            flush_interval: std::time::Duration::from_millis(10),
+        },
+    );
+
+    batcher
+        .record_start(ProcessStart::new(
+            ProcessEngineKind::SandboxContainer,
+            "KERNEL_BUILDER",
+            Some("WP-KERNEL-004".to_string()),
+        ))
+        .expect("enqueue start");
+
+    // Wait until the background writer has observed and counted the failure.
+    tokio::time::timeout(std::time::Duration::from_secs(2), async {
+        loop {
+            if flush_failed_row_count() > before {
+                break;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .expect("background writer must count the flush failure, not silently drop it");
+
+    assert!(
+        flush_failed_row_count() > before,
+        "background writer flush failure must be observable via the global counter"
+    );
+
+    // Drop the batcher to close the channel so the writer task terminates.
+    drop(batcher);
+    let _ = tokio::time::timeout(std::time::Duration::from_secs(2), join).await;
+}
+
 #[test]
 fn no_direct_lifecycle_insert_outside_process_ledger_module() {
     let manifest_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
@@ -351,6 +493,29 @@ impl ProcessLedgerStore for InMemoryProcessLedgerStore {
     async fn write_batch(&self, events: Vec<LedgerEvent>) -> Result<(), ProcessLedgerError> {
         self.events.lock().unwrap().extend(events);
         Ok(())
+    }
+}
+
+/// Store that always rejects `write_batch`, used to prove flush/store failures
+/// are observable (counted + logged) rather than silently swallowed (MT-007).
+#[derive(Clone, Default)]
+struct FailingProcessLedgerStore {
+    attempts: Arc<AtomicU64>,
+}
+
+impl FailingProcessLedgerStore {
+    fn attempts(&self) -> u64 {
+        self.attempts.load(Ordering::SeqCst)
+    }
+}
+
+#[async_trait]
+impl ProcessLedgerStore for FailingProcessLedgerStore {
+    async fn write_batch(&self, _events: Vec<LedgerEvent>) -> Result<(), ProcessLedgerError> {
+        self.attempts.fetch_add(1, Ordering::SeqCst);
+        Err(ProcessLedgerError::Store(
+            "simulated ledger store write failure".to_string(),
+        ))
     }
 }
 

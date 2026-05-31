@@ -41,9 +41,9 @@ pub use table::{
     PROCESS_START_INSERT_SQL, PROCESS_STOP_UPSERT_SQL,
 };
 pub use writer::{
-    is_degraded, LedgerOverflowEvent, PostgresProcessLedgerStore, ProcessLedgerDrain,
-    ProcessLedgerError, ProcessLedgerOverflowSink, ProcessLedgerStore, ProcessLedgerWriter,
-    WriterConfig, FR_EVT_LEDGER_OVERFLOW,
+    flush_failed_row_count, is_degraded, LedgerOverflowEvent, PostgresProcessLedgerStore,
+    ProcessLedgerDrain, ProcessLedgerError, ProcessLedgerOverflowSink, ProcessLedgerStore,
+    ProcessLedgerWriter, WriterConfig, FR_EVT_LEDGER_OVERFLOW,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
