@@ -381,6 +381,66 @@ where
     }
 }
 
+/// rank-3: durable persistence bridge for swarm Flight-Recorder events.
+///
+/// `SwarmEventSink::emit` (and the `FlightRecorderSwarmSink` closure) is
+/// SYNCHRONOUS and contractually infallible, but `FlightRecorder::record_event`
+/// is ASYNC and fallible. This bridges the two without blocking the coordinator:
+/// `emit` does a non-blocking `try_send` into a bounded channel, and a spawned
+/// drain task records each event into the async recorder (e.g. the DuckDB store).
+/// A full channel increments a `dropped` counter so event loss is OBSERVABLE
+/// (mirrors the process-ledger overflow counter) rather than silently swallowed.
+///
+/// Wire it by capturing a clone in the `FlightRecorderSwarmSink` closure:
+/// `FlightRecorderSwarmSink::new(trace, move |ev| bridge.emit(ev))`.
+#[derive(Clone)]
+pub struct DurableSwarmFrBridge {
+    tx: tokio::sync::mpsc::Sender<FlightRecorderEvent>,
+    dropped: std::sync::Arc<std::sync::atomic::AtomicU64>,
+}
+
+impl DurableSwarmFrBridge {
+    /// Spawn the drain task against `recorder` and return the bridge plus the
+    /// drain `JoinHandle` (hold it for the bridge's lifetime; it ends when every
+    /// bridge clone is dropped, closing the channel). `capacity` bounds the
+    /// in-flight queue; overflow is counted, never blocking the emitter.
+    pub fn spawn(
+        recorder: std::sync::Arc<dyn crate::flight_recorder::FlightRecorder>,
+        capacity: usize,
+    ) -> (Self, tokio::task::JoinHandle<()>) {
+        let (tx, mut rx) = tokio::sync::mpsc::channel::<FlightRecorderEvent>(capacity.max(1));
+        let task = tokio::spawn(async move {
+            while let Some(event) = rx.recv().await {
+                // record_event errors are absorbed out-of-band: the sink trait is
+                // infallible, so a recorder hiccup must not propagate or block.
+                let _ = recorder.record_event(event).await;
+            }
+        });
+        (
+            Self {
+                tx,
+                dropped: std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0)),
+            },
+            task,
+        )
+    }
+
+    /// Sync, infallible emit for the `FlightRecorderSwarmSink` closure: enqueue
+    /// the event for durable recording; on a full queue increment `dropped`.
+    pub fn emit(&self, event: FlightRecorderEvent) {
+        if self.tx.try_send(event).is_err() {
+            self.dropped
+                .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        }
+    }
+
+    /// Number of FR events dropped because the durable queue was full
+    /// (observability — a non-zero value means the recorder cannot keep up).
+    pub fn dropped_count(&self) -> u64 {
+        self.dropped.load(std::sync::atomic::Ordering::Relaxed)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -446,6 +506,73 @@ mod tests {
         assert_eq!(
             events[0].payload["fr_event_id"],
             "FR-EVT-SWARM-SESSION-READY"
+        );
+    }
+
+    /// Deterministic in-process recorder so the bridge test runs in default CI
+    /// without the `duckdb-flight-recorder` feature (the real production recorder
+    /// is DuckDB; the bridge contract is recorder-agnostic).
+    struct CollectingRecorder {
+        events: std::sync::Arc<Mutex<Vec<FlightRecorderEvent>>>,
+    }
+
+    #[async_trait::async_trait]
+    impl crate::flight_recorder::FlightRecorder for CollectingRecorder {
+        async fn record_event(
+            &self,
+            event: FlightRecorderEvent,
+        ) -> Result<(), crate::flight_recorder::RecorderError> {
+            self.events.lock().unwrap().push(event);
+            Ok(())
+        }
+
+        async fn enforce_retention(&self) -> Result<u64, crate::flight_recorder::RecorderError> {
+            Ok(0)
+        }
+
+        async fn list_events(
+            &self,
+            _filter: crate::flight_recorder::EventFilter,
+        ) -> Result<Vec<FlightRecorderEvent>, crate::flight_recorder::RecorderError> {
+            Ok(self.events.lock().unwrap().clone())
+        }
+    }
+
+    #[tokio::test]
+    async fn durable_swarm_fr_bridge_records_events_to_recorder() {
+        // rank-3: the bridge persists swarm events into the async FlightRecorder
+        // from the SYNC sink emit, with an observable dropped counter.
+        let collected = std::sync::Arc::new(Mutex::new(Vec::new()));
+        let recorder: std::sync::Arc<dyn crate::flight_recorder::FlightRecorder> =
+            std::sync::Arc::new(CollectingRecorder {
+                events: collected.clone(),
+            });
+        let (bridge, drain) = DurableSwarmFrBridge::spawn(recorder, 64);
+
+        // Wire the bridge into a swarm sink (the production shape) and emit.
+        let sink = {
+            let b = bridge.clone();
+            FlightRecorderSwarmSink::new(Uuid::now_v7(), move |ev| b.emit(ev))
+        };
+        let iid = ModelInstanceId::new(crate::model_runtime::ModelId::new_v7(), 1);
+        sink.emit(SwarmEvent::SessionReady { instance_id: iid });
+        assert_eq!(bridge.dropped_count(), 0, "no drops on a healthy queue");
+
+        // Close every sender so the drain task finishes, then join it.
+        drop(sink);
+        drop(bridge);
+        let _ = drain.await;
+
+        // The swarm event was durably recorded into the recorder.
+        let events = collected.lock().unwrap();
+        assert!(
+            events.iter().any(|e| e
+                .payload
+                .get("fr_event_id")
+                .and_then(|v| v.as_str())
+                == Some("FR-EVT-SWARM-SESSION-READY")),
+            "the swarm SessionReady event must be durably recorded; got {} events",
+            events.len()
         );
     }
 }
