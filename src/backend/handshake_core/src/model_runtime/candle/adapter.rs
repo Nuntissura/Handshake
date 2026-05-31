@@ -23,6 +23,7 @@ use super::{
 use super::{
     generate::{candle_generate_stream, CandleGenerationCodec, TokenizerGenerationCodec},
     mamba2::{artifact_config_declares_mamba2, CandleMamba2Model},
+    score_embed::{candle_embed_tokens, candle_score_sequence},
     rwkv_v5::{
         artifact_config_declares_rwkv_v5, artifact_config_declares_unversioned_rwkv,
         CandleRwkvV5Model,
@@ -392,18 +393,100 @@ impl ModelRuntime for CandleRuntime {
         }
     }
 
-    async fn score(&self, id: ModelId, _sequence: Vec<u32>) -> Result<Score, ModelRuntimeError> {
-        if !self.models.contains_key(&id) {
-            return Err(ModelRuntimeError::ScoreError(Self::not_loaded_message(id)));
+    async fn score(&self, id: ModelId, sequence: Vec<u32>) -> Result<Score, ModelRuntimeError> {
+        let handle = self
+            .models
+            .get(&id)
+            .ok_or_else(|| ModelRuntimeError::ScoreError(Self::not_loaded_message(id)))?;
+
+        #[cfg(feature = "candle-runtime-engine")]
+        {
+            // Teacher-forcing scoring works for any backend whose model exposes
+            // the per-position logits seam. The Transformer backend implements
+            // it; SSM backends fall through to the trait default (typed
+            // CapabilityNotSupported) honestly rather than faking a score.
+            match &handle.backend {
+                CandleModelBackend::Transformer { model }
+                | CandleModelBackend::Mamba2 { model }
+                | CandleModelBackend::RwkvV5 { model }
+                | CandleModelBackend::RwkvV6 { model }
+                | CandleModelBackend::RwkvV7 { model } => {
+                    let model = model.clone();
+                    let hooks = handle.steering_hooks.clone();
+                    // The forward is CPU-bound and synchronous; run it on a
+                    // blocking worker so the async scheduler is not stalled.
+                    if tokio::runtime::Handle::try_current().is_ok() {
+                        tokio::task::spawn_blocking(move || {
+                            candle_score_sequence(&model, &hooks, sequence)
+                        })
+                        .await
+                        .map_err(|error| {
+                            ModelRuntimeError::ScoreError(format!(
+                                "Candle score worker failed to join: {error}"
+                            ))
+                        })?
+                    } else {
+                        candle_score_sequence(&model, &hooks, sequence)
+                    }
+                }
+            }
         }
-        Err(Self::not_implemented("candle_score"))
+
+        #[cfg(not(feature = "candle-runtime-engine"))]
+        {
+            let _ = (handle, sequence);
+            Err(Self::not_implemented("candle_score"))
+        }
     }
 
-    async fn embed(&self, id: ModelId, _text: &str) -> Result<Embedding, ModelRuntimeError> {
-        if !self.models.contains_key(&id) {
-            return Err(ModelRuntimeError::EmbedError(Self::not_loaded_message(id)));
+    async fn embed(&self, id: ModelId, text: &str) -> Result<Embedding, ModelRuntimeError> {
+        let handle = self
+            .models
+            .get(&id)
+            .ok_or_else(|| ModelRuntimeError::EmbedError(Self::not_loaded_message(id)))?;
+
+        #[cfg(feature = "candle-runtime-engine")]
+        {
+            let Some(tokenizer) = self.tokenizer_cache.get(&id).cloned() else {
+                return Err(ModelRuntimeError::EmbedError(format!(
+                    "candle tokenizer is not loaded for model {id}"
+                )));
+            };
+            let encoding = tokenizer.encode(text, true).map_err(|error| {
+                ModelRuntimeError::EmbedError(format!("Candle embed tokenizer encode failed: {error}"))
+            })?;
+            let token_ids = encoding.get_ids().to_vec();
+
+            match &handle.backend {
+                CandleModelBackend::Transformer { model }
+                | CandleModelBackend::Mamba2 { model }
+                | CandleModelBackend::RwkvV5 { model }
+                | CandleModelBackend::RwkvV6 { model }
+                | CandleModelBackend::RwkvV7 { model } => {
+                    let model = model.clone();
+                    let hooks = handle.steering_hooks.clone();
+                    if tokio::runtime::Handle::try_current().is_ok() {
+                        tokio::task::spawn_blocking(move || {
+                            candle_embed_tokens(&model, &hooks, token_ids)
+                        })
+                        .await
+                        .map_err(|error| {
+                            ModelRuntimeError::EmbedError(format!(
+                                "Candle embed worker failed to join: {error}"
+                            ))
+                        })?
+                    } else {
+                        candle_embed_tokens(&model, &hooks, token_ids)
+                    }
+                }
+            }
         }
-        Err(Self::not_implemented("candle_embed"))
+
+        #[cfg(not(feature = "candle-runtime-engine"))]
+        {
+            let _ = (handle, text);
+            Err(Self::not_implemented("candle_embed"))
+        }
     }
 
     fn capabilities(&self, id: ModelId) -> Result<&ModelCapabilities, ModelRuntimeError> {

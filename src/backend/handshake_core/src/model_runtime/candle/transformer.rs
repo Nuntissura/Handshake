@@ -23,6 +23,41 @@ pub trait TransformerModel: Send {
         lora_overrides: &[LoraId],
     ) -> Result<Tensor, ModelRuntimeError>;
 
+    /// Teacher-forcing forward returning logits for EVERY position, shape
+    /// `[batch, seq, vocab]` (F32). This is what `score()` needs to read the
+    /// next-token log-probability at each position. The default impl reports
+    /// capability-not-supported so a backend that genuinely cannot expose
+    /// per-position logits fails honestly instead of faking a score.
+    fn forward_full_logits(
+        &mut self,
+        _input_ids: &Tensor,
+        _hooks: &CandleSteeringHooks,
+        _steering_overrides: &[SteeringVectorId],
+        _lora_overrides: &[LoraId],
+    ) -> Result<Tensor, ModelRuntimeError> {
+        Err(ModelRuntimeError::CapabilityNotSupported {
+            capability: "per_position_teacher_forcing_logits".to_string(),
+            adapter: "candle_transformer_model".to_string(),
+        })
+    }
+
+    /// Forward returning the post-final-norm hidden states for every position,
+    /// shape `[batch, seq, hidden]` (F32) — the representation `embed()` pools
+    /// over. Default impl is capability-not-supported for backends that do not
+    /// cleanly expose a hidden state.
+    fn forward_hidden_states(
+        &mut self,
+        _input_ids: &Tensor,
+        _hooks: &CandleSteeringHooks,
+        _steering_overrides: &[SteeringVectorId],
+        _lora_overrides: &[LoraId],
+    ) -> Result<Tensor, ModelRuntimeError> {
+        Err(ModelRuntimeError::CapabilityNotSupported {
+            capability: "per_position_hidden_states".to_string(),
+            adapter: "candle_transformer_model".to_string(),
+        })
+    }
+
     fn n_layers(&self) -> u32;
 
     fn hidden_dim(&self) -> u32;
@@ -190,6 +225,52 @@ impl TransformerModel for CandleLlamaModel {
         )?;
         self.index_pos = self.index_pos.saturating_add(seq_len);
         Ok(logits)
+    }
+
+    fn forward_full_logits(
+        &mut self,
+        input_ids: &Tensor,
+        hooks: &CandleSteeringHooks,
+        steering_overrides: &[SteeringVectorId],
+        lora_overrides: &[LoraId],
+    ) -> Result<Tensor, ModelRuntimeError> {
+        // Teacher forcing is a single pass over the whole sequence from a clean
+        // KV cache: reset, run from position 0 over all positions, then reset
+        // again so the model is left in the same clean state a generate path
+        // expects (no leftover index_pos / KV from the scoring pass).
+        self.reset_generation_state()?;
+        let result = self.model.forward_full_logits(
+            input_ids,
+            0,
+            &mut self.cache,
+            hooks,
+            steering_overrides,
+            &self.lora_stack,
+            lora_overrides,
+        );
+        self.reset_generation_state()?;
+        result
+    }
+
+    fn forward_hidden_states(
+        &mut self,
+        input_ids: &Tensor,
+        hooks: &CandleSteeringHooks,
+        steering_overrides: &[SteeringVectorId],
+        lora_overrides: &[LoraId],
+    ) -> Result<Tensor, ModelRuntimeError> {
+        self.reset_generation_state()?;
+        let result = self.model.forward_hidden_states(
+            input_ids,
+            0,
+            &mut self.cache,
+            hooks,
+            steering_overrides,
+            &self.lora_stack,
+            lora_overrides,
+        );
+        self.reset_generation_state()?;
+        result
     }
 
     fn n_layers(&self) -> u32 {

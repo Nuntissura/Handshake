@@ -170,6 +170,66 @@ impl InstrumentedLlama {
         let logits = self.lm_head.forward(&x).map_err(candle_generate_error)?;
         logits.to_dtype(DType::F32).map_err(candle_generate_error)
     }
+
+    /// Teacher-forcing forward: run the full block stack + final norm + lm_head
+    /// over EVERY position and return logits of shape `[batch, seq, vocab]`
+    /// (F32). Unlike [`Self::forward`], this does NOT slice to the last
+    /// position, so the caller can read the next-token distribution at each
+    /// position — the per-token log-probabilities a real `score()` needs.
+    pub fn forward_full_logits(
+        &self,
+        input_ids: &Tensor,
+        index_pos: usize,
+        cache: &mut InstrumentedLlamaCache,
+        hooks: &CandleSteeringHooks,
+        steering_overrides: &[SteeringVectorId],
+        lora_stack: &CandleLoraStack,
+        lora_overrides: &[LoraId],
+    ) -> Result<Tensor, ModelRuntimeError> {
+        let x = self.forward_hidden_states(
+            input_ids,
+            index_pos,
+            cache,
+            hooks,
+            steering_overrides,
+            lora_stack,
+            lora_overrides,
+        )?;
+        let logits = self.lm_head.forward(&x).map_err(candle_generate_error)?;
+        logits.to_dtype(DType::F32).map_err(candle_generate_error)
+    }
+
+    /// Run the full block stack and the final RMSNorm over every position,
+    /// returning the post-norm hidden states of shape `[batch, seq, hidden]`
+    /// (F32) — the representation an embedding pools over. This is the same
+    /// computation `forward`/`forward_full_logits` perform up to (but not
+    /// including) the `lm_head` projection.
+    pub fn forward_hidden_states(
+        &self,
+        input_ids: &Tensor,
+        index_pos: usize,
+        cache: &mut InstrumentedLlamaCache,
+        hooks: &CandleSteeringHooks,
+        steering_overrides: &[SteeringVectorId],
+        lora_stack: &CandleLoraStack,
+        lora_overrides: &[LoraId],
+    ) -> Result<Tensor, ModelRuntimeError> {
+        let (_batch, _seq_len) = input_ids.dims2().map_err(candle_generate_error)?;
+        let mut x = self.wte.forward(input_ids).map_err(candle_generate_error)?;
+        let vectors = hooks.snapshot_vectors_for_request(steering_overrides)?;
+        for (block_idx, block) in self.blocks.iter().enumerate() {
+            x = block.forward(&x, index_pos, block_idx, cache, lora_stack, lora_overrides)?;
+            let layer = LayerIndex::new(block_idx as u32);
+            x = hooks.apply_record_and_capture_tensor(
+                layer,
+                HookPoint::ResidStream,
+                &x,
+                &vectors,
+            )?;
+        }
+        let x = self.ln_f.forward(&x).map_err(candle_generate_error)?;
+        x.to_dtype(DType::F32).map_err(candle_generate_error)
+    }
 }
 
 #[derive(Debug, Clone)]

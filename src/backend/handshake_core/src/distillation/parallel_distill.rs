@@ -203,24 +203,46 @@ pub enum ParallelDistillError {
 /// for a spawned session, so the orchestrator can drive a real generate/score
 /// on exactly the session the coordinator owns.
 ///
-/// This is the seam over the coordinator's private session registry. The
-/// `SwarmCoordinator` deliberately keeps its registry private and exposes the
-/// per-session runtime only via `#[cfg(test)]` accessors; a non-test caller in
-/// `swarm_orchestration/` ownership cannot reach it. Rather than reaching into
-/// coordinator internals (out of this module's file ownership, and a layering
-/// violation anyway), the orchestrator depends on this small resolver trait.
-///
-/// PLATFORM GAP (documented, not closed in this module's ownership): the
-/// production coordinator needs a public `session_runtime(instance_id) ->
-/// Option<(Arc<dyn ModelRuntime>, ModelId)>` accessor for the app wiring to
-/// supply a production resolver. Until that public accessor exists on
-/// `SwarmCoordinator`, the production resolver cannot be written without editing
-/// `swarm_orchestration/coordinator.rs`. The default-CI proof below supplies a
-/// real resolver backed by the coordinator's test accessors, so the concurrent
-/// orchestration itself is fully proven now.
+/// This is the seam over the coordinator's session registry. Rather than
+/// reaching into coordinator internals (a layering violation), the orchestrator
+/// depends on this small resolver trait. The production implementation is
+/// [`CoordinatorSessionRuntimeResolver`], which resolves against the
+/// coordinator's public `session_runtime` / `session_model_id` accessors; tests
+/// can supply their own resolver over a controllable factory.
 pub trait SessionRuntimeResolver: Send + Sync {
     fn runtime_for(&self, instance_id: ModelInstanceId) -> Option<Arc<dyn ModelRuntime>>;
     fn model_id_for(&self, instance_id: ModelInstanceId) -> Option<ModelId>;
+}
+
+/// Production [`SessionRuntimeResolver`] backed by a live [`SwarmCoordinator`].
+///
+/// Closes the former platform gap: the coordinator now exposes public
+/// `session_runtime(instance_id)` / `session_model_id(instance_id)` accessors,
+/// so the production app wiring builds this resolver from the same coordinator
+/// `Arc` it hands the orchestrator. Resolution is a direct lookup against the
+/// coordinator's registry — the orchestrator drives generate/score on exactly
+/// the live session the coordinator spawned and owns. A `None` here means the
+/// session is absent (never spawned, or already torn down), which the
+/// orchestrator surfaces as the typed `Teacher/StudentRuntimeMissing` error
+/// rather than a placeholder.
+pub struct CoordinatorSessionRuntimeResolver {
+    coordinator: Arc<SwarmCoordinator>,
+}
+
+impl CoordinatorSessionRuntimeResolver {
+    pub fn new(coordinator: Arc<SwarmCoordinator>) -> Self {
+        Self { coordinator }
+    }
+}
+
+impl SessionRuntimeResolver for CoordinatorSessionRuntimeResolver {
+    fn runtime_for(&self, instance_id: ModelInstanceId) -> Option<Arc<dyn ModelRuntime>> {
+        self.coordinator.session_runtime(instance_id)
+    }
+
+    fn model_id_for(&self, instance_id: ModelInstanceId) -> Option<ModelId> {
+        self.coordinator.session_model_id(instance_id)
+    }
 }
 
 /// Orchestrates a teacher + student distillation run where the two models run

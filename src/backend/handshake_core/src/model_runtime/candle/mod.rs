@@ -17,6 +17,8 @@ pub mod rwkv_v5;
 pub mod rwkv_v6;
 #[cfg(feature = "candle-runtime-engine")]
 pub mod rwkv_v7;
+#[cfg(feature = "candle-runtime-engine")]
+pub mod score_embed;
 pub mod ssm_lora;
 #[cfg(feature = "candle-runtime-engine")]
 pub mod ssm_state;

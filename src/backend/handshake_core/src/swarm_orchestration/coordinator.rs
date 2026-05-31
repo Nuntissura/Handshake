@@ -531,11 +531,17 @@ impl SwarmCoordinator {
             .consecutive_failures(fp)
     }
 
-    /// Test-only: the live `Arc<dyn ModelRuntime>` registered for an instance,
-    /// so the env-gated real parallel test can drive a genuine generate against
-    /// exactly the session the coordinator spawned.
-    #[cfg(test)]
-    pub(crate) fn session_runtime_for_test(
+    /// The live `Arc<dyn ModelRuntime>` registered for a spawned instance, or
+    /// `None` if the instance is not (or no longer) in the registry.
+    ///
+    /// This is the production seam the distillation
+    /// [`crate::distillation::parallel_distill::SessionRuntimeResolver`] resolves
+    /// against: it lets non-test app/orchestration code drive a real
+    /// generate/score on exactly the session the coordinator spawned and owns,
+    /// without reaching into the private registry. The returned `Arc` is a clone
+    /// of the coordinator-owned handle, so the caller borrows the live engine for
+    /// the duration of its work; the coordinator retains ownership for teardown.
+    pub fn session_runtime(
         &self,
         instance_id: ModelInstanceId,
     ) -> Option<Arc<dyn crate::model_runtime::ModelRuntime>> {
@@ -547,6 +553,30 @@ impl SwarmCoordinator {
             .map(|h| h.runtime.clone())
     }
 
+    /// The runtime-minted `ModelId` registered for a spawned instance (the id the
+    /// factory's load returned, which the generate/score path needs), or `None`
+    /// if the instance is not in the registry. Production counterpart to
+    /// [`Self::session_runtime`].
+    pub fn session_model_id(&self, instance_id: ModelInstanceId) -> Option<ModelId> {
+        self.inner
+            .registry
+            .lock()
+            .expect("registry poisoned")
+            .get(&instance_id)
+            .map(|h| h.model_id)
+    }
+
+    /// Test-only: the live `Arc<dyn ModelRuntime>` registered for an instance,
+    /// so the env-gated real parallel test can drive a genuine generate against
+    /// exactly the session the coordinator spawned.
+    #[cfg(test)]
+    pub(crate) fn session_runtime_for_test(
+        &self,
+        instance_id: ModelInstanceId,
+    ) -> Option<Arc<dyn crate::model_runtime::ModelRuntime>> {
+        self.session_runtime(instance_id)
+    }
+
     /// Test-only: the runtime-minted `ModelId` registered for an instance (the
     /// id the factory's load returned, which the candle generate path needs).
     #[cfg(test)]
@@ -554,12 +584,7 @@ impl SwarmCoordinator {
         &self,
         instance_id: ModelInstanceId,
     ) -> Option<ModelId> {
-        self.inner
-            .registry
-            .lock()
-            .expect("registry poisoned")
-            .get(&instance_id)
-            .map(|h| h.model_id)
+        self.session_model_id(instance_id)
     }
 
     /// Number of breaker signatures currently tracked (observability + the
