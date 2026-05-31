@@ -495,6 +495,60 @@ impl CloudHypervisorAdapter {
         let _ = self.handles.lock().map(|mut map| map.remove(&handle_id));
     }
 
+    /// ATOMIC snapshot-clone gate + reservation. Under a SINGLE acquisition of
+    /// the `handles` lock this (1) refuses if `snapshot_dir` is already restored
+    /// into a live (non-killed) VM, and otherwise (2) inserts a placeholder
+    /// `restored_from` reservation for `handle_id` so a concurrent restore of the
+    /// same snapshot sees a live clone and is refused. Holding the check and the
+    /// insert under one lock is what closes the TOCTOU: two concurrent restores
+    /// cannot both pass the check before either records its reservation.
+    ///
+    /// Extracted from [`restore`] so the clone-safety gate is unit-testable
+    /// against the real adapter registry without a live WSL/KVM host; `restore`
+    /// calls exactly this, so the production path is genuinely exercised.
+    ///
+    /// [`restore`]: CloudHypervisorAdapter::restore
+    fn try_reserve_restore(
+        &self,
+        snapshot_dir: &str,
+        handle_id: Uuid,
+    ) -> Result<(), SandboxAdapterError> {
+        let mut guard = self
+            .handles
+            .lock()
+            .map_err(|error| snapshot_failed(format!("handle registry poisoned: {error}")))?;
+        if snapshot_has_live_clone(
+            guard.values().map(|s| (s.restored_from.as_deref(), s.killed)),
+            snapshot_dir,
+        ) {
+            return Err(snapshot_failed(format!(
+                "snapshot `{snapshot_dir}` is already restored into a live VM; refusing a \
+                 concurrent clone -- Cloud Hypervisor resume cannot reseed a running guest's \
+                 identity (no VMGenID device), so two live restores would silently share the \
+                 guest system UUID, entropy pool, and any baked-in secrets. Kill the existing \
+                 restored VM first, or capture distinct per-worktree snapshots.",
+            )));
+        }
+        let mut reservation = HandleState::default();
+        reservation.restored_from = Some(snapshot_dir.to_string());
+        guard.insert(handle_id, reservation);
+        Ok(())
+    }
+
+    /// Test-only constructor that builds an adapter with empty registries and a
+    /// default config WITHOUT probing WSL/KVM. Used by the snapshot-clone
+    /// concurrency + reservation-leak fail-scenario tests to exercise the real
+    /// `try_reserve_restore` / `release_restore_reservation` gate logic on the
+    /// real adapter state. It never boots a VM, so it is host-agnostic.
+    #[cfg(test)]
+    fn new_for_test() -> Self {
+        Self {
+            config: CloudHypervisorConfig::default(),
+            handles: Arc::new(Mutex::new(HashMap::new())),
+            persistent_children: Arc::new(tokio::sync::Mutex::new(HashMap::new())),
+        }
+    }
+
     fn ensure_handle(&self, handle: &ProcessHandle) -> Result<(), SandboxAdapterError> {
         if handle.adapter_id != AdapterId::new(CLOUD_HYPERVISOR_ADAPTER_ID) {
             return Err(SandboxAdapterError::ProcessHandleStale {
@@ -1213,33 +1267,14 @@ impl SandboxAdapter for CloudHypervisorAdapter {
             None,
             format!("hsk-ch-restored-{}", Uuid::now_v7().simple()),
         );
-        {
-            let mut guard = self
-                .handles
-                .lock()
-                .map_err(|error| snapshot_failed(format!("handle registry poisoned: {error}")))?;
-            if snapshot_has_live_clone(
-                guard.values().map(|s| (s.restored_from.as_deref(), s.killed)),
-                &snapshot.snapshot_dir,
-            ) {
-                return Err(snapshot_failed(format!(
-                    "snapshot `{}` is already restored into a live VM; refusing a concurrent \
-                     clone -- Cloud Hypervisor resume cannot reseed a running guest's identity \
-                     (no VMGenID device), so two live restores would silently share the guest \
-                     system UUID, entropy pool, and any baked-in secrets. Kill the existing \
-                     restored VM first, or capture distinct per-worktree snapshots.",
-                    snapshot.snapshot_dir
-                )));
-            }
-            // RESERVE the snapshot atomically: insert a placeholder handle (no
-            // live VM yet) marked `restored_from`, so a concurrent restore sees a
-            // live clone and is refused. The placeholder is promoted to the real
-            // PersistentVm on success, and REMOVED on every failure path below
-            // (otherwise a failed restore would block the snapshot forever).
-            let mut reservation = HandleState::default();
-            reservation.restored_from = Some(snapshot.snapshot_dir.clone());
-            guard.insert(handle.id, reservation);
-        }
+        // ATOMIC clone-safety gate + reservation under one lock (TOCTOU-safe):
+        // refuse if the snapshot is already live in another VM, otherwise insert
+        // a placeholder `restored_from` reservation so a concurrent restore of the
+        // same snapshot sees a live clone and is refused. The placeholder is
+        // promoted to the real PersistentVm on success, and REMOVED on every
+        // failure path below (otherwise a failed restore would block the snapshot
+        // forever).
+        self.try_reserve_restore(&snapshot.snapshot_dir, handle.id)?;
 
         // Restore into a FULLY INDEPENDENT sandbox (Master Spec v02.187 §3.5.7
         // #7: a captured state is "re-spawned … never mutated in place as
@@ -2141,6 +2176,138 @@ mod tests {
         // But if one clone is killed and ANOTHER is still live, refuse.
         let one_live = vec![(Some(dir), true), (Some(dir), false)];
         assert!(snapshot_has_live_clone(one_live.into_iter(), dir));
+    }
+
+    // ===================================================================
+    // FAIL-SCENARIO (1): SNAPSHOT-CLONE CONCURRENCY. Two concurrent restores
+    // of ONE snapshot race through the real adapter reservation gate
+    // (`try_reserve_restore`, the exact step `restore()` runs). Exactly one
+    // reservation wins; the second is refused by the clone-safety gate. This
+    // exercises the TOCTOU-closing atomic check-and-reserve on the real adapter
+    // state without a live WSL/KVM host.
+    // ===================================================================
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    async fn fail_scenario_concurrent_restore_of_one_snapshot_admits_exactly_one() {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        let adapter = Arc::new(CloudHypervisorAdapter::new_for_test());
+        let snapshot_dir = "/work/snap-golden-concurrent".to_string();
+
+        // Fire N concurrent reservation attempts for the SAME snapshot, each with
+        // its own freshly-minted handle id (as restore() mints one per call).
+        let n = 8usize;
+        let admitted = Arc::new(AtomicUsize::new(0));
+        let refused = Arc::new(AtomicUsize::new(0));
+        let mut tasks = Vec::with_capacity(n);
+        for _ in 0..n {
+            let adapter = adapter.clone();
+            let snapshot_dir = snapshot_dir.clone();
+            let admitted = admitted.clone();
+            let refused = refused.clone();
+            tasks.push(tokio::spawn(async move {
+                let handle_id = Uuid::now_v7();
+                match adapter.try_reserve_restore(&snapshot_dir, handle_id) {
+                    Ok(()) => admitted.fetch_add(1, Ordering::SeqCst),
+                    Err(_) => refused.fetch_add(1, Ordering::SeqCst),
+                };
+            }));
+        }
+        for task in tasks {
+            task.await.expect("reservation task joined");
+        }
+
+        assert_eq!(
+            admitted.load(Ordering::SeqCst),
+            1,
+            "exactly one concurrent restore of a single snapshot may reserve it"
+        );
+        assert_eq!(
+            refused.load(Ordering::SeqCst),
+            n - 1,
+            "every other concurrent restore of the same snapshot is refused by the clone-safety gate"
+        );
+        // Exactly one live (non-killed) reservation remains in the registry.
+        let live = adapter
+            .handles
+            .lock()
+            .unwrap()
+            .values()
+            .filter(|s| s.restored_from.as_deref() == Some(snapshot_dir.as_str()) && !s.killed)
+            .count();
+        assert_eq!(live, 1, "exactly one live reservation for the snapshot");
+    }
+
+    // ===================================================================
+    // FAIL-SCENARIO (5): RESERVATION LEAK on failed restore. A restore that
+    // reserves the snapshot then FAILS (e.g. the WSL prep / boot step errors)
+    // must RELEASE the reservation via `release_restore_reservation`, so a
+    // follow-up restore of the SAME snapshot is admitted again (the snapshot is
+    // not blocked forever). Exercises the real release semantics `restore`'s
+    // every failure path calls.
+    // ===================================================================
+    #[test]
+    fn fail_scenario_failed_restore_releases_reservation_for_followup() {
+        let adapter = CloudHypervisorAdapter::new_for_test();
+        let snapshot_dir = "/work/snap-golden-release".to_string();
+
+        // First restore attempt reserves the snapshot...
+        let first = Uuid::now_v7();
+        adapter
+            .try_reserve_restore(&snapshot_dir, first)
+            .expect("first reservation admitted");
+        // ...while reserved, a concurrent/follow-up restore is refused.
+        let blocked = Uuid::now_v7();
+        assert!(
+            adapter.try_reserve_restore(&snapshot_dir, blocked).is_err(),
+            "while a reservation is live the snapshot is refused"
+        );
+
+        // Simulate the first restore FAILING after reserving: it releases.
+        adapter.release_restore_reservation(first);
+
+        // A follow-up restore of the SAME snapshot now succeeds (no leak): the
+        // failed attempt did not block the snapshot forever.
+        let followup = Uuid::now_v7();
+        adapter
+            .try_reserve_restore(&snapshot_dir, followup)
+            .expect("follow-up restore admitted after the failed restore released its reservation");
+
+        // Exactly one live reservation (the follow-up) tracks the snapshot.
+        let live = adapter
+            .handles
+            .lock()
+            .unwrap()
+            .values()
+            .filter(|s| s.restored_from.as_deref() == Some(snapshot_dir.as_str()) && !s.killed)
+            .count();
+        assert_eq!(live, 1, "only the admitted follow-up reservation remains");
+    }
+
+    // A killed reservation (the prior restore was torn down) does NOT block a
+    // sequential restore: `try_reserve_restore` admits when the only matching
+    // entry is killed, mirroring the snapshot_has_live_clone after-kill rule.
+    #[test]
+    fn fail_scenario_killed_reservation_does_not_block_sequential_restore() {
+        let adapter = CloudHypervisorAdapter::new_for_test();
+        let snapshot_dir = "/work/snap-golden-sequential".to_string();
+
+        let first = Uuid::now_v7();
+        adapter
+            .try_reserve_restore(&snapshot_dir, first)
+            .expect("first reservation admitted");
+        // Flag the prior reservation killed (as kill() does), releasing the clone.
+        adapter
+            .handles
+            .lock()
+            .unwrap()
+            .get_mut(&first)
+            .unwrap()
+            .killed = true;
+
+        // A sequential restore after the kill is admitted (not a live clone).
+        let second = Uuid::now_v7();
+        adapter
+            .try_reserve_restore(&snapshot_dir, second)
+            .expect("sequential restore after kill is admitted");
     }
 
     #[test]

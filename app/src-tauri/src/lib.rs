@@ -38,6 +38,8 @@ mod commands {
     pub mod steering;
     pub mod subquadratic;
     pub mod swarm_runtime;
+    pub mod swarm_schedule;
+    pub mod swarm_schedule_store;
     #[cfg(test)]
     pub mod testing;
 }
@@ -81,6 +83,10 @@ macro_rules! handshake_invoke_handlers {
             commands::swarm_runtime::kernel_swarm_resource_snapshot,
             commands::swarm_runtime::kernel_swarm_board_snapshot,
             commands::swarm_runtime::kernel_swarm_chat_generate,
+            commands::swarm_schedule::kernel_swarm_schedule_add,
+            commands::swarm_schedule::kernel_swarm_schedule_list,
+            commands::swarm_schedule::kernel_swarm_schedule_remove,
+            commands::swarm_schedule::kernel_swarm_schedule_export_ics,
             commands::lora::kernel_model_runtime_lora_mount,
             commands::lora::kernel_model_runtime_lora_unmount,
             commands::lora::kernel_model_runtime_lora_swap,
@@ -192,6 +198,10 @@ macro_rules! handshake_invoke_handlers {
             commands::swarm_runtime::kernel_swarm_resource_snapshot,
             commands::swarm_runtime::kernel_swarm_board_snapshot,
             commands::swarm_runtime::kernel_swarm_chat_generate,
+            commands::swarm_schedule::kernel_swarm_schedule_add,
+            commands::swarm_schedule::kernel_swarm_schedule_list,
+            commands::swarm_schedule::kernel_swarm_schedule_remove,
+            commands::swarm_schedule::kernel_swarm_schedule_export_ics,
             commands::lora::kernel_model_runtime_lora_mount,
             commands::lora::kernel_model_runtime_lora_unmount,
             commands::lora::kernel_model_runtime_lora_swap,
@@ -958,6 +968,11 @@ pub fn run() {
                         "MT-124 distillation jobs FlightRecorder init failed: {error}"
                     ))
                 })?;
+            // TRACK 1 (calendar): the swarm schedule store lives under the SAME
+            // app_data_root. Clone the owned PathBuf before `app_data_root` is
+            // moved into the SessionChatLogState below so the scheduler bootstrap
+            // (further down) still has a disk-agnostic store root to bind to.
+            let schedule_store_root = app_data_root.clone();
             app.manage(session_chat_log::SessionChatLogState::new(app_data_root));
             app.manage(distillation_jobs_state);
 
@@ -965,6 +980,11 @@ pub fn run() {
             // `setup` so the background ledger writer + lease reaper spawn into
             // the live Tauri async runtime. Later swarm commands (MT-205) and the
             // cloud routing policy (MT-206) drive this managed coordinator.
+            // TRACK 1 (calendar): the scheduler shares the SAME durable recorder
+            // the swarm runtime uses, so `FR-EVT-SWARM-SCHED-*` fires land in the
+            // same DuckDB Flight Recorder. Clone the handle before the match below
+            // consumes `swarm_recorder` into the swarm runtime constructor.
+            let schedule_recorder = swarm_recorder.clone();
             let swarm_state = match swarm_recorder {
                 Some(recorder) => {
                     commands::swarm_runtime::SwarmRuntimeState::production_with_fr_recorder(recorder)
@@ -974,6 +994,29 @@ pub fn run() {
             // rank-4: start the single board forwarder (broadcast -> typed
             // swarm://event deltas) before managing the state moves it.
             let board_events = swarm_state.board_events();
+
+            // TRACK 1 (calendar) Integrate wiring: construct the SwarmSchedulerState
+            // bound to the SAME managed coordinator, LOAD persisted schedules,
+            // RE-ARM them, apply the SKIP catch-up policy, and START the scheduler.
+            // `production_bootstrap` calls `tokio::runtime::Handle::current()`, so
+            // it must run inside the Tauri async runtime; `block_on` provides that
+            // context (and re-arming a tiny operator-authored schedule set is fast).
+            let scheduler_coordinator = swarm_state.coordinator();
+            let scheduler_state = tauri::async_runtime::block_on(async move {
+                commands::swarm_schedule::SwarmSchedulerState::production_bootstrap(
+                    scheduler_coordinator,
+                    &schedule_store_root,
+                    schedule_recorder,
+                )
+                .await
+            })
+            .map_err(|error| {
+                std::io::Error::other(format!(
+                    "TRACK 1 swarm scheduler bootstrap failed: {error}"
+                ))
+            })?;
+            app.manage(scheduler_state);
+
             app.manage(swarm_state);
             commands::swarm_runtime::spawn_swarm_board_forwarder(
                 app.handle().clone(),

@@ -1216,6 +1216,232 @@ fn count_start_stop(rows: &[LedgerEvent]) -> (usize, usize) {
     (starts, stops)
 }
 
+// ===========================================================================
+// FAIL-SCENARIO (2): FAILURE-FINGERPRINT STORM CONTAINMENT. MANY sessions fail
+// concurrently with the SAME signature. The class-keyed breaker must trip ONCE
+// and then suppress the whole class — NOT spin up N independent breakers. We
+// fire a concurrent storm of distinct-instance spawns through an always-failing
+// factory (one stable fingerprint), and assert: (a) exactly one BreakerTripped
+// event, (b) the breaker tracks exactly ONE signature for the whole storm, and
+// (c) the suppression actually bites (later same-signature spawns return
+// BreakerOpen), proving the storm was contained by a single breaker.
+// ===========================================================================
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn fail_scenario_failure_fingerprint_storm_trips_one_breaker_for_the_class() {
+    let (ledger, _drain) = ledger_pair();
+    // Every create fails with the SAME message -> one stable fingerprint.
+    let factory = Arc::new(ControllableFactory::new(
+        FactoryBehavior::AlwaysFail,
+        Duration::from_millis(2),
+        ledger.clone(),
+    ));
+    let sink = Arc::new(RecordingSwarmSink::new());
+
+    // Wide concurrency + huge lifetime budget so neither cap (not the breaker)
+    // is what stops the storm — the breaker must be the thing that contains it.
+    let budget = RunBudget::defaulted(32)
+        .with_concurrency(32)
+        .with_lifetime_spawns(10_000);
+    let config = SwarmConfig::new(budget).with_breaker(BreakerConfig {
+        failure_threshold: 5,
+        cooldown: Duration::from_secs(60),
+    });
+    let coordinator = Arc::new(SwarmCoordinator::new(config, factory, sink.clone(), ledger));
+
+    // Storm: 40 DISTINCT instances all fail with the same signature, concurrently.
+    let storm = 40u32;
+    let mut js = JoinSet::new();
+    for i in 0..storm {
+        let c = coordinator.clone();
+        js.spawn(async move {
+            // Drive each instance to its terminal failure; ignore the typed error.
+            let _ = c.spawn_session(spawn_req(instance(i))).await;
+        });
+    }
+    while js.join_next().await.is_some() {}
+
+    // (a) The breaker tripped EXACTLY ONCE for the whole storm — one trip event,
+    // not one-per-failure and not one-per-instance.
+    assert_eq!(
+        sink.count_of(SwarmFrEventId::BreakerTripped),
+        1,
+        "a same-signature storm must trip the class breaker exactly once"
+    );
+    // (b) ONE breaker for the class: the signature map holds exactly one entry
+    // regardless of how many distinct instances stormed (NOT N breakers).
+    assert_eq!(
+        coordinator.breaker_signature_count(),
+        1,
+        "the storm must be absorbed by a single class-keyed breaker, not N breakers"
+    );
+    // (c) The suppression bites: a fresh distinct instance carrying the same
+    // signature is gated. We need its last-failure signature recorded first, so
+    // spawn once (records the signature, returns BreakerOpen since the class is
+    // already open), then confirm a follow-up is also BreakerOpen.
+    let probe = instance(9_999);
+    let first = coordinator.spawn_session(spawn_req(probe)).await;
+    let second = coordinator.spawn_session(spawn_req(probe)).await;
+    assert!(
+        matches!(second, Err(SwarmError::BreakerOpen { .. })),
+        "while the class breaker is open the same-signature spawn is suppressed, got {second:?} \
+         (first probe: {first:?})"
+    );
+}
+
+// ===========================================================================
+// FAIL-SCENARIO (3): LEASE-REAPER MASS-RECLAIM. MANY time-boxed sessions all
+// expire at (about) the same time. The single reaper must reclaim ALL of them
+// with NO orphan: every START the factory recorded gets a matching STOP, so the
+// ledger START count == STOP count and the registry is fully drained. This is
+// the mass version of proof_3 (which reaped a single session).
+// ===========================================================================
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn fail_scenario_lease_reaper_mass_reclaim_start_count_equals_stop_count() {
+    let (ledger, drain_h) = ledger_pair();
+    let store = Arc::new(InMemoryStore::default());
+    let factory = Arc::new(ControllableFactory::new(
+        FactoryBehavior::Succeed,
+        Duration::from_millis(1),
+        ledger.clone(),
+    ));
+    let sink = Arc::new(RecordingSwarmSink::new());
+
+    // Wide concurrency so all sessions can be live at once; a long configured
+    // lease so ONLY the per-spawn time_box drives expiry; a tight scan interval.
+    let n = 24u32;
+    let budget = RunBudget::defaulted(n as usize)
+        .with_concurrency(n as usize)
+        .with_lifetime_spawns(10_000);
+    let config = SwarmConfig::new(budget)
+        .with_lease_ttl(Duration::from_secs(60))
+        .with_reaper_scan_interval(Duration::from_millis(20));
+    let coordinator = SwarmCoordinator::new(config, factory, sink.clone(), ledger);
+
+    // Spawn ALL N time-boxed sessions FIRST (reaper not yet running) so every
+    // session is genuinely live and has recorded its START before any reclaim —
+    // a deterministic mass-expiry, not a spawn/reap race. Each is boxed to
+    // ~120ms (comfortably longer than the spawn loop) so none expires mid-spawn.
+    for i in 0..n {
+        coordinator
+            .spawn_session(spawn_req(instance(i)).with_time_box(Duration::from_millis(120)))
+            .await
+            .unwrap();
+    }
+    assert_eq!(coordinator.live_session_count(), n as usize);
+
+    // NOW start the reaper: every session's box expires (about) together and the
+    // single reaper must mass-reclaim them all.
+    coordinator.start_reaper();
+    // Wait past the box + several scan intervals so the reaper reclaims ALL.
+    tokio::time::sleep(Duration::from_millis(500)).await;
+    coordinator.stop_reaper();
+
+    // The reaper reclaimed EVERY session — none orphaned in the registry.
+    assert_eq!(
+        coordinator.live_session_count(),
+        0,
+        "the reaper must mass-reclaim every expired time-boxed session"
+    );
+    assert!(sink.contains(SwarmFrEventId::LeaseExpired));
+    // One LeaseExpired + one ResourceEvicted per reclaimed session.
+    assert_eq!(
+        sink.count_of(SwarmFrEventId::LeaseExpired),
+        n as usize,
+        "exactly one lease-expired event per reclaimed session"
+    );
+
+    // Ledger reconciliation: START count == STOP count, no orphan START.
+    let rows = drain(&drain_h, store).await;
+    let (starts, stops) = count_start_stop(&rows);
+    assert_eq!(starts, n as usize, "one START per spawned session");
+    assert_eq!(
+        starts, stops,
+        "mass reclaim must produce START==STOP (no orphan): {starts} starts, {stops} stops"
+    );
+}
+
+// ===========================================================================
+// FAIL-SCENARIO (4): OVERLOAD ESCALATION under saturation. When the local lane
+// reports LocalOutcome::Overloaded (concurrency saturated / memory pressure),
+// the routing policy escalates the task to CLOUD to relieve load — WITHOUT
+// tripping the local breaker (overload is transient capacity, not a lane
+// fault), so the local lane stays admissible afterward. A ForceLocal task under
+// the same saturation must NOT escalate (data-residency blocks egress). This
+// drives the real RoutingPolicy through a saturation-driven Overloaded storm.
+// ===========================================================================
+#[test]
+fn fail_scenario_overload_escalates_to_cloud_without_tripping_local_breaker() {
+    use super::routing::{
+        CloudProvider, LocalOutcome, RoutingDecision, RoutingPolicy, RoutingRequest, TaskClass,
+        TaskTier,
+    };
+    use std::time::Instant;
+
+    let mut policy = RoutingPolicy::with_default();
+    let now = Instant::now();
+
+    let base = |class: TaskClass| {
+        RoutingRequest::new(class, 100, 100)
+            .with_local_model("tinyllama.safetensors")
+            .with_cloud_model("claude-sonnet-4")
+    };
+
+    // Saturation storm: 16 routine tasks each report Overloaded from the local
+    // lane. Every one must escalate to CLOUD (relieve load) AND must NOT charge
+    // the local breaker (healthy lane, just saturated).
+    let saturation = 16;
+    for _ in 0..saturation {
+        let decision = policy
+            .route(
+                &base(TaskClass::Routine).with_local_outcome(LocalOutcome::Overloaded),
+                now,
+            )
+            .expect("overloaded routine escalates to cloud");
+        assert_eq!(
+            decision.tier(),
+            TaskTier::Cloud,
+            "an overloaded local lane must escalate the task to cloud to relieve load"
+        );
+        assert!(
+            matches!(
+                decision,
+                RoutingDecision::Cloud {
+                    provider: CloudProvider::Anthropic,
+                    ..
+                }
+            ),
+            "escalation targets the first-preference cloud provider"
+        );
+    }
+
+    // The local breaker was NOT tripped by the overload storm: a fresh routine
+    // task with NO prior outcome still routes LOCAL (the healthy lane is intact).
+    // Had overload (wrongly) charged the breaker, 16 > threshold 5 would have
+    // suppressed local and forced this to cloud.
+    let healthy = policy
+        .route(&base(TaskClass::Routine), now)
+        .expect("local lane still admissible after overload storm");
+    assert_eq!(
+        healthy.tier(),
+        TaskTier::Local,
+        "overload must NOT trip the local breaker; the healthy local lane stays admissible"
+    );
+
+    // Data-residency: a ForceLocal task under the SAME saturation must NOT
+    // escalate — ForceLocal blocks egress to cloud even when overloaded.
+    let force_local = policy
+        .route(
+            &base(TaskClass::ForceLocal).with_local_outcome(LocalOutcome::Overloaded),
+            now,
+        )
+        .expect("force-local task routes locally even under overload");
+    assert_eq!(
+        force_local.tier(),
+        TaskTier::Local,
+        "ForceLocal blocks overload escalation: no data egress to cloud under load"
+    );
+}
+
 /// A factory that fails the FIRST create attempt for each distinct instance
 /// (same fingerprint) and succeeds on every subsequent attempt. Used to
 /// populate then prune the per-instance accounting maps (C5).
