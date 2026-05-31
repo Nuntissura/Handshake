@@ -386,6 +386,21 @@ impl KvCacheOps for LlamaCppKvCache {
         }
     }
 
+    /// MT-095: expose the policy TTL so the `KvCacheHandle` restore chokepoint
+    /// enforces expiry uniformly. (The native path also purges expired entries
+    /// internally via `purge_expired_locked`; this surfaces the same TTL as a
+    /// typed expiry error at the public restore gate.)
+    fn prefix_cache_ttl_seconds(&self) -> u64 {
+        #[cfg(feature = "llama-cpp-runtime-engine")]
+        {
+            return self.prefix_cache_ttl.map(|d| d.as_secs()).unwrap_or(0);
+        }
+        #[cfg(not(feature = "llama-cpp-runtime-engine"))]
+        {
+            0
+        }
+    }
+
     fn prefix_commit(&self, prefix_tokens: &[u32]) -> Result<KvPrefixHandle, ModelRuntimeError> {
         #[cfg(feature = "llama-cpp-runtime-engine")]
         {

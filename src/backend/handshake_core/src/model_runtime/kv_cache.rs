@@ -1,6 +1,7 @@
 use std::fmt;
 use std::sync::{Arc, OnceLock};
 
+use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use uuid::Uuid;
@@ -95,7 +96,19 @@ impl KvCacheHandle {
         self.ops.prefix_commit(prefix_tokens)
     }
 
-    pub fn prefix_restore(&self, handle: &KvPrefixHandle) -> Result<(), ModelRuntimeError> {
+    /// MT-095: the single restore CHOKEPOINT. Every caller (the
+    /// `kv_cache_technique` / `subquadratic` public surfaces and any in-crate
+    /// path that holds a `KvCacheHandle`) funnels restore through here, so the
+    /// replay-resistance binding AND the prefix-cache TTL are enforced in ONE
+    /// place that cannot be bypassed by holding the handle directly. The inner
+    /// `KvCacheOps::prefix_restore` stays binding-agnostic; the gate lives here.
+    pub fn prefix_restore(
+        &self,
+        model_id: ModelId,
+        handle: &KvPrefixHandle,
+    ) -> Result<(), ModelRuntimeError> {
+        handle.verify_self_against(model_id)?;
+        enforce_prefix_ttl(handle, self.ops.prefix_cache_ttl_seconds())?;
         self.ops.prefix_restore(handle)
     }
 
@@ -328,6 +341,36 @@ impl KvPrefixHandle {
     pub fn token_count(&self) -> u32 {
         self.token_count
     }
+
+    /// MT-095: the commit timestamp bound into the replay-resistance derivation,
+    /// in epoch micros. `None` for legacy handles created without a binding. The
+    /// restore chokepoint uses this to enforce `prefix_cache_ttl_seconds`.
+    pub fn registered_at_utc_micros(&self) -> Option<i64> {
+        self.registered_at_utc_micros
+    }
+}
+
+/// MT-095 TTL gate. Rejects a restore whose bound commit timestamp is older than
+/// `ttl_seconds`. `ttl_seconds == 0` means no expiry (the historical default). A
+/// handle with no bound timestamp is left to `verify_self_against` (which rejects
+/// unbound handles outright); this helper only enforces expiry for bound handles.
+fn enforce_prefix_ttl(handle: &KvPrefixHandle, ttl_seconds: u64) -> Result<(), ModelRuntimeError> {
+    if ttl_seconds == 0 {
+        return Ok(());
+    }
+    let Some(registered_at) = handle.registered_at_utc_micros() else {
+        return Ok(());
+    };
+    let now = Utc::now().timestamp_micros();
+    let elapsed_micros = now.saturating_sub(registered_at);
+    let ttl_micros = (ttl_seconds as i64).saturating_mul(1_000_000);
+    if elapsed_micros > ttl_micros {
+        return Err(ModelRuntimeError::KvCacheError(format!(
+            "KV prefix handle expired: {}s since commit exceeds prefix_cache_ttl_seconds={ttl_seconds}",
+            elapsed_micros / 1_000_000
+        )));
+    }
+    Ok(())
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -393,6 +436,15 @@ pub trait KvCacheOps: Send + Sync {
     fn prefix_evict(&self, handle: KvPrefixHandle) -> Result<(), ModelRuntimeError>;
 
     fn evict_all(&self) -> Result<(), ModelRuntimeError>;
+
+    /// MT-095: the configured prefix-cache TTL in seconds (0 = no expiry). The
+    /// `KvCacheHandle::prefix_restore` chokepoint reads this to reject a restore
+    /// whose bound handle is older than the TTL. Defaults to 0 so adapters with
+    /// no TTL policy (and the unsupported shim) need no override; the real
+    /// backends that hold a policy TTL override this.
+    fn prefix_cache_ttl_seconds(&self) -> u64 {
+        0
+    }
 }
 
 /// Default KV cache ops for adapters that don't own a real KV cache

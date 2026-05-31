@@ -24,6 +24,7 @@
 //! - `BlinkDL/rwkv-6-world-7b` — RWKV v6 reference.
 //! - `BlinkDL/rwkv-7-world` (or `rwkv-7-g1-2.9b`) — RWKV v7 Goose/G1.
 
+use chrono::Utc;
 use serde::{Deserialize, Serialize};
 
 use crate::model_runtime::{
@@ -77,7 +78,14 @@ pub fn state_commit(
     prefix_tokens: &[u32],
 ) -> Result<SubquadStateCommitReceipt, ModelRuntimeError> {
     let stack = require_subquadratic(runtime, model_id)?;
-    let prefix_handle = stack.prefix_commit(prefix_tokens)?;
+    // MT-095: bind the replay-resistance derivation at commit (the adapter
+    // returns an unbound handle via from_scoped_tokens) so the centralized
+    // KvCacheHandle restore chokepoint can verify it. Mirrors
+    // kv_cache_technique::prefix_commit — previously subquadratic restore was
+    // ungated, which the centralized chokepoint now closes.
+    let prefix_handle = stack
+        .prefix_commit(prefix_tokens)?
+        .bind_derived(model_id, Utc::now().timestamp_micros());
     let occupancy = stack.occupancy();
     Ok(SubquadStateCommitReceipt {
         model_id,
@@ -97,7 +105,8 @@ pub fn state_restore(
     prefix_handle: &KvPrefixHandle,
 ) -> Result<SubquadStateRestoreReceipt, ModelRuntimeError> {
     let stack = require_subquadratic(runtime, model_id)?;
-    stack.prefix_restore(prefix_handle)?;
+    // MT-095: restore is gated in the KvCacheHandle chokepoint (binding + TTL).
+    stack.prefix_restore(model_id, prefix_handle)?;
     let occupancy = stack.occupancy();
     Ok(SubquadStateRestoreReceipt {
         model_id,

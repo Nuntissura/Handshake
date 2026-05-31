@@ -9,7 +9,14 @@
 //! Plus collateral: round-trip Ok, missing binding rejected, per-process
 //! key is non-zero entropy.
 
-use handshake_core::model_runtime::{KvPrefixHandle, ModelId, ModelRuntimeError};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
+use std::time::{SystemTime, UNIX_EPOCH};
+
+use handshake_core::model_runtime::{
+    KvCacheHandle, KvCacheOps, KvCacheStats, KvPrefixHandle, KvQuantSupport, ModelId,
+    ModelRuntimeError,
+};
 
 const CONTENT_A: [u8; 32] = [0xAA; 32];
 const CONTENT_B: [u8; 32] = [0xBB; 32];
@@ -192,4 +199,170 @@ fn kv_security_verify_self_against_rejects_cross_model_binding() {
         .verify_self_against(model_b)
         .expect_err("cross-model replay of a bound handle must reject");
     assert!(matches!(err, ModelRuntimeError::KvCacheError(_)), "{err:?}");
+}
+
+// ----------------------------------------------------------------------------
+// MT-095 restore CHOKEPOINT tests: the binding + TTL gate lives in
+// `KvCacheHandle::prefix_restore`, so EVERY caller (technique surface,
+// subquadratic, or any in-crate handle holder) is gated in one place — closing
+// the facade-bypass and enforcing the prefix-cache TTL with a typed error.
+// ----------------------------------------------------------------------------
+
+/// Test `KvCacheOps` that records whether the adapter layer was reached and
+/// reports a configurable `prefix_cache_ttl_seconds`. Lets the facade gate be
+/// exercised in default CI without a real model or feature build.
+struct TtlGateKvCacheOps {
+    ttl_seconds: u64,
+    restored: AtomicBool,
+}
+
+impl TtlGateKvCacheOps {
+    fn new(ttl_seconds: u64) -> Self {
+        Self {
+            ttl_seconds,
+            restored: AtomicBool::new(false),
+        }
+    }
+
+    fn was_restored(&self) -> bool {
+        self.restored.load(Ordering::SeqCst)
+    }
+}
+
+impl KvCacheOps for TtlGateKvCacheOps {
+    fn quantization(&self) -> KvQuantSupport {
+        KvQuantSupport::None
+    }
+
+    fn set_quantization(&self, _level: KvQuantSupport) -> Result<(), ModelRuntimeError> {
+        Ok(())
+    }
+
+    fn occupancy(&self) -> KvCacheStats {
+        KvCacheStats {
+            bytes_used: 0,
+            bytes_capacity: 0,
+            prefix_cache_entries: 0,
+            prefix_cache_hit_count: 0,
+            prefix_cache_miss_count: 0,
+            quant_level_current: KvQuantSupport::None,
+        }
+    }
+
+    fn prefix_commit(&self, prefix_tokens: &[u32]) -> Result<KvPrefixHandle, ModelRuntimeError> {
+        KvPrefixHandle::from_tokens(prefix_tokens)
+    }
+
+    fn prefix_restore(&self, _handle: &KvPrefixHandle) -> Result<(), ModelRuntimeError> {
+        self.restored.store(true, Ordering::SeqCst);
+        Ok(())
+    }
+
+    fn prefix_evict(&self, _handle: KvPrefixHandle) -> Result<(), ModelRuntimeError> {
+        Ok(())
+    }
+
+    fn evict_all(&self) -> Result<(), ModelRuntimeError> {
+        Ok(())
+    }
+
+    fn prefix_cache_ttl_seconds(&self) -> u64 {
+        self.ttl_seconds
+    }
+}
+
+fn now_micros() -> i64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .expect("system clock after epoch")
+        .as_micros() as i64
+}
+
+#[test]
+fn kv_security_facade_restore_rejects_unbound_handle_before_adapter() {
+    // MT-095.2: a direct facade caller holding a KvCacheHandle cannot bypass the
+    // binding gate. An unbound handle fails closed BEFORE the adapter ops layer.
+    let ops = Arc::new(TtlGateKvCacheOps::new(0));
+    let cache = KvCacheHandle::with_ops("facade-gate", ops.clone());
+    let model_id = ModelId::new_v7();
+    let unbound = KvPrefixHandle::from_scoped_tokens(b"scope", &[1, 2, 3]).expect("unbound");
+
+    let err = cache
+        .prefix_restore(model_id, &unbound)
+        .expect_err("unbound handle must fail closed at the facade chokepoint");
+    assert!(matches!(err, ModelRuntimeError::KvCacheError(_)), "{err:?}");
+    assert!(
+        !ops.was_restored(),
+        "adapter ops must NOT be reached when the binding gate rejects"
+    );
+}
+
+#[test]
+fn kv_security_facade_restore_rejects_cross_model_bound_handle() {
+    // MT-095.2: a handle bound under model A, replayed via the facade against
+    // model B, is rejected at the chokepoint.
+    let ops = Arc::new(TtlGateKvCacheOps::new(0));
+    let cache = KvCacheHandle::with_ops("facade-gate", ops.clone());
+    let model_a = ModelId::new_v7();
+    let model_b = ModelId::new_v7();
+    let ch = KvPrefixHandle::content_hash_for_tokens(&[1, 2, 3]);
+    let bound_a = KvPrefixHandle::from_derived(model_a, ch, now_micros(), 3);
+
+    let err = cache
+        .prefix_restore(model_b, &bound_a)
+        .expect_err("cross-model replay via facade must reject");
+    assert!(matches!(err, ModelRuntimeError::KvCacheError(_)), "{err:?}");
+    assert!(!ops.was_restored());
+}
+
+#[test]
+fn kv_security_facade_restore_enforces_prefix_cache_ttl() {
+    // MT-095.1: "wait past TTL -> Err". A correctly-bound handle whose commit
+    // timestamp is older than prefix_cache_ttl_seconds is rejected with a typed
+    // expiry error BEFORE reaching the adapter; a fresh handle within the TTL
+    // passes. No sleep needed — the expired handle is minted with an old, but
+    // self-consistent, registered_at timestamp.
+    let ops = Arc::new(TtlGateKvCacheOps::new(1)); // 1-second TTL
+    let cache = KvCacheHandle::with_ops("ttl-gate", ops.clone());
+    let model_id = ModelId::new_v7();
+    let ch = KvPrefixHandle::content_hash_for_tokens(&[7, 8, 9]);
+
+    let expired = KvPrefixHandle::from_derived(model_id, ch, now_micros() - 5_000_000, 3);
+    // The binding self-verifies (derived from its own old timestamp) — only the
+    // TTL gate should reject it, proving expiry is enforced independently.
+    expired
+        .verify_self_against(model_id)
+        .expect("expired handle is still a valid binding; only TTL should reject it");
+    let err = cache
+        .prefix_restore(model_id, &expired)
+        .expect_err("handle older than the TTL must reject");
+    assert!(
+        err.to_string().contains("expired"),
+        "expected a typed expiry error, got: {err}"
+    );
+    assert!(
+        !ops.was_restored(),
+        "expired handle must not reach the adapter"
+    );
+
+    let fresh = KvPrefixHandle::from_derived(model_id, ch, now_micros(), 3);
+    cache
+        .prefix_restore(model_id, &fresh)
+        .expect("a fresh handle within the TTL restores");
+    assert!(ops.was_restored(), "fresh handle reaches the adapter");
+}
+
+#[test]
+fn kv_security_facade_restore_ttl_zero_means_no_expiry() {
+    // ttl_seconds == 0 is the historical "no expiry" default: even an ancient
+    // (but correctly-bound) handle restores.
+    let ops = Arc::new(TtlGateKvCacheOps::new(0));
+    let cache = KvCacheHandle::with_ops("ttl-zero", ops.clone());
+    let model_id = ModelId::new_v7();
+    let ch = KvPrefixHandle::content_hash_for_tokens(&[1]);
+    let ancient = KvPrefixHandle::from_derived(model_id, ch, now_micros() - 1_000_000_000, 1);
+    cache
+        .prefix_restore(model_id, &ancient)
+        .expect("ttl=0 means no expiry");
+    assert!(ops.was_restored());
 }

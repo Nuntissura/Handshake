@@ -121,11 +121,12 @@ pub fn prefix_restore(
     prefix_handle: &KvPrefixHandle,
 ) -> Result<KvPrefixRestoreReceipt, ModelRuntimeError> {
     let stack = require_kv_prefix_cache(runtime, model_id)?;
-    // MT-095: enforce replay-resistance before restoring. Rejects handles that
-    // were never bound at commit, had their content_hash tampered, or were
-    // forged/replayed under a different process or model key.
-    prefix_handle.verify_self_against(model_id)?;
-    stack.prefix_restore(prefix_handle)?;
+    // MT-095: the binding + TTL gate now lives in the KvCacheHandle restore
+    // chokepoint (`stack.prefix_restore(model_id, ..)`), so every restore path
+    // (this surface, subquadratic, and any direct handle holder) is gated in one
+    // place. Rejects handles never bound at commit, content_hash-tampered,
+    // forged/replayed under a different process/model key, or past the TTL.
+    stack.prefix_restore(model_id, prefix_handle)?;
     let occupancy = stack.occupancy();
     Ok(KvPrefixRestoreReceipt {
         model_id,
