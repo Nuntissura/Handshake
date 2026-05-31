@@ -1,0 +1,64 @@
+{
+  "schema": "hsk.builder_phase2_remediation_status@1",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "classification": "KERNEL_BUILDER_PHASE2_REMEDIATION_STATUS",
+  "authored_by": "KERNEL_BUILDER-20260531-030043",
+  "authored_at_utc": "2026-05-31T03:05:00.000Z",
+  "responds_to": "PHASE2_VERDICT.json (INTEGRATION_VALIDATOR_PHASE2_POST_REMEDIATION_VERDICT, verdict=FAIL, 30 confirmed_blockers / 24 blocked_mts)",
+  "method": "Adversarial per-subscope re-verification against CURRENT working-tree code (HEAD on feat branch after the IV's f0c6faf0 backup snapshot). One Explore sub-reviewer per subscope cluster; each defaulted a blocker to OPEN unless current code proved it CLOSED with file:line evidence. Two IV linchpins re-verified directly + one decisive runtime proof (real TinyLlama candle load).",
+  "decisive_finding": "The IV Phase-2 FAIL verdict was rendered against backup snapshot f0c6faf0 (2026-05-30T01:00). A large batch of remediation landed in the working tree AFTER that snapshot (e.g. MT-202 production model-load wiring at 2026-05-30T11:19, MT-029 inspector read-auth at 23:55, sandbox network-honesty at 22:42, SSM suppress_next_reset at 18:29/19:59, MT-097/100/102 server-side gates at 13:11). Both IV-verified linchpins are CLOSED in current code; 22 of 30 confirmed blockers are CLOSED with evidence; 8 remain OPEN. The verdict is STALE, not wrong-at-the-time.",
+  "linchpins": {
+    "L1-steering-not-wired": {
+      "iv_severity": "CRITICAL",
+      "current_status": "CLOSED",
+      "evidence": "app/src-tauri/src/commands/model_runtime.rs:362-419 kernel_model_runtime_load is a real #[tauri::command] that constructs a real CandleRuntime via load_local_candle_model and calls state.attach_live_runtime(model_id, Arc::new(runtime)) at :416. Registered in app/src-tauri/src/lib.rs invoke_handler (both macro arms, :73-74 and :179-180). ModelRuntimeState managed at lib.rs:882. All four IPC families (steering/refusal/caa/lora) resolve state.live_runtime via require_live_runtime and dispatch into real technique functions (steering.rs:270/306/378/452/468, refusal.rs:79, caa.rs:85, lora.rs:175/204/221/243).",
+      "runtime_proof": "model_load_attaches_real_candle_runtime_and_capture_returns_real_activations executed against real Maykeye_TinyLLama-v0 model.safetensors (sha256 c302246d...) — see proof_runs."
+    },
+    "L2-loopback-deny": {
+      "iv_severity": "HIGH",
+      "current_status": "CLOSED",
+      "evidence": "podman_cli.rs:276 NetPolicy::LoopbackOnly => Ok(PODMAN_LOOPBACK_NETWORK_MODE) (slirp4netns:port_handler=slirp4netns,allow_host_loopback=true), NOT 'none'. kernel_003_bridge.rs:264 NetPolicy::LoopbackOnly => Err(docker_loopback_unsupported()) — loud typed failure, no silent downgrade."
+    }
+  },
+  "per_blocker_status": {
+    "MT-011": {"status": "CLOSED", "evidence": "detectConfigKeys rewritten to brace-track struct-definition bodies; .GOV/roles_shared/checks/hbr-man-001-paired-diff.mjs; detector suite 10/10 incl 2 regression-guard cases. Remediated this session (gov commit 7a84dadf)."},
+    "MT-029.1": {"status": "CLOSED", "evidence": "inspector server.rs:205-208 router-wide require_per_run_secret middleware wraps all 7 read routes + WS; tests inspector_server_tests.rs:119-150 assert 401 without header on every read endpoint. Commit 7ea2e1c6."},
+    "MT-029.2": {"status": "CLOSED", "evidence": "server.rs:243-251 audit_reject(route, peer_addr, reason) via ConnectInfo<SocketAddr> (server.rs:157 into_make_service_with_connect_info); called on Missing + Mismatch (:229,:233). Test :279-310 verifies peer_addr captured."},
+    "MT-035": {"status": "CLOSED", "evidence": "N=8 perf counters now measured from real shared CRDT workspace (crdt_workspace.rs:257-259/329-338/348-355/474-482/576-611); kernel projection agreement asserted; swarm_n8_perf_tests.rs:94 runs real harness. Commit f7066729."},
+    "MT-037": {"status": "CLOSED", "evidence": "lock/lease via real tokio::sync::Mutex + RAII LeaseGuard measured high-water (max_simultaneous_lease_holders==1); cancellation via real kernel CancellationToken measured elapsed. swarm_n8_perf_tests.rs:105-165."},
+    "MT-044": {"status": "CLOSED", "evidence": "podman_cli.rs:276 honest slirp4netns loopback. Commit ea3c52d9."},
+    "MT-046": {"status": "CLOSED", "evidence": "windows_native_jail/capabilities.rs:18 gpu_passthrough: GpuPassthrough::None (honest); tests prove GPU-required job no longer matches. Commit ea3c52d9."},
+    "MT-047.1": {"status": "CLOSED", "evidence": "kernel_003_bridge.rs:264 loud Err(docker_loopback_unsupported())."},
+    "MT-047.2": {"status": "OPEN_GOVERNANCE", "evidence": "Golden-argv parity fixture is structurally unachievable: no KERNEL-003 DocketAdapter ever shipped, so the captured-fixture minimum_control cannot be satisfied. Requires an honest contract disposition (mark control aspirational / waiver), not a code fix."},
+    "MT-052": {"status": "CLOSED", "evidence": "work_packet_scope_binder_tests.rs:145-310 real OS-level EROFS test: overlay write exit 0, readonly write non-zero + stderr matches read-only/erofs; spawns real container with binder's layered output. Commit 4e9ab013."},
+    "MT-057.1": {"status": "CLOSED", "evidence": "test_harness/cross_adapter.rs:500-515 real predicate.matches(bytes) (no auto-pass); parity tests assert pass-on-match + fail-on-mismatch. Commit 4737c1d3."},
+    "MT-057.2": {"status": "CLOSED", "evidence": "fixtures/cross_adapter_parity/net_loopback_only.json:26 exit_code_class 'zero' (was 'any') — now detects LoopbackOnly->none coercion."},
+    "MT-058": {"status": "CLOSED", "evidence": "src/bin/handshake-foreground-inject-probe.rs real Win32 inject sequence; Cargo.toml [[bin]] required-features win-native-integration; sandbox_escape_negative_tests.rs:277 env!(CARGO_BIN_EXE_...) wires it. Commit 7ea2e1c6 (MT-029/058)."},
+    "MT-088.1": {"status": "CLOSED", "evidence": "suppress_next_reset flag: mamba2.rs:389/442/556-560(honour)/627-630(arm); generate.rs:123 reset now conditionally suppressed after a restore. RWKV v5/6/7 parity. Commits 9496c09e, 541fb7e1."},
+    "MT-088.2": {"status": "CLOSED", "evidence": "candle_mamba2_tests.rs:124-208 default-CI real-forward test asserts restored logits == continuous logits (would fail if reset wiped restore)."},
+    "MT-089": {"status": "CLOSED", "evidence": "candle_e2e_smoke.rs:456-494 real generate() with suppressed reset; mamba2.rs:980-1051 zero-vector identity gate (zero == baseline, non-zero diverges)."},
+    "MT-096": {"status": "CLOSED", "evidence": "= L1 linchpin. model_runtime.rs:416 attach_live_runtime in production load; lib.rs registered; steering reachable in deployed binary."},
+    "MT-097": {"status": "CLOSED", "evidence": "steering.rs:380-390 set_active calls store.ensure_activatable (steering_vector_store.rs:300-311) rejecting non-Approved; approve command at steering.rs:424-444. Server-side Rust gate. Commit 81e5c7b2."},
+    "MT-100": {"status": "CLOSED", "evidence": "steering.rs:391-407 server-side refusal-ablation gate: store.is_refusal_ablation + required disables_refusal_acknowledged in IPC payload (SteeringSetActiveRequestIpc). Non-UI IPC caller cannot silently activate."},
+    "MT-102": {"status": "CLOSED", "evidence": "Same Rust gate as MT-100 (steering.rs:401-407); UI acknowledgement no longer the enforcement point."},
+    "MT-122": {"status": "CLOSED", "evidence": "peft_pipeline.rs:357 process_ledger now mandatory Arc<LedgerBatcher> (non-Option); production sites peft.rs:213-269 + bin/peft_train.rs:126-208 construct+pass ledger; START/STOP recorded unconditionally :494-516. Commit b2493670."},
+    "MT-123": {"status": "CLOSED", "evidence": "lora.rs:182-190 production mount calls lora_hotswap::mount_gated with candidate_registry + allow_unpromoted_distill; gate refuses Pending/Rejected (lora_hotswap.rs:70-91); test lora.rs:627-693."},
+    "MT-186.b": {"status": "CLOSED", "evidence": "cancellation.rs:545-578 request_with_force_after autonomous escalation timer; default 30s normalized; mt_cancellation_tests.rs:900-950."},
+    "MT-186.c": {"status": "CLOSED", "evidence": "cancellation.rs:501-519 CancelledJobState force_used=true + ForcedCancelEvent via FrEventId::MtCancelForced; test :823-860."},
+    "MT-095.1": {"status": "OPEN", "evidence": "TTL/stale-snapshot expiry NOT enforced at the live restore path: kv_cache.rs:274 comment defers TTL 'to the caller'; verify_self_against/verify_derived_against do not check elapsed time vs prefix_cache_ttl_seconds. Contract requires 'wait past TTL -> Err'.", "fix": "Enforce elapsed(registered_at_utc_micros) <= prefix_cache_ttl_seconds at the live kv_cache_technique::prefix_restore gate; return typed expiry error."},
+    "MT-095.2": {"status": "OPEN", "evidence": "Per-adapter stacks mint handles via from_scoped_tokens (llama_cpp/kv_cache_impl.rs:392, candle/state_vector.rs:723) with derived_id=None and never persist/validate the binding on restore; facade KvCacheHandle::prefix_restore (kv_cache.rs:98-100) dispatches with no model_id/verification (direct bypass).", "fix": "Bind derived_id at commit in both adapters, persist it in the cache record, and verify_derived_against on restore; thread model_id through the facade restore (or remove the unverified facade path)."},
+    "MT-186.a": {"status": "OPEN", "evidence": "Forced-cancel built-in reclaim primitive is CLOSED (cancellation.rs:474-531 force_cancel + ReclaimForcedCancelAdapter + fail-loud NoReclaimerConfigured/ReclaimFailed; test mt_cancellation_tests.rs:807-845), but production spawn sites create pure-mode MtCanceller::new() (executor.rs:336/352/370/392); grep for with_reclaim outside tests = zero hits. Orphan-reclaim not wired at the real spawn path.", "fix": "Wire MtCanceller::with_reclaim(ReclaimForcedCancelAdapter, event_sink, config) at the production executor/session spawn site so forced cancellation reclaims via ProcessOwnershipLedger."},
+    "MT-019": {"status": "OPEN", "evidence": "operator_foreground/foreground_exception.rs:180-212 ControlledWindow constructs no WebviewWindow; :283-289 visible/focused/expected_foreground hardcoded; :295-300 auto_dismiss is a bare timeout(pending). quiet_window.rs has a real WebviewWindowBuilder but is not integrated. Spec 6.6.7 needs a SHOWN, FOCUSED bounded window with real auto-dismiss.", "fix": "Integrate ControlledWindow with tauri WebviewWindow create/show/focus + real auto-dismiss; runtime/GUI proof needs a display session.", "proof_constraint": "GUI-runtime"},
+    "MT-020": {"status": "OPEN", "evidence": "automation-first-audit.mjs:200-317 is static regex source analysis; keyboard_injection_invocation_count hardcoded 0 (:291). The 3 contract runtime probes (IPC mock call; IPC under live focus-audit; raw SendInput injection) are not performed.", "fix": "Add a real runtime probe harness driving the 3 probes; the SendInput probe bin from MT-058 can be reused; assert zero injections counted.", "proof_constraint": "partial-runtime"},
+    "MT-027": {"status": "OPEN", "evidence": "tests/visual/a2_smoke.spec.ts:129-141 hardcodes focus_audit_summary.handshake_owned_events:[] and asserts it equals []; no focus-audit Tauri IPC command exists (FocusAuditHandle::start/stop never invoked during the smoke).", "fix": "Add focus-audit start/stop Tauri IPC commands wrapping operator_foreground/focus_audit.rs and drive them from the a2 smoke (capture real FocusAuditReport).", "proof_constraint": "GUI-runtime (Playwright)"},
+    "MT-098": {"status": "OPEN", "evidence": "ContrastiveCaptureWizard.tsx:300-308 is a static <details> placeholder; no generate IPC, no side-by-side before/after panes. Spec 10.14.2 AC-INFER-LAB-UI-AB-COMPARE unmet.", "fix": "Add a generate IPC (model_id, prompts, active vs inactive vectors) + real AB-compare React panes.", "proof_constraint": "GUI-runtime"}
+  },
+  "totals": {
+    "iv_confirmed_blockers": 30,
+    "closed_in_current_code": 22,
+    "open_code": 7,
+    "open_governance_disposition": 1
+  },
+  "proof_runs": [],
+  "next_actions": "Close the 7 open code blockers (MT-095.1/.2 + MT-186.a backend now; MT-019/020/027/098 implement real code + compile-verify, GUI-runtime smoke flagged as needing a display session). Disposition MT-047.2 honestly in its contract. Then request IV Phase-2 re-judgment against current HEAD."
+}
