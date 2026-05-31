@@ -20,11 +20,60 @@
 
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::sync::{Arc, Mutex};
 
 use handshake_core::distillation::peft_pipeline::{
     DistillJobConfig, PeftHyperparams, PeftProvenanceSidecar, PeftTrainerExecutor,
     PythonPeftTrainerExecutor, TeacherSource,
 };
+use handshake_core::process_ledger::{
+    LedgerBatcher, LedgerBatcherConfig, LedgerEvent, NoopOverflowSink, ProcessLedgerDrain,
+    ProcessLedgerError, ProcessLedgerStore,
+};
+
+/// In-memory ProcessLedgerStore so the MT-122 proof test can assert the
+/// trainer subprocess emitted a real START + STOP row.
+#[derive(Clone, Default)]
+struct CapturingLedgerStore {
+    events: Arc<Mutex<Vec<LedgerEvent>>>,
+}
+
+impl CapturingLedgerStore {
+    fn rows(&self) -> Vec<LedgerEvent> {
+        self.events.lock().expect("ledger store poisoned").clone()
+    }
+}
+
+#[async_trait::async_trait]
+impl ProcessLedgerStore for CapturingLedgerStore {
+    async fn write_batch(&self, events: Vec<LedgerEvent>) -> Result<(), ProcessLedgerError> {
+        self.events
+            .lock()
+            .map_err(|_| ProcessLedgerError::Store("ledger store poisoned".to_string()))?
+            .extend(events);
+        Ok(())
+    }
+}
+
+/// A manual (no background task) ledger batcher + its drain. `manual_for_tests`
+/// does not require a tokio runtime to construct, so it works in both `#[test]`
+/// (sync) and `#[tokio::test]` contexts; rows are drained explicitly into the
+/// store via [`ProcessLedgerDrain::drain_available_to`].
+fn manual_ledger() -> (Arc<LedgerBatcher>, ProcessLedgerDrain) {
+    let (ledger, drain) = LedgerBatcher::manual_for_tests(
+        LedgerBatcherConfig {
+            capacity: 4096,
+            ..LedgerBatcherConfig::default()
+        },
+        Arc::new(NoopOverflowSink),
+    )
+    .expect("manual ledger");
+    (Arc::new(ledger), drain)
+}
+
+fn test_ledger() -> Arc<LedgerBatcher> {
+    manual_ledger().0
+}
 
 /// Locate the Python 3.11 interpreter on the host. Returns None if it
 /// can't be found; the tests below skip cleanly in that case.
@@ -189,7 +238,7 @@ fn peft_pipeline_python_executor_surfaces_trainer_unavailable_when_script_missin
     };
     let tmp = tempfile::tempdir().expect("tmpdir");
     let missing_script = tmp.path().join("does_not_exist.py");
-    let executor = PythonPeftTrainerExecutor::new(python_path, missing_script);
+    let executor = PythonPeftTrainerExecutor::new(python_path, missing_script, test_ledger());
     let config = DistillJobConfig {
         teacher_model_path: tmp.path().join("teacher"),
         student_base_model_path: tmp.path().join("student"),
@@ -207,6 +256,84 @@ fn peft_pipeline_python_executor_surfaces_trainer_unavailable_when_script_missin
         message.contains("trainer script missing"),
         "error message must point at the missing script (got: {message})"
     );
+}
+
+#[tokio::test]
+async fn peft_trainer_spawn_records_process_ownership_start_and_stop_rows() {
+    // MT-122 PROOF: constructing the production executor the normal way (ledger
+    // is a MANDATORY constructor arg, no optional/builder) and running it must
+    // record BOTH a ProcessOwnership START and a STOP row for the trainer
+    // subprocess. This is the attribution guarantee: the env-isolated fork is
+    // never unattributable.
+    let Some(python_path) = locate_python() else {
+        eprintln!("MT-122: python not on host; skipping ledger-attribution proof");
+        return;
+    };
+
+    // A trivial real script: it ignores argv and exits 0, so the executor's
+    // real `command.spawn()` path runs end-to-end (spawn -> START -> wait ->
+    // STOP) without needing peft/transformers/torch installed.
+    let tmp = tempfile::tempdir().expect("tmpdir");
+    let script = tmp.path().join("noop_trainer.py");
+    std::fs::write(&script, "import sys\nsys.exit(0)\n").expect("write noop script");
+    let out_dir = tmp.path().join("out");
+    std::fs::create_dir_all(&out_dir).expect("mkdir out");
+
+    let store = Arc::new(CapturingLedgerStore::default());
+    let (ledger, drain) = manual_ledger();
+    let executor = PythonPeftTrainerExecutor::new(python_path, script, ledger);
+
+    let config = DistillJobConfig {
+        teacher_model_path: PathBuf::from("placeholder"),
+        student_base_model_path: PathBuf::from("synthetic"),
+        output_lora_dir: out_dir,
+        corpus_jsonl_path: tmp.path().join("corpus.jsonl"),
+        hyperparams: PeftHyperparams::default(),
+        license_tag: "MIT".to_string(),
+        operator_signature: "op-mt122-ledger".to_string(),
+        teacher_source: TeacherSource::CliBridge,
+        max_steps: Some(1),
+    };
+
+    // The noop script exits 0; run() returns Ok. The ledger rows are recorded
+    // synchronously into the channel during run(); drain them into the store.
+    executor.run(&config).expect("noop trainer runs to completion");
+    drain
+        .drain_available_to(store.clone())
+        .await
+        .expect("drain ledger rows");
+
+    let rows = store.rows();
+    let starts: Vec<_> = rows
+        .iter()
+        .filter(|e| matches!(e, LedgerEvent::Start(_)))
+        .collect();
+    let stops: Vec<_> = rows
+        .iter()
+        .filter(|e| matches!(e, LedgerEvent::Stop(_)))
+        .collect();
+    assert_eq!(starts.len(), 1, "exactly one START row expected: {rows:?}");
+    assert_eq!(stops.len(), 1, "exactly one STOP row expected: {rows:?}");
+
+    // START and STOP must share the same process_uuid (same lifecycle) and the
+    // row must be attributed to the distillation trainer.
+    let LedgerEvent::Start(start) = starts[0] else {
+        unreachable!()
+    };
+    let LedgerEvent::Stop(stop) = stops[0] else {
+        unreachable!()
+    };
+    assert_eq!(
+        start.process_uuid, stop.process_uuid,
+        "START/STOP must describe the same subprocess"
+    );
+    assert_eq!(start.owner_role, "DISTILLATION_PIPELINE");
+    assert_eq!(start.mt_id.as_deref(), Some("MT-122"));
+    assert_eq!(
+        start.metadata_jsonb["subprocess_kind"].as_str(),
+        Some("distillation_peft_trainer")
+    );
+    assert_eq!(stop.exit_code, Some(0), "noop trainer exits 0");
 }
 
 #[test]
@@ -245,7 +372,8 @@ fn peft_pipeline_end_to_end_subprocess_produces_safetensors() {
     )
     .expect("write corpus");
 
-    let executor = PythonPeftTrainerExecutor::new(python_path, script_path).with_cpu_only(true);
+    let executor =
+        PythonPeftTrainerExecutor::new(python_path, script_path, test_ledger()).with_cpu_only(true);
 
     let config = DistillJobConfig {
         teacher_model_path: PathBuf::from("placeholder"),

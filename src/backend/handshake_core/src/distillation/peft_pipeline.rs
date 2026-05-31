@@ -39,7 +39,9 @@ use super::content_review::{
 };
 use super::corpus_extractor::{TrainingCorpus, TrainingTurn};
 use crate::flight_recorder::{FlightRecorder, RecorderError};
-use crate::process_ledger::{record_spawn, LedgerBatcher, ProcessEngineKind, SpawnMeta};
+use crate::process_ledger::{
+    LedgerBatcher, ProcessEngineKind, ProcessOwnershipRecordId, ProcessStart, ProcessStop, SpawnMeta,
+};
 
 /// Default owner role recorded on the distillation trainer's
 /// ProcessOwnershipLedger row when the caller does not override it.
@@ -104,6 +106,31 @@ fn distillation_spawn_meta(pid: u32, owner_role: &str, config: &DistillJobConfig
         "env_isolation": "env_clear_allowlist",
     });
     meta
+}
+
+/// Build the `ProcessStart` row for a distillation trainer spawn from its
+/// `SpawnMeta`. This mirrors `process_ledger::record_spawn` but returns the
+/// fully-built `ProcessStart` so the caller can record the matching
+/// `ProcessStop` on completion (MT-122 requires both START and STOP rows so
+/// the trainer subprocess is attributable AND reclaimable across its full
+/// lifecycle).
+fn distillation_process_start(
+    record_id: ProcessOwnershipRecordId,
+    meta: SpawnMeta,
+) -> ProcessStart {
+    let mut start = ProcessStart::new(meta.engine_kind, meta.owner_role.clone(), meta.owner_wp)
+        .with_process_uuid(record_id.as_uuid())
+        .with_os_pid(meta.pid)
+        .with_metadata_jsonb(meta.metadata_blob)
+        .with_sandbox_capabilities_snapshot(meta.sandbox_capabilities_snapshot);
+    start.started_at = meta.started_at_utc;
+    if let Some(sandbox_adapter) = meta.sandbox_adapter {
+        start = start.with_sandbox_adapter_id(sandbox_adapter);
+    }
+    if let Some(mt_id) = meta.mt_id {
+        start = start.with_mt_id(mt_id);
+    }
+    start
 }
 
 /// Operator-tunable hyperparameters. Defaults track common PEFT/LoRA
@@ -317,39 +344,37 @@ impl PeftProvenanceSidecar {
 /// SECURITY (MT-122): the trainer subprocess is NOT an unguarded fork.
 /// Its environment is cleared and re-populated from a strict allowlist
 /// ([`sandboxed_trainer_env`]) so operator secrets in the parent
-/// environment never reach the Python process. When a
-/// [`LedgerBatcher`] is attached via [`Self::with_process_ledger`], the
-/// spawn is registered as a `ProcessOwnershipLedger` row (attributable +
-/// reclaimable) before the process is awaited. Without a ledger the run
-/// still env-isolates but is unattributable, so production call sites
-/// SHOULD attach the ledger.
+/// environment never reach the Python process. A [`LedgerBatcher`] is
+/// MANDATORY at construction: every trainer spawn is registered as an
+/// attributable `ProcessOwnershipLedger` START row before the process is
+/// awaited and a matching STOP row after it exits, so the fork is always
+/// attributable and reclaimable — there is no unattributed code path.
 pub struct PythonPeftTrainerExecutor {
     python_path: PathBuf,
     script_path: PathBuf,
     extra_args: Vec<String>,
     cpu_only: bool,
-    process_ledger: Option<Arc<LedgerBatcher>>,
+    process_ledger: Arc<LedgerBatcher>,
     owner_role: String,
 }
 
 impl PythonPeftTrainerExecutor {
-    /// Construct from explicit python+script paths.
-    pub fn new(python_path: PathBuf, script_path: PathBuf) -> Self {
+    /// Construct from explicit python+script paths. The process ledger is
+    /// mandatory (MT-122): the trainer subprocess is always registered as an
+    /// attributable `ProcessOwnershipLedger` row.
+    pub fn new(
+        python_path: PathBuf,
+        script_path: PathBuf,
+        process_ledger: Arc<LedgerBatcher>,
+    ) -> Self {
         Self {
             python_path,
             script_path,
             extra_args: Vec::new(),
             cpu_only: false,
-            process_ledger: None,
+            process_ledger,
             owner_role: DEFAULT_DISTILL_OWNER_ROLE.to_string(),
         }
-    }
-
-    /// Attach a process ledger so each trainer subprocess is registered
-    /// as an attributable `ProcessOwnershipLedger` row on spawn (MT-122).
-    pub fn with_process_ledger(mut self, ledger: Arc<LedgerBatcher>) -> Self {
-        self.process_ledger = Some(ledger);
-        self
     }
 
     /// Override the owner role recorded on the ledger row (defaults to
@@ -361,12 +386,16 @@ impl PythonPeftTrainerExecutor {
 
     /// Convenience: locate the bundled `train_lora.py` at
     /// `<repo_root>/scripts/distill/train_lora.py`.
-    pub fn from_repo_root(python_path: PathBuf, repo_root: &Path) -> Self {
+    pub fn from_repo_root(
+        python_path: PathBuf,
+        repo_root: &Path,
+        process_ledger: Arc<LedgerBatcher>,
+    ) -> Self {
         let script_path = repo_root
             .join("scripts")
             .join("distill")
             .join("train_lora.py");
-        Self::new(python_path, script_path)
+        Self::new(python_path, script_path, process_ledger)
     }
 
     /// Force the trainer onto CPU. Required for CI / no-GPU host runs.
@@ -445,40 +474,46 @@ impl PeftTrainerExecutor for PythonPeftTrainerExecutor {
         command.env_clear();
         command.envs(sandboxed_trainer_env(std::env::vars()));
 
-        // When a process ledger is attached, register the subprocess as an
-        // attributable ProcessOwnershipLedger row before awaiting it, so the
-        // fork is never unguarded/unattributable (MT-122 red_team control).
-        // Without a ledger the run still env-isolates but is unattributed.
-        let output = if let Some(ledger) = &self.process_ledger {
-            let mut child = command.spawn().map_err(|err| {
-                DistillError::TrainerExec(format!(
-                    "spawn python {}: {err}",
-                    self.python_path.display()
-                ))
-            })?;
-            record_spawn(
-                ledger,
-                distillation_spawn_meta(child.id(), &self.owner_role, config),
-            )
+        // MT-122: ledger registration is UNCONDITIONAL. The subprocess is
+        // spawned, registered as an attributable ProcessOwnershipLedger START
+        // row BEFORE it is awaited (so it is never an unguarded/unattributable
+        // fork), then a matching STOP row is recorded after it exits so the
+        // process is reclaimable across its full lifecycle. There is no
+        // unattributed code path.
+        let child = command.spawn().map_err(|err| {
+            DistillError::TrainerExec(format!(
+                "spawn python {}: {err}",
+                self.python_path.display()
+            ))
+        })?;
+        let record_id = ProcessOwnershipRecordId::new_v7();
+        let start = distillation_process_start(
+            record_id,
+            distillation_spawn_meta(child.id(), &self.owner_role, config),
+        );
+        self.process_ledger
+            .record_start(start.clone())
             .map_err(|err| {
                 DistillError::TrainerExec(format!(
-                    "process ledger registration failed for distillation trainer: {err}"
+                    "process ledger START registration failed for distillation trainer: {err}"
                 ))
             })?;
-            child.wait_with_output().map_err(|err| {
-                DistillError::TrainerExec(format!(
-                    "await python {}: {err}",
-                    self.python_path.display()
-                ))
-            })?
-        } else {
-            command.output().map_err(|err| {
-                DistillError::TrainerExec(format!(
-                    "spawn python {}: {err}",
-                    self.python_path.display()
-                ))
-            })?
-        };
+        let output = child.wait_with_output().map_err(|err| {
+            DistillError::TrainerExec(format!(
+                "await python {}: {err}",
+                self.python_path.display()
+            ))
+        })?;
+        // Record the matching STOP row regardless of trainer exit status so
+        // the ProcessOwnershipLedger reflects the full lifecycle (the
+        // subprocess is no longer running once wait_with_output returns).
+        let stop = ProcessStop::from_start(&start, output.status.code())
+            .with_stop_reason("distillation_trainer_exit");
+        self.process_ledger.record_stop(stop).map_err(|err| {
+            DistillError::TrainerExec(format!(
+                "process ledger STOP registration failed for distillation trainer: {err}"
+            ))
+        })?;
         if !output.status.success() {
             let stderr_text = String::from_utf8_lossy(&output.stderr).into_owned();
             let exit_code = output.status.code().unwrap_or(-1);

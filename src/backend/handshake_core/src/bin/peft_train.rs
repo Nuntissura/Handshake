@@ -42,7 +42,7 @@
 //! ContentReview gate upstream handles license + PII; this CLI runs
 //! the training.
 
-use std::{env, path::PathBuf, process::ExitCode};
+use std::{env, path::PathBuf, process::ExitCode, sync::Arc};
 
 use chrono::Utc;
 use handshake_core::distillation::{
@@ -52,6 +52,29 @@ use handshake_core::distillation::{
         PeftHyperparams, PeftProvenanceSidecar, PythonPeftTrainerExecutor, TeacherSource,
     },
 };
+use handshake_core::process_ledger::{
+    LedgerBatcher, LedgerBatcherConfig, LedgerEvent, NoopOverflowSink, ProcessLedgerError,
+    ProcessLedgerStore,
+};
+
+/// In-process ProcessOwnershipLedger store for the CLI run (MT-122). Durably
+/// accumulates the trainer subprocess START/STOP rows so the fork is
+/// attributable within the CLI process lifetime.
+#[derive(Clone, Default)]
+struct CliLedgerStore {
+    events: Arc<std::sync::Mutex<Vec<LedgerEvent>>>,
+}
+
+#[async_trait::async_trait]
+impl ProcessLedgerStore for CliLedgerStore {
+    async fn write_batch(&self, events: Vec<LedgerEvent>) -> Result<(), ProcessLedgerError> {
+        self.events
+            .lock()
+            .map_err(|_| ProcessLedgerError::Store("cli ledger store poisoned".to_string()))?
+            .extend(events);
+        Ok(())
+    }
+}
 
 fn main() -> ExitCode {
     match run_cli(env::args().skip(1).collect::<Vec<String>>()) {
@@ -89,7 +112,23 @@ fn run_cli(args: Vec<String>) -> Result<String, String> {
             }
         ));
     }
-    let executor = trainer_args.build_executor()?;
+    // MT-122: the trainer subprocess is registered in the
+    // ProcessOwnershipLedger unconditionally. Stand up a current-thread tokio
+    // runtime to host the LedgerBatcher's background writer; the writer drains
+    // START/STOP rows into the in-process store for the lifetime of the run so
+    // the fork is attributable even from the CLI entrypoint.
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .map_err(|err| format!("could not build ledger runtime: {err}"))?;
+    let _guard = runtime.enter();
+    let ledger_store = Arc::new(CliLedgerStore::default());
+    let (ledger, _writer_task) = LedgerBatcher::spawn(
+        ledger_store.clone(),
+        Arc::new(NoopOverflowSink),
+        LedgerBatcherConfig::default(),
+    );
+    let executor = trainer_args.build_executor(Arc::new(ledger))?;
 
     // The CLI is a direct subprocess driver, but it is no longer a raw
     // corpus bypass: it reviews the JSONL in-process, writes a separate
@@ -106,6 +145,14 @@ fn run_cli(args: Vec<String>) -> Result<String, String> {
         &finished_at_utc,
     )
     .map_err(|err| err.to_string())?;
+    // Let the background writer flush the recorded START/STOP rows before the
+    // runtime is dropped at end of `run_cli`.
+    runtime.block_on(async {
+        tokio::time::sleep(std::time::Duration::from_millis(
+            handshake_core::process_ledger::PROCESS_LEDGER_DEFAULT_FLUSH_INTERVAL_MS + 50,
+        ))
+        .await;
+    });
 
     // Read the provenance sidecar written by the Python trainer.
     let provenance_path = config.output_lora_dir.join("provenance.json");
@@ -146,7 +193,10 @@ struct TrainerArgs {
 }
 
 impl TrainerArgs {
-    fn build_executor(&self) -> Result<PythonPeftTrainerExecutor, String> {
+    fn build_executor(
+        &self,
+        process_ledger: Arc<LedgerBatcher>,
+    ) -> Result<PythonPeftTrainerExecutor, String> {
         let python_path = match &self.python {
             Some(path) => path.clone(),
             None => locate_python311()?,
@@ -155,8 +205,8 @@ impl TrainerArgs {
             Some(path) => path.clone(),
             None => locate_default_script()?,
         };
-        let executor =
-            PythonPeftTrainerExecutor::new(python_path, script_path).with_cpu_only(self.cpu_only);
+        let executor = PythonPeftTrainerExecutor::new(python_path, script_path, process_ledger)
+            .with_cpu_only(self.cpu_only);
         Ok(executor)
     }
 

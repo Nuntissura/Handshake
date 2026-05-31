@@ -4,6 +4,9 @@ pub use crate::flight_recorder::events_llm_infer::{
     FR_EVT_LLM_INFER_LORA_MOUNT, FR_EVT_LLM_INFER_LORA_SWAP, FR_EVT_LLM_INFER_LORA_UNMOUNT,
 };
 
+use crate::distillation::candidate_registry::{
+    mount_with_promotion_gate, CandidateRegistry, DistilledMountError,
+};
 use crate::model_runtime::{
     LoraDescriptor, LoraId, LoraStackEntry, LoraStackHandle, LoraStackSnapshot, LoraStrength,
     ModelId, ModelRuntime, ModelRuntimeError,
@@ -38,6 +41,48 @@ pub async fn mount(
 ) -> Result<LoraStackMutationReceipt, ModelRuntimeError> {
     let stack = require_lora_stack(runtime, model_id)?;
     stack.mount(descriptor, strength).await?;
+    Ok(LoraStackMutationReceipt {
+        model_id,
+        event_type: FR_EVT_LLM_INFER_LORA_MOUNT.to_string(),
+        active_stack: stack.list_active(),
+    })
+}
+
+/// Production mount entrypoint with mount-side PromotionGate enforcement
+/// (MT-123 / AC-DISTILL-LOOP-SAFEGUARDS).
+///
+/// This is the gate the [`CandidateRegistry`] exists for. Before any LoRA is
+/// loaded into the live stack, the descriptor's `lora_id` is checked against
+/// the registry:
+///
+/// - A distilled candidate in `Pending`/`Rejected` review status is REFUSED
+///   (fail closed) — the underlying `stack.mount` future is never awaited, so
+///   an unpromoted distilled LoRA cannot reach a production session with zero
+///   operator review.
+/// - A `Promoted` candidate, or any LoRA that is not a registered distillation
+///   candidate (externally-provided adapters), mounts normally.
+///
+/// `allow_unpromoted` is the operator's explicit per-session opt-in
+/// (`settings.exec_policy.allow_unpromoted_distill`) for experimental mounts of
+/// Pending candidates; it defaults to `false` and must only be set where a
+/// legitimate experimental session needs it. It has no effect on
+/// non-candidate or Promoted LoRAs.
+pub async fn mount_gated(
+    runtime: &dyn ModelRuntime,
+    model_id: ModelId,
+    descriptor: LoraDescriptor,
+    strength: LoraStrength,
+    registry: &CandidateRegistry,
+    allow_unpromoted: bool,
+) -> Result<LoraStackMutationReceipt, DistilledMountError> {
+    // Capability/loaded preflight runs before the gate so a missing stack is a
+    // ModelRuntimeError, not a misleading mount-refusal.
+    let stack = require_lora_stack(runtime, model_id).map_err(DistilledMountError::Mount)?;
+    let lora_id = descriptor.id.to_string();
+    mount_with_promotion_gate(registry, &lora_id, allow_unpromoted, || async {
+        stack.mount(descriptor, strength).await
+    })
+    .await?;
     Ok(LoraStackMutationReceipt {
         model_id,
         event_type: FR_EVT_LLM_INFER_LORA_MOUNT.to_string(),

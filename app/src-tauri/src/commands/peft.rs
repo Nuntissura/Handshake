@@ -18,6 +18,7 @@
 //! - Sub-rule 3: Validator signs off separately.
 
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use chrono::Utc;
 use handshake_core::distillation::{
@@ -30,6 +31,9 @@ use handshake_core::distillation::{
 };
 use handshake_core::flight_recorder::{
     FlightRecorder, FlightRecorderActor, FlightRecorderEvent, FlightRecorderEventType,
+};
+use handshake_core::process_ledger::{
+    LedgerBatcher, LedgerBatcherConfig, NoopOverflowSink,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -82,15 +86,62 @@ pub struct PeftJobReceipt {
     pub event_type: String,
 }
 
+/// In-process [`handshake_core::process_ledger::ProcessLedgerStore`] the app
+/// owns for the PEFT trainer (MT-122). Not a fake: it durably accumulates
+/// every START/STOP row the trainer subprocess emits for the running session
+/// so the ProcessOwnershipLedger is real and inspectable. A Postgres-backed
+/// store replaces this when the app gains a configured pool (out of MT-122
+/// scope).
+#[derive(Clone, Default)]
+pub struct PeftLedgerStore {
+    events: Arc<std::sync::Mutex<Vec<handshake_core::process_ledger::LedgerEvent>>>,
+}
+
+impl PeftLedgerStore {
+    pub fn rows(&self) -> Vec<handshake_core::process_ledger::LedgerEvent> {
+        self.events.lock().expect("peft ledger store poisoned").clone()
+    }
+}
+
+#[async_trait::async_trait]
+impl handshake_core::process_ledger::ProcessLedgerStore for PeftLedgerStore {
+    async fn write_batch(
+        &self,
+        events: Vec<handshake_core::process_ledger::LedgerEvent>,
+    ) -> Result<(), handshake_core::process_ledger::ProcessLedgerError> {
+        self.events
+            .lock()
+            .map_err(|_| {
+                handshake_core::process_ledger::ProcessLedgerError::Store(
+                    "peft ledger store poisoned".to_string(),
+                )
+            })?
+            .extend(events);
+        Ok(())
+    }
+}
+
 /// Tauri-managed configuration: the Python interpreter + trainer
 /// script paths so different machines can wire different installs
 /// without rebuilding. Defaults discover the host install at
 /// construction time but the runtime can re-bind via setters.
+///
+/// MT-122: also owns the in-process ProcessOwnershipLedger store so every
+/// trainer subprocess is attributable. The `LedgerBatcher` itself is built
+/// inside the `start_peft_training_job` command (where the Tauri async
+/// runtime is live), draining into this store.
 #[derive(Debug)]
 pub struct PeftJobSpawnerState {
     python_path: PathBuf,
     script_path: PathBuf,
     cpu_only_default: bool,
+    ledger_store: PeftLedgerStore,
+}
+
+impl std::fmt::Debug for PeftLedgerStore {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("PeftLedgerStore").finish_non_exhaustive()
+    }
 }
 
 impl PeftJobSpawnerState {
@@ -99,6 +150,7 @@ impl PeftJobSpawnerState {
             python_path,
             script_path,
             cpu_only_default: false,
+            ledger_store: PeftLedgerStore::default(),
         }
     }
 
@@ -122,6 +174,10 @@ impl PeftJobSpawnerState {
 
     pub fn script_path(&self) -> &Path {
         &self.script_path
+    }
+
+    pub fn ledger_store(&self) -> &PeftLedgerStore {
+        &self.ledger_store
     }
 }
 
@@ -150,11 +206,21 @@ pub async fn start_peft_training_job(
     let python_path = state.python_path.clone();
     let script_path = state.script_path.clone();
     let cpu_only_default = state.cpu_only_default;
+    // MT-122: build the ProcessOwnershipLedger batcher here, where the Tauri
+    // async runtime is live (LedgerBatcher::spawn starts a background writer
+    // task). The batcher drains into the app-owned in-process store so every
+    // trainer subprocess is attributable.
+    let (ledger, _writer_task) = LedgerBatcher::spawn(
+        Arc::new(state.ledger_store().clone()),
+        Arc::new(NoopOverflowSink),
+        LedgerBatcherConfig::default(),
+    );
     start_peft_training_job_inner(
         request,
         python_path,
         script_path,
         cpu_only_default,
+        Arc::new(ledger),
         jobs_state.recorder().map(|recorder| recorder.as_ref()),
     )
     .await
@@ -165,6 +231,7 @@ pub async fn start_peft_training_job_inner(
     python_path: PathBuf,
     script_path: PathBuf,
     cpu_only_default: bool,
+    process_ledger: Arc<LedgerBatcher>,
     recorder: Option<&dyn FlightRecorder>,
 ) -> Result<PeftJobReceipt, String> {
     let cpu_only = request.cpu_only || cpu_only_default;
@@ -199,7 +266,8 @@ pub async fn start_peft_training_job_inner(
             }
         ));
     }
-    let executor = PythonPeftTrainerExecutor::new(python_path, script_path).with_cpu_only(cpu_only);
+    let executor = PythonPeftTrainerExecutor::new(python_path, script_path, process_ledger)
+        .with_cpu_only(cpu_only);
     let finished_at_utc = Utc::now().to_rfc3339();
 
     // PyTorch CPU training blocks the worker; run on the blocking pool.
@@ -458,11 +526,17 @@ mod tests {
         request.out_lora_dir = out_lora_dir.to_string_lossy().to_string();
         let recorder = MemoryFlightRecorder::default();
 
+        let (ledger, _writer) = LedgerBatcher::spawn(
+            Arc::new(PeftLedgerStore::default()),
+            Arc::new(NoopOverflowSink),
+            LedgerBatcherConfig::default(),
+        );
         let err = start_peft_training_job_inner(
             request,
             PathBuf::from("definitely-missing-python"),
             PathBuf::from("definitely-missing-trainer.py"),
             true,
+            Arc::new(ledger),
             Some(&recorder),
         )
         .await

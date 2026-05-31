@@ -1,5 +1,6 @@
 use std::{path::PathBuf, sync::Arc};
 
+use handshake_core::distillation::candidate_registry::CandidateRegistry;
 use handshake_core::model_runtime::{
     techniques::lora_hotswap, BaseModelTag, LicenseTag, LoraDescriptor, LoraId, LoraStackEntry,
     LoraStackSnapshot, LoraStackSnapshotEntry, LoraStrength, ModelId, ModelRuntime,
@@ -55,6 +56,14 @@ pub struct LoraMountRequestIpc {
     pub model_id: String,
     pub descriptor: LoraDescriptorIpc,
     pub strength: f32,
+    /// Operator per-session opt-in to mount an unpromoted (Pending)
+    /// distillation candidate for experimental work
+    /// (`settings.exec_policy.allow_unpromoted_distill`). Defaults to
+    /// `false`: the mount-side PromotionGate (MT-123) refuses Pending /
+    /// Rejected candidates unless the operator explicitly opts in.
+    /// Non-candidate (externally-provided) LoRAs are unaffected.
+    #[serde(default)]
+    pub allow_unpromoted_distill: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -124,9 +133,10 @@ pub struct LoraListResultIpc {
 pub async fn kernel_model_runtime_lora_mount(
     request: LoraMountRequestIpc,
     state: State<'_, ModelRuntimeState>,
+    candidate_state: State<'_, super::distillation::DistillationCandidateState>,
 ) -> Result<LoraMutationResultIpc, String> {
     let _ = KERNEL_MODEL_RUNTIME_LORA_MOUNT_IPC_CHANNEL;
-    lora_mount(request, state.inner()).await
+    lora_mount(request, state.inner(), candidate_state.registry()).await
 }
 
 #[tauri::command]
@@ -159,14 +169,26 @@ pub async fn kernel_model_runtime_lora_list(
 pub async fn lora_mount(
     request: LoraMountRequestIpc,
     state: &ModelRuntimeState,
+    candidate_registry: &CandidateRegistry,
 ) -> Result<LoraMutationResultIpc, String> {
     let model_id = preflight_lora_capability_and_loaded(&request.model_id, state)?;
     let runtime = require_live_runtime(model_id, state)?;
     let descriptor = descriptor_from_ipc(request.descriptor)?;
     let strength = LoraStrength::try_new(request.strength).map_err(|error| error.to_string())?;
-    let receipt = lora_hotswap::mount(runtime.as_ref(), model_id, descriptor, strength)
-        .await
-        .map_err(|error| format!("lora mount dispatch failed: {error}"))?;
+    // MT-123 mount-side PromotionGate: an unpromoted (Pending/Rejected)
+    // distilled candidate is refused before it reaches the live stack unless
+    // the operator explicitly opted in via allow_unpromoted_distill.
+    // Externally-provided LoRAs pass through untouched.
+    let receipt = lora_hotswap::mount_gated(
+        runtime.as_ref(),
+        model_id,
+        descriptor,
+        strength,
+        candidate_registry,
+        request.allow_unpromoted_distill,
+    )
+    .await
+    .map_err(|error| format!("lora mount dispatch failed: {error}"))?;
     Ok(LoraMutationResultIpc {
         model_id: receipt.model_id.to_string(),
         event_type: receipt.event_type,
@@ -363,6 +385,8 @@ mod tests {
     use async_trait::async_trait;
     use chrono::Utc;
     use futures_util::stream;
+    use handshake_core::distillation::candidate_registry::CandidateRegistry;
+    use handshake_core::distillation::peft_pipeline::{DistilledLoraArtifact, PeftHyperparams};
     use handshake_core::model_runtime::{
         techniques::lora_hotswap::{
             FR_EVT_LLM_INFER_LORA_MOUNT, FR_EVT_LLM_INFER_LORA_SWAP, FR_EVT_LLM_INFER_LORA_UNMOUNT,
@@ -433,8 +457,10 @@ mod tests {
                 model_id: model_id.to_string(),
                 descriptor: first,
                 strength: 0.75,
+                allow_unpromoted_distill: false,
             },
             &state,
+            &CandidateRegistry::new(),
         )
         .await
         .expect("mount dispatches");
@@ -510,8 +536,10 @@ mod tests {
                 model_id: model_id.to_string(),
                 descriptor: descriptor_ipc("story", "local-test-base"),
                 strength: 1.0,
+                allow_unpromoted_distill: false,
             },
             &state,
+            &CandidateRegistry::new(),
         )
         .await
         .expect_err("declared supports_lora=false must reject before runtime mutation");
@@ -561,14 +589,107 @@ mod tests {
                 model_id: model_id.to_string(),
                 descriptor: descriptor_ipc("story", "local-test-base"),
                 strength: 3.0,
+                allow_unpromoted_distill: false,
             },
             &state,
+            &CandidateRegistry::new(),
         )
         .await
         .expect_err("invalid strength fails before mount");
 
         assert!(error.contains("LoRA strength"), "{error}");
         assert!(stack.calls.lock().unwrap().is_empty());
+    }
+
+    fn distilled_artifact() -> DistilledLoraArtifact {
+        DistilledLoraArtifact {
+            lora_dir: PathBuf::from("lora"),
+            teacher_model_path: PathBuf::from("teacher"),
+            student_base_model_path: PathBuf::from("student"),
+            corpus_path: PathBuf::from("corpus.jsonl"),
+            corpus_turn_count: 10,
+            corpus_quarantined_count: 0,
+            corpus_rejected_count: 0,
+            hyperparams: PeftHyperparams::default(),
+            license_tag: "MIT".to_string(),
+            operator_signature: "op".to_string(),
+            finished_at_utc: "2026-05-20T04:00:00Z".to_string(),
+        }
+    }
+
+    // MT-123: the PRODUCTION mount entrypoint (lora_mount -> mount_gated)
+    // must refuse an unpromoted distillation candidate and never touch the
+    // live LoRA stack, while a promoted candidate mounts. This is the
+    // mount-side PromotionGate the CandidateRegistry exists for; before this
+    // wiring a Pending/Rejected distilled LoRA could be mounted in production
+    // with zero operator review.
+    #[tokio::test]
+    async fn lora_mount_refuses_unpromoted_candidate_then_allows_after_promotion() {
+        let model_id = ModelId::new_v7();
+        let stack = Arc::new(RecordingLoraStack::with_base_model("local-test-base"));
+        let state = state_with_model(model_id, true);
+        state
+            .attach_live_runtime(
+                model_id,
+                Arc::new(RecordingRuntime::new(
+                    model_id,
+                    ModelCapabilities {
+                        supports_lora: true,
+                        ..Default::default()
+                    },
+                    stack.clone(),
+                )),
+            )
+            .expect("attach live runtime");
+
+        let descriptor = descriptor_ipc("distilled", "local-test-base");
+        let lora_id = descriptor.lora_id.clone();
+        let registry = CandidateRegistry::new();
+        registry
+            .register(&lora_id, distilled_artifact(), "2026-05-20T04:00:00Z")
+            .expect("register candidate as Pending");
+
+        // 1) Pending candidate is refused; the live stack is never mutated.
+        let error = lora_mount(
+            LoraMountRequestIpc {
+                model_id: model_id.to_string(),
+                descriptor: descriptor.clone(),
+                strength: 0.5,
+                allow_unpromoted_distill: false,
+            },
+            &state,
+            &registry,
+        )
+        .await
+        .expect_err("unpromoted distilled candidate must be refused at the mount path");
+        assert!(
+            error.contains("awaiting operator review") || error.contains("PromotionGate"),
+            "expected PromotionGate refusal, got: {error}"
+        );
+        assert!(
+            stack.calls.lock().unwrap().is_empty(),
+            "mount must fail closed before reaching the live stack"
+        );
+
+        // 2) After operator-signed promotion, the same candidate mounts.
+        registry
+            .promote(&lora_id, "operator-ilja", "2026-05-20T04:05:00Z")
+            .expect("promote candidate");
+        let mounted = lora_mount(
+            LoraMountRequestIpc {
+                model_id: model_id.to_string(),
+                descriptor,
+                strength: 0.5,
+                allow_unpromoted_distill: false,
+            },
+            &state,
+            &registry,
+        )
+        .await
+        .expect("promoted candidate mounts");
+        assert_eq!(mounted.active_stack.len(), 1);
+        assert_eq!(mounted.active_stack[0].lora_id, lora_id);
+        assert_eq!(stack.calls.lock().unwrap().as_slice(), &["mount"]);
     }
 
     fn state_with_model(model_id: ModelId, supports_lora: bool) -> ModelRuntimeState {
