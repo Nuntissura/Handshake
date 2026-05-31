@@ -488,6 +488,13 @@ impl CloudHypervisorAdapter {
         reclaimed
     }
 
+    /// Release a restore reservation/handle from the registry (snapshot-clone
+    /// safety: a failed restore must not leave its snapshot marked live forever).
+    /// Best-effort under the std lock — a poisoned lock cannot block teardown.
+    fn release_restore_reservation(&self, handle_id: Uuid) {
+        let _ = self.handles.lock().map(|mut map| map.remove(&handle_id));
+    }
+
     fn ensure_handle(&self, handle: &ProcessHandle) -> Result<(), SandboxAdapterError> {
         if handle.adapter_id != AdapterId::new(CLOUD_HYPERVISOR_ADAPTER_ID) {
             return Err(SandboxAdapterError::ProcessHandleStale {
@@ -1197,8 +1204,17 @@ impl SandboxAdapter for CloudHypervisorAdapter {
         // only HOST-side resources, not guest-internal identity. Sequential
         // restore-after-kill is fine (the prior VM is flagged `killed`); only
         // concurrently-live clones are refused.
+        // Mint the restored handle id EARLY so the clone-safety check and the
+        // reservation are ATOMIC under one lock acquisition: otherwise two
+        // concurrent restore() calls of the same snapshot could both pass the
+        // check before either records its handle (TOCTOU), defeating the gate.
+        let handle = ProcessHandle::new(
+            AdapterId::new(CLOUD_HYPERVISOR_ADAPTER_ID),
+            None,
+            format!("hsk-ch-restored-{}", Uuid::now_v7().simple()),
+        );
         {
-            let guard = self
+            let mut guard = self
                 .handles
                 .lock()
                 .map_err(|error| snapshot_failed(format!("handle registry poisoned: {error}")))?;
@@ -1215,6 +1231,14 @@ impl SandboxAdapter for CloudHypervisorAdapter {
                     snapshot.snapshot_dir
                 )));
             }
+            // RESERVE the snapshot atomically: insert a placeholder handle (no
+            // live VM yet) marked `restored_from`, so a concurrent restore sees a
+            // live clone and is refused. The placeholder is promoted to the real
+            // PersistentVm on success, and REMOVED on every failure path below
+            // (otherwise a failed restore would block the snapshot forever).
+            let mut reservation = HandleState::default();
+            reservation.restored_from = Some(snapshot.snapshot_dir.clone());
+            guard.insert(handle.id, reservation);
         }
 
         // Restore into a FULLY INDEPENDENT sandbox (Master Spec v02.187 §3.5.7
@@ -1262,11 +1286,13 @@ impl SandboxAdapter for CloudHypervisorAdapter {
             Ok(prep) => prep,
             Err(error) => {
                 let _ = remove_wsl_path(&self.config, &restore_root).await;
+                self.release_restore_reservation(handle.id);
                 return Err(error);
             }
         };
         if !String::from_utf8_lossy(&prep.stdout).contains("HSK_RESTORE_PREP_OK") {
             let _ = remove_wsl_path(&self.config, &restore_root).await;
+            self.release_restore_reservation(handle.id);
             return Err(snapshot_failed(format!(
                 "failed to prepare independent restore copy from `{}` (exit {}): {}",
                 snapshot.snapshot_dir,
@@ -1286,7 +1312,14 @@ impl SandboxAdapter for CloudHypervisorAdapter {
             format!("source_url=file://{restore_root},resume=true"),
         ];
 
-        let child = spawn_persistent_child(self.config.wsl_exe(), &restore_args)?;
+        let child = match spawn_persistent_child(self.config.wsl_exe(), &restore_args) {
+            Ok(child) => child,
+            Err(error) => {
+                let _ = remove_wsl_path(&self.config, &restore_root).await;
+                self.release_restore_reservation(handle.id);
+                return Err(error);
+            }
+        };
 
         // Wait for the restored VM's API socket to appear (proves CH came up).
         // On timeout, clean the whole restore root (mirrors spawn_persistent's
@@ -1296,14 +1329,9 @@ impl SandboxAdapter for CloudHypervisorAdapter {
             wait_for_wsl_path(&self.config, &api_socket, PERSISTENT_BOOT_TIMEOUT_MS).await
         {
             let _ = remove_wsl_path(&self.config, &restore_root).await;
+            self.release_restore_reservation(handle.id);
             return Err(error);
         }
-
-        let handle = ProcessHandle::new(
-            AdapterId::new(CLOUD_HYPERVISOR_ADAPTER_ID),
-            None,
-            format!("hsk-ch-restored-{}", Uuid::now_v7().simple()),
-        );
 
         // The restored VM owns its private restore root (the snapshot COPY) as
         // its scratch + console. kill() reclaims only this copy, never the
