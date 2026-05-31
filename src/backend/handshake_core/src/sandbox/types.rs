@@ -173,6 +173,34 @@ pub struct ResourceLimits {
     pub memory_bytes: Option<u64>,
     pub cpu_cores: Option<u16>,
     pub timeout_ms: Option<u64>,
+    /// rank-6 noisy-neighbor mitigation: per-device token-bucket rate limits in
+    /// bytes/sec, so one worktree cannot starve siblings of disk/net bandwidth
+    /// (the Firecracker NSDI'20 per-device limiter pattern -- a config property
+    /// of each device, not an external monitor). `None` = unlimited (the current
+    /// behavior). Adapters map these onto their device-limiter argv (e.g. podman
+    /// `--device-read-bps` / `--device-write-bps`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub disk_read_bytes_per_sec: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub disk_write_bytes_per_sec: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub net_bandwidth_bytes_per_sec: Option<u64>,
+}
+
+impl ResourceLimits {
+    /// rank-6: cap per-device disk bandwidth (read + write bytes/sec) to bound a
+    /// worktree's block I/O footprint against noisy-neighbor starvation.
+    pub fn with_disk_bandwidth(mut self, read_bps: u64, write_bps: u64) -> Self {
+        self.disk_read_bytes_per_sec = Some(read_bps);
+        self.disk_write_bytes_per_sec = Some(write_bps);
+        self
+    }
+
+    /// rank-6: cap a worktree's network bandwidth (bytes/sec).
+    pub fn with_net_bandwidth(mut self, bytes_per_sec: u64) -> Self {
+        self.net_bandwidth_bytes_per_sec = Some(bytes_per_sec);
+        self
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -318,6 +346,27 @@ mod tests {
     use super::super::adapter::{
         AdapterCapabilities, GpuPassthrough, IsolationStrength, IsolationTier, ThroughputClass,
     };
+
+    #[test]
+    fn resource_limits_rate_limit_builders_and_serde() {
+        // rank-6: per-device rate-limit builders set the bytes/sec caps; omitted
+        // limits skip serialization (back-compat with existing ResourceLimits JSON)
+        // and round-trip cleanly.
+        let limits = ResourceLimits::default()
+            .with_disk_bandwidth(10_000_000, 5_000_000)
+            .with_net_bandwidth(1_000_000);
+        assert_eq!(limits.disk_read_bytes_per_sec, Some(10_000_000));
+        assert_eq!(limits.disk_write_bytes_per_sec, Some(5_000_000));
+        assert_eq!(limits.net_bandwidth_bytes_per_sec, Some(1_000_000));
+
+        let json = serde_json::to_string(&limits).expect("serialize");
+        let back: ResourceLimits = serde_json::from_str(&json).expect("deserialize");
+        assert_eq!(back, limits);
+
+        // Unlimited (default) omits the rate-limit keys entirely.
+        let none = serde_json::to_string(&ResourceLimits::default()).expect("serialize default");
+        assert!(!none.contains("bytes_per_sec"), "omitted limits must not serialize: {none}");
+    }
 
     #[test]
     fn snapshot_ref_serde_round_trips_observe_path() {

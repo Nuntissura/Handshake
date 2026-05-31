@@ -143,11 +143,7 @@ pub fn escape_catalog() -> Vec<EscapeAttempt> {
         guest_path: std::path::PathBuf::from("/workspace/allowed"),
         mode: BindMode::ReadWrite,
     }];
-    let empty_resources = ResourceLimits {
-        memory_bytes: None,
-        cpu_cores: None,
-        timeout_ms: None,
-    };
+    let empty_resources = ResourceLimits::default();
 
     vec![
         EscapeAttempt {
