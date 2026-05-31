@@ -216,20 +216,62 @@ pub enum AdapterSlot {
     Unavailable { reason: String },
 }
 
+/// Real stdout retrieval channel for the parity harness.
+///
+/// The `SandboxAdapter` trait has no spawn-time stdout stream: both the
+/// WSL2-podman and Docker bridges launch their containers detached
+/// (`run -d`), so the process's stdout is not handed back on `spawn`.
+/// Recovering it requires an adapter-specific side channel
+/// (`podman logs <cid>` / `docker logs <cid>`). Rather than bake one
+/// adapter's idiom into the harness, the harness asks an optional
+/// `ParityStdoutSource` for the captured bytes after the workload has
+/// terminated. When no source is registered for an adapter, the harness
+/// records `stdout = None` and any declared stdout predicate is reported
+/// as a *failure to verify* (never an auto-pass — see
+/// [`evaluate_assertions`]). This keeps uncaptured-stdout coverage gaps
+/// loud instead of silently green.
+#[async_trait]
+pub trait ParityStdoutSource: Send + Sync {
+    /// Return the real bytes the workload wrote to stdout for `handle`,
+    /// or `None` when this source cannot recover them. The harness calls
+    /// this only after the process has reached a terminal state.
+    async fn parity_stdout(
+        &self,
+        handle: &crate::sandbox::types::ProcessHandle,
+        fixture: &WorkloadFixture,
+    ) -> Option<Vec<u8>>;
+}
+
 /// The harness itself. Construct with `new`, fill the adapter matrix
 /// (one slot per AdapterId), then call `run_fixtures(fixtures)`.
 pub struct CrossAdapterParityHarness {
     adapters: BTreeMap<AdapterId, AdapterSlot>,
+    stdout_sources: BTreeMap<AdapterId, Arc<dyn ParityStdoutSource>>,
 }
 
 impl CrossAdapterParityHarness {
     pub fn new() -> Self {
         Self {
             adapters: BTreeMap::new(),
+            stdout_sources: BTreeMap::new(),
         }
     }
 
     pub fn with_adapter(mut self, id: AdapterId, slot: AdapterSlot) -> Self {
+        self.adapters.insert(id, slot);
+        self
+    }
+
+    /// Register an adapter together with a real stdout-capture channel so
+    /// the harness can evaluate stdout predicates against the bytes the
+    /// workload actually produced on that adapter.
+    pub fn with_adapter_stdout(
+        mut self,
+        id: AdapterId,
+        slot: AdapterSlot,
+        stdout_source: Arc<dyn ParityStdoutSource>,
+    ) -> Self {
+        self.stdout_sources.insert(id.clone(), stdout_source);
         self.adapters.insert(id, slot);
         self
     }
@@ -260,8 +302,15 @@ impl CrossAdapterParityHarness {
             // local in-memory store. A shared batcher across adapters
             // would interleave events; one per adapter keeps the
             // per-fixture drain cleanly attributable.
+            let stdout_source = self.stdout_sources.get(adapter_id).cloned();
             for fixture in fixtures {
-                let outcome = run_single(adapter.clone(), adapter_id.clone(), fixture).await;
+                let outcome = run_single(
+                    adapter.clone(),
+                    adapter_id.clone(),
+                    fixture,
+                    stdout_source.clone(),
+                )
+                .await;
                 report.rows.push(outcome);
             }
         }
@@ -279,6 +328,7 @@ async fn run_single(
     raw_adapter: Arc<dyn SandboxAdapter>,
     adapter_id: AdapterId,
     fixture: &WorkloadFixture,
+    stdout_source: Option<Arc<dyn ParityStdoutSource>>,
 ) -> ScenarioOutcome {
     let store = Arc::new(InMemoryParityStore::default());
     let overflow = Arc::new(InMemoryParityOverflow::default());
@@ -431,7 +481,21 @@ async fn run_single(
         _ => None,
     });
 
-    let assertions = evaluate_assertions(&fixture.expected, exit_code, stop_reason.as_deref());
+    // Real stdout capture: ask the registered source for the bytes the
+    // workload actually wrote. When no source is registered for this
+    // adapter the harness keeps `None`, and any declared stdout predicate
+    // is reported as a verification failure (never auto-passed).
+    let stdout = match &stdout_source {
+        Some(source) => source.parity_stdout(&handle, fixture).await,
+        None => None,
+    };
+
+    let assertions = evaluate_assertions(
+        &fixture.expected,
+        exit_code,
+        stop_reason.as_deref(),
+        stdout.as_deref(),
+    );
 
     ScenarioOutcome::Ran(RanScenario {
         adapter_id,
@@ -439,13 +503,7 @@ async fn run_single(
         exit_code,
         stop_reason,
         sandbox_internal_id,
-        // Stdout capture path varies per adapter; the harness does not
-        // attempt to attach a stream here. The fixture's stdout
-        // predicate is evaluated in evaluate_assertions only when a
-        // future MT wires per-adapter stdout capture. Returned as None
-        // for now and the predicate is treated as `Skipped`
-        // (see evaluate_assertions).
-        stdout: None,
+        stdout,
         assertions,
     })
 }
@@ -454,6 +512,7 @@ fn evaluate_assertions(
     expected: &ExpectedOutcome,
     exit_code: Option<i32>,
     stop_reason: Option<&str>,
+    stdout: Option<&[u8]>,
 ) -> AssertionsReport {
     let mut report = AssertionsReport::default();
 
@@ -484,13 +543,54 @@ fn evaluate_assertions(
         ));
     }
 
-    // Stdout predicate is treated as auto-pass when capture isn't
-    // wired — the harness records this so future MTs can flip the
-    // check on as soon as adapters attach a real stream. The
-    // assertion never spuriously fails in this MT.
-    report.stdout_predicate_passed = true;
+    // Real stdout predicate evaluation against the bytes the workload
+    // actually produced. No auto-pass: when the fixture declares a
+    // predicate but no stdout was captured, that is a *verification
+    // failure*, not a free green. When the fixture declares no
+    // predicate, there is nothing to check and the dimension passes.
+    report.stdout_predicate_passed = match (&expected.stdout_predicate, stdout) {
+        (None, _) => true,
+        (Some(_), None) => false,
+        (Some(predicate), Some(bytes)) => predicate.matches(bytes),
+    };
+    if !report.stdout_predicate_passed {
+        match (&expected.stdout_predicate, stdout) {
+            (Some(predicate), None) => report.failures.push(format!(
+                "stdout predicate {predicate:?} could not be verified: no stdout was captured on this adapter (register a ParityStdoutSource to exercise this assertion)"
+            )),
+            (Some(predicate), Some(bytes)) => report.failures.push(format!(
+                "stdout predicate {:?} failed: captured stdout was {:?}",
+                predicate,
+                String::from_utf8_lossy(bytes)
+            )),
+            // (None, _) can never reach here because it sets passed=true.
+            (None, _) => {}
+        }
+    }
 
     report
+}
+
+impl StdoutPredicate {
+    /// Strict-parity match of this predicate against the real captured
+    /// stdout bytes. UTF-8 lossy is used for substring/exact comparison
+    /// so non-UTF-8 noise cannot crash the harness; `ExactBytes` and
+    /// `Substring` carry their needle as a `String` (the fixture JSON
+    /// shape), so the comparison is performed on the lossy decode.
+    pub fn matches(&self, stdout: &[u8]) -> bool {
+        let text = String::from_utf8_lossy(stdout);
+        match self {
+            // Exact parity: trailing newline tolerance is intentional —
+            // `echo` appends a newline that the predicate text does not
+            // carry, so we compare on the trimmed-trailing-newline form
+            // while still rejecting any other divergence.
+            StdoutPredicate::ExactBytes(expected) => {
+                text.trim_end_matches(['\n', '\r']) == expected.trim_end_matches(['\n', '\r'])
+            }
+            StdoutPredicate::Substring(needle) => text.contains(needle.as_str()),
+            StdoutPredicate::Empty => stdout.is_empty(),
+        }
+    }
 }
 
 // ----------------------------------------------------------------------------

@@ -30,7 +30,8 @@ use handshake_core::sandbox::types::{
 };
 use handshake_core::sandbox::wsl2_podman::adapter::WSL2_PODMAN_ADAPTER_ID;
 use handshake_core::test_harness::cross_adapter::{
-    AdapterSlot, CrossAdapterParityHarness, ScenarioOutcome, WorkloadFixture,
+    AdapterSlot, CrossAdapterParityHarness, ParityStdoutSource, ScenarioOutcome, StdoutPredicate,
+    WorkloadFixture,
 };
 
 const FIXTURE_DIR: &str = "tests/fixtures/cross_adapter_parity";
@@ -72,14 +73,18 @@ async fn sandbox_cross_adapter_parity_always_runs_on_two_stub_adapters() {
         "fixture catalog must match the FIXTURES constant"
     );
 
+    let stub_alpha = Arc::new(StubAdapter::new("stub_alpha"));
+    let stub_beta = Arc::new(StubAdapter::new("stub_beta"));
     let harness = CrossAdapterParityHarness::new()
-        .with_adapter(
+        .with_adapter_stdout(
             AdapterId::new("stub_alpha"),
-            AdapterSlot::Available(Arc::new(StubAdapter::new("stub_alpha"))),
+            AdapterSlot::Available(stub_alpha.clone()),
+            stub_alpha as Arc<dyn ParityStdoutSource>,
         )
-        .with_adapter(
+        .with_adapter_stdout(
             AdapterId::new("stub_beta"),
-            AdapterSlot::Available(Arc::new(StubAdapter::new("stub_beta"))),
+            AdapterSlot::Available(stub_beta.clone()),
+            stub_beta as Arc<dyn ParityStdoutSource>,
         );
 
     let report = harness.run_fixtures(&fixtures).await;
@@ -103,6 +108,121 @@ async fn sandbox_cross_adapter_parity_always_runs_on_two_stub_adapters() {
     for fixture in &fixtures {
         harness_parity_assert(&report, &fixture.name);
     }
+
+    // Every assertion (including the now-real stdout predicate) must pass
+    // on the matching stdout path. This is the genuine-pass half of the
+    // no-auto-pass proof: the stdout_capture fixture declares a substring
+    // predicate, the stub emits the matching bytes, and the harness
+    // evaluates it for real.
+    for run in report.ran() {
+        assert!(
+            run.assertions.is_ok(),
+            "fixture {} on {} should pass all assertions; failures={:?}",
+            run.fixture_name,
+            run.adapter_id.as_str(),
+            run.assertions.failures
+        );
+    }
+
+    // Pin the real-capture path explicitly for the stdout_capture row:
+    // the harness must have captured the genuine bytes (not None) and the
+    // stdout predicate dimension must have evaluated to passed.
+    let stdout_row = report
+        .ran()
+        .find(|run| run.fixture_name == "stdout_capture")
+        .expect("stdout_capture must have run on the stub adapters");
+    assert_eq!(
+        stdout_row.stdout.as_deref(),
+        Some(b"handshake-mt057-stdout\n".as_slice()),
+        "stdout_capture must record the real captured bytes, not None"
+    );
+    assert!(
+        stdout_row.assertions.stdout_predicate_passed,
+        "stdout predicate must genuinely pass against matching captured bytes"
+    );
+}
+
+#[tokio::test]
+async fn sandbox_cross_adapter_parity_stdout_predicate_fails_on_mismatch() {
+    // No-auto-pass proof, failing half: an adapter that emits the WRONG
+    // stdout bytes must make the stdout predicate FAIL. If the harness
+    // still auto-passed the predicate (the MT-057 bug), this assertion
+    // would not hold.
+    let fixtures = load_fixtures();
+    let liar = Arc::new(StubAdapter::new_with_corrupt_stdout("stub_liar"));
+    let harness = CrossAdapterParityHarness::new().with_adapter_stdout(
+        AdapterId::new("stub_liar"),
+        AdapterSlot::Available(liar.clone()),
+        liar as Arc<dyn ParityStdoutSource>,
+    );
+    let report = harness.run_fixtures(&fixtures).await;
+
+    let stdout_row = report
+        .ran()
+        .find(|run| run.fixture_name == "stdout_capture")
+        .expect("stdout_capture must have run");
+    assert!(
+        !stdout_row.assertions.stdout_predicate_passed,
+        "mismatched stdout must FAIL the predicate (no auto-pass); captured={:?}",
+        stdout_row.stdout.as_deref().map(String::from_utf8_lossy)
+    );
+    assert!(
+        !stdout_row.assertions.is_ok(),
+        "a failed stdout predicate must surface in the assertions failure list"
+    );
+    assert!(
+        stdout_row
+            .assertions
+            .failures
+            .iter()
+            .any(|f| f.contains("stdout predicate")),
+        "failure message must name the stdout predicate; got {:?}",
+        stdout_row.assertions.failures
+    );
+}
+
+#[tokio::test]
+async fn sandbox_cross_adapter_parity_stdout_predicate_fails_when_uncaptured() {
+    // Honesty guard: when an adapter has NO registered stdout source, a
+    // declared stdout predicate must be reported as a verification
+    // failure (not silently green). This is the path real podman/docker
+    // adapters take today (no spawn-stdout side channel wired), and it
+    // must surface as a loud coverage gap rather than a false pass.
+    let fixtures = load_fixtures();
+    let harness = CrossAdapterParityHarness::new().with_adapter(
+        AdapterId::new("stub_no_stdout"),
+        AdapterSlot::Available(Arc::new(StubAdapter::new("stub_no_stdout"))),
+    );
+    let report = harness.run_fixtures(&fixtures).await;
+
+    let stdout_row = report
+        .ran()
+        .find(|run| run.fixture_name == "stdout_capture")
+        .expect("stdout_capture must have run");
+    assert!(stdout_row.stdout.is_none(), "no source => stdout is None");
+    assert!(
+        !stdout_row.assertions.stdout_predicate_passed,
+        "uncaptured stdout against a declared predicate must NOT auto-pass"
+    );
+
+    // Fixtures that declare no stdout predicate (e.g. trivial_exit) must
+    // still pass the stdout dimension — there is nothing to verify.
+    let trivial_row = report
+        .ran()
+        .find(|run| run.fixture_name == "trivial_exit")
+        .expect("trivial_exit must have run");
+    assert!(
+        trivial_row.assertions.stdout_predicate_passed,
+        "a fixture with no stdout predicate must pass the stdout dimension even without capture"
+    );
+
+    // Cross-check the StdoutPredicate matcher directly.
+    assert!(StdoutPredicate::Substring("abc".to_string()).matches(b"xxabcxx"));
+    assert!(!StdoutPredicate::Substring("abc".to_string()).matches(b"xyz"));
+    assert!(StdoutPredicate::ExactBytes("hi".to_string()).matches(b"hi\n"));
+    assert!(!StdoutPredicate::ExactBytes("hi".to_string()).matches(b"hiya"));
+    assert!(StdoutPredicate::Empty.matches(b""));
+    assert!(!StdoutPredicate::Empty.matches(b"x"));
 }
 
 #[tokio::test]
@@ -279,6 +399,10 @@ struct StubAdapter {
     /// adversarial disagreement test to force divergence across two
     /// otherwise-identical stubs.
     exit_offset: i32,
+    /// When true, the stub emits deliberately wrong stdout bytes so the
+    /// stdout predicate genuinely FAILS — proving the predicate is not an
+    /// auto-pass. Used only by the adversarial stdout-mismatch test.
+    corrupt_stdout: bool,
     state: Mutex<StubState>,
 }
 
@@ -292,6 +416,12 @@ struct StubState {
 struct ProcessState {
     scripted_exit_code: i32,
     killed: bool,
+    /// Real stdout bytes the stub "process" produced, computed at spawn
+    /// from the workload command (see StubAdapter::scripted_stdout). The
+    /// harness reads these back through the ParityStdoutSource channel so
+    /// the stdout predicate is evaluated against genuine bytes and can
+    /// fail on mismatch.
+    stdout: Vec<u8>,
 }
 
 impl StubAdapter {
@@ -299,6 +429,7 @@ impl StubAdapter {
         Self {
             adapter_id: adapter_id.to_string(),
             exit_offset: 0,
+            corrupt_stdout: false,
             state: Mutex::new(StubState::default()),
         }
     }
@@ -307,8 +438,33 @@ impl StubAdapter {
         Self {
             adapter_id: adapter_id.to_string(),
             exit_offset: offset,
+            corrupt_stdout: false,
             state: Mutex::new(StubState::default()),
         }
+    }
+
+    /// A stub that emits wrong stdout, used to prove the stdout predicate
+    /// can fail (no auto-pass).
+    fn new_with_corrupt_stdout(adapter_id: &str) -> Self {
+        Self {
+            adapter_id: adapter_id.to_string(),
+            exit_offset: 0,
+            corrupt_stdout: true,
+            state: Mutex::new(StubState::default()),
+        }
+    }
+
+    /// Deterministic stdout bytes the stub "process" writes for a given
+    /// workload. Mirrors what a real `echo`/`sh -c` would emit so the
+    /// stdout predicate is exercised against genuine output. Commands
+    /// other than the stdout-capture echo produce empty stdout, matching
+    /// the fixtures (none of which declare a non-empty stdout predicate).
+    fn scripted_stdout(spec: &ProcessSpec) -> Vec<u8> {
+        let joined = spec.cmd.join(" ");
+        if joined.contains("echo handshake-mt057-stdout") {
+            return b"handshake-mt057-stdout\n".to_vec();
+        }
+        Vec::new()
     }
 
     fn scripted_exit_code(spec: &ProcessSpec) -> i32 {
@@ -345,6 +501,12 @@ impl StubAdapter {
 impl SandboxAdapter for StubAdapter {
     async fn spawn(&self, spec: ProcessSpec) -> Result<ProcessHandle, SandboxAdapterError> {
         let scripted = Self::scripted_exit_code(&spec) + self.exit_offset;
+        let mut stdout = Self::scripted_stdout(&spec);
+        if self.corrupt_stdout && !stdout.is_empty() {
+            // Deliberately diverge from what the workload would emit so
+            // the stdout predicate has something real to reject.
+            stdout = b"corrupted-stdout-does-not-match\n".to_vec();
+        }
         let handle = ProcessHandle::new(
             AdapterId::new(&self.adapter_id),
             Some(99_999),
@@ -355,6 +517,7 @@ impl SandboxAdapter for StubAdapter {
             ProcessState {
                 scripted_exit_code: scripted,
                 killed: false,
+                stdout,
             },
         );
         Ok(handle)
@@ -452,5 +615,21 @@ filesystem_isolation_strength: IsolationStrength::Strong,
             requires_nested_virt: false,
             supports_snapshot: false,
         }
+    }
+}
+
+#[async_trait]
+impl ParityStdoutSource for StubAdapter {
+    async fn parity_stdout(
+        &self,
+        handle: &ProcessHandle,
+        _fixture: &WorkloadFixture,
+    ) -> Option<Vec<u8>> {
+        self.state
+            .lock()
+            .unwrap()
+            .by_handle
+            .get(&handle.id)
+            .map(|state| state.stdout.clone())
     }
 }

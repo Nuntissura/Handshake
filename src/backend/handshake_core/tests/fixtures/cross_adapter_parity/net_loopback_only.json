@@ -1,7 +1,7 @@
 {
   "schema_id": "hsk.sandbox_cross_adapter_parity@1",
   "name": "net_loopback_only",
-  "description": "With NetPolicy=LoopbackOnly, verify loopback is reachable while outbound DNS still fails. Smoke-tests by binding+connecting a TCP socket on 127.0.0.1 via a small shell pipeline. Exit_code parity is the assertion.",
+  "description": "With NetPolicy=LoopbackOnly, verify loopback is reachable while outbound DNS still fails. Smoke-tests by binding+connecting a TCP socket on 127.0.0.1 via a small shell pipeline. exit_code_class=zero asserts loopback was honestly reachable, so a silent LoopbackOnly->none coercion (which would deny the loopback and make `nc -z` fail non-zero) is caught. This matches the honest adapter behavior set by MT-044/047: the WSL2-podman adapter wires real slirp4netns:allow_host_loopback=true so loopback reaches the host and `nc -z 127.0.0.1` exits 0; the Docker bridge refuses LoopbackOnly LOUDLY (NetPolicyApplyFailed) so its spawn fails and the harness records a Skipped row rather than a false pass — it never silently downgrades to none.",
   "spec": {
     "id": "placeholder",
     "image_or_root": "alpine:3.20",
@@ -23,7 +23,7 @@
     "metadata": {}
   },
   "expected": {
-    "exit_code_class": "any",
+    "exit_code_class": "zero",
     "stop_reason_contains": "status:exited"
   }
 }
