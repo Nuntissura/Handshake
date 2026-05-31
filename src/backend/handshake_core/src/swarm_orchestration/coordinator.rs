@@ -120,11 +120,28 @@ pub struct SessionHandle {
     /// Held for the lifetime of the slot; dropping it returns the permit.
     permit: Option<OwnedSemaphorePermit>,
     started_at: DateTime<Utc>,
+    /// Board/lineage grouping (rank-2): the swarm + VM/sandbox worktree this
+    /// session belongs to, copied from the SpawnRequest. Lets the operator board
+    /// group sessions into swimlanes, the ledger STOP metadata record the
+    /// grouping, and the Flight Recorder drill down by swarm/worktree. `None`
+    /// when the session is ungrouped/ad-hoc.
+    swarm_id: Option<String>,
+    worktree_id: Option<String>,
 }
 
 impl SessionHandle {
     pub fn state(&self) -> ModelSessionState {
         self.state
+    }
+
+    /// The swarm this session is grouped under (board swimlane / per-swarm scope).
+    pub fn swarm_id(&self) -> Option<&str> {
+        self.swarm_id.as_deref()
+    }
+
+    /// The VM/sandbox worktree this session runs inside (per-worktree recovery).
+    pub fn worktree_id(&self) -> Option<&str> {
+        self.worktree_id.as_deref()
     }
 }
 
@@ -566,6 +583,21 @@ impl SwarmCoordinator {
             .map(|h| h.model_id)
     }
 
+    /// Board/lineage grouping for a live session: `(swarm_id, worktree_id)` as
+    /// copied from its SpawnRequest. Drives the operator board swimlanes and the
+    /// Flight-Recorder drill-down join. `None` if the instance is not live.
+    pub fn session_grouping(
+        &self,
+        instance_id: ModelInstanceId,
+    ) -> Option<(Option<String>, Option<String>)> {
+        self.inner
+            .registry
+            .lock()
+            .expect("registry poisoned")
+            .get(&instance_id)
+            .map(|h| (h.swarm_id.clone(), h.worktree_id.clone()))
+    }
+
     /// Test-only: the live `Arc<dyn ModelRuntime>` registered for an instance,
     /// so the env-gated real parallel test can drive a genuine generate against
     /// exactly the session the coordinator spawned.
@@ -705,6 +737,8 @@ impl SwarmCoordinator {
                 teardown: Some(live.teardown),
                 permit: Some(permit),
                 started_at: now,
+                swarm_id: request.swarm_id.clone(),
+                worktree_id: request.worktree_id.clone(),
             };
             registry.insert(instance_id, handle);
         }
@@ -1025,6 +1059,8 @@ async fn reap_expired(inner: &Arc<Inner>) {
                 "instance_id": instance_id.to_string(),
                 "reclaim_trigger": ReclaimTrigger::Stale.as_str(),
                 "respawn_storm_capped": over_storm_cap,
+                "swarm_id": handle.swarm_id,
+                "worktree_id": handle.worktree_id,
             }),
         };
         let _ = inner.ledger.record_stop(stop);

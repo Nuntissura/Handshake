@@ -68,6 +68,16 @@ pub struct SpawnRequest {
     /// integrity gate. Optional because a cloud-backed or test session may not
     /// have a local artifact.
     pub model_artifact_sha256: Option<String>,
+    /// Board/lineage grouping (rank-2 structural unlock): the swarm this session
+    /// belongs to. Becomes a swimlane on the operator board, a per-swarm budget
+    /// scope, a Flight-Recorder drill-down join key, and a calendar schedule
+    /// target. `None` for an ungrouped/ad-hoc session. Carried in the ledger
+    /// `metadata_jsonb` (no schema change) and on every `SwarmEvent`.
+    pub swarm_id: Option<String>,
+    /// Board/lineage grouping (rank-2): the VM/sandbox worktree this session runs
+    /// inside. Ties a session to its isolated worktree for per-worktree state
+    /// recovery and board grouping. `None` for a session not bound to a worktree.
+    pub worktree_id: Option<String>,
 }
 
 impl SpawnRequest {
@@ -90,6 +100,8 @@ impl SpawnRequest {
             parent_session_id: parent_session_id.into(),
             model_artifact_path: None,
             model_artifact_sha256: None,
+            swarm_id: None,
+            worktree_id: None,
         }
     }
 
@@ -130,6 +142,26 @@ impl SpawnRequest {
     pub fn with_mt(mut self, mt_id: impl Into<String>) -> Self {
         self.mt_id = Some(mt_id.into());
         self
+    }
+
+    /// Group this session under a swarm (board swimlane / per-swarm scope).
+    pub fn with_swarm(mut self, swarm_id: impl Into<String>) -> Self {
+        self.swarm_id = Some(swarm_id.into());
+        self
+    }
+
+    /// Bind this session to a VM/sandbox worktree (per-worktree recovery + board).
+    pub fn with_worktree(mut self, worktree_id: impl Into<String>) -> Self {
+        self.worktree_id = Some(worktree_id.into());
+        self
+    }
+
+    pub fn swarm_id(&self) -> Option<&str> {
+        self.swarm_id.as_deref()
+    }
+
+    pub fn worktree_id(&self) -> Option<&str> {
+        self.worktree_id.as_deref()
     }
 
     pub fn with_artifact_sha256(mut self, sha256: impl Into<String>) -> Self {

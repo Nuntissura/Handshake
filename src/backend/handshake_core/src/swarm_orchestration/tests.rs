@@ -320,6 +320,40 @@ fn test_load_spec() -> LoadSpec {
 }
 
 // ===========================================================================
+// RANK-2: board/lineage grouping (swarm_id / worktree_id) flows request -> handle.
+// ===========================================================================
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn rank2_spawned_session_carries_swarm_and_worktree_grouping() {
+    let (ledger, _drain) = ledger_pair();
+    let factory = Arc::new(ControllableFactory::new(
+        FactoryBehavior::Succeed,
+        Duration::from_millis(1),
+        ledger.clone(),
+    ));
+    let sink = Arc::new(RecordingSwarmSink::new());
+    let budget = RunBudget::defaulted(8)
+        .with_concurrency(8)
+        .with_lifetime_spawns(8);
+    let coordinator = SwarmCoordinator::new(SwarmConfig::new(budget), factory, sink, ledger);
+
+    // A grouped spawn: the swarm + worktree grouping copied from the SpawnRequest
+    // is readable per session (board swimlane / Flight-Recorder drill-down join).
+    let iid = instance(1);
+    let req = spawn_req(iid).with_swarm("swarm-alpha").with_worktree("wt-7");
+    coordinator.spawn_session(req).await.unwrap();
+    assert_eq!(
+        coordinator.session_grouping(iid),
+        Some((Some("swarm-alpha".to_string()), Some("wt-7".to_string())))
+    );
+
+    // An ungrouped spawn carries (None, None) — source-compatible default.
+    let iid2 = instance(2);
+    coordinator.spawn_session(spawn_req(iid2)).await.unwrap();
+    assert_eq!(coordinator.session_grouping(iid2), Some((None, None)));
+}
+
+// ===========================================================================
 // PROOF 1: concurrency cap holds under N>cap parallel spawns.
 // ===========================================================================
 
