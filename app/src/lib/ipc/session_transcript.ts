@@ -1,5 +1,15 @@
 import { invoke } from "@tauri-apps/api/core";
 
+import {
+  subscribeBoardEvents,
+  type SwarmBoardDelta,
+} from "./swarm_runtime";
+import {
+  defaultTerminalIpc,
+  type TerminalSession,
+  type TerminalSubscription,
+} from "./terminal";
+
 // IPC bindings for the WP-KERNEL-004 Unified Per-Session Record + Replay surface.
 //
 // GOAL (governance glue #1): give the operator a UNIFIED per-session record they
@@ -211,6 +221,103 @@ export const defaultSessionTranscriptIpc: SessionTranscriptIpc = {
   listSessions,
   getTranscript,
 };
+
+// ---------------------------------------------------------------------------
+// Live tail seam. The SessionReplayPanel "Live" mode subscribes to the EXISTING
+// push streams (swarm://event + terminal://output, with their resync signals)
+// and, on any event correlated to the focused session, incrementally re-fetches
+// the transcript TAIL via the SAME getTranscript aggregator (the single source
+// of truth — no forked client transcript model). This interface is the jsdom
+// injection seam: tests pass fakes that drive the subscriptions deterministically
+// (Tauri's event system + invoke are unavailable under jsdom).
+// ---------------------------------------------------------------------------
+
+/**
+ * The push-stream subscriptions the live tail needs, plus a terminal-session
+ * lister to resolve a `terminal://output` terminalSessionId -> the composite
+ * instanceId (the transcript session_id). Default impls bridge to the real
+ * swarm + terminal IPC; tests inject controllable fakes.
+ */
+export interface LiveTailIpc {
+  /** Subscribe to swarm board deltas + resync. Returns an unlisten fn. */
+  subscribeBoardEvents(
+    onDelta: (delta: SwarmBoardDelta) => void,
+    onResync: (dropped: number) => void,
+  ): Promise<() => void>;
+  /** Subscribe to the terminal output/exit/resync stream. Returns an unlisten fn. */
+  subscribeTerminal(sub: TerminalSubscription): Promise<() => void>;
+  /** List live terminal sessions (to map terminalSessionId -> instanceId). */
+  listTerminalSessions(): Promise<TerminalSession[]>;
+}
+
+export const defaultLiveTailIpc: LiveTailIpc = {
+  subscribeBoardEvents,
+  subscribeTerminal: (sub) => defaultTerminalIpc.subscribe(sub),
+  listTerminalSessions: () => defaultTerminalIpc.listSessions(),
+};
+
+/**
+ * A STABLE per-entry identity key for dedupe + React list keys across separate
+ * transcript fetches (the live tail re-fetches overlapping windows).
+ *
+ * CRITICAL: the post-merge `seq` is assigned per-fetch via `enumerate()` in the
+ * backend `merge_transcript` / `append_terminal_scrollback`, so it is NOT stable
+ * across fetches — a tail fetch returns entries seq-numbered `0..n` for THAT
+ * window. Keying by `seq` would cause duplicate rows and remounts. So:
+ *   - chat_turn      -> the chat record `messageId` (durable).
+ *   - fr_event       -> the FR UUIDv7 `eventId` (durable, globally unique).
+ *   - agent_activity -> the FR UUIDv7 `eventId` (these ARE FR events).
+ *   - terminal_chunk -> the serialized TerminalChunk carries NO event_id. The
+ *     FR-DERIVED command rows are keyed by their stable content tuple
+ *     (terminalSessionId + ts + frEvent/command); the LIVE-SCROLLBACK enrichment
+ *     row (no frEvent, no command, ts = Utc::now() re-synthesized every fetch)
+ *     is keyed ONLY by `terminal-live:<terminalSessionId>` so it is a single
+ *     rolling row REPLACED in place each fetch, never an accumulating duplicate.
+ *
+ * {@link isLiveScrollbackEntry} identifies that replace-in-place singleton so the
+ * live-tail merge can treat it specially.
+ */
+export function entryStableKey(e: SessionTranscriptEntry): string {
+  switch (e.kind) {
+    case "chat_turn":
+      return `chat:${e.messageId}`;
+    case "fr_event":
+      return `fr:${e.eventId}`;
+    case "agent_activity":
+      return `agent:${e.eventId}`;
+    case "process":
+      // Process rows are FR-derived; the durable signal is the process uuid +
+      // phase (a spawn and a completion share neither). Fall back to ts when the
+      // uuid is absent so the key is never empty.
+      return `process:${e.processUuid ?? "anon"}:${e.phase}:${e.ts}`;
+    case "terminal_chunk": {
+      const isLive =
+        (e.frEvent === null || e.frEvent === undefined) &&
+        (e.command === null || e.command === undefined);
+      if (isLive) return `terminal-live:${e.terminalSessionId}`;
+      // FR-derived terminal command/lifecycle row: stable content tuple.
+      return `terminal:${e.terminalSessionId}:${e.ts}:${e.frEvent ?? ""}:${e.command ?? ""}`;
+    }
+    default: {
+      const _never: never = e;
+      return String(_never);
+    }
+  }
+}
+
+/**
+ * True for the live-scrollback ENRICHMENT terminal row: a TerminalChunk with no
+ * `frEvent` and no `command` (only rolling captured `text`), synthesized at
+ * `Utc::now()` each fetch for a still-open capture session. This is the single
+ * rolling tail row that must be REPLACED by key, not appended, on every re-fetch.
+ */
+export function isLiveScrollbackEntry(e: SessionTranscriptEntry): e is TerminalChunkEntry {
+  return (
+    e.kind === "terminal_chunk" &&
+    (e.frEvent === null || e.frEvent === undefined) &&
+    (e.command === null || e.command === undefined)
+  );
+}
 
 /** The lanes, in stable UI display order, with human labels. */
 export const TRANSCRIPT_KINDS: { kind: TranscriptKind; label: string }[] = [

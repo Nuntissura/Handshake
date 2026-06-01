@@ -204,6 +204,54 @@ export function cardKey(id: { modelId: string; instance: number } | RawInstanceI
 }
 
 /**
+ * The composite `<model_id>#<instance>` of the session a SwarmEvent concerns, or
+ * null for events that carry no instance id (e.g. BreakerTripped). This is the
+ * SAME key the session_transcript aggregator uses as the session_id for a
+ * swarm/agent session, so the Session Replay live tail can correlate a pushed
+ * `swarm://event` to the focused session WITHOUT a backend lookup.
+ *
+ * Distinct from {@link eventTargetState}: that returns null for events that do
+ * not move a board column (SessionSpawned/ResourceAllocated/SpawnRejected/
+ * LeaseExpired's allocation events) even though they DO carry an instance id.
+ * The live tail only needs "is this event about the focused session?", so we
+ * extract the instance id from EVERY instance-bearing variant.
+ */
+export function eventInstanceKey(event: SwarmEvent): string | null {
+  if ("SessionSpawned" in event) return cardKey(event.SessionSpawned.instance_id);
+  if ("SessionReady" in event) return cardKey(event.SessionReady.instance_id);
+  if ("SessionStateChanged" in event) return cardKey(event.SessionStateChanged.instance_id);
+  if ("SessionCancelled" in event) return cardKey(event.SessionCancelled.instance_id);
+  if ("SessionCompleted" in event) return cardKey(event.SessionCompleted.instance_id);
+  if ("SessionFailed" in event) return cardKey(event.SessionFailed.instance_id);
+  if ("ResourceAllocated" in event) return cardKey(event.ResourceAllocated.instance_id);
+  if ("ResourceEvicted" in event) return cardKey(event.ResourceEvicted.instance_id);
+  if ("LeaseExpired" in event) return cardKey(event.LeaseExpired.instance_id);
+  if ("SpawnRejected" in event) return cardKey(event.SpawnRejected.instance_id);
+  // BreakerTripped carries only a signature, no instance id.
+  return null;
+}
+
+/**
+ * Whether a SwarmEvent moves the focused session to a TERMINAL lifecycle state
+ * (so the live tail can flip to idle — no more streaming for an ended session).
+ * Returns the terminal state for the concerned instance, or null otherwise.
+ */
+export function eventTerminalState(event: SwarmEvent): { key: string; state: string } | null {
+  if ("SessionCompleted" in event) return { key: cardKey(event.SessionCompleted.instance_id), state: "COMPLETED" };
+  if ("SessionFailed" in event) return { key: cardKey(event.SessionFailed.instance_id), state: "FAILED" };
+  if ("SessionCancelled" in event) return { key: cardKey(event.SessionCancelled.instance_id), state: "CANCELLED" };
+  if ("LeaseExpired" in event) return { key: cardKey(event.LeaseExpired.instance_id), state: "CANCELLED" };
+  if ("ResourceEvicted" in event)
+    return { key: cardKey(event.ResourceEvicted.instance_id), state: event.ResourceEvicted.terminal_state };
+  if ("SessionStateChanged" in event) {
+    const to = event.SessionStateChanged.to;
+    if (to === "COMPLETED" || to === "FAILED" || to === "CANCELLED")
+      return { key: cardKey(event.SessionStateChanged.instance_id), state: to };
+  }
+  return null;
+}
+
+/**
  * The lifecycle state a SwarmEvent moves a card TO, or null if the event does
  * not change a card's column (e.g. BreakerTripped). Used by the board reducer.
  */

@@ -41,7 +41,7 @@ const PAGE_SHELL = (css: string) => `<!doctype html>
 async function mountRealPanel(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   page: any,
-  mode: "open" | "collapsed",
+  mode: "open" | "collapsed" | "live",
 ): Promise<void> {
   const { js, css } = await buildSessionReplayHarness();
   await page.setContent(PAGE_SHELL(css), { waitUntil: "domcontentloaded" });
@@ -112,4 +112,39 @@ test("opened real session replay panel is readable: index + consolidated timelin
   await expect(page.locator("[data-testid='session-replay-empty']")).toBeVisible();
   await expect(page.locator("[data-testid='session-replay-empty-chat_turn']")).toBeVisible();
   await expect(page.locator("[data-testid='session-replay-entry-0']")).toHaveCount(0);
+});
+
+test("real session replay panel tails LIVE: status chip + appended rows as the session runs", async ({ page }) => {
+  await mountRealPanel(page, "live");
+
+  // The real lazy body mounts; select the streaming (swarm) session.
+  await expect(page.locator("[data-testid='session-replay-body']")).toBeVisible();
+  await page.locator("[data-testid='session-replay-row-claude-sonnet#0']").click();
+
+  // Live defaults ON for a swarm session: the toggle is active and the honest
+  // status chip reads "live" (a genuine streaming session, not polled/ended).
+  await expect(page.locator("[data-testid='session-replay-live-toggle']")).toHaveAttribute("data-active", "true");
+  await expect(page.locator("[data-testid='session-replay-live-status']")).toHaveAttribute("data-status", "live");
+
+  // The scripted live seam pushes two ticks shortly after mount: a toolcall-class
+  // FR event then a terminal chunk. The panel correlates each to the focused
+  // session and tail-fetches the growing transcript -> the NEW rows appear LIVE
+  // (proving the operator watches events arrive, not only after-the-fact).
+  await expect(page.locator("text=FR-EVT-LLM-INFER-START")).toBeVisible({ timeout: 6000 });
+  await expect(page.locator("text=cargo test --lib")).toBeVisible({ timeout: 6000 });
+
+  // Capture the live-tailing baseline (status chip + appended timeline). The
+  // live seam leaves the panel quiescent after its two scripted ticks; give the
+  // screenshot a generous timeout and skip the font-wait stall some headless
+  // targets hit by disabling animations.
+  await page.waitForLoadState("networkidle").catch(() => {});
+  await page.locator("[data-testid='capture-root']").screenshot({
+    path: path.join(baselineDir, "session-replay-live.png"),
+    animations: "disabled",
+    timeout: 15000,
+  });
+
+  // Toggling Live OFF returns to post-hoc review and the chip reads "idle".
+  await page.locator("[data-testid='session-replay-live-toggle']").click();
+  await expect(page.locator("[data-testid='session-replay-live-status']")).toHaveAttribute("data-status", "idle");
 });
