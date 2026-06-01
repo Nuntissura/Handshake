@@ -125,6 +125,17 @@ pub struct CliBridgePreset {
     pub default_timeout_seconds: u64,
     /// The `--version`-style preflight argument the `test_config` command uses.
     pub version_arg: String,
+    /// OPT-IN structured capture variant. When the operator selects "structured
+    /// capture", the UI swaps `args_template` + `output_format` to these so the
+    /// CLI bridge parses the JSON event stream into typed agent-activity rows
+    /// (tool calls, thinking, text) in the per-session transcript. The HONEST
+    /// default above stays `RawText` (raw stdout, byte-faithful) — structured
+    /// capture is opt-in. `None` => this CLI has no known structured mode (the
+    /// operator can still set one manually).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub structured_args_template: Option<Vec<String>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub structured_output_format: Option<StoredOutputFormat>,
 }
 
 /// Inbound payload for the real preflight test.
@@ -245,6 +256,19 @@ pub fn cli_bridge_presets() -> Vec<CliBridgePreset> {
             ],
             default_timeout_seconds: 120,
             version_arg: "--version".to_string(),
+            // Opt-in structured capture: claude -p "<prompt>" --model <model>
+            //   --output-format stream-json --verbose
+            // (stream-json requires --verbose in headless/-p mode).
+            structured_args_template: Some(vec![
+                "-p".to_string(),
+                "{prompt}".to_string(),
+                "--model".to_string(),
+                "{model}".to_string(),
+                "--output-format".to_string(),
+                "stream-json".to_string(),
+                "--verbose".to_string(),
+            ]),
+            structured_output_format: Some(StoredOutputFormat::JsonStream),
         },
         CliBridgePreset {
             id: "codex_cli".to_string(),
@@ -263,6 +287,16 @@ pub fn cli_bridge_presets() -> Vec<CliBridgePreset> {
             model_allowlist: vec!["gpt-5.4".to_string(), "gpt-5.3-codex".to_string()],
             default_timeout_seconds: 120,
             version_arg: "--version".to_string(),
+            // Opt-in structured capture: codex exec --json … emits JSONL events.
+            structured_args_template: Some(vec![
+                "exec".to_string(),
+                "--json".to_string(),
+                "--skip-git-repo-check".to_string(),
+                "--model".to_string(),
+                "{model}".to_string(),
+                "{prompt}".to_string(),
+            ]),
+            structured_output_format: Some(StoredOutputFormat::JsonStream),
         },
         CliBridgePreset {
             id: "generic".to_string(),
@@ -278,6 +312,9 @@ pub fn cli_bridge_presets() -> Vec<CliBridgePreset> {
             model_allowlist: Vec::new(),
             default_timeout_seconds: 120,
             version_arg: "--version".to_string(),
+            // Generic CLI has no known structured mode; operator supplies one.
+            structured_args_template: None,
+            structured_output_format: None,
         },
     ]
 }

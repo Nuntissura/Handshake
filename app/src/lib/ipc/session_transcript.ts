@@ -25,8 +25,27 @@ import { invoke } from "@tauri-apps/api/core";
 // scroll/test anchoring.
 // ---------------------------------------------------------------------------
 
-/** The four lanes a transcript row can belong to (drives the UI kind filter). */
-export type TranscriptKind = "chat_turn" | "fr_event" | "terminal_chunk" | "process";
+/**
+ * The lanes a transcript row can belong to (drives the UI kind filter).
+ *
+ * `agent_activity` is the structured agentic-CLI lane (WP-KERNEL-004 ROI add):
+ * the CLI bridge runtime, when its `output_format` is a JSON stream mode, parses
+ * its own stdout JSONL into typed agent-activity (tool calls, visible thinking,
+ * text) and emits `FR-EVT-AGENT-*` events that the session_transcript aggregator
+ * classifies (by `event_id`) into `AgentActivityEntry` rows. It rides the SAME
+ * FR-derived `fr` source bucket (these ARE Flight Recorder events); the kind
+ * filter is the user-facing distinction. In RawText mode no agent rows exist —
+ * the raw stdout flows to the terminal lane exactly as before (honest fallback).
+ */
+export type TranscriptKind =
+  | "chat_turn"
+  | "fr_event"
+  | "terminal_chunk"
+  | "process"
+  | "agent_activity";
+
+/** The structured agent-activity sub-kinds (mirrors backend `activityKind`). */
+export type AgentActivityKind = "tool_call" | "thinking" | "text" | "other";
 
 export interface ChatTurnEntry {
   kind: "chat_turn";
@@ -81,11 +100,35 @@ export interface ProcessEntry {
   payload: unknown;
 }
 
+/**
+ * One structured agent-activity row parsed from the agentic CLI's JSON output
+ * stream. Mirrors the backend `SessionTranscriptEntry::AgentActivity` serde
+ * (tag = "agent_activity", camelCase fields). DEFENSIVE: an unrecognized or
+ * malformed CLI line is never dropped — it arrives here as `activityKind:"other"`
+ * with the raw line in `text`, so capture stays lossless.
+ */
+export interface AgentActivityEntry {
+  kind: "agent_activity";
+  ts: string;
+  seq: number;
+  /** "tool_call" | "thinking" | "text" | "other" (backend `activityKind`). */
+  activityKind: AgentActivityKind;
+  /** Tool name, present for `tool_call` rows (e.g. "Bash", "command_execution"). */
+  name?: string | null;
+  /** Redacted tool input/args (JSON), present for `tool_call` rows. */
+  detail?: unknown;
+  /** Body text for thinking/text/other rows (raw line for `other`). */
+  text?: string | null;
+  /** The FR-EVT-AGENT-* family tag this row was classified from. */
+  eventId: string;
+}
+
 export type SessionTranscriptEntry =
   | ChatTurnEntry
   | FrEventEntry
   | TerminalChunkEntry
-  | ProcessEntry;
+  | ProcessEntry
+  | AgentActivityEntry;
 
 /** Per-source availability so the UI can render emptiness honestly. */
 export type SourceState = "present" | "empty" | "unavailable";
@@ -169,9 +212,10 @@ export const defaultSessionTranscriptIpc: SessionTranscriptIpc = {
   getTranscript,
 };
 
-/** The four lanes, in stable UI display order, with human labels. */
+/** The lanes, in stable UI display order, with human labels. */
 export const TRANSCRIPT_KINDS: { kind: TranscriptKind; label: string }[] = [
   { kind: "chat_turn", label: "Chat" },
+  { kind: "agent_activity", label: "Agent" },
   { kind: "terminal_chunk", label: "Terminal" },
   { kind: "fr_event", label: "Flight Recorder" },
   { kind: "process", label: "Process" },

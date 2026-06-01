@@ -10,6 +10,7 @@ import { Disclosure } from "../common/Disclosure";
 import {
   defaultSessionTranscriptIpc,
   TRANSCRIPT_KINDS,
+  type AgentActivityEntry,
   type SessionSummary,
   type SessionTranscriptEntry,
   type SessionTranscriptIpc,
@@ -57,6 +58,7 @@ export interface SessionReplayPanelProps {
 
 const KIND_STYLE: Record<TranscriptKind, { label: string; bg: string; fg: string }> = {
   chat_turn: { label: "chat", bg: "#dbeafe", fg: "#1e3a8a" },
+  agent_activity: { label: "agent", bg: "#cffafe", fg: "#155e75" },
   terminal_chunk: { label: "terminal", bg: "#dcfce7", fg: "#14532d" },
   fr_event: { label: "fr", bg: "#fef3c7", fg: "#78350f" },
   process: { label: "process", bg: "#ede9fe", fg: "#4c1d95" },
@@ -64,14 +66,20 @@ const KIND_STYLE: Record<TranscriptKind, { label: string; bg: string; fg: string
 
 const SOURCE_EMPTY_MESSAGE: Record<TranscriptKind, string> = {
   chat_turn: "No chat turns recorded for this session.",
+  agent_activity: "No structured agent activity captured for this session.",
   terminal_chunk: "No terminal output captured for this session.",
   fr_event: "No Flight Recorder events recorded for this session.",
   process: "No process activity recorded for this session.",
 };
 
-/** Map a UI kind to the response sourceStatus key. */
+/**
+ * Map a UI kind to the response sourceStatus key. `agent_activity` rides the
+ * FR-derived `fr` source bucket (agent rows ARE Flight Recorder events); the
+ * kind filter is the user-facing distinction.
+ */
 const KIND_TO_SOURCE: Record<TranscriptKind, keyof SessionTranscriptResponse["sourceStatus"]> = {
   chat_turn: "chat",
+  agent_activity: "fr",
   terminal_chunk: "terminal",
   fr_event: "fr",
   process: "process",
@@ -214,6 +222,8 @@ function renderEntryBody(entry: SessionTranscriptEntry) {
           </pre>
         </details>
       );
+    case "agent_activity":
+      return renderAgentActivityBody(entry);
     case "process":
       return (
         <div className="session-replay__process">
@@ -233,6 +243,103 @@ function renderEntryBody(entry: SessionTranscriptEntry) {
       const _never: never = entry;
       return <span>{String(_never)}</span>;
     }
+  }
+}
+
+/**
+ * Render a structured agent-activity row (parsed from the agentic CLI's JSON
+ * stream) distinctly per sub-kind:
+ *   - tool_call: bold name + a collapsible <details> with the redacted args,
+ *   - thinking:  muted, italic body (the model's visible reasoning),
+ *   - text:      a normal pre-wrapped body (model-facing text),
+ *   - other:     monospace raw body + a "raw" chip so the HONEST defensive
+ *                fallback (an unrecognized/malformed CLI line, never dropped) is
+ *                visually obvious to the operator.
+ */
+function renderAgentActivityBody(entry: AgentActivityEntry) {
+  switch (entry.activityKind) {
+    case "tool_call":
+      return (
+        <details className="session-replay__agent session-replay__agent--tool" data-agent-kind="tool_call">
+          <summary style={{ cursor: "pointer", listStyle: "revert" }}>
+            <span style={{ color: "#155e75", fontWeight: 600 }}>⚙ {entry.name || "tool"}</span>
+            {entry.detail !== undefined && entry.detail !== null ? (
+              <span style={{ color: "var(--hs-color-text-subtle)", marginLeft: 6 }}>
+                {payloadSummary(entry.detail)}
+              </span>
+            ) : null}
+          </summary>
+          {entry.detail !== undefined && entry.detail !== null ? (
+            <pre
+              style={{
+                margin: "4px 0 0",
+                fontSize: 11,
+                whiteSpace: "pre-wrap",
+                wordBreak: "break-word",
+                background: "var(--hs-color-surface-muted, #f3f4f6)",
+                padding: 6,
+                borderRadius: 4,
+                maxHeight: 220,
+                overflow: "auto",
+              }}
+            >
+              {JSON.stringify(entry.detail, null, 2)}
+            </pre>
+          ) : null}
+        </details>
+      );
+    case "thinking":
+      return (
+        <div
+          className="session-replay__agent session-replay__agent--thinking"
+          data-agent-kind="thinking"
+          style={{
+            color: "var(--hs-color-text-subtle)",
+            fontStyle: "italic",
+            whiteSpace: "pre-wrap",
+            wordBreak: "break-word",
+          }}
+        >
+          {entry.text}
+        </div>
+      );
+    case "text":
+      return (
+        <div
+          className="session-replay__agent session-replay__agent--text"
+          data-agent-kind="text"
+          style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}
+        >
+          {entry.text}
+        </div>
+      );
+    case "other":
+    default:
+      return (
+        <div className="session-replay__agent session-replay__agent--other" data-agent-kind="other">
+          <span
+            style={{
+              fontSize: 10,
+              padding: "0 5px",
+              borderRadius: 8,
+              background: "var(--hs-color-surface-muted, #f3f4f6)",
+              color: "var(--hs-color-text-subtle)",
+              marginRight: 6,
+            }}
+          >
+            raw
+          </span>
+          <span
+            style={{
+              fontFamily: "ui-monospace, Consolas, monospace",
+              whiteSpace: "pre-wrap",
+              wordBreak: "break-word",
+            }}
+          >
+            {entry.text}
+          </span>
+        </div>
+      );
   }
 }
 

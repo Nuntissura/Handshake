@@ -48,6 +48,7 @@ use crate::process_ledger::{
 
 use super::error::{SwarmError, SwarmResult};
 use super::factory::{LiveSession, ModelSessionFactory, SessionTeardown};
+use super::ids::ModelInstanceId;
 use super::ids::SpawnRequest;
 
 use super::coordinator::{SwarmConfig, SwarmCoordinator};
@@ -293,7 +294,11 @@ impl CloudRuntimeBuilder for CliBridgeCloudRuntimeBuilder {
         ProviderKind::OfficialCli
     }
 
-    async fn build_loaded(&self, model_name: &str) -> Result<CloudLiveRuntime, String> {
+    async fn build_loaded(
+        &self,
+        model_name: &str,
+        session_id: Option<String>,
+    ) -> Result<CloudLiveRuntime, String> {
         // Honest CLI-executable preflight: a missing/unconfigured CLI is the
         // genuine not-configured runtime condition (the factory turns this into
         // ProviderNotConfigured). `register_bridge`'s own exe-exists check at
@@ -320,6 +325,20 @@ impl CloudRuntimeBuilder for CliBridgeCloudRuntimeBuilder {
             .load(self.cli_load_spec(model_name))
             .await
             .map_err(|e| format!("official CLI bridge load for model '{model_name}' failed: {e}"))?;
+        // Thread the COORDINATOR's session composite id verbatim so the
+        // structured `FR-EVT-AGENT-*` events this runtime emits in JSON-stream
+        // mode carry `session_span_id` + `payload.instance_id` EQUAL to the
+        // session-transcript aggregator's session key — so they actually reach
+        // the transcript / SessionReplayPanel on the REAL swarm path. We use the
+        // id the caller passes (the request's `instance_id`, which is what the
+        // coordinator registers + the board/capture/transcript key on), NOT a
+        // composite re-formed from the model id `load` just minted: the request
+        // carries a placeholder `model_id` distinct from the runtime-minted one,
+        // so a re-formed composite would silently never match the transcript.
+        // `None` (ad-hoc build) => model-id-only events.
+        if let Some(session_id) = session_id {
+            rt = rt.with_session_correlation(session_id);
+        }
         Ok(CloudLiveRuntime {
             runtime: Arc::new(rt),
             model_id,
@@ -455,7 +474,14 @@ impl CloudRuntimeBuilder for VaultCloudRuntimeBuilder {
         self.flavor.provider_kind()
     }
 
-    async fn build_loaded(&self, model_name: &str) -> Result<CloudLiveRuntime, String> {
+    async fn build_loaded(
+        &self,
+        model_name: &str,
+        // BYOK adapters do not emit per-session FR-EVT-AGENT-* structured
+        // capture (that is the official-CLI lane), so the swarm session id is
+        // unused here; accepted to satisfy the uniform trait signature.
+        _session_id: Option<String>,
+    ) -> Result<CloudLiveRuntime, String> {
         // (1) Honest credential preflight: a missing key is the genuine
         // not-configured runtime condition. We fetch through the SAME vault
         // lane the live generate path will use so there is no divergence
@@ -581,9 +607,23 @@ pub trait CloudRuntimeBuilder: Send + Sync + 'static {
     /// `Err(not_configured_reason)` when credentials/prereqs are absent — a
     /// real runtime condition, surfaced by the factory as
     /// [`SwarmError::ProviderNotConfigured`].
+    ///
+    /// `session_id` is the swarm composite session id (`<model_id>#<instance>`)
+    /// of the spawn this runtime serves — the SAME id the coordinator registers
+    /// the session under (`SpawnRequest::instance_id`) and the transcript
+    /// aggregator scopes on. A builder that emits per-session FlightRecorder
+    /// events (the official-CLI bridge's `FR-EVT-AGENT-*` structured capture)
+    /// threads it VERBATIM into the runtime so those events carry the correlation
+    /// the transcript matches. It MUST be the coordinator's session key, NOT a
+    /// composite re-formed from the model id `load` mints: the request carries a
+    /// placeholder `model_id` that differs from the runtime-minted one, so a
+    /// re-formed composite would never match the transcript scope. `None` means
+    /// an ad-hoc build with no swarm session correlation; the runtime degrades to
+    /// model-id-only events.
     async fn build_loaded(
         &self,
         model_name: &str,
+        session_id: Option<String>,
     ) -> Result<CloudLiveRuntime, String>;
 }
 
@@ -784,7 +824,7 @@ impl ProductionModelSessionFactory {
         };
 
         let CloudLiveRuntime { runtime, model_id } = builder
-            .build_loaded(&model_name)
+            .build_loaded(&model_name, Some(request.instance_id.to_string()))
             .await
             .map_err(|reason| SwarmError::ProviderNotConfigured {
                 provider: provider_str(provider).to_string(),
@@ -1204,7 +1244,11 @@ mod tests {
             fn provider(&self) -> ProviderKind {
                 ProviderKind::ByokCloud
             }
-            async fn build_loaded(&self, _model: &str) -> Result<CloudLiveRuntime, String> {
+            async fn build_loaded(
+                &self,
+                _model: &str,
+                _session_id: Option<String>,
+            ) -> Result<CloudLiveRuntime, String> {
                 Err("no openai api key in the operator secrets vault".to_string())
             }
         }
@@ -1248,7 +1292,11 @@ mod tests {
         fn provider(&self) -> ProviderKind {
             ProviderKind::ByokCloud
         }
-        async fn build_loaded(&self, _model: &str) -> Result<CloudLiveRuntime, String> {
+        async fn build_loaded(
+            &self,
+            _model: &str,
+            _session_id: Option<String>,
+        ) -> Result<CloudLiveRuntime, String> {
             let model_id = ModelId::new_v7();
             Ok(CloudLiveRuntime {
                 runtime: Arc::new(super::tests::CountingRuntime {
@@ -1545,7 +1593,7 @@ mod tests {
             "anthropic",
         );
         let built = builder
-            .build_loaded("claude-sonnet-4")
+            .build_loaded("claude-sonnet-4", None)
             .await
             .expect("configured lane builds a runtime");
         assert_eq!(built.runtime.adapter_name(), "anthropic_byok");
@@ -1562,7 +1610,7 @@ mod tests {
             VaultCloudRuntimeBuilder::new(CloudProviderFlavor::OpenAi, vault, "openai");
         // CloudLiveRuntime is not Debug (owns trait objects), so match rather
         // than expect_err.
-        let err = match builder.build_loaded("gpt-4o").await {
+        let err = match builder.build_loaded("gpt-4o", None).await {
             Ok(_) => panic!("expected not-configured error"),
             Err(e) => e,
         };
@@ -1796,7 +1844,7 @@ mod tests {
             std::path::PathBuf::from("D:/__handshake_no_such_cli__/claude.exe");
         let builder_absent =
             CliBridgeCloudRuntimeBuilder::new(Arc::new(MockCliSpawner), absent);
-        let err = match builder_absent.build_loaded("claude-sonnet").await {
+        let err = match builder_absent.build_loaded("claude-sonnet", None).await {
             Ok(_) => panic!("expected not-configured for an absent CLI"),
             Err(e) => e,
         };
@@ -1806,7 +1854,7 @@ mod tests {
         let builder_present =
             CliBridgeCloudRuntimeBuilder::new(Arc::new(MockCliSpawner), cli_config_present());
         let built = builder_present
-            .build_loaded("claude-sonnet")
+            .build_loaded("claude-sonnet", Some("mid#5".to_string()))
             .await
             .expect("present CLI builds a runtime");
         assert_eq!(built.runtime.adapter_name(), "official_cli_bridge");

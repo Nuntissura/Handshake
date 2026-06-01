@@ -38,9 +38,11 @@ function makeResponse(over: Partial<SessionTranscriptResponse>): SessionTranscri
     sourceStatus: ALL_PRESENT,
     entries: [
       { kind: "chat_turn", ts: "2026-05-30T10:00:00.000Z", seq: 0, role: "operator", content: "do the build", messageId: "m1" },
-      { kind: "terminal_chunk", ts: "2026-05-30T10:01:00.000Z", seq: 1, terminalSessionId: "t1", command: "cargo build" },
-      { kind: "fr_event", ts: "2026-05-30T10:02:00.000Z", seq: 2, eventType: "llm_inference", frEvent: "FR-EVT-LLM-INFER-END", actor: "agent", modelId: "claude#0", payload: { tokens: 42 }, eventId: "e1" },
-      { kind: "process", ts: "2026-05-30T10:03:00.000Z", seq: 3, processUuid: "p-1234", phase: "completed", modelId: "claude#0", payload: {} },
+      { kind: "agent_activity", ts: "2026-05-30T10:00:30.000Z", seq: 1, activityKind: "thinking", text: "I should run the build first.", eventId: "FR-EVT-AGENT-THINKING" },
+      { kind: "agent_activity", ts: "2026-05-30T10:00:45.000Z", seq: 2, activityKind: "tool_call", name: "Bash", detail: { command: "cargo build" }, eventId: "FR-EVT-AGENT-TOOLCALL" },
+      { kind: "terminal_chunk", ts: "2026-05-30T10:01:00.000Z", seq: 3, terminalSessionId: "t1", command: "cargo build" },
+      { kind: "fr_event", ts: "2026-05-30T10:02:00.000Z", seq: 4, eventType: "llm_inference", frEvent: "FR-EVT-LLM-INFER-END", actor: "agent", modelId: "claude#0", payload: { tokens: 42 }, eventId: "e1" },
+      { kind: "process", ts: "2026-05-30T10:03:00.000Z", seq: 5, processUuid: "p-1234", phase: "completed", modelId: "claude#0", payload: {} },
     ],
     ...over,
   };
@@ -107,9 +109,12 @@ describe("SessionReplayPanel", () => {
     await screen.findByTestId("session-replay-entry-0");
     const entries = screen.getByTestId("session-replay-entries");
     const rows = within(entries).getAllByTestId(/session-replay-entry-/);
-    // Four merged entries, in the seq order the aggregator assigned.
+    // Merged entries, in the seq order the aggregator assigned (agent-activity
+    // rows merge into the timeline by ts alongside the other lanes).
     expect(rows.map((r) => r.getAttribute("data-kind"))).toEqual([
       "chat_turn",
+      "agent_activity",
+      "agent_activity",
       "terminal_chunk",
       "fr_event",
       "process",
@@ -139,8 +144,9 @@ describe("SessionReplayPanel", () => {
       expect(last.kinds).not.toContain("chat_turn");
     });
     expect(screen.queryByTestId("session-replay-entry-0")).not.toBeInTheDocument();
-    // The other lanes remain.
-    expect(screen.getByTestId("session-replay-entry-1")).toHaveAttribute("data-kind", "terminal_chunk");
+    // The other lanes remain (agent_activity at seq 1, terminal at seq 3).
+    expect(screen.getByTestId("session-replay-entry-1")).toHaveAttribute("data-kind", "agent_activity");
+    expect(screen.getByTestId("session-replay-entry-3")).toHaveAttribute("data-kind", "terminal_chunk");
   });
 
   it("shows an honest empty-list state when no sessions are recorded", async () => {
@@ -216,6 +222,84 @@ describe("SessionReplayPanel", () => {
     await waitFor(() =>
       expect(ipc.getTranscript).toHaveBeenCalledWith(expect.objectContaining({ sessionId: "sess-2" })),
     );
+  });
+
+  it("renders a structured agent tool_call row: name + collapsible redacted args", async () => {
+    const { ipc } = makeIpc([makeSummary({ sessionId: "sess-1" })], makeResponse({}));
+    render(<SessionReplayPanel ipc={ipc} />);
+    open();
+    fireEvent.click(await screen.findByTestId("session-replay-row-sess-1"));
+    await screen.findByTestId("session-replay-entry-0");
+
+    // seq 2 is the tool_call (Bash). The row carries the agent kind + tool name,
+    // and the args are in a collapsible <details> (a real <pre> with the input).
+    const toolRow = screen.getByTestId("session-replay-entry-2");
+    expect(toolRow).toHaveAttribute("data-kind", "agent_activity");
+    const tool = within(toolRow).getByText(/Bash/);
+    expect(tool).toBeInTheDocument();
+    // The collapsible args contain the (redacted-on-the-backend) command input.
+    expect(toolRow).toHaveTextContent(/cargo build/);
+    expect(toolRow.querySelector("details[data-agent-kind='tool_call']")).not.toBeNull();
+  });
+
+  it("renders a structured agent thinking row distinctly (muted/italic visible reasoning)", async () => {
+    const { ipc } = makeIpc([makeSummary({ sessionId: "sess-1" })], makeResponse({}));
+    render(<SessionReplayPanel ipc={ipc} />);
+    open();
+    fireEvent.click(await screen.findByTestId("session-replay-row-sess-1"));
+    await screen.findByTestId("session-replay-entry-0");
+
+    // seq 1 is the thinking row.
+    const thinkRow = screen.getByTestId("session-replay-entry-1");
+    expect(thinkRow).toHaveAttribute("data-kind", "agent_activity");
+    expect(thinkRow).toHaveTextContent(/run the build first/);
+    const body = thinkRow.querySelector("[data-agent-kind='thinking']") as HTMLElement | null;
+    expect(body).not.toBeNull();
+    expect(body!.style.fontStyle).toBe("italic");
+  });
+
+  it("renders an agent 'other' row with a raw chip (HONEST defensive fallback, never dropped)", async () => {
+    const res = makeResponse({
+      entries: [
+        { kind: "agent_activity", ts: "2026-05-30T10:00:00.000Z", seq: 0, activityKind: "other", text: "{not valid json", eventId: "FR-EVT-AGENT-OTHER" },
+      ],
+    });
+    const { ipc } = makeIpc([makeSummary({ sessionId: "sess-1" })], res);
+    render(<SessionReplayPanel ipc={ipc} />);
+    open();
+    fireEvent.click(await screen.findByTestId("session-replay-row-sess-1"));
+
+    const row = await screen.findByTestId("session-replay-entry-0");
+    expect(row).toHaveAttribute("data-kind", "agent_activity");
+    // The raw line is preserved verbatim and flagged as raw (honest fallback).
+    expect(row).toHaveTextContent("raw");
+    expect(row).toHaveTextContent("{not valid json");
+    expect(row.querySelector("[data-agent-kind='other']")).not.toBeNull();
+  });
+
+  it("kind filter includes the Agent lane and toggling it off hides agent rows", async () => {
+    const { ipc, calls } = makeIpc([makeSummary({ sessionId: "sess-1" })], makeResponse({}));
+    render(<SessionReplayPanel ipc={ipc} />);
+    open();
+    fireEvent.click(await screen.findByTestId("session-replay-row-sess-1"));
+    await screen.findByTestId("session-replay-entry-0");
+
+    // The Agent filter chip exists and the agent rows are visible by default.
+    expect(screen.getByTestId("session-replay-filter-agent_activity")).toBeInTheDocument();
+    expect(screen.getByTestId("session-replay-entry-1")).toHaveAttribute("data-kind", "agent_activity");
+    expect(screen.getByTestId("session-replay-entry-2")).toHaveAttribute("data-kind", "agent_activity");
+
+    // Toggle Agent off -> agent rows disappear; backend re-queried without it.
+    fireEvent.click(screen.getByTestId("session-replay-filter-agent_activity"));
+    await waitFor(() => {
+      const last = calls.getTranscriptArgs[calls.getTranscriptArgs.length - 1];
+      expect(last.kinds).toBeTruthy();
+      expect(last.kinds).not.toContain("agent_activity");
+    });
+    expect(screen.queryByTestId("session-replay-entry-1")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("session-replay-entry-2")).not.toBeInTheDocument();
+    // Non-agent lanes remain (chat row at seq 0).
+    expect(screen.getByTestId("session-replay-entry-0")).toHaveAttribute("data-kind", "chat_turn");
   });
 
   it("is read-only: renders no text inputs, textareas, or stdin affordances", async () => {

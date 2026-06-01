@@ -52,9 +52,13 @@ const POPULATED: SessionTranscriptResponse = {
   sourceStatus: { chat: "present", fr: "present", terminal: "present", process: "present" },
   entries: [
     { kind: "chat_turn", ts: "2026-05-30T10:00:00.000Z", seq: 0, role: "operator", content: "Build handshake_core and report the gates.", messageId: "m1" },
-    { kind: "terminal_chunk", ts: "2026-05-30T10:01:00.000Z", seq: 1, terminalSessionId: "term-1", command: "cargo build --lib", text: "compiling handshake_core ... ok" },
-    { kind: "fr_event", ts: "2026-05-30T10:02:00.000Z", seq: 2, eventType: "llm_inference", frEvent: "FR-EVT-LLM-INFER-END", actor: "agent", modelId: "claude-sonnet#0", payload: { tokens: 184, request_id: "req-7" }, eventId: "e1" },
-    { kind: "process", ts: "2026-05-30T10:03:00.000Z", seq: 3, processUuid: "proc-9f2a", phase: "completed", modelId: "claude-sonnet#0", payload: { exit_code: 0 } },
+    { kind: "agent_activity", ts: "2026-05-30T10:00:20.000Z", seq: 1, activityKind: "thinking", text: "I'll compile the crate first, then read the gate output before reporting.", eventId: "FR-EVT-AGENT-THINKING" },
+    { kind: "agent_activity", ts: "2026-05-30T10:00:40.000Z", seq: 2, activityKind: "tool_call", name: "Bash", detail: { command: "cargo build --lib", cwd: "src/backend/handshake_core" }, eventId: "FR-EVT-AGENT-TOOLCALL" },
+    { kind: "agent_activity", ts: "2026-05-30T10:00:55.000Z", seq: 3, activityKind: "text", text: "Build succeeded; all gates green.", eventId: "FR-EVT-AGENT-TEXT" },
+    { kind: "agent_activity", ts: "2026-05-30T10:00:58.000Z", seq: 4, activityKind: "other", text: "{\"type\":\"future_unknown_event\",\"foo\":1}", eventId: "FR-EVT-AGENT-OTHER" },
+    { kind: "terminal_chunk", ts: "2026-05-30T10:01:00.000Z", seq: 5, terminalSessionId: "term-1", command: "cargo build --lib", text: "compiling handshake_core ... ok" },
+    { kind: "fr_event", ts: "2026-05-30T10:02:00.000Z", seq: 6, eventType: "llm_inference", frEvent: "FR-EVT-LLM-INFER-END", actor: "agent", modelId: "claude-sonnet#0", payload: { tokens: 184, request_id: "req-7" }, eventId: "e1" },
+    { kind: "process", ts: "2026-05-30T10:03:00.000Z", seq: 7, processUuid: "proc-9f2a", phase: "completed", modelId: "claude-sonnet#0", payload: { exit_code: 0 } },
   ],
 };
 

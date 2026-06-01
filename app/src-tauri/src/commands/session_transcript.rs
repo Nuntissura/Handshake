@@ -251,7 +251,10 @@ fn count_lanes(entries: &[SessionTranscriptEntry]) -> SourceCounts {
     for e in entries {
         match e.kind() {
             TranscriptKind::ChatTurn => counts.chat += 1,
-            TranscriptKind::FrEvent => counts.fr += 1,
+            // Agent-activity rows ARE FR events (classified from FR-EVT-AGENT-*),
+            // so they ride the `fr` source bucket; the kind filter is the
+            // user-facing distinction.
+            TranscriptKind::FrEvent | TranscriptKind::AgentActivity => counts.fr += 1,
             TranscriptKind::TerminalChunk => counts.terminal += 1,
             TranscriptKind::Process => counts.process += 1,
         }

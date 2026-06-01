@@ -48,6 +48,9 @@ use crate::flight_recorder::{FlightRecorderEvent, FlightRecorderEventType};
 pub enum TranscriptKind {
     ChatTurn,
     FrEvent,
+    /// Structured agent activity (tool call / thinking / text / other) parsed
+    /// from a JSON-stream CLI bridge run. Surfaced from `FR-EVT-AGENT-*` events.
+    AgentActivity,
     TerminalChunk,
     Process,
 }
@@ -60,6 +63,7 @@ impl TranscriptKind {
         match raw.trim() {
             "chat_turn" => Some(Self::ChatTurn),
             "fr_event" => Some(Self::FrEvent),
+            "agent_activity" => Some(Self::AgentActivity),
             "terminal_chunk" => Some(Self::TerminalChunk),
             "process" => Some(Self::Process),
             _ => None,
@@ -104,6 +108,30 @@ pub enum SessionTranscriptEntry {
         payload: Value,
         event_id: String,
     },
+    /// A structured agent-activity row, derived from an `FR-EVT-AGENT-*` event
+    /// emitted by the official-CLI bridge when run in a JSON-stream output mode.
+    /// Captures the operator's "all toolcalls, visible thought processes" as
+    /// typed records. NOTE: the raw CLI stdout still streams to the terminal lane
+    /// byte-faithfully; these rows are the TYPED projection of the SAME run, so a
+    /// viewer showing both lanes may see content twice — the kind filter lets the
+    /// operator pick. `activity_kind` is one of `tool_call|thinking|text|other`.
+    #[serde(rename_all = "camelCase")]
+    AgentActivity {
+        ts: DateTime<Utc>,
+        seq: u64,
+        /// `tool_call` | `thinking` | `text` | `other`.
+        activity_kind: String,
+        /// Tool name (only for `tool_call`).
+        #[serde(skip_serializing_if = "Option::is_none")]
+        name: Option<String>,
+        /// Redacted tool input object (only for `tool_call`).
+        #[serde(skip_serializing_if = "Option::is_none")]
+        detail: Option<Value>,
+        /// Body text for `thinking` / `text` / `other` (redacted).
+        #[serde(skip_serializing_if = "Option::is_none")]
+        text: Option<String>,
+        event_id: String,
+    },
     /// A terminal capture event (session open/close/command exec). The raw
     /// captured stdout stream — when a live terminal session is still attached —
     /// is appended by the aggregator as a `TerminalChunk` with `text` set.
@@ -142,6 +170,7 @@ impl SessionTranscriptEntry {
         match self {
             Self::ChatTurn { ts, .. }
             | Self::FrEvent { ts, .. }
+            | Self::AgentActivity { ts, .. }
             | Self::TerminalChunk { ts, .. }
             | Self::Process { ts, .. } => *ts,
         }
@@ -152,6 +181,7 @@ impl SessionTranscriptEntry {
         match self {
             Self::ChatTurn { .. } => TranscriptKind::ChatTurn,
             Self::FrEvent { .. } => TranscriptKind::FrEvent,
+            Self::AgentActivity { .. } => TranscriptKind::AgentActivity,
             Self::TerminalChunk { .. } => TranscriptKind::TerminalChunk,
             Self::Process { .. } => TranscriptKind::Process,
         }
@@ -162,6 +192,7 @@ impl SessionTranscriptEntry {
         match self {
             Self::ChatTurn { seq, .. }
             | Self::FrEvent { seq, .. }
+            | Self::AgentActivity { seq, .. }
             | Self::TerminalChunk { seq, .. }
             | Self::Process { seq, .. } => *seq,
         }
@@ -171,6 +202,7 @@ impl SessionTranscriptEntry {
         match self {
             Self::ChatTurn { seq, .. }
             | Self::FrEvent { seq, .. }
+            | Self::AgentActivity { seq, .. }
             | Self::TerminalChunk { seq, .. }
             | Self::Process { seq, .. } => *seq = value,
         }
@@ -204,6 +236,53 @@ fn payload_fr_event(payload: &Value) -> Option<String> {
         .get("fr_event")
         .and_then(Value::as_str)
         .map(str::to_string)
+}
+
+/// Read `payload.event_id` (string) if present. The INFER and AGENT events write
+/// the stable id under `event_id` (NOT `fr_event`), so the agent classify reads
+/// this key. Mirrors `events_agent_activity::agent_activity_event`.
+fn payload_event_id(payload: &Value) -> Option<String> {
+    payload
+        .get("event_id")
+        .and_then(Value::as_str)
+        .map(str::to_string)
+}
+
+/// The four stable `FR-EVT-AGENT-*` ids (kept local so this pure module does not
+/// depend on the flight_recorder events module). Mapped to the `activity_kind`
+/// string the frontend keys on.
+fn agent_activity_kind_for(event_id: &str) -> Option<&'static str> {
+    match event_id {
+        "FR-EVT-AGENT-TOOLCALL" => Some("tool_call"),
+        "FR-EVT-AGENT-THINKING" => Some("thinking"),
+        "FR-EVT-AGENT-TEXT" => Some("text"),
+        "FR-EVT-AGENT-OTHER" => Some("other"),
+        _ => None,
+    }
+}
+
+/// Build an `AgentActivity` row from an `FR-EVT-AGENT-*` event payload, copying
+/// `name` / `detail` / `text` straight from the payload the runtime wrote.
+fn agent_activity_entry(
+    event: &FlightRecorderEvent,
+    activity_kind: &str,
+) -> SessionTranscriptEntry {
+    let payload = &event.payload;
+    SessionTranscriptEntry::AgentActivity {
+        ts: event.timestamp,
+        seq: 0,
+        activity_kind: activity_kind.to_string(),
+        name: payload
+            .get("name")
+            .and_then(Value::as_str)
+            .map(str::to_string),
+        detail: payload.get("detail").cloned(),
+        text: payload
+            .get("text")
+            .and_then(Value::as_str)
+            .map(str::to_string),
+        event_id: event.event_id.to_string(),
+    }
 }
 
 /// Read `payload.process_uuid` (string) if present and non-empty.
@@ -245,6 +324,16 @@ fn is_terminal_event(event: &FlightRecorderEvent, fr_event: &Option<String>) -> 
 fn entries_from_fr_event(event: &FlightRecorderEvent) -> Vec<SessionTranscriptEntry> {
     let ts = event.timestamp;
     let fr_event = payload_fr_event(&event.payload);
+
+    // Structured agent-activity: an `FR-EVT-AGENT-*` event (id under
+    // `payload.event_id`) classifies to a typed `AgentActivity` row INSTEAD of a
+    // bare `FrEvent`. This is the single point of change for agent capture — the
+    // raw-seam fetch, union/dedup, and merge sort are all reused unchanged.
+    if let Some(event_id) = payload_event_id(&event.payload) {
+        if let Some(activity_kind) = agent_activity_kind_for(&event_id) {
+            return vec![agent_activity_entry(event, activity_kind)];
+        }
+    }
 
     if is_terminal_event(event, &fr_event) {
         let terminal_session_id = event
@@ -313,8 +402,9 @@ fn source_rank(entry: &SessionTranscriptEntry) -> u8 {
     match entry {
         SessionTranscriptEntry::ChatTurn { .. } => 0,
         SessionTranscriptEntry::FrEvent { .. } => 1,
-        SessionTranscriptEntry::TerminalChunk { .. } => 2,
-        SessionTranscriptEntry::Process { .. } => 3,
+        SessionTranscriptEntry::AgentActivity { .. } => 2,
+        SessionTranscriptEntry::TerminalChunk { .. } => 3,
+        SessionTranscriptEntry::Process { .. } => 4,
     }
 }
 
@@ -852,5 +942,127 @@ mod tests {
         );
         assert_eq!(TranscriptKind::from_ipc("process"), Some(TranscriptKind::Process));
         assert_eq!(TranscriptKind::from_ipc("bogus"), None);
+        assert_eq!(
+            TranscriptKind::from_ipc("agent_activity"),
+            Some(TranscriptKind::AgentActivity)
+        );
+    }
+
+    /// An `FR-EVT-AGENT-*` event classifies to an `AgentActivity` row (NOT a bare
+    /// `FrEvent`), copying name/detail/text from the payload.
+    fn agent_event(secs: i64, event_id: &str, payload: Value) -> FlightRecorderEvent {
+        let mut e = FlightRecorderEvent::new(
+            FlightRecorderEventType::System,
+            FlightRecorderActor::Agent,
+            Uuid::now_v7(),
+            payload,
+        )
+        .with_session_span("m#0".to_string());
+        e.timestamp = at(secs);
+        // The id lives under payload.event_id (matching the runtime emit).
+        let _ = event_id;
+        e
+    }
+
+    #[test]
+    fn fr_evt_agent_toolcall_classifies_to_agent_activity() {
+        let ev = agent_event(
+            5,
+            "FR-EVT-AGENT-TOOLCALL",
+            json!({
+                "event_id": "FR-EVT-AGENT-TOOLCALL",
+                "activity_kind": "tool_call",
+                "name": "Bash",
+                "detail": {"command": "ls -la"},
+                "instance_id": "m#0",
+            }),
+        );
+        let entries = entries_from_fr_event(&ev);
+        assert_eq!(entries.len(), 1, "single AgentActivity row");
+        match &entries[0] {
+            SessionTranscriptEntry::AgentActivity {
+                activity_kind,
+                name,
+                detail,
+                text,
+                ..
+            } => {
+                assert_eq!(activity_kind, "tool_call");
+                assert_eq!(name.as_deref(), Some("Bash"));
+                assert_eq!(
+                    detail.as_ref().and_then(|d| d.get("command")).unwrap(),
+                    "ls -la"
+                );
+                assert!(text.is_none());
+            }
+            other => panic!("expected AgentActivity, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn fr_evt_agent_thinking_classifies_with_text() {
+        let ev = agent_event(
+            5,
+            "FR-EVT-AGENT-THINKING",
+            json!({"event_id": "FR-EVT-AGENT-THINKING", "activity_kind": "thinking",
+                   "text": "let me reason"}),
+        );
+        match &entries_from_fr_event(&ev)[0] {
+            SessionTranscriptEntry::AgentActivity {
+                activity_kind, text, ..
+            } => {
+                assert_eq!(activity_kind, "thinking");
+                assert_eq!(text.as_deref(), Some("let me reason"));
+            }
+            other => panic!("expected AgentActivity, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn agent_activity_merges_in_timestamp_order_and_filters() {
+        let chat = vec![chat_row(1, 10, "user", "hello")];
+        let fr = vec![
+            agent_event(
+                20,
+                "FR-EVT-AGENT-TEXT",
+                json!({"event_id": "FR-EVT-AGENT-TEXT", "activity_kind": "text",
+                       "text": "answer"}),
+            ),
+            terminal_event(30, "term-1", "ls"),
+        ];
+        let merged = merge_transcript(chat, fr);
+        let kinds: Vec<TranscriptKind> = merged.iter().map(|e| e.kind()).collect();
+        assert_eq!(
+            kinds,
+            vec![
+                TranscriptKind::ChatTurn,
+                TranscriptKind::AgentActivity,
+                TranscriptKind::TerminalChunk,
+            ]
+        );
+        // Isolate the agent lane.
+        let only = filter_by_kinds(merged, Some(&[TranscriptKind::AgentActivity]));
+        assert_eq!(only.len(), 1);
+        assert_eq!(only[0].kind(), TranscriptKind::AgentActivity);
+    }
+
+    #[test]
+    fn agent_activity_serde_casing() {
+        let entry = SessionTranscriptEntry::AgentActivity {
+            ts: at(1),
+            seq: 0,
+            activity_kind: "tool_call".to_string(),
+            name: Some("Bash".to_string()),
+            detail: Some(json!({"command": "ls"})),
+            text: None,
+            event_id: "ev-1".to_string(),
+        };
+        let v = serde_json::to_value(&entry).unwrap();
+        assert_eq!(v["kind"], "agent_activity");
+        assert_eq!(v["activityKind"], "tool_call");
+        assert!(v.get("activity_kind").is_none(), "snake_case must not leak");
+        assert!(v.get("eventId").is_some(), "expected eventId");
+        // text is None -> skipped.
+        assert!(v.get("text").is_none(), "None text must be skipped");
     }
 }

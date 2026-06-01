@@ -14,6 +14,7 @@ use unicode_normalization::UnicodeNormalization;
 use uuid::Uuid;
 
 pub mod duckdb;
+pub mod events_agent_activity;
 pub mod events_llm_infer;
 pub mod fr_emitter;
 pub mod fr_event_registry;

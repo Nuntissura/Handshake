@@ -72,9 +72,22 @@ test("opened real session replay panel is readable: index + consolidated timelin
   // Select the populated session -> the consolidated, typed, ordered timeline.
   await page.locator("[data-testid='session-replay-row-claude-sonnet#0']").click();
   await expect(page.locator("[data-testid='session-replay-entry-0']")).toBeVisible();
-  // All four lanes present (chat + terminal + fr + process), in seq order.
+  // All lanes present (chat + agent + terminal + fr + process), in seq order.
   await expect(page.locator("[data-testid='session-replay-entry-0']")).toHaveAttribute("data-kind", "chat_turn");
-  await expect(page.locator("[data-testid='session-replay-entry-3']")).toHaveAttribute("data-kind", "process");
+  await expect(page.locator("[data-testid='session-replay-entry-7']")).toHaveAttribute("data-kind", "process");
+
+  // The structured agent-activity lane renders distinctly: a visible thinking
+  // row (italic reasoning), a tool_call row showing the tool name, a text row,
+  // and an HONEST raw-fallback "other" row — proving "all toolcalls + visible
+  // thought processes" surface as typed records, not just raw stdout.
+  await expect(page.locator("[data-testid='session-replay-entry-1']")).toHaveAttribute("data-kind", "agent_activity");
+  await expect(page.locator("[data-agent-kind='thinking']")).toBeVisible();
+  await expect(page.locator("[data-agent-kind='tool_call']")).toBeVisible();
+  await expect(page.locator("[data-agent-kind='tool_call']")).toContainText("Bash");
+  await expect(page.locator("[data-agent-kind='other']")).toContainText("raw");
+
+  // The Agent filter chip exists and is a distinct hit target.
+  await expect(page.locator("[data-testid='session-replay-filter-agent_activity']")).toBeVisible();
 
   // Filter chips are distinct, non-overlapping hit targets (no clobbered chips).
   const chat = await page.locator("[data-testid='session-replay-filter-chat_turn']").boundingBox();

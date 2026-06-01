@@ -41,10 +41,12 @@ use async_trait::async_trait;
 use futures::stream;
 use uuid::Uuid;
 
+use super::agent_activity::parse_line as parse_agent_line;
 use super::official_cli_bridge::{
-    CliBridgeConfig, CliSubprocessSpawner, OfficialCliBridgeRuntime,
+    CliBridgeConfig, CliKind, CliOutputFormat, CliSubprocessSpawner, OfficialCliBridgeRuntime,
 };
 use super::CloudLaneObservability;
+use crate::flight_recorder::events_agent_activity::agent_activity_event;
 use crate::flight_recorder::events_llm_infer::{
     infer_end_event, infer_start_event, infer_token_event, new_llm_infer_request_id,
     should_emit_token_event,
@@ -55,6 +57,66 @@ use crate::model_runtime::{
     GeneratedToken, KvCacheHandle, LoadSpec, LoraStackHandle, ModelCapabilities, ModelId,
     ModelRuntime, ProviderKind, Score, SteeringHookHandle, TokenStream,
 };
+use crate::terminal::redaction::{PatternRedactor, SecretRedactor};
+
+/// Hard cap on a single un-terminated stdout line buffered for structured
+/// parsing. A pathological CLI that never emits `\n` would otherwise grow the
+/// buffer unbounded; at the cap the accumulated bytes are flushed as ONE line
+/// (which the defensive parser turns into an `Other` activity — never dropped,
+/// never OOM). 1 MiB comfortably exceeds any real JSONL event line.
+const AGENT_ACTIVITY_MAX_LINE_BYTES: usize = 1024 * 1024;
+
+/// Accumulates decoded stdout text and splits it into complete lines on `\n`,
+/// so the structured agent-activity parser sees one JSON event per line even
+/// though the raw pipe arrives in arbitrary byte chunks. A trailing partial line
+/// is retained until the next chunk completes it (or [`Self::flush`] at stream
+/// end). Only constructed in JSON-stream output modes — in `RawText` mode the
+/// buffer is never built and there is zero behaviour change.
+struct AgentActivityLineBuffer {
+    pending: String,
+}
+
+impl AgentActivityLineBuffer {
+    fn new() -> Self {
+        Self {
+            pending: String::new(),
+        }
+    }
+
+    /// Append decoded `text` and return every COMPLETE line (without the `\n`).
+    /// A partial trailing line is retained. If the retained buffer exceeds the
+    /// max-line cap, it is force-flushed as one line so memory stays bounded.
+    fn push(&mut self, text: &str) -> Vec<String> {
+        self.pending.push_str(text);
+        let mut lines = Vec::new();
+        while let Some(idx) = self.pending.find('\n') {
+            let mut line: String = self.pending.drain(..=idx).collect();
+            // Strip the trailing '\n' (and a preceding '\r' for CRLF streams).
+            if line.ends_with('\n') {
+                line.pop();
+            }
+            if line.ends_with('\r') {
+                line.pop();
+            }
+            lines.push(line);
+        }
+        if self.pending.len() > AGENT_ACTIVITY_MAX_LINE_BYTES {
+            let forced = std::mem::take(&mut self.pending);
+            lines.push(forced);
+        }
+        lines
+    }
+
+    /// Flush any retained partial final line at end-of-stream (a JSONL stream may
+    /// not end with `\n`). Returns `None` when nothing is pending.
+    fn flush(&mut self) -> Option<String> {
+        if self.pending.is_empty() {
+            None
+        } else {
+            Some(std::mem::take(&mut self.pending))
+        }
+    }
+}
 
 /// Best-effort emit of an `FR-EVT-LLM-INFER-*` event through the cloud-lane
 /// recorder. Mirrors the BYOK siblings' posture (`anthropic_byok.rs`): a
@@ -70,6 +132,59 @@ async fn emit_infer(recorder: &Option<Arc<dyn FlightRecorder>>, event: FlightRec
                 "official CLI bridge FR-EVT-LLM-INFER emit failed; generation unaffected"
             );
         }
+    }
+}
+
+/// Best-effort emit of an `FR-EVT-AGENT-*` event. Same posture as
+/// [`emit_infer`]: a `None` recorder is a no-op, a recorder error is logged and
+/// ignored — structured agent-activity capture NEVER affects generation.
+async fn emit_agent(recorder: &Option<Arc<dyn FlightRecorder>>, event: FlightRecorderEvent) {
+    if let Some(recorder) = recorder.as_ref() {
+        if let Err(err) = recorder.record_event(event).await {
+            tracing::debug!(
+                target: "handshake_core::model_runtime::cloud::cli_bridge",
+                error = %err,
+                "official CLI bridge FR-EVT-AGENT emit failed; generation unaffected"
+            );
+        }
+    }
+}
+
+/// Whether an output format is a JSON-stream mode the structured parser should
+/// run on. `RawText` => no structured capture (unchanged behaviour).
+fn is_json_stream_mode(format: CliOutputFormat) -> bool {
+    matches!(format, CliOutputFormat::Json | CliOutputFormat::JsonStream)
+}
+
+/// Parse a complete stdout line and emit one `FR-EVT-AGENT-*` event per parsed
+/// activity, advancing `ordered_index`. Best-effort; the parser never panics and
+/// never drops a line (a malformed line yields an `Other` activity).
+#[allow(clippy::too_many_arguments)]
+async fn emit_agent_line(
+    recorder: &Option<Arc<dyn FlightRecorder>>,
+    cli_kind: CliKind,
+    model_id: ModelId,
+    request_id: Uuid,
+    instance_id: Option<&str>,
+    redactor: &dyn SecretRedactor,
+    ordered_index: &mut u64,
+    line: &str,
+) {
+    if recorder.is_none() {
+        return;
+    }
+    for activity in parse_agent_line(cli_kind, line) {
+        let event = agent_activity_event(
+            model_id,
+            request_id,
+            *ordered_index,
+            instance_id,
+            CLI_BRIDGE_ADAPTER,
+            &activity,
+            redactor,
+        );
+        *ordered_index = ordered_index.saturating_add(1);
+        emit_agent(recorder, event).await;
     }
 }
 
@@ -92,6 +207,22 @@ struct InferEmitStreamState {
     generated: u32,
     finish: FinishReason,
     ended: bool,
+    /// Structured agent-activity capture (JSON-stream modes only). When
+    /// `agent_capture` is `Some`, each streamed token's text is fed through the
+    /// line buffer and complete lines are parsed into `FR-EVT-AGENT-*` events.
+    /// `None` in `RawText` mode => zero structured behaviour, unchanged output.
+    agent_capture: Option<AgentCaptureState>,
+}
+
+/// Per-request structured agent-activity capture state, carried on the async
+/// side of the stream so parsing/emit happens where `record_event().await` is
+/// legal. Only present in JSON-stream output modes.
+struct AgentCaptureState {
+    cli_kind: CliKind,
+    instance_id: Option<String>,
+    redactor: Arc<dyn SecretRedactor>,
+    line_buf: AgentActivityLineBuffer,
+    ordered_index: u64,
 }
 
 /// Adapter name surfaced through [`ModelRuntime::adapter_name`] and used as the
@@ -193,6 +324,21 @@ pub struct CliBridgeModelRuntime {
     /// ([`super::AnthropicByokRuntime::with_lane_observability`]). Emission is
     /// best-effort and never affects generation.
     lane_obs: Option<Arc<CloudLaneObservability>>,
+    /// Optional swarm composite `instance_id` (`<model_id>#<instance>`) used as
+    /// the session correlation tag stamped onto the `FR-EVT-AGENT-*` events
+    /// (`session_span_id` + `payload.instance_id`) so the session-transcript raw
+    /// seam scopes them. On the production swarm path the factory threads this
+    /// (see `CliBridgeCloudRuntimeBuilder::build_loaded`). `None` => agent events
+    /// still emit (model_id only) and are durably recorded, but are NOT
+    /// transcript-retrievable (there is no bare-model_id seam in the transcript
+    /// fetch). Never dropped, but invisible to the per-session timeline. Set via
+    /// [`Self::with_session_correlation`].
+    session_instance_id: Option<String>,
+    /// Redactor applied to structured agent-activity surfaces (tool input,
+    /// thinking/text/raw bodies) at emit time, so the structured surface is no
+    /// leakier than the raw terminal capture. Defaults to [`PatternRedactor`]
+    /// (the same default the capture lane uses).
+    redactor: Arc<dyn SecretRedactor>,
 }
 
 impl std::fmt::Debug for CliBridgeModelRuntime {
@@ -217,6 +363,8 @@ impl CliBridgeModelRuntime {
             runtime_cancel: CancellationToken::new(),
             declared_capabilities: OfficialCliBridgeRuntime::cli_bridge_capabilities(),
             lane_obs: None,
+            session_instance_id: None,
+            redactor: Arc::new(PatternRedactor),
         }
     }
 
@@ -227,6 +375,27 @@ impl CliBridgeModelRuntime {
     /// recorder error is logged and ignored; generation is unaffected.
     pub fn with_lane_observability(mut self, lane_obs: Arc<CloudLaneObservability>) -> Self {
         self.lane_obs = Some(lane_obs);
+        self
+    }
+
+    /// Thread the swarm composite `instance_id` (`<model_id>#<instance>`) used as
+    /// the session correlation tag on the structured `FR-EVT-AGENT-*` events, so
+    /// the session-transcript raw seam scopes agent-activity rows to the session.
+    /// Set at lane-bind / spawn-capture time where the composite is known (the
+    /// production factory threads it in `build_loaded`). When absent, agent
+    /// events still emit (carrying `model_id`) and are durably recorded, but they
+    /// are NOT transcript-retrievable — the transcript fetch has no bare-model_id
+    /// seam, only the composite session-id seams. Never dropped, but invisible to
+    /// the per-session timeline until correlation is threaded.
+    pub fn with_session_correlation(mut self, instance_id: impl Into<String>) -> Self {
+        self.session_instance_id = Some(instance_id.into());
+        self
+    }
+
+    /// Override the structured agent-activity redactor (defaults to
+    /// [`PatternRedactor`], the same default the terminal capture lane uses).
+    pub fn with_redactor(mut self, redactor: Arc<dyn SecretRedactor>) -> Self {
+        self.redactor = redactor;
         self
     }
 
@@ -349,6 +518,21 @@ impl CliBridgeModelRuntime {
             // `tx` drops here -> the receiver stream ends.
         });
 
+        // Structured agent-activity capture is built ONLY in a JSON-stream output
+        // mode. In RawText mode the line buffer is never constructed and there is
+        // zero behaviour change (the raw GeneratedToken text streams as before).
+        let agent_capture = if is_json_stream_mode(self.config_template.output_format) {
+            Some(AgentCaptureState {
+                cli_kind: self.config_template.cli_kind,
+                instance_id: self.session_instance_id.clone(),
+                redactor: self.redactor.clone(),
+                line_buf: AgentActivityLineBuffer::new(),
+                ordered_index: 0,
+            })
+        } else {
+            None
+        };
+
         let state = InferEmitStreamState {
             rx,
             recorder,
@@ -360,6 +544,7 @@ impl CliBridgeModelRuntime {
             generated: 0,
             finish: FinishReason::Stop,
             ended: false,
+            agent_capture,
         };
 
         Box::pin(stream::unfold(state, |mut st| async move {
@@ -406,6 +591,35 @@ impl CliBridgeModelRuntime {
                                     )
                                     .await;
                                 }
+                                // STRUCTURED: in a JSON-stream mode, feed the raw
+                                // token text through the line buffer and emit an
+                                // `FR-EVT-AGENT-*` event per parsed activity on
+                                // each COMPLETE line. Best-effort; never affects
+                                // the raw token (which has already streamed). The
+                                // raw `item` is returned unchanged below.
+                                let InferEmitStreamState {
+                                    recorder,
+                                    model_id,
+                                    request_id,
+                                    agent_capture,
+                                    ..
+                                } = &mut st;
+                                if let Some(cap) = agent_capture.as_mut() {
+                                    let lines = cap.line_buf.push(&token.text);
+                                    for line in lines {
+                                        emit_agent_line(
+                                            recorder,
+                                            cap.cli_kind,
+                                            *model_id,
+                                            *request_id,
+                                            cap.instance_id.as_deref(),
+                                            cap.redactor.as_ref(),
+                                            &mut cap.ordered_index,
+                                            &line,
+                                        )
+                                        .await;
+                                    }
+                                }
                             }
                         }
                         Err(_) => {
@@ -416,7 +630,33 @@ impl CliBridgeModelRuntime {
                     Some((item, st))
                 }
                 None => {
-                    // Producer channel closed -> emit END exactly once.
+                    // Producer channel closed -> flush the final partial agent
+                    // line (a JSONL stream may not end with '\n'), then emit END
+                    // exactly once.
+                    {
+                        let InferEmitStreamState {
+                            recorder,
+                            model_id,
+                            request_id,
+                            agent_capture,
+                            ..
+                        } = &mut st;
+                        if let Some(cap) = agent_capture.as_mut() {
+                            if let Some(line) = cap.line_buf.flush() {
+                                emit_agent_line(
+                                    recorder,
+                                    cap.cli_kind,
+                                    *model_id,
+                                    *request_id,
+                                    cap.instance_id.as_deref(),
+                                    cap.redactor.as_ref(),
+                                    &mut cap.ordered_index,
+                                    &line,
+                                )
+                                .await;
+                            }
+                        }
+                    }
                     if !st.ended {
                         st.ended = true;
                         let total = st.start.elapsed().as_millis() as u64;
@@ -556,6 +796,9 @@ impl ModelRuntime for CliBridgeModelRuntime {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::flight_recorder::events_agent_activity::{
+        FR_EVT_AGENT_OTHER, FR_EVT_AGENT_TEXT, FR_EVT_AGENT_THINKING, FR_EVT_AGENT_TOOLCALL,
+    };
     use crate::model_runtime::cloud::official_cli_bridge::{
         CliInvocationReceipt, CliKind, CliOutputFormat, OfficialCliBridgeError,
     };
@@ -579,6 +822,15 @@ mod tests {
             env_vars: HashMap::new(),
             working_dir: None,
             timeout_seconds: 120,
+        }
+    }
+
+    /// A Claude-dialect config in JSON-stream mode (structured agent-activity
+    /// capture ON).
+    fn good_config_json() -> CliBridgeConfig {
+        CliBridgeConfig {
+            output_format: CliOutputFormat::JsonStream,
+            ..good_config()
         }
     }
 
@@ -1008,6 +1260,201 @@ mod tests {
         assert_eq!(out, "ab");
     }
 
+    fn cli_spec() -> crate::model_runtime::LoadSpec {
+        crate::model_runtime::LoadSpec {
+            artifact_path: PathBuf::new(),
+            sha256_expected: String::new(),
+            runtime_kind: crate::model_runtime::RuntimeKind::Candle,
+            sampling_defaults: SamplingParams::default(),
+            kv_cache_policy: crate::model_runtime::KvCachePolicy::default(),
+            declared_capabilities: ModelCapabilities::default(),
+            provider: ProviderKind::OfficialCli,
+            engine_origin: Some("claude-sonnet".to_string()),
+            external_engine_import: None,
+        }
+    }
+
+    fn obs_with(recorder: Arc<CollectingRecorder>) -> Arc<CloudLaneObservability> {
+        Arc::new(CloudLaneObservability {
+            flight_recorder: recorder as Arc<dyn FlightRecorder>,
+            consent: None,
+        })
+    }
+
+    /// Drain a stream fully, returning the concatenated non-terminal token text.
+    async fn drain_text(mut stream: TokenStream) -> String {
+        let mut out = String::new();
+        while let Some(item) = stream.next().await {
+            if let Ok(token) = item {
+                if token.finish_reason.is_none() {
+                    out.push_str(&token.text);
+                }
+            }
+        }
+        out
+    }
+
+    fn agent_event_ids(recorder: &CollectingRecorder) -> Vec<String> {
+        recorder
+            .payloads
+            .lock()
+            .unwrap()
+            .iter()
+            .filter_map(|p| p.get("event_id").and_then(|v| v.as_str()).map(String::from))
+            .filter(|e| e.starts_with("FR-EVT-AGENT-"))
+            .collect()
+    }
+
+    /// JSON-stream mode: a fixture claude stream yields typed FR-EVT-AGENT-*
+    /// events with the right event_id, instance_id (session_span), and a
+    /// request_id shared with the INFER events. Raw token output is unchanged.
+    #[tokio::test]
+    async fn json_stream_mode_emits_typed_agent_events_with_correlation() {
+        let recorder = Arc::new(CollectingRecorder::default());
+        // One claude assistant line (text + thinking + tool_use), newline-terminated.
+        let line = serde_json::json!({
+            "type":"assistant",
+            "message":{"content":[
+                {"type":"text","text":"hi"},
+                {"type":"thinking","thinking":"hmm"},
+                {"type":"tool_use","id":"toolu_1","name":"Bash","input":{"command":"ls"}}
+            ]}
+        })
+        .to_string();
+        let stdout = format!("{line}\n");
+        let chunks: Vec<Vec<u8>> = vec![stdout.into_bytes()];
+
+        let mut rt = CliBridgeModelRuntime::new(
+            Arc::new(ChunkSpawner { chunks }),
+            good_config_json(),
+        )
+        .with_lane_observability(obs_with(recorder.clone()))
+        .with_session_correlation("mid#0");
+        let id = rt.load(cli_spec()).await.expect("load");
+
+        let _ = drain_text(rt.generate(gen_req(id))).await;
+
+        let ids = agent_event_ids(&recorder);
+        assert!(ids.contains(&FR_EVT_AGENT_TEXT.to_string()), "{ids:?}");
+        assert!(ids.contains(&FR_EVT_AGENT_THINKING.to_string()), "{ids:?}");
+        assert!(ids.contains(&FR_EVT_AGENT_TOOLCALL.to_string()), "{ids:?}");
+
+        let payloads = recorder.payloads.lock().unwrap().clone();
+        let agent: Vec<&serde_json::Value> = payloads
+            .iter()
+            .filter(|p| {
+                p.get("event_id")
+                    .and_then(|v| v.as_str())
+                    .map(|e| e.starts_with("FR-EVT-AGENT-"))
+                    .unwrap_or(false)
+            })
+            .collect();
+        // instance_id stamped on payload of every agent event.
+        for p in &agent {
+            assert_eq!(p.get("instance_id").and_then(|v| v.as_str()), Some("mid#0"));
+        }
+        // The toolcall carries the redacted detail + name.
+        let toolcall = agent
+            .iter()
+            .find(|p| p.get("event_id").and_then(|v| v.as_str()) == Some(FR_EVT_AGENT_TOOLCALL))
+            .unwrap();
+        assert_eq!(toolcall.get("name").and_then(|v| v.as_str()), Some("Bash"));
+        assert_eq!(
+            toolcall.get("detail").and_then(|d| d.get("command")).unwrap(),
+            "ls"
+        );
+        // Agent + INFER events share the one request_id correlation.
+        let req_ids: std::collections::HashSet<String> = payloads
+            .iter()
+            .filter_map(|p| p.get("request_id").and_then(|v| v.as_str()).map(String::from))
+            .collect();
+        assert_eq!(req_ids.len(), 1, "one request_id across infer+agent: {req_ids:?}");
+    }
+
+    /// RawText mode: NO agent events, and byte-identical token output (the
+    /// honesty / no-regression gate).
+    #[tokio::test]
+    async fn raw_text_mode_emits_no_agent_events_same_output() {
+        let recorder = Arc::new(CollectingRecorder::default());
+        let line = "{\"type\":\"assistant\"}\n";
+        let chunks: Vec<Vec<u8>> = vec![line.as_bytes().to_vec()];
+        let mut rt = CliBridgeModelRuntime::new(
+            Arc::new(ChunkSpawner { chunks }),
+            good_config(), // RawText
+        )
+        .with_lane_observability(obs_with(recorder.clone()))
+        .with_session_correlation("mid#0");
+        let id = rt.load(cli_spec()).await.expect("load");
+
+        let out = drain_text(rt.generate(gen_req(id))).await;
+        assert_eq!(out, line, "raw token output must be byte-identical in RawText mode");
+        assert!(
+            agent_event_ids(&recorder).is_empty(),
+            "RawText mode must emit ZERO agent events"
+        );
+    }
+
+    /// A malformed JSON line in JSON-stream mode still streams its raw token AND
+    /// yields exactly one FR-EVT-AGENT-OTHER event (no data loss, generation
+    /// unaffected).
+    #[tokio::test]
+    async fn json_stream_malformed_line_streams_raw_and_yields_other() {
+        let recorder = Arc::new(CollectingRecorder::default());
+        let line = "{not valid json\n";
+        let chunks: Vec<Vec<u8>> = vec![line.as_bytes().to_vec()];
+        let mut rt = CliBridgeModelRuntime::new(
+            Arc::new(ChunkSpawner { chunks }),
+            good_config_json(),
+        )
+        .with_lane_observability(obs_with(recorder.clone()))
+        .with_session_correlation("mid#0");
+        let id = rt.load(cli_spec()).await.expect("load");
+
+        let out = drain_text(rt.generate(gen_req(id))).await;
+        assert_eq!(out, line, "raw token still streams unchanged");
+        let ids = agent_event_ids(&recorder);
+        assert_eq!(ids, vec![FR_EVT_AGENT_OTHER.to_string()], "malformed -> one OTHER");
+    }
+
+    /// A JSONL stream NOT ending with '\n' flushes its final partial line at
+    /// stream end (never dropped).
+    #[tokio::test]
+    async fn json_stream_flushes_final_partial_line() {
+        let recorder = Arc::new(CollectingRecorder::default());
+        // No trailing newline.
+        let line = serde_json::json!({
+            "type":"assistant",
+            "message":{"content":[{"type":"text","text":"tail"}]}
+        })
+        .to_string();
+        let chunks: Vec<Vec<u8>> = vec![line.into_bytes()];
+        let mut rt = CliBridgeModelRuntime::new(
+            Arc::new(ChunkSpawner { chunks }),
+            good_config_json(),
+        )
+        .with_lane_observability(obs_with(recorder.clone()));
+        let id = rt.load(cli_spec()).await.expect("load");
+        let _ = drain_text(rt.generate(gen_req(id))).await;
+        assert!(
+            agent_event_ids(&recorder).contains(&FR_EVT_AGENT_TEXT.to_string()),
+            "final partial line must flush as a TEXT event"
+        );
+    }
+
+    /// AgentActivityLineBuffer unit coverage: splits on '\n', retains a partial
+    /// tail, strips CRLF, and flushes the remainder.
+    #[test]
+    fn agent_line_buffer_splits_retains_and_flushes() {
+        let mut buf = AgentActivityLineBuffer::new();
+        // Partial line, no newline yet.
+        assert!(buf.push("hel").is_empty());
+        // Completes the first line + starts a second.
+        assert_eq!(buf.push("lo\r\nwor"), vec!["hello".to_string()]);
+        // Flush the retained partial tail.
+        assert_eq!(buf.flush(), Some("wor".to_string()));
+        assert_eq!(buf.flush(), None);
+    }
+
     /// Utf8ChunkDecoder unit coverage: split codepoint carries forward.
     #[test]
     fn utf8_decoder_carries_split_codepoint() {
@@ -1064,5 +1511,136 @@ mod tests {
     #[allow(dead_code)]
     fn _mutex_marker() -> Mutex<()> {
         Mutex::new(())
+    }
+
+    /// A FlightRecorder that captures FULL events (not just `event.payload`), so
+    /// a test can assert `session_span_id` — the field the transcript's raw seam
+    /// (`session_span_id == <session>`) keys on, which `CollectingRecorder` drops.
+    #[derive(Default)]
+    struct FullEventRecorder {
+        events: Mutex<Vec<FlightRecorderEvent>>,
+    }
+    #[async_trait]
+    impl FlightRecorder for FullEventRecorder {
+        async fn record_event(
+            &self,
+            event: FlightRecorderEvent,
+        ) -> Result<(), crate::flight_recorder::RecorderError> {
+            self.events.lock().unwrap().push(event);
+            Ok(())
+        }
+        async fn enforce_retention(&self) -> Result<u64, crate::flight_recorder::RecorderError> {
+            Ok(0)
+        }
+        async fn list_events(
+            &self,
+            _filter: crate::flight_recorder::EventFilter,
+        ) -> Result<Vec<FlightRecorderEvent>, crate::flight_recorder::RecorderError> {
+            Ok(Vec::new())
+        }
+    }
+
+    /// PRODUCTION-WIRING integration: build the CLI runtime through the REAL
+    /// production seam (`CliBridgeCloudRuntimeBuilder::build_loaded`, the same
+    /// path `ProductionModelSessionFactory::create_cloud` drives) WITHOUT any
+    /// manual `with_session_correlation`, then assert the emitted
+    /// `FR-EVT-AGENT-*` events are scoped to the swarm composite session id on
+    /// BOTH transcript seams: `session_span_id == <model_id>#<instance>` (seam 2a)
+    /// AND `payload.instance_id == <model_id>#<instance>` (seam 2b). This is the
+    /// regression guard for the HIGH defect where production built the runtime
+    /// without threading the composite, making the feature transcript-invisible
+    /// end-to-end. `fetch_fr_events` lives in the app crate; this test asserts the
+    /// exact fields those two seams query rather than calling the seam directly.
+    #[tokio::test]
+    async fn production_builder_threads_session_correlation_for_transcript() {
+        use crate::swarm_orchestration::production_factory::{
+            CliBridgeCloudRuntimeBuilder, CloudRuntimeBuilder,
+        };
+
+        let recorder = Arc::new(FullEventRecorder::default());
+        let obs = Arc::new(CloudLaneObservability {
+            flight_recorder: recorder.clone() as Arc<dyn FlightRecorder>,
+            consent: None,
+        });
+
+        // One claude assistant line (text + thinking + tool_use), newline-terminated.
+        let line = serde_json::json!({
+            "type":"assistant",
+            "message":{"content":[
+                {"type":"text","text":"hi"},
+                {"type":"thinking","thinking":"hmm"},
+                {"type":"tool_use","id":"toolu_1","name":"Bash","input":{"command":"ls"}}
+            ]}
+        })
+        .to_string();
+        let chunks: Vec<Vec<u8>> = vec![format!("{line}\n").into_bytes()];
+
+        // Build through the production builder. NOTE: no with_session_correlation
+        // call anywhere — the builder must thread the composite itself.
+        let builder = CliBridgeCloudRuntimeBuilder::new(
+            Arc::new(ChunkSpawner { chunks }),
+            good_config_json(),
+        )
+        .with_observability(obs);
+
+        // Simulate the coordinator's session key: the request's instance_id is
+        // ModelInstanceId::new(<placeholder model_id>, instance) whose model id is
+        // DISTINCT from the one the runtime's load() mints. The production caller
+        // (`create_cloud`) passes `request.instance_id.to_string()`; agent events
+        // must carry THAT verbatim — NOT a composite re-formed from the loaded
+        // model id — or they never match the transcript's session scope.
+        const INSTANCE: u32 = 3;
+        let coordinator_session = format!("{}#{INSTANCE}", ModelId::new_v7());
+        let live = builder
+            .build_loaded("claude-sonnet", Some(coordinator_session.clone()))
+            .await
+            .expect("production builder build_loaded");
+        let model_id = live.model_id;
+        // The fix's whole point: the coordinator key is NOT the loaded-model
+        // composite. Prove they differ so the seam assertions below are meaningful
+        // (this is the exact divergence the HIGH-defect remediation missed).
+        assert_ne!(
+            coordinator_session,
+            format!("{model_id}#{INSTANCE}"),
+            "test integrity: coordinator session id must differ from the loaded-model composite"
+        );
+        let expected_session = coordinator_session;
+
+        // Drive a real generate through the Arc<dyn ModelRuntime> the factory hands
+        // the swarm.
+        let mut stream = live.runtime.generate(gen_req(model_id));
+        while stream.next().await.is_some() {}
+
+        let events = recorder.events.lock().unwrap().clone();
+        let agent: Vec<&FlightRecorderEvent> = events
+            .iter()
+            .filter(|e| {
+                e.payload
+                    .get("event_id")
+                    .and_then(|v| v.as_str())
+                    .map(|id| id.starts_with("FR-EVT-AGENT-"))
+                    .unwrap_or(false)
+            })
+            .collect();
+        assert!(
+            !agent.is_empty(),
+            "production-built JSON-stream runtime must emit FR-EVT-AGENT-* events"
+        );
+
+        // Every agent event is retrievable through BOTH transcript seams for the
+        // swarm composite session id — the end-to-end visibility the HIGH defect
+        // broke.
+        for ev in &agent {
+            assert_eq!(
+                ev.session_span_id.as_deref(),
+                Some(expected_session.as_str()),
+                "seam 2a (session_span_id) must carry the swarm composite session id"
+            );
+            assert_eq!(
+                ev.payload.get("instance_id").and_then(|v| v.as_str()),
+                Some(expected_session.as_str()),
+                "seam 2b (payload.instance_id) must carry the swarm composite session id"
+            );
+        }
     }
 }
