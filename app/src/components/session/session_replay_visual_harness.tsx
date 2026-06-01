@@ -18,6 +18,8 @@ import { createRoot } from "react-dom/client";
 import { SessionReplayPanel } from "./SessionReplayPanel";
 import type {
   LiveTailIpc,
+  SessionExportRequest,
+  SessionExportResponse,
   SessionSearchRequest,
   SessionSearchResponse,
   SessionSummary,
@@ -148,6 +150,31 @@ async function fakeGetTemplate(sessionId: string): Promise<SessionSpawnTemplate 
   return sessionId === "claude-sonnet#0" ? SWARM_TEMPLATE : null;
 }
 
+// ROI #5 EXPORT fake (shared by every harness mode). Returns a deterministic
+// two-file (markdown + json) result with a non-zero redaction count so the visual
+// baseline captures the written path, the copy affordance, and the honest
+// "N secrets redacted" chip in a GENUINE Chromium render. The populated swarm
+// session reports redactions + non-empty; the empty session reports empty.
+const EXPORTS_DIR = "C:/Users/op/AppData/Roaming/handshake/exports";
+async function fakeExport(req: SessionExportRequest): Promise<SessionExportResponse> {
+  const empty = req.sessionId === "local-qwen#1";
+  const stem = req.sessionId.replace(/[^A-Za-z0-9._-]+/g, "-");
+  const files = [];
+  if (req.format === "markdown" || req.format === "both") {
+    files.push({ format: "markdown", path: `${EXPORTS_DIR}/session-${stem}-20260530T100000Z.md`, bytes: 1234 });
+  }
+  if (req.format === "json" || req.format === "both") {
+    files.push({ format: "json", path: `${EXPORTS_DIR}/session-${stem}-20260530T100000Z.json`, bytes: 2048 });
+  }
+  return {
+    sessionId: req.sessionId,
+    destDir: EXPORTS_DIR,
+    files,
+    empty,
+    redactedFieldCount: empty ? 0 : 2,
+  };
+}
+
 const fakeIpc: SessionTranscriptIpc = {
   listSessions: async () => SESSIONS,
   getTranscript: async (req: TranscriptGetRequest) =>
@@ -155,6 +182,7 @@ const fakeIpc: SessionTranscriptIpc = {
   resumeSession: fakeResume,
   getSpawnTemplate: fakeGetTemplate,
   searchSessions: fakeSearch,
+  exportSession: fakeExport,
 };
 
 // ---------------------------------------------------------------------------
@@ -184,6 +212,7 @@ const liveGrowingIpc: SessionTranscriptIpc = {
   resumeSession: fakeResume,
   getSpawnTemplate: fakeGetTemplate,
   searchSessions: fakeSearch,
+  exportSession: fakeExport,
 };
 
 // A scripted live seam: on subscribe, schedule two ticks that reveal a row and
@@ -229,10 +258,11 @@ const liveSeam: LiveTailIpc = {
 //   "collapsed" -> render the real panel collapsed-by-default (lazy gate)
 //   "live"      -> render expanded with a scripted live seam (live tailing)
 //   "search"    -> render expanded with the ROI #4 cross-session search fakes
+//   "export"    -> render expanded with the ROI #5 export fakes
 // We read it with a LOCAL cast rather than augmenting the global Window type, so
 // this harness does not collide with the terminal harness's own __HARNESS_MODE__
 // global augmentation (which has a narrower union) at typecheck time.
-type HarnessMode = "open" | "collapsed" | "live" | "search";
+type HarnessMode = "open" | "collapsed" | "live" | "search" | "export";
 
 // A safe no-op live seam for the non-live modes: this harness runs in a plain
 // Chromium page with NO Tauri runtime, so the real defaultLiveTailIpc (which

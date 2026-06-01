@@ -188,6 +188,7 @@ macro_rules! handshake_invoke_handlers {
             commands::session_transcript::kernel_session_list,
             commands::session_transcript::kernel_session_transcript_get,
             commands::session_transcript::kernel_session_search,
+            commands::session_transcript::kernel_session_export,
         ]
     };
     ($($extra:path),+ $(,)?) => {
@@ -322,6 +323,7 @@ macro_rules! handshake_invoke_handlers {
             commands::session_transcript::kernel_session_list,
             commands::session_transcript::kernel_session_transcript_get,
             commands::session_transcript::kernel_session_search,
+            commands::session_transcript::kernel_session_export,
             $($extra),+
         ]
     };

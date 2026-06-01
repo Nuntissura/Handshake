@@ -277,6 +277,59 @@ export interface SessionSearchRequest {
 }
 
 // ---------------------------------------------------------------------------
+// ROI #5 EXPORT: export a recorded session's consolidated record to a portable,
+// secret-REDACTED file (markdown for humans + json for machines) for archive /
+// handoff / sharing. Mirrors the handshake_core::commands::session_transcript
+// `kernel_session_export` serde (camelCase). The backend REUSES the SAME
+// aggregator (build_response) the transcript view uses + the SAME PatternRedactor
+// the cross-session search trusts, then atomically writes the file(s) under a
+// disk-agnostic dest dir (default <app_data_root>/exports). It returns the
+// written path(s) + byte sizes so the panel can surface a copyable path. HONEST:
+// a discoverable session with no entries writes an empty-but-valid file
+// (`empty: true`); an UNKNOWN session id rejects with `SESSION_NOT_FOUND:`.
+// ---------------------------------------------------------------------------
+
+/** The export render format. `both` writes a markdown AND a json artifact. */
+export type ExportFormat = "markdown" | "json" | "both";
+
+/** One written artifact: which format, its absolute path, and its byte size. */
+export interface ExportedFile {
+  /** "markdown" | "json" (the artifact's format). */
+  format: string;
+  /** Absolute, copyable path the artifact landed at. */
+  path: string;
+  /** Byte size of the written artifact. */
+  bytes: number;
+}
+
+/** The result of a session export (mirrors the backend `SessionExportResponse`). */
+export interface SessionExportResponse {
+  sessionId: string;
+  /** The directory the file(s) landed in (absolute) — for an "open folder" hint. */
+  destDir: string;
+  files: ExportedFile[];
+  /** True when the session had zero entries (an empty-but-valid file was written). */
+  empty: boolean;
+  /**
+   * Total emitted text fields that matched a secret pattern and were masked —
+   * an HONEST "N secrets redacted" trust signal (never the secret itself).
+   */
+  redactedFieldCount: number;
+}
+
+/** The export request (mirrors the backend Tauri camelCase args). */
+export interface SessionExportRequest {
+  sessionId: string;
+  /** "markdown" | "json" | "both" (default "both" at the call site). */
+  format: ExportFormat;
+  /**
+   * Optional operator-chosen destination dir. Omitted/null => the backend default
+   * (`<app_data_root>/exports`). The operator owns where a share file lands.
+   */
+  destDir?: string | null;
+}
+
+// ---------------------------------------------------------------------------
 // Command wrappers.
 // ---------------------------------------------------------------------------
 
@@ -315,6 +368,25 @@ export async function searchSessions(
 }
 
 /**
+ * ROI #5 EXPORT: export a recorded session to a portable, secret-REDACTED file
+ * (markdown / json / both). Calls the REAL backend `kernel_session_export`
+ * command with camelCase args matching the serde. The backend REUSES the
+ * aggregator + the PatternRedactor (no secret leaks) and atomically writes the
+ * file(s), returning the written path(s) + byte sizes. HONEST: an unknown
+ * session id rejects with `SESSION_NOT_FOUND:`; a discoverable empty session
+ * writes an empty-but-valid file (`empty: true`).
+ */
+export async function exportSession(
+  request: SessionExportRequest,
+): Promise<SessionExportResponse> {
+  return await invoke<SessionExportResponse>("kernel_session_export", {
+    sessionId: request.sessionId,
+    format: request.format,
+    destDir: request.destDir ?? null,
+  });
+}
+
+/**
  * The shape SessionReplayPanel depends on, so the panel can render under jsdom
  * with a recording stub injected (Tauri `invoke` is unavailable there). The real
  * implementation is `defaultSessionTranscriptIpc` below; tests pass a fake.
@@ -344,6 +416,14 @@ export interface SessionTranscriptIpc {
    * harness stay jsdom-testable with an injected fake.
    */
   searchSessions(request: SessionSearchRequest): Promise<SessionSearchResponse>;
+  /**
+   * ROI #5 EXPORT: export the recorded session to a portable, secret-REDACTED
+   * file (markdown / json / both) for archive / handoff / sharing. Returns the
+   * written path(s) + byte sizes (+ redaction telemetry + an empty flag) the
+   * panel surfaces honestly. Part of this seam so the panel + harness stay
+   * jsdom-testable with an injected fake.
+   */
+  exportSession(request: SessionExportRequest): Promise<SessionExportResponse>;
 }
 
 export const defaultSessionTranscriptIpc: SessionTranscriptIpc = {
@@ -352,6 +432,7 @@ export const defaultSessionTranscriptIpc: SessionTranscriptIpc = {
   resumeSession,
   getSpawnTemplate,
   searchSessions,
+  exportSession,
 };
 
 // ---------------------------------------------------------------------------

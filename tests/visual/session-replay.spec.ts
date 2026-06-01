@@ -41,7 +41,7 @@ const PAGE_SHELL = (css: string) => `<!doctype html>
 async function mountRealPanel(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   page: any,
-  mode: "open" | "collapsed" | "live" | "search",
+  mode: "open" | "collapsed" | "live" | "search" | "export",
 ): Promise<void> {
   const { js, css } = await buildSessionReplayHarness();
   await page.setContent(PAGE_SHELL(css), { waitUntil: "domcontentloaded" });
@@ -271,4 +271,69 @@ test("real session replay panel search shows an HONEST empty state for a no-matc
   // The empty-query submit is disabled (never match-all): typing nothing keeps it
   // disabled, so the operator cannot fire a fabricated "all sessions" search.
   await expect(page.locator("[data-testid='session-replay-search-submit']")).toBeDisabled();
+});
+
+test("real session replay panel EXPORTS a recorded session (ROI #5): format choice, written path, copy affordance", async ({
+  page,
+}) => {
+  await mountRealPanel(page, "export");
+
+  await expect(page.locator("[data-testid='session-replay-body']")).toBeVisible();
+
+  // Export is available on EVERY recorded row (unlike Resume, not gated on a
+  // captured spawn template). The format <select> + Export button render on the
+  // populated swarm row and on the empty row.
+  const exportBtn = page.locator("[data-testid='session-replay-export-claude-sonnet#0']");
+  const formatSel = page.locator("[data-testid='session-replay-export-format-claude-sonnet#0']");
+  await expect(exportBtn).toBeVisible();
+  await expect(exportBtn).toContainText("Export");
+  await expect(formatSel).toBeVisible();
+  await expect(page.locator("[data-testid='session-replay-export-local-qwen#1']")).toBeVisible();
+
+  // The Export button + format select are distinct, non-overlapping hit targets
+  // (mirroring the chip/Resume overlap assertions above — no clobbered controls).
+  const btnBox = await exportBtn.boundingBox();
+  const selBox = await formatSel.boundingBox();
+  expect(btnBox).not.toBeNull();
+  expect(selBox).not.toBeNull();
+  if (btnBox && selBox) {
+    const overlapX = Math.max(0, Math.min(btnBox.x + btnBox.width, selBox.x + selBox.width) - Math.max(btnBox.x, selBox.x));
+    const overlapY = Math.max(0, Math.min(btnBox.y + btnBox.height, selBox.y + selBox.height) - Math.max(btnBox.y, selBox.y));
+    expect(overlapX * overlapY).toBe(0);
+    expect(btnBox.width).toBeGreaterThan(20);
+    expect(btnBox.height).toBeGreaterThan(10);
+  }
+
+  // The Export affordance does NOT overlap the Resume affordance (both are row
+  // siblings on the resumable swarm row) — proving the additive cluster does not
+  // clobber the existing recovery affordance.
+  const resumeBox = await page.locator("[data-testid='session-replay-resume-claude-sonnet#0']").boundingBox();
+  expect(resumeBox).not.toBeNull();
+  if (btnBox && resumeBox) {
+    const overlapY = Math.max(
+      0,
+      Math.min(btnBox.y + btnBox.height, resumeBox.y + resumeBox.height) - Math.max(btnBox.y, resumeBox.y),
+    );
+    expect(overlapY).toBe(0);
+  }
+
+  // Choose "both" and click Export -> the scripted export IPC returns two files +
+  // a redaction count. The inline result surfaces the written path, a copy
+  // affordance, and the HONEST "2 secrets redacted" chip.
+  await formatSel.selectOption("both");
+  await exportBtn.click();
+
+  const exported = page.locator("[data-testid='session-replay-exported-claude-sonnet#0']");
+  await expect(exported).toBeVisible({ timeout: 6000 });
+  await expect(exported).toContainText("Exported");
+  await expect(exported).toContainText(".md");
+  await expect(page.locator("[data-testid='session-replay-export-redacted-claude-sonnet#0']")).toContainText(
+    "2 secrets redacted",
+  );
+  await expect(page.locator("[data-testid='session-replay-export-copy-claude-sonnet#0']")).toBeVisible();
+
+  // Write the reviewed PNG baseline (export cluster + written path + chips).
+  await page.locator("[data-testid='capture-root']").screenshot({
+    path: path.join(baselineDir, "session-replay-export.png"),
+  });
 });

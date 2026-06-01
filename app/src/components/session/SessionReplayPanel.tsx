@@ -14,8 +14,10 @@ import {
   isLiveScrollbackEntry,
   TRANSCRIPT_KINDS,
   type AgentActivityEntry,
+  type ExportFormat,
   type LiveTailIpc,
   type SearchSnippet,
+  type SessionExportResponse,
   type SessionSearchHit,
   type SessionSearchRequest,
   type SessionSummary,
@@ -370,6 +372,212 @@ function renderAgentActivityBody(entry: AgentActivityEntry) {
   }
 }
 
+/** The export formats, in display order, for the per-row format <select>. */
+const EXPORT_FORMATS: { value: ExportFormat; label: string }[] = [
+  { value: "both", label: "MD + JSON" },
+  { value: "markdown", label: "Markdown" },
+  { value: "json", label: "JSON" },
+];
+
+/** Human byte size (small files; whole KiB above 1024). */
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  return `${(bytes / 1024).toFixed(1)} KiB`;
+}
+
+/**
+ * A copy-to-clipboard affordance for a path/dir. Best-effort: when the clipboard
+ * API is unavailable (older jsdom / non-secure context) the click is a no-op,
+ * never a throw. Shows a brief "Copied" acknowledgement on success.
+ */
+function CopyButton({ value, testId, label = "Copy" }: { value: string; testId: string; label?: string }) {
+  const [copied, setCopied] = useState(false);
+  const copy = useCallback(() => {
+    const clip = typeof navigator !== "undefined" ? navigator.clipboard : undefined;
+    if (clip && typeof clip.writeText === "function") {
+      void clip.writeText(value).then(
+        () => {
+          setCopied(true);
+          window.setTimeout(() => setCopied(false), 1200);
+        },
+        () => {
+          /* clipboard denied — leave the path visible/selectable, no throw. */
+        },
+      );
+    }
+  }, [value]);
+  return (
+    <button
+      type="button"
+      data-testid={testId}
+      onClick={copy}
+      title={`Copy ${value}`}
+      style={{
+        fontSize: 10,
+        padding: "0 6px",
+        borderRadius: 6,
+        border: "1px solid var(--hs-color-border, #d1d5db)",
+        background: "var(--hs-color-surface)",
+        color: "var(--hs-color-text-subtle)",
+        cursor: "pointer",
+        whiteSpace: "nowrap",
+        flex: "0 0 auto",
+      }}
+    >
+      {copied ? "Copied" : label}
+    </button>
+  );
+}
+
+/**
+ * ROI #5 EXPORT cluster: a per-row format <select> + Export button + honest
+ * result/error surface. A SIBLING of the row-select button (never nested), so
+ * the overlap-free hit-target discipline of the Resume affordance applies. The
+ * written path is shown + copyable; redaction telemetry and an empty flag are
+ * surfaced as trust chips; a backend error (e.g. `SESSION_NOT_FOUND:`) renders
+ * verbatim, never swallowed. No shell-open in v1 (quiet — no foreground window).
+ */
+function ExportCluster({
+  sessionId,
+  format,
+  exporting,
+  result,
+  error,
+  onFormatChange,
+  onExport,
+}: {
+  sessionId: string;
+  format: ExportFormat;
+  exporting: boolean;
+  result: SessionExportResponse | null;
+  error: string | null;
+  onFormatChange: (id: string, format: ExportFormat) => void;
+  onExport: (id: string, format: ExportFormat) => void;
+}) {
+  const firstPath = result && result.files.length > 0 ? result.files[0].path : null;
+  const moreCount = result ? Math.max(0, result.files.length - 1) : 0;
+  return (
+    <div
+      className="session-replay__export"
+      data-testid={`session-replay-export-cluster-${sessionId}`}
+      style={{ padding: "0 10px 8px 13px", display: "flex", flexDirection: "column", gap: 4 }}
+    >
+      <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+        <select
+          data-testid={`session-replay-export-format-${sessionId}`}
+          aria-label="Export format"
+          value={format}
+          disabled={exporting}
+          onChange={(e) => onFormatChange(sessionId, e.target.value as ExportFormat)}
+          style={{
+            fontSize: 11,
+            padding: "2px 6px",
+            borderRadius: 6,
+            border: "1px solid var(--hs-color-border, #d1d5db)",
+            background: "var(--hs-color-surface)",
+            color: "var(--hs-color-text)",
+          }}
+        >
+          {EXPORT_FORMATS.map((f) => (
+            <option key={f.value} value={f.value}>
+              {f.label}
+            </option>
+          ))}
+        </select>
+        <button
+          type="button"
+          data-testid={`session-replay-export-${sessionId}`}
+          data-stable-id={`session-replay.export.${sessionId}`}
+          disabled={exporting}
+          onClick={() => onExport(sessionId, format)}
+          title="Export this session to a portable, secret-redacted file (markdown/json/both)"
+          style={{
+            fontSize: 11,
+            padding: "2px 10px",
+            borderRadius: 8,
+            border: "1px solid #1e3a8a",
+            background: exporting ? "var(--hs-color-surface)" : "#dbeafe",
+            color: "#1e3a8a",
+            cursor: exporting ? "not-allowed" : "pointer",
+            opacity: exporting ? 0.6 : 1,
+            fontWeight: 600,
+          }}
+        >
+          {exporting ? "Exporting…" : "⤓ Export"}
+        </button>
+      </div>
+
+      {result ? (
+        <div
+          data-testid={`session-replay-exported-${sessionId}`}
+          style={{ display: "flex", flexDirection: "column", gap: 3, fontSize: 11, color: "#166534" }}
+        >
+          {firstPath ? (
+            <div style={{ display: "flex", gap: 6, alignItems: "baseline", flexWrap: "wrap" }}>
+              <span style={{ wordBreak: "break-all", minWidth: 0 }}>
+                Exported → {firstPath}
+                {result.files.length > 0 ? ` (${formatBytes(result.files[0].bytes)})` : ""}
+                {moreCount > 0 ? ` +${moreCount} more` : ""}
+              </span>
+              <CopyButton value={firstPath} testId={`session-replay-export-copy-${sessionId}`} label="Copy path" />
+            </div>
+          ) : null}
+          <div style={{ display: "flex", gap: 6, alignItems: "baseline", flexWrap: "wrap" }}>
+            <span
+              data-testid={`session-replay-export-folder-${sessionId}`}
+              style={{ color: "var(--hs-color-text-subtle)", wordBreak: "break-all", minWidth: 0 }}
+            >
+              in {result.destDir}
+            </span>
+            <CopyButton value={result.destDir} testId={`session-replay-export-copy-folder-${sessionId}`} label="Copy folder" />
+          </div>
+          <div style={{ display: "flex", gap: 4, alignItems: "center", flexWrap: "wrap" }}>
+            <span
+              data-testid={`session-replay-export-redacted-${sessionId}`}
+              title="Pattern-based secret redaction applied before writing"
+              style={{
+                fontSize: 10,
+                padding: "0 6px",
+                borderRadius: 8,
+                background: result.redactedFieldCount > 0 ? "#fef3c7" : "var(--hs-color-surface-muted, #f3f4f6)",
+                color: result.redactedFieldCount > 0 ? "#78350f" : "var(--hs-color-text-subtle)",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {result.redactedFieldCount} secret{result.redactedFieldCount === 1 ? "" : "s"} redacted
+            </span>
+            {result.empty ? (
+              <span
+                data-testid={`session-replay-export-empty-${sessionId}`}
+                title="The session had no recorded entries; an empty-but-valid file was written."
+                style={{
+                  fontSize: 10,
+                  padding: "0 6px",
+                  borderRadius: 8,
+                  background: "var(--hs-color-surface-muted, #f3f4f6)",
+                  color: "var(--hs-color-text-subtle)",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                empty session
+              </span>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+
+      {error ? (
+        <span
+          data-testid={`session-replay-export-error-${sessionId}`}
+          style={{ fontSize: 11, color: "#dc2626", wordBreak: "break-word" }}
+        >
+          {error}
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
 /** The session index (left rail). */
 function SessionList({
   sessions,
@@ -381,6 +589,12 @@ function SessionList({
   resumingId,
   resumeError,
   resumedLineage,
+  onExport,
+  exportingId,
+  exportFormatFor,
+  onExportFormatChange,
+  exportResult,
+  exportError,
 }: {
   sessions: SessionSummary[];
   selectedId: string | null;
@@ -395,6 +609,18 @@ function SessionList({
   resumeError: { sessionId: string; message: string } | null;
   /** The most recent successful resume lineage (new + origin), or null. */
   resumedLineage: { newComposite: string; originSessionId: string } | null;
+  /** ROI #5: export the row's recorded session to a file in the chosen format. */
+  onExport: (id: string, format: ExportFormat) => void;
+  /** The session id whose export is in flight (disables its button), or null. */
+  exportingId: string | null;
+  /** The chosen export format for a row (defaults to "both"). */
+  exportFormatFor: (id: string) => ExportFormat;
+  /** Update the chosen export format for a row. */
+  onExportFormatChange: (id: string, format: ExportFormat) => void;
+  /** The most recent successful export keyed by the row it came from, or null. */
+  exportResult: { sessionId: string; response: SessionExportResponse } | null;
+  /** The most recent export error keyed by the row it came from, or null. */
+  exportError: { sessionId: string; message: string } | null;
 }) {
   return (
     <div
@@ -436,6 +662,15 @@ function SessionList({
             resumedLineage && resumedLineage.originSessionId === s.sessionId
               ? resumedLineage
               : null;
+          // ROI #5: export is available on EVERY recorded row (any recorded
+          // session can be exported — unlike Resume, it is not gated on a
+          // captured spawn template). Per-row in-flight + honest result/error.
+          const exporting = exportingId === s.sessionId;
+          const rowExportFormat = exportFormatFor(s.sessionId);
+          const rowExportResult =
+            exportResult && exportResult.sessionId === s.sessionId ? exportResult.response : null;
+          const rowExportError =
+            exportError && exportError.sessionId === s.sessionId ? exportError.message : null;
           return (
             <li
               key={s.sessionId}
@@ -540,6 +775,21 @@ function SessionList({
                   ) : null}
                 </div>
               ) : null}
+
+              {/* ROI #5 EXPORT: a per-row sibling cluster (never nested in the
+                  row-select button). A format choice (markdown/json/both,
+                  default both) + an Export button -> calls kernel_session_export
+                  and surfaces the written path(s) with a copy affordance, plus
+                  HONEST redaction telemetry + an empty chip + a verbatim error. */}
+              <ExportCluster
+                sessionId={s.sessionId}
+                format={rowExportFormat}
+                exporting={exporting}
+                result={rowExportResult}
+                error={rowExportError}
+                onFormatChange={onExportFormatChange}
+                onExport={onExport}
+              />
             </li>
           );
         })}
@@ -1730,6 +1980,15 @@ function SessionReplayBody({
   const [resumeError, setResumeError] = useState<{ sessionId: string; message: string } | null>(null);
   const [resumedLineage, setResumedLineage] = useState<{ newComposite: string; originSessionId: string } | null>(null);
 
+  // ROI #5 EXPORT: per-row export state. `exportingId` disables the in-flight
+  // row's button (single-flight); `exportFormats` holds each row's chosen format
+  // (default "both"); `exportResult` / `exportError` are honest per-row outcomes
+  // shown inline (mirroring the resume affordance's honest inline states).
+  const [exportingId, setExportingId] = useState<string | null>(null);
+  const [exportFormats, setExportFormats] = useState<Record<string, ExportFormat>>({});
+  const [exportResult, setExportResult] = useState<{ sessionId: string; response: SessionExportResponse } | null>(null);
+  const [exportError, setExportError] = useState<{ sessionId: string; message: string } | null>(null);
+
   // ROI #4 RECALL: cross-session search state. `searchHits === null` means
   // NOT-SEARCHING — the left rail shows the plain session index, so search is
   // purely additive. A non-null array (possibly empty) means a search is active
@@ -1803,6 +2062,42 @@ function SessionReplayBody({
       }
     },
     [ipc, loadSessions, onResumed, resumingId],
+  );
+
+  // ROI #5 EXPORT: the chosen format for a row, defaulting to "both".
+  const exportFormatFor = useCallback(
+    (sessionId: string): ExportFormat => exportFormats[sessionId] ?? "both",
+    [exportFormats],
+  );
+  const handleExportFormatChange = useCallback((sessionId: string, format: ExportFormat) => {
+    setExportFormats((prev) => ({ ...prev, [sessionId]: format }));
+  }, []);
+
+  // ROI #5 EXPORT: export a recorded session to a secret-REDACTED file. Calls the
+  // backend `kernel_session_export` (which reuses the aggregator + redactor + the
+  // atomic temp+rename writer) and surfaces the written path(s) inline. HONEST: a
+  // backend error (e.g. `SESSION_NOT_FOUND:` or an IO failure) is shown verbatim
+  // on the row, never swallowed; an empty-but-valid export is flagged honestly.
+  // Single-flight per the disabled button; the `exportingId` guard also blocks
+  // re-entrancy. The result is keyed by the row so it never leaks onto another.
+  const handleExport = useCallback(
+    async (sessionId: string, format: ExportFormat) => {
+      if (exportingId) return;
+      setExportingId(sessionId);
+      setExportError(null);
+      // Clear a stale result from a previous export of this row so the operator
+      // never sees an old path while a new export is in flight.
+      setExportResult((prev) => (prev && prev.sessionId === sessionId ? null : prev));
+      try {
+        const response = await ipc.exportSession({ sessionId, format, destDir: null });
+        setExportResult({ sessionId, response });
+      } catch (e) {
+        setExportError({ sessionId, message: e instanceof Error ? e.message : String(e) });
+      } finally {
+        setExportingId(null);
+      }
+    },
+    [ipc, exportingId],
   );
 
   // ROI #4 RECALL: run a cross-session search. A monotonic generation guards
@@ -2073,6 +2368,12 @@ function SessionReplayBody({
             resumingId={resumingId}
             resumeError={resumeError}
             resumedLineage={resumedLineage}
+            onExport={handleExport}
+            exportingId={exportingId}
+            exportFormatFor={exportFormatFor}
+            onExportFormatChange={handleExportFormatChange}
+            exportResult={exportResult}
+            exportError={exportError}
           />
         )}
         <TranscriptTimeline

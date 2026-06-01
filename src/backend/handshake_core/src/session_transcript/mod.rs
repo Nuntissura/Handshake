@@ -41,6 +41,16 @@ use serde_json::Value;
 
 use crate::flight_recorder::{FlightRecorderEvent, FlightRecorderEventType};
 
+/// ROI #5 EXPORT: pure markdown+json render + redaction pass + safe-filename
+/// helper for the per-session export. Tauri-free; the IO glue lives in the app
+/// crate's `commands/session_transcript.rs`.
+pub mod export;
+
+pub use export::{
+    safe_session_stem, ExportCounts, ExportFormat, ExportHeader, RenderedExport,
+    EXPORT_SCHEMA_VERSION,
+};
+
 /// Coarse kind of a transcript entry — the UI filter vocabulary + the IPC
 /// `kinds` argument map onto this 1:1.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

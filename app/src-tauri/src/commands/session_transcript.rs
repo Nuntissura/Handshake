@@ -49,7 +49,8 @@ use std::sync::Arc;
 use chrono::{DateTime, Utc};
 use handshake_core::flight_recorder::{EventFilter, FlightRecorder, FlightRecorderEvent};
 use handshake_core::session_transcript::{
-    self, ChatTurnInput, SessionTranscriptEntry, TranscriptKind,
+    self, export, ChatTurnInput, ExportCounts, ExportFormat, ExportHeader, SessionTranscriptEntry,
+    TranscriptKind,
 };
 use handshake_core::terminal::redaction::{PatternRedactor, SecretRedactor};
 use handshake_core::terminal::TerminalRuntime;
@@ -62,6 +63,11 @@ pub const KERNEL_SESSION_LIST_IPC_CHANNEL: &str = "kernel_session_list";
 pub const KERNEL_SESSION_TRANSCRIPT_GET_IPC_CHANNEL: &str = "kernel_session_transcript_get";
 /// ROI #4 CROSS-SESSION SEARCH ("I-forget-something" recall).
 pub const KERNEL_SESSION_SEARCH_IPC_CHANNEL: &str = "kernel_session_search";
+/// ROI #5 EXPORT (archive / handoff / sharing of a recorded session).
+pub const KERNEL_SESSION_EXPORT_IPC_CHANNEL: &str = "kernel_session_export";
+
+/// Subdirectory (under `<app_data_root>`) the default export lands in.
+pub const SESSION_EXPORT_DIR: &str = "exports";
 
 // ---------------------------------------------------------------------------
 // Cross-session search bounds (all honest: every clip is surfaced via
@@ -260,6 +266,39 @@ pub struct SessionSearchResponse {
     pub truncated: bool,
     /// The effective (trimmed) query, echoed for the UI.
     pub query: String,
+}
+
+// ---------------------------------------------------------------------------
+// Export IPC payloads (ROI #5)
+// ---------------------------------------------------------------------------
+
+/// One written artifact: which format, the absolute path (displayable/copyable),
+/// and its byte size on disk.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExportedFile {
+    /// "markdown" | "json".
+    pub format: String,
+    /// Absolute path of the written file.
+    pub path: String,
+    pub bytes: u64,
+}
+
+/// Response of `kernel_session_export`.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SessionExportResponse {
+    pub session_id: String,
+    /// The directory the file(s) landed in (absolute) — for an "open folder" hint.
+    pub dest_dir: String,
+    pub files: Vec<ExportedFile>,
+    /// True when the session had zero entries (an empty-but-valid file was
+    /// written rather than erroring).
+    pub empty: bool,
+    /// Redaction telemetry: total emitted text fields that matched a secret
+    /// pattern and were masked. The honest "N secrets redacted" affordance —
+    /// never the secret.
+    pub redacted_field_count: u64,
 }
 
 // ---------------------------------------------------------------------------
@@ -1054,6 +1093,228 @@ pub async fn kernel_session_search(
         limit,
     )
     .await)
+}
+
+// ---------------------------------------------------------------------------
+// Session export (ROI #5: archive / handoff / sharing)
+// ---------------------------------------------------------------------------
+
+/// Convert the lane `SourceCounts` into the export header's `ExportCounts`.
+fn export_counts(counts: &SourceCounts) -> ExportCounts {
+    ExportCounts {
+        chat: counts.chat,
+        fr: counts.fr,
+        terminal: counts.terminal,
+        process: counts.process,
+    }
+}
+
+/// Resolve the single session summary for `session_id` via the SAME discovery
+/// the list/search already use (`discover_chat_sessions` + `discover_fr_sessions`
+/// + `merge_summaries`), then `.find` it. `None` when the id matches no
+/// discoverable session — the not-found signal.
+async fn resolve_single_summary(
+    state: &SessionTranscriptState,
+    session_id: &str,
+) -> Option<SessionSummary> {
+    let chat = discover_chat_sessions(state);
+    let fr = discover_fr_sessions(state).await;
+    merge_summaries(chat, fr)
+        .into_iter()
+        .find(|s| s.session_id == session_id)
+}
+
+/// Build the export header from a resolved (or synthesized) summary + the merged
+/// entries. `provider`/`model_id`/`worktree_id` are lifted from the summary;
+/// counts come from the FULL merge so the header reflects the real lane spread.
+fn build_export_header(
+    session_id: &str,
+    summary: &SessionSummary,
+    entries: &[SessionTranscriptEntry],
+) -> ExportHeader {
+    ExportHeader {
+        session_id: session_id.to_string(),
+        kind: summary.kind.clone(),
+        provider: summary.provider.clone(),
+        model_id: summary.model_id.clone(),
+        worktree_id: summary.worktree_id.clone(),
+        started_at: summary.started_at,
+        last_activity_at: summary.last_activity_at,
+        counts: export_counts(&count_lanes(entries)),
+    }
+}
+
+/// Synthesize a minimal summary for a session that IS discoverable-but-thin
+/// (e.g. matched by discovery but with no summary row carrying metadata). Derives
+/// `model_id`/`provider` from a composite id and the kind from the id shape.
+fn synth_min_summary(session_id: &str) -> SessionSummary {
+    let (model_id, provider) = split_instance_id(session_id);
+    let kind = if session_id.contains('#') { "swarm" } else { "chat" };
+    SessionSummary {
+        session_id: session_id.to_string(),
+        kind: kind.to_string(),
+        started_at: None,
+        last_activity_at: None,
+        model_id,
+        provider,
+        title: None,
+        counts: SourceCounts::default(),
+        worktree_id: None,
+        resumable: false,
+    }
+}
+
+/// Atomically write a single rendered artifact (temp + rename), mirroring
+/// `save_session_index` / `swarm_schedule_store`. Returns the byte size on
+/// success. Disk-agnostic: the caller derives `dest_dir` from `app_data_root` or
+/// the operator's chosen dir.
+fn write_export_file(path: &Path, content: &str) -> Result<u64, String> {
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)
+            .map_err(|e| format!("create export dir failed: {e}"))?;
+    }
+    let bytes = content.as_bytes();
+    let ext = path
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("out");
+    let tmp = path.with_extension(format!("{ext}.tmp.{}", std::process::id()));
+    std::fs::write(&tmp, bytes).map_err(|e| format!("write temp export failed: {e}"))?;
+    std::fs::rename(&tmp, path).map_err(|e| {
+        let _ = std::fs::remove_file(&tmp);
+        format!("commit export failed: {e}")
+    })?;
+    Ok(bytes.len() as u64)
+}
+
+/// IO-thin export core: takes already-fetched inputs + a resolved summary, renders
+/// + redacts via the pure `export::render`, and writes the requested artifact(s)
+/// atomically under `dest_dir`. Kept free of the Tauri `State` so it is directly
+/// testable. Returns the response (paths + sizes + telemetry).
+///
+/// `dest_dir` is the absolute directory the artifacts land in (the command
+/// resolves the default `<app_data_root>/exports` or the operator's choice). The
+/// filename stem is the sanitized session id; a UTC timestamp suffix prevents
+/// clobbering successive exports.
+fn write_session_export(
+    session_id: &str,
+    entries: &[SessionTranscriptEntry],
+    header: &ExportHeader,
+    fmt: ExportFormat,
+    dest_dir: &Path,
+) -> Result<SessionExportResponse, String> {
+    let rendered = export::render(entries, header, fmt, &PatternRedactor);
+
+    let stem = export::safe_session_stem(session_id);
+    let suffix = export::export_timestamp_suffix(Utc::now());
+    let base = format!("session-{stem}-{suffix}");
+
+    let mut files: Vec<ExportedFile> = Vec::new();
+
+    if let Some(md) = &rendered.markdown {
+        let path = dest_dir.join(format!("{base}.md"));
+        let bytes = write_export_file(&path, md).map_err(|e| {
+            // Honest partial: if a prior artifact already landed, surface it.
+            partial_error(&e, &files)
+        })?;
+        files.push(ExportedFile {
+            format: "markdown".to_string(),
+            path: path.to_string_lossy().to_string(),
+            bytes,
+        });
+    }
+
+    if let Some(js) = &rendered.json {
+        let path = dest_dir.join(format!("{base}.json"));
+        let bytes = write_export_file(&path, js).map_err(|e| partial_error(&e, &files))?;
+        files.push(ExportedFile {
+            format: "json".to_string(),
+            path: path.to_string_lossy().to_string(),
+            bytes,
+        });
+    }
+
+    Ok(SessionExportResponse {
+        session_id: session_id.to_string(),
+        dest_dir: dest_dir.to_string_lossy().to_string(),
+        files,
+        empty: entries.is_empty(),
+        redacted_field_count: rendered.redacted_field_count,
+    })
+}
+
+/// Build an honest error message when a second write fails after a first one
+/// already landed, so the operator is not told "nothing happened".
+fn partial_error(err: &str, written: &[ExportedFile]) -> String {
+    if written.is_empty() {
+        err.to_string()
+    } else {
+        let paths: Vec<&str> = written.iter().map(|f| f.path.as_str()).collect();
+        format!("{err} (partial export: already wrote {})", paths.join(", "))
+    }
+}
+
+#[tauri::command]
+pub async fn kernel_session_export(
+    session_id: String,
+    format: String,
+    dest_dir: Option<String>,
+    state: State<'_, SessionTranscriptState>,
+) -> Result<SessionExportResponse, String> {
+    let session_id = session_id.trim().to_string();
+    if session_id.is_empty() {
+        return Err("session_id must not be empty".to_string());
+    }
+    let fmt = ExportFormat::from_ipc(&format)
+        .ok_or_else(|| format!("unknown format: {format}"))?;
+
+    // Chat lane: path-keyed by session_id (same as transcript_get).
+    let chat_entries = session_chat_log::read_chat_log(&state.app_data_root, &session_id)?;
+    let chat: Vec<ChatTurnInput> = chat_entries.iter().map(chat_input_from_entry).collect();
+
+    // FR lanes via both seams (or unavailable). FULL export: no from/to window.
+    let (fr_events, recorder_available) = match &state.recorder {
+        Some(recorder) => (
+            fetch_fr_events(recorder, &session_id, None, None).await?,
+            true,
+        ),
+        None => (Vec::new(), false),
+    };
+
+    // Live terminal scrollback enrichment (parity with the transcript view).
+    let live = live_terminal_scrollback(&state.terminal, &session_id);
+
+    // FULL merge, no kind filter — REUSE the aggregator.
+    let response = build_response(
+        &session_id,
+        chat,
+        fr_events,
+        recorder_available,
+        live,
+        None,
+    );
+
+    // Resolve the summary (discovery reuse) for the header + not-found honesty.
+    let summary = resolve_single_summary(&state, &session_id).await;
+
+    // Honest not-found: an id that matches NO discoverable session AND produces
+    // an empty transcript is a typed error, not a meaningless file.
+    if response.entries.is_empty() && summary.is_none() {
+        return Err(format!("SESSION_NOT_FOUND: {session_id}"));
+    }
+
+    // Discoverable-but-thin fallback: a real (or synthesized-minimal) summary.
+    let summary = summary.unwrap_or_else(|| synth_min_summary(&session_id));
+    let header = build_export_header(&session_id, &summary, &response.entries);
+
+    // Resolve the destination dir: operator choice (verbatim, off-root-capable
+    // for sharing) or the disk-agnostic default `<app_data_root>/exports`.
+    let dest_dir: PathBuf = match dest_dir.map(|d| d.trim().to_string()) {
+        Some(d) if !d.is_empty() => PathBuf::from(d),
+        _ => state.app_data_root.join(SESSION_EXPORT_DIR),
+    };
+
+    write_session_export(&session_id, &response.entries, &header, fmt, &dest_dir)
 }
 
 // ---------------------------------------------------------------------------
@@ -1924,5 +2185,282 @@ mod tests {
         // Only the swarm session with a stored template is now resumable.
         assert!(summaries[0].resumable, "swarm id with template => resumable");
         assert!(!summaries[1].resumable, "chat id has no template => not resumable");
+    }
+
+    // -----------------------------------------------------------------------
+    // Session export (ROI #5) tests
+    // -----------------------------------------------------------------------
+
+    /// Helper: seed a real temp `app_data_root` with a swarm session whose
+    /// terminal event carries a secret, plus a recorder, and return the state +
+    /// root + composite instance id.
+    async fn seed_export_state() -> (tempfile::TempDir, PathBuf, SessionTranscriptState, String) {
+        use handshake_core::flight_recorder::duckdb::DuckDbFlightRecorder;
+
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let app_data_root = tmp.path().to_path_buf();
+
+        // A chat session carrying a secret in a chat turn.
+        let chat_session = "0192a000-0000-7000-8000-0000000000ee";
+        let chat_dir = app_data_root.join("sessions").join(chat_session);
+        std::fs::create_dir_all(&chat_dir).expect("mkdir chat");
+        let row = json!({
+            "schema_version": "hsk.session_chat_log@0.1",
+            "session_id": chat_session,
+            "turn_index": 1u64,
+            "created_at_utc": at(100).to_rfc3339(),
+            "message_id": "0192a000-0000-7000-8000-0000000000ef",
+            "role": "user",
+            "content": "set API_KEY=supersecretexportval and run",
+        });
+        std::fs::write(
+            chat_dir.join("chat.jsonl"),
+            format!("{}\n", serde_json::to_string(&row).unwrap()),
+        )
+        .expect("write chat.jsonl");
+
+        // A swarm session with a swarm spawn + a terminal command carrying a secret.
+        let recorder: Arc<dyn FlightRecorder> =
+            Arc::new(DuckDbFlightRecorder::new_in_memory(7).expect("recorder"));
+        let instance = "qwen#0";
+        recorder
+            .record_event(swarm_event(50, instance))
+            .await
+            .expect("record swarm");
+        let mut term = FlightRecorderEvent::new(
+            FlightRecorderEventType::TerminalCommand,
+            FlightRecorderActor::Agent,
+            Uuid::now_v7(),
+            json!({
+                "type": "terminal_command",
+                "fr_event": "FR-EVT-TERMINAL-COMMAND-EXEC",
+                "session_id": instance,
+                "command": "deploy --token=supersecretexportval",
+                "cwd": "",
+                "exit_code": 0,
+                "duration_ms": 0,
+                "timed_out": false,
+                "cancelled": false,
+                "truncated_bytes": 0,
+            }),
+        )
+        .with_session_span(instance.to_string());
+        term.timestamp = at(60);
+        recorder.record_event(term).await.expect("record terminal");
+
+        let state = SessionTranscriptState::new(Some(recorder), &app_data_root, None);
+        (tmp, app_data_root, state, instance.to_string())
+    }
+
+    #[tokio::test]
+    async fn export_writes_both_files_atomically_over_real_state() {
+        let (_tmp, app_data_root, state, instance) = seed_export_state().await;
+
+        // FULL transcript via the reused readers (same as the command body).
+        let recorder_ref = state.recorder.as_ref().unwrap();
+        let fr_events = fetch_fr_events(recorder_ref, &instance, None, None)
+            .await
+            .expect("fetch fr");
+        let resp = build_response(&instance, vec![], fr_events, true, None, None);
+        assert!(!resp.entries.is_empty(), "swarm session has entries");
+
+        let summary = resolve_single_summary(&state, &instance)
+            .await
+            .expect("summary resolves");
+        let header = build_export_header(&instance, &summary, &resp.entries);
+
+        let dest = app_data_root.join(SESSION_EXPORT_DIR);
+        let out = write_session_export(
+            &instance,
+            &resp.entries,
+            &header,
+            ExportFormat::Both,
+            &dest,
+        )
+        .expect("export ok");
+
+        assert_eq!(out.files.len(), 2, "both md + json written");
+        assert!(!out.empty);
+        assert!(out.redacted_field_count >= 1, "the terminal secret was masked");
+
+        for f in &out.files {
+            let p = Path::new(&f.path);
+            assert!(p.exists(), "file exists on disk: {}", f.path);
+            assert!(f.bytes > 0, "non-empty file");
+            // Filenames are space-free (NAMING policy).
+            let name = p.file_name().unwrap().to_string_lossy();
+            assert!(!name.contains(' '), "filename has no spaces: {name}");
+            // The secret is absent from the written file.
+            let content = std::fs::read_to_string(p).expect("read export");
+            assert!(
+                !content.contains("supersecretexportval"),
+                "secret must not leak to disk in {}",
+                f.path
+            );
+        }
+
+        // No `.tmp.` residue remains in the dest dir.
+        let residue: Vec<String> = std::fs::read_dir(&dest)
+            .unwrap()
+            .flatten()
+            .map(|e| e.file_name().to_string_lossy().to_string())
+            .filter(|n| n.contains(".tmp."))
+            .collect();
+        assert!(residue.is_empty(), "no temp residue: {residue:?}");
+
+        // dest_dir is the absolute exports dir.
+        assert_eq!(out.dest_dir, dest.to_string_lossy());
+    }
+
+    #[tokio::test]
+    async fn export_chat_session_redacts_and_writes() {
+        let (_tmp, app_data_root, state, _instance) = seed_export_state().await;
+        let chat_session = "0192a000-0000-7000-8000-0000000000ee";
+
+        let chat_entries =
+            session_chat_log::read_chat_log(&app_data_root, chat_session).expect("read chat");
+        let chat: Vec<ChatTurnInput> = chat_entries.iter().map(chat_input_from_entry).collect();
+        let resp = build_response(chat_session, chat, vec![], true, None, None);
+        let summary = resolve_single_summary(&state, chat_session)
+            .await
+            .expect("chat summary resolves");
+        let header = build_export_header(chat_session, &summary, &resp.entries);
+
+        let dest = app_data_root.join(SESSION_EXPORT_DIR);
+        let out =
+            write_session_export(chat_session, &resp.entries, &header, ExportFormat::Markdown, &dest)
+                .expect("export ok");
+        assert_eq!(out.files.len(), 1);
+        let content = std::fs::read_to_string(&out.files[0].path).expect("read");
+        assert!(!content.contains("supersecretexportval"), "chat secret redacted on disk");
+        assert!(content.contains("***REDACTED***"));
+        assert!(out.redacted_field_count >= 1);
+    }
+
+    #[tokio::test]
+    async fn export_unknown_session_is_not_found() {
+        let (_tmp, _root, state, _instance) = seed_export_state().await;
+        // A never-recorded id: no chat dir, no FR rows, no summary.
+        let err = kernel_session_export_core(&state, "ghost#404", "both", None)
+            .await
+            .expect_err("unknown id must error");
+        assert!(
+            err.starts_with("SESSION_NOT_FOUND:"),
+            "typed not-found error, got: {err}"
+        );
+    }
+
+    #[tokio::test]
+    async fn export_discoverable_empty_session_writes_empty_file() {
+        // A chat session whose chat.jsonl exists but is EMPTY is not discoverable
+        // (discovery skips empty logs); instead test the empty-but-valid path via
+        // a synthesized-thin discoverable: a chat id with a single whitespace turn
+        // would still parse. Simpler: assert the empty-valid render path directly
+        // through write_session_export with empty entries + a synth summary.
+        let (_tmp, app_data_root, _state, _instance) = seed_export_state().await;
+        let sid = "thin-session";
+        let summary = synth_min_summary(sid);
+        let header = build_export_header(sid, &summary, &[]);
+        let dest = app_data_root.join(SESSION_EXPORT_DIR);
+        let out = write_session_export(sid, &[], &header, ExportFormat::Both, &dest)
+            .expect("empty export ok");
+        assert!(out.empty, "empty flag set");
+        assert_eq!(out.files.len(), 2);
+        let md = std::fs::read_to_string(
+            &out.files.iter().find(|f| f.format == "markdown").unwrap().path,
+        )
+        .unwrap();
+        assert!(md.contains("_No entries recorded for this session._"));
+        assert_eq!(out.redacted_field_count, 0);
+    }
+
+    #[tokio::test]
+    async fn export_default_dest_is_under_app_data_root() {
+        let (_tmp, app_data_root, state, instance) = seed_export_state().await;
+        // dest_dir = None -> default <app_data_root>/exports.
+        let out = kernel_session_export_core(&state, &instance, "json", None)
+            .await
+            .expect("export ok");
+        let expected = app_data_root.join(SESSION_EXPORT_DIR);
+        assert_eq!(out.dest_dir, expected.to_string_lossy());
+        assert!(Path::new(&out.files[0].path).starts_with(&expected));
+    }
+
+    #[tokio::test]
+    async fn export_rejects_empty_session_id_and_unknown_format() {
+        let (_tmp, _root, state, instance) = seed_export_state().await;
+        assert!(kernel_session_export_core(&state, "   ", "both", None)
+            .await
+            .is_err());
+        let err = kernel_session_export_core(&state, &instance, "pdf", None)
+            .await
+            .expect_err("unknown format rejected");
+        assert!(err.contains("unknown format"), "got: {err}");
+    }
+
+    #[test]
+    fn export_response_serializes_camelcase() {
+        let resp = SessionExportResponse {
+            session_id: "m#0".to_string(),
+            dest_dir: "/tmp/exports".to_string(),
+            files: vec![ExportedFile {
+                format: "markdown".to_string(),
+                path: "/tmp/exports/session-m-0.md".to_string(),
+                bytes: 1234,
+            }],
+            empty: false,
+            redacted_field_count: 2,
+        };
+        let v = serde_json::to_value(&resp).unwrap();
+        for key in ["sessionId", "destDir", "files", "empty", "redactedFieldCount"] {
+            assert!(v.get(key).is_some(), "expected camelCase {key}");
+        }
+        for key in ["session_id", "dest_dir", "redacted_field_count"] {
+            assert!(v.get(key).is_none(), "snake_case {key} must not leak");
+        }
+        assert_eq!(v["files"][0]["format"], json!("markdown"));
+        assert_eq!(v["files"][0]["bytes"], json!(1234));
+    }
+
+    /// A test-only mirror of the `kernel_session_export` command body that takes
+    /// the state by reference (the `#[tauri::command]` takes `State`, which is not
+    /// constructible in a unit test). Keeps the not-found / default-dest / format
+    /// branches under test without a Tauri runtime.
+    async fn kernel_session_export_core(
+        state: &SessionTranscriptState,
+        session_id: &str,
+        format: &str,
+        dest_dir: Option<String>,
+    ) -> Result<SessionExportResponse, String> {
+        let session_id = session_id.trim().to_string();
+        if session_id.is_empty() {
+            return Err("session_id must not be empty".to_string());
+        }
+        let fmt = ExportFormat::from_ipc(format)
+            .ok_or_else(|| format!("unknown format: {format}"))?;
+
+        let chat_entries = session_chat_log::read_chat_log(&state.app_data_root, &session_id)?;
+        let chat: Vec<ChatTurnInput> = chat_entries.iter().map(chat_input_from_entry).collect();
+        let (fr_events, recorder_available) = match &state.recorder {
+            Some(recorder) => (
+                fetch_fr_events(recorder, &session_id, None, None).await?,
+                true,
+            ),
+            None => (Vec::new(), false),
+        };
+        let live = live_terminal_scrollback(&state.terminal, &session_id);
+        let response =
+            build_response(&session_id, chat, fr_events, recorder_available, live, None);
+        let summary = resolve_single_summary(state, &session_id).await;
+        if response.entries.is_empty() && summary.is_none() {
+            return Err(format!("SESSION_NOT_FOUND: {session_id}"));
+        }
+        let summary = summary.unwrap_or_else(|| synth_min_summary(&session_id));
+        let header = build_export_header(&session_id, &summary, &response.entries);
+        let dest_dir: PathBuf = match dest_dir.map(|d| d.trim().to_string()) {
+            Some(d) if !d.is_empty() => PathBuf::from(d),
+            _ => state.app_data_root.join(SESSION_EXPORT_DIR),
+        };
+        write_session_export(&session_id, &response.entries, &header, fmt, &dest_dir)
     }
 }

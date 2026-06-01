@@ -16,6 +16,8 @@ import { SessionReplayPanel } from "./SessionReplayPanel";
 import { entryStableKey } from "../../lib/ipc/session_transcript";
 import type {
   LiveTailIpc,
+  SessionExportRequest,
+  SessionExportResponse,
   SessionSearchRequest,
   SessionSearchResponse,
   SessionSummary,
@@ -80,6 +82,21 @@ interface IpcCalls {
   getTranscriptArgs: TranscriptGetRequest[];
   resumeArgs: string[];
   searchArgs: SessionSearchRequest[];
+  exportArgs: SessionExportRequest[];
+}
+
+/** A deterministic default export response (override per-test for content). */
+function defaultExportResponse(req: SessionExportRequest): SessionExportResponse {
+  const stem = req.sessionId.replace(/[^A-Za-z0-9._-]+/g, "-");
+  const dir = "/app-data/exports";
+  const files = [];
+  if (req.format === "markdown" || req.format === "both") {
+    files.push({ format: "markdown", path: `${dir}/session-${stem}-20260530T100000Z.md`, bytes: 1234 });
+  }
+  if (req.format === "json" || req.format === "both") {
+    files.push({ format: "json", path: `${dir}/session-${stem}-20260530T100000Z.json`, bytes: 2048 });
+  }
+  return { sessionId: req.sessionId, destDir: dir, files, empty: false, redactedFieldCount: 2 };
 }
 
 /** A deterministic default search response (override per-test for hit content). */
@@ -91,8 +108,9 @@ function makeIpc(
   sessions: SessionSummary[],
   response: SessionTranscriptResponse,
   search?: (req: SessionSearchRequest) => SessionSearchResponse,
+  exportFn?: (req: SessionExportRequest) => SessionExportResponse,
 ): { ipc: SessionTranscriptIpc; calls: IpcCalls } {
-  const calls: IpcCalls = { getTranscriptArgs: [], resumeArgs: [], searchArgs: [] };
+  const calls: IpcCalls = { getTranscriptArgs: [], resumeArgs: [], searchArgs: [], exportArgs: [] };
   const ipc: SessionTranscriptIpc = {
     listSessions: vi.fn(async () => sessions),
     getTranscript: vi.fn(async (req: TranscriptGetRequest) => {
@@ -111,6 +129,13 @@ function makeIpc(
     searchSessions: vi.fn(async (req: SessionSearchRequest) => {
       calls.searchArgs.push(req);
       return search ? search(req) : emptySearchResponse(req.query);
+    }),
+    // ROI #5: default export fake records the call + returns a deterministic
+    // two-file result. Tests that exercise export pass an `exportFn` builder; the
+    // rest never call it.
+    exportSession: vi.fn(async (req: SessionExportRequest) => {
+      calls.exportArgs.push(req);
+      return exportFn ? exportFn(req) : defaultExportResponse(req);
     }),
   };
   return { ipc, calls };
@@ -292,6 +317,7 @@ describe("SessionReplayPanel", () => {
       resumeSession: vi.fn(async (s: string) => ({ modelId: s, instance: 0, composite: `${s}#0` })),
       getSpawnTemplate: vi.fn(async () => null),
       searchSessions: vi.fn(async (req: SessionSearchRequest) => ({ hits: [], truncated: false, query: req.query })),
+      exportSession: vi.fn(async (req: SessionExportRequest) => defaultExportResponse(req)),
     };
 
     // openSignal is a one-shot: the mount value is the baseline, only a CHANGE
@@ -706,6 +732,151 @@ describe("SessionReplayPanel cross-session search", () => {
 });
 
 // ===========================================================================
+// ROI #5 EXPORT: the per-row Export affordance (export-to-file).
+// ===========================================================================
+describe("SessionReplayPanel export affordance", () => {
+  it("renders an Export button + format select on EVERY recorded row (default both)", async () => {
+    const { ipc } = makeIpc(
+      [
+        makeSummary({ sessionId: "swarm-1", resumable: true }),
+        makeSummary({ sessionId: "chat-1", kind: "chat", resumable: false }),
+      ],
+      makeResponse({}),
+    );
+    render(<SessionReplayPanel ipc={ipc} liveIpc={noopLiveIpc()} />);
+    open();
+
+    await screen.findByTestId("session-replay-row-swarm-1");
+    // Export is on BOTH rows (unlike Resume, which is gated on resumable).
+    expect(screen.getByTestId("session-replay-export-swarm-1")).toBeInTheDocument();
+    expect(screen.getByTestId("session-replay-export-chat-1")).toBeInTheDocument();
+    // The format select defaults to "both".
+    const sel = screen.getByTestId("session-replay-export-format-swarm-1") as HTMLSelectElement;
+    expect(sel.value).toBe("both");
+  });
+
+  it("clicking Export calls the export IPC with the chosen format + surfaces the written path + redaction chip", async () => {
+    const { ipc, calls } = makeIpc([makeSummary({ sessionId: "swarm-1" })], makeResponse({}));
+    render(<SessionReplayPanel ipc={ipc} liveIpc={noopLiveIpc()} />);
+    open();
+
+    fireEvent.click(await screen.findByTestId("session-replay-export-swarm-1"));
+
+    // The export IPC ran with the row id, the default format, and destDir null.
+    await waitFor(() => expect(calls.exportArgs.length).toBe(1));
+    expect(calls.exportArgs[0]).toEqual({ sessionId: "swarm-1", format: "both", destDir: null });
+    // The written path + redaction chip surface honestly inline on the row.
+    const exported = await screen.findByTestId("session-replay-exported-swarm-1");
+    expect(exported).toHaveTextContent(/Exported →/);
+    expect(exported).toHaveTextContent(/\.md/);
+    expect(screen.getByTestId("session-replay-export-redacted-swarm-1")).toHaveTextContent("2 secrets redacted");
+    // A copy-path affordance is present (operator can grab the path for sharing).
+    expect(screen.getByTestId("session-replay-export-copy-swarm-1")).toBeInTheDocument();
+  });
+
+  it("honors the chosen format: selecting Markdown exports only a markdown file", async () => {
+    const { ipc, calls } = makeIpc([makeSummary({ sessionId: "swarm-1" })], makeResponse({}));
+    render(<SessionReplayPanel ipc={ipc} liveIpc={noopLiveIpc()} />);
+    open();
+
+    await screen.findByTestId("session-replay-export-format-swarm-1");
+    fireEvent.change(screen.getByTestId("session-replay-export-format-swarm-1"), { target: { value: "markdown" } });
+    fireEvent.click(screen.getByTestId("session-replay-export-swarm-1"));
+
+    await waitFor(() => expect(calls.exportArgs.length).toBe(1));
+    expect(calls.exportArgs[0].format).toBe("markdown");
+    // Single-file result: no "+N more", and the path is the markdown artifact.
+    const exported = await screen.findByTestId("session-replay-exported-swarm-1");
+    expect(exported).toHaveTextContent(/\.md/);
+    expect(exported).not.toHaveTextContent(/more/);
+  });
+
+  it("surfaces a multi-file result with a '+N more' count when exporting both formats", async () => {
+    const { ipc } = makeIpc([makeSummary({ sessionId: "swarm-1" })], makeResponse({}));
+    render(<SessionReplayPanel ipc={ipc} liveIpc={noopLiveIpc()} />);
+    open();
+
+    fireEvent.click(await screen.findByTestId("session-replay-export-swarm-1"));
+    const exported = await screen.findByTestId("session-replay-exported-swarm-1");
+    // both => md + json => the first path is shown with a "+1 more" tail.
+    expect(exported).toHaveTextContent(/\+1 more/);
+  });
+
+  it("flags an empty-but-valid export honestly (empty chip + zero redactions)", async () => {
+    const { ipc } = makeIpc(
+      [makeSummary({ sessionId: "swarm-1" })],
+      makeResponse({}),
+      undefined,
+      (req) => ({
+        sessionId: req.sessionId,
+        destDir: "/app-data/exports",
+        files: [{ format: "markdown", path: "/app-data/exports/session-swarm-1.md", bytes: 120 }],
+        empty: true,
+        redactedFieldCount: 0,
+      }),
+    );
+    render(<SessionReplayPanel ipc={ipc} liveIpc={noopLiveIpc()} />);
+    open();
+
+    fireEvent.click(await screen.findByTestId("session-replay-export-swarm-1"));
+    expect(await screen.findByTestId("session-replay-export-empty-swarm-1")).toHaveTextContent(/empty session/i);
+    expect(screen.getByTestId("session-replay-export-redacted-swarm-1")).toHaveTextContent("0 secrets redacted");
+  });
+
+  it("renders a backend export error VERBATIM inline on the row (e.g. SESSION_NOT_FOUND), never swallowed", async () => {
+    const { ipc } = makeIpc([makeSummary({ sessionId: "swarm-1" })], makeResponse({}));
+    ipc.exportSession = vi.fn(async () => {
+      throw new Error("SESSION_NOT_FOUND: no recorded session matches swarm-1");
+    });
+    render(<SessionReplayPanel ipc={ipc} liveIpc={noopLiveIpc()} />);
+    open();
+
+    fireEvent.click(await screen.findByTestId("session-replay-export-swarm-1"));
+    const err = await screen.findByTestId("session-replay-export-error-swarm-1");
+    expect(err).toHaveTextContent("SESSION_NOT_FOUND: no recorded session matches swarm-1");
+    // No success line on failure.
+    expect(screen.queryByTestId("session-replay-exported-swarm-1")).not.toBeInTheDocument();
+  });
+
+  it("single-flights the export: the button is disabled while an export is in flight", async () => {
+    const gate: { resolve: (() => void) | null } = { resolve: null };
+    const { ipc } = makeIpc([makeSummary({ sessionId: "swarm-1" })], makeResponse({}));
+    ipc.exportSession = vi.fn(
+      (req: SessionExportRequest) =>
+        new Promise<SessionExportResponse>((resolve) => {
+          gate.resolve = () => resolve(defaultExportResponse(req));
+        }),
+    );
+    render(<SessionReplayPanel ipc={ipc} liveIpc={noopLiveIpc()} />);
+    open();
+
+    const btn = await screen.findByTestId("session-replay-export-swarm-1");
+    fireEvent.click(btn);
+    // While in flight the button is disabled (single-flight) and shows progress.
+    await waitFor(() => expect(screen.getByTestId("session-replay-export-swarm-1")).toBeDisabled());
+    expect(screen.getByTestId("session-replay-export-swarm-1")).toHaveTextContent(/Exporting/);
+    // Resolve -> the button re-enables and the result surfaces.
+    gate.resolve?.();
+    await waitFor(() => expect(screen.getByTestId("session-replay-export-swarm-1")).not.toBeDisabled());
+    expect(await screen.findByTestId("session-replay-exported-swarm-1")).toBeInTheDocument();
+  });
+
+  it("keeps the export result on its own row (a result never leaks onto another session)", async () => {
+    const { ipc } = makeIpc(
+      [makeSummary({ sessionId: "swarm-1" }), makeSummary({ sessionId: "swarm-2" })],
+      makeResponse({}),
+    );
+    render(<SessionReplayPanel ipc={ipc} liveIpc={noopLiveIpc()} />);
+    open();
+
+    fireEvent.click(await screen.findByTestId("session-replay-export-swarm-1"));
+    await screen.findByTestId("session-replay-exported-swarm-1");
+    // The other row shows NO export result (the keyed result is row-scoped).
+    expect(screen.queryByTestId("session-replay-exported-swarm-2")).not.toBeInTheDocument();
+  });
+});
+
+// ===========================================================================
 // Pure helper tests (correlation + stable dedupe keys).
 // ===========================================================================
 describe("eventInstanceKey", () => {
@@ -928,6 +1099,7 @@ describe("SessionReplayPanel live tail", () => {
       resumeSession: vi.fn(async (s: string) => ({ modelId: s, instance: 0, composite: `${s}#0` })),
       getSpawnTemplate: vi.fn(async () => null),
       searchSessions: vi.fn(async (req: SessionSearchRequest) => ({ hits: [], truncated: false, query: req.query })),
+      exportSession: vi.fn(async (req: SessionExportRequest) => defaultExportResponse(req)),
     };
     const h = makeLiveHarness();
     render(<SessionReplayPanel ipc={ipc} liveIpc={h.liveIpc} />);
@@ -1094,6 +1266,7 @@ describe("SessionReplayPanel live tail", () => {
       resumeSession: vi.fn(async (s: string) => ({ modelId: s, instance: 0, composite: `${s}#0` })),
       getSpawnTemplate: vi.fn(async () => null),
       searchSessions: vi.fn(async (req: SessionSearchRequest) => ({ hits: [], truncated: false, query: req.query })),
+      exportSession: vi.fn(async (req: SessionExportRequest) => defaultExportResponse(req)),
     };
     const h = makeLiveHarness();
     render(<SessionReplayPanel ipc={ipc} liveIpc={h.liveIpc} />);
