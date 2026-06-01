@@ -68,6 +68,13 @@ pub struct SpawnMeta {
     pub parent_session_id: Option<String>,
     pub started_at_utc: DateTime<Utc>,
     pub sandbox_adapter: Option<String>,
+    /// The sandbox adapter's INTERNAL handle id (e.g. `hsk-ch-<uuid>`) for a
+    /// boxed/microVM-routed session. Populated by the swarm factory's sandboxed
+    /// path from the `ProcessHandle.sandbox_internal_id`; `None` for in-process
+    /// (non-sandboxed) sessions. `record_spawn` maps it onto
+    /// `ProcessStart::with_sandbox_internal_id` so the ledger START/STOP rows
+    /// carry the microVM identity (WP-KERNEL-004 wave 1).
+    pub sandbox_internal_id: Option<String>,
     pub model_artifact_sha256: Option<String>,
     pub work_profile_id: Option<String>,
     pub owner_role: String,
@@ -89,6 +96,7 @@ impl SpawnMeta {
             parent_session_id: None,
             started_at_utc: Utc::now(),
             sandbox_adapter: None,
+            sandbox_internal_id: None,
             model_artifact_sha256: None,
             work_profile_id: None,
             owner_role: owner_role.into(),
@@ -123,6 +131,9 @@ pub fn record_spawn(
     }
     if let Some(sandbox_adapter) = meta.sandbox_adapter {
         start = start.with_sandbox_adapter_id(sandbox_adapter);
+    }
+    if let Some(sandbox_internal_id) = meta.sandbox_internal_id {
+        start = start.with_sandbox_internal_id(sandbox_internal_id);
     }
     if let Some(model_artifact_sha256) = meta.model_artifact_sha256 {
         start = start.with_model_artifact_sha256(model_artifact_sha256);

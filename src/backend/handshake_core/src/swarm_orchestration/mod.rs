@@ -52,6 +52,7 @@ pub mod production_factory;
 pub mod routing;
 pub mod schedule;
 pub mod state;
+pub mod worktree_vm_registry;
 
 #[cfg(test)]
 mod tests;
@@ -79,3 +80,4 @@ pub use routing::{
     RoutingDecision, RoutingPolicy, RoutingPolicyConfig, SwarmRoutingError, TaskClass, TaskTier,
 };
 pub use state::ModelSessionState;
+pub use worktree_vm_registry::{WorktreeVmError, WorktreeVmRegistry};

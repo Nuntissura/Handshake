@@ -1070,15 +1070,27 @@ pub fn run() {
                 transcript_app_data_root,
                 transcript_terminal,
             ));
+            // WP-KERNEL-004 wave 1 Integrate: hand the production swarm factory the
+            // SAME sandbox adapter registry that was managed into app state above
+            // (line ~969), so a Local+LlamaCpp swarm spawn requesting Tier3Microvm
+            // routes to the CH sandboxed-local runtime. `app.state()` resolves the
+            // managed `Arc<SandboxAdapterRegistry>` (managed before `.setup` runs);
+            // cloning the Arc shares the live registry without taking it out of
+            // state (the `kernel_sandbox_*` commands still resolve it).
+            let sandbox_registry_for_swarm: Arc<
+                handshake_core::sandbox::SandboxAdapterRegistry,
+            > = (*app.state::<Arc<handshake_core::sandbox::SandboxAdapterRegistry>>()).clone();
             let mut swarm_state = match swarm_recorder {
                 Some(recorder) => {
                     commands::swarm_runtime::SwarmRuntimeState::production_with_fr_recorder(
                         recorder,
                         &schedule_store_root,
+                        Some(sandbox_registry_for_swarm),
                     )
                 }
-                None => commands::swarm_runtime::SwarmRuntimeState::production(
+                None => commands::swarm_runtime::SwarmRuntimeState::production_with_registry(
                     &schedule_store_root,
+                    Some(sandbox_registry_for_swarm),
                 ),
             };
             // Wire the §10.1 capture seam: each swarm spawn opens a read-only

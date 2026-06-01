@@ -86,11 +86,17 @@ pub struct SpawnRequest {
     /// `None` for a session with no assigned disk location.
     pub working_dir: Option<String>,
     /// Operator-intended isolation tier for this session (mirrors
-    /// [`crate::sandbox::adapter::IsolationTier`]). RECORDED ONLY: it captures the
-    /// operator's "run this in a container / syscall-jail / microVM" intent at
-    /// spawn time as the bridge to future sandbox-VM execution routing. It is NOT
-    /// enforced — nothing reads it to select an execution substrate today; the
-    /// session still runs in-process. `None` for no recorded tier.
+    /// [`crate::sandbox::adapter::IsolationTier`]).
+    ///
+    /// WP-KERNEL-004 wave 1 made this LOAD-BEARING for exactly ONE route: a
+    /// `Local`+`LlamaCpp` spawn with `isolation_tier == Some(Tier3Microvm)` is
+    /// dispatched by [`super::production_factory::ProductionModelSessionFactory`]
+    /// into a Cloud Hypervisor microVM (`create_sandboxed_local`) instead of an
+    /// in-process llama.cpp load. Every OTHER tier value (incl. `None`,
+    /// `Tier1Container`, `Tier2Syscall`) remains RECORDED-ONLY today — it is
+    /// carried into the ledger / transcript as the operator's intent but does not
+    /// yet select an execution substrate; those sessions still run in-process.
+    /// `None` for no recorded tier.
     pub isolation_tier: Option<crate::sandbox::adapter::IsolationTier>,
     /// rank-7 time-boxing: an optional per-spawn lease lifetime. When set, the
     /// session's claim lease expires after this duration instead of the

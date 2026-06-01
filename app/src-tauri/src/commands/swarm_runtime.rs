@@ -76,6 +76,7 @@ use handshake_core::model_runtime::cloud::{
     CliBridgeConfig, CliSubprocessSpawner, LiveCliSpawner, SecretsVault,
 };
 use handshake_core::flight_recorder::FlightRecorder;
+use handshake_core::sandbox::SandboxAdapterRegistry;
 use handshake_core::swarm_orchestration::{
     BroadcastSwarmSink, CloudLaneFactoryConfig, DurableSwarmFrBridge, FanoutSwarmSink,
     FlightRecorderSwarmSink, LiveSession, ModelInstanceId, ModelSessionFactory, ModelSessionState,
@@ -330,7 +331,37 @@ impl SwarmRuntimeState {
             Some(anthropic_lane),
             Some(openai_lane),
         );
-        Self::production_with_cloud_and_recorder(cloud, None, app_data_root)
+        Self::production_with_cloud_and_recorder(cloud, None, app_data_root, None)
+    }
+
+    /// WP-KERNEL-004 wave 1: same as [`production`] but threads the app's sandbox
+    /// adapter registry so a Local+LlamaCpp Tier3Microvm spawn routes to the CH
+    /// sandboxed-local runtime even when the durable Flight Recorder fell back to
+    /// the stderr sink (the FR-up path uses `production_with_fr_recorder`). Keeps
+    /// `production`'s signature unchanged for the test seams that call it.
+    pub fn production_with_registry(
+        app_data_root: &Path,
+        sandbox_registry: Option<Arc<SandboxAdapterRegistry>>,
+    ) -> Self {
+        let vault: Arc<dyn SecretsVault> = Arc::new(
+            handshake_core::model_runtime::cloud::secrets_vault::OsKeychainSecretsVault::new(
+                handshake_core::model_runtime::cloud::secrets_vault::HANDSHAKE_KEYCHAIN_SERVICE,
+            ),
+        );
+        let anthropic_lane = std::env::var("HANDSHAKE_SWARM_ANTHROPIC_LANE")
+            .ok()
+            .filter(|s| !s.trim().is_empty())
+            .unwrap_or_else(|| "anthropic".to_string());
+        let openai_lane = std::env::var("HANDSHAKE_SWARM_OPENAI_LANE")
+            .ok()
+            .filter(|s| !s.trim().is_empty())
+            .unwrap_or_else(|| "openai".to_string());
+        let cloud = CloudLaneFactoryConfig::from_vault(
+            vault,
+            Some(anthropic_lane),
+            Some(openai_lane),
+        );
+        Self::production_with_cloud_and_recorder(cloud, None, app_data_root, sandbox_registry)
     }
 
     /// Build the production swarm runtime with an explicit cloud-lane config
@@ -355,7 +386,7 @@ impl SwarmRuntimeState {
         // official_cli lane stays None (the explicit-cloud seam is for callers
         // that wire the lane themselves or do not need it). A relative,
         // never-present path resolves to the unconfigured default in `load`.
-        Self::production_with_cloud_and_recorder(cloud, None, Path::new(""))
+        Self::production_with_cloud_and_recorder(cloud, None, Path::new(""), None)
     }
 
     /// rank-3: production swarm runtime that PERSISTS every SwarmEvent into
@@ -366,6 +397,7 @@ impl SwarmRuntimeState {
     pub fn production_with_fr_recorder(
         recorder: Arc<dyn FlightRecorder>,
         app_data_root: &Path,
+        sandbox_registry: Option<Arc<SandboxAdapterRegistry>>,
     ) -> Self {
         let vault: Arc<dyn SecretsVault> = Arc::new(
             handshake_core::model_runtime::cloud::secrets_vault::OsKeychainSecretsVault::new(
@@ -382,13 +414,19 @@ impl SwarmRuntimeState {
             .unwrap_or_else(|| "openai".to_string());
         let cloud =
             CloudLaneFactoryConfig::from_vault(vault, Some(anthropic_lane), Some(openai_lane));
-        Self::production_with_cloud_and_recorder(cloud, Some(recorder), app_data_root)
+        Self::production_with_cloud_and_recorder(
+            cloud,
+            Some(recorder),
+            app_data_root,
+            sandbox_registry,
+        )
     }
 
     fn production_with_cloud_and_recorder(
         cloud: CloudLaneFactoryConfig,
         recorder: Option<Arc<dyn FlightRecorder>>,
         app_data_root: &Path,
+        sandbox_registry: Option<Arc<SandboxAdapterRegistry>>,
     ) -> Self {
         let store = InProcessLedgerStore::default();
         let overflow = Arc::new(CountingOverflowSink::default());
@@ -435,8 +473,19 @@ impl SwarmRuntimeState {
         let budget = RunBudget::defaulted(concurrency).with_concurrency(concurrency);
         let config = SwarmConfig::new(budget);
 
-        let production_factory =
-            ProductionModelSessionFactory::new(ledger.clone(), cloud);
+        // WP-KERNEL-004 wave 1: the sandbox adapter registry is threaded in from
+        // app state (`run()` reads the managed `Arc<SandboxAdapterRegistry>` and
+        // hands a clone to the live `production_with_fr_recorder` entrypoint). When
+        // a registry is present a Local+LlamaCpp spawn with isolation_tier ==
+        // Tier3Microvm routes to the sandboxed-local path (CH microVM); when it is
+        // absent (test seams / FR-fallback `production`) the non-sandbox spawn
+        // paths stay byte-for-byte unchanged and a Tier-3 spawn returns a typed
+        // FactoryFailed rather than silently downgrading.
+        let production_factory = ProductionModelSessionFactory::new(
+            ledger.clone(),
+            cloud,
+            sandbox_registry,
+        );
         let factory = Arc::new(TrackingFactory {
             inner: production_factory,
             table: sessions.clone(),

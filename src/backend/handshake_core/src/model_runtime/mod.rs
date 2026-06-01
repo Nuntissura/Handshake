@@ -9,6 +9,7 @@ pub mod lora;
 pub mod process_ledger_integration;
 pub mod registry;
 pub mod sandbox_binding;
+pub mod sandbox_runtime;
 pub mod steering;
 pub mod techniques;
 pub mod r#trait;
@@ -23,6 +24,10 @@ pub use process_ledger_integration::*;
 pub use r#trait::*;
 pub use registry::*;
 pub use sandbox_binding::*;
+pub use sandbox_runtime::{
+    inference_command, inference_process_spec, SandboxModelConfig, SandboxModelRuntime,
+    GGUF_GUEST_ROOT, SANDBOX_RUNTIME_ADAPTER,
+};
 pub use steering::*;
 pub use techniques::*;
 pub use types::*;

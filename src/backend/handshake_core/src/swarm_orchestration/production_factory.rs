@@ -45,6 +45,7 @@ use crate::model_runtime::{
 use crate::process_ledger::{
     record_spawn, LedgerBatcher, ProcessEngineKind, ProcessOwnershipRecordId, SpawnMeta,
 };
+use crate::sandbox::SandboxAdapterRegistry;
 
 use super::error::{SwarmError, SwarmResult};
 use super::factory::{LiveSession, ModelSessionFactory, SessionTeardown};
@@ -92,7 +93,9 @@ where
     let concurrency = concurrency.unwrap_or_else(default_swarm_concurrency).max(1);
     let budget = RunBudget::defaulted(concurrency).with_concurrency(concurrency);
     let config = SwarmConfig::new(budget);
-    let factory = Arc::new(ProductionModelSessionFactory::new(ledger.clone(), cloud));
+    // Sandbox registry is threaded by the Integrate phase (app startup); the
+    // build helper defaults it to None so existing wiring is unaffected.
+    let factory = Arc::new(ProductionModelSessionFactory::new(ledger.clone(), cloud, None));
     let sink = Arc::new(FlightRecorderSwarmSink::new(trace_id, emit_fn));
     SwarmCoordinator::new(config, factory, sink, ledger)
 }
@@ -639,6 +642,14 @@ pub struct CloudLiveRuntime {
 pub struct ProductionModelSessionFactory {
     ledger: LedgerBatcher,
     cloud: CloudLaneFactoryConfig,
+    /// Optional sandbox adapter registry (WP-KERNEL-004 wave 1). When present, a
+    /// Local+LlamaCpp spawn whose `isolation_tier == Some(Tier3Microvm)` routes
+    /// to [`Self::create_sandboxed_local`], which selects the microVM adapter
+    /// and runs the boxed model inside it. `None` => sandbox routing is
+    /// unavailable and a Tier-3 request fails loud with a typed error (never
+    /// silently downgraded to an in-process spawn). Threaded by the app at
+    /// startup (Integrate phase); the handshake_core change compiles with `None`.
+    sandbox_registry: Option<Arc<SandboxAdapterRegistry>>,
     /// Synthetic pid base for in-process sessions (candle / cloud run in-process
     /// — there is no separate OS process). A monotonic offset keeps ledger pids
     /// distinct per instance so START/STOP rows correlate one-to-one.
@@ -646,21 +657,35 @@ pub struct ProductionModelSessionFactory {
 }
 
 impl ProductionModelSessionFactory {
-    /// Build a factory that supports the local candle + llama.cpp paths and the
-    /// supplied cloud-lane config. Pass [`CloudLaneFactoryConfig::unconfigured`]
-    /// for a local-only deployment.
-    pub fn new(ledger: LedgerBatcher, cloud: CloudLaneFactoryConfig) -> Self {
+    /// Build a factory that supports the local candle + llama.cpp paths, the
+    /// supplied cloud-lane config, and (when `sandbox_registry` is `Some`) the
+    /// Tier-3 microVM sandbox route. Pass [`CloudLaneFactoryConfig::unconfigured`]
+    /// for a local-only deployment and `None` for the registry when sandbox
+    /// routing is not wired.
+    pub fn new(
+        ledger: LedgerBatcher,
+        cloud: CloudLaneFactoryConfig,
+        sandbox_registry: Option<Arc<SandboxAdapterRegistry>>,
+    ) -> Self {
         Self {
             ledger,
             cloud,
+            sandbox_registry,
             pid_base: 50_000,
         }
     }
 
-    /// Convenience: local-only factory (no cloud lanes). Cloud spawns return
-    /// `ProviderNotConfigured`.
+    /// Convenience: local-only factory (no cloud lanes, no sandbox registry).
+    /// Cloud spawns return `ProviderNotConfigured`; Tier-3 sandbox spawns return
+    /// a typed `FactoryFailed` (no registry to select a microVM adapter).
     pub fn local_only(ledger: LedgerBatcher) -> Self {
-        Self::new(ledger, CloudLaneFactoryConfig::unconfigured())
+        Self::new(ledger, CloudLaneFactoryConfig::unconfigured(), None)
+    }
+
+    /// Thread a sandbox adapter registry so Tier-3 microVM routing is available.
+    pub fn with_sandbox_registry(mut self, registry: Arc<SandboxAdapterRegistry>) -> Self {
+        self.sandbox_registry = Some(registry);
+        self
     }
 
     fn synthetic_pid(&self, request: &SpawnRequest) -> u32 {
@@ -688,6 +713,144 @@ impl ProductionModelSessionFactory {
         meta.wp_id = request.wp_id.clone();
         meta.mt_id = request.mt_id.clone();
         record_spawn(&self.ledger, meta).map_err(|e| SwarmError::LedgerFailed(e.to_string()))
+    }
+
+    /// Record a START row for a SANDBOXED (microVM-routed) session, populating
+    /// the ledger sandbox fields from the selected adapter + the ephemeral
+    /// handle (WP-KERNEL-004 wave 1 §6). Mirrors [`Self::record_start`] but adds
+    /// `sandbox_adapter_id` (e.g. `cloud_hypervisor`) and `sandbox_internal_id`
+    /// (e.g. `hsk-ch-<uuid>`) so the START/STOP rows carry the microVM identity.
+    #[allow(clippy::too_many_arguments)]
+    fn record_start_sandboxed(
+        &self,
+        request: &SpawnRequest,
+        model_id: ModelId,
+        os_pid: u32,
+        engine_kind: ProcessEngineKind,
+        sandbox_adapter_id: String,
+        sandbox_internal_id: String,
+    ) -> SwarmResult<ProcessOwnershipRecordId> {
+        let mut meta = SpawnMeta::new(os_pid, engine_kind, request.owner_role.clone());
+        meta.model_id = Some(model_id.to_string());
+        meta.runtime_binding = Some(request.runtime_binding.adapter_id().to_string());
+        meta.parent_session_id = Some(request.parent_session_id.clone());
+        meta.model_artifact_sha256 = request.model_artifact_sha256.clone();
+        meta.owner_wp = request.owner_wp.clone();
+        meta.role_id = request.role_id.clone();
+        meta.wp_id = request.wp_id.clone();
+        meta.mt_id = request.mt_id.clone();
+        meta.sandbox_adapter = Some(sandbox_adapter_id);
+        meta.sandbox_internal_id = Some(sandbox_internal_id);
+        record_spawn(&self.ledger, meta).map_err(|e| SwarmError::LedgerFailed(e.to_string()))
+    }
+
+    /// WP-KERNEL-004 wave 1: route a Local+LlamaCpp+Tier3 spawn into a Cloud
+    /// Hypervisor microVM. Builds the inference [`ProcessSpec`], selects the
+    /// microVM adapter via the registry (the `UntrustedAgent` trust class forces
+    /// the Tier-3 minimum), builds + `load`s a [`SandboxModelRuntime`] (which
+    /// mints the ephemeral handle + binds the GGUF), records the ledger START
+    /// with the sandbox fields populated, and returns a [`LiveSession`] whose
+    /// teardown kills the microVM handle + closes the ledger.
+    async fn create_sandboxed_local(&self, request: &SpawnRequest) -> SwarmResult<LiveSession> {
+        use crate::model_runtime::{
+            inference_process_spec, SandboxModelConfig, SandboxModelRuntime,
+        };
+        use crate::sandbox::{select, TrustClass};
+
+        let registry = self.sandbox_registry.as_ref().ok_or_else(|| {
+            SwarmError::FactoryFailed(
+                "Tier3 microVM spawn requires a sandbox adapter registry; none is wired into the \
+                 production factory (Integrate phase threads it at app startup)"
+                    .to_string(),
+            )
+        })?;
+
+        let gguf_host = std::path::PathBuf::from(request.model_artifact_path().ok_or_else(|| {
+            SwarmError::FactoryFailed(
+                "Tier3 sandboxed local spawn requires a model artifact path (the GGUF)".to_string(),
+            )
+        })?);
+        let gguf_root = gguf_host
+            .parent()
+            .map(|p| p.to_path_buf())
+            .ok_or_else(|| {
+                SwarmError::FactoryFailed(
+                    "Tier3 sandboxed local spawn: the GGUF path has no parent directory to bind"
+                        .to_string(),
+                )
+            })?;
+
+        let cfg = SandboxModelConfig::new(gguf_host, gguf_root, "llama-cli")
+            .with_trust_class(TrustClass::UntrustedAgent);
+
+        // Select the microVM adapter for this spec (enforces the Tier-3 minimum).
+        let model_id = ModelId::new_v7();
+        let spec = inference_process_spec(model_id, &cfg);
+        let adapter = select(registry, &spec, None)
+            .map_err(|e| SwarmError::FactoryFailed(format!("sandbox selection failed: {e}")))?;
+
+        // Build + load the runtime around the SELECTED adapter (mints the
+        // ephemeral handle + binds the GGUF; honest typed error on failure).
+        let mut runtime = SandboxModelRuntime::new(Arc::clone(&adapter), cfg);
+        let spec_load = crate::model_runtime::LoadSpec {
+            artifact_path: std::path::PathBuf::new(),
+            sha256_expected: request.model_artifact_sha256.clone().unwrap_or_default(),
+            runtime_kind: crate::model_runtime::RuntimeKind::LlamaCpp,
+            sampling_defaults: crate::model_runtime::SamplingParams::default(),
+            kv_cache_policy: crate::model_runtime::KvCachePolicy::default(),
+            declared_capabilities: crate::model_runtime::ModelCapabilities::default(),
+            provider: ProviderKind::Local,
+            engine_origin: Some("llama_cpp".to_string()),
+            external_engine_import: None,
+        };
+        let loaded_model_id = runtime
+            .load(spec_load)
+            .await
+            .map_err(|e| SwarmError::FactoryFailed(e.to_string()))?;
+
+        // Read the sandbox identity for the ledger BEFORE moving the runtime.
+        let sandbox_adapter_id = runtime.adapter_id().to_string();
+        let sandbox_internal_id = runtime
+            .handle()
+            .map(|h| h.sandbox_internal_id.clone())
+            .ok_or_else(|| {
+                SwarmError::FactoryFailed(
+                    "sandbox runtime loaded without a microVM handle (no sandbox_internal_id)"
+                        .to_string(),
+                )
+            })?;
+        // The adapter handle for teardown kill (clone before the runtime moves).
+        let teardown_adapter = runtime.adapter();
+        let teardown_handle = runtime.handle().cloned();
+
+        let os_pid = self.synthetic_pid(request);
+        // Record the START only AFTER load succeeded (C7) with the sandbox fields.
+        let record_id = self.record_start_sandboxed(
+            request,
+            loaded_model_id,
+            os_pid,
+            ProcessEngineKind::LlamaCpp,
+            sandbox_adapter_id,
+            sandbox_internal_id,
+        )?;
+
+        let owning = Arc::new(tokio::sync::Mutex::new(runtime));
+        let shared: Arc<dyn ModelRuntime> = Arc::new(SharedRuntimeHandle {
+            inner: owning.clone(),
+            model_id: loaded_model_id,
+        });
+        let cancel = CancellationToken::new();
+        let teardown =
+            sandboxed_runtime_teardown(owning, loaded_model_id, teardown_adapter, teardown_handle);
+
+        Ok(LiveSession::new(
+            shared,
+            loaded_model_id,
+            cancel,
+            teardown,
+            record_id,
+            os_pid,
+        ))
     }
 
     async fn create_local_candle(&self, request: &SpawnRequest) -> SwarmResult<LiveSession> {
@@ -851,6 +1014,18 @@ impl ProductionModelSessionFactory {
 impl ModelSessionFactory for ProductionModelSessionFactory {
     async fn create(&self, request: &SpawnRequest) -> SwarmResult<LiveSession> {
         match request.provider {
+            // WP-KERNEL-004 wave 1: a Local+LlamaCpp spawn that EXPLICITLY
+            // requests Tier-3 microVM isolation routes into a Cloud Hypervisor
+            // microVM. Keyed strictly on the three conditions so every other
+            // local spawn (incl. plain Local+LlamaCpp with no Tier-3) falls
+            // through unchanged to `create_local_llama` (regression guard).
+            None | Some(ProviderKind::Local)
+                if request.runtime_binding == RuntimeBinding::LlamaCpp
+                    && request.isolation_tier
+                        == Some(crate::sandbox::adapter::IsolationTier::Tier3Microvm) =>
+            {
+                self.create_sandboxed_local(request).await
+            }
             None | Some(ProviderKind::Local) => match request.runtime_binding {
                 RuntimeBinding::Candle => self.create_local_candle(request).await,
                 RuntimeBinding::LlamaCpp => self.create_local_llama(request).await,
@@ -914,6 +1089,37 @@ where
             // Drop our owning reference. When the coordinator also drops its
             // shared `Arc<dyn ModelRuntime>` (on terminal eviction) the last
             // reference goes away and `R::Drop` frees the weights.
+            drop(owning);
+            Ok(())
+        })
+    })
+}
+
+/// Sandboxed (microVM) teardown (WP-KERNEL-004 wave 1): unload the boxed model
+/// behind the Mutex (best-effort, which also kills the ephemeral handle via the
+/// runtime's `unload`), THEN explicitly `kill` the microVM handle through the
+/// adapter so the in-VM boot is torn down even if the runtime was already
+/// unloaded, then drop the owning Arc. The ledger STOP is written by the
+/// coordinator against the START record this session carries.
+fn sandboxed_runtime_teardown<R>(
+    owning: Arc<tokio::sync::Mutex<R>>,
+    model_id: ModelId,
+    adapter: Arc<dyn crate::sandbox::SandboxAdapter>,
+    handle: Option<crate::sandbox::ProcessHandle>,
+) -> SessionTeardown
+where
+    R: ModelRuntime + 'static,
+{
+    Box::new(move || {
+        Box::pin(async move {
+            {
+                let mut guard = owning.lock().await;
+                let _ = guard.unload(model_id).await;
+            }
+            // Explicit microVM teardown (idempotent with the runtime's unload).
+            if let Some(handle) = handle {
+                let _ = adapter.kill(&handle, crate::sandbox::Signal::Term).await;
+            }
             drop(owning);
             Ok(())
         })
@@ -1259,7 +1465,7 @@ mod tests {
             anthropic: None,
             official_cli: None,
         };
-        let factory = ProductionModelSessionFactory::new(ledger, cloud);
+        let factory = ProductionModelSessionFactory::new(ledger, cloud, None);
         let req = SpawnRequest::new(
             instance(0),
             RuntimeBinding::Candle,
@@ -1403,7 +1609,7 @@ mod tests {
             official_cli: None,
         };
         let sink = Arc::new(RecordingSwarmSink::new());
-        let factory = Arc::new(ProductionModelSessionFactory::new(ledger.clone(), cloud));
+        let factory = Arc::new(ProductionModelSessionFactory::new(ledger.clone(), cloud, None));
         let coordinator = SwarmCoordinator::new(
             crate::swarm_orchestration::SwarmConfig::new(
                 RunBudget::defaulted(4).with_concurrency(4),
@@ -1635,7 +1841,7 @@ mod tests {
         let (ledger, drain) = ledger_pair();
         let store = Arc::new(InMemoryStore::default());
         let sink = Arc::new(RecordingSwarmSink::new());
-        let factory = Arc::new(ProductionModelSessionFactory::new(ledger.clone(), cloud));
+        let factory = Arc::new(ProductionModelSessionFactory::new(ledger.clone(), cloud, None));
         let coordinator = SwarmCoordinator::new(
             crate::swarm_orchestration::SwarmConfig::new(
                 RunBudget::defaulted(4).with_concurrency(4),
@@ -1715,7 +1921,7 @@ mod tests {
         let (ledger, drain) = ledger_pair();
         let store = Arc::new(InMemoryStore::default());
         let sink = Arc::new(RecordingSwarmSink::new());
-        let factory = Arc::new(ProductionModelSessionFactory::new(ledger.clone(), cloud));
+        let factory = Arc::new(ProductionModelSessionFactory::new(ledger.clone(), cloud, None));
         let coordinator = Arc::new(SwarmCoordinator::new(
             crate::swarm_orchestration::SwarmConfig::new(
                 RunBudget::defaulted(2).with_concurrency(2),
@@ -1923,7 +2129,7 @@ mod tests {
             ))),
         };
         let sink = Arc::new(RecordingSwarmSink::new());
-        let factory = Arc::new(ProductionModelSessionFactory::new(ledger.clone(), cloud));
+        let factory = Arc::new(ProductionModelSessionFactory::new(ledger.clone(), cloud, None));
         let coordinator = SwarmCoordinator::new(
             crate::swarm_orchestration::SwarmConfig::new(
                 RunBudget::defaulted(4).with_concurrency(4),
@@ -1974,5 +2180,191 @@ mod tests {
             }
             other => panic!("expected ProviderNotConfigured, got {other}"),
         }
+    }
+
+    // ---- WP-KERNEL-004 wave 1: Tier-3 microVM routing + ledger sandbox fields ----
+
+    /// Minimal headless FAKE SandboxAdapter for the factory routing test: reports
+    /// Tier-3 + snapshot so selection picks it; `exec` returns a fixed completion;
+    /// `spawn` mints an `hsk-ch-*` handle so the ledger sandbox_internal_id is set.
+    struct FactoryFakeSandbox;
+
+    #[async_trait]
+    impl crate::sandbox::SandboxAdapter for FactoryFakeSandbox {
+        async fn spawn(
+            &self,
+            _spec: crate::sandbox::ProcessSpec,
+        ) -> Result<crate::sandbox::ProcessHandle, crate::sandbox::SandboxAdapterError> {
+            Ok(crate::sandbox::ProcessHandle::new(
+                crate::sandbox::AdapterId::new("cloud_hypervisor"),
+                None,
+                "hsk-ch-factory-fake",
+            ))
+        }
+        async fn exec(
+            &self,
+            _handle: &crate::sandbox::ProcessHandle,
+            _cmd: crate::sandbox::Command,
+        ) -> Result<crate::sandbox::ExecResult, crate::sandbox::SandboxAdapterError> {
+            Ok(crate::sandbox::ExecResult {
+                exit_code: 0,
+                stdout: bytes::Bytes::from_static(b"sandboxed completion"),
+                stderr: bytes::Bytes::new(),
+                duration_ms: 1,
+            })
+        }
+        async fn fs_bind(
+            &self,
+            _handle: &crate::sandbox::ProcessHandle,
+            _host_path: std::path::PathBuf,
+            _guest_path: std::path::PathBuf,
+            _mode: crate::sandbox::BindMode,
+        ) -> Result<(), crate::sandbox::SandboxAdapterError> {
+            Ok(())
+        }
+        async fn net_policy(
+            &self,
+            _handle: &crate::sandbox::ProcessHandle,
+            _policy: crate::sandbox::NetPolicy,
+        ) -> Result<(), crate::sandbox::SandboxAdapterError> {
+            Ok(())
+        }
+        async fn kill(
+            &self,
+            _handle: &crate::sandbox::ProcessHandle,
+            _signal: crate::sandbox::Signal,
+        ) -> Result<(), crate::sandbox::SandboxAdapterError> {
+            Ok(())
+        }
+        async fn status(
+            &self,
+            _handle: &crate::sandbox::ProcessHandle,
+        ) -> Result<crate::sandbox::ProcessStatus, crate::sandbox::SandboxAdapterError> {
+            Ok(crate::sandbox::ProcessStatus::Running)
+        }
+        async fn exit_code(
+            &self,
+            _handle: &crate::sandbox::ProcessHandle,
+        ) -> Result<Option<i32>, crate::sandbox::SandboxAdapterError> {
+            Ok(None)
+        }
+        fn capabilities(&self) -> crate::sandbox::AdapterCapabilities {
+            crate::sandbox::AdapterCapabilities {
+                adapter_id: crate::sandbox::AdapterId::new("cloud_hypervisor"),
+                runtime_available: true,
+                filesystem_isolation_strength: crate::sandbox::IsolationStrength::VeryStrong,
+                network_isolation_strength: crate::sandbox::IsolationStrength::VeryStrong,
+                gpu_passthrough: crate::sandbox::GpuPassthrough::None,
+                stdio_throughput_class: crate::sandbox::ThroughputClass::Low,
+                win32_native_fidelity: false,
+                cross_machine_portable: true,
+                isolation_tier: crate::sandbox::IsolationTier::Tier3Microvm,
+                requires_nested_virt: true,
+                supports_snapshot: true,
+            }
+        }
+    }
+
+    fn sandbox_registry_with_fake() -> Arc<crate::sandbox::SandboxAdapterRegistry> {
+        let mut registry = crate::sandbox::SandboxAdapterRegistry::new(
+            crate::sandbox::AdapterId::new("cloud_hypervisor"),
+        );
+        registry.register(Arc::new(FactoryFakeSandbox));
+        Arc::new(registry)
+    }
+
+    /// A temp dir + fake gguf so the sandbox runtime's `load` existence gates pass.
+    fn temp_gguf_for_factory() -> (std::path::PathBuf, std::path::PathBuf) {
+        let dir = std::env::temp_dir()
+            .join(format!("hsk-fac-sbx-{}", uuid::Uuid::now_v7().simple()));
+        std::fs::create_dir_all(&dir).expect("mk temp gguf dir");
+        let gguf = dir.join("model.gguf");
+        std::fs::write(&gguf, b"GGUF-FAKE").expect("write fake gguf");
+        (dir, gguf)
+    }
+
+    /// Test 5: a Local+LlamaCpp+Tier3 spawn routes to create_sandboxed_local and
+    /// records a START with BOTH sandbox_adapter_id AND sandbox_internal_id set.
+    #[tokio::test]
+    async fn tier3_local_llama_routes_to_sandbox_and_populates_ledger() {
+        let (dir, gguf) = temp_gguf_for_factory();
+        let (ledger, drain) = ledger_pair();
+        let store = Arc::new(InMemoryStore::default());
+        let factory = ProductionModelSessionFactory::new(
+            ledger,
+            CloudLaneFactoryConfig::unconfigured(),
+            Some(sandbox_registry_with_fake()),
+        );
+        let req = SpawnRequest::new(instance(0), RuntimeBinding::LlamaCpp, "swarm_prod_test", "p")
+            .with_local_artifact(gguf.to_string_lossy(), "ab".repeat(32))
+            .with_isolation_tier(crate::sandbox::adapter::IsolationTier::Tier3Microvm)
+            .with_worktree("wt-sbx-1");
+        let session = factory.create(&req).await.expect("tier3 spawn routes to sandbox");
+        // Drive the teardown closure so the runtime unloads + the microVM handle
+        // is killed (the coordinator writes the ledger STOP in production; here we
+        // assert the START sandbox fields directly).
+        (session.teardown)().await.expect("teardown");
+
+        let rows = drained(&drain, store).await;
+        let start = rows
+            .iter()
+            .find_map(|e| match e {
+                LedgerEvent::Start(s) => Some(s.clone()),
+                _ => None,
+            })
+            .expect("a START row was recorded");
+        assert_eq!(
+            start.sandbox_adapter_id.as_deref(),
+            Some("cloud_hypervisor"),
+            "sandbox_adapter_id must be populated for a microVM-routed session"
+        );
+        assert_eq!(
+            start.sandbox_internal_id.as_deref(),
+            Some("hsk-ch-factory-fake"),
+            "sandbox_internal_id must be populated from the microVM handle"
+        );
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    /// Control: a plain Local+LlamaCpp spawn WITHOUT Tier3 does NOT route to the
+    /// sandbox (it stays on create_local_llama, which fails on the missing real
+    /// GGUF load) — proving the regression guard keys strictly on Tier3.
+    #[tokio::test]
+    async fn local_llama_without_tier3_does_not_route_to_sandbox() {
+        let (ledger, drain) = ledger_pair();
+        let store = Arc::new(InMemoryStore::default());
+        let factory = ProductionModelSessionFactory::new(
+            ledger,
+            CloudLaneFactoryConfig::unconfigured(),
+            Some(sandbox_registry_with_fake()),
+        );
+        // No isolation_tier => the plain local llama path. A nonexistent GGUF
+        // makes the REAL llama load fail (proving it did NOT take the sandbox
+        // path, which would have succeeded against the fake adapter).
+        let req = SpawnRequest::new(instance(0), RuntimeBinding::LlamaCpp, "swarm_prod_test", "p")
+            .with_local_artifact(
+                "D:/__no_such_swarm_gguf__/model.gguf",
+                "ab".repeat(32),
+            );
+        let err = create_err(&factory, &req).await;
+        assert!(
+            matches!(err, SwarmError::FactoryFailed(_)),
+            "non-Tier3 local llama stays on the in-process path (got {err})"
+        );
+        let rows = drained(&drain, store).await;
+        assert!(rows.is_empty(), "failed local load leaves no ledger rows");
+    }
+
+    /// A Tier3 spawn with NO sandbox registry fails loud (typed FactoryFailed) —
+    /// never silently downgraded to an in-process spawn.
+    #[tokio::test]
+    async fn tier3_without_registry_fails_loud() {
+        let (ledger, _drain) = ledger_pair();
+        let factory = ProductionModelSessionFactory::local_only(ledger);
+        let req = SpawnRequest::new(instance(0), RuntimeBinding::LlamaCpp, "swarm_prod_test", "p")
+            .with_local_artifact("/x/model.gguf", "ab".repeat(32))
+            .with_isolation_tier(crate::sandbox::adapter::IsolationTier::Tier3Microvm);
+        let err = create_err(&factory, &req).await;
+        assert!(matches!(err, SwarmError::FactoryFailed(_)), "got {err}");
     }
 }
