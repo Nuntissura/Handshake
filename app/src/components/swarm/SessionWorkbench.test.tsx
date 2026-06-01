@@ -60,6 +60,22 @@ describe("SessionWorkbench with a selected cloud session", () => {
     expect(screen.getByTestId("session-workbench-open-transcript")).toBeEnabled();
   });
 
+  test("'Resume this session' is enabled and calls onResumeSession(composite)", () => {
+    const onResumeSession = vi.fn();
+    render(
+      <SessionWorkbench
+        room={makeRoom({ chatInstanceId: "beta-cloud#0", allSessions: [cloud] })}
+        onShowTerminal={vi.fn()}
+        onReviewSession={vi.fn()}
+        onResumeSession={onResumeSession}
+      />,
+    );
+    const btn = screen.getByTestId("session-workbench-resume");
+    expect(btn).toBeEnabled();
+    fireEvent.click(btn);
+    expect(onResumeSession).toHaveBeenCalledWith("beta-cloud#0");
+  });
+
   test("'Show captured terminal' calls onShowTerminal(composite)", () => {
     const onShowTerminal = vi.fn();
     render(
@@ -94,11 +110,28 @@ describe("SessionWorkbench honest disabled states", () => {
         room={makeRoom({ chatInstanceId: null, allSessions: [] })}
         onShowTerminal={vi.fn()}
         onReviewSession={vi.fn()}
+        onResumeSession={vi.fn()}
       />,
     );
     expect(screen.getByTestId("session-workbench-show-terminal")).toBeDisabled();
     expect(screen.getByTestId("session-workbench-open-transcript")).toBeDisabled();
+    // Resume is honestly disabled with no selection.
+    expect(screen.getByTestId("session-workbench-resume")).toBeDisabled();
     expect(screen.getByTestId("session-workbench-no-selection")).toBeInTheDocument();
+  });
+
+  test("resume not wired: the Resume button is honestly disabled", () => {
+    render(
+      <SessionWorkbench
+        room={makeRoom({ chatInstanceId: "beta-cloud#0", allSessions: [makeSession({ modelId: "beta-cloud" })] })}
+        onShowTerminal={vi.fn()}
+        onReviewSession={vi.fn()}
+        onResumeSession={undefined}
+      />,
+    );
+    const btn = screen.getByTestId("session-workbench-resume");
+    expect(btn).toBeDisabled();
+    expect(btn).toHaveAttribute("title", "Resume not wired");
   });
 
   test("transcript review not wired: the transcript button is honestly disabled", () => {

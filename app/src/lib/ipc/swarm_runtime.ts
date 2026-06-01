@@ -101,6 +101,70 @@ export async function spawnSession(request: SwarmSpawnRequest): Promise<SwarmIns
   return await invoke<SwarmInstanceId>("kernel_swarm_spawn_session", { request });
 }
 
+// ---------------------------------------------------------------------------
+// ROI #3 STATE RECOVERY (resume-from-session).
+//
+// At spawn time the backend persists a resume-complete spawn template keyed by
+// the session's composite instance_id (mirrors the calendar scheduler's
+// SpawnTemplate + atomic JSON store). The operator can then RESUME a recorded
+// session: re-spawn a FRESH session carrying the original's captured config
+// (provider/model/artifact/sha/worktree/working_dir/isolation), driving the SAME
+// validated spawn path — the integrity sha gate and coordinator bounds are
+// preserved, and lineage (parent = the resumed-from session) is recorded in the
+// real FR SessionSpawned event. Two thin read paths over the same store:
+//   - resumeSession      => one-click "continue as-is".
+//   - getSpawnTemplate   => prefill the spawn form for edit-then-resume.
+// ---------------------------------------------------------------------------
+
+/**
+ * The persisted resume template for a session (camelCase IPC DTO; mirrors the
+ * backend `SessionSpawnTemplateIpc` serde). Captured at spawn time so the exact
+ * session can be reconstructed later. Cloud sessions carry only the model NAME
+ * (never the BYOK key — keys stay in the OS keychain vault, re-resolved on
+ * resume); local sessions carry path + sha (the integrity gate is re-applied on
+ * resume). `originSessionId` is the lineage root the resumed-from session id.
+ */
+export interface SessionSpawnTemplate {
+  provider: SwarmProvider;
+  artifactPath?: string | null;
+  sha256Expected?: string | null;
+  runtimeBinding?: SwarmRuntimeBinding | null;
+  cloudModelName?: string | null;
+  worktreeId?: string | null;
+  workingDir?: string | null;
+  isolationTier?: SwarmIsolationTier | null;
+  originSessionId: string;
+  capturedAt: string;
+}
+
+/**
+ * Resume a recorded session: re-spawn a FRESH session from its stored template.
+ * Drives the SAME validated `kernel_swarm_spawn_session` backend path (a new
+ * model id is minted; lineage parent = `sessionId`). Returns the new session's
+ * instance id. Rejects with a verbatim `SESSION_NOT_RESUMABLE:` error if no
+ * template is stored for `sessionId` (e.g. a chat session, a pre-feature spawn,
+ * or a template GC'd between list and click). The UI gates on
+ * `SessionSummary.resumable` BEFORE calling, and surfaces this error verbatim if
+ * a race slips through.
+ */
+export async function resumeSession(sessionId: string): Promise<SwarmInstanceId> {
+  return await invoke<SwarmInstanceId>("kernel_swarm_resume_session", { sessionId });
+}
+
+/**
+ * Read the stored spawn template for a session, or null when it is not
+ * resumable. Used by the edit-then-resume path to PREFILL the existing spawn
+ * form (so the operator can repoint a moved artifact, change worktree, etc.
+ * before spawning) — reusing the whole spawn form + its validation.
+ */
+export async function getSpawnTemplate(
+  sessionId: string,
+): Promise<SessionSpawnTemplate | null> {
+  return await invoke<SessionSpawnTemplate | null>("kernel_swarm_get_spawn_template", {
+    sessionId,
+  });
+}
+
 export async function cancelSession(instanceId: string): Promise<void> {
   await invoke("kernel_swarm_cancel_session", { instanceId });
 }

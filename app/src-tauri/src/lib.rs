@@ -37,6 +37,7 @@ mod commands {
     pub mod self_improve;
     pub mod session_distill;
     pub mod session_transcript;
+    pub mod spawn_template_store;
     pub mod speculative;
     pub mod steering;
     pub mod subquadratic;
@@ -82,6 +83,8 @@ macro_rules! handshake_invoke_handlers {
             commands::model_runtime::kernel_model_runtime_load,
             commands::model_runtime::kernel_model_runtime_unload,
             commands::swarm_runtime::kernel_swarm_spawn_session,
+            commands::swarm_runtime::kernel_swarm_resume_session,
+            commands::swarm_runtime::kernel_swarm_get_spawn_template,
             commands::swarm_runtime::kernel_swarm_cancel_session,
             commands::swarm_runtime::kernel_swarm_list_active_sessions,
             commands::swarm_runtime::kernel_swarm_list_worktrees,
@@ -213,6 +216,8 @@ macro_rules! handshake_invoke_handlers {
             commands::model_runtime::kernel_model_runtime_load,
             commands::model_runtime::kernel_model_runtime_unload,
             commands::swarm_runtime::kernel_swarm_spawn_session,
+            commands::swarm_runtime::kernel_swarm_resume_session,
+            commands::swarm_runtime::kernel_swarm_get_spawn_template,
             commands::swarm_runtime::kernel_swarm_cancel_session,
             commands::swarm_runtime::kernel_swarm_list_active_sessions,
             commands::swarm_runtime::kernel_swarm_list_worktrees,

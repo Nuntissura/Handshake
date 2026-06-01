@@ -24,7 +24,11 @@ import type {
   SessionTranscriptResponse,
   TranscriptGetRequest,
 } from "../../lib/ipc/session_transcript";
-import type { SwarmBoardDelta } from "../../lib/ipc/swarm_runtime";
+import type {
+  SessionSpawnTemplate,
+  SwarmBoardDelta,
+  SwarmInstanceId,
+} from "../../lib/ipc/swarm_runtime";
 import type { TerminalSubscription } from "../../lib/ipc/terminal";
 
 const SESSIONS: SessionSummary[] = [
@@ -36,6 +40,9 @@ const SESSIONS: SessionSummary[] = [
     modelId: "claude-sonnet#0",
     provider: "cloud",
     title: "build handshake_core",
+    // ROI #3: a swarm spawn => a captured spawn template => resumable. Drives the
+    // Resume affordance in the real component's session-index row.
+    resumable: true,
     counts: { chat: 1, fr: 2, terminal: 1, process: 1 },
   },
   {
@@ -73,10 +80,34 @@ const EMPTY: SessionTranscriptResponse = {
   entries: [],
 };
 
+// ROI #3 STATE RECOVERY fakes (shared by every harness mode). resumeSession mints
+// a deterministic fresh composite so the visual baseline can assert the lineage
+// note; getSpawnTemplate returns the recorded template for the swarm session.
+const SWARM_TEMPLATE: SessionSpawnTemplate = {
+  provider: "byok_cloud",
+  cloudModelName: "claude-sonnet-4",
+  worktreeId: "wt-recovery-1",
+  workingDir: "D:/work/wt-recovery-1",
+  isolationTier: "tier3_microvm",
+  originSessionId: "claude-sonnet#0",
+  capturedAt: "2026-05-30T10:00:00.000Z",
+};
+async function fakeResume(sessionId: string): Promise<SwarmInstanceId> {
+  if (sessionId !== "claude-sonnet#0") {
+    throw new Error(`SESSION_NOT_RESUMABLE: no spawn template stored for ${sessionId}`);
+  }
+  return { modelId: "claude-sonnet-resumed", instance: 0, composite: "claude-sonnet-resumed#0" };
+}
+async function fakeGetTemplate(sessionId: string): Promise<SessionSpawnTemplate | null> {
+  return sessionId === "claude-sonnet#0" ? SWARM_TEMPLATE : null;
+}
+
 const fakeIpc: SessionTranscriptIpc = {
   listSessions: async () => SESSIONS,
   getTranscript: async (req: TranscriptGetRequest) =>
     req.sessionId === "local-qwen#1" ? EMPTY : POPULATED,
+  resumeSession: fakeResume,
+  getSpawnTemplate: fakeGetTemplate,
 };
 
 // ---------------------------------------------------------------------------
@@ -103,6 +134,8 @@ const liveGrowingIpc: SessionTranscriptIpc = {
     const entries = LIVE_BASE.concat(LIVE_TICK_ROWS.slice(0, liveRevealed));
     return { ...POPULATED, entries };
   },
+  resumeSession: fakeResume,
+  getSpawnTemplate: fakeGetTemplate,
 };
 
 // A scripted live seam: on subscribe, schedule two ticks that reveal a row and

@@ -1,8 +1,12 @@
 import { invoke } from "@tauri-apps/api/core";
 
 import {
+  getSpawnTemplate,
+  resumeSession,
   subscribeBoardEvents,
+  type SessionSpawnTemplate,
   type SwarmBoardDelta,
+  type SwarmInstanceId,
 } from "./swarm_runtime";
 import {
   defaultTerminalIpc,
@@ -175,6 +179,21 @@ export interface SessionSummary {
   modelId?: string | null;
   provider?: string | null;
   title?: string | null;
+  /**
+   * Assigned VM/sandbox worktree recorded at spawn (the SwarmEvent `$.worktree_id`
+   * the backend lifts into the summary). Mirrors `SessionSummary.worktree_id`
+   * (backend serde `camelCase`) — previously missing on the TS side (drift).
+   */
+  worktreeId?: string | null;
+  /**
+   * ROI #3 STATE RECOVERY: true when a resume spawn template exists for this
+   * session (a swarm spawn captured at spawn time). HONEST: false for chat (UUID)
+   * sessions, swarm sessions spawned before the feature, and sessions whose
+   * best-effort template write failed — those are NOT resumable, so the Resume
+   * affordance is hidden/disabled. `#[serde(default)]` on the backend keeps older
+   * payloads (no field) decoding as `false`.
+   */
+  resumable?: boolean;
   counts: SourceCounts;
 }
 
@@ -215,11 +234,28 @@ export async function getTranscript(
 export interface SessionTranscriptIpc {
   listSessions(): Promise<SessionSummary[]>;
   getTranscript(request: TranscriptGetRequest): Promise<SessionTranscriptResponse>;
+  /**
+   * ROI #3 STATE RECOVERY: re-spawn a FRESH session carrying the recorded
+   * session's captured config (provider/model/artifact/sha/worktree/working_dir/
+   * isolation). Drives the SAME validated backend spawn path (integrity gate +
+   * coordinator bounds preserved); the new session's lineage parent is `sessionId`.
+   * Returns the new session's instance id. Rejects with `SESSION_NOT_RESUMABLE:`
+   * when no template is stored (race vs. the `resumable` flag). Bridged to
+   * `swarm_runtime.resumeSession` so the panel stays jsdom-testable via a fake.
+   */
+  resumeSession(sessionId: string): Promise<SwarmInstanceId>;
+  /**
+   * ROI #3 (edit-then-resume): read the stored spawn template so the host can
+   * PREFILL the spawn form. Returns null when the session is not resumable.
+   */
+  getSpawnTemplate(sessionId: string): Promise<SessionSpawnTemplate | null>;
 }
 
 export const defaultSessionTranscriptIpc: SessionTranscriptIpc = {
   listSessions,
   getTranscript,
+  resumeSession,
+  getSpawnTemplate,
 };
 
 // ---------------------------------------------------------------------------

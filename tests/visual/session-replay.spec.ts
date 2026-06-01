@@ -114,6 +114,54 @@ test("opened real session replay panel is readable: index + consolidated timelin
   await expect(page.locator("[data-testid='session-replay-entry-0']")).toHaveCount(0);
 });
 
+test("real session replay panel exposes a Resume affordance (ROI #3 state recovery) only on resumable rows", async ({ page }) => {
+  await mountRealPanel(page, "open");
+
+  await expect(page.locator("[data-testid='session-replay-body']")).toBeVisible();
+
+  // HONEST: the swarm session (a captured spawn template => resumable) offers
+  // Resume; the empty/agent session without a template does NOT. The Resume
+  // button is a distinct, readable hit target (not nested in the row button).
+  const resume = page.locator("[data-testid='session-replay-resume-claude-sonnet#0']");
+  await expect(resume).toBeVisible();
+  await expect(resume).toContainText("Resume");
+  await expect(page.locator("[data-testid='session-replay-resume-local-qwen#1']")).toHaveCount(0);
+  await expect(page.locator("[data-testid='session-replay-row-claude-sonnet#0']")).toHaveAttribute(
+    "data-resumable",
+    "true",
+  );
+
+  // The Resume button is a separate clickable element from the row-select button
+  // (no button-in-button): their bounding boxes do not overlap.
+  const rowBox = await page.locator("[data-testid='session-replay-row-claude-sonnet#0']").boundingBox();
+  const resumeBox = await resume.boundingBox();
+  expect(rowBox).not.toBeNull();
+  expect(resumeBox).not.toBeNull();
+  if (rowBox && resumeBox) {
+    const overlapY = Math.max(
+      0,
+      Math.min(rowBox.y + rowBox.height, resumeBox.y + resumeBox.height) - Math.max(rowBox.y, resumeBox.y),
+    );
+    expect(overlapY).toBe(0);
+    expect(resumeBox.width).toBeGreaterThan(20);
+    expect(resumeBox.height).toBeGreaterThan(10);
+  }
+
+  // Click Resume -> the scripted resume IPC mints a fresh session; the inline
+  // lineage note ("Resumed → … from …") appears, proving the operator sees the
+  // re-spawn + its lineage in a GENUINE Chromium render.
+  await resume.click();
+  const lineage = page.locator("[data-testid='session-replay-resumed-lineage']");
+  await expect(lineage).toBeVisible({ timeout: 6000 });
+  await expect(lineage).toHaveAttribute("data-origin-session-id", "claude-sonnet#0");
+  await expect(lineage).toContainText("Resumed");
+
+  // Write the reviewed PNG baseline (Resume affordance + lineage note).
+  await page.locator("[data-testid='capture-root']").screenshot({
+    path: path.join(baselineDir, "session-replay-resume.png"),
+  });
+});
+
 test("real session replay panel tails LIVE: status chip + appended rows as the session runs", async ({ page }) => {
   await mountRealPanel(page, "live");
 

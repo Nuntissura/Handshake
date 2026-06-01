@@ -11,6 +11,7 @@ import {
   SwarmSpawnSection,
   useSwarmRoom,
 } from "./SwarmControlRoom";
+import { getSpawnTemplate } from "../../lib/ipc/swarm_runtime";
 
 // SwarmOperatorSurface: the disclosure-organized operator surface for the
 // multi-model swarm. Replaces the dense, always-expanded SwarmControlRoom wall
@@ -78,6 +79,47 @@ export function SwarmOperatorSurface({
     setReplayFocusSessionId(instanceId);
     setReplayOpenSignal((n) => n + 1);
   }, []);
+
+  // ROI #3 STATE RECOVERY wiring. Two convergent modes (per the design):
+  //   - One-click resume (Session Replay row) -> focus the new session in the
+  //     workbench. The Replay panel already drove the SAME validated spawn path
+  //     and handed us the fresh composite; we just route focus + refresh tables.
+  //   - Edit-then-resume (workbench button) -> read the stored template and
+  //     PREFILL the existing Spawn form (force-opening its disclosure), so the
+  //     operator can tweak before spawning. No new spawn logic either path.
+  const [spawnOpenSignal, setSpawnOpenSignal] = useState(0);
+  const [resumeNotice, setResumeNotice] = useState<string | null>(null);
+
+  const handleResumed = useCallback(
+    (newComposite: string) => {
+      // Setting chatInstanceId focuses the workbench (chat + captured terminal +
+      // transcript) via the existing sessionOpenSignal effect below — zero new
+      // plumbing. refresh() pulls the new live session into the tables/board.
+      room.setChatInstanceId(newComposite);
+      void room.refresh();
+    },
+    [room],
+  );
+
+  const handleResumeViaForm = useCallback(
+    async (instanceId: string) => {
+      setResumeNotice(null);
+      try {
+        const tpl = await getSpawnTemplate(instanceId);
+        if (!tpl) {
+          // HONEST: no stored template => not resumable. Surface it; do not
+          // fabricate a prefill.
+          setResumeNotice(`Session ${instanceId} is not resumable (no spawn template stored).`);
+          return;
+        }
+        room.prefillSpawnForm(tpl);
+        setSpawnOpenSignal((n) => n + 1); // reveal the Spawn Session disclosure
+      } catch (e) {
+        setResumeNotice(e instanceof Error ? e.message : String(e));
+      }
+    },
+    [room],
+  );
 
   // Governance glue #3: when a session becomes the active chat session — via the
   // Live Sessions table "Chat" button, auto-select after spawn, or the picker —
@@ -157,7 +199,21 @@ export function SwarmOperatorSurface({
       <SessionReplayPanel
         focusSessionId={replayFocusSessionId}
         openSignal={replayOpenSignal}
+        onResumed={handleResumed}
       />
+
+      {/* ROI #3: honest notice for the edit-then-resume (prefill) path — e.g. a
+          session that turned out not to be resumable, or a get-template error. */}
+      {resumeNotice ? (
+        <p
+          className="swarm-notice"
+          data-testid="swarm-resume-notice"
+          role="status"
+          style={{ margin: "4px 0" }}
+        >
+          {resumeNotice}
+        </p>
+      ) : null}
 
       <Disclosure
         id="resource-budget"
@@ -173,6 +229,7 @@ export function SwarmOperatorSurface({
         id="spawn-session"
         title="Spawn Session"
         defaultOpen={false}
+        openSignal={spawnOpenSignal}
         data-testid="spawn-session-disclosure"
       >
         <SwarmSpawnSection room={room} />
@@ -206,6 +263,7 @@ export function SwarmOperatorSurface({
           room={room}
           onShowTerminal={handleShowSessionTerminal}
           onReviewSession={handleReviewSession}
+          onResumeSession={handleResumeViaForm}
         />
       </Disclosure>
     </section>

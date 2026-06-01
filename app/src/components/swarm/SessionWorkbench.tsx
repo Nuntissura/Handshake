@@ -47,12 +47,22 @@ export interface SessionWorkbenchProps {
    * wired"), mirroring the board's honest-disable pattern.
    */
   onReviewSession?: (instanceId: string) => void;
+  /**
+   * ROI #3 STATE RECOVERY (edit-then-resume): open the host's Spawn form PREFILLED
+   * from this session's recorded spawn template, so the operator can tweak it
+   * (repoint a moved artifact, change worktree) before re-spawning through the
+   * existing validated spawn path. The host reads the template and surfaces an
+   * HONEST notice when the session is not resumable (no template). Absent => the
+   * Resume button is honestly disabled ("Resume not wired").
+   */
+  onResumeSession?: (instanceId: string) => void;
 }
 
 export function SessionWorkbench({
   room,
   onShowTerminal,
   onReviewSession,
+  onResumeSession,
 }: SessionWorkbenchProps) {
   const selected = room.chatInstanceId;
   const hasSelection = selected !== null;
@@ -114,6 +124,30 @@ export function SessionWorkbench({
           }}
         >
           Open full transcript
+        </button>
+
+        {/* ROI #3 STATE RECOVERY: edit-then-resume. Opens the Spawn form
+            prefilled from this session's recorded config so the operator can
+            tweak before re-spawning (the replay row's button is the one-click
+            "as-is" path; this workbench button is the open-in-form path). Honest
+            disable when no selection / not wired; the host surfaces the
+            not-resumable case (no stored template) as a notice. */}
+        <button
+          type="button"
+          data-testid="session-workbench-resume"
+          disabled={!hasSelection || !onResumeSession}
+          title={
+            !hasSelection
+              ? "Select a session to resume it"
+              : !onResumeSession
+                ? "Resume not wired"
+                : "Open the Spawn form prefilled from this session's recorded config to re-spawn it"
+          }
+          onClick={() => {
+            if (selected && onResumeSession) onResumeSession(selected);
+          }}
+        >
+          Resume this session
         </button>
 
         {!hasSelection ? (

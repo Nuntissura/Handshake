@@ -86,6 +86,11 @@ use serde::{Deserialize, Serialize};
 use tauri::State;
 use uuid::Uuid;
 
+use super::spawn_template_store::{
+    SessionSpawnTemplate, SpawnTemplateStore, TemplateIsolationTier, TemplateProvider,
+    TemplateRuntimeBinding,
+};
+
 /// FR-EVT tag stamped on swarm lifecycle events forwarded to structured stderr
 /// until the durable flight-recorder DB sink is wired by a swarm command (MT-205).
 pub const FR_EVT_SWARM_LIFECYCLE: &str = "FR-EVT-SWARM-LIFECYCLE";
@@ -97,6 +102,8 @@ pub const KERNEL_SWARM_LIST_ACTIVE_SESSIONS_IPC_CHANNEL: &str =
 pub const KERNEL_SWARM_RESOURCE_SNAPSHOT_IPC_CHANNEL: &str = "kernel_swarm_resource_snapshot";
 pub const KERNEL_SWARM_CHAT_GENERATE_IPC_CHANNEL: &str = "kernel_swarm_chat_generate";
 pub const KERNEL_SWARM_LIST_WORKTREES_IPC_CHANNEL: &str = "kernel_swarm_list_worktrees";
+pub const KERNEL_SWARM_RESUME_SESSION_IPC_CHANNEL: &str = "kernel_swarm_resume_session";
+pub const KERNEL_SWARM_GET_SPAWN_TEMPLATE_IPC_CHANNEL: &str = "kernel_swarm_get_spawn_template";
 
 /// Max tokens a single chat-box generate will produce. Bounded so an operator
 /// chat turn cannot run away (HBR loop-cap spirit) — the UI runs short turns.
@@ -254,6 +261,12 @@ pub struct SwarmRuntimeState {
     /// cancel / reconcile so the sink's leak guard never has to fire for the
     /// normal path.
     capture_sinks: Arc<Mutex<HashMap<String, Arc<handshake_core::terminal::CaptureSink>>>>,
+    /// ROI#3 STATE RECOVERY: per-session resume templates persisted at spawn time
+    /// (keyed by the live composite instance_id). A spawn writes a
+    /// [`SessionSpawnTemplate`] here on success so the exact session can later be
+    /// re-spawned via `kernel_swarm_resume_session`. Disk-agnostic under
+    /// `app_data_root`, mirroring the calendar `SwarmScheduleStore`.
+    spawn_template_store: SpawnTemplateStore,
 }
 
 impl std::fmt::Debug for SwarmRuntimeState {
@@ -465,6 +478,12 @@ impl SwarmRuntimeState {
         let coordinator = SwarmCoordinator::new(config, factory, sink, ledger);
         coordinator.start_reaper();
 
+        // ROI#3: the resume-template store is rooted at the SAME `app_data_root`
+        // every other durable store uses (cli-bridge config, schedules). An empty
+        // path resolves to the never-present default in `load` (the explicit-cloud
+        // test seam) so templates simply never persist there — honest.
+        let spawn_template_store = SpawnTemplateStore::new(app_data_root);
+
         Self {
             coordinator: Arc::new(coordinator),
             ledger_store: store,
@@ -475,6 +494,7 @@ impl SwarmRuntimeState {
             _fr_drain_task: fr_drain,
             terminal_capture: None,
             capture_sinks: Arc::new(Mutex::new(HashMap::new())),
+            spawn_template_store,
         }
     }
 
@@ -580,6 +600,22 @@ impl SwarmRuntimeState {
     /// `cancel_session` / `session_state` / `remaining` on this.
     pub fn coordinator(&self) -> Arc<SwarmCoordinator> {
         self.coordinator.clone()
+    }
+
+    /// The per-session resume-template store (ROI#3). Exposed so a caller can
+    /// inject an explicit path (tests) and so `resumable` probes share the same
+    /// store the spawn path writes to.
+    pub fn spawn_template_store(&self) -> &SpawnTemplateStore {
+        &self.spawn_template_store
+    }
+
+    /// Override the resume-template store with one bound to an explicit path.
+    /// Builder-style; used by tests so a spawn persists into a `tempfile::tempdir`
+    /// the test then reads back (the `production()` constructors root it at the
+    /// app_data_root, which is `""` in the explicit-cloud test seam).
+    pub fn with_spawn_template_store(mut self, store: SpawnTemplateStore) -> Self {
+        self.spawn_template_store = store;
+        self
     }
 
     /// rank-4: the live board broadcast source. The Tauri board forwarder
@@ -761,6 +797,139 @@ pub struct SwarmSpawnRequestIpc {
     pub isolation_tier: Option<SwarmIsolationTierIpc>,
 }
 
+// ---------------------------------------------------------------------------
+// ROI#3 STATE RECOVERY: IPC <-> resume-template conversions
+// ---------------------------------------------------------------------------
+
+impl SwarmProviderIpc {
+    fn to_template_provider(self) -> TemplateProvider {
+        match self {
+            Self::Local => TemplateProvider::Local,
+            Self::ByokCloud => TemplateProvider::ByokCloud,
+            Self::OfficialCli => TemplateProvider::OfficialCli,
+        }
+    }
+
+    fn from_template_provider(provider: TemplateProvider) -> Self {
+        match provider {
+            TemplateProvider::Local => Self::Local,
+            TemplateProvider::ByokCloud => Self::ByokCloud,
+            TemplateProvider::OfficialCli => Self::OfficialCli,
+        }
+    }
+}
+
+impl SwarmRuntimeBindingIpc {
+    fn to_template_binding(self) -> TemplateRuntimeBinding {
+        match self {
+            Self::Candle => TemplateRuntimeBinding::Candle,
+            Self::LlamaCpp => TemplateRuntimeBinding::LlamaCpp,
+        }
+    }
+
+    fn from_template_binding(binding: TemplateRuntimeBinding) -> Self {
+        match binding {
+            TemplateRuntimeBinding::Candle => Self::Candle,
+            TemplateRuntimeBinding::LlamaCpp => Self::LlamaCpp,
+        }
+    }
+}
+
+impl SwarmIsolationTierIpc {
+    fn to_template_tier(self) -> TemplateIsolationTier {
+        match self {
+            Self::Tier1Container => TemplateIsolationTier::Tier1Container,
+            Self::Tier2Syscall => TemplateIsolationTier::Tier2Syscall,
+            Self::Tier3Microvm => TemplateIsolationTier::Tier3Microvm,
+        }
+    }
+
+    fn from_template_tier(tier: TemplateIsolationTier) -> Self {
+        match tier {
+            TemplateIsolationTier::Tier1Container => Self::Tier1Container,
+            TemplateIsolationTier::Tier2Syscall => Self::Tier2Syscall,
+            TemplateIsolationTier::Tier3Microvm => Self::Tier3Microvm,
+        }
+    }
+}
+
+/// Build a resume-complete [`SessionSpawnTemplate`] from the VALIDATED spawn
+/// request + the live composite `instance_id` the coordinator returned. Called
+/// ONLY after a successful spawn, so the request is known-good; this applies the
+/// SAME blank => None trimming rule the spawn build uses (`trimmed_opt`), so the
+/// template records exactly the fields the spawn accepted. Cloud captures the
+/// model name; local captures artifact + sha + binding. The `origin_session_id`
+/// is the captured-from session (the resume lineage root).
+pub(crate) fn template_from_ipc(
+    request: &SwarmSpawnRequestIpc,
+    origin_session_id: &str,
+) -> SessionSpawnTemplate {
+    let is_local = matches!(request.provider, SwarmProviderIpc::Local);
+    SessionSpawnTemplate {
+        provider: request.provider.to_template_provider(),
+        artifact_path: if is_local {
+            trimmed_opt(&request.artifact_path)
+        } else {
+            None
+        },
+        sha256_expected: if is_local {
+            trimmed_opt(&request.sha256_expected)
+        } else {
+            None
+        },
+        runtime_binding: if is_local {
+            request
+                .runtime_binding
+                .map(SwarmRuntimeBindingIpc::to_template_binding)
+        } else {
+            None
+        },
+        cloud_model_name: if is_local {
+            None
+        } else {
+            trimmed_opt(&request.cloud_model_name)
+        },
+        instance: request.instance,
+        worktree_id: trimmed_opt(&request.worktree_id),
+        working_dir: trimmed_opt(&request.working_dir),
+        isolation_tier: request
+            .isolation_tier
+            .map(SwarmIsolationTierIpc::to_template_tier),
+        origin_session_id: origin_session_id.to_string(),
+        captured_at: chrono::Utc::now(),
+    }
+}
+
+/// Rebuild a FRESH [`SwarmSpawnRequestIpc`] from a stored resume template. The
+/// rebuilt request carries NO pre-minted model id (the shared spawn path's
+/// `build_spawn_request` mints a fresh `ModelId::new_v7()`), so the resumed
+/// session gets a brand-new composite id — never colliding with the origin. The
+/// `parent_session_id` is set to `origin` for lineage ("resumed from X" lands in
+/// the real FR `SessionSpawned.parent_session_id`). The local sha integrity gate
+/// is preserved verbatim (re-verified on resume through the same factory).
+pub(crate) fn template_to_request_ipc(
+    template: &SessionSpawnTemplate,
+    origin_session_id: &str,
+) -> SwarmSpawnRequestIpc {
+    SwarmSpawnRequestIpc {
+        provider: SwarmProviderIpc::from_template_provider(template.provider),
+        artifact_path: template.artifact_path.clone(),
+        sha256_expected: template.sha256_expected.clone(),
+        runtime_binding: template
+            .runtime_binding
+            .map(SwarmRuntimeBindingIpc::from_template_binding),
+        cloud_model_name: template.cloud_model_name.clone(),
+        instance: template.instance,
+        // Lineage: the resumed-from session id (NOT the operator default tag).
+        parent_session_id: Some(origin_session_id.to_string()),
+        worktree_id: template.worktree_id.clone(),
+        working_dir: template.working_dir.clone(),
+        isolation_tier: template
+            .isolation_tier
+            .map(SwarmIsolationTierIpc::from_template_tier),
+    }
+}
+
 /// Identifier for a spawned session returned to the UI. The composite string
 /// (`<model_id>#<instance>`) round-trips back through the cancel/chat commands.
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -778,6 +947,49 @@ impl From<ModelInstanceId> for SwarmInstanceIdIpc {
             model_id: value.model_id.to_string(),
             instance: value.instance,
             composite: value.to_string(),
+        }
+    }
+}
+
+/// ROI#3: the stored resume template, surfaced to the UI (camelCase) for the
+/// edit-then-resume PREFILL path (`kernel_swarm_get_spawn_template`). Mirrors the
+/// spawn form fields so the operator can tweak (e.g. repoint a newer artifact)
+/// before re-spawning. The one-click resume path does NOT need this — it drives
+/// `kernel_swarm_resume_session` directly from the stored template.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SessionSpawnTemplateIpc {
+    pub provider: SwarmProviderIpc,
+    pub artifact_path: Option<String>,
+    pub sha256_expected: Option<String>,
+    pub runtime_binding: Option<SwarmRuntimeBindingIpc>,
+    pub cloud_model_name: Option<String>,
+    pub instance: u32,
+    pub worktree_id: Option<String>,
+    pub working_dir: Option<String>,
+    pub isolation_tier: Option<SwarmIsolationTierIpc>,
+    pub origin_session_id: String,
+    pub captured_at: String,
+}
+
+impl From<SessionSpawnTemplate> for SessionSpawnTemplateIpc {
+    fn from(t: SessionSpawnTemplate) -> Self {
+        Self {
+            provider: SwarmProviderIpc::from_template_provider(t.provider),
+            artifact_path: t.artifact_path,
+            sha256_expected: t.sha256_expected,
+            runtime_binding: t
+                .runtime_binding
+                .map(SwarmRuntimeBindingIpc::from_template_binding),
+            cloud_model_name: t.cloud_model_name,
+            instance: t.instance,
+            worktree_id: t.worktree_id,
+            working_dir: t.working_dir,
+            isolation_tier: t
+                .isolation_tier
+                .map(SwarmIsolationTierIpc::from_template_tier),
+            origin_session_id: t.origin_session_id,
+            captured_at: t.captured_at.to_rfc3339(),
         }
     }
 }
@@ -854,6 +1066,18 @@ pub async fn kernel_swarm_spawn_session(
     let instance_id = spawn.instance_id;
     match coordinator.spawn_session(spawn).await {
         Ok(iid) => {
+            // ROI#3 STATE RECOVERY: persist a resume template keyed by the live
+            // composite instance_id so this exact session can be re-spawned later
+            // (`kernel_swarm_resume_session`). BEST-EFFORT: a store-write failure
+            // must NOT fail an otherwise-successful spawn (the real model already
+            // loaded) — it only makes the session non-resumable, surfaced honestly
+            // via the FR/stderr line and a `resumable=false` summary.
+            let template = template_from_ipc(&request, &iid.to_string());
+            if let Err(error) = state.spawn_template_store.upsert(iid.to_string(), template) {
+                eprintln!(
+                    "{FR_EVT_SWARM_LIFECYCLE}: resume template persist failed for {iid}: {error}"
+                );
+            }
             // §10.1 capture seam (first real swarm producer): when wired, open a
             // read-only capture session bound to this swarm's swimlane so the
             // operator can inspect its background work in the Terminal panel.
@@ -893,6 +1117,63 @@ pub async fn kernel_swarm_cancel_session(
     // Reconcile regardless of outcome so a now-terminal session leaves the table.
     let _ = state.resolve_runtime(iid);
     result
+}
+
+/// ROI#3 STATE RECOVERY: re-spawn a recorded session from its stored resume
+/// template. Reads the [`SessionSpawnTemplate`] captured at the original spawn
+/// (keyed by the composite `session_id`), rebuilds a FRESH `SwarmSpawnRequestIpc`
+/// (fresh model id minted by `build_spawn_request`; `parent_session_id` = the
+/// resumed-from id for lineage), and drives the SAME validated
+/// `kernel_swarm_spawn_session` path — so resume inherits the integrity sha gate,
+/// the coordinator bounds, the FR `SessionSpawned`, the §10.1 capture seam, AND
+/// re-persists a template for the NEW session (a resumed session is itself
+/// resumable). There is NO forked spawn path.
+///
+/// Honest: a session with no stored template (chat sessions; swarm sessions
+/// spawned before this feature; sessions whose best-effort template write
+/// failed) surfaces a typed `SESSION_NOT_RESUMABLE:` error. A corrupt store
+/// surfaces its read error verbatim rather than masquerading as not-resumable.
+#[tauri::command]
+pub async fn kernel_swarm_resume_session(
+    session_id: String,
+    state: State<'_, SwarmRuntimeState>,
+) -> Result<SwarmInstanceIdIpc, String> {
+    let _ = KERNEL_SWARM_RESUME_SESSION_IPC_CHANNEL;
+    let origin = session_id.trim();
+    if origin.is_empty() {
+        return Err("session_id must not be empty".to_string());
+    }
+    let template = state
+        .spawn_template_store
+        .get(origin)?
+        .ok_or_else(|| format!("SESSION_NOT_RESUMABLE: no spawn template stored for {origin}"))?;
+    // Rebuild a fresh request (new model id, lineage parent = origin) and drive
+    // the SINGLE validated spawn path. `origin` is owned by `session_id`; clone
+    // into a String so the borrow does not outlive `state` being moved.
+    let origin = origin.to_string();
+    let request = template_to_request_ipc(&template, &origin);
+    kernel_swarm_spawn_session(request, state).await
+}
+
+/// ROI#3: fetch the stored resume template for a session (camelCase IPC DTO), or
+/// `None` when the session is not resumable. Enables the edit-then-resume PREFILL
+/// path: the UI populates the existing spawn form from this template so the
+/// operator can tweak (e.g. repoint a newer artifact, change worktree) before
+/// re-spawning through the normal Spawn button. Read-only; no spawn side effect.
+#[tauri::command]
+pub async fn kernel_swarm_get_spawn_template(
+    session_id: String,
+    state: State<'_, SwarmRuntimeState>,
+) -> Result<Option<SessionSpawnTemplateIpc>, String> {
+    let _ = KERNEL_SWARM_GET_SPAWN_TEMPLATE_IPC_CHANNEL;
+    let origin = session_id.trim();
+    if origin.is_empty() {
+        return Err("session_id must not be empty".to_string());
+    }
+    Ok(state
+        .spawn_template_store
+        .get(origin)?
+        .map(SessionSpawnTemplateIpc::from))
 }
 
 /// List the live (non-terminal) swarm sessions with their model id, instance,
@@ -1814,5 +2095,199 @@ mod tests {
             .await
             .expect("cancel cloud");
         assert_eq!(coordinator.live_session_count(), 0);
+    }
+
+    // ---- ROI#3 STATE RECOVERY: resume-template capture + rebuild + resume ----
+
+    /// `template_from_ipc` captures EXACTLY the validated local fields (artifact +
+    /// sha + binding), trims blank worktree/working_dir to None, maps the tier 1:1,
+    /// and records the origin lineage. Cloud fields are not captured for a local.
+    #[test]
+    fn template_from_ipc_captures_validated_local_fields() {
+        let mut req = local_request("D:/models/qwen.safetensors");
+        req.instance = 3;
+        req.worktree_id = Some("  wt-a  ".to_string());
+        req.working_dir = Some("   ".to_string()); // blank => None
+        req.isolation_tier = Some(SwarmIsolationTierIpc::Tier3Microvm);
+        req.cloud_model_name = Some("ignored-for-local".to_string());
+        let tpl = template_from_ipc(&req, "origin#0");
+        assert_eq!(tpl.provider, TemplateProvider::Local);
+        assert_eq!(tpl.artifact_path.as_deref(), Some("D:/models/qwen.safetensors"));
+        assert_eq!(tpl.sha256_expected.as_deref(), Some(&"ab".repeat(32)[..]));
+        assert_eq!(tpl.runtime_binding, Some(TemplateRuntimeBinding::Candle));
+        assert_eq!(tpl.cloud_model_name, None, "local must not capture cloud name");
+        assert_eq!(tpl.instance, 3);
+        assert_eq!(tpl.worktree_id.as_deref(), Some("wt-a"), "trimmed");
+        assert_eq!(tpl.working_dir, None, "blank working_dir trimmed to None");
+        assert_eq!(tpl.isolation_tier, Some(TemplateIsolationTier::Tier3Microvm));
+        assert_eq!(tpl.origin_session_id, "origin#0");
+    }
+
+    /// `template_from_ipc` for a cloud request captures only the cloud model name
+    /// (no artifact/sha/binding), preserving the honest local/cloud split.
+    #[test]
+    fn template_from_ipc_captures_only_cloud_model_name_for_cloud() {
+        let req = cloud_request("claude-sonnet-4");
+        let tpl = template_from_ipc(&req, "origin#1");
+        assert_eq!(tpl.provider, TemplateProvider::ByokCloud);
+        assert_eq!(tpl.cloud_model_name.as_deref(), Some("claude-sonnet-4"));
+        assert_eq!(tpl.artifact_path, None);
+        assert_eq!(tpl.sha256_expected, None);
+        assert_eq!(tpl.runtime_binding, None);
+        assert_eq!(tpl.origin_session_id, "origin#1");
+    }
+
+    /// `template_to_request_ipc` rebuilds a request whose `parent_session_id` is
+    /// the origin (lineage) and which `build_spawn_request` accepts, minting a
+    /// FRESH model id (so the resumed composite never collides with the origin),
+    /// while carrying the integrity sha + artifact verbatim.
+    #[test]
+    fn template_to_request_ipc_rebuilds_a_fresh_request_with_lineage() {
+        // Capture a local template, then rebuild it.
+        let original = local_request("D:/models/qwen.safetensors");
+        let tpl = template_from_ipc(&original, "ORIGIN#0");
+        let rebuilt = template_to_request_ipc(&tpl, "ORIGIN#0");
+        assert_eq!(rebuilt.parent_session_id.as_deref(), Some("ORIGIN#0"));
+        assert_eq!(rebuilt.artifact_path.as_deref(), Some("D:/models/qwen.safetensors"));
+        assert_eq!(rebuilt.sha256_expected.as_deref(), Some(&"ab".repeat(32)[..]));
+
+        // build_spawn_request accepts it and carries the integrity gate + lineage.
+        let spawn = build_spawn_request(&rebuilt).expect("rebuilt request is valid");
+        assert_eq!(spawn.runtime_binding, RuntimeBinding::Candle);
+        assert_eq!(spawn.model_artifact_path(), Some("D:/models/qwen.safetensors"));
+        // Two rebuilds mint DISTINCT fresh model ids (never reuse the origin id).
+        let spawn_b = build_spawn_request(&template_to_request_ipc(&tpl, "ORIGIN#0"))
+            .expect("second rebuild valid");
+        assert_ne!(
+            spawn.instance_id.model_id, spawn_b.instance_id.model_id,
+            "each resume mints a fresh model id"
+        );
+    }
+
+    /// A successful spawn PERSISTS a resume template keyed by the live composite
+    /// instance_id; resume then reads it back, rebuilds (lineage parent = origin),
+    /// and re-spawns through the shared path — and the NEW session is ITSELF
+    /// resumable (its template is persisted too). Uses a credentialed cloud lane
+    /// so the spawn really succeeds without a live HTTP call.
+    #[tokio::test]
+    async fn spawn_persists_template_and_resume_rebuilds_and_respawns() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let store = SpawnTemplateStore::new(tmp.path());
+        let vault = Arc::new(InMemorySecretsVault::default());
+        vault
+            .put("anthropic", "sk-ant-test-key".to_string())
+            .expect("store key");
+        let state = SwarmRuntimeState::production_with_cloud_vault(
+            vault,
+            Some("anthropic".to_string()),
+            None,
+        )
+        .with_spawn_template_store(store.clone());
+        let coordinator = state.coordinator();
+
+        // Spawn a cloud session and persist its template exactly as the command
+        // does (the persist tail lives in the Tauri command body; here we drive
+        // the coordinator + persist seam directly since we cannot fabricate State).
+        let mut req = cloud_request("claude-sonnet-4");
+        req.worktree_id = Some("wt-resume".to_string());
+        req.working_dir = Some("D:/work/wt-resume".to_string());
+        let spawn = build_spawn_request(&req).expect("valid cloud request");
+        let origin_iid = coordinator.spawn_session(spawn).await.expect("origin live");
+        let origin_composite = origin_iid.to_string();
+        store
+            .upsert(&origin_composite, template_from_ipc(&req, &origin_composite))
+            .expect("persist origin template");
+
+        // The origin session is now resumable: a template exists for it.
+        assert!(state.spawn_template_store().contains(&origin_composite));
+
+        // Resume: read the stored template, rebuild with lineage, re-spawn.
+        let tpl = state
+            .spawn_template_store()
+            .get(&origin_composite)
+            .expect("get ok")
+            .expect("template present");
+        let resume_req = template_to_request_ipc(&tpl, &origin_composite);
+        assert_eq!(resume_req.parent_session_id.as_deref(), Some(origin_composite.as_str()));
+        assert_eq!(resume_req.cloud_model_name.as_deref(), Some("claude-sonnet-4"));
+        assert_eq!(resume_req.worktree_id.as_deref(), Some("wt-resume"));
+        assert_eq!(resume_req.working_dir.as_deref(), Some("D:/work/wt-resume"));
+        let resume_spawn = build_spawn_request(&resume_req).expect("resume request valid");
+        let new_iid = coordinator.spawn_session(resume_spawn).await.expect("resumed live");
+
+        // Fresh composite id (distinct model id from the origin) — no collision.
+        assert_ne!(new_iid.model_id, origin_iid.model_id);
+        assert_eq!(coordinator.live_session_count(), 2);
+
+        // The resumed session is itself resumable (persist its template too, as
+        // the shared command tail does).
+        let new_composite = new_iid.to_string();
+        store
+            .upsert(&new_composite, template_from_ipc(&resume_req, &new_composite))
+            .expect("persist resumed template");
+        assert!(state.spawn_template_store().contains(&new_composite));
+        // The resumed session's template is captured FROM the new session
+        // (origin_session_id = the new composite); the resume LINEAGE back to the
+        // origin lives in the rebuilt request's parent_session_id (which the FR
+        // SessionSpawned.parent_session_id records), proven below.
+        let chained = store.get(&new_composite).expect("ok").expect("present");
+        assert_eq!(chained.origin_session_id, new_composite);
+        assert_eq!(
+            resume_req.parent_session_id.as_deref(),
+            Some(origin_composite.as_str()),
+            "resume request lineage parent = the origin session"
+        );
+
+        coordinator.cancel_session(origin_iid, "t").await.expect("cancel origin");
+        coordinator.cancel_session(new_iid, "t").await.expect("cancel resumed");
+    }
+
+    /// Resume of an id with NO stored template surfaces the typed
+    /// `SESSION_NOT_RESUMABLE:` error (the not-resumable contract).
+    #[test]
+    fn resume_unknown_id_is_not_resumable() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let store = SpawnTemplateStore::new(tmp.path());
+        // No template stored -> get yields None -> the command maps to the typed
+        // error. We assert at the store boundary the command consults.
+        assert_eq!(store.get("never-spawned#0").expect("get ok"), None);
+    }
+
+    /// A resumed CLOUD session with no configured lane still surfaces
+    /// `ProviderNotConfigured` through the SHARED spawn path — resume inherits the
+    /// same honest runtime conditions as a first spawn (no bypass).
+    #[tokio::test]
+    async fn resume_of_cloud_without_lane_surfaces_provider_not_configured() {
+        let state = SwarmRuntimeState::production(std::path::Path::new(""));
+        let coordinator = state.coordinator();
+        // Build a template as if a prior spawn had succeeded, then rebuild + spawn.
+        let tpl = template_from_ipc(&cloud_request("claude-sonnet-4"), "origin#0");
+        let resume_req = template_to_request_ipc(&tpl, "origin#0");
+        let spawn = build_spawn_request(&resume_req).expect("valid request");
+        let err = coordinator
+            .spawn_session(spawn)
+            .await
+            .expect_err("no lane -> not configured");
+        assert!(is_provider_not_configured(&err), "got {err}");
+        assert_eq!(coordinator.live_session_count(), 0);
+    }
+
+    /// The camelCase template IPC DTO carries every field for the prefill path.
+    #[test]
+    fn session_spawn_template_ipc_maps_all_fields() {
+        let mut req = local_request("D:/models/qwen.safetensors");
+        req.worktree_id = Some("wt-z".to_string());
+        req.working_dir = Some("D:/work/wt-z".to_string());
+        req.isolation_tier = Some(SwarmIsolationTierIpc::Tier2Syscall);
+        let tpl = template_from_ipc(&req, "origin#5");
+        let dto = SessionSpawnTemplateIpc::from(tpl);
+        assert_eq!(dto.provider, SwarmProviderIpc::Local);
+        assert_eq!(dto.artifact_path.as_deref(), Some("D:/models/qwen.safetensors"));
+        assert_eq!(dto.runtime_binding, Some(SwarmRuntimeBindingIpc::Candle));
+        assert_eq!(dto.worktree_id.as_deref(), Some("wt-z"));
+        assert_eq!(dto.working_dir.as_deref(), Some("D:/work/wt-z"));
+        assert_eq!(dto.isolation_tier, Some(SwarmIsolationTierIpc::Tier2Syscall));
+        assert_eq!(dto.origin_session_id, "origin#5");
+        assert!(!dto.captured_at.is_empty(), "captured_at serialized as rfc3339");
     }
 }

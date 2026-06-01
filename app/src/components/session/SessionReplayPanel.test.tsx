@@ -76,19 +76,27 @@ function makeResponse(over: Partial<SessionTranscriptResponse>): SessionTranscri
 
 interface IpcCalls {
   getTranscriptArgs: TranscriptGetRequest[];
+  resumeArgs: string[];
 }
 
 function makeIpc(
   sessions: SessionSummary[],
   response: SessionTranscriptResponse,
 ): { ipc: SessionTranscriptIpc; calls: IpcCalls } {
-  const calls: IpcCalls = { getTranscriptArgs: [] };
+  const calls: IpcCalls = { getTranscriptArgs: [], resumeArgs: [] };
   const ipc: SessionTranscriptIpc = {
     listSessions: vi.fn(async () => sessions),
     getTranscript: vi.fn(async (req: TranscriptGetRequest) => {
       calls.getTranscriptArgs.push(req);
       return response;
     }),
+    // ROI #3: default resume fake returns a deterministic fresh composite. Tests
+    // that exercise resume override this; the rest never call it.
+    resumeSession: vi.fn(async (sessionId: string) => {
+      calls.resumeArgs.push(sessionId);
+      return { modelId: `${sessionId}-resumed`, instance: 0, composite: `${sessionId}-resumed#0` };
+    }),
+    getSpawnTemplate: vi.fn(async () => null),
   };
   return { ipc, calls };
 }
@@ -266,6 +274,8 @@ describe("SessionReplayPanel", () => {
             deferreds.set(req.sessionId, resolve);
           }),
       ),
+      resumeSession: vi.fn(async (s: string) => ({ modelId: s, instance: 0, composite: `${s}#0` })),
+      getSpawnTemplate: vi.fn(async () => null),
     };
 
     // openSignal is a one-shot: the mount value is the baseline, only a CHANGE
@@ -396,6 +406,70 @@ describe("SessionReplayPanel", () => {
     // session-select buttons — all <button>. No inputs/textareas anywhere.
     expect(container.querySelectorAll("input")).toHaveLength(0);
     expect(container.querySelectorAll("textarea")).toHaveLength(0);
+  });
+});
+
+// ===========================================================================
+// ROI #3 STATE RECOVERY: the Resume affordance (resume-from-session).
+// ===========================================================================
+describe("SessionReplayPanel resume affordance", () => {
+  it("shows Resume ONLY on resumable rows (honest: not-resumable rows have no button)", async () => {
+    const { ipc } = makeIpc(
+      [
+        makeSummary({ sessionId: "swarm-1", resumable: true }),
+        makeSummary({ sessionId: "chat-1", kind: "chat", resumable: false }),
+      ],
+      makeResponse({}),
+    );
+    render(<SessionReplayPanel ipc={ipc} liveIpc={noopLiveIpc()} />);
+    open();
+
+    await screen.findByTestId("session-replay-row-swarm-1");
+    // The resumable swarm session offers Resume; the chat session does not.
+    expect(screen.getByTestId("session-replay-resume-swarm-1")).toBeInTheDocument();
+    expect(screen.queryByTestId("session-replay-resume-chat-1")).not.toBeInTheDocument();
+    expect(screen.getByTestId("session-replay-row-swarm-1")).toHaveAttribute("data-resumable", "true");
+    expect(screen.getByTestId("session-replay-row-chat-1")).toHaveAttribute("data-resumable", "false");
+  });
+
+  it("clicking Resume calls the resume IPC, fires onResumed(new, origin), and renders the lineage note", async () => {
+    const onResumed = vi.fn();
+    const { ipc, calls } = makeIpc([makeSummary({ sessionId: "swarm-1", resumable: true })], makeResponse({}));
+    render(<SessionReplayPanel ipc={ipc} liveIpc={noopLiveIpc()} onResumed={onResumed} />);
+    open();
+
+    fireEvent.click(await screen.findByTestId("session-replay-resume-swarm-1"));
+
+    // The validated spawn path is driven via the resume IPC with the row's id.
+    await waitFor(() => expect(calls.resumeArgs).toContain("swarm-1"));
+    // The host is handed the fresh composite + the resumed-from (origin) id.
+    await waitFor(() =>
+      expect(onResumed).toHaveBeenCalledWith("swarm-1-resumed#0", "swarm-1"),
+    );
+    // The inline lineage note shows "resumed from" with both ids as data attrs.
+    const lineage = await screen.findByTestId("session-replay-resumed-lineage");
+    expect(lineage).toHaveAttribute("data-new-composite", "swarm-1-resumed#0");
+    expect(lineage).toHaveAttribute("data-origin-session-id", "swarm-1");
+    // The index was reloaded so the new (itself-resumable) session can appear.
+    expect(ipc.listSessions).toHaveBeenCalledTimes(2);
+  });
+
+  it("renders a backend resume error VERBATIM inline on the row (e.g. SESSION_NOT_RESUMABLE)", async () => {
+    const { ipc } = makeIpc([makeSummary({ sessionId: "swarm-1", resumable: true })], makeResponse({}));
+    // Override resume to reject with the typed not-resumable error (a race: the
+    // template was GC'd between the list snapshot and the click).
+    ipc.resumeSession = vi.fn(async () => {
+      throw new Error("SESSION_NOT_RESUMABLE: no spawn template stored for swarm-1");
+    });
+    render(<SessionReplayPanel ipc={ipc} liveIpc={noopLiveIpc()} />);
+    open();
+
+    fireEvent.click(await screen.findByTestId("session-replay-resume-swarm-1"));
+
+    const err = await screen.findByTestId("session-replay-resume-error-swarm-1");
+    expect(err).toHaveTextContent("SESSION_NOT_RESUMABLE: no spawn template stored for swarm-1");
+    // No lineage note on failure.
+    expect(screen.queryByTestId("session-replay-resumed-lineage")).not.toBeInTheDocument();
   });
 });
 
@@ -619,6 +693,8 @@ describe("SessionReplayPanel live tail", () => {
         call += 1;
         return call === 1 ? seed : tail;
       }),
+      resumeSession: vi.fn(async (s: string) => ({ modelId: s, instance: 0, composite: `${s}#0` })),
+      getSpawnTemplate: vi.fn(async () => null),
     };
     const h = makeLiveHarness();
     render(<SessionReplayPanel ipc={ipc} liveIpc={h.liveIpc} />);
@@ -782,6 +858,8 @@ describe("SessionReplayPanel live tail", () => {
     const ipc: SessionTranscriptIpc = {
       listSessions: vi.fn(async () => sessions),
       getTranscript: vi.fn(async () => big),
+      resumeSession: vi.fn(async (s: string) => ({ modelId: s, instance: 0, composite: `${s}#0` })),
+      getSpawnTemplate: vi.fn(async () => null),
     };
     const h = makeLiveHarness();
     render(<SessionReplayPanel ipc={ipc} liveIpc={h.liveIpc} />);

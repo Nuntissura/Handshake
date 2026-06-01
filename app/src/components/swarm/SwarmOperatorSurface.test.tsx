@@ -36,11 +36,22 @@ vi.mock("../../lib/ipc/swarm_runtime", async () => {
     spawnSession: vi.fn(),
     cancelSession: vi.fn(),
     chatGenerate: vi.fn(),
+    // ROI #3: the edit-then-resume path reads the stored template; default to a
+    // populated template so the prefill test can assert the form is filled.
+    getSpawnTemplate: vi.fn(async () => ({
+      provider: "byok_cloud",
+      cloudModelName: "claude-sonnet-4",
+      worktreeId: "wt-recovery-1",
+      workingDir: "D:/work/wt-recovery-1",
+      isolationTier: "tier3_microvm",
+      originSessionId: "beta-cloud#0",
+      capturedAt: "2026-05-30T10:00:00.000Z",
+    })),
   };
 });
 
 import { SwarmOperatorSurface } from "./SwarmOperatorSurface";
-import { boardSnapshot, listActiveSessions } from "../../lib/ipc/swarm_runtime";
+import { boardSnapshot, getSpawnTemplate, listActiveSessions } from "../../lib/ipc/swarm_runtime";
 
 describe("SwarmOperatorSurface", () => {
   test("the Swarm Board is behind a disclosure COLLAPSED by default and not everything-at-once", () => {
@@ -202,5 +213,54 @@ describe("SwarmOperatorSurface", () => {
     );
 
     listSpy.mockRestore();
+  });
+
+  test("workbench Resume reads the template, PREFILLS the Spawn form, and force-opens the Spawn disclosure (edit-then-resume)", async () => {
+    // ROI #3 STATE RECOVERY (edit-then-resume): seed one live cloud session, open
+    // the Session workbench, select it via Chat (sets chatInstanceId), then click
+    // "Resume this session". The host reads its template (mocked) and prefills the
+    // existing Spawn form so the operator can tweak before re-spawning — reusing
+    // the validated spawn path, no new spawn logic.
+    vi.mocked(getSpawnTemplate).mockClear();
+    vi.mocked(listActiveSessions).mockResolvedValue([
+      {
+        instanceId: { modelId: "beta-cloud", instance: 0, composite: "beta-cloud#0" },
+        state: "READY",
+        provider: "byok_cloud",
+        runtimeBinding: "cloud",
+        artifactPath: null,
+        cloudModelName: "claude-sonnet-4",
+        worktreeId: null,
+        workingDir: null,
+      },
+    ]);
+
+    render(<SwarmOperatorSurface />);
+    // Open the Session workbench and select the session as the chat session
+    // (the picker is a <select>; selecting fires its onChange -> setChatInstanceId).
+    fireEvent.click(screen.getByTestId("disclosure-operator-chat-toggle"));
+    await screen.findByTestId("operator-chat-option-beta-cloud#0");
+    fireEvent.change(screen.getByTestId("operator-chat-session"), {
+      target: { value: "beta-cloud#0" },
+    });
+
+    // Click Resume -> the host reads the stored template for this session.
+    const resumeBtn = await screen.findByTestId("session-workbench-resume");
+    await vi.waitFor(() => expect(resumeBtn).not.toBeDisabled());
+    fireEvent.click(resumeBtn);
+    await vi.waitFor(() => expect(getSpawnTemplate).toHaveBeenCalledWith("beta-cloud#0"));
+
+    // The Spawn disclosure force-opens and the form is prefilled from the template
+    // (provider = byok_cloud, cloud model = claude-sonnet-4).
+    await vi.waitFor(() =>
+      expect(screen.getByTestId("disclosure-spawn-session-toggle")).toHaveAttribute("aria-expanded", "true"),
+    );
+    await vi.waitFor(() =>
+      expect((screen.getByTestId("swarm-spawn-cloud-model") as HTMLInputElement).value).toBe("claude-sonnet-4"),
+    );
+    expect((screen.getByTestId("swarm-spawn-provider") as HTMLSelectElement).value).toBe("byok_cloud");
+    // The recorded worktree is threaded through the free-text new-worktree entry.
+    expect((screen.getByTestId("swarm-spawn-worktree-new") as HTMLInputElement).value).toBe("wt-recovery-1");
+    expect((screen.getByTestId("swarm-spawn-working-dir") as HTMLInputElement).value).toBe("D:/work/wt-recovery-1");
   });
 });

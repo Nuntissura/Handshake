@@ -69,6 +69,15 @@ export interface SessionReplayPanelProps {
    * if the session index contains it. Re-applied whenever `openSignal` changes.
    */
   focusSessionId?: string | null;
+  /**
+   * ROI #3 STATE RECOVERY: invoked after a successful one-click Resume of a
+   * recorded session. `newComposite` is the FRESH session's composite instance
+   * id; `originSessionId` is the resumed-from session id (lineage). The host
+   * routes focus into the workbench (chat + terminal + transcript) for the new
+   * session. Absent => the panel still resumes (and refreshes the index) but
+   * does not hand focus to a host surface.
+   */
+  onResumed?: (newComposite: string, originSessionId: string) => void;
 }
 
 const KIND_STYLE: Record<TranscriptKind, { label: string; bg: string; fg: string }> = {
@@ -365,12 +374,24 @@ function SessionList({
   onSelect,
   loading,
   error,
+  onResume,
+  resumingId,
+  resumeError,
+  resumedLineage,
 }: {
   sessions: SessionSummary[];
   selectedId: string | null;
   onSelect: (id: string) => void;
   loading: boolean;
   error: string | null;
+  /** ROI #3: one-click resume of the row's recorded session (composite id). */
+  onResume: (id: string) => void;
+  /** The session id whose resume is in flight (disables its button), or null. */
+  resumingId: string | null;
+  /** The most recent resume error keyed by the row it came from, or null. */
+  resumeError: { sessionId: string; message: string } | null;
+  /** The most recent successful resume lineage (new + origin), or null. */
+  resumedLineage: { newComposite: string; originSessionId: string } | null;
 }) {
   return (
     <div
@@ -401,13 +422,31 @@ function SessionList({
         {sessions.map((s) => {
           const selected = s.sessionId === selectedId;
           const total = s.counts.chat + s.counts.fr + s.counts.terminal + s.counts.process;
+          // ROI #3: a row is resumable only when the backend captured a spawn
+          // template for it (swarm spawns). HONEST: chat sessions + pre-feature
+          // spawns have resumable=false, so the Resume affordance is hidden.
+          const resumable = s.resumable === true;
+          const resuming = resumingId === s.sessionId;
+          const rowResumeError =
+            resumeError && resumeError.sessionId === s.sessionId ? resumeError.message : null;
+          const rowLineage =
+            resumedLineage && resumedLineage.originSessionId === s.sessionId
+              ? resumedLineage
+              : null;
           return (
-            <li key={s.sessionId}>
+            <li
+              key={s.sessionId}
+              style={{
+                borderLeft: selected ? "3px solid #2563eb" : "3px solid transparent",
+                background: selected ? "#eff6ff" : "transparent",
+              }}
+            >
               <button
                 type="button"
                 data-testid={`session-replay-row-${s.sessionId}`}
                 data-stable-id={`session-replay.row.${s.sessionId}`}
                 data-selected={selected ? "true" : "false"}
+                data-resumable={resumable ? "true" : "false"}
                 aria-pressed={selected}
                 onClick={() => onSelect(s.sessionId)}
                 style={{
@@ -416,8 +455,7 @@ function SessionList({
                   textAlign: "left",
                   padding: "8px 10px",
                   border: "none",
-                  borderLeft: selected ? "3px solid #2563eb" : "3px solid transparent",
-                  background: selected ? "#eff6ff" : "transparent",
+                  background: "transparent",
                   color: "var(--hs-color-text)",
                   cursor: "pointer",
                   fontSize: 12,
@@ -449,6 +487,56 @@ function SessionList({
                   </div>
                 ) : null}
               </button>
+
+              {/* ROI #3 STATE RECOVERY: the Resume affordance is a SIBLING of the
+                  row-select button (never nested — no button-in-button). Rendered
+                  only when the session is resumable (a captured spawn template
+                  exists). One click re-spawns a fresh session carrying the
+                  original's config via the SAME validated spawn path. */}
+              {resumable ? (
+                <div style={{ padding: "0 10px 8px 13px", display: "flex", flexDirection: "column", gap: 4 }}>
+                  <button
+                    type="button"
+                    data-testid={`session-replay-resume-${s.sessionId}`}
+                    data-stable-id={`session-replay.resume.${s.sessionId}`}
+                    disabled={resuming}
+                    onClick={() => onResume(s.sessionId)}
+                    title="Re-spawn a fresh session with this session's recorded config (provider/model/artifact/worktree)"
+                    style={{
+                      alignSelf: "flex-start",
+                      fontSize: 11,
+                      padding: "2px 10px",
+                      borderRadius: 8,
+                      border: "1px solid #166534",
+                      background: resuming ? "var(--hs-color-surface)" : "#dcfce7",
+                      color: "#166534",
+                      cursor: resuming ? "not-allowed" : "pointer",
+                      opacity: resuming ? 0.6 : 1,
+                      fontWeight: 600,
+                    }}
+                  >
+                    {resuming ? "Resuming…" : "↻ Resume"}
+                  </button>
+                  {rowLineage ? (
+                    <span
+                      data-testid="session-replay-resumed-lineage"
+                      data-new-composite={rowLineage.newComposite}
+                      data-origin-session-id={rowLineage.originSessionId}
+                      style={{ fontSize: 11, color: "#166534" }}
+                    >
+                      Resumed → {shortId(rowLineage.newComposite, 18)} (from {shortId(rowLineage.originSessionId, 14)})
+                    </span>
+                  ) : null}
+                  {rowResumeError ? (
+                    <span
+                      data-testid={`session-replay-resume-error-${s.sessionId}`}
+                      style={{ fontSize: 11, color: "#dc2626", wordBreak: "break-word" }}
+                    >
+                      {rowResumeError}
+                    </span>
+                  ) : null}
+                </div>
+              ) : null}
             </li>
           );
         })}
@@ -1104,11 +1192,13 @@ function SessionReplayBody({
   liveIpc,
   focusSessionId,
   focusSignal,
+  onResumed,
 }: {
   ipc: SessionTranscriptIpc;
   liveIpc: LiveTailIpc;
   focusSessionId?: string | null;
   focusSignal?: number;
+  onResumed?: (newComposite: string, originSessionId: string) => void;
 }) {
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
   const [listLoading, setListLoading] = useState(true);
@@ -1130,6 +1220,13 @@ function SessionReplayBody({
   const [activeKinds, setActiveKinds] = useState<Set<TranscriptKind>>(
     () => new Set(TRANSCRIPT_KINDS.map((k) => k.kind)),
   );
+
+  // ROI #3 STATE RECOVERY: resume affordance state. `resumingId` disables the
+  // in-flight row's button; `resumeError` / `resumedLineage` are honest per-row
+  // outcomes shown inline (mirroring the panel's other honest inline states).
+  const [resumingId, setResumingId] = useState<string | null>(null);
+  const [resumeError, setResumeError] = useState<{ sessionId: string; message: string } | null>(null);
+  const [resumedLineage, setResumedLineage] = useState<{ newComposite: string; originSessionId: string } | null>(null);
 
   // One-shot board focus guard, keyed by focusSignal (a repeat "Review session"
   // click re-arms it). setState happens only after the awaited list load, so we
@@ -1167,6 +1264,32 @@ function SessionReplayBody({
     // refresh) and the set-state-in-effect rule does not fire.
     void loadSessions();
   }, [loadSessions]);
+
+  // ROI #3 STATE RECOVERY: one-click resume. Re-spawns a FRESH session via the
+  // SAME validated backend spawn path (integrity gate + bounds preserved), then
+  // reloads the index so the new session appears and hands focus to the host.
+  // HONEST: a backend `SESSION_NOT_RESUMABLE:` (or any factory) error is shown
+  // verbatim inline on the row, never swallowed. Single-flight per the disabled
+  // button; the `resumingId` guard also blocks re-entrancy.
+  const handleResume = useCallback(
+    async (sessionId: string) => {
+      if (resumingId) return;
+      setResumingId(sessionId);
+      setResumeError(null);
+      try {
+        const id = await ipc.resumeSession(sessionId);
+        setResumedLineage({ newComposite: id.composite, originSessionId: sessionId });
+        // Pull the new (and itself-resumable) session into the index.
+        await loadSessions();
+        onResumed?.(id.composite, sessionId);
+      } catch (e) {
+        setResumeError({ sessionId, message: e instanceof Error ? e.message : String(e) });
+      } finally {
+        setResumingId(null);
+      }
+    },
+    [ipc, loadSessions, onResumed, resumingId],
+  );
 
   const activeKindList = useMemo(
     () => TRANSCRIPT_KINDS.map((k) => k.kind).filter((k) => activeKinds.has(k)),
@@ -1362,6 +1485,10 @@ function SessionReplayBody({
           onSelect={setSelectedId}
           loading={listLoading}
           error={listError}
+          onResume={handleResume}
+          resumingId={resumingId}
+          resumeError={resumeError}
+          resumedLineage={resumedLineage}
         />
         <TranscriptTimeline
           selectedId={selectedId}
@@ -1415,6 +1542,7 @@ export function SessionReplayPanel({
   defaultOpen = false,
   openSignal,
   focusSessionId,
+  onResumed,
 }: SessionReplayPanelProps) {
   return (
     <Disclosure
@@ -1430,6 +1558,7 @@ export function SessionReplayPanel({
         liveIpc={liveIpc}
         focusSessionId={focusSessionId}
         focusSignal={openSignal}
+        onResumed={onResumed}
       />
     </Disclosure>
   );

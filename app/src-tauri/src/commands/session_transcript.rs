@@ -166,6 +166,14 @@ pub struct SessionSummary {
     /// for swarm sessions spawned without a worktree assignment. RECORDED ONLY.
     #[serde(default)]
     pub worktree_id: Option<String>,
+    /// ROI#3 STATE RECOVERY: true when a resume spawn template is persisted for
+    /// this session (it can be re-spawned via `kernel_swarm_resume_session`).
+    /// `false` for chat (UUID) sessions, for swarm sessions spawned before this
+    /// feature, and for any session whose best-effort template write failed
+    /// (honest: not-resumable). The UI hides/disables the Resume affordance when
+    /// `false`. `#[serde(default)]` => forward-compatible (older indexes => false).
+    #[serde(default)]
+    pub resumable: bool,
 }
 
 /// Response of `kernel_session_transcript_get`.
@@ -440,6 +448,9 @@ fn discover_chat_sessions(state: &SessionTranscriptState) -> Vec<SessionSummary>
             },
             // Chat (UUID) sessions are not worktree-bound swarm sessions.
             worktree_id: None,
+            // Chat sessions are never swarm spawns => never resumable. Overlaid
+            // in kernel_session_list anyway, but defaulted honestly here.
+            resumable: false,
         });
     }
     out
@@ -510,6 +521,9 @@ async fn discover_fr_sessions(state: &SessionTranscriptState) -> Vec<SessionSumm
                 ..Default::default()
             },
             worktree_id,
+            // Overlaid against the spawn-template store in kernel_session_list;
+            // defaulted false here so the discovery seam stays self-contained.
+            resumable: false,
         });
     }
     out
@@ -556,7 +570,33 @@ pub async fn kernel_session_list(
 ) -> Result<Vec<SessionSummary>, String> {
     let chat = discover_chat_sessions(&state);
     let fr = discover_fr_sessions(&state).await;
-    Ok(merge_summaries(chat, fr))
+    let mut summaries = merge_summaries(chat, fr);
+    overlay_resumable(&state, &mut summaries);
+    Ok(summaries)
+}
+
+/// ROI#3 STATE RECOVERY: overlay `resumable` onto each summary from the per-
+/// session spawn-template store. Loads the template doc ONCE per list call (not
+/// once per row) and flips `resumable` for any session whose composite id is a
+/// stored template key. A missing/corrupt/transient store => all `resumable`
+/// stay `false` (honest: not-resumable, never a list failure). Chat (UUID)
+/// sessions are never template keys => stay `false`.
+fn overlay_resumable(state: &SessionTranscriptState, summaries: &mut [SessionSummary]) {
+    let store = super::spawn_template_store::SpawnTemplateStore::new(&state.app_data_root);
+    let keys = match store.load() {
+        Ok(doc) => doc.templates,
+        // A missing/corrupt store leaves every row not-resumable (honest), and
+        // never breaks the listing.
+        Err(_) => return,
+    };
+    if keys.is_empty() {
+        return;
+    }
+    for s in summaries.iter_mut() {
+        if keys.contains_key(&s.session_id) {
+            s.resumable = true;
+        }
+    }
 }
 
 #[tauri::command]
@@ -820,6 +860,7 @@ mod tests {
                     ..Default::default()
                 },
                 worktree_id: Some("wt-x".to_string()),
+                resumable: false,
             }],
         };
         save_session_index(&root, &doc).expect("save");
@@ -971,12 +1012,14 @@ mod tests {
                 process: 4,
             },
             worktree_id: Some("wt-x".to_string()),
+            resumable: true,
         };
         let v = serde_json::to_value(&summary).unwrap();
-        for key in ["sessionId", "startedAt", "lastActivityAt", "modelId", "worktreeId"] {
+        for key in ["sessionId", "startedAt", "lastActivityAt", "modelId", "worktreeId", "resumable"] {
             assert!(v.get(key).is_some(), "expected camelCase {key}");
         }
         assert_eq!(v["worktreeId"], serde_json::json!("wt-x"));
+        assert_eq!(v["resumable"], serde_json::json!(true));
         for key in ["session_id", "started_at", "last_activity_at", "model_id", "worktree_id"] {
             assert!(v.get(key).is_none(), "snake_case {key} must not leak");
         }
@@ -1019,6 +1062,7 @@ mod tests {
             title: None,
             counts: SourceCounts::default(),
             worktree_id: None,
+            resumable: false,
         }];
         let fr = vec![SessionSummary {
             session_id: "b".to_string(),
@@ -1030,10 +1074,80 @@ mod tests {
             title: None,
             counts: SourceCounts::default(),
             worktree_id: Some("wt-b".to_string()),
+            resumable: false,
         }];
         let merged = merge_summaries(chat, fr);
         assert_eq!(merged.len(), 2);
         // Most recent (b @99) first.
         assert_eq!(merged[0].session_id, "b");
+    }
+
+    /// ROI#3: `overlay_resumable` flips `resumable` true ONLY for ids present in
+    /// the spawn-template store; chat/UUID ids and unknown swarm ids stay false; a
+    /// missing store leaves everything false (no panic).
+    #[test]
+    fn overlay_resumable_reflects_template_presence() {
+        use super::super::spawn_template_store::{
+            SessionSpawnTemplate, SpawnTemplateStore, TemplateProvider,
+        };
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let state = SessionTranscriptState::new(None, tmp.path(), None);
+
+        // Missing store: nothing flips, no panic.
+        let mut summaries = vec![
+            SessionSummary {
+                session_id: "model-x#0".to_string(),
+                kind: "swarm".to_string(),
+                started_at: None,
+                last_activity_at: None,
+                model_id: None,
+                provider: None,
+                title: None,
+                counts: SourceCounts::default(),
+                worktree_id: None,
+                resumable: false,
+            },
+            SessionSummary {
+                session_id: "chat-uuid".to_string(),
+                kind: "chat".to_string(),
+                started_at: None,
+                last_activity_at: None,
+                model_id: None,
+                provider: None,
+                title: None,
+                counts: SourceCounts::default(),
+                worktree_id: None,
+                resumable: false,
+            },
+        ];
+        overlay_resumable(&state, &mut summaries);
+        assert!(!summaries[0].resumable);
+        assert!(!summaries[1].resumable);
+
+        // Persist a template for the swarm id only.
+        let store = SpawnTemplateStore::new(tmp.path());
+        store
+            .upsert(
+                "model-x#0",
+                SessionSpawnTemplate {
+                    provider: TemplateProvider::ByokCloud,
+                    artifact_path: None,
+                    sha256_expected: None,
+                    runtime_binding: None,
+                    cloud_model_name: Some("claude-sonnet-4".to_string()),
+                    instance: 0,
+                    worktree_id: None,
+                    working_dir: None,
+                    isolation_tier: None,
+                    origin_session_id: "model-x#0".to_string(),
+                    captured_at: Utc::now(),
+                },
+            )
+            .expect("persist template");
+
+        overlay_resumable(&state, &mut summaries);
+        // Only the swarm session with a stored template is now resumable.
+        assert!(summaries[0].resumable, "swarm id with template => resumable");
+        assert!(!summaries[1].resumable, "chat id has no template => not resumable");
     }
 }

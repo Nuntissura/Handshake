@@ -5,6 +5,7 @@ import {
   listWorktrees,
   resourceSnapshot,
   spawnSession,
+  type SessionSpawnTemplate,
   type SwarmIsolationTier,
   type SwarmProvider,
   type SwarmResourceSnapshot,
@@ -200,6 +201,35 @@ export function useSwarmRoom() {
     refreshWorktrees,
   ]);
 
+  // ROI #3 STATE RECOVERY (edit-then-resume): prefill the spawn form from a
+  // recorded session's stored template so the operator can tweak it (repoint a
+  // moved artifact, change worktree) before re-spawning through the EXISTING
+  // validated spawn path — no new spawn logic. Reuses the same form setters as
+  // first-spawn; the operator then hits the normal Spawn button. We thread a
+  // known worktree id through the free-text "new worktree" entry so the value is
+  // always visible + editable even if it is not in the discovered list.
+  const prefillSpawnForm = useCallback((tpl: SessionSpawnTemplate) => {
+    setProvider(tpl.provider);
+    setRuntimeBinding(tpl.runtimeBinding ?? "candle");
+    setArtifactPath(tpl.artifactPath ?? "");
+    setSha256(tpl.sha256Expected ?? "");
+    setCloudModelName(tpl.cloudModelName ?? "");
+    if (tpl.worktreeId) {
+      setWorktreeSelection(NEW_WORKTREE_SENTINEL);
+      setNewWorktreeId(tpl.worktreeId);
+    } else {
+      setWorktreeSelection("");
+      setNewWorktreeId("");
+    }
+    setWorkingDir(tpl.workingDir ?? "");
+    setIsolationTier(tpl.isolationTier ?? "");
+    // A resume mints a fresh instance ordinal; default to 0 (the operator can
+    // bump it if they intend a concurrent peer of an existing instance).
+    setInstance(0);
+    setSpawnError(null);
+    setSpawnNotice(`Prefilled from recorded session ${tpl.originSessionId} — edit and Spawn to resume`);
+  }, []);
+
   const handleCancel = useCallback(
     async (composite: string) => {
       try {
@@ -254,6 +284,8 @@ export function useSwarmRoom() {
     setChatInstanceId,
     handleSpawn,
     handleCancel,
+    prefillSpawnForm,
+    refresh,
     allSessions,
   };
 }
