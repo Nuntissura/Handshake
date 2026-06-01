@@ -18,6 +18,8 @@ import { createRoot } from "react-dom/client";
 import { SessionReplayPanel } from "./SessionReplayPanel";
 import type {
   LiveTailIpc,
+  SessionSearchRequest,
+  SessionSearchResponse,
   SessionSummary,
   SessionTranscriptEntry,
   SessionTranscriptIpc,
@@ -80,6 +82,50 @@ const EMPTY: SessionTranscriptResponse = {
   entries: [],
 };
 
+// ROI #4 RECALL: a deterministic two-hit search response (one multi-snippet) so
+// the visual baseline captures ranked hits + match badges + redacted snippets in
+// a GENUINE Chromium render. The empty-query path is handled by the disabled
+// submit button (no backend call), so the fake always returns hits here.
+const SEARCH_RESULT: SessionSearchResponse = {
+  query: "build",
+  truncated: false,
+  hits: [
+    {
+      sessionId: "claude-sonnet#0",
+      kind: "swarm",
+      provider: "cloud",
+      modelId: "claude-sonnet#0",
+      worktreeId: "wt-recovery-1",
+      startedAt: "2026-05-30T10:00:00.000Z",
+      title: "build handshake_core",
+      matchCount: 3,
+      snippets: [
+        { entryKind: "terminal_chunk", ts: "2026-05-30T10:01:00.000Z", snippet: "$ cargo build --lib … compiling handshake_core" },
+        { entryKind: "agent_activity", ts: "2026-05-30T10:00:20.000Z", snippet: "I'll compile the crate first, then read the gate output" },
+        { entryKind: "chat_turn", ts: "2026-05-30T10:00:00.000Z", snippet: "Build handshake_core and report the gates." },
+      ],
+    },
+    {
+      sessionId: "local-qwen#1",
+      kind: "agent",
+      provider: "local",
+      modelId: "local-qwen#1",
+      worktreeId: null,
+      startedAt: "2026-05-30T11:00:00.000Z",
+      title: "qwen build retry",
+      matchCount: 1,
+      snippets: [
+        { entryKind: "fr_event", ts: "2026-05-30T11:00:00.000Z", snippet: "FR-EVT-BUILD-START … target=handshake_core" },
+      ],
+    },
+  ],
+};
+async function fakeSearch(req: SessionSearchRequest): Promise<SessionSearchResponse> {
+  // Echo the (trimmed) query; the disabled-submit gate means an empty query
+  // never reaches here, so we always return the canned ranked hits.
+  return { ...SEARCH_RESULT, query: req.query };
+}
+
 // ROI #3 STATE RECOVERY fakes (shared by every harness mode). resumeSession mints
 // a deterministic fresh composite so the visual baseline can assert the lineage
 // note; getSpawnTemplate returns the recorded template for the swarm session.
@@ -108,6 +154,7 @@ const fakeIpc: SessionTranscriptIpc = {
     req.sessionId === "local-qwen#1" ? EMPTY : POPULATED,
   resumeSession: fakeResume,
   getSpawnTemplate: fakeGetTemplate,
+  searchSessions: fakeSearch,
 };
 
 // ---------------------------------------------------------------------------
@@ -136,6 +183,7 @@ const liveGrowingIpc: SessionTranscriptIpc = {
   },
   resumeSession: fakeResume,
   getSpawnTemplate: fakeGetTemplate,
+  searchSessions: fakeSearch,
 };
 
 // A scripted live seam: on subscribe, schedule two ticks that reveal a row and
@@ -180,10 +228,11 @@ const liveSeam: LiveTailIpc = {
 //   "open"      -> render the real panel expanded (readability/baseline)
 //   "collapsed" -> render the real panel collapsed-by-default (lazy gate)
 //   "live"      -> render expanded with a scripted live seam (live tailing)
+//   "search"    -> render expanded with the ROI #4 cross-session search fakes
 // We read it with a LOCAL cast rather than augmenting the global Window type, so
 // this harness does not collide with the terminal harness's own __HARNESS_MODE__
 // global augmentation (which has a narrower union) at typecheck time.
-type HarnessMode = "open" | "collapsed" | "live";
+type HarnessMode = "open" | "collapsed" | "live" | "search";
 
 // A safe no-op live seam for the non-live modes: this harness runs in a plain
 // Chromium page with NO Tauri runtime, so the real defaultLiveTailIpc (which

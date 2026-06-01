@@ -208,6 +208,75 @@ export interface TranscriptGetRequest {
 }
 
 // ---------------------------------------------------------------------------
+// Cross-session search (ROI #4 "I-forget-something" recall). Mirrors the
+// handshake_core::commands::session_transcript `kernel_session_search` serde
+// (camelCase). The backend scans the SAME aggregator corpus (chat.jsonl + the FR
+// DuckDB events) through the SAME correlation seam the transcript uses, runs each
+// captured snippet through the SecretRedactor, bounds the result (session-hit
+// limit + per-session snippet cap), and returns ranked SessionSearchHit[] each
+// openable straight into that session's transcript via the EXISTING select path.
+// HONEST: an empty/whitespace query rejects (never "match all"); a session is a
+// hit only when a row the operator can actually open in the transcript matched.
+// ---------------------------------------------------------------------------
+
+/**
+ * The entry-kind a matched snippet came from. A superset of {@link TranscriptKind}
+ * — the backend tags FR/agent/terminal/process rows by the same lane vocabulary
+ * the transcript uses, so a hit chip can reuse the transcript's KIND_STYLE.
+ */
+export type SearchEntryKind = TranscriptKind;
+
+/** One matched, secret-REDACTED snippet within a session hit. */
+export interface SearchSnippet {
+  /** The lane the matched row belongs to (drives the snippet's kind chip). */
+  entryKind: string;
+  /** RFC3339 timestamp of the matched row, when known. */
+  ts?: string | null;
+  /** Matched text + a little context window, ALREADY secret-redacted by the backend. */
+  snippet: string;
+}
+
+/** One ranked session that matched the search, with its capped snippets. */
+export interface SessionSearchHit {
+  sessionId: string;
+  /** "chat" | "swarm" | "agent" (from the session summary). */
+  kind: string;
+  provider?: string | null;
+  modelId?: string | null;
+  worktreeId?: string | null;
+  startedAt?: string | null;
+  title?: string | null;
+  /** Total matches across the session BEFORE the per-session snippet cap (honest). */
+  matchCount: number;
+  /** Capped (per-session) matched snippets, each redacted. */
+  snippets: SearchSnippet[];
+}
+
+export interface SessionSearchResponse {
+  hits: SessionSearchHit[];
+  /** True if the session-hit limit (or candidate cap) clipped results. */
+  truncated: boolean;
+  /** The effective (trimmed) query the backend ran, echoed for the UI. */
+  query: string;
+}
+
+/** The cross-session search request (mirrors the backend Tauri camelCase args). */
+export interface SessionSearchRequest {
+  /** Free text, case-insensitive. Empty/whitespace is rejected by the backend. */
+  query: string;
+  /** Restrict matched snippets to these lanes. Omit for all. */
+  kinds?: TranscriptKind[] | null;
+  /** Restrict candidate sessions to this worktree. */
+  worktreeId?: string | null;
+  /** RFC3339 inclusive lower bound on session activity. */
+  from?: string | null;
+  /** RFC3339 inclusive upper bound on session activity. */
+  to?: string | null;
+  /** Session-hit cap (backend default 50, hard max 200). */
+  limit?: number | null;
+}
+
+// ---------------------------------------------------------------------------
 // Command wrappers.
 // ---------------------------------------------------------------------------
 
@@ -223,6 +292,25 @@ export async function getTranscript(
     from: request.from ?? null,
     to: request.to ?? null,
     kinds: request.kinds ?? null,
+  });
+}
+
+/**
+ * Cross-session free-text search (ROI #4). Calls the REAL backend
+ * `kernel_session_search` command with camelCase args matching the serde. The
+ * backend rejects an empty/whitespace query (honest, not match-all), so callers
+ * should gate the submit button accordingly.
+ */
+export async function searchSessions(
+  request: SessionSearchRequest,
+): Promise<SessionSearchResponse> {
+  return await invoke<SessionSearchResponse>("kernel_session_search", {
+    query: request.query,
+    kinds: request.kinds ?? null,
+    worktreeId: request.worktreeId ?? null,
+    from: request.from ?? null,
+    to: request.to ?? null,
+    limit: request.limit ?? null,
   });
 }
 
@@ -249,6 +337,13 @@ export interface SessionTranscriptIpc {
    * PREFILL the spawn form. Returns null when the session is not resumable.
    */
   getSpawnTemplate(sessionId: string): Promise<SessionSpawnTemplate | null>;
+  /**
+   * ROI #4 RECALL: cross-session free-text search. Returns ranked hits (with
+   * redacted snippets) the operator can open straight into the session
+   * transcript via the existing select path. Part of this seam so the panel +
+   * harness stay jsdom-testable with an injected fake.
+   */
+  searchSessions(request: SessionSearchRequest): Promise<SessionSearchResponse>;
 }
 
 export const defaultSessionTranscriptIpc: SessionTranscriptIpc = {
@@ -256,6 +351,7 @@ export const defaultSessionTranscriptIpc: SessionTranscriptIpc = {
   getTranscript,
   resumeSession,
   getSpawnTemplate,
+  searchSessions,
 };
 
 // ---------------------------------------------------------------------------

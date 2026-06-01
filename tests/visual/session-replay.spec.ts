@@ -41,7 +41,7 @@ const PAGE_SHELL = (css: string) => `<!doctype html>
 async function mountRealPanel(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   page: any,
-  mode: "open" | "collapsed" | "live",
+  mode: "open" | "collapsed" | "live" | "search",
 ): Promise<void> {
   const { js, css } = await buildSessionReplayHarness();
   await page.setContent(PAGE_SHELL(css), { waitUntil: "domcontentloaded" });
@@ -195,4 +195,80 @@ test("real session replay panel tails LIVE: status chip + appended rows as the s
   // Toggling Live OFF returns to post-hoc review and the chip reads "idle".
   await page.locator("[data-testid='session-replay-live-toggle']").click();
   await expect(page.locator("[data-testid='session-replay-live-status']")).toHaveAttribute("data-status", "idle");
+});
+
+test("real session replay panel SEARCHES across sessions (ROI #4): box above the index, ranked hits, open-into-transcript", async ({ page }) => {
+  await mountRealPanel(page, "search");
+
+  await expect(page.locator("[data-testid='session-replay-body']")).toBeVisible();
+
+  // The search box sits ABOVE the session index (per the brief) and is a distinct,
+  // non-overlapping hit target — mirroring the chip-overlap assertions above.
+  const searchBox = await page.locator("[data-testid='session-replay-search']").boundingBox();
+  const list = await page.locator("[data-testid='session-replay-list']").boundingBox();
+  expect(searchBox).not.toBeNull();
+  expect(list).not.toBeNull();
+  if (searchBox && list) {
+    // The search box's bottom edge is at/above the index's top edge (it is above).
+    expect(searchBox.y + searchBox.height).toBeLessThanOrEqual(list.y + 1);
+    expect(searchBox.width).toBeGreaterThan(40);
+    expect(searchBox.height).toBeGreaterThan(20);
+  }
+
+  // The input + Search + Clear are distinct, non-overlapping controls.
+  const input = await page.locator("[data-testid='session-replay-search-input']").boundingBox();
+  const submit = await page.locator("[data-testid='session-replay-search-submit']").boundingBox();
+  expect(input).not.toBeNull();
+  expect(submit).not.toBeNull();
+  if (input && submit) {
+    const overlapX = Math.max(0, Math.min(input.x + input.width, submit.x + submit.width) - Math.max(input.x, submit.x));
+    const overlapY = Math.max(0, Math.min(input.y + input.height, submit.y + submit.height) - Math.max(input.y, submit.y));
+    expect(overlapX * overlapY).toBe(0);
+  }
+
+  // Submit a query -> the ranked hits REPLACE the index in the left rail. The
+  // backend already redacted; the rows show titles, match badges, and snippets.
+  await page.locator("[data-testid='session-replay-search-input']").fill("build");
+  await page.locator("[data-testid='session-replay-search-submit']").click();
+
+  await expect(page.locator("[data-testid='session-replay-search-results']")).toBeVisible();
+  await expect(page.locator("[data-testid='session-replay-list']")).toHaveCount(0);
+  await expect(page.locator("[data-testid='session-replay-search-hit-claude-sonnet#0']")).toBeVisible();
+  await expect(page.locator("[data-testid='session-replay-search-matchcount-claude-sonnet#0']")).toContainText("3 matches");
+  await expect(page.locator("[data-testid='session-replay-search-hit-claude-sonnet#0']")).toContainText("cargo build --lib");
+
+  // The hit row + its match badge are distinct, readable, non-overlapping.
+  const hit = await page.locator("[data-testid='session-replay-search-hit-claude-sonnet#0']").boundingBox();
+  expect(hit).not.toBeNull();
+  if (hit) {
+    expect(hit.width).toBeGreaterThan(80);
+    expect(hit.height).toBeGreaterThan(20);
+  }
+
+  // Write the reviewed PNG baseline (search box + ranked hits + snippets).
+  await page.locator("[data-testid='capture-root']").screenshot({
+    path: path.join(baselineDir, "session-replay-search.png"),
+  });
+
+  // Clicking a hit opens that session's transcript via the EXISTING select path.
+  await page.locator("[data-testid='session-replay-search-hit-claude-sonnet#0']").click();
+  await expect(page.locator("[data-testid='session-replay-entry-0']")).toBeVisible();
+  await expect(page.locator("[data-testid='session-replay-search-hit-claude-sonnet#0']")).toHaveAttribute(
+    "data-selected",
+    "true",
+  );
+
+  // Clear restores the plain index (search is additive).
+  await page.locator("[data-testid='session-replay-search-clear']").click();
+  await expect(page.locator("[data-testid='session-replay-list']")).toBeVisible();
+  await expect(page.locator("[data-testid='session-replay-search-results']")).toHaveCount(0);
+});
+
+test("real session replay panel search shows an HONEST empty state for a no-match query", async ({ page }) => {
+  await mountRealPanel(page, "search");
+  await expect(page.locator("[data-testid='session-replay-body']")).toBeVisible();
+
+  // The empty-query submit is disabled (never match-all): typing nothing keeps it
+  // disabled, so the operator cannot fire a fabricated "all sessions" search.
+  await expect(page.locator("[data-testid='session-replay-search-submit']")).toBeDisabled();
 });

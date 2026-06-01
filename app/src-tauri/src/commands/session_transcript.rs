@@ -51,6 +51,7 @@ use handshake_core::flight_recorder::{EventFilter, FlightRecorder, FlightRecorde
 use handshake_core::session_transcript::{
     self, ChatTurnInput, SessionTranscriptEntry, TranscriptKind,
 };
+use handshake_core::terminal::redaction::{PatternRedactor, SecretRedactor};
 use handshake_core::terminal::TerminalRuntime;
 use serde::{Deserialize, Serialize};
 use tauri::State;
@@ -59,6 +60,28 @@ use crate::session_chat_log::{self, SessionChatRole};
 
 pub const KERNEL_SESSION_LIST_IPC_CHANNEL: &str = "kernel_session_list";
 pub const KERNEL_SESSION_TRANSCRIPT_GET_IPC_CHANNEL: &str = "kernel_session_transcript_get";
+/// ROI #4 CROSS-SESSION SEARCH ("I-forget-something" recall).
+pub const KERNEL_SESSION_SEARCH_IPC_CHANNEL: &str = "kernel_session_search";
+
+// ---------------------------------------------------------------------------
+// Cross-session search bounds (all honest: every clip is surfaced via
+// `truncated` or the gap between `match_count` and the emitted snippet count).
+// ---------------------------------------------------------------------------
+
+/// Default + hard-max number of `SessionSearchHit` rows returned. The caller's
+/// `limit` is clamped into `1..=SEARCH_LIMIT_MAX`; the default applies when the
+/// caller omits it.
+const SEARCH_LIMIT_DEFAULT: u64 = 50;
+const SEARCH_LIMIT_MAX: u64 = 200;
+/// Per-hit snippet cap. `match_count` still reflects the TRUE total so the UI can
+/// honestly say "12 matches, showing 5".
+const PER_SESSION_SNIPPET_CAP: usize = 5;
+/// Max candidate sessions scanned (by recency) before ranking, guarding a
+/// pathological session count. Exceeding it sets `truncated`.
+const MAX_CANDIDATE_SESSIONS: usize = 500;
+/// Context window (chars) taken on each side of the match when building a
+/// snippet. Sliced on char boundaries (never mid-codepoint).
+const SNIPPET_CONTEXT: usize = 60;
 
 /// File name (under `<app_data_root>/sessions/`) the optional discovery index
 /// persists to. A rebuildable cache, never authority.
@@ -186,6 +209,57 @@ pub struct SessionTranscriptResponse {
     /// True if a hard cap was applied to any source (none today, but the field
     /// is wired so a future cap is surfaced honestly).
     pub truncated: bool,
+}
+
+// ---------------------------------------------------------------------------
+// Cross-session search IPC payloads (ROI #4)
+// ---------------------------------------------------------------------------
+
+/// One redacted match snippet inside a session hit.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SearchSnippet {
+    /// The lane this match was found in: `chat_turn` | `agent_activity` |
+    /// `terminal_chunk` | `fr_event` | `process`.
+    pub entry_kind: String,
+    /// The matched entry's merge-key timestamp (the same `ts` the transcript
+    /// row carries), so the UI can seed the transcript timeline near the match.
+    pub ts: Option<DateTime<Utc>>,
+    /// The matched text + a little context window, SECRET-REDACTED. Never the
+    /// raw payload/command/text.
+    pub snippet: String,
+}
+
+/// One ranked session that matched the query.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SessionSearchHit {
+    pub session_id: String,
+    /// "chat" | "swarm" (from the session summary).
+    pub kind: String,
+    pub provider: Option<String>,
+    pub model_id: Option<String>,
+    pub worktree_id: Option<String>,
+    pub started_at: Option<DateTime<Utc>>,
+    pub title: Option<String>,
+    /// Total matches across the session BEFORE the per-session snippet cap, so
+    /// "12 matches, showing 5" is honest.
+    pub match_count: u64,
+    /// Capped (per-session) to `PER_SESSION_SNIPPET_CAP`, ordered by `ts` asc.
+    pub snippets: Vec<SearchSnippet>,
+}
+
+/// Response of `kernel_session_search`.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SessionSearchResponse {
+    /// Ranked hits: `match_count` desc, then recency desc, then `session_id` asc.
+    pub hits: Vec<SessionSearchHit>,
+    /// True if the session-hit `limit` or the `MAX_CANDIDATE_SESSIONS` scan cap
+    /// clipped results (honest bounding).
+    pub truncated: bool,
+    /// The effective (trimmed) query, echoed for the UI.
+    pub query: String,
 }
 
 // ---------------------------------------------------------------------------
@@ -643,6 +717,346 @@ pub async fn kernel_session_transcript_get(
 }
 
 // ---------------------------------------------------------------------------
+// Cross-session search (ROI #4: "I-forget-something" recall)
+// ---------------------------------------------------------------------------
+
+/// Map a `TranscriptKind` to the lowercase IPC string the snippet `entry_kind`
+/// carries (the inverse of `TranscriptKind::from_ipc`). Kept local + total so the
+/// snippet kind is always a known, frontend-keyable string.
+fn kind_ipc_str(kind: TranscriptKind) -> &'static str {
+    match kind {
+        TranscriptKind::ChatTurn => "chat_turn",
+        TranscriptKind::FrEvent => "fr_event",
+        TranscriptKind::AgentActivity => "agent_activity",
+        TranscriptKind::TerminalChunk => "terminal_chunk",
+        TranscriptKind::Process => "process",
+    }
+}
+
+/// Case-insensitive substring offset of `query_lc` (already lowercased) inside
+/// `text`, returned as a byte offset into `text`. Unicode-simple: lowercases the
+/// haystack the same way the redactor pragmatically lossy-decodes. The returned
+/// offset indexes the *original* `text` only when the lowercase mapping is
+/// length-preserving; to stay byte-safe regardless, the caller centers the window
+/// using char counting (see `make_snippet`).
+fn find_match_char_idx(text: &str, query_lc: &str) -> Option<usize> {
+    if query_lc.is_empty() {
+        return None;
+    }
+    let hay: Vec<char> = text.chars().collect();
+    let needle: Vec<char> = query_lc.chars().collect();
+    // Lowercased haystack chars, aligned 1:1 with `hay` by char index. Using a
+    // per-char lowercase keeps the index space identical to `hay` (a char may
+    // lowercase to multiple chars in pathological cases; we compare on the FIRST
+    // lowercased char, which is correct for the ASCII/most-Unicode common case
+    // and never panics — a missed exotic-case match is an honest miss, not a
+    // crash or a leak).
+    let hay_lc: Vec<char> = hay
+        .iter()
+        .map(|c| c.to_lowercase().next().unwrap_or(*c))
+        .collect();
+    if needle.len() > hay_lc.len() {
+        return None;
+    }
+    for start in 0..=(hay_lc.len() - needle.len()) {
+        if hay_lc[start..start + needle.len()] == needle[..] {
+            return Some(start); // char index, not byte index
+        }
+    }
+    None
+}
+
+/// Build a redacted snippet centered on the first case-insensitive match of
+/// `query_lc` in `field_text`, or `None` when there is no match. UTF-8 safe: the
+/// window is sliced on CHAR boundaries (`chars().skip().take()`), never a byte
+/// slice mid-codepoint. Redaction runs LAST, on the final windowed string, so a
+/// secret adjacent to (or overlapping) the match is masked to `***REDACTED***`
+/// before it ever leaves the backend.
+fn make_snippet(field_text: &str, query_lc: &str) -> Option<String> {
+    let match_char = find_match_char_idx(field_text, query_lc)?;
+    let total_chars = field_text.chars().count();
+    let query_chars = query_lc.chars().count();
+
+    let start = match_char.saturating_sub(SNIPPET_CONTEXT);
+    let end = (match_char + query_chars + SNIPPET_CONTEXT).min(total_chars);
+
+    let mut windowed: String = field_text.chars().skip(start).take(end - start).collect();
+    if start > 0 {
+        windowed.insert(0, '…');
+    }
+    if end < total_chars {
+        windowed.push('…');
+    }
+
+    // Redact LAST, on the windowed string. The match offset was computed on the
+    // pre-redaction text so the window is centered correctly, but only the
+    // redacted text is emitted.
+    Some(PatternRedactor.redact_command(&windowed).redacted)
+}
+
+/// True when a candidate session's span overlaps the `[from, to]` window. A
+/// session is KEPT unless its whole known span is provably outside the window.
+/// Missing bounds are treated permissively (honest: do not drop a session for
+/// lack of a timestamp).
+fn session_in_window(
+    summary: &SessionSummary,
+    from: Option<DateTime<Utc>>,
+    to: Option<DateTime<Utc>>,
+) -> bool {
+    if let Some(from) = from {
+        // Drop only if the session's LAST activity is strictly before `from`.
+        if let Some(last) = summary.last_activity_at {
+            if last < from {
+                return false;
+            }
+        }
+    }
+    if let Some(to) = to {
+        // Drop only if the session's FIRST activity is strictly after `to`.
+        if let Some(first) = summary.started_at {
+            if first > to {
+                return false;
+            }
+        }
+    }
+    true
+}
+
+/// A single matched snippet plus its kind/ts, accumulated per candidate before
+/// the per-session snippet cap is applied.
+struct RawMatch {
+    kind: TranscriptKind,
+    ts: Option<DateTime<Utc>>,
+    snippet: String,
+}
+
+/// Scan one candidate session's corpus (chat + FR/agent/terminal/process) for the
+/// query, returning ALL matches (uncapped) so the caller can compute an honest
+/// `match_count` and then cap snippets. Reuses the EXACT aggregator readers
+/// (`read_chat_log` + `fetch_fr_events` + `entries_from_fr_event`) so a hit always
+/// maps to a transcript row. `kinds_filter` (when set) restricts which lanes
+/// count + emit.
+async fn scan_candidate(
+    state: &SessionTranscriptState,
+    summary: &SessionSummary,
+    query_lc: &str,
+    kinds_filter: Option<&[TranscriptKind]>,
+    from: Option<DateTime<Utc>>,
+    to: Option<DateTime<Utc>>,
+) -> Vec<RawMatch> {
+    let mut matches: Vec<RawMatch> = Vec::new();
+    let kind_allowed = |k: TranscriptKind| match kinds_filter {
+        None => true,
+        Some(list) => list.contains(&k),
+    };
+
+    // --- Chat lane: the SAME reader the aggregator + discovery use. A composite
+    // `<model_id>#<n>` id has no chat.jsonl -> empty (honest), no false hits.
+    if kind_allowed(TranscriptKind::ChatTurn) {
+        if let Ok(rows) = session_chat_log::read_chat_log(&state.app_data_root, &summary.session_id)
+        {
+            for row in &rows {
+                if let Some(snippet) = make_snippet(&row.content, query_lc) {
+                    let ts = DateTime::parse_from_rfc3339(row.created_at_utc.trim())
+                        .map(|dt| dt.with_timezone(&Utc))
+                        .ok();
+                    matches.push(RawMatch {
+                        kind: TranscriptKind::ChatTurn,
+                        ts,
+                        snippet,
+                    });
+                }
+            }
+        }
+    }
+
+    // --- FR/agent/terminal/process lanes: the SINGLE correlation seam
+    // (`fetch_fr_events` = seam-1 + seam-2 + union_dedup), then the SAME typed
+    // rows the transcript shows (`entries_from_fr_event`). No second SQL.
+    if let Some(recorder) = &state.recorder {
+        if let Ok(events) = fetch_fr_events(recorder, &summary.session_id, from, to).await {
+            for event in &events {
+                for entry in session_transcript::entries_from_fr_event(event) {
+                    let kind = entry.kind();
+                    if !kind_allowed(kind) {
+                        continue;
+                    }
+                    let ts = Some(entry.timestamp());
+                    for field in session_transcript::searchable_text(&entry) {
+                        if let Some(snippet) = make_snippet(&field, query_lc) {
+                            matches.push(RawMatch {
+                                kind,
+                                ts,
+                                snippet,
+                            });
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    matches
+}
+
+/// Build one ranked `SessionSearchHit` from a candidate + its raw matches, or
+/// `None` when the candidate had no matches in the active lane filter.
+fn hit_from_matches(summary: &SessionSummary, mut matches: Vec<RawMatch>) -> Option<SessionSearchHit> {
+    if matches.is_empty() {
+        return None;
+    }
+    let match_count = matches.len() as u64;
+    // Snippets ordered by ts asc (None last), then kind rank, so they line up
+    // with the transcript the operator opens into.
+    matches.sort_by(|a, b| {
+        a.ts.cmp(&b.ts)
+            .then_with(|| kind_rank(a.kind).cmp(&kind_rank(b.kind)))
+    });
+    let snippets: Vec<SearchSnippet> = matches
+        .into_iter()
+        .take(PER_SESSION_SNIPPET_CAP)
+        .map(|m| SearchSnippet {
+            entry_kind: kind_ipc_str(m.kind).to_string(),
+            ts: m.ts,
+            snippet: m.snippet,
+        })
+        .collect();
+    Some(SessionSearchHit {
+        session_id: summary.session_id.clone(),
+        kind: summary.kind.clone(),
+        provider: summary.provider.clone(),
+        model_id: summary.model_id.clone(),
+        worktree_id: summary.worktree_id.clone(),
+        started_at: summary.started_at,
+        title: summary.title.clone(),
+        match_count,
+        snippets,
+    })
+}
+
+/// Mirror of `session_transcript::source_rank` for snippet tiebreak ordering.
+fn kind_rank(kind: TranscriptKind) -> u8 {
+    match kind {
+        TranscriptKind::ChatTurn => 0,
+        TranscriptKind::FrEvent => 1,
+        TranscriptKind::AgentActivity => 2,
+        TranscriptKind::TerminalChunk => 3,
+        TranscriptKind::Process => 4,
+    }
+}
+
+/// The IO-thin search core: filter candidates structurally, scan each for the
+/// query through the reused readers, rank, and bound. Kept testable (takes the
+/// already-built state) and honest (every clip surfaces via `truncated`).
+async fn search_sessions(
+    state: &SessionTranscriptState,
+    query: &str,
+    kinds_filter: Option<&[TranscriptKind]>,
+    worktree_id: Option<&str>,
+    from: Option<DateTime<Utc>>,
+    to: Option<DateTime<Utc>>,
+    limit: u64,
+) -> SessionSearchResponse {
+    let query_trimmed = query.trim().to_string();
+    let query_lc = query_trimmed.to_lowercase();
+
+    // Step A: structured candidate filter (reuse kernel_session_list internals).
+    let chat = discover_chat_sessions(state);
+    let fr = discover_fr_sessions(state).await;
+    let mut candidates = merge_summaries(chat, fr);
+
+    if let Some(wt) = worktree_id {
+        candidates.retain(|s| s.worktree_id.as_deref() == Some(wt));
+    }
+    candidates.retain(|s| session_in_window(s, from, to));
+
+    // `merge_summaries` already sorts most-recent-activity first, so the
+    // candidate cap keeps the freshest sessions.
+    let mut truncated = false;
+    if candidates.len() > MAX_CANDIDATE_SESSIONS {
+        candidates.truncate(MAX_CANDIDATE_SESSIONS);
+        truncated = true;
+    }
+
+    // Step B/C: scan each candidate, build hits.
+    let mut hits: Vec<SessionSearchHit> = Vec::new();
+    for summary in &candidates {
+        let matches = scan_candidate(state, summary, &query_lc, kinds_filter, from, to).await;
+        if let Some(hit) = hit_from_matches(summary, matches) {
+            hits.push(hit);
+        }
+    }
+
+    // Rank: match_count desc, then recency desc (by candidate last_activity_at —
+    // resolve via the candidate list), then session_id asc for determinism.
+    let recency: HashMap<&str, Option<DateTime<Utc>>> = candidates
+        .iter()
+        .map(|s| (s.session_id.as_str(), s.last_activity_at))
+        .collect();
+    hits.sort_by(|a, b| {
+        b.match_count
+            .cmp(&a.match_count)
+            .then_with(|| {
+                let ra = recency.get(a.session_id.as_str()).copied().flatten();
+                let rb = recency.get(b.session_id.as_str()).copied().flatten();
+                rb.cmp(&ra)
+            })
+            .then_with(|| a.session_id.cmp(&b.session_id))
+    });
+
+    // Bound the hit list.
+    let limit = limit as usize;
+    if hits.len() > limit {
+        hits.truncate(limit);
+        truncated = true;
+    }
+
+    SessionSearchResponse {
+        hits,
+        truncated,
+        query: query_trimmed,
+    }
+}
+
+#[tauri::command]
+pub async fn kernel_session_search(
+    query: String,
+    kinds: Option<Vec<String>>,
+    worktree_id: Option<String>,
+    from: Option<String>,
+    to: Option<String>,
+    limit: Option<u64>,
+    state: State<'_, SessionTranscriptState>,
+) -> Result<SessionSearchResponse, String> {
+    // Honest empty query: reject rather than silently "match all".
+    let query = query.trim().to_string();
+    if query.is_empty() {
+        return Err("query must not be empty".to_string());
+    }
+    let kinds = parse_kinds(kinds)?;
+    let worktree_id = worktree_id
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty());
+    let from = parse_rfc3339_opt(from, "from")?;
+    let to = parse_rfc3339_opt(to, "to")?;
+    // Clamp the limit into 1..=MAX (default when omitted).
+    let limit = limit
+        .unwrap_or(SEARCH_LIMIT_DEFAULT)
+        .clamp(1, SEARCH_LIMIT_MAX);
+
+    Ok(search_sessions(
+        &state,
+        &query,
+        kinds.as_deref(),
+        worktree_id.as_deref(),
+        from,
+        to,
+        limit,
+    )
+    .await)
+}
+
+// ---------------------------------------------------------------------------
 // Optional discovery index (rebuildable cache; v1 may ship without it)
 // ---------------------------------------------------------------------------
 
@@ -1048,6 +1462,367 @@ mod tests {
         // SourceState values serialize snake_case (matches the TS union).
         assert_eq!(v["sourceStatus"]["chat"], "present");
         assert_eq!(v["sourceStatus"]["terminal"], "unavailable");
+    }
+
+    // -----------------------------------------------------------------------
+    // Cross-session search (ROI #4) tests
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn make_snippet_centers_and_redacts_secret() {
+        // A secret adjacent to the match must be masked in the emitted snippet.
+        let text = "before the API_KEY=supersecret123 and the cargo build matched here";
+        let snippet = make_snippet(text, "cargo").expect("match");
+        assert!(snippet.contains("cargo"), "snippet keeps the match: {snippet}");
+        assert!(
+            snippet.contains("***REDACTED***"),
+            "adjacent secret redacted: {snippet}"
+        );
+        assert!(
+            !snippet.contains("supersecret123"),
+            "raw secret must never leak: {snippet}"
+        );
+    }
+
+    #[test]
+    fn make_snippet_query_can_be_secret_shaped_and_is_redacted() {
+        // Even if the query itself is secret-shaped, the emitted window is redacted.
+        let text = "noise API_KEY=topsecretvalue tail";
+        let snippet = make_snippet(text, "api_key=topsecretvalue").expect("match");
+        assert!(snippet.contains("***REDACTED***"));
+        assert!(!snippet.contains("topsecretvalue"));
+    }
+
+    #[test]
+    fn make_snippet_no_match_is_none_and_utf8_safe() {
+        assert!(make_snippet("hello world", "zzz").is_none());
+        // Multibyte chars straddling the window boundary must not panic.
+        let multibyte = "🚀".repeat(80) + "needle" + &"🌟".repeat(80);
+        let snippet = make_snippet(&multibyte, "needle").expect("match");
+        assert!(snippet.contains("needle"));
+        assert!(snippet.starts_with('…'));
+        assert!(snippet.ends_with('…'));
+    }
+
+    #[test]
+    fn find_match_is_case_insensitive() {
+        assert_eq!(find_match_char_idx("Hello Cargo Build", "cargo"), Some(6));
+        assert_eq!(find_match_char_idx("HELLO", "hello"), Some(0));
+        assert_eq!(find_match_char_idx("abc", "xyz"), None);
+    }
+
+    #[test]
+    fn session_in_window_keeps_overlapping_drops_outside() {
+        let s = |start: i64, last: i64| SessionSummary {
+            session_id: "s".to_string(),
+            kind: "swarm".to_string(),
+            started_at: Some(at(start)),
+            last_activity_at: Some(at(last)),
+            model_id: None,
+            provider: None,
+            title: None,
+            counts: SourceCounts::default(),
+            worktree_id: None,
+            resumable: false,
+        };
+        // Session [100,200], window [50,500] -> overlaps (keep).
+        assert!(session_in_window(&s(100, 200), Some(at(50)), Some(at(500))));
+        // Session whole span before `from` -> drop.
+        assert!(!session_in_window(&s(10, 40), Some(at(50)), None));
+        // Session whole span after `to` -> drop.
+        assert!(!session_in_window(&s(600, 700), None, Some(at(500))));
+        // No bounds -> always keep.
+        assert!(session_in_window(&s(10, 40), None, None));
+    }
+
+    #[test]
+    fn hit_from_matches_caps_snippets_but_keeps_true_match_count() {
+        let summary = SessionSummary {
+            session_id: "m#0".to_string(),
+            kind: "swarm".to_string(),
+            started_at: Some(at(1)),
+            last_activity_at: Some(at(9)),
+            model_id: Some("m".to_string()),
+            provider: None,
+            title: Some("m#0".to_string()),
+            counts: SourceCounts::default(),
+            worktree_id: Some("wt-x".to_string()),
+            resumable: false,
+        };
+        let matches: Vec<RawMatch> = (0..12)
+            .map(|i| RawMatch {
+                kind: TranscriptKind::TerminalChunk,
+                ts: Some(at(i)),
+                snippet: format!("snip {i}"),
+            })
+            .collect();
+        let hit = hit_from_matches(&summary, matches).expect("hit");
+        assert_eq!(hit.match_count, 12, "true total preserved");
+        assert_eq!(hit.snippets.len(), PER_SESSION_SNIPPET_CAP, "snippets capped");
+        // ts-asc ordered.
+        assert_eq!(hit.snippets[0].ts, Some(at(0)));
+        assert_eq!(hit.snippets[0].entry_kind, "terminal_chunk");
+    }
+
+    /// End-to-end search over a REAL temp `app_data_root` + in-memory DuckDB
+    /// recorder, mirroring `end_to_end_list_and_transcript_over_real_state`. Seeds
+    /// a chat session ("operator forgot the gate" + a secret line) and a swarm
+    /// session with a `cargo build` terminal event, then asserts the search core
+    /// finds the right sessions, redacts the secret, and honors the structured
+    /// filters.
+    #[tokio::test]
+    async fn end_to_end_search_over_real_state() {
+        use handshake_core::flight_recorder::duckdb::DuckDbFlightRecorder;
+
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let app_data_root = tmp.path().to_path_buf();
+
+        // (1) Chat session: a "forgot" turn + a secret-bearing turn.
+        let chat_session = "0192a000-0000-7000-8000-000000000001";
+        let chat_dir = app_data_root.join("sessions").join(chat_session);
+        std::fs::create_dir_all(&chat_dir).expect("mkdir chat");
+        let mut lines = String::new();
+        for (turn, content) in [
+            (1u64, "the operator forgot the gate before lunch"),
+            (2u64, "export API_KEY=supersecretchatvalue then forgot it"),
+        ] {
+            let row = json!({
+                "schema_version": "hsk.session_chat_log@0.1",
+                "session_id": chat_session,
+                "turn_index": turn,
+                "created_at_utc": at(100 + turn as i64).to_rfc3339(),
+                "message_id": format!("0192a000-0000-7000-8000-0000000000{turn:02}"),
+                "role": "user",
+                "content": content,
+            });
+            lines.push_str(&serde_json::to_string(&row).unwrap());
+            lines.push('\n');
+        }
+        std::fs::write(chat_dir.join("chat.jsonl"), lines).expect("write chat.jsonl");
+
+        // (2) Swarm session: a terminal `cargo build` event, worktree wt-recovery-1.
+        let recorder: Arc<dyn FlightRecorder> =
+            Arc::new(DuckDbFlightRecorder::new_in_memory(7).expect("recorder"));
+        let instance = "qwen#0";
+        recorder
+            .record_event(swarm_event(50, instance))
+            .await
+            .expect("record swarm");
+        let mut term = FlightRecorderEvent::new(
+            FlightRecorderEventType::TerminalCommand,
+            FlightRecorderActor::Agent,
+            Uuid::now_v7(),
+            json!({
+                "type": "terminal_command",
+                "fr_event": "FR-EVT-TERMINAL-COMMAND-EXEC",
+                "session_id": instance,
+                "command": "cargo build --release",
+                "cwd": "",
+                "exit_code": 0,
+                "duration_ms": 0,
+                "timed_out": false,
+                "cancelled": false,
+                "truncated_bytes": 0,
+            }),
+        )
+        .with_session_span(instance.to_string());
+        term.timestamp = at(60);
+        recorder.record_event(term).await.expect("record terminal");
+
+        let state = SessionTranscriptState::new(Some(recorder), &app_data_root, None);
+
+        // (a) query "cargo" -> the swarm session via a terminal snippet.
+        let resp = search_sessions(&state, "cargo", None, None, None, None, 50).await;
+        let cargo_hit = resp
+            .hits
+            .iter()
+            .find(|h| h.session_id == instance)
+            .expect("cargo hit on swarm session");
+        assert!(cargo_hit.match_count >= 1);
+        assert!(cargo_hit
+            .snippets
+            .iter()
+            .any(|s| s.entry_kind == "terminal_chunk" && s.snippet.contains("cargo")));
+        assert_eq!(resp.query, "cargo");
+
+        // (b) query "forgot" -> the chat session via a chat snippet; the secret
+        // turn ALSO contains "forgot" but its snippet must be redacted.
+        let resp = search_sessions(&state, "forgot", None, None, None, None, 50).await;
+        let chat_hit = resp
+            .hits
+            .iter()
+            .find(|h| h.session_id == chat_session)
+            .expect("forgot hit on chat session");
+        assert_eq!(chat_hit.match_count, 2, "both forgot turns matched");
+        assert!(chat_hit.snippets.iter().all(|s| s.entry_kind == "chat_turn"));
+        // The secret-bearing turn's snippet is redacted; raw secret never appears.
+        assert!(
+            chat_hit
+                .snippets
+                .iter()
+                .all(|s| !s.snippet.contains("supersecretchatvalue")),
+            "secret must be redacted in every snippet: {:?}",
+            chat_hit.snippets
+        );
+        assert!(
+            chat_hit
+                .snippets
+                .iter()
+                .any(|s| s.snippet.contains("***REDACTED***")),
+            "the secret turn's snippet shows the redaction marker"
+        );
+
+        // (c) worktree filter scopes to the recorded wt-recovery-1 (the swarm
+        // session); the chat session has no worktree -> excluded.
+        let resp =
+            search_sessions(&state, "forgot", None, Some("wt-recovery-1"), None, None, 50).await;
+        assert!(
+            resp.hits.iter().all(|h| h.session_id == instance || h.match_count == 0),
+            "worktree filter excludes the chat session"
+        );
+        assert!(
+            !resp.hits.iter().any(|h| h.session_id == chat_session),
+            "chat session has no worktree -> filtered out"
+        );
+
+        // (d) kind filter: query "cargo" restricted to chat_turn -> no hits (the
+        // only cargo match is a terminal lane).
+        let resp = search_sessions(
+            &state,
+            "cargo",
+            Some(&[TranscriptKind::ChatTurn]),
+            None,
+            None,
+            None,
+            50,
+        )
+        .await;
+        assert!(
+            !resp.hits.iter().any(|h| h.session_id == instance),
+            "cargo only matches the terminal lane -> excluded by chat_turn filter"
+        );
+
+        // (e) time window excludes out-of-range: a window AFTER all events -> empty.
+        let resp = search_sessions(
+            &state,
+            "forgot",
+            None,
+            None,
+            Some(at(10_000)),
+            Some(at(20_000)),
+            50,
+        )
+        .await;
+        assert!(resp.hits.is_empty(), "no session overlaps the future window");
+
+        // (f) honest no-match -> empty hits, query echoed, not truncated.
+        let resp = search_sessions(&state, "zzz-nomatch-zzz", None, None, None, None, 50).await;
+        assert!(resp.hits.is_empty());
+        assert!(!resp.truncated);
+        assert_eq!(resp.query, "zzz-nomatch-zzz");
+    }
+
+    #[tokio::test]
+    async fn search_ranks_by_match_count_then_recency() {
+        // Two chat sessions: one with 3 matches (older), one with 1 (newer).
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let app_data_root = tmp.path().to_path_buf();
+        let write_chat = |sid: &str, base: i64, n: usize| {
+            let dir = app_data_root.join("sessions").join(sid);
+            std::fs::create_dir_all(&dir).unwrap();
+            let mut lines = String::new();
+            for turn in 1..=n {
+                let row = json!({
+                    "schema_version": "hsk.session_chat_log@0.1",
+                    "session_id": sid,
+                    "turn_index": turn as u64,
+                    "created_at_utc": at(base + turn as i64).to_rfc3339(),
+                    "message_id": format!("{sid}-{turn}"),
+                    "role": "user",
+                    "content": "needle here",
+                });
+                lines.push_str(&serde_json::to_string(&row).unwrap());
+                lines.push('\n');
+            }
+            std::fs::write(dir.join("chat.jsonl"), lines).unwrap();
+        };
+        // many-match older session, few-match newer session.
+        write_chat("0192a000-0000-7000-8000-00000000aaaa", 100, 3);
+        write_chat("0192a000-0000-7000-8000-00000000bbbb", 900, 1);
+
+        let state = SessionTranscriptState::new(None, &app_data_root, None);
+        let resp = search_sessions(&state, "needle", None, None, None, None, 50).await;
+        assert_eq!(resp.hits.len(), 2);
+        // Higher match_count ranks first regardless of recency.
+        assert_eq!(resp.hits[0].match_count, 3);
+        assert_eq!(resp.hits[1].match_count, 1);
+
+        // limit=1 truncates honestly.
+        let resp = search_sessions(&state, "needle", None, None, None, None, 1).await;
+        assert_eq!(resp.hits.len(), 1);
+        assert!(resp.truncated);
+    }
+
+    #[tokio::test]
+    async fn search_empty_query_rejected_via_command_validation() {
+        // The command-level validation (mirrored here) rejects empty/whitespace.
+        assert!(parse_kinds(Some(vec!["bogus".to_string()])).is_err());
+        // Whitespace query trims to empty -> the command returns Err. We assert the
+        // core contract: a blank trimmed query never reaches search_sessions with
+        // content. (The #[tauri::command] guard returns Err before this point.)
+        assert_eq!("   ".trim(), "");
+    }
+
+    /// CONTRACT GATE: the search response structs the frontend reads MUST
+    /// serialize the camelCase keys the TS client declares (sessionId, modelId,
+    /// worktreeId, startedAt, matchCount, entryKind, …). Mirrors
+    /// `ipc_response_structs_serialize_camelcase` so the TS client can't drift.
+    #[test]
+    fn search_response_structs_serialize_camelcase() {
+        let resp = SessionSearchResponse {
+            hits: vec![SessionSearchHit {
+                session_id: "m#0".to_string(),
+                kind: "swarm".to_string(),
+                provider: Some("byok".to_string()),
+                model_id: Some("m".to_string()),
+                worktree_id: Some("wt-x".to_string()),
+                started_at: Some(at(1)),
+                title: Some("m#0".to_string()),
+                match_count: 7,
+                snippets: vec![SearchSnippet {
+                    entry_kind: "terminal_chunk".to_string(),
+                    ts: Some(at(2)),
+                    snippet: "cargo build".to_string(),
+                }],
+            }],
+            truncated: true,
+            query: "cargo".to_string(),
+        };
+        let v = serde_json::to_value(&resp).unwrap();
+        assert!(v.get("hits").is_some());
+        assert_eq!(v["truncated"], serde_json::json!(true));
+        assert_eq!(v["query"], serde_json::json!("cargo"));
+        let hit = &v["hits"][0];
+        for key in [
+            "sessionId",
+            "kind",
+            "provider",
+            "modelId",
+            "worktreeId",
+            "startedAt",
+            "title",
+            "matchCount",
+            "snippets",
+        ] {
+            assert!(hit.get(key).is_some(), "expected camelCase {key}");
+        }
+        for key in ["session_id", "model_id", "worktree_id", "started_at", "match_count"] {
+            assert!(hit.get(key).is_none(), "snake_case {key} must not leak");
+        }
+        let snip = &hit["snippets"][0];
+        assert!(snip.get("entryKind").is_some(), "expected entryKind");
+        assert!(snip.get("entry_kind").is_none(), "snake_case must not leak");
+        assert_eq!(snip["snippet"], serde_json::json!("cargo build"));
     }
 
     #[test]

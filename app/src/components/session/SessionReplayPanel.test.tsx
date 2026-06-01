@@ -16,6 +16,8 @@ import { SessionReplayPanel } from "./SessionReplayPanel";
 import { entryStableKey } from "../../lib/ipc/session_transcript";
 import type {
   LiveTailIpc,
+  SessionSearchRequest,
+  SessionSearchResponse,
   SessionSummary,
   SessionTranscriptIpc,
   SessionTranscriptResponse,
@@ -77,13 +79,20 @@ function makeResponse(over: Partial<SessionTranscriptResponse>): SessionTranscri
 interface IpcCalls {
   getTranscriptArgs: TranscriptGetRequest[];
   resumeArgs: string[];
+  searchArgs: SessionSearchRequest[];
+}
+
+/** A deterministic default search response (override per-test for hit content). */
+function emptySearchResponse(query: string): SessionSearchResponse {
+  return { hits: [], truncated: false, query };
 }
 
 function makeIpc(
   sessions: SessionSummary[],
   response: SessionTranscriptResponse,
+  search?: (req: SessionSearchRequest) => SessionSearchResponse,
 ): { ipc: SessionTranscriptIpc; calls: IpcCalls } {
-  const calls: IpcCalls = { getTranscriptArgs: [], resumeArgs: [] };
+  const calls: IpcCalls = { getTranscriptArgs: [], resumeArgs: [], searchArgs: [] };
   const ipc: SessionTranscriptIpc = {
     listSessions: vi.fn(async () => sessions),
     getTranscript: vi.fn(async (req: TranscriptGetRequest) => {
@@ -97,6 +106,12 @@ function makeIpc(
       return { modelId: `${sessionId}-resumed`, instance: 0, composite: `${sessionId}-resumed#0` };
     }),
     getSpawnTemplate: vi.fn(async () => null),
+    // ROI #4: default search fake echoes the query with no hits. Tests that
+    // exercise search pass a `search` builder; the rest never call it.
+    searchSessions: vi.fn(async (req: SessionSearchRequest) => {
+      calls.searchArgs.push(req);
+      return search ? search(req) : emptySearchResponse(req.query);
+    }),
   };
   return { ipc, calls };
 }
@@ -276,6 +291,7 @@ describe("SessionReplayPanel", () => {
       ),
       resumeSession: vi.fn(async (s: string) => ({ modelId: s, instance: 0, composite: `${s}#0` })),
       getSpawnTemplate: vi.fn(async () => null),
+      searchSessions: vi.fn(async (req: SessionSearchRequest) => ({ hits: [], truncated: false, query: req.query })),
     };
 
     // openSignal is a one-shot: the mount value is the baseline, only a CHANGE
@@ -395,17 +411,24 @@ describe("SessionReplayPanel", () => {
     expect(screen.getByTestId("session-replay-entry-0")).toHaveAttribute("data-kind", "chat_turn");
   });
 
-  it("is read-only: renders no text inputs, textareas, or stdin affordances", async () => {
+  it("is read-only: the transcript timeline has no text inputs, textareas, or stdin affordances", async () => {
     const { ipc } = makeIpc([makeSummary({ sessionId: "sess-1" })], makeResponse({}));
-    const { container } = render(<SessionReplayPanel ipc={ipc} liveIpc={noopLiveIpc()} />);
+    render(<SessionReplayPanel ipc={ipc} liveIpc={noopLiveIpc()} />);
     open();
     fireEvent.click(await screen.findByTestId("session-replay-row-sess-1"));
     await screen.findByTestId("session-replay-entry-0");
 
-    // The only interactive controls are the disclosure toggle, filter chips, and
-    // session-select buttons — all <button>. No inputs/textareas anywhere.
-    expect(container.querySelectorAll("input")).toHaveLength(0);
-    expect(container.querySelectorAll("textarea")).toHaveLength(0);
+    // The REVIEW surface (the consolidated transcript timeline) is strictly
+    // read-only: no inputs/textareas/stdin anywhere in it. The search box (a
+    // QUERY affordance, not a transcript mutation) lives ABOVE the index and is
+    // intentionally outside this assertion — it never edits a recorded session.
+    const timeline = screen.getByTestId("session-replay-timeline");
+    expect(timeline.querySelectorAll("input")).toHaveLength(0);
+    expect(timeline.querySelectorAll("textarea")).toHaveLength(0);
+    // The session index (left rail) is also read-only (select + resume buttons).
+    const list = screen.getByTestId("session-replay-list");
+    expect(list.querySelectorAll("input")).toHaveLength(0);
+    expect(list.querySelectorAll("textarea")).toHaveLength(0);
   });
 });
 
@@ -470,6 +493,215 @@ describe("SessionReplayPanel resume affordance", () => {
     expect(err).toHaveTextContent("SESSION_NOT_RESUMABLE: no spawn template stored for swarm-1");
     // No lineage note on failure.
     expect(screen.queryByTestId("session-replay-resumed-lineage")).not.toBeInTheDocument();
+  });
+});
+
+// ===========================================================================
+// ROI #4 RECALL: cross-session free-text search.
+// ===========================================================================
+describe("SessionReplayPanel cross-session search", () => {
+  // A canned two-hit search response (one multi-snippet) used by several tests.
+  function twoHitSearch(query: string): SessionSearchResponse {
+    return {
+      query,
+      truncated: false,
+      hits: [
+        {
+          sessionId: "sess-1",
+          kind: "swarm",
+          provider: "cloud",
+          modelId: "claude#0",
+          worktreeId: "wt-recovery-1",
+          startedAt: "2026-05-30T10:00:00.000Z",
+          title: "build run",
+          matchCount: 3,
+          snippets: [
+            { entryKind: "terminal_chunk", ts: "2026-05-30T10:01:00.000Z", snippet: "$ cargo build --lib" },
+            { entryKind: "agent_activity", ts: "2026-05-30T10:00:30.000Z", snippet: "I should run the build first" },
+          ],
+        },
+        {
+          sessionId: "sess-2",
+          kind: "chat",
+          provider: null,
+          modelId: null,
+          worktreeId: null,
+          startedAt: "2026-05-29T09:00:00.000Z",
+          title: "ops chat",
+          matchCount: 1,
+          snippets: [{ entryKind: "chat_turn", ts: "2026-05-29T09:00:00.000Z", snippet: "operator forgot the gate" }],
+        },
+      ],
+    };
+  }
+
+  it("submitting a query renders ranked hits with snippets + match badges (index replaced)", async () => {
+    const { ipc, calls } = makeIpc(
+      [makeSummary({ sessionId: "sess-1" }), makeSummary({ sessionId: "sess-2", kind: "chat" })],
+      makeResponse({}),
+      (req) => twoHitSearch(req.query),
+    );
+    render(<SessionReplayPanel ipc={ipc} liveIpc={noopLiveIpc()} />);
+    open();
+    await screen.findByTestId("session-replay-row-sess-1");
+
+    fireEvent.change(screen.getByTestId("session-replay-search-input"), { target: { value: "build" } });
+    fireEvent.click(screen.getByTestId("session-replay-search-submit"));
+
+    // The search ran with the typed query; the results rail replaces the index.
+    await screen.findByTestId("session-replay-search-results");
+    await waitFor(() => expect(calls.searchArgs.length).toBe(1));
+    expect(calls.searchArgs[0].query).toBe("build");
+    // The plain session list is gone while a search is active.
+    expect(screen.queryByTestId("session-replay-list")).not.toBeInTheDocument();
+    // Both ranked hits render with their match-count badges + snippets.
+    expect(screen.getByTestId("session-replay-search-hit-sess-1")).toBeInTheDocument();
+    expect(screen.getByTestId("session-replay-search-matchcount-sess-1")).toHaveTextContent("3 matches");
+    expect(screen.getByTestId("session-replay-search-hit-sess-1")).toHaveTextContent(/cargo build --lib/);
+    expect(screen.getByTestId("session-replay-search-matchcount-sess-2")).toHaveTextContent("1 match");
+  });
+
+  it("clicking a hit selects that session and fetches its transcript (existing open path)", async () => {
+    const { ipc, calls } = makeIpc(
+      [makeSummary({ sessionId: "sess-1", kind: "chat" }), makeSummary({ sessionId: "sess-2", kind: "chat" })],
+      makeResponse({ sessionId: "sess-2" }),
+      (req) => twoHitSearch(req.query),
+    );
+    render(<SessionReplayPanel ipc={ipc} liveIpc={noopLiveIpc()} />);
+    open();
+    await screen.findByTestId("session-replay-row-sess-1");
+
+    fireEvent.change(screen.getByTestId("session-replay-search-input"), { target: { value: "gate" } });
+    fireEvent.click(screen.getByTestId("session-replay-search-submit"));
+
+    const hit = await screen.findByTestId("session-replay-search-hit-sess-2");
+    fireEvent.click(hit);
+
+    // The EXISTING transcript-open path fires for the clicked session.
+    await waitFor(() =>
+      expect(ipc.getTranscript).toHaveBeenCalledWith(expect.objectContaining({ sessionId: "sess-2" })),
+    );
+    await waitFor(() =>
+      expect(screen.getByTestId("session-replay-search-hit-sess-2")).toHaveAttribute("data-selected", "true"),
+    );
+    void calls;
+  });
+
+  it("passes the structured filters (kinds / worktree / time) through to the backend", async () => {
+    const { ipc, calls } = makeIpc(
+      [makeSummary({ sessionId: "sess-1", worktreeId: "wt-recovery-1" })],
+      makeResponse({}),
+      (req) => twoHitSearch(req.query),
+    );
+    render(<SessionReplayPanel ipc={ipc} liveIpc={noopLiveIpc()} />);
+    open();
+    await screen.findByTestId("session-replay-row-sess-1");
+
+    // Toggle a lane OFF (Chat) so the kinds list is explicit + restricted.
+    fireEvent.click(screen.getByTestId("session-replay-search-kind-chat_turn"));
+    // Pick the worktree learned from the loaded index (zero extra IPC).
+    fireEvent.change(screen.getByTestId("session-replay-search-worktree"), { target: { value: "wt-recovery-1" } });
+    // A from-time (local wall clock) is serialized to RFC3339 (a Z-suffixed ISO).
+    fireEvent.change(screen.getByTestId("session-replay-search-from"), { target: { value: "2026-05-30T10:00" } });
+    fireEvent.change(screen.getByTestId("session-replay-search-input"), { target: { value: "build" } });
+    fireEvent.click(screen.getByTestId("session-replay-search-submit"));
+
+    await waitFor(() => expect(calls.searchArgs.length).toBe(1));
+    const req = calls.searchArgs[0];
+    expect(req.query).toBe("build");
+    expect(req.worktreeId).toBe("wt-recovery-1");
+    // Chat toggled off -> the kinds list is present and excludes chat_turn.
+    expect(req.kinds).toBeTruthy();
+    expect(req.kinds).not.toContain("chat_turn");
+    expect(req.kinds).toContain("terminal_chunk");
+    // The from filter round-tripped to a parseable RFC3339 instant.
+    expect(req.from).toBeTruthy();
+    expect(Number.isNaN(new Date(req.from as string).getTime())).toBe(false);
+  });
+
+  it("renders a distinct empty state when no sessions match (honest, not a fabricated row)", async () => {
+    const { ipc } = makeIpc(
+      [makeSummary({ sessionId: "sess-1" })],
+      makeResponse({}),
+      (req) => emptySearchResponse(req.query),
+    );
+    render(<SessionReplayPanel ipc={ipc} liveIpc={noopLiveIpc()} />);
+    open();
+    await screen.findByTestId("session-replay-row-sess-1");
+
+    fireEvent.change(screen.getByTestId("session-replay-search-input"), { target: { value: "nonexistent-term" } });
+    fireEvent.click(screen.getByTestId("session-replay-search-submit"));
+
+    const empty = await screen.findByTestId("session-replay-search-empty");
+    expect(empty).toHaveTextContent(/No sessions match/i);
+    expect(empty).toHaveTextContent("nonexistent-term");
+    // No hit rows fabricated.
+    expect(screen.queryByTestId(/session-replay-search-hit-/)).not.toBeInTheDocument();
+  });
+
+  it("Clear restores the plain session index (search is additive)", async () => {
+    const { ipc } = makeIpc(
+      [makeSummary({ sessionId: "sess-1" })],
+      makeResponse({}),
+      (req) => twoHitSearch(req.query),
+    );
+    render(<SessionReplayPanel ipc={ipc} liveIpc={noopLiveIpc()} />);
+    open();
+    await screen.findByTestId("session-replay-row-sess-1");
+
+    fireEvent.change(screen.getByTestId("session-replay-search-input"), { target: { value: "build" } });
+    fireEvent.click(screen.getByTestId("session-replay-search-submit"));
+    await screen.findByTestId("session-replay-search-results");
+    expect(screen.queryByTestId("session-replay-list")).not.toBeInTheDocument();
+
+    // Clear -> the search results disappear and the plain index returns.
+    fireEvent.click(screen.getByTestId("session-replay-search-clear"));
+    await waitFor(() => expect(screen.getByTestId("session-replay-list")).toBeInTheDocument());
+    expect(screen.queryByTestId("session-replay-search-results")).not.toBeInTheDocument();
+    expect(screen.getByTestId("session-replay-row-sess-1")).toBeInTheDocument();
+  });
+
+  it("surfaces a backend search error VERBATIM (honest, never swallowed)", async () => {
+    const { ipc } = makeIpc([makeSummary({ sessionId: "sess-1" })], makeResponse({}));
+    ipc.searchSessions = vi.fn(async () => {
+      throw new Error("EMPTY_QUERY: refusing to match all sessions");
+    });
+    render(<SessionReplayPanel ipc={ipc} liveIpc={noopLiveIpc()} />);
+    open();
+    await screen.findByTestId("session-replay-row-sess-1");
+
+    fireEvent.change(screen.getByTestId("session-replay-search-input"), { target: { value: "x" } });
+    fireEvent.click(screen.getByTestId("session-replay-search-submit"));
+
+    const err = await screen.findByTestId("session-replay-search-error");
+    expect(err).toHaveTextContent("EMPTY_QUERY: refusing to match all sessions");
+  });
+
+  it("does not search an empty/whitespace query (submit disabled — never match-all)", async () => {
+    const { ipc, calls } = makeIpc([makeSummary({ sessionId: "sess-1" })], makeResponse({}));
+    render(<SessionReplayPanel ipc={ipc} liveIpc={noopLiveIpc()} />);
+    open();
+    await screen.findByTestId("session-replay-row-sess-1");
+
+    // Submit is disabled with no query, and with whitespace only.
+    expect(screen.getByTestId("session-replay-search-submit")).toBeDisabled();
+    fireEvent.change(screen.getByTestId("session-replay-search-input"), { target: { value: "   " } });
+    expect(screen.getByTestId("session-replay-search-submit")).toBeDisabled();
+    // Enter on a whitespace query is a no-op too.
+    fireEvent.keyDown(screen.getByTestId("session-replay-search-input"), { key: "Enter" });
+    expect(calls.searchArgs.length).toBe(0);
+  });
+
+  it("the search box is additive: the list + live tail are untouched when not searching", async () => {
+    const { ipc } = makeIpc([makeSummary({ sessionId: "sess-1" })], makeResponse({}));
+    render(<SessionReplayPanel ipc={ipc} liveIpc={noopLiveIpc()} />);
+    open();
+    // The plain index is present, and the search box sits above it.
+    expect(await screen.findByTestId("session-replay-list")).toBeInTheDocument();
+    expect(screen.getByTestId("session-replay-search")).toBeInTheDocument();
+    // No search ran -> the search results rail is absent.
+    expect(screen.queryByTestId("session-replay-search-results")).not.toBeInTheDocument();
+    expect(ipc.searchSessions).not.toHaveBeenCalled();
   });
 });
 
@@ -695,6 +927,7 @@ describe("SessionReplayPanel live tail", () => {
       }),
       resumeSession: vi.fn(async (s: string) => ({ modelId: s, instance: 0, composite: `${s}#0` })),
       getSpawnTemplate: vi.fn(async () => null),
+      searchSessions: vi.fn(async (req: SessionSearchRequest) => ({ hits: [], truncated: false, query: req.query })),
     };
     const h = makeLiveHarness();
     render(<SessionReplayPanel ipc={ipc} liveIpc={h.liveIpc} />);
@@ -860,6 +1093,7 @@ describe("SessionReplayPanel live tail", () => {
       getTranscript: vi.fn(async () => big),
       resumeSession: vi.fn(async (s: string) => ({ modelId: s, instance: 0, composite: `${s}#0` })),
       getSpawnTemplate: vi.fn(async () => null),
+      searchSessions: vi.fn(async (req: SessionSearchRequest) => ({ hits: [], truncated: false, query: req.query })),
     };
     const h = makeLiveHarness();
     render(<SessionReplayPanel ipc={ipc} liveIpc={h.liveIpc} />);

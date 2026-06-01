@@ -15,6 +15,9 @@ import {
   TRANSCRIPT_KINDS,
   type AgentActivityEntry,
   type LiveTailIpc,
+  type SearchSnippet,
+  type SessionSearchHit,
+  type SessionSearchRequest,
   type SessionSummary,
   type SessionTranscriptEntry,
   type SessionTranscriptIpc,
@@ -1186,6 +1189,505 @@ export function useLiveTranscriptTail({
   return { entries, sourceStatus, truncated, truncatedHead, status, error, loading };
 }
 
+// ===========================================================================
+// ROI #4 RECALL: cross-session free-text search.
+//
+// A search box + structured filters (kind / worktree / time range) sits ABOVE
+// the session index. Submitting calls kernel_session_search; the ranked hits
+// (each with redacted snippets + a match-count badge) REPLACE the session list
+// in the left rail. Clicking a hit drives the EXISTING select path (setSelectedId
+// -> the post-hoc/live transcript machinery), opening that session's transcript
+// with zero new plumbing. Search is ADDITIVE: when there are no results held
+// (searchHits === null) the panel is byte-identical to before, so the list +
+// post-hoc review + live tail are untouched.
+//
+// The backend already redacted every snippet; the only client-side emphasis is a
+// cosmetic case-insensitive highlight of the matched term (no secret handling).
+// ===========================================================================
+
+/** RFC3339 from a `datetime-local` value (local wall-clock), or null. */
+function localInputToRfc3339(value: string): string | null {
+  if (!value) return null;
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? null : d.toISOString();
+}
+
+/**
+ * Split `text` around case-insensitive occurrences of `term`, returning the
+ * matched spans flagged so the caller can emphasize them. Purely cosmetic — the
+ * snippet is already redacted; we never re-derive a secret here. Bounds the
+ * number of segments so a pathological snippet can't blow up the render.
+ */
+function highlightSegments(text: string, term: string): { text: string; match: boolean }[] {
+  const needle = term.trim().toLowerCase();
+  if (!needle) return [{ text, match: false }];
+  const out: { text: string; match: boolean }[] = [];
+  const hay = text.toLowerCase();
+  let i = 0;
+  let guard = 0;
+  while (i < text.length && guard < 200) {
+    const at = hay.indexOf(needle, i);
+    if (at === -1) {
+      out.push({ text: text.slice(i), match: false });
+      break;
+    }
+    if (at > i) out.push({ text: text.slice(i, at), match: false });
+    out.push({ text: text.slice(at, at + needle.length), match: true });
+    i = at + needle.length;
+    guard += 1;
+  }
+  if (out.length === 0) out.push({ text, match: false });
+  return out;
+}
+
+/** One redacted snippet line inside a hit: a kind chip + the highlighted text. */
+function SnippetLine({ snippet, term }: { snippet: SearchSnippet; term: string }) {
+  const kind = snippet.entryKind as TranscriptKind;
+  const style = KIND_STYLE[kind];
+  return (
+    <div
+      className="session-replay__search-snippet"
+      data-snippet-kind={snippet.entryKind}
+      style={{ display: "flex", gap: 6, alignItems: "baseline", marginTop: 3 }}
+    >
+      <span
+        style={{
+          fontSize: 9,
+          padding: "0 5px",
+          borderRadius: 8,
+          background: style ? style.bg : "var(--hs-color-surface-muted, #f3f4f6)",
+          color: style ? style.fg : "var(--hs-color-text-subtle)",
+          whiteSpace: "nowrap",
+          flex: "0 0 auto",
+        }}
+      >
+        {style ? style.label : snippet.entryKind}
+      </span>
+      <span style={{ fontSize: 11, color: "var(--hs-color-text)", wordBreak: "break-word", minWidth: 0 }}>
+        {highlightSegments(snippet.snippet, term).map((seg, idx) =>
+          seg.match ? (
+            <mark key={idx} style={{ background: "#fde68a", color: "inherit", padding: 0 }}>
+              {seg.text}
+            </mark>
+          ) : (
+            <span key={idx}>{seg.text}</span>
+          ),
+        )}
+      </span>
+    </div>
+  );
+}
+
+/**
+ * The search results (left rail), shown IN PLACE of the session list when a
+ * search is active. Each hit shows title/kind/provider/worktree, a match-count
+ * badge, and the capped redacted snippets. Clicking a hit selects that session
+ * (the existing transcript-open path).
+ */
+function SessionSearchResults({
+  hits,
+  query,
+  selectedId,
+  onSelect,
+  loading,
+  error,
+  truncated,
+}: {
+  hits: SessionSearchHit[];
+  query: string;
+  selectedId: string | null;
+  onSelect: (id: string) => void;
+  loading: boolean;
+  error: string | null;
+  truncated: boolean;
+}) {
+  return (
+    <div
+      className="session-replay__search-results"
+      data-testid="session-replay-search-results"
+      style={{
+        width: 280,
+        flex: "0 0 280px",
+        borderRight: "1px solid var(--hs-color-border, #e5e7eb)",
+        overflow: "auto",
+        maxHeight: 520,
+      }}
+    >
+      {error ? (
+        <div
+          data-testid="session-replay-search-error"
+          style={{ color: "#dc2626", fontSize: 12, padding: 8 }}
+        >
+          Search error: {error}
+        </div>
+      ) : null}
+      {!error && loading ? (
+        <div style={{ color: "var(--hs-color-text-subtle)", fontSize: 13, padding: 8 }}>Searching…</div>
+      ) : null}
+      {!error && !loading && hits.length === 0 ? (
+        <div
+          data-testid="session-replay-search-empty"
+          style={{ color: "var(--hs-color-text-subtle)", fontSize: 13, padding: 12 }}
+        >
+          No sessions match “{query}”.
+        </div>
+      ) : null}
+      {!error && truncated && hits.length > 0 ? (
+        <div
+          data-testid="session-replay-search-truncated"
+          style={{
+            fontSize: 11,
+            color: "#78350f",
+            background: "#fef3c7",
+            borderRadius: 8,
+            padding: "1px 8px",
+            margin: "6px 8px",
+            alignSelf: "flex-start",
+          }}
+        >
+          more matches than shown — narrow the query
+        </div>
+      ) : null}
+      <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
+        {hits.map((hit) => {
+          const selected = hit.sessionId === selectedId;
+          return (
+            <li
+              key={hit.sessionId}
+              style={{
+                borderLeft: selected ? "3px solid #2563eb" : "3px solid transparent",
+                background: selected ? "#eff6ff" : "transparent",
+              }}
+            >
+              <button
+                type="button"
+                data-testid={`session-replay-search-hit-${hit.sessionId}`}
+                data-stable-id={`session-replay.search-hit.${hit.sessionId}`}
+                data-selected={selected ? "true" : "false"}
+                aria-pressed={selected}
+                onClick={() => onSelect(hit.sessionId)}
+                style={{
+                  display: "block",
+                  width: "100%",
+                  textAlign: "left",
+                  padding: "8px 10px",
+                  border: "none",
+                  background: "transparent",
+                  color: "var(--hs-color-text)",
+                  cursor: "pointer",
+                  fontSize: 12,
+                }}
+              >
+                <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                  <span
+                    style={{
+                      fontWeight: 600,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                      minWidth: 0,
+                    }}
+                  >
+                    {hit.title || shortId(hit.sessionId)}
+                  </span>
+                  <span
+                    style={{
+                      fontSize: 10,
+                      padding: "0 5px",
+                      borderRadius: 8,
+                      background: "var(--hs-color-surface-muted, #f3f4f6)",
+                      color: "var(--hs-color-text-subtle)",
+                    }}
+                  >
+                    {hit.kind}
+                  </span>
+                  <span
+                    data-testid={`session-replay-search-matchcount-${hit.sessionId}`}
+                    title={`${hit.matchCount} match${hit.matchCount === 1 ? "" : "es"}`}
+                    style={{
+                      marginLeft: "auto",
+                      fontSize: 10,
+                      fontWeight: 600,
+                      padding: "0 6px",
+                      borderRadius: 8,
+                      background: "#dbeafe",
+                      color: "#1e3a8a",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {hit.matchCount} match{hit.matchCount === 1 ? "" : "es"}
+                  </span>
+                </div>
+                {hit.provider || hit.modelId || hit.worktreeId ? (
+                  <div
+                    style={{
+                      color: "var(--hs-color-text-subtle)",
+                      fontSize: 11,
+                      marginTop: 1,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {[hit.provider, hit.modelId, hit.worktreeId].filter(Boolean).join(" · ")}
+                  </div>
+                ) : null}
+                <div style={{ marginTop: 2 }}>
+                  {hit.snippets.map((s, idx) => (
+                    <SnippetLine key={idx} snippet={s} term={query} />
+                  ))}
+                </div>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
+/**
+ * The search box + structured filters above the session index. Owns its own
+ * input/filter state; on submit it calls back with a built {@link
+ * SessionSearchRequest}. Reuses the transcript kind-chip pattern + the distinct
+ * worktree ids already loaded in the session index (zero extra IPC).
+ */
+function SessionSearchBar({
+  worktrees,
+  onSubmit,
+  onClear,
+  searching,
+  active,
+}: {
+  /** Distinct worktree ids from the loaded session index (for the worktree select). */
+  worktrees: string[];
+  onSubmit: (req: SessionSearchRequest) => void;
+  onClear: () => void;
+  searching: boolean;
+  /** True when a search is currently shown (enables the Clear button). */
+  active: boolean;
+}) {
+  const [query, setQuery] = useState("");
+  const [kinds, setKinds] = useState<Set<TranscriptKind>>(
+    () => new Set(TRANSCRIPT_KINDS.map((k) => k.kind)),
+  );
+  const [worktree, setWorktree] = useState("");
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+
+  const trimmed = query.trim();
+  const canSubmit = trimmed.length > 0 && !searching;
+
+  const toggleKind = useCallback((kind: TranscriptKind) => {
+    setKinds((prev) => {
+      const next = new Set(prev);
+      // Never allow zero lanes — toggling off the last is a no-op (matches the
+      // transcript filter discipline so the query is never an empty lane set).
+      if (next.has(kind)) {
+        if (next.size === 1) return prev;
+        next.delete(kind);
+      } else {
+        next.add(kind);
+      }
+      return next;
+    });
+  }, []);
+
+  const submit = useCallback(() => {
+    if (!canSubmit) return;
+    const allKinds = kinds.size === TRANSCRIPT_KINDS.length;
+    onSubmit({
+      query: trimmed,
+      kinds: allKinds ? null : TRANSCRIPT_KINDS.map((k) => k.kind).filter((k) => kinds.has(k)),
+      worktreeId: worktree || null,
+      from: localInputToRfc3339(from),
+      to: localInputToRfc3339(to),
+    });
+  }, [canSubmit, kinds, trimmed, worktree, from, to, onSubmit]);
+
+  const clear = useCallback(() => {
+    setQuery("");
+    onClear();
+  }, [onClear]);
+
+  return (
+    <div
+      className="session-replay__search"
+      data-testid="session-replay-search"
+      role="search"
+      aria-label="Search across recorded sessions"
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: 6,
+        marginBottom: 8,
+        padding: 8,
+        border: "1px solid var(--hs-color-border, #e5e7eb)",
+        borderRadius: 8,
+        background: "var(--hs-color-surface-muted, #f9fafb)",
+      }}
+    >
+      <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+        <input
+          type="text"
+          data-testid="session-replay-search-input"
+          aria-label="Search query"
+          placeholder="Search across sessions (chat, agent, terminal, FR)…"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              submit();
+            }
+          }}
+          style={{
+            flex: "1 1 240px",
+            minWidth: 0,
+            fontSize: 12,
+            padding: "4px 8px",
+            borderRadius: 6,
+            border: "1px solid var(--hs-color-border, #d1d5db)",
+            background: "var(--hs-color-surface)",
+            color: "var(--hs-color-text)",
+          }}
+        />
+        <button
+          type="button"
+          data-testid="session-replay-search-submit"
+          disabled={!canSubmit}
+          onClick={submit}
+          style={{
+            fontSize: 12,
+            padding: "4px 12px",
+            borderRadius: 6,
+            border: "1px solid #2563eb",
+            background: canSubmit ? "#2563eb" : "var(--hs-color-surface)",
+            color: canSubmit ? "#fff" : "var(--hs-color-text-subtle)",
+            cursor: canSubmit ? "pointer" : "not-allowed",
+            opacity: canSubmit ? 1 : 0.6,
+            fontWeight: 600,
+          }}
+        >
+          {searching ? "Searching…" : "Search"}
+        </button>
+        <button
+          type="button"
+          data-testid="session-replay-search-clear"
+          disabled={!active && trimmed.length === 0}
+          onClick={clear}
+          title="Clear the search and restore the session index"
+          style={{
+            fontSize: 12,
+            padding: "4px 10px",
+            borderRadius: 6,
+            border: "1px solid var(--hs-color-border, #d1d5db)",
+            background: "var(--hs-color-surface)",
+            color: "var(--hs-color-text-subtle)",
+            cursor: !active && trimmed.length === 0 ? "not-allowed" : "pointer",
+            opacity: !active && trimmed.length === 0 ? 0.5 : 1,
+          }}
+        >
+          Clear
+        </button>
+      </div>
+
+      {/* Structured filters: kind chips + worktree select + time range. */}
+      <div
+        className="session-replay__search-filters"
+        data-testid="session-replay-search-filters"
+        style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}
+      >
+        <span style={{ fontSize: 10, color: "var(--hs-color-text-subtle)", fontWeight: 600 }}>Lanes:</span>
+        {TRANSCRIPT_KINDS.map((k) => {
+          const on = kinds.has(k.kind);
+          const style = KIND_STYLE[k.kind];
+          return (
+            <button
+              key={k.kind}
+              type="button"
+              data-testid={`session-replay-search-kind-${k.kind}`}
+              data-active={on ? "true" : "false"}
+              aria-pressed={on}
+              onClick={() => toggleKind(k.kind)}
+              style={{
+                fontSize: 10,
+                padding: "1px 7px",
+                borderRadius: 8,
+                border: on ? `1px solid ${style.fg}` : "1px solid var(--hs-color-border, #d1d5db)",
+                background: on ? style.bg : "var(--hs-color-surface)",
+                color: on ? style.fg : "var(--hs-color-text-subtle)",
+                cursor: "pointer",
+              }}
+            >
+              {k.label}
+            </button>
+          );
+        })}
+
+        <select
+          data-testid="session-replay-search-worktree"
+          aria-label="Filter by worktree"
+          value={worktree}
+          onChange={(e) => setWorktree(e.target.value)}
+          style={{
+            fontSize: 11,
+            padding: "2px 6px",
+            borderRadius: 6,
+            border: "1px solid var(--hs-color-border, #d1d5db)",
+            background: "var(--hs-color-surface)",
+            color: "var(--hs-color-text)",
+          }}
+        >
+          <option value="">All worktrees</option>
+          {worktrees.map((w) => (
+            <option key={w} value={w}>
+              {w}
+            </option>
+          ))}
+        </select>
+
+        <label style={{ fontSize: 10, color: "var(--hs-color-text-subtle)", display: "flex", gap: 3, alignItems: "center" }}>
+          From
+          <input
+            type="datetime-local"
+            data-testid="session-replay-search-from"
+            aria-label="From time"
+            value={from}
+            onChange={(e) => setFrom(e.target.value)}
+            style={{
+              fontSize: 11,
+              padding: "1px 4px",
+              borderRadius: 6,
+              border: "1px solid var(--hs-color-border, #d1d5db)",
+              background: "var(--hs-color-surface)",
+              color: "var(--hs-color-text)",
+            }}
+          />
+        </label>
+        <label style={{ fontSize: 10, color: "var(--hs-color-text-subtle)", display: "flex", gap: 3, alignItems: "center" }}>
+          To
+          <input
+            type="datetime-local"
+            data-testid="session-replay-search-to"
+            aria-label="To time"
+            value={to}
+            onChange={(e) => setTo(e.target.value)}
+            style={{
+              fontSize: 11,
+              padding: "1px 4px",
+              borderRadius: 6,
+              border: "1px solid var(--hs-color-border, #d1d5db)",
+              background: "var(--hs-color-surface)",
+              color: "var(--hs-color-text)",
+            }}
+          />
+        </label>
+      </div>
+    </div>
+  );
+}
+
 /** The inner panel body, only mounted once the disclosure is first opened. */
 function SessionReplayBody({
   ipc,
@@ -1227,6 +1729,18 @@ function SessionReplayBody({
   const [resumingId, setResumingId] = useState<string | null>(null);
   const [resumeError, setResumeError] = useState<{ sessionId: string; message: string } | null>(null);
   const [resumedLineage, setResumedLineage] = useState<{ newComposite: string; originSessionId: string } | null>(null);
+
+  // ROI #4 RECALL: cross-session search state. `searchHits === null` means
+  // NOT-SEARCHING — the left rail shows the plain session index, so search is
+  // purely additive. A non-null array (possibly empty) means a search is active
+  // and its results REPLACE the index in the left rail. `searchQuery` is the
+  // effective query the backend echoed (used for the empty-state + highlight).
+  const [searchHits, setSearchHits] = useState<SessionSearchHit[] | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchTruncated, setSearchTruncated] = useState(false);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const searchGenRef = useRef(0);
 
   // One-shot board focus guard, keyed by focusSignal (a repeat "Review session"
   // click re-arms it). setState happens only after the awaited list load, so we
@@ -1290,6 +1804,56 @@ function SessionReplayBody({
     },
     [ipc, loadSessions, onResumed, resumingId],
   );
+
+  // ROI #4 RECALL: run a cross-session search. A monotonic generation guards
+  // against a stale slow search landing after a newer one (or a Clear) — the same
+  // discipline the live tail uses for cross-session contamination. HONEST: a
+  // backend error (e.g. an empty-query rejection that slips past the disabled
+  // button) is surfaced verbatim, never swallowed; an empty hit list renders the
+  // distinct empty state rather than a fabricated row.
+  const handleSearch = useCallback(
+    async (req: SessionSearchRequest) => {
+      const gen = (searchGenRef.current += 1);
+      setSearchLoading(true);
+      setSearchError(null);
+      // Show the active (searching) rail immediately with the requested query.
+      setSearchQuery(req.query);
+      setSearchHits((prev) => prev ?? []);
+      try {
+        const res = await ipc.searchSessions(req);
+        if (gen !== searchGenRef.current) return; // a newer search/clear won.
+        setSearchHits(res.hits);
+        setSearchQuery(res.query);
+        setSearchTruncated(res.truncated);
+      } catch (e) {
+        if (gen !== searchGenRef.current) return;
+        setSearchError(e instanceof Error ? e.message : String(e));
+        setSearchHits([]);
+      } finally {
+        if (gen === searchGenRef.current) setSearchLoading(false);
+      }
+    },
+    [ipc],
+  );
+
+  // Clear the search -> restore the plain session index (additive guarantee).
+  // Bumps the generation so an in-flight search can't repopulate after clear.
+  const handleClearSearch = useCallback(() => {
+    searchGenRef.current += 1;
+    setSearchHits(null);
+    setSearchQuery("");
+    setSearchTruncated(false);
+    setSearchError(null);
+    setSearchLoading(false);
+  }, []);
+
+  // Distinct worktree ids from the loaded index, for the worktree filter select
+  // (zero extra IPC — reuse the summaries already fetched).
+  const worktreeOptions = useMemo(() => {
+    const set = new Set<string>();
+    for (const s of sessions) if (s.worktreeId) set.add(s.worktreeId);
+    return Array.from(set).sort();
+  }, [sessions]);
 
   const activeKindList = useMemo(
     () => TRANSCRIPT_KINDS.map((k) => k.kind).filter((k) => activeKinds.has(k)),
@@ -1478,18 +2042,39 @@ function SessionReplayBody({
         </div>
       </div>
 
+      {/* ROI #4 RECALL: cross-session search box + filters above the index. */}
+      <SessionSearchBar
+        worktrees={worktreeOptions}
+        onSubmit={handleSearch}
+        onClear={handleClearSearch}
+        searching={searchLoading}
+        active={searchHits !== null}
+      />
+
       <div className="session-replay__split" style={{ display: "flex", gap: 0, minWidth: 0 }}>
-        <SessionList
-          sessions={sessions}
-          selectedId={selectedId}
-          onSelect={setSelectedId}
-          loading={listLoading}
-          error={listError}
-          onResume={handleResume}
-          resumingId={resumingId}
-          resumeError={resumeError}
-          resumedLineage={resumedLineage}
-        />
+        {searchHits !== null ? (
+          <SessionSearchResults
+            hits={searchHits}
+            query={searchQuery}
+            selectedId={selectedId}
+            onSelect={setSelectedId}
+            loading={searchLoading}
+            error={searchError}
+            truncated={searchTruncated}
+          />
+        ) : (
+          <SessionList
+            sessions={sessions}
+            selectedId={selectedId}
+            onSelect={setSelectedId}
+            loading={listLoading}
+            error={listError}
+            onResume={handleResume}
+            resumingId={resumingId}
+            resumeError={resumeError}
+            resumedLineage={resumedLineage}
+          />
+        )}
         <TranscriptTimeline
           selectedId={selectedId}
           response={effectiveResponse}

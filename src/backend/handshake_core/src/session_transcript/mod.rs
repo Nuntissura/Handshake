@@ -321,7 +321,12 @@ fn is_terminal_event(event: &FlightRecorderEvent, fr_event: &Option<String>) -> 
 /// (the raw lifecycle line) AND a synthesized `Process` row (the honest process
 /// signal). A terminal capture event yields a single `TerminalChunk`. Everything
 /// else yields a single `FrEvent`.
-fn entries_from_fr_event(event: &FlightRecorderEvent) -> Vec<SessionTranscriptEntry> {
+///
+/// `pub` so the cross-session search (the app crate's
+/// `commands/session_transcript.rs`) can re-derive the SAME typed rows from the
+/// SAME correlation seam — a search hit always corresponds to a row the
+/// transcript would show, never a second parallel correlation.
+pub fn entries_from_fr_event(event: &FlightRecorderEvent) -> Vec<SessionTranscriptEntry> {
     let ts = event.timestamp;
     let fr_event = payload_fr_event(&event.payload);
 
@@ -523,6 +528,81 @@ pub fn filter_by_kinds(
             .filter(|e| allowed.contains(&e.kind()))
             .collect(),
     }
+}
+
+/// The searchable text fields a single transcript entry contributes to the
+/// cross-session search corpus, paired with the entry's coarse [`TranscriptKind`]
+/// and merge-key timestamp.
+///
+/// This is the SINGLE place that knows which fields of each typed row are
+/// human-searchable, so the search command never re-implements the per-variant
+/// field extraction (and never searches text the transcript can't display). Each
+/// returned `String` is RAW (un-redacted) — redaction is applied by the caller on
+/// the final windowed snippet, AFTER the match offset is computed, so a secret
+/// adjacent to the match is masked before it leaves the backend.
+///
+/// `FrEvent`/`Process` payloads are compact-stringified so a match inside the raw
+/// JSON payload is searchable (and the same compact string is what the caller
+/// windows + redacts).
+pub fn searchable_text(entry: &SessionTranscriptEntry) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    match entry {
+        SessionTranscriptEntry::ChatTurn { content, .. } => {
+            if !content.is_empty() {
+                out.push(content.clone());
+            }
+        }
+        SessionTranscriptEntry::AgentActivity {
+            name, detail, text, ..
+        } => {
+            if let Some(n) = name {
+                if !n.is_empty() {
+                    out.push(n.clone());
+                }
+            }
+            if let Some(t) = text {
+                if !t.is_empty() {
+                    out.push(t.clone());
+                }
+            }
+            if let Some(d) = detail {
+                // Skip `null`/empty objects to avoid noise hits on "null"/"{}".
+                if !d.is_null() {
+                    let s = compact_json(d);
+                    if s != "{}" && s != "[]" && !s.is_empty() {
+                        out.push(s);
+                    }
+                }
+            }
+        }
+        SessionTranscriptEntry::TerminalChunk { command, text, .. } => {
+            if let Some(c) = command {
+                if !c.is_empty() {
+                    out.push(c.clone());
+                }
+            }
+            if let Some(t) = text {
+                if !t.is_empty() {
+                    out.push(t.clone());
+                }
+            }
+        }
+        SessionTranscriptEntry::FrEvent { payload, .. }
+        | SessionTranscriptEntry::Process { payload, .. } => {
+            let s = compact_json(payload);
+            if !s.is_empty() && s != "{}" && s != "null" {
+                out.push(s);
+            }
+        }
+    }
+    out
+}
+
+/// Compact (no-whitespace) JSON stringification used to make a payload object
+/// searchable as one string. Falls back to an empty string on the (practically
+/// impossible) serialize error so the caller simply contributes no payload text.
+fn compact_json(value: &Value) -> String {
+    serde_json::to_string(value).unwrap_or_default()
 }
 
 #[cfg(test)]
@@ -1044,6 +1124,76 @@ mod tests {
         let only = filter_by_kinds(merged, Some(&[TranscriptKind::AgentActivity]));
         assert_eq!(only.len(), 1);
         assert_eq!(only[0].kind(), TranscriptKind::AgentActivity);
+    }
+
+    #[test]
+    fn searchable_text_extracts_per_variant_fields() {
+        // ChatTurn -> content.
+        let chat = SessionTranscriptEntry::ChatTurn {
+            ts: at(1),
+            seq: 0,
+            role: "user".to_string(),
+            model_role: None,
+            content: "operator forgot the gate".to_string(),
+            message_id: "m1".to_string(),
+        };
+        assert_eq!(searchable_text(&chat), vec!["operator forgot the gate"]);
+
+        // AgentActivity -> name + text + compact(detail).
+        let agent = SessionTranscriptEntry::AgentActivity {
+            ts: at(1),
+            seq: 0,
+            activity_kind: "tool_call".to_string(),
+            name: Some("Bash".to_string()),
+            detail: Some(json!({ "command": "cargo build" })),
+            text: None,
+            event_id: "ev".to_string(),
+        };
+        let texts = searchable_text(&agent);
+        assert!(texts.iter().any(|t| t == "Bash"));
+        assert!(texts.iter().any(|t| t.contains("cargo build")));
+
+        // TerminalChunk -> command + text.
+        let term = SessionTranscriptEntry::TerminalChunk {
+            ts: at(1),
+            seq: 0,
+            terminal_session_id: "t1".to_string(),
+            fr_event: None,
+            command: Some("npm test".to_string()),
+            text: Some("3 passing".to_string()),
+        };
+        let texts = searchable_text(&term);
+        assert!(texts.iter().any(|t| t == "npm test"));
+        assert!(texts.iter().any(|t| t == "3 passing"));
+
+        // FrEvent -> compact payload JSON.
+        let fr = SessionTranscriptEntry::FrEvent {
+            ts: at(1),
+            seq: 0,
+            event_type: "system".to_string(),
+            fr_event: Some("FR-EVT-A".to_string()),
+            actor: "system".to_string(),
+            model_id: None,
+            payload: json!({ "needle": "haystack" }),
+            event_id: "e1".to_string(),
+        };
+        let texts = searchable_text(&fr);
+        assert_eq!(texts.len(), 1);
+        assert!(texts[0].contains("needle"));
+        assert!(texts[0].contains("haystack"));
+
+        // Empty / null payloads contribute nothing (no noise hits).
+        let empty_fr = SessionTranscriptEntry::FrEvent {
+            ts: at(1),
+            seq: 0,
+            event_type: "system".to_string(),
+            fr_event: None,
+            actor: "system".to_string(),
+            model_id: None,
+            payload: json!({}),
+            event_id: "e2".to_string(),
+        };
+        assert!(searchable_text(&empty_fr).is_empty());
     }
 
     #[test]
