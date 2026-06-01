@@ -173,10 +173,9 @@ export function useSwarmRoom() {
 
       const id = await spawnSession(request);
       setSpawnNotice(`Spawned session ${id.composite}`);
-      // Auto-select the new local session for the chat box.
-      if (provider === "local") {
-        setChatInstanceId(id.composite);
-      }
+      // Auto-select the new session for the chat box — ANY provider is chattable
+      // now (the chat generate path is provider-agnostic), not just local.
+      setChatInstanceId(id.composite);
       await refresh();
       await refreshWorktrees();
     } catch (error) {
@@ -217,10 +216,12 @@ export function useSwarmRoom() {
     [chatInstanceId, refresh],
   );
 
-  const localSessions =
-    sessions.status === "ready"
-      ? sessions.sessions.filter((s) => s.provider === "local")
-      : [];
+  // ALL spawned sessions feed the chat picker (governance glue #3): the chat
+  // generate path is provider-agnostic, so cloud BYOK and official-CLI sessions
+  // are chattable too — no provider filter. The picker labels each by provider
+  // and disables non-live (not READY/GENERATING) options honestly.
+  const allSessions =
+    sessions.status === "ready" ? sessions.sessions : [];
 
   return {
     sessions,
@@ -253,7 +254,7 @@ export function useSwarmRoom() {
     setChatInstanceId,
     handleSpawn,
     handleCancel,
-    localSessions,
+    allSessions,
   };
 }
 
@@ -284,7 +285,7 @@ export function SwarmControlRoom() {
 
       <OperatorChat
         selectedInstanceId={room.chatInstanceId}
-        localSessions={room.localSessions}
+        sessions={room.allSessions}
         onSelectInstance={room.setChatInstanceId}
       />
     </section>
@@ -589,15 +590,16 @@ export function SwarmSessionsSection({ room }: { room: SwarmRoom }) {
                       : (session.cloudModelName ?? "—")}
                   </td>
                   <td>
-                    {session.provider === "local" ? (
-                      <button
-                        type="button"
-                        data-testid={`swarm-session-chat-${composite}`}
-                        onClick={() => setChatInstanceId(composite)}
-                      >
-                        Chat
-                      </button>
-                    ) : null}
+                    {/* Every provider is chattable now (governance glue #3): the
+                        generate path is provider-agnostic, so local, cloud, and
+                        CLI rows all offer Chat. */}
+                    <button
+                      type="button"
+                      data-testid={`swarm-session-chat-${composite}`}
+                      onClick={() => setChatInstanceId(composite)}
+                    >
+                      Chat
+                    </button>
                     <button
                       type="button"
                       data-testid={`swarm-session-cancel-${composite}`}

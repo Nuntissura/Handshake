@@ -4,16 +4,70 @@ import {
   type SwarmSession,
 } from "../../lib/ipc/swarm_runtime";
 
-// OperatorChat: a REAL operator <-> local-model chat box. The operator picks a
-// spawned local-model session and types; the message is sent via
-// kernel_swarm_chat_generate to the live model and the returned tokens render.
-// This is genuine generation through the swarm coordinator's session runtime,
-// NOT a mock — the text comes from the real model's forward pass.
+// OperatorChat: a REAL operator <-> model chat box. The operator picks ANY
+// spawned session — local on-disk model, cloud BYOK, OR official-CLI bridge —
+// and types; the message is sent via kernel_swarm_chat_generate to the live
+// model and the returned tokens render. This is genuine generation through the
+// swarm coordinator's session runtime, NOT a mock — the text comes from the
+// real model's forward pass. The generate path is PROVIDER-AGNOSTIC backend-side
+// (runtime.generate streams tokens for candle/llama, cloud BYOK, and the CLI
+// bridge runtime identically), so this surface is no longer UI-scoped to local.
 
 function errorMessage(error: unknown): string {
   if (error instanceof Error) return error.message;
   if (typeof error === "string") return error;
   return "Unknown error";
+}
+
+/**
+ * Whether a session's lifecycle state can accept a chat generate turn. READY and
+ * GENERATING sessions are live and chattable; QUEUED/LOADING are not ready yet,
+ * and COMPLETED/FAILED/CANCELLED are terminal (the backend `resolve_runtime`
+ * gate would refuse them). This is a UI COURTESY that mirrors the backend's real
+ * gate — it never claims chattability the backend would refuse, and any backend
+ * refusal (session reaped mid-turn, provider error) still renders verbatim via
+ * the catch below. It is provider-INDEPENDENT: a cloud or CLI session in READY
+ * is chattable, exactly like a local one.
+ */
+export function canChat(s: SwarmSession): boolean {
+  return s.state === "READY" || s.state === "GENERATING";
+}
+
+/** Provider tag -> short operator-facing label (local / cloud / CLI). */
+function providerLabel(provider: string): string {
+  switch (provider) {
+    case "local":
+      return "local";
+    case "byok_cloud":
+      return "cloud";
+    case "official_cli":
+      return "CLI";
+    default:
+      return provider;
+  }
+}
+
+/**
+ * The source name shown in the picker: the local artifact's basename, else the
+ * cloud model name, else a short model-id prefix. This is what lets the operator
+ * tell apart sessions of the same provider.
+ */
+function sourceName(session: SwarmSession): string {
+  if (session.artifactPath) {
+    return session.artifactPath.split(/[/\\]/).pop() ?? session.artifactPath;
+  }
+  if (session.cloudModelName) return session.cloudModelName;
+  return session.instanceId.modelId.slice(0, 8);
+}
+
+/**
+ * The full provider-rich option label: "{provider} · {source}[ · wt:{worktree}]
+ * (#{instance}, {state})". Puts provider + model + worktree in the picker so the
+ * operator distinguishes local / cloud / CLI sessions at a glance.
+ */
+export function sessionOptionLabel(session: SwarmSession): string {
+  const wt = session.worktreeId ? ` · wt:${session.worktreeId}` : "";
+  return `${providerLabel(session.provider)} · ${sourceName(session)}${wt} (#${session.instanceId.instance}, ${session.state})`;
 }
 
 interface ChatTurn {
@@ -26,13 +80,19 @@ interface ChatTurn {
 
 interface OperatorChatProps {
   selectedInstanceId: string | null;
-  localSessions: SwarmSession[];
+  /**
+   * ALL spawned sessions (local, cloud BYOK, official CLI). The picker labels
+   * each by provider + model + worktree; non-chattable (not READY/GENERATING)
+   * sessions render as disabled options so the operator never selects a session
+   * the backend would refuse.
+   */
+  sessions: SwarmSession[];
   onSelectInstance: (instanceId: string | null) => void;
 }
 
 export function OperatorChat({
   selectedInstanceId,
-  localSessions,
+  sessions,
   onSelectInstance,
 }: OperatorChatProps) {
   const [prompt, setPrompt] = useState("");
@@ -64,7 +124,8 @@ export function OperatorChat({
     setTurns((prev) => [...prev, { role: "operator", text }]);
     setPrompt("");
     try {
-      // REAL generate through the spawned local-model session.
+      // REAL generate through the spawned session (any provider — the backend
+      // generate path is provider-agnostic).
       const response = await chatGenerate(selectedInstanceId, text);
       setTurns((prev) => [
         ...prev,
@@ -77,7 +138,7 @@ export function OperatorChat({
       ]);
     } catch (err) {
       // Surface the REAL backend error verbatim (session reaped, busy instance,
-      // generate failure).
+      // provider that errors on generate). Honest: we never swallow it.
       const message = errorMessage(err);
       setError(message);
       setTurns((prev) => [...prev, { role: "system", text: `Error: ${message}` }]);
@@ -86,7 +147,17 @@ export function OperatorChat({
     }
   }, [prompt, selectedInstanceId]);
 
-  const hasLocalSessions = localSessions.length > 0;
+  const hasSessions = sessions.length > 0;
+  // The currently-selected session object (if any), used to gate the composer on
+  // its lifecycle state honestly.
+  const selectedSession = selectedInstanceId
+    ? sessions.find((s) => s.instanceId.composite === selectedInstanceId) ?? null
+    : null;
+  // A selected session is chattable only when live (READY/GENERATING). If it is
+  // selected but not chattable, we disable the composer and explain why rather
+  // than letting Send fail opaquely.
+  const selectedChattable = selectedSession ? canChat(selectedSession) : false;
+  const composerDisabled = !selectedInstanceId || !selectedChattable;
 
   return (
     <section
@@ -97,8 +168,9 @@ export function OperatorChat({
     >
       <h3 id="operator-chat-title">Operator chat</h3>
       <p className="muted">
-        Chat with a spawned local-model session. Messages run a real generate through
-        the swarm runtime; the rendered tokens are the model&apos;s actual output.
+        Chat with a spawned model session (local, cloud, or CLI). Messages run a
+        real generate through the swarm runtime; the rendered tokens are the
+        model&apos;s actual output.
       </p>
 
       <div className="operator-chat__session-picker">
@@ -110,22 +182,35 @@ export function OperatorChat({
             onChange={(event) => onSelectInstance(event.target.value || null)}
           >
             <option value="">
-              {hasLocalSessions ? "Select a local session..." : "No local sessions spawned"}
+              {hasSessions ? "Select a session..." : "No sessions spawned"}
             </option>
-            {localSessions.map((session) => {
+            {sessions.map((session) => {
               const composite = session.instanceId.composite;
-              const label = session.artifactPath
-                ? session.artifactPath.split(/[/\\]/).pop()
-                : composite;
+              const chattable = canChat(session);
               return (
-                <option key={composite} value={composite}>
-                  {label} (#{session.instanceId.instance}, {session.state})
+                <option
+                  key={composite}
+                  value={composite}
+                  disabled={!chattable}
+                  data-provider={session.provider}
+                  data-testid={`operator-chat-option-${composite}`}
+                >
+                  {sessionOptionLabel(session)}
                 </option>
               );
             })}
           </select>
         </label>
       </div>
+
+      {/* Honest non-chattable note: when a session is selected but its lifecycle
+          state cannot take a generate turn, say so explicitly instead of letting
+          Send fail opaquely. */}
+      {selectedSession && !selectedChattable ? (
+        <p className="swarm-notice" data-testid="operator-chat-unsupported">
+          Session is {selectedSession.state}; not ready for a chat turn.
+        </p>
+      ) : null}
 
       <div
         className="operator-chat__log"
@@ -137,7 +222,7 @@ export function OperatorChat({
           <p className="muted" data-testid="operator-chat-empty">
             {selectedInstanceId
               ? "No messages yet. Type below to chat with the model."
-              : "Select a spawned local session to start chatting."}
+              : "Select a spawned session to start chatting."}
           </p>
         ) : (
           turns.map((turn, index) => (
@@ -172,11 +257,13 @@ export function OperatorChat({
           value={prompt}
           rows={2}
           placeholder={
-            selectedInstanceId
-              ? "Type a message to the model..."
-              : "Select a session first"
+            !selectedInstanceId
+              ? "Select a session first"
+              : !selectedChattable
+                ? `Session is ${selectedSession?.state ?? "not ready"}`
+                : "Type a message to the model..."
           }
-          disabled={!selectedInstanceId || busy}
+          disabled={composerDisabled || busy}
           data-testid="operator-chat-input"
           onChange={(event) => setPrompt(event.target.value)}
           onKeyDown={(event) => {
@@ -188,7 +275,7 @@ export function OperatorChat({
         />
         <button
           type="submit"
-          disabled={!selectedInstanceId || busy || prompt.trim().length === 0}
+          disabled={composerDisabled || busy || prompt.trim().length === 0}
           data-testid="operator-chat-send"
         >
           {busy ? "Generating..." : "Send"}

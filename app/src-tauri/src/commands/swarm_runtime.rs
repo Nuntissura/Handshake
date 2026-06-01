@@ -1645,6 +1645,76 @@ mod tests {
         assert!(worktrees.is_empty(), "worktrees: {worktrees:?}");
     }
 
+    /// A credentialed CLOUD (non-local) session is chat-eligible: `resolve_runtime`
+    /// — the SINGLE gate `kernel_swarm_chat_generate` consults before driving the
+    /// runtime's real `generate` — hands back the live `Arc<dyn ModelRuntime>` the
+    /// coordinator registered, with NO provider/local-only guard. This locks in the
+    /// provider-agnostic chat contract (governance glue #3): a future local-only
+    /// guard (e.g. one that refused a `ByokCloud`/`OfficialCli` session, or required
+    /// `cloud_model_name` to be `None`) would fail this test. It also proves the
+    /// honest teardown gate: after `cancel_session` the same resolve returns `None`
+    /// so the chat command surfaces "no longer live" rather than a freed runtime.
+    ///
+    /// We assert chat-eligibility at the resolve/eligibility boundary — the exact
+    /// local-vs-all decision point the command uses — rather than issuing a real
+    /// `runtime.generate`, which for the anthropic BYOK runtime would require a live
+    /// HTTP/SSE call the rest of this module deliberately avoids.
+    #[tokio::test]
+    async fn cloud_session_is_chat_eligible_no_local_only_guard() {
+        let vault = Arc::new(InMemorySecretsVault::default());
+        vault
+            .put("anthropic", "sk-ant-test-key-do-not-log".to_string())
+            .expect("store anthropic key");
+        let state = SwarmRuntimeState::production_with_cloud_vault(
+            vault,
+            Some("anthropic".to_string()),
+            // No openai lane so ByokCloud resolves to the anthropic builder.
+            None,
+        );
+        let coordinator = state.coordinator();
+        let spawn =
+            build_spawn_request(&cloud_request("claude-sonnet-4")).expect("valid cloud request");
+        let iid = coordinator
+            .spawn_session(spawn)
+            .await
+            .expect("configured cloud spawn builds a live session");
+
+        // The chat path's ONLY gate is `resolve_runtime` (see
+        // `kernel_swarm_chat_generate`): it must succeed for a non-local session.
+        let resolved = state.resolve_runtime(iid);
+        assert!(
+            resolved.is_some(),
+            "cloud session must be chat-eligible (no local-only guard)"
+        );
+        let (_runtime, model_id) = resolved.expect("resolved");
+        // The chat command builds `GenerateRequest.id` from this resolved
+        // `model_id` — the id the runtime's real `load` MINTED, which
+        // `TrackingFactory::create` stores as `live.model_id`. It is intentionally
+        // distinct from the spawn request's `iid.model_id` (the placeholder the
+        // UI lists), so we assert it is a real minted id, not the request id —
+        // i.e. the chat path drives the runtime under its own loaded identity.
+        assert_ne!(
+            model_id, iid.model_id,
+            "resolved model id is the runtime's minted load id, not the request id"
+        );
+        // The row still resolves to this exact instance via the composite key the
+        // UI passes back to chat/cancel — the stable join key across surfaces.
+        let row = list_active_sessions_inner(&state)
+            .into_iter()
+            .find(|s| s.instance_id.composite == iid.to_string())
+            .expect("cloud session row present and joinable by composite");
+        assert_eq!(row.instance_id.composite, iid.to_string());
+
+        // Clean teardown: cancel evicts the session.
+        coordinator
+            .cancel_session(iid, "test_cancel")
+            .await
+            .expect("cancel");
+        // After cancel the same gate honestly refuses (no longer live) — the chat
+        // command then returns a typed "no longer live" error, not a freed runtime.
+        assert!(state.resolve_runtime(iid).is_none());
+    }
+
     /// A configured lane whose vault has NO key still surfaces the honest
     /// `ProviderNotConfigured` (the credential preflight in the builder fails).
     #[tokio::test]

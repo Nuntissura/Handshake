@@ -58,6 +58,16 @@ export interface TerminalPanelProps {
    */
   focusSwarmId?: string | null;
   /**
+   * Optional: focus the captured session whose source `instanceId` matches. The
+   * swarm capture session for a model session is keyed by the swarm composite
+   * instance_id (SessionBinding.instance_id), surfaced on
+   * TerminalSession.instanceId. The SessionWorkbench knows the selected chat
+   * session's composite instance_id (NOT a swarm_id or the capture session's own
+   * id), so this is the honest binding path from a chat session to its captured
+   * terminal tab. Resolved after focusSessionId and before focusSwarmId.
+   */
+  focusInstanceId?: string | null;
+  /**
    * One-shot open driver forwarded to the host Disclosure. Bumping this opens
    * the drawer (board "Inspect terminal" → reveal the panel). Also used to
    * re-arm focus so clicking Inspect again re-focuses the swarm's lane.
@@ -104,12 +114,14 @@ function TerminalPanelBody({
   renderTerminal,
   focusSessionId,
   focusSwarmId,
+  focusInstanceId,
   focusSignal,
 }: {
   ipc: TerminalIpc;
   renderTerminal: NonNullable<TerminalPanelProps["renderTerminal"]>;
   focusSessionId?: string | null;
   focusSwarmId?: string | null;
+  focusInstanceId?: string | null;
   /** Bumped by the board so a repeat "Inspect terminal" re-arms focus. */
   focusSignal?: number;
 }) {
@@ -137,10 +149,17 @@ function TerminalPanelBody({
         const bySession = focusSessionId
           ? list.find((s) => s.sessionId === focusSessionId)
           : undefined;
-        const bySwarm = !bySession && focusSwarmId
+        // Resolve by source instance_id (the SessionWorkbench knows the swarm
+        // composite instance_id of the selected chat session, which the capture
+        // binding stores on TerminalSession.instanceId) before the swarm-id
+        // fallback. This is the chat-session → captured-terminal link.
+        const byInstance = !bySession && focusInstanceId
+          ? list.find((s) => s.instanceId === focusInstanceId)
+          : undefined;
+        const bySwarm = !bySession && !byInstance && focusSwarmId
           ? list.find((s) => s.swarmId === focusSwarmId)
           : undefined;
-        const target = bySession ?? bySwarm;
+        const target = bySession ?? byInstance ?? bySwarm;
         if (target) {
           focusedSignal.current = focusSignal;
           setActiveId(target.sessionId);
@@ -154,7 +173,7 @@ function TerminalPanelBody({
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     }
-  }, [ipc, focusSessionId, focusSwarmId, focusSignal]);
+  }, [ipc, focusSessionId, focusSwarmId, focusInstanceId, focusSignal]);
 
   useEffect(() => {
     // refresh() awaits ipc.listSessions() BEFORE any setState, so this does not
@@ -334,6 +353,7 @@ export function TerminalPanel({
   renderTerminal = defaultRenderTerminal,
   focusSessionId,
   focusSwarmId,
+  focusInstanceId,
   openSignal,
 }: TerminalPanelProps) {
   return (
@@ -350,6 +370,7 @@ export function TerminalPanel({
         renderTerminal={renderTerminal}
         focusSessionId={focusSessionId}
         focusSwarmId={focusSwarmId}
+        focusInstanceId={focusInstanceId}
         focusSignal={openSignal}
       />
     </Disclosure>

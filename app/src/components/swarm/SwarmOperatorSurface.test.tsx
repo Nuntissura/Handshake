@@ -30,6 +30,7 @@ vi.mock("../../lib/ipc/swarm_runtime", async () => {
       budgetExhausted: false,
     })),
     listActiveSessions: vi.fn(async () => []),
+    listWorktrees: vi.fn(async () => []),
     boardSnapshot: vi.fn(async () => ({ cards: [], liveSessions: 0 })),
     subscribeBoardEvents: vi.fn(async () => () => {}),
     spawnSession: vi.fn(),
@@ -39,7 +40,7 @@ vi.mock("../../lib/ipc/swarm_runtime", async () => {
 });
 
 import { SwarmOperatorSurface } from "./SwarmOperatorSurface";
-import { boardSnapshot } from "../../lib/ipc/swarm_runtime";
+import { boardSnapshot, listActiveSessions } from "../../lib/ipc/swarm_runtime";
 
 describe("SwarmOperatorSurface", () => {
   test("the Swarm Board is behind a disclosure COLLAPSED by default and not everything-at-once", () => {
@@ -73,6 +74,60 @@ describe("SwarmOperatorSurface", () => {
       "true",
     );
     expect(await screen.findByTestId("swarm-board")).toBeInTheDocument();
+  });
+
+  test("the Session workbench chat picker lists local + cloud + CLI sessions (local-only filter is gone)", async () => {
+    // Governance glue #3: the chat picker must offer ALL providers, not just
+    // local. Seed one local, one byok_cloud, one official_cli session (all
+    // READY), open the Session disclosure, and assert each provider's option is
+    // present and tagged via data-provider.
+    vi.mocked(listActiveSessions).mockResolvedValue([
+      {
+        instanceId: { modelId: "alpha-model", instance: 0, composite: "alpha-model#0" },
+        state: "READY",
+        provider: "local",
+        runtimeBinding: "candle",
+        artifactPath: "D:/models/alpha/model.safetensors",
+        cloudModelName: null,
+        worktreeId: null,
+        workingDir: null,
+      },
+      {
+        instanceId: { modelId: "beta-cloud", instance: 0, composite: "beta-cloud#0" },
+        state: "READY",
+        provider: "byok_cloud",
+        runtimeBinding: "cloud",
+        artifactPath: null,
+        cloudModelName: "claude-sonnet-4",
+        worktreeId: null,
+        workingDir: null,
+      },
+      {
+        instanceId: { modelId: "gamma-cli", instance: 0, composite: "gamma-cli#0" },
+        state: "READY",
+        provider: "official_cli",
+        runtimeBinding: "cloud",
+        artifactPath: null,
+        cloudModelName: "claude-code",
+        worktreeId: null,
+        workingDir: null,
+      },
+    ]);
+
+    render(<SwarmOperatorSurface />);
+    // Open the "Session" workbench disclosure (id kept stable as operator-chat).
+    fireEvent.click(screen.getByTestId("disclosure-operator-chat-toggle"));
+
+    const optLocal = await screen.findByTestId("operator-chat-option-alpha-model#0");
+    expect(optLocal).toHaveAttribute("data-provider", "local");
+    expect(screen.getByTestId("operator-chat-option-beta-cloud#0")).toHaveAttribute(
+      "data-provider",
+      "byok_cloud",
+    );
+    expect(screen.getByTestId("operator-chat-option-gamma-cli#0")).toHaveAttribute(
+      "data-provider",
+      "official_cli",
+    );
   });
 
   test("the off-main-window Terminal drawer is mounted (reachable) and collapsed by default", () => {

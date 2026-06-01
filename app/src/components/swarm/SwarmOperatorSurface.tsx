@@ -1,9 +1,9 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { Disclosure } from "../common/Disclosure";
 import { SessionReplayPanel } from "../session/SessionReplayPanel";
 import { TerminalPanel } from "../terminal/TerminalPanel";
-import { OperatorChat } from "./OperatorChat";
+import { SessionWorkbench } from "./SessionWorkbench";
 import { SwarmBoard } from "./SwarmBoard";
 import {
   SwarmResourceSection,
@@ -47,9 +47,21 @@ export function SwarmOperatorSurface({
   // This is what makes the captured-background-work surface REACHABLE in the
   // product instead of shipping dark.
   const [terminalFocusSwarmId, setTerminalFocusSwarmId] = useState<string | null>(null);
+  // Governance glue #3: the SessionWorkbench's "Show captured terminal" focuses
+  // the SAME shared TerminalPanel by the selected chat session's composite
+  // instance_id (the capture binding key). We track it separately from the
+  // board's swarm-id focus and bump the same openSignal so there is exactly one
+  // off-main-window terminal drawer (no second xterm instance).
+  const [terminalFocusInstanceId, setTerminalFocusInstanceId] = useState<string | null>(null);
   const [terminalOpenSignal, setTerminalOpenSignal] = useState(0);
   const handleInspectTerminal = useCallback((swarmId: string) => {
+    setTerminalFocusInstanceId(null);
     setTerminalFocusSwarmId(swarmId);
+    setTerminalOpenSignal((n) => n + 1);
+  }, []);
+  const handleShowSessionTerminal = useCallback((instanceId: string) => {
+    setTerminalFocusSwarmId(null);
+    setTerminalFocusInstanceId(instanceId);
     setTerminalOpenSignal((n) => n + 1);
   }, []);
 
@@ -66,6 +78,23 @@ export function SwarmOperatorSurface({
     setReplayFocusSessionId(instanceId);
     setReplayOpenSignal((n) => n + 1);
   }, []);
+
+  // Governance glue #3: when a session becomes the active chat session — via the
+  // Live Sessions table "Chat" button, auto-select after spawn, or the picker —
+  // force-open the collapsed-by-default "Session" workbench so the chat + its
+  // captured terminal actually become visible. The openSignal is a one-shot
+  // force-open (a no-op when the disclosure is already open; the operator can
+  // still collapse it). Without this, clicking "Chat" silently selected a
+  // session behind a collapsed panel.
+  const [sessionOpenSignal, setSessionOpenSignal] = useState(0);
+  const prevChatInstanceId = useRef<string | null>(null);
+  useEffect(() => {
+    const current = room.chatInstanceId;
+    if (current && current !== prevChatInstanceId.current) {
+      setSessionOpenSignal((n) => n + 1);
+    }
+    prevChatInstanceId.current = current;
+  }, [room.chatInstanceId]);
 
   // Resource budget badge: in-use/cap, or an exhausted chip.
   let resourceBadge: string | undefined;
@@ -114,6 +143,7 @@ export function SwarmOperatorSurface({
           work" capture surface. */}
       <TerminalPanel
         focusSwarmId={terminalFocusSwarmId}
+        focusInstanceId={terminalFocusInstanceId}
         openSignal={terminalOpenSignal}
       />
 
@@ -158,17 +188,24 @@ export function SwarmOperatorSurface({
         <SwarmSessionsSection room={room} />
       </Disclosure>
 
+      {/* The "Session" workbench (governance glue #3): chat (any provider) +
+          a button to focus the shared TerminalPanel on this session's captured
+          stdout + a button to open this session's full transcript. id and
+          data-testid kept stable ("operator-chat") so existing tests/harnesses
+          keep matching; the visible title reflects the broader chat+terminal+
+          transcript scope. */}
       <Disclosure
         id="operator-chat"
-        title="Operator Chat"
+        title="Session"
         count={chatBadge}
         defaultOpen={false}
+        openSignal={sessionOpenSignal}
         data-testid="operator-chat-disclosure"
       >
-        <OperatorChat
-          selectedInstanceId={room.chatInstanceId}
-          localSessions={room.localSessions}
-          onSelectInstance={room.setChatInstanceId}
+        <SessionWorkbench
+          room={room}
+          onShowTerminal={handleShowSessionTerminal}
+          onReviewSession={handleReviewSession}
         />
       </Disclosure>
     </section>

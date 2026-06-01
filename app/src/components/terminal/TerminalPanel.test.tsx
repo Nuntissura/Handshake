@@ -198,6 +198,32 @@ describe("TerminalPanel", () => {
     expect(await screen.findByTestId("terminal-panel-body")).toBeInTheDocument();
   });
 
+  it("focusInstanceId selects the captured session whose source instance_id matches (SessionWorkbench link)", async () => {
+    // The SessionWorkbench knows the selected chat session's composite
+    // instance_id (the capture binding key), not the capture session's own id or
+    // a swarm_id. The panel must resolve it via TerminalSession.instanceId.
+    const ipc = makeIpc([
+      makeSession({ sessionId: "cap-a", instanceId: "alpha-model#0", title: "a" }),
+      makeSession({ sessionId: "cap-b", instanceId: "beta-cloud#0", title: "b" }),
+    ]);
+    const { renderTerminal } = makeRenderRecorder();
+    render(
+      <TerminalPanel
+        ipc={ipc}
+        renderTerminal={renderTerminal}
+        defaultOpen
+        openSignal={1}
+        focusInstanceId="beta-cloud#0"
+      />,
+    );
+
+    // Despite cap-a sorting first, focus targets the session bound to the
+    // requested composite instance_id (beta-cloud#0 -> cap-b).
+    await waitFor(() =>
+      expect(screen.getByTestId("terminal-panel-active")).toHaveAttribute("data-active-session", "cap-b"),
+    );
+  });
+
   it("focusSwarmId selects the first captured session of that swarm on open", async () => {
     // The board knows a swarm_id, not a session_id. The panel must resolve the
     // swarm_id to its first session and make that tab active.
