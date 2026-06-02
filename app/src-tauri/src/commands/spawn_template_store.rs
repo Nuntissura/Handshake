@@ -46,14 +46,16 @@ use serde::{Deserialize, Serialize};
 // Reuse the calendar's provider + runtime-binding enums verbatim: they already
 // model the local/byok_cloud/official_cli lane + the candle/llama binding, and
 // reusing them keeps the two spawn-template stores semantically aligned.
-pub use super::swarm_schedule_store::{TemplateProvider, TemplateRuntimeBinding};
+pub use super::swarm_schedule_store::{
+    TemplateLocalExecutionMode, TemplateProvider, TemplateRuntimeBinding,
+};
 
 /// File name (under `app_data_root`) the per-session spawn templates persist to.
 pub const SPAWN_TEMPLATES_FILE: &str = "session_spawn_templates.json";
 
 /// Current on-disk schema version. Bumped if the persisted shape changes so a
 /// future loader can migrate rather than silently mis-parse.
-pub const SPAWN_TEMPLATES_SCHEMA_VERSION: u32 = 2;
+pub const SPAWN_TEMPLATES_SCHEMA_VERSION: u32 = 3;
 
 /// Operator-intended isolation tier captured on a resume template. Mirrors the
 /// swarm IPC `SwarmIsolationTierIpc` (and through it
@@ -105,6 +107,10 @@ pub struct SessionSpawnTemplate {
     /// Local: runtime binding (`candle` | `llama_cpp`).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub runtime_binding: Option<TemplateRuntimeBinding>,
+    /// Local: explicit execution substrate (`cold` | `warm_vm`). `None` means
+    /// cold/default for backward-compatible templates.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub local_execution_mode: Option<TemplateLocalExecutionMode>,
     /// Cloud: allowlisted cloud model name (e.g. `claude-sonnet-4`, `gpt-4o`).
     /// NEVER the BYOK key — resume re-resolves the key from the vault via the
     /// same lane, so a resume after key rotation/removal honestly fails
@@ -217,9 +223,10 @@ impl SpawnTemplateStore {
     fn normalize_loaded_doc(&self, mut doc: SpawnTemplateDoc) -> Result<SpawnTemplateDoc, String> {
         match doc.schema_version {
             SPAWN_TEMPLATES_SCHEMA_VERSION => Ok(doc),
-            // v1 -> v2 only added optional fields with serde defaults. Loading
-            // it as v2 is a lossless migration; the next save persists v2.
-            1 => {
+            // v1/v2 -> v3 only added optional fields with serde defaults.
+            // Loading them as v3 is a lossless migration; the next save
+            // persists v3.
+            1 | 2 => {
                 doc.schema_version = SPAWN_TEMPLATES_SCHEMA_VERSION;
                 Ok(doc)
             }
@@ -229,7 +236,7 @@ impl SpawnTemplateStore {
                 SPAWN_TEMPLATES_SCHEMA_VERSION
             )),
             version => Err(format!(
-                "spawn template store at {} uses unsupported schema_version {version}; expected {} or compatible v1",
+                "spawn template store at {} uses unsupported schema_version {version}; expected {} or compatible v1/v2",
                 self.path.display(),
                 SPAWN_TEMPLATES_SCHEMA_VERSION
             )),
@@ -315,6 +322,7 @@ mod tests {
             artifact_path: Some("D:/models/qwen.safetensors".to_string()),
             sha256_expected: Some("ab".repeat(32)),
             runtime_binding: Some(TemplateRuntimeBinding::Candle),
+            local_execution_mode: Some(TemplateLocalExecutionMode::Cold),
             cloud_model_name: None,
             byok_cloud_provider: None,
             instance: 2,
@@ -334,6 +342,7 @@ mod tests {
             artifact_path: None,
             sha256_expected: None,
             runtime_binding: None,
+            local_execution_mode: None,
             cloud_model_name: Some("claude-sonnet-4".to_string()),
             byok_cloud_provider: Some(TemplateByokCloudProvider::Anthropic),
             instance: 0,
@@ -436,6 +445,10 @@ mod tests {
         );
         assert_eq!(got.sha256_expected.as_deref(), Some(&"ab".repeat(32)[..]));
         assert_eq!(got.runtime_binding, Some(TemplateRuntimeBinding::Candle));
+        assert_eq!(
+            got.local_execution_mode,
+            Some(TemplateLocalExecutionMode::Cold)
+        );
         assert_eq!(got.instance, 2);
         // working_dir + isolation_tier + lineage survive the round-trip (the
         // two fields the calendar template lacked, plus the resume lineage root).
@@ -491,6 +504,7 @@ mod tests {
         assert_eq!(got.artifact_path, None);
         assert_eq!(got.sha256_expected, None);
         assert_eq!(got.runtime_binding, None);
+        assert_eq!(got.local_execution_mode, None);
     }
 
     #[test]

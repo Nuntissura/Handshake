@@ -4,7 +4,7 @@
 //! `(SwarmSchedule, SpawnTemplate)` pair: the schedule carries the cron + the
 //! `ScheduledAction` (rank-7 core), and the template describes WHAT a scheduled
 //! spin-up actually launches (provider, model artifact/sha or cloud model name,
-//! runtime binding, swarm_id, worktree_id). The pair is serialized to a single
+//! runtime binding, execution mode, swarm_id, worktree_id). The pair is serialized to a single
 //! JSON file under `app_data_root` so registered schedules survive an app
 //! restart: on startup the app LOADS this file, RE-ARMS the scheduler, and
 //! applies the catch-up policy (skip-with-FR-note) for fires that were due while
@@ -28,7 +28,7 @@ pub const SWARM_SCHEDULES_FILE: &str = "swarm_schedules.json";
 
 /// Current on-disk schema version. Bumped if the persisted shape changes so a
 /// future loader can migrate rather than silently mis-parse.
-pub const SWARM_SCHEDULES_SCHEMA_VERSION: u32 = 1;
+pub const SWARM_SCHEDULES_SCHEMA_VERSION: u32 = 2;
 
 /// The spawn TEMPLATE stored alongside a schedule: WHAT a scheduled spin-up
 /// launches. This is the orchestrator's spawn-template decision made durable —
@@ -51,6 +51,11 @@ pub struct SpawnTemplate {
     /// Local: runtime binding (`candle` | `llama_cpp`).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub runtime_binding: Option<TemplateRuntimeBinding>,
+    /// Local: explicit execution substrate (`cold` | `warm_vm`). `None` means
+    /// cold/backward-compatible. Warm mode is opt-in and must not silently
+    /// downgrade when a scheduled fire rebuilds the request.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub local_execution_mode: Option<TemplateLocalExecutionMode>,
     /// Cloud: allowlisted cloud model name (e.g. `claude-sonnet-4`, `gpt-4o`).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cloud_model_name: Option<String>,
@@ -61,6 +66,14 @@ pub struct SpawnTemplate {
     /// recovery). Carried into the `SpawnRequest` via `with_worktree`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub worktree_id: Option<String>,
+    /// Operator-intended isolation tier. Required for valid warm VM requests.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub isolation_tier: Option<TemplateIsolationTier>,
+    /// Local committed-memory estimate in bytes. Preserved for scheduled local
+    /// spinups so committed-memory admission does not fail solely because the
+    /// schedule template dropped the estimate.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub committed_memory_bytes: Option<u64>,
     /// Parent session id for ledger lineage. Defaults to a schedule tag.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub parent_session_id: Option<String>,
@@ -79,6 +92,21 @@ pub enum TemplateProvider {
 pub enum TemplateRuntimeBinding {
     Candle,
     LlamaCpp,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TemplateLocalExecutionMode {
+    Cold,
+    WarmVm,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TemplateIsolationTier {
+    Tier1Container,
+    Tier2Syscall,
+    Tier3Microvm,
 }
 
 /// One registered schedule = a `SwarmSchedule` (cron + action) plus its
@@ -224,12 +252,15 @@ impl SwarmScheduleStore {
     /// operator's schedule set.
     pub fn load(&self) -> Result<SwarmScheduleDoc, String> {
         match std::fs::read(&self.path) {
-            Ok(bytes) => serde_json::from_slice::<SwarmScheduleDoc>(&bytes).map_err(|error| {
-                format!(
-                    "swarm schedule store at {} is corrupt: {error}",
-                    self.path.display()
-                )
-            }),
+            Ok(bytes) => {
+                let doc = serde_json::from_slice::<SwarmScheduleDoc>(&bytes).map_err(|error| {
+                    format!(
+                        "swarm schedule store at {} is corrupt: {error}",
+                        self.path.display()
+                    )
+                })?;
+                self.normalize_loaded_doc(doc)
+            }
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
                 Ok(SwarmScheduleDoc::default())
             }
@@ -240,22 +271,54 @@ impl SwarmScheduleStore {
         }
     }
 
+    fn normalize_loaded_doc(&self, mut doc: SwarmScheduleDoc) -> Result<SwarmScheduleDoc, String> {
+        match doc.schema_version {
+            SWARM_SCHEDULES_SCHEMA_VERSION => Ok(doc),
+            // v1 -> v2 only added optional fields with serde defaults. Loading
+            // it as v2 is lossless; the next save persists v2.
+            1 => {
+                doc.schema_version = SWARM_SCHEDULES_SCHEMA_VERSION;
+                Ok(doc)
+            }
+            version if version > SWARM_SCHEDULES_SCHEMA_VERSION => Err(format!(
+                "swarm schedule store at {} uses unsupported schema_version {version}; this app supports {}",
+                self.path.display(),
+                SWARM_SCHEDULES_SCHEMA_VERSION
+            )),
+            version => Err(format!(
+                "swarm schedule store at {} uses unsupported schema_version {version}; expected {} or compatible v1",
+                self.path.display(),
+                SWARM_SCHEDULES_SCHEMA_VERSION
+            )),
+        }
+    }
+
     /// Persist the document atomically (write a temp file in the same directory,
     /// then rename over the target) so a crash mid-write cannot corrupt the live
     /// schedule set. Creates the parent directory if needed.
     pub fn save(&self, doc: &SwarmScheduleDoc) -> Result<(), String> {
         if let Some(parent) = self.path.parent() {
             std::fs::create_dir_all(parent).map_err(|error| {
-                format!("failed to create schedule store dir {}: {error}", parent.display())
+                format!(
+                    "failed to create schedule store dir {}: {error}",
+                    parent.display()
+                )
             })?;
         }
-        let json = serde_json::to_vec_pretty(doc)
+        let mut doc = doc.clone();
+        doc.schema_version = SWARM_SCHEDULES_SCHEMA_VERSION;
+        let json = serde_json::to_vec_pretty(&doc)
             .map_err(|error| format!("failed to serialize swarm schedules: {error}"))?;
         // Unique temp name in the same dir so the final rename is atomic on the
         // same filesystem.
-        let tmp = self.path.with_extension(format!("json.tmp.{}", std::process::id()));
+        let tmp = self
+            .path
+            .with_extension(format!("json.tmp.{}", std::process::id()));
         std::fs::write(&tmp, &json).map_err(|error| {
-            format!("failed to write temp schedule store {}: {error}", tmp.display())
+            format!(
+                "failed to write temp schedule store {}: {error}",
+                tmp.display()
+            )
         })?;
         std::fs::rename(&tmp, &self.path).map_err(|error| {
             // Best-effort cleanup of the temp file on rename failure.
@@ -288,9 +351,12 @@ mod tests {
             artifact_path: Some("D:/models/qwen.safetensors".to_string()),
             sha256_expected: Some("ab".repeat(32)),
             runtime_binding: Some(TemplateRuntimeBinding::Candle),
+            local_execution_mode: None,
             cloud_model_name: None,
             instance: 0,
             worktree_id: Some("wt-research".to_string()),
+            isolation_tier: Some(TemplateIsolationTier::Tier3Microvm),
+            committed_memory_bytes: Some(6 * 1024 * 1024 * 1024),
             parent_session_id: Some("calendar".to_string()),
         };
         RegisteredSchedule::new(&schedule, template)
@@ -344,7 +410,10 @@ mod tests {
         let reloaded = store.load().expect("reload");
         assert_eq!(reloaded.schedules.len(), 1);
         assert_eq!(reloaded.schedules[0], doc.schedules[0]);
-        assert_eq!(reloaded.schedules[0].template.artifact_path.as_deref(), Some("D:/models/qwen.safetensors"));
+        assert_eq!(
+            reloaded.schedules[0].template.artifact_path.as_deref(),
+            Some("D:/models/qwen.safetensors")
+        );
     }
 
     #[test]

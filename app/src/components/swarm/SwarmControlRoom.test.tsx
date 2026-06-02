@@ -189,7 +189,10 @@ describe("SwarmControlRoom spawn-form assignment controls", () => {
 
     // The mandatory Tier3 scope honesty note is present.
     expect(screen.getByTestId("swarm-isolation-note")).toHaveTextContent(
-      /Tier3 microVM is enforced for local llama\.cpp/i,
+      /Tier3 local llama\.cpp uses cold microVM unless Warm VM is selected/i,
+    );
+    expect(screen.getByTestId("swarm-isolation-note")).toHaveTextContent(
+      /resident guest agent support/i,
     );
     // The disk working-dir field is optional and present.
     expect(screen.getByTestId("swarm-spawn-working-dir")).toBeInTheDocument();
@@ -310,6 +313,9 @@ describe("SwarmControlRoom spawn-form assignment controls", () => {
     fireEvent.change(screen.getByTestId("swarm-spawn-binding"), {
       target: { value: "llama_cpp" },
     });
+    fireEvent.change(screen.getByTestId("swarm-spawn-local-execution-mode"), {
+      target: { value: "warm_vm" },
+    });
     fireEvent.change(screen.getByTestId("swarm-spawn-artifact-path"), {
       target: { value: "D:/models/tiny.gguf" },
     });
@@ -347,6 +353,7 @@ describe("SwarmControlRoom spawn-form assignment controls", () => {
     };
     expect(request.local.provider).toBe("local");
     expect(request.local.runtimeBinding).toBe("llama_cpp");
+    expect(request.local.localExecutionMode).toBe("warm_vm");
     expect(request.local.swarmId).toBe("wt-pair");
     expect(request.local.worktreeId).toBe("wt-pair");
     expect(request.local.committedMemoryBytes).toBe(4 * 1024 * 1024 * 1024);
@@ -355,6 +362,7 @@ describe("SwarmControlRoom spawn-form assignment controls", () => {
     expect(request.cloud.swarmId).toBe("wt-pair");
     expect(request.cloud.worktreeId).toBe("wt-pair");
     expect(request.cloud.workingDir).toBe("./worktrees/wt-pair");
+    expect("localExecutionMode" in request.cloud).toBe(false);
     expect("committedMemoryBytes" in request.cloud).toBe(false);
     expect(screen.getByTestId("swarm-spawn-notice")).toHaveTextContent(/Pair attempted/i);
   });
@@ -457,6 +465,7 @@ describe("SwarmControlRoom spawn-form assignment controls", () => {
         state: "READY",
         provider: "local",
         runtimeBinding: "candle",
+        localExecutionMode: "warm_vm",
         artifactPath: "/m/a.safetensors",
         cloudModelName: null,
         worktreeId: "wt-assigned",
@@ -467,6 +476,7 @@ describe("SwarmControlRoom spawn-form assignment controls", () => {
         state: "READY",
         provider: "byok_cloud",
         runtimeBinding: "cloud",
+        localExecutionMode: null,
         artifactPath: null,
         cloudModelName: "gpt-4o",
         worktreeId: null,
@@ -478,6 +488,10 @@ describe("SwarmControlRoom spawn-form assignment controls", () => {
     expect(await screen.findByTestId("swarm-session-worktree-alpha#0")).toHaveTextContent(
       "wt-assigned",
     );
+    expect(screen.getByTestId("swarm-session-execution-mode-alpha#0")).toHaveTextContent(
+      "warm_vm",
+    );
     expect(screen.getByTestId("swarm-session-worktree-beta#0")).toHaveTextContent("—");
+    expect(screen.getByTestId("swarm-session-execution-mode-beta#0")).toHaveTextContent("—");
   });
 });

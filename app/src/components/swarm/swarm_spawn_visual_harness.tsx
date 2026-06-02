@@ -9,7 +9,7 @@
 // resourceSnapshot returns a healthy budget, and spawnSession echoes a composite
 // id. Everything else (the worktree picker, the new-entry reveal, the disk
 // working-dir field, the recorded-only isolation-tier selector + its honesty
-// note, the sessions-table Worktree column) is the REAL component's render.
+// note, and the sessions-table Worktree/Mode columns) is the REAL component's render.
 import { createElement as h } from "react";
 import { createRoot } from "react-dom/client";
 import { mockIPC } from "@tauri-apps/api/mocks";
@@ -21,6 +21,7 @@ interface SwarmSessionLike {
   state: string;
   provider: string;
   runtimeBinding: string;
+  localExecutionMode?: string | null;
   artifactPath: string | null;
   cloudModelName: string | null;
   worktreeId: string | null;
@@ -33,6 +34,7 @@ const SESSIONS: SwarmSessionLike[] = [
     state: "READY",
     provider: "local",
     runtimeBinding: "candle",
+    localExecutionMode: "warm_vm",
     artifactPath: "D:/models/alpha/model.safetensors",
     cloudModelName: null,
     worktreeId: "wt-feature-x",
@@ -43,6 +45,7 @@ const SESSIONS: SwarmSessionLike[] = [
     state: "GENERATING",
     provider: "byok_cloud",
     runtimeBinding: "cloud",
+    localExecutionMode: null,
     artifactPath: null,
     cloudModelName: "gpt-4o",
     worktreeId: null,

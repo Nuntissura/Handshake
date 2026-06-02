@@ -1,7 +1,11 @@
 use std::path::PathBuf;
 
+use std::sync::Arc;
+
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
+
+use crate::model_runtime::WarmAgentTransport;
 
 use super::types::{
     AdapterId, BindMode, Command, ExecResult, NetPolicy, ProcessHandle, ProcessSpec, ProcessStatus,
@@ -235,6 +239,21 @@ pub trait SandboxAdapter: Send + Sync {
         let _ = (handle, guest_path, host_path);
         Err(SandboxAdapterError::CopyUnsupported {
             adapter_id: self.capabilities().adapter_id,
+        })
+    }
+
+    /// Return a live warm-agent transport for an already spawned/restored
+    /// persistent VM handle. The default is fail-closed: generic sandbox command
+    /// execution is not enough to claim warm model streaming.
+    async fn warm_agent_transport(
+        &self,
+        handle: &ProcessHandle,
+    ) -> Result<Arc<dyn WarmAgentTransport>, SandboxAdapterError> {
+        let _ = handle;
+        Err(SandboxAdapterError::SpawnFailed {
+            adapter_id: self.capabilities().adapter_id,
+            reason: "sandbox adapter does not expose a resident warm-model guest agent transport"
+                .to_string(),
         })
     }
 

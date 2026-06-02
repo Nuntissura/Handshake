@@ -8,6 +8,7 @@ import { invoke } from "@tauri-apps/api/core";
 export type SwarmProvider = "local" | "byok_cloud" | "official_cli";
 export type ByokCloudProvider = "anthropic" | "openai";
 export type SwarmRuntimeBinding = "candle" | "llama_cpp";
+export type SwarmLocalExecutionMode = "cold" | "warm_vm";
 
 /**
  * Recorded-only isolation tier the operator INTENDS for a session. Mirrors the
@@ -25,6 +26,12 @@ export interface SwarmSpawnRequest {
   sha256Expected?: string;
   /** Local: required. candle | llama_cpp. */
   runtimeBinding?: SwarmRuntimeBinding;
+  /**
+   * Local: optional explicit execution substrate. Omitted/cold preserves the
+   * current cold path; warm_vm is validated by the backend and fails closed when
+   * the resident warm agent is unavailable.
+   */
+  localExecutionMode?: SwarmLocalExecutionMode;
   /** Cloud: required. Allowlisted cloud model name (e.g. gpt-4o). */
   cloudModelName?: string;
   /** BYOK cloud only: exact Anthropic/OpenAI lane when selected. */
@@ -102,12 +109,14 @@ export interface SwarmSession {
   state: string;
   provider: string;
   runtimeBinding: string;
+  localExecutionMode?: SwarmLocalExecutionMode | null;
   artifactPath: string | null;
   cloudModelName: string | null;
   /** Assigned VM/sandbox worktree (board swimlane + recovery grouping), or null. */
   worktreeId: string | null;
   /** Recorded on-disk working dir attribution, or null. Never executed in. */
   workingDir: string | null;
+  isolationTier?: SwarmIsolationTier | null;
 }
 
 /**
@@ -213,6 +222,7 @@ export interface SessionSpawnTemplate {
   artifactPath?: string | null;
   sha256Expected?: string | null;
   runtimeBinding?: SwarmRuntimeBinding | null;
+  localExecutionMode?: SwarmLocalExecutionMode | null;
   cloudModelName?: string | null;
   byokCloudProvider?: ByokCloudProvider | null;
   swarmId?: string | null;

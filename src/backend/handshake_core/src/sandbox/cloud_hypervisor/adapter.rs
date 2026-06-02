@@ -24,6 +24,11 @@ use crate::sandbox::{
     SandboxAdapter, SandboxAdapterError, Signal, SnapshotRef, ThroughputClass,
 };
 
+use super::guest_agent::{
+    warm_agent_unavailable_detail, CLOUD_HYPERVISOR_WARM_AGENT_REQUIRED_TRANSPORT,
+    CLOUD_HYPERVISOR_WARM_AGENT_UNAVAILABLE_REASON,
+};
+
 #[cfg(windows)]
 use std::os::windows::process::CommandExt;
 
@@ -80,14 +85,6 @@ pub const SANDBOX_MODE_PERSISTENT: &str = "persistent";
 /// the typed `ProcessSpec.idle_timeout_ms`; this key remains a compatibility
 /// fallback for pre-field persisted specs and scripts.
 pub const SANDBOX_IDLE_TIMEOUT_METADATA_KEY: &str = "hsk.sandbox.idle_timeout_ms";
-
-pub const CLOUD_HYPERVISOR_WARM_AGENT_REQUIRED_TRANSPORT: &str =
-    "model-bearing guest agent over serial/vsock";
-pub const CLOUD_HYPERVISOR_WARM_AGENT_UNAVAILABLE_REASON: &str =
-    "Cloud Hypervisor persistent VMs now expose a serial-socket command channel, \
-     but warm-model RPC and live token streaming require a resident model-serving \
-     guest agent/image; serial is the bootstrap transport and virtio-vsock remains \
-     the hardened follow-on";
 
 /// Marker the persistent `/init` records once in guest RAM. State-preservation
 /// tests use the adjacent `/tmp/hsk-tick` value to prove restore resumed instead
@@ -1751,6 +1748,24 @@ impl SandboxAdapter for CloudHypervisorAdapter {
             .insert(handle.id, child);
 
         Ok(handle)
+    }
+
+    async fn warm_agent_transport(
+        &self,
+        handle: &ProcessHandle,
+    ) -> Result<Arc<dyn crate::model_runtime::WarmAgentTransport>, SandboxAdapterError> {
+        self.ensure_handle(handle)?;
+        let status = self.warm_agent_status();
+        Err(spawn_failed(format!(
+            "Cloud Hypervisor warm-agent transport unavailable: required_transport={}, \
+             persistent_exec_supported={}, warm_agent_supported={}, \
+             live_token_stream_supported={}, {}",
+            status.required_transport,
+            status.persistent_exec_supported,
+            status.warm_agent_supported,
+            status.live_token_stream_supported,
+            warm_agent_unavailable_detail()
+        )))
     }
 
     fn capabilities(&self) -> AdapterCapabilities {

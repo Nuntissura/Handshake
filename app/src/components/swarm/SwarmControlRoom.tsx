@@ -10,6 +10,7 @@ import {
   type ByokCloudProvider,
   type SessionSpawnTemplate,
   type SwarmIsolationTier,
+  type SwarmLocalExecutionMode,
   type SwarmProvider,
   type SwarmResourceSnapshot,
   type SwarmRuntimeBinding,
@@ -29,6 +30,14 @@ export const ISOLATION_TIER_OPTIONS: ReadonlyArray<{ value: SwarmIsolationTier; 
   { value: "tier1_container", label: "tier1_container (shared-kernel container)" },
   { value: "tier2_syscall", label: "tier2_syscall (syscall-filtered)" },
   { value: "tier3_microvm", label: "tier3_microvm (hardware-isolated microVM)" },
+];
+
+export const LOCAL_EXECUTION_MODE_OPTIONS: ReadonlyArray<{
+  value: SwarmLocalExecutionMode;
+  label: string;
+}> = [
+  { value: "cold", label: "Cold local" },
+  { value: "warm_vm", label: "Warm VM" },
 ];
 
 // SwarmControlRoom: the real operator surface for the multi-model swarm. Polls
@@ -153,6 +162,8 @@ export function useSwarmRoom() {
     useState<Extract<SwarmProvider, "byok_cloud" | "official_cli">>("byok_cloud");
   const [byokCloudProvider, setByokCloudProvider] = useState<ByokCloudProvider>("openai");
   const [runtimeBinding, setRuntimeBinding] = useState<SwarmRuntimeBinding>("candle");
+  const [localExecutionMode, setLocalExecutionMode] =
+    useState<SwarmLocalExecutionMode>("cold");
   const [artifactPath, setArtifactPath] = useState("");
   const [sha256, setSha256] = useState("");
   const [cloudModelName, setCloudModelName] = useState("");
@@ -255,6 +266,9 @@ export function useSwarmRoom() {
         applyAssignment({
           provider: "local",
           runtimeBinding,
+          ...(localExecutionMode === "warm_vm"
+            ? { localExecutionMode }
+            : {}),
           artifactPath: artifactPath.trim(),
           sha256Expected: sha256.trim(),
           instance,
@@ -324,6 +338,7 @@ export function useSwarmRoom() {
     cloudProvider,
     byokCloudProvider,
     runtimeBinding,
+    localExecutionMode,
     artifactPath,
     sha256,
     cloudModelName,
@@ -349,6 +364,7 @@ export function useSwarmRoom() {
   const prefillSpawnForm = useCallback((tpl: SessionSpawnTemplate) => {
     setProvider(tpl.provider);
     setRuntimeBinding(tpl.runtimeBinding ?? "candle");
+    setLocalExecutionMode(tpl.localExecutionMode ?? "cold");
     setArtifactPath(tpl.artifactPath ?? "");
     setSha256(tpl.sha256Expected ?? "");
     setCloudModelName(tpl.cloudModelName ?? "");
@@ -410,6 +426,8 @@ export function useSwarmRoom() {
     setByokCloudProvider,
     runtimeBinding,
     setRuntimeBinding,
+    localExecutionMode,
+    setLocalExecutionMode,
     artifactPath,
     setArtifactPath,
     sha256,
@@ -546,6 +564,8 @@ export function SwarmSpawnSection({ room }: { room: SwarmRoom }) {
     setByokCloudProvider,
     runtimeBinding,
     setRuntimeBinding,
+    localExecutionMode,
+    setLocalExecutionMode,
     artifactPath,
     setArtifactPath,
     sha256,
@@ -662,6 +682,22 @@ export function SwarmSpawnSection({ room }: { room: SwarmRoom }) {
               >
                 <option value="candle">candle (safetensors)</option>
                 <option value="llama_cpp">llama.cpp (GGUF)</option>
+              </select>
+            </label>
+            <label>
+              <span>Execution mode</span>
+              <select
+                value={localExecutionMode}
+                data-testid="swarm-spawn-local-execution-mode"
+                onChange={(event) =>
+                  setLocalExecutionMode(event.target.value as SwarmLocalExecutionMode)
+                }
+              >
+                {LOCAL_EXECUTION_MODE_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
               </select>
             </label>
           </div>
@@ -812,9 +848,9 @@ export function SwarmSpawnSection({ room }: { room: SwarmRoom }) {
           ) : null}
         </div>
         <p className="swarm-notice" data-testid="swarm-isolation-note">
-          Tier3 microVM is enforced for local llama.cpp when sandbox support is wired.
+          Tier3 local llama.cpp uses cold microVM unless Warm VM is selected.
+          Warm VM requires an assigned worktree and resident guest agent support.
           Committed memory is reserved when the app run has a memory ceiling.
-          Other tier/provider combinations remain assignment metadata.
         </p>
       </fieldset>
 
@@ -872,6 +908,7 @@ export function SwarmSessionsSection({ room }: { room: SwarmRoom }) {
               <th>State</th>
               <th>Provider</th>
               <th>Binding</th>
+              <th>Mode</th>
               <th>Worktree</th>
               <th>Source</th>
               <th>Actions</th>
@@ -893,6 +930,9 @@ export function SwarmSessionsSection({ room }: { room: SwarmRoom }) {
                   <td>{session.state}</td>
                   <td>{session.provider}</td>
                   <td>{session.runtimeBinding}</td>
+                  <td data-testid={`swarm-session-execution-mode-${composite}`}>
+                    {session.localExecutionMode ?? "—"}
+                  </td>
                   <td
                     data-testid={`swarm-session-worktree-${composite}`}
                     title={session.workingDir ?? undefined}

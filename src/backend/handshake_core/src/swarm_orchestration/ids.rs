@@ -7,9 +7,9 @@ use std::fmt;
 
 use serde::{Deserialize, Serialize};
 
-use crate::model_runtime::registry::RuntimeBinding;
 use crate::model_runtime::ModelId;
 use crate::model_runtime::ProviderKind;
+use crate::model_runtime::{registry::RuntimeBinding, WarmVmSnapshotManifest};
 
 /// Specific BYOK provider under the coarse `ProviderKind::ByokCloud` lane.
 /// Kept optional on [`SpawnRequest`] for backward compatibility: old callers
@@ -20,6 +20,19 @@ pub enum ByokCloudProvider {
     Anthropic,
     #[serde(rename = "openai", alias = "open_ai")]
     OpenAi,
+}
+
+/// Optional execution mode for a local model spawn.
+///
+/// This stays separate from [`RuntimeBinding`] so the model engine remains
+/// `LlamaCpp`/`Candle` while the execution substrate can be selected explicitly.
+/// The warm VM mode is opt-in only; cold Tier-3 sandbox routing remains the
+/// default for `Local + LlamaCpp + Tier3Microvm`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum LocalExecutionMode {
+    Cold,
+    WarmVm,
 }
 
 /// Identifies one *instance* of a model in the swarm. The same `ModelId` may
@@ -127,6 +140,16 @@ pub struct SpawnRequest {
     /// lanes do not reserve host committed memory, so their estimates are
     /// ignored by admission and remain backward-compatible.
     pub committed_memory_bytes: Option<u64>,
+    /// Explicit local execution substrate. `None` and `Some(Cold)` preserve the
+    /// existing behavior. `Some(WarmVm)` requires `Local + LlamaCpp +
+    /// Tier3Microvm` plus a resident warm-agent transport; it must fail closed
+    /// instead of silently falling back to cold sandbox stdout chunking.
+    pub local_execution_mode: Option<LocalExecutionMode>,
+    /// Optional restored warm-VM snapshot manifest. Only valid with
+    /// `local_execution_mode == Some(WarmVm)`. The production factory validates
+    /// this against the request's model hash, guest model path, and worktree
+    /// before calling the adapter's snapshot restore path.
+    pub warm_vm_restore_manifest: Option<WarmVmSnapshotManifest>,
 }
 
 impl SpawnRequest {
@@ -156,6 +179,8 @@ impl SpawnRequest {
             isolation_tier: None,
             time_box: None,
             committed_memory_bytes: None,
+            local_execution_mode: None,
+            warm_vm_restore_manifest: None,
         }
     }
 
@@ -245,6 +270,25 @@ impl SpawnRequest {
     pub fn with_committed_memory_bytes(mut self, bytes: u64) -> Self {
         self.committed_memory_bytes = (bytes > 0).then_some(bytes);
         self
+    }
+
+    /// Explicitly request the resident warm-VM local execution path. Callers
+    /// must still set `RuntimeBinding::LlamaCpp`, `ProviderKind::Local`, and
+    /// `IsolationTier::Tier3Microvm`; the production factory enforces that
+    /// contract before any sandbox is spawned.
+    pub fn with_warm_vm_execution(mut self) -> Self {
+        self.local_execution_mode = Some(LocalExecutionMode::WarmVm);
+        self
+    }
+
+    pub fn with_warm_vm_restore_manifest(mut self, manifest: WarmVmSnapshotManifest) -> Self {
+        self.local_execution_mode = Some(LocalExecutionMode::WarmVm);
+        self.warm_vm_restore_manifest = Some(manifest);
+        self
+    }
+
+    pub fn wants_warm_vm_execution(&self) -> bool {
+        self.local_execution_mode == Some(LocalExecutionMode::WarmVm)
     }
 
     pub fn swarm_id(&self) -> Option<&str> {

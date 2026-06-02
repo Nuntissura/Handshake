@@ -45,6 +45,7 @@ use handshake_core::flight_recorder::{
 };
 use handshake_core::model_runtime::registry::RuntimeBinding;
 use handshake_core::model_runtime::{ModelId, ProviderKind};
+use handshake_core::swarm_orchestration::ids::LocalExecutionMode;
 use handshake_core::swarm_orchestration::{
     schedules_to_ics, ModelInstanceId, ScheduledAction, ScheduledFire, SpawnRequest,
     SwarmCoordinator, SwarmFrEventId, SwarmSchedule, SwarmScheduler,
@@ -55,7 +56,7 @@ use uuid::Uuid;
 
 use super::swarm_schedule_store::{
     PersistedAction, RegisteredSchedule, SpawnTemplate, SwarmScheduleDoc, SwarmScheduleStore,
-    TemplateProvider, TemplateRuntimeBinding,
+    TemplateIsolationTier, TemplateLocalExecutionMode, TemplateProvider, TemplateRuntimeBinding,
 };
 
 pub const KERNEL_SWARM_SCHEDULE_ADD_IPC_CHANNEL: &str = "kernel_swarm_schedule_add";
@@ -194,12 +195,8 @@ impl FireContext {
                 let recorder = self.recorder.clone();
                 let scheduled_instances = self.scheduled_instances.clone();
                 self.runtime.spawn(async move {
-                    let cancelled = cancel_swarm_sessions(
-                        &coordinator,
-                        &swarm,
-                        &scheduled_instances,
-                    )
-                    .await;
+                    let cancelled =
+                        cancel_swarm_sessions(&coordinator, &swarm, &scheduled_instances).await;
                     emit_fr_note(
                         &recorder,
                         trace_id,
@@ -322,7 +319,8 @@ fn build_spawn_request(
                 Some(TemplateRuntimeBinding::LlamaCpp) => RuntimeBinding::LlamaCpp,
                 None => {
                     return Err(
-                        "local template requires a runtime_binding (candle | llama_cpp)".to_string(),
+                        "local template requires a runtime_binding (candle | llama_cpp)"
+                            .to_string(),
                     )
                 }
             };
@@ -340,16 +338,32 @@ fn build_spawn_request(
                 .ok_or_else(|| {
                     "local template requires sha256_expected (the integrity gate)".to_string()
                 })?;
-            SpawnRequest::new(instance_id, binding, "operator", parent)
-                .with_local_artifact(path.to_string(), sha.to_string())
+            let mut spawn = SpawnRequest::new(instance_id, binding, "operator", parent)
+                .with_local_artifact(path.to_string(), sha.to_string());
+            match template.local_execution_mode {
+                Some(TemplateLocalExecutionMode::WarmVm) => {
+                    validate_warm_template(template, binding)?;
+                    spawn = spawn.with_warm_vm_execution();
+                }
+                Some(TemplateLocalExecutionMode::Cold) => {
+                    spawn.local_execution_mode = Some(LocalExecutionMode::Cold);
+                }
+                None => {}
+            }
+            spawn
         }
         TemplateProvider::ByokCloud | TemplateProvider::OfficialCli => {
+            if template.local_execution_mode.is_some() {
+                return Err("local_execution_mode is only valid for local templates".to_string());
+            }
             let model_name = template
                 .cloud_model_name
                 .as_deref()
                 .map(str::trim)
                 .filter(|s| !s.is_empty())
-                .ok_or_else(|| "cloud template requires a non-empty cloud_model_name".to_string())?;
+                .ok_or_else(|| {
+                    "cloud template requires a non-empty cloud_model_name".to_string()
+                })?;
             let provider = match template.provider {
                 TemplateProvider::ByokCloud => ProviderKind::ByokCloud,
                 TemplateProvider::OfficialCli => ProviderKind::OfficialCli,
@@ -375,7 +389,67 @@ fn build_spawn_request(
     {
         spawn = spawn.with_worktree(worktree.to_string());
     }
+    if let Some(tier) = template.isolation_tier {
+        spawn = spawn.with_isolation_tier(template_isolation_to_core(tier));
+    }
+    if matches!(template.provider, TemplateProvider::Local) {
+        if let Some(bytes) = template.committed_memory_bytes.filter(|bytes| *bytes > 0) {
+            spawn = spawn.with_committed_memory_bytes(bytes);
+        }
+    }
     Ok(spawn)
+}
+
+fn validate_schedule_template_for_registration(template: &SpawnTemplate) -> Result<(), String> {
+    match template.provider {
+        TemplateProvider::Local => {
+            if matches!(
+                template.local_execution_mode,
+                Some(TemplateLocalExecutionMode::WarmVm)
+            ) {
+                let binding = match template.runtime_binding {
+                    Some(TemplateRuntimeBinding::LlamaCpp) => RuntimeBinding::LlamaCpp,
+                    Some(TemplateRuntimeBinding::Candle) | None => RuntimeBinding::Candle,
+                };
+                validate_warm_template(template, binding)?;
+            }
+        }
+        TemplateProvider::ByokCloud | TemplateProvider::OfficialCli => {
+            if template.local_execution_mode.is_some() {
+                return Err("local_execution_mode is only valid for local templates".to_string());
+            }
+        }
+    }
+    Ok(())
+}
+
+fn validate_warm_template(template: &SpawnTemplate, binding: RuntimeBinding) -> Result<(), String> {
+    if binding != RuntimeBinding::LlamaCpp {
+        return Err("warm_vm scheduled spin-up requires runtime_binding=llama_cpp".to_string());
+    }
+    if template.isolation_tier != Some(TemplateIsolationTier::Tier3Microvm) {
+        return Err("warm_vm scheduled spin-up requires isolation_tier=tier3_microvm".to_string());
+    }
+    let has_worktree = template
+        .worktree_id
+        .as_deref()
+        .map(str::trim)
+        .is_some_and(|s| !s.is_empty());
+    if !has_worktree {
+        return Err("warm_vm scheduled spin-up requires a non-empty worktree_id".to_string());
+    }
+    Ok(())
+}
+
+fn template_isolation_to_core(
+    tier: TemplateIsolationTier,
+) -> handshake_core::sandbox::adapter::IsolationTier {
+    use handshake_core::sandbox::adapter::IsolationTier;
+    match tier {
+        TemplateIsolationTier::Tier1Container => IsolationTier::Tier1Container,
+        TemplateIsolationTier::Tier2Syscall => IsolationTier::Tier2Syscall,
+        TemplateIsolationTier::Tier3Microvm => IsolationTier::Tier3Microvm,
+    }
 }
 
 /// Record an `FR-EVT-SWARM-SCHED-*` event into the durable recorder, or emit a
@@ -581,10 +655,7 @@ impl SwarmSchedulerState {
                 .start()
                 .await
                 .map_err(|error| format!("failed to start swarm scheduler: {error}"))?;
-            self.inner
-                .lock()
-                .expect("scheduler state poisoned")
-                .started = true;
+            self.inner.lock().expect("scheduler state poisoned").started = true;
         }
         Ok(())
     }
@@ -592,6 +663,7 @@ impl SwarmSchedulerState {
     /// Arm one registered schedule on the live scheduler + record its template.
     /// Does NOT persist (the caller batches persistence).
     async fn arm_schedule(&self, reg: &RegisteredSchedule) -> Result<(), String> {
+        validate_schedule_template_for_registration(&reg.template)?;
         let schedule = reg.to_swarm_schedule();
         let ctx = self.fire_ctx.clone();
         let on_fire: handshake_core::swarm_orchestration::schedule::ScheduleFireFn =
@@ -724,10 +796,7 @@ impl SwarmSchedulerState {
                 .start()
                 .await
                 .map_err(|error| format!("failed to restart swarm scheduler: {error}"))?;
-            self.inner
-                .lock()
-                .expect("scheduler state poisoned")
-                .started = true;
+            self.inner.lock().expect("scheduler state poisoned").started = true;
         }
         Ok(())
     }
@@ -821,11 +890,17 @@ pub struct SpawnTemplateIpc {
     #[serde(default)]
     pub runtime_binding: Option<ScheduleRuntimeBindingIpc>,
     #[serde(default)]
+    pub local_execution_mode: Option<TemplateLocalExecutionMode>,
+    #[serde(default)]
     pub cloud_model_name: Option<String>,
     #[serde(default)]
     pub instance: u32,
     #[serde(default)]
     pub worktree_id: Option<String>,
+    #[serde(default)]
+    pub isolation_tier: Option<TemplateIsolationTier>,
+    #[serde(default)]
+    pub committed_memory_bytes: Option<u64>,
     #[serde(default)]
     pub parent_session_id: Option<String>,
 }
@@ -837,9 +912,12 @@ impl From<SpawnTemplateIpc> for SpawnTemplate {
             artifact_path: value.artifact_path,
             sha256_expected: value.sha256_expected,
             runtime_binding: value.runtime_binding.map(Into::into),
+            local_execution_mode: value.local_execution_mode,
             cloud_model_name: value.cloud_model_name,
             instance: value.instance,
             worktree_id: value.worktree_id,
+            isolation_tier: value.isolation_tier,
+            committed_memory_bytes: value.committed_memory_bytes,
             parent_session_id: value.parent_session_id,
         }
     }
@@ -903,6 +981,9 @@ pub struct RegisteredScheduleIpc {
     pub artifact_path: Option<String>,
     pub cloud_model_name: Option<String>,
     pub worktree_id: Option<String>,
+    pub local_execution_mode: Option<TemplateLocalExecutionMode>,
+    pub isolation_tier: Option<TemplateIsolationTier>,
+    pub committed_memory_bytes: Option<u64>,
     pub registered_at: String,
 }
 
@@ -928,6 +1009,9 @@ impl From<RegisteredSchedule> for RegisteredScheduleIpc {
             artifact_path: reg.template.artifact_path,
             cloud_model_name: reg.template.cloud_model_name,
             worktree_id: reg.template.worktree_id,
+            local_execution_mode: reg.template.local_execution_mode,
+            isolation_tier: reg.template.isolation_tier,
+            committed_memory_bytes: reg.template.committed_memory_bytes,
             registered_at: reg.registered_at.to_rfc3339(),
         }
     }
@@ -1003,8 +1087,8 @@ mod tests {
         ProcessLedgerOverflowSink, ProcessLedgerStore,
     };
     use handshake_core::swarm_orchestration::{
-        LiveSession, ModelSessionFactory, RecordingSwarmSink, RunBudget, SwarmConfig,
-        SwarmError, SwarmEventSink, SwarmResult,
+        LiveSession, ModelSessionFactory, RecordingSwarmSink, RunBudget, SwarmConfig, SwarmError,
+        SwarmEventSink, SwarmResult,
     };
 
     // --- minimal real ledger plumbing for a test coordinator ----------------
@@ -1087,10 +1171,25 @@ mod tests {
             artifact_path: Some("D:/__sched_test_model__/model.safetensors".to_string()),
             sha256_expected: Some("cd".repeat(32)),
             runtime_binding: Some(TemplateRuntimeBinding::Candle),
+            local_execution_mode: None,
             cloud_model_name: None,
             instance: 0,
             worktree_id: Some("wt-sched".to_string()),
+            isolation_tier: Some(TemplateIsolationTier::Tier3Microvm),
+            committed_memory_bytes: Some(6 * 1024 * 1024 * 1024),
             parent_session_id: Some("calendar".to_string()),
+        }
+    }
+
+    fn spinup_schedule(id: &str) -> SwarmSchedule {
+        SwarmSchedule {
+            id: id.to_string(),
+            cron: "0 0 9 * * *".to_string(),
+            summary: "scheduled spin-up".to_string(),
+            action: ScheduledAction::SpinUp {
+                swarm_id: "research".to_string(),
+                time_box: Some(Duration::from_secs(3600)),
+            },
         }
     }
 
@@ -1161,8 +1260,129 @@ mod tests {
         // Fire-supplied grouping + time-box applied.
         assert_eq!(first.swarm_id(), Some("nightly-research"));
         assert_eq!(first.worktree_id(), Some("wt-sched"));
+        assert_eq!(
+            first.isolation_tier(),
+            Some(handshake_core::sandbox::adapter::IsolationTier::Tier3Microvm)
+        );
+        assert_eq!(first.committed_memory_bytes, Some(6 * 1024 * 1024 * 1024));
         assert_eq!(first.time_box, Some(Duration::from_secs(90)));
         assert_eq!(first.parent_session_id, "calendar");
+    }
+
+    #[test]
+    fn scheduled_warm_vm_template_sets_warm_mode_and_validates_prerequisites() {
+        let mut template = local_template();
+        template.runtime_binding = Some(TemplateRuntimeBinding::LlamaCpp);
+        template.local_execution_mode = Some(TemplateLocalExecutionMode::WarmVm);
+        template.isolation_tier = Some(TemplateIsolationTier::Tier3Microvm);
+
+        let spawn = build_spawn_request(&template, "warm-swarm", Some(Duration::from_secs(60)))
+            .expect("valid warm schedule template");
+        assert!(spawn.wants_warm_vm_execution());
+        assert_eq!(spawn.runtime_binding, RuntimeBinding::LlamaCpp);
+        assert_eq!(spawn.worktree_id(), Some("wt-sched"));
+
+        template.isolation_tier = Some(TemplateIsolationTier::Tier2Syscall);
+        let err = build_spawn_request(&template, "warm-swarm", None)
+            .expect_err("warm mode rejects non-tier3 schedule");
+        assert!(
+            err.contains("isolation_tier=tier3_microvm"),
+            "unexpected error: {err}"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn schedule_add_rejects_cloud_local_execution_mode_before_persisting() {
+        let (coordinator, _cap, _calls) = test_coordinator();
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let store = SwarmScheduleStore::new(tmp.path());
+        let state = SwarmSchedulerState::new(
+            coordinator,
+            store.clone(),
+            None,
+            tokio::runtime::Handle::current(),
+        )
+        .await
+        .expect("state");
+        state.bootstrap().await.expect("bootstrap");
+
+        let mut template = SpawnTemplate {
+            provider: TemplateProvider::ByokCloud,
+            artifact_path: None,
+            sha256_expected: None,
+            runtime_binding: None,
+            local_execution_mode: Some(TemplateLocalExecutionMode::WarmVm),
+            cloud_model_name: Some("gpt-4o".to_string()),
+            instance: 0,
+            worktree_id: None,
+            isolation_tier: None,
+            committed_memory_bytes: None,
+            parent_session_id: Some("calendar".to_string()),
+        };
+
+        let err = state
+            .add(spinup_schedule("cloud-warm"), template.clone())
+            .await
+            .expect_err("cloud schedule must reject warm_vm before storage");
+        assert!(
+            err.contains("local_execution_mode"),
+            "unexpected error: {err}"
+        );
+        assert_eq!(state.registered_count(), 0);
+        assert!(
+            store.load().expect("load").schedules.is_empty(),
+            "invalid cloud warm schedule must not persist"
+        );
+
+        template.local_execution_mode = Some(TemplateLocalExecutionMode::Cold);
+        let err = state
+            .add(spinup_schedule("cloud-cold"), template)
+            .await
+            .expect_err("cloud schedule must reject any local execution mode before storage");
+        assert!(
+            err.contains("local_execution_mode"),
+            "unexpected error: {err}"
+        );
+        assert_eq!(state.registered_count(), 0);
+        assert!(
+            store.load().expect("load").schedules.is_empty(),
+            "invalid cloud cold-mode schedule must not persist"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn schedule_add_rejects_invalid_warm_vm_before_persisting() {
+        let (coordinator, _cap, _calls) = test_coordinator();
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let store = SwarmScheduleStore::new(tmp.path());
+        let state = SwarmSchedulerState::new(
+            coordinator,
+            store.clone(),
+            None,
+            tokio::runtime::Handle::current(),
+        )
+        .await
+        .expect("state");
+        state.bootstrap().await.expect("bootstrap");
+
+        let mut template = local_template();
+        template.runtime_binding = Some(TemplateRuntimeBinding::Candle);
+        template.local_execution_mode = Some(TemplateLocalExecutionMode::WarmVm);
+        template.isolation_tier = Some(TemplateIsolationTier::Tier3Microvm);
+
+        let err = state
+            .add(spinup_schedule("local-warm-invalid-binding"), template)
+            .await
+            .expect_err("invalid warm schedule must reject before storage");
+        assert!(
+            err.contains("runtime_binding=llama_cpp"),
+            "unexpected error: {err}"
+        );
+        assert_eq!(state.registered_count(), 0);
+        assert!(
+            store.load().expect("load").schedules.is_empty(),
+            "invalid local warm schedule must not persist"
+        );
     }
 
     /// Persistence round-trips: an added schedule survives a NEW state built from

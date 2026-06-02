@@ -743,6 +743,205 @@ impl ProductionModelSessionFactory {
         record_spawn(&self.ledger, meta).map_err(|e| SwarmError::LedgerFailed(e.to_string()))
     }
 
+    /// MT-207: explicit warm-VM local execution. This is intentionally a
+    /// separate opt-in route from the cold Tier-3 sandbox runtime: if the
+    /// selected adapter cannot provide a resident warm-agent transport with live
+    /// token frames, the request fails closed instead of falling back to stdout
+    /// chunking.
+    async fn create_warm_vm_local(&self, request: &SpawnRequest) -> SwarmResult<LiveSession> {
+        use crate::model_runtime::{
+            try_inference_process_spec, LoadSpec, ModelCapabilities, RuntimeKind, SamplingParams,
+            SandboxModelConfig, WarmVmModelConfig, WarmVmModelRuntime,
+        };
+        use crate::sandbox::cloud_hypervisor::{
+            SANDBOX_MODE_METADATA_KEY, SANDBOX_MODE_PERSISTENT,
+        };
+        use crate::sandbox::{select, Signal, TrustClass};
+
+        if request.runtime_binding != RuntimeBinding::LlamaCpp {
+            return Err(SwarmError::FactoryFailed(
+                "warm VM local execution currently requires runtime_binding=llama_cpp".to_string(),
+            ));
+        }
+        if request.isolation_tier != Some(crate::sandbox::adapter::IsolationTier::Tier3Microvm) {
+            return Err(SwarmError::FactoryFailed(
+                "warm VM local execution requires isolation_tier=tier3_microvm".to_string(),
+            ));
+        }
+        let worktree_id = request.worktree_id().ok_or_else(|| {
+            SwarmError::FactoryFailed(
+                "warm VM local execution requires worktree_id for snapshot/restore attribution"
+                    .to_string(),
+            )
+        })?;
+
+        let registry = self.sandbox_registry.as_ref().ok_or_else(|| {
+            SwarmError::FactoryFailed(
+                "warm VM local execution requires a sandbox adapter registry; none is wired into \
+                 the production factory"
+                    .to_string(),
+            )
+        })?;
+
+        let gguf_host =
+            std::path::PathBuf::from(request.model_artifact_path().ok_or_else(|| {
+                SwarmError::FactoryFailed(
+                    "warm VM local execution requires a model artifact path (the GGUF)".to_string(),
+                )
+            })?);
+        let model_artifact_sha256 = request.model_artifact_sha256.clone().ok_or_else(|| {
+            SwarmError::FactoryFailed(
+                "warm VM local execution requires model_artifact_sha256 for restore/load gating"
+                    .to_string(),
+            )
+        })?;
+        let gguf_root = gguf_host.parent().map(|p| p.to_path_buf()).ok_or_else(|| {
+            SwarmError::FactoryFailed(
+                "warm VM local execution: the GGUF path has no parent directory to bind"
+                    .to_string(),
+            )
+        })?;
+
+        let runner_host = std::env::var_os(SANDBOX_LLAMA_CLI_HOST_PATH_ENV).ok_or_else(|| {
+            SwarmError::FactoryFailed(format!(
+                "warm VM local execution requires {SANDBOX_LLAMA_CLI_HOST_PATH_ENV} to point at \
+                 the host llama.cpp runner binary"
+            ))
+        })?;
+        let mut sandbox_cfg = SandboxModelConfig::new(gguf_host, gguf_root, "llama-cli")
+            .with_runner_host_path(std::path::PathBuf::from(runner_host))
+            .with_trust_class(TrustClass::UntrustedAgent);
+        if let Some(bytes) = request.committed_memory_bytes {
+            sandbox_cfg = sandbox_cfg.with_memory_bytes(bytes);
+        }
+
+        let model_id_for_spec = ModelId::new_v7();
+        let mut spec = try_inference_process_spec(model_id_for_spec, &sandbox_cfg)
+            .map_err(|e| SwarmError::FactoryFailed(e.to_string()))?;
+        spec.metadata.insert(
+            SANDBOX_MODE_METADATA_KEY.to_string(),
+            SANDBOX_MODE_PERSISTENT.to_string(),
+        );
+
+        let adapter = select(registry, &spec, None)
+            .map_err(|e| SwarmError::FactoryFailed(format!("sandbox selection failed: {e}")))?;
+        let caps = adapter.capabilities();
+        if !caps.supports_warm_agent || !caps.supports_live_token_stream {
+            return Err(SwarmError::FactoryFailed(format!(
+                "adapter {} cannot satisfy warm VM execution: supports_warm_agent={}, \
+                 supports_live_token_stream={}; refusing fallback to cold sandbox stdout chunking",
+                caps.adapter_id, caps.supports_warm_agent, caps.supports_live_token_stream
+            )));
+        }
+
+        let warm_cfg = WarmVmModelConfig::new(
+            worktree_id.to_string(),
+            sandbox_cfg.guest_gguf_path(),
+            model_artifact_sha256.clone(),
+        );
+        if let Some(manifest) = request.warm_vm_restore_manifest.as_ref() {
+            if manifest.worktree_id != worktree_id {
+                return Err(SwarmError::FactoryFailed(format!(
+                    "warm snapshot worktree mismatch: expected {}, got {}",
+                    worktree_id, manifest.worktree_id
+                )));
+            }
+            manifest
+                .validate_for_restore(&model_artifact_sha256, &warm_cfg.model_guest_path)
+                .map_err(|e| SwarmError::FactoryFailed(e.to_string()))?;
+        }
+
+        let handle = if let Some(manifest) = request.warm_vm_restore_manifest.as_ref() {
+            adapter
+                .restore(&manifest.snapshot)
+                .await
+                .map_err(|e| SwarmError::FactoryFailed(e.to_string()))?
+        } else {
+            adapter
+                .spawn(spec)
+                .await
+                .map_err(|e| SwarmError::FactoryFailed(e.to_string()))?
+        };
+
+        let transport = match adapter.warm_agent_transport(&handle).await {
+            Ok(transport) => transport,
+            Err(error) => {
+                let _ = adapter.kill(&handle, Signal::Kill).await;
+                return Err(SwarmError::FactoryFailed(error.to_string()));
+            }
+        };
+
+        let mut runtime = if let Some(manifest) = request.warm_vm_restore_manifest.as_ref() {
+            match WarmVmModelRuntime::from_restored_manifest(transport, warm_cfg, manifest) {
+                Ok(runtime) => runtime,
+                Err(error) => {
+                    let _ = adapter.kill(&handle, Signal::Kill).await;
+                    return Err(SwarmError::FactoryFailed(error.to_string()));
+                }
+            }
+        } else {
+            WarmVmModelRuntime::new(transport, warm_cfg)
+        };
+        let loaded_model_id = if request.warm_vm_restore_manifest.is_some() {
+            runtime.model_id()
+        } else {
+            let spec_load = LoadSpec {
+                artifact_path: std::path::PathBuf::new(),
+                sha256_expected: model_artifact_sha256,
+                runtime_kind: RuntimeKind::LlamaCpp,
+                sampling_defaults: SamplingParams::default(),
+                kv_cache_policy: crate::model_runtime::KvCachePolicy::default(),
+                declared_capabilities: ModelCapabilities::default(),
+                provider: ProviderKind::Local,
+                engine_origin: Some("llama_cpp".to_string()),
+                external_engine_import: None,
+            };
+            match runtime.load(spec_load).await {
+                Ok(model_id) => model_id,
+                Err(error) => {
+                    let _ = adapter.kill(&handle, Signal::Kill).await;
+                    return Err(SwarmError::FactoryFailed(error.to_string()));
+                }
+            }
+        };
+
+        let sandbox_adapter_id = caps.adapter_id.to_string();
+        let sandbox_internal_id = handle.sandbox_internal_id.clone();
+        let os_pid = self.synthetic_pid(request);
+        let record_id = match self.record_start_sandboxed(
+            request,
+            loaded_model_id,
+            os_pid,
+            ProcessEngineKind::LlamaCpp,
+            sandbox_adapter_id,
+            sandbox_internal_id,
+        ) {
+            Ok(record_id) => record_id,
+            Err(error) => {
+                let _ = adapter.kill(&handle, Signal::Kill).await;
+                return Err(error);
+            }
+        };
+
+        let owning = Arc::new(tokio::sync::Mutex::new(runtime));
+        let shared: Arc<dyn ModelRuntime> = Arc::new(SharedRuntimeHandle {
+            inner: owning.clone(),
+            model_id: loaded_model_id,
+        });
+        let cancel = CancellationToken::new();
+        let teardown =
+            sandboxed_runtime_teardown(owning, loaded_model_id, Arc::clone(&adapter), Some(handle));
+
+        Ok(LiveSession::new(
+            shared,
+            loaded_model_id,
+            cancel,
+            teardown,
+            record_id,
+            os_pid,
+        ))
+    }
+
     /// WP-KERNEL-004 wave 1: route a Local+LlamaCpp+Tier3 spawn into a Cloud
     /// Hypervisor microVM. Builds the inference [`ProcessSpec`], selects the
     /// microVM adapter via the registry (the `UntrustedAgent` trust class forces
@@ -1029,6 +1228,9 @@ impl ProductionModelSessionFactory {
 impl ModelSessionFactory for ProductionModelSessionFactory {
     async fn create(&self, request: &SpawnRequest) -> SwarmResult<LiveSession> {
         match request.provider {
+            None | Some(ProviderKind::Local) if request.wants_warm_vm_execution() => {
+                self.create_warm_vm_local(request).await
+            }
             // WP-KERNEL-004 wave 1: a Local+LlamaCpp spawn that EXPLICITLY
             // requests Tier-3 microVM isolation routes into a Cloud Hypervisor
             // microVM. Keyed strictly on the three conditions so every other
@@ -2410,6 +2612,200 @@ mod tests {
         (Arc::new(registry), spawned_specs)
     }
 
+    #[derive(Default)]
+    struct FactoryWarmTransport;
+
+    #[async_trait]
+    impl crate::model_runtime::WarmAgentTransport for FactoryWarmTransport {
+        async fn load_model(
+            &self,
+            frame: crate::model_runtime::WarmAgentHostFrame,
+        ) -> Result<
+            crate::model_runtime::WarmAgentGuestFrame,
+            crate::model_runtime::WarmVmTransportError,
+        > {
+            match frame {
+                crate::model_runtime::WarmAgentHostFrame::Load {
+                    model_guest_path,
+                    model_artifact_sha256,
+                    ..
+                } => Ok(crate::model_runtime::WarmAgentGuestFrame::Ready {
+                    protocol_id: crate::model_runtime::WARM_AGENT_PROTOCOL_ID.to_string(),
+                    protocol_version: crate::model_runtime::WARM_AGENT_PROTOCOL_VERSION,
+                    agent_id: "factory-warm-agent".to_string(),
+                    ready_nonce: "ready-nonce".to_string(),
+                    loaded_model_sha256: Some(model_artifact_sha256),
+                    loaded_model_guest_path: Some(model_guest_path),
+                }),
+                other => Err(crate::model_runtime::WarmVmTransportError::Transport(
+                    format!("expected load frame, got {other:?}"),
+                )),
+            }
+        }
+
+        fn generate(
+            &self,
+            request: crate::model_runtime::WarmAgentGenerateRequest,
+        ) -> crate::model_runtime::WarmAgentFrameStream {
+            Box::pin(futures::stream::iter([
+                Ok(crate::model_runtime::WarmAgentGuestFrame::Token {
+                    request_id: request.request_id.clone(),
+                    token_id: 1,
+                    text: "warm".to_string(),
+                }),
+                Ok(crate::model_runtime::WarmAgentGuestFrame::Complete {
+                    request_id: request.request_id,
+                    finish_reason: "stop".to_string(),
+                }),
+            ]))
+        }
+
+        async fn cancel(
+            &self,
+            _request_id: &str,
+        ) -> Result<(), crate::model_runtime::WarmVmTransportError> {
+            Ok(())
+        }
+    }
+
+    struct FactoryWarmSandbox {
+        spawned_specs: Arc<Mutex<Vec<crate::sandbox::ProcessSpec>>>,
+        restored_snapshots: Arc<Mutex<Vec<String>>>,
+        killed: Arc<Mutex<Vec<String>>>,
+    }
+
+    #[async_trait]
+    impl crate::sandbox::SandboxAdapter for FactoryWarmSandbox {
+        async fn spawn(
+            &self,
+            spec: crate::sandbox::ProcessSpec,
+        ) -> Result<crate::sandbox::ProcessHandle, crate::sandbox::SandboxAdapterError> {
+            self.spawned_specs.lock().unwrap().push(spec);
+            Ok(crate::sandbox::ProcessHandle::new(
+                crate::sandbox::AdapterId::new("cloud_hypervisor"),
+                None,
+                "hsk-ch-warm-factory-fake",
+            ))
+        }
+        async fn exec(
+            &self,
+            _handle: &crate::sandbox::ProcessHandle,
+            _cmd: crate::sandbox::Command,
+        ) -> Result<crate::sandbox::ExecResult, crate::sandbox::SandboxAdapterError> {
+            Err(crate::sandbox::SandboxAdapterError::SpawnFailed {
+                adapter_id: crate::sandbox::AdapterId::new("cloud_hypervisor"),
+                reason: "warm factory test must not use cold exec".to_string(),
+            })
+        }
+        async fn fs_bind(
+            &self,
+            _handle: &crate::sandbox::ProcessHandle,
+            _host_path: std::path::PathBuf,
+            _guest_path: std::path::PathBuf,
+            _mode: crate::sandbox::BindMode,
+        ) -> Result<(), crate::sandbox::SandboxAdapterError> {
+            Ok(())
+        }
+        async fn net_policy(
+            &self,
+            _handle: &crate::sandbox::ProcessHandle,
+            _policy: crate::sandbox::NetPolicy,
+        ) -> Result<(), crate::sandbox::SandboxAdapterError> {
+            Ok(())
+        }
+        async fn kill(
+            &self,
+            handle: &crate::sandbox::ProcessHandle,
+            _signal: crate::sandbox::Signal,
+        ) -> Result<(), crate::sandbox::SandboxAdapterError> {
+            self.killed
+                .lock()
+                .unwrap()
+                .push(handle.sandbox_internal_id.clone());
+            Ok(())
+        }
+        async fn status(
+            &self,
+            _handle: &crate::sandbox::ProcessHandle,
+        ) -> Result<crate::sandbox::ProcessStatus, crate::sandbox::SandboxAdapterError> {
+            Ok(crate::sandbox::ProcessStatus::Running)
+        }
+        async fn exit_code(
+            &self,
+            _handle: &crate::sandbox::ProcessHandle,
+        ) -> Result<Option<i32>, crate::sandbox::SandboxAdapterError> {
+            Ok(None)
+        }
+        async fn restore(
+            &self,
+            snapshot: &crate::sandbox::SnapshotRef,
+        ) -> Result<crate::sandbox::ProcessHandle, crate::sandbox::SandboxAdapterError> {
+            self.restored_snapshots
+                .lock()
+                .unwrap()
+                .push(snapshot.snapshot_dir.clone());
+            Ok(crate::sandbox::ProcessHandle::new(
+                crate::sandbox::AdapterId::new("cloud_hypervisor"),
+                None,
+                "hsk-ch-warm-restored-factory-fake",
+            ))
+        }
+        async fn warm_agent_transport(
+            &self,
+            _handle: &crate::sandbox::ProcessHandle,
+        ) -> Result<
+            Arc<dyn crate::model_runtime::WarmAgentTransport>,
+            crate::sandbox::SandboxAdapterError,
+        > {
+            Ok(Arc::new(FactoryWarmTransport))
+        }
+        fn capabilities(&self) -> crate::sandbox::AdapterCapabilities {
+            crate::sandbox::AdapterCapabilities {
+                adapter_id: crate::sandbox::AdapterId::new("cloud_hypervisor"),
+                runtime_available: true,
+                filesystem_isolation_strength: crate::sandbox::IsolationStrength::VeryStrong,
+                network_isolation_strength: crate::sandbox::IsolationStrength::VeryStrong,
+                gpu_passthrough: crate::sandbox::GpuPassthrough::None,
+                stdio_throughput_class: crate::sandbox::ThroughputClass::Low,
+                win32_native_fidelity: false,
+                cross_machine_portable: true,
+                isolation_tier: crate::sandbox::IsolationTier::Tier3Microvm,
+                requires_nested_virt: true,
+                supports_snapshot: true,
+                supports_persistent_exec: true,
+                supports_warm_agent: true,
+                supports_live_token_stream: true,
+            }
+        }
+    }
+
+    type WarmRegistryObservations = (
+        Arc<crate::sandbox::SandboxAdapterRegistry>,
+        Arc<Mutex<Vec<crate::sandbox::ProcessSpec>>>,
+        Arc<Mutex<Vec<String>>>,
+        Arc<Mutex<Vec<String>>>,
+    );
+
+    fn warm_sandbox_registry_with_observed_fake() -> WarmRegistryObservations {
+        let spawned_specs = Arc::new(Mutex::new(Vec::new()));
+        let restored_snapshots = Arc::new(Mutex::new(Vec::new()));
+        let killed = Arc::new(Mutex::new(Vec::new()));
+        let mut registry = crate::sandbox::SandboxAdapterRegistry::new(
+            crate::sandbox::AdapterId::new("cloud_hypervisor"),
+        );
+        registry.register(Arc::new(FactoryWarmSandbox {
+            spawned_specs: spawned_specs.clone(),
+            restored_snapshots: restored_snapshots.clone(),
+            killed: killed.clone(),
+        }));
+        (
+            Arc::new(registry),
+            spawned_specs,
+            restored_snapshots,
+            killed,
+        )
+    }
+
     /// A temp dir + fake gguf so the sandbox runtime's `load` existence gates pass.
     fn temp_gguf_for_factory() -> (std::path::PathBuf, std::path::PathBuf) {
         let dir =
@@ -2427,6 +2823,253 @@ mod tests {
         let runner = dir.join("llama-cli");
         std::fs::write(&runner, b"#!/bin/sh\n").expect("write fake runner");
         (dir, runner)
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn warm_vm_request_fails_closed_when_adapter_lacks_warm_agent() {
+        let _env_guard = runner_env_lock();
+        let (dir, gguf) = temp_gguf_for_factory();
+        let (runner_dir, runner) = temp_runner_for_factory();
+        let prior_runner = std::env::var_os(SANDBOX_LLAMA_CLI_HOST_PATH_ENV);
+        std::env::set_var(SANDBOX_LLAMA_CLI_HOST_PATH_ENV, &runner);
+        let (ledger, drain) = ledger_pair();
+        let store = Arc::new(InMemoryStore::default());
+        let (registry, spawned_specs) = sandbox_registry_with_observed_fake();
+        let factory = ProductionModelSessionFactory::new(
+            ledger,
+            CloudLaneFactoryConfig::unconfigured(),
+            Some(registry),
+        );
+        let req = SpawnRequest::new(
+            instance(0),
+            RuntimeBinding::LlamaCpp,
+            "swarm_prod_test",
+            "p",
+        )
+        .with_local_artifact(gguf.to_string_lossy(), "ab".repeat(32))
+        .with_isolation_tier(crate::sandbox::adapter::IsolationTier::Tier3Microvm)
+        .with_worktree("wt-warm-1")
+        .with_warm_vm_execution();
+
+        let err = create_err(&factory, &req).await;
+        let detail = format!("{err}");
+        assert!(detail.contains("supports_warm_agent=false"), "{detail}");
+        assert!(detail.contains("stdout chunking"), "{detail}");
+        assert!(
+            spawned_specs.lock().unwrap().is_empty(),
+            "unsupported warm mode must fail before spawning a cold VM"
+        );
+        let rows = drained(&drain, store).await;
+        assert!(
+            rows.is_empty(),
+            "failed warm preflight leaves no ledger rows"
+        );
+        match prior_runner {
+            Some(value) => std::env::set_var(SANDBOX_LLAMA_CLI_HOST_PATH_ENV, value),
+            None => std::env::remove_var(SANDBOX_LLAMA_CLI_HOST_PATH_ENV),
+        }
+        let _ = std::fs::remove_dir_all(dir);
+        let _ = std::fs::remove_dir_all(runner_dir);
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn warm_vm_request_uses_persistent_spawn_and_warm_runtime_when_supported() {
+        let _env_guard = runner_env_lock();
+        let (dir, gguf) = temp_gguf_for_factory();
+        let (runner_dir, runner) = temp_runner_for_factory();
+        let prior_runner = std::env::var_os(SANDBOX_LLAMA_CLI_HOST_PATH_ENV);
+        std::env::set_var(SANDBOX_LLAMA_CLI_HOST_PATH_ENV, &runner);
+        let (ledger, drain) = ledger_pair();
+        let store = Arc::new(InMemoryStore::default());
+        let (registry, spawned_specs, restored_snapshots, killed) =
+            warm_sandbox_registry_with_observed_fake();
+        let factory = ProductionModelSessionFactory::new(
+            ledger,
+            CloudLaneFactoryConfig::unconfigured(),
+            Some(registry),
+        );
+        let req = SpawnRequest::new(
+            instance(0),
+            RuntimeBinding::LlamaCpp,
+            "swarm_prod_test",
+            "p",
+        )
+        .with_local_artifact(gguf.to_string_lossy(), "ab".repeat(32))
+        .with_isolation_tier(crate::sandbox::adapter::IsolationTier::Tier3Microvm)
+        .with_worktree("wt-warm-1")
+        .with_warm_vm_execution();
+
+        let session = factory
+            .create(&req)
+            .await
+            .expect("warm adapter routes to WarmVmModelRuntime");
+        (session.teardown)().await.expect("teardown");
+
+        let specs = spawned_specs.lock().unwrap().clone();
+        assert_eq!(specs.len(), 1, "warm spawn creates one persistent VM");
+        assert_eq!(
+            specs[0]
+                .metadata
+                .get(crate::sandbox::SANDBOX_MODE_METADATA_KEY)
+                .map(String::as_str),
+            Some(crate::sandbox::SANDBOX_MODE_PERSISTENT),
+            "warm spawn must use the persistent VM mode, not cold exec"
+        );
+        assert!(
+            restored_snapshots.lock().unwrap().is_empty(),
+            "fresh warm spawn must not restore a snapshot"
+        );
+        assert_eq!(
+            killed.lock().unwrap().as_slice(),
+            ["hsk-ch-warm-factory-fake"],
+            "teardown must kill the persistent warm VM handle"
+        );
+        let rows = drained(&drain, store).await;
+        let start = rows
+            .iter()
+            .find_map(|e| match e {
+                LedgerEvent::Start(s) => Some(s.clone()),
+                _ => None,
+            })
+            .expect("a START row was recorded");
+        assert_eq!(
+            start.sandbox_adapter_id.as_deref(),
+            Some("cloud_hypervisor")
+        );
+        assert_eq!(
+            start.sandbox_internal_id.as_deref(),
+            Some("hsk-ch-warm-factory-fake")
+        );
+        match prior_runner {
+            Some(value) => std::env::set_var(SANDBOX_LLAMA_CLI_HOST_PATH_ENV, value),
+            None => std::env::remove_var(SANDBOX_LLAMA_CLI_HOST_PATH_ENV),
+        }
+        let _ = std::fs::remove_dir_all(dir);
+        let _ = std::fs::remove_dir_all(runner_dir);
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn warm_vm_restore_manifest_uses_restore_without_reloading_or_fresh_spawn() {
+        let _env_guard = runner_env_lock();
+        let (dir, gguf) = temp_gguf_for_factory();
+        let (runner_dir, runner) = temp_runner_for_factory();
+        let prior_runner = std::env::var_os(SANDBOX_LLAMA_CLI_HOST_PATH_ENV);
+        std::env::set_var(SANDBOX_LLAMA_CLI_HOST_PATH_ENV, &runner);
+        let (ledger, _drain) = ledger_pair();
+        let (registry, spawned_specs, restored_snapshots, killed) =
+            warm_sandbox_registry_with_observed_fake();
+        let factory = ProductionModelSessionFactory::new(
+            ledger,
+            CloudLaneFactoryConfig::unconfigured(),
+            Some(registry),
+        );
+        let sha = "ab".repeat(32);
+        let manifest = crate::model_runtime::WarmVmSnapshotManifest::new(
+            "wt-warm-restore",
+            sha.clone(),
+            "/models/model.gguf",
+            "ready-nonce",
+            crate::sandbox::SnapshotRef::new(
+                crate::sandbox::AdapterId::new("cloud_hypervisor"),
+                "/snap/warm-restore",
+            ),
+        );
+        let req = SpawnRequest::new(
+            instance(0),
+            RuntimeBinding::LlamaCpp,
+            "swarm_prod_test",
+            "p",
+        )
+        .with_local_artifact(gguf.to_string_lossy(), sha)
+        .with_isolation_tier(crate::sandbox::adapter::IsolationTier::Tier3Microvm)
+        .with_worktree("wt-warm-restore")
+        .with_warm_vm_restore_manifest(manifest);
+
+        let session = factory
+            .create(&req)
+            .await
+            .expect("warm restore routes through adapter.restore");
+        (session.teardown)().await.expect("teardown");
+        assert!(
+            spawned_specs.lock().unwrap().is_empty(),
+            "restored warm starts must not create a fresh persistent spawn"
+        );
+        assert_eq!(
+            restored_snapshots.lock().unwrap().as_slice(),
+            ["/snap/warm-restore"],
+            "restore path must consume the manifest snapshot"
+        );
+        assert_eq!(
+            killed.lock().unwrap().as_slice(),
+            ["hsk-ch-warm-restored-factory-fake"],
+            "teardown must kill the restored warm VM handle"
+        );
+        match prior_runner {
+            Some(value) => std::env::set_var(SANDBOX_LLAMA_CLI_HOST_PATH_ENV, value),
+            None => std::env::remove_var(SANDBOX_LLAMA_CLI_HOST_PATH_ENV),
+        }
+        let _ = std::fs::remove_dir_all(dir);
+        let _ = std::fs::remove_dir_all(runner_dir);
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn warm_vm_restore_manifest_rejects_wrong_worktree_before_restore() {
+        let _env_guard = runner_env_lock();
+        let (dir, gguf) = temp_gguf_for_factory();
+        let (runner_dir, runner) = temp_runner_for_factory();
+        let prior_runner = std::env::var_os(SANDBOX_LLAMA_CLI_HOST_PATH_ENV);
+        std::env::set_var(SANDBOX_LLAMA_CLI_HOST_PATH_ENV, &runner);
+        let (ledger, _drain) = ledger_pair();
+        let (registry, spawned_specs, restored_snapshots, killed) =
+            warm_sandbox_registry_with_observed_fake();
+        let factory = ProductionModelSessionFactory::new(
+            ledger,
+            CloudLaneFactoryConfig::unconfigured(),
+            Some(registry),
+        );
+        let sha = "ab".repeat(32);
+        let manifest = crate::model_runtime::WarmVmSnapshotManifest::new(
+            "wt-other",
+            sha.clone(),
+            "/models/model.gguf",
+            "ready-nonce",
+            crate::sandbox::SnapshotRef::new(
+                crate::sandbox::AdapterId::new("cloud_hypervisor"),
+                "/snap/wrong-worktree",
+            ),
+        );
+        let req = SpawnRequest::new(
+            instance(0),
+            RuntimeBinding::LlamaCpp,
+            "swarm_prod_test",
+            "p",
+        )
+        .with_local_artifact(gguf.to_string_lossy(), sha)
+        .with_isolation_tier(crate::sandbox::adapter::IsolationTier::Tier3Microvm)
+        .with_worktree("wt-requested")
+        .with_warm_vm_restore_manifest(manifest);
+
+        let err = create_err(&factory, &req).await;
+        let detail = format!("{err}");
+        assert!(detail.contains("worktree mismatch"), "{detail}");
+        assert!(
+            spawned_specs.lock().unwrap().is_empty(),
+            "wrong-worktree restore must not create a fresh persistent spawn"
+        );
+        assert!(
+            restored_snapshots.lock().unwrap().is_empty(),
+            "wrong-worktree restore must fail before adapter.restore is called"
+        );
+        assert!(
+            killed.lock().unwrap().is_empty(),
+            "no handle exists to kill when restore is rejected before adapter.restore"
+        );
+        match prior_runner {
+            Some(value) => std::env::set_var(SANDBOX_LLAMA_CLI_HOST_PATH_ENV, value),
+            None => std::env::remove_var(SANDBOX_LLAMA_CLI_HOST_PATH_ENV),
+        }
+        let _ = std::fs::remove_dir_all(dir);
+        let _ = std::fs::remove_dir_all(runner_dir);
     }
 
     /// Test 5: a Local+LlamaCpp+Tier3 spawn routes to create_sandboxed_local and

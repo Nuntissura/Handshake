@@ -14,3 +14,4 @@ pub mod redaction;
 pub mod scoring;
 pub mod session_flag;
 pub mod spawn_tree_harvester;
+pub mod swarm_trace;

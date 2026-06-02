@@ -77,6 +77,7 @@ use handshake_core::process_ledger::{
     ProcessLedgerOverflowSink, ProcessLedgerStore,
 };
 use handshake_core::sandbox::SandboxAdapterRegistry;
+use handshake_core::swarm_orchestration::ids::LocalExecutionMode;
 use handshake_core::swarm_orchestration::{
     BroadcastSwarmSink, ByokCloudProvider, CloudLaneFactoryConfig, DurableSwarmFrBridge,
     FanoutSwarmSink, FlightRecorderSwarmSink, LiveSession, ModelInstanceId, ModelSessionFactory,
@@ -89,7 +90,7 @@ use uuid::Uuid;
 
 use super::spawn_template_store::{
     SessionSpawnTemplate, SpawnTemplateStore, TemplateByokCloudProvider, TemplateIsolationTier,
-    TemplateProvider, TemplateRuntimeBinding,
+    TemplateLocalExecutionMode, TemplateProvider, TemplateRuntimeBinding,
 };
 
 /// FR-EVT tag stamped on swarm lifecycle events forwarded to structured stderr
@@ -192,6 +193,10 @@ struct TrackedSession {
     /// Local+LlamaCpp spawns when the sandbox registry is wired; the other
     /// combinations remain attribution until their substrates ship.
     isolation_tier: Option<SwarmIsolationTierIpc>,
+    /// Explicit local execution substrate. `None`/`Cold` preserve legacy cold
+    /// execution. `WarmVm` is opt-in and must not be lost through list/template
+    /// surfaces.
+    local_execution_mode: Option<SwarmLocalExecutionModeIpc>,
 }
 
 /// Shared app-side side-table of tracked sessions keyed by instance id.
@@ -229,6 +234,9 @@ impl ModelSessionFactory for TrackingFactory {
             isolation_tier: request
                 .isolation_tier()
                 .map(SwarmIsolationTierIpc::from_isolation_tier),
+            local_execution_mode: request
+                .local_execution_mode
+                .map(SwarmLocalExecutionModeIpc::from_core),
         };
         self.table
             .lock()
@@ -855,6 +863,44 @@ impl SwarmRuntimeBindingIpc {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SwarmLocalExecutionModeIpc {
+    Cold,
+    WarmVm,
+}
+
+impl SwarmLocalExecutionModeIpc {
+    fn to_template_mode(self) -> TemplateLocalExecutionMode {
+        match self {
+            Self::Cold => TemplateLocalExecutionMode::Cold,
+            Self::WarmVm => TemplateLocalExecutionMode::WarmVm,
+        }
+    }
+
+    fn from_template_mode(mode: TemplateLocalExecutionMode) -> Self {
+        match mode {
+            TemplateLocalExecutionMode::Cold => Self::Cold,
+            TemplateLocalExecutionMode::WarmVm => Self::WarmVm,
+        }
+    }
+
+    fn from_core(mode: LocalExecutionMode) -> Self {
+        match mode {
+            LocalExecutionMode::Cold => Self::Cold,
+            LocalExecutionMode::WarmVm => Self::WarmVm,
+        }
+    }
+
+    /// Stable wire string (matches the snake_case serde + the TS union).
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::Cold => "cold",
+            Self::WarmVm => "warm_vm",
+        }
+    }
+}
+
 /// Operator-intended isolation tier the spawn form records on a session. Mirrors
 /// `handshake_core::sandbox::adapter::IsolationTier` 1:1 (snake_case serde
 /// matches the core wire vocabulary). Deliberately a thin IPC enum rather than a
@@ -915,6 +961,10 @@ pub struct SwarmSpawnRequestIpc {
     /// Local: required. candle | llama_cpp.
     #[serde(default)]
     pub runtime_binding: Option<SwarmRuntimeBindingIpc>,
+    /// Local: optional explicit execution substrate (`cold` | `warm_vm`). Omitted
+    /// means legacy cold/default behavior. Warm VM is validated before spawn.
+    #[serde(default)]
+    pub local_execution_mode: Option<SwarmLocalExecutionModeIpc>,
     /// Cloud: required. The allowlisted cloud model name (e.g. `gpt-4o`).
     #[serde(default)]
     pub cloud_model_name: Option<String>,
@@ -1064,6 +1114,13 @@ pub(crate) fn template_from_ipc(
         } else {
             None
         },
+        local_execution_mode: if is_local {
+            request
+                .local_execution_mode
+                .map(SwarmLocalExecutionModeIpc::to_template_mode)
+        } else {
+            None
+        },
         cloud_model_name: if is_local {
             None
         } else {
@@ -1111,6 +1168,9 @@ pub(crate) fn template_to_request_ipc(
         runtime_binding: template
             .runtime_binding
             .map(SwarmRuntimeBindingIpc::from_template_binding),
+        local_execution_mode: template
+            .local_execution_mode
+            .map(SwarmLocalExecutionModeIpc::from_template_mode),
         cloud_model_name: template.cloud_model_name.clone(),
         byok_cloud_provider: template
             .byok_cloud_provider
@@ -1248,6 +1308,7 @@ pub struct SessionSpawnTemplateIpc {
     pub artifact_path: Option<String>,
     pub sha256_expected: Option<String>,
     pub runtime_binding: Option<SwarmRuntimeBindingIpc>,
+    pub local_execution_mode: Option<SwarmLocalExecutionModeIpc>,
     pub cloud_model_name: Option<String>,
     pub byok_cloud_provider: Option<ByokCloudProviderIpc>,
     pub instance: u32,
@@ -1269,6 +1330,9 @@ impl From<SessionSpawnTemplate> for SessionSpawnTemplateIpc {
             runtime_binding: t
                 .runtime_binding
                 .map(SwarmRuntimeBindingIpc::from_template_binding),
+            local_execution_mode: t
+                .local_execution_mode
+                .map(SwarmLocalExecutionModeIpc::from_template_mode),
             cloud_model_name: t.cloud_model_name,
             byok_cloud_provider: t
                 .byok_cloud_provider
@@ -1296,6 +1360,7 @@ pub struct SwarmSessionIpc {
     pub state: String,
     pub provider: String,
     pub runtime_binding: String,
+    pub local_execution_mode: Option<SwarmLocalExecutionModeIpc>,
     pub artifact_path: Option<String>,
     pub cloud_model_name: Option<String>,
     /// Operator-assigned VM/sandbox worktree (board swimlane / recovery group).
@@ -1670,6 +1735,7 @@ fn list_active_sessions_inner(state: &SwarmRuntimeState) -> Vec<SwarmSessionIpc>
             state: st.as_str().to_string(),
             provider: provider_str(tracked.provider).to_string(),
             runtime_binding: tracked.runtime_binding.adapter_id().to_string(),
+            local_execution_mode: tracked.local_execution_mode,
             artifact_path: tracked.artifact_path,
             cloud_model_name: tracked.cloud_model_name,
             worktree_id: tracked.worktree_id,
@@ -2308,10 +2374,29 @@ fn build_spawn_request(request: &SwarmSpawnRequestIpc) -> Result<SpawnRequest, S
                 .ok_or_else(|| {
                     "local spawn requires sha256_expected (the integrity gate)".to_string()
                 })?;
-            SpawnRequest::new(instance_id, binding, "operator", parent)
-                .with_local_artifact(path.to_string(), sha.to_string())
+            let mut spawn = SpawnRequest::new(instance_id, binding, "operator", parent)
+                .with_local_artifact(path.to_string(), sha.to_string());
+            match request.local_execution_mode {
+                Some(SwarmLocalExecutionModeIpc::WarmVm) => {
+                    validate_warm_vm_request(request, binding)?;
+                    spawn = spawn.with_warm_vm_execution();
+                }
+                Some(SwarmLocalExecutionModeIpc::Cold) => {
+                    spawn.local_execution_mode = Some(LocalExecutionMode::Cold);
+                }
+                None => {}
+            }
+            spawn
         }
         SwarmProviderIpc::ByokCloud | SwarmProviderIpc::OfficialCli => {
+            if matches!(
+                request.local_execution_mode,
+                Some(SwarmLocalExecutionModeIpc::WarmVm)
+            ) {
+                return Err(
+                    "warm_vm local_execution_mode is only valid for provider=local".to_string(),
+                );
+            }
             let model_name = request
                 .cloud_model_name
                 .as_deref()
@@ -2337,6 +2422,24 @@ fn build_spawn_request(request: &SwarmSpawnRequestIpc) -> Result<SpawnRequest, S
     };
 
     Ok(apply_recorded_assignment(spawn, request))
+}
+
+fn validate_warm_vm_request(
+    request: &SwarmSpawnRequestIpc,
+    binding: RuntimeBinding,
+) -> Result<(), String> {
+    if binding != RuntimeBinding::LlamaCpp {
+        return Err("warm_vm local_execution_mode requires runtime_binding=llama_cpp".to_string());
+    }
+    if request.isolation_tier != Some(SwarmIsolationTierIpc::Tier3Microvm) {
+        return Err(
+            "warm_vm local_execution_mode requires isolation_tier=tier3_microvm".to_string(),
+        );
+    }
+    if trimmed_opt(&request.worktree_id).is_none() {
+        return Err("warm_vm local_execution_mode requires a non-empty worktree_id".to_string());
+    }
+    Ok(())
 }
 
 /// Parse a `<model_id>#<instance>` composite back into a [`ModelInstanceId`].
@@ -2426,6 +2529,7 @@ mod tests {
             artifact_path: Some(path.to_string()),
             sha256_expected: Some("ab".repeat(32)),
             runtime_binding: Some(SwarmRuntimeBindingIpc::Candle),
+            local_execution_mode: None,
             cloud_model_name: None,
             byok_cloud_provider: None,
             instance: 0,
@@ -2446,6 +2550,7 @@ mod tests {
             artifact_path: None,
             sha256_expected: None,
             runtime_binding: None,
+            local_execution_mode: None,
             cloud_model_name: Some(model.to_string()),
             byok_cloud_provider: None,
             instance: 0,
@@ -2543,6 +2648,7 @@ mod tests {
             artifact_path: None,
             sha256_expected: None,
             runtime_binding: None,
+            local_execution_mode: None,
             cloud_model_name: Some("gpt-4o".to_string()),
             byok_cloud_provider: Some(ByokCloudProviderIpc::OpenAi),
             instance: 0,
@@ -2610,6 +2716,51 @@ mod tests {
             let json = serde_json::to_string(&ipc).expect("serialize tier");
             assert_eq!(json, format!("\"{}\"", ipc.as_str()));
         }
+    }
+
+    #[test]
+    fn swarm_local_execution_mode_ipc_round_trips_wire_string() {
+        for ipc in [
+            SwarmLocalExecutionModeIpc::Cold,
+            SwarmLocalExecutionModeIpc::WarmVm,
+        ] {
+            let json = serde_json::to_string(&ipc).expect("serialize mode");
+            assert_eq!(json, format!("\"{}\"", ipc.as_str()));
+            assert_eq!(
+                serde_json::from_str::<SwarmLocalExecutionModeIpc>(&json)
+                    .expect("deserialize mode"),
+                ipc
+            );
+        }
+    }
+
+    #[test]
+    fn build_spawn_request_warm_vm_is_opt_in_and_validated() {
+        let mut req = local_request("some/model.gguf");
+        req.runtime_binding = Some(SwarmRuntimeBindingIpc::LlamaCpp);
+        req.local_execution_mode = Some(SwarmLocalExecutionModeIpc::WarmVm);
+        req.isolation_tier = Some(SwarmIsolationTierIpc::Tier3Microvm);
+        req.worktree_id = Some("  wt-warm  ".to_string());
+
+        let spawn = build_spawn_request(&req).expect("valid warm vm request");
+        assert!(spawn.wants_warm_vm_execution());
+        assert_eq!(spawn.runtime_binding, RuntimeBinding::LlamaCpp);
+        assert_eq!(spawn.worktree_id(), Some("wt-warm"));
+
+        let mut bad_binding = req.clone();
+        bad_binding.runtime_binding = Some(SwarmRuntimeBindingIpc::Candle);
+        let err = build_spawn_request(&bad_binding).expect_err("candle rejected");
+        assert!(err.contains("runtime_binding=llama_cpp"), "{err}");
+
+        let mut missing_worktree = req.clone();
+        missing_worktree.worktree_id = Some("   ".to_string());
+        let err = build_spawn_request(&missing_worktree).expect_err("worktree rejected");
+        assert!(err.contains("worktree_id"), "{err}");
+
+        let mut cloud = cloud_request("gpt-4o");
+        cloud.local_execution_mode = Some(SwarmLocalExecutionModeIpc::WarmVm);
+        let err = build_spawn_request(&cloud).expect_err("cloud warm mode rejected");
+        assert!(err.contains("provider=local"), "{err}");
     }
 
     #[test]
@@ -3445,6 +3596,8 @@ mod tests {
     fn template_from_ipc_captures_validated_local_fields() {
         let mut req = local_request("D:/models/qwen.safetensors");
         req.instance = 3;
+        req.runtime_binding = Some(SwarmRuntimeBindingIpc::LlamaCpp);
+        req.local_execution_mode = Some(SwarmLocalExecutionModeIpc::WarmVm);
         req.swarm_id = Some("  swarm-a  ".to_string());
         req.worktree_id = Some("  wt-a  ".to_string());
         req.working_dir = Some("   ".to_string()); // blank => None
@@ -3457,7 +3610,11 @@ mod tests {
             Some("D:/models/qwen.safetensors")
         );
         assert_eq!(tpl.sha256_expected.as_deref(), Some(&"ab".repeat(32)[..]));
-        assert_eq!(tpl.runtime_binding, Some(TemplateRuntimeBinding::Candle));
+        assert_eq!(tpl.runtime_binding, Some(TemplateRuntimeBinding::LlamaCpp));
+        assert_eq!(
+            tpl.local_execution_mode,
+            Some(TemplateLocalExecutionMode::WarmVm)
+        );
         assert_eq!(
             tpl.cloud_model_name, None,
             "local must not capture cloud name"
@@ -3493,6 +3650,7 @@ mod tests {
         assert_eq!(tpl.artifact_path, None);
         assert_eq!(tpl.sha256_expected, None);
         assert_eq!(tpl.runtime_binding, None);
+        assert_eq!(tpl.local_execution_mode, None);
         assert_eq!(tpl.committed_memory_bytes, None);
         assert_eq!(tpl.origin_session_id, "origin#1");
     }
@@ -3677,10 +3835,15 @@ mod tests {
         req.worktree_id = Some("wt-z".to_string());
         req.working_dir = Some("D:/work/wt-z".to_string());
         req.isolation_tier = Some(SwarmIsolationTierIpc::Tier2Syscall);
+        req.local_execution_mode = Some(SwarmLocalExecutionModeIpc::Cold);
         req.committed_memory_bytes = Some(7 * 1024 * 1024 * 1024);
         let tpl = template_from_ipc(&req, "origin#5");
         let rebuilt = template_to_request_ipc(&tpl, "origin#5");
         assert_eq!(rebuilt.committed_memory_bytes, Some(7 * 1024 * 1024 * 1024));
+        assert_eq!(
+            rebuilt.local_execution_mode,
+            Some(SwarmLocalExecutionModeIpc::Cold)
+        );
         let dto = SessionSpawnTemplateIpc::from(tpl);
         assert_eq!(dto.provider, SwarmProviderIpc::Local);
         assert_eq!(
@@ -3688,6 +3851,10 @@ mod tests {
             Some("D:/models/qwen.safetensors")
         );
         assert_eq!(dto.runtime_binding, Some(SwarmRuntimeBindingIpc::Candle));
+        assert_eq!(
+            dto.local_execution_mode,
+            Some(SwarmLocalExecutionModeIpc::Cold)
+        );
         assert_eq!(dto.byok_cloud_provider, None);
         assert_eq!(dto.swarm_id.as_deref(), Some("swarm-z"));
         assert_eq!(dto.worktree_id.as_deref(), Some("wt-z"));

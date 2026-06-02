@@ -44,5 +44,7 @@
 //! (the retained child also reaps on drop via `kill_on_drop`).
 
 pub mod adapter;
+pub mod guest_agent;
 
 pub use adapter::*;
+pub use guest_agent::*;

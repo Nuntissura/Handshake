@@ -5,21 +5,23 @@ import path from "node:path";
 import { buildSwarmSpawnHarness } from "./build_swarm_spawn_harness";
 
 // WP-KERNEL-004 governance glue #2 — operator-facing worktree / disk-location /
-// isolation-tier / committed-memory ASSIGNMENT on swarm spawn. jsdom cannot judge layout / overlap
+// isolation-tier / execution-mode / committed-memory ASSIGNMENT on swarm spawn. jsdom cannot judge layout / overlap
 // / readability, so the operator requirement "test via Handshake's own tools" is
 // met here in a GENUINE Chromium render of the REAL <SwarmControlRoom> spawn
 // form (real useSwarmRoom hook, real SwarmSpawnSection, real SwarmSessionsSection
-// Worktree column). The only stand-in is a deterministic Tauri IPC mock supplied
+// Worktree/Mode columns). The only stand-in is a deterministic Tauri IPC mock supplied
 // inside the harness — not a replacement for the form DOM.
 //
 // We assert, against the real layout engine + the real component output:
-//   - the worktree picker, disk working-dir field, isolation-tier selector, and
+//   - the worktree picker, disk working-dir field, isolation-tier selector,
+//     execution-mode selector, and
 //     committed-memory estimate field
 //     are present and operable,
 //   - selecting "+ New worktree…" reveals the free-text new-name input,
 //   - the mandatory Tier3/memory admission honesty note is visible,
 //   - the committed-memory resource cap/remaining label is visible,
-//   - the sessions table renders the Worktree column (assigned id + "—"),
+//   - the sessions table renders Worktree and Mode columns (assigned id + "—",
+//     warm_vm + "—"),
 //   - the controls are distinct, non-overlapping hit targets,
 //   - a read-only PNG baseline is written under .GOV/visual_baselines/.
 
@@ -52,13 +54,14 @@ async function mountSpawnForm(page: any): Promise<void> {
   await page.locator("[data-testid='swarm-spawn-form']").waitFor({ state: "attached" });
 }
 
-test("real spawn form exposes the worktree picker, disk field, isolation tier, committed memory + honesty note", async ({ page }) => {
+test("real spawn form exposes the worktree picker, disk field, isolation tier, execution mode, committed memory + honesty note", async ({ page }) => {
   await mountSpawnForm(page);
 
   // The assignment controls are present and operable.
   await expect(page.locator("[data-testid='swarm-spawn-worktree-select']")).toBeVisible();
   await expect(page.locator("[data-testid='swarm-spawn-working-dir']")).toBeVisible();
   await expect(page.locator("[data-testid='swarm-spawn-isolation-tier']")).toBeVisible();
+  await expect(page.locator("[data-testid='swarm-spawn-local-execution-mode']")).toBeVisible();
   await expect(page.locator("[data-testid='swarm-spawn-committed-memory-mib']")).toBeVisible();
 
   // The discovered worktree (from the mocked listWorktrees) is offered as an option.
@@ -66,10 +69,15 @@ test("real spawn form exposes the worktree picker, disk field, isolation tier, c
     page.locator("[data-testid='swarm-spawn-worktree-select'] option", { hasText: "wt-feature-x" }),
   ).toHaveCount(1);
 
-  // The mandatory honesty note is visible (Tier3 now enforced for local llama.cpp,
-  // memory reservation only when a ceiling is configured).
+  // The mandatory honesty note is visible (cold VM by default, Warm VM requires
+  // the resident guest agent, memory reservation only when a ceiling is configured).
   await expect(page.locator("[data-testid='swarm-isolation-note']")).toBeVisible();
-  await expect(page.locator("[data-testid='swarm-isolation-note']")).toContainText(/Tier3 microVM is enforced/i);
+  await expect(page.locator("[data-testid='swarm-isolation-note']")).toContainText(
+    /Tier3 local llama\.cpp uses cold microVM unless Warm VM is selected/i,
+  );
+  await expect(page.locator("[data-testid='swarm-isolation-note']")).toContainText(
+    /resident guest agent support/i,
+  );
   await expect(page.locator("[data-testid='swarm-isolation-note']")).toContainText(/Committed memory is reserved/i);
   await expect(page.locator("[data-testid='swarm-stat-committed-memory']")).toContainText(
     /Committed memory: 8\.0 GiB \/ 16\.0 GiB remaining/i,
@@ -108,13 +116,17 @@ test("real spawn form exposes the worktree picker, disk field, isolation tier, c
   });
 });
 
-test("real sessions table renders the Worktree column (assigned id + honest dash)", async ({ page }) => {
+test("real sessions table renders Worktree and Mode columns (assigned id/warm_vm + honest dashes)", async ({ page }) => {
   await mountSpawnForm(page);
 
   // The mocked live sessions land in the table with their assigned worktree.
   await expect(page.locator("[data-testid='swarm-session-worktree-alpha-model#0']")).toContainText(
     "wt-feature-x",
   );
+  await expect(page.locator("[data-testid='swarm-session-execution-mode-alpha-model#0']")).toContainText(
+    "warm_vm",
+  );
   // The unassigned cloud session shows an honest dash, never a fabricated lane.
   await expect(page.locator("[data-testid='swarm-session-worktree-beta-cloud#0']")).toContainText("—");
+  await expect(page.locator("[data-testid='swarm-session-execution-mode-beta-cloud#0']")).toContainText("—");
 });

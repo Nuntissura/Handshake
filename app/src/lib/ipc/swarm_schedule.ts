@@ -13,6 +13,8 @@ import { invoke } from "@tauri-apps/api/core";
 
 export type ScheduleProvider = "local" | "byok_cloud" | "official_cli";
 export type ScheduleRuntimeBinding = "candle" | "llama_cpp";
+export type ScheduleLocalExecutionMode = "cold" | "warm_vm";
+export type ScheduleIsolationTier = "tier1_container" | "tier2_syscall" | "tier3_microvm";
 
 /** WHAT a scheduled spin-up launches (the orchestrator's spawn template). */
 export interface SpawnTemplate {
@@ -23,12 +25,18 @@ export interface SpawnTemplate {
   sha256Expected?: string;
   /** Local: candle | llama_cpp. */
   runtimeBinding?: ScheduleRuntimeBinding;
+  /** Local: cold/default or explicit warm VM execution. */
+  localExecutionMode?: ScheduleLocalExecutionMode;
   /** Cloud: allowlisted cloud model name (e.g. claude-sonnet-4). */
   cloudModelName?: string;
   /** Concurrent instance index of this model (default 0). */
   instance?: number;
   /** Worktree binding (board swimlane / per-worktree recovery). */
   worktreeId?: string;
+  /** Operator-intended isolation tier; warm VM requires tier3_microvm. */
+  isolationTier?: ScheduleIsolationTier;
+  /** Optional local committed-memory estimate in bytes. */
+  committedMemoryBytes?: number;
   /** Parent session id for ledger lineage. */
   parentSessionId?: string;
 }
@@ -61,6 +69,9 @@ export interface RegisteredScheduleRow {
   artifactPath: string | null;
   cloudModelName: string | null;
   worktreeId: string | null;
+  localExecutionMode: ScheduleLocalExecutionMode | null;
+  isolationTier: ScheduleIsolationTier | null;
+  committedMemoryBytes: number | null;
   registeredAt: string;
 }
 
