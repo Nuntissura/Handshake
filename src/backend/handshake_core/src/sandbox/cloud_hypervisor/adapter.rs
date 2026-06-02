@@ -30,10 +30,13 @@ use crate::sandbox::{
 };
 
 use super::guest_agent::{
-    validate_warm_agent_host_candidate, warm_agent_unavailable_detail,
-    CLOUD_HYPERVISOR_WARM_AGENT_CMDLINE_KEY, CLOUD_HYPERVISOR_WARM_AGENT_GUEST_PATH_METADATA_KEY,
-    CLOUD_HYPERVISOR_WARM_AGENT_HOST_PATH_ENV, CLOUD_HYPERVISOR_WARM_AGENT_REQUIRED_TRANSPORT,
-    CLOUD_HYPERVISOR_WARM_AGENT_UNAVAILABLE_REASON,
+    warm_agent_unavailable_detail, CLOUD_HYPERVISOR_WARM_AGENT_CMDLINE_KEY,
+    CLOUD_HYPERVISOR_WARM_AGENT_GUEST_PATH_METADATA_KEY, CLOUD_HYPERVISOR_WARM_AGENT_HOST_PATH_ENV,
+    CLOUD_HYPERVISOR_WARM_AGENT_REQUIRED_TRANSPORT, CLOUD_HYPERVISOR_WARM_AGENT_UNAVAILABLE_REASON,
+};
+use super::warm_agent_package::{
+    validate_warm_agent_package_candidate_with_runtime_probe, WarmAgentGuestPackageManifest,
+    WarmAgentPackageError,
 };
 
 #[cfg(windows)]
@@ -331,7 +334,7 @@ impl CloudHypervisorBalloonConfig {
 ///
 /// The host-side `wsl.exe` launcher resolves via `PATH` (`HANDSHAKE_CH_WSL_EXE`
 /// overrides it) so the Windows side stays portable too.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub struct CloudHypervisorConfig {
     distro: String,
     wsl_exe: PathBuf,
@@ -346,6 +349,9 @@ pub struct CloudHypervisorConfig {
     command_timeout_ms: u64,
     balloon: CloudHypervisorBalloonConfig,
     warm_agent_host_path: Option<PathBuf>,
+    #[cfg(test)]
+    warm_agent_package_validator:
+        Option<fn(&Path) -> Result<WarmAgentGuestPackageManifest, WarmAgentPackageError>>,
 }
 
 impl CloudHypervisorConfig {
@@ -404,13 +410,25 @@ impl CloudHypervisorConfig {
     pub fn warm_agent_configured(&self) -> bool {
         self.warm_agent_host_path
             .as_deref()
-            .is_some_and(|path| validate_warm_agent_host_candidate(path).is_ok())
+            .is_some_and(|path| self.validate_warm_agent_package(path).is_ok())
     }
 
     fn warm_agent_config_error(&self) -> Option<String> {
         self.warm_agent_host_path
             .as_deref()
-            .and_then(|path| validate_warm_agent_host_candidate(path).err())
+            .and_then(|path| self.validate_warm_agent_package(path).err())
+            .map(|error| error.to_string())
+    }
+
+    fn validate_warm_agent_package(
+        &self,
+        path: &Path,
+    ) -> Result<WarmAgentGuestPackageManifest, WarmAgentPackageError> {
+        #[cfg(test)]
+        if let Some(validator) = self.warm_agent_package_validator {
+            return validator(path);
+        }
+        validate_warm_agent_package_candidate_with_runtime_probe(path, &self.distro, &self.wsl_exe)
     }
 
     pub fn with_command_timeout_ms(mut self, timeout_ms: u64) -> Self {
@@ -420,6 +438,15 @@ impl CloudHypervisorConfig {
 
     pub fn with_warm_agent_host_path(mut self, path: impl Into<PathBuf>) -> Self {
         self.warm_agent_host_path = Some(path.into());
+        self
+    }
+
+    #[cfg(test)]
+    fn with_warm_agent_package_validator(
+        mut self,
+        validator: fn(&Path) -> Result<WarmAgentGuestPackageManifest, WarmAgentPackageError>,
+    ) -> Self {
+        self.warm_agent_package_validator = Some(validator);
         self
     }
 }
@@ -452,6 +479,8 @@ impl Default for CloudHypervisorConfig {
                 ),
             ),
             warm_agent_host_path: env_path_opt(CLOUD_HYPERVISOR_WARM_AGENT_HOST_PATH_ENV),
+            #[cfg(test)]
+            warm_agent_package_validator: None,
         }
     }
 }
@@ -669,7 +698,7 @@ impl CloudHypervisorAdapter {
             CloudHypervisorWarmAgentStatus::supported()
         } else if let Some(error) = self.config.warm_agent_config_error() {
             CloudHypervisorWarmAgentStatus::unsupported_with_reason(format!(
-                "{CLOUD_HYPERVISOR_WARM_AGENT_UNAVAILABLE_REASON}; configured warm-agent host path is not a packaged static guest artifact: {error}"
+                "{CLOUD_HYPERVISOR_WARM_AGENT_UNAVAILABLE_REASON}; configured warm-agent host path is not a complete warm-agent package: {error}"
             ))
         } else {
             CloudHypervisorWarmAgentStatus::unsupported()
@@ -3557,6 +3586,11 @@ mod tests {
 
     use crate::sandbox::{ImageRef, TrustClass};
 
+    use super::super::warm_agent_package::{
+        manifest_for_test_recorded_probe_artifact, package_manifest_path_for_agent,
+        validate_warm_agent_package_manifest_candidate, WARM_AGENT_PACKAGE_AGENT_BINARY_MARKER,
+        WARM_AGENT_PACKAGE_LLAMA_SERVER_MARKERS,
+    };
     use super::*;
 
     fn minimal_static_x86_64_elf() -> Vec<u8> {
@@ -3576,6 +3610,20 @@ mod tests {
         elf
     }
 
+    fn marked_warm_agent_elf() -> Vec<u8> {
+        let mut elf = minimal_static_x86_64_elf();
+        elf.extend_from_slice(WARM_AGENT_PACKAGE_AGENT_BINARY_MARKER.as_bytes());
+        elf
+    }
+
+    fn marked_llama_server_elf() -> Vec<u8> {
+        let mut elf = minimal_static_x86_64_elf();
+        for marker in WARM_AGENT_PACKAGE_LLAMA_SERVER_MARKERS {
+            elf.extend_from_slice(marker.as_bytes());
+        }
+        elf
+    }
+
     fn static_warm_agent_fixture(label: &str) -> (std::path::PathBuf, std::path::PathBuf) {
         let dir = std::env::temp_dir().join(format!(
             "hsk-ch-warm-agent-{label}-{}",
@@ -3583,9 +3631,24 @@ mod tests {
         ));
         std::fs::create_dir_all(&dir).expect("create warm-agent fixture dir");
         let agent = dir.join("hsk-warm-agent");
-        std::fs::write(&agent, minimal_static_x86_64_elf())
-            .expect("write static warm-agent fixture");
+        std::fs::write(&agent, marked_warm_agent_elf()).expect("write static warm-agent fixture");
+        let llama_server = dir.join("llama-server");
+        std::fs::write(&llama_server, marked_llama_server_elf())
+            .expect("write static llama-server fixture");
+        let manifest =
+            manifest_for_test_recorded_probe_artifact(&agent).expect("warm-agent package manifest");
+        std::fs::write(
+            package_manifest_path_for_agent(&agent).expect("manifest path"),
+            serde_json::to_vec_pretty(&manifest).expect("manifest json"),
+        )
+        .expect("write warm-agent package manifest");
         (dir, agent)
+    }
+
+    fn test_warm_agent_package_validator(
+        path: &Path,
+    ) -> Result<WarmAgentGuestPackageManifest, WarmAgentPackageError> {
+        validate_warm_agent_package_manifest_candidate(path)
     }
 
     const FAKE_LIVE_WARM_AGENT_SH: &str = r#"#!/bin/sh
@@ -4076,33 +4139,78 @@ done
                 .unavailable_reason
                 .as_deref()
                 .unwrap_or_default()
-                .contains("not a packaged static guest artifact"),
+                .contains("not a complete warm-agent package"),
             "{invalid_status:?}"
         );
 
-        let (dir, agent) = static_warm_agent_fixture("caps");
-        let mut adapter = CloudHypervisorAdapter::new_for_test();
-        adapter.config = adapter.config.clone().with_warm_agent_host_path(&agent);
-
-        let caps = adapter.capabilities();
+        let no_manifest_dir = std::env::temp_dir().join(format!(
+            "hsk-ch-warm-no-manifest-{}",
+            Uuid::now_v7().simple()
+        ));
+        std::fs::create_dir_all(&no_manifest_dir).expect("create no-manifest warm-agent dir");
+        let no_manifest_agent = no_manifest_dir.join("hsk-warm-agent");
+        std::fs::write(&no_manifest_agent, marked_warm_agent_elf())
+            .expect("write no-manifest warm-agent");
+        std::fs::write(
+            no_manifest_dir.join("llama-server"),
+            marked_llama_server_elf(),
+        )
+        .expect("write no-manifest llama-server");
+        let mut no_manifest_adapter = CloudHypervisorAdapter::new_for_test();
+        no_manifest_adapter.config = no_manifest_adapter
+            .config
+            .clone()
+            .with_warm_agent_host_path(&no_manifest_agent);
+        let no_manifest_caps = no_manifest_adapter.capabilities();
         assert!(
-            caps.supports_warm_agent,
-            "validated resident agent path should opt into warm-model RPC"
+            !no_manifest_caps.supports_warm_agent,
+            "unrecorded static ELF pair must not advertise warm-model RPC"
         );
         assert!(
-            caps.supports_live_token_stream,
-            "validated resident agent path should opt into live warm frames"
+            !no_manifest_caps.supports_live_token_stream,
+            "unrecorded static ELF pair must not advertise live warm frames"
+        );
+        let no_manifest_status = no_manifest_adapter.warm_agent_status();
+        assert!(
+            no_manifest_status
+                .unavailable_reason
+                .as_deref()
+                .unwrap_or_default()
+                .contains("manifest missing"),
+            "{no_manifest_status:?}"
         );
 
-        let status = adapter.warm_agent_status();
-        assert!(status.warm_agent_supported);
-        assert!(status.live_token_stream_supported);
+        let (fake_dir, fake_agent) = static_warm_agent_fixture("caps-fake-runtime");
+        let mut fake_adapter = CloudHypervisorAdapter::new_for_test();
+        fake_adapter.config = fake_adapter
+            .config
+            .clone()
+            .with_warm_agent_host_path(&fake_agent);
+
+        let caps = fake_adapter.capabilities();
         assert!(
-            status.unavailable_reason.is_none(),
-            "supported warm-agent status should not carry stale unsupported text"
+            !caps.supports_warm_agent,
+            "marked fake package must not advertise warm-model RPC without runtime probe proof"
+        );
+        assert!(
+            !caps.supports_live_token_stream,
+            "marked fake package must not advertise live warm frames without runtime probe proof"
+        );
+
+        let status = fake_adapter.warm_agent_status();
+        assert!(!status.warm_agent_supported);
+        assert!(!status.live_token_stream_supported);
+        assert!(
+            status
+                .unavailable_reason
+                .as_deref()
+                .unwrap_or_default()
+                .contains("not a complete warm-agent package"),
+            "{status:?}"
         );
         let _ = std::fs::remove_dir_all(invalid_dir);
-        let _ = std::fs::remove_dir_all(dir);
+        let _ = std::fs::remove_dir_all(no_manifest_dir);
+        let _ = std::fs::remove_dir_all(fake_dir);
     }
 
     #[test]
@@ -4548,7 +4656,11 @@ done
     async fn warm_agent_transport_rejects_cold_persistent_command_handle() {
         let (dir, agent) = static_warm_agent_fixture("cold-transport");
         let mut adapter = CloudHypervisorAdapter::new_for_test();
-        adapter.config = adapter.config.clone().with_warm_agent_host_path(&agent);
+        adapter.config = adapter
+            .config
+            .clone()
+            .with_warm_agent_host_path(&agent)
+            .with_warm_agent_package_validator(test_warm_agent_package_validator);
         let handle = ProcessHandle::new(
             AdapterId::new(CLOUD_HYPERVISOR_ADAPTER_ID),
             None,
@@ -4579,7 +4691,11 @@ done
     async fn warm_agent_transport_accepts_warm_boot_provenance() {
         let (dir, agent) = static_warm_agent_fixture("warm-transport");
         let mut adapter = CloudHypervisorAdapter::new_for_test();
-        adapter.config = adapter.config.clone().with_warm_agent_host_path(&agent);
+        adapter.config = adapter
+            .config
+            .clone()
+            .with_warm_agent_host_path(&agent)
+            .with_warm_agent_package_validator(test_warm_agent_package_validator);
         let handle = ProcessHandle::new(
             AdapterId::new(CLOUD_HYPERVISOR_ADAPTER_ID),
             None,
@@ -4650,7 +4766,9 @@ done
         // test the serial bridge. The adapter capability gate is about whether
         // a packaged static guest artifact is configured, so keep that proof as
         // a separate host-side fixture instead of weakening production status.
-        config = config.with_warm_agent_host_path(&capability_agent);
+        config = config
+            .with_warm_agent_host_path(&capability_agent)
+            .with_warm_agent_package_validator(test_warm_agent_package_validator);
         let adapter = CloudHypervisorAdapter::try_new(config.clone())
             .await
             .expect("real CloudHypervisorAdapter available on this desktop");
@@ -4848,6 +4966,7 @@ done
             command_timeout_ms: DEFAULT_COMMAND_TIMEOUT_MS,
             balloon: CloudHypervisorBalloonConfig::disabled(),
             warm_agent_host_path: None,
+            warm_agent_package_validator: None,
         };
         assert_eq!(config.memory_mib(), 256);
         assert_eq!(config.vcpus(), 1);

@@ -6,7 +6,11 @@
 //! advertise support once a guest image serves this contract over serial or
 //! vsock.
 
-use std::{fs::File, io::Read, path::Path};
+use std::{
+    fs::File,
+    io::Read,
+    path::{Path, PathBuf},
+};
 
 use serde::{Deserialize, Serialize};
 
@@ -23,6 +27,7 @@ pub const CLOUD_HYPERVISOR_WARM_AGENT_UNAVAILABLE_REASON: &str =
      guest agent/image; serial is the bootstrap transport and virtio-vsock remains \
      the hardened follow-on";
 pub const CLOUD_HYPERVISOR_WARM_AGENT_PACKAGE_MANIFEST_FILE: &str = "hsk-warm-agent.package.json";
+pub const CLOUD_HYPERVISOR_WARM_AGENT_LLAMA_SERVER_FILE: &str = "llama-server";
 
 const ELF64_HEADER_LEN: usize = 64;
 const ELFCLASS64: u8 = 2;
@@ -83,19 +88,42 @@ pub fn warm_agent_unavailable_detail() -> String {
 }
 
 pub fn validate_warm_agent_host_candidate(path: &Path) -> Result<(), String> {
+    validate_static_x86_64_guest_elf(path, "warm-agent host path")?;
+    validate_warm_agent_llama_server_sibling(path).map(|_| ())
+}
+
+pub fn validate_warm_agent_llama_server_sibling(agent_path: &Path) -> Result<PathBuf, String> {
+    let parent = agent_path.parent().ok_or_else(|| {
+        format!(
+            "warm-agent host path has no parent directory for sibling {CLOUD_HYPERVISOR_WARM_AGENT_LLAMA_SERVER_FILE}: {}",
+            agent_path.display()
+        )
+    })?;
+    let llama_server = parent.join(CLOUD_HYPERVISOR_WARM_AGENT_LLAMA_SERVER_FILE);
+    if !llama_server.is_file() {
+        return Err(format!(
+            "warm-agent package requires sibling {CLOUD_HYPERVISOR_WARM_AGENT_LLAMA_SERVER_FILE} next to {} so the BusyBox guest can start resident model serving",
+            agent_path.display()
+        ));
+    }
+    validate_static_x86_64_guest_elf(&llama_server, "warm-agent companion llama-server")?;
+    Ok(llama_server)
+}
+
+pub fn validate_static_x86_64_guest_elf(path: &Path, artifact_label: &str) -> Result<(), String> {
     if !path.is_file() {
         return Err(format!(
-            "warm-agent host path must point at a Linux guest executable file; missing: {}",
+            "{artifact_label} must point at a Linux guest executable file; missing: {}",
             path.display()
         ));
     }
     let file_name = path
         .file_name()
         .and_then(|value| value.to_str())
-        .ok_or_else(|| "warm-agent host path must have a UTF-8 file name".to_string())?;
+        .ok_or_else(|| format!("{artifact_label} must have a UTF-8 file name"))?;
     if file_name.chars().any(char::is_whitespace) {
         return Err(format!(
-            "warm-agent file name must not contain whitespace: {file_name}"
+            "{artifact_label} file name must not contain whitespace: {file_name}"
         ));
     }
     if path
@@ -105,7 +133,7 @@ pub fn validate_warm_agent_host_candidate(path: &Path) -> Result<(), String> {
         .unwrap_or(false)
     {
         return Err(format!(
-            "warm-agent host path must be a Linux guest executable, not a Windows .exe: {}",
+            "{artifact_label} must be a Linux guest executable, not a Windows .exe: {}",
             path.display()
         ));
     }
@@ -113,47 +141,51 @@ pub fn validate_warm_agent_host_candidate(path: &Path) -> Result<(), String> {
     let mut bytes = Vec::new();
     File::open(path)
         .and_then(|mut file| file.read_to_end(&mut bytes))
-        .map_err(|error| format!("warm-agent host path is unreadable: {error}"))?;
+        .map_err(|error| format!("{artifact_label} is unreadable: {error}"))?;
     if bytes.len() >= 2 && bytes[..2] == *b"MZ" {
         return Err(format!(
-            "warm-agent host path has a Windows PE/MZ header; build/package a Linux ELF agent before binding it into Cloud Hypervisor: {}",
+            "{artifact_label} has a Windows PE/MZ header; build/package a Linux ELF artifact before binding it into Cloud Hypervisor: {}",
             path.display()
         ));
     }
-    validate_static_x86_64_elf_bytes(path, &bytes)
+    validate_static_x86_64_elf_bytes(path, &bytes, artifact_label)
 }
 
-fn validate_static_x86_64_elf_bytes(path: &Path, bytes: &[u8]) -> Result<(), String> {
+fn validate_static_x86_64_elf_bytes(
+    path: &Path,
+    bytes: &[u8],
+    artifact_label: &str,
+) -> Result<(), String> {
     if bytes.len() < ELF64_HEADER_LEN || bytes[..4] != *b"\x7fELF" {
         return Err(format!(
-            "warm-agent host path must be a packaged static Linux x86_64 ELF guest artifact: {}",
+            "{artifact_label} must be a packaged static Linux x86_64 ELF guest artifact: {}",
             path.display()
         ));
     }
     if bytes[4] != ELFCLASS64 || bytes[5] != ELFDATA2LSB || bytes[6] != EV_CURRENT as u8 {
         return Err(format!(
-            "warm-agent host path must be a 64-bit little-endian ELF guest artifact: {}",
+            "{artifact_label} must be a 64-bit little-endian ELF guest artifact: {}",
             path.display()
         ));
     }
     let elf_type = read_u16_le(bytes, 16);
     if !matches!(elf_type, ET_EXEC | ET_DYN) {
         return Err(format!(
-            "warm-agent host path must be an executable Linux ELF artifact: {}",
+            "{artifact_label} must be an executable Linux ELF artifact: {}",
             path.display()
         ));
     }
     let machine = read_u16_le(bytes, 18);
     if machine != EM_X86_64 {
         return Err(format!(
-            "warm-agent host path must target x86_64 for the Cloud Hypervisor guest, got ELF machine {machine}: {}",
+            "{artifact_label} must target x86_64 for the Cloud Hypervisor guest, got ELF machine {machine}: {}",
             path.display()
         ));
     }
     let version = read_u32_le(bytes, 20);
     if version != EV_CURRENT {
         return Err(format!(
-            "warm-agent host path has an unsupported ELF version {version}: {}",
+            "{artifact_label} has an unsupported ELF version {version}: {}",
             path.display()
         ));
     }
@@ -165,7 +197,7 @@ fn validate_static_x86_64_elf_bytes(path: &Path, bytes: &[u8]) -> Result<(), Str
     let program_header_count = read_u16_le(bytes, 56) as usize;
     if program_header_offset == 0 || program_header_entry_size < 4 || program_header_count == 0 {
         return Err(format!(
-            "warm-agent host path must include ELF program headers for guest execution: {}",
+            "{artifact_label} must include ELF program headers for guest execution: {}",
             path.display()
         ));
     }
@@ -175,7 +207,7 @@ fn validate_static_x86_64_elf_bytes(path: &Path, bytes: &[u8]) -> Result<(), Str
         .ok_or_else(|| "warm-agent ELF program-header table overflows host usize".to_string())?;
     if program_header_bytes > bytes.len() {
         return Err(format!(
-            "warm-agent host path has a truncated ELF program-header table: {}",
+            "{artifact_label} has a truncated ELF program-header table: {}",
             path.display()
         ));
     }
@@ -183,7 +215,7 @@ fn validate_static_x86_64_elf_bytes(path: &Path, bytes: &[u8]) -> Result<(), Str
         let offset = program_header_offset + index * program_header_entry_size;
         if read_u32_le(bytes, offset) == PT_INTERP {
             return Err(format!(
-                "warm-agent host path must be statically linked for the BusyBox initramfs guest; dynamic loader PT_INTERP found: {}",
+                "{artifact_label} must be statically linked for the BusyBox initramfs guest; dynamic loader PT_INTERP found: {}",
                 path.display()
             ));
         }
@@ -267,7 +299,37 @@ mod tests {
         std::fs::create_dir_all(&dir).expect("create temp dir");
         let agent = dir.join("hsk-warm-agent");
         std::fs::write(&agent, minimal_static_x86_64_elf()).expect("write elf");
+        let llama_server = dir.join(CLOUD_HYPERVISOR_WARM_AGENT_LLAMA_SERVER_FILE);
+        std::fs::write(&llama_server, minimal_static_x86_64_elf()).expect("write llama-server elf");
         validate_warm_agent_host_candidate(&agent).expect("static x86_64 ELF candidate accepted");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn host_candidate_rejects_agent_without_sibling_llama_server() {
+        let dir =
+            std::env::temp_dir().join(format!("hsk-warm-agent-{}", uuid::Uuid::now_v7().simple()));
+        std::fs::create_dir_all(&dir).expect("create temp dir");
+        let agent = dir.join("hsk-warm-agent");
+        std::fs::write(&agent, minimal_static_x86_64_elf()).expect("write elf");
+        assert!(validate_warm_agent_host_candidate(&agent)
+            .expect_err("missing companion server must not pass production binding")
+            .contains("requires sibling llama-server"));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn host_candidate_rejects_non_static_sibling_llama_server() {
+        let dir =
+            std::env::temp_dir().join(format!("hsk-warm-agent-{}", uuid::Uuid::now_v7().simple()));
+        std::fs::create_dir_all(&dir).expect("create temp dir");
+        let agent = dir.join("hsk-warm-agent");
+        let llama_server = dir.join(CLOUD_HYPERVISOR_WARM_AGENT_LLAMA_SERVER_FILE);
+        std::fs::write(&agent, minimal_static_x86_64_elf()).expect("write elf");
+        std::fs::write(&llama_server, b"#!/bin/sh\n").expect("write shell");
+        assert!(validate_warm_agent_host_candidate(&agent)
+            .expect_err("shell companion must not pass production binding")
+            .contains("warm-agent companion llama-server"));
         let _ = std::fs::remove_dir_all(&dir);
     }
 

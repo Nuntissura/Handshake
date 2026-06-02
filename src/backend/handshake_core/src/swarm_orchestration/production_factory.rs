@@ -35,6 +35,9 @@
 
 use std::sync::Arc;
 
+#[cfg(test)]
+use std::sync::{Mutex, OnceLock};
+
 use async_trait::async_trait;
 
 use crate::model_runtime::candle::{load_local_candle_model, LoadedCandleModel};
@@ -44,9 +47,10 @@ use crate::process_ledger::{
     record_spawn, LedgerBatcher, ProcessEngineKind, ProcessOwnershipRecordId, SpawnMeta,
 };
 use crate::sandbox::{
-    validate_warm_agent_host_candidate, BindMode, BindSpec, SandboxAdapterRegistry,
+    validate_warm_agent_package_candidate_with_runtime_probe, BindMode, BindSpec,
+    SandboxAdapterRegistry, WarmAgentGuestPackageManifest, WarmAgentPackageError,
     CLOUD_HYPERVISOR_WARM_AGENT_GUEST_PATH_METADATA_KEY, CLOUD_HYPERVISOR_WARM_AGENT_GUEST_ROOT,
-    CLOUD_HYPERVISOR_WARM_AGENT_HOST_PATH_ENV,
+    CLOUD_HYPERVISOR_WARM_AGENT_HOST_PATH_ENV, DEFAULT_WSL_DISTRO,
 };
 
 use super::error::{SwarmError, SwarmResult};
@@ -61,15 +65,23 @@ use crate::flight_recorder::FlightRecorderEvent;
 
 const SANDBOX_LLAMA_CLI_HOST_PATH_ENV: &str = "HANDSHAKE_SANDBOX_LLAMA_CLI_HOST_PATH";
 
+#[cfg(test)]
+type WarmAgentPackageValidator =
+    fn(&std::path::Path) -> Result<WarmAgentGuestPackageManifest, WarmAgentPackageError>;
+
+#[cfg(test)]
+static WARM_AGENT_PACKAGE_VALIDATOR_OVERRIDE: OnceLock<Mutex<Option<WarmAgentPackageValidator>>> =
+    OnceLock::new();
+
 fn warm_agent_bind_from_env() -> Result<Option<(BindSpec, String)>, SwarmError> {
     let Some(path) = std::env::var_os(CLOUD_HYPERVISOR_WARM_AGENT_HOST_PATH_ENV) else {
         return Ok(None);
     };
     let host_path = std::path::PathBuf::from(path);
-    validate_warm_agent_host_candidate(&host_path).map_err(|error| {
+    validate_warm_agent_package_for_factory(&host_path).map_err(|error| {
         SwarmError::FactoryFailed(format!(
             "warm VM local execution requires {CLOUD_HYPERVISOR_WARM_AGENT_HOST_PATH_ENV} \
-             to point at a packaged Linux guest warm-agent artifact: {error}"
+             to point at a complete packaged Linux guest warm-agent artifact: {error}"
         ))
     })?;
     let file_name = host_path
@@ -108,6 +120,38 @@ fn warm_agent_bind_from_env() -> Result<Option<(BindSpec, String)>, SwarmError> 
         },
         guest_path,
     )))
+}
+
+fn validate_warm_agent_package_for_factory(
+    host_path: &std::path::Path,
+) -> Result<WarmAgentGuestPackageManifest, WarmAgentPackageError> {
+    #[cfg(test)]
+    if let Some(validator) = *warm_agent_package_validator_override().lock().unwrap() {
+        return validator(host_path);
+    }
+
+    let distro = warm_agent_runtime_probe_distro();
+    let wsl_exe = warm_agent_runtime_probe_wsl_exe();
+    validate_warm_agent_package_candidate_with_runtime_probe(host_path, &distro, &wsl_exe)
+}
+
+#[cfg(test)]
+fn warm_agent_package_validator_override() -> &'static Mutex<Option<WarmAgentPackageValidator>> {
+    WARM_AGENT_PACKAGE_VALIDATOR_OVERRIDE.get_or_init(|| Mutex::new(None))
+}
+
+fn warm_agent_runtime_probe_distro() -> String {
+    std::env::var("HANDSHAKE_CH_DISTRO")
+        .ok()
+        .filter(|value| !value.trim().is_empty())
+        .unwrap_or_else(|| DEFAULT_WSL_DISTRO.to_string())
+}
+
+fn warm_agent_runtime_probe_wsl_exe() -> std::path::PathBuf {
+    std::env::var_os("HANDSHAKE_CH_WSL_EXE")
+        .filter(|value| !value.is_empty())
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| std::path::PathBuf::from("wsl.exe"))
 }
 
 /// Default per-run concurrency cap when the caller does not specify one: the
@@ -1548,6 +1592,12 @@ mod tests {
         LedgerBatcherConfig, LedgerEvent, LedgerEventKind, NoopOverflowSink, ProcessLedgerDrain,
         ProcessLedgerError, ProcessLedgerStore,
     };
+    use crate::sandbox::{
+        manifest_for_test_recorded_probe_artifact, package_manifest_path_for_agent,
+        validate_warm_agent_package_manifest_candidate, WarmAgentGuestPackageManifest,
+        WarmAgentPackageError, WARM_AGENT_PACKAGE_AGENT_BINARY_MARKER,
+        WARM_AGENT_PACKAGE_LLAMA_SERVER_MARKERS,
+    };
     use crate::swarm_orchestration::events::RecordingSwarmSink;
     use crate::swarm_orchestration::ids::{ModelInstanceId, RunBudget, SpawnRequest};
     use crate::swarm_orchestration::SwarmCoordinator;
@@ -1561,6 +1611,23 @@ mod tests {
             .get_or_init(|| Mutex::new(()))
             .lock()
             .expect("runner env lock")
+    }
+
+    struct WarmAgentValidatorOverrideGuard {
+        prior: Option<WarmAgentPackageValidator>,
+    }
+
+    impl Drop for WarmAgentValidatorOverrideGuard {
+        fn drop(&mut self) {
+            *warm_agent_package_validator_override().lock().unwrap() = self.prior;
+        }
+    }
+
+    fn install_test_warm_agent_validator() -> WarmAgentValidatorOverrideGuard {
+        let mut guard = warm_agent_package_validator_override().lock().unwrap();
+        let prior = *guard;
+        *guard = Some(test_warm_agent_package_validator);
+        WarmAgentValidatorOverrideGuard { prior }
     }
 
     #[derive(Clone, Default)]
@@ -2902,6 +2969,43 @@ mod tests {
         elf
     }
 
+    fn marked_warm_agent_elf() -> Vec<u8> {
+        let mut elf = minimal_static_x86_64_elf();
+        elf.extend_from_slice(WARM_AGENT_PACKAGE_AGENT_BINARY_MARKER.as_bytes());
+        elf
+    }
+
+    fn marked_llama_server_elf() -> Vec<u8> {
+        let mut elf = minimal_static_x86_64_elf();
+        for marker in WARM_AGENT_PACKAGE_LLAMA_SERVER_MARKERS {
+            elf.extend_from_slice(marker.as_bytes());
+        }
+        elf
+    }
+
+    fn write_static_warm_agent_package(dir: &std::path::Path) -> std::path::PathBuf {
+        std::fs::create_dir_all(dir).expect("mk warm agent dir");
+        let agent = dir.join("hsk-warm-agent");
+        let llama_server = dir.join("llama-server");
+        std::fs::write(&agent, marked_warm_agent_elf()).expect("write fake static ELF warm agent");
+        std::fs::write(&llama_server, marked_llama_server_elf())
+            .expect("write fake static ELF llama-server");
+        let manifest =
+            manifest_for_test_recorded_probe_artifact(&agent).expect("warm-agent package manifest");
+        std::fs::write(
+            package_manifest_path_for_agent(&agent).expect("manifest path"),
+            serde_json::to_vec_pretty(&manifest).expect("manifest json"),
+        )
+        .expect("write warm-agent package manifest");
+        agent
+    }
+
+    fn test_warm_agent_package_validator(
+        path: &std::path::Path,
+    ) -> Result<WarmAgentGuestPackageManifest, WarmAgentPackageError> {
+        validate_warm_agent_package_manifest_candidate(path)
+    }
+
     fn restore_env_var(key: &str, prior: Option<std::ffi::OsString>) {
         match prior {
             Some(value) => std::env::set_var(key, value),
@@ -2912,6 +3016,7 @@ mod tests {
     #[test]
     fn warm_agent_bind_from_env_derives_read_only_guest_binding() {
         let _env_guard = runner_env_lock();
+        let _validator_guard = install_test_warm_agent_validator();
         let prior = std::env::var_os(CLOUD_HYPERVISOR_WARM_AGENT_HOST_PATH_ENV);
         std::env::remove_var(CLOUD_HYPERVISOR_WARM_AGENT_HOST_PATH_ENV);
         assert!(
@@ -2923,10 +3028,7 @@ mod tests {
 
         let dir =
             std::env::temp_dir().join(format!("hsk-warm-agent-{}", uuid::Uuid::now_v7().simple()));
-        std::fs::create_dir_all(&dir).expect("mk warm agent dir");
-        let agent = dir.join("hsk-warm-agent");
-        std::fs::write(&agent, minimal_static_x86_64_elf())
-            .expect("write fake static ELF warm agent");
+        let agent = write_static_warm_agent_package(&dir);
         std::env::set_var(CLOUD_HYPERVISOR_WARM_AGENT_HOST_PATH_ENV, &agent);
 
         let (bind, guest_path) = warm_agent_bind_from_env()
@@ -2959,6 +3061,29 @@ mod tests {
 
         restore_env_var(CLOUD_HYPERVISOR_WARM_AGENT_HOST_PATH_ENV, prior);
         let _ = std::fs::remove_dir_all(bind.host_path);
+    }
+
+    #[test]
+    fn warm_agent_bind_from_env_rejects_marked_fake_package_without_runtime_probe() {
+        let _env_guard = runner_env_lock();
+        let prior = std::env::var_os(CLOUD_HYPERVISOR_WARM_AGENT_HOST_PATH_ENV);
+        let dir = std::env::temp_dir().join(format!(
+            "hsk-warm-agent-runtime-reject-{}",
+            uuid::Uuid::now_v7().simple()
+        ));
+        let agent = write_static_warm_agent_package(&dir);
+        std::env::set_var(CLOUD_HYPERVISOR_WARM_AGENT_HOST_PATH_ENV, &agent);
+
+        let err = warm_agent_bind_from_env()
+            .expect_err("marked fake package must fail without runtime probe proof");
+        let detail = format!("{err}");
+        assert!(
+            detail.contains("complete packaged Linux guest warm-agent artifact"),
+            "{detail}"
+        );
+
+        restore_env_var(CLOUD_HYPERVISOR_WARM_AGENT_HOST_PATH_ENV, prior);
+        let _ = std::fs::remove_dir_all(dir);
     }
 
     #[tokio::test(flavor = "current_thread")]
@@ -3090,16 +3215,14 @@ mod tests {
     #[tokio::test(flavor = "current_thread")]
     async fn warm_vm_request_binds_configured_warm_agent_into_persistent_spawn() {
         let _env_guard = runner_env_lock();
+        let _validator_guard = install_test_warm_agent_validator();
         let (dir, gguf) = temp_gguf_for_factory();
         let (runner_dir, runner) = temp_runner_for_factory();
         let warm_dir = std::env::temp_dir().join(format!(
             "hsk-fac-warm-agent-{}",
             uuid::Uuid::now_v7().simple()
         ));
-        std::fs::create_dir_all(&warm_dir).expect("mk warm agent dir");
-        let warm_agent = warm_dir.join("hsk-warm-agent");
-        std::fs::write(&warm_agent, minimal_static_x86_64_elf())
-            .expect("write fake static ELF warm agent");
+        let warm_agent = write_static_warm_agent_package(&warm_dir);
         let prior_runner = std::env::var_os(SANDBOX_LLAMA_CLI_HOST_PATH_ENV);
         let prior_warm_agent = std::env::var_os(CLOUD_HYPERVISOR_WARM_AGENT_HOST_PATH_ENV);
         std::env::set_var(SANDBOX_LLAMA_CLI_HOST_PATH_ENV, &runner);

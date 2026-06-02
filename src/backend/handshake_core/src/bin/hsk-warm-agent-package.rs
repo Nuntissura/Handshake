@@ -30,6 +30,7 @@ fn run() -> Result<(), String> {
     if let Some(target_dir) = args.target_dir {
         options.cargo_target_dir = target_dir;
     }
+    options.llama_server_host_path = args.llama_server;
 
     if args.check_only {
         check_wsl_static_musl_prereqs(&options.distro).map_err(|error| error.to_string())?;
@@ -55,6 +56,7 @@ struct Args {
     repo_root: Option<PathBuf>,
     output_dir: Option<PathBuf>,
     target_dir: Option<PathBuf>,
+    llama_server: Option<PathBuf>,
     check_only: bool,
 }
 
@@ -65,6 +67,7 @@ impl Args {
             repo_root: None,
             output_dir: None,
             target_dir: None,
+            llama_server: None,
             check_only: false,
         };
         let mut index = 0;
@@ -85,6 +88,11 @@ impl Args {
                 "--target-dir" => {
                     index += 1;
                     args.target_dir = Some(PathBuf::from(take_value(&raw, index, "--target-dir")?));
+                }
+                "--llama-server" => {
+                    index += 1;
+                    args.llama_server =
+                        Some(PathBuf::from(take_value(&raw, index, "--llama-server")?));
                 }
                 "--check-only" => args.check_only = true,
                 "--help" | "-h" => return Err(usage()),
@@ -114,9 +122,10 @@ fn default_repo_root() -> PathBuf {
 
 fn usage() -> String {
     [
-        "Usage: hsk-warm-agent-package [--distro Ubuntu] [--repo-root PATH] [--output-dir PATH] [--target-dir PATH] [--check-only]",
+        "Usage: hsk-warm-agent-package [--distro Ubuntu] [--repo-root PATH] [--output-dir PATH] [--target-dir PATH] [--llama-server PATH] [--check-only]",
         "",
         "Builds a static x86_64-unknown-linux-musl hsk-warm-agent in WSL and writes hsk-warm-agent.package.json.",
+        "Pass --llama-server PATH to copy a prebuilt static Linux x86_64 llama-server into the same guest package.",
         "The WSL distro must have cargo, rustup, the musl target, and x86_64-linux-musl-gcc.",
     ]
     .join("\n")
@@ -144,11 +153,17 @@ mod tests {
             "D:/out".to_string(),
             "--target-dir".to_string(),
             "D:/target".to_string(),
+            "--llama-server".to_string(),
+            "D:/tooling/llama-server".to_string(),
         ])
         .expect("parse");
         assert_eq!(args.repo_root, Some(PathBuf::from("D:/repo")));
         assert_eq!(args.output_dir, Some(PathBuf::from("D:/out")));
         assert_eq!(args.target_dir, Some(PathBuf::from("D:/target")));
+        assert_eq!(
+            args.llama_server,
+            Some(PathBuf::from("D:/tooling/llama-server"))
+        );
     }
 
     #[test]
