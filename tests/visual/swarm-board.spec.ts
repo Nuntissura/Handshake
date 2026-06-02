@@ -4,6 +4,12 @@ import fs from "node:fs/promises";
 import path from "node:path";
 
 import { buildSwarmBoardHarness } from "./build_swarm_board_harness";
+import {
+  assertRenderedPngDelta,
+  assertRenderedPngQuality,
+  type RenderedPngDeltaMetrics,
+  type RenderedPngQualityMetrics,
+} from "./image_quality";
 
 // WP-KERNEL-004 live SwarmBoard visual smoke. jsdom cannot judge column
 // readability, lane affordance overlap, or the real board projection, so this
@@ -17,12 +23,17 @@ type SwarmBoardSmokeReportRow = {
   run_id: string;
   project_name: string;
   viewport: { width: number; height: number } | null;
+  pre_event_screenshot_path: string;
   screenshot_path: string;
   columns_count: number;
   capture_root_width: number;
   board_scroll_width: number;
   board_client_width: number;
   constrained_scroll_verified: boolean;
+  image_quality_status: "passed";
+  image_quality: RenderedPngQualityMetrics;
+  image_delta_status: "passed";
+  image_delta: RenderedPngDeltaMetrics;
   geometry_status: "passed";
   event_delta_status: "passed";
   total_duration_ms: number;
@@ -136,6 +147,10 @@ test("live SwarmBoard renders grouped swarm/worktree lanes, enabled affordances,
     expect(scrollGeometry.scrollWidth).toBeGreaterThan(scrollGeometry.clientWidth);
   }
 
+  const captureRoot = page.locator("[data-testid='capture-root']");
+  const preEventScreenshotPath = testInfo.outputPath("swarm-board-before-ready.png");
+  const preEventScreenshotBytes = await captureRoot.screenshot({ path: preEventScreenshotPath });
+
   // Exercise the real mocked Tauri event path: LOADING -> READY must move the
   // alpha-local card without a full static remount. Emit during the poll so an
   // early async-listener race cannot make this a fixed-delay flake.
@@ -151,19 +166,46 @@ test("live SwarmBoard renders grouped swarm/worktree lanes, enabled affordances,
   await expect(board).toContainText("alpha-lo#0");
 
   const screenshotPath = testInfo.outputPath("swarm-board-live.png");
-  await page.locator("[data-testid='capture-root']").screenshot({ path: screenshotPath });
+  const screenshotBytes = await captureRoot.screenshot({ path: screenshotPath });
+  const imageQuality = assertRenderedPngQuality(
+    screenshotBytes,
+    {
+      minWidth: testInfo.project.name.includes("constrained") ? 300 : 900,
+      minHeight: 180,
+      minDistinctColorBuckets: 32,
+      maxBackgroundPixelRatio: 0.99,
+      minNonBackgroundPixelRatio: 0.01,
+      minSaturatedPixels: 120,
+      minSaturatedPixelRatio: 0.0005,
+    },
+    `SwarmBoard ${testInfo.project.name}`,
+  );
+  const imageDelta = assertRenderedPngDelta(
+    preEventScreenshotBytes,
+    screenshotBytes,
+    {
+      minChangedPixels: 24,
+      minChangedPixelRatio: 0.00001,
+    },
+    `SwarmBoard READY transition ${testInfo.project.name}`,
+  );
   await appendSwarmBoardSmokeReport({
     schema_id: "hsk.visual.swarm_board_smoke_report@1",
     report_version: 1,
     run_id: smokeRunId(),
     project_name: testInfo.project.name,
     viewport: testInfo.project.use.viewport ?? null,
+    pre_event_screenshot_path: preEventScreenshotPath,
     screenshot_path: screenshotPath,
     columns_count: await columns.count(),
     capture_root_width: Math.round(captureBox?.width ?? 0),
     board_scroll_width: scrollGeometry.scrollWidth,
     board_client_width: scrollGeometry.clientWidth,
     constrained_scroll_verified: constrainedScrollVerified,
+    image_quality_status: "passed",
+    image_quality: imageQuality,
+    image_delta_status: "passed",
+    image_delta: imageDelta,
     geometry_status: "passed",
     event_delta_status: "passed",
     total_duration_ms: Date.now() - startedAt,
