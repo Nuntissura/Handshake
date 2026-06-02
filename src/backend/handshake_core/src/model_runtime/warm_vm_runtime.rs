@@ -18,10 +18,11 @@ use futures::{stream, Stream, StreamExt};
 use uuid::Uuid;
 
 use super::{
-    error::ModelRuntimeError, validate_ready_frame, CancellationToken, Embedding, FinishReason,
-    GenerateRequest, GeneratedToken, KvCacheHandle, LoadSpec, LoraStackHandle, ModelCapabilities,
-    ModelId, ModelRuntime, Score, SteeringHookHandle, TokenStream, WarmAgentGenerateRequest,
-    WarmAgentGuestFrame, WarmAgentHostFrame, WarmAgentProtocolError, WarmVmSnapshotManifest,
+    error::ModelRuntimeError, validate_ready_frame, warm_agent_guest_frame_type, CancellationToken,
+    Embedding, FinishReason, GenerateRequest, GeneratedToken, KvCacheHandle, LoadSpec,
+    LoraStackHandle, ModelCapabilities, ModelId, ModelRuntime, Score, SteeringHookHandle,
+    TokenStream, WarmAgentGenerateRequest, WarmAgentGuestFrame, WarmAgentHostFrame,
+    WarmAgentProtocolError, WarmVmSnapshotManifest,
 };
 
 pub const WARM_VM_RUNTIME_ADAPTER: &str = "warm_vm_model_runtime";
@@ -81,7 +82,7 @@ struct WarmStreamState {
     transport: Arc<dyn WarmAgentTransport>,
     req_cancel: CancellationToken,
     runtime_cancel: CancellationToken,
-    token_seq: u32,
+    last_token_index: Option<u32>,
     cancel_sent: bool,
     done: bool,
     active_requests: Arc<Mutex<BTreeSet<String>>>,
@@ -227,7 +228,7 @@ impl WarmVmModelRuntime {
                 transport: Arc::clone(&self.transport),
                 req_cancel: req.cancel,
                 runtime_cancel: self.runtime_cancel.clone(),
-                token_seq: 0,
+                last_token_index: None,
                 cancel_sent: false,
                 done: false,
                 active_requests: Arc::clone(&self.active_requests),
@@ -379,9 +380,26 @@ async fn next_warm_stream_item(
                 WarmAgentGuestFrame::Token {
                     request_id,
                     token_id,
+                    token_index,
                     text,
                 } if request_id == state.request_id => {
-                    state.token_seq = state.token_seq.max(token_id);
+                    if let Some(current) = token_index {
+                        if let Some(previous) = state.last_token_index {
+                            if current <= previous {
+                                remove_active(&state.active_requests, &state.request_id);
+                                state.done = true;
+                                return Some((
+                                    Err(ModelRuntimeError::GenerateError(format!(
+                                        "warm-agent token index did not advance for request {}: \
+                                         previous={}, current={}",
+                                        state.request_id, previous, current
+                                    ))),
+                                    state,
+                                ));
+                            }
+                        }
+                        state.last_token_index = Some(current);
+                    }
                     return Some((
                         Ok(GeneratedToken {
                             token_id,
@@ -424,7 +442,8 @@ async fn next_warm_stream_item(
                     state.done = true;
                     return Some((
                         Err(ModelRuntimeError::GenerateError(format!(
-                            "warm-agent frame did not match active request {}: {other:?}",
+                            "warm-agent {} frame did not match active request {}",
+                            warm_agent_guest_frame_type(&other),
                             state.request_id
                         ))),
                         state,
@@ -684,11 +703,13 @@ mod tests {
             Ok(WarmAgentGuestFrame::Token {
                 request_id: String::new(),
                 token_id: 1,
+                token_index: None,
                 text: "hel".to_string(),
             }),
             Ok(WarmAgentGuestFrame::Token {
                 request_id: String::new(),
                 token_id: 2,
+                token_index: None,
                 text: "lo".to_string(),
             }),
             Ok(WarmAgentGuestFrame::Complete {
@@ -824,6 +845,7 @@ mod tests {
             Ok(WarmAgentGuestFrame::Token {
                 request_id: String::new(),
                 token_id: 1,
+                token_index: None,
                 text: "partial".to_string(),
             }),
             Ok(WarmAgentGuestFrame::Complete {
@@ -852,16 +874,22 @@ mod tests {
         let wrong = vec![Ok(WarmAgentGuestFrame::Token {
             request_id: "other-request".to_string(),
             token_id: 1,
-            text: "x".to_string(),
+            token_index: None,
+            text: "sensitive-token-text".to_string(),
         })];
         let (transport, _obs) = fake_transport(wrong);
         let mut runtime = WarmVmModelRuntime::new(transport, cfg());
         let id = runtime.load(load_spec()).await.expect("load");
         let mut stream = runtime.generate(gen_req(id, "p"));
-        assert!(matches!(
-            stream.next().await.expect("error"),
-            Err(ModelRuntimeError::GenerateError(_))
-        ));
+        let err = stream
+            .next()
+            .await
+            .expect("error")
+            .expect_err("mismatch must fail");
+        let rendered = err.to_string();
+        assert!(rendered.contains("token frame did not match"));
+        assert!(!rendered.contains("other-request"));
+        assert!(!rendered.contains("sensitive-token-text"));
 
         let (transport, _obs) = fake_transport(vec![]);
         let mut runtime = WarmVmModelRuntime::new(transport, cfg());
@@ -871,6 +899,95 @@ mod tests {
             stream.next().await.expect("truncated error"),
             Err(ModelRuntimeError::GenerateError(_))
         ));
+    }
+
+    #[tokio::test]
+    async fn duplicate_tokenizer_ids_are_allowed_without_token_index() {
+        let script = vec![
+            Ok(WarmAgentGuestFrame::Token {
+                request_id: String::new(),
+                token_id: 7,
+                token_index: None,
+                text: "first".to_string(),
+            }),
+            Ok(WarmAgentGuestFrame::Token {
+                request_id: String::new(),
+                token_id: 7,
+                token_index: None,
+                text: "repeat".to_string(),
+            }),
+            Ok(WarmAgentGuestFrame::Complete {
+                request_id: String::new(),
+                finish_reason: "stop".to_string(),
+            }),
+        ];
+        let (transport, _obs) = fake_transport(script);
+        let mut runtime = WarmVmModelRuntime::new(transport, cfg());
+        let id = runtime.load(load_spec()).await.expect("load");
+        let mut stream = runtime.generate(gen_req(id, "p"));
+        let first = stream.next().await.expect("first token").expect("first ok");
+        assert_eq!(first.token_id, 7);
+        let second = stream
+            .next()
+            .await
+            .expect("second token")
+            .expect("repeat token id remains valid");
+        assert_eq!(second.token_id, 7);
+        let terminal = stream.next().await.expect("terminal").expect("terminal ok");
+        assert_eq!(terminal.finish_reason, Some(FinishReason::Stop));
+    }
+
+    #[tokio::test]
+    async fn duplicate_or_out_of_order_token_indexes_surface_generate_errors() {
+        for script in [
+            vec![
+                Ok(WarmAgentGuestFrame::Token {
+                    request_id: String::new(),
+                    token_id: 7,
+                    token_index: Some(1),
+                    text: "first".to_string(),
+                }),
+                Ok(WarmAgentGuestFrame::Token {
+                    request_id: String::new(),
+                    token_id: 8,
+                    token_index: Some(1),
+                    text: "duplicate".to_string(),
+                }),
+            ],
+            vec![
+                Ok(WarmAgentGuestFrame::Token {
+                    request_id: String::new(),
+                    token_id: 7,
+                    token_index: Some(2),
+                    text: "second".to_string(),
+                }),
+                Ok(WarmAgentGuestFrame::Token {
+                    request_id: String::new(),
+                    token_id: 8,
+                    token_index: Some(1),
+                    text: "older".to_string(),
+                }),
+            ],
+        ] {
+            let (transport, _obs) = fake_transport(script);
+            let mut runtime = WarmVmModelRuntime::new(transport, cfg());
+            let id = runtime.load(load_spec()).await.expect("load");
+            let mut stream = runtime.generate(gen_req(id, "p"));
+            stream
+                .next()
+                .await
+                .expect("first token")
+                .expect("first token ok");
+            let err = stream
+                .next()
+                .await
+                .expect("second item")
+                .expect_err("non-advancing token index must fail closed");
+            assert!(
+                format!("{err}").contains("token index did not advance"),
+                "{err}"
+            );
+        }
     }
 
     #[tokio::test]

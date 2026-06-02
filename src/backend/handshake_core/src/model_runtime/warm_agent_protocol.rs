@@ -12,14 +12,25 @@ pub enum WarmAgentProtocolError {
     FrameTooLarge { actual: usize, max: usize },
     #[error("warm-agent frame JSON error: {0}")]
     Json(String),
-    #[error("warm-agent protocol mismatch: expected {expected}, got {actual}")]
+    #[error("warm-agent protocol mismatch")]
     ProtocolMismatch { expected: String, actual: String },
     #[error("warm-agent version mismatch: expected {expected}, got {actual}")]
     VersionMismatch { expected: u16, actual: u16 },
-    #[error("warm-agent model hash mismatch: expected {expected}, got {actual}")]
+    #[error("warm-agent model hash mismatch")]
     ModelHashMismatch { expected: String, actual: String },
-    #[error("warm-agent model guest path mismatch: expected {expected}, got {actual}")]
+    #[error("warm-agent model guest path mismatch")]
     ModelGuestPathMismatch { expected: String, actual: String },
+    #[error("warm-agent unexpected frame: expected {expected}, got {actual}")]
+    UnexpectedFrame {
+        expected: &'static str,
+        actual: &'static str,
+    },
+    #[error("warm-agent request id mismatch for {frame_type}")]
+    RequestIdMismatch {
+        frame_type: &'static str,
+        expected: String,
+        actual: String,
+    },
 }
 
 impl From<serde_json::Error> for WarmAgentProtocolError {
@@ -29,6 +40,7 @@ impl From<serde_json::Error> for WarmAgentProtocolError {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct WarmAgentGenerateRequest {
     pub request_id: String,
     pub model_id: String,
@@ -39,7 +51,7 @@ pub struct WarmAgentGenerateRequest {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(tag = "type", rename_all = "snake_case")]
+#[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
 pub enum WarmAgentHostFrame {
     Load {
         request_id: String,
@@ -58,7 +70,7 @@ pub enum WarmAgentHostFrame {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(tag = "type", rename_all = "snake_case")]
+#[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
 pub enum WarmAgentGuestFrame {
     Ready {
         protocol_id: String,
@@ -72,6 +84,8 @@ pub enum WarmAgentGuestFrame {
     Token {
         request_id: String,
         token_id: u32,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        token_index: Option<u32>,
         text: String,
     },
     Complete {
@@ -89,6 +103,7 @@ pub enum WarmAgentGuestFrame {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct WarmVmSnapshotManifest {
     pub protocol_id: String,
     pub protocol_version: u16,
@@ -197,10 +212,44 @@ pub fn validate_ready_frame(frame: &WarmAgentGuestFrame) -> Result<(), WarmAgent
             }
             Ok(())
         }
-        other => Err(WarmAgentProtocolError::ProtocolMismatch {
-            expected: "ready".to_string(),
-            actual: format!("{other:?}"),
+        other => Err(WarmAgentProtocolError::UnexpectedFrame {
+            expected: "ready",
+            actual: warm_agent_guest_frame_type(other),
         }),
+    }
+}
+
+pub fn warm_agent_guest_frame_type(frame: &WarmAgentGuestFrame) -> &'static str {
+    match frame {
+        WarmAgentGuestFrame::Ready { .. } => "ready",
+        WarmAgentGuestFrame::Token { .. } => "token",
+        WarmAgentGuestFrame::Complete { .. } => "complete",
+        WarmAgentGuestFrame::Error { .. } => "error",
+        WarmAgentGuestFrame::Heartbeat { .. } => "heartbeat",
+    }
+}
+
+pub fn validate_guest_frame_request_id(
+    frame: &WarmAgentGuestFrame,
+    expected_request_id: &str,
+) -> Result<(), WarmAgentProtocolError> {
+    let actual_request_id = match frame {
+        WarmAgentGuestFrame::Token { request_id, .. }
+        | WarmAgentGuestFrame::Complete { request_id, .. } => Some(request_id.as_str()),
+        WarmAgentGuestFrame::Error { request_id, .. }
+        | WarmAgentGuestFrame::Heartbeat { request_id } => request_id.as_deref(),
+        WarmAgentGuestFrame::Ready { .. } => None,
+    };
+
+    match actual_request_id {
+        Some(actual) if actual != expected_request_id => {
+            Err(WarmAgentProtocolError::RequestIdMismatch {
+                frame_type: warm_agent_guest_frame_type(frame),
+                expected: expected_request_id.to_string(),
+                actual: actual.to_string(),
+            })
+        }
+        _ => Ok(()),
     }
 }
 
@@ -237,6 +286,24 @@ mod tests {
     }
 
     #[test]
+    fn strict_decode_rejects_unknown_host_fields() {
+        let json = r#"{"type":"load","request_id":"req-1","model_guest_path":"/models/model.gguf","model_artifact_sha256":"sha","extra":"nope"}"#;
+        let err = decode_warm_agent_frame::<WarmAgentHostFrame>(json)
+            .expect_err("unknown fields must fail closed");
+
+        assert!(matches!(err, WarmAgentProtocolError::Json(_)));
+    }
+
+    #[test]
+    fn strict_decode_rejects_missing_required_guest_fields() {
+        let json = r#"{"type":"token","token_id":1,"text":"hello"}"#;
+        let err = decode_warm_agent_frame::<WarmAgentGuestFrame>(json)
+            .expect_err("missing request_id must fail closed");
+
+        assert!(matches!(err, WarmAgentProtocolError::Json(_)));
+    }
+
+    #[test]
     fn ready_frame_validates_protocol_and_version() {
         let ready = WarmAgentGuestFrame::Ready {
             protocol_id: WARM_AGENT_PROTOCOL_ID.to_string(),
@@ -260,6 +327,57 @@ mod tests {
             validate_ready_frame(&wrong),
             Err(WarmAgentProtocolError::ProtocolMismatch { .. })
         ));
+    }
+
+    #[test]
+    fn ready_validation_rejects_non_ready_without_payload_leak() {
+        let token = WarmAgentGuestFrame::Token {
+            request_id: "req-1".to_string(),
+            token_id: 1,
+            token_index: None,
+            text: "sensitive-token-text".to_string(),
+        };
+
+        let err = validate_ready_frame(&token).expect_err("token is not ready");
+        assert!(matches!(
+            err,
+            WarmAgentProtocolError::UnexpectedFrame {
+                expected: "ready",
+                actual: "token"
+            }
+        ));
+        assert!(!err.to_string().contains("sensitive-token-text"));
+    }
+
+    #[test]
+    fn request_id_helper_detects_mismatch_without_payload_leak() {
+        let token = WarmAgentGuestFrame::Token {
+            request_id: "other-request".to_string(),
+            token_id: 7,
+            token_index: Some(1),
+            text: "sensitive-token-text".to_string(),
+        };
+
+        let err = validate_guest_frame_request_id(&token, "req-1")
+            .expect_err("mismatched request_id must fail");
+        assert!(matches!(
+            err,
+            WarmAgentProtocolError::RequestIdMismatch {
+                frame_type: "token",
+                ..
+            }
+        ));
+        let rendered = err.to_string();
+        assert!(!rendered.contains("other-request"));
+        assert!(!rendered.contains("sensitive-token-text"));
+
+        let unscoped_error = WarmAgentGuestFrame::Error {
+            request_id: None,
+            code: "agent_error".to_string(),
+            message: "guest-owned diagnostic".to_string(),
+        };
+        validate_guest_frame_request_id(&unscoped_error, "req-1")
+            .expect("unscoped error frames remain accepted");
     }
 
     #[test]

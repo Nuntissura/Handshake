@@ -2651,6 +2651,7 @@ mod tests {
                 Ok(crate::model_runtime::WarmAgentGuestFrame::Token {
                     request_id: request.request_id.clone(),
                     token_id: 1,
+                    token_index: Some(1),
                     text: "warm".to_string(),
                 }),
                 Ok(crate::model_runtime::WarmAgentGuestFrame::Complete {
