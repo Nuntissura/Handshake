@@ -177,6 +177,24 @@ impl SandboxAdapter for LedgerDecorator {
             .await
     }
 
+    async fn copy_in(
+        &self,
+        handle: &ProcessHandle,
+        host_path: PathBuf,
+        guest_path: PathBuf,
+    ) -> Result<(), SandboxAdapterError> {
+        self.inner.copy_in(handle, host_path, guest_path).await
+    }
+
+    async fn copy_out(
+        &self,
+        handle: &ProcessHandle,
+        guest_path: PathBuf,
+        host_path: PathBuf,
+    ) -> Result<(), SandboxAdapterError> {
+        self.inner.copy_out(handle, guest_path, host_path).await
+    }
+
     async fn net_policy(
         &self,
         handle: &ProcessHandle,
@@ -218,30 +236,21 @@ impl SandboxAdapter for LedgerDecorator {
         self.inner.exit_code(handle).await
     }
 
-    async fn snapshot(
-        &self,
-        handle: &ProcessHandle,
-    ) -> Result<SnapshotRef, SandboxAdapterError> {
+    async fn snapshot(&self, handle: &ProcessHandle) -> Result<SnapshotRef, SandboxAdapterError> {
         // Delegate to the wrapped adapter so snapshot capability is preserved
         // through the ledger decorator (e.g. a wrapped CloudHypervisorAdapter).
         self.inner.snapshot(handle).await
     }
 
-    async fn restore(
-        &self,
-        snapshot: &SnapshotRef,
-    ) -> Result<ProcessHandle, SandboxAdapterError> {
+    async fn restore(&self, snapshot: &SnapshotRef) -> Result<ProcessHandle, SandboxAdapterError> {
         let handle = self.inner.restore(snapshot).await?;
         // A restored instance is a freshly-running sandbox; record a START so
         // the process ledger keeps a STOP partner for it on kill/status.
-        let start =
-            ProcessStart::new(ProcessEngineKind::SandboxContainer, "KERNEL_BUILDER", None)
-                .with_process_uuid(handle.id)
-                .with_sandbox_adapter_id(handle.adapter_id.as_str().to_string())
-                .with_sandbox_internal_id(handle.sandbox_internal_id.clone())
-                .with_sandbox_capabilities_snapshot(capabilities_snapshot(
-                    &self.inner.capabilities(),
-                ));
+        let start = ProcessStart::new(ProcessEngineKind::SandboxContainer, "KERNEL_BUILDER", None)
+            .with_process_uuid(handle.id)
+            .with_sandbox_adapter_id(handle.adapter_id.as_str().to_string())
+            .with_sandbox_internal_id(handle.sandbox_internal_id.clone())
+            .with_sandbox_capabilities_snapshot(capabilities_snapshot(&self.inner.capabilities()));
         self.ledger.record_start(start.clone()).map_err(|error| {
             SandboxAdapterError::SpawnFailed {
                 adapter_id: handle.adapter_id.clone(),
@@ -277,4 +286,173 @@ fn capabilities_snapshot(capabilities: &AdapterCapabilities) -> serde_json::Valu
         fallback.insert("adapter_id", capabilities.adapter_id.as_str().to_string());
         json!(fallback)
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Mutex;
+
+    use crate::process_ledger::{LedgerBatcherConfig, NoopOverflowSink};
+
+    use super::*;
+    use crate::sandbox::{
+        default_no_op_capabilities, AdapterId, IsolationStrength, IsolationTier, ThroughputClass,
+    };
+
+    #[derive(Default)]
+    struct RecordingCopyAdapter {
+        copied_in: Mutex<Vec<(Uuid, PathBuf, PathBuf)>>,
+        copied_out: Mutex<Vec<(Uuid, PathBuf, PathBuf)>>,
+    }
+
+    impl RecordingCopyAdapter {
+        fn unavailable(&self) -> SandboxAdapterError {
+            SandboxAdapterError::AdapterUnavailable {
+                adapter_id: AdapterId::new("copy-capable"),
+                reason: "recording copy adapter only supports copy operations".to_string(),
+            }
+        }
+    }
+
+    #[async_trait]
+    impl SandboxAdapter for RecordingCopyAdapter {
+        async fn spawn(&self, _spec: ProcessSpec) -> Result<ProcessHandle, SandboxAdapterError> {
+            Err(self.unavailable())
+        }
+
+        async fn exec(
+            &self,
+            _handle: &ProcessHandle,
+            _cmd: Command,
+        ) -> Result<ExecResult, SandboxAdapterError> {
+            Err(self.unavailable())
+        }
+
+        async fn fs_bind(
+            &self,
+            _handle: &ProcessHandle,
+            _host_path: PathBuf,
+            _guest_path: PathBuf,
+            _mode: BindMode,
+        ) -> Result<(), SandboxAdapterError> {
+            Err(self.unavailable())
+        }
+
+        async fn copy_in(
+            &self,
+            handle: &ProcessHandle,
+            host_path: PathBuf,
+            guest_path: PathBuf,
+        ) -> Result<(), SandboxAdapterError> {
+            self.copied_in
+                .lock()
+                .expect("copy_in call ledger")
+                .push((handle.id, host_path, guest_path));
+            Ok(())
+        }
+
+        async fn copy_out(
+            &self,
+            handle: &ProcessHandle,
+            guest_path: PathBuf,
+            host_path: PathBuf,
+        ) -> Result<(), SandboxAdapterError> {
+            self.copied_out
+                .lock()
+                .expect("copy_out call ledger")
+                .push((handle.id, guest_path, host_path));
+            Ok(())
+        }
+
+        async fn net_policy(
+            &self,
+            _handle: &ProcessHandle,
+            _policy: NetPolicy,
+        ) -> Result<(), SandboxAdapterError> {
+            Err(self.unavailable())
+        }
+
+        async fn kill(
+            &self,
+            _handle: &ProcessHandle,
+            _signal: Signal,
+        ) -> Result<(), SandboxAdapterError> {
+            Err(self.unavailable())
+        }
+
+        async fn status(
+            &self,
+            _handle: &ProcessHandle,
+        ) -> Result<ProcessStatus, SandboxAdapterError> {
+            Err(self.unavailable())
+        }
+
+        async fn exit_code(
+            &self,
+            _handle: &ProcessHandle,
+        ) -> Result<Option<i32>, SandboxAdapterError> {
+            Err(self.unavailable())
+        }
+
+        fn capabilities(&self) -> AdapterCapabilities {
+            let mut capabilities = default_no_op_capabilities();
+            capabilities.adapter_id = AdapterId::new("copy-capable");
+            capabilities.runtime_available = true;
+            capabilities.filesystem_isolation_strength = IsolationStrength::Strong;
+            capabilities.network_isolation_strength = IsolationStrength::Strong;
+            capabilities.stdio_throughput_class = ThroughputClass::Medium;
+            capabilities.isolation_tier = IsolationTier::Tier1Container;
+            capabilities
+        }
+    }
+
+    fn test_ledger() -> LedgerBatcher {
+        let (batcher, _drain) = LedgerBatcher::manual_for_tests(
+            LedgerBatcherConfig::default(),
+            Arc::new(NoopOverflowSink),
+        )
+        .expect("manual ledger batcher");
+        batcher
+    }
+
+    #[tokio::test]
+    async fn copy_in_and_copy_out_delegate_through_ledger_decorator() {
+        let inner = Arc::new(RecordingCopyAdapter::default());
+        let adapter = LedgerDecorator::new(inner.clone(), test_ledger());
+        let handle = ProcessHandle::new(AdapterId::new("copy-capable"), None, "copy-handle");
+
+        adapter
+            .copy_in(
+                &handle,
+                PathBuf::from("fixtures/input.txt"),
+                PathBuf::from("/guest/input.txt"),
+            )
+            .await
+            .expect("copy_in delegates");
+        adapter
+            .copy_out(
+                &handle,
+                PathBuf::from("/guest/output.txt"),
+                PathBuf::from("fixtures/output.txt"),
+            )
+            .await
+            .expect("copy_out delegates");
+
+        assert_eq!(
+            *inner.copied_in.lock().expect("copy_in calls"),
+            vec![(
+                handle.id,
+                PathBuf::from("fixtures/input.txt"),
+                PathBuf::from("/guest/input.txt")
+            )]
+        );
+        assert_eq!(
+            *inner.copied_out.lock().expect("copy_out calls"),
+            vec![(
+                handle.id,
+                PathBuf::from("/guest/output.txt"),
+                PathBuf::from("fixtures/output.txt")
+            )]
+        );
+    }
 }
