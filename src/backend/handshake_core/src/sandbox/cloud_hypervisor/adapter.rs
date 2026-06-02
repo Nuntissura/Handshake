@@ -3533,6 +3533,39 @@ mod tests {
 
     use super::*;
 
+    const FAKE_LIVE_WARM_AGENT_SH: &str = r#"#!/bin/sh
+json_value() {
+  key="$1"
+  value="${line#*\"$key\":\"}"
+  value="${value%%\"*}"
+  printf '%s' "$value"
+}
+
+while IFS= read -r line; do
+  case "$line" in
+    *\"type\":\"load\"*)
+      request_id=$(json_value request_id)
+      model_path=$(json_value model_guest_path)
+      model_sha=$(json_value model_artifact_sha256)
+      printf '{"type":"ready","protocol_id":"hsk.warm_agent","protocol_version":1,"agent_id":"fake-live-warm-agent","ready_nonce":"live-warm-nonce","loaded_model_sha256":"%s","loaded_model_guest_path":"%s"}\n' "$model_sha" "$model_path"
+      ;;
+    *\"type\":\"generate\"*)
+      request_id=$(json_value request_id)
+      printf '{"type":"token","request_id":"%s","token_id":1,"token_index":1,"text":"live"}\n' "$request_id"
+      printf '{"type":"token","request_id":"%s","token_id":2,"token_index":2,"text":" stream"}\n' "$request_id"
+      printf '{"type":"complete","request_id":"%s","finish_reason":"stop"}\n' "$request_id"
+      ;;
+    *\"type\":\"cancel\"*)
+      request_id=$(json_value request_id)
+      printf '{"type":"complete","request_id":"%s","finish_reason":"cancelled"}\n' "$request_id"
+      ;;
+    *)
+      printf '{"type":"error","request_id":null,"code":"unexpected_frame","message":"unsupported fake live warm-agent frame"}\n'
+      ;;
+  esac
+done
+"#;
+
     #[test]
     fn snapshot_clone_safety_refuses_concurrent_live_restore() {
         let dir = "/snap/golden-a";
@@ -4483,6 +4516,180 @@ mod tests {
             .warm_agent_transport(&handle)
             .await
             .expect("warm-provenance handle exposes warm transport");
+    }
+
+    /// Live Cloud Hypervisor warm-agent serial bridge proof. This intentionally
+    /// uses a fake BusyBox-compatible guest agent, not a model-serving llama
+    /// daemon, so it proves the real host<->guest JSONL stream and provenance
+    /// gates without claiming MT-207 completion. Run on an operator desktop with:
+    ///
+    /// ```text
+    /// HANDSHAKE_CH_LIVE=1 cargo test -p handshake_core \
+    ///   live_ch_warm_agent_serial_jsonl_streams_fake_guest_agent -- --ignored --nocapture
+    /// ```
+    #[tokio::test]
+    #[ignore = "requires operator KVM/WSL/Cloud-Hypervisor desktop; uses fake agent, not model-serving MT-207 completion"]
+    async fn live_ch_warm_agent_serial_jsonl_streams_fake_guest_agent() {
+        if std::env::var("HANDSHAKE_CH_LIVE").ok().as_deref() != Some("1") {
+            eprintln!("HANDSHAKE_CH_LIVE!=1; skipping live CH warm-agent serial proof");
+            return;
+        }
+        use futures::StreamExt;
+
+        let mut config = CloudHypervisorConfig::default();
+        let warm_root = format!(
+            "{}/live-warm-agent-{}",
+            config.work_dir(),
+            Uuid::now_v7().simple()
+        );
+        let warm_agent = format!("{warm_root}/hsk-warm-agent");
+        let prep = run_wsl_sh(
+            &config,
+            &format!(
+                "set -e; rm -rf {root}; mkdir -p {root}; cat > {agent} <<'HSKWARMAGENT'\n{body}\nHSKWARMAGENT\nchmod +x {agent}; echo HSK_LIVE_WARM_AGENT_READY",
+                root = sh_quote_wsl(&warm_root),
+                agent = sh_quote_wsl(&warm_agent),
+                body = FAKE_LIVE_WARM_AGENT_SH,
+            ),
+            PROBE_TIMEOUT_MS,
+        )
+        .await
+        .expect("create fake WSL warm agent");
+        assert!(
+            prep.exit_code == 0
+                && String::from_utf8_lossy(&prep.stdout).contains("HSK_LIVE_WARM_AGENT_READY"),
+            "fake warm-agent setup failed: {}",
+            prep.stderr_text()
+        );
+        config = config.with_warm_agent_host_path(&warm_agent);
+        let adapter = CloudHypervisorAdapter::try_new(config.clone())
+            .await
+            .expect("real CloudHypervisorAdapter available on this desktop");
+
+        let mut metadata = BTreeMap::new();
+        metadata.insert(
+            SANDBOX_MODE_METADATA_KEY.to_string(),
+            SANDBOX_MODE_PERSISTENT.to_string(),
+        );
+        metadata.insert(
+            CLOUD_HYPERVISOR_WARM_AGENT_GUEST_PATH_METADATA_KEY.to_string(),
+            "/warm-agent/hsk-warm-agent".to_string(),
+        );
+        let spec = ProcessSpec {
+            id: AdapterId::new("live-warm-agent-serial-proof"),
+            image_or_root: ImageRef::new("llama_cpp"),
+            cmd: Vec::new(),
+            env: BTreeMap::new(),
+            cwd: None,
+            binds: vec![BindSpec {
+                host_path: PathBuf::from(&warm_root),
+                guest_path: PathBuf::from("/warm-agent"),
+                mode: BindMode::ReadOnly,
+            }],
+            net_policy: NetPolicy::DenyAll,
+            resource_limits: ResourceLimits::default(),
+            idle_timeout_ms: Some(60_000),
+            required_capabilities: Default::default(),
+            trust_class: TrustClass::UntrustedAgent,
+            metadata,
+        };
+
+        let handle = adapter.spawn(spec).await.expect("spawn live warm VM");
+        let result: Result<(), String> = async {
+            let transport = adapter
+                .warm_agent_transport(&handle)
+                .await
+                .map_err(|error| format!("live warm transport: {error}"))?;
+            let ready = transport
+                .load_model(WarmAgentHostFrame::Load {
+                    request_id: "live-load".to_string(),
+                    model_guest_path: "/models/model.gguf".to_string(),
+                    model_artifact_sha256: "sha-live".to_string(),
+                })
+                .await
+                .map_err(|error| format!("fake live warm load: {error}"))?;
+            match ready {
+                WarmAgentGuestFrame::Ready {
+                    loaded_model_sha256,
+                    loaded_model_guest_path,
+                    ..
+                } => {
+                    if loaded_model_sha256.as_deref() != Some("sha-live") {
+                        return Err(format!(
+                            "ready frame model hash mismatch: {loaded_model_sha256:?}"
+                        ));
+                    }
+                    if loaded_model_guest_path.as_deref() != Some("/models/model.gguf") {
+                        return Err(format!(
+                            "ready frame model path mismatch: {loaded_model_guest_path:?}"
+                        ));
+                    }
+                }
+                other => return Err(format!("expected ready frame, got {other:?}")),
+            }
+
+            let mut stream = transport.generate(WarmAgentGenerateRequest {
+                request_id: "live-generate".to_string(),
+                model_id: "model-live".to_string(),
+                model_guest_path: "/models/model.gguf".to_string(),
+                model_artifact_sha256: "sha-live".to_string(),
+                prompt: "hello".to_string(),
+                max_tokens: 4,
+            });
+            let mut text = String::new();
+            let mut saw_complete = false;
+            while let Some(frame) = stream.next().await {
+                match frame.map_err(|error| format!("fake live warm frame: {error}"))? {
+                    WarmAgentGuestFrame::Token { text: chunk, .. } => text.push_str(&chunk),
+                    WarmAgentGuestFrame::Complete { finish_reason, .. } => {
+                        if finish_reason != "stop" {
+                            return Err(format!(
+                                "fake live warm stream finished with {finish_reason}"
+                            ));
+                        }
+                        saw_complete = true;
+                        break;
+                    }
+                    other => return Err(format!("unexpected fake live warm frame: {other:?}")),
+                }
+            }
+            if text != "live stream" {
+                return Err(format!("fake live warm stream text mismatch: {text:?}"));
+            }
+            if !saw_complete {
+                return Err("fake live warm stream must terminate".to_string());
+            }
+            Ok(())
+        }
+        .await;
+
+        let mut failures = Vec::new();
+        if let Err(error) = result {
+            failures.push(error);
+        }
+        if let Err(error) = adapter.kill(&handle, Signal::Kill).await {
+            failures.push(format!("kill live warm VM: {error}"));
+        }
+        match run_wsl_sh(
+            &config,
+            &format!("rm -rf {}", sh_quote_wsl(&warm_root)),
+            PROBE_TIMEOUT_MS,
+        )
+        .await
+        {
+            Ok(output) if output.exit_code == 0 => {}
+            Ok(output) => failures.push(format!(
+                "cleanup fake warm-agent root failed (exit {}): {}",
+                output.exit_code,
+                output.stderr_text()
+            )),
+            Err(error) => failures.push(format!("cleanup fake warm-agent root: {error}")),
+        }
+        assert!(
+            failures.is_empty(),
+            "live warm-agent serial proof failed:\n{}",
+            failures.join("\n")
+        );
     }
 
     #[tokio::test]
