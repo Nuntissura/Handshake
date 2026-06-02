@@ -2,12 +2,12 @@ use std::{
     collections::HashMap,
     path::{Path, PathBuf},
     process::Stdio,
-    sync::{Arc, Mutex},
+    sync::{Arc, Mutex, OnceLock},
     time::{Duration, Instant},
 };
 
 use async_trait::async_trait;
-use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
+use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
 use bytes::Bytes;
 use serde::{Deserialize, Serialize};
 use tokio::{
@@ -17,26 +17,26 @@ use tokio::{
 use uuid::Uuid;
 
 use crate::model_runtime::{
-    decode_warm_agent_frame, encode_warm_agent_frame, WarmAgentFrameStream,
-    WarmAgentGenerateRequest, WarmAgentGuestFrame, WarmAgentHostFrame, WarmAgentTransport,
-    WarmVmTransportError, WARM_AGENT_MAX_FRAME_BYTES,
+    WARM_AGENT_MAX_FRAME_BYTES, WarmAgentFrameStream, WarmAgentGenerateRequest,
+    WarmAgentGuestFrame, WarmAgentHostFrame, WarmAgentTransport, WarmVmTransportError,
+    decode_warm_agent_frame, encode_warm_agent_frame,
 };
 use crate::sandbox::wsl2_podman::wsl_detection::default_wsl_exe;
 use crate::sandbox::{
-    encode_guest_channel_exec_request, parse_guest_channel_exec_result, AdapterCapabilities,
-    AdapterId, BindMode, BindSpec, Command, ExecResult, GpuPassthrough, IsolationStrength,
-    IsolationTier, NetPolicy, ProcessHandle, ProcessSpec, ProcessStatus, ResourceLimits,
-    SandboxAdapter, SandboxAdapterError, Signal, SnapshotRef, ThroughputClass,
+    AdapterCapabilities, AdapterId, BindMode, BindSpec, Command, ExecResult, GpuPassthrough,
+    IsolationStrength, IsolationTier, NetPolicy, ProcessHandle, ProcessSpec, ProcessStatus,
+    ResourceLimits, SandboxAdapter, SandboxAdapterError, Signal, SnapshotRef, ThroughputClass,
+    encode_guest_channel_exec_request, parse_guest_channel_exec_result,
 };
 
 use super::guest_agent::{
-    warm_agent_unavailable_detail, CLOUD_HYPERVISOR_WARM_AGENT_CMDLINE_KEY,
-    CLOUD_HYPERVISOR_WARM_AGENT_GUEST_PATH_METADATA_KEY, CLOUD_HYPERVISOR_WARM_AGENT_HOST_PATH_ENV,
-    CLOUD_HYPERVISOR_WARM_AGENT_REQUIRED_TRANSPORT, CLOUD_HYPERVISOR_WARM_AGENT_UNAVAILABLE_REASON,
+    CLOUD_HYPERVISOR_WARM_AGENT_CMDLINE_KEY, CLOUD_HYPERVISOR_WARM_AGENT_GUEST_PATH_METADATA_KEY,
+    CLOUD_HYPERVISOR_WARM_AGENT_HOST_PATH_ENV, CLOUD_HYPERVISOR_WARM_AGENT_REQUIRED_TRANSPORT,
+    CLOUD_HYPERVISOR_WARM_AGENT_UNAVAILABLE_REASON, warm_agent_unavailable_detail,
 };
 use super::warm_agent_package::{
-    validate_warm_agent_package_candidate_with_runtime_probe, WarmAgentGuestPackageManifest,
-    WarmAgentPackageError,
+    WarmAgentGuestPackageManifest, WarmAgentPackageError,
+    validate_warm_agent_package_candidate_with_runtime_probe,
 };
 
 #[cfg(windows)]
@@ -195,6 +195,7 @@ const PERSISTENT_BOOT_TIMEOUT_MS: u64 = 30_000;
 const PERSISTENT_POLL_INTERVAL_MS: u64 = 250;
 const SERIAL_AGENT_BRIDGE_MAX_ARG_FRAME_BYTES: usize = 16 * 1024;
 const WARM_AGENT_SNAPSHOT_MARKER_FILE: &str = ".hsk-warm-agent-guest-path";
+const COMMITTED_MEMORY_SNAPSHOT_MARKER_FILE: &str = ".hsk-committed-memory-mib";
 const VM_ROOT_OWNER_PID_FILE: &str = ".hsk-owner-pid";
 
 /// Proven-working defaults for the host WSL2 sandbox layout. Every field is
@@ -325,6 +326,7 @@ impl CloudHypervisorBalloonConfig {
 /// | `initramfs`      | `HANDSHAKE_CH_INITRAMFS`      |
 /// | `work_dir`       | `HANDSHAKE_CH_WORK_DIR`       |
 /// | `memory_mib`     | `HANDSHAKE_CH_MEMORY_MIB`     |
+/// | `committed_memory_budget_mib` | `HANDSHAKE_CH_COMMITTED_MEMORY_BUDGET_MIB` |
 /// | `vcpus`          | `HANDSHAKE_CH_VCPUS`          |
 /// | `command_timeout_ms` | `HANDSHAKE_CH_TIMEOUT_MS` |
 /// | `balloon.size_mib` | `HANDSHAKE_CH_BALLOON_SIZE_MIB` |
@@ -345,6 +347,8 @@ pub struct CloudHypervisorConfig {
     busybox: String,
     work_dir: String,
     memory_mib: u32,
+    committed_memory_budget_mib: Option<u32>,
+    committed_memory_budget_config_error: Option<String>,
     vcpus: u32,
     command_timeout_ms: u64,
     balloon: CloudHypervisorBalloonConfig,
@@ -389,6 +393,10 @@ impl CloudHypervisorConfig {
 
     pub fn memory_mib(&self) -> u32 {
         self.memory_mib
+    }
+
+    pub fn committed_memory_budget_mib(&self) -> Option<u32> {
+        self.committed_memory_budget_mib
     }
 
     pub fn vcpus(&self) -> u32 {
@@ -449,10 +457,25 @@ impl CloudHypervisorConfig {
         self.warm_agent_package_validator = Some(validator);
         self
     }
+
+    #[cfg(test)]
+    fn with_committed_memory_budget_mib(mut self, budget_mib: u32) -> Self {
+        self.committed_memory_budget_mib = Some(budget_mib.max(1));
+        self.committed_memory_budget_config_error = None;
+        self
+    }
+
+    #[cfg(test)]
+    fn with_work_dir(mut self, work_dir: impl Into<String>) -> Self {
+        self.work_dir = work_dir.into();
+        self
+    }
 }
 
 impl Default for CloudHypervisorConfig {
     fn default() -> Self {
+        let (committed_memory_budget_mib, committed_memory_budget_config_error) =
+            env_u32_opt_strict("HANDSHAKE_CH_COMMITTED_MEMORY_BUDGET_MIB");
         Self {
             distro: env_string("HANDSHAKE_CH_DISTRO", DEFAULT_DISTRO),
             wsl_exe: std::env::var("HANDSHAKE_CH_WSL_EXE")
@@ -465,6 +488,8 @@ impl Default for CloudHypervisorConfig {
             busybox: env_string("HANDSHAKE_CH_BUSYBOX", DEFAULT_BUSYBOX),
             work_dir: env_string("HANDSHAKE_CH_WORK_DIR", DEFAULT_WORK_DIR),
             memory_mib: env_u32("HANDSHAKE_CH_MEMORY_MIB", DEFAULT_MEMORY_MIB),
+            committed_memory_budget_mib,
+            committed_memory_budget_config_error,
             vcpus: env_u32("HANDSHAKE_CH_VCPUS", DEFAULT_VCPUS),
             command_timeout_ms: env_u64("HANDSHAKE_CH_TIMEOUT_MS", DEFAULT_COMMAND_TIMEOUT_MS),
             balloon: CloudHypervisorBalloonConfig::new(
@@ -498,6 +523,38 @@ fn env_u32(key: &str, default: u32) -> u32 {
         .and_then(|value| value.trim().parse::<u32>().ok())
         .filter(|value| *value > 0)
         .unwrap_or(default)
+}
+
+fn env_u32_opt_strict(key: &str) -> (Option<u32>, Option<String>) {
+    let value = match std::env::var(key) {
+        Ok(value) => value,
+        Err(std::env::VarError::NotPresent) => return (None, None),
+        Err(error) => {
+            return (
+                None,
+                Some(format!("{key} is present but cannot be read: {error}")),
+            );
+        }
+    };
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        return (None, Some(format!("{key} is present but empty")));
+    }
+    match trimmed.parse::<u32>() {
+        Ok(value) if value > 0 => (Some(value), None),
+        Ok(_) => (
+            None,
+            Some(format!(
+                "{key} must be greater than zero MiB, got `{trimmed}`"
+            )),
+        ),
+        Err(error) => (
+            None,
+            Some(format!(
+                "{key} must be a positive MiB integer, got `{trimmed}`: {error}"
+            )),
+        ),
+    }
 }
 
 fn env_u64(key: &str, default: u64) -> u64 {
@@ -601,6 +658,10 @@ struct HandleState {
     /// caveat). The original host-side isolation (separate scratch/console/socket)
     /// does NOT cover guest-internal identity.
     restored_from: Option<String>,
+    /// Adapter-local committed-memory reservation retained while a persistent
+    /// VM is live. Ephemeral per-exec VMs reserve only around the individual
+    /// boot, so their handle state remains zero.
+    committed_memory_mib: u32,
 }
 
 impl Default for HandleState {
@@ -617,6 +678,7 @@ impl Default for HandleState {
             idle_timeout_ms: None,
             last_active: Instant::now(),
             restored_from: None,
+            committed_memory_mib: 0,
         }
     }
 }
@@ -628,6 +690,15 @@ impl Default for HandleState {
 type PersistentChildren = Arc<tokio::sync::Mutex<HashMap<Uuid, Child>>>;
 type PersistentExecLocks = Arc<Mutex<HashMap<Uuid, Arc<tokio::sync::Mutex<()>>>>>;
 
+#[derive(Debug, Default)]
+struct CommittedMemoryState {
+    used_mib: u64,
+}
+
+type CommittedMemoryRegistry = Mutex<HashMap<String, CommittedMemoryState>>;
+
+static COMMITTED_MEMORY_REGISTRY: OnceLock<CommittedMemoryRegistry> = OnceLock::new();
+
 #[derive(Debug, Clone)]
 pub struct CloudHypervisorAdapter {
     config: CloudHypervisorConfig,
@@ -637,6 +708,27 @@ pub struct CloudHypervisorAdapter {
     /// One in-flight serial command per persistent VM handle. Different VMs may
     /// execute independently, but one CH serial socket is a single command stream.
     persistent_exec_locks: PersistentExecLocks,
+}
+
+#[derive(Debug)]
+struct CommittedMemoryReservation {
+    adapter: CloudHypervisorAdapter,
+    memory_mib: u32,
+    armed: bool,
+}
+
+impl CommittedMemoryReservation {
+    fn disarm(&mut self) {
+        self.armed = false;
+    }
+}
+
+impl Drop for CommittedMemoryReservation {
+    fn drop(&mut self) {
+        if self.armed {
+            self.adapter.release_committed_memory_mib(self.memory_mib);
+        }
+    }
 }
 
 impl CloudHypervisorAdapter {
@@ -786,7 +878,13 @@ impl CloudHypervisorAdapter {
     /// safety: a failed restore must not leave its snapshot marked live forever).
     /// Best-effort under the std lock — a poisoned lock cannot block teardown.
     fn release_restore_reservation(&self, handle_id: Uuid) {
-        let _ = self.handles.lock().map(|mut map| map.remove(&handle_id));
+        let released_mib = self.handles.lock().ok().and_then(|mut map| {
+            map.remove(&handle_id)
+                .map(|state| state.committed_memory_mib)
+        });
+        if let Some(mib) = released_mib.filter(|mib| *mib > 0) {
+            self.release_committed_memory_mib(mib);
+        }
     }
 
     /// ATOMIC snapshot-clone gate + reservation. Under a SINGLE acquisition of
@@ -829,6 +927,88 @@ impl CloudHypervisorAdapter {
         reservation.restored_from = Some(snapshot_dir.to_string());
         guard.insert(handle_id, reservation);
         Ok(())
+    }
+
+    fn reserve_committed_memory_mib(
+        &self,
+        memory_mib: u32,
+    ) -> Result<CommittedMemoryReservation, SandboxAdapterError> {
+        if let Some(error) = &self.config.committed_memory_budget_config_error {
+            return Err(spawn_failed(format!(
+                "cloud_hypervisor committed-memory budget configuration is invalid: {error}; \
+                 refusing to silently disable no-overcommit admission"
+            )));
+        }
+        let requested_mib = memory_mib.max(1);
+        let Some(budget_mib) = self.config.committed_memory_budget_mib else {
+            return Ok(CommittedMemoryReservation {
+                adapter: self.clone(),
+                memory_mib: requested_mib,
+                armed: false,
+            });
+        };
+        let registry_key = self.committed_memory_registry_key();
+        let registry = COMMITTED_MEMORY_REGISTRY.get_or_init(|| Mutex::new(HashMap::new()));
+        let mut registry = registry
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let state = registry.entry(registry_key.clone()).or_default();
+        let next = state.used_mib.saturating_add(u64::from(requested_mib));
+        if next > u64::from(budget_mib) {
+            return Err(spawn_failed(format!(
+                "cloud_hypervisor committed-memory admission refused: requested {requested_mib}M, \
+                 committed {}M, budget {budget_mib}M, scope `{registry_key}`; refusing host \
+                 memory overcommit",
+                state.used_mib
+            )));
+        }
+        state.used_mib = next;
+        Ok(CommittedMemoryReservation {
+            adapter: self.clone(),
+            memory_mib: requested_mib,
+            armed: true,
+        })
+    }
+
+    fn release_committed_memory_mib(&self, memory_mib: u32) {
+        if memory_mib == 0 || self.config.committed_memory_budget_mib.is_none() {
+            return;
+        }
+        let registry_key = self.committed_memory_registry_key();
+        let registry = COMMITTED_MEMORY_REGISTRY.get_or_init(|| Mutex::new(HashMap::new()));
+        let mut registry = registry
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let state = registry.entry(registry_key.clone()).or_default();
+        let release_mib = u64::from(memory_mib);
+        if state.used_mib < release_mib {
+            debug_assert!(
+                false,
+                "cloud_hypervisor committed-memory over-release for scope `{}`: releasing {}M from {}M",
+                registry_key, memory_mib, state.used_mib
+            );
+            state.used_mib = 0;
+        } else {
+            state.used_mib -= release_mib;
+        }
+    }
+
+    fn committed_memory_registry_key(&self) -> String {
+        format!("{}::{}", self.config.distro, self.config.work_dir)
+    }
+
+    #[cfg(test)]
+    fn committed_memory_used_mib_for_test(&self) -> u64 {
+        let Some(registry) = COMMITTED_MEMORY_REGISTRY.get() else {
+            return 0;
+        };
+        let registry = registry
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        registry
+            .get(&self.committed_memory_registry_key())
+            .map(|state| state.used_mib)
+            .unwrap_or(0)
     }
 
     /// Test-only constructor that builds an adapter with empty registries and a
@@ -985,6 +1165,8 @@ impl CloudHypervisorAdapter {
         let agent_socket = format!("{vm_root}/agent.sock");
         let serial_log = format!("{vm_root}/serial.log");
         let idle_cpio = format!("{vm_root}/idle.cpio");
+        let memory_mib = memory_mib_from_limits(&resource_limits, self.config.memory_mib);
+        let mut memory_reservation = self.reserve_committed_memory_mib(memory_mib)?;
 
         if let Err(error) = build_idle_initramfs(&self.config, &vm_root, &idle_cpio, &binds).await {
             let _ = remove_wsl_path(&self.config, &vm_root).await;
@@ -997,7 +1179,6 @@ impl CloudHypervisorAdapter {
 
         // Boot args for the persistent idle VM (absolute serial path so the
         // snapshot config is CWD-independent).
-        let memory_mib = memory_mib_from_limits(&resource_limits, self.config.memory_mib);
         let boot_args = self.persistent_boot_args(
             &api_socket,
             &idle_cpio,
@@ -1055,6 +1236,7 @@ impl CloudHypervisorAdapter {
         hstate.idle_timeout_ms = idle_timeout_ms;
         hstate.resource_limits = resource_limits;
         hstate.binds = binds;
+        hstate.committed_memory_mib = memory_mib;
         self.handles
             .lock()
             .map_err(|error| spawn_failed(format!("handle registry poisoned: {error}")))?
@@ -1063,6 +1245,7 @@ impl CloudHypervisorAdapter {
             .lock()
             .await
             .insert(handle.id, child);
+        memory_reservation.disarm();
 
         // Idle auto-kill (Master Spec v02.187 §3.5.7 #6): if an idle timeout was
         // requested, arm a background reaper so a persistent VM whose owner never
@@ -1335,6 +1518,7 @@ impl SandboxAdapter for CloudHypervisorAdapter {
         let exec_root = format!("{}/exec-{run_id}", self.config.work_dir);
         let initramfs_cpio = format!("{exec_root}/initramfs.cpio");
         let timeout_ms = cmd.timeout_ms.unwrap_or(self.config.command_timeout_ms);
+        let memory_mib = memory_mib_from_limits(&resource_limits, self.config.memory_mib);
 
         // Build the per-exec initramfs (busybox + init + baked binds) inside WSL.
         // On failure we still clean up before returning.
@@ -1343,12 +1527,13 @@ impl SandboxAdapter for CloudHypervisorAdapter {
             return Err(error);
         }
 
+        let _memory_reservation = self.reserve_committed_memory_mib(memory_mib)?;
         let boot_args = self.boot_args(
             &command_b64,
             &rw_b64,
             &initramfs_cpio,
             &serial_log,
-            memory_mib_from_limits(&resource_limits, self.config.memory_mib),
+            memory_mib,
         )?;
 
         let start = Instant::now();
@@ -1525,11 +1710,22 @@ impl SandboxAdapter for CloudHypervisorAdapter {
             let _ = remove_wsl_path(&self.config, &vm.vm_root).await;
         }
 
-        if let Ok(mut map) = self.handles.lock() {
+        let committed_memory_to_release = if let Ok(mut map) = self.handles.lock() {
             if let Some(state) = map.get_mut(&handle.id) {
+                let release_mib = (!state.killed)
+                    .then_some(state.committed_memory_mib)
+                    .filter(|mib| *mib > 0);
                 state.killed = true;
                 state.status = ProcessStatus::Killed { by_signal: _signal };
+                release_mib
+            } else {
+                None
             }
+        } else {
+            None
+        };
+        if let Some(memory_mib) = committed_memory_to_release {
+            self.release_committed_memory_mib(memory_mib);
         }
         if let Ok(mut locks) = self.persistent_exec_locks.lock() {
             locks.remove(&handle.id);
@@ -1570,13 +1766,17 @@ impl SandboxAdapter for CloudHypervisorAdapter {
         // Snapshotting is activity: reset the idle clock so the reaper does not
         // race a VM that is actively being checkpointed.
         self.touch_activity(handle.id);
-        let vm = self
+        let (vm, committed_memory_mib) = self
             .handles
             .lock()
             .ok()
             .and_then(|map| {
-                map.get(&handle.id)
-                    .and_then(|state| state.persistent.clone())
+                map.get(&handle.id).and_then(|state| {
+                    state
+                        .persistent
+                        .clone()
+                        .map(|vm| (vm, state.committed_memory_mib))
+                })
             })
             .ok_or_else(|| {
                 snapshot_failed(
@@ -1688,9 +1888,26 @@ impl SandboxAdapter for CloudHypervisorAdapter {
                 snap_ref.snapshot_dir
             )));
         }
+        if let Err(error) = write_committed_memory_snapshot_marker(
+            &self.config,
+            &snap_ref.snapshot_dir,
+            committed_memory_mib,
+        )
+        .await
+        {
+            best_effort_resume(&self.config, &vm.api_socket).await;
+            let _ = remove_wsl_path(&self.config, &snap_ref.snapshot_dir).await;
+            return Err(error);
+        }
         if let Some(guest_path) = vm.warm_agent_guest_path.as_deref() {
-            write_warm_agent_snapshot_marker(&self.config, &snap_ref.snapshot_dir, guest_path)
-                .await?;
+            if let Err(error) =
+                write_warm_agent_snapshot_marker(&self.config, &snap_ref.snapshot_dir, guest_path)
+                    .await
+            {
+                best_effort_resume(&self.config, &vm.api_socket).await;
+                let _ = remove_wsl_path(&self.config, &snap_ref.snapshot_dir).await;
+                return Err(error);
+            }
         }
 
         Ok(snap_ref)
@@ -1713,6 +1930,21 @@ impl SandboxAdapter for CloudHypervisorAdapter {
                 snapshot.adapter_id
             )));
         }
+        let restore_memory_mib = {
+            let config_mib = read_cloud_hypervisor_snapshot_config_memory_mib(
+                &self.config,
+                &snapshot.snapshot_dir,
+            )
+            .await?;
+            let marker_mib =
+                read_committed_memory_snapshot_marker(&self.config, &snapshot.snapshot_dir).await?;
+            resolve_restore_memory_mib_from_snapshot_metadata(
+                config_mib,
+                marker_mib,
+                self.config.committed_memory_budget_mib.is_some()
+                    || self.config.committed_memory_budget_config_error.is_some(),
+            )?
+        };
 
         // Snapshot-clone uniqueness gate: refuse to resume a snapshot that is
         // ALREADY live in another VM. CH resume preserves the guest's in-memory
@@ -1740,6 +1972,13 @@ impl SandboxAdapter for CloudHypervisorAdapter {
         // failure path below (otherwise a failed restore would block the snapshot
         // forever).
         self.try_reserve_restore(&snapshot.snapshot_dir, handle.id)?;
+        let mut memory_reservation = match self.reserve_committed_memory_mib(restore_memory_mib) {
+            Ok(reservation) => reservation,
+            Err(error) => {
+                self.release_restore_reservation(handle.id);
+                return Err(error);
+            }
+        };
 
         // Restore into a FULLY INDEPENDENT sandbox (Master Spec v02.187 §3.5.7
         // #7: a captured state is "re-spawned … never mutated in place as
@@ -1812,7 +2051,14 @@ impl SandboxAdapter for CloudHypervisorAdapter {
         let restore_has_agent_socket =
             String::from_utf8_lossy(&prep.stdout).contains("HSK_RESTORE_AGENT_SOCKET=1");
         let warm_agent_guest_path =
-            read_warm_agent_snapshot_marker(&self.config, &snapshot.snapshot_dir).await?;
+            match read_warm_agent_snapshot_marker(&self.config, &snapshot.snapshot_dir).await {
+                Ok(path) => path,
+                Err(error) => {
+                    let _ = remove_wsl_path(&self.config, &restore_root).await;
+                    self.release_restore_reservation(handle.id);
+                    return Err(error);
+                }
+            };
         if warm_agent_guest_path.is_some() && !restore_has_agent_socket {
             let _ = remove_wsl_path(&self.config, &restore_root).await;
             self.release_restore_reservation(handle.id);
@@ -1896,6 +2142,7 @@ impl SandboxAdapter for CloudHypervisorAdapter {
         // concurrent restore of the same snapshot; kill() flags this handle
         // `killed`, which releases the snapshot for a subsequent sequential restore.
         state.restored_from = Some(snapshot.snapshot_dir.clone());
+        state.committed_memory_mib = restore_memory_mib;
         self.handles
             .lock()
             .map_err(|error| snapshot_failed(format!("handle registry poisoned: {error}")))?
@@ -1904,6 +2151,7 @@ impl SandboxAdapter for CloudHypervisorAdapter {
             .lock()
             .await
             .insert(handle.id, child);
+        memory_reservation.disarm();
 
         Ok(handle)
     }
@@ -2053,11 +2301,7 @@ fn append_balloon_args(
 }
 
 fn on_off(value: bool) -> &'static str {
-    if value {
-        "on"
-    } else {
-        "off"
-    }
+    if value { "on" } else { "off" }
 }
 
 const CH_RATE_LIMIT_REFILL_TIME_MS: u64 = 1_000;
@@ -2787,20 +3031,22 @@ impl WarmAgentTransport for CloudHypervisorSerialWarmAgentTransport {
             _ => {
                 return Err(WarmVmTransportError::Transport(
                     "warm-agent load_model requires a load frame".to_string(),
-                ))
+                ));
             }
         };
         let encoded = encode_warm_agent_frame(&frame)?;
         let timeout_ms = self.config.command_timeout_ms();
-        let _guard =
-            tokio::time::timeout(Duration::from_millis(timeout_ms), self.serial_lock.lock())
-                .await
-                .map_err(|_| {
-                    WarmVmTransportError::Transport(format!(
+        let _guard = tokio::time::timeout(
+            Duration::from_millis(timeout_ms),
+            self.serial_lock.lock(),
+        )
+        .await
+        .map_err(|_| {
+            WarmVmTransportError::Transport(format!(
                 "warm-agent serial channel is busy for handle {}; timed out waiting for load",
                 self.handle_id
             ))
-                })?;
+        })?;
         let output = run_warm_serial_agent_rpc(
             &self.config,
             &self.agent_socket,
@@ -2826,7 +3072,7 @@ impl WarmAgentTransport for CloudHypervisorSerialWarmAgentTransport {
             Err(error) => {
                 return Box::pin(futures::stream::iter([Err(
                     WarmVmTransportError::Protocol(error),
-                )]))
+                )]));
             }
         };
         let cancel_path = warm_agent_cancel_path(&self.vm_root, &request.request_id);
@@ -3337,11 +3583,7 @@ fn parse_files_section(serial_text: &str) -> Option<String> {
         .chars()
         .filter(|c| c.is_ascii_alphanumeric() || matches!(c, '+' | '/' | '='))
         .collect();
-    if blob.is_empty() {
-        None
-    } else {
-        Some(blob)
-    }
+    if blob.is_empty() { None } else { Some(blob) }
 }
 
 /// Host-process runner mirroring the Docker/Podman bridge style: hides the
@@ -3494,6 +3736,232 @@ fn snapshot_failed(reason: impl ToString) -> SandboxAdapterError {
     }
 }
 
+fn bytes_to_mib_ceil(bytes: u64) -> Result<u32, SandboxAdapterError> {
+    const MIB: u64 = 1024 * 1024;
+    if bytes == 0 {
+        return Err(snapshot_failed(
+            "Cloud Hypervisor snapshot config memory.size must be greater than zero",
+        ));
+    }
+    let mib = bytes.saturating_add(MIB - 1) / MIB;
+    u32::try_from(mib).map_err(|_| {
+        snapshot_failed(format!(
+            "Cloud Hypervisor snapshot config memory.size {bytes} bytes exceeds u32 MiB range"
+        ))
+    })
+}
+
+fn checked_mib(value: u64, unit_mib: u64, original: &str) -> Result<u32, SandboxAdapterError> {
+    let mib = value.checked_mul(unit_mib).ok_or_else(|| {
+        snapshot_failed(format!(
+            "Cloud Hypervisor snapshot config memory.size `{original}` overflows MiB range"
+        ))
+    })?;
+    if mib == 0 {
+        return Err(snapshot_failed(
+            "Cloud Hypervisor snapshot config memory.size must be greater than zero",
+        ));
+    }
+    u32::try_from(mib).map_err(|_| {
+        snapshot_failed(format!(
+            "Cloud Hypervisor snapshot config memory.size `{original}` exceeds u32 MiB range"
+        ))
+    })
+}
+
+fn parse_memory_size_string_to_mib(value: &str) -> Result<u32, SandboxAdapterError> {
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        return Err(snapshot_failed(
+            "Cloud Hypervisor snapshot config memory.size string is empty",
+        ));
+    }
+    let digit_len = trimmed
+        .bytes()
+        .take_while(|byte| byte.is_ascii_digit())
+        .count();
+    if digit_len == 0 {
+        return Err(snapshot_failed(format!(
+            "Cloud Hypervisor snapshot config memory.size `{trimmed}` does not start with digits"
+        )));
+    }
+    let number = trimmed[..digit_len].parse::<u64>().map_err(|error| {
+        snapshot_failed(format!(
+            "Cloud Hypervisor snapshot config memory.size `{trimmed}` is not numeric: {error}"
+        ))
+    })?;
+    let suffix = trimmed[digit_len..].trim().to_ascii_lowercase();
+    match suffix.as_str() {
+        "" | "b" => bytes_to_mib_ceil(number),
+        "k" | "kb" | "kib" => {
+            let bytes = number.checked_mul(1024).ok_or_else(|| {
+                snapshot_failed(format!(
+                    "Cloud Hypervisor snapshot config memory.size `{trimmed}` overflows bytes"
+                ))
+            })?;
+            bytes_to_mib_ceil(bytes)
+        }
+        "m" | "mb" | "mib" => checked_mib(number, 1, trimmed),
+        "g" | "gb" | "gib" => checked_mib(number, 1024, trimmed),
+        other => Err(snapshot_failed(format!(
+            "Cloud Hypervisor snapshot config memory.size `{trimmed}` has unsupported suffix `{other}`"
+        ))),
+    }
+}
+
+fn parse_cloud_hypervisor_snapshot_config_memory_mib(
+    config_json: &str,
+) -> Result<u32, SandboxAdapterError> {
+    let value: serde_json::Value = serde_json::from_str(config_json).map_err(|error| {
+        snapshot_failed(format!(
+            "Cloud Hypervisor snapshot config.json is invalid JSON: {error}"
+        ))
+    })?;
+    let size = value.pointer("/memory/size").ok_or_else(|| {
+        snapshot_failed("Cloud Hypervisor snapshot config.json missing memory.size")
+    })?;
+    match size {
+        serde_json::Value::Number(number) => number
+            .as_u64()
+            .ok_or_else(|| {
+                snapshot_failed(
+                    "Cloud Hypervisor snapshot config memory.size must be an unsigned integer",
+                )
+            })
+            .and_then(bytes_to_mib_ceil),
+        serde_json::Value::String(value) => parse_memory_size_string_to_mib(value),
+        other => Err(snapshot_failed(format!(
+            "Cloud Hypervisor snapshot config memory.size must be a number or string, got {other}"
+        ))),
+    }
+}
+
+async fn read_cloud_hypervisor_snapshot_config_memory_mib(
+    config: &CloudHypervisorConfig,
+    snapshot_dir: &str,
+) -> Result<u32, SandboxAdapterError> {
+    let config_path = format!("{}/config.json", snapshot_dir.trim_end_matches('/'));
+    let output = run_wsl_sh(
+        config,
+        &format!("cat {path}", path = sh_quote_wsl(&config_path)),
+        PROBE_TIMEOUT_MS,
+    )
+    .await?;
+    if output.exit_code != 0 {
+        return Err(snapshot_failed(format!(
+            "failed to read Cloud Hypervisor snapshot config `{config_path}` (exit {}): {}",
+            output.exit_code,
+            output.stderr_text()
+        )));
+    }
+    parse_cloud_hypervisor_snapshot_config_memory_mib(&String::from_utf8_lossy(&output.stdout))
+}
+
+fn resolve_restore_memory_mib_from_snapshot_metadata(
+    config_memory_mib: u32,
+    marker_memory_mib: Option<u32>,
+    budget_enforced: bool,
+) -> Result<u32, SandboxAdapterError> {
+    if config_memory_mib == 0 {
+        return Err(snapshot_failed(
+            "Cloud Hypervisor snapshot config resolved zero MiB memory",
+        ));
+    }
+    if let Some(marker_mib) = marker_memory_mib {
+        if marker_mib != config_memory_mib && budget_enforced {
+            return Err(snapshot_failed(format!(
+                "committed-memory snapshot marker ({marker_mib}M) disagrees with Cloud \
+                 Hypervisor config.json memory.size ({config_memory_mib}M); refusing restore \
+                 while committed-memory admission is enforced"
+            )));
+        }
+    }
+    Ok(config_memory_mib)
+}
+
+fn parse_committed_memory_marker_value(value: &str) -> Result<Option<u32>, SandboxAdapterError> {
+    let Some(line) = value.lines().find(|line| !line.trim().is_empty()) else {
+        return Ok(None);
+    };
+    let parsed = line.trim().parse::<u32>().map_err(|error| {
+        snapshot_failed(format!(
+            "invalid committed-memory snapshot marker value `{}`: {error}",
+            line.trim()
+        ))
+    })?;
+    if parsed == 0 {
+        return Err(snapshot_failed(
+            "invalid committed-memory snapshot marker value `0`: memory reservation must be >0 MiB",
+        ));
+    }
+    Ok(Some(parsed))
+}
+
+async fn write_committed_memory_snapshot_marker(
+    config: &CloudHypervisorConfig,
+    snapshot_dir: &str,
+    memory_mib: u32,
+) -> Result<(), SandboxAdapterError> {
+    if memory_mib == 0 {
+        return Err(snapshot_failed(
+            "cannot write committed-memory snapshot marker for a zero-sized reservation",
+        ));
+    }
+    let marker = format!(
+        "{}/{}",
+        snapshot_dir.trim_end_matches('/'),
+        COMMITTED_MEMORY_SNAPSHOT_MARKER_FILE
+    );
+    let output = run_wsl_sh(
+        config,
+        &format!(
+            "printf '%s\\n' {memory_mib} > {marker} && echo HSK_COMMITTED_MEMORY_MARKER_OK",
+            memory_mib = memory_mib,
+            marker = sh_quote_wsl(&marker)
+        ),
+        PROBE_TIMEOUT_MS,
+    )
+    .await?;
+    if output.exit_code != 0
+        || !String::from_utf8_lossy(&output.stdout).contains("HSK_COMMITTED_MEMORY_MARKER_OK")
+    {
+        return Err(snapshot_failed(format!(
+            "failed to write committed-memory snapshot marker `{marker}` (exit {}): {}",
+            output.exit_code,
+            output.stderr_text()
+        )));
+    }
+    Ok(())
+}
+
+async fn read_committed_memory_snapshot_marker(
+    config: &CloudHypervisorConfig,
+    snapshot_dir: &str,
+) -> Result<Option<u32>, SandboxAdapterError> {
+    let marker = format!(
+        "{}/{}",
+        snapshot_dir.trim_end_matches('/'),
+        COMMITTED_MEMORY_SNAPSHOT_MARKER_FILE
+    );
+    let output = run_wsl_sh(
+        config,
+        &format!(
+            "if test -f {marker}; then cat {marker}; fi",
+            marker = sh_quote_wsl(&marker)
+        ),
+        PROBE_TIMEOUT_MS,
+    )
+    .await?;
+    if output.exit_code != 0 {
+        return Err(snapshot_failed(format!(
+            "failed to read committed-memory snapshot marker `{marker}` (exit {}): {}",
+            output.exit_code,
+            output.stderr_text()
+        )));
+    }
+    parse_committed_memory_marker_value(&String::from_utf8_lossy(&output.stdout))
+}
+
 async fn write_warm_agent_snapshot_marker(
     config: &CloudHypervisorConfig,
     snapshot_dir: &str,
@@ -3587,9 +4055,9 @@ mod tests {
     use crate::sandbox::{ImageRef, TrustClass};
 
     use super::super::warm_agent_package::{
+        WARM_AGENT_PACKAGE_AGENT_BINARY_MARKER, WARM_AGENT_PACKAGE_LLAMA_SERVER_MARKERS,
         manifest_for_test_recorded_probe_artifact, package_manifest_path_for_agent,
-        validate_warm_agent_package_manifest_candidate, WARM_AGENT_PACKAGE_AGENT_BINARY_MARKER,
-        WARM_AGENT_PACKAGE_LLAMA_SERVER_MARKERS,
+        validate_warm_agent_package_manifest_candidate,
     };
     use super::*;
 
@@ -3710,6 +4178,170 @@ done
         // But if one clone is killed and ANOTHER is still live, refuse.
         let one_live = vec![(Some(dir), true), (Some(dir), false)];
         assert!(snapshot_has_live_clone(one_live.into_iter(), dir));
+    }
+
+    #[test]
+    fn committed_memory_reservation_refuses_over_budget_and_releases_on_drop() {
+        let mut adapter = CloudHypervisorAdapter::new_for_test();
+        adapter.config = adapter
+            .config
+            .clone()
+            .with_work_dir(format!(
+                "/test/committed-memory-drop-{}",
+                Uuid::now_v7().simple()
+            ))
+            .with_committed_memory_budget_mib(512);
+
+        let first = adapter
+            .reserve_committed_memory_mib(384)
+            .expect("first reservation fits");
+        let err = adapter
+            .reserve_committed_memory_mib(256)
+            .expect_err("second reservation would exceed the configured ceiling");
+        match err {
+            SandboxAdapterError::SpawnFailed { reason, .. } => {
+                assert!(reason.contains("committed-memory admission refused"));
+                assert!(reason.contains("requested 256M"));
+                assert!(reason.contains("committed 384M"));
+                assert!(reason.contains("budget 512M"));
+                assert!(reason.contains("overcommit"));
+            }
+            other => panic!("expected typed SpawnFailed, got {other:?}"),
+        }
+
+        drop(first);
+        adapter
+            .reserve_committed_memory_mib(512)
+            .expect("dropped reservation releases the full budget");
+    }
+
+    #[tokio::test]
+    async fn kill_releases_persistent_committed_memory_reservation() {
+        let mut adapter = CloudHypervisorAdapter::new_for_test();
+        adapter.config = adapter
+            .config
+            .clone()
+            .with_work_dir(format!(
+                "/test/committed-memory-kill-{}",
+                Uuid::now_v7().simple()
+            ))
+            .with_committed_memory_budget_mib(512);
+        let mut reservation = adapter
+            .reserve_committed_memory_mib(512)
+            .expect("reservation fits");
+        reservation.disarm();
+
+        let handle = ProcessHandle::new(
+            AdapterId::new(CLOUD_HYPERVISOR_ADAPTER_ID),
+            None,
+            "hsk-ch-committed-memory-test",
+        );
+        let mut state = HandleState::default();
+        state.committed_memory_mib = 512;
+        adapter.handles.lock().unwrap().insert(handle.id, state);
+
+        adapter
+            .kill(&handle, Signal::Term)
+            .await
+            .expect("kill releases reservation");
+        assert_eq!(adapter.committed_memory_used_mib_for_test(), 0);
+
+        adapter
+            .reserve_committed_memory_mib(512)
+            .expect("released budget is reusable");
+    }
+
+    #[test]
+    fn committed_memory_budget_is_process_global_across_adapter_instances() {
+        let work_dir = format!("/test/committed-memory-global-{}", Uuid::now_v7().simple());
+        let mut first = CloudHypervisorAdapter::new_for_test();
+        first.config = first
+            .config
+            .clone()
+            .with_work_dir(work_dir.clone())
+            .with_committed_memory_budget_mib(512);
+        let mut second = CloudHypervisorAdapter::new_for_test();
+        second.config = second
+            .config
+            .clone()
+            .with_work_dir(work_dir)
+            .with_committed_memory_budget_mib(512);
+
+        let reservation = first
+            .reserve_committed_memory_mib(512)
+            .expect("first adapter consumes the shared budget");
+        let err = second
+            .reserve_committed_memory_mib(1)
+            .expect_err("second adapter instance must see the shared budget");
+        assert!(
+            format!("{err}").contains("scope `Ubuntu::/test/committed-memory-global-"),
+            "{err}"
+        );
+        drop(reservation);
+        second
+            .reserve_committed_memory_mib(512)
+            .expect("release from first adapter reopens the shared budget");
+    }
+
+    #[test]
+    fn invalid_committed_memory_budget_env_fails_closed_on_admission() {
+        let mut adapter = CloudHypervisorAdapter::new_for_test();
+        adapter.config.committed_memory_budget_config_error =
+            Some("HANDSHAKE_CH_COMMITTED_MEMORY_BUDGET_MIB must be positive".to_string());
+
+        let err = adapter
+            .reserve_committed_memory_mib(1)
+            .expect_err("invalid configured budget must not silently disable admission");
+        assert!(format!("{err}").contains("budget configuration is invalid"));
+    }
+
+    #[test]
+    fn committed_memory_snapshot_marker_parses_and_rejects_bad_values() {
+        assert_eq!(
+            parse_committed_memory_marker_value("768\n").expect("valid marker"),
+            Some(768)
+        );
+        assert_eq!(
+            parse_committed_memory_marker_value("\n").expect("missing marker is old snapshot"),
+            None
+        );
+
+        let zero =
+            parse_committed_memory_marker_value("0\n").expect_err("zero marker must fail closed");
+        assert!(format!("{zero}").contains("must be >0 MiB"));
+
+        let bad = parse_committed_memory_marker_value("not-a-number\n")
+            .expect_err("nonnumeric marker must fail closed");
+        assert!(format!("{bad}").contains("invalid committed-memory snapshot marker"));
+    }
+
+    #[test]
+    fn cloud_hypervisor_snapshot_config_memory_is_restore_authority() {
+        let bytes = 768_u64 * 1024 * 1024;
+        let json = format!(r#"{{"memory":{{"size":{bytes}}}}}"#);
+        assert_eq!(
+            parse_cloud_hypervisor_snapshot_config_memory_mib(&json)
+                .expect("CH config memory size"),
+            768
+        );
+        assert_eq!(
+            parse_cloud_hypervisor_snapshot_config_memory_mib(r#"{"memory":{"size":"2G"}}"#)
+                .expect("CH config string memory size"),
+            2048
+        );
+        assert_eq!(
+            resolve_restore_memory_mib_from_snapshot_metadata(768, None, true)
+                .expect("old snapshots without marker use CH config memory"),
+            768
+        );
+        assert_eq!(
+            resolve_restore_memory_mib_from_snapshot_metadata(768, Some(512), false)
+                .expect("without budget the marker is non-authoritative"),
+            768
+        );
+        let err = resolve_restore_memory_mib_from_snapshot_metadata(768, Some(512), true)
+            .expect_err("budgeted restore fails closed on config/marker mismatch");
+        assert!(format!("{err}").contains("disagrees with Cloud Hypervisor config.json"));
     }
 
     // ===================================================================
@@ -4260,18 +4892,22 @@ done
             )
             .expect("persistent boot args");
 
-        assert!(args
-            .windows(2)
-            .any(|pair| pair[0] == "--api-socket" && pair[1] == "/work/vm/ch.sock"));
-        assert!(args
-            .windows(2)
-            .any(|pair| pair[0] == "--serial" && pair[1] == "socket=/work/vm/agent.sock"));
-        assert!(args
-            .windows(2)
-            .any(|pair| pair[0] == "--console" && pair[1] == "file=/work/vm/serial.log"));
-        assert!(args
-            .windows(2)
-            .any(|pair| pair[0] == "--cmdline" && pair[1] == "console=hvc0"));
+        assert!(
+            args.windows(2)
+                .any(|pair| pair[0] == "--api-socket" && pair[1] == "/work/vm/ch.sock")
+        );
+        assert!(
+            args.windows(2)
+                .any(|pair| pair[0] == "--serial" && pair[1] == "socket=/work/vm/agent.sock")
+        );
+        assert!(
+            args.windows(2)
+                .any(|pair| pair[0] == "--console" && pair[1] == "file=/work/vm/serial.log")
+        );
+        assert!(
+            args.windows(2)
+                .any(|pair| pair[0] == "--cmdline" && pair[1] == "console=hvc0")
+        );
         assert!(
             !args.iter().any(|arg| arg.contains("vsock")),
             "vsock remains the follow-on transport and must not be implied by the serial agent"
@@ -4962,6 +5598,8 @@ done
             busybox: DEFAULT_BUSYBOX.to_string(),
             work_dir: DEFAULT_WORK_DIR.to_string(),
             memory_mib: DEFAULT_MEMORY_MIB,
+            committed_memory_budget_mib: None,
+            committed_memory_budget_config_error: None,
             vcpus: DEFAULT_VCPUS,
             command_timeout_ms: DEFAULT_COMMAND_TIMEOUT_MS,
             balloon: CloudHypervisorBalloonConfig::disabled(),
