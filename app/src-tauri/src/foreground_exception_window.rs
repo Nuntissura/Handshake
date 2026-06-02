@@ -108,8 +108,12 @@ pub fn build_foreground_exception_window<R: Runtime>(
     // re-declared exception does not stack duplicate foreground windows.
     let webview_url = parse_webview_url(&url)?;
     let window = if let Some(existing) = app.get_webview_window(&label) {
-        let _ = existing.show();
-        let _ = existing.set_focus();
+        existing
+            .show()
+            .map_err(|error| ForegroundExceptionError::WindowSurface(error.to_string()))?;
+        existing
+            .set_focus()
+            .map_err(|error| ForegroundExceptionError::WindowSurface(error.to_string()))?;
         existing
     } else {
         ForegroundExceptionWindowBuilder::new(app, label.clone(), webview_url)

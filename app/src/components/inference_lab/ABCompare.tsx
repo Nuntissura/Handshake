@@ -11,9 +11,20 @@ type Props = {
    * and inactive on the BEFORE side. Must be a registered (saved) vector id so
    * the live runtime can resolve it via `steering_overrides`.
    */
-  activeVectorId: string;
+  activeVectorId?: string;
+  /**
+   * Steering vectors for the AFTER side. Prefer this when the caller exposes
+   * compare variants directly from UI state.
+   */
+  activeVectorIds?: string[];
+  /**
+   * Steering vectors for the BEFORE side. Empty means baseline/no steering.
+   */
+  inactiveVectorIds?: string[];
   /** Human label for the proposed vector, shown in the panel header. */
   vectorName?: string;
+  activeLabel?: string;
+  inactiveLabel?: string;
 };
 
 type AbState =
@@ -21,6 +32,10 @@ type AbState =
   | { status: "generating" }
   | { status: "done"; comparisons: SteeringAbComparison[] }
   | { status: "error"; message: string };
+
+const DEFAULT_MAX_TOKENS = 64;
+const MIN_MAX_TOKENS = 1;
+const MAX_MAX_TOKENS = 256;
 
 function errorMessage(error: unknown): string {
   if (error instanceof Error) return error.message;
@@ -35,6 +50,17 @@ function splitPrompts(raw: string): string[] {
     .filter((line) => line.length > 0);
 }
 
+function cleanVectorIds(vectorIds: string[]): string[] {
+  return vectorIds
+    .map((vectorId) => vectorId.trim())
+    .filter((vectorId) => vectorId.length > 0);
+}
+
+function normalizeMaxTokens(value: number): number {
+  if (!Number.isFinite(value)) return DEFAULT_MAX_TOKENS;
+  return Math.min(MAX_MAX_TOKENS, Math.max(MIN_MAX_TOKENS, Math.trunc(value)));
+}
+
 /**
  * MT-098 AB-compare panel. Renders a side-by-side BEFORE/AFTER generation with
  * the proposed steering vector active vs inactive, by calling the live
@@ -43,13 +69,25 @@ function splitPrompts(raw: string): string[] {
  * completions it returns. Operator-authored prompt text is sent verbatim
  * (GLOBAL-PRODUCTION-005..009): no UI-level filtering or rewording.
  */
-export function ABCompare({ modelId, activeVectorId, vectorName }: Props) {
+export function ABCompare({
+  modelId,
+  activeVectorId,
+  activeVectorIds,
+  inactiveVectorIds = [],
+  vectorName,
+  activeLabel = "After (vector active)",
+  inactiveLabel = "Before (vector inactive)",
+}: Props) {
   const [prompts, setPrompts] = useState("");
-  const [maxTokens, setMaxTokens] = useState<number>(64);
+  const [maxTokens, setMaxTokens] = useState<number>(DEFAULT_MAX_TOKENS);
   const [state, setState] = useState<AbState>({ status: "idle" });
 
   const promptList = splitPrompts(prompts);
-  const canGenerate = promptList.length > 0 && activeVectorId.trim().length > 0;
+  const resolvedActiveVectorIds = cleanVectorIds(
+    activeVectorIds ?? (activeVectorId ? [activeVectorId] : []),
+  );
+  const resolvedInactiveVectorIds = cleanVectorIds(inactiveVectorIds);
+  const canGenerate = promptList.length > 0 && resolvedActiveVectorIds.length > 0;
 
   const handleGenerate = async () => {
     if (!canGenerate) return;
@@ -58,9 +96,9 @@ export function ABCompare({ modelId, activeVectorId, vectorName }: Props) {
       const result = await generateAb({
         modelId,
         prompts: promptList,
-        activeVectorIds: [activeVectorId],
-        inactiveVectorIds: [],
-        maxTokens,
+        activeVectorIds: resolvedActiveVectorIds,
+        inactiveVectorIds: resolvedInactiveVectorIds,
+        maxTokens: normalizeMaxTokens(maxTokens),
       });
       setState({ status: "done", comparisons: result.comparisons });
     } catch (error) {
@@ -76,10 +114,10 @@ export function ABCompare({ modelId, activeVectorId, vectorName }: Props) {
     >
       <h4 id="ab-compare-title">A/B compare (live generation)</h4>
       <p className="muted" data-testid="ab-compare.note">
-        Side-by-side generation with the proposed vector
-        {vectorName ? ` "${vectorName}"` : ""} active vs inactive. Each prompt is
-        generated twice through the live CandleRuntime adapter — once steered,
-        once baseline. Operator-authored text is sent verbatim.
+        Side-by-side generation with the selected active variant
+        {vectorName ? ` "${vectorName}"` : ""} compared against the before variant.
+        Each prompt is generated twice through the live CandleRuntime adapter.
+        Operator-authored text is sent verbatim.
       </p>
 
       <label>
@@ -102,7 +140,7 @@ export function ABCompare({ modelId, activeVectorId, vectorName }: Props) {
             max={256}
             step={1}
             value={maxTokens}
-            onChange={(event) => setMaxTokens(Number(event.target.value))}
+            onChange={(event) => setMaxTokens(normalizeMaxTokens(event.currentTarget.valueAsNumber))}
             data-testid="ab-compare.max-tokens"
           />
         </label>
@@ -117,13 +155,25 @@ export function ABCompare({ modelId, activeVectorId, vectorName }: Props) {
         </button>
       </div>
 
+      {state.status === "generating" ? (
+        <p aria-live="polite" data-testid="ab-compare.loading">
+          Generating A/B compare through the live runtime...
+        </p>
+      ) : null}
+
       {state.status === "error" ? (
         <p role="alert" data-testid="ab-compare.error">
           A/B compare failed: {state.message}
         </p>
       ) : null}
 
-      {state.status === "done" ? (
+      {state.status === "done" && state.comparisons.length === 0 ? (
+        <p data-testid="ab-compare.results.empty">
+          The runtime returned no comparison rows.
+        </p>
+      ) : null}
+
+      {state.status === "done" && state.comparisons.length > 0 ? (
         <div data-testid="ab-compare.results">
           {state.comparisons.map((comparison, index) => (
             <div
@@ -139,7 +189,7 @@ export function ABCompare({ modelId, activeVectorId, vectorName }: Props) {
                   className="inference-lab__ab-compare-pane"
                   data-testid={`ab-compare.pair.${index}.inactive`}
                 >
-                  <h5>Before (vector inactive)</h5>
+                  <h5>{inactiveLabel}</h5>
                   <pre data-testid={`ab-compare.pair.${index}.inactive-text`}>
                     {comparison.inactiveCompletion}
                   </pre>
@@ -148,7 +198,7 @@ export function ABCompare({ modelId, activeVectorId, vectorName }: Props) {
                   className="inference-lab__ab-compare-pane"
                   data-testid={`ab-compare.pair.${index}.active`}
                 >
-                  <h5>After (vector active)</h5>
+                  <h5>{activeLabel}</h5>
                   <pre data-testid={`ab-compare.pair.${index}.active-text`}>
                     {comparison.activeCompletion}
                   </pre>

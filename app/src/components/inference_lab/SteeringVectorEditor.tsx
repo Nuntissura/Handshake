@@ -6,6 +6,7 @@ import {
   unregister,
   type SteeringVectorMeta,
 } from "../../lib/ipc/steering";
+import { ABCompare } from "./ABCompare";
 import { ContrastiveCaptureWizard } from "./ContrastiveCaptureWizard";
 
 type Props = {
@@ -28,6 +29,8 @@ function errorMessage(error: unknown): string {
 export function SteeringVectorEditor({ modelId, capabilities, nLayers }: Props) {
   const [state, setState] = useState<LoadState>({ status: "loading" });
   const [reloadKey, setReloadKey] = useState(0);
+  const [compareActiveId, setCompareActiveId] = useState("");
+  const [compareInactiveId, setCompareInactiveId] = useState("");
 
   const reload = useCallback(() => {
     setReloadKey((k) => k + 1);
@@ -86,6 +89,24 @@ export function SteeringVectorEditor({ modelId, capabilities, nLayers }: Props) 
     }
   };
 
+  const compareVectors = state.status === "ready" ? state.vectors : [];
+  const selectedCompareActiveId = compareVectors.some(
+    (vector) => vector.vectorId === compareActiveId,
+  )
+    ? compareActiveId
+    : (compareVectors[0]?.vectorId ?? "");
+  const selectedCompareInactiveId = compareVectors.some(
+    (vector) => vector.vectorId === compareInactiveId,
+  )
+    ? compareInactiveId
+    : "";
+  const selectedCompareActive = compareVectors.find(
+    (vector) => vector.vectorId === selectedCompareActiveId,
+  );
+  const selectedCompareInactive = compareVectors.find(
+    (vector) => vector.vectorId === selectedCompareInactiveId,
+  );
+
   return (
     <section
       className="inference-lab__panel inference-lab__steering"
@@ -113,70 +134,138 @@ export function SteeringVectorEditor({ modelId, capabilities, nLayers }: Props) 
           No steering vectors registered for this model. Use the capture wizard below to create one.
         </p>
       ) : (
-        <table data-testid="steering-vector-editor.table">
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Layer</th>
-              <th>Hook</th>
-              <th>Intensity</th>
-              <th>Active</th>
-              <th>Description</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {state.vectors.map((vector) => {
-              const isActive = state.activeIds.has(vector.vectorId);
-              return (
-                <tr
-                  key={vector.vectorId}
-                  data-vector-id={vector.vectorId}
-                  data-testid={`steering-vector-editor.row.${vector.vectorId}`}
-                >
-                  <td>{vector.name}</td>
-                  <td>{vector.layer}</td>
-                  <td>
-                    <code>{vector.hookPoint}</code>
-                  </td>
-                  <td>
-                    <input
-                      type="range"
-                      min={-10}
-                      max={10}
-                      step={0.1}
-                      defaultValue={vector.intensity}
-                      data-testid={`steering-vector-editor.row.${vector.vectorId}.intensity`}
-                      aria-label={`Intensity for ${vector.name}`}
-                    />
-                    <span className="muted">{vector.intensity.toFixed(2)}</span>
-                  </td>
-                  <td>
-                    <label className="inference-lab__toggle">
+        <>
+          <table data-testid="steering-vector-editor.table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Layer</th>
+                <th>Hook</th>
+                <th>Intensity</th>
+                <th>Active</th>
+                <th>Description</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {state.vectors.map((vector) => {
+                const isActive = state.activeIds.has(vector.vectorId);
+                return (
+                  <tr
+                    key={vector.vectorId}
+                    data-vector-id={vector.vectorId}
+                    data-testid={`steering-vector-editor.row.${vector.vectorId}`}
+                  >
+                    <td>{vector.name}</td>
+                    <td>{vector.layer}</td>
+                    <td>
+                      <code>{vector.hookPoint}</code>
+                    </td>
+                    <td>
                       <input
-                        type="checkbox"
-                        checked={isActive}
-                        onChange={(event) => void handleToggle(vector.vectorId, event.target.checked)}
-                        data-testid={`steering-vector-editor.row.${vector.vectorId}.active`}
+                        type="range"
+                        min={-10}
+                        max={10}
+                        step={0.1}
+                        defaultValue={vector.intensity}
+                        data-testid={`steering-vector-editor.row.${vector.vectorId}.intensity`}
+                        aria-label={`Intensity for ${vector.name}`}
                       />
-                      <span>{isActive ? "on" : "off"}</span>
-                    </label>
-                  </td>
-                  <td>{vector.description}</td>
-                  <td>
-                    <button
-                      type="button"
-                      onClick={() => void handleUnregister(vector.vectorId)}
-                      data-testid={`steering-vector-editor.row.${vector.vectorId}.unregister`}
-                    >
-                      Remove
-                    </button>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+                      <span className="muted">{vector.intensity.toFixed(2)}</span>
+                    </td>
+                    <td>
+                      <label className="inference-lab__toggle">
+                        <input
+                          type="checkbox"
+                          checked={isActive}
+                          onChange={(event) =>
+                            void handleToggle(vector.vectorId, event.target.checked)
+                          }
+                          data-testid={`steering-vector-editor.row.${vector.vectorId}.active`}
+                        />
+                        <span>{isActive ? "on" : "off"}</span>
+                      </label>
+                    </td>
+                    <td>{vector.description}</td>
+                    <td>
+                      <button
+                        type="button"
+                        onClick={() => void handleUnregister(vector.vectorId)}
+                        data-testid={`steering-vector-editor.row.${vector.vectorId}.unregister`}
+                      >
+                        Remove
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+
+          <section
+            className="inference-lab__ab-compare"
+            data-testid="steering-vector-editor.ab-compare"
+            aria-labelledby="steering-vector-editor-ab-compare-title"
+          >
+            <h4 id="steering-vector-editor-ab-compare-title">
+              A/B compare registered vectors
+            </h4>
+            <div
+              className="inference-lab__wizard-row"
+              data-testid="steering-vector-editor.ab-compare.controls"
+            >
+              <label>
+                <span>Before variant</span>
+                <select
+                  value={selectedCompareInactiveId}
+                  onChange={(event) => setCompareInactiveId(event.target.value)}
+                  data-testid="steering-vector-editor.ab-compare.inactive-select"
+                >
+                  <option value="">Baseline (no steering)</option>
+                  {state.vectors.map((vector) => (
+                    <option key={vector.vectorId} value={vector.vectorId}>
+                      {vector.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label>
+                <span>After variant</span>
+                <select
+                  value={selectedCompareActiveId}
+                  onChange={(event) => setCompareActiveId(event.target.value)}
+                  data-testid="steering-vector-editor.ab-compare.active-select"
+                >
+                  {state.vectors.map((vector) => (
+                    <option key={vector.vectorId} value={vector.vectorId}>
+                      {vector.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+
+            <ABCompare
+              modelId={modelId}
+              activeVectorIds={selectedCompareActiveId ? [selectedCompareActiveId] : []}
+              inactiveVectorIds={
+                selectedCompareInactiveId ? [selectedCompareInactiveId] : []
+              }
+              vectorName={selectedCompareActive?.name}
+              inactiveLabel={
+                selectedCompareInactive
+                  ? `Before (${selectedCompareInactive.name})`
+                  : "Before (baseline)"
+              }
+              activeLabel={
+                selectedCompareActive
+                  ? `After (${selectedCompareActive.name})`
+                  : "After"
+              }
+            />
+          </section>
+        </>
       )}
 
       <ContrastiveCaptureWizard modelId={modelId} nLayers={nLayers} onVectorSaved={reload} />

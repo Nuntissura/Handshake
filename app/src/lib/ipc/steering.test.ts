@@ -8,6 +8,7 @@ vi.mock("@tauri-apps/api/core", () => ({
 
 import {
   capture,
+  generateAb,
   listVectors,
   registerVector,
   setActive,
@@ -128,5 +129,42 @@ describe("steering IPC bindings", () => {
       }),
     );
     expect(result.vectorId).toBeDefined();
+  });
+
+  it("runs AB compare generation with active and inactive vector sets", async () => {
+    invokeMock.mockResolvedValueOnce({
+      comparisons: [
+        {
+          prompt: "compare tone",
+          inactiveCompletion: "BEFORE",
+          activeCompletion: "AFTER",
+        },
+      ],
+      activeVectorIds: ["019a1b2c-0000-7000-8000-000000000001"],
+      inactiveVectorIds: ["019a1b2c-0000-7000-8000-000000000002"],
+      eventType: "FR-EVT-LLM-INFER-STEER-AB-COMPARE",
+    });
+
+    const result = await generateAb({
+      modelId: "019a1b2c-0000-7000-8000-aaaaaaaaaaaa",
+      prompts: ["compare tone"],
+      activeVectorIds: ["019a1b2c-0000-7000-8000-000000000001"],
+      inactiveVectorIds: ["019a1b2c-0000-7000-8000-000000000002"],
+      maxTokens: 32,
+    });
+
+    expect(invokeMock).toHaveBeenCalledWith(
+      "kernel_model_runtime_steering_generate_ab",
+      {
+        request: {
+          modelId: "019a1b2c-0000-7000-8000-aaaaaaaaaaaa",
+          prompts: ["compare tone"],
+          activeVectorIds: ["019a1b2c-0000-7000-8000-000000000001"],
+          inactiveVectorIds: ["019a1b2c-0000-7000-8000-000000000002"],
+          maxTokens: 32,
+        },
+      },
+    );
+    expect(result.comparisons[0].activeCompletion).toBe("AFTER");
   });
 });

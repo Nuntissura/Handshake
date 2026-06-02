@@ -82,10 +82,7 @@ impl FocusAuditIpcState {
 
     /// Test/diagnostic helper: number of currently parked audits.
     pub fn active_count(&self) -> usize {
-        self.handles
-            .lock()
-            .map(|guard| guard.len())
-            .unwrap_or(0)
+        self.handles.lock().map(|guard| guard.len()).unwrap_or(0)
     }
 }
 
@@ -215,13 +212,12 @@ mod tests {
     #[tokio::test]
     async fn start_surfaces_unsupported_platform_error_off_windows() {
         let temp = tempfile::tempdir().expect("temp dir");
-        let result = FocusAuditHandle::start(
-            "RUN-MT-027",
-            temp.path(),
-            OwnedProcessPidSet::default(),
-        )
-        .await;
+        let result =
+            FocusAuditHandle::start("RUN-MT-027", temp.path(), OwnedProcessPidSet::default()).await;
         let error = result.err().expect("non-windows start must error");
-        assert_eq!(map_focus_audit_error(error), "FOCUS_AUDIT_UNSUPPORTED_PLATFORM");
+        assert_eq!(
+            map_focus_audit_error(error),
+            "FOCUS_AUDIT_UNSUPPORTED_PLATFORM"
+        );
     }
 }

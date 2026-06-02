@@ -40,6 +40,8 @@ describe("ABCompare", () => {
     });
     fireEvent.click(screen.getByTestId("ab-compare.generate"));
 
+    expect(screen.getByTestId("ab-compare.loading")).toBeInTheDocument();
+
     await waitFor(() => {
       expect(screen.getByTestId("ab-compare.results")).toBeInTheDocument();
     });
@@ -84,6 +86,78 @@ describe("ABCompare", () => {
     await waitFor(() => {
       const err = screen.getByTestId("ab-compare.error");
       expect(err.textContent).toContain("capture_not_available");
+    });
+  });
+
+  it("sends explicit before and after vector sets from UI state", async () => {
+    const beforeVectorId = "019a1b2c-0000-7000-8000-000000000002";
+    generateAbMock.mockResolvedValueOnce({
+      comparisons: [
+        {
+          prompt: "compare tone",
+          inactiveCompletion: "BEFORE-VECTOR-TEXT",
+          activeCompletion: "AFTER-VECTOR-TEXT",
+        },
+      ],
+      activeVectorIds: [VECTOR_ID],
+      inactiveVectorIds: [beforeVectorId],
+      eventType: "FR-EVT-LLM-INFER-STEER-AB-COMPARE",
+    });
+
+    render(
+      <ABCompare
+        modelId={MODEL_ID}
+        activeVectorIds={[VECTOR_ID]}
+        inactiveVectorIds={[beforeVectorId]}
+        activeLabel="After (calm)"
+        inactiveLabel="Before (direct)"
+      />,
+    );
+
+    fireEvent.change(screen.getByTestId("ab-compare.prompts"), {
+      target: { value: "compare tone" },
+    });
+    fireEvent.click(screen.getByTestId("ab-compare.generate"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("ab-compare.results")).toBeInTheDocument();
+    });
+
+    expect(generateAbMock).toHaveBeenCalledWith({
+      modelId: MODEL_ID,
+      prompts: ["compare tone"],
+      activeVectorIds: [VECTOR_ID],
+      inactiveVectorIds: [beforeVectorId],
+      maxTokens: 64,
+    });
+    expect(screen.getByText("After (calm)")).toBeInTheDocument();
+    expect(screen.getByText("Before (direct)")).toBeInTheDocument();
+  });
+
+  it("clamps max tokens before dispatching the live A/B request", async () => {
+    generateAbMock.mockResolvedValueOnce({
+      comparisons: [],
+      activeVectorIds: [VECTOR_ID],
+      inactiveVectorIds: [],
+      eventType: "FR-EVT-LLM-INFER-STEER-AB-COMPARE",
+    });
+
+    render(
+      <ABCompare modelId={MODEL_ID} activeVectorId={VECTOR_ID} />,
+    );
+
+    fireEvent.change(screen.getByTestId("ab-compare.prompts"), {
+      target: { value: "bounded request" },
+    });
+    fireEvent.change(screen.getByTestId("ab-compare.max-tokens"), {
+      target: { value: "999" },
+    });
+    fireEvent.click(screen.getByTestId("ab-compare.generate"));
+
+    await waitFor(() => {
+      expect(generateAbMock).toHaveBeenCalledWith(
+        expect.objectContaining({ maxTokens: 256 }),
+      );
     });
   });
 

@@ -5,11 +5,13 @@ import type { ModelCapabilities } from "../../lib/ipc/model_runtime";
 const listVectorsMock = vi.hoisted(() => vi.fn());
 const setActiveMock = vi.hoisted(() => vi.fn());
 const unregisterMock = vi.hoisted(() => vi.fn());
+const generateAbMock = vi.hoisted(() => vi.fn());
 
 vi.mock("../../lib/ipc/steering", () => ({
   listVectors: listVectorsMock,
   setActive: setActiveMock,
   unregister: unregisterMock,
+  generateAb: generateAbMock,
   capture: vi.fn(),
   registerVector: vi.fn(),
 }));
@@ -38,6 +40,7 @@ describe("SteeringVectorEditor", () => {
     listVectorsMock.mockReset();
     setActiveMock.mockReset();
     unregisterMock.mockReset();
+    generateAbMock.mockReset();
   });
 
   it("renders nothing when the model adapter does not support activation steering", () => {
@@ -91,10 +94,11 @@ describe("SteeringVectorEditor", () => {
     await waitFor(() => {
       expect(screen.getByTestId("steering-vector-editor.table")).toBeInTheDocument();
     });
-    expect(screen.getByText("calm-tone")).toBeInTheDocument();
+    expect(screen.getByTestId("steering-vector-editor.ab-compare")).toBeInTheDocument();
     const row = screen.getByTestId(
       "steering-vector-editor.row.019a1b2c-0000-7000-8000-000000000001",
     );
+    expect(row.textContent).toContain("calm-tone");
     expect(row.textContent).toContain("14");
     expect(row.textContent).toContain("resid_stream");
   });
@@ -133,6 +137,75 @@ describe("SteeringVectorEditor", () => {
         "019a1b2c-0000-7000-8000-000000000001",
       ]);
     });
+  });
+
+  it("runs live A/B compare from registered vector UI selections", async () => {
+    const afterVectorId = "019a1b2c-0000-7000-8000-000000000001";
+    const beforeVectorId = "019a1b2c-0000-7000-8000-000000000002";
+    listVectorsMock.mockResolvedValueOnce([
+      {
+        vectorId: afterVectorId,
+        name: "calm",
+        layer: 12,
+        hookPoint: "resid_stream",
+        intensity: 1.0,
+        description: "after vector",
+      },
+      {
+        vectorId: beforeVectorId,
+        name: "direct",
+        layer: 14,
+        hookPoint: "resid_stream",
+        intensity: 0.75,
+        description: "before vector",
+      },
+    ]);
+    generateAbMock.mockResolvedValueOnce({
+      comparisons: [
+        {
+          prompt: "compare this",
+          inactiveCompletion: "DIRECT-OUTPUT",
+          activeCompletion: "CALM-OUTPUT",
+        },
+      ],
+      activeVectorIds: [afterVectorId],
+      inactiveVectorIds: [beforeVectorId],
+      eventType: "FR-EVT-LLM-INFER-STEER-AB-COMPARE",
+    });
+
+    render(
+      <SteeringVectorEditor
+        modelId={MODEL_ID}
+        capabilities={STEERING_SUPPORTED}
+        nLayers={32}
+      />,
+    );
+
+    await screen.findByTestId("steering-vector-editor.ab-compare");
+    fireEvent.change(
+      screen.getByTestId("steering-vector-editor.ab-compare.inactive-select"),
+      { target: { value: beforeVectorId } },
+    );
+    fireEvent.change(screen.getByTestId("ab-compare.prompts"), {
+      target: { value: "compare this" },
+    });
+    fireEvent.click(screen.getByTestId("ab-compare.generate"));
+
+    await waitFor(() => {
+      expect(generateAbMock).toHaveBeenCalledWith({
+        modelId: MODEL_ID,
+        prompts: ["compare this"],
+        activeVectorIds: [afterVectorId],
+        inactiveVectorIds: [beforeVectorId],
+        maxTokens: 64,
+      });
+    });
+    expect(screen.getByTestId("ab-compare.pair.0.active-text").textContent).toContain(
+      "CALM-OUTPUT",
+    );
+    expect(screen.getByTestId("ab-compare.pair.0.inactive-text").textContent).toContain(
+      "DIRECT-OUTPUT",
+    );
   });
 
   it("surfaces backend errors verbatim (capture-not-available path)", async () => {

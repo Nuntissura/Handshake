@@ -93,8 +93,8 @@ impl<'a, R: Runtime> ForegroundExceptionWindowBuilder<'a, R> {
         let window = self.builder.build()?;
         // Belt-and-suspenders: ensure the window is actually shown and focused
         // even on platforms where the builder hints are advisory.
-        let _ = window.show();
-        let _ = window.set_focus();
+        window.show()?;
+        window.set_focus()?;
         Ok(window)
     }
 }

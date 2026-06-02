@@ -311,12 +311,7 @@ fn ipc_call_under_focus_audit(
         let live = runtime.block_on(async {
             use handshake_core::operator_foreground::focus_audit::FocusAuditHandle;
             let run_id = format!("MT-020-runtime-probe-{}", sanitize(command_ref));
-            match FocusAuditHandle::start(
-                run_id,
-                runtime_root,
-                OwnedProcessPidSet::default(),
-            )
-            .await
+            match FocusAuditHandle::start(run_id, runtime_root, OwnedProcessPidSet::default()).await
             {
                 Ok(handle) => {
                     // Dispatch the command again while the hook is armed so any
@@ -529,8 +524,7 @@ fn automation_first_audit_runtime_three_probes_cover_full_ipc_inventory_with_mea
     // On hosts where the env is unset (ordinary headless CI), `keyboard_live_any`
     // stays false and the evidence honestly reports keyboard_injection_measured
     // = false — never a faked measurement.
-    let keyboard_inject_live_requested =
-        std::env::var(LIVE_PROBE_ENV).as_deref() == Ok("1");
+    let keyboard_inject_live_requested = std::env::var(LIVE_PROBE_ENV).as_deref() == Ok("1");
     if keyboard_inject_live_requested {
         assert!(
             cfg!(windows),
@@ -571,9 +565,14 @@ fn automation_first_audit_runtime_three_probes_cover_full_ipc_inventory_with_mea
         "--json",
         "--runtime-probe-evidence",
         evidence_path.to_str().expect("evidence path utf8"),
+        "--require-runtime-probe",
     ]);
-    let report: Value = serde_json::from_slice(&output.stdout)
-        .unwrap_or_else(|_| panic!("audit stdout is json: {}", String::from_utf8_lossy(&output.stderr)));
+    let report: Value = serde_json::from_slice(&output.stdout).unwrap_or_else(|_| {
+        panic!(
+            "audit stdout is json: {}",
+            String::from_utf8_lossy(&output.stderr)
+        )
+    });
 
     // The audit must acknowledge the measured evidence rather than static zeros.
     let runtime_probe = &report["runtime_probe"];
@@ -737,11 +736,7 @@ fn automation_first_audit_rejects_wrong_schema_runtime_probe_evidence() {
     )
     .unwrap();
 
-    let output = run_audit(&[
-        "--json",
-        "--runtime-probe-evidence",
-        bad.to_str().unwrap(),
-    ]);
+    let output = run_audit(&["--json", "--runtime-probe-evidence", bad.to_str().unwrap()]);
     assert!(
         !output.status.success(),
         "audit must reject wrong-schema runtime-probe evidence"

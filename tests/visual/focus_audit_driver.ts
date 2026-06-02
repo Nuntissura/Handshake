@@ -214,6 +214,9 @@ async function runViaProbe(
   scenario: () => Promise<void>,
 ): Promise<FocusAuditOutcome> {
   const binary = ensureProbeBinary();
+  const nodeProbeScript = process.env.HANDSHAKE_FOCUS_AUDIT_PROBE_NODE_SCRIPT?.trim();
+  const command = nodeProbeScript ? process.execPath : binary;
+  const commandPrefixArgs = nodeProbeScript ? [nodeProbeScript] : [];
 
   // The hook now closes on the explicit stop signal (stdin line / sentinel
   // file), not a timer. We keep an optional MAXIMUM safety cap so a hung
@@ -226,8 +229,9 @@ async function runViaProbe(
   const sentinelPath = path.join(sentinelDir, `${sanitizeRunId(runId)}.stop`);
 
   const child = spawn(
-    binary,
+    command,
     [
+      ...commandPrefixArgs,
       "--run-id", runId,
       "--runtime-root", runtimeRoot,
       "--hold-ms", String(holdCapMs),
@@ -252,21 +256,49 @@ async function runViaProbe(
   // completion. The probe stays hooked across the entire scenario regardless of
   // how long it takes (bounded only by the safety cap).
   await delay(150);
+  let scenarioError: unknown = null;
+  let exitError: unknown = null;
+  let code: number | null = null;
   try {
     await scenario();
+  } catch (error) {
+    scenarioError = error;
   } finally {
     // Causally-synchronized stop: write the sentinel and send a stdin line +
     // close stdin. The probe stops on whichever it observes first. Both are
-    // emitted AFTER the scenario resolves, so the hook is guaranteed to have
-    // been open for the entire scenario.
+    // emitted AFTER the scenario resolves/rejects, so the hook is guaranteed to
+    // have been open for the entire scenario and the driver proves shutdown
+    // before returning the scenario failure to the caller.
     try { fs.writeFileSync(sentinelPath, "stop\n"); } catch { /* probe may exit first */ }
     try {
       child.stdin?.write("stop\n");
       child.stdin?.end();
     } catch { /* probe stdin may already be closed */ }
   }
-  const code = await exited;
-  try { fs.rmSync(sentinelDir, { recursive: true, force: true }); } catch { /* best effort */ }
+  try {
+    code = await exited;
+  } catch (error) {
+    exitError = error;
+  } finally {
+    try { fs.rmSync(sentinelDir, { recursive: true, force: true }); } catch { /* best effort */ }
+  }
+
+  if (scenarioError) {
+    if (exitError || code !== 0) {
+      const shutdownFailure = exitError
+        ? formatUnknownError(exitError)
+        : `focus-audit-probe exited ${code}:\n${stdout}\n${stderr}`;
+      throw new Error(
+        "focus audit scenario failed and probe shutdown also failed:\n"
+        + `scenario: ${formatUnknownError(scenarioError)}\n`
+        + `probe: ${shutdownFailure}`,
+      );
+    }
+    throw scenarioError;
+  }
+  if (exitError) {
+    throw exitError;
+  }
 
   if (stderr.includes(UNSUPPORTED_MARKER)) {
     return { kind: "unsupported_platform", source: "probe_binary", detail: stderr.trim() };
@@ -279,6 +311,11 @@ async function runViaProbe(
     throw new Error(`focus-audit-probe produced no report output:\n${stderr}`);
   }
   return { kind: "report", source: "probe_binary", report: JSON.parse(line) as FocusAuditReport };
+}
+
+function formatUnknownError(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  return String(error);
 }
 
 /** Reduce a run_id to a filesystem-safe stem for the stop-sentinel filename. */
@@ -313,8 +350,27 @@ export async function withFocusAudit(
       }
       throw error;
     }
-    await scenario();
-    const report = await stopViaTauri(page, runId);
+    let report: FocusAuditReport | null = null;
+    let stopError: unknown = null;
+    try {
+      await scenario();
+    } finally {
+      try {
+        report = await stopViaTauri(page, runId);
+      } catch (error) {
+        stopError = error;
+      }
+    }
+    if (stopError) {
+      const message = String(stopError);
+      if (message.includes(UNSUPPORTED_MARKER)) {
+        return { kind: "unsupported_platform", source: "tauri_ipc", detail: message };
+      }
+      throw stopError;
+    }
+    if (!report) {
+      throw new Error("Tauri focus audit stopped without returning a report");
+    }
     return { kind: "report", source: "tauri_ipc", report };
   }
 
