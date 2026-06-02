@@ -7,7 +7,7 @@
   "cluster_subscope": "SWARM.2",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-06-01T00:00:00Z",
-  "updated_at_utc": "2026-06-02T09:23:32Z",
+  "updated_at_utc": "2026-06-02T13:22:44Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -217,7 +217,7 @@
   },
   "governance_notes": [
     "Governance repair 2026-06-02 reconciled packet.json so MT-205 is declared as a current follow-on contract blocked by MT-204.",
-    "packet.json keeps MT-204 as the active/claimable next follow-on; MT-205 remains PENDING until MT-204 reaches READY_FOR_VALIDATION or a later operator-directed sequencing change occurs.",
+    "packet.json now keeps MT-207 as the active/claimable next follow-on; MT-205 is READY_FOR_VALIDATION and awaits Integration Validator review.",
     "The visible governance worktree has only a small app source subset; implementation must be verified against the product worktree.",
     "Remediation 2026-06-02 corrected stale proof_commands that referenced missing app/tests paths and a non-existent typecheck script; current proof uses package-local Vitest, TypeScript, and tests/visual Playwright harnesses."
   ],

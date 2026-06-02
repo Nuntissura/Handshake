@@ -7,7 +7,7 @@
   "cluster_subscope": "SWARM.3",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-06-01T00:00:00Z",
-  "updated_at_utc": "2026-06-02T09:23:32Z",
+  "updated_at_utc": "2026-06-02T13:22:44Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -213,7 +213,7 @@
   },
   "governance_notes": [
     "Governance repair 2026-06-02 reconciled packet.json so MT-206 is declared as a current follow-on contract.",
-    "packet.json keeps MT-204 as the active/claimable next follow-on; MT-206 remains PENDING until its MT-204/MT-205 prerequisites are ready or a later operator-directed sequencing change occurs.",
+    "packet.json now keeps MT-207 as the active/claimable next follow-on; MT-206 is READY_FOR_VALIDATION and awaits Integration Validator review.",
     "The contract intentionally treats VM-local->cloud escalation as a technical route policy. It does not add legal/compliance paperwork gates.",
     "Remediation 2026-06-02 corrected stale proof_commands that referenced a non-existent swarm_routing_escalation_tests target and absent swarm_route_preview filter; current proof uses routing module tests plus app swarm_runtime escalation tests."
   ],

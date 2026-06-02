@@ -7,7 +7,7 @@
   "cluster_subscope": "SWARM.4",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-06-01T00:00:00Z",
-  "updated_at_utc": "2026-06-02T08:33:51Z",
+  "updated_at_utc": "2026-06-02T13:22:44Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -202,7 +202,7 @@
   },
   "governance_notes": [
     "Governance repair 2026-06-02 reconciled packet.json so MT-207 is declared as a current follow-on contract.",
-    "packet.json keeps MT-204 as the active/claimable next follow-on; MT-207 remains PENDING until its MT-204/MT-206 prerequisites are ready or a later operator-directed sequencing change occurs.",
+    "packet.json keeps MT-207 as the active/claimable next follow-on; MT-207 remains PENDING until warm protocol, restored-snapshot, streaming, and trace gates pass.",
     "Distillation/trace scope is included only because MT-203 explicitly preserved teacher/student distillation parallel as MT-207. This contract does not broaden distillation beyond trace capture and queue preparation unless existing distillation proof gates are available."
   ],
   "red_team": {
