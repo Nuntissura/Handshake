@@ -55,22 +55,14 @@ pub fn select_adapter<'a>(
 ) -> Result<SelectionResult<'a>, AdapterError> {
     let mut fallbacks: Vec<AdapterFallbackEvidenceV1> = Vec::new();
 
-    let try_hard_isolation = || -> Option<&'a dyn SandboxAdapter> {
-        registry
-            .hard_isolation
-            .iter()
-            .find_map(|a| match a.probe_availability() {
-                HardIsolationAvailability::Available { .. } => Some(a.as_sandbox_adapter()),
-                _ => None,
-            })
-    };
     let try_process =
         || -> Option<&'a dyn SandboxAdapter> { registry.process_tier.first().copied() };
     let try_wasm = || -> Option<&'a dyn SandboxAdapter> { registry.wasm.first().copied() };
 
     let record_fallback = |fallbacks: &mut Vec<AdapterFallbackEvidenceV1>,
                            from: AdapterIsolationTier,
-                           adapter: &dyn SandboxAdapter| {
+                           adapter: &dyn SandboxAdapter,
+                           availability_state: String| {
         let to = adapter.kind().tier;
         let reason = match from {
             AdapterIsolationTier::HardIsolation => {
@@ -81,26 +73,33 @@ pub fn select_adapter<'a>(
             }
             AdapterIsolationTier::Process => "no fallback needed".to_string(),
         };
-        let state = describe_unavailable_chain(registry, from);
         fallbacks.push(AdapterFallbackEvidenceV1 {
             requested_tier: from,
             fell_back_to_tier: to,
             selected_adapter_id: adapter.kind().id,
-            availability_state: state,
+            availability_state,
             reason,
         });
     };
 
     match preferred {
         AdapterIsolationTier::HardIsolation => {
-            if let Some(a) = try_hard_isolation() {
+            let hard_isolation_probes = probe_hard_isolation_once(registry);
+            if let Some((a, _)) = hard_isolation_probes.iter().find(|(_, availability)| {
+                matches!(availability, HardIsolationAvailability::Available { .. })
+            }) {
                 return Ok(SelectionResult {
-                    adapter: a,
+                    adapter: a.as_sandbox_adapter(),
                     fallbacks,
                 });
             }
             if let Some(a) = try_process() {
-                record_fallback(&mut fallbacks, AdapterIsolationTier::HardIsolation, a);
+                record_fallback(
+                    &mut fallbacks,
+                    AdapterIsolationTier::HardIsolation,
+                    a,
+                    describe_hard_isolation_probes(&hard_isolation_probes),
+                );
                 return Ok(SelectionResult {
                     adapter: a,
                     fallbacks,
@@ -118,7 +117,12 @@ pub fn select_adapter<'a>(
                 });
             }
             if let Some(a) = try_process() {
-                record_fallback(&mut fallbacks, AdapterIsolationTier::Wasm, a);
+                record_fallback(
+                    &mut fallbacks,
+                    AdapterIsolationTier::Wasm,
+                    a,
+                    "no Wasm adapter registered".to_string(),
+                );
                 return Ok(SelectionResult {
                     adapter: a,
                     fallbacks,
@@ -140,36 +144,100 @@ pub fn select_adapter<'a>(
     }
 }
 
-fn describe_unavailable_chain(
-    registry: &AdapterRegistryView<'_>,
-    from: AdapterIsolationTier,
+fn probe_hard_isolation_once<'a>(
+    registry: &'a AdapterRegistryView<'a>,
+) -> Vec<(&'a dyn HardIsolationAdapter, HardIsolationAvailability)> {
+    registry
+        .hard_isolation
+        .iter()
+        .map(|adapter| (*adapter, adapter.probe_availability()))
+        .collect()
+}
+
+fn describe_hard_isolation_probes(
+    probes: &[(&dyn HardIsolationAdapter, HardIsolationAvailability)],
 ) -> String {
-    match from {
-        AdapterIsolationTier::HardIsolation => {
-            let states: Vec<String> = registry
-                .hard_isolation
-                .iter()
-                .map(|a| format!("{}={}", a.kind().id, a.probe_availability().short_label()))
-                .collect();
-            if states.is_empty() {
-                "no HardIsolation adapters registered".to_string()
-            } else {
-                states.join(",")
-            }
-        }
-        AdapterIsolationTier::Wasm => "no Wasm adapter registered".to_string(),
-        AdapterIsolationTier::Process => "process-tier requested".to_string(),
+    if probes.is_empty() {
+        return "no HardIsolation adapters registered".to_string();
     }
+    probes
+        .iter()
+        .map(|(adapter, availability)| {
+            format!("{}={}", adapter.kind().id, availability.short_label())
+        })
+        .collect::<Vec<_>>()
+        .join(",")
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    use crate::kernel::sandbox::adapter::{AdapterKind, AdapterRunOutcome};
     use crate::kernel::sandbox::hard_isolation_container::ContainerAdapterStub;
     use crate::kernel::sandbox::hard_isolation_microvm::MicroVmAdapterStub;
     use crate::kernel::sandbox::host_platform_probe::HostKind;
     use crate::kernel::sandbox::policy::SandboxPolicyV1;
     use crate::kernel::sandbox::policy_scoped_local::PolicyScopedLocalAdapter;
+    use crate::kernel::sandbox::run::SandboxRunV1;
+    use crate::kernel::sandbox::workspace::SandboxWorkspaceV1;
+
+    struct CountingHardIsolationAdapter {
+        probes: AtomicUsize,
+    }
+
+    impl CountingHardIsolationAdapter {
+        fn new() -> Self {
+            Self {
+                probes: AtomicUsize::new(0),
+            }
+        }
+
+        fn probes(&self) -> usize {
+            self.probes.load(Ordering::SeqCst)
+        }
+    }
+
+    impl SandboxAdapter for CountingHardIsolationAdapter {
+        fn kind(&self) -> AdapterKind {
+            AdapterKind {
+                id: "counting_hard_isolation".to_string(),
+                tier: AdapterIsolationTier::HardIsolation,
+                version: 1,
+                label: "counting hard-isolation probe".to_string(),
+            }
+        }
+
+        fn run(
+            &self,
+            _run: &SandboxRunV1,
+            _workspace: &SandboxWorkspaceV1,
+            _policy: &SandboxPolicyV1,
+        ) -> Result<AdapterRunOutcome, AdapterError> {
+            Err(AdapterError::Unavailable(
+                "counting adapter is probe-only".to_string(),
+            ))
+        }
+    }
+
+    impl HardIsolationAdapter for CountingHardIsolationAdapter {
+        fn probe_availability(&self) -> HardIsolationAvailability {
+            self.probes.fetch_add(1, Ordering::SeqCst);
+            HardIsolationAvailability::Blocked {
+                reason: "blocked for fallback evidence".to_string(),
+                missing_dependency: "executor".to_string(),
+            }
+        }
+
+        fn hard_isolation_tier_label(&self) -> &'static str {
+            "counting"
+        }
+
+        fn as_sandbox_adapter(&self) -> &dyn SandboxAdapter {
+            self
+        }
+    }
 
     #[test]
     fn hard_isolation_request_falls_back_to_process_with_typed_evidence() {
@@ -198,6 +266,28 @@ mod tests {
         // Both HI adapters appear in the availability_state summary.
         assert!(ev.availability_state.contains("hard_isolation_container"));
         assert!(ev.availability_state.contains("hard_isolation_microvm"));
+    }
+
+    #[test]
+    fn hard_isolation_fallback_reuses_one_probe_result_for_selection_and_evidence() {
+        let hard = CountingHardIsolationAdapter::new();
+        let pol = SandboxPolicyV1::default_deny("baseline");
+        let proc_adapter = PolicyScopedLocalAdapter::new(pol).unwrap();
+        let registry = AdapterRegistryView {
+            hard_isolation: vec![&hard],
+            process_tier: vec![&proc_adapter],
+            wasm: Vec::new(),
+        };
+
+        let r =
+            select_adapter(&registry, AdapterIsolationTier::HardIsolation).expect("must fall back");
+
+        assert_eq!(r.adapter.kind().tier, AdapterIsolationTier::Process);
+        assert_eq!(hard.probes(), 1, "selection must not re-run runtime probes");
+        assert_eq!(r.fallbacks.len(), 1);
+        assert!(r.fallbacks[0]
+            .availability_state
+            .contains("counting_hard_isolation=BLOCKED"));
     }
 
     #[test]

@@ -1,13 +1,14 @@
 //! Non-executing Container (Docker/Podman) hard-isolation adapter stub.
 //!
-//! Part of MT-020's adapter slot: returns BLOCKED with a typed missing
-//! dependency whenever called. No shell-out, no docker SDK dependency. Future
-//! Wave-C work replaces the body with a real container backend.
+//! Part of MT-020's adapter slot: probes Docker/Podman with fixed bounded
+//! `--version` commands, then returns BLOCKED with typed evidence whenever
+//! called. No Docker SDK dependency and no workload execution. Future Wave-C
+//! work replaces the body with a real container backend.
 
 use super::adapter::{AdapterError, AdapterKind, AdapterRunOutcome, SandboxAdapter};
 use super::hard_isolation::{
-    hard_isolation_adapter_kind, typed_unavailable_outcome, HardIsolationAdapter,
-    HardIsolationAvailability,
+    hard_isolation_adapter_kind, probe_runtime_candidates, typed_unavailable_outcome,
+    HardIsolationAdapter, HardIsolationAvailability, RuntimeProbeCandidate, RuntimeProbeOutcome,
 };
 use super::policy::SandboxPolicyV1;
 use super::run::SandboxRunV1;
@@ -18,15 +19,21 @@ pub const CONTAINER_TIER_LABEL: &str = "container";
 
 pub struct ContainerAdapterStub {
     label: String,
-    missing_dependency: String,
+    probe_candidates: Vec<RuntimeProbeCandidate>,
 }
 
 impl ContainerAdapterStub {
     pub fn new() -> Self {
         Self {
             label: "Container stub (no docker/podman backend wired)".to_string(),
-            missing_dependency: "docker_or_podman_runtime".to_string(),
+            probe_candidates: default_container_probe_candidates(),
         }
+    }
+
+    #[cfg(test)]
+    pub fn with_probe_candidates(mut self, probe_candidates: Vec<RuntimeProbeCandidate>) -> Self {
+        self.probe_candidates = probe_candidates;
+        self
     }
 }
 
@@ -54,11 +61,26 @@ impl SandboxAdapter for ContainerAdapterStub {
 
 impl HardIsolationAdapter for ContainerAdapterStub {
     fn probe_availability(&self) -> HardIsolationAvailability {
-        // Stub: no backend ever present. Always BLOCKED on missing dependency.
-        HardIsolationAvailability::Blocked {
-            reason: "container hard-isolation backend is a non-executing stub under WP-KERNEL-003"
-                .to_string(),
-            missing_dependency: self.missing_dependency.clone(),
+        match probe_runtime_candidates(&self.probe_candidates) {
+            RuntimeProbeOutcome::Detected {
+                runtime_id,
+                command_line,
+                runtime_version,
+            } => HardIsolationAvailability::Blocked {
+                reason: format!(
+                    "container runtime probe detected `{runtime_id}` via `{command_line}`: \
+                     {runtime_version}; hard-isolation workload execution is still a \
+                     non-executing MT-020 stub"
+                ),
+                missing_dependency: "container_sandbox_executor".to_string(),
+            },
+            RuntimeProbeOutcome::Missing { detail } => HardIsolationAvailability::Blocked {
+                reason: format!(
+                    "no Docker/Podman runtime passed the automation-first availability probe: \
+                     {detail}"
+                ),
+                missing_dependency: "docker_or_podman_runtime".to_string(),
+            },
         }
     }
 
@@ -69,6 +91,13 @@ impl HardIsolationAdapter for ContainerAdapterStub {
     fn as_sandbox_adapter(&self) -> &dyn SandboxAdapter {
         self
     }
+}
+
+fn default_container_probe_candidates() -> Vec<RuntimeProbeCandidate> {
+    vec![
+        RuntimeProbeCandidate::new("docker", "docker", &["--version"]),
+        RuntimeProbeCandidate::new("podman", "podman", &["--version"]),
+    ]
 }
 
 #[cfg(test)]
@@ -93,24 +122,57 @@ mod tests {
     }
 
     #[test]
-    fn probe_is_always_blocked_with_missing_dependency() {
-        let a = ContainerAdapterStub::new();
+    fn probe_is_blocked_with_missing_runtime_dependency() {
+        let a =
+            ContainerAdapterStub::new().with_probe_candidates(vec![RuntimeProbeCandidate::new(
+                "missing_container_runtime",
+                "hsk-missing-container-runtime-probe",
+                &["--version"],
+            )]);
         let av = a.probe_availability();
         match av {
             HardIsolationAvailability::Blocked {
                 missing_dependency,
                 reason,
             } => {
-                assert!(!missing_dependency.is_empty());
-                assert!(reason.contains("non-executing stub"));
+                assert_eq!(missing_dependency, "docker_or_podman_runtime");
+                assert!(reason.contains("automation-first availability probe"));
+                assert!(reason.contains("hsk-missing-container-runtime-probe"));
             }
             other => panic!("container stub must be BLOCKED, got {:?}", other),
         }
     }
 
     #[test]
+    fn probe_records_detected_runtime_but_keeps_stub_blocked() {
+        let current_exe = std::env::current_exe().expect("current test binary path");
+        let a =
+            ContainerAdapterStub::new().with_probe_candidates(vec![RuntimeProbeCandidate::new(
+                "current_test_binary",
+                current_exe.to_string_lossy().to_string(),
+                &["--help"],
+            )]);
+        match a.probe_availability() {
+            HardIsolationAvailability::Blocked {
+                missing_dependency,
+                reason,
+            } => {
+                assert_eq!(missing_dependency, "container_sandbox_executor");
+                assert!(reason.contains("current_test_binary"));
+                assert!(reason.contains("non-executing MT-020 stub"));
+            }
+            other => panic!("probe-only container stub must stay BLOCKED, got {other:?}"),
+        }
+    }
+
+    #[test]
     fn run_returns_typed_denial_with_nonempty_missing_dependency() {
-        let a = ContainerAdapterStub::new();
+        let a =
+            ContainerAdapterStub::new().with_probe_candidates(vec![RuntimeProbeCandidate::new(
+                "missing_container_runtime",
+                "hsk-missing-container-runtime-probe",
+                &["--version"],
+            )]);
         let ws = SandboxWorkspaceV1::new_default("k", "handshake-product/kb003/work/x");
         let pol = SandboxPolicyV1::default_deny("baseline");
         let outcome = a.run(&run(), &ws, &pol).expect("Ok(Denied) expected");
