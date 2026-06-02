@@ -891,6 +891,7 @@ impl ProductionModelSessionFactory {
                     .to_string(),
             )
         })?;
+        let restoring_warm_snapshot = request.warm_vm_restore_manifest.is_some();
         let gguf_root = gguf_host.parent().map(|p| p.to_path_buf()).ok_or_else(|| {
             SwarmError::FactoryFailed(
                 "warm VM local execution: the GGUF path has no parent directory to bind"
@@ -898,15 +899,22 @@ impl ProductionModelSessionFactory {
             )
         })?;
 
-        let runner_host = std::env::var_os(SANDBOX_LLAMA_CLI_HOST_PATH_ENV).ok_or_else(|| {
-            SwarmError::FactoryFailed(format!(
-                "warm VM local execution requires {SANDBOX_LLAMA_CLI_HOST_PATH_ENV} to point at \
-                 the host llama.cpp runner binary"
-            ))
-        })?;
         let mut sandbox_cfg = SandboxModelConfig::new(gguf_host, gguf_root, "llama-cli")
-            .with_runner_host_path(std::path::PathBuf::from(runner_host))
             .with_trust_class(TrustClass::UntrustedAgent);
+        if restoring_warm_snapshot {
+            if let Some(runner_host) = std::env::var_os(SANDBOX_LLAMA_CLI_HOST_PATH_ENV) {
+                sandbox_cfg =
+                    sandbox_cfg.with_runner_host_path(std::path::PathBuf::from(runner_host));
+            }
+        } else {
+            let runner_host = std::env::var_os(SANDBOX_LLAMA_CLI_HOST_PATH_ENV).ok_or_else(|| {
+                SwarmError::FactoryFailed(format!(
+                    "warm VM local execution requires {SANDBOX_LLAMA_CLI_HOST_PATH_ENV} to point \
+                     at the host llama.cpp runner binary"
+                ))
+            })?;
+            sandbox_cfg = sandbox_cfg.with_runner_host_path(std::path::PathBuf::from(runner_host));
+        }
         if let Some(bytes) = request.committed_memory_bytes {
             sandbox_cfg = sandbox_cfg.with_memory_bytes(bytes);
         }
@@ -921,19 +929,30 @@ impl ProductionModelSessionFactory {
         let adapter = select(registry, &spec, None)
             .map_err(|e| SwarmError::FactoryFailed(format!("sandbox selection failed: {e}")))?;
         let caps = adapter.capabilities();
-        if !caps.supports_warm_agent || !caps.supports_live_token_stream {
+        if !caps.supports_snapshot {
             return Err(SwarmError::FactoryFailed(format!(
-                "adapter {} cannot satisfy warm VM execution: supports_warm_agent={}, \
+                "adapter {} cannot satisfy warm VM execution: supports_snapshot=false; refusing \
+                 non-resumable warm sessions",
+                caps.adapter_id
+            )));
+        }
+        if !restoring_warm_snapshot
+            && (!caps.supports_warm_agent || !caps.supports_live_token_stream)
+        {
+            return Err(SwarmError::FactoryFailed(format!(
+                "adapter {} cannot satisfy fresh warm VM execution: supports_warm_agent={}, \
                  supports_live_token_stream={}; refusing fallback to cold sandbox stdout chunking",
                 caps.adapter_id, caps.supports_warm_agent, caps.supports_live_token_stream
             )));
         }
-        if let Some((bind, guest_path)) = warm_agent_bind_from_env()? {
-            spec.binds.push(bind);
-            spec.metadata.insert(
-                CLOUD_HYPERVISOR_WARM_AGENT_GUEST_PATH_METADATA_KEY.to_string(),
-                guest_path,
-            );
+        if !restoring_warm_snapshot {
+            if let Some((bind, guest_path)) = warm_agent_bind_from_env()? {
+                spec.binds.push(bind);
+                spec.metadata.insert(
+                    CLOUD_HYPERVISOR_WARM_AGENT_GUEST_PATH_METADATA_KEY.to_string(),
+                    guest_path,
+                );
+            }
         }
 
         let warm_cfg = WarmVmModelConfig::new(
@@ -1006,6 +1025,33 @@ impl ProductionModelSessionFactory {
                 }
             }
         };
+        let snapshot = match adapter.snapshot(&handle).await {
+            Ok(snapshot) => snapshot,
+            Err(error) => {
+                let _ = adapter.kill(&handle, Signal::Kill).await;
+                return Err(SwarmError::FactoryFailed(format!(
+                    "warm VM snapshot capture failed after successful load/restore; refusing to \
+                     return a non-resumable warm session: {error}"
+                )));
+            }
+        };
+        let warm_vm_restore_manifest = match runtime.warm_snapshot_manifest(snapshot.clone()) {
+            Ok(manifest) => manifest,
+            Err(error) => {
+                let cleanup = adapter.delete_snapshot(&snapshot).await;
+                let _ = adapter.kill(&handle, Signal::Kill).await;
+                let cleanup_detail = cleanup
+                    .err()
+                    .map(|cleanup_error| {
+                        format!("; snapshot cleanup also failed: {cleanup_error}")
+                    })
+                    .unwrap_or_default();
+                return Err(SwarmError::FactoryFailed(format!(
+                    "warm VM snapshot manifest capture failed after successful load/restore; \
+                     refusing to return a non-resumable warm session: {error}{cleanup_detail}"
+                )));
+            }
+        };
         let sandbox_adapter_id = caps.adapter_id.to_string();
         let sandbox_internal_id = handle.sandbox_internal_id.clone();
         let os_pid = self.synthetic_pid(request);
@@ -1019,26 +1065,19 @@ impl ProductionModelSessionFactory {
         ) {
             Ok(record_id) => record_id,
             Err(error) => {
+                let cleanup = adapter
+                    .delete_snapshot(&warm_vm_restore_manifest.snapshot)
+                    .await;
                 let _ = adapter.kill(&handle, Signal::Kill).await;
+                if let Err(cleanup_error) = cleanup {
+                    return Err(SwarmError::FactoryFailed(format!(
+                        "warm VM ledger START failed after successful snapshot capture and \
+                         snapshot cleanup also failed; refusing to return a session: \
+                         ledger_error={error}; cleanup_error={cleanup_error}"
+                    )));
+                }
                 return Err(error);
             }
-        };
-        let warm_vm_restore_manifest = if caps.supports_snapshot {
-            match adapter.snapshot(&handle).await {
-                Ok(snapshot) => match runtime.warm_snapshot_manifest(snapshot) {
-                    Ok(manifest) => Some(manifest),
-                    Err(error) => {
-                        eprintln!("FR-EVT-SWARM-LIFECYCLE: warm VM snapshot manifest capture failed after successful spawn for worktree {worktree_id}: {error}");
-                        request.warm_vm_restore_manifest.clone()
-                    }
-                },
-                Err(error) => {
-                    eprintln!("FR-EVT-SWARM-LIFECYCLE: warm VM snapshot capture failed after successful spawn for worktree {worktree_id}: {error}");
-                    request.warm_vm_restore_manifest.clone()
-                }
-            }
-        } else {
-            request.warm_vm_restore_manifest.clone()
         };
 
         let owning = Arc::new(tokio::sync::Mutex::new(runtime));
@@ -1058,9 +1097,7 @@ impl ProductionModelSessionFactory {
             record_id,
             os_pid,
         );
-        if let Some(manifest) = warm_vm_restore_manifest {
-            live = live.with_warm_vm_restore_manifest(manifest);
-        }
+        live = live.with_warm_vm_restore_manifest(warm_vm_restore_manifest);
         Ok(live)
     }
 
@@ -1608,8 +1645,9 @@ mod tests {
     use super::*;
     use crate::model_runtime::ModelId;
     use crate::process_ledger::{
-        LedgerBatcherConfig, LedgerEvent, LedgerEventKind, NoopOverflowSink, ProcessLedgerDrain,
-        ProcessLedgerError, ProcessLedgerStore,
+        LedgerBatcherConfig, LedgerEvent, LedgerEventKind, LedgerOverflowEvent, NoopOverflowSink,
+        ProcessLedgerDrain, ProcessLedgerError, ProcessLedgerOverflowSink, ProcessLedgerStore,
+        ProcessStart,
     };
     use crate::sandbox::{
         manifest_for_test_recorded_probe_artifact, package_manifest_path_for_agent,
@@ -1662,6 +1700,17 @@ mod tests {
         }
     }
 
+    #[derive(Clone, Default)]
+    struct FailingOverflowSink;
+
+    impl ProcessLedgerOverflowSink for FailingOverflowSink {
+        fn emit_overflow(&self, _event: LedgerOverflowEvent) -> Result<(), ProcessLedgerError> {
+            Err(ProcessLedgerError::Store(
+                "forced ledger overflow failure".to_string(),
+            ))
+        }
+    }
+
     fn ledger_pair() -> (LedgerBatcher, ProcessLedgerDrain) {
         LedgerBatcher::manual_for_tests(
             LedgerBatcherConfig {
@@ -1671,6 +1720,17 @@ mod tests {
             Arc::new(NoopOverflowSink),
         )
         .expect("manual ledger")
+    }
+
+    fn one_slot_failing_overflow_ledger_pair() -> (LedgerBatcher, ProcessLedgerDrain) {
+        LedgerBatcher::manual_for_tests(
+            LedgerBatcherConfig {
+                capacity: 1,
+                ..LedgerBatcherConfig::default()
+            },
+            Arc::new(FailingOverflowSink),
+        )
+        .expect("manual one-slot ledger")
     }
 
     async fn drained(drain: &ProcessLedgerDrain, store: Arc<InMemoryStore>) -> Vec<LedgerEvent> {
@@ -2818,7 +2878,10 @@ mod tests {
         spawned_specs: Arc<Mutex<Vec<crate::sandbox::ProcessSpec>>>,
         restored_snapshots: Arc<Mutex<Vec<String>>>,
         snapshotted_handles: Arc<Mutex<Vec<String>>>,
+        deleted_snapshots: Arc<Mutex<Vec<String>>>,
         killed: Arc<Mutex<Vec<String>>>,
+        snapshot_error: Option<String>,
+        warm_agent_capable: bool,
     }
 
     #[async_trait]
@@ -2891,10 +2954,26 @@ mod tests {
                 .lock()
                 .unwrap()
                 .push(handle.sandbox_internal_id.clone());
+            if let Some(reason) = self.snapshot_error.as_ref() {
+                return Err(crate::sandbox::SandboxAdapterError::SnapshotFailed {
+                    adapter_id: crate::sandbox::AdapterId::new("cloud_hypervisor"),
+                    reason: reason.clone(),
+                });
+            }
             Ok(crate::sandbox::SnapshotRef::new(
                 crate::sandbox::AdapterId::new("cloud_hypervisor"),
                 format!("/snap/{}", handle.sandbox_internal_id),
             ))
+        }
+        async fn delete_snapshot(
+            &self,
+            snapshot: &crate::sandbox::SnapshotRef,
+        ) -> Result<(), crate::sandbox::SandboxAdapterError> {
+            self.deleted_snapshots
+                .lock()
+                .unwrap()
+                .push(snapshot.snapshot_dir.clone());
+            Ok(())
         }
         async fn restore(
             &self,
@@ -2933,8 +3012,8 @@ mod tests {
                 requires_nested_virt: true,
                 supports_snapshot: true,
                 supports_persistent_exec: true,
-                supports_warm_agent: true,
-                supports_live_token_stream: true,
+                supports_warm_agent: self.warm_agent_capable,
+                supports_live_token_stream: self.warm_agent_capable,
             }
         }
     }
@@ -2945,12 +3024,27 @@ mod tests {
         Arc<Mutex<Vec<String>>>,
         Arc<Mutex<Vec<String>>>,
         Arc<Mutex<Vec<String>>>,
+        Arc<Mutex<Vec<String>>>,
     );
 
     fn warm_sandbox_registry_with_observed_fake() -> WarmRegistryObservations {
+        warm_sandbox_registry_with_observed_fake_and_snapshot_error(None)
+    }
+
+    fn warm_sandbox_registry_with_observed_fake_and_snapshot_error(
+        snapshot_error: Option<String>,
+    ) -> WarmRegistryObservations {
+        warm_sandbox_registry_with_observed_fake_options(snapshot_error, true)
+    }
+
+    fn warm_sandbox_registry_with_observed_fake_options(
+        snapshot_error: Option<String>,
+        warm_agent_capable: bool,
+    ) -> WarmRegistryObservations {
         let spawned_specs = Arc::new(Mutex::new(Vec::new()));
         let restored_snapshots = Arc::new(Mutex::new(Vec::new()));
         let snapshotted_handles = Arc::new(Mutex::new(Vec::new()));
+        let deleted_snapshots = Arc::new(Mutex::new(Vec::new()));
         let killed = Arc::new(Mutex::new(Vec::new()));
         let mut registry = crate::sandbox::SandboxAdapterRegistry::new(
             crate::sandbox::AdapterId::new("cloud_hypervisor"),
@@ -2959,13 +3053,17 @@ mod tests {
             spawned_specs: spawned_specs.clone(),
             restored_snapshots: restored_snapshots.clone(),
             snapshotted_handles: snapshotted_handles.clone(),
+            deleted_snapshots: deleted_snapshots.clone(),
             killed: killed.clone(),
+            snapshot_error,
+            warm_agent_capable,
         }));
         (
             Arc::new(registry),
             spawned_specs,
             restored_snapshots,
             snapshotted_handles,
+            deleted_snapshots,
             killed,
         )
     }
@@ -3181,7 +3279,7 @@ mod tests {
         std::env::set_var(SANDBOX_LLAMA_CLI_HOST_PATH_ENV, &runner);
         let (ledger, drain) = ledger_pair();
         let store = Arc::new(InMemoryStore::default());
-        let (registry, spawned_specs, restored_snapshots, snapshotted_handles, killed) =
+        let (registry, spawned_specs, restored_snapshots, snapshotted_handles, deleted_snapshots, killed) =
             warm_sandbox_registry_with_observed_fake();
         let factory = ProductionModelSessionFactory::new(
             ledger,
@@ -3236,6 +3334,10 @@ mod tests {
             ["hsk-ch-warm-factory-fake"],
             "fresh warm spawn should snapshot once after the ready frame"
         );
+        assert!(
+            deleted_snapshots.lock().unwrap().is_empty(),
+            "successful warm sessions must retain their restart snapshot"
+        );
         assert_eq!(
             killed.lock().unwrap().as_slice(),
             ["hsk-ch-warm-factory-fake"],
@@ -3267,6 +3369,141 @@ mod tests {
     }
 
     #[tokio::test(flavor = "current_thread")]
+    async fn warm_vm_request_fails_closed_when_restore_manifest_snapshot_fails() {
+        let _env_guard = runner_env_lock();
+        let (dir, gguf) = temp_gguf_for_factory();
+        let (runner_dir, runner) = temp_runner_for_factory();
+        let prior_runner = std::env::var_os(SANDBOX_LLAMA_CLI_HOST_PATH_ENV);
+        let prior_warm_agent = std::env::var_os(CLOUD_HYPERVISOR_WARM_AGENT_HOST_PATH_ENV);
+        std::env::remove_var(CLOUD_HYPERVISOR_WARM_AGENT_HOST_PATH_ENV);
+        std::env::set_var(SANDBOX_LLAMA_CLI_HOST_PATH_ENV, &runner);
+        let (ledger, drain) = ledger_pair();
+        let store = Arc::new(InMemoryStore::default());
+        let (registry, spawned_specs, restored_snapshots, snapshotted_handles, deleted_snapshots, killed) =
+            warm_sandbox_registry_with_observed_fake_and_snapshot_error(Some(
+                "snapshot backend refused capture".to_string(),
+            ));
+        let factory = ProductionModelSessionFactory::new(
+            ledger,
+            CloudLaneFactoryConfig::unconfigured(),
+            Some(registry),
+        );
+        let req = SpawnRequest::new(
+            instance(0),
+            RuntimeBinding::LlamaCpp,
+            "swarm_prod_test",
+            "p",
+        )
+        .with_local_artifact(gguf.to_string_lossy(), "ab".repeat(32))
+        .with_isolation_tier(crate::sandbox::adapter::IsolationTier::Tier3Microvm)
+        .with_worktree("wt-warm-snapshot-fail")
+        .with_warm_vm_execution();
+
+        let err = create_err(&factory, &req).await;
+        let detail = format!("{err}");
+        assert!(detail.contains("snapshot capture failed"), "{detail}");
+        assert!(detail.contains("non-resumable warm session"), "{detail}");
+        assert_eq!(spawned_specs.lock().unwrap().len(), 1);
+        assert!(
+            restored_snapshots.lock().unwrap().is_empty(),
+            "fresh warm spawn should not restore while testing snapshot capture failure"
+        );
+        assert_eq!(
+            snapshotted_handles.lock().unwrap().as_slice(),
+            ["hsk-ch-warm-factory-fake"],
+            "factory must attempt manifest-producing snapshot after the ready frame"
+        );
+        assert_eq!(
+            killed.lock().unwrap().as_slice(),
+            ["hsk-ch-warm-factory-fake"],
+            "failed manifest capture must not leave a persistent VM running"
+        );
+        assert!(
+            deleted_snapshots.lock().unwrap().is_empty(),
+            "adapter-level snapshot failures have no successful snapshot dir to delete"
+        );
+        let rows = drained(&drain, store).await;
+        assert!(
+            rows.is_empty(),
+            "snapshot failure happens before ledger START so no orphan ledger row is created"
+        );
+
+        restore_env_var(SANDBOX_LLAMA_CLI_HOST_PATH_ENV, prior_runner);
+        restore_env_var(CLOUD_HYPERVISOR_WARM_AGENT_HOST_PATH_ENV, prior_warm_agent);
+        let _ = std::fs::remove_dir_all(dir);
+        let _ = std::fs::remove_dir_all(runner_dir);
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn warm_vm_request_deletes_successful_snapshot_when_ledger_start_fails() {
+        let _env_guard = runner_env_lock();
+        let (dir, gguf) = temp_gguf_for_factory();
+        let (runner_dir, runner) = temp_runner_for_factory();
+        let prior_runner = std::env::var_os(SANDBOX_LLAMA_CLI_HOST_PATH_ENV);
+        let prior_warm_agent = std::env::var_os(CLOUD_HYPERVISOR_WARM_AGENT_HOST_PATH_ENV);
+        std::env::remove_var(CLOUD_HYPERVISOR_WARM_AGENT_HOST_PATH_ENV);
+        std::env::set_var(SANDBOX_LLAMA_CLI_HOST_PATH_ENV, &runner);
+        let (ledger, _drain) = one_slot_failing_overflow_ledger_pair();
+        ledger
+            .record_start(ProcessStart::new(
+                ProcessEngineKind::HelperSubprocess,
+                "overflow-seed",
+                None,
+            ))
+            .expect("seed event should fill the one-slot manual ledger queue");
+        let (registry, spawned_specs, restored_snapshots, snapshotted_handles, deleted_snapshots, killed) =
+            warm_sandbox_registry_with_observed_fake();
+        let factory = ProductionModelSessionFactory::new(
+            ledger,
+            CloudLaneFactoryConfig::unconfigured(),
+            Some(registry),
+        );
+        let req = SpawnRequest::new(
+            instance(0),
+            RuntimeBinding::LlamaCpp,
+            "swarm_prod_test",
+            "p",
+        )
+        .with_local_artifact(gguf.to_string_lossy(), "ab".repeat(32))
+        .with_isolation_tier(crate::sandbox::adapter::IsolationTier::Tier3Microvm)
+        .with_worktree("wt-warm-ledger-fail")
+        .with_warm_vm_execution();
+
+        let err = create_err(&factory, &req).await;
+        let detail = format!("{err}");
+        assert!(detail.contains("forced ledger overflow failure"), "{detail}");
+        assert_eq!(
+            spawned_specs.lock().unwrap().len(),
+            1,
+            "ledger failure happens after the warm VM is spawned"
+        );
+        assert!(
+            restored_snapshots.lock().unwrap().is_empty(),
+            "fresh warm spawn should not restore while testing ledger failure"
+        );
+        assert_eq!(
+            snapshotted_handles.lock().unwrap().as_slice(),
+            ["hsk-ch-warm-factory-fake"],
+            "factory should snapshot before recording START"
+        );
+        assert_eq!(
+            deleted_snapshots.lock().unwrap().as_slice(),
+            ["/snap/hsk-ch-warm-factory-fake"],
+            "post-snapshot ledger failure must delete the new snapshot dir"
+        );
+        assert_eq!(
+            killed.lock().unwrap().as_slice(),
+            ["hsk-ch-warm-factory-fake"],
+            "post-snapshot ledger failure must not leave the persistent VM running"
+        );
+
+        restore_env_var(SANDBOX_LLAMA_CLI_HOST_PATH_ENV, prior_runner);
+        restore_env_var(CLOUD_HYPERVISOR_WARM_AGENT_HOST_PATH_ENV, prior_warm_agent);
+        let _ = std::fs::remove_dir_all(dir);
+        let _ = std::fs::remove_dir_all(runner_dir);
+    }
+
+    #[tokio::test(flavor = "current_thread")]
     async fn warm_vm_request_binds_configured_warm_agent_into_persistent_spawn() {
         let _env_guard = runner_env_lock();
         let _validator_guard = install_test_warm_agent_validator();
@@ -3283,7 +3520,7 @@ mod tests {
         std::env::set_var(CLOUD_HYPERVISOR_WARM_AGENT_HOST_PATH_ENV, &warm_agent);
         let (ledger, drain) = ledger_pair();
         let store = Arc::new(InMemoryStore::default());
-        let (registry, spawned_specs, _restored_snapshots, _snapshotted_handles, killed) =
+        let (registry, spawned_specs, _restored_snapshots, _snapshotted_handles, _deleted_snapshots, killed) =
             warm_sandbox_registry_with_observed_fake();
         let factory = ProductionModelSessionFactory::new(
             ledger,
@@ -3354,7 +3591,7 @@ mod tests {
         std::env::remove_var(CLOUD_HYPERVISOR_WARM_AGENT_HOST_PATH_ENV);
         std::env::set_var(SANDBOX_LLAMA_CLI_HOST_PATH_ENV, &runner);
         let (ledger, _drain) = ledger_pair();
-        let (registry, spawned_specs, restored_snapshots, snapshotted_handles, killed) =
+        let (registry, spawned_specs, restored_snapshots, snapshotted_handles, deleted_snapshots, killed) =
             warm_sandbox_registry_with_observed_fake();
         let factory = ProductionModelSessionFactory::new(
             ledger,
@@ -3418,6 +3655,10 @@ mod tests {
             ["hsk-ch-warm-restored-factory-fake"],
             "restore path should capture a successor snapshot for future reuse"
         );
+        assert!(
+            deleted_snapshots.lock().unwrap().is_empty(),
+            "successful restore sessions must retain their successor snapshot"
+        );
         assert_eq!(
             killed.lock().unwrap().as_slice(),
             ["hsk-ch-warm-restored-factory-fake"],
@@ -3433,6 +3674,73 @@ mod tests {
     }
 
     #[tokio::test(flavor = "current_thread")]
+    async fn warm_vm_restore_does_not_require_current_warm_agent_or_runner_env() {
+        let _env_guard = runner_env_lock();
+        let (dir, gguf) = temp_gguf_for_factory();
+        let prior_runner = std::env::var_os(SANDBOX_LLAMA_CLI_HOST_PATH_ENV);
+        let prior_warm_agent = std::env::var_os(CLOUD_HYPERVISOR_WARM_AGENT_HOST_PATH_ENV);
+        std::env::remove_var(SANDBOX_LLAMA_CLI_HOST_PATH_ENV);
+        std::env::remove_var(CLOUD_HYPERVISOR_WARM_AGENT_HOST_PATH_ENV);
+        let (ledger, _drain) = ledger_pair();
+        let (registry, spawned_specs, restored_snapshots, snapshotted_handles, _deleted_snapshots, killed) =
+            warm_sandbox_registry_with_observed_fake_options(None, false);
+        let factory = ProductionModelSessionFactory::new(
+            ledger,
+            CloudLaneFactoryConfig::unconfigured(),
+            Some(registry),
+        );
+        let sha = "cd".repeat(32);
+        let manifest = crate::model_runtime::WarmVmSnapshotManifest::new(
+            "wt-warm-restore-no-env",
+            sha.clone(),
+            "/models/model.gguf",
+            "ready-nonce",
+            crate::sandbox::SnapshotRef::new(
+                crate::sandbox::AdapterId::new("cloud_hypervisor"),
+                "/snap/warm-restore-no-env",
+            ),
+        );
+        let req = SpawnRequest::new(
+            instance(0),
+            RuntimeBinding::LlamaCpp,
+            "swarm_prod_test",
+            "p",
+        )
+        .with_local_artifact(gguf.to_string_lossy(), sha)
+        .with_isolation_tier(crate::sandbox::adapter::IsolationTier::Tier3Microvm)
+        .with_worktree("wt-warm-restore-no-env")
+        .with_warm_vm_execution()
+        .with_warm_vm_restore_manifest(manifest);
+
+        let session = factory
+            .create(&req)
+            .await
+            .expect("restore should rely on snapshot provenance, not current package env");
+        assert!(
+            spawned_specs.lock().unwrap().is_empty(),
+            "restore path must not create a fresh persistent VM that would need current binds"
+        );
+        assert_eq!(
+            restored_snapshots.lock().unwrap().as_slice(),
+            ["/snap/warm-restore-no-env"]
+        );
+        assert_eq!(
+            snapshotted_handles.lock().unwrap().as_slice(),
+            ["hsk-ch-warm-restored-factory-fake"],
+            "restore path should still capture a successor warm snapshot"
+        );
+        (session.teardown)().await.expect("teardown");
+        assert_eq!(
+            killed.lock().unwrap().as_slice(),
+            ["hsk-ch-warm-restored-factory-fake"]
+        );
+
+        restore_env_var(SANDBOX_LLAMA_CLI_HOST_PATH_ENV, prior_runner);
+        restore_env_var(CLOUD_HYPERVISOR_WARM_AGENT_HOST_PATH_ENV, prior_warm_agent);
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[tokio::test(flavor = "current_thread")]
     async fn warm_vm_restore_manifest_rejects_wrong_worktree_before_restore() {
         let _env_guard = runner_env_lock();
         let (dir, gguf) = temp_gguf_for_factory();
@@ -3442,7 +3750,7 @@ mod tests {
         std::env::remove_var(CLOUD_HYPERVISOR_WARM_AGENT_HOST_PATH_ENV);
         std::env::set_var(SANDBOX_LLAMA_CLI_HOST_PATH_ENV, &runner);
         let (ledger, _drain) = ledger_pair();
-        let (registry, spawned_specs, restored_snapshots, _snapshotted_handles, killed) =
+        let (registry, spawned_specs, restored_snapshots, _snapshotted_handles, _deleted_snapshots, killed) =
             warm_sandbox_registry_with_observed_fake();
         let factory = ProductionModelSessionFactory::new(
             ledger,

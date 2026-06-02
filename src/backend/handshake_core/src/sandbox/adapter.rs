@@ -206,6 +206,16 @@ pub trait SandboxAdapter: Send + Sync {
         })
     }
 
+    /// Delete a previously captured snapshot. Adapters that persist snapshots
+    /// outside the process lifetime override this so callers can clean up a
+    /// successful capture if a later promotion/ledger step fails.
+    async fn delete_snapshot(&self, snapshot: &SnapshotRef) -> Result<(), SandboxAdapterError> {
+        let _ = snapshot;
+        Err(SandboxAdapterError::SnapshotUnsupported {
+            adapter_id: self.capabilities().adapter_id,
+        })
+    }
+
     /// Copy a file/directory from the host into the running sandbox at
     /// `guest_path` (Master Spec v02.187 §3.5.7 #4 — first-class filesystem
     /// namespace; callers must never shell out to `cp`/`cat` themselves).

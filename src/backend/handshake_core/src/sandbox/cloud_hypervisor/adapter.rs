@@ -11,7 +11,7 @@ use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
 use bytes::Bytes;
 use serde::{Deserialize, Serialize};
 use tokio::{
-    io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
+    io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader},
     process::{Child, Command as TokioCommand},
 };
 use uuid::Uuid;
@@ -114,6 +114,7 @@ const AGENT_INIT_SCRIPT: &str = r#"#!/bin/busybox sh
 /bin/busybox mount -t sysfs sysfs /sys
 /bin/busybox mount -t devtmpfs devtmpfs /dev 2>/dev/null || true
 /bin/busybox --install -s /bin
+/bin/busybox ip link set lo up 2>/dev/null || /bin/busybox ifconfig lo up 2>/dev/null || true
 echo "HSK-BOOT-ONCE" >/tmp/hsk-boot-once
 agent_loop() {
   stty -F /dev/ttyS0 -echo 2>/dev/null || true
@@ -1755,7 +1756,9 @@ impl SandboxAdapter for CloudHypervisorAdapter {
 
     /// Capture the full live state of a persistent VM (Master Spec v02.187
     /// §3.5.7 #7). Pauses the guest via `ch-remote pause`, then `ch-remote
-    /// snapshot file://<dir>` into a fresh, empty, per-snapshot directory
+    /// snapshot file://<dir>` into a fresh, empty, per-snapshot directory, and
+    /// resumes the source VM before returning so the live handle remains usable
+    /// for resident warm-agent streaming after manifest capture.
     /// (CH requires the destination to exist and be empty). The resulting
     /// `config.json` + `state.json` + memory-range files fully describe the
     /// paused CPU + RAM + device state so [`restore`] can resume it.
@@ -1909,8 +1912,30 @@ impl SandboxAdapter for CloudHypervisorAdapter {
                 return Err(error);
             }
         }
+        resume_after_successful_snapshot(&self.config, &vm.api_socket, &snap_ref.snapshot_dir)
+            .await?;
 
         Ok(snap_ref)
+    }
+
+    /// Delete a snapshot directory captured by this adapter. Factory promotion
+    /// paths call this after successful capture if a later ledger or manifest
+    /// step fails, so warm-start artifacts cannot be orphaned.
+    async fn delete_snapshot(&self, snapshot: &SnapshotRef) -> Result<(), SandboxAdapterError> {
+        if snapshot.adapter_id != AdapterId::new(CLOUD_HYPERVISOR_ADAPTER_ID) {
+            return Err(snapshot_failed(format!(
+                "refusing to delete snapshot `{}` owned by adapter `{}`",
+                snapshot.snapshot_dir, snapshot.adapter_id
+            )));
+        }
+        if remove_wsl_path(&self.config, &snapshot.snapshot_dir).await {
+            Ok(())
+        } else {
+            Err(snapshot_failed(format!(
+                "failed to delete snapshot dir `{}`",
+                snapshot.snapshot_dir
+            )))
+        }
     }
 
     /// Restore a snapshot into a brand-new, fully independent persistent VM that
@@ -2161,34 +2186,44 @@ impl SandboxAdapter for CloudHypervisorAdapter {
         handle: &ProcessHandle,
     ) -> Result<Arc<dyn WarmAgentTransport>, SandboxAdapterError> {
         self.ensure_handle(handle)?;
-        let status = self.warm_agent_status();
-        if !status.warm_agent_supported || !status.live_token_stream_supported {
-            let unavailable_detail = status
-                .unavailable_reason
-                .clone()
-                .unwrap_or_else(warm_agent_unavailable_detail);
-            return Err(spawn_failed(format!(
-                "Cloud Hypervisor warm-agent transport unavailable: required_transport={}, \
-                 persistent_exec_supported={}, warm_agent_supported={}, \
-                 live_token_stream_supported={}, {}",
-                status.required_transport,
-                status.persistent_exec_supported,
-                status.warm_agent_supported,
-                status.live_token_stream_supported,
-                unavailable_detail
-            )));
-        }
-        let vm = self
+        let (vm, restored_from) = self
             .handles
             .lock()
             .map_err(|error| spawn_failed(format!("handle registry poisoned: {error}")))?
             .get(&handle.id)
-            .and_then(|state| state.persistent.clone())
+            .and_then(|state| {
+                state
+                    .persistent
+                    .clone()
+                    .map(|vm| (vm, state.restored_from.clone()))
+            })
             .ok_or_else(|| {
                 spawn_failed(
                     "Cloud Hypervisor warm-agent transport requires a persistent VM handle",
                 )
             })?;
+        let restored_warm_handle = restored_from.is_some()
+            && vm.warm_agent_guest_path.is_some()
+            && !vm.agent_socket.trim().is_empty();
+        if !restored_warm_handle {
+            let status = self.warm_agent_status();
+            if !status.warm_agent_supported || !status.live_token_stream_supported {
+                let unavailable_detail = status
+                    .unavailable_reason
+                    .clone()
+                    .unwrap_or_else(warm_agent_unavailable_detail);
+                return Err(spawn_failed(format!(
+                    "Cloud Hypervisor warm-agent transport unavailable: required_transport={}, \
+                     persistent_exec_supported={}, warm_agent_supported={}, \
+                     live_token_stream_supported={}, {}",
+                    status.required_transport,
+                    status.persistent_exec_supported,
+                    status.warm_agent_supported,
+                    status.live_token_stream_supported,
+                    unavailable_detail
+                )));
+            }
+        }
         if vm.agent_socket.trim().is_empty() {
             return Err(spawn_failed(
                 "Cloud Hypervisor warm-agent transport requires a non-empty serial agent socket",
@@ -2538,6 +2573,41 @@ async fn best_effort_resume(config: &CloudHypervisorConfig, api_socket: &str) {
         Uuid::nil(),
     )
     .await;
+}
+
+async fn resume_after_successful_snapshot(
+    config: &CloudHypervisorConfig,
+    api_socket: &str,
+    snapshot_dir: &str,
+) -> Result<(), SandboxAdapterError> {
+    let resume = match run_host_command(
+        config.wsl_exe(),
+        &ch_remote_args(config, api_socket, &["resume".to_string()]),
+        None,
+        Some(PROBE_TIMEOUT_MS),
+        Uuid::nil(),
+    )
+    .await
+    {
+        Ok(output) => output,
+        Err(error) => {
+            let _ = remove_wsl_path(config, snapshot_dir).await;
+            return Err(snapshot_failed(format!(
+                "ch-remote resume after snapshot failed for source VM; removed snapshot dir \
+                 `{snapshot_dir}` because the live handle cannot be proven usable: {error}"
+            )));
+        }
+    };
+    if resume.exit_code != 0 {
+        let _ = remove_wsl_path(config, snapshot_dir).await;
+        return Err(snapshot_failed(format!(
+            "ch-remote resume after snapshot failed (exit {}): {}; removed snapshot dir \
+             `{snapshot_dir}` because the live handle cannot be proven usable",
+            resume.exit_code,
+            resume.stderr_text()
+        )));
+    }
+    Ok(())
 }
 
 /// Recursively remove a WSL-side path (per-exec scratch root). Best-effort.
@@ -3130,6 +3200,31 @@ struct WarmSerialStreamTask {
     sender: tokio::sync::mpsc::UnboundedSender<Result<WarmAgentGuestFrame, WarmVmTransportError>>,
 }
 
+async fn collect_warm_bridge_stderr(
+    stderr_task: Option<tokio::task::JoinHandle<String>>,
+) -> String {
+    match stderr_task {
+        Some(task) => task.await.unwrap_or_default().trim().to_string(),
+        None => String::new(),
+    }
+}
+
+async fn kill_warm_bridge_and_collect_stderr(
+    child: &mut Child,
+    stderr_task: Option<tokio::task::JoinHandle<String>>,
+) -> String {
+    let _ = child.kill().await;
+    collect_warm_bridge_stderr(stderr_task).await
+}
+
+fn warm_bridge_stderr_suffix(stderr_text: &str) -> String {
+    if stderr_text.is_empty() {
+        String::new()
+    } else {
+        format!("; stderr={stderr_text}")
+    }
+}
+
 async fn run_warm_serial_agent_stream(task: WarmSerialStreamTask) {
     let _guard = match tokio::time::timeout(
         Duration::from_millis(task.timeout_ms),
@@ -3168,10 +3263,20 @@ async fn run_warm_serial_agent_stream(task: WarmSerialStreamTask) {
             return;
         }
     };
+    let stderr_task = child.stderr.take().map(|mut stderr| {
+        tokio::spawn(async move {
+            let mut text = String::new();
+            let _ = stderr.read_to_string(&mut text).await;
+            text
+        })
+    });
     let Some(stdout) = child.stdout.take() else {
-        let _ = child.kill().await;
+        let stderr_text = kill_warm_bridge_and_collect_stderr(&mut child, stderr_task).await;
         let _ = task.sender.send(Err(WarmVmTransportError::Transport(
-            "warm-agent bridge stdout missing".to_string(),
+            format!(
+                "warm-agent bridge stdout missing{}",
+                warm_bridge_stderr_suffix(&stderr_text)
+            ),
         )));
         return;
     };
@@ -3181,36 +3286,50 @@ async fn run_warm_serial_agent_stream(task: WarmSerialStreamTask) {
             Ok(Some(line)) => match decode_warm_agent_frame::<WarmAgentGuestFrame>(&line) {
                 Ok(frame) => {
                     if task.sender.send(Ok(frame)).is_err() {
-                        let _ = child.kill().await;
+                        let _ =
+                            kill_warm_bridge_and_collect_stderr(&mut child, stderr_task).await;
                         return;
                     }
                 }
                 Err(error) => {
-                    let _ = child.kill().await;
-                    let _ = task.sender.send(Err(WarmVmTransportError::Protocol(error)));
+                    let stderr_text =
+                        kill_warm_bridge_and_collect_stderr(&mut child, stderr_task).await;
+                    let _ = task
+                        .sender
+                        .send(Err(WarmVmTransportError::Transport(format!(
+                            "warm-agent bridge protocol decode failed for request {}: {error}{}",
+                            task.request_id,
+                            warm_bridge_stderr_suffix(&stderr_text)
+                        ))));
                     return;
                 }
             },
             Ok(None) => break,
             Err(error) => {
-                let _ = child.kill().await;
+                let stderr_text =
+                    kill_warm_bridge_and_collect_stderr(&mut child, stderr_task).await;
                 let _ = task
                     .sender
                     .send(Err(WarmVmTransportError::Transport(format!(
-                        "warm-agent bridge stdout read failed: {error}"
+                        "warm-agent bridge stdout read failed: {error}{}",
+                        warm_bridge_stderr_suffix(&stderr_text)
                     ))));
                 return;
             }
         }
     }
-    match child.wait().await {
+    let wait_result = child.wait().await;
+    let stderr_text = collect_warm_bridge_stderr(stderr_task).await;
+    match wait_result {
         Ok(status) if status.success() => {}
         Ok(status) => {
             let _ = task
                 .sender
                 .send(Err(WarmVmTransportError::Transport(format!(
-                    "warm-agent bridge exited non-zero for request {}: {}",
-                    task.request_id, status
+                    "warm-agent bridge exited non-zero for request {}: {}{}",
+                    task.request_id,
+                    status,
+                    warm_bridge_stderr_suffix(&stderr_text)
                 ))));
         }
         Err(error) => {
@@ -3381,7 +3500,7 @@ async fn spawn_warm_serial_bridge(
         .args(args)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
-        .stderr(Stdio::null())
+        .stderr(Stdio::piped())
         .kill_on_drop(true);
     hide_command_window(&mut command);
     let mut child = command
@@ -4483,6 +4602,8 @@ done
         assert!(AGENT_INIT_SCRIPT.contains(HSK_BOOT_ONCE_MARKER));
         assert!(AGENT_INIT_SCRIPT.contains("mkdir -p /proc /sys /dev /bin /tmp"));
         assert!(AGENT_INIT_SCRIPT.contains("devtmpfs"));
+        assert!(AGENT_INIT_SCRIPT.contains("ip link set lo up"));
+        assert!(AGENT_INIT_SCRIPT.contains("ifconfig lo up"));
         assert!(AGENT_INIT_SCRIPT.contains("HSK-AGENT-READY"));
         assert!(AGENT_INIT_SCRIPT.contains("/dev/ttyS0"));
         assert!(AGENT_INIT_SCRIPT.contains("stty -F /dev/ttyS0 -echo"));
@@ -4973,6 +5094,23 @@ done
         assert!(WARM_AGENT_SERIAL_BRIDGE_PY.contains("os.path.exists(cancel_path)"));
         assert!(WARM_AGENT_SERIAL_BRIDGE_PY.contains("\"type\": \"cancel\""));
         assert!(WARM_AGENT_SERIAL_BRIDGE_PY.contains("frame_type == \"complete\""));
+        assert!(
+            include_str!("adapter.rs").contains(".stderr(Stdio::piped())"),
+            "warm-agent bridge stderr must be captured for actionable stream failures"
+        );
+        assert!(
+            include_str!("adapter.rs")
+                .contains("warm-agent bridge protocol decode failed for request"),
+            "protocol decode failures should include captured bridge stderr"
+        );
+        assert!(
+            include_str!("adapter.rs").contains("warm-agent bridge stdout read failed:"),
+            "stdout read failures should include captured bridge stderr"
+        );
+        assert!(
+            include_str!("adapter.rs").contains("warm_bridge_stderr_suffix"),
+            "stderr formatting should stay centralized across stream failure branches"
+        );
     }
 
     #[test]
@@ -5041,6 +5179,31 @@ done
         assert!(args.contains(&"--api-socket".to_string()));
         assert!(args.contains(&"/run/ch.sock".to_string()));
         assert_eq!(args.last().unwrap(), "pause");
+    }
+
+    #[test]
+    fn snapshot_success_path_resumes_source_vm_before_returning_manifest() {
+        let source = include_str!("adapter.rs");
+        let snapshot_body = source
+            .split("async fn snapshot(")
+            .nth(1)
+            .expect("snapshot function present")
+            .split("/// Restore a snapshot")
+            .next()
+            .expect("snapshot function body slice");
+        let marker_pos = snapshot_body
+            .find("write_warm_agent_snapshot_marker")
+            .expect("warm-agent snapshot marker is written before success");
+        let resume_pos = snapshot_body
+            .find("resume_after_successful_snapshot")
+            .expect("snapshot success path resumes the source VM");
+        let ok_pos = snapshot_body
+            .find("Ok(snap_ref)")
+            .expect("snapshot function returns the manifest");
+        assert!(
+            marker_pos < resume_pos && resume_pos < ok_pos,
+            "snapshot must resume the source VM after metadata writes and before returning"
+        );
     }
 
     #[test]
@@ -5352,6 +5515,62 @@ done
             .await
             .expect("warm-provenance handle exposes warm transport");
         let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[tokio::test]
+    async fn warm_agent_transport_accepts_restored_warm_snapshot_without_current_package_env() {
+        let adapter = CloudHypervisorAdapter::new_for_test();
+        let handle = ProcessHandle::new(
+            AdapterId::new(CLOUD_HYPERVISOR_ADAPTER_ID),
+            None,
+            "hsk-ch-restored-warm-no-env",
+        );
+        let mut state = HandleState::default();
+        state.restored_from = Some("/work/snap-warm".to_string());
+        state.persistent = Some(PersistentVm {
+            api_socket: "/work/restored/ch.sock".to_string(),
+            agent_socket: "/work/restored/agent.sock".to_string(),
+            serial_log: "/work/restored/serial.log".to_string(),
+            vm_root: "/work/restored".to_string(),
+            warm_agent_guest_path: Some("/warm-agent/hsk-warm-agent".to_string()),
+        });
+        adapter.handles.lock().unwrap().insert(handle.id, state);
+
+        adapter
+            .warm_agent_transport(&handle)
+            .await
+            .expect("restored warm snapshot carries its own guest warm-agent provenance");
+    }
+
+    #[tokio::test]
+    async fn warm_agent_transport_rejects_fresh_warm_handle_without_current_package_proof() {
+        let adapter = CloudHypervisorAdapter::new_for_test();
+        let handle = ProcessHandle::new(
+            AdapterId::new(CLOUD_HYPERVISOR_ADAPTER_ID),
+            None,
+            "hsk-ch-fresh-warm-no-env",
+        );
+        let mut state = HandleState::default();
+        state.persistent = Some(PersistentVm {
+            api_socket: "/work/fresh/ch.sock".to_string(),
+            agent_socket: "/work/fresh/agent.sock".to_string(),
+            serial_log: "/work/fresh/serial.log".to_string(),
+            vm_root: "/work/fresh".to_string(),
+            warm_agent_guest_path: Some("/warm-agent/hsk-warm-agent".to_string()),
+        });
+        adapter.handles.lock().unwrap().insert(handle.id, state);
+
+        let err = match adapter.warm_agent_transport(&handle).await {
+            Ok(_) => panic!("fresh warm handle still requires current package proof"),
+            Err(error) => error,
+        };
+        match err {
+            SandboxAdapterError::SpawnFailed { reason, .. } => {
+                assert!(reason.contains("warm-agent transport unavailable"));
+                assert!(reason.contains("warm_agent_supported=false"));
+            }
+            other => panic!("expected typed SpawnFailed, got {other:?}"),
+        }
     }
 
     /// Live Cloud Hypervisor warm-agent serial bridge proof. This intentionally

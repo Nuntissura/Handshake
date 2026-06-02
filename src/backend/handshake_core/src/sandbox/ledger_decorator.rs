@@ -267,6 +267,10 @@ impl SandboxAdapter for LedgerDecorator {
         Ok(handle)
     }
 
+    async fn delete_snapshot(&self, snapshot: &SnapshotRef) -> Result<(), SandboxAdapterError> {
+        self.inner.delete_snapshot(snapshot).await
+    }
+
     fn capabilities(&self) -> AdapterCapabilities {
         self.inner.capabilities()
     }
