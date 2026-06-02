@@ -103,6 +103,7 @@ impl ValidationProcessSpecBuilder {
             binds: job.binds,
             net_policy: job.net_policy.unwrap_or(NetPolicy::DenyAll),
             resource_limits: job.resource_limits,
+            idle_timeout_ms: None,
             required_capabilities: job.required_capabilities,
             // Model-written-code validation jobs are untrusted-agent work by
             // construction; carry the safe default so the trust->tier minimum

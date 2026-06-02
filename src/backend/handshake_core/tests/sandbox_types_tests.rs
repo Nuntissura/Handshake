@@ -83,7 +83,9 @@ fn sandbox_types_tests_process_spec_command_and_exec_result_serde_round_trip() {
             memory_bytes: Some(4 * 1024 * 1024 * 1024),
             cpu_cores: Some(2),
             timeout_ms: Some(30_000),
+            ..ResourceLimits::default()
         },
+        idle_timeout_ms: Some(12_000),
         required_capabilities: BTreeSet::from([
             RequiredCapability::Win32NativeFidelity,
             RequiredCapability::VeryStrongNetworkIsolation,
@@ -125,6 +127,48 @@ fn sandbox_types_tests_process_spec_command_and_exec_result_serde_round_trip() {
     assert_eq!(
         serde_json::from_str::<ProcessStatus>(&serde_json::to_string(&status).unwrap()).unwrap(),
         status
+    );
+}
+
+#[test]
+fn sandbox_types_tests_process_spec_idle_timeout_is_optional_for_legacy_payloads() {
+    let spec = ProcessSpec {
+        id: AdapterId::new("windows_native_jail"),
+        image_or_root: ImageRef::new("local-root"),
+        cmd: vec!["python".to_string()],
+        env: BTreeMap::new(),
+        cwd: None,
+        binds: Vec::new(),
+        net_policy: NetPolicy::DenyAll,
+        resource_limits: ResourceLimits::default(),
+        idle_timeout_ms: Some(2_500),
+        required_capabilities: BTreeSet::new(),
+        trust_class: TrustClass::default(),
+        metadata: BTreeMap::new(),
+    };
+
+    let mut encoded = serde_json::to_value(&spec).expect("process spec serializes");
+    let object = encoded
+        .as_object_mut()
+        .expect("process spec encodes object");
+    assert_eq!(
+        object.remove("idle_timeout_ms"),
+        Some(serde_json::json!(2500))
+    );
+
+    let decoded: ProcessSpec =
+        serde_json::from_value(encoded).expect("legacy payload without idle timeout deserializes");
+    assert_eq!(decoded.idle_timeout_ms, None);
+
+    let no_timeout = ProcessSpec {
+        idle_timeout_ms: None,
+        ..spec
+    };
+    let encoded_without_timeout =
+        serde_json::to_value(&no_timeout).expect("process spec serializes");
+    assert!(
+        encoded_without_timeout.get("idle_timeout_ms").is_none(),
+        "None idle_timeout_ms must be omitted to preserve legacy payload shape"
     );
 }
 

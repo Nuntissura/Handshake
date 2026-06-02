@@ -608,6 +608,9 @@ fn microvm_tier3_capabilities() -> AdapterCapabilities {
         isolation_tier: IsolationTier::Tier3Microvm,
         requires_nested_virt: true,
         supports_snapshot: false,
+        supports_persistent_exec: false,
+        supports_warm_agent: false,
+        supports_live_token_stream: false,
     }
 }
 
@@ -643,6 +646,7 @@ fn process_spec(required_capabilities: BTreeSet<RequiredCapability>) -> ProcessS
         binds: Vec::new(),
         net_policy: NetPolicy::DenyAll,
         resource_limits: ResourceLimits::default(),
+        idle_timeout_ms: None,
         required_capabilities,
         // These legacy fixtures exercise capability matching, not the trust
         // tier. Mark them Trusted so they still select the available Tier-1
@@ -665,6 +669,9 @@ fn wsl2_podman_capabilities() -> AdapterCapabilities {
         isolation_tier: IsolationTier::Tier1Container,
         requires_nested_virt: false,
         supports_snapshot: false,
+        supports_persistent_exec: false,
+        supports_warm_agent: false,
+        supports_live_token_stream: false,
     }
 }
 
@@ -692,6 +699,9 @@ fn docker_capabilities() -> AdapterCapabilities {
         isolation_tier: IsolationTier::Tier1Container,
         requires_nested_virt: false,
         supports_snapshot: false,
+        supports_persistent_exec: false,
+        supports_warm_agent: false,
+        supports_live_token_stream: false,
     }
 }
 
@@ -708,6 +718,9 @@ fn high_stdio_capabilities() -> AdapterCapabilities {
         isolation_tier: IsolationTier::Tier1Container,
         requires_nested_virt: false,
         supports_snapshot: false,
+        supports_persistent_exec: false,
+        supports_warm_agent: false,
+        supports_live_token_stream: false,
     }
 }
 
@@ -724,6 +737,9 @@ fn all_capabilities(adapter_id: AdapterId) -> AdapterCapabilities {
         isolation_tier: IsolationTier::Tier1Container,
         requires_nested_virt: false,
         supports_snapshot: false,
+        supports_persistent_exec: false,
+        supports_warm_agent: false,
+        supports_live_token_stream: false,
     }
 }
 
@@ -740,5 +756,8 @@ fn vendor_gpu_capabilities(adapter_id: AdapterId) -> AdapterCapabilities {
         isolation_tier: IsolationTier::Tier1Container,
         requires_nested_virt: false,
         supports_snapshot: false,
+        supports_persistent_exec: false,
+        supports_warm_agent: false,
+        supports_live_token_stream: false,
     }
 }

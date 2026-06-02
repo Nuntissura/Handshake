@@ -75,12 +75,10 @@ poweroff -f"#;
 pub const SANDBOX_MODE_METADATA_KEY: &str = "hsk.sandbox.mode";
 /// The `SANDBOX_MODE_METADATA_KEY` value that selects the persistent-VM model.
 pub const SANDBOX_MODE_PERSISTENT: &str = "persistent";
-/// `ProcessSpec.metadata` key carrying the persistent-VM idle timeout in
-/// milliseconds (Master Spec §3.5.7 #6 idle auto-kill). When present and > 0,
-/// `spawn` arms a background reaper that terminates the persistent VM after it
-/// has been idle that long; absent/0 leaves the VM alive until an explicit
-/// `kill`. Carried in metadata to mirror the existing persistent-mode marker
-/// rather than churn the shared `ProcessSpec` struct across its 40+ call sites.
+/// Legacy `ProcessSpec.metadata` key carrying the persistent-VM idle timeout in
+/// milliseconds (Master Spec §3.5.7 #6 idle auto-kill). New callers should use
+/// the typed `ProcessSpec.idle_timeout_ms`; this key remains a compatibility
+/// fallback for pre-field persisted specs and scripts.
 pub const SANDBOX_IDLE_TIMEOUT_METADATA_KEY: &str = "hsk.sandbox.idle_timeout_ms";
 
 pub const CLOUD_HYPERVISOR_WARM_AGENT_REQUIRED_TRANSPORT: &str =
@@ -1087,14 +1085,17 @@ impl SandboxAdapter for CloudHypervisorAdapter {
             .map(|value| value == SANDBOX_MODE_PERSISTENT)
             .unwrap_or(false);
         if persistent {
-            let idle_timeout_ms = spec
-                .metadata
-                .get(SANDBOX_IDLE_TIMEOUT_METADATA_KEY)
-                .and_then(|value| value.trim().parse::<u64>().ok())
-                .filter(|value| *value > 0);
+            let idle_timeout_ms = persistent_idle_timeout_ms(&spec)?;
             return self
                 .spawn_persistent(idle_timeout_ms, spec.resource_limits.clone())
                 .await;
+        }
+        if spec.idle_timeout_ms.is_some() {
+            return Err(spawn_failed(
+                "ProcessSpec.idle_timeout_ms requires hsk.sandbox.mode=persistent on \
+                 cloud_hypervisor; refusing to silently ignore a typed idle timeout on \
+                 the ephemeral per-exec path",
+            ));
         }
 
         // Ephemeral model: the VM itself is not booted here, a fresh VM is
@@ -1851,6 +1852,21 @@ fn validate_supported_resource_limits(limits: &ResourceLimits) -> Result<(), San
         ));
     }
     Ok(())
+}
+
+fn persistent_idle_timeout_ms(spec: &ProcessSpec) -> Result<Option<u64>, SandboxAdapterError> {
+    match spec.idle_timeout_ms {
+        Some(0) => Err(spawn_failed(
+            "ProcessSpec.idle_timeout_ms must be greater than zero when set; use None to disable \
+             persistent VM idle auto-reaping",
+        )),
+        Some(value) => Ok(Some(value)),
+        None => Ok(spec
+            .metadata
+            .get(SANDBOX_IDLE_TIMEOUT_METADATA_KEY)
+            .and_then(|value| value.trim().parse::<u64>().ok())
+            .filter(|value| *value > 0)),
+    }
 }
 
 struct ParsedSerial {
@@ -2729,6 +2745,8 @@ fn timed_out(handle_id: Uuid, timeout_ms: u64) -> SandboxAdapterError {
 mod tests {
     use std::collections::BTreeMap;
 
+    use crate::sandbox::{ImageRef, TrustClass};
+
     use super::*;
 
     #[test]
@@ -2915,6 +2933,85 @@ mod tests {
     fn persistent_mode_marker_constants() {
         assert_eq!(SANDBOX_MODE_METADATA_KEY, "hsk.sandbox.mode");
         assert_eq!(SANDBOX_MODE_PERSISTENT, "persistent");
+    }
+
+    #[test]
+    fn persistent_idle_timeout_prefers_typed_field_and_keeps_metadata_fallback() {
+        let mut spec = ProcessSpec {
+            id: AdapterId::new("typed-idle-timeout"),
+            image_or_root: ImageRef::new("worktree_idle"),
+            cmd: vec![],
+            env: BTreeMap::new(),
+            cwd: None,
+            binds: vec![],
+            net_policy: NetPolicy::DenyAll,
+            resource_limits: ResourceLimits::default(),
+            idle_timeout_ms: Some(1_500),
+            required_capabilities: Default::default(),
+            trust_class: TrustClass::UntrustedAgent,
+            metadata: BTreeMap::from([(
+                SANDBOX_IDLE_TIMEOUT_METADATA_KEY.to_string(),
+                "2500".to_string(),
+            )]),
+        };
+        assert_eq!(persistent_idle_timeout_ms(&spec).unwrap(), Some(1_500));
+
+        spec.idle_timeout_ms = None;
+        assert_eq!(persistent_idle_timeout_ms(&spec).unwrap(), Some(2_500));
+
+        spec.metadata.insert(
+            SANDBOX_IDLE_TIMEOUT_METADATA_KEY.to_string(),
+            "0".to_string(),
+        );
+        assert_eq!(persistent_idle_timeout_ms(&spec).unwrap(), None);
+
+        spec.metadata.insert(
+            SANDBOX_IDLE_TIMEOUT_METADATA_KEY.to_string(),
+            "not-a-number".to_string(),
+        );
+        assert_eq!(persistent_idle_timeout_ms(&spec).unwrap(), None);
+
+        spec.idle_timeout_ms = Some(0);
+        let err = persistent_idle_timeout_ms(&spec).expect_err("typed zero must be rejected");
+        match err {
+            SandboxAdapterError::SpawnFailed { reason, .. } => {
+                assert!(reason.contains("idle_timeout_ms"));
+                assert!(reason.contains("greater than zero"));
+            }
+            other => panic!("expected typed SpawnFailed, got {other:?}"),
+        }
+    }
+
+    #[tokio::test]
+    async fn non_persistent_typed_idle_timeout_fails_closed_before_boot() {
+        let adapter = CloudHypervisorAdapter::new_for_test();
+        let spec = ProcessSpec {
+            id: AdapterId::new("non-persistent-idle-timeout"),
+            image_or_root: ImageRef::new("initramfs"),
+            cmd: vec!["true".to_string()],
+            env: BTreeMap::new(),
+            cwd: None,
+            binds: vec![],
+            net_policy: NetPolicy::DenyAll,
+            resource_limits: ResourceLimits::default(),
+            idle_timeout_ms: Some(1_500),
+            required_capabilities: Default::default(),
+            trust_class: TrustClass::UntrustedAgent,
+            metadata: BTreeMap::new(),
+        };
+
+        let err = adapter
+            .spawn(spec)
+            .await
+            .expect_err("ephemeral CH path must not silently ignore typed idle timeout");
+        match err {
+            SandboxAdapterError::SpawnFailed { reason, .. } => {
+                assert!(reason.contains("idle_timeout_ms"));
+                assert!(reason.contains("persistent"));
+                assert!(reason.contains("refusing to silently ignore"));
+            }
+            other => panic!("expected typed SpawnFailed, got {other:?}"),
+        }
     }
 
     #[test]

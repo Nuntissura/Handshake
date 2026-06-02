@@ -236,6 +236,7 @@ pub fn try_inference_process_spec(
             timeout_ms: cfg.timeout_ms,
             ..Default::default()
         },
+        idle_timeout_ms: None,
         required_capabilities: std::collections::BTreeSet::new(),
         trust_class: cfg.trust_class,
         // No `hsk.sandbox.mode=persistent` marker => the proven ephemeral

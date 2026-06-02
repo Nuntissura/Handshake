@@ -625,6 +625,7 @@ fn process_spec(cmd: Vec<&str>) -> ProcessSpec {
         binds: Vec::new(),
         net_policy: NetPolicy::DenyAll,
         resource_limits: ResourceLimits::default(),
+        idle_timeout_ms: None,
         required_capabilities: BTreeSet::from([RequiredCapability::Win32NativeFidelity]),
         trust_class: TrustClass::default(),
         metadata: BTreeMap::new(),

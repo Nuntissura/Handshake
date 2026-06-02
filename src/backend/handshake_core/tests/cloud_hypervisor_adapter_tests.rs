@@ -13,8 +13,8 @@ use bytes::Bytes;
 use handshake_core::sandbox::{
     AdapterId, CloudHypervisorAdapter, CloudHypervisorConfig, Command, ImageRef, IsolationTier,
     NetPolicy, ProcessSpec, ProcessStatus, ResourceLimits, SandboxAdapter, SandboxAdapterError,
-    Signal, TrustClass, CLOUD_HYPERVISOR_ADAPTER_ID, SANDBOX_IDLE_TIMEOUT_METADATA_KEY,
-    SANDBOX_MODE_METADATA_KEY, SANDBOX_MODE_PERSISTENT,
+    Signal, TrustClass, CLOUD_HYPERVISOR_ADAPTER_ID, SANDBOX_MODE_METADATA_KEY,
+    SANDBOX_MODE_PERSISTENT,
 };
 
 fn skip_message(error: &SandboxAdapterError) -> String {
@@ -49,6 +49,7 @@ fn sample_spec() -> ProcessSpec {
         binds: Vec::new(),
         net_policy: NetPolicy::DenyAll,
         resource_limits: ResourceLimits::default(),
+        idle_timeout_ms: None,
         required_capabilities: Default::default(),
         trust_class: TrustClass::UntrustedAgent,
         metadata: BTreeMap::new(),
@@ -449,10 +450,7 @@ async fn cloud_hypervisor_persistent_vm_idle_auto_kills() {
     };
 
     let mut spec = persistent_spec();
-    spec.metadata.insert(
-        SANDBOX_IDLE_TIMEOUT_METADATA_KEY.to_string(),
-        "4000".to_string(),
-    );
+    spec.idle_timeout_ms = Some(4_000);
     let handle = adapter
         .spawn(spec)
         .await

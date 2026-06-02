@@ -41,7 +41,9 @@ fn docker_run_args_map_process_spec_to_compat_isolation_controls() {
             memory_bytes: Some(2 * 1024 * 1024 * 1024),
             cpu_cores: Some(2),
             timeout_ms: Some(30_000),
+            ..Default::default()
         },
+        idle_timeout_ms: None,
         required_capabilities: BTreeSet::from([RequiredCapability::CrossMachinePortable]),
         trust_class: TrustClass::default(),
         metadata: BTreeMap::new(),
@@ -335,6 +337,7 @@ async fn docker_spawn_exec_network_denial_bind_readonly_and_cleanup_integration(
             binds: Vec::new(),
             net_policy: NetPolicy::DenyAll,
             resource_limits: ResourceLimits::default(),
+            idle_timeout_ms: None,
             required_capabilities: BTreeSet::new(),
             trust_class: TrustClass::default(),
             metadata: BTreeMap::new(),
@@ -399,6 +402,7 @@ async fn docker_spawn_exec_network_denial_bind_readonly_and_cleanup_integration(
             }],
             net_policy: NetPolicy::DenyAll,
             resource_limits: ResourceLimits::default(),
+            idle_timeout_ms: None,
             required_capabilities: BTreeSet::new(),
             trust_class: TrustClass::default(),
             metadata: BTreeMap::new(),
@@ -447,6 +451,7 @@ fn spec_with_net_policy(net_policy: NetPolicy) -> ProcessSpec {
         binds: Vec::new(),
         net_policy,
         resource_limits: ResourceLimits::default(),
+        idle_timeout_ms: None,
         required_capabilities: BTreeSet::new(),
         // Selection-path fixture: keep it trusted so the Tier-1 docker adapter
         // is selectable; this test covers docker opt-in, not the trust tier.

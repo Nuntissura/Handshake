@@ -581,6 +581,7 @@ impl DecoratorFixture {
             binds: Vec::new(),
             net_policy: NetPolicy::DenyAll,
             resource_limits: ResourceLimits::default(),
+            idle_timeout_ms: None,
             required_capabilities: BTreeSet::new(),
             trust_class: TrustClass::default(),
             metadata: BTreeMap::from([

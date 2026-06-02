@@ -245,6 +245,7 @@ fn process_spec(required_capabilities: BTreeSet<RequiredCapability>) -> ProcessS
         binds: Vec::new(),
         net_policy: NetPolicy::DenyAll,
         resource_limits: ResourceLimits::default(),
+        idle_timeout_ms: None,
         required_capabilities,
         trust_class: TrustClass::Trusted,
         metadata: BTreeMap::new(),
@@ -264,6 +265,9 @@ fn wsl2_caps() -> AdapterCapabilities {
         isolation_tier: IsolationTier::Tier1Container,
         requires_nested_virt: false,
         supports_snapshot: false,
+        supports_persistent_exec: false,
+        supports_warm_agent: false,
+        supports_live_token_stream: false,
     }
 }
 
@@ -280,6 +284,9 @@ fn docker_caps() -> AdapterCapabilities {
         isolation_tier: IsolationTier::Tier1Container,
         requires_nested_virt: false,
         supports_snapshot: false,
+        supports_persistent_exec: false,
+        supports_warm_agent: false,
+        supports_live_token_stream: false,
     }
 }
 

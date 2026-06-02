@@ -119,6 +119,7 @@ async fn noop_adapter_methods_fail_closed_without_backend() {
         }],
         net_policy: NetPolicy::DenyAll,
         resource_limits: ResourceLimits::default(),
+        idle_timeout_ms: None,
         required_capabilities: BTreeSet::from([RequiredCapability::VeryStrongNetworkIsolation]),
         trust_class: TrustClass::default(),
         metadata: BTreeMap::new(),

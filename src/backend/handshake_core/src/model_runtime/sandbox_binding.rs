@@ -226,6 +226,7 @@ pub fn process_spec_from_model_spec(
         ],
         net_policy: NetPolicy::DenyAll,
         resource_limits: ResourceLimits::default(),
+        idle_timeout_ms: None,
         required_capabilities: spec.required_capabilities,
         // The local inference engine is operator-trusted runtime infrastructure
         // (not agent-authored code), so Tier-1 container isolation is permitted

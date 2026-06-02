@@ -99,6 +99,13 @@ pub struct ProcessSpec {
     pub binds: Vec<BindSpec>,
     pub net_policy: NetPolicy,
     pub resource_limits: ResourceLimits,
+    /// Optional persistent-sandbox idle auto-reap timeout in milliseconds.
+    /// `None` keeps the sandbox alive until explicit teardown. Adapters that do
+    /// not support persistent sandboxes may ignore this field; adapters that do
+    /// support it should reject unsupported timeout semantics rather than
+    /// silently losing an operator-specified bound.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub idle_timeout_ms: Option<u64>,
     pub required_capabilities: BTreeSet<RequiredCapability>,
     #[serde(default)]
     pub trust_class: TrustClass,

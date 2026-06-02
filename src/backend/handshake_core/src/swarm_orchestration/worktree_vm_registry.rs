@@ -81,6 +81,7 @@ impl WorktreeVmRegistry {
             binds: vec![],
             net_policy: NetPolicy::DenyAll,
             resource_limits: ResourceLimits::default(),
+            idle_timeout_ms: None,
             required_capabilities: std::collections::BTreeSet::new(),
             trust_class: TrustClass::UntrustedAgent,
             metadata,

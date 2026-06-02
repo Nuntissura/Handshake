@@ -33,6 +33,7 @@ fn sample_spec() -> ProcessSpec {
         binds: Vec::new(),
         net_policy: NetPolicy::DenyAll,
         resource_limits: ResourceLimits::default(),
+        idle_timeout_ms: None,
         required_capabilities: Default::default(),
         trust_class: TrustClass::UntrustedAgent,
         metadata: BTreeMap::new(),

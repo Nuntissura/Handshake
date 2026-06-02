@@ -240,6 +240,7 @@ async fn work_packet_scope_binder_integration_wsl2_bind_modes() {
             binds: binds.clone(),
             net_policy: NetPolicy::DenyAll,
             resource_limits: ResourceLimits::default(),
+            idle_timeout_ms: None,
             required_capabilities: BTreeSet::new(),
             trust_class: TrustClass::default(),
             metadata: BTreeMap::new(),
