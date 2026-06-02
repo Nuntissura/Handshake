@@ -91,6 +91,8 @@ describe("ABCompare", () => {
 
   it("sends explicit before and after vector sets from UI state", async () => {
     const beforeVectorId = "019a1b2c-0000-7000-8000-000000000002";
+    const applyActive = vi.fn(async () => undefined);
+    const revertInactive = vi.fn(async () => undefined);
     generateAbMock.mockResolvedValueOnce({
       comparisons: [
         {
@@ -111,6 +113,8 @@ describe("ABCompare", () => {
         inactiveVectorIds={[beforeVectorId]}
         activeLabel="After (calm)"
         inactiveLabel="Before (direct)"
+        onApplyActive={applyActive}
+        onRevertInactive={revertInactive}
       />,
     );
 
@@ -132,6 +136,156 @@ describe("ABCompare", () => {
     });
     expect(screen.getByText("After (calm)")).toBeInTheDocument();
     expect(screen.getByText("Before (direct)")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId("ab-compare.apply-active"));
+    await waitFor(() => {
+      expect(applyActive).toHaveBeenCalledWith([VECTOR_ID]);
+    });
+    expect(screen.getByTestId("ab-compare.apply-status").textContent).toContain(
+      "Applied after set",
+    );
+
+    fireEvent.click(screen.getByTestId("ab-compare.revert-inactive"));
+    await waitFor(() => {
+      expect(revertInactive).toHaveBeenCalledWith([beforeVectorId]);
+    });
+    expect(screen.getByTestId("ab-compare.apply-status").textContent).toContain(
+      "Reverted to before set",
+    );
+  });
+
+  it("surfaces apply/revert errors without losing comparison results", async () => {
+    const applyActive = vi.fn(async () => {
+      throw new Error("review gate denied");
+    });
+    generateAbMock.mockResolvedValueOnce({
+      comparisons: [
+        {
+          prompt: "compare tone",
+          inactiveCompletion: "BEFORE",
+          activeCompletion: "AFTER",
+        },
+      ],
+      activeVectorIds: [VECTOR_ID],
+      inactiveVectorIds: [],
+      eventType: "FR-EVT-LLM-INFER-STEER-AB-COMPARE",
+    });
+
+    render(
+      <ABCompare
+        modelId={MODEL_ID}
+        activeVectorId={VECTOR_ID}
+        onApplyActive={applyActive}
+      />,
+    );
+
+    fireEvent.change(screen.getByTestId("ab-compare.prompts"), {
+      target: { value: "compare tone" },
+    });
+    fireEvent.click(screen.getByTestId("ab-compare.generate"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("ab-compare.results")).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTestId("ab-compare.apply-active"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("ab-compare.apply-error").textContent).toContain(
+        "review gate denied",
+      );
+    });
+    expect(screen.getByTestId("ab-compare.pair.0.active-text").textContent).toContain("AFTER");
+  });
+
+  it("clears generated results when the selected vector set changes", async () => {
+    const nextVectorId = "019a1b2c-0000-7000-8000-000000000003";
+    const applyActive = vi.fn(async () => undefined);
+    generateAbMock.mockResolvedValueOnce({
+      comparisons: [
+        {
+          prompt: "compare tone",
+          inactiveCompletion: "BEFORE",
+          activeCompletion: "AFTER",
+        },
+      ],
+      activeVectorIds: [VECTOR_ID],
+      inactiveVectorIds: [],
+      eventType: "FR-EVT-LLM-INFER-STEER-AB-COMPARE",
+    });
+
+    const { rerender } = render(
+      <ABCompare
+        modelId={MODEL_ID}
+        activeVectorIds={[VECTOR_ID]}
+        activeLabel="After (calm)"
+        onApplyActive={applyActive}
+      />,
+    );
+
+    fireEvent.change(screen.getByTestId("ab-compare.prompts"), {
+      target: { value: "compare tone" },
+    });
+    fireEvent.click(screen.getByTestId("ab-compare.generate"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("ab-compare.results")).toBeInTheDocument();
+    });
+
+    rerender(
+      <ABCompare
+        modelId={MODEL_ID}
+        activeVectorIds={[nextVectorId]}
+        activeLabel="After (direct)"
+        onApplyActive={applyActive}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("ab-compare.results")).not.toBeInTheDocument();
+    });
+    expect(screen.queryByTestId("ab-compare.apply-active")).not.toBeInTheDocument();
+    expect(applyActive).not.toHaveBeenCalled();
+  });
+
+  it("can revert to a baseline empty steering set", async () => {
+    const revertInactive = vi.fn(async () => undefined);
+    generateAbMock.mockResolvedValueOnce({
+      comparisons: [
+        {
+          prompt: "compare baseline",
+          inactiveCompletion: "BASELINE",
+          activeCompletion: "AFTER",
+        },
+      ],
+      activeVectorIds: [VECTOR_ID],
+      inactiveVectorIds: [],
+      eventType: "FR-EVT-LLM-INFER-STEER-AB-COMPARE",
+    });
+
+    render(
+      <ABCompare
+        modelId={MODEL_ID}
+        activeVectorId={VECTOR_ID}
+        onRevertInactive={revertInactive}
+      />,
+    );
+
+    fireEvent.change(screen.getByTestId("ab-compare.prompts"), {
+      target: { value: "compare baseline" },
+    });
+    fireEvent.click(screen.getByTestId("ab-compare.generate"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("ab-compare.results")).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTestId("ab-compare.revert-inactive"));
+
+    await waitFor(() => {
+      expect(revertInactive).toHaveBeenCalledWith([]);
+    });
+    expect(screen.getByTestId("ab-compare.apply-status").textContent).toContain(
+      "Reverted to before set",
+    );
   });
 
   it("clamps max tokens before dispatching the live A/B request", async () => {

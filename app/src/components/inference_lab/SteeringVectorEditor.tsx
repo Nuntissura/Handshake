@@ -89,6 +89,14 @@ export function SteeringVectorEditor({ modelId, capabilities, nLayers }: Props) 
     }
   };
 
+  const handleApplyCompareSet = async (vectorIds: string[]) => {
+    if (state.status !== "ready") {
+      throw new Error("A/B compare apply requires loaded steering vectors");
+    }
+    const result = await setActive(modelId, vectorIds);
+    setState({ ...state, activeIds: new Set(result.activeIds) });
+  };
+
   const compareVectors = state.status === "ready" ? state.vectors : [];
   const selectedCompareActiveId = compareVectors.some(
     (vector) => vector.vectorId === compareActiveId,
@@ -263,6 +271,8 @@ export function SteeringVectorEditor({ modelId, capabilities, nLayers }: Props) 
                   ? `After (${selectedCompareActive.name})`
                   : "After"
               }
+              onApplyActive={handleApplyCompareSet}
+              onRevertInactive={handleApplyCompareSet}
             />
           </section>
         </>

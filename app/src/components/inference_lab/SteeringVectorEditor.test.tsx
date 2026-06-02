@@ -172,6 +172,15 @@ describe("SteeringVectorEditor", () => {
       inactiveVectorIds: [beforeVectorId],
       eventType: "FR-EVT-LLM-INFER-STEER-AB-COMPARE",
     });
+    setActiveMock
+      .mockResolvedValueOnce({
+        activeIds: [afterVectorId],
+        eventType: "FR-EVT-LLM-INFER-STEER-ACTIVE",
+      })
+      .mockResolvedValueOnce({
+        activeIds: [beforeVectorId],
+        eventType: "FR-EVT-LLM-INFER-STEER-ACTIVE",
+      });
 
     render(
       <SteeringVectorEditor
@@ -206,6 +215,199 @@ describe("SteeringVectorEditor", () => {
     expect(screen.getByTestId("ab-compare.pair.0.inactive-text").textContent).toContain(
       "DIRECT-OUTPUT",
     );
+
+    fireEvent.click(screen.getByTestId("ab-compare.apply-active"));
+    await waitFor(() => {
+      expect(setActiveMock).toHaveBeenCalledWith(MODEL_ID, [afterVectorId]);
+    });
+    expect(screen.getByTestId("ab-compare.apply-status").textContent).toContain(
+      "Applied after set",
+    );
+
+    fireEvent.click(screen.getByTestId("ab-compare.revert-inactive"));
+    await waitFor(() => {
+      expect(setActiveMock).toHaveBeenCalledWith(MODEL_ID, [beforeVectorId]);
+    });
+    expect(screen.getByTestId("ab-compare.apply-status").textContent).toContain(
+      "Reverted to before set",
+    );
+  });
+
+  it("clears generated A/B results when compare selectors change", async () => {
+    const afterVectorId = "019a1b2c-0000-7000-8000-000000000001";
+    const nextVectorId = "019a1b2c-0000-7000-8000-000000000002";
+    listVectorsMock.mockResolvedValueOnce([
+      {
+        vectorId: afterVectorId,
+        name: "calm",
+        layer: 12,
+        hookPoint: "resid_stream",
+        intensity: 1.0,
+        description: "after vector",
+      },
+      {
+        vectorId: nextVectorId,
+        name: "direct",
+        layer: 14,
+        hookPoint: "resid_stream",
+        intensity: 0.75,
+        description: "next vector",
+      },
+    ]);
+    generateAbMock.mockResolvedValueOnce({
+      comparisons: [
+        {
+          prompt: "compare this",
+          inactiveCompletion: "BASELINE",
+          activeCompletion: "CALM-OUTPUT",
+        },
+      ],
+      activeVectorIds: [afterVectorId],
+      inactiveVectorIds: [],
+      eventType: "FR-EVT-LLM-INFER-STEER-AB-COMPARE",
+    });
+
+    render(
+      <SteeringVectorEditor
+        modelId={MODEL_ID}
+        capabilities={STEERING_SUPPORTED}
+        nLayers={32}
+      />,
+    );
+
+    await screen.findByTestId("steering-vector-editor.ab-compare");
+    fireEvent.change(screen.getByTestId("ab-compare.prompts"), {
+      target: { value: "compare this" },
+    });
+    fireEvent.click(screen.getByTestId("ab-compare.generate"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("ab-compare.results")).toBeInTheDocument();
+    });
+
+    fireEvent.change(
+      screen.getByTestId("steering-vector-editor.ab-compare.active-select"),
+      { target: { value: nextVectorId } },
+    );
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("ab-compare.results")).not.toBeInTheDocument();
+    });
+    expect(screen.queryByTestId("ab-compare.apply-active")).not.toBeInTheDocument();
+  });
+
+  it("reverts to baseline through the parent setActive path", async () => {
+    const afterVectorId = "019a1b2c-0000-7000-8000-000000000001";
+    listVectorsMock.mockResolvedValueOnce([
+      {
+        vectorId: afterVectorId,
+        name: "calm",
+        layer: 12,
+        hookPoint: "resid_stream",
+        intensity: 1.0,
+        description: "after vector",
+      },
+    ]);
+    generateAbMock.mockResolvedValueOnce({
+      comparisons: [
+        {
+          prompt: "compare baseline",
+          inactiveCompletion: "BASELINE",
+          activeCompletion: "CALM-OUTPUT",
+        },
+      ],
+      activeVectorIds: [afterVectorId],
+      inactiveVectorIds: [],
+      eventType: "FR-EVT-LLM-INFER-STEER-AB-COMPARE",
+    });
+    setActiveMock.mockResolvedValueOnce({
+      activeIds: [],
+      eventType: "FR-EVT-LLM-INFER-STEER-ACTIVE",
+    });
+
+    render(
+      <SteeringVectorEditor
+        modelId={MODEL_ID}
+        capabilities={STEERING_SUPPORTED}
+        nLayers={32}
+      />,
+    );
+
+    await screen.findByTestId("steering-vector-editor.ab-compare");
+    fireEvent.change(screen.getByTestId("ab-compare.prompts"), {
+      target: { value: "compare baseline" },
+    });
+    fireEvent.click(screen.getByTestId("ab-compare.generate"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("ab-compare.results")).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTestId("ab-compare.revert-inactive"));
+
+    await waitFor(() => {
+      expect(setActiveMock).toHaveBeenCalledWith(MODEL_ID, []);
+    });
+    expect(screen.getByTestId("ab-compare.apply-status").textContent).toContain(
+      "Reverted to before set",
+    );
+  });
+
+  it("keeps comparison results visible when parent setActive review gate rejects apply", async () => {
+    const afterVectorId = "019a1b2c-0000-7000-8000-000000000001";
+    listVectorsMock.mockResolvedValueOnce([
+      {
+        vectorId: afterVectorId,
+        name: "calm",
+        layer: 12,
+        hookPoint: "resid_stream",
+        intensity: 1.0,
+        description: "after vector",
+      },
+    ]);
+    generateAbMock.mockResolvedValueOnce({
+      comparisons: [
+        {
+          prompt: "compare this",
+          inactiveCompletion: "BASELINE",
+          activeCompletion: "CALM-OUTPUT",
+        },
+      ],
+      activeVectorIds: [afterVectorId],
+      inactiveVectorIds: [],
+      eventType: "FR-EVT-LLM-INFER-STEER-AB-COMPARE",
+    });
+    setActiveMock.mockRejectedValueOnce(
+      "steering set_active blocked by review gate: vector is pending",
+    );
+
+    render(
+      <SteeringVectorEditor
+        modelId={MODEL_ID}
+        capabilities={STEERING_SUPPORTED}
+        nLayers={32}
+      />,
+    );
+
+    await screen.findByTestId("steering-vector-editor.ab-compare");
+    fireEvent.change(screen.getByTestId("ab-compare.prompts"), {
+      target: { value: "compare this" },
+    });
+    fireEvent.click(screen.getByTestId("ab-compare.generate"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("ab-compare.results")).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTestId("ab-compare.apply-active"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("ab-compare.apply-error").textContent).toContain(
+        "review gate",
+      );
+    });
+    expect(screen.getByTestId("ab-compare.pair.0.active-text").textContent).toContain(
+      "CALM-OUTPUT",
+    );
+    expect(screen.queryByTestId("steering-vector-editor.error")).not.toBeInTheDocument();
   });
 
   it("surfaces backend errors verbatim (capture-not-available path)", async () => {

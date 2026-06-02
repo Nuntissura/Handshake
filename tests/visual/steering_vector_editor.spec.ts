@@ -77,6 +77,30 @@ test("steering_vector_editor A/B compare sends selected vectors and renders retu
   await expect(page.locator("[data-testid='ab-compare.pair.0.active-text']")).toContainText(
     `after:${afterVectorId}:describe the scene`,
   );
+  await expect(page.locator("[data-testid='ab-compare.apply-active']")).toBeVisible();
+  await expect(page.locator("[data-testid='ab-compare.revert-inactive']")).toBeVisible();
+
+  const inactiveBox = await page
+    .locator("[data-testid='ab-compare.pair.0.inactive']")
+    .boundingBox();
+  const activeBox = await page
+    .locator("[data-testid='ab-compare.pair.0.active']")
+    .boundingBox();
+  expect(inactiveBox).not.toBeNull();
+  expect(activeBox).not.toBeNull();
+  if (inactiveBox && activeBox) {
+    const overlapWidth = Math.max(
+      0,
+      Math.min(inactiveBox.x + inactiveBox.width, activeBox.x + activeBox.width)
+        - Math.max(inactiveBox.x, activeBox.x),
+    );
+    const overlapHeight = Math.max(
+      0,
+      Math.min(inactiveBox.y + inactiveBox.height, activeBox.y + activeBox.height)
+        - Math.max(inactiveBox.y, activeBox.y),
+    );
+    expect(overlapWidth * overlapHeight).toBe(0);
+  }
 
   const request = await page.evaluate(() => window.__HS_STEERING_GENERATE_AB_REQUEST__);
   expect(request).toMatchObject({

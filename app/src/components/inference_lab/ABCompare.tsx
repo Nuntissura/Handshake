@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   generateAb,
   type SteeringAbComparison,
@@ -25,13 +25,28 @@ type Props = {
   vectorName?: string;
   activeLabel?: string;
   inactiveLabel?: string;
+  onApplyActive?: (vectorIds: string[]) => Promise<void> | void;
+  onRevertInactive?: (vectorIds: string[]) => Promise<void> | void;
 };
 
 type AbState =
   | { status: "idle" }
   | { status: "generating" }
-  | { status: "done"; comparisons: SteeringAbComparison[] }
+  | {
+      status: "done";
+      comparisons: SteeringAbComparison[];
+      activeVectorIds: string[];
+      inactiveVectorIds: string[];
+      activeLabel: string;
+      inactiveLabel: string;
+    }
   | { status: "error"; message: string };
+
+type ApplyActionState =
+  | { status: "idle" }
+  | { status: "applying"; target: "active" | "inactive" }
+  | { status: "done"; target: "active" | "inactive"; vectorIds: string[] }
+  | { status: "error"; target: "active" | "inactive"; message: string };
 
 const DEFAULT_MAX_TOKENS = 64;
 const MIN_MAX_TOKENS = 1;
@@ -61,6 +76,10 @@ function normalizeMaxTokens(value: number): number {
   return Math.min(MAX_MAX_TOKENS, Math.max(MIN_MAX_TOKENS, Math.trunc(value)));
 }
 
+function vectorSetKey(vectorIds: string[]): string {
+  return JSON.stringify(vectorIds);
+}
+
 /**
  * MT-098 AB-compare panel. Renders a side-by-side BEFORE/AFTER generation with
  * the proposed steering vector active vs inactive, by calling the live
@@ -77,32 +96,79 @@ export function ABCompare({
   vectorName,
   activeLabel = "After (vector active)",
   inactiveLabel = "Before (vector inactive)",
+  onApplyActive,
+  onRevertInactive,
 }: Props) {
   const [prompts, setPrompts] = useState("");
   const [maxTokens, setMaxTokens] = useState<number>(DEFAULT_MAX_TOKENS);
   const [state, setState] = useState<AbState>({ status: "idle" });
+  const [applyState, setApplyState] = useState<ApplyActionState>({ status: "idle" });
+  const requestSeqRef = useRef(0);
 
   const promptList = splitPrompts(prompts);
   const resolvedActiveVectorIds = cleanVectorIds(
     activeVectorIds ?? (activeVectorId ? [activeVectorId] : []),
   );
   const resolvedInactiveVectorIds = cleanVectorIds(inactiveVectorIds);
+  const normalizedMaxTokens = normalizeMaxTokens(maxTokens);
+  const selectionKey = [
+    modelId,
+    vectorSetKey(promptList),
+    String(normalizedMaxTokens),
+    vectorSetKey(resolvedActiveVectorIds),
+    vectorSetKey(resolvedInactiveVectorIds),
+    activeLabel,
+    inactiveLabel,
+  ].join("\u001f");
   const canGenerate = promptList.length > 0 && resolvedActiveVectorIds.length > 0;
+
+  useEffect(() => {
+    requestSeqRef.current += 1;
+    setApplyState({ status: "idle" });
+    setState((previous) => (previous.status === "idle" ? previous : { status: "idle" }));
+  }, [selectionKey]);
 
   const handleGenerate = async () => {
     if (!canGenerate) return;
+    const requestSeq = requestSeqRef.current + 1;
+    requestSeqRef.current = requestSeq;
     setState({ status: "generating" });
+    setApplyState({ status: "idle" });
     try {
       const result = await generateAb({
         modelId,
         prompts: promptList,
         activeVectorIds: resolvedActiveVectorIds,
         inactiveVectorIds: resolvedInactiveVectorIds,
-        maxTokens: normalizeMaxTokens(maxTokens),
+        maxTokens: normalizedMaxTokens,
       });
-      setState({ status: "done", comparisons: result.comparisons });
+      if (requestSeqRef.current !== requestSeq) return;
+      setState({
+        status: "done",
+        comparisons: result.comparisons,
+        activeVectorIds: result.activeVectorIds,
+        inactiveVectorIds: result.inactiveVectorIds,
+        activeLabel,
+        inactiveLabel,
+      });
     } catch (error) {
+      if (requestSeqRef.current !== requestSeq) return;
       setState({ status: "error", message: errorMessage(error) });
+    }
+  };
+
+  const handleApply = async (
+    target: "active" | "inactive",
+    vectorIds: string[],
+    action?: (vectorIds: string[]) => Promise<void> | void,
+  ) => {
+    if (!action) return;
+    setApplyState({ status: "applying", target });
+    try {
+      await action(vectorIds);
+      setApplyState({ status: "done", target, vectorIds });
+    } catch (error) {
+      setApplyState({ status: "error", target, message: errorMessage(error) });
     }
   };
 
@@ -175,6 +241,54 @@ export function ABCompare({
 
       {state.status === "done" && state.comparisons.length > 0 ? (
         <div data-testid="ab-compare.results">
+          {(onApplyActive || onRevertInactive) ? (
+            <div
+              className="inference-lab__ab-compare-actions"
+              data-testid="ab-compare.actions"
+            >
+              {onApplyActive ? (
+                <button
+                  type="button"
+                  onClick={() =>
+                    void handleApply("active", state.activeVectorIds, onApplyActive)
+                  }
+                  disabled={applyState.status === "applying"}
+                  data-testid="ab-compare.apply-active"
+                >
+                  {applyState.status === "applying" && applyState.target === "active"
+                    ? "Applying..."
+                    : "Apply after"}
+                </button>
+              ) : null}
+              {onRevertInactive ? (
+                <button
+                  type="button"
+                  onClick={() =>
+                    void handleApply("inactive", state.inactiveVectorIds, onRevertInactive)
+                  }
+                  disabled={applyState.status === "applying"}
+                  data-testid="ab-compare.revert-inactive"
+                >
+                  {applyState.status === "applying" && applyState.target === "inactive"
+                    ? "Reverting..."
+                    : "Revert to before"}
+                </button>
+              ) : null}
+              {applyState.status === "done" ? (
+                <p aria-live="polite" data-testid="ab-compare.apply-status">
+                  {applyState.target === "active" ? "Applied after set" : "Reverted to before set"} (
+                  {applyState.vectorIds.length} vector
+                  {applyState.vectorIds.length === 1 ? "" : "s"})
+                </p>
+              ) : null}
+              {applyState.status === "error" ? (
+                <p role="alert" data-testid="ab-compare.apply-error">
+                  {applyState.target === "active" ? "Apply" : "Revert"} failed:{" "}
+                  {applyState.message}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
           {state.comparisons.map((comparison, index) => (
             <div
               key={`${index}-${comparison.prompt}`}
@@ -189,7 +303,7 @@ export function ABCompare({
                   className="inference-lab__ab-compare-pane"
                   data-testid={`ab-compare.pair.${index}.inactive`}
                 >
-                  <h5>{inactiveLabel}</h5>
+                  <h5>{state.inactiveLabel}</h5>
                   <pre data-testid={`ab-compare.pair.${index}.inactive-text`}>
                     {comparison.inactiveCompletion}
                   </pre>
@@ -198,7 +312,7 @@ export function ABCompare({
                   className="inference-lab__ab-compare-pane"
                   data-testid={`ab-compare.pair.${index}.active`}
                 >
-                  <h5>{activeLabel}</h5>
+                  <h5>{state.activeLabel}</h5>
                   <pre data-testid={`ab-compare.pair.${index}.active-text`}>
                     {comparison.activeCompletion}
                   </pre>
