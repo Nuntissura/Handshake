@@ -17,6 +17,8 @@ use async_trait::async_trait;
 use futures::{stream, Stream, StreamExt};
 use uuid::Uuid;
 
+use crate::sandbox::SnapshotRef;
+
 use super::{
     error::ModelRuntimeError, validate_ready_frame, warm_agent_guest_frame_type, CancellationToken,
     Embedding, FinishReason, GenerateRequest, GeneratedToken, KvCacheHandle, LoadSpec,
@@ -158,6 +160,62 @@ impl WarmVmModelRuntime {
 
     pub fn config(&self) -> &WarmVmModelConfig {
         &self.cfg
+    }
+
+    pub fn ready_frame(&self) -> Result<WarmAgentGuestFrame, ModelRuntimeError> {
+        self.ready
+            .lock()
+            .map_err(|error| ModelRuntimeError::LoadError(format!("warm ready lock poisoned: {error}")))?
+            .clone()
+            .ok_or_else(|| {
+                ModelRuntimeError::LoadError(
+                    "warm VM snapshot requested before a ready frame was captured".to_string(),
+                )
+            })
+    }
+
+    pub fn warm_snapshot_manifest(
+        &self,
+        snapshot: SnapshotRef,
+    ) -> Result<WarmVmSnapshotManifest, ModelRuntimeError> {
+        let ready = self.ready_frame()?;
+        validate_ready_frame(&ready).map_err(load_protocol_error)?;
+        let (ready_nonce, loaded_sha, loaded_path) = match &ready {
+            WarmAgentGuestFrame::Ready {
+                ready_nonce,
+                loaded_model_sha256,
+                loaded_model_guest_path,
+                ..
+            } => (
+                ready_nonce.as_str(),
+                loaded_model_sha256.as_deref(),
+                loaded_model_guest_path.as_deref(),
+            ),
+            _ => unreachable!("validate_ready_frame rejects non-ready frames"),
+        };
+        if loaded_sha != Some(self.cfg.model_artifact_sha256.as_str()) {
+            return Err(load_protocol_error(
+                WarmAgentProtocolError::ModelHashMismatch {
+                    expected: self.cfg.model_artifact_sha256.clone(),
+                    actual: loaded_sha.unwrap_or("<missing>").to_string(),
+                },
+            ));
+        }
+        if loaded_path != Some(self.cfg.model_guest_path.as_str()) {
+            return Err(load_protocol_error(
+                WarmAgentProtocolError::ModelGuestPathMismatch {
+                    expected: self.cfg.model_guest_path.clone(),
+                    actual: loaded_path.unwrap_or("<missing>").to_string(),
+                },
+            ));
+        }
+        Ok(WarmVmSnapshotManifest::new(
+            self.cfg.worktree_id.clone(),
+            self.cfg.model_artifact_sha256.clone(),
+            self.cfg.model_guest_path.clone(),
+            ready_nonce,
+            snapshot,
+        ))
     }
 
     fn store_ready(&self, ready: WarmAgentGuestFrame) -> Result<(), ModelRuntimeError> {
@@ -797,6 +855,27 @@ mod tests {
         let err = WarmVmModelRuntime::from_restored_manifest(transport, cfg(), &wrong_worktree)
             .expect_err("wrong worktree manifest must fail");
         assert!(format!("{err}").contains("worktree mismatch"));
+    }
+
+    #[tokio::test]
+    async fn warm_snapshot_manifest_requires_ready_frame_and_captures_identity() {
+        let (transport, _obs) = fake_transport(vec![]);
+        let mut runtime = WarmVmModelRuntime::new(transport, cfg());
+        let snapshot = SnapshotRef::new(AdapterId::new("cloud_hypervisor"), "/snap-ready");
+        let err = runtime
+            .warm_snapshot_manifest(snapshot.clone())
+            .expect_err("snapshot manifest before load must fail");
+        assert!(format!("{err}").contains("ready frame"));
+
+        runtime.load(load_spec()).await.expect("load");
+        let manifest = runtime
+            .warm_snapshot_manifest(snapshot)
+            .expect("loaded runtime can emit a warm snapshot manifest");
+        assert_eq!(manifest.worktree_id, "wt-1");
+        assert_eq!(manifest.model_artifact_sha256, "sha-warm");
+        assert_eq!(manifest.model_guest_path, "/models/model.gguf");
+        assert_eq!(manifest.ready_nonce, "nonce-1");
+        assert_eq!(manifest.snapshot.snapshot_dir, "/snap-ready");
     }
 
     #[tokio::test]

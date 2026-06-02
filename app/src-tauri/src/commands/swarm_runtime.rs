@@ -197,6 +197,10 @@ struct TrackedSession {
     /// execution. `WarmVm` is opt-in and must not be lost through list/template
     /// surfaces.
     local_execution_mode: Option<SwarmLocalExecutionModeIpc>,
+    /// Warm-VM restore metadata captured from a successful fresh warm load or
+    /// passed through from a restored warm spawn. Stored beside the live runtime
+    /// so spawn-template persistence can close the warm-start loop.
+    warm_vm_restore_manifest: Option<WarmVmSnapshotManifest>,
 }
 
 /// Shared app-side side-table of tracked sessions keyed by instance id.
@@ -237,6 +241,7 @@ impl ModelSessionFactory for TrackingFactory {
             local_execution_mode: request
                 .local_execution_mode
                 .map(SwarmLocalExecutionModeIpc::from_core),
+            warm_vm_restore_manifest: live.warm_vm_restore_manifest.clone(),
         };
         self.table
             .lock()
@@ -783,6 +788,17 @@ impl SwarmRuntimeState {
         }
         table.get(&iid).map(|t| (t.runtime.clone(), t.model_id))
     }
+
+    fn tracked_warm_vm_restore_manifest(
+        &self,
+        iid: ModelInstanceId,
+    ) -> Option<WarmVmSnapshotManifest> {
+        self.sessions
+            .lock()
+            .expect("swarm session table poisoned")
+            .get(&iid)
+            .and_then(|tracked| tracked.warm_vm_restore_manifest.clone())
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -1203,6 +1219,94 @@ pub(crate) fn template_to_request_ipc(
     }
 }
 
+fn is_local_warm_vm_request(request: &SwarmSpawnRequestIpc) -> bool {
+    matches!(request.provider, SwarmProviderIpc::Local)
+        && matches!(
+            request.local_execution_mode,
+            Some(SwarmLocalExecutionModeIpc::WarmVm)
+        )
+}
+
+fn template_matches_warm_restore_request(
+    template: &SessionSpawnTemplate,
+    request: &SwarmSpawnRequestIpc,
+    worktree_id: &str,
+    sha256_expected: &str,
+    artifact_path: &str,
+) -> bool {
+    if template.provider != TemplateProvider::Local {
+        return false;
+    }
+    if template.local_execution_mode != Some(TemplateLocalExecutionMode::WarmVm) {
+        return false;
+    }
+    if template.runtime_binding != Some(TemplateRuntimeBinding::LlamaCpp) {
+        return false;
+    }
+    if request.runtime_binding != Some(SwarmRuntimeBindingIpc::LlamaCpp) {
+        return false;
+    }
+    if template.artifact_path.as_deref().map(str::trim) != Some(artifact_path) {
+        return false;
+    }
+    let Some(manifest) = template.warm_vm_restore_manifest.as_ref() else {
+        return false;
+    };
+    manifest.worktree_id == worktree_id && manifest.model_artifact_sha256 == sha256_expected
+}
+
+fn latest_matching_warm_restore_manifest(
+    store: &SpawnTemplateStore,
+    request: &SwarmSpawnRequestIpc,
+) -> Option<WarmVmSnapshotManifest> {
+    if request.warm_vm_restore_manifest.is_some() || !is_local_warm_vm_request(request) {
+        return None;
+    }
+    let worktree_id = trimmed_opt(&request.worktree_id)?;
+    let sha256_expected = trimmed_opt(&request.sha256_expected)?;
+    let artifact_path = trimmed_opt(&request.artifact_path)?;
+    let doc = match store.load() {
+        Ok(doc) => doc,
+        Err(error) => {
+            eprintln!("{FR_EVT_SWARM_LIFECYCLE}: warm restore manifest lookup skipped: {error}");
+            return None;
+        }
+    };
+    doc.templates
+        .values()
+        .filter(|template| {
+            template_matches_warm_restore_request(
+                template,
+                request,
+                &worktree_id,
+                &sha256_expected,
+                &artifact_path,
+            )
+        })
+        .max_by_key(|template| template.captured_at)
+        .and_then(|template| template.warm_vm_restore_manifest.clone())
+}
+
+struct WarmRestoreHydration {
+    request: SwarmSpawnRequestIpc,
+    auto_attached: bool,
+}
+
+fn attach_latest_warm_restore_manifest(
+    mut request: SwarmSpawnRequestIpc,
+    store: &SpawnTemplateStore,
+) -> WarmRestoreHydration {
+    let mut auto_attached = false;
+    if let Some(manifest) = latest_matching_warm_restore_manifest(store, &request) {
+        request.warm_vm_restore_manifest = Some(manifest);
+        auto_attached = true;
+    }
+    WarmRestoreHydration {
+        request,
+        auto_attached,
+    }
+}
+
 /// Identifier for a spawned session returned to the UI. The composite string
 /// (`<model_id>#<instance>`) round-trips back through the cancel/chat commands.
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -1444,6 +1548,10 @@ impl SpawnCommandError {
             Self::Validation(_) => false,
         }
     }
+
+    fn is_factory_failure(&self) -> bool {
+        matches!(self, Self::Swarm(SwarmError::FactoryFailed(_)))
+    }
 }
 
 impl std::fmt::Display for SpawnCommandError {
@@ -1455,10 +1563,15 @@ impl std::fmt::Display for SpawnCommandError {
     }
 }
 
+fn should_retry_auto_warm_restore(auto_attached: bool, error: &SpawnCommandError) -> bool {
+    auto_attached && error.is_factory_failure()
+}
+
 async fn after_successful_swarm_spawn(
     request: &SwarmSpawnRequestIpc,
     state: &SwarmRuntimeState,
     iid: ModelInstanceId,
+    auto_attached_warm_restore: bool,
 ) {
     // ROI#3 STATE RECOVERY: persist a resume template keyed by the live
     // composite instance_id so this exact session can be re-spawned later
@@ -1466,7 +1579,24 @@ async fn after_successful_swarm_spawn(
     // must NOT fail an otherwise-successful spawn (the real model already
     // loaded) — it only makes the session non-resumable, surfaced honestly
     // via the FR/stderr line and a `resumable=false` summary.
-    let template = template_from_ipc(request, &iid.to_string());
+    let mut template = template_from_ipc(request, &iid.to_string());
+    if is_local_warm_vm_request(request) {
+        let tracked_manifest = state.tracked_warm_vm_restore_manifest(iid);
+        match (auto_attached_warm_restore, tracked_manifest) {
+            (true, Some(manifest))
+                if request.warm_vm_restore_manifest.as_ref() != Some(&manifest) =>
+            {
+                template.warm_vm_restore_manifest = Some(manifest);
+            }
+            (true, _) => {
+                template.warm_vm_restore_manifest = None;
+            }
+            (false, Some(manifest)) => {
+                template.warm_vm_restore_manifest = Some(manifest);
+            }
+            (false, None) => {}
+        }
+    }
     if let Err(error) = state.spawn_template_store.upsert(iid.to_string(), template) {
         eprintln!("{FR_EVT_SWARM_LIFECYCLE}: resume template persist failed for {iid}: {error}");
     }
@@ -1485,12 +1615,35 @@ async fn spawn_session_inner(
     request: SwarmSpawnRequestIpc,
     state: &SwarmRuntimeState,
 ) -> Result<SwarmInstanceIdIpc, SpawnCommandError> {
+    let WarmRestoreHydration {
+        request,
+        auto_attached,
+    } = attach_latest_warm_restore_manifest(request, &state.spawn_template_store);
+    match spawn_session_once(request.clone(), state, auto_attached).await {
+        Ok(instance_id) => Ok(instance_id),
+        Err(error) if should_retry_auto_warm_restore(auto_attached, &error) => {
+            let mut fresh_request = request;
+            fresh_request.warm_vm_restore_manifest = None;
+            eprintln!(
+                "{FR_EVT_SWARM_LIFECYCLE}: auto warm restore failed; retrying once with a fresh warm VM load: {error}"
+            );
+            spawn_session_once(fresh_request, state, false).await
+        }
+        Err(error) => Err(error),
+    }
+}
+
+async fn spawn_session_once(
+    request: SwarmSpawnRequestIpc,
+    state: &SwarmRuntimeState,
+    auto_attached_warm_restore: bool,
+) -> Result<SwarmInstanceIdIpc, SpawnCommandError> {
     let coordinator = state.coordinator();
     let spawn = build_spawn_request(&request).map_err(SpawnCommandError::Validation)?;
     let instance_id = spawn.instance_id;
     match coordinator.spawn_session(spawn).await {
         Ok(iid) => {
-            after_successful_swarm_spawn(&request, state, iid).await;
+            after_successful_swarm_spawn(&request, state, iid, auto_attached_warm_restore).await;
             Ok(iid.into())
         }
         Err(error) => {
@@ -3859,6 +4012,188 @@ mod tests {
         assert_eq!(rebuilt.warm_vm_restore_manifest, Some(manifest.clone()));
         let spawn = build_spawn_request(&rebuilt).expect("warm restore template rebuilds");
         assert_eq!(spawn.warm_vm_restore_manifest, Some(manifest));
+    }
+
+    #[test]
+    fn attach_latest_warm_restore_manifest_reuses_latest_matching_template() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let store = SpawnTemplateStore::with_path(tmp.path().join("templates.json"));
+        let sha = "ab".repeat(32);
+        let old_manifest = warm_restore_manifest("wt-warm", &sha);
+        let new_manifest = WarmVmSnapshotManifest::new(
+            "wt-warm",
+            sha.clone(),
+            "/models/model.gguf",
+            "new-ready-nonce",
+            handshake_core::sandbox::SnapshotRef::new(
+                handshake_core::sandbox::AdapterId::new("cloud_hypervisor"),
+                "/snap/new",
+            ),
+        );
+        let mut base = local_request("D:/models/model.gguf");
+        base.sha256_expected = Some(sha);
+        base.runtime_binding = Some(SwarmRuntimeBindingIpc::LlamaCpp);
+        base.local_execution_mode = Some(SwarmLocalExecutionModeIpc::WarmVm);
+        base.worktree_id = Some("wt-warm".to_string());
+        base.isolation_tier = Some(SwarmIsolationTierIpc::Tier3Microvm);
+
+        let mut older = base.clone();
+        older.warm_vm_restore_manifest = Some(old_manifest);
+        let mut old_template = template_from_ipc(&older, "old#0");
+        old_template.captured_at = chrono::Utc::now() - chrono::Duration::minutes(2);
+        store
+            .upsert("old#0", old_template)
+            .expect("store old template");
+
+        let mut newer = base.clone();
+        newer.warm_vm_restore_manifest = Some(new_manifest.clone());
+        let mut new_template = template_from_ipc(&newer, "new#0");
+        new_template.captured_at = chrono::Utc::now();
+        store
+            .upsert("new#0", new_template)
+            .expect("store new template");
+
+        let hydrated = attach_latest_warm_restore_manifest(base.clone(), &store);
+        assert!(hydrated.auto_attached);
+        assert_eq!(
+            hydrated.request.warm_vm_restore_manifest,
+            Some(new_manifest),
+            "latest matching warm template should auto-hydrate the request"
+        );
+
+        let mut moved_artifact = base;
+        moved_artifact.artifact_path = Some("D:/models/moved/model.gguf".to_string());
+        let moved = attach_latest_warm_restore_manifest(moved_artifact, &store);
+        assert!(!moved.auto_attached);
+        assert_eq!(
+            moved.request.warm_vm_restore_manifest, None,
+            "artifact path mismatch should fall back to a fresh warm load"
+        );
+    }
+
+    #[test]
+    fn auto_warm_restore_retry_is_limited_to_auto_factory_failures() {
+        let factory_error = SpawnCommandError::Swarm(SwarmError::FactoryFailed(
+            "restore snapshot is already live".to_string(),
+        ));
+        assert!(should_retry_auto_warm_restore(true, &factory_error));
+        assert!(
+            !should_retry_auto_warm_restore(false, &factory_error),
+            "operator-supplied manifests stay strict"
+        );
+        assert!(!should_retry_auto_warm_restore(
+            true,
+            &SpawnCommandError::Validation("bad request".to_string())
+        ));
+        assert!(!should_retry_auto_warm_restore(
+            true,
+            &SpawnCommandError::Swarm(SwarmError::LedgerFailed("ledger".to_string()))
+        ));
+    }
+
+    #[tokio::test]
+    async fn after_successful_spawn_persists_tracked_warm_manifest_for_fresh_warm_vm() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let store = SpawnTemplateStore::with_path(tmp.path().join("templates.json"));
+        let state =
+            SwarmRuntimeState::production_with_cloud_and_recorder_and_committed_memory_ceiling(
+                CloudLaneFactoryConfig::unconfigured(),
+                None,
+                tmp.path(),
+                None,
+                None,
+            )
+            .with_spawn_template_store(store.clone());
+        let sha = "ab".repeat(32);
+        let manifest = warm_restore_manifest("wt-warm", &sha);
+        let iid = ModelInstanceId::new(ModelId::new_v7(), 0);
+        state.sessions.lock().expect("session table").insert(
+            iid,
+            TrackedSession {
+                model_id: iid.model_id,
+                runtime: Arc::new(StaticTokenRuntime {
+                    response: StaticGenerateResponse::Text("warm".to_string()),
+                }),
+                runtime_binding: RuntimeBinding::LlamaCpp,
+                provider: ProviderKind::Local,
+                artifact_path: Some("D:/models/model.gguf".to_string()),
+                cloud_model_name: None,
+                worktree_id: Some("wt-warm".to_string()),
+                working_dir: None,
+                isolation_tier: Some(SwarmIsolationTierIpc::Tier3Microvm),
+                local_execution_mode: Some(SwarmLocalExecutionModeIpc::WarmVm),
+                warm_vm_restore_manifest: Some(manifest.clone()),
+            },
+        );
+        let mut req = local_request("D:/models/model.gguf");
+        req.sha256_expected = Some(sha);
+        req.runtime_binding = Some(SwarmRuntimeBindingIpc::LlamaCpp);
+        req.local_execution_mode = Some(SwarmLocalExecutionModeIpc::WarmVm);
+        req.worktree_id = Some("wt-warm".to_string());
+        req.isolation_tier = Some(SwarmIsolationTierIpc::Tier3Microvm);
+        req.warm_vm_restore_manifest = None;
+
+        after_successful_swarm_spawn(&req, &state, iid, false).await;
+
+        let stored = store
+            .get(&iid.to_string())
+            .expect("load stored template")
+            .expect("template stored");
+        assert_eq!(stored.warm_vm_restore_manifest, Some(manifest));
+    }
+
+    #[tokio::test]
+    async fn auto_restored_spawn_does_not_persist_consumed_manifest_without_successor() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let store = SpawnTemplateStore::with_path(tmp.path().join("templates.json"));
+        let state =
+            SwarmRuntimeState::production_with_cloud_and_recorder_and_committed_memory_ceiling(
+                CloudLaneFactoryConfig::unconfigured(),
+                None,
+                tmp.path(),
+                None,
+                None,
+            )
+            .with_spawn_template_store(store.clone());
+        let sha = "ab".repeat(32);
+        let consumed = warm_restore_manifest("wt-warm", &sha);
+        let iid = ModelInstanceId::new(ModelId::new_v7(), 0);
+        state.sessions.lock().expect("session table").insert(
+            iid,
+            TrackedSession {
+                model_id: iid.model_id,
+                runtime: Arc::new(StaticTokenRuntime {
+                    response: StaticGenerateResponse::Text("warm".to_string()),
+                }),
+                runtime_binding: RuntimeBinding::LlamaCpp,
+                provider: ProviderKind::Local,
+                artifact_path: Some("D:/models/model.gguf".to_string()),
+                cloud_model_name: None,
+                worktree_id: Some("wt-warm".to_string()),
+                working_dir: None,
+                isolation_tier: Some(SwarmIsolationTierIpc::Tier3Microvm),
+                local_execution_mode: Some(SwarmLocalExecutionModeIpc::WarmVm),
+                warm_vm_restore_manifest: Some(consumed.clone()),
+            },
+        );
+        let mut req = local_request("D:/models/model.gguf");
+        req.sha256_expected = Some(sha);
+        req.runtime_binding = Some(SwarmRuntimeBindingIpc::LlamaCpp);
+        req.local_execution_mode = Some(SwarmLocalExecutionModeIpc::WarmVm);
+        req.worktree_id = Some("wt-warm".to_string());
+        req.isolation_tier = Some(SwarmIsolationTierIpc::Tier3Microvm);
+        req.warm_vm_restore_manifest = Some(consumed);
+
+        after_successful_swarm_spawn(&req, &state, iid, true).await;
+
+        let stored = store
+            .get(&iid.to_string())
+            .expect("load stored template")
+            .expect("template stored");
+        assert_eq!(
+            stored.warm_vm_restore_manifest, None,
+            "auto-consumed manifests are not persisted again without a successor snapshot"
+        );
     }
 
     /// `template_to_request_ipc` rebuilds a request whose `parent_session_id` is

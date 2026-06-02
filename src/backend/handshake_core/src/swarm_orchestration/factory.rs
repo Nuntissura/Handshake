@@ -13,7 +13,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use futures::future::BoxFuture;
 
-use crate::model_runtime::{CancellationToken, ModelId, ModelRuntime};
+use crate::model_runtime::{CancellationToken, ModelId, ModelRuntime, WarmVmSnapshotManifest};
 use crate::process_ledger::ProcessOwnershipRecordId;
 
 use super::error::SwarmResult;
@@ -68,6 +68,10 @@ pub struct LiveSession {
     /// OS pid (or synthetic id for an in-process worker) recorded in the
     /// ledger; carried here so the stop row matches the start row.
     pub os_pid: u32,
+    /// Warm-VM restore metadata captured by the factory after a successful warm
+    /// local load/restore. The coordinator ignores it; app/runtime side-tables
+    /// can persist it so later warm VM spawns can skip a cold in-guest load.
+    pub warm_vm_restore_manifest: Option<WarmVmSnapshotManifest>,
 }
 
 impl LiveSession {
@@ -86,7 +90,13 @@ impl LiveSession {
             teardown,
             process_record_id,
             os_pid,
+            warm_vm_restore_manifest: None,
         }
+    }
+
+    pub fn with_warm_vm_restore_manifest(mut self, manifest: WarmVmSnapshotManifest) -> Self {
+        self.warm_vm_restore_manifest = Some(manifest);
+        self
     }
 }
 

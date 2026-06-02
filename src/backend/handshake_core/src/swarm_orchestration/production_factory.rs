@@ -55,7 +55,6 @@ use crate::sandbox::{
 
 use super::error::{SwarmError, SwarmResult};
 use super::factory::{LiveSession, ModelSessionFactory, SessionTeardown};
-use super::ids::ModelInstanceId;
 use super::ids::SpawnRequest;
 
 use super::coordinator::{SwarmConfig, SwarmCoordinator};
@@ -1007,7 +1006,6 @@ impl ProductionModelSessionFactory {
                 }
             }
         };
-
         let sandbox_adapter_id = caps.adapter_id.to_string();
         let sandbox_internal_id = handle.sandbox_internal_id.clone();
         let os_pid = self.synthetic_pid(request);
@@ -1025,6 +1023,23 @@ impl ProductionModelSessionFactory {
                 return Err(error);
             }
         };
+        let warm_vm_restore_manifest = if caps.supports_snapshot {
+            match adapter.snapshot(&handle).await {
+                Ok(snapshot) => match runtime.warm_snapshot_manifest(snapshot) {
+                    Ok(manifest) => Some(manifest),
+                    Err(error) => {
+                        eprintln!("FR-EVT-SWARM-LIFECYCLE: warm VM snapshot manifest capture failed after successful spawn for worktree {worktree_id}: {error}");
+                        request.warm_vm_restore_manifest.clone()
+                    }
+                },
+                Err(error) => {
+                    eprintln!("FR-EVT-SWARM-LIFECYCLE: warm VM snapshot capture failed after successful spawn for worktree {worktree_id}: {error}");
+                    request.warm_vm_restore_manifest.clone()
+                }
+            }
+        } else {
+            request.warm_vm_restore_manifest.clone()
+        };
 
         let owning = Arc::new(tokio::sync::Mutex::new(runtime));
         let shared: Arc<dyn ModelRuntime> = Arc::new(SharedRuntimeHandle {
@@ -1035,14 +1050,18 @@ impl ProductionModelSessionFactory {
         let teardown =
             sandboxed_runtime_teardown(owning, loaded_model_id, Arc::clone(&adapter), Some(handle));
 
-        Ok(LiveSession::new(
+        let mut live = LiveSession::new(
             shared,
             loaded_model_id,
             cancel,
             teardown,
             record_id,
             os_pid,
-        ))
+        );
+        if let Some(manifest) = warm_vm_restore_manifest {
+            live = live.with_warm_vm_restore_manifest(manifest);
+        }
+        Ok(live)
     }
 
     /// WP-KERNEL-004 wave 1: route a Local+LlamaCpp+Tier3 spawn into a Cloud
@@ -2798,6 +2817,7 @@ mod tests {
     struct FactoryWarmSandbox {
         spawned_specs: Arc<Mutex<Vec<crate::sandbox::ProcessSpec>>>,
         restored_snapshots: Arc<Mutex<Vec<String>>>,
+        snapshotted_handles: Arc<Mutex<Vec<String>>>,
         killed: Arc<Mutex<Vec<String>>>,
     }
 
@@ -2863,6 +2883,19 @@ mod tests {
         ) -> Result<Option<i32>, crate::sandbox::SandboxAdapterError> {
             Ok(None)
         }
+        async fn snapshot(
+            &self,
+            handle: &crate::sandbox::ProcessHandle,
+        ) -> Result<crate::sandbox::SnapshotRef, crate::sandbox::SandboxAdapterError> {
+            self.snapshotted_handles
+                .lock()
+                .unwrap()
+                .push(handle.sandbox_internal_id.clone());
+            Ok(crate::sandbox::SnapshotRef::new(
+                crate::sandbox::AdapterId::new("cloud_hypervisor"),
+                format!("/snap/{}", handle.sandbox_internal_id),
+            ))
+        }
         async fn restore(
             &self,
             snapshot: &crate::sandbox::SnapshotRef,
@@ -2911,11 +2944,13 @@ mod tests {
         Arc<Mutex<Vec<crate::sandbox::ProcessSpec>>>,
         Arc<Mutex<Vec<String>>>,
         Arc<Mutex<Vec<String>>>,
+        Arc<Mutex<Vec<String>>>,
     );
 
     fn warm_sandbox_registry_with_observed_fake() -> WarmRegistryObservations {
         let spawned_specs = Arc::new(Mutex::new(Vec::new()));
         let restored_snapshots = Arc::new(Mutex::new(Vec::new()));
+        let snapshotted_handles = Arc::new(Mutex::new(Vec::new()));
         let killed = Arc::new(Mutex::new(Vec::new()));
         let mut registry = crate::sandbox::SandboxAdapterRegistry::new(
             crate::sandbox::AdapterId::new("cloud_hypervisor"),
@@ -2923,12 +2958,14 @@ mod tests {
         registry.register(Arc::new(FactoryWarmSandbox {
             spawned_specs: spawned_specs.clone(),
             restored_snapshots: restored_snapshots.clone(),
+            snapshotted_handles: snapshotted_handles.clone(),
             killed: killed.clone(),
         }));
         (
             Arc::new(registry),
             spawned_specs,
             restored_snapshots,
+            snapshotted_handles,
             killed,
         )
     }
@@ -3144,7 +3181,7 @@ mod tests {
         std::env::set_var(SANDBOX_LLAMA_CLI_HOST_PATH_ENV, &runner);
         let (ledger, drain) = ledger_pair();
         let store = Arc::new(InMemoryStore::default());
-        let (registry, spawned_specs, restored_snapshots, killed) =
+        let (registry, spawned_specs, restored_snapshots, snapshotted_handles, killed) =
             warm_sandbox_registry_with_observed_fake();
         let factory = ProductionModelSessionFactory::new(
             ledger,
@@ -3166,6 +3203,18 @@ mod tests {
             .create(&req)
             .await
             .expect("warm adapter routes to WarmVmModelRuntime");
+        let manifest = session
+            .warm_vm_restore_manifest
+            .clone()
+            .expect("fresh warm spawn should capture a restore manifest");
+        assert_eq!(manifest.worktree_id, "wt-warm-1");
+        assert_eq!(manifest.model_artifact_sha256, "ab".repeat(32));
+        assert_eq!(manifest.model_guest_path, "/models/model.gguf");
+        assert_eq!(manifest.ready_nonce, "ready-nonce");
+        assert_eq!(
+            manifest.snapshot.snapshot_dir,
+            "/snap/hsk-ch-warm-factory-fake"
+        );
         (session.teardown)().await.expect("teardown");
 
         let specs = spawned_specs.lock().unwrap().clone();
@@ -3181,6 +3230,11 @@ mod tests {
         assert!(
             restored_snapshots.lock().unwrap().is_empty(),
             "fresh warm spawn must not restore a snapshot"
+        );
+        assert_eq!(
+            snapshotted_handles.lock().unwrap().as_slice(),
+            ["hsk-ch-warm-factory-fake"],
+            "fresh warm spawn should snapshot once after the ready frame"
         );
         assert_eq!(
             killed.lock().unwrap().as_slice(),
@@ -3229,7 +3283,7 @@ mod tests {
         std::env::set_var(CLOUD_HYPERVISOR_WARM_AGENT_HOST_PATH_ENV, &warm_agent);
         let (ledger, drain) = ledger_pair();
         let store = Arc::new(InMemoryStore::default());
-        let (registry, spawned_specs, _restored_snapshots, killed) =
+        let (registry, spawned_specs, _restored_snapshots, _snapshotted_handles, killed) =
             warm_sandbox_registry_with_observed_fake();
         let factory = ProductionModelSessionFactory::new(
             ledger,
@@ -3300,7 +3354,7 @@ mod tests {
         std::env::remove_var(CLOUD_HYPERVISOR_WARM_AGENT_HOST_PATH_ENV);
         std::env::set_var(SANDBOX_LLAMA_CLI_HOST_PATH_ENV, &runner);
         let (ledger, _drain) = ledger_pair();
-        let (registry, spawned_specs, restored_snapshots, killed) =
+        let (registry, spawned_specs, restored_snapshots, snapshotted_handles, killed) =
             warm_sandbox_registry_with_observed_fake();
         let factory = ProductionModelSessionFactory::new(
             ledger,
@@ -3327,12 +3381,28 @@ mod tests {
         .with_local_artifact(gguf.to_string_lossy(), sha)
         .with_isolation_tier(crate::sandbox::adapter::IsolationTier::Tier3Microvm)
         .with_worktree("wt-warm-restore")
-        .with_warm_vm_restore_manifest(manifest);
+        .with_warm_vm_restore_manifest(manifest.clone());
 
         let session = factory
             .create(&req)
             .await
             .expect("warm restore routes through adapter.restore");
+        let successor_manifest = session
+            .warm_vm_restore_manifest
+            .clone()
+            .expect("restored warm sessions should capture a successor manifest");
+        assert_eq!(successor_manifest.worktree_id, manifest.worktree_id);
+        assert_eq!(
+            successor_manifest.model_artifact_sha256,
+            manifest.model_artifact_sha256
+        );
+        assert_eq!(successor_manifest.model_guest_path, manifest.model_guest_path);
+        assert_eq!(successor_manifest.ready_nonce, manifest.ready_nonce);
+        assert_eq!(
+            successor_manifest.snapshot.snapshot_dir,
+            "/snap/hsk-ch-warm-restored-factory-fake",
+            "restored warm sessions should not keep reusing the consumed snapshot"
+        );
         (session.teardown)().await.expect("teardown");
         assert!(
             spawned_specs.lock().unwrap().is_empty(),
@@ -3342,6 +3412,11 @@ mod tests {
             restored_snapshots.lock().unwrap().as_slice(),
             ["/snap/warm-restore"],
             "restore path must consume the manifest snapshot"
+        );
+        assert_eq!(
+            snapshotted_handles.lock().unwrap().as_slice(),
+            ["hsk-ch-warm-restored-factory-fake"],
+            "restore path should capture a successor snapshot for future reuse"
         );
         assert_eq!(
             killed.lock().unwrap().as_slice(),
@@ -3367,7 +3442,7 @@ mod tests {
         std::env::remove_var(CLOUD_HYPERVISOR_WARM_AGENT_HOST_PATH_ENV);
         std::env::set_var(SANDBOX_LLAMA_CLI_HOST_PATH_ENV, &runner);
         let (ledger, _drain) = ledger_pair();
-        let (registry, spawned_specs, restored_snapshots, killed) =
+        let (registry, spawned_specs, restored_snapshots, _snapshotted_handles, killed) =
             warm_sandbox_registry_with_observed_fake();
         let factory = ProductionModelSessionFactory::new(
             ledger,
