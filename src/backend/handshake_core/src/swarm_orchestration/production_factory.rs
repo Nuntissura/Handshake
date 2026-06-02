@@ -43,7 +43,11 @@ use crate::model_runtime::{CancellationToken, ModelId, ModelRuntime, ProviderKin
 use crate::process_ledger::{
     record_spawn, LedgerBatcher, ProcessEngineKind, ProcessOwnershipRecordId, SpawnMeta,
 };
-use crate::sandbox::SandboxAdapterRegistry;
+use crate::sandbox::{
+    BindMode, BindSpec, SandboxAdapterRegistry,
+    CLOUD_HYPERVISOR_WARM_AGENT_GUEST_PATH_METADATA_KEY, CLOUD_HYPERVISOR_WARM_AGENT_GUEST_ROOT,
+    CLOUD_HYPERVISOR_WARM_AGENT_HOST_PATH_ENV,
+};
 
 use super::error::{SwarmError, SwarmResult};
 use super::factory::{LiveSession, ModelSessionFactory, SessionTeardown};
@@ -56,6 +60,56 @@ use super::ids::RunBudget;
 use crate::flight_recorder::FlightRecorderEvent;
 
 const SANDBOX_LLAMA_CLI_HOST_PATH_ENV: &str = "HANDSHAKE_SANDBOX_LLAMA_CLI_HOST_PATH";
+
+fn warm_agent_bind_from_env() -> Result<Option<(BindSpec, String)>, SwarmError> {
+    let Some(path) = std::env::var_os(CLOUD_HYPERVISOR_WARM_AGENT_HOST_PATH_ENV) else {
+        return Ok(None);
+    };
+    let host_path = std::path::PathBuf::from(path);
+    if !host_path.is_file() {
+        return Err(SwarmError::FactoryFailed(format!(
+            "warm VM local execution requires {CLOUD_HYPERVISOR_WARM_AGENT_HOST_PATH_ENV} \
+             to point at an executable guest warm-agent file; missing: {}",
+            host_path.display()
+        )));
+    }
+    let file_name = host_path
+        .file_name()
+        .and_then(|value| value.to_str())
+        .ok_or_else(|| {
+            SwarmError::FactoryFailed(format!(
+                "warm VM local execution: {CLOUD_HYPERVISOR_WARM_AGENT_HOST_PATH_ENV} \
+                 must have a UTF-8 file name"
+            ))
+        })?;
+    if file_name.chars().any(char::is_whitespace) {
+        return Err(SwarmError::FactoryFailed(format!(
+            "warm VM local execution: warm-agent file name must not contain whitespace: {file_name}"
+        )));
+    }
+    let parent = host_path
+        .parent()
+        .map(|path| path.to_path_buf())
+        .ok_or_else(|| {
+            SwarmError::FactoryFailed(format!(
+            "warm VM local execution: {CLOUD_HYPERVISOR_WARM_AGENT_HOST_PATH_ENV} has no parent \
+             directory to bind"
+        ))
+        })?;
+    let guest_path = format!(
+        "{}/{}",
+        CLOUD_HYPERVISOR_WARM_AGENT_GUEST_ROOT.trim_end_matches('/'),
+        file_name
+    );
+    Ok(Some((
+        BindSpec {
+            host_path: parent,
+            guest_path: std::path::PathBuf::from(CLOUD_HYPERVISOR_WARM_AGENT_GUEST_ROOT),
+            mode: BindMode::ReadOnly,
+        },
+        guest_path,
+    )))
+}
 
 /// Default per-run concurrency cap when the caller does not specify one: the
 /// available CPU parallelism, clamped to at least 1. GPU-bound deployments
@@ -822,7 +876,6 @@ impl ProductionModelSessionFactory {
             SANDBOX_MODE_METADATA_KEY.to_string(),
             SANDBOX_MODE_PERSISTENT.to_string(),
         );
-
         let adapter = select(registry, &spec, None)
             .map_err(|e| SwarmError::FactoryFailed(format!("sandbox selection failed: {e}")))?;
         let caps = adapter.capabilities();
@@ -832,6 +885,13 @@ impl ProductionModelSessionFactory {
                  supports_live_token_stream={}; refusing fallback to cold sandbox stdout chunking",
                 caps.adapter_id, caps.supports_warm_agent, caps.supports_live_token_stream
             )));
+        }
+        if let Some((bind, guest_path)) = warm_agent_bind_from_env()? {
+            spec.binds.push(bind);
+            spec.metadata.insert(
+                CLOUD_HYPERVISOR_WARM_AGENT_GUEST_PATH_METADATA_KEY.to_string(),
+                guest_path,
+            );
         }
 
         let warm_cfg = WarmVmModelConfig::new(
@@ -2826,6 +2886,57 @@ mod tests {
         (dir, runner)
     }
 
+    fn restore_env_var(key: &str, prior: Option<std::ffi::OsString>) {
+        match prior {
+            Some(value) => std::env::set_var(key, value),
+            None => std::env::remove_var(key),
+        }
+    }
+
+    #[test]
+    fn warm_agent_bind_from_env_derives_read_only_guest_binding() {
+        let _env_guard = runner_env_lock();
+        let prior = std::env::var_os(CLOUD_HYPERVISOR_WARM_AGENT_HOST_PATH_ENV);
+        std::env::remove_var(CLOUD_HYPERVISOR_WARM_AGENT_HOST_PATH_ENV);
+        assert!(
+            warm_agent_bind_from_env()
+                .expect("unset env should be accepted")
+                .is_none(),
+            "unset warm-agent env should not add a bind"
+        );
+
+        let dir =
+            std::env::temp_dir().join(format!("hsk-warm-agent-{}", uuid::Uuid::now_v7().simple()));
+        std::fs::create_dir_all(&dir).expect("mk warm agent dir");
+        let agent = dir.join("hsk-warm-agent");
+        std::fs::write(&agent, b"#!/bin/sh\n").expect("write fake warm agent");
+        std::env::set_var(CLOUD_HYPERVISOR_WARM_AGENT_HOST_PATH_ENV, &agent);
+
+        let (bind, guest_path) = warm_agent_bind_from_env()
+            .expect("configured warm agent bind")
+            .expect("bind present");
+        assert_eq!(bind.host_path, dir);
+        assert_eq!(
+            bind.guest_path,
+            std::path::PathBuf::from(CLOUD_HYPERVISOR_WARM_AGENT_GUEST_ROOT)
+        );
+        assert_eq!(bind.mode, BindMode::ReadOnly);
+        assert_eq!(guest_path, "/warm-agent/hsk-warm-agent");
+
+        let missing = bind.host_path.join("missing-agent");
+        std::env::set_var(CLOUD_HYPERVISOR_WARM_AGENT_HOST_PATH_ENV, &missing);
+        let err = warm_agent_bind_from_env().expect_err("missing warm agent should fail closed");
+        let detail = format!("{err}");
+        assert!(
+            detail.contains(CLOUD_HYPERVISOR_WARM_AGENT_HOST_PATH_ENV),
+            "{detail}"
+        );
+        assert!(detail.contains("missing"), "{detail}");
+
+        restore_env_var(CLOUD_HYPERVISOR_WARM_AGENT_HOST_PATH_ENV, prior);
+        let _ = std::fs::remove_dir_all(bind.host_path);
+    }
+
     #[tokio::test(flavor = "current_thread")]
     async fn warm_vm_request_fails_closed_when_adapter_lacks_warm_agent() {
         let _env_guard = runner_env_lock();
@@ -2879,6 +2990,8 @@ mod tests {
         let (dir, gguf) = temp_gguf_for_factory();
         let (runner_dir, runner) = temp_runner_for_factory();
         let prior_runner = std::env::var_os(SANDBOX_LLAMA_CLI_HOST_PATH_ENV);
+        let prior_warm_agent = std::env::var_os(CLOUD_HYPERVISOR_WARM_AGENT_HOST_PATH_ENV);
+        std::env::remove_var(CLOUD_HYPERVISOR_WARM_AGENT_HOST_PATH_ENV);
         std::env::set_var(SANDBOX_LLAMA_CLI_HOST_PATH_ENV, &runner);
         let (ledger, drain) = ledger_pair();
         let store = Arc::new(InMemoryStore::default());
@@ -2945,8 +3058,88 @@ mod tests {
             Some(value) => std::env::set_var(SANDBOX_LLAMA_CLI_HOST_PATH_ENV, value),
             None => std::env::remove_var(SANDBOX_LLAMA_CLI_HOST_PATH_ENV),
         }
+        restore_env_var(CLOUD_HYPERVISOR_WARM_AGENT_HOST_PATH_ENV, prior_warm_agent);
         let _ = std::fs::remove_dir_all(dir);
         let _ = std::fs::remove_dir_all(runner_dir);
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn warm_vm_request_binds_configured_warm_agent_into_persistent_spawn() {
+        let _env_guard = runner_env_lock();
+        let (dir, gguf) = temp_gguf_for_factory();
+        let (runner_dir, runner) = temp_runner_for_factory();
+        let warm_dir = std::env::temp_dir().join(format!(
+            "hsk-fac-warm-agent-{}",
+            uuid::Uuid::now_v7().simple()
+        ));
+        std::fs::create_dir_all(&warm_dir).expect("mk warm agent dir");
+        let warm_agent = warm_dir.join("hsk-warm-agent");
+        std::fs::write(&warm_agent, b"#!/bin/sh\n").expect("write fake warm agent");
+        let prior_runner = std::env::var_os(SANDBOX_LLAMA_CLI_HOST_PATH_ENV);
+        let prior_warm_agent = std::env::var_os(CLOUD_HYPERVISOR_WARM_AGENT_HOST_PATH_ENV);
+        std::env::set_var(SANDBOX_LLAMA_CLI_HOST_PATH_ENV, &runner);
+        std::env::set_var(CLOUD_HYPERVISOR_WARM_AGENT_HOST_PATH_ENV, &warm_agent);
+        let (ledger, drain) = ledger_pair();
+        let store = Arc::new(InMemoryStore::default());
+        let (registry, spawned_specs, _restored_snapshots, killed) =
+            warm_sandbox_registry_with_observed_fake();
+        let factory = ProductionModelSessionFactory::new(
+            ledger,
+            CloudLaneFactoryConfig::unconfigured(),
+            Some(registry),
+        );
+        let req = SpawnRequest::new(
+            instance(0),
+            RuntimeBinding::LlamaCpp,
+            "swarm_prod_test",
+            "p",
+        )
+        .with_local_artifact(gguf.to_string_lossy(), "ab".repeat(32))
+        .with_isolation_tier(crate::sandbox::adapter::IsolationTier::Tier3Microvm)
+        .with_worktree("wt-warm-agent-bind")
+        .with_warm_vm_execution();
+
+        let session = factory
+            .create(&req)
+            .await
+            .expect("warm adapter routes to WarmVmModelRuntime");
+        (session.teardown)().await.expect("teardown");
+
+        let specs = spawned_specs.lock().unwrap().clone();
+        assert_eq!(specs.len(), 1, "warm spawn creates one persistent VM");
+        assert_eq!(
+            specs[0]
+                .metadata
+                .get(CLOUD_HYPERVISOR_WARM_AGENT_GUEST_PATH_METADATA_KEY)
+                .map(String::as_str),
+            Some("/warm-agent/hsk-warm-agent"),
+            "persistent VM spawn should carry the configured guest warm-agent path"
+        );
+        assert!(
+            specs[0].binds.iter().any(|bind| {
+                bind.host_path == warm_dir
+                    && bind.guest_path
+                        == std::path::PathBuf::from(CLOUD_HYPERVISOR_WARM_AGENT_GUEST_ROOT)
+                    && bind.mode == BindMode::ReadOnly
+            }),
+            "persistent VM spawn should bind the warm-agent directory read-only"
+        );
+        assert_eq!(
+            killed.lock().unwrap().as_slice(),
+            ["hsk-ch-warm-factory-fake"],
+            "teardown must kill the persistent warm VM handle"
+        );
+        let rows = drained(&drain, store).await;
+        assert!(
+            rows.iter().any(|e| matches!(e, LedgerEvent::Start(_))),
+            "warm bind path should still record a START row"
+        );
+
+        restore_env_var(SANDBOX_LLAMA_CLI_HOST_PATH_ENV, prior_runner);
+        restore_env_var(CLOUD_HYPERVISOR_WARM_AGENT_HOST_PATH_ENV, prior_warm_agent);
+        let _ = std::fs::remove_dir_all(dir);
+        let _ = std::fs::remove_dir_all(runner_dir);
+        let _ = std::fs::remove_dir_all(warm_dir);
     }
 
     #[tokio::test(flavor = "current_thread")]
@@ -2955,6 +3148,8 @@ mod tests {
         let (dir, gguf) = temp_gguf_for_factory();
         let (runner_dir, runner) = temp_runner_for_factory();
         let prior_runner = std::env::var_os(SANDBOX_LLAMA_CLI_HOST_PATH_ENV);
+        let prior_warm_agent = std::env::var_os(CLOUD_HYPERVISOR_WARM_AGENT_HOST_PATH_ENV);
+        std::env::remove_var(CLOUD_HYPERVISOR_WARM_AGENT_HOST_PATH_ENV);
         std::env::set_var(SANDBOX_LLAMA_CLI_HOST_PATH_ENV, &runner);
         let (ledger, _drain) = ledger_pair();
         let (registry, spawned_specs, restored_snapshots, killed) =
@@ -3009,6 +3204,7 @@ mod tests {
             Some(value) => std::env::set_var(SANDBOX_LLAMA_CLI_HOST_PATH_ENV, value),
             None => std::env::remove_var(SANDBOX_LLAMA_CLI_HOST_PATH_ENV),
         }
+        restore_env_var(CLOUD_HYPERVISOR_WARM_AGENT_HOST_PATH_ENV, prior_warm_agent);
         let _ = std::fs::remove_dir_all(dir);
         let _ = std::fs::remove_dir_all(runner_dir);
     }
@@ -3019,6 +3215,8 @@ mod tests {
         let (dir, gguf) = temp_gguf_for_factory();
         let (runner_dir, runner) = temp_runner_for_factory();
         let prior_runner = std::env::var_os(SANDBOX_LLAMA_CLI_HOST_PATH_ENV);
+        let prior_warm_agent = std::env::var_os(CLOUD_HYPERVISOR_WARM_AGENT_HOST_PATH_ENV);
+        std::env::remove_var(CLOUD_HYPERVISOR_WARM_AGENT_HOST_PATH_ENV);
         std::env::set_var(SANDBOX_LLAMA_CLI_HOST_PATH_ENV, &runner);
         let (ledger, _drain) = ledger_pair();
         let (registry, spawned_specs, restored_snapshots, killed) =
@@ -3069,6 +3267,7 @@ mod tests {
             Some(value) => std::env::set_var(SANDBOX_LLAMA_CLI_HOST_PATH_ENV, value),
             None => std::env::remove_var(SANDBOX_LLAMA_CLI_HOST_PATH_ENV),
         }
+        restore_env_var(CLOUD_HYPERVISOR_WARM_AGENT_HOST_PATH_ENV, prior_warm_agent);
         let _ = std::fs::remove_dir_all(dir);
         let _ = std::fs::remove_dir_all(runner_dir);
     }

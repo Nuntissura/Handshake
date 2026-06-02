@@ -11,11 +11,16 @@ use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use bytes::Bytes;
 use serde::{Deserialize, Serialize};
 use tokio::{
-    io::AsyncWriteExt,
+    io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
     process::{Child, Command as TokioCommand},
 };
 use uuid::Uuid;
 
+use crate::model_runtime::{
+    decode_warm_agent_frame, encode_warm_agent_frame, WarmAgentFrameStream,
+    WarmAgentGenerateRequest, WarmAgentGuestFrame, WarmAgentHostFrame, WarmAgentTransport,
+    WarmVmTransportError, WARM_AGENT_MAX_FRAME_BYTES,
+};
 use crate::sandbox::wsl2_podman::wsl_detection::default_wsl_exe;
 use crate::sandbox::{
     encode_guest_channel_exec_request, parse_guest_channel_exec_result, AdapterCapabilities,
@@ -25,8 +30,9 @@ use crate::sandbox::{
 };
 
 use super::guest_agent::{
-    warm_agent_unavailable_detail, CLOUD_HYPERVISOR_WARM_AGENT_REQUIRED_TRANSPORT,
-    CLOUD_HYPERVISOR_WARM_AGENT_UNAVAILABLE_REASON,
+    warm_agent_unavailable_detail, CLOUD_HYPERVISOR_WARM_AGENT_CMDLINE_KEY,
+    CLOUD_HYPERVISOR_WARM_AGENT_GUEST_PATH_METADATA_KEY, CLOUD_HYPERVISOR_WARM_AGENT_HOST_PATH_ENV,
+    CLOUD_HYPERVISOR_WARM_AGENT_REQUIRED_TRANSPORT, CLOUD_HYPERVISOR_WARM_AGENT_UNAVAILABLE_REASON,
 };
 
 #[cfg(windows)]
@@ -157,7 +163,22 @@ agent_loop() {
     esac
   done
 }
-while true; do agent_loop 2>/tmp/hsk-agent.err; /bin/busybox sleep 1; done &
+warm_agent_loop() {
+  warm_agent=$(cat /proc/cmdline | tr ' ' '\n' | grep '^hsk.warm_agent=' | cut -d= -f2-)
+  [ -n "$warm_agent" ] || return 2
+  stty -F /dev/ttyS0 -echo 2>/dev/null || true
+  exec 3<>/dev/ttyS0 || exit 1
+  if [ ! -x "$warm_agent" ]; then
+    echo '{"type":"error","code":"warm_agent_missing","message":"configured warm agent is not executable"}' >&3
+    return 1
+  fi
+  HSK_WARM_AGENT_TRANSPORT=serial exec "$warm_agent" <&3 >&3 2>/tmp/hsk-warm-agent.err
+}
+if cat /proc/cmdline | tr ' ' '\n' | grep -q '^hsk.warm_agent='; then
+  while true; do warm_agent_loop 2>/tmp/hsk-warm-agent-launch.err; /bin/busybox sleep 1; done &
+else
+  while true; do agent_loop 2>/tmp/hsk-agent.err; /bin/busybox sleep 1; done &
+fi
 i=0
 while true; do echo "$i" >/tmp/hsk-tick; i=$((i+1)); /bin/busybox sleep 1; done"#;
 
@@ -167,6 +188,7 @@ const PERSISTENT_BOOT_TIMEOUT_MS: u64 = 30_000;
 /// Poll interval while waiting for WSL-side socket/file paths to appear.
 const PERSISTENT_POLL_INTERVAL_MS: u64 = 250;
 const SERIAL_AGENT_BRIDGE_MAX_ARG_FRAME_BYTES: usize = 16 * 1024;
+const WARM_AGENT_SNAPSHOT_MARKER_FILE: &str = ".hsk-warm-agent-guest-path";
 const VM_ROOT_OWNER_PID_FILE: &str = ".hsk-owner-pid";
 
 /// Proven-working defaults for the host WSL2 sandbox layout. Every field is
@@ -232,6 +254,18 @@ impl CloudHypervisorWarmAgentStatus {
             unavailable_reason: Some(CLOUD_HYPERVISOR_WARM_AGENT_UNAVAILABLE_REASON.to_string()),
         }
     }
+
+    fn supported() -> Self {
+        Self {
+            adapter_id: AdapterId::new(CLOUD_HYPERVISOR_ADAPTER_ID),
+            snapshot_supported: true,
+            persistent_exec_supported: true,
+            warm_agent_supported: true,
+            live_token_stream_supported: true,
+            required_transport: CLOUD_HYPERVISOR_WARM_AGENT_REQUIRED_TRANSPORT.to_string(),
+            unavailable_reason: None,
+        }
+    }
 }
 
 impl CloudHypervisorBalloonConfig {
@@ -283,6 +317,7 @@ impl CloudHypervisorBalloonConfig {
 /// | `balloon.size_mib` | `HANDSHAKE_CH_BALLOON_SIZE_MIB` |
 /// | `balloon.deflate_on_oom` | `HANDSHAKE_CH_BALLOON_DEFLATE_ON_OOM` |
 /// | `balloon.free_page_reporting` | `HANDSHAKE_CH_BALLOON_FREE_PAGE_REPORTING` |
+/// | `warm_agent_host_path` | `HANDSHAKE_CH_WARM_AGENT_HOST_PATH` |
 ///
 /// The host-side `wsl.exe` launcher resolves via `PATH` (`HANDSHAKE_CH_WSL_EXE`
 /// overrides it) so the Windows side stays portable too.
@@ -300,6 +335,7 @@ pub struct CloudHypervisorConfig {
     vcpus: u32,
     command_timeout_ms: u64,
     balloon: CloudHypervisorBalloonConfig,
+    warm_agent_host_path: Option<PathBuf>,
 }
 
 impl CloudHypervisorConfig {
@@ -351,8 +387,21 @@ impl CloudHypervisorConfig {
         &self.balloon
     }
 
+    pub fn warm_agent_host_path(&self) -> Option<&Path> {
+        self.warm_agent_host_path.as_deref()
+    }
+
+    pub fn warm_agent_configured(&self) -> bool {
+        self.warm_agent_host_path.is_some()
+    }
+
     pub fn with_command_timeout_ms(mut self, timeout_ms: u64) -> Self {
         self.command_timeout_ms = timeout_ms;
+        self
+    }
+
+    pub fn with_warm_agent_host_path(mut self, path: impl Into<PathBuf>) -> Self {
+        self.warm_agent_host_path = Some(path.into());
         self
     }
 }
@@ -384,6 +433,7 @@ impl Default for CloudHypervisorConfig {
                     DEFAULT_BALLOON_FREE_PAGE_REPORTING,
                 ),
             ),
+            warm_agent_host_path: env_path_opt(CLOUD_HYPERVISOR_WARM_AGENT_HOST_PATH_ENV),
         }
     }
 }
@@ -409,6 +459,17 @@ fn env_u64(key: &str, default: u64) -> u64 {
         .and_then(|value| value.trim().parse::<u64>().ok())
         .filter(|value| *value > 0)
         .unwrap_or(default)
+}
+
+fn env_path_opt(key: &str) -> Option<PathBuf> {
+    std::env::var_os(key).and_then(|value| {
+        let path = PathBuf::from(value);
+        if path.as_os_str().is_empty() {
+            None
+        } else {
+            Some(path)
+        }
+    })
 }
 
 fn env_bool(key: &str, default: bool) -> bool {
@@ -456,6 +517,10 @@ struct PersistentVm {
     /// Per-VM scratch root inside WSL holding the idle initramfs build tree +
     /// cpio; removed on `kill` for atomic cleanup.
     vm_root: String,
+    /// Guest path of the resident warm-agent binary when this VM was booted or
+    /// restored as a warm-model VM. `None` means the serial socket is only the
+    /// generic busybox command channel.
+    warm_agent_guest_path: Option<String>,
 }
 
 /// Per-handle bookkeeping. The ephemeral-microVM model (default) boots a
@@ -582,7 +647,11 @@ impl CloudHypervisorAdapter {
     }
 
     pub fn warm_agent_status(&self) -> CloudHypervisorWarmAgentStatus {
-        CloudHypervisorWarmAgentStatus::unsupported()
+        if self.config.warm_agent_configured() {
+            CloudHypervisorWarmAgentStatus::supported()
+        } else {
+            CloudHypervisorWarmAgentStatus::unsupported()
+        }
     }
 
     /// Enumerate the live persistent (snapshot-capable) handle ids this adapter
@@ -807,8 +876,16 @@ impl CloudHypervisorAdapter {
         idle_cpio: &str,
         serial_log: &str,
         agent_socket: &str,
+        warm_agent_guest_path: Option<&str>,
         memory_mib: u32,
     ) -> Result<Vec<String>, SandboxAdapterError> {
+        let cmdline = match warm_agent_guest_path {
+            Some(path) => {
+                validate_warm_agent_guest_path(path)?;
+                format!("console=hvc0 {CLOUD_HYPERVISOR_WARM_AGENT_CMDLINE_KEY}={path}")
+            }
+            None => "console=hvc0".to_string(),
+        };
         let mut args = vec![
             "-d".to_string(),
             self.config.distro.clone(),
@@ -821,7 +898,7 @@ impl CloudHypervisorAdapter {
             "--initramfs".to_string(),
             idle_cpio.to_string(),
             "--cmdline".to_string(),
-            "console=hvc0".to_string(),
+            cmdline,
             "--serial".to_string(),
             format!("socket={agent_socket}"),
             "--console".to_string(),
@@ -849,6 +926,7 @@ impl CloudHypervisorAdapter {
         idle_timeout_ms: Option<u64>,
         resource_limits: ResourceLimits,
         binds: Vec<BindRecord>,
+        warm_agent_guest_path: Option<String>,
     ) -> Result<ProcessHandle, SandboxAdapterError> {
         let vm_id = Uuid::now_v7().simple().to_string();
         let vm_root = format!("{}/persistent-{vm_id}", self.config.work_dir);
@@ -874,6 +952,7 @@ impl CloudHypervisorAdapter {
             &idle_cpio,
             &serial_log,
             &agent_socket,
+            warm_agent_guest_path.as_deref(),
             memory_mib,
         )?;
 
@@ -912,6 +991,7 @@ impl CloudHypervisorAdapter {
             agent_socket,
             serial_log,
             vm_root,
+            warm_agent_guest_path,
         };
         // Register the handle state FIRST (the fallible std-lock insert); only
         // after it succeeds do we park the retained CH child. If we parked the
@@ -1088,8 +1168,21 @@ impl SandboxAdapter for CloudHypervisorAdapter {
         if persistent {
             let idle_timeout_ms = persistent_idle_timeout_ms(&spec)?;
             let binds = persistent_bind_records_from_spec(&spec.binds)?;
+            let warm_agent_guest_path = spec
+                .metadata
+                .get(CLOUD_HYPERVISOR_WARM_AGENT_GUEST_PATH_METADATA_KEY)
+                .map(|value| {
+                    validate_warm_agent_guest_path(value)?;
+                    Ok::<String, SandboxAdapterError>(value.clone())
+                })
+                .transpose()?;
             return self
-                .spawn_persistent(idle_timeout_ms, spec.resource_limits.clone(), binds)
+                .spawn_persistent(
+                    idle_timeout_ms,
+                    spec.resource_limits.clone(),
+                    binds,
+                    warm_agent_guest_path,
+                )
                 .await;
         }
         if spec.idle_timeout_ms.is_some() {
@@ -1544,6 +1637,10 @@ impl SandboxAdapter for CloudHypervisorAdapter {
                 snap_ref.snapshot_dir
             )));
         }
+        if let Some(guest_path) = vm.warm_agent_guest_path.as_deref() {
+            write_warm_agent_snapshot_marker(&self.config, &snap_ref.snapshot_dir, guest_path)
+                .await?;
+        }
 
         Ok(snap_ref)
     }
@@ -1663,6 +1760,15 @@ impl SandboxAdapter for CloudHypervisorAdapter {
         }
         let restore_has_agent_socket =
             String::from_utf8_lossy(&prep.stdout).contains("HSK_RESTORE_AGENT_SOCKET=1");
+        let warm_agent_guest_path =
+            read_warm_agent_snapshot_marker(&self.config, &snapshot.snapshot_dir).await?;
+        if warm_agent_guest_path.is_some() && !restore_has_agent_socket {
+            let _ = remove_wsl_path(&self.config, &restore_root).await;
+            self.release_restore_reservation(handle.id);
+            return Err(snapshot_failed(
+                "warm-agent snapshot marker exists but restored snapshot config has no serial agent socket",
+            ));
+        }
         if let Err(error) = mark_vm_root_owned(&self.config, &restore_root).await {
             let _ = remove_wsl_path(&self.config, &restore_root).await;
             self.release_restore_reservation(handle.id);
@@ -1727,6 +1833,7 @@ impl SandboxAdapter for CloudHypervisorAdapter {
             },
             serial_log: restore_serial,
             vm_root: restore_root,
+            warm_agent_guest_path,
         };
 
         // Register handle state FIRST (fallible std-lock), then park the retained
@@ -1753,22 +1860,53 @@ impl SandboxAdapter for CloudHypervisorAdapter {
     async fn warm_agent_transport(
         &self,
         handle: &ProcessHandle,
-    ) -> Result<Arc<dyn crate::model_runtime::WarmAgentTransport>, SandboxAdapterError> {
+    ) -> Result<Arc<dyn WarmAgentTransport>, SandboxAdapterError> {
         self.ensure_handle(handle)?;
         let status = self.warm_agent_status();
-        Err(spawn_failed(format!(
-            "Cloud Hypervisor warm-agent transport unavailable: required_transport={}, \
-             persistent_exec_supported={}, warm_agent_supported={}, \
-             live_token_stream_supported={}, {}",
-            status.required_transport,
-            status.persistent_exec_supported,
-            status.warm_agent_supported,
-            status.live_token_stream_supported,
-            warm_agent_unavailable_detail()
-        )))
+        if !status.warm_agent_supported || !status.live_token_stream_supported {
+            return Err(spawn_failed(format!(
+                "Cloud Hypervisor warm-agent transport unavailable: required_transport={}, \
+                 persistent_exec_supported={}, warm_agent_supported={}, \
+                 live_token_stream_supported={}, {}",
+                status.required_transport,
+                status.persistent_exec_supported,
+                status.warm_agent_supported,
+                status.live_token_stream_supported,
+                warm_agent_unavailable_detail()
+            )));
+        }
+        let vm = self
+            .handles
+            .lock()
+            .map_err(|error| spawn_failed(format!("handle registry poisoned: {error}")))?
+            .get(&handle.id)
+            .and_then(|state| state.persistent.clone())
+            .ok_or_else(|| {
+                spawn_failed(
+                    "Cloud Hypervisor warm-agent transport requires a persistent VM handle",
+                )
+            })?;
+        if vm.agent_socket.trim().is_empty() {
+            return Err(spawn_failed(
+                "Cloud Hypervisor warm-agent transport requires a non-empty serial agent socket",
+            ));
+        }
+        let Some(_guest_path) = vm.warm_agent_guest_path.as_deref() else {
+            return Err(spawn_failed(
+                "Cloud Hypervisor warm-agent transport requires a persistent VM handle booted or restored with hsk.warm_agent",
+            ));
+        };
+        Ok(Arc::new(CloudHypervisorSerialWarmAgentTransport {
+            config: self.config.clone(),
+            agent_socket: vm.agent_socket,
+            vm_root: vm.vm_root,
+            handle_id: handle.id,
+            serial_lock: self.persistent_exec_lock_for(handle.id)?,
+        }))
     }
 
     fn capabilities(&self) -> AdapterCapabilities {
+        let warm_agent_configured = self.config.warm_agent_configured();
         AdapterCapabilities {
             adapter_id: AdapterId::new(CLOUD_HYPERVISOR_ADAPTER_ID),
             runtime_available: true,
@@ -1785,11 +1923,12 @@ impl SandboxAdapter for CloudHypervisorAdapter {
             supports_snapshot: true,
             // Persistent exec is served by the busybox serial-socket command
             // agent. Warm-model RPC and live token streaming still require a
-            // resident model-serving guest agent/image, so advertise only the
-            // generic command channel here.
+            // resident model-serving guest agent/image. Operators opt into that
+            // path by configuring HANDSHAKE_CH_WARM_AGENT_HOST_PATH; without it
+            // the adapter advertises only the generic command channel.
             supports_persistent_exec: true,
-            supports_warm_agent: false,
-            supports_live_token_stream: false,
+            supports_warm_agent: warm_agent_configured,
+            supports_live_token_stream: warm_agent_configured,
         }
     }
 }
@@ -2262,6 +2401,27 @@ fn validate_persistent_guest_path(guest_path: &Path) -> Result<String, SandboxAd
     Ok(rel)
 }
 
+fn validate_warm_agent_guest_path(path: &str) -> Result<(), SandboxAdapterError> {
+    let trimmed = path.trim();
+    if trimmed != path || trimmed.is_empty() || !trimmed.starts_with('/') {
+        return Err(spawn_failed(
+            "warm-agent guest path must be an absolute path with no surrounding whitespace",
+        ));
+    }
+    if trimmed.chars().any(char::is_whitespace) {
+        return Err(spawn_failed(
+            "warm-agent guest path must not contain whitespace",
+        ));
+    }
+    let rel = validate_guest_path(Path::new(trimmed))?;
+    if rel.starts_with("tmp/") || rel == "tmp" {
+        return Err(spawn_failed(
+            "warm-agent guest path must not live under /tmp",
+        ));
+    }
+    Ok(())
+}
+
 /// Translate a Windows host path to its WSL `/mnt/<drive>/...` mount path so the
 /// per-exec initramfs build (which runs inside WSL) can read host data. A path
 /// that already looks like a POSIX path (starts with `/`) is returned as-is so
@@ -2550,6 +2710,433 @@ async fn run_serial_agent_rpc(
         ));
     }
     Ok(line)
+}
+
+#[derive(Clone)]
+struct CloudHypervisorSerialWarmAgentTransport {
+    config: CloudHypervisorConfig,
+    agent_socket: String,
+    vm_root: String,
+    handle_id: Uuid,
+    serial_lock: Arc<tokio::sync::Mutex<()>>,
+}
+
+#[async_trait]
+impl WarmAgentTransport for CloudHypervisorSerialWarmAgentTransport {
+    async fn load_model(
+        &self,
+        frame: WarmAgentHostFrame,
+    ) -> Result<WarmAgentGuestFrame, WarmVmTransportError> {
+        let request_id = match &frame {
+            WarmAgentHostFrame::Load { request_id, .. } => request_id.clone(),
+            _ => {
+                return Err(WarmVmTransportError::Transport(
+                    "warm-agent load_model requires a load frame".to_string(),
+                ))
+            }
+        };
+        let encoded = encode_warm_agent_frame(&frame)?;
+        let timeout_ms = self.config.command_timeout_ms();
+        let _guard =
+            tokio::time::timeout(Duration::from_millis(timeout_ms), self.serial_lock.lock())
+                .await
+                .map_err(|_| {
+                    WarmVmTransportError::Transport(format!(
+                "warm-agent serial channel is busy for handle {}; timed out waiting for load",
+                self.handle_id
+            ))
+                })?;
+        let output = run_warm_serial_agent_rpc(
+            &self.config,
+            &self.agent_socket,
+            "load",
+            &request_id,
+            Bytes::from(encoded),
+            timeout_ms,
+            self.handle_id,
+        )
+        .await
+        .map_err(|error| WarmVmTransportError::Transport(error.to_string()))?;
+        decode_first_warm_frame(&output)
+    }
+
+    fn generate(&self, request: WarmAgentGenerateRequest) -> WarmAgentFrameStream {
+        let (sender, receiver) = tokio::sync::mpsc::unbounded_channel::<
+            Result<WarmAgentGuestFrame, WarmVmTransportError>,
+        >();
+        let encoded = match encode_warm_agent_frame(&WarmAgentHostFrame::Generate {
+            request: request.clone(),
+        }) {
+            Ok(encoded) => encoded,
+            Err(error) => {
+                return Box::pin(futures::stream::iter([Err(
+                    WarmVmTransportError::Protocol(error),
+                )]))
+            }
+        };
+        let cancel_path = warm_agent_cancel_path(&self.vm_root, &request.request_id);
+        let task = WarmSerialStreamTask {
+            config: self.config.clone(),
+            agent_socket: self.agent_socket.clone(),
+            request_id: request.request_id,
+            payload: Bytes::from(encoded),
+            timeout_ms: self.config.command_timeout_ms(),
+            handle_id: self.handle_id,
+            cancel_path,
+            serial_lock: Arc::clone(&self.serial_lock),
+            sender,
+        };
+        tokio::spawn(run_warm_serial_agent_stream(task));
+        Box::pin(futures::stream::unfold(receiver, |mut receiver| async {
+            receiver.recv().await.map(|item| (item, receiver))
+        }))
+    }
+
+    async fn cancel(&self, request_id: &str) -> Result<(), WarmVmTransportError> {
+        let cancel_path = warm_agent_cancel_path(&self.vm_root, request_id);
+        let script = format!(
+            "mkdir -p {root}; : > {path}",
+            root = sh_quote_wsl(&self.vm_root),
+            path = sh_quote_wsl(&cancel_path)
+        );
+        let output = run_wsl_sh(&self.config, &script, PROBE_TIMEOUT_MS)
+            .await
+            .map_err(|error| WarmVmTransportError::Transport(error.to_string()))?;
+        if output.exit_code != 0 {
+            return Err(WarmVmTransportError::Transport(format!(
+                "warm-agent cancel signal failed (exit {}): {}",
+                output.exit_code,
+                output.stderr_text()
+            )));
+        }
+        Ok(())
+    }
+
+    async fn shutdown(&self) -> Result<(), WarmVmTransportError> {
+        Ok(())
+    }
+}
+
+struct WarmSerialStreamTask {
+    config: CloudHypervisorConfig,
+    agent_socket: String,
+    request_id: String,
+    payload: Bytes,
+    timeout_ms: u64,
+    handle_id: Uuid,
+    cancel_path: String,
+    serial_lock: Arc<tokio::sync::Mutex<()>>,
+    sender: tokio::sync::mpsc::UnboundedSender<Result<WarmAgentGuestFrame, WarmVmTransportError>>,
+}
+
+async fn run_warm_serial_agent_stream(task: WarmSerialStreamTask) {
+    let _guard = match tokio::time::timeout(
+        Duration::from_millis(task.timeout_ms),
+        task.serial_lock.lock(),
+    )
+    .await
+    {
+        Ok(guard) => guard,
+        Err(_) => {
+            let _ = task
+                .sender
+                .send(Err(WarmVmTransportError::Transport(format!(
+                "warm-agent serial channel is busy for handle {}; timed out waiting for generate",
+                task.handle_id
+            ))));
+            return;
+        }
+    };
+    let mut child = match spawn_warm_serial_bridge(
+        &task.config,
+        &task.agent_socket,
+        "generate",
+        &task.request_id,
+        Some(&task.cancel_path),
+        task.timeout_ms,
+        task.payload,
+        task.handle_id,
+    )
+    .await
+    {
+        Ok(child) => child,
+        Err(error) => {
+            let _ = task
+                .sender
+                .send(Err(WarmVmTransportError::Transport(error.to_string())));
+            return;
+        }
+    };
+    let Some(stdout) = child.stdout.take() else {
+        let _ = child.kill().await;
+        let _ = task.sender.send(Err(WarmVmTransportError::Transport(
+            "warm-agent bridge stdout missing".to_string(),
+        )));
+        return;
+    };
+    let mut lines = BufReader::new(stdout).lines();
+    loop {
+        match lines.next_line().await {
+            Ok(Some(line)) => match decode_warm_agent_frame::<WarmAgentGuestFrame>(&line) {
+                Ok(frame) => {
+                    if task.sender.send(Ok(frame)).is_err() {
+                        let _ = child.kill().await;
+                        return;
+                    }
+                }
+                Err(error) => {
+                    let _ = child.kill().await;
+                    let _ = task.sender.send(Err(WarmVmTransportError::Protocol(error)));
+                    return;
+                }
+            },
+            Ok(None) => break,
+            Err(error) => {
+                let _ = child.kill().await;
+                let _ = task
+                    .sender
+                    .send(Err(WarmVmTransportError::Transport(format!(
+                        "warm-agent bridge stdout read failed: {error}"
+                    ))));
+                return;
+            }
+        }
+    }
+    match child.wait().await {
+        Ok(status) if status.success() => {}
+        Ok(status) => {
+            let _ = task
+                .sender
+                .send(Err(WarmVmTransportError::Transport(format!(
+                    "warm-agent bridge exited non-zero for request {}: {}",
+                    task.request_id, status
+                ))));
+        }
+        Err(error) => {
+            let _ = task
+                .sender
+                .send(Err(WarmVmTransportError::Transport(format!(
+                    "warm-agent bridge wait failed for request {}: {error}",
+                    task.request_id
+                ))));
+        }
+    }
+}
+
+async fn run_warm_serial_agent_rpc(
+    config: &CloudHypervisorConfig,
+    agent_socket: &str,
+    mode: &str,
+    request_id: &str,
+    payload: Bytes,
+    timeout_ms: u64,
+    handle_id: Uuid,
+) -> Result<String, SandboxAdapterError> {
+    let output = run_warm_serial_bridge_command(
+        config,
+        agent_socket,
+        mode,
+        request_id,
+        None,
+        timeout_ms,
+        payload,
+        handle_id,
+    )
+    .await?;
+    if output.exit_code != 0 {
+        return Err(spawn_failed(format!(
+            "warm-agent serial bridge failed (exit {}): {}",
+            output.exit_code,
+            output.stderr_text()
+        )));
+    }
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    stdout
+        .lines()
+        .find(|line| !line.trim().is_empty())
+        .map(|line| line.to_string())
+        .ok_or_else(|| spawn_failed("warm-agent serial bridge returned no response"))
+}
+
+fn decode_first_warm_frame(line: &str) -> Result<WarmAgentGuestFrame, WarmVmTransportError> {
+    decode_warm_agent_frame::<WarmAgentGuestFrame>(line).map_err(WarmVmTransportError::Protocol)
+}
+
+fn warm_agent_cancel_path(vm_root: &str, request_id: &str) -> String {
+    format!(
+        "{}/warm-cancel-{}",
+        vm_root.trim_end_matches('/'),
+        request_id
+    )
+}
+
+const WARM_AGENT_SERIAL_BRIDGE_PY: &str = r#"
+import json
+import os
+import select
+import socket
+import sys
+import time
+
+path = sys.argv[1]
+mode = sys.argv[2]
+request_id = sys.argv[3]
+timeout_ms = int(sys.argv[4])
+cancel_path = sys.argv[5]
+max_frame_bytes = int(sys.argv[6])
+payload = sys.stdin.buffer.read()
+if len(payload) > max_frame_bytes:
+    sys.stderr.write("warm-agent request exceeded max frame bytes for " + request_id + "\n")
+    sys.exit(125)
+
+deadline = time.monotonic() + (timeout_ms / 1000.0)
+sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+sock.settimeout(min(5.0, max(0.1, timeout_ms / 1000.0)))
+sock.connect(path)
+sock.setblocking(False)
+sock.sendall(payload)
+buf = b""
+cancel_sent = False
+
+def maybe_send_cancel():
+    global cancel_sent
+    if cancel_sent or cancel_path == "-":
+        return
+    if not os.path.exists(cancel_path):
+        return
+    frame = json.dumps({"type": "cancel", "request_id": request_id}, separators=(",", ":")).encode("utf-8") + b"\n"
+    sock.sendall(frame)
+    cancel_sent = True
+
+def terminal(line_bytes):
+    try:
+        frame = json.loads(line_bytes.decode("utf-8"))
+    except Exception:
+        return False
+    frame_type = frame.get("type")
+    frame_request = frame.get("request_id")
+    if frame_type == "error" and (frame_request in (None, request_id)):
+        return True
+    if mode == "load":
+        return frame_type == "ready"
+    if mode == "generate":
+        return frame_type == "complete" and frame_request == request_id
+    return False
+
+while time.monotonic() < deadline:
+    maybe_send_cancel()
+    remaining = max(0.0, deadline - time.monotonic())
+    ready, _, _ = select.select([sock], [], [], min(0.1, remaining))
+    if not ready:
+        continue
+    chunk = sock.recv(4096)
+    if not chunk:
+        break
+    buf += chunk
+    if len(buf) > max_frame_bytes:
+        sys.stderr.write("warm-agent response exceeded max frame bytes for " + request_id + "\n")
+        sys.exit(125)
+    while b"\n" in buf:
+        line, buf = buf.split(b"\n", 1)
+        if len(line) > max_frame_bytes:
+            sys.stderr.write("warm-agent response line exceeded max frame bytes for " + request_id + "\n")
+            sys.exit(125)
+        sys.stdout.buffer.write(line + b"\n")
+        sys.stdout.buffer.flush()
+        if terminal(line):
+            sys.exit(0)
+
+sys.stderr.write("timed out waiting for warm-agent " + mode + " response for " + request_id + "\n")
+sys.exit(124)
+"#;
+
+async fn spawn_warm_serial_bridge(
+    config: &CloudHypervisorConfig,
+    agent_socket: &str,
+    mode: &str,
+    request_id: &str,
+    cancel_path: Option<&str>,
+    timeout_ms: u64,
+    payload: Bytes,
+    handle_id: Uuid,
+) -> Result<Child, SandboxAdapterError> {
+    let args = vec![
+        "-d".to_string(),
+        config.distro.clone(),
+        "-e".to_string(),
+        "python3".to_string(),
+        "-u".to_string(),
+        "-c".to_string(),
+        WARM_AGENT_SERIAL_BRIDGE_PY.to_string(),
+        agent_socket.to_string(),
+        mode.to_string(),
+        request_id.to_string(),
+        timeout_ms.to_string(),
+        cancel_path.unwrap_or("-").to_string(),
+        WARM_AGENT_MAX_FRAME_BYTES.to_string(),
+    ];
+    let mut command = TokioCommand::new(config.wsl_exe());
+    command
+        .args(args)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .kill_on_drop(true);
+    hide_command_window(&mut command);
+    let mut child = command
+        .spawn()
+        .map_err(|error| SandboxAdapterError::AdapterUnavailable {
+            adapter_id: AdapterId::new(CLOUD_HYPERVISOR_ADAPTER_ID),
+            reason: format!(
+                "failed to spawn warm-agent bridge via `{}`: {error}",
+                config.wsl_exe().to_string_lossy()
+            ),
+        })?;
+    if let Some(mut stdin) = child.stdin.take() {
+        stdin.write_all(&payload).await.map_err(|error| {
+            spawn_failed(format!("warm-agent bridge stdin write failed: {error}"))
+        })?;
+        stdin.shutdown().await.map_err(|error| {
+            spawn_failed(format!("warm-agent bridge stdin close failed: {error}"))
+        })?;
+    }
+    let _ = handle_id;
+    Ok(child)
+}
+
+async fn run_warm_serial_bridge_command(
+    config: &CloudHypervisorConfig,
+    agent_socket: &str,
+    mode: &str,
+    request_id: &str,
+    cancel_path: Option<&str>,
+    timeout_ms: u64,
+    payload: Bytes,
+    handle_id: Uuid,
+) -> Result<CliOutput, SandboxAdapterError> {
+    let args = vec![
+        "-d".to_string(),
+        config.distro.clone(),
+        "-e".to_string(),
+        "python3".to_string(),
+        "-u".to_string(),
+        "-c".to_string(),
+        WARM_AGENT_SERIAL_BRIDGE_PY.to_string(),
+        agent_socket.to_string(),
+        mode.to_string(),
+        request_id.to_string(),
+        timeout_ms.to_string(),
+        cancel_path.unwrap_or("-").to_string(),
+        WARM_AGENT_MAX_FRAME_BYTES.to_string(),
+    ];
+    run_host_command(
+        config.wsl_exe(),
+        &args,
+        Some(payload),
+        Some(timeout_ms.saturating_add(PROBE_TIMEOUT_MS)),
+        handle_id,
+    )
+    .await
 }
 
 fn encode_serial_agent_bridge_frame_arg(frame: &str) -> Result<String, SandboxAdapterError> {
@@ -2850,6 +3437,77 @@ fn snapshot_failed(reason: impl ToString) -> SandboxAdapterError {
         adapter_id: AdapterId::new(CLOUD_HYPERVISOR_ADAPTER_ID),
         reason: reason.to_string(),
     }
+}
+
+async fn write_warm_agent_snapshot_marker(
+    config: &CloudHypervisorConfig,
+    snapshot_dir: &str,
+    guest_path: &str,
+) -> Result<(), SandboxAdapterError> {
+    validate_warm_agent_guest_path(guest_path)
+        .map_err(|error| snapshot_failed(format!("invalid warm-agent snapshot marker: {error}")))?;
+    let marker = format!(
+        "{}/{}",
+        snapshot_dir.trim_end_matches('/'),
+        WARM_AGENT_SNAPSHOT_MARKER_FILE
+    );
+    let output = run_wsl_sh(
+        config,
+        &format!(
+            "printf '%s\\n' {path} > {marker} && echo HSK_WARM_AGENT_MARKER_OK",
+            path = sh_quote_wsl(guest_path),
+            marker = sh_quote_wsl(&marker)
+        ),
+        PROBE_TIMEOUT_MS,
+    )
+    .await?;
+    if output.exit_code != 0
+        || !String::from_utf8_lossy(&output.stdout).contains("HSK_WARM_AGENT_MARKER_OK")
+    {
+        return Err(snapshot_failed(format!(
+            "failed to write warm-agent snapshot marker `{marker}` (exit {}): {}",
+            output.exit_code,
+            output.stderr_text()
+        )));
+    }
+    Ok(())
+}
+
+async fn read_warm_agent_snapshot_marker(
+    config: &CloudHypervisorConfig,
+    snapshot_dir: &str,
+) -> Result<Option<String>, SandboxAdapterError> {
+    let marker = format!(
+        "{}/{}",
+        snapshot_dir.trim_end_matches('/'),
+        WARM_AGENT_SNAPSHOT_MARKER_FILE
+    );
+    let output = run_wsl_sh(
+        config,
+        &format!(
+            "if test -f {marker}; then cat {marker}; fi",
+            marker = sh_quote_wsl(&marker)
+        ),
+        PROBE_TIMEOUT_MS,
+    )
+    .await?;
+    if output.exit_code != 0 {
+        return Err(snapshot_failed(format!(
+            "failed to read warm-agent snapshot marker `{marker}` (exit {}): {}",
+            output.exit_code,
+            output.stderr_text()
+        )));
+    }
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let Some(line) = stdout.lines().find(|line| !line.is_empty()) else {
+        return Ok(None);
+    };
+    validate_warm_agent_guest_path(line).map_err(|error| {
+        snapshot_failed(format!(
+            "invalid warm-agent snapshot marker `{marker}` value: {error}"
+        ))
+    })?;
+    Ok(Some(line.to_string()))
 }
 
 fn unavailable(reason: impl ToString) -> SandboxAdapterError {
@@ -3216,6 +3874,7 @@ mod tests {
             agent_socket: "/work/persistent-test/agent.sock".to_string(),
             serial_log: "/work/persistent-test/serial.log".to_string(),
             vm_root: "/work/persistent-test".to_string(),
+            warm_agent_guest_path: None,
         });
         adapter.handles.lock().unwrap().insert(handle.id, state);
 
@@ -3302,6 +3961,33 @@ mod tests {
     }
 
     #[test]
+    fn capabilities_advertise_warm_agent_only_when_configured() {
+        let mut adapter = CloudHypervisorAdapter::new_for_test();
+        adapter.config = adapter
+            .config
+            .clone()
+            .with_warm_agent_host_path("/host/bin/hsk-warm-agent");
+
+        let caps = adapter.capabilities();
+        assert!(
+            caps.supports_warm_agent,
+            "configured resident agent path should opt into warm-model RPC"
+        );
+        assert!(
+            caps.supports_live_token_stream,
+            "configured resident agent path should opt into live warm frames"
+        );
+
+        let status = adapter.warm_agent_status();
+        assert!(status.warm_agent_supported);
+        assert!(status.live_token_stream_supported);
+        assert!(
+            status.unavailable_reason.is_none(),
+            "supported warm-agent status should not carry stale unsupported text"
+        );
+    }
+
+    #[test]
     fn warm_agent_status_is_machine_readable_and_fail_closed() {
         let adapter = CloudHypervisorAdapter::new_for_test();
         let status = adapter.warm_agent_status();
@@ -3343,6 +4029,7 @@ mod tests {
                 "/work/vm/idle.cpio",
                 "/work/vm/serial.log",
                 "/work/vm/agent.sock",
+                None,
                 256,
             )
             .expect("persistent boot args");
@@ -3370,6 +4057,42 @@ mod tests {
     }
 
     #[test]
+    fn persistent_boot_args_can_opt_into_configured_warm_agent() {
+        let adapter = CloudHypervisorAdapter::new_for_test();
+        let args = adapter
+            .persistent_boot_args(
+                "/work/vm/ch.sock",
+                "/work/vm/idle.cpio",
+                "/work/vm/serial.log",
+                "/work/vm/agent.sock",
+                Some("/warm-agent/hsk-warm-agent"),
+                256,
+            )
+            .expect("persistent boot args");
+
+        assert!(args.windows(2).any(|pair| {
+            pair[0] == "--cmdline"
+                && pair[1] == "console=hvc0 hsk.warm_agent=/warm-agent/hsk-warm-agent"
+        }));
+    }
+
+    #[test]
+    fn persistent_boot_args_reject_invalid_warm_agent_guest_path() {
+        let adapter = CloudHypervisorAdapter::new_for_test();
+        let err = adapter
+            .persistent_boot_args(
+                "/work/vm/ch.sock",
+                "/work/vm/idle.cpio",
+                "/work/vm/serial.log",
+                "/work/vm/agent.sock",
+                Some("/tmp/hsk-warm-agent"),
+                256,
+            )
+            .expect_err("warm agent must not be launched from /tmp");
+        assert!(format!("{err}").contains("must not live under /tmp"));
+    }
+
+    #[test]
     fn serial_agent_bridge_enforces_frame_bound_before_buffering_forever() {
         assert!(SERIAL_AGENT_BRIDGE_PY.contains("MAX_FRAME_BYTES = 1024 * 1024"));
         assert!(SERIAL_AGENT_BRIDGE_PY.contains("base64.b64decode(sys.argv[4]"));
@@ -3379,6 +4102,24 @@ mod tests {
         assert!(SERIAL_AGENT_BRIDGE_PY.contains("len(payload) > MAX_FRAME_BYTES"));
         assert!(SERIAL_AGENT_BRIDGE_PY.contains("len(buf) > MAX_FRAME_BYTES"));
         assert!(SERIAL_AGENT_BRIDGE_PY.contains("guest channel response exceeded max frame bytes"));
+    }
+
+    #[test]
+    fn warm_agent_bridge_uses_stdin_payload_and_live_cancel_polling() {
+        assert!(WARM_AGENT_SERIAL_BRIDGE_PY.contains("sys.stdin.buffer.read()"));
+        assert!(WARM_AGENT_SERIAL_BRIDGE_PY.contains("max_frame_bytes = int(sys.argv[6])"));
+        assert!(WARM_AGENT_SERIAL_BRIDGE_PY.contains("os.path.exists(cancel_path)"));
+        assert!(WARM_AGENT_SERIAL_BRIDGE_PY.contains("\"type\": \"cancel\""));
+        assert!(WARM_AGENT_SERIAL_BRIDGE_PY.contains("frame_type == \"complete\""));
+    }
+
+    #[test]
+    fn init_script_runs_warm_agent_only_when_cmdline_configured() {
+        assert!(AGENT_INIT_SCRIPT.contains("hsk.warm_agent"));
+        assert!(AGENT_INIT_SCRIPT.contains("HSK_WARM_AGENT_TRANSPORT=serial"));
+        assert!(AGENT_INIT_SCRIPT.contains("exec \"$warm_agent\" <&3 >&3"));
+        assert!(AGENT_INIT_SCRIPT.contains("agent_loop()"));
+        assert!(AGENT_INIT_SCRIPT.contains("HSK-EXEC"));
     }
 
     #[test]
@@ -3403,6 +4144,7 @@ mod tests {
             agent_socket: String::new(),
             serial_log: "/work/persistent-test/serial.log".to_string(),
             vm_root: "/work/persistent-test".to_string(),
+            warm_agent_guest_path: None,
         });
         adapter.handles.lock().unwrap().insert(handle.id, state);
 
@@ -3684,6 +4426,66 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn warm_agent_transport_rejects_cold_persistent_command_handle() {
+        let mut adapter = CloudHypervisorAdapter::new_for_test();
+        adapter.config = adapter
+            .config
+            .clone()
+            .with_warm_agent_host_path("/host/bin/hsk-warm-agent");
+        let handle = ProcessHandle::new(
+            AdapterId::new(CLOUD_HYPERVISOR_ADAPTER_ID),
+            None,
+            "hsk-ch-persistent-cold-command-handle",
+        );
+        let mut state = HandleState::default();
+        state.persistent = Some(PersistentVm {
+            api_socket: "/work/persistent-test/api.sock".to_string(),
+            agent_socket: "/work/persistent-test/agent.sock".to_string(),
+            serial_log: "/work/persistent-test/serial.log".to_string(),
+            vm_root: "/work/persistent-test".to_string(),
+            warm_agent_guest_path: None,
+        });
+        adapter.handles.lock().unwrap().insert(handle.id, state);
+
+        let err = match adapter.warm_agent_transport(&handle).await {
+            Ok(_) => panic!("cold command-channel handle must not expose warm transport"),
+            Err(error) => error,
+        };
+        assert!(
+            format!("{err}").contains("booted or restored with hsk.warm_agent"),
+            "{err}"
+        );
+    }
+
+    #[tokio::test]
+    async fn warm_agent_transport_accepts_warm_boot_provenance() {
+        let mut adapter = CloudHypervisorAdapter::new_for_test();
+        adapter.config = adapter
+            .config
+            .clone()
+            .with_warm_agent_host_path("/host/bin/hsk-warm-agent");
+        let handle = ProcessHandle::new(
+            AdapterId::new(CLOUD_HYPERVISOR_ADAPTER_ID),
+            None,
+            "hsk-ch-persistent-warm-command-handle",
+        );
+        let mut state = HandleState::default();
+        state.persistent = Some(PersistentVm {
+            api_socket: "/work/persistent-test/api.sock".to_string(),
+            agent_socket: "/work/persistent-test/agent.sock".to_string(),
+            serial_log: "/work/persistent-test/serial.log".to_string(),
+            vm_root: "/work/persistent-test".to_string(),
+            warm_agent_guest_path: Some("/warm-agent/hsk-warm-agent".to_string()),
+        });
+        adapter.handles.lock().unwrap().insert(handle.id, state);
+
+        adapter
+            .warm_agent_transport(&handle)
+            .await
+            .expect("warm-provenance handle exposes warm transport");
+    }
+
+    #[tokio::test]
     async fn oversized_persistent_exec_frame_does_not_kill_healthy_vm() {
         let adapter = CloudHypervisorAdapter::new_for_test();
         let handle = ProcessHandle::new(
@@ -3697,6 +4499,7 @@ mod tests {
             agent_socket: "/work/persistent-test/agent.sock".to_string(),
             serial_log: "/work/persistent-test/serial.log".to_string(),
             vm_root: "/work/persistent-test".to_string(),
+            warm_agent_guest_path: None,
         });
         adapter.handles.lock().unwrap().insert(handle.id, state);
 
@@ -3747,6 +4550,7 @@ mod tests {
             vcpus: DEFAULT_VCPUS,
             command_timeout_ms: DEFAULT_COMMAND_TIMEOUT_MS,
             balloon: CloudHypervisorBalloonConfig::disabled(),
+            warm_agent_host_path: None,
         };
         assert_eq!(config.memory_mib(), 256);
         assert_eq!(config.vcpus(), 1);
