@@ -385,7 +385,11 @@ impl RoutingPolicy {
         // caller force-pinned local (data-residency), which is non-negotiable.
         let escalate = req.local_outcome.is_some() && req.class != TaskClass::ForceLocal;
         let natural_tier = self.classify(req);
-        let target_tier = if escalate { TaskTier::Cloud } else { natural_tier };
+        let target_tier = if escalate {
+            TaskTier::Cloud
+        } else {
+            natural_tier
+        };
 
         match target_tier {
             TaskTier::Local => self.route_local_then_maybe_cloud(req, now),
@@ -745,10 +749,7 @@ mod tests {
             }
         }
         let err = p.route(&base, now).unwrap_err();
-        assert!(matches!(
-            err,
-            SwarmRoutingError::AllLanesSuppressed { .. }
-        ));
+        assert!(matches!(err, SwarmRoutingError::AllLanesSuppressed { .. }));
     }
 
     #[test]
@@ -799,10 +800,7 @@ mod tests {
         // (which would normally be local) falls back to cloud.
         let base = req(TaskClass::Routine);
         for _ in 0..5 {
-            let _ = p.route(
-                &base.clone().with_local_outcome(LocalOutcome::Failed),
-                now,
-            );
+            let _ = p.route(&base.clone().with_local_outcome(LocalOutcome::Failed), now);
         }
         // A fresh routine request (no outcome) now finds local suppressed and
         // routes cloud.

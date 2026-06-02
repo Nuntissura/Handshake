@@ -68,9 +68,8 @@ pub use events::{
     BroadcastSwarmSink, DurableSwarmFrBridge, FanoutSwarmSink, FlightRecorderSwarmSink,
     RecordingSwarmSink, SwarmEvent, SwarmEventSink, SwarmFrEventId,
 };
-pub use schedule::{schedules_to_ics, ScheduledAction, ScheduledFire, SwarmSchedule, SwarmScheduler};
 pub use factory::{LiveSession, ModelSessionFactory, SessionTeardown};
-pub use ids::{BudgetRemaining, ModelInstanceId, RunBudget, SpawnRequest};
+pub use ids::{BudgetRemaining, ByokCloudProvider, ModelInstanceId, RunBudget, SpawnRequest};
 pub use production_factory::{
     build_production_swarm_coordinator, default_swarm_concurrency, CloudLaneFactoryConfig,
     CloudLiveRuntime, CloudProviderFlavor, CloudRuntimeBuilder, ProductionModelSessionFactory,
@@ -78,6 +77,9 @@ pub use production_factory::{
 };
 pub use routing::{
     RoutingDecision, RoutingPolicy, RoutingPolicyConfig, SwarmRoutingError, TaskClass, TaskTier,
+};
+pub use schedule::{
+    schedules_to_ics, ScheduledAction, ScheduledFire, SwarmSchedule, SwarmScheduler,
 };
 pub use state::ModelSessionState;
 pub use worktree_vm_registry::{WorktreeVmError, WorktreeVmRegistry};

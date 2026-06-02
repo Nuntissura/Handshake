@@ -57,11 +57,7 @@ impl FailureFingerprint {
         let digest = hasher.finalize();
         // 16 hex chars (64 bits) is ample to avoid collisions across the
         // handful of distinct failure classes a run will produce.
-        let hex: String = digest
-            .iter()
-            .take(8)
-            .map(|b| format!("{b:02x}"))
-            .collect();
+        let hex: String = digest.iter().take(8).map(|b| format!("{b:02x}")).collect();
         Self(hex)
     }
 
@@ -315,10 +311,7 @@ mod tests {
         assert!(!b.record_failure(&s, now));
         assert!(b.record_failure(&s, now)); // third trips
         assert_eq!(b.state_of(&s), BreakerState::Open);
-        assert!(matches!(
-            b.admit(&s, now),
-            AdmitDecision::Suppress { .. }
-        ));
+        assert!(matches!(b.admit(&s, now), AdmitDecision::Suppress { .. }));
     }
 
     #[test]

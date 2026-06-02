@@ -27,7 +27,6 @@ use serde_json::json;
 use crate::flight_recorder::{FlightRecorderActor, FlightRecorderEvent, FlightRecorderEventType};
 use uuid::Uuid;
 
-use super::breaker::FailureFingerprint;
 use super::ids::ModelInstanceId;
 use super::state::ModelSessionState;
 
@@ -118,6 +117,8 @@ pub enum SwarmEvent {
         instance_id: ModelInstanceId,
         parent_session_id: String,
         process_uuid: Uuid,
+        swarm_id: Option<String>,
+        worktree_id: Option<String>,
     },
     SessionReady {
         instance_id: ModelInstanceId,
@@ -258,6 +259,8 @@ where
                 instance_id,
                 parent_session_id,
                 process_uuid,
+                swarm_id,
+                worktree_id,
             } => (
                 json!({
                     "fr_event_id": fr_id,
@@ -265,6 +268,8 @@ where
                     "instance": instance_id.instance,
                     "parent_session_id": parent_session_id,
                     "process_uuid": process_uuid.to_string(),
+                    "swarm_id": swarm_id,
+                    "worktree_id": worktree_id,
                 }),
                 Some(instance_id.model_id.to_string()),
             ),
@@ -540,7 +545,10 @@ mod tests {
             "FR-EVT-SWARM-SCHED-SPINUP-FIRED",
             "FR-EVT-SWARM-SCHED-TEARDOWN-FIRED",
         ] {
-            assert!(ids.contains(expected), "missing FR-EVT-SWARM id: {expected}");
+            assert!(
+                ids.contains(expected),
+                "missing FR-EVT-SWARM id: {expected}"
+            );
         }
         // Every canonical string is unique (no two variants collide).
         assert_eq!(
@@ -563,11 +571,44 @@ mod tests {
         sink.emit(SwarmEvent::SessionReady { instance_id: iid });
         let events = captured.lock().unwrap();
         assert_eq!(events.len(), 1);
-        events[0].validate().expect("emitted FR event must validate");
+        events[0]
+            .validate()
+            .expect("emitted FR event must validate");
         assert_eq!(
             events[0].payload["fr_event_id"],
             "FR-EVT-SWARM-SESSION-READY"
         );
+    }
+
+    #[test]
+    fn flight_recorder_spawn_payload_carries_grouping_for_replay_search() {
+        let captured: std::sync::Arc<Mutex<Vec<FlightRecorderEvent>>> =
+            std::sync::Arc::new(Mutex::new(Vec::new()));
+        let cap2 = captured.clone();
+        let sink = FlightRecorderSwarmSink::new(Uuid::now_v7(), move |e| {
+            cap2.lock().unwrap().push(e);
+        });
+        let model_id = crate::model_runtime::ModelId::new_v7();
+        let iid = ModelInstanceId::new(model_id, 4);
+        sink.emit(SwarmEvent::SessionSpawned {
+            instance_id: iid,
+            parent_session_id: "parent-1".to_string(),
+            process_uuid: Uuid::now_v7(),
+            swarm_id: Some("swarm-alpha".to_string()),
+            worktree_id: Some("wt-recovery-1".to_string()),
+        });
+
+        let events = captured.lock().unwrap();
+        assert_eq!(events.len(), 1);
+        events[0]
+            .validate()
+            .expect("emitted FR event must validate");
+        assert_eq!(
+            events[0].payload["fr_event_id"],
+            "FR-EVT-SWARM-SESSION-SPAWNED"
+        );
+        assert_eq!(events[0].payload["swarm_id"], "swarm-alpha");
+        assert_eq!(events[0].payload["worktree_id"], "wt-recovery-1");
     }
 
     /// Deterministic in-process recorder so the bridge test runs in default CI
@@ -627,11 +668,10 @@ mod tests {
         // The swarm event was durably recorded into the recorder.
         let events = collected.lock().unwrap();
         assert!(
-            events.iter().any(|e| e
-                .payload
-                .get("fr_event_id")
-                .and_then(|v| v.as_str())
-                == Some("FR-EVT-SWARM-SESSION-READY")),
+            events
+                .iter()
+                .any(|e| e.payload.get("fr_event_id").and_then(|v| v.as_str())
+                    == Some("FR-EVT-SWARM-SESSION-READY")),
             "the swarm SessionReady event must be durably recorded; got {} events",
             events.len()
         );
