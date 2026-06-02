@@ -18,14 +18,15 @@
 //! # Persistent-VM + snapshot/restore model
 //!
 //! Selecting [`SANDBOX_MODE_PERSISTENT`] via the [`SANDBOX_MODE_METADATA_KEY`]
-//! spec metadata switches `spawn` to a long-lived idle microVM driven over a
-//! Cloud Hypervisor API socket (it loops, never powers off). Such handles
-//! support [`SandboxAdapter::snapshot`] (`ch-remote pause` + `snapshot`) and
+//! spec metadata switches `spawn` to a long-lived microVM driven over a Cloud
+//! Hypervisor API socket (it loops, never powers off) plus a serial-socket
+//! command agent. Such handles support [`SandboxAdapter::exec`] over that guest
+//! agent, [`SandboxAdapter::snapshot`] (`ch-remote pause` + `snapshot`), and
 //! [`SandboxAdapter::restore`] (`--restore … resume=true`), which resume a
 //! captured VM from its in-RAM state (not a reboot) — the foundation of the
-//! validate-then-promote flow (Master Spec v02.187 §3.5.7 #7). `exec` on a
-//! persistent handle currently fails closed (it needs a vsock guest agent, out
-//! of scope); use the ephemeral path for `exec`.
+//! validate-then-promote flow (Master Spec v02.187 §3.5.7 #7). Warm model RPC
+//! and live token streaming still require a resident model-serving guest agent
+//! or image; this layer only provides the generic command channel.
 //!
 //! # Environment / host dependencies
 //!

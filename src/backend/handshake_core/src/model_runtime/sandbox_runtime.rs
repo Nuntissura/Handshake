@@ -9,11 +9,10 @@
 //! completion, and chunks it into [`GeneratedToken`]s. This is forced, not
 //! preferred:
 //!
-//! - The persistent-VM `exec` path FAILS CLOSED today
-//!   (`cloud_hypervisor/adapter.rs`): exec into a running snapshot-capable VM
-//!   needs a vsock guest agent (out of scope). The idle initramfs only loops
-//!   printing `TICK`; there is no command channel into a live VM. So a
-//!   persistent serial-daemon inference path is NOT buildable in wave 1.
+//! - The persistent-VM adapter now has a generic serial-socket command channel,
+//!   but this model runtime still does not claim warm model inference: keeping a
+//!   GGUF loaded across calls requires a resident model-serving guest agent/image,
+//!   not just generic shell command exec.
 //! - The ephemeral `exec` path is real and complete: it bakes the declared
 //!   binds into a per-exec initramfs, base64-encodes argv onto the kernel
 //!   cmdline, boots CH, parses the `---HSK-BEGIN .. ---HSK-END rc=N---` framing,
@@ -23,8 +22,8 @@
 //! HONESTY BOUNDARY (stated in code + reports): the model RELOADS every
 //! `generate()` (cold start per call), and the per-token stream is post-hoc
 //! chunking of a captured completion, NOT live per-token decode. A persistent
-//! in-VM serial daemon with real per-token streaming is a FLAGGED FOLLOW-ON,
-//! blocked on the same vsock-guest-agent gap.
+//! in-VM model daemon with real per-token streaming is a FLAGGED FOLLOW-ON,
+//! blocked on the model-serving guest image/agent gap.
 //!
 //! The live end-to-end (a model actually inferring inside a CH microVM) requires
 //! the operator KVM/WSL/Cloud-Hypervisor desktop environment and CANNOT run in

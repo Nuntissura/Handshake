@@ -18,9 +18,10 @@ use uuid::Uuid;
 
 use crate::sandbox::wsl2_podman::wsl_detection::default_wsl_exe;
 use crate::sandbox::{
-    AdapterCapabilities, AdapterId, BindMode, Command, ExecResult, GpuPassthrough,
-    IsolationStrength, IsolationTier, NetPolicy, ProcessHandle, ProcessSpec, ProcessStatus,
-    ResourceLimits, SandboxAdapter, SandboxAdapterError, Signal, SnapshotRef, ThroughputClass,
+    encode_guest_channel_exec_request, parse_guest_channel_exec_result, AdapterCapabilities,
+    AdapterId, BindMode, Command, ExecResult, GpuPassthrough, IsolationStrength, IsolationTier,
+    NetPolicy, ProcessHandle, ProcessSpec, ProcessStatus, ResourceLimits, SandboxAdapter,
+    SandboxAdapterError, Signal, SnapshotRef, ThroughputClass,
 };
 
 #[cfg(windows)]
@@ -50,7 +51,7 @@ const HSK_FILES_END_MARKER: &str = "---HSK-FILES-END---";
 /// guest-relative paths — tars those paths to serial as base64 between the
 /// FILES markers so the host can write them back. Finally it powers off.
 const INIT_SCRIPT: &str = r#"#!/bin/busybox sh
-/bin/busybox mkdir -p /proc /sys /dev /bin
+/bin/busybox mkdir -p /proc /sys /dev /bin /tmp
 /bin/busybox mount -t proc proc /proc
 /bin/busybox mount -t sysfs sysfs /sys
 /bin/busybox --install -s /bin
@@ -82,38 +83,96 @@ pub const SANDBOX_MODE_PERSISTENT: &str = "persistent";
 /// rather than churn the shared `ProcessSpec` struct across its 40+ call sites.
 pub const SANDBOX_IDLE_TIMEOUT_METADATA_KEY: &str = "hsk.sandbox.idle_timeout_ms";
 
-pub const CLOUD_HYPERVISOR_WARM_AGENT_REQUIRED_TRANSPORT: &str = "virtio-vsock guest agent channel";
+pub const CLOUD_HYPERVISOR_WARM_AGENT_REQUIRED_TRANSPORT: &str =
+    "model-bearing guest agent over serial/vsock";
 pub const CLOUD_HYPERVISOR_WARM_AGENT_UNAVAILABLE_REASON: &str =
-    "Cloud Hypervisor persistent VMs currently boot an idle snapshot target only; \
-     warm-agent RPC and live token streaming require a guest agent plus a \
-     bidirectional virtio-vsock channel";
+    "Cloud Hypervisor persistent VMs now expose a serial-socket command channel, \
+     but warm-model RPC and live token streaming require a resident model-serving \
+     guest agent/image; serial is the bootstrap transport and virtio-vsock remains \
+     the hardened follow-on";
 
-/// Marker the idle `/init` prints exactly once at boot. The snapshot/restore
-/// state-preservation test asserts this appears exactly once in the serial log
-/// (a second occurrence after restore would mean the VM rebooted instead of
-/// resuming from the captured RAM state).
+/// Marker the persistent `/init` records once in guest RAM. State-preservation
+/// tests use the adjacent `/tmp/hsk-tick` value to prove restore resumed instead
+/// of rebooting.
 const HSK_BOOT_ONCE_MARKER: &str = "HSK-BOOT-ONCE";
 
-/// The idle `/init` baked into the persistent-VM initramfs. It mounts the
-/// synthetic filesystems, installs busybox applets, prints the one-shot boot
-/// marker, then loops forever printing `TICK-<n>` to the serial console (one per
-/// second). It NEVER powers off, so the VM stays live for `ch-remote pause` +
-/// `snapshot`. The incrementing TICK counter is the observable RAM state that
-/// proves a restore resumed rather than rebooted.
-const IDLE_INIT_SCRIPT: &str = r#"#!/bin/busybox sh
-/bin/busybox mkdir -p /proc /sys /dev /bin
+/// The `/init` baked into the persistent-VM initramfs. It mounts the synthetic
+/// filesystems, installs busybox applets, records the one-shot boot marker and
+/// tick counter in guest RAM under `/tmp`, then starts a small serial-socket
+/// command agent on `/dev/ttyS0`. The foreground loop keeps updating
+/// `/tmp/hsk-tick` and NEVER powers off, so the VM stays live for
+/// `ch-remote pause` + `snapshot`. The incrementing tick counter is the
+/// observable RAM state that proves a restore resumed rather than rebooted.
+const AGENT_INIT_SCRIPT: &str = r#"#!/bin/busybox sh
+/bin/busybox mkdir -p /proc /sys /dev /bin /tmp
 /bin/busybox mount -t proc proc /proc
 /bin/busybox mount -t sysfs sysfs /sys
+/bin/busybox mount -t devtmpfs devtmpfs /dev 2>/dev/null || true
 /bin/busybox --install -s /bin
-echo "HSK-BOOT-ONCE"
+echo "HSK-BOOT-ONCE" >/tmp/hsk-boot-once
+agent_loop() {
+  stty -F /dev/ttyS0 -echo 2>/dev/null || true
+  exec 3<>/dev/ttyS0 || exit 1
+  echo "HSK-AGENT-READY protocol=hsk.guest_channel version=1 agent=busybox" >&3
+  while IFS= read -r line <&3; do
+    case "$line" in
+      HSK-EXEC\ *)
+        set -- $line
+        req="$2"
+        cmd_b64="$3"
+        stdin_b64="$4"
+        out="/tmp/hsk-out-$req"
+        err="/tmp/hsk-err-$req"
+        in="/tmp/hsk-in-$req"
+        dec="/tmp/hsk-decode-err-$req"
+        cmd=$(echo "$cmd_b64" | base64 -d 2>"$dec") || {
+          msg=$(base64 -w0 "$dec" 2>/dev/null)
+          [ -n "$msg" ] || msg="-"
+          echo "HSK-AGENT-ERROR $req DECODE $msg" >&3
+          rm -f "$dec"
+          continue
+        }
+        if [ "$stdin_b64" != "-" ]; then
+          echo "$stdin_b64" | base64 -d > "$in" 2>"$err"
+          if [ $? -ne 0 ]; then
+            msg=$(base64 -w0 "$err" 2>/dev/null)
+            [ -n "$msg" ] || msg="-"
+            echo "HSK-AGENT-ERROR $req STDIN_DECODE $msg" >&3
+            rm -f "$out" "$err" "$in" "$dec"
+            continue
+          fi
+          sh -c "$cmd" < "$in" > "$out" 2> "$err"
+        else
+          sh -c "$cmd" > "$out" 2> "$err"
+        fi
+        rc=$?
+        out_b64=$(base64 -w0 "$out" 2>/dev/null)
+        err_b64=$(base64 -w0 "$err" 2>/dev/null)
+        [ -n "$out_b64" ] || out_b64="-"
+        [ -n "$err_b64" ] || err_b64="-"
+        echo "HSK-EXEC-DONE $req $rc $out_b64 $err_b64" >&3
+        rm -f "$out" "$err" "$in" "$dec"
+        ;;
+      HSK-PING\ *)
+        set -- $line
+        echo "HSK-PONG $2" >&3
+        ;;
+      *)
+        ;;
+    esac
+  done
+}
+while true; do agent_loop 2>/tmp/hsk-agent.err; /bin/busybox sleep 1; done &
 i=0
-while true; do echo "TICK-$i"; i=$((i+1)); /bin/busybox sleep 1; done"#;
+while true; do echo "$i" >/tmp/hsk-tick; i=$((i+1)); /bin/busybox sleep 1; done"#;
 
 /// How long to wait for the persistent VM's API socket to appear after the CH
 /// child is launched (the guest must boot far enough to create it).
 const PERSISTENT_BOOT_TIMEOUT_MS: u64 = 30_000;
-/// Poll interval while waiting for the API socket / serial log to appear.
+/// Poll interval while waiting for WSL-side socket/file paths to appear.
 const PERSISTENT_POLL_INTERVAL_MS: u64 = 250;
+const SERIAL_AGENT_BRIDGE_MAX_ARG_FRAME_BYTES: usize = 16 * 1024;
+const VM_ROOT_OWNER_PID_FILE: &str = ".hsk-owner-pid";
 
 /// Proven-working defaults for the host WSL2 sandbox layout. Every field is
 /// overridable via a `HANDSHAKE_CH_*` environment variable so the adapter stays
@@ -171,7 +230,7 @@ impl CloudHypervisorWarmAgentStatus {
         Self {
             adapter_id: AdapterId::new(CLOUD_HYPERVISOR_ADAPTER_ID),
             snapshot_supported: true,
-            persistent_exec_supported: false,
+            persistent_exec_supported: true,
             warm_agent_supported: false,
             live_token_stream_supported: false,
             required_transport: CLOUD_HYPERVISOR_WARM_AGENT_REQUIRED_TRANSPORT.to_string(),
@@ -390,10 +449,14 @@ struct BindRecord {
 struct PersistentVm {
     /// Absolute WSL path of the CH API socket driving this VM (pause/snapshot).
     api_socket: String,
-    /// Absolute WSL path of the current handle's serial log. Restored handles
-    /// get their own restore-owned serial log when `restore()` rewrites the
-    /// copied CH snapshot config, so this path is per live handle rather than a
-    /// durable observation path for all descendants.
+    /// Absolute WSL Unix socket connected to the guest serial device. The
+    /// persistent initramfs uses `/dev/ttyS0` as a command-agent channel.
+    agent_socket: String,
+    /// Absolute WSL path of the current handle's optional console observation
+    /// log. The field name is kept for compatibility with `read_handle_serial`,
+    /// but persistent state proofs use the guest RAM tick read through the serial
+    /// command agent. Restored handles get their own restore-owned log when
+    /// `restore()` rewrites the copied CH snapshot config.
     serial_log: String,
     /// Per-VM scratch root inside WSL holding the idle initramfs build tree +
     /// cpio; removed on `kill` for atomic cleanup.
@@ -456,6 +519,7 @@ impl Default for HandleState {
 /// `Clone`/`Debug`. `kill_on_drop(true)` means dropping the [`Child`] also
 /// terminates the CH process, so removing an entry here tears down the VM.
 type PersistentChildren = Arc<tokio::sync::Mutex<HashMap<Uuid, Child>>>;
+type PersistentExecLocks = Arc<Mutex<HashMap<Uuid, Arc<tokio::sync::Mutex<()>>>>>;
 
 #[derive(Debug, Clone)]
 pub struct CloudHypervisorAdapter {
@@ -463,6 +527,9 @@ pub struct CloudHypervisorAdapter {
     handles: Arc<Mutex<HashMap<Uuid, HandleState>>>,
     /// Live CH child processes for persistent handles. Skipped in `Debug`.
     persistent_children: PersistentChildren,
+    /// One in-flight serial command per persistent VM handle. Different VMs may
+    /// execute independently, but one CH serial socket is a single command stream.
+    persistent_exec_locks: PersistentExecLocks,
 }
 
 impl CloudHypervisorAdapter {
@@ -480,6 +547,7 @@ impl CloudHypervisorAdapter {
             config,
             handles: Arc::new(Mutex::new(HashMap::new())),
             persistent_children: Arc::new(tokio::sync::Mutex::new(HashMap::new())),
+            persistent_exec_locks: Arc::new(Mutex::new(HashMap::new())),
         })
     }
 
@@ -487,11 +555,11 @@ impl CloudHypervisorAdapter {
         &self.config
     }
 
-    /// Read the current serial-console log for a persistent handle (the VM's
-    /// `TICK-<n>` stream). Returns `None` for an ephemeral handle, a stale
-    /// handle, or when the log cannot be read. Exposed so callers (and the
-    /// snapshot/restore test) can observe live guest state — e.g. to confirm a
-    /// restored VM's counter continued rather than resetting.
+    /// Read the current persistent-handle optional console observation log. The
+    /// method name is retained from the file-backed serial era; persistent VMs
+    /// now use serial as the command channel, and state-preservation tests read
+    /// `/tmp/hsk-tick` through that channel. Returns `None` for an ephemeral
+    /// handle, a stale handle, or when the log cannot be read.
     pub async fn read_handle_serial(&self, handle: &ProcessHandle) -> Option<String> {
         let serial_log = self
             .handles
@@ -507,10 +575,9 @@ impl CloudHypervisorAdapter {
             .map(|bytes| String::from_utf8_lossy(&bytes).to_string())
     }
 
-    /// WSL-side serial-log path for this persistent handle's current VM.
-    /// Restored handles expose their own restore-owned serial log rather than
-    /// appending to the source VM's log. Returns `None` for ephemeral or stale
-    /// handles.
+    /// WSL-side observation-log path for this persistent handle's current VM.
+    /// Restored handles expose their own restore-owned log rather than appending
+    /// to the source VM's log. Returns `None` for ephemeral or stale handles.
     pub fn handle_serial_log_path(&self, handle: &ProcessHandle) -> Option<String> {
         self.handles.lock().ok().and_then(|map| {
             map.get(&handle.id)
@@ -560,10 +627,7 @@ impl CloudHypervisorAdapter {
     pub async fn discover_orphan_vm_dirs(&self) -> Vec<String> {
         let listing = match run_wsl_sh(
             &self.config,
-            &format!(
-                "ls -1d {wd}/persistent-* {wd}/restore-* 2>/dev/null || true",
-                wd = sh_quote_wsl(&self.config.work_dir)
-            ),
+            &discover_orphan_vm_dirs_script(&self.config.work_dir, std::process::id()),
             PROBE_TIMEOUT_MS,
         )
         .await
@@ -663,7 +727,21 @@ impl CloudHypervisorAdapter {
             config: CloudHypervisorConfig::default(),
             handles: Arc::new(Mutex::new(HashMap::new())),
             persistent_children: Arc::new(tokio::sync::Mutex::new(HashMap::new())),
+            persistent_exec_locks: Arc::new(Mutex::new(HashMap::new())),
         }
+    }
+
+    fn persistent_exec_lock_for(
+        &self,
+        handle_id: Uuid,
+    ) -> Result<Arc<tokio::sync::Mutex<()>>, SandboxAdapterError> {
+        let mut locks = self.persistent_exec_locks.lock().map_err(|error| {
+            spawn_failed(format!("persistent exec lock registry poisoned: {error}"))
+        })?;
+        Ok(locks
+            .entry(handle_id)
+            .or_insert_with(|| Arc::new(tokio::sync::Mutex::new(())))
+            .clone())
     }
 
     fn ensure_handle(&self, handle: &ProcessHandle) -> Result<(), SandboxAdapterError> {
@@ -733,6 +811,7 @@ impl CloudHypervisorAdapter {
         api_socket: &str,
         idle_cpio: &str,
         serial_log: &str,
+        agent_socket: &str,
         memory_mib: u32,
     ) -> Result<Vec<String>, SandboxAdapterError> {
         let mut args = vec![
@@ -747,11 +826,11 @@ impl CloudHypervisorAdapter {
             "--initramfs".to_string(),
             idle_cpio.to_string(),
             "--cmdline".to_string(),
-            "console=ttyS0".to_string(),
+            "console=hvc0".to_string(),
             "--serial".to_string(),
-            format!("file={serial_log}"),
+            format!("socket={agent_socket}"),
             "--console".to_string(),
-            "off".to_string(),
+            format!("file={serial_log}"),
             "--cpus".to_string(),
             format!("boot={}", self.config.vcpus),
             "--memory".to_string(),
@@ -763,7 +842,7 @@ impl CloudHypervisorAdapter {
 
     /// Boot a long-lived idle persistent VM with an API socket (the snapshot/
     /// restore model). Builds a per-VM idle initramfs (busybox + an `/init` that
-    /// loops printing TICK and never powers off), launches CH as a retained
+    /// loops updating `/tmp/hsk-tick` and never powers off), launches CH as a retained
     /// background child, waits for the API socket to appear, and
     /// registers a persistent handle. Absolute WSL paths are used throughout so
     /// the snapshot config records an absolute serial path that a restored VM
@@ -776,6 +855,7 @@ impl CloudHypervisorAdapter {
         let vm_id = Uuid::now_v7().simple().to_string();
         let vm_root = format!("{}/persistent-{vm_id}", self.config.work_dir);
         let api_socket = format!("{vm_root}/ch.sock");
+        let agent_socket = format!("{vm_root}/agent.sock");
         let serial_log = format!("{vm_root}/serial.log");
         let idle_cpio = format!("{vm_root}/idle.cpio");
 
@@ -783,12 +863,21 @@ impl CloudHypervisorAdapter {
             let _ = remove_wsl_path(&self.config, &vm_root).await;
             return Err(error);
         }
+        if let Err(error) = mark_vm_root_owned(&self.config, &vm_root).await {
+            let _ = remove_wsl_path(&self.config, &vm_root).await;
+            return Err(error);
+        }
 
         // Boot args for the persistent idle VM (absolute serial path so the
         // snapshot config is CWD-independent).
         let memory_mib = memory_mib_from_limits(&resource_limits, self.config.memory_mib);
-        let boot_args =
-            self.persistent_boot_args(&api_socket, &idle_cpio, &serial_log, memory_mib)?;
+        let boot_args = self.persistent_boot_args(
+            &api_socket,
+            &idle_cpio,
+            &serial_log,
+            &agent_socket,
+            memory_mib,
+        )?;
 
         let child = match spawn_persistent_child(self.config.wsl_exe(), &boot_args) {
             Ok(child) => child,
@@ -808,6 +897,12 @@ impl CloudHypervisorAdapter {
             let _ = remove_wsl_path(&self.config, &vm_root).await;
             return Err(error);
         }
+        if let Err(error) =
+            wait_for_wsl_path(&self.config, &agent_socket, PERSISTENT_BOOT_TIMEOUT_MS).await
+        {
+            let _ = remove_wsl_path(&self.config, &vm_root).await;
+            return Err(error);
+        }
 
         let handle = ProcessHandle::new(
             AdapterId::new(CLOUD_HYPERVISOR_ADAPTER_ID),
@@ -816,6 +911,7 @@ impl CloudHypervisorAdapter {
         );
         let vm = PersistentVm {
             api_socket,
+            agent_socket,
             serial_log,
             vm_root,
         };
@@ -884,6 +980,77 @@ impl CloudHypervisorAdapter {
                 }
             }
         });
+    }
+
+    async fn exec_persistent_agent(
+        &self,
+        handle: &ProcessHandle,
+        vm: PersistentVm,
+        cmd: Command,
+    ) -> Result<ExecResult, SandboxAdapterError> {
+        if vm.agent_socket.trim().is_empty() {
+            return Err(spawn_failed(
+                "persistent guest agent socket is missing; refusing dirty fallback to cold exec",
+            ));
+        }
+        self.touch_activity(handle.id);
+        let request_id = Uuid::now_v7().simple().to_string();
+        let command_line = build_command_line(&cmd);
+        let frame =
+            encode_guest_channel_exec_request(&request_id, &command_line, cmd.stdin.as_ref())?;
+        let frame_arg = encode_serial_agent_bridge_frame_arg(&frame)?;
+        let timeout_ms = cmd.timeout_ms.unwrap_or(self.config.command_timeout_ms);
+        let started = Instant::now();
+        let exec_lock = self.persistent_exec_lock_for(handle.id)?;
+        let _guard =
+            match tokio::time::timeout(Duration::from_millis(timeout_ms), exec_lock.lock()).await {
+                Ok(guard) => guard,
+                Err(_) => {
+                    return Err(spawn_failed(format!(
+                        "persistent guest channel is busy for handle {}; timed out waiting for \
+                     the in-flight exec after {timeout_ms}ms",
+                        handle.id
+                    )));
+                }
+            };
+        let remaining_ms = timeout_ms
+            .saturating_sub(started.elapsed().as_millis().min(u128::from(u64::MAX)) as u64);
+        if remaining_ms == 0 {
+            return Err(spawn_failed(format!(
+                "persistent guest channel is busy for handle {}; no timeout budget remains after \
+                 waiting for the in-flight exec",
+                handle.id
+            )));
+        }
+        let line = match run_serial_agent_rpc(
+            &self.config,
+            &vm.agent_socket,
+            &request_id,
+            frame_arg,
+            remaining_ms,
+            handle.id,
+        )
+        .await
+        {
+            Ok(line) => line,
+            Err(error) => {
+                let _ = self.kill(handle, Signal::Kill).await;
+                return Err(error);
+            }
+        };
+        let parsed = match parse_guest_channel_exec_result(&line, &request_id) {
+            Ok(parsed) => parsed,
+            Err(error) => {
+                let _ = self.kill(handle, Signal::Kill).await;
+                return Err(error);
+            }
+        };
+        Ok(ExecResult {
+            exit_code: parsed.exit_code,
+            stdout: parsed.stdout,
+            stderr: parsed.stderr,
+            duration_ms: started.elapsed().as_millis().min(u128::from(u64::MAX)) as u64,
+        })
     }
 }
 
@@ -959,27 +1126,6 @@ impl SandboxAdapter for CloudHypervisorAdapter {
         if cmd.argv.is_empty() {
             return Err(spawn_failed("Command.argv must not be empty"));
         }
-        // TODO(snapshot-exec): exec into a *running* persistent VM needs a vsock
-        // guest agent (the idle initramfs only loops printing TICK; it has no
-        // command channel). That is OUT OF SCOPE for the snapshot/restore work;
-        // ephemeral exec is unchanged. Until the guest agent lands, exec on a
-        // persistent handle fails closed rather than silently doing nothing.
-        if self
-            .handles
-            .lock()
-            .map(|map| {
-                map.get(&handle.id)
-                    .map(|state| state.persistent.is_some())
-                    .unwrap_or(false)
-            })
-            .unwrap_or(false)
-        {
-            return Err(spawn_failed(
-                "exec into a persistent (snapshot-capable) VM is not yet supported; \
-                 it requires a vsock guest agent (out of scope). Use the ephemeral \
-                 spawn (omit the `hsk.sandbox.mode=persistent` marker) for exec.",
-            ));
-        }
         if self
             .handles
             .lock()
@@ -993,6 +1139,16 @@ impl SandboxAdapter for CloudHypervisorAdapter {
             return Err(spawn_failed(
                 "handle was killed; spawn a fresh handle before exec",
             ));
+        }
+        let persistent_vm = {
+            self.handles
+                .lock()
+                .map_err(|error| spawn_failed(format!("handle registry poisoned: {error}")))?
+                .get(&handle.id)
+                .and_then(|state| state.persistent.clone())
+        };
+        if let Some(vm) = persistent_vm {
+            return self.exec_persistent_agent(handle, vm, cmd).await;
         }
 
         // Snapshot the binds declared for this handle so the per-exec initramfs
@@ -1222,6 +1378,9 @@ impl SandboxAdapter for CloudHypervisorAdapter {
                 state.status = ProcessStatus::Killed { by_signal: _signal };
             }
         }
+        if let Ok(mut locks) = self.persistent_exec_locks.lock() {
+            locks.remove(&handle.id);
+        }
         Ok(())
     }
 
@@ -1382,8 +1541,8 @@ impl SandboxAdapter for CloudHypervisorAdapter {
 
     /// Restore a snapshot into a brand-new, fully independent persistent VM that
     /// resumes from the captured live state (no reboot). The snapshot is first
-    /// copied into a per-restore scratch root and the copy's CH `serial.file` is
-    /// rewritten to a restore-owned log; CH then restores from the COPY with
+    /// copied into a per-restore scratch root and the copy's CH console/serial
+    /// endpoints are rewritten to restore-owned paths; CH then restores from the COPY with
     /// `--restore source_url=file://<copy>,resume=true` on a new API socket. The
     /// original snapshot is left intact (re-restorable; two restores are
     /// independent), and the restored guest writes its serial to its own log, so
@@ -1435,36 +1594,42 @@ impl SandboxAdapter for CloudHypervisorAdapter {
         //   * Reusing the original's baked-in serial path tied the restored VM's
         //     console to the original's; killing the original unlinked it.
         // Instead, copy the snapshot into a per-restore scratch root, rewrite the
-        // copy's CH `serial.file` to a restore-owned log, and restore from the
-        // COPY. The original snapshot is left intact and re-restorable, and the
-        // restored VM owns its own console + scratch.
+        // copy's CH console log + serial agent socket to restore-owned paths, and
+        // restore from the COPY. The original snapshot is left intact and
+        // re-restorable, and the restored VM owns its own channel + scratch.
         let restore_root = format!(
             "{}/restore-{}",
             self.config.work_dir,
             Uuid::now_v7().simple()
         );
         let restore_serial = format!("{restore_root}/serial.log");
+        let restore_agent_socket = format!("{restore_root}/agent.sock");
         let restore_config = format!("{restore_root}/config.json");
         let api_socket = format!("{restore_root}/ch.sock");
 
-        // `serial.file` is the CH VmConfig field (verified against a live
-        // snapshot). Prefer jq, fall back to python3 — both JSON-aware so the
-        // rewrite is not a fragile text substitution.
+        // New snapshots contain a serial socket for the command agent plus a
+        // console file for observations. Older wave-1 snapshots only contain a
+        // file-backed serial log; preserve that shape so restore stays backward
+        // compatible and persistent exec fails closed on old handles rather than
+        // pretending an agent exists.
         let prep = run_wsl_sh(
             &self.config,
             &format!(
                 "set -e; rm -rf {root}; mkdir -p {root}; cp -a {src}/. {root}/; \
                  test -f {cfg} || {{ echo HSK_NO_CONFIG; exit 1; }}; \
                  if command -v jq >/dev/null 2>&1; then \
-                   jq --arg f {ser} '.serial.file=$f' {cfg} > {cfg}.tmp && mv {cfg}.tmp {cfg}; \
+                   if jq -e '.serial.socket? // empty' {cfg} >/dev/null; then has_agent=1; else has_agent=0; fi; \
+                   jq --arg ser {ser} --arg agent {agent} 'if (.serial.socket? // null) != null then del(.serial.file) | .serial.socket=$agent | .console.file=$ser else .serial.file=$ser end' {cfg} > {cfg}.tmp && mv {cfg}.tmp {cfg}; \
                  elif command -v python3 >/dev/null 2>&1; then \
-                   python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); d.setdefault(\"serial\",{{}})[\"file\"]=sys.argv[2]; json.dump(d,open(sys.argv[1],\"w\"))' {cfg} {ser}; \
+                   has_agent=$(python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); serial=d.setdefault(\"serial\",{{}}); has=1 if serial.get(\"socket\") else 0; (serial.pop(\"file\",None), serial.__setitem__(\"socket\",sys.argv[2]), d.setdefault(\"console\",{{}}).__setitem__(\"file\",sys.argv[3])) if has else serial.__setitem__(\"file\",sys.argv[3]); json.dump(d,open(sys.argv[1],\"w\")); print(has)' {cfg} {agent} {ser}); \
                  else echo HSK_NO_JSON_TOOL; exit 1; fi; \
+                 echo HSK_RESTORE_AGENT_SOCKET=$has_agent; \
                  echo HSK_RESTORE_PREP_OK",
                 root = sh_quote_wsl(&restore_root),
                 src = sh_quote_wsl(&snapshot.snapshot_dir),
                 cfg = sh_quote_wsl(&restore_config),
                 ser = sh_quote_wsl(&restore_serial),
+                agent = sh_quote_wsl(&restore_agent_socket),
             ),
             self.config.command_timeout_ms,
         )
@@ -1486,6 +1651,13 @@ impl SandboxAdapter for CloudHypervisorAdapter {
                 prep.exit_code,
                 prep.stderr_text()
             )));
+        }
+        let restore_has_agent_socket =
+            String::from_utf8_lossy(&prep.stdout).contains("HSK_RESTORE_AGENT_SOCKET=1");
+        if let Err(error) = mark_vm_root_owned(&self.config, &restore_root).await {
+            let _ = remove_wsl_path(&self.config, &restore_root).await;
+            self.release_restore_reservation(handle.id);
+            return Err(error);
         }
 
         let restore_args = vec![
@@ -1519,6 +1691,19 @@ impl SandboxAdapter for CloudHypervisorAdapter {
             self.release_restore_reservation(handle.id);
             return Err(error);
         }
+        if restore_has_agent_socket {
+            if let Err(error) = wait_for_wsl_path(
+                &self.config,
+                &restore_agent_socket,
+                PERSISTENT_BOOT_TIMEOUT_MS,
+            )
+            .await
+            {
+                let _ = remove_wsl_path(&self.config, &restore_root).await;
+                self.release_restore_reservation(handle.id);
+                return Err(error);
+            }
+        }
 
         // The restored VM owns its private restore root (the snapshot COPY) as
         // its scratch + console. kill() reclaims only this copy, never the
@@ -1526,6 +1711,11 @@ impl SandboxAdapter for CloudHypervisorAdapter {
         // from one snapshot are fully independent.
         let vm = PersistentVm {
             api_socket,
+            agent_socket: if restore_has_agent_socket {
+                restore_agent_socket
+            } else {
+                String::new()
+            },
             serial_log: restore_serial,
             vm_root: restore_root,
         };
@@ -1566,11 +1756,11 @@ impl SandboxAdapter for CloudHypervisorAdapter {
             // The persistent-VM model implements real pause+snapshot+restore via
             // Cloud Hypervisor + ch-remote (Master Spec v02.187 §3.5.7 #7).
             supports_snapshot: true,
-            // The current persistent VM is an idle snapshot target only. Exec,
-            // warm-agent RPC, and live token streaming require the follow-on
-            // guest channel, so advertise them as unsupported rather than imply
-            // warm inference is already live.
-            supports_persistent_exec: false,
+            // Persistent exec is served by the busybox serial-socket command
+            // agent. Warm-model RPC and live token streaming still require a
+            // resident model-serving guest agent/image, so advertise only the
+            // generic command channel here.
+            supports_persistent_exec: true,
             supports_warm_agent: false,
             supports_live_token_stream: false,
         }
@@ -1830,6 +2020,44 @@ async fn remove_wsl_path(config: &CloudHypervisorConfig, path: &str) -> bool {
     .unwrap_or(false)
 }
 
+async fn mark_vm_root_owned(
+    config: &CloudHypervisorConfig,
+    vm_root: &str,
+) -> Result<(), SandboxAdapterError> {
+    let marker = format!("{vm_root}/{VM_ROOT_OWNER_PID_FILE}");
+    let output = run_wsl_sh(
+        config,
+        &format!(
+            "printf '%s\\n' {} > {} && echo HSK_OWNER_MARKER_OK",
+            std::process::id(),
+            sh_quote_wsl(&marker)
+        ),
+        PROBE_TIMEOUT_MS,
+    )
+    .await?;
+    if output.exit_code != 0
+        || !String::from_utf8_lossy(&output.stdout).contains("HSK_OWNER_MARKER_OK")
+    {
+        return Err(spawn_failed(format!(
+            "failed to mark persistent VM root `{vm_root}` as owned: {}",
+            output.stderr_text()
+        )));
+    }
+    Ok(())
+}
+
+fn discover_orphan_vm_dirs_script(work_dir: &str, owner_pid: u32) -> String {
+    format!(
+        "for d in {wd}/persistent-* {wd}/restore-*; do \
+           [ -d \"$d\" ] || continue; \
+           if [ \"$(cat \"$d/{owner}\" 2>/dev/null)\" = \"{owner_pid}\" ]; then continue; fi; \
+           echo \"$d\"; \
+         done",
+        wd = sh_quote_wsl(work_dir),
+        owner = VM_ROOT_OWNER_PID_FILE,
+    )
+}
+
 /// Run a `sh -c <script>` inside the configured WSL distro and return the raw
 /// CLI output. Centralizes the `-d <distro> -e sh -c <script>` argv shape used
 /// for the per-exec initramfs build and write-back staging.
@@ -1997,9 +2225,10 @@ async fn build_per_exec_initramfs(
     Ok(())
 }
 
-/// Build the per-VM idle initramfs for the persistent-VM model: a fresh
-/// `<vm_root>/ir` tree with busybox + the idle `/init` (which loops printing
-/// TICK and never powers off), packed to `<idle_cpio>` via `cpio -o -H newc`.
+/// Build the per-VM agent initramfs for the persistent-VM model: a fresh
+/// `<vm_root>/ir` tree with busybox + the `/init` command agent (which loops
+/// updating `/tmp/hsk-tick` and never powers off), packed to `<idle_cpio>` via
+/// `cpio -o -H newc`.
 /// This mirrors `build_per_exec_initramfs` but bakes in no binds and uses the
 /// idle init script instead of the per-exec one.
 async fn build_idle_initramfs(
@@ -2020,7 +2249,7 @@ async fn build_idle_initramfs(
     script.push_str(&format!(
         "cat > {init} <<'HSKIDLEEOF'\n{body}\nHSKIDLEEOF\n",
         init = sh_quote_wsl(&format!("{ir}/init")),
-        body = IDLE_INIT_SCRIPT,
+        body = AGENT_INIT_SCRIPT,
     ));
     script.push_str(&format!(
         "chmod +x {init}; ",
@@ -2067,8 +2296,133 @@ fn spawn_persistent_child(wsl_exe: &Path, args: &[String]) -> Result<Child, Sand
         })
 }
 
-/// Poll inside WSL until `path` exists (the API socket / serial log a booting
-/// persistent VM creates) or `timeout_ms` elapses. Used to confirm a persistent
+const SERIAL_AGENT_BRIDGE_PY: &str = r#"
+import base64
+import select
+import socket
+import sys
+import time
+
+MAX_FRAME_BYTES = 1024 * 1024
+path = sys.argv[1]
+request_id = sys.argv[2]
+timeout_ms = int(sys.argv[3])
+payload = base64.b64decode(sys.argv[4].encode("ascii"))
+if len(payload) > MAX_FRAME_BYTES:
+    sys.stderr.write("guest channel request exceeded max frame bytes for " + request_id + "\n")
+    sys.exit(125)
+deadline = time.monotonic() + (timeout_ms / 1000.0)
+
+sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+sock.settimeout(min(5.0, max(0.1, timeout_ms / 1000.0)))
+sock.connect(path)
+sock.setblocking(False)
+
+buf = b""
+seen = []
+wanted_ready = b"HSK-AGENT-READY "
+wanted_done = ("HSK-EXEC-DONE " + request_id + " ").encode("utf-8")
+wanted_error = ("HSK-AGENT-ERROR " + request_id + " ").encode("utf-8")
+
+def remember(stage, line):
+    if len(seen) < 12:
+        seen.append(stage + ":" + repr(line[:220]))
+
+def debug_preview():
+    tail = repr(buf[-220:])
+    if seen:
+        return " seen=" + " | ".join(seen) + " tail=" + tail
+    return " seen=<none> tail=" + tail
+
+try:
+    sock.sendall(payload)
+except OSError as error:
+    sys.stderr.write("failed to send guest channel request for " + request_id + ": " + str(error) + "\n")
+    sys.exit(126)
+
+while time.monotonic() < deadline:
+    remaining = max(0.0, deadline - time.monotonic())
+    ready, _, _ = select.select([sock], [], [], min(0.1, remaining))
+    if not ready:
+        continue
+    chunk = sock.recv(4096)
+    if not chunk:
+        break
+    buf += chunk
+    if len(buf) > MAX_FRAME_BYTES:
+        sys.stderr.write("guest channel response exceeded max frame bytes for " + request_id + "\n")
+        sys.exit(125)
+    while b"\n" in buf:
+        line, buf = buf.split(b"\n", 1)
+        remember("response", line)
+        if line.startswith(wanted_ready):
+            continue
+        if line.startswith(wanted_done) or line.startswith(wanted_error):
+            sys.stdout.buffer.write(line + b"\n")
+            sys.exit(0)
+
+sys.stderr.write("timed out waiting for guest channel response for " + request_id + debug_preview() + "\n")
+sys.exit(124)
+"#;
+
+async fn run_serial_agent_rpc(
+    config: &CloudHypervisorConfig,
+    agent_socket: &str,
+    request_id: &str,
+    frame_arg: String,
+    timeout_ms: u64,
+    handle_id: Uuid,
+) -> Result<String, SandboxAdapterError> {
+    let args = vec![
+        "-d".to_string(),
+        config.distro.clone(),
+        "-e".to_string(),
+        "python3".to_string(),
+        "-u".to_string(),
+        "-c".to_string(),
+        SERIAL_AGENT_BRIDGE_PY.to_string(),
+        agent_socket.to_string(),
+        request_id.to_string(),
+        timeout_ms.to_string(),
+        frame_arg,
+    ];
+    let output = run_host_command(
+        config.wsl_exe(),
+        &args,
+        None,
+        Some(timeout_ms.saturating_add(PROBE_TIMEOUT_MS)),
+        handle_id,
+    )
+    .await?;
+    if output.exit_code != 0 {
+        return Err(spawn_failed(format!(
+            "persistent guest channel bridge failed (exit {}): {}",
+            output.exit_code,
+            output.stderr_text()
+        )));
+    }
+    let line = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    if line.is_empty() {
+        return Err(spawn_failed(
+            "persistent guest channel bridge returned no response",
+        ));
+    }
+    Ok(line)
+}
+
+fn encode_serial_agent_bridge_frame_arg(frame: &str) -> Result<String, SandboxAdapterError> {
+    if frame.len() > SERIAL_AGENT_BRIDGE_MAX_ARG_FRAME_BYTES {
+        return Err(spawn_failed(format!(
+            "persistent guest channel frame exceeds argv bridge limit: {} > {}",
+            frame.len(),
+            SERIAL_AGENT_BRIDGE_MAX_ARG_FRAME_BYTES
+        )));
+    }
+    Ok(BASE64.encode(frame.as_bytes()))
+}
+
+/// Poll inside WSL until `path` exists (for example an API socket or serial
+/// agent socket a booting persistent VM creates) or `timeout_ms` elapses. Used to confirm a persistent
 /// or restored VM actually came up before a handle is minted against it.
 async fn wait_for_wsl_path(
     config: &CloudHypervisorConfig,
@@ -2242,9 +2596,14 @@ async fn run_host_command(
 
     if let Some(input) = stdin {
         if let Some(mut child_stdin) = child.stdin.take() {
-            tokio::spawn(async move {
-                let _ = child_stdin.write_all(&input).await;
-            });
+            child_stdin
+                .write_all(&input)
+                .await
+                .map_err(|error| spawn_failed(format!("command stdin write failed: {error}")))?;
+            child_stdin
+                .shutdown()
+                .await
+                .map_err(|error| spawn_failed(format!("command stdin close failed: {error}")))?;
         }
     }
 
@@ -2368,6 +2727,8 @@ fn timed_out(handle_id: Uuid, timeout_ms: u64) -> SandboxAdapterError {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeMap;
+
     use super::*;
 
     #[test]
@@ -2531,15 +2892,22 @@ mod tests {
     }
 
     #[test]
-    fn idle_init_loops_and_never_powers_off() {
-        // The idle init must print the one-shot boot marker, loop printing TICK,
-        // and NEVER poweroff (otherwise the VM cannot be paused + snapshotted).
-        assert!(IDLE_INIT_SCRIPT.contains(HSK_BOOT_ONCE_MARKER));
-        assert!(IDLE_INIT_SCRIPT.contains("TICK-$i"));
-        assert!(IDLE_INIT_SCRIPT.contains("while true"));
+    fn agent_init_loops_serves_serial_agent_and_never_powers_off() {
+        // The persistent init must print the one-shot boot marker, serve the
+        // serial command agent, maintain the in-guest tick, and NEVER poweroff.
+        assert!(AGENT_INIT_SCRIPT.contains(HSK_BOOT_ONCE_MARKER));
+        assert!(AGENT_INIT_SCRIPT.contains("mkdir -p /proc /sys /dev /bin /tmp"));
+        assert!(AGENT_INIT_SCRIPT.contains("devtmpfs"));
+        assert!(AGENT_INIT_SCRIPT.contains("HSK-AGENT-READY"));
+        assert!(AGENT_INIT_SCRIPT.contains("/dev/ttyS0"));
+        assert!(AGENT_INIT_SCRIPT.contains("stty -F /dev/ttyS0 -echo"));
+        assert!(AGENT_INIT_SCRIPT.contains("exec 3<>/dev/ttyS0"));
+        assert!(AGENT_INIT_SCRIPT.contains("/tmp/hsk-agent.err"));
+        assert!(AGENT_INIT_SCRIPT.contains("/tmp/hsk-tick"));
+        assert!(AGENT_INIT_SCRIPT.contains("while true"));
         assert!(
-            !IDLE_INIT_SCRIPT.contains("poweroff"),
-            "idle init must not power off the persistent VM"
+            !AGENT_INIT_SCRIPT.contains("poweroff"),
+            "persistent agent init must not power off the persistent VM"
         );
     }
 
@@ -2550,16 +2918,60 @@ mod tests {
     }
 
     #[test]
-    fn capabilities_are_honest_about_snapshot_without_warm_exec() {
+    fn orphan_discovery_script_skips_current_process_owned_roots() {
+        let script = discover_orphan_vm_dirs_script("/tmp/handshake sandbox", 4242);
+        assert!(script.contains(VM_ROOT_OWNER_PID_FILE));
+        assert!(script.contains("/persistent-*"));
+        assert!(script.contains("/restore-*"));
+        assert!(script.contains("cat \"$d/.hsk-owner-pid\""));
+        assert!(script.contains("= \"4242\""));
+        assert!(
+            script.contains("then continue"),
+            "current-process owned VM roots must be skipped, not reclaimed"
+        );
+    }
+
+    #[test]
+    fn owner_marker_uses_process_id_file_inside_vm_root() {
+        let marker = format!("/tmp/vm-root/{VM_ROOT_OWNER_PID_FILE}");
+        assert_eq!(marker, "/tmp/vm-root/.hsk-owner-pid");
+        assert_eq!(VM_ROOT_OWNER_PID_FILE, ".hsk-owner-pid");
+    }
+
+    #[test]
+    fn persistent_exec_lock_is_per_handle_not_global() {
+        let adapter = CloudHypervisorAdapter::new_for_test();
+        let first = Uuid::now_v7();
+        let second = Uuid::now_v7();
+        let first_a = adapter.persistent_exec_lock_for(first).expect("first lock");
+        let first_b = adapter
+            .persistent_exec_lock_for(first)
+            .expect("same handle lock");
+        let second_lock = adapter
+            .persistent_exec_lock_for(second)
+            .expect("second handle lock");
+
+        assert!(
+            Arc::ptr_eq(&first_a, &first_b),
+            "same persistent handle must reuse one serial exec lock"
+        );
+        assert!(
+            !Arc::ptr_eq(&first_a, &second_lock),
+            "different persistent handles must not share a global exec lock"
+        );
+    }
+
+    #[test]
+    fn capabilities_are_honest_about_persistent_exec_without_warm_streaming() {
         let caps = CloudHypervisorAdapter::new_for_test().capabilities();
         assert!(caps.supports_snapshot);
         assert!(
-            !caps.supports_persistent_exec,
-            "persistent exec needs the follow-on guest channel"
+            caps.supports_persistent_exec,
+            "persistent exec is served by the serial guest channel"
         );
         assert!(
             !caps.supports_warm_agent,
-            "warm-agent RPC is not live until the guest agent exists"
+            "warm-model RPC is not live until a model-serving guest agent exists"
         );
         assert!(
             !caps.supports_live_token_stream,
@@ -2576,7 +2988,7 @@ mod tests {
             AdapterId::new(CLOUD_HYPERVISOR_ADAPTER_ID)
         );
         assert!(status.snapshot_supported);
-        assert!(!status.persistent_exec_supported);
+        assert!(status.persistent_exec_supported);
         assert!(!status.warm_agent_supported);
         assert!(!status.live_token_stream_supported);
         assert_eq!(
@@ -2587,8 +2999,8 @@ mod tests {
             .unavailable_reason
             .as_deref()
             .expect("unsupported status carries reason");
-        assert!(reason.contains("idle snapshot target"));
-        assert!(reason.contains("guest agent"));
+        assert!(reason.contains("serial-socket command channel"));
+        assert!(reason.contains("model-serving"));
         assert!(reason.contains("virtio-vsock"));
 
         let encoded = serde_json::to_value(&status).expect("serialize warm status");
@@ -2601,13 +3013,14 @@ mod tests {
     }
 
     #[test]
-    fn persistent_boot_args_do_not_advertise_warm_transport_without_agent() {
+    fn persistent_boot_args_use_serial_agent_socket_without_vsock() {
         let adapter = CloudHypervisorAdapter::new_for_test();
         let args = adapter
             .persistent_boot_args(
                 "/work/vm/ch.sock",
                 "/work/vm/idle.cpio",
                 "/work/vm/serial.log",
+                "/work/vm/agent.sock",
                 256,
             )
             .expect("persistent boot args");
@@ -2617,13 +3030,16 @@ mod tests {
             .any(|pair| pair[0] == "--api-socket" && pair[1] == "/work/vm/ch.sock"));
         assert!(args
             .windows(2)
-            .any(|pair| pair[0] == "--serial" && pair[1] == "file=/work/vm/serial.log"));
+            .any(|pair| pair[0] == "--serial" && pair[1] == "socket=/work/vm/agent.sock"));
         assert!(args
             .windows(2)
-            .any(|pair| pair[0] == "--cmdline" && pair[1] == "console=ttyS0"));
+            .any(|pair| pair[0] == "--console" && pair[1] == "file=/work/vm/serial.log"));
+        assert!(args
+            .windows(2)
+            .any(|pair| pair[0] == "--cmdline" && pair[1] == "console=hvc0"));
         assert!(
             !args.iter().any(|arg| arg.contains("vsock")),
-            "do not configure a bidirectional warm-agent transport before the guest agent exists"
+            "vsock remains the follow-on transport and must not be implied by the serial agent"
         );
         assert!(
             !args.iter().any(|arg| arg.contains("hsk.warm_agent")),
@@ -2631,8 +3047,28 @@ mod tests {
         );
     }
 
+    #[test]
+    fn serial_agent_bridge_enforces_frame_bound_before_buffering_forever() {
+        assert!(SERIAL_AGENT_BRIDGE_PY.contains("MAX_FRAME_BYTES = 1024 * 1024"));
+        assert!(SERIAL_AGENT_BRIDGE_PY.contains("base64.b64decode(sys.argv[4]"));
+        assert!(SERIAL_AGENT_BRIDGE_PY.contains("HSK-AGENT-READY"));
+        assert!(SERIAL_AGENT_BRIDGE_PY.contains("sock.sendall(payload)"));
+        assert!(SERIAL_AGENT_BRIDGE_PY.contains("line.startswith(wanted_ready)"));
+        assert!(SERIAL_AGENT_BRIDGE_PY.contains("len(payload) > MAX_FRAME_BYTES"));
+        assert!(SERIAL_AGENT_BRIDGE_PY.contains("len(buf) > MAX_FRAME_BYTES"));
+        assert!(SERIAL_AGENT_BRIDGE_PY.contains("guest channel response exceeded max frame bytes"));
+    }
+
+    #[test]
+    fn serial_agent_bridge_rejects_frames_too_large_for_argv_boundary() {
+        let frame = "x".repeat(SERIAL_AGENT_BRIDGE_MAX_ARG_FRAME_BYTES + 1);
+        let err = encode_serial_agent_bridge_frame_arg(&frame)
+            .expect_err("oversized argv bridge frame must fail closed");
+        assert!(format!("{err}").contains("argv bridge limit"));
+    }
+
     #[tokio::test]
-    async fn exec_on_persistent_handle_fails_closed_before_booting_ephemeral_vm() {
+    async fn exec_on_persistent_handle_without_agent_socket_fails_closed() {
         let adapter = CloudHypervisorAdapter::new_for_test();
         let handle = ProcessHandle::new(
             AdapterId::new(CLOUD_HYPERVISOR_ADAPTER_ID),
@@ -2642,6 +3078,7 @@ mod tests {
         let mut state = HandleState::default();
         state.persistent = Some(PersistentVm {
             api_socket: "/work/persistent-test/api.sock".to_string(),
+            agent_socket: String::new(),
             serial_log: "/work/persistent-test/serial.log".to_string(),
             vm_root: "/work/persistent-test".to_string(),
         });
@@ -2658,12 +3095,12 @@ mod tests {
                 },
             )
             .await
-            .expect_err("persistent exec must fail closed until a guest agent exists");
+            .expect_err("missing agent socket must fail closed");
 
         match err {
             SandboxAdapterError::SpawnFailed { reason, .. } => {
-                assert!(reason.contains("exec into a persistent"));
-                assert!(reason.contains("vsock guest agent"));
+                assert!(reason.contains("guest agent socket is missing"));
+                assert!(reason.contains("refusing dirty fallback"));
             }
             other => panic!("expected typed SpawnFailed, got {other:?}"),
         }
@@ -2876,6 +3313,54 @@ mod tests {
                 }
                 other => panic!("expected typed SpawnFailed, got {other:?}"),
             }
+        }
+    }
+
+    #[tokio::test]
+    async fn oversized_persistent_exec_frame_does_not_kill_healthy_vm() {
+        let adapter = CloudHypervisorAdapter::new_for_test();
+        let handle = ProcessHandle::new(
+            AdapterId::new(CLOUD_HYPERVISOR_ADAPTER_ID),
+            None,
+            "persistent-local-frame-limit".to_string(),
+        );
+        let mut state = HandleState::default();
+        state.persistent = Some(PersistentVm {
+            api_socket: "/work/persistent-test/api.sock".to_string(),
+            agent_socket: "/work/persistent-test/agent.sock".to_string(),
+            serial_log: "/work/persistent-test/serial.log".to_string(),
+            vm_root: "/work/persistent-test".to_string(),
+        });
+        adapter.handles.lock().unwrap().insert(handle.id, state);
+
+        let err = adapter
+            .exec(
+                &handle,
+                Command {
+                    argv: vec!["cat".to_string()],
+                    env_overlay: BTreeMap::new(),
+                    stdin: Some(Bytes::from(vec![
+                        b'x';
+                        SERIAL_AGENT_BRIDGE_MAX_ARG_FRAME_BYTES + 1
+                    ])),
+                    timeout_ms: Some(1_000),
+                },
+            )
+            .await
+            .expect_err("oversized local bridge frame must fail before touching the VM");
+        match err {
+            SandboxAdapterError::SpawnFailed { reason, .. } => {
+                assert!(reason.contains("argv bridge limit"));
+            }
+            other => panic!("expected typed SpawnFailed, got {other:?}"),
+        }
+        match adapter
+            .status(&handle)
+            .await
+            .expect("status after local failure")
+        {
+            ProcessStatus::Running => {}
+            other => panic!("local frame validation failure must not kill the VM, got {other:?}"),
         }
     }
 

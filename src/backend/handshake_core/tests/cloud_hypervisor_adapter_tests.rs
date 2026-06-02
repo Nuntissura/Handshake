@@ -9,8 +9,9 @@
 
 use std::collections::BTreeMap;
 
+use bytes::Bytes;
 use handshake_core::sandbox::{
-    AdapterId, Command, CloudHypervisorAdapter, CloudHypervisorConfig, ImageRef, IsolationTier,
+    AdapterId, CloudHypervisorAdapter, CloudHypervisorConfig, Command, ImageRef, IsolationTier,
     NetPolicy, ProcessSpec, ProcessStatus, ResourceLimits, SandboxAdapter, SandboxAdapterError,
     Signal, TrustClass, CLOUD_HYPERVISOR_ADAPTER_ID, SANDBOX_IDLE_TIMEOUT_METADATA_KEY,
     SANDBOX_MODE_METADATA_KEY, SANDBOX_MODE_PERSISTENT,
@@ -66,17 +67,15 @@ fn persistent_spec() -> ProcessSpec {
 fn last_tick(serial: &str) -> Option<u64> {
     serial
         .lines()
-        .filter_map(|line| line.trim().strip_prefix("TICK-"))
+        .map(|line| line.trim().strip_prefix("TICK-").unwrap_or(line.trim()))
         .filter_map(|n| n.trim().parse::<u64>().ok())
         .max()
 }
 
-/// Poll the persistent VM's serial console until it emits a TICK strictly
-/// greater than `above` (up to ~40s), returning the highest TICK-N seen. The
-/// `above` bound matters for the restored VM: it appends to the SAME serial log
-/// that already holds the pre-snapshot ticks, so we must wait for a genuinely
-/// NEW tick (proof the VM resumed and kept counting) rather than re-reading a
-/// stale one. On timeout, dump the raw serial so a failure is diagnosable.
+/// Poll the persistent VM's in-guest tick file until it reports a value strictly
+/// greater than `above` (up to ~40s), returning the highest tick seen. The
+/// poll goes through the real persistent serial-agent exec path, so it verifies
+/// the command channel while proving the guest's in-RAM state is live.
 async fn wait_for_tick(
     adapter: &CloudHypervisorAdapter,
     handle: &handshake_core::sandbox::ProcessHandle,
@@ -85,7 +84,23 @@ async fn wait_for_tick(
 ) -> u64 {
     let mut last = String::new();
     for _ in 0..40 {
-        last = adapter.read_handle_serial(handle).await.unwrap_or_default();
+        let result = adapter
+            .exec(
+                handle,
+                Command {
+                    argv: vec![
+                        "sh".to_string(),
+                        "-c".to_string(),
+                        "cat /tmp/hsk-tick 2>/dev/null || true".to_string(),
+                    ],
+                    env_overlay: BTreeMap::new(),
+                    stdin: None,
+                    timeout_ms: Some(20_000),
+                },
+            )
+            .await
+            .expect("read persistent VM tick through guest channel");
+        last = String::from_utf8_lossy(&result.stdout).to_string();
         if let Some(n) = last_tick(&last) {
             if n > above {
                 return n;
@@ -94,12 +109,52 @@ async fn wait_for_tick(
         tokio::time::sleep(std::time::Duration::from_secs(1)).await;
     }
     panic!(
-        "{label}: persistent VM emitted no TICK greater than {above} within ~40s. Raw serial follows:\n{last}"
+        "{label}: persistent VM exposed no tick greater than {above} within ~40s. Last guest tick output follows:\n{last}"
     );
 }
 
+async fn persistent_exec_marker(
+    adapter: &CloudHypervisorAdapter,
+    handle: &handshake_core::sandbox::ProcessHandle,
+    label: &str,
+) -> String {
+    let mut env_overlay = BTreeMap::new();
+    env_overlay.insert("HSK_MARKER".to_string(), label.to_string());
+    let result = adapter
+        .exec(
+            handle,
+            Command {
+                argv: vec![
+                    "sh".to_string(),
+                    "-c".to_string(),
+                    "printf 'persistent-exec:%s:' \"$HSK_MARKER\"; cat".to_string(),
+                ],
+                env_overlay,
+                stdin: Some(Bytes::from(format!("stdin-{label}"))),
+                timeout_ms: Some(20_000),
+            },
+        )
+        .await
+        .expect("exec over persistent guest channel");
+    assert_eq!(result.exit_code, 0, "persistent guest command must exit 0");
+    let stdout = String::from_utf8_lossy(&result.stdout).to_string();
+    assert!(
+        stdout.contains(&format!("persistent-exec:{label}:stdin-{label}")),
+        "persistent guest stdout must include env overlay and stdin round-trip; got {stdout:?}"
+    );
+    match adapter
+        .status(handle)
+        .await
+        .expect("status after persistent exec")
+    {
+        ProcessStatus::Running => {}
+        other => panic!("persistent handle must remain Running after exec, got {other:?}"),
+    }
+    stdout
+}
+
 /// Real snapshot/restore: boot a persistent idle microVM, snapshot it, restore
-/// into a fresh VM, and prove the in-RAM running state (a serial TICK counter)
+/// into a fresh VM, and prove the in-RAM running state (a guest tick counter)
 /// CONTINUED across the restore — i.e. the VM was resumed from captured memory,
 /// not rebooted. Backs the validate-then-promote flow (spec v02.187 §3.5.7 #7).
 #[tokio::test]
@@ -121,7 +176,7 @@ async fn cloud_hypervisor_snapshot_restore_preserves_running_state() {
         .await
         .expect("spawn persistent microVM");
     // The guest boots a few seconds after spawn returns (spawn only waits for
-    // the API socket), so poll for the first TICK rather than guessing a sleep.
+    // host-side sockets), so poll for the first guest tick rather than guessing a sleep.
     let n_before = wait_for_tick(&adapter, &handle, 0, "before snapshot").await;
 
     let snapshot = adapter
@@ -132,9 +187,9 @@ async fn cloud_hypervisor_snapshot_restore_preserves_running_state() {
         .restore(&snapshot)
         .await
         .expect("restore a fresh microVM from the snapshot");
-    // Require a TICK strictly greater than n_before: proof the restored VM
+    // Require a tick strictly greater than n_before: proof the restored VM
     // resumed the in-RAM counter and kept incrementing (not a reboot, not a
-    // stale read of the pre-snapshot ticks in the shared serial log).
+    // stale read of the pre-snapshot tick file copied into the restore root).
     let n_after = wait_for_tick(&adapter, &restored, n_before, "after restore").await;
 
     eprintln!("--- SNAPSHOT/RESTORE: TICK before={n_before}, after={n_after} ---");
@@ -147,9 +202,148 @@ async fn cloud_hypervisor_snapshot_restore_preserves_running_state() {
     let _ = adapter.kill(&restored, Signal::Kill).await;
 }
 
-/// A snapshot must be RE-RESTORABLE: restoring it twice yields two independent
-/// VMs, and tearing one down must not destroy the snapshot or the other VM's
-/// console (regression guard for the restore-owns-snapshot-dir clobber bug).
+/// Persistent guest-channel smoke: boot one long-lived microVM, execute a real
+/// command through the serial-socket agent, snapshot it, restore it, and execute
+/// again on the restored handle. This proves the new command channel is not just
+/// advertised in capabilities and that restored socket-backed snapshots remain
+/// executable without falling back to the cold per-exec boot path.
+#[tokio::test]
+async fn cloud_hypervisor_persistent_exec_survives_snapshot_restore() {
+    let adapter = match CloudHypervisorAdapter::try_new(CloudHypervisorConfig::default()).await {
+        Ok(adapter) => adapter,
+        Err(error) => {
+            require_or_skip(&error);
+            return;
+        }
+    };
+    assert!(
+        adapter.capabilities().supports_persistent_exec,
+        "persistent VM adapter must advertise the serial guest command channel"
+    );
+    assert!(
+        !adapter.capabilities().supports_warm_agent,
+        "generic persistent exec must not imply warm-model RPC"
+    );
+
+    let handle = adapter
+        .spawn(persistent_spec())
+        .await
+        .expect("spawn persistent microVM");
+    let n_before = wait_for_tick(&adapter, &handle, 0, "before persistent exec").await;
+    let before_stdout = persistent_exec_marker(&adapter, &handle, "before").await;
+    eprintln!("--- PERSISTENT EXEC BEFORE SNAPSHOT ---\n{before_stdout}");
+
+    let snapshot = adapter
+        .snapshot(&handle)
+        .await
+        .expect("snapshot after persistent exec");
+    let restored = adapter
+        .restore(&snapshot)
+        .await
+        .expect("restore socket-backed persistent VM");
+    let _ = wait_for_tick(
+        &adapter,
+        &restored,
+        n_before,
+        "restored before persistent exec",
+    )
+    .await;
+
+    let after_stdout = persistent_exec_marker(&adapter, &restored, "after").await;
+    eprintln!("--- PERSISTENT EXEC AFTER RESTORE ---\n{after_stdout}");
+
+    let _ = adapter.kill(&handle, Signal::Kill).await;
+    let _ = adapter.kill(&restored, Signal::Kill).await;
+}
+
+/// A persistent VM has one serial command stream. Concurrent execs on the same
+/// handle must be bounded and non-destructive: a short-timeout second exec fails
+/// busy while the in-flight command completes and the VM remains usable.
+#[tokio::test]
+async fn cloud_hypervisor_persistent_exec_busy_timeout_does_not_kill_vm() {
+    let adapter = match CloudHypervisorAdapter::try_new(CloudHypervisorConfig::default()).await {
+        Ok(adapter) => adapter,
+        Err(error) => {
+            require_or_skip(&error);
+            return;
+        }
+    };
+
+    let handle = adapter
+        .spawn(persistent_spec())
+        .await
+        .expect("spawn persistent microVM");
+    let _ = wait_for_tick(&adapter, &handle, 0, "before concurrent persistent exec").await;
+
+    let slow_adapter = adapter.clone();
+    let slow_handle = handle.clone();
+    let slow = tokio::spawn(async move {
+        slow_adapter
+            .exec(
+                &slow_handle,
+                Command {
+                    argv: vec![
+                        "sh".to_string(),
+                        "-c".to_string(),
+                        "sleep 2; printf slow-done".to_string(),
+                    ],
+                    env_overlay: BTreeMap::new(),
+                    stdin: None,
+                    timeout_ms: Some(10_000),
+                },
+            )
+            .await
+    });
+    tokio::time::sleep(std::time::Duration::from_millis(1_000)).await;
+
+    let busy = adapter
+        .exec(
+            &handle,
+            Command {
+                argv: vec![
+                    "sh".to_string(),
+                    "-c".to_string(),
+                    "printf fast".to_string(),
+                ],
+                env_overlay: BTreeMap::new(),
+                stdin: None,
+                timeout_ms: Some(250),
+            },
+        )
+        .await
+        .expect_err("second concurrent exec must fail busy instead of killing the VM");
+    match busy {
+        SandboxAdapterError::SpawnFailed { reason, .. } => {
+            assert!(
+                reason.contains("persistent guest channel is busy"),
+                "unexpected busy error: {reason}"
+            );
+        }
+        other => panic!("expected busy SpawnFailed, got {other:?}"),
+    }
+
+    let slow_result = slow
+        .await
+        .expect("slow exec task joins")
+        .expect("slow in-flight exec completes");
+    assert_eq!(slow_result.exit_code, 0);
+    assert_eq!(String::from_utf8_lossy(&slow_result.stdout), "slow-done");
+    match adapter
+        .status(&handle)
+        .await
+        .expect("status after busy timeout")
+    {
+        ProcessStatus::Running => {}
+        other => panic!("busy timeout must not kill persistent VM, got {other:?}"),
+    }
+
+    let _ = adapter.kill(&handle, Signal::Kill).await;
+}
+
+/// A snapshot must be RE-RESTORABLE without allowing concurrent cloned guests:
+/// a second live restore from the same snapshot is refused for clone safety, but
+/// the same snapshot can be restored again after the prior restored VM is torn
+/// down (regression guard for the restore-owns-snapshot-dir clobber bug).
 #[tokio::test]
 async fn cloud_hypervisor_snapshot_restores_twice_independently() {
     let adapter = match CloudHypervisorAdapter::try_new(CloudHypervisorConfig::default()).await {
@@ -174,24 +368,32 @@ async fn cloud_hypervisor_snapshot_restores_twice_independently() {
         .expect("first restore from snapshot");
     let r1_tick = wait_for_tick(&adapter, &r1, n0, "first restore").await;
 
-    // Second restore FROM THE SAME snapshot must still succeed (the snapshot was
-    // not consumed/destroyed by the first restore).
+    // A concurrent second restore FROM THE SAME snapshot is intentionally
+    // refused: CH resume cannot reseed guest identity/entropy without VMGenID.
+    match adapter.restore(&snapshot).await {
+        Err(SandboxAdapterError::SnapshotFailed { reason, .. }) => {
+            assert!(
+                reason.contains("already restored into a live VM"),
+                "unexpected second-restore error: {reason}"
+            );
+        }
+        Err(other) => panic!("expected clone-safety SnapshotFailed, got {other:?}"),
+        Ok(unexpected) => {
+            let _ = adapter.kill(&unexpected, Signal::Kill).await;
+            panic!("concurrent second restore from same snapshot must be refused");
+        }
+    }
+
+    // Once the first restored VM is killed, the snapshot must still be reusable:
+    // the first restore consumed only its private restore copy, not the source.
+    adapter.kill(&r1, Signal::Kill).await.expect("kill r1");
     let r2 = adapter
         .restore(&snapshot)
         .await
-        .expect("second restore from the same snapshot (must not be consumed)");
-    let r2_tick = wait_for_tick(&adapter, &r2, n0, "second restore").await;
+        .expect("sequential second restore from the same snapshot after r1 kill");
+    let r2_tick = wait_for_tick(&adapter, &r2, n0, "second restore after r1 kill").await;
 
-    eprintln!("--- DOUBLE RESTORE: n0={n0}, r1={r1_tick}, r2={r2_tick} ---");
-
-    // Tearing down the first restored VM must not affect the second: r2 keeps
-    // ticking on its OWN console after r1 is killed.
-    adapter.kill(&r1, Signal::Kill).await.expect("kill r1");
-    let r2_after = wait_for_tick(&adapter, &r2, r2_tick, "r2 after r1 kill").await;
-    assert!(
-        r2_after > r2_tick,
-        "second restored VM must survive the first's teardown: {r2_tick} -> {r2_after}"
-    );
+    eprintln!("--- SEQUENTIAL RE-RESTORE: n0={n0}, r1={r1_tick}, r2={r2_tick} ---");
 
     let _ = adapter.kill(&r2, Signal::Kill).await;
     let _ = adapter.kill(&handle, Signal::Kill).await;
@@ -220,8 +422,11 @@ async fn cloud_hypervisor_restored_survives_original_teardown() {
     let r_tick = wait_for_tick(&adapter, &restored, n0, "restored").await;
 
     // Tear down the ORIGINAL; the restored VM's console must survive and keep
-    // advancing (it writes to its own restore-owned serial log).
-    adapter.kill(&handle, Signal::Kill).await.expect("kill original");
+    // advancing (it owns the restored in-guest tick state).
+    adapter
+        .kill(&handle, Signal::Kill)
+        .await
+        .expect("kill original");
     let r_after = wait_for_tick(&adapter, &restored, r_tick, "restored after original kill").await;
     assert!(
         r_after > r_tick,
@@ -266,7 +471,10 @@ async fn cloud_hypervisor_persistent_vm_idle_auto_kills() {
             break;
         }
     }
-    assert!(reaped, "idle persistent VM must self-reap via the idle reaper");
+    assert!(
+        reaped,
+        "idle persistent VM must self-reap via the idle reaper"
+    );
     match adapter.status(&handle).await {
         Ok(ProcessStatus::Killed { .. }) => {}
         other => panic!("expected Killed after idle reap, got {other:?}"),
@@ -298,7 +506,10 @@ async fn cloud_hypervisor_enumerate_and_reclaim_orphans() {
     // Fabricate an on-disk orphan the adapter does NOT own (simulating a VM left
     // by a crashed prior run).
     let wd = adapter.config().work_dir().to_string();
-    let orphan = format!("{wd}/persistent-orphan-test-{}", uuid::Uuid::now_v7().simple());
+    let orphan = format!(
+        "{wd}/persistent-orphan-test-{}",
+        uuid::Uuid::now_v7().simple()
+    );
     let mk = std::process::Command::new("wsl.exe")
         .args([
             "-d",
@@ -319,9 +530,16 @@ async fn cloud_hypervisor_enumerate_and_reclaim_orphans() {
     );
 
     let reclaimed = adapter.reclaim_orphan_vm_dirs().await;
-    assert!(reclaimed >= 1, "must reclaim at least the fabricated orphan");
     assert!(
-        !adapter.discover_orphan_vm_dirs().await.iter().any(|d| d == &orphan),
+        reclaimed >= 1,
+        "must reclaim at least the fabricated orphan"
+    );
+    assert!(
+        !adapter
+            .discover_orphan_vm_dirs()
+            .await
+            .iter()
+            .any(|d| d == &orphan),
         "orphan must be gone after reclaim"
     );
     // Reclaim must NOT have touched the live VM.
@@ -330,7 +548,10 @@ async fn cloud_hypervisor_enumerate_and_reclaim_orphans() {
         "reclaim must not remove the live VM this adapter owns"
     );
 
-    adapter.kill(&handle, Signal::Kill).await.expect("kill live handle");
+    adapter
+        .kill(&handle, Signal::Kill)
+        .await
+        .expect("kill live handle");
     assert!(
         !adapter.live_persistent_handle_ids().contains(&handle.id),
         "killed handle must no longer be enumerated"
@@ -385,7 +606,10 @@ async fn cloud_hypervisor_boots_real_microvm_and_captures_stdout() {
     let stdout = String::from_utf8_lossy(&result.stdout);
     eprintln!("--- REAL MICROVM STDOUT BEGIN ---");
     eprintln!("{stdout}");
-    eprintln!("--- REAL MICROVM STDOUT END (exit_code={}, {} ms) ---", result.exit_code, result.duration_ms);
+    eprintln!(
+        "--- REAL MICROVM STDOUT END (exit_code={}, {} ms) ---",
+        result.exit_code, result.duration_ms
+    );
 
     assert!(
         stdout.contains("handshake-microvm-ok"),
@@ -403,7 +627,10 @@ async fn cloud_hypervisor_boots_real_microvm_and_captures_stdout() {
         other => panic!("expected Exited after completed exec, got {other:?}"),
     }
     assert_eq!(
-        adapter.exit_code(&handle).await.expect("exit_code after exec"),
+        adapter
+            .exit_code(&handle)
+            .await
+            .expect("exit_code after exec"),
         Some(0)
     );
 }
@@ -442,7 +669,10 @@ async fn cloud_hypervisor_propagates_nonzero_exit_code() {
         .expect("exec non-zero command inside real microVM");
 
     let stdout = String::from_utf8_lossy(&result.stdout);
-    eprintln!("--- REAL MICROVM (nonzero) STDOUT ---\n{stdout}\n--- exit_code={} ---", result.exit_code);
+    eprintln!(
+        "--- REAL MICROVM (nonzero) STDOUT ---\n{stdout}\n--- exit_code={} ---",
+        result.exit_code
+    );
 
     assert!(stdout.contains("before-failure"));
     assert_eq!(
@@ -501,10 +731,8 @@ async fn cloud_hypervisor_fs_bind_read_write_writes_back_to_host() {
     };
 
     // Unique Windows host temp dir with a baked-in input file.
-    let host_dir = std::env::temp_dir().join(format!(
-        "hsk-ch-fsbind-{}",
-        uuid::Uuid::now_v7().simple()
-    ));
+    let host_dir =
+        std::env::temp_dir().join(format!("hsk-ch-fsbind-{}", uuid::Uuid::now_v7().simple()));
     fs::create_dir_all(&host_dir).expect("create host bind dir");
     fs::write(host_dir.join("input.txt"), "hello-from-host").expect("write input.txt");
 
