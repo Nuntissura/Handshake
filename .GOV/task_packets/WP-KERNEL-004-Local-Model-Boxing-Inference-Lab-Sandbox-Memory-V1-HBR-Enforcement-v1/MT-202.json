@@ -1,0 +1,115 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-202",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "C",
+  "cluster_subscope": "C.0",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-30T08:30:00Z",
+  "updated_at_utc": "2026-06-01T22:28:00Z",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-202.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "Production model-load flow + live-runtime wiring (THE-ONE-THING foundation for C-cluster)",
+  "origin": "Authored 2026-05-30 during WP-KERNEL-004 Phase-2 IV remediation. The Phase-2 verdict (PHASE2_VERDICT.json) FAIL root cause is that the inference-lab features (steering/refusal/CAA/KV state-vector) are non-functional in the deployed Tauri app because (1) no production command ever calls ModelRuntimeState::attach_live_runtime (all 14 callers are #[cfg(test)]; model_runtime.rs:71 is #[allow(dead_code)]), AND (2) the deeper discovery during remediation: there is NO production model-load command at ALL (every registry register/mark_loaded + CandleRuntime construction in app/src-tauri is #[cfg(test)]), AND (3) candle-runtime-engine is feature-gated OUT of the deployed app build (app default=[]; deps handshake_core features=[app-runtime,inspector]; none pull candle-runtime-engine), so even a wired load command would hit CANDLE_NATIVE_FEATURE_DISABLED. The IV's 'THE-ONE-THING' remediation assumed a production load command exists; it does not. Operator decisions 2026-05-30 (repomem #2382, #2383): build the load flow inside WP-KERNEL-004 as the in-scope dependency, and enable candle-runtime-engine in the app build. MT-096 deferred_or_residual already admits this wiring 'requires a live app + loaded model ... not backend-provable here'.",
+  "goal": "Build the production model-load/unload flow in the Tauri app so that loading a local model constructs a REAL CandleRuntime, registers it into ModelRuntimeState, marks it loaded, and attaches it via attach_live_runtime(model_id, Arc<dyn ModelRuntime>) — and symmetrically detaches+drops on unload. Enable candle-runtime-engine in the deployed app build so the real load+forward+activation-hook path is compiled in. This lights up preflight_capability_and_loaded (registry capability + is_loaded) and require_live_runtime (live adapter) for every inference-lab IPC command (steering capture/register/set_active, refusal extract, CAA extract, LoRA, KV prefix), which return the typed capture_not_available prefix today. This MT is the foundation the C-cluster blockers sit on.",
+  "expected_diff_shape": "(1) app/src-tauri/Cargo.toml: add candle-runtime-engine to the handshake_core dependency feature set. (2) app/src-tauri/src/commands/model_runtime.rs: new production methods register_loaded(registration) + unregister(model_id) on ModelRuntimeState (replacing the #[cfg(test)]-only register_for_tests/mark_loaded_for_tests path for production use); remove #[allow(dead_code)] from attach_live_runtime/detach_live_runtime now that real callers exist; new kernel_model_runtime_load + kernel_model_runtime_unload Tauri commands. (3) app/src-tauri/src/lib.rs: register the two new commands in BOTH invoke_handler lists. (4) New candle-gated app integration test driving the real load command against a real safetensors model from D:/Local Models, then asserting a steering capture returns a non-capture_not_available result.",
+  "owned_files": [
+    "app/src-tauri/Cargo.toml",
+    "app/src-tauri/src/commands/model_runtime.rs",
+    "app/src-tauri/src/lib.rs",
+    "app/src-tauri/tests/model_load_live_runtime_tests.rs"
+  ],
+  "depends_on_mts": [
+    "MT-065",
+    "MT-082",
+    "MT-083",
+    "MT-096"
+  ],
+  "unblock_conditions": "CandleRuntime::load (adapter.rs:159) + steering_hooks (adapter.rs) already implemented behind candle-runtime-engine; ModelRuntimeState (model_runtime.rs) already holds registry + live_runtimes maps with attach/detach/live_runtime methods. This MT wires them to a production command and enables the feature.",
+  "implementation_notes": "DESIGN (validated against trait.rs, registry.rs, adapter.rs, model_runtime.rs, steering.rs at f0c6faf0). Architecture: ONE CandleRuntime per loaded model, owned by the Arc<dyn ModelRuntime> stored in ModelRuntimeState.live_runtimes. load(&mut self) and unload(&mut self) are the ONLY &mut self trait methods; all dispatch methods (steering_hooks/capabilities/kv_cache/lora_stack/generate, &self) work through the immutable Arc. LOAD COMMAND kernel_model_runtime_load(request, state): (a) parse request fields: artifact_path (PathBuf), sha256_expected (String, lowercase hex), runtime_binding (Candle for V1; reject others with typed error for now), declared_capabilities (ModelCapabilities — may be derived from artifact config or passed explicitly), provider (ProviderKind::Local), base_model_tag, kv_cache_policy, sampling_defaults, runtime_kind. (b) build LoadSpec { artifact_path, sha256_expected, runtime_kind, sampling_defaults, kv_cache_policy, declared_capabilities, provider, engine_origin: Some(\"candle\"), external_engine_import: None }. (c) let mut runtime = CandleRuntime::default(); let model_id = runtime.load(spec).await?; — NOTE load() mints its OWN ModelId (adapter.rs:172) and returns it; the command must register + attach under THAT id, not a caller-chosen id. (d) build ModelRegistration { model_id, artifact_path, sha256:[u8;32] decoded from hex, runtime_binding: RuntimeBinding::Candle, declared_capabilities, base_model_tag, registered_at_utc: Utc::now(), registered_by: OperatorId, provider }. (e) state.register_loaded(registration) — NEW production method = registry.register(reg) + registry.mark_loaded(model_id) under the write lock. (f) state.attach_live_runtime(model_id, Arc::new(runtime) as Arc<dyn ModelRuntime>). (g) return model_id.to_string(). UNLOAD COMMAND kernel_model_runtime_unload(model_id, state): (a) parse model_id. (b) state.detach_live_runtime(model_id) — removes+drops the Arc, freeing the CandleRuntime+model. (c) state.unregister(model_id) — NEW method removing the registration. Detaching the sole Arc is the unload (the per-model CandleRuntime is wholly owned by it); the trait unload(&mut self) is not reachable through a shared Arc and is not needed for this design. PRODUCTION METHODS: add register_loaded(&self, ModelRegistration)->Result<(),String> and unregister(&self, ModelId)->Result<(),String> as non-test methods (the existing register_for_tests/mark_loaded_for_tests stay for unit tests or are superseded). Remove #[allow(dead_code)] on attach_live_runtime + detach_live_runtime. lib.rs: register kernel_model_runtime_load + kernel_model_runtime_unload in BOTH invoke_handler lists (the two at ~lines 70-112 and ~168-209). FR events: emit FR-EVT-LLM-MODEL-LOAD { model_id, runtime_binding, artifact_sha256, capabilities } and FR-EVT-LLM-MODEL-UNLOAD { model_id } consistent with existing FR-EVT naming. CANDLE FEATURE: app/src-tauri/Cargo.toml handshake_core dep gains candle-runtime-engine in its feature list (DONE in this MT's first edit). DEVICE: CandleRuntime::default() uses CandleDevicePreference::Auto -> CPU on this host (no cuda feature); acceptable for V1 proof. MODEL SELECTION FOR PROOF: candle loads safetensors (Mamba2/RWKV v5/6/7/Llama transformer via config.json arch detection in adapter.rs:177-182); GGUF in D:/Local Models is llama.cpp-only and will NOT work for candle. Pick a small safetensors model with config.json declaring a candle-supported arch from D:/Local Models for the proof test (search for config.json + *.safetensors). Gate the proof test behind candle-runtime-engine + an env var pointing at the model dir so default CI skips cleanly, BUT also add a default-CI test that proves the load command path compiles and that an unloaded model returns the typed error (so the wiring is structurally covered even without a model present).",
+  "proof_commands": [
+    "cargo build -p app --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+    "cargo test -p app --target-dir ../Handshake_Artifacts/handshake-cargo-target model_load_live_runtime_tests",
+    "HANDSHAKE_TEST_CANDLE_MODEL_DIR=<path under D:/Local Models> cargo test -p app --features <candle> --target-dir ../Handshake_Artifacts/handshake-cargo-target model_load_live_runtime_real_model -- --ignored"
+  ],
+  "risk_if_missed": "The entire inference-lab production surface (steering, refusal, CAA, LoRA, KV state-vector) stays non-functional in the deployed app: every IPC command fail-closes with capture_not_available because no model is ever loaded and no live runtime is ever attached. MT-096/097/098/100/102 cannot be remediated to the IV's 'deployed binary' bar, and MT-088/089/095 cannot be proven against a real model. This is the WP-KERNEL-004 Phase-2 FAIL root cause.",
+  "validator_focus": "Spec-Realism Gate sub-rules 1 & 2: the load command must construct a REAL CandleRuntime (not a fake) and the real-model proof must touch a real model from disk and return a real capture (not a mock and not the capture_not_available prefix). attach_live_runtime must have a non-test caller. candle-runtime-engine must be in the app build. Both load + unload registered in lib.rs invoke_handler. Unload must actually free the model (detach drops the sole Arc). No #[allow(dead_code)] left on attach/detach.",
+  "hbr_obligations": [
+    "HBR-INT-002"
+  ],
+  "spec_anchors": [
+    ".GOV/spec/SPEC_CURRENT.md#04-llm-infrastructure",
+    "04-llm-infrastructure.md#4.7.1"
+  ],
+  "acceptance_criteria_refs": [
+    "AC-INFER-LAB-8-TECHNIQUES",
+    "AC-INFER-LAB-UI-TOGGLES"
+  ],
+  "lifecycle": {
+    "active": false,
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "PENDING",
+    "integration_validator_verdict": "PENDING",
+    "depends_on": [
+      "MT-065",
+      "MT-082",
+      "MT-083",
+      "MT-096"
+    ],
+    "blocks": [
+      "MT-088",
+      "MT-089",
+      "MT-095",
+      "MT-096",
+      "MT-097",
+      "MT-098",
+      "MT-100",
+      "MT-102"
+    ],
+    "claimed_by": "KERNEL_BUILDER-20260530-054956",
+    "claimed_at_utc": "2026-05-30T08:30:00Z",
+    "completed_by": null,
+    "ready_for_validation_by": "GOVERNANCE-REPAIR-WP-KERNEL-004-20260601",
+    "ready_for_validation_at_utc": "2026-06-01T22:28:00Z",
+    "ready_for_validation_reason": "Existing committed implementation evidence is present and a KB_READY_CHECKLIST_RECEIPT PASS was emitted during governance repair; validator review remains pending.",
+    "kb_ready_checklist_receipt_ref": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl#MT-202@2026-06-01T22:26:32.939Z",
+    "handoff_receipt_ref": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/RECEIPTS.jsonl#KERNEL004-MT202-RFV-HANDOFF-20260601",
+    "implementation_evidence": {
+      "implemented_by": "KERNEL_BUILDER-20260530-054956",
+      "commit_sha": "018d62f6",
+      "branch": "feat/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+      "worktree": "wtc-kernel-004-fold-v1",
+      "files_touched": [
+        "app/src-tauri/Cargo.toml",
+        "app/src-tauri/Cargo.lock",
+        "app/src-tauri/src/commands/model_runtime.rs",
+        "app/src-tauri/src/lib.rs",
+        "src/backend/handshake_core/src/model_runtime/registry.rs"
+      ],
+      "proof": "cargo test -p app model_runtime (candle enabled): 11/11 pass incl. real-model test model_load_attaches_real_candle_runtime_and_capture_returns_real_activations — loaded real TinyLLama-v0 safetensors (D:/Local Models/Maykeye_TinyLLama-v0, sha256 c302246d91e2854ff350e52a79938a818c203186c2f0671213ce372a0289cd91), attached REAL CandleRuntime, ran REAL activation capture (non-mock, non-capture_not_available, tokens_seen>0, real residual-stream activations), unload detached+freed. Default-CI error-path tests cover hash/empty/missing-file/unknown-unload. cargo check -p app exit 0 with candle-runtime-engine in the app build.",
+      "spec_realism_gate": "PASS sub-rule 1 (no deferred-live escape: real load command, real attach), sub-rule 2 (real resource touched: real safetensors model + real forward-pass capture). sub-rule 3 deferred to a separate validator actor (IV Phase-3).",
+      "readiness_note": "Governance repair transitioned MT-202 from CLAIMED to READY_FOR_VALIDATION on 2026-06-01 after emitting KB_READY_CHECKLIST_RECEIPT PASS. This is Kernel Builder handoff readiness only; Integration Validator verdict remains PENDING.",
+      "perf_followup_concern": "kernel_model_runtime_load awaits CandleRuntime::load directly on the async runtime thread; a multi-GB real load would block other IPC. V1-acceptable for the proof; consider spawn_blocking before shipping large-model loads."
+    }
+  },
+  "red_team": {
+    "minimum_controls": [
+      "attach_live_runtime has a real (non-#[cfg(test)]) caller in the production load command.",
+      "The load command constructs a REAL CandleRuntime (CandleRuntime::default()/with_device_preference), never a FakeCandleRuntime.",
+      "The real-model proof loads a model from disk and asserts a steering capture returns a non-capture_not_available result (Spec-Realism sub-rule 2: touches the real resource).",
+      "Unload detaches AND frees the model (drops the sole owning Arc); a subsequent steering command on the unloaded id returns the typed not-available error.",
+      "candle-runtime-engine is present in the deployed app build so the real path is compiled, not cfg'd out.",
+      "sha256_expected is validated against the artifact at load (load() already enforces via validate_candle_load_spec); a mismatch fails loud."
+    ]
+  }
+}

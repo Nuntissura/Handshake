@@ -1,0 +1,730 @@
+{
+  "schema": "hsk.iv_phase2_verdict_record@1",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "classification": "INTEGRATION_VALIDATOR_PHASE2_POST_REMEDIATION_VERDICT",
+  "candidate": {
+    "branch": "feat/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+    "head_sha": "f0c6faf0d5bdb9600bed999a98b9bd2f06eb998d",
+    "worktree": "wtc-kernel-004-fold-v1"
+  },
+  "validated_by": "INTEGRATION_VALIDATOR (Opus 4.8, 1M ctx) — no-governance product-quality Phase-2 pass per operator goal 2026-05-30",
+  "topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1",
+  "method": "21 per-subscope sub-reviewers (Explore) each verifying Phase-1 CRIT+HIGH remediations in current code + applying Spec-Realism Gate, each adversarially refuted by an independent red-team verifier; 4 cross-cluster coherence checks; 2 linchpins re-verified directly by the IV of record.",
+  "verdict": "FAIL",
+  "spec_resolved": "v02.188 (.GOV/spec/SPEC_CURRENT.md -> master-spec-v02.188)",
+  "objective_gates": {
+    "build": "PASS (cargo build --bin handshake, default features, exit 0)",
+    "backend_cargo_test": "PASS except cloud_hypervisor_adapter_tests x3 which FAIL only under full-suite parallel host-load; ALL 9 PASS isolated --test-threads=1 (real microVM boot + snapshot/restore: TICK before=1 after=4). Classify: TEST-ROBUSTNESS CONCERN, not a product defect.",
+    "app_tauri_test": "NOT_RUN — non-decisive: the FAIL basis is production-wiring gaps proven by code reading; the passing unit tests are themselves part of the problem (they attach fake adapters).",
+    "artifact_hygiene": "CLEAN (no tracked build outputs, no repo-local target/). One gitignored in-tree Handshake_Artifacts/handshake-cargo-target leftover from a prior session (untracked, cannot reach main) — cleanable pre-merge."
+  },
+  "decisive_root_cause": "The remediation implemented features at the library/test/UI layer but did NOT wire them into the deployed production runtime / IPC path. Unit tests pass because they attach fake/mock adapters via the same API the production load flow never calls. This is the SAME failure class that caused the original 27-MT reopen (impl satisfies its own tests, not the Master Spec behavior at runtime).",
+  "iv_verified_linchpins": [
+    {
+      "id": "L1-steering-not-wired",
+      "finding": "ModelRuntimeState::attach_live_runtime is #[allow(dead_code)] // future production load flow. ALL 14 call sites are #[tokio::test] functions; app/src-tauri/src/lib.rs (production command registration) never calls it. Therefore in the deployed binary INF-3 activation steering, INF-4 refusal-vector extract/activate, CAA capture, and per-model capability dispatch all return capture_not_available.",
+      "files": [
+        "app/src-tauri/src/commands/model_runtime.rs:71",
+        "app/src-tauri/src/commands/steering.rs (callers @644/765 both #[tokio::test])",
+        "app/src-tauri/src/commands/refusal.rs",
+        "app/src-tauri/src/commands/caa.rs",
+        "app/src-tauri/src/commands/lora.rs"
+      ],
+      "severity": "CRITICAL",
+      "verified_by_iv": true
+    },
+    {
+      "id": "L2-loopback-deny",
+      "finding": "network_mode() maps NetPolicy::LoopbackOnly => Ok(\"none\") identically to DenyAll on the default WSL2PodmanAdapter (Docker adapter has the same downgrade). Loopback-only silently becomes no-network; a workload expecting a host 127.0.0.1 service gets nothing, with no error. Violates spec 3.5.7 network-policy honesty.",
+      "files": [
+        "src/backend/handshake_core/src/sandbox/wsl2_podman/podman_cli.rs:259-274",
+        "src/backend/handshake_core/src/sandbox/docker/kernel_003_bridge.rs:~243"
+      ],
+      "severity": "HIGH",
+      "verified_by_iv": true
+    }
+  ],
+  "confirmed_blockers_by_mt": {
+    "MT-027": {
+      "mt": "MT-027",
+      "subscope": "A.2",
+      "spec_anchor": "06-mechanical-integrations.md#6.4",
+      "blockers": [
+        {
+          "issue": "Focus-audit integration absent from the A.2 visual smoke test. The smoke hardcodes focus_audit_summary.handshake_owned_events: [] and asserts that hardcoded array equals [], so the HBR-QUIET-001 tie between A.2 visual work and A.4 quiet-mode is structural-only, not exercised at runtime. FocusAuditHandle::start/stop (MT-015) is never invoked during the test window. No focus-audit Tauri IPC command exists, so the Playwright run has no mechanism to drive the real audit. This contradicts MT-027 contract implementation_notes steps (3) 'Start focus-audit (MT-015) with run_id' and (7) 'Stop focus-audit and assert handshake_owned_events is empty', red_team minimum_control 'Focus-audit assertion at smoke level ties A.2 work to A.4 invariants', and hbr_obligations HBR-QUIET-001. NOT_FIXED at the actual review commit f0c6faf0.",
+          "evidence": "tests/visual/a2_smoke.spec.ts:129-132 (focus_audit_summary: { run_id: runId, handshake_owned_events: [] }) and :141 (expect(row.focus_audit_summary.handshake_owned_events).toEqual([])). focus_audit.rs exists at src/backend/handshake_core/src/operator_foreground/focus_audit.rs (FocusAuditLedger / FocusAuditEvent) but is never referenced by the test. Grep of app/src-tauri/src for focus/FocusAudit returns only quiet_window.rs ('.focused(false)' window config) among 95 tauri::command across 25 files — zero focus-audit IPC commands. .GOV/roles_shared/checks/hbr-visual-smoke.mjs:71-72 sums row.focus_audit_summary.handshake_owned_events.length, which is always 0 because the spec emits []. git log shows a2_smoke.spec.ts last touched only by the f0c6faf0 IV-backup commit; all post-Phase-1 commits (82e8e134, 128d4a8d, f2a97650, etc.) are cluster-B sandbox work, none touching A.2/MT-027. MT-027 contract MT-027.json:40 (steps 3,7), :53 (HBR-QUIET-001), :110 (red_team control)."
+        }
+      ]
+    },
+    "MT-029": {
+      "mt": "MT-029",
+      "subscope": "A.3",
+      "spec_anchor": ".GOV/spec/master-spec-v02.186/spec-modules/06-mechanical-integrations.md#6.5.5",
+      "blockers": [
+        {
+          "issue": "Per-run shared-secret header is enforced ONLY on the /inspector/v1/replay-drive POST endpoint, not on the read endpoints. Spec §6.5.5 explicitly requires the header 'on every request'. All seven read surfaces remain fully unauthenticated: GET /inspector/v1/sessions, /sessions/:id, /event-ledger/tail, /process-ledger/active, /workspace/:ws_id, /trace/:session_id, /models, and the WS /inspector/v1/event-stream. This is exactly the confidentiality gap the original MT-029 HIGH finding described ('Any local process can curl http://127.0.0.1:<port>/inspector/v1/sessions and read the governance event ledger, session state, workspace state, and loaded models'). The fix did not close it; the sub-reviewer's FIXED verdict is too lenient.",
+          "evidence": "server.rs:171-191 inspector_router registers all GET routes plus the WS route with NO .layer()/middleware and NO secret check. The only secret check, per_run_secret_header_matches (server.rs:291-304), is called exactly once at server.rs:274 inside the replay_drive POST handler. Spec master-spec-v02.188/spec-modules/06-mechanical-integrations.md:6702: 'Per-run shared-secret header -- required on every request.' Phase-1 IV verdict_reason (MT-029.json integration_validator_review) states the header 'is not enforced'. replay_drive_tests.rs contains ZERO tests sending a no-secret request to any read endpoint and asserting 401/403; every test (lines 24-242) targets only /inspector/v1/replay-drive."
+        },
+        {
+          "issue": "Reject audit-log does not capture peer_addr. Spec §6.5.5 requires every reject be logged with (timestamp, route, peer_addr, reason) and scanned by WP_VALIDATOR for tamper-evidence. The current reject log emits route and a reason string only; peer_addr is absent, and rejects are only logged on the mutation path (read endpoints never reject because they have no auth check). This sub-defect was explicitly named in the Phase-1 IV verdict_reason ('reject-attempts are not audit-logged') and the sub-reviewer did not address it.",
+          "evidence": "server.rs:275-279 tracing::warn! logs route='/inspector/v1/replay-drive' and a reason message but no peer_addr field. Spec 06-mechanical-integrations.md:6703: 'Audit log of every reject -- every 403 / signature-fail / bad-scheme attempt is logged with (timestamp, route, peer_addr, reason).' No SocketAddr/ConnectInfo extractor is wired into any handler."
+        }
+      ]
+    },
+    "MT-019": {
+      "mt": "MT-019",
+      "subscope": "A.4",
+      "spec_anchor": "06-mechanical-integrations.md#6.6",
+      "blockers": [
+        {
+          "issue": "ControlledWindow is a logging-only stub; no actual Tauri window is created, violating spec §6.6.7 and the MT-019 contract requirement of a SHOWN, FOCUSED bounded window with real auto-dismiss. NOT_FIXED.",
+          "evidence": "src/backend/handshake_core/src/operator_foreground/foreground_exception.rs: bounded_window() (lines 180-212) constructs only a ControlledWindow struct of label/url/log_path/state with NO WebviewWindow/WebviewWindowBuilder anywhere; visible() returns true (283-285), focused() returns true (287-289), expected_foreground() returns true (291-293) all hardcoded; auto_dismiss_at_deadline() at line 298 is `timeout(self.max_duration, pending::<()>()).await` — a bare sleep that drives no window lifecycle. MT-019.json implementation_notes (line 35) explicitly require '.bounded_window(label, url) -> ControlledWindow returns a SHOWN, FOCUSED window that lives for at most max_duration and auto-dismisses' and a test that 'auto-dismiss closes the window at deadline'; no deferral/declaration-only marker exists in the contract. Spec v02.188 06-mechanical-integrations.md §6.6.7 (line 6784) requires 'Use a bounded controlled test window (timeout + auto-dismiss).' The MT-019.json baked-in integration_validator_review (line 102) independently records this same HIGH as CONCERN/PARTIAL."
+        }
+      ]
+    },
+    "MT-020": {
+      "mt": "MT-020",
+      "subscope": "A.4",
+      "spec_anchor": "06-mechanical-integrations.md#6.6",
+      "blockers": [
+        {
+          "issue": "Automation-first audit is static regex source analysis only; the three contract-required runtime probes (IPC mock call, IPC call under live focus-audit, raw SendInput injection) are not performed. NOT_FIXED.",
+          "evidence": ".GOV/roles_shared/scripts/automation-first-audit.mjs only walks .rs files and regex-scans for forbidden API names (FORBIDDEN_PATTERNS lines 9-45; scanForbidden lines 200-213). In buildAudit (lines 256-317) the per-command report HARDCODES keyboard_injection_invocation_count:0 (line 291) and sets focus_steal_api_count = forbidden regex hit count (line 292) — never an actual injection probe or live FocusAuditHandle. No IPC call, no FocusAuditHandle::start, no SendInput anywhere in the script. The Rust test tests/automation_first_audit_tests.rs (lines 38-101) only shells out to the .mjs via `node` and asserts the script's self-reported JSON fields (keyboard_injection_invocation_count==0, focus_steal_api_count==0 at lines 78-79) — it never instantiates the Tauri app, invokes commands, attaches focus-audit, or injects input. MT-020.json implementation_notes (line 38) explicitly require for each command: '(1) call via IPC mock ... (2) call via IPC while focus-audit (MT-015) is active ... (3) call via raw OS keyboard injection (MT-016) — assert zero invocation count.' Runtime subsystems exist (operator_foreground/focus_audit.rs, keyboard_inject_test.rs) so the wiring was available but unused. MT-020.json baked-in integration_validator_review (line 115) independently records this same HIGH as CONCERN/PARTIAL."
+        }
+      ]
+    },
+    "MT-035": {
+      "mt": "MT-035",
+      "subscope": "A.5",
+      "spec_anchor": ".GOV/spec/master-spec-v02.186/spec-modules/06-mechanical-integrations.md#6.7.3",
+      "blockers": [
+        {
+          "issue": "N=8 perf acceptance counters (silent_overwrites, conflict_report_count, revision_rejection_count, deterministic_conflict_signature, max_lease_wait_ms, CRDT_CONFLICT_REPORT/REVISION_REJECTION presence) are SYNTHETIC arithmetic, not measurements of any real or harness CRDT/lease/cancellation behavior. The real SwarmHarness run is executed but its results are discarded for these counters; only n, sessions.len(), and ledger_overflow_count flow from the harness. This is a spec-realism gate failure on an acceptance-floor MT (AC-SWARM-HARNESS-N8 / HBR-SWARM-001..004), with no waiver or deferral marker in the contract.",
+          "evidence": "swarm_n8_perf_tests.rs:55 runs SwarmHarness::new(N,N8PerfScenario).run() but lines 58-61 only assert session counts; lines 63-64 then build a separate synthetic WorkspaceEvidence via generate_attempts_concurrently()+apply_attempts(). Counters at lines 73-77 read workspace.conflict_reports.len()/revision_rejections.len()/max_lease_wait_ms(). apply_contested_update() (lines 217-271) decides conflict vs rejection by hardcoded `attempt.op_idx % 10 == 6 && session_idx == op_idx % N`; apply_lease() (line 274) computes wait_ms = ((op_idx/10)*N + session_idx)*7; apply_cancellation() (line 292) sets propagation_ms = 25 + session_idx. conflict_signature() (lines 322-331) hashes these synthetic rows. The real harness EventLedger (swarm/session.rs runtime.event_ledger) is never inspected for CRDT_CONFLICT_REPORT/REVISION_REJECTION; event_ledger_event_types (line 84) comes from the synthetic struct. Root cause confirmed in platform: swarm.rs:83 SwarmReport always returns contention_events: Vec::new(); session.rs:171-189 MutateViaCatalog only checks kernel002_action_catalog().action(id).is_some() and logs an event — no shared CRDT workspace, no conflict detection, no lease acquisition. action_catalog.rs action() returns a descriptor (KernelCatalogActionV1), not an executing stateful mutation."
+        }
+      ]
+    },
+    "MT-037": {
+      "mt": "MT-037",
+      "subscope": "A.5",
+      "spec_anchor": ".GOV/spec/master-spec-v02.186/spec-modules/06-mechanical-integrations.md#6.7.5",
+      "blockers": [
+        {
+          "issue": "Two of four AC-SWARM-HARNESS-INVARIANTS (lock/lease and cancellation) are test-framework surrogates that measure nothing about the platform. Loop-counter and process-ledger invariants are genuinely real. The lock/lease and cancellation surrogates cannot detect regressions in any platform primitive, so spec 6.7.5 surfaces 'lock/lease behavior under contention' and 'cancellation propagation mid-mutation' are asserted against tokio constructs, not the platform. No waiver/deferral in the contract.",
+          "evidence": "swarm_invariants_tests.rs:100-145 run_lease_contention_invariant uses tokio::sync::Semaphore::new(1) (line 101) and a self-managed AtomicUsize holder count — it validates the tokio semaphore, not any Handshake lease primitive. swarm_invariants_tests.rs:147-180 run_cancellation_invariant spawns tasks that poll `while !cancellation.load(SeqCst){ sleep(10ms) }` (lines 154-156) then store(true) at line 163; max_propagation_ms is the test's own elapsed time, bounded by sleep granularity + scheduling, not a real mid-mutation interrupt of a KernelActionCatalogV1 dispatch. By contrast run_loop_counter_invariant (lines 182-200) uses the real shared HbrSwarmLoopCounter + HBR_SWARM_002_LOOP_CAP (test_harness/invariants.rs:45-90) and run_process_ledger_consistency_invariant (lines 202-238) uses the real ProcessLedgerWriter::new_manual + ProcessStart/ProcessStop from the production process_ledger module — both correctly real."
+        }
+      ]
+    },
+    "MT-011": {
+      "mt": "MT-011",
+      "subscope": "A.6",
+      "spec_anchor": ".GOV/spec/master-spec-v02.186/spec-modules/10-product-surfaces.md#10.15.7",
+      "blockers": [
+        {
+          "issue": "config_key detector false-positive flood is REAL and UNRESOLVED (the original HIGH finding). just hbr-man-001 is a gov-check umbrella member; the canonical CI invocation exits 2 with a 575-line failure flood, 455 of them surface_kind=config_key, falsely flagging ordinary struct fields / enum variants / local identifiers (tests, storage, sqlite, metrics, inputs, output, error_message, status_reason, FlightRecorderEvent) on src/backend/handshake_core/src/workflows.rs as wired config-key surfaces requiring a paired ModelManual diff. This makes gov-check red and the gate un-usable, matching the MT-011 contract's own Phase-1 IV verdict (CONCERN, code_hygiene_status=MAJOR: 'the config_key detection regex over-fires on ordinary struct-literal expressions ... producing a large false-positive surface in real-history runs').",
+          "evidence": "Live run: node .GOV/roles_shared/checks/hbr-man-001-paired-diff.mjs --base-ref HEAD~1 --target-ref HEAD => REAL_EXIT=2; 575 failure JSONL lines; surface_kind tally: 455 config_key, 45 ipc_channel, 44 schema_field, 31 tauri_command. Script returns 2 on any failures (runCli at .GOV/roles_shared/checks/hbr-man-001-paired-diff.mjs:484-487). Wired into gov-check.mjs:91 and justfile recipe hbr-man-001 (wt-gov-kernel/justfile:15). Contract validator_focus requires zero false positives on non-wired internal helpers; integration_validator_review.verdict=CONCERN, code_hygiene_status=MAJOR."
+        }
+      ]
+    },
+    "MT-044": {
+      "mt": "MT-044",
+      "subscope": "B.1",
+      "spec_anchor": ".GOV/spec/master-spec-v02.186/spec-modules/03-local-first-infrastructure.md#3.5.2",
+      "blockers": [
+        {
+          "issue": "NetPolicy::LoopbackOnly silently maps to --network=none on the DEFAULT WSL2PodmanAdapter, degrading loopback-only into deny-all and violating spec 3.5.7's policy-name semantics. This is not a deferred typed error; it is a silent behavioral lie endorsed by an implementer-authored test.",
+          "evidence": "src/backend/handshake_core/src/sandbox/wsl2_podman/podman_cli.rs:262 returns Ok(\"none\") for NetPolicy::LoopbackOnly; this value is fed into the real spawn argv at podman_cli.rs:52-53 (podman_run_args). The MT-044 contract's OWN implementation_notes mandate the opposite: 'LoopbackOnly -> --network=slirp4netns:port_handler=slirp4netns,allow_host_loopback=true plus per-process iptables localhost-only seed'. The test tests/wsl2_podman_adapter_tests.rs:114 asserts --network=none for LoopbackOnly, and line 124 asserts the SAME none for an Allowlist of 127.0.0.1:11434 (llama-server), so a caller explicitly allowlisting the loopback inference port gets zero host connectivity. The embedded IV review (integration_validator_review, verdict CONCERN, runtime_safety_status CONCERN) independently flags this exact downgrade."
+        }
+      ]
+    },
+    "MT-047": {
+      "mt": "MT-047",
+      "subscope": "B.1",
+      "spec_anchor": ".GOV/spec/master-spec-v02.186/spec-modules/03-local-first-infrastructure.md#3.5.2",
+      "blockers": [
+        {
+          "issue": "DockerAdapter network_mode() has the identical LoopbackOnly->none silent downgrade as MT-044.",
+          "evidence": "src/backend/handshake_core/src/sandbox/docker/kernel_003_bridge.rs:245 matches NetPolicy::DenyAll | NetPolicy::LoopbackOnly => Ok(\"none\"); value flows into docker_run_args at kernel_003_bridge.rs:75-76. Same spec 3.5.7 semantics violation. IV review for MT-047 records the same finding."
+        },
+        {
+          "issue": "KERNEL-003 'behavior parity' minimum_control is structurally unachievable: no DocketAdapter ever shipped, so the required golden-argv fixture cannot be captured.",
+          "evidence": "src/backend/handshake_core/src/sandbox/docker/kernel_003_bridge.rs:50 sets status: \"non_executing_stub_no_docket_adapter_found\". Repo grep confirms KERNEL-003 sandbox dir (src/backend/handshake_core/src/kernel/sandbox/) ships hard_isolation_container.rs (ContainerAdapterStub) and has no DocketAdapter. MT-047.json red_team.minimum_controls[1] requires 'golden argv-shape test compares docker_cli_argv_builder output to a fixture captured from KERNEL-003 to prove behavior parity' — vacuous with no source adapter."
+        }
+      ]
+    },
+    "MT-046": {
+      "mt": "MT-046",
+      "subscope": "B.1",
+      "spec_anchor": ".GOV/spec/master-spec-v02.186/spec-modules/03-local-first-infrastructure.md#3.5.2",
+      "blockers": [
+        {
+          "issue": "WindowsNativeJailAdapter declares gpu_passthrough=VendorAgnostic with zero GPU plumbing, violating spec 3.5.4/3.6 line 876 truthful-declaration requirement. Reachable as a real overclaim in the Windows-native feature build (win-native-integration).",
+          "evidence": "src/backend/handshake_core/src/sandbox/windows_native_jail/capabilities.rs:12 sets gpu_passthrough: GpuPassthrough::VendorAgnostic in windows_native_jail_target_capabilities(), which feeds runtime_capabilities() returned by adapter.rs:393 for the Native backend. A repo-wide grep of windows_native_jail/ finds NO GPU/D3D/DirectX/CUDA/adapter-LUID code anywhere except the capability literal itself. Spec module 03-local-first-infrastructure.md:876 'Adapters declare GPU support truthfully via gpu_passthrough'; selection.rs:242-244 treats VendorAgnosticGpu as satisfied when gpu_passthrough != None, so in a Native build the overclaim would let a GPU-required job match and spawn with no GPU access. IV review for MT-046 (verdict CONCERN) independently records this overclaim."
+        }
+      ]
+    },
+    "MT-052": {
+      "mt": "MT-052",
+      "subscope": "B.2",
+      "spec_anchor": ".GOV/spec/master-spec-v02.186/spec-modules/03-local-first-infrastructure.md#3.5",
+      "blockers": [
+        {
+          "issue": "OS-level EROFS enforcement integration test required by the MT-052 contract (test (d)) and red_team minimum_control #3 is an empty stub; the binder's security-critical layered bind output (ReadOnly repo-root with ReadWrite overlay children) has zero runtime proof.",
+          "evidence": "work_packet_scope_binder_tests.rs:145-154 defines work_packet_scope_binder_integration_wsl2_bind_modes() but the body only prints a skip message and returns at line 151 (return;) with no asserts. MT-052.json implementation_notes test (d) requires 'spawn a container with the binder's output and verify touch /workspace/forbidden/x fails with EROFS while touch inside succeeds'; red_team.minimum_controls[2] requires 'Integration test on WSL2 (not just unit test) proves the OS layer actually enforces the bind modes'. The second proof_command (cargo test --features wsl2-integration work_packet_scope_binder_integration) matches ONLY this stub (confirmed grep at commit f0c6faf0). The adjacent real test wsl2_podman_adapter_tests.rs:343-389 proves a single hand-built BindMode::ReadOnly bind blocks writes, but does NOT call bind_specs_from_packet and does NOT exercise the ReadWrite-overlay-inside-ReadOnly-parent layering produced by work_packet_scope_binder.rs:82-96 — and wsl2_podman_adapter_tests.rs:228 shows podman binds are spawn-time only, so whether podman honors a ReadWrite child mount layered over a ReadOnly parent is untested. The spec §3.5 boundary ('mechanically prevents a sandboxed process from reading or writing outside the WP scope') is asserted only at the Rust struct level."
+        }
+      ]
+    },
+    "MT-057": {
+      "mt": "MT-057",
+      "subscope": "B.4",
+      "spec_anchor": ".GOV/spec/master-spec-v02.186/spec-modules/03-local-first-infrastructure.md#3.5",
+      "blockers": [
+        {
+          "issue": "stdout_bytes parity assertion is a self-acknowledged auto-pass stub; the contract's strict-parity minimum_control on stdout_bytes is unmet.",
+          "evidence": "cross_adapter.rs:491 hardcodes `report.stdout_predicate_passed = true;` with comment 'The assertion never spuriously fails in this MT.' run_single returns `stdout: None` unconditionally at cross_adapter.rs:448. evaluate_assertions (453-494) never matches the StdoutPredicate enum (defined 80-85) against any captured output. The fixture stdout_capture.json declares `stdout_predicate: { substring: \"handshake-mt057-stdout\" }` and its own description states 'today the stdout_predicate is auto-passed by the harness.' MT-057.json red_team.minimum_controls[1] requires 'Parity assertion is strict on (exit_code, stdout_bytes, ledger_row_shape)'. Confirmed unmet."
+        },
+        {
+          "issue": "net_loopback_only parity fixture uses exit_code_class='any', so it cannot detect the LoopbackOnly->DenyAll coercion in both Linux adapters.",
+          "evidence": "net_loopback_only.json:26 sets `exit_code_class: \"any\"`. podman_cli.rs:262 maps NetPolicy::LoopbackOnly to network-mode \"none\"; kernel_003_bridge.rs:245 maps `DenyAll | LoopbackOnly` to \"none\". With exit_code_class='any' the harness discards the only signal that could distinguish honored-loopback from coerced-DenyAll. MT-057.json red_team.minimum_controls[2] requires enforcement fixtures to test OS-level enforcement, not just trait-method success. The underlying coercion is already tracked HIGH in B.1 (findings MT-044, MT-047). Confirmed test-strength gap."
+        }
+      ]
+    },
+    "MT-058": {
+      "mt": "MT-058",
+      "subscope": "B.4",
+      "spec_anchor": ".GOV/spec/master-spec-v02.186/spec-modules/03-local-first-infrastructure.md#3.6.2",
+      "blockers": [
+        {
+          "issue": "ESC-WIN32-FOREGROUND-INJECT (HBR-QUIET-001 acid test) cannot run: the referenced probe binary does not exist anywhere in the repo.",
+          "evidence": "escape_attempts.rs:347 spawns `handshake-foreground-inject-probe.exe` (image 'windows:nativejail'). `git -C <worktree> ls-files | grep foreground-inject` returns nothing - no binary and no source is tracked at f0c6faf0. MT-058.json red_team.minimum_controls[1] explicitly states the Win32 inject test 'MUST RUN on the Windows CI lane; non-run is a coverage gap not a pass.' The HBR-QUIET-001 load-bearing assertion is therefore unexercised. Confirmed blocker."
+        }
+      ]
+    },
+    "MT-088": {
+      "mt": "MT-088",
+      "subscope": "C.3",
+      "spec_anchor": ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.7.1",
+      "blockers": [
+        {
+          "issue": "State-vector restore has no semantic effect in production: prefix_restore writes live SSM state, but generate() unconditionally resets state before every forward, erasing the restore. The contract's substantive proof requirement (commit/generate/restore/generate-same-continuation -> deterministic) cannot demonstrate restore works because determinism is produced by the reset, not by restore. No documented deferral; contract still carries validator_verdict FAIL with no phase2_remediation block.",
+          "evidence": "generate.rs:123 calls `locked.reset_generation_state()?` unconditionally at the start of run_generation (no conditional, no skip path). mamba2.rs:443-450 reset_state() does `self.state = State::new(...)`, zeroing conv_states + hs. mamba2.rs:558-614 extract/restore_ssm_snapshot operate on self.state.conv_states/self.state.hs; adapter.rs:193-200 wires LockedSsmStateSource over Arc::clone(&model_arc) (the same Arc forward mutates), so wiring is real. The e2e test candle_e2e_smoke.rs:419-427 commits, generate_tokens (resets), prefix_restore, generate_tokens (resets again), then asserts equal output — equality is guaranteed by the second reset, not by restore. MT-088 contract implementation_notes/validator_focus require 'deterministic continuation after commit/restore on Mamba2'; MT-088.json lifecycle.validator_verdict = FAIL."
+        },
+        {
+          "issue": "No test exercises state restore through real generation. The only test proving the restore wiring (candle_state_vector_tests.rs:157-227) uses a MockSsmSource and manually simulates reset_generation_state by overwriting the mock snapshot; it never routes through generate(). The e2e smoke test that should prove the contract is structurally trivial (passes even if StateVectorOps were a no-op).",
+          "evidence": "candle_state_vector_tests.rs:209-217 explicitly comments 'Simulate reset_generation_state()' then sets the mock snapshot directly — it does not invoke the real generation path. candle_e2e_smoke.rs:403-441 run_state_vector_smoke uses generate_tokens (which resets) on both sides of prefix_restore. No test forwards-without-reset to observe restore affecting logits."
+        }
+      ]
+    },
+    "MT-089": {
+      "mt": "MT-089",
+      "subscope": "C.3",
+      "spec_anchor": null,
+      "blockers": [
+        {
+          "issue": "The contract-declared correctness gate (identity test: zero-vector steering -> output unchanged) is env-gated and never runs in default CI; state-vector sub-tests inherit the MT-088 reset defect, so the family smoke provides zero proof in the default build.",
+          "evidence": "candle_e2e_smoke.rs:149-151 run_family_smoke returns skipped(...) when model_dir_from_env(spec) is None; default CI (no HANDSHAKE_TEST_*_MODEL_DIR) runs all families SKIPPED. MT-089.json validator_focus names 'identity test (zero-vector hook -> output unchanged) is the correctness gate'; contract verdict_reason records the gate runs only when HANDSHAKE_TEST_CANDLE_MODEL_DIR is set and the LoRA sub-test discards _lora without asserting divergence. Mamba2/RWKV families call run_state_vector_smoke (same reset-trivial structure)."
+        }
+      ]
+    },
+    "MT-095": {
+      "mt": "MT-095",
+      "subscope": "C.5",
+      "spec_anchor": "AC-INFER-LAB-8-TECHNIQUES.b",
+      "blockers": [
+        {
+          "issue": "TTL / stale-snapshot replay (contract adversarial path 'expired TTL' / 'wait past TTL -> Err') is NOT enforced at the live restore path. The live gate kv_cache_technique::prefix_restore calls handle.verify_self_against(model_id) (kv_cache_technique.rs:127), which (kv_cache.rs:233-241) reads registered_at from the handle's OWN registered_at_utc_micros and re-derives from the handle's OWN content_hash. Because both inputs come from the handle itself, a verbatim-replayed stale handle (same process, same model) always re-derives the same derived_id and passes. The code's own comment (kv_cache.rs:274) admits the stale path only works 'once paired with TTL enforcement by the caller', and NO caller (technique surface, adapter, or facade) performs that pairing. The MT-095 contract (MT-095.json:35) explicitly requires restore to validate '(3) cache entry not expired (within prefix_cache_ttl_seconds of registered_at_utc)' with proof 'wait past TTL -> Err (stale-snapshot expiry)'; red_team minimum_control #1 names all 5 negative paths including 'expired TTL'; validator_focus requires 'TTL expiry tested'. This contract-named control is unmet at the live path.",
+          "evidence": "src/backend/handshake_core/src/model_runtime/kv_cache.rs:233-241 (verify_self_against passes self.content_hash + self.registered_at_utc_micros); kv_cache.rs:274 comment ('stale-snapshot once paired with TTL enforcement by the caller'); kv_cache_technique.rs:127 (only verify_self_against, no TTL/cache-side timestamp passed); kv_cache_technique_tests.rs:247-296 (end-to-end test asserts only bind/unbound-reject/round-trip, not TTL/stale or cross-model at the live path); MT-095.json:35 + 40 + 106-109 contract requirements"
+        },
+        {
+          "issue": "Per-adapter KV stacks never store or validate the MT-095 binding, and a direct facade bypass remains. Both LlamaCppKvCache.prefix_commit (kv_cache_impl.rs:389-407) and Candle StateVectorHandle.prefix_commit (state_vector.rs:722-742) mint handles via from_scoped_tokens (derived_id=None) and their prefix_restore (kv_cache_impl.rs:418-432; state_vector.rs:744-757 via validate_record_for_restore) validate only content_hash/token_count/variant against the cached PrefixEntry/record, NEVER the derived_id. The PrefixEntry struct (kv_cache_impl.rs:397-402) and StateVectorSnapshotRecord do not persist derived_id or registered_at_utc_micros, so there is no cache-side cross-check; verification is pure handle self-consistency. The binding lives only on the transient handle decorated by the technique wrapper. The low-level KvCacheHandle::prefix_restore facade (kv_cache.rs:98-100) dispatches straight to ops.prefix_restore with zero MT-095 verification — the remediation note itself (MT-095.json:89) admits 'the low-level KvCacheHandle facade (no model_id in scope) could still bypass the gate'. The sub-reviewer's claim that enforcement 'covers both LlamaCppKvCache and Candle StateVectorHandle stacks' overstates the wiring: the adapters are untouched.",
+          "evidence": "src/backend/handshake_core/src/model_runtime/llama_cpp/kv_cache_impl.rs:389-407,418-432,397-402; src/backend/handshake_core/src/model_runtime/candle/state_vector.rs:722-742,744-757,597-627; kv_cache.rs:98-100 (facade prefix_restore, no verify); MT-095.json:89 (documented bypass residual)"
+        }
+      ]
+    },
+    "MT-096": {
+      "mt": "MT-096",
+      "subscope": "C.6",
+      "spec_anchor": "spec-modules/04-llm-infrastructure.md#4.7.1 technique (c)",
+      "blockers": [
+        {
+          "issue": "Production app never binds a real CandleRuntime adapter; every steering IPC command fail-closes with capture_not_available in the deployed binary. INF-3 steering surface is unreachable in production.",
+          "evidence": "app/src-tauri/src/lib.rs:865 registers ModelRuntimeState::default(); the setup() closure (lib.rs:895-916) never calls attach_live_runtime and there is no model-load path that does. All 14 attach_live_runtime references under app/src-tauri/src are in #[cfg(test)] blocks (verified: lora.rs:416 sits inside #[tokio::test] fn lora_commands_...; identical pattern in caa.rs, kv_cache.rs, model_runtime.rs:494, refusal.rs:236/385, steering.rs:644/765). steering.rs:413-425 require_live_runtime returns the capture_not_available prefix when state.live_runtime(model_id) is None, which is always None in production. The MT-096 contract phase2_remediation.deferred_or_residual itself admits production attach_live_runtime() wiring is unresolved."
+        }
+      ]
+    },
+    "MT-097": {
+      "mt": "MT-097",
+      "subscope": "C.6",
+      "spec_anchor": "MT-097 red_team minimum_controls #2",
+      "blockers": [
+        {
+          "issue": "ReviewStatus review gate is not enforced on the production activation path; any vector (Pending or not) can be activated. Red_team minimum_control #2 (review-gated promote before active) is unmet.",
+          "evidence": "steering_vector_store.rs adds ensure_activatable (line 299) and activate_reviewed_vectors (line 317) which DO check ReviewStatus, but grep shows their ONLY callers are each other (line 322) and tests (steering_vector_store_tests.rs:229/242/257/270/282/300). The production Tauri command kernel_model_runtime_steering_set_active -> steering_set_active (steering.rs:187-193, 339-362) calls activation_steering::set_active_steering_vectors directly, never receives the SteeringVectorStoreState, and never consults review_status. persist() hard-codes review_status=ReviewStatus::Pending (line 153). The gate is dead code from the production perspective."
+        }
+      ]
+    },
+    "MT-098": {
+      "mt": "MT-098",
+      "subscope": "C.6",
+      "spec_anchor": "spec-modules/10-product-surfaces.md#10.14.2",
+      "blockers": [
+        {
+          "issue": "AC-INFER-LAB-UI-AB-COMPARE (spec 10.14.2 side-by-side before/after generation) is not implemented; only a static help placeholder exists.",
+          "evidence": "ContrastiveCaptureWizard.tsx:300-308 is a <details><summary>A/B compare (live generation)</summary> with one explanatory <p> referencing CandleRuntime/MT-082 and capture_not_available. No generate calls, no side-by-side output panes, no current-vs-proposed knob comparison, no commit-after-inspect flow. The MT-098 integration_validator_review independently rates this PARTIAL with 1 HIGH for the same reason."
+        }
+      ]
+    },
+    "MT-100": {
+      "mt": "MT-100",
+      "subscope": "C.7",
+      "spec_anchor": "MT-100 implementation_notes 'ORTHOGONALISES the residual stream'",
+      "blockers": [
+        {
+          "issue": "Operator-gating of refusal-disabling vector ACTIVATION is implemented only in the React UI; the production IPC activation path is ungated, so the finding's explicit 'sub-agent driving the IPC could disable refusal' threat model remains unmitigated. Sub-reviewer marked this finding FIXED on the strength of the UI checkbox alone.",
+          "evidence": "app/src-tauri/src/commands/steering.rs:339-356 — steering_set_active() (the body of the kernel_model_runtime_steering_set_active Tauri command) parses ids, calls preflight_capability_and_loaded + require_live_runtime, then directly invokes activation_steering::set_active_steering_vectors(runtime, model_id, parsed_ids). activation_steering.rs:44-51 set_active_steering_vectors calls hooks.set_active(ids) with NO review-status check. The review-gated path SteeringVectorStore::ensure_activatable / activate_reviewed_vectors exists at steering_vector_store.rs:299-325 and its own doc (lines 314-316) states activation call sites 'MUST route through here rather than calling set_active directly,' but grep across app/src-tauri and src/model_runtime shows ZERO production callers of ensure_activatable or activate_reviewed_vectors — the store is used only for persistence. The RefusalVectorWizard checkbox (RefusalVectorWizard.tsx:134,176,335-352) is a client-side gesture that any direct IPC caller bypasses. This matches the original finding text ('ReviewStatus::Pending is written in the store but not enforced (see MT-097 HIGH). A sub-agent driving the IPC could disable refusal'). Correct status is PARTIAL, not FIXED."
+        }
+      ]
+    },
+    "MT-102": {
+      "mt": "MT-102",
+      "subscope": "C.7",
+      "spec_anchor": "Operator stance + spec 4.7.1(d) 'research lane only' framing",
+      "blockers": [
+        {
+          "issue": "Same defect surfaced under MT-102 finding 'Save & Activate has no this disables refusal confirmation step,' also marked FIXED. The UI acknowledgement is real but does not gate the kernel/IPC activation; a non-UI IPC caller activates a refusal-ablation vector with no server-side confirmation/review enforcement.",
+          "evidence": "RefusalVectorWizard.tsx:156 calls setActive(modelId,[vectorId]) which maps to kernel_model_runtime_steering_set_active -> steering_set_active (steering.rs:339-356) -> ungated set_active_steering_vectors. The MT-097 red_team minimum_control #2 ('Review-gated promote step before vector becomes active by default', MT-097.json) and implementation_notes ('vectors marked review_status=PENDING until operator approves') are therefore unenforced at the live activation path. The gate code is reachable-but-dead in production."
+        }
+      ]
+    },
+    "MT-123": {
+      "mt": "MT-123",
+      "subscope": "C.12",
+      "spec_anchor": ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.8.3",
+      "blockers": [
+        {
+          "issue": "PromotionGate mount-side enforcement is absent from the production LoRA mount path. AC-DISTILL-LOOP-SAFEGUARDS (the sole acceptance criterion for MT-123, a HARD operator-binding safeguard per spec 4.8.3:2445 'every promotion requires operator review through the PromotionGate primitive') is structurally unenforced. A Pending or Rejected distilled LoRA can be mounted in production with zero operator review. The gate primitive exists and fails-closed in isolation, but is never invoked by any production caller.",
+          "evidence": "candidate_registry.rs:324-343 mount_with_promotion_gate() fails-closed correctly, but grep across src/backend/handshake_core/src/model_runtime and app/src-tauri/src finds ZERO non-test callers of mount_with_promotion_gate, mount_status, or CandidateRegistry in the mount flow. The real production mount entry point lora_hotswap.rs:33-46 calls stack.mount(descriptor, strength) directly. The Tauri IPC command app/src-tauri/src/commands/lora.rs:159-175 lora_mount() (channel kernel_model_runtime_lora_mount) calls lora_hotswap::mount(...) directly with no registry consultation and no allow_unpromoted flag plumbed. The MT-123 contract's own integration_validator_review verdict is FAIL: 'the registry is NOT wired into LoraStackOps::mount; mount-side enforcement of the PromotionGate does NOT exist ... a registry with no gate.' Spec confirmed at .GOV/spec/master-spec-v02.188/spec-modules/04-llm-infrastructure.md:2439-2445 (HARD safeguards, operator-binding)."
+        }
+      ]
+    },
+    "MT-122": {
+      "mt": "MT-122",
+      "subscope": "C.12",
+      "spec_anchor": ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.8",
+      "blockers": [
+        {
+          "issue": "ProcessOwnershipLedger registration (the 'registered' half of red_team minimum_control[0] 'Subprocess registered + sandboxed (no unguarded fork)') is conditional on the caller attaching a LedgerBatcher, and NEITHER production call site attaches one. The trainer subprocess is therefore env-isolated but unattributable in production. The contract marks phase2_remediation.partial=false, which is contradicted by its own deferred_or_residual text and by the code.",
+          "evidence": "peft_pipeline.rs:331,343 process_ledger field defaults to None; :350-351 with_process_ledger() is the only way to attach it; :452-467 record_spawn() runs ONLY in the `if let Some(ledger)` branch, else :475 falls through to command.output() with no ledger row. Production Tauri call site app/src-tauri/src/commands/peft.rs:202 constructs PythonPeftTrainerExecutor::new(python_path, script_path).with_cpu_only(cpu_only) with NO .with_process_ledger(). Production CLI call site src/backend/handshake_core/src/bin/peft_train.rs:158-159 build_executor() likewise constructs new(...).with_cpu_only(...) with NO ledger. The ledger-attached branch is only covered by the metadata-builder unit test distillation_spawn_meta_is_attributable (peft_pipeline.rs:856-869), which tests SpawnMeta construction, not a real spawn+record_spawn round-trip. MT-122 lifecycle.phase2_remediation.deferred_or_residual itself admits: 'ledger attribution requires production call sites (Tauri peft.rs / bin peft_train.rs) to attach the LedgerBatcher (app-layer follow-on).'"
+        }
+      ]
+    },
+    "MT-186": {
+      "mt": "MT-186",
+      "subscope": "X.2",
+      "spec_anchor": ".GOV/spec/master-spec-v02.186/spec-modules/05-security-and-observability.md#5.7.5",
+      "blockers": [
+        {
+          "issue": "Orphan-process risk: red_team minimum_control #1 ('Forced cancellation MUST invoke ProcessOwnershipLedger reclaim or fail loudly; never leak orphans; test asserts no PID survives') is UNMET. MtCanceller::force() only runs user-registered MtCancellationCleanupHook trait objects; there is no built-in ProcessOwnershipLedger/Reclaim invocation and no fail-loud path when no reclaim hook is registered. This is a real unfixed defect on the production forced-cancellation critical path, matching the operator's stated highest concern (validator_focus: 'forced cancellation always triggers reclaim hooks (no orphan processes)').",
+          "evidence": "cancellation.rs:127-152 force() = request_cooperative() + remove hooks + iterate hooks.rev() + return ForceCancelReport. No import of process_ledger/reclaim. Tree-wide grep: the ONLY file referencing register_cleanup_hook is cancellation.rs (its own test mod); executor.rs:337/353/370/392 construct MtCanceller::new() but never register a reclaim hook and never call .force(). reclaim.rs exists at src/process_ledger/reclaim.rs but is referenced only by the distillation lane (abliterate.rs, peft_pipeline.rs), never by the cancellation path. Test file tests/mt_cancellation_tests.rs (33028 bytes) contains ZERO matches for ProcessOwnershipLedger/Reclaim/PID/pid — no test asserts a PID is reclaimed or survives. The contract's own integration_validator_review (MT-186.json:188-192) records verdict=CONCERNS, spec_compliance_status=FAILS, runtime_safety_status=GAP for exactly this. NOT_FIXED at f0c6faf0 (committed, clean)."
+        },
+        {
+          "issue": "force_after_secs cooperative-to-forced escalation timer absent: contract implementation_notes (MT-186.json:33) require MtCanceller::force to fire 'if cooperative cancellation timeout exceeds force_after_secs (default 30s)', and red_team #3 (MT-186.json:181) requires it 'configurable per Work Profile (default 30s)'. The primitive has no force_after_secs field, no timer, no Work Profile config, and force() is a direct synchronous call. A hung executor ignoring the cooperative token never auto-escalates. force() also does not update job.state=Cancelled with force_used=true nor emit FR-EVT-MT-CANCEL-FORCED as the contract specifies.",
+          "evidence": "cancellation.rs: MtCanceller struct (67-71) has only tokens+hooks maps; no force_after_secs/Duration field. request_cooperative (112-122) returns immediately after token flip; force (127-152) has no temporal logic, no job.state mutation, no FR-EVT emission. implementation_evidence.force_after_secs_drift (MT-186.json:131,169) openly concedes the timer is left as 'a caller concern' / 'future thin layer' with no operator waiver recorded — only 'Operator review should decide.' This is a deferred-live escape on the job-cancellation critical path, not a legitimately spec-scoped-out item."
+        }
+      ]
+    }
+  },
+  "cross_cluster_coherence": [
+    {
+      "id": "steering-ssm",
+      "status": "BROKEN",
+      "blockers": [
+        "(a) NO production path binds a real runtime. app/src-tauri/src/commands/model_runtime.rs:70-71 marks attach_live_runtime as `#[allow(dead_code)] // wired by tests + future production load flow` and detach_live_runtime:85 likewise. Every actual caller is in a test module: kv_cache.rs:436,509 attach IpcRuntime inside #[tokio::test]; steering.rs:765 / caa.rs:404 / refusal.rs:385 / lora.rs attach `runtime` inside #[cfg(test)] mods. The ONLY construction of a real CandleRuntime (`CandleRuntime::default()`) is adapter.rs:706, inside `#[cfg(test)] mod tests` (mod starts line 698). There is no deployed flow that loads a CandleRuntime and attaches it, so refusal/steering/kv commands in the shipped binary resolve `require_live_runtime` to nothing or to test stubs.",
+        "(b) SSM steering/refusal capture CANNOT pull real activations. CandleRuntime::steering_hooks (adapter.rs:446-480) only builds the real-forward CandleRuntimeSteeringHookOps (which runs model.forward at adapter.rs:692) for `CandleModelBackend::Transformer` (the Llama backend, adapter.rs:459). The four SSM backends (Mamba2, RwkvV5/V6/V7) are distinct enum variants, so the `if let Transformer` fails and execution falls through to adapter.rs:476-479, returning the bare handle.steering_hooks.clone(). That bare CandleSteeringHooks has scaffold_capture_enabled=false, and its capture() FAILS CLOSED at hooks.rs:604-612. So for any SSM model, extract_refusal_direction -> activation_steering::capture -> hooks.capture() errors instead of returning real activations.",
+        "(b/contradiction) SSM capability flags lie about steering. candle_mamba2_capabilities (adapter.rs:540) and candle_rwkv_capabilities (adapter.rs:557) set supports_activation_steering: true, which lets activation_steering_hooks() pass the capability gate (activation_steering.rs:127-134) and reach steering_hooks(), which then returns the fail-closed bare hooks. This directly contradicts the MT-116 deferral contract documented in the same WP (hooks.rs:705-708): 'capabilities.supportsActivationSteering for SSM variants stays false until the follow-on flips the flag and proves identity-test correctness.' The flag was flipped to true but the SSM real-forward capture routing in steering_hooks() was not added.",
+        "(c) SSM prefix_commit/prefix_restore live-tensor wiring is correct INSIDE CandleRuntime but unreachable in production. adapter.rs:184-311 builds model_arc, wraps it in LockedSsmStateSource (ssm_state.rs:64-82 -> guard.extract_ssm_snapshot/restore_ssm_snapshot), and state_vector.rs read_live_snapshot/write_live_snapshot (lines 549-586) call source.extract()/restore() so commit pulls and restore writes the same model_arc that generate() mutates (adapter.rs:378). This is real. But because of blocker (a) no CandleRuntime is ever attached to ModelRuntimeState in the shipped binary, so the kv_cache prefix_commit/prefix_restore IPC commands never dispatch into this live path in production."
+      ],
+      "evidence": "app/src-tauri/src/commands/model_runtime.rs:70-71 `#[allow(dead_code)] // wired by tests + future production load flow` on attach_live_runtime; :85 same on detach. app/src-tauri/src/commands/testing.rs:13 `#![cfg(test)]` (FakeCandleRuntime never ships). Non-test grep for `CandleRuntime\\b` returns only the type def/impl in adapter.rs and adapter.rs:706 `CandleRuntime::default()` which is inside `mod tests` (begins line 698). adapter.rs:459 `if let CandleModelBackend::Transformer { model } = &handle.backend` gates the real-forward hook ops construction (adapter.rs:467 CandleRuntimeSteeringHookOps); SSM backends fall through to adapter.rs:476-479 bare hooks. hooks.rs:604-612 capture() returns SteeringHookError ('bare CandleSteeringHooks cannot capture real residual activations without a model forward') when scaffold_capture_enabled is false; :40-47 new_for_model sets scaffold_capture_enabled=false. adapter.rs:540 and :557 set supports_activation_steering: true for SSM. hooks.rs:705-708 MT-116 note states SSM steering capability 'stays false until the follow-on flips the flag.' adapter.rs:692 `model.forward(&input, &self.hooks, &[], &[])` is the real capture forward, reached only via the Transformer branch. state_vector.rs:549-586 read_live_snapshot/write_live_snapshot delegate to the SsmStateSource; ssm_state.rs:64-82 LockedSsmStateSource.extract/restore lock the live model_arc; adapter.rs:193-200/577 wire it via new_in_memory_with_source — correct but unreachable."
+    },
+    {
+      "id": "distill-sandbox",
+      "status": "PARTIAL",
+      "blockers": [
+        "PRODUCTION PATH DOES NOT ATTACH THE PROCESS-OWNERSHIP LEDGER. PythonPeftTrainerExecutor exposes with_process_ledger() (peft_pipeline.rs:350) and records a ProcessOwnershipLedger row only inside the `if let Some(ledger) = &self.process_ledger` branch (peft_pipeline.rs:452-467). BOTH production composition roots build the executor WITHOUT a ledger: app/src-tauri/src/commands/peft.rs:202 `PythonPeftTrainerExecutor::new(python_path, script_path).with_cpu_only(cpu_only)` and src/backend/handshake_core/src/bin/peft_train.rs:158-159 `PythonPeftTrainerExecutor::new(python_path, script_path).with_cpu_only(self.cpu_only)`. A repo-wide grep shows with_process_ledger() for the PEFT executor is called in ZERO production sites and ZERO tests (only the unrelated official_cli_bridge wires its own). Therefore the production trainer falls into the no-ledger branch (peft_pipeline.rs:475 bare `command.output()`) and the fork is UNATTRIBUTABLE — it registers no START/STOP row.",
+        "TRAINER IS A BARE std::process::Command, NOT A SandboxAdapter. peft_pipeline.rs:402 spawns `Command::new(&self.python_path)`. The only `SandboxAdapter` mention is a doc comment (peft_pipeline.rs:264) describing intended behavior; no sandbox/ tier adapter is ever used. Spec module 03 §3.6.2 (lines 916-917) is HARD: every model process MUST be (1) a child of a SandboxAdapter — `no bare std::process::Command model spawns` — and (2) register START+STOP rows in ProcessOwnershipLedger; a process violating either `is a spec defect and MUST fail the §5.6 HBR gate`. MT-122 red_team minimum_controls[0] in the packet identically requires `Subprocess registered + sandbox (no unguarded fork)`. The env_clear+allowlist added in commit 14d11a7b is secret-hygiene only; it is NOT sandbox isolation (no Job Object/AppContainer/microVM, no fs-bind, no net policy, no kill/status handle).",
+        "PRIOR INTEGRATION VALIDATOR VERDICT ALREADY = FAIL ON THIS EXACT POINT, AND CODE IS UNCHANGED. MT-122.json lifecycle.validator_verdict=`FAIL`, status=`READY_FOR_VALIDATION_PHASE2`; integration_validator_review.verdict=`FAIL`, verdict_reason: `PythonPeftTrainerExecutor explicitly does NOT register a ProcessOwnershipLedger row and does NOT enforce a SandboxAdapter ... the trainer subprocess itself is an unguarded fork that inherits parent env and is unattributable to a ledger row` (runtime_safety_status=AT_RISK, agent_swarm_safety_status=AT_RISK, HBR-INT-006 unsatisfied). The current f0c6faf0 code matches this description, so the prior FAIL is still live."
+      ],
+      "evidence": "SPEC REQUIREMENT (answers the core question): The spec does NOT require a working in-V1 PEFT *trainer*; external-trainer-absent IS an acceptable typed error. Module 09 line 671 [ADD v02.157]: `Phase 1 keeps adapter training late-stage and stub-backed. When later phases activate local adapter training, rank/alpha/repeats/epochs MUST be explicit tracked hyperparameters, adapter merges MUST be benchmark-gated, and promotion MUST remain rollback-safe.` So DistillError::TrainerUnavailable (peft_pipeline.rs:235-240; exit-code-3 mapping at :488) is a legitimate typed error when PEFT/Transformers/torch are not installed — it is NOT a forbidden deferred-live escape. The trainer being external/absent is spec-compliant.\n\nWHAT IS NOT COMPLIANT (the real failure): The spec is strict not about the trainer existing in V1, but about HOW any spawned subprocess is governed. §3.6.2 (03-local-first-infrastructure.md:912-919) makes sandbox+ledger a HARD invariant for spawned model processes, and MT-122 red_team makes `Subprocess registered + sandboxed (no unguarded fork)` a minimum control. When PEFT *is* installed, the production path spawns an UNGUARDED, UNATTRIBUTED bare-Command fork. The capability to comply (with_process_ledger) exists but is never wired into commands/peft.rs:202 or bin/peft_train.rs:158-159, and no SandboxAdapter is used at all.\n\nMT-123 (candidate_registry.rs) is sound and not the failure point: PromotionGate fails closed on Pending/Rejected (mount_with_promotion_gate, :324-343), requires operator signature on promote/reject (:161,:188), and defaults allow_unpromoted_distill=false — matching all three MT-123 minimum_controls. Note the doc comment (:11-13) admits the mount-side gate is `wired follow-on`, but mount_with_promotion_gate IS implemented and tested here.\n\nContentReview gating is correctly ordered before trainer construction on all three entrypoints (peft.rs:185-201, peft_train.rs:81-108, distill():666 -> finish_distill writes filtered corpus then calls executor.run at :753), closing the earlier raw-corpus bypass (post_validation_peft_review_hardening_20260525)."
+    },
+    {
+      "id": "memory-promotion",
+      "status": "COHERENT",
+      "blockers": [],
+      "evidence": "Candidate f0c6faf0 (wtc-kernel-004-fold-v1). MT-155 block-on-pending: self_improve/ipc.rs:250-261 — approve_promotion on PromotionStatus::Pending returns Err(LoopIpcError::Gate(GateError::ReviewPending)) and leaves pending_reviews/pending_tickets intact; it does NOT synthesize a local approval (remediation comment documents the prior FAIL). Only PromotionStatus::Approved (ipc.rs:233-249) clears pending and returns the gate's own approval. MT-155 iteration_id consistency: ipc.rs:196-206 submit_for_review rejects request.iteration_id != ticket.iteration_id (TicketIterationMismatch) and keys both maps on the single canonical request.iteration_id. MT-154: self_improve/promotion_gate_adapter.rs:96-106 LoopPromotionGate::submit rejects a gate-returned ticket whose iteration_id != request (GateError::Io 'mismatched iteration_id'), and require_approved (116-127) returns typed ReviewPending/ReviewRejected, only Approved yields the approval. Tests: promotion_gate_adapter.rs:271-342 (pending->ok-after-approval, rejected typed, misbinding-gate rejected); ipc.rs:378-401 unknown-iteration typed. MT-159/160 pin visibility: bitemporal.rs:204-221 items_visible_at filters only on bitemporal visible_at(query), never on pin — pinned items stay in the list; hygiene.rs:761-765 reads pinned (and is_pinned) into HygieneItemView; all four tasks skip pinned at hygiene.rs:490 (consolidate), 524 (prune), 552 (flag), 591 (promote). Tests prove visible-but-skipped: hygiene_manager_tests.rs:138-167 flag_and_promote_skip_pinned_items, hygiene.rs:906 prune_skips_pinned_items, hygiene_manager_tests.rs:206-236 prune emits review candidate without invalidating. All hygiene+pin actions carry ApprovalPosture::RequiresPromotionGate + AuthorityEffect::PrePromotionEvidenceOnly (hygiene.rs:327-328, pinned_core.rs:291-292); catalog test hygiene_manager_tests.rs:100-135 asserts review-gated + MemoryBox evidence. Spec alignment: 02-system-architecture.md:1994 HSK-GC-002 pinned MUST be excluded from automated GC; :1932 quota evictions MUST never delete pinned; :10602 procedural writes MUST set requires_review=true + route through Approval Inbox; :10978 procedural MUST be review-gated."
+    },
+    {
+      "id": "inspector-auth",
+      "status": "PARTIAL",
+      "blockers": [
+        "Secret sourcing is weaker than the CHECK's 'not forgeable by a local process' bar, though it matches the spec's looser wording. The per-run secret is Uuid::now_v7() (replay_drive.rs:60-64). UUIDv7 is time-ordered: ~48 high bits are a millisecond launch timestamp, leaving only ~74 bits of entropy from uuid's `fast-rng` feature (Cargo.toml:102), which is NOT a CSPRNG. A co-located local process that can approximate the launch time faces a materially reduced brute-force space versus a full 128-bit CSPRNG secret. Spec 06 ll.6702 only requires 'generated at launch, stored in operator-visible state only, and rotated per run' — UUIDv7 satisfies that literal text — but the CHECK's stronger 'not forgeable by a local process' goal is only partially met.",
+        "The secret is logged in plaintext hex at tracing::info! level on every bind (server.rs:141-146, `per_run_secret = %secret.to_hex()`). Any local process or log sink that can read the application's tracing/stdout output recovers the live secret directly, defeating the HMAC key secrecy against a local adversary. The Debug impl correctly redacts (replay_drive.rs:94-100), but the launch log deliberately emits the cleartext. This is the intended operator-visible channel per spec, but it widens the local-process exposure surface beyond 'inspecting bytes on the wire'."
+      ],
+      "evidence": "CORE REMEDIATION CONFIRMED REAL. (1) HMAC-SHA256, not keyless: expected_write_box_v1_signature() at replay_drive.rs:357-373 builds canonical bytes via canonical_json_bytes (KERNEL-002 context_bundle) then `Hmac::<Sha256>::new_from_slice(secret.as_bytes())`, .update(canonical), .finalize(), formatted `hmac-sha256:<hex>` (l.372). Deps present: hmac=0.12, subtle=2, sha2=0.10 (Cargo.toml:118,125,126). (2) Keyed to per-run secret: PerRunSecret holds [u8;16] (replay_drive.rs:52-55); Kernel002WriteBoxEnvelopeVerifier carries Arc<PerRunSecret> (l.165-167) injected at launch (server.rs:174 via with_per_run_secret). (3) Verifier rejects bad HMAC with constant-time compare: verify() at l.176-200 checks schema_id, non-empty signer, validate_write_box_common, then `constant_time_eq(envelope.signature, expected)` (l.191) using subtle::ConstantTimeEq (l.375-381); mismatch -> InvalidSignature -> HTTP 403 (server.rs:356-358). (4) Old keyless sha256(signer+box) scheme is fully removed — grep finds it only in doc comments describing what was replaced (replay_drive.rs:17,162,355). No residual keyless path in inspector_read/. (5) Header gate: per_run_secret_header_matches (server.rs:291-304) constant-time compares X-Handshake-Inspector-Secret before any envelope work; missing/wrong -> 401 (server.rs:274-283). (6) Test coverage is strong: replay_drive_tests.rs covers valid accept (l.24), bad signature 403 (l.65), forged-under-other-secret 403 (l.166-191, the exact CRIT-4 agent-corrupts-agent path), missing header 401 (l.196), wrong header 401 (l.219). On the CHECK's sub-question 'real KERNEL-002 verifier vs inline HMAC': it is INLINE in replay_drive.rs — KERNEL-002 (kernel/write_boxes.rs and kernel/*) contains NO hmac/sign/verify facility (grep returned empty). The verifier reuses KERNEL-002 primitives (validate_write_box_common, canonical_json_bytes, kernel002_action_catalog) but the signature algorithm itself is implemented locally, not delegated to a KERNEL-002 verifier. This is functionally correct and does not weaken the auth, but the naming Kernel002WriteBoxEnvelopeVerifier slightly overstates delegation."
+    }
+  ],
+  "subscope_rollup": [
+    {
+      "subscope": "A.1",
+      "cluster": "A",
+      "review_status": "CONCERNS",
+      "adv_verdict": "REVIEW_TOO_HARSH",
+      "confirmed": 0,
+      "overturned": 2,
+      "spec_realism_violations": []
+    },
+    {
+      "subscope": "A.2",
+      "cluster": "A",
+      "review_status": "BLOCKERS",
+      "adv_verdict": "REVIEW_HELD",
+      "confirmed": 1,
+      "overturned": 0,
+      "spec_realism_violations": []
+    },
+    {
+      "subscope": "A.3",
+      "cluster": "A",
+      "review_status": "CLEAN",
+      "adv_verdict": "REVIEW_TOO_LENIENT",
+      "confirmed": 2,
+      "overturned": 1,
+      "spec_realism_violations": []
+    },
+    {
+      "subscope": "A.4",
+      "cluster": "A",
+      "review_status": "CONCERNS",
+      "adv_verdict": "REVIEW_HELD",
+      "confirmed": 2,
+      "overturned": 0,
+      "spec_realism_violations": [
+        {
+          "mt": "MT-019",
+          "rule": "1_DEFERRED_LIVE_ESCAPE",
+          "detail": "ControlledWindow::bounded_window() returns a struct with hardcoded visible()/focused() methods returning true, but no actual Tauri WebviewWindow is constructed or shown. Production code calling bounded_window() for a legitimate operator-facing use case gets a logging-only stub. The spec requires a 'SHOWN, FOCUSED window that lives for at most max_duration and auto-dismisses via tokio::time::timeout' (MT-019 implementation_notes), but the timeout is only on an awaited pending that never drives any window state."
+        },
+        {
+          "mt": "MT-020",
+          "rule": "1_DEFERRED_LIVE_ESCAPE",
+          "detail": "automation-first-audit runs static source analysis (regex over #[tauri::command] and forbidden API patterns), emitting a PASS verdict when all commands have IPC routing and no forbidden APIs. But the audit never actually invokes the commands via IPC (the production path), never runs them under FocusAuditHandle (the spec-required focus verification), never injects keyboard events (the spec-required negative test). The contract states 'for each command run (1) IPC mock call, (2) IPC call while focus-audit active, (3) raw SendInput injection' but the implementation is static-only. A regression where a command breaks IPC routing, or introduces hidden focus-stealing via a renamed wrapper, would not be caught."
+        }
+      ]
+    },
+    {
+      "subscope": "A.5",
+      "cluster": "A",
+      "review_status": "CONCERNS",
+      "adv_verdict": "REVIEW_HELD",
+      "confirmed": 2,
+      "overturned": 0,
+      "spec_realism_violations": [
+        {
+          "mt": "MT-035",
+          "rule": "2_NO_REAL_RESOURCE_TOUCH",
+          "detail": "MT-035 specification mandates 'zero silent overwrites, deterministic conflict signature, max_lease_wait_ms < 5s, ledger_overflow=0, both CRDT_CONFLICT_REPORT and REVISION_REJECTION present'. These assertions measure a synthetic closed-form workspace (WorkspaceEvidence) computed from arithmetic rules, not a real KernelActionCatalogV1 CRDT engine under concurrent mutation. The CRDT_CONFLICT_REPORT and REVISION_REJECTION row types are populated by hardcoded conditions (op_idx % 10 == 6, etc.) not by actual CRDT conflict detection."
+        },
+        {
+          "mt": "MT-037",
+          "rule": "1_DEFERRED_LIVE_ESCAPE",
+          "detail": "MT-037 red_team minimum_controls #1 (lines 99-101) require the test to assert lock/lease and cancellation behavior using the platform's real primitives (per lines 97-102 'lock/lease...cancellation...ProcessOwnershipLedger...'). The lock/lease test uses tokio Semaphore and the cancellation test uses AtomicBool poll — these are test-framework placeholders. If the real platform's lease grant/release or cancellation propagation paths regress, these surrogates cannot detect the failure. The platform primitives are REACHABLE from the production path (MT-036 CLI/IPC exposes the harness; MT-035 N=8 perf is the acceptance gate) but the test does not exercise them."
+        }
+      ]
+    },
+    {
+      "subscope": "A.6",
+      "cluster": "A",
+      "review_status": "BLOCKERS",
+      "adv_verdict": "REVIEW_TOO_HARSH",
+      "confirmed": 1,
+      "overturned": 4,
+      "spec_realism_violations": [
+        {
+          "mt": "MT-011",
+          "rule": "1_DEFERRED_LIVE_ESCAPE",
+          "detail": "The hbr-man-001-paired-diff.mjs script is referenced in the MT contract as a delivered artifact but is not present in commit f0c6faf0. The contract states it should be in .GOV/roles_shared/checks/hbr-man-001-paired-diff.mjs and wired into gov-check via justfile, but neither the script nor the justfile changes are in the candidate commit."
+        },
+        {
+          "mt": "MT-012",
+          "rule": "1_DEFERRED_LIVE_ESCAPE",
+          "detail": "The hbr-man-003-scan.mjs scanner is contractually required to run against live content.rs to verify self-consistency (per implementation_notes: 'Scanner exits non-zero on first unresolved name'). The scanner is not present, so HBR-MAN-003 cannot be verified to be satisfied in production."
+        },
+        {
+          "mt": "MT-013",
+          "rule": "1_DEFERRED_LIVE_ESCAPE",
+          "detail": "MT-013's red_team minimum_controls #3 states 'Adding the three Tauri commands forces a manual update in the SAME commit (HBR-MAN-001 gate is now active).' This gate cannot be active because MT-011's paired-diff script is not in the commit. The contract assumes MT-011 is wired but it is not."
+        }
+      ]
+    },
+    {
+      "subscope": "B.1",
+      "cluster": "B",
+      "review_status": "BLOCKERS",
+      "adv_verdict": "REVIEW_HELD",
+      "confirmed": 4,
+      "overturned": 1,
+      "spec_realism_violations": [
+        {
+          "mt": "MT-044",
+          "rule": "1_DEFERRED_LIVE_ESCAPE",
+          "detail": "The LoopbackOnly network policy is implemented as --network=none, which is a silent downgrade that leaves callers expecting localhost-reachable services (e.g., llama-server on 127.0.0.1:11434) with no network connectivity at all. This is not a clearly-marked error path (like a typed NetPolicyApplyFailed error) but a silent behavioral mismatch where the name (LoopbackOnly) and the actual enforcement (DenyAll) diverge."
+        },
+        {
+          "mt": "MT-046",
+          "rule": "2_NO_REAL_RESOURCE_TOUCH",
+          "detail": "The windows_native_jail_target_capabilities() declares gpu_passthrough: GpuPassthrough::VendorAgnostic but there is no real GPU probing, no D3D passthrough code, and no token-capability grant for GPU access. A production path using this adapter to request GPU would encounter a selection success followed by silent GPU unavailability at execution time."
+        },
+        {
+          "mt": "MT-047",
+          "rule": "1_DEFERRED_LIVE_ESCAPE",
+          "detail": "Same as MT-044: DockerAdapter's network_mode() at line 245 silently maps LoopbackOnly to --network=none without error. Callers expecting localhost connectivity will silently fail."
+        }
+      ]
+    },
+    {
+      "subscope": "B.2",
+      "cluster": "B",
+      "review_status": "CONCERNS",
+      "adv_verdict": "REVIEW_HELD",
+      "confirmed": 1,
+      "overturned": 0,
+      "spec_realism_violations": []
+    },
+    {
+      "subscope": "B.3",
+      "cluster": "B",
+      "review_status": "CONCERNS",
+      "adv_verdict": "REVIEW_HELD",
+      "confirmed": 0,
+      "overturned": 1,
+      "spec_realism_violations": [
+        {
+          "mt": "MT-054",
+          "rule": "1_DEFERRED_LIVE_ESCAPE",
+          "detail": "No deferred-live-escape violation detected. MT-054 itself does not introduce new production code paths; it documents a forward-guard lint. The migration record's 'already_migrated_verified' status is truthful — there were no KERNEL-003 DocketAdapter consumers to migrate. No typed error variants are reachable from a production flow that represent MT-054 incomplete work."
+        }
+      ]
+    },
+    {
+      "subscope": "B.4",
+      "cluster": "B",
+      "review_status": "CONCERNS",
+      "adv_verdict": "REVIEW_HELD",
+      "confirmed": 3,
+      "overturned": 1,
+      "spec_realism_violations": [
+        {
+          "mt": "MT-057",
+          "rule": "2_NO_REAL_RESOURCE_TOUCH",
+          "detail": "MT-057 is a cross-adapter parity test harness. Its owned_files include 8 fixture JSON files and the harness modules. The fixtures specify ProcessSpecs but stdout capture is not wired through any adapter. The StdoutPredicate field in ExpectedOutcome is defined but never evaluated against real adapter output. The harness returns stdout: None (line 448) with a comment that 'a future MT' will wire it. Therefore the real resource (stdout from spawned processes) is never touched by the predicates — only mock outcomes are compared."
+        },
+        {
+          "mt": "MT-058",
+          "rule": "2_NO_REAL_RESOURCE_TOUCH",
+          "detail": "MT-058's ESC-FS-SYMLINK-TRAVERSAL escape attempt is marked with documented_weaker_enforcement_adapters for docker and wsl2_podman. The actual escape (symlink resolving to /etc/passwd) may succeed on these adapters in a real run, but the test framework converts Red to Yellow automatically. The test does touch the real filesystem (bind a /tmp tmpfs and attempt symlink inside), but the verdict classification is pre-biased by the documented_weaker_enforcement marker, preventing a real escape from being reported as Red and blocking the WP as the contract intends."
+        }
+      ]
+    },
+    {
+      "subscope": "C.3",
+      "cluster": "C",
+      "review_status": "CONCERNS",
+      "adv_verdict": "REVIEW_HELD",
+      "confirmed": 3,
+      "overturned": 1,
+      "spec_realism_violations": [
+        {
+          "mt": "MT-088",
+          "rule": "1_DEFERRED_LIVE_ESCAPE",
+          "detail": "generate.rs:123 calls reset_generation_state() unconditionally before every forward pass. For SSM models (Mamba2, RWKV), this reinitializes the model's mutable State to State::new(), erasing any state that prefix_restore() had written back. The state-vector handle's restore path is reachable from the production path (CandleRuntime::generate -> forward -> reset_generation_state resets state), but the reset occurs AFTER the restore could have written state. This makes prefix_restore's effect invisible to subsequent generation."
+        },
+        {
+          "mt": "MT-089",
+          "rule": "1_DEFERRED_LIVE_ESCAPE",
+          "detail": "Same as MT-088: the identity test correctness gate (zero-vector steering -> output unchanged) is env-gated. candle_e2e_smoke.rs:200-250 shows transformer sub-test only runs when HANDSHAKE_TEST_CANDLE_MODEL_DIR is set. Default CI build (no env vars) executes all sub-tests as SKIPPED, never running the identity gate. Per MT-089 contract validator_focus: 'Identity test correctness gate' is the minimum control, but it is not enforced in default CI."
+        }
+      ]
+    },
+    {
+      "subscope": "C.5",
+      "cluster": "C",
+      "review_status": "CLEAN",
+      "adv_verdict": "REVIEW_TOO_LENIENT",
+      "confirmed": 2,
+      "overturned": 1,
+      "spec_realism_violations": []
+    },
+    {
+      "subscope": "C.6",
+      "cluster": "C",
+      "review_status": "CONCERNS",
+      "adv_verdict": "REVIEW_HELD",
+      "confirmed": 3,
+      "overturned": 2,
+      "spec_realism_violations": [
+        {
+          "mt": "MT-096",
+          "rule": "1_DEFERRED_LIVE_ESCAPE",
+          "detail": "capture_not_available error is correctly typed and returned when no runtime is attached. However, the error is reached because the runtime was never attached in production, not because a real resource is unavailable. The placeholder stands in for unimplemented SPEC behavior (model load wiring to CandleRuntime -> attach_live_runtime), not for an absent external resource."
+        }
+      ]
+    },
+    {
+      "subscope": "C.7",
+      "cluster": "C",
+      "review_status": "CONCERNS",
+      "adv_verdict": "REVIEW_TOO_LENIENT",
+      "confirmed": 2,
+      "overturned": 3,
+      "spec_realism_violations": [
+        {
+          "mt": "MT-100",
+          "rule": "1_DEFERRED_LIVE_ESCAPE",
+          "detail": "No deferred-live-escape violations detected. extract_refusal_direction calls activation_steering::capture which routes through SteeringHookOps::capture (interface). ablate_at_inference registers a vector and routes through the steering stack. Both have proper error returns (ModelRuntimeError variants) for unavailable runtimes; the code does not hide unavailability behind mocked data. The env-gated end-to-end test (inf4_refusal_end_to_end_eval_skips_cleanly_or_runs_when_model_dir_set) documents its skip reason (MT-074/MT-096 runtime dependencies) as intended deferral, not a placeholder error."
+        },
+        {
+          "mt": "MT-100",
+          "rule": "2_NO_REAL_RESOURCE_TOUCH",
+          "detail": "The owned_files in MT-100.json (lines 25-27) are: refusal_vector.rs and inf4_refusal_vector_tests.rs. Both are present and fully implemented. refusal_vector.rs::extract_refusal_direction calls activation_steering::capture which touches the real SteeringHookOps interface (a trait, not a mock). The test uses RecordingRefusalHooks (a mock test double) deliberately for the synthetic case, and separately the refusal_ablation_vector_orthogonalises_through_candle_apply_path test (line 435) uses the real CandleSteeringHooks::apply_vector_snapshot_to_activation path, which is the real hook-application code that executes in production. Proof-command 'cargo test inf4_refusal_vector_tests' exercises both the mock test (for end-to-end orchestration) and the real candle apply path."
+        },
+        {
+          "mt": "MT-101",
+          "rule": "1_DEFERRED_LIVE_ESCAPE",
+          "detail": "No violations detected. refusal_metrics.rs is pure computation (no I/O). measure_with_runtime (inferred from implementation_notes) is the orchestrator that ties measurement to a live model, and it would surface proper errors if the runtime is unavailable. The env-gated end-to-end test inf4_refusal_metrics_end_to_end_eval_skips_cleanly_or_runs_when_model_dir_set (MT-101.json implementation_notes line 33) is intentionally skipped pending runtime infrastructure, not a placeholder."
+        },
+        {
+          "mt": "MT-101",
+          "rule": "2_NO_REAL_RESOURCE_TOUCH",
+          "detail": "refusal_metrics.rs provides pure aggregation functions that accept pre-computed completion arrays. The real resource touch (running a model to generate completions) is the responsibility of measure_with_runtime, which is the integration layer that the spec and MT-101 contract describe as the consumer. The library layer (refusal_metrics.rs) is intentionally a separate concern from the orchestration layer, per MT-101.json lines 15-21 ('The orchestration layer that actually runs the model is intentionally a separate concern'). The pure aggregation is unit-tested; the orchestrated form is env-gated."
+        },
+        {
+          "mt": "MT-102",
+          "rule": "1_DEFERRED_LIVE_ESCAPE",
+          "detail": "No violations detected. RefusalVectorWizard.tsx is a UI component that calls IPC functions (extractRefusal, registerVector, setActive). The IPC stubs return errors (mock implementation in tests) or real responses. The adjacent Tauri command refusal.rs wraps extract_refusal_direction and would surface proper errors if the runtime is unavailable. The production wiring issue (no live runtime attached in production — MT-096 blocker) is an architectural debt tracked in MT-102.json historical_blocker_before_ready_for_validation_20260525, not a placeholder in the MT-102 code itself."
+        },
+        {
+          "mt": "MT-102",
+          "rule": "2_NO_REAL_RESOURCE_TOUCH",
+          "detail": "MT-102 owned files are UI + IPC test files (RefusalVectorWizard.tsx, InferenceLab.tsx, app/src/lib/ipc/refusal.ts, app/src/lib/ipc/refusal.test.ts, App.css, app/src-tauri/src/commands/refusal.rs, app/src-tauri/src/lib.rs). The UI component calls extractRefusal which touches the real kernel via the Tauri IPC bridge. The Tauri command refusal.rs invokes the real kernel extract_refusal_direction function (from MT-100), which touches the real SteeringHookOps interface. The test RefusalVectorWizard.test.tsx mocks the IPC layer for UI testing but separately the refusal.rs command layer would be integration-tested (proof-command 'cargo test -p handshake_core' would cover refusal_vector + refusal_metrics, which the Tauri command wraps)."
+        }
+      ]
+    },
+    {
+      "subscope": "C.9",
+      "cluster": "C",
+      "review_status": "CLEAN",
+      "adv_verdict": "REVIEW_TOO_LENIENT",
+      "confirmed": 0,
+      "overturned": 3,
+      "spec_realism_violations": [
+        {
+          "mt": "MT-106",
+          "rule": "1_DEFERRED_LIVE_ESCAPE",
+          "detail": "Phase-1 operator deflection noted NativeToolchainUnavailable placeholder at I/O boundary. However, current code at commit f0c6faf0 shows FULL IMPLEMENTATION: candle/abliteration_io.rs::run_abliteration_model_io() actually loads safetensors via candle_core::safetensors::load (line 16), performs orthogonalization on real tensors (line 39), and writes output via candle_core::safetensors::save (line 58). No placeholder present in current code."
+        }
+      ]
+    },
+    {
+      "subscope": "C.11",
+      "cluster": "C",
+      "review_status": "CLEAN",
+      "adv_verdict": "REVIEW_HELD",
+      "confirmed": 0,
+      "overturned": 0,
+      "spec_realism_violations": []
+    },
+    {
+      "subscope": "C.12",
+      "cluster": "C",
+      "review_status": "CONCERNS",
+      "adv_verdict": "REVIEW_HELD",
+      "confirmed": 2,
+      "overturned": 0,
+      "spec_realism_violations": [
+        {
+          "mt": "MT-122",
+          "rule": "1_DEFERRED_LIVE_ESCAPE",
+          "detail": "LedgerBatcher attachment is optional and deferred to production callers. When not attached, ProcessOwnershipLedger row is never registered, leaving the distillation trainer subprocess unattributable."
+        },
+        {
+          "mt": "MT-123",
+          "rule": "2_NO_REAL_RESOURCE_TOUCH",
+          "detail": "PromotionGate mount_with_promotion_gate() is never called in production code paths. CandidateRegistry::mount_status() is a pure logic check (returns MountDecision enum) with no side effects."
+        }
+      ]
+    },
+    {
+      "subscope": "C.13",
+      "cluster": "C",
+      "review_status": "CONCERNS",
+      "adv_verdict": "REVIEW_HELD",
+      "confirmed": 0,
+      "overturned": 1,
+      "spec_realism_violations": []
+    },
+    {
+      "subscope": "D.2",
+      "cluster": "D",
+      "review_status": "CLEAN",
+      "adv_verdict": "REVIEW_HELD",
+      "confirmed": 0,
+      "overturned": 0,
+      "spec_realism_violations": []
+    },
+    {
+      "subscope": "D.3",
+      "cluster": "D",
+      "review_status": "CONCERNS",
+      "adv_verdict": "REVIEW_TOO_HARSH",
+      "confirmed": 0,
+      "overturned": 2,
+      "spec_realism_violations": [
+        {
+          "mt": "MT-159",
+          "rule": "1_DEFERRED_LIVE_ESCAPE",
+          "detail": "Production hygiene path cannot see operator pins due to cross-aggregate payload gap, making the 'pinned items protected from hygiene' invariant unreachable in production despite correct skip-pinned code logic."
+        },
+        {
+          "mt": "MT-160",
+          "rule": "1_DEFERRED_LIVE_ESCAPE",
+          "detail": "HygieneJobRunner correctly emits review-gated candidates with no auto-delete. However, red_team #3 skip-pinned invariant is unreachable in production because pinned state is sourced from stale bitemporal payload."
+        }
+      ]
+    },
+    {
+      "subscope": "X.2",
+      "cluster": "X",
+      "review_status": "BLOCKERS",
+      "adv_verdict": "REVIEW_HELD",
+      "confirmed": 2,
+      "overturned": 0,
+      "spec_realism_violations": [
+        {
+          "mt": "MT-186",
+          "rule": "1_DEFERRED_LIVE_ESCAPE",
+          "detail": "ProcessOwnershipLedger reclaim invocation is deferred to caller-registered MtCancellationCleanupHook trait implementations. The force() method does not have a built-in path to ProcessOwnershipLedger and does not fail loudly if a caller forgets to register a reclaim hook. A hung executor that ignores the cooperative token and leaks a child process will not be reclaimed unless the caller explicitly registers a hook — creating an orphan-process escape path on the forced cancellation critical path."
+        },
+        {
+          "mt": "MT-186",
+          "rule": "1_DEFERRED_LIVE_ESCAPE",
+          "detail": "force_after_secs escalation timer is deferred to the caller. MtCanceller exposes force() as a direct call with no internal timer mechanism. A caller that calls request_cooperative() and then polls token.is_cancelled() in a loop must orchestrate the 30s timer themselves. If the caller's orchestration is absent or buggy, a hung executor ignoring the cooperative token will never reach forced cancellation on its own, violating the red_team control that requires 'automatic' escalation."
+        }
+      ]
+    }
+  ],
+  "totals": {
+    "confirmed_blockers": 30,
+    "blocked_mts": 24
+  },
+  "concern_class_note": "23 sub-reviewer claims were OVERTURNED by adversarial verification as fabricated requirements (e.g. A.1 MT-007 demanded a FR_EVT_LEDGER_STORE_FAILED event the spec never requires; spec 5.7.3 only mandates FR-EVT-LEDGER-OVERFLOW, which IS implemented). These are CONCERN-class, NOT blockers, and were EXCLUDED from the FAIL basis.",
+  "preserves": "Phase-1 hardening_report.json, REMEDIATION_INSTRUCTIONS.md, and per-MT integration_validator_review blocks are UNCHANGED (Phase-1 history)."
+}
