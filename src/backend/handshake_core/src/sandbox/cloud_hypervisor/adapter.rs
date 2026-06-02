@@ -1840,15 +1840,67 @@ fn on_off(value: bool) -> &'static str {
     }
 }
 
+const CH_RATE_LIMIT_REFILL_TIME_MS: u64 = 1_000;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct CloudHypervisorRateLimiterArgs {
+    disk: Option<String>,
+    net: Option<String>,
+}
+
+fn ch_token_bucket_arg(bytes_per_sec: u64, scope: &str) -> Result<String, SandboxAdapterError> {
+    if bytes_per_sec == 0 {
+        return Err(spawn_failed(format!(
+            "cloud_hypervisor {scope} bandwidth limit must be greater than zero bytes/sec; \
+             use None to leave the device unlimited"
+        )));
+    }
+    Ok(format!(
+        "bw_size={bytes_per_sec},bw_one_time_burst={bytes_per_sec},bw_refill_time={CH_RATE_LIMIT_REFILL_TIME_MS}"
+    ))
+}
+
+fn cloud_hypervisor_rate_limiter_args(
+    limits: &ResourceLimits,
+) -> Result<CloudHypervisorRateLimiterArgs, SandboxAdapterError> {
+    let disk = match (
+        limits.disk_read_bytes_per_sec,
+        limits.disk_write_bytes_per_sec,
+    ) {
+        (None, None) => None,
+        (Some(read), Some(write)) if read == write => {
+            Some(ch_token_bucket_arg(read, "disk read/write")?)
+        }
+        (Some(_), Some(_)) => {
+            return Err(spawn_failed(
+                "cloud_hypervisor virtio-block exposes one shared bandwidth token bucket; \
+                 asymmetric ResourceLimits disk_read_bytes_per_sec and \
+                 disk_write_bytes_per_sec cannot be enforced without silently weakening one side",
+            ));
+        }
+        (Some(_), None) | (None, Some(_)) => {
+            return Err(spawn_failed(
+                "cloud_hypervisor virtio-block exposes one shared bandwidth token bucket; \
+                 set both disk_read_bytes_per_sec and disk_write_bytes_per_sec to the same \
+                 value or leave both unset",
+            ));
+        }
+    };
+    let net = limits
+        .net_bandwidth_bytes_per_sec
+        .map(|bytes_per_sec| ch_token_bucket_arg(bytes_per_sec, "network"))
+        .transpose()?;
+    Ok(CloudHypervisorRateLimiterArgs { disk, net })
+}
+
 fn validate_supported_resource_limits(limits: &ResourceLimits) -> Result<(), SandboxAdapterError> {
-    if limits.disk_read_bytes_per_sec.is_some()
-        || limits.disk_write_bytes_per_sec.is_some()
-        || limits.net_bandwidth_bytes_per_sec.is_some()
-    {
+    let rate_limits = cloud_hypervisor_rate_limiter_args(limits)?;
+    if rate_limits.disk.is_some() || rate_limits.net.is_some() {
         return Err(spawn_failed(
-            "cloud_hypervisor ResourceLimits disk/net bytes-per-second token-bucket limits \
-             are not enforceable by this adapter path yet; refusing to silently ignore \
-             requested per-device rate limits",
+            "cloud_hypervisor ResourceLimits disk/net bytes-per-second token-bucket limits map \
+             to CH device bw_size/bw_refill_time arguments, but this direct-initramfs adapter \
+             path currently boots with no virtio-block or virtio-net device to attach them to; \
+             refusing to silently ignore requested per-device rate limits",
         ));
     }
     Ok(())
@@ -3386,30 +3438,75 @@ mod tests {
     }
 
     #[test]
-    fn disk_and_net_rate_limits_fail_closed_until_adapter_enforces_them() {
-        for limits in [
-            ResourceLimits {
-                disk_read_bytes_per_sec: Some(1_000_000),
-                ..Default::default()
-            },
-            ResourceLimits {
-                disk_write_bytes_per_sec: Some(1_000_000),
-                ..Default::default()
-            },
-            ResourceLimits {
-                net_bandwidth_bytes_per_sec: Some(1_000_000),
-                ..Default::default()
-            },
-        ] {
-            let err = validate_supported_resource_limits(&limits)
-                .expect_err("nonzero CH rate limit must fail closed");
-            match err {
-                SandboxAdapterError::SpawnFailed { reason, .. } => {
-                    assert!(reason.contains("not enforceable"));
-                    assert!(reason.contains("per-device rate limits"));
-                }
-                other => panic!("expected typed SpawnFailed, got {other:?}"),
+    fn rate_limits_translate_to_cloud_hypervisor_token_bucket_args() {
+        let limits = ResourceLimits {
+            disk_read_bytes_per_sec: Some(1_000_000),
+            disk_write_bytes_per_sec: Some(1_000_000),
+            net_bandwidth_bytes_per_sec: Some(2_000_000),
+            ..Default::default()
+        };
+        let args =
+            cloud_hypervisor_rate_limiter_args(&limits).expect("symmetric limits are mappable");
+        assert_eq!(
+            args.disk.as_deref(),
+            Some("bw_size=1000000,bw_one_time_burst=1000000,bw_refill_time=1000")
+        );
+        assert_eq!(
+            args.net.as_deref(),
+            Some("bw_size=2000000,bw_one_time_burst=2000000,bw_refill_time=1000")
+        );
+    }
+
+    #[test]
+    fn asymmetric_disk_rate_limits_fail_closed_before_argv_construction() {
+        let err = cloud_hypervisor_rate_limiter_args(&ResourceLimits {
+            disk_read_bytes_per_sec: Some(1_000_000),
+            disk_write_bytes_per_sec: Some(2_000_000),
+            ..Default::default()
+        })
+        .expect_err("CH disk has one shared token bucket, not directional limits");
+        match err {
+            SandboxAdapterError::SpawnFailed { reason, .. } => {
+                assert!(reason.contains("one shared bandwidth token bucket"));
+                assert!(reason.contains("asymmetric"));
             }
+            other => panic!("expected typed SpawnFailed, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn zero_rate_limit_fails_closed_instead_of_encoding_zero_bandwidth() {
+        let err = cloud_hypervisor_rate_limiter_args(&ResourceLimits {
+            net_bandwidth_bytes_per_sec: Some(0),
+            ..Default::default()
+        })
+        .expect_err("zero is ambiguous and must not become a CH token bucket");
+        match err {
+            SandboxAdapterError::SpawnFailed { reason, .. } => {
+                assert!(reason.contains("network bandwidth limit"));
+                assert!(reason.contains("greater than zero"));
+            }
+            other => panic!("expected typed SpawnFailed, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn disk_and_net_rate_limits_fail_closed_until_direct_initramfs_has_devices() {
+        let limits = ResourceLimits {
+            disk_read_bytes_per_sec: Some(1_000_000),
+            disk_write_bytes_per_sec: Some(1_000_000),
+            net_bandwidth_bytes_per_sec: Some(1_000_000),
+            ..Default::default()
+        };
+        let err = validate_supported_resource_limits(&limits)
+            .expect_err("mappable CH rate limits still need attachable devices");
+        match err {
+            SandboxAdapterError::SpawnFailed { reason, .. } => {
+                assert!(reason.contains("bw_size/bw_refill_time"));
+                assert!(reason.contains("no virtio-block or virtio-net device"));
+                assert!(reason.contains("per-device rate limits"));
+            }
+            other => panic!("expected typed SpawnFailed, got {other:?}"),
         }
     }
 
