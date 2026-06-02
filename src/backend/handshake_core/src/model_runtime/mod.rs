@@ -15,6 +15,7 @@ pub mod techniques;
 pub mod r#trait;
 pub mod types;
 pub mod warm_agent_protocol;
+pub mod warm_vm_runtime;
 
 pub use capabilities::*;
 pub use error::*;
@@ -33,3 +34,4 @@ pub use steering::*;
 pub use techniques::*;
 pub use types::*;
 pub use warm_agent_protocol::*;
+pub use warm_vm_runtime::*;
