@@ -88,6 +88,7 @@ fn raw_tauri_window_creation_and_focus_are_banned_outside_escape_hatches() {
     let raw_webview_builder = Regex::new(r"\bWebviewWindowBuilder::new").expect("regex");
     let raw_window_builder = Regex::new(r"\bWindowBuilder::new").expect("regex");
     let mut violations = Vec::new();
+    let mut controlled_foreground_focus_allowance_checked = false;
     for entry in fs::read_dir(&app_src).expect("app/src-tauri/src exists") {
         let entry = entry.expect("dir entry");
         let path = entry.path();
@@ -102,17 +103,43 @@ fn raw_tauri_window_creation_and_focus_are_banned_outside_escape_hatches() {
         if relative == "app/src-tauri/src/quiet_window.rs" {
             continue;
         }
+        let allow_controlled_foreground_focus =
+            relative == "app/src-tauri/src/foreground_exception_window.rs";
         let text = fs::read_to_string(&path).expect("read Rust source");
+        if allow_controlled_foreground_focus {
+            controlled_foreground_focus_allowance_checked = true;
+            let focus_count = text.matches(".set_focus(").count();
+            if focus_count != 1 {
+                violations.push(format!(
+                    "{relative}: expected exactly one controlled direct set_focus, found {focus_count}"
+                ));
+            }
+            for required in [
+                "if let Some(existing) = app.get_webview_window(&label)",
+                "ForegroundExceptionWindowBuilder::new(app, label.clone(), webview_url)",
+                "handle.bounded_window_with_surface(label, url, surface)",
+            ] {
+                if !text.contains(required) {
+                    violations.push(format!(
+                        "{relative}: controlled set_focus allowance missing required context: {required}"
+                    ));
+                }
+            }
+        }
         if raw_webview_builder.is_match(&text) {
             violations.push(format!("{relative}: raw WebviewWindowBuilder::new"));
         }
         if raw_window_builder.is_match(&text) {
             violations.push(format!("{relative}: raw WindowBuilder::new"));
         }
-        if text.contains(".set_focus(") {
+        if text.contains(".set_focus(") && !allow_controlled_foreground_focus {
             violations.push(format!("{relative}: direct set_focus"));
         }
     }
+    assert!(
+        controlled_foreground_focus_allowance_checked,
+        "controlled foreground focus allowance target was not scanned"
+    );
 
     assert!(
         violations.is_empty(),

@@ -57,8 +57,10 @@
 use std::{
     collections::BTreeMap,
     path::{Path, PathBuf},
-    process::Command,
+    process::{Command, Output, Stdio},
     sync::{Arc, Mutex},
+    thread,
+    time::{Duration, Instant},
 };
 
 use handshake_core::operator_foreground::{
@@ -75,6 +77,7 @@ use handshake_core::operator_foreground::{
 use serde_json::{json, Value};
 
 const RUNTIME_PROBE_EVIDENCE_SCHEMA: &str = "hsk.automation_first_runtime_probe_evidence@1";
+const AUDIT_SCRIPT_TIMEOUT: Duration = Duration::from_secs(20);
 
 fn repo_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -93,13 +96,38 @@ fn audit_script(repo_root: &Path) -> PathBuf {
         .join("automation-first-audit.mjs")
 }
 
-fn run_audit(args: &[&str]) -> std::process::Output {
+fn run_audit(args: &[&str]) -> Output {
     let root = repo_root();
     let mut command = Command::new("node");
     command.arg(audit_script(&root));
     command.args(["--repo-root", root.to_str().expect("repo root utf8")]);
     command.args(args);
-    command.output().expect("run automation-first audit")
+    command.stdout(Stdio::piped()).stderr(Stdio::piped());
+
+    let mut child = command.spawn().expect("spawn automation-first audit");
+    let deadline = Instant::now() + AUDIT_SCRIPT_TIMEOUT;
+    loop {
+        match child.try_wait().expect("poll automation-first audit") {
+            Some(_) => {
+                return child
+                    .wait_with_output()
+                    .expect("collect automation-first audit")
+            }
+            None if Instant::now() >= deadline => {
+                let _ = child.kill();
+                let output = child
+                    .wait_with_output()
+                    .expect("collect timed-out automation-first audit");
+                panic!(
+                    "automation-first audit timed out after {}s\nstdout={}\nstderr={}",
+                    AUDIT_SCRIPT_TIMEOUT.as_secs(),
+                    String::from_utf8_lossy(&output.stdout),
+                    String::from_utf8_lossy(&output.stderr)
+                );
+            }
+            None => thread::sleep(Duration::from_millis(25)),
+        }
+    }
 }
 
 /// The real IPC command inventory, sourced from the same auto-discovery the
@@ -279,26 +307,17 @@ fn ipc_mock_call(
     }
 }
 
-/// Probe 2 core: run the IPC dispatch under a focus-audit and produce a real
-/// `FocusAuditReport`. On Windows this starts the live `wineventhook`
-/// SYSTEM_FOREGROUND hook; on any host it falls back to a real (empty) event
-/// ledger so the synchronous handshake-owned-event classification still runs
-/// against measured data. Returns `(handshake_owned_event_count, live)`.
-fn ipc_call_under_focus_audit(
-    command_ref: &str,
+/// Probe 2 core: run the full IPC inventory inside one bounded focus-audit
+/// window and produce a real `FocusAuditReport`. On Windows this starts the
+/// live `wineventhook` SYSTEM_FOREGROUND hook; on any host it falls back to a
+/// real empty event ledger so the synchronous handshake-owned-event
+/// classification still runs against measured data. Returns
+/// `(handshake_owned_event_count, live)`.
+fn ipc_inventory_under_focus_audit(
+    inventory: &[(String, bool)],
     registry: &IpcHandlerRegistry,
     runtime_root: &Path,
 ) -> (usize, bool) {
-    // Always exercise the IPC dispatch inside the audited window through a real
-    // registry lookup. A fresh sink per audited dispatch keeps the observed
-    // side effect scoped to this call.
-    let sink = IpcDispatchSink::new();
-    let outcome = ipc_mock_call(command_ref, registry, &sink);
-    assert!(
-        outcome.dispatched,
-        "IPC mock dispatch for {command_ref} must reach the registered handler via the mock IPC path"
-    );
-
     #[cfg(windows)]
     {
         // Attempt the LIVE focus hook. `FocusAuditHandle::start` is async and
@@ -310,13 +329,22 @@ fn ipc_call_under_focus_audit(
             .expect("tokio runtime for live focus-audit probe");
         let live = runtime.block_on(async {
             use handshake_core::operator_foreground::focus_audit::FocusAuditHandle;
-            let run_id = format!("MT-020-runtime-probe-{}", sanitize(command_ref));
+            let run_id = "MT-020-runtime-probe-full-inventory";
             match FocusAuditHandle::start(run_id, runtime_root, OwnedProcessPidSet::default()).await
             {
                 Ok(handle) => {
-                    // Dispatch the command again while the hook is armed so any
-                    // focus transition the IPC path triggers is observed live.
-                    let _ = ipc_mock_call(command_ref, registry, &sink);
+                    // Dispatch every command while the hook is armed. A fresh
+                    // sink per command keeps the observed side effect scoped to
+                    // that command while the focus hook measures the whole
+                    // inventory window.
+                    for (command_ref, _ipc_callable) in inventory {
+                        let sink = IpcDispatchSink::new();
+                        let outcome = ipc_mock_call(command_ref, registry, &sink);
+                        assert!(
+                            outcome.dispatched,
+                            "IPC mock dispatch for {command_ref} must reach the registered handler via the mock IPC path"
+                        );
+                    }
                     // Give the hook task a brief window to drain queued events.
                     tokio::time::sleep(std::time::Duration::from_millis(50)).await;
                     match handle.stop().await {
@@ -330,9 +358,9 @@ fn ipc_call_under_focus_audit(
 
         if let Some(report) = live {
             // Real measured focus-audit: assert zero handshake-owned foreground
-            // transitions occurred while the IPC command was dispatched.
+            // transitions occurred while the IPC inventory was dispatched.
             assert_no_handshake_foreground(&report)
-                .unwrap_or_else(|violation| panic!("{command_ref}: {violation}"));
+                .unwrap_or_else(|violation| panic!("full IPC inventory: {violation}"));
             return (report.handshake_owned_events.len(), true);
         }
     }
@@ -341,20 +369,18 @@ fn ipc_call_under_focus_audit(
     // session station): assert the invariant over a real, empty focus-audit
     // ledger. No handshake-owned PID is ever written, so the measured
     // handshake-owned count is a genuine 0 from the classification logic.
-    let ledger = FocusAuditLedger::new(
-        format!("MT-020-runtime-probe-fallback-{}", sanitize(command_ref)),
-        runtime_root,
-    )
-    .expect("focus-audit ledger");
+    let ledger =
+        FocusAuditLedger::new("MT-020-runtime-probe-fallback-full-inventory", runtime_root)
+            .expect("focus-audit ledger");
     let events: Vec<FocusAuditEvent> = ledger.events().expect("ledger events");
     let report = FocusAuditReport::from_events(
-        format!("MT-020-runtime-probe-fallback-{}", sanitize(command_ref)),
+        "MT-020-runtime-probe-fallback-full-inventory",
         std::process::id(),
         &OwnedProcessPidSet::default(),
         events,
     );
     assert_no_handshake_foreground(&report)
-        .unwrap_or_else(|violation| panic!("{command_ref}: {violation}"));
+        .unwrap_or_else(|violation| panic!("full IPC inventory: {violation}"));
     (report.handshake_owned_events.len(), false)
 }
 
@@ -409,13 +435,6 @@ fn raw_os_keyboard_injection_probe() -> (u64, bool) {
     (report.command_invocation_count, false)
 }
 
-fn sanitize(value: &str) -> String {
-    value
-        .chars()
-        .map(|c| if c.is_ascii_alphanumeric() { c } else { '-' })
-        .collect()
-}
-
 /// Optional MT-058 AppContainer-jailed foreground/inject probe. Only spawned
 /// when the integration driver exposed its absolute path; on hosts where it was
 /// not built this is skipped (its absence does not weaken the in-process
@@ -460,8 +479,23 @@ fn automation_first_audit_runtime_three_probes_cover_full_ipc_inventory_with_mea
     let temp = tempfile::tempdir().expect("temp runtime root");
     let runtime_root = temp.path();
 
-    let mut focus_audit_live_any = false;
-    let mut keyboard_live_any = false;
+    let (focus_owned_events, focus_audit_live_any) =
+        ipc_inventory_under_focus_audit(&inventory, &registry, runtime_root);
+    assert_eq!(
+        focus_owned_events, 0,
+        "live focus-audit observed handshake-owned foreground transition(s)"
+    );
+
+    // Probe 3 is an OS-path invariant, not command-specific input routing:
+    // injected keystrokes must not fire any command or mutate state. Running it
+    // once keeps the certifying lane quiet and bounded while still emitting the
+    // measured result onto every command's evidence row.
+    let (kbd_invocations, keyboard_live_any) = raw_os_keyboard_injection_probe();
+    assert_eq!(
+        kbd_invocations, 0,
+        "raw OS keyboard injection fired a Tauri command"
+    );
+
     let mut evidence_commands = serde_json::Map::new();
 
     for (command_ref, ipc_callable) in &inventory {
@@ -485,32 +519,15 @@ fn automation_first_audit_runtime_three_probes_cover_full_ipc_inventory_with_mea
             "{command_ref}: pure IPC dispatch must produce zero OS keyboard events"
         );
 
-        // ---- Probe 2: IPC under a LIVE focus-audit ----
-        let (focus_owned_events, focus_live) =
-            ipc_call_under_focus_audit(command_ref, &registry, runtime_root);
-        focus_audit_live_any |= focus_live;
-        assert_eq!(
-            focus_owned_events, 0,
-            "{command_ref}: live focus-audit observed handshake-owned foreground transition(s)"
-        );
-
-        // ---- Probe 3: raw OS SendInput keyboard-injection ----
-        let (kbd_invocations, kbd_live) = raw_os_keyboard_injection_probe();
-        keyboard_live_any |= kbd_live;
-        assert_eq!(
-            kbd_invocations, 0,
-            "{command_ref}: raw OS keyboard injection fired a Tauri command"
-        );
-
         evidence_commands.insert(
             command_ref.clone(),
             json!({
                 "ipc_callable": ipc_callable,
                 "ipc_mock_call_ok": probe1.dispatched,
                 "focus_steal_event_count": focus_owned_events,
-                "focus_audit_live": focus_live,
+                "focus_audit_live": focus_audit_live_any,
                 "keyboard_injection_invocation_count": kbd_invocations,
-                "keyboard_injection_live": kbd_live,
+                "keyboard_injection_live": keyboard_live_any,
             }),
         );
     }

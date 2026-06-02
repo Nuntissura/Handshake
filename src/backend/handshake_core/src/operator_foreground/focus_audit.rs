@@ -201,8 +201,12 @@ pub enum FocusAuditError {
     UnsupportedPlatform,
     #[error("FOCUS_AUDIT_HOOK: {0}")]
     Hook(String),
+    #[error("FOCUS_AUDIT_HOOK_TIMEOUT: unhook did not finish within {timeout_ms}ms")]
+    HookTimeout { timeout_ms: u64 },
     #[error("FOCUS_AUDIT_TASK_JOIN: {0}")]
     TaskJoin(String),
+    #[error("FOCUS_AUDIT_TASK_DRAIN_TIMEOUT: event drain did not finish within {timeout_ms}ms")]
+    TaskDrainTimeout { timeout_ms: u64 },
 }
 
 pub fn sanitize_run_id(run_id: &str) -> String {
@@ -232,7 +236,7 @@ pub fn sanitize_run_id(run_id: &str) -> String {
 
 #[cfg(windows)]
 mod platform {
-    use std::{path::Path, ptr};
+    use std::{path::Path, ptr, time::Duration};
 
     use chrono::Utc;
     use tokio::task::JoinHandle;
@@ -248,6 +252,8 @@ mod platform {
     use super::{
         FocusAuditError, FocusAuditEvent, FocusAuditLedger, FocusAuditReport, OwnedProcessPidSet,
     };
+
+    const FOCUS_AUDIT_STOP_TIMEOUT: Duration = Duration::from_secs(5);
 
     pub struct FocusAuditHandle {
         hook: Option<WindowEventHook>,
@@ -295,14 +301,36 @@ mod platform {
         }
 
         pub async fn stop(mut self) -> Result<FocusAuditReport, FocusAuditError> {
+            let mut task = self.task;
             if let Some(hook) = self.hook.take() {
-                hook.unhook()
-                    .await
-                    .map_err(|error| FocusAuditError::Hook(error.to_string()))?;
+                match tokio::time::timeout(FOCUS_AUDIT_STOP_TIMEOUT, hook.unhook()).await {
+                    Ok(Ok(())) => {}
+                    Ok(Err(error)) => {
+                        task.abort();
+                        let _ = task.await;
+                        return Err(FocusAuditError::Hook(error.to_string()));
+                    }
+                    Err(_) => {
+                        task.abort();
+                        let _ = task.await;
+                        return Err(FocusAuditError::HookTimeout {
+                            timeout_ms: FOCUS_AUDIT_STOP_TIMEOUT.as_millis() as u64,
+                        });
+                    }
+                }
             }
-            self.task
-                .await
-                .map_err(|error| FocusAuditError::TaskJoin(error.to_string()))??;
+            match tokio::time::timeout(FOCUS_AUDIT_STOP_TIMEOUT, &mut task).await {
+                Ok(result) => {
+                    result.map_err(|error| FocusAuditError::TaskJoin(error.to_string()))??;
+                }
+                Err(_) => {
+                    task.abort();
+                    let _ = task.await;
+                    return Err(FocusAuditError::TaskDrainTimeout {
+                        timeout_ms: FOCUS_AUDIT_STOP_TIMEOUT.as_millis() as u64,
+                    });
+                }
+            }
             let events = self.ledger.events()?;
             Ok(FocusAuditReport::from_events(
                 self.ledger.run_id(),
