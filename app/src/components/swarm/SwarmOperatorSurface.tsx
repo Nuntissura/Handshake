@@ -9,6 +9,7 @@ import {
   SwarmResourceSection,
   SwarmSessionsSection,
   SwarmSpawnSection,
+  swarmResourceBadge,
   useSwarmRoom,
 } from "./SwarmControlRoom";
 import { getSpawnTemplate } from "../../lib/ipc/swarm_runtime";
@@ -142,9 +143,7 @@ export function SwarmOperatorSurface({
   let resourceBadge: string | undefined;
   if (room.snapshot.status === "ready") {
     const snap = room.snapshot.snapshot;
-    resourceBadge = snap.budgetExhausted
-      ? "budget exhausted"
-      : `${snap.concurrencyInUse}/${snap.concurrencyCap} in use`;
+    resourceBadge = swarmResourceBadge(snap);
   }
 
   const sessionsCount =

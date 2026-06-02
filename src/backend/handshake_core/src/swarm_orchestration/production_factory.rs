@@ -39,9 +39,7 @@ use async_trait::async_trait;
 
 use crate::model_runtime::candle::{load_local_candle_model, LoadedCandleModel};
 use crate::model_runtime::registry::RuntimeBinding;
-use crate::model_runtime::{
-    CancellationToken, ModelId, ModelRuntime, ProviderKind,
-};
+use crate::model_runtime::{CancellationToken, ModelId, ModelRuntime, ProviderKind};
 use crate::process_ledger::{
     record_spawn, LedgerBatcher, ProcessEngineKind, ProcessOwnershipRecordId, SpawnMeta,
 };
@@ -56,6 +54,8 @@ use super::coordinator::{SwarmConfig, SwarmCoordinator};
 use super::events::FlightRecorderSwarmSink;
 use super::ids::RunBudget;
 use crate::flight_recorder::FlightRecorderEvent;
+
+const SANDBOX_LLAMA_CLI_HOST_PATH_ENV: &str = "HANDSHAKE_SANDBOX_LLAMA_CLI_HOST_PATH";
 
 /// Default per-run concurrency cap when the caller does not specify one: the
 /// available CPU parallelism, clamped to at least 1. GPU-bound deployments
@@ -95,7 +95,11 @@ where
     let config = SwarmConfig::new(budget);
     // Sandbox registry is threaded by the Integrate phase (app startup); the
     // build helper defaults it to None so existing wiring is unaffected.
-    let factory = Arc::new(ProductionModelSessionFactory::new(ledger.clone(), cloud, None));
+    let factory = Arc::new(ProductionModelSessionFactory::new(
+        ledger.clone(),
+        cloud,
+        None,
+    ));
     let sink = Arc::new(FlightRecorderSwarmSink::new(trace_id, emit_fn));
     SwarmCoordinator::new(config, factory, sink, ledger)
 }
@@ -324,10 +328,9 @@ impl CloudRuntimeBuilder for CliBridgeCloudRuntimeBuilder {
         if let Some(obs) = self.lane_obs.clone() {
             rt = rt.with_lane_observability(obs);
         }
-        let model_id = rt
-            .load(self.cli_load_spec(model_name))
-            .await
-            .map_err(|e| format!("official CLI bridge load for model '{model_name}' failed: {e}"))?;
+        let model_id = rt.load(self.cli_load_spec(model_name)).await.map_err(|e| {
+            format!("official CLI bridge load for model '{model_name}' failed: {e}")
+        })?;
         // Thread the COORDINATOR's session composite id verbatim so the
         // structured `FR-EVT-AGENT-*` events this runtime emits in JSON-stream
         // mode carry `session_span_id` + `payload.instance_id` EQUAL to the
@@ -439,9 +442,7 @@ impl VaultCloudRuntimeBuilder {
     /// concrete vault, whereas the swarm wiring carries an erased
     /// `Arc<dyn SecretsVault>` (one config can mix vault impls). The local
     /// provider holds the trait object and dispatches dynamically.
-    fn key_provider(
-        &self,
-    ) -> Arc<dyn crate::model_runtime::cloud::ApiKeyProvider> {
+    fn key_provider(&self) -> Arc<dyn crate::model_runtime::cloud::ApiKeyProvider> {
         Arc::new(DynVaultApiKeyProvider {
             vault: self.vault.clone(),
             lane: self.lane.clone(),
@@ -553,9 +554,7 @@ struct DynVaultApiKeyProvider {
 }
 
 impl crate::model_runtime::cloud::ApiKeyProvider for DynVaultApiKeyProvider {
-    fn fetch_api_key(
-        &self,
-    ) -> Result<String, crate::model_runtime::cloud::OpenAiByokError> {
+    fn fetch_api_key(&self) -> Result<String, crate::model_runtime::cloud::OpenAiByokError> {
         self.vault.get(&self.lane).map_err(|err| {
             crate::model_runtime::cloud::OpenAiByokError::ApiKeyFetch(format!("{err}"))
         })
@@ -753,7 +752,7 @@ impl ProductionModelSessionFactory {
     /// teardown kills the microVM handle + closes the ledger.
     async fn create_sandboxed_local(&self, request: &SpawnRequest) -> SwarmResult<LiveSession> {
         use crate::model_runtime::{
-            inference_process_spec, SandboxModelConfig, SandboxModelRuntime,
+            try_inference_process_spec, SandboxModelConfig, SandboxModelRuntime,
         };
         use crate::sandbox::{select, TrustClass};
 
@@ -765,27 +764,38 @@ impl ProductionModelSessionFactory {
             )
         })?;
 
-        let gguf_host = std::path::PathBuf::from(request.model_artifact_path().ok_or_else(|| {
-            SwarmError::FactoryFailed(
-                "Tier3 sandboxed local spawn requires a model artifact path (the GGUF)".to_string(),
-            )
-        })?);
-        let gguf_root = gguf_host
-            .parent()
-            .map(|p| p.to_path_buf())
-            .ok_or_else(|| {
+        let gguf_host =
+            std::path::PathBuf::from(request.model_artifact_path().ok_or_else(|| {
                 SwarmError::FactoryFailed(
-                    "Tier3 sandboxed local spawn: the GGUF path has no parent directory to bind"
+                    "Tier3 sandboxed local spawn requires a model artifact path (the GGUF)"
                         .to_string(),
                 )
-            })?;
+            })?);
+        let gguf_root = gguf_host.parent().map(|p| p.to_path_buf()).ok_or_else(|| {
+            SwarmError::FactoryFailed(
+                "Tier3 sandboxed local spawn: the GGUF path has no parent directory to bind"
+                    .to_string(),
+            )
+        })?;
 
-        let cfg = SandboxModelConfig::new(gguf_host, gguf_root, "llama-cli")
+        let runner_host = std::env::var_os(SANDBOX_LLAMA_CLI_HOST_PATH_ENV).ok_or_else(|| {
+            SwarmError::FactoryFailed(format!(
+                "Tier3 sandboxed local spawn requires {SANDBOX_LLAMA_CLI_HOST_PATH_ENV} to \
+                     point at the host llama.cpp runner binary; the microVM guest path is derived \
+                     from that bind instead of assuming `llama-cli` exists in the guest"
+            ))
+        })?;
+        let mut cfg = SandboxModelConfig::new(gguf_host, gguf_root, "llama-cli")
+            .with_runner_host_path(std::path::PathBuf::from(runner_host))
             .with_trust_class(TrustClass::UntrustedAgent);
+        if let Some(bytes) = request.committed_memory_bytes {
+            cfg = cfg.with_memory_bytes(bytes);
+        }
 
         // Select the microVM adapter for this spec (enforces the Tier-3 minimum).
         let model_id = ModelId::new_v7();
-        let spec = inference_process_spec(model_id, &cfg);
+        let spec = try_inference_process_spec(model_id, &cfg)
+            .map_err(|e| SwarmError::FactoryFailed(e.to_string()))?;
         let adapter = select(registry, &spec, None)
             .map_err(|e| SwarmError::FactoryFailed(format!("sandbox selection failed: {e}")))?;
 
@@ -854,15 +864,12 @@ impl ProductionModelSessionFactory {
     }
 
     async fn create_local_candle(&self, request: &SpawnRequest) -> SwarmResult<LiveSession> {
-        let artifact_path = std::path::PathBuf::from(
-            request
-                .model_artifact_path()
-                .ok_or_else(|| {
-                    SwarmError::FactoryFailed(
-                        "local candle spawn requires a model artifact path".to_string(),
-                    )
-                })?,
-        );
+        let artifact_path =
+            std::path::PathBuf::from(request.model_artifact_path().ok_or_else(|| {
+                SwarmError::FactoryFailed(
+                    "local candle spawn requires a model artifact path".to_string(),
+                )
+            })?);
         let sha256 = request.model_artifact_sha256.clone().ok_or_else(|| {
             SwarmError::FactoryFailed(
                 "local candle spawn requires model_artifact_sha256 for the integrity gate"
@@ -882,8 +889,7 @@ impl ProductionModelSessionFactory {
         let os_pid = self.synthetic_pid(request);
         // Record the START only AFTER the load succeeded so a load failure never
         // leaves an orphan START (C7).
-        let record_id =
-            self.record_start(request, model_id, os_pid, ProcessEngineKind::Candle)?;
+        let record_id = self.record_start(request, model_id, os_pid, ProcessEngineKind::Candle)?;
 
         // Wrap the owning runtime in a shared Mutex so the coordinator's
         // `Arc<dyn ModelRuntime>` (used for cancel + the real generate path) and
@@ -907,15 +913,12 @@ impl ProductionModelSessionFactory {
         use crate::model_runtime::llama_cpp::LlamaCppRuntime;
         use crate::model_runtime::{KvCachePolicy, LoadSpec, RuntimeKind, SamplingParams};
 
-        let artifact_path = std::path::PathBuf::from(
-            request
-                .model_artifact_path()
-                .ok_or_else(|| {
-                    SwarmError::FactoryFailed(
-                        "local llama.cpp spawn requires a model artifact path".to_string(),
-                    )
-                })?,
-        );
+        let artifact_path =
+            std::path::PathBuf::from(request.model_artifact_path().ok_or_else(|| {
+                SwarmError::FactoryFailed(
+                    "local llama.cpp spawn requires a model artifact path".to_string(),
+                )
+            })?);
         let sha256 = request.model_artifact_sha256.clone().ok_or_else(|| {
             SwarmError::FactoryFailed(
                 "local llama.cpp spawn requires model_artifact_sha256 for the integrity gate"
@@ -965,24 +968,36 @@ impl ProductionModelSessionFactory {
         request: &SpawnRequest,
         provider: ProviderKind,
     ) -> SwarmResult<LiveSession> {
-        let model_name = request.cloud_model_name.clone().ok_or_else(|| {
-            SwarmError::ProviderNotConfigured {
-                provider: provider_str(provider).to_string(),
-                detail: "cloud spawn requires cloud_model_name".to_string(),
-            }
-        })?;
+        let model_name =
+            request
+                .cloud_model_name
+                .clone()
+                .ok_or_else(|| SwarmError::ProviderNotConfigured {
+                    provider: provider_str(provider).to_string(),
+                    detail: "cloud spawn requires cloud_model_name".to_string(),
+                })?;
 
         let builder = match provider {
-            ProviderKind::ByokCloud => self.cloud.openai.as_ref().or(self.cloud.anthropic.as_ref()),
+            ProviderKind::ByokCloud => match request.byok_cloud_provider {
+                Some(super::ids::ByokCloudProvider::Anthropic) => self.cloud.anthropic.as_ref(),
+                Some(super::ids::ByokCloudProvider::OpenAi) => self.cloud.openai.as_ref(),
+                None => self.cloud.openai.as_ref().or(self.cloud.anthropic.as_ref()),
+            },
             ProviderKind::OfficialCli => self.cloud.official_cli.as_ref(),
             _ => None,
         };
         let Some(builder) = builder else {
-            return Err(SwarmError::ProviderNotConfigured {
-                provider: provider_str(provider).to_string(),
-                detail: "no cloud-lane builder configured for this provider (operator has not \
+            let flavor_detail = match (provider, request.byok_cloud_provider) {
+                (ProviderKind::ByokCloud, Some(flavor)) => {
+                    format!("requested BYOK provider {flavor:?} is not configured")
+                }
+                _ => "no cloud-lane builder configured for this provider (operator has not \
                          set up BYOK credentials / CLI)"
                     .to_string(),
+            };
+            return Err(SwarmError::ProviderNotConfigured {
+                provider: provider_str(provider).to_string(),
+                detail: flavor_detail,
             });
         };
 
@@ -1173,10 +1188,7 @@ impl<R: ModelRuntime + 'static> ModelRuntime for SharedRuntimeHandle<R> {
         ))
     }
 
-    async fn unload(
-        &mut self,
-        id: ModelId,
-    ) -> Result<(), crate::model_runtime::ModelRuntimeError> {
+    async fn unload(&mut self, id: ModelId) -> Result<(), crate::model_runtime::ModelRuntimeError> {
         let mut guard = self.inner.lock().await;
         guard.unload(id).await
     }
@@ -1223,11 +1235,13 @@ impl<R: ModelRuntime + 'static> ModelRuntime for SharedRuntimeHandle<R> {
         // A `&` capability ref cannot escape the Mutex guard; the coordinator
         // reads capabilities from the registry, not the shared handle. Surface a
         // typed redirect rather than panicking.
-        Err(crate::model_runtime::ModelRuntimeError::CapabilityNotSupported {
-            capability: "capabilities via swarm shared handle (use the registry record)"
-                .to_string(),
-            adapter: "swarm_shared_runtime".to_string(),
-        })
+        Err(
+            crate::model_runtime::ModelRuntimeError::CapabilityNotSupported {
+                capability: "capabilities via swarm shared handle (use the registry record)"
+                    .to_string(),
+                adapter: "swarm_shared_runtime".to_string(),
+            },
+        )
     }
 
     fn kv_cache(
@@ -1271,13 +1285,22 @@ mod tests {
     use crate::model_runtime::ModelId;
     use crate::process_ledger::{
         LedgerBatcherConfig, LedgerEvent, LedgerEventKind, NoopOverflowSink, ProcessLedgerDrain,
-        ProcessLedgerStore, ProcessLedgerError,
+        ProcessLedgerError, ProcessLedgerStore,
     };
     use crate::swarm_orchestration::events::RecordingSwarmSink;
     use crate::swarm_orchestration::ids::{ModelInstanceId, RunBudget, SpawnRequest};
     use crate::swarm_orchestration::SwarmCoordinator;
     use async_trait::async_trait;
-    use std::sync::{Arc, Mutex};
+    use std::sync::{Arc, Mutex, OnceLock};
+
+    static RUNNER_ENV_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+
+    fn runner_env_lock() -> std::sync::MutexGuard<'static, ()> {
+        RUNNER_ENV_LOCK
+            .get_or_init(|| Mutex::new(()))
+            .lock()
+            .expect("runner env lock")
+    }
 
     #[derive(Clone, Default)]
     struct InMemoryStore {
@@ -1321,10 +1344,7 @@ mod tests {
     /// `Debug` (it owns a boxed teardown closure), so the standard
     /// `expect_err` is unavailable. This helper asserts the create FAILED and
     /// yields the typed error.
-    async fn create_err(
-        factory: &ProductionModelSessionFactory,
-        req: &SpawnRequest,
-    ) -> SwarmError {
+    async fn create_err(factory: &ProductionModelSessionFactory, req: &SpawnRequest) -> SwarmError {
         match factory.create(req).await {
             Ok(_) => panic!("expected the factory create to fail"),
             Err(e) => e,
@@ -1430,14 +1450,20 @@ mod tests {
             instance(7),
             "D:/__handshake_no_such_swarm_model__/model.safetensors",
         );
-        let err = coordinator.spawn_session(req).await.expect_err("unloadable spawn");
+        let err = coordinator
+            .spawn_session(req)
+            .await
+            .expect_err("unloadable spawn");
         assert!(matches!(err, SwarmError::FactoryFailed(_)), "got {err}");
         // No live session remains and the ledger has no orphan rows.
         assert_eq!(coordinator.live_session_count(), 0);
         let rows = drained(&drain, store).await;
         assert!(rows.is_empty(), "no orphan ledger rows; got {}", rows.len());
         // A SpawnFailed/SpawnRejected event was emitted (sink ran).
-        assert!(*emitted.lock().unwrap() >= 1, "the sink must have emitted at least one event");
+        assert!(
+            *emitted.lock().unwrap() >= 1,
+            "the sink must have emitted at least one event"
+        );
     }
 
     #[tokio::test]
@@ -1559,37 +1585,41 @@ mod tests {
         fn capabilities(
             &self,
             _id: ModelId,
-        ) -> Result<
-            &crate::model_runtime::ModelCapabilities,
-            crate::model_runtime::ModelRuntimeError,
-        > {
-            Err(crate::model_runtime::ModelRuntimeError::CapabilityNotSupported {
-                capability: "n/a".to_string(),
-                adapter: "counting".to_string(),
-            })
+        ) -> Result<&crate::model_runtime::ModelCapabilities, crate::model_runtime::ModelRuntimeError>
+        {
+            Err(
+                crate::model_runtime::ModelRuntimeError::CapabilityNotSupported {
+                    capability: "n/a".to_string(),
+                    adapter: "counting".to_string(),
+                },
+            )
         }
         fn kv_cache(
             &self,
             _id: ModelId,
         ) -> Result<crate::model_runtime::KvCacheHandle, crate::model_runtime::ModelRuntimeError>
         {
-            Err(crate::model_runtime::ModelRuntimeError::KvCacheError("n/a".to_string()))
+            Err(crate::model_runtime::ModelRuntimeError::KvCacheError(
+                "n/a".to_string(),
+            ))
         }
         fn lora_stack(
             &self,
             _id: ModelId,
         ) -> Result<crate::model_runtime::LoraStackHandle, crate::model_runtime::ModelRuntimeError>
         {
-            Err(crate::model_runtime::ModelRuntimeError::LoraStackError("n/a".to_string()))
+            Err(crate::model_runtime::ModelRuntimeError::LoraStackError(
+                "n/a".to_string(),
+            ))
         }
         fn steering_hooks(
             &self,
             _id: ModelId,
-        ) -> Result<
-            crate::model_runtime::SteeringHookHandle,
-            crate::model_runtime::ModelRuntimeError,
-        > {
-            Err(crate::model_runtime::ModelRuntimeError::SteeringHookError("n/a".to_string()))
+        ) -> Result<crate::model_runtime::SteeringHookHandle, crate::model_runtime::ModelRuntimeError>
+        {
+            Err(crate::model_runtime::ModelRuntimeError::SteeringHookError(
+                "n/a".to_string(),
+            ))
         }
         fn cancel(&self, token: CancellationToken) {
             token.cancel();
@@ -1609,7 +1639,11 @@ mod tests {
             official_cli: None,
         };
         let sink = Arc::new(RecordingSwarmSink::new());
-        let factory = Arc::new(ProductionModelSessionFactory::new(ledger.clone(), cloud, None));
+        let factory = Arc::new(ProductionModelSessionFactory::new(
+            ledger.clone(),
+            cloud,
+            None,
+        ));
         let coordinator = SwarmCoordinator::new(
             crate::swarm_orchestration::SwarmConfig::new(
                 RunBudget::defaulted(4).with_concurrency(4),
@@ -1621,12 +1655,18 @@ mod tests {
         let iid = instance(0);
         let req = SpawnRequest::new(iid, RuntimeBinding::Candle, "swarm_prod_test", "parent-1")
             .with_cloud_provider(ProviderKind::ByokCloud, "gpt-4o");
-        coordinator.spawn_session(req).await.expect("cloud spawn succeeds");
+        coordinator
+            .spawn_session(req)
+            .await
+            .expect("cloud spawn succeeds");
         assert_eq!(coordinator.live_session_count(), 1);
         // Cancel -> teardown must free (unload) the cloud handle is dropped; the
         // cloud teardown drops the shared Arc (no unload call for shared handle),
         // so we assert the session left no orphan and START==STOP instead.
-        coordinator.cancel_session(iid, "test_cancel").await.expect("cancel");
+        coordinator
+            .cancel_session(iid, "test_cancel")
+            .await
+            .expect("cancel");
         assert_eq!(coordinator.live_session_count(), 0);
 
         let rows = drained(&drain, store).await;
@@ -1640,6 +1680,70 @@ mod tests {
             .count();
         assert_eq!(starts, 1, "exactly one START for the cloud session");
         assert_eq!(stops, 1, "exactly one STOP — no orphan");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn byok_cloud_provider_selection_honors_anthropic_when_openai_also_configured() {
+        struct RecordingCloudBuilder {
+            label: &'static str,
+            built: Arc<Mutex<Vec<&'static str>>>,
+        }
+
+        #[async_trait]
+        impl CloudRuntimeBuilder for RecordingCloudBuilder {
+            fn provider(&self) -> ProviderKind {
+                ProviderKind::ByokCloud
+            }
+
+            async fn build_loaded(
+                &self,
+                _model: &str,
+                _session_id: Option<String>,
+            ) -> Result<CloudLiveRuntime, String> {
+                self.built.lock().expect("built lock").push(self.label);
+                let model_id = ModelId::new_v7();
+                Ok(CloudLiveRuntime {
+                    runtime: Arc::new(super::tests::CountingRuntime {
+                        unloaded: Arc::new(std::sync::atomic::AtomicUsize::new(0)),
+                    }),
+                    model_id,
+                })
+            }
+        }
+
+        let (ledger, _drain) = ledger_pair();
+        let built = Arc::new(Mutex::new(Vec::new()));
+        let cloud = CloudLaneFactoryConfig {
+            anthropic: Some(Arc::new(RecordingCloudBuilder {
+                label: "anthropic",
+                built: built.clone(),
+            })),
+            openai: Some(Arc::new(RecordingCloudBuilder {
+                label: "openai",
+                built: built.clone(),
+            })),
+            official_cli: None,
+        };
+        let factory = ProductionModelSessionFactory::new(ledger, cloud, None);
+        let req = SpawnRequest::new(
+            instance(0),
+            RuntimeBinding::Candle,
+            "swarm_prod_test",
+            "parent-1",
+        )
+        .with_cloud_provider(ProviderKind::ByokCloud, "claude-sonnet-4")
+        .with_byok_cloud_provider(crate::swarm_orchestration::ByokCloudProvider::Anthropic);
+
+        let live = factory
+            .create(&req)
+            .await
+            .expect("explicit anthropic BYOK spawn succeeds");
+        assert_eq!(
+            built.lock().expect("built lock").as_slice(),
+            ["anthropic"],
+            "explicit provider flavor must select Anthropic, not legacy OpenAI-first fallback"
+        );
+        (live.teardown)().await.expect("teardown");
     }
 
     // ---- ENV-GATED REAL PARALLEL CANDLE PROOF (candle engine only). ----
@@ -1691,13 +1795,16 @@ mod tests {
 
         let c1 = coordinator.clone();
         let c2 = coordinator.clone();
-        let (ra, rb) = tokio::join!(
-            async move { c1.spawn_session(req_a).await },
-            async move { c2.spawn_session(req_b).await },
-        );
+        let (ra, rb) = tokio::join!(async move { c1.spawn_session(req_a).await }, async move {
+            c2.spawn_session(req_b).await
+        },);
         ra.expect("parallel spawn A");
         rb.expect("parallel spawn B");
-        assert_eq!(coordinator.live_session_count(), 2, "both sessions live in parallel");
+        assert_eq!(
+            coordinator.live_session_count(),
+            2,
+            "both sessions live in parallel"
+        );
 
         // Run a REAL generate on each session's runtime (the shared handle is the
         // live candle runtime for that instance).
@@ -1732,16 +1839,28 @@ mod tests {
         // kept the OWNING Arc only inside the teardown closure, after teardown the
         // model map entry is gone. We assert the session is evicted and the ledger
         // is symmetric.
-        coordinator.cancel_session(iid_a, "real_cancel").await.expect("cancel A");
+        coordinator
+            .cancel_session(iid_a, "real_cancel")
+            .await
+            .expect("cancel A");
         assert_eq!(coordinator.live_session_count(), 1, "A freed, B still live");
 
         // Drain B too for a clean ledger.
-        coordinator.complete_session(iid_b).await.expect("complete B");
+        coordinator
+            .complete_session(iid_b)
+            .await
+            .expect("complete B");
         assert_eq!(coordinator.live_session_count(), 0);
 
         let rows = drained(&drain, store).await;
-        let starts = rows.iter().filter(|e| e.kind() == LedgerEventKind::Start).count();
-        let stops = rows.iter().filter(|e| e.kind() == LedgerEventKind::Stop).count();
+        let starts = rows
+            .iter()
+            .filter(|e| e.kind() == LedgerEventKind::Start)
+            .count();
+        let stops = rows
+            .iter()
+            .filter(|e| e.kind() == LedgerEventKind::Stop)
+            .count();
         assert_eq!(starts, 2, "two real model STARTs");
         assert_eq!(stops, 2, "two STOPs — teardown closed both, no orphan");
         let _ = produced_a + produced_b; // silence on some toolchains
@@ -1749,11 +1868,7 @@ mod tests {
     }
 
     #[cfg(feature = "candle-runtime-engine")]
-    fn local_candle_req_real(
-        iid: ModelInstanceId,
-        path: &str,
-        sha: &str,
-    ) -> SpawnRequest {
+    fn local_candle_req_real(iid: ModelInstanceId, path: &str, sha: &str) -> SpawnRequest {
         SpawnRequest::new(iid, RuntimeBinding::Candle, "swarm_prod_test", "parent-1")
             .with_local_artifact(path, sha)
     }
@@ -1761,10 +1876,7 @@ mod tests {
     // Helper accessors used only by the env-gated real test: fetch the live
     // runtime + model id the coordinator registered for an instance.
     #[cfg(feature = "candle-runtime-engine")]
-    fn runtime_for(
-        coordinator: &SwarmCoordinator,
-        iid: ModelInstanceId,
-    ) -> Arc<dyn ModelRuntime> {
+    fn runtime_for(coordinator: &SwarmCoordinator, iid: ModelInstanceId) -> Arc<dyn ModelRuntime> {
         coordinator
             .session_runtime_for_test(iid)
             .expect("a live runtime is registered for the instance")
@@ -1793,11 +1905,8 @@ mod tests {
         vault
             .put("anthropic", "sk-ant-test-do-not-log".to_string())
             .expect("store key");
-        let builder = VaultCloudRuntimeBuilder::new(
-            CloudProviderFlavor::Anthropic,
-            vault,
-            "anthropic",
-        );
+        let builder =
+            VaultCloudRuntimeBuilder::new(CloudProviderFlavor::Anthropic, vault, "anthropic");
         let built = builder
             .build_loaded("claude-sonnet-4", None)
             .await
@@ -1812,8 +1921,7 @@ mod tests {
     #[tokio::test]
     async fn vault_builder_unconfigured_returns_not_configured_reason() {
         let vault: Arc<dyn SecretsVault> = Arc::new(InMemorySecretsVault::default());
-        let builder =
-            VaultCloudRuntimeBuilder::new(CloudProviderFlavor::OpenAi, vault, "openai");
+        let builder = VaultCloudRuntimeBuilder::new(CloudProviderFlavor::OpenAi, vault, "openai");
         // CloudLiveRuntime is not Debug (owns trait objects), so match rather
         // than expect_err.
         let err = match builder.build_loaded("gpt-4o", None).await {
@@ -1833,15 +1941,15 @@ mod tests {
         vault
             .put("openai", "sk-test-openai".to_string())
             .expect("store key");
-        let cloud = CloudLaneFactoryConfig::from_vault(
-            vault,
-            None,
-            Some("openai".to_string()),
-        );
+        let cloud = CloudLaneFactoryConfig::from_vault(vault, None, Some("openai".to_string()));
         let (ledger, drain) = ledger_pair();
         let store = Arc::new(InMemoryStore::default());
         let sink = Arc::new(RecordingSwarmSink::new());
-        let factory = Arc::new(ProductionModelSessionFactory::new(ledger.clone(), cloud, None));
+        let factory = Arc::new(ProductionModelSessionFactory::new(
+            ledger.clone(),
+            cloud,
+            None,
+        ));
         let coordinator = SwarmCoordinator::new(
             crate::swarm_orchestration::SwarmConfig::new(
                 RunBudget::defaulted(4).with_concurrency(4),
@@ -1921,7 +2029,11 @@ mod tests {
         let (ledger, drain) = ledger_pair();
         let store = Arc::new(InMemoryStore::default());
         let sink = Arc::new(RecordingSwarmSink::new());
-        let factory = Arc::new(ProductionModelSessionFactory::new(ledger.clone(), cloud, None));
+        let factory = Arc::new(ProductionModelSessionFactory::new(
+            ledger.clone(),
+            cloud,
+            None,
+        ));
         let coordinator = Arc::new(SwarmCoordinator::new(
             crate::swarm_orchestration::SwarmConfig::new(
                 RunBudget::defaulted(2).with_concurrency(2),
@@ -1974,8 +2086,14 @@ mod tests {
             .expect("cancel");
         assert_eq!(coordinator.live_session_count(), 0);
         let rows = drained(&drain, store).await;
-        let starts = rows.iter().filter(|e| e.kind() == LedgerEventKind::Start).count();
-        let stops = rows.iter().filter(|e| e.kind() == LedgerEventKind::Stop).count();
+        let starts = rows
+            .iter()
+            .filter(|e| e.kind() == LedgerEventKind::Start)
+            .count();
+        let stops = rows
+            .iter()
+            .filter(|e| e.kind() == LedgerEventKind::Stop)
+            .count();
         assert_eq!(starts, 1);
         assert_eq!(stops, 1);
     }
@@ -2048,8 +2166,7 @@ mod tests {
         let mut absent = cli_config_present();
         absent.executable_path =
             std::path::PathBuf::from("D:/__handshake_no_such_cli__/claude.exe");
-        let builder_absent =
-            CliBridgeCloudRuntimeBuilder::new(Arc::new(MockCliSpawner), absent);
+        let builder_absent = CliBridgeCloudRuntimeBuilder::new(Arc::new(MockCliSpawner), absent);
         let err = match builder_absent.build_loaded("claude-sonnet", None).await {
             Ok(_) => panic!("expected not-configured for an absent CLI"),
             Err(e) => e,
@@ -2129,7 +2246,11 @@ mod tests {
             ))),
         };
         let sink = Arc::new(RecordingSwarmSink::new());
-        let factory = Arc::new(ProductionModelSessionFactory::new(ledger.clone(), cloud, None));
+        let factory = Arc::new(ProductionModelSessionFactory::new(
+            ledger.clone(),
+            cloud,
+            None,
+        ));
         let coordinator = SwarmCoordinator::new(
             crate::swarm_orchestration::SwarmConfig::new(
                 RunBudget::defaulted(4).with_concurrency(4),
@@ -2187,14 +2308,17 @@ mod tests {
     /// Minimal headless FAKE SandboxAdapter for the factory routing test: reports
     /// Tier-3 + snapshot so selection picks it; `exec` returns a fixed completion;
     /// `spawn` mints an `hsk-ch-*` handle so the ledger sandbox_internal_id is set.
-    struct FactoryFakeSandbox;
+    struct FactoryFakeSandbox {
+        spawned_specs: Arc<Mutex<Vec<crate::sandbox::ProcessSpec>>>,
+    }
 
     #[async_trait]
     impl crate::sandbox::SandboxAdapter for FactoryFakeSandbox {
         async fn spawn(
             &self,
-            _spec: crate::sandbox::ProcessSpec,
+            spec: crate::sandbox::ProcessSpec,
         ) -> Result<crate::sandbox::ProcessHandle, crate::sandbox::SandboxAdapterError> {
+            self.spawned_specs.lock().unwrap().push(spec);
             Ok(crate::sandbox::ProcessHandle::new(
                 crate::sandbox::AdapterId::new("cloud_hypervisor"),
                 None,
@@ -2261,45 +2385,81 @@ mod tests {
                 isolation_tier: crate::sandbox::IsolationTier::Tier3Microvm,
                 requires_nested_virt: true,
                 supports_snapshot: true,
+                supports_persistent_exec: false,
+                supports_warm_agent: false,
+                supports_live_token_stream: false,
             }
         }
     }
 
     fn sandbox_registry_with_fake() -> Arc<crate::sandbox::SandboxAdapterRegistry> {
+        sandbox_registry_with_observed_fake().0
+    }
+
+    fn sandbox_registry_with_observed_fake() -> (
+        Arc<crate::sandbox::SandboxAdapterRegistry>,
+        Arc<Mutex<Vec<crate::sandbox::ProcessSpec>>>,
+    ) {
+        let spawned_specs = Arc::new(Mutex::new(Vec::new()));
         let mut registry = crate::sandbox::SandboxAdapterRegistry::new(
             crate::sandbox::AdapterId::new("cloud_hypervisor"),
         );
-        registry.register(Arc::new(FactoryFakeSandbox));
-        Arc::new(registry)
+        registry.register(Arc::new(FactoryFakeSandbox {
+            spawned_specs: spawned_specs.clone(),
+        }));
+        (Arc::new(registry), spawned_specs)
     }
 
     /// A temp dir + fake gguf so the sandbox runtime's `load` existence gates pass.
     fn temp_gguf_for_factory() -> (std::path::PathBuf, std::path::PathBuf) {
-        let dir = std::env::temp_dir()
-            .join(format!("hsk-fac-sbx-{}", uuid::Uuid::now_v7().simple()));
+        let dir =
+            std::env::temp_dir().join(format!("hsk-fac-sbx-{}", uuid::Uuid::now_v7().simple()));
         std::fs::create_dir_all(&dir).expect("mk temp gguf dir");
         let gguf = dir.join("model.gguf");
         std::fs::write(&gguf, b"GGUF-FAKE").expect("write fake gguf");
         (dir, gguf)
     }
 
+    fn temp_runner_for_factory() -> (std::path::PathBuf, std::path::PathBuf) {
+        let dir =
+            std::env::temp_dir().join(format!("hsk-fac-runner-{}", uuid::Uuid::now_v7().simple()));
+        std::fs::create_dir_all(&dir).expect("mk temp runner dir");
+        let runner = dir.join("llama-cli");
+        std::fs::write(&runner, b"#!/bin/sh\n").expect("write fake runner");
+        (dir, runner)
+    }
+
     /// Test 5: a Local+LlamaCpp+Tier3 spawn routes to create_sandboxed_local and
     /// records a START with BOTH sandbox_adapter_id AND sandbox_internal_id set.
-    #[tokio::test]
+    #[tokio::test(flavor = "current_thread")]
     async fn tier3_local_llama_routes_to_sandbox_and_populates_ledger() {
+        let _env_guard = runner_env_lock();
         let (dir, gguf) = temp_gguf_for_factory();
+        let (runner_dir, runner) = temp_runner_for_factory();
+        let prior_runner = std::env::var_os(SANDBOX_LLAMA_CLI_HOST_PATH_ENV);
+        std::env::set_var(SANDBOX_LLAMA_CLI_HOST_PATH_ENV, &runner);
         let (ledger, drain) = ledger_pair();
         let store = Arc::new(InMemoryStore::default());
+        let (registry, spawned_specs) = sandbox_registry_with_observed_fake();
         let factory = ProductionModelSessionFactory::new(
             ledger,
             CloudLaneFactoryConfig::unconfigured(),
-            Some(sandbox_registry_with_fake()),
+            Some(registry),
         );
-        let req = SpawnRequest::new(instance(0), RuntimeBinding::LlamaCpp, "swarm_prod_test", "p")
-            .with_local_artifact(gguf.to_string_lossy(), "ab".repeat(32))
-            .with_isolation_tier(crate::sandbox::adapter::IsolationTier::Tier3Microvm)
-            .with_worktree("wt-sbx-1");
-        let session = factory.create(&req).await.expect("tier3 spawn routes to sandbox");
+        let req = SpawnRequest::new(
+            instance(0),
+            RuntimeBinding::LlamaCpp,
+            "swarm_prod_test",
+            "p",
+        )
+        .with_local_artifact(gguf.to_string_lossy(), "ab".repeat(32))
+        .with_isolation_tier(crate::sandbox::adapter::IsolationTier::Tier3Microvm)
+        .with_worktree("wt-sbx-1")
+        .with_committed_memory_bytes(5 * 1024 * 1024 * 1024);
+        let session = factory
+            .create(&req)
+            .await
+            .expect("tier3 spawn routes to sandbox");
         // Drive the teardown closure so the runtime unloads + the microVM handle
         // is killed (the coordinator writes the ledger STOP in production; here we
         // assert the START sandbox fields directly).
@@ -2323,6 +2483,56 @@ mod tests {
             Some("hsk-ch-factory-fake"),
             "sandbox_internal_id must be populated from the microVM handle"
         );
+        assert_eq!(
+            spawned_specs
+                .lock()
+                .unwrap()
+                .first()
+                .and_then(|spec| spec.resource_limits.memory_bytes),
+            Some(5 * 1024 * 1024 * 1024),
+            "Tier3 sandbox spec must carry the admitted committed-memory estimate"
+        );
+        match prior_runner {
+            Some(value) => std::env::set_var(SANDBOX_LLAMA_CLI_HOST_PATH_ENV, value),
+            None => std::env::remove_var(SANDBOX_LLAMA_CLI_HOST_PATH_ENV),
+        }
+        let _ = std::fs::remove_dir_all(dir);
+        let _ = std::fs::remove_dir_all(runner_dir);
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn tier3_local_llama_without_runner_env_fails_loud() {
+        let _env_guard = runner_env_lock();
+        let prior_runner = std::env::var_os(SANDBOX_LLAMA_CLI_HOST_PATH_ENV);
+        std::env::remove_var(SANDBOX_LLAMA_CLI_HOST_PATH_ENV);
+        let (dir, gguf) = temp_gguf_for_factory();
+        let (ledger, drain) = ledger_pair();
+        let store = Arc::new(InMemoryStore::default());
+        let factory = ProductionModelSessionFactory::new(
+            ledger,
+            CloudLaneFactoryConfig::unconfigured(),
+            Some(sandbox_registry_with_fake()),
+        );
+        let req = SpawnRequest::new(
+            instance(0),
+            RuntimeBinding::LlamaCpp,
+            "swarm_prod_test",
+            "p",
+        )
+        .with_local_artifact(gguf.to_string_lossy(), "ab".repeat(32))
+        .with_isolation_tier(crate::sandbox::adapter::IsolationTier::Tier3Microvm)
+        .with_worktree("wt-sbx-1");
+        let err = create_err(&factory, &req).await;
+        assert!(
+            format!("{err}").contains(SANDBOX_LLAMA_CLI_HOST_PATH_ENV),
+            "missing runner env must be named in the failure: {err}"
+        );
+        let rows = drained(&drain, store).await;
+        assert!(rows.is_empty(), "failed preflight leaves no ledger rows");
+        match prior_runner {
+            Some(value) => std::env::set_var(SANDBOX_LLAMA_CLI_HOST_PATH_ENV, value),
+            None => std::env::remove_var(SANDBOX_LLAMA_CLI_HOST_PATH_ENV),
+        }
         let _ = std::fs::remove_dir_all(dir);
     }
 
@@ -2341,11 +2551,13 @@ mod tests {
         // No isolation_tier => the plain local llama path. A nonexistent GGUF
         // makes the REAL llama load fail (proving it did NOT take the sandbox
         // path, which would have succeeded against the fake adapter).
-        let req = SpawnRequest::new(instance(0), RuntimeBinding::LlamaCpp, "swarm_prod_test", "p")
-            .with_local_artifact(
-                "D:/__no_such_swarm_gguf__/model.gguf",
-                "ab".repeat(32),
-            );
+        let req = SpawnRequest::new(
+            instance(0),
+            RuntimeBinding::LlamaCpp,
+            "swarm_prod_test",
+            "p",
+        )
+        .with_local_artifact("D:/__no_such_swarm_gguf__/model.gguf", "ab".repeat(32));
         let err = create_err(&factory, &req).await;
         assert!(
             matches!(err, SwarmError::FactoryFailed(_)),
@@ -2361,9 +2573,14 @@ mod tests {
     async fn tier3_without_registry_fails_loud() {
         let (ledger, _drain) = ledger_pair();
         let factory = ProductionModelSessionFactory::local_only(ledger);
-        let req = SpawnRequest::new(instance(0), RuntimeBinding::LlamaCpp, "swarm_prod_test", "p")
-            .with_local_artifact("/x/model.gguf", "ab".repeat(32))
-            .with_isolation_tier(crate::sandbox::adapter::IsolationTier::Tier3Microvm);
+        let req = SpawnRequest::new(
+            instance(0),
+            RuntimeBinding::LlamaCpp,
+            "swarm_prod_test",
+            "p",
+        )
+        .with_local_artifact("/x/model.gguf", "ab".repeat(32))
+        .with_isolation_tier(crate::sandbox::adapter::IsolationTier::Tier3Microvm);
         let err = create_err(&factory, &req).await;
         assert!(matches!(err, SwarmError::FactoryFailed(_)), "got {err}");
     }

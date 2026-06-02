@@ -6,13 +6,14 @@ import { invoke } from "@tauri-apps/api/core";
 // runs a real generate, list/snapshot reflect the live coordinator registry.
 
 export type SwarmProvider = "local" | "byok_cloud" | "official_cli";
+export type ByokCloudProvider = "anthropic" | "openai";
 export type SwarmRuntimeBinding = "candle" | "llama_cpp";
 
 /**
  * Recorded-only isolation tier the operator INTENDS for a session. Mirrors the
- * core `IsolationTier` vocabulary. RECORDED as a bridge to future VM execution;
- * it is NOT enforced today — the session runs in-process regardless. The spawn
- * UI surfaces this with a mandatory "recorded, not enforced" honesty note.
+ * core `IsolationTier` vocabulary. Tier3 is load-bearing for local llama.cpp
+ * spawns when the backend sandbox registry is wired; other provider/runtime
+ * combinations remain attribution.
  */
 export type SwarmIsolationTier = "tier1_container" | "tier2_syscall" | "tier3_microvm";
 
@@ -26,14 +27,17 @@ export interface SwarmSpawnRequest {
   runtimeBinding?: SwarmRuntimeBinding;
   /** Cloud: required. Allowlisted cloud model name (e.g. gpt-4o). */
   cloudModelName?: string;
+  /** BYOK cloud only: exact Anthropic/OpenAI lane when selected. */
+  byokCloudProvider?: ByokCloudProvider;
   /** Concurrent instance index of this model (default 0). */
   instance?: number;
   /** Parent session id for ledger lineage. */
   parentSessionId?: string;
+  /** Optional swarm grouping id for board/Terminal/orchestration attribution. */
+  swarmId?: string;
   /**
    * Optional VM/sandbox worktree this session is ASSIGNED to. Drives the board
-   * swimlane + per-worktree recovery grouping. Recorded attribution only: it
-   * does NOT route execution into a VM today. Blank/whitespace => omit (the
+   * swimlane + per-worktree recovery grouping. Blank/whitespace => omit (the
    * backend records `None` = honest "unassigned").
    */
   worktreeId?: string;
@@ -45,9 +49,45 @@ export interface SwarmSpawnRequest {
   workingDir?: string;
   /**
    * Optional recorded-only isolation tier (see {@link SwarmIsolationTier}).
-   * Recorded as the bridge to future VM execution; NOT enforced.
+   * Tier3 is enforced for local llama.cpp spawns when the backend sandbox
+   * registry is wired; other combinations remain attribution.
    */
   isolationTier?: SwarmIsolationTier;
+  /**
+   * Optional local committed-memory estimate in bytes. The backend reserves this
+   * only for local model/VM spawns; cloud requests ignore it so cloud fallback can
+   * escape local host-memory pressure.
+   */
+  committedMemoryBytes?: number;
+}
+
+export interface SwarmSpawnAttempt {
+  provider: string;
+  instanceId: SwarmInstanceId | null;
+  error: string | null;
+}
+
+export interface SwarmLocalCloudPairRequest {
+  local: SwarmSpawnRequest;
+  cloud: SwarmSpawnRequest;
+}
+
+export interface SwarmLocalCloudPairResult {
+  local: SwarmSpawnAttempt;
+  cloud: SwarmSpawnAttempt;
+}
+
+export interface SwarmCloudEscalationRequest {
+  local: SwarmSpawnRequest;
+  cloud: SwarmSpawnRequest;
+}
+
+export interface SwarmCloudEscalationResult {
+  selected: "local" | "cloud" | null;
+  escalated: boolean;
+  escalationReason: string | null;
+  local: SwarmSpawnAttempt;
+  cloud: SwarmSpawnAttempt | null;
 }
 
 export interface SwarmInstanceId {
@@ -88,6 +128,8 @@ export interface SwarmResourceSnapshot {
   lifetimeSpawnsRemaining: number;
   tokensRemaining: number | null;
   costMicrosRemaining: number | null;
+  committedMemoryBytesRemaining?: number | null;
+  committedMemoryBytesCap?: number | null;
   budgetExhausted: boolean;
 }
 
@@ -97,8 +139,50 @@ export interface SwarmChatResponse {
   finishReason: string | null;
 }
 
+export type SwarmEscalationTaskClass =
+  | "routine"
+  | "classification"
+  | "hard_reasoning"
+  | "force_cloud"
+  | "force_local";
+
+export interface SwarmChatGenerateWithCloudEscalationRequest {
+  localInstanceId: string;
+  prompt: string;
+  cloud: SwarmSpawnRequest;
+  taskClass?: SwarmEscalationTaskClass;
+}
+
+export interface SwarmChatGenerateWithCloudEscalationResponse {
+  selected: "local" | "cloud" | null;
+  escalated: boolean;
+  escalationReason: string | null;
+  localError: string | null;
+  local: SwarmChatResponse | null;
+  cloudInstance: SwarmInstanceId | null;
+  cloud: SwarmChatResponse | null;
+  cloudError: string | null;
+}
+
 export async function spawnSession(request: SwarmSpawnRequest): Promise<SwarmInstanceId> {
   return await invoke<SwarmInstanceId>("kernel_swarm_spawn_session", { request });
+}
+
+export async function spawnLocalCloudPair(
+  request: SwarmLocalCloudPairRequest,
+): Promise<SwarmLocalCloudPairResult> {
+  return await invoke<SwarmLocalCloudPairResult>("kernel_swarm_spawn_local_cloud_pair", {
+    request,
+  });
+}
+
+export async function spawnWithCloudEscalation(
+  request: SwarmCloudEscalationRequest,
+): Promise<SwarmCloudEscalationResult> {
+  return await invoke<SwarmCloudEscalationResult>(
+    "kernel_swarm_spawn_with_cloud_escalation",
+    { request },
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -130,9 +214,12 @@ export interface SessionSpawnTemplate {
   sha256Expected?: string | null;
   runtimeBinding?: SwarmRuntimeBinding | null;
   cloudModelName?: string | null;
+  byokCloudProvider?: ByokCloudProvider | null;
+  swarmId?: string | null;
   worktreeId?: string | null;
   workingDir?: string | null;
   isolationTier?: SwarmIsolationTier | null;
+  committedMemoryBytes?: number | null;
   originSessionId: string;
   capturedAt: string;
 }
@@ -197,6 +284,15 @@ export async function chatGenerate(
   });
 }
 
+export async function chatGenerateWithCloudEscalation(
+  request: SwarmChatGenerateWithCloudEscalationRequest,
+): Promise<SwarmChatGenerateWithCloudEscalationResponse> {
+  return await invoke<SwarmChatGenerateWithCloudEscalationResponse>(
+    "kernel_swarm_chat_generate_with_cloud_escalation",
+    { request },
+  );
+}
+
 // ---------------------------------------------------------------------------
 // rank-4: live operator board (Jira-style). Columns = ModelSessionState,
 // swimlanes = the swarm/worktree grouping, cards = sessions. The board is a
@@ -240,7 +336,15 @@ interface RawInstanceId {
 
 /** Typed SwarmEvent (externally-tagged, matching the Rust enum serde). */
 export type SwarmEvent =
-  | { SessionSpawned: { instance_id: RawInstanceId; parent_session_id: string; process_uuid: string } }
+  | {
+      SessionSpawned: {
+        instance_id: RawInstanceId;
+        parent_session_id: string;
+        process_uuid: string;
+        swarm_id?: string | null;
+        worktree_id?: string | null;
+      };
+    }
   | { SessionReady: { instance_id: RawInstanceId } }
   | { SessionStateChanged: { instance_id: RawInstanceId; from: string; to: string } }
   | { SessionCancelled: { instance_id: RawInstanceId; reason: string } }

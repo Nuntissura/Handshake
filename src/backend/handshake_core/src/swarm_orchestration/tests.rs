@@ -31,7 +31,7 @@ use crate::process_ledger::{
 use super::breaker::BreakerConfig;
 use super::coordinator::{SwarmConfig, SwarmCoordinator};
 use super::error::SwarmError;
-use super::events::{RecordingSwarmSink, SwarmFrEventId};
+use super::events::{RecordingSwarmSink, SwarmEvent, SwarmFrEventId};
 use super::factory::{LiveSession, ModelSessionFactory};
 use super::ids::{ModelInstanceId, RunBudget, SpawnRequest};
 use super::state::ModelSessionState;
@@ -250,7 +250,9 @@ impl ModelSessionFactory for ControllableFactory {
                     os_pid,
                 ))
             }
-            FactoryBehavior::AlwaysFail => Err(SwarmError::FactoryFailed(self.fail_message.clone())),
+            FactoryBehavior::AlwaysFail => {
+                Err(SwarmError::FactoryFailed(self.fail_message.clone()))
+            }
         };
 
         self.in_flight.fetch_sub(1, Ordering::SeqCst);
@@ -296,7 +298,12 @@ fn instance(i: u32) -> ModelInstanceId {
 }
 
 fn spawn_req(iid: ModelInstanceId) -> SpawnRequest {
-    SpawnRequest::new(iid, RuntimeBinding::LlamaCpp, "swarm_test", "parent-session-1")
+    SpawnRequest::new(
+        iid,
+        RuntimeBinding::LlamaCpp,
+        "swarm_test",
+        "parent-session-1",
+    )
 }
 
 /// Minimal LoadSpec for the controllable worker (which ignores the spec body —
@@ -335,16 +342,37 @@ async fn rank2_spawned_session_carries_swarm_and_worktree_grouping() {
     let budget = RunBudget::defaulted(8)
         .with_concurrency(8)
         .with_lifetime_spawns(8);
-    let coordinator = SwarmCoordinator::new(SwarmConfig::new(budget), factory, sink, ledger);
+    let coordinator =
+        SwarmCoordinator::new(SwarmConfig::new(budget), factory, sink.clone(), ledger);
 
     // A grouped spawn: the swarm + worktree grouping copied from the SpawnRequest
     // is readable per session (board swimlane / Flight-Recorder drill-down join).
     let iid = instance(1);
-    let req = spawn_req(iid).with_swarm("swarm-alpha").with_worktree("wt-7");
+    let req = spawn_req(iid)
+        .with_swarm("swarm-alpha")
+        .with_worktree("wt-7");
     coordinator.spawn_session(req).await.unwrap();
     assert_eq!(
         coordinator.session_grouping(iid),
         Some((Some("swarm-alpha".to_string()), Some("wt-7".to_string())))
+    );
+    let spawned = sink
+        .events()
+        .into_iter()
+        .find_map(|event| match event {
+            SwarmEvent::SessionSpawned {
+                instance_id,
+                swarm_id,
+                worktree_id,
+                ..
+            } if instance_id == iid => Some((swarm_id, worktree_id)),
+            _ => None,
+        })
+        .expect("SessionSpawned event recorded");
+    assert_eq!(
+        spawned,
+        (Some("swarm-alpha".to_string()), Some("wt-7".to_string())),
+        "durable swarm events carry the same grouping as the live registry"
     );
 
     // An ungrouped spawn carries (None, None) — source-compatible default.
@@ -380,7 +408,12 @@ async fn live_instances_in_swarm_enumerates_all_live_and_excludes_terminal_and_o
     let a3 = instance(3);
     let b1 = instance(4);
     let u1 = instance(5);
-    for (iid, swarm) in [(a1, Some("swarm-alpha")), (a2, Some("swarm-alpha")), (a3, Some("swarm-alpha")), (b1, Some("swarm-beta"))] {
+    for (iid, swarm) in [
+        (a1, Some("swarm-alpha")),
+        (a2, Some("swarm-alpha")),
+        (a3, Some("swarm-alpha")),
+        (b1, Some("swarm-beta")),
+    ] {
         let mut req = spawn_req(iid);
         if let Some(s) = swarm {
             req = req.with_swarm(s);
@@ -393,7 +426,11 @@ async fn live_instances_in_swarm_enumerates_all_live_and_excludes_terminal_and_o
         .live_instances_in_swarm("swarm-alpha")
         .into_iter()
         .collect();
-    assert_eq!(alpha, HashSet::from([a1, a2, a3]), "all three alpha sessions");
+    assert_eq!(
+        alpha,
+        HashSet::from([a1, a2, a3]),
+        "all three alpha sessions"
+    );
     assert_eq!(
         coordinator.live_instances_in_swarm("swarm-beta"),
         vec![b1],
@@ -404,7 +441,9 @@ async fn live_instances_in_swarm_enumerates_all_live_and_excludes_terminal_and_o
     // fan out to ungrouped or unrelated sessions.
     assert!(coordinator.live_instances_in_swarm("").is_empty());
     assert!(coordinator.live_instances_in_swarm("   ").is_empty());
-    assert!(coordinator.live_instances_in_swarm("swarm-unknown").is_empty());
+    assert!(coordinator
+        .live_instances_in_swarm("swarm-unknown")
+        .is_empty());
 
     // Cancelling a2 makes it terminal -> the accessor drops it (no dead id).
     coordinator
@@ -425,6 +464,582 @@ async fn live_instances_in_swarm_enumerates_all_live_and_excludes_terminal_and_o
 // ===========================================================================
 // RANK-6: cold-start admission bounds SIMULTANEOUS boots below run-concurrency.
 // ===========================================================================
+
+#[tokio::test(flavor = "multi_thread")]
+async fn rank6_committed_memory_budget_rejects_no_overcommit_before_factory_create() {
+    let (ledger, _drain) = ledger_pair();
+    let factory = Arc::new(ControllableFactory::new(
+        FactoryBehavior::Succeed,
+        Duration::from_millis(1),
+        ledger.clone(),
+    ));
+    let sink = Arc::new(RecordingSwarmSink::new());
+
+    let budget = RunBudget::defaulted(4)
+        .with_concurrency(4)
+        .with_committed_memory_ceiling(1024);
+    let coordinator = SwarmCoordinator::new(
+        SwarmConfig::new(budget),
+        factory.clone(),
+        sink.clone(),
+        ledger,
+    );
+
+    coordinator
+        .spawn_session(spawn_req(instance(1)).with_committed_memory_bytes(768))
+        .await
+        .unwrap();
+
+    let calls_before = factory.create_calls.load(Ordering::SeqCst);
+    let err = coordinator
+        .spawn_session(spawn_req(instance(2)).with_committed_memory_bytes(512))
+        .await
+        .unwrap_err();
+    match err {
+        SwarmError::BudgetExhausted { dimension } => {
+            assert_eq!(dimension, "committed_memory");
+        }
+        other => panic!("expected committed-memory BudgetExhausted, got {other}"),
+    }
+    assert_eq!(
+        factory.create_calls.load(Ordering::SeqCst),
+        calls_before,
+        "memory admission must reject before factory.create so no model/VM boot starts"
+    );
+    assert!(sink.events().iter().any(|event| matches!(
+        event,
+        super::events::SwarmEvent::SpawnRejected { reason, .. }
+            if reason == "budget:committed_memory"
+    )));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn rank6_committed_memory_reservation_releases_on_terminal_teardown() {
+    let (ledger, _drain) = ledger_pair();
+    let factory = Arc::new(ControllableFactory::new(
+        FactoryBehavior::Succeed,
+        Duration::from_millis(1),
+        ledger.clone(),
+    ));
+    let sink = Arc::new(RecordingSwarmSink::new());
+
+    let budget = RunBudget::defaulted(2)
+        .with_concurrency(2)
+        .with_committed_memory_ceiling(1024);
+    let coordinator = SwarmCoordinator::new(SwarmConfig::new(budget), factory, sink, ledger);
+
+    let first = instance(10);
+    coordinator
+        .spawn_session(spawn_req(first).with_committed_memory_bytes(1024))
+        .await
+        .unwrap();
+    assert_eq!(
+        coordinator.remaining().committed_memory_bytes_remaining,
+        Some(0)
+    );
+
+    coordinator
+        .cancel_session(first, "memory-release-test")
+        .await
+        .unwrap();
+    assert_eq!(
+        coordinator.remaining().committed_memory_bytes_remaining,
+        Some(1024),
+        "terminal teardown must return the committed-memory reservation"
+    );
+
+    coordinator
+        .spawn_session(spawn_req(instance(11)).with_committed_memory_bytes(1024))
+        .await
+        .unwrap();
+}
+
+#[test]
+fn rank6_committed_memory_budget_serde_accepts_legacy_snapshots() {
+    let budget: RunBudget = serde_json::from_value(serde_json::json!({
+        "max_concurrent": 4,
+        "max_concurrent_cold_starts": 2,
+        "max_lifetime_spawns": 99,
+        "max_total_tokens": null,
+        "max_total_cost_micros": null
+    }))
+    .expect("legacy RunBudget without committed-memory field must decode");
+    assert_eq!(budget.max_committed_memory_bytes, None);
+
+    let remaining: super::ids::BudgetRemaining = serde_json::from_value(serde_json::json!({
+        "concurrency_permits_available": 1,
+        "lifetime_spawns_remaining": 2,
+        "tokens_remaining": null,
+        "cost_micros_remaining": null,
+        "exhausted": false
+    }))
+    .expect("legacy BudgetRemaining without committed-memory field must decode");
+    assert_eq!(remaining.committed_memory_bytes_remaining, None);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn rank6_committed_memory_ceiling_rejects_unestimated_spawn_before_factory_create() {
+    let (ledger, _drain) = ledger_pair();
+    let factory = Arc::new(ControllableFactory::new(
+        FactoryBehavior::Succeed,
+        Duration::from_millis(1),
+        ledger.clone(),
+    ));
+    let budget = RunBudget::defaulted(1)
+        .with_concurrency(1)
+        .with_committed_memory_ceiling(1024);
+    let coordinator = SwarmCoordinator::new(
+        SwarmConfig::new(budget),
+        factory.clone(),
+        Arc::new(RecordingSwarmSink::new()),
+        ledger,
+    );
+
+    let err = coordinator
+        .spawn_session(spawn_req(instance(20)))
+        .await
+        .unwrap_err();
+    match err {
+        SwarmError::BudgetExhausted { dimension } => {
+            assert_eq!(dimension, "committed_memory_unestimated");
+        }
+        other => panic!("expected unestimated committed-memory refusal, got {other}"),
+    }
+    assert_eq!(factory.create_calls.load(Ordering::SeqCst), 0);
+    assert_eq!(
+        coordinator.remaining().committed_memory_bytes_remaining,
+        Some(1024)
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn rank6_committed_memory_ceiling_allows_cloud_without_host_estimate() {
+    let (ledger, _drain) = ledger_pair();
+    let factory = Arc::new(ControllableFactory::new(
+        FactoryBehavior::Succeed,
+        Duration::from_millis(1),
+        ledger.clone(),
+    ));
+    let budget = RunBudget::defaulted(1)
+        .with_concurrency(1)
+        .with_committed_memory_ceiling(1);
+    let coordinator = SwarmCoordinator::new(
+        SwarmConfig::new(budget),
+        factory.clone(),
+        Arc::new(RecordingSwarmSink::new()),
+        ledger,
+    );
+
+    coordinator
+        .spawn_session(
+            spawn_req(instance(21)).with_cloud_provider(ProviderKind::ByokCloud, "gpt-4o"),
+        )
+        .await
+        .expect("cloud request does not reserve host committed memory");
+
+    assert_eq!(
+        factory.create_calls.load(Ordering::SeqCst),
+        1,
+        "cloud admission should reach the factory even without a host-memory estimate"
+    );
+    assert_eq!(
+        coordinator.remaining().committed_memory_bytes_remaining,
+        Some(1),
+        "cloud session leaves the local committed-memory budget untouched"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn rank6_committed_memory_saturated_local_budget_still_allows_cloud() {
+    let (ledger, _drain) = ledger_pair();
+    let factory = Arc::new(ControllableFactory::new(
+        FactoryBehavior::Succeed,
+        Duration::from_millis(1),
+        ledger.clone(),
+    ));
+    let budget = RunBudget::defaulted(2)
+        .with_concurrency(2)
+        .with_committed_memory_ceiling(1024);
+    let coordinator = SwarmCoordinator::new(
+        SwarmConfig::new(budget),
+        factory.clone(),
+        Arc::new(RecordingSwarmSink::new()),
+        ledger,
+    );
+
+    coordinator
+        .spawn_session(spawn_req(instance(30)).with_committed_memory_bytes(1024))
+        .await
+        .expect("local session saturates committed-memory budget");
+    assert_eq!(
+        coordinator.remaining().committed_memory_bytes_remaining,
+        Some(0)
+    );
+
+    coordinator
+        .spawn_session(
+            spawn_req(instance(31)).with_cloud_provider(ProviderKind::ByokCloud, "gpt-4o"),
+        )
+        .await
+        .expect("cloud request must bypass local committed-memory saturation");
+
+    assert_eq!(
+        factory.create_calls.load(Ordering::SeqCst),
+        2,
+        "both local and cloud spawns should reach the factory"
+    );
+    assert_eq!(
+        coordinator.remaining().committed_memory_bytes_remaining,
+        Some(0),
+        "cloud spawn does not consume additional committed memory"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn rank6_committed_memory_provider_split_still_honors_global_token_budget_for_cloud() {
+    let (ledger, _drain) = ledger_pair();
+    let factory = Arc::new(ControllableFactory::new(
+        FactoryBehavior::Succeed,
+        Duration::from_millis(1),
+        ledger.clone(),
+    ));
+    let budget = RunBudget::defaulted(1)
+        .with_concurrency(1)
+        .with_token_ceiling(1)
+        .with_committed_memory_ceiling(1024);
+    let coordinator = SwarmCoordinator::new(
+        SwarmConfig::new(budget),
+        factory.clone(),
+        Arc::new(RecordingSwarmSink::new()),
+        ledger,
+    );
+
+    coordinator.record_usage(1, 0);
+    let err = coordinator
+        .spawn_session(
+            spawn_req(instance(32)).with_cloud_provider(ProviderKind::ByokCloud, "gpt-4o"),
+        )
+        .await
+        .expect_err("global token exhaustion still blocks cloud");
+
+    match err {
+        SwarmError::BudgetExhausted { dimension } => assert_eq!(dimension, "tokens"),
+        other => panic!("expected token BudgetExhausted, got {other}"),
+    }
+    assert_eq!(
+        factory.create_calls.load(Ordering::SeqCst),
+        0,
+        "global token exhaustion rejects before factory.create"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn rank6_committed_memory_reservation_releases_on_factory_failure() {
+    let (ledger, _drain) = ledger_pair();
+    let factory = Arc::new(ControllableFactory::new(
+        FactoryBehavior::AlwaysFail,
+        Duration::from_millis(1),
+        ledger.clone(),
+    ));
+    let budget = RunBudget::defaulted(1)
+        .with_concurrency(1)
+        .with_committed_memory_ceiling(1024);
+    let coordinator = SwarmCoordinator::new(
+        SwarmConfig::new(budget),
+        factory,
+        Arc::new(RecordingSwarmSink::new()),
+        ledger,
+    );
+
+    let err = coordinator
+        .spawn_session(spawn_req(instance(21)).with_committed_memory_bytes(512))
+        .await
+        .unwrap_err();
+    assert!(matches!(err, SwarmError::FactoryFailed(_)));
+    assert_eq!(
+        coordinator.remaining().committed_memory_bytes_remaining,
+        Some(1024),
+        "factory failure must roll back the pre-factory memory reservation"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn rank6_committed_memory_and_lifetime_release_when_spawn_future_is_aborted_before_insert() {
+    let (ledger, _drain) = ledger_pair();
+    let factory = Arc::new(ControllableFactory::new(
+        FactoryBehavior::Succeed,
+        Duration::from_secs(30),
+        ledger.clone(),
+    ));
+    let budget = RunBudget::defaulted(4)
+        .with_concurrency(4)
+        .with_lifetime_spawns(4)
+        .with_committed_memory_ceiling(1024);
+    let coordinator = Arc::new(SwarmCoordinator::new(
+        SwarmConfig::new(budget),
+        factory.clone(),
+        Arc::new(RecordingSwarmSink::new()),
+        ledger,
+    ));
+
+    let coordinator_for_task = coordinator.clone();
+    let task = tokio::spawn(async move {
+        coordinator_for_task
+            .spawn_session(spawn_req(instance(28)).with_committed_memory_bytes(1024))
+            .await
+    });
+
+    for _ in 0..100 {
+        if factory.create_calls.load(Ordering::SeqCst) > 0 {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(10)).await;
+    }
+    assert_eq!(
+        factory.create_calls.load(Ordering::SeqCst),
+        1,
+        "spawn must have crossed reservation and entered factory.create before abort"
+    );
+    assert_eq!(
+        coordinator.remaining().committed_memory_bytes_remaining,
+        Some(0),
+        "the in-flight spawn owns the full committed-memory reservation before abort"
+    );
+
+    task.abort();
+    let join_error = task.await.expect_err("spawn task should be cancelled");
+    assert!(
+        join_error.is_cancelled(),
+        "expected cancellation join error, got {join_error}"
+    );
+
+    let remaining = coordinator.remaining();
+    assert_eq!(coordinator.live_session_count(), 0);
+    assert_eq!(
+        remaining.committed_memory_bytes_remaining,
+        Some(1024),
+        "aborting before registry insertion must release committed memory"
+    );
+    assert_eq!(
+        remaining.lifetime_spawns_remaining, 4,
+        "aborting before registry insertion must roll back lifetime admission"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn rank6_committed_memory_reservation_rolls_back_on_lifetime_and_concurrency_refusals() {
+    let (ledger_a, _drain_a) = ledger_pair();
+    let factory_a = Arc::new(ControllableFactory::new(
+        FactoryBehavior::Succeed,
+        Duration::from_millis(1),
+        ledger_a.clone(),
+    ));
+    let lifetime_budget = RunBudget::defaulted(1)
+        .with_concurrency(1)
+        .with_lifetime_spawns(0)
+        .with_committed_memory_ceiling(1024);
+    let lifetime_coordinator = SwarmCoordinator::new(
+        SwarmConfig::new(lifetime_budget),
+        factory_a.clone(),
+        Arc::new(RecordingSwarmSink::new()),
+        ledger_a,
+    );
+    let lifetime_err = lifetime_coordinator
+        .spawn_session(spawn_req(instance(22)).with_committed_memory_bytes(512))
+        .await
+        .unwrap_err();
+    assert!(matches!(
+        lifetime_err,
+        SwarmError::LifetimeSpawnCeilingReached { .. }
+    ));
+    assert_eq!(factory_a.create_calls.load(Ordering::SeqCst), 0);
+    assert_eq!(
+        lifetime_coordinator
+            .remaining()
+            .committed_memory_bytes_remaining,
+        Some(1024)
+    );
+
+    let (ledger_b, _drain_b) = ledger_pair();
+    let factory_b = Arc::new(ControllableFactory::new(
+        FactoryBehavior::Succeed,
+        Duration::from_millis(1),
+        ledger_b.clone(),
+    ));
+    let concurrency_budget = RunBudget::defaulted(2)
+        .with_concurrency(1)
+        .with_committed_memory_ceiling(1024);
+    let concurrency_coordinator = SwarmCoordinator::new(
+        SwarmConfig::new(concurrency_budget),
+        factory_b.clone(),
+        Arc::new(RecordingSwarmSink::new()),
+        ledger_b,
+    );
+    concurrency_coordinator
+        .spawn_session(spawn_req(instance(23)).with_committed_memory_bytes(512))
+        .await
+        .unwrap();
+    let calls_before = factory_b.create_calls.load(Ordering::SeqCst);
+    let concurrency_err = concurrency_coordinator
+        .spawn_session(spawn_req(instance(24)).with_committed_memory_bytes(256))
+        .await
+        .unwrap_err();
+    assert!(matches!(
+        concurrency_err,
+        SwarmError::ConcurrencyCapReached { .. }
+    ));
+    assert_eq!(factory_b.create_calls.load(Ordering::SeqCst), calls_before);
+    assert_eq!(
+        concurrency_coordinator
+            .remaining()
+            .committed_memory_bytes_remaining,
+        Some(512),
+        "concurrency refusal must release the second request's reservation"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn rank6_committed_memory_duplicate_loser_releases_reservation() {
+    let (ledger, _drain) = ledger_pair();
+    let factory = Arc::new(ControllableFactory::new(
+        FactoryBehavior::Succeed,
+        Duration::from_millis(40),
+        ledger.clone(),
+    ));
+    let budget = RunBudget::defaulted(2)
+        .with_concurrency(2)
+        .with_committed_memory_ceiling(1024);
+    let coordinator = Arc::new(SwarmCoordinator::new(
+        SwarmConfig::new(budget),
+        factory,
+        Arc::new(RecordingSwarmSink::new()),
+        ledger,
+    ));
+    let iid = instance(25);
+    let mut js = JoinSet::new();
+    for _ in 0..2 {
+        let coordinator = coordinator.clone();
+        js.spawn(async move {
+            coordinator
+                .spawn_session(spawn_req(iid).with_committed_memory_bytes(512))
+                .await
+        });
+    }
+    let mut ok = 0;
+    let mut duplicate = 0;
+    while let Some(joined) = js.join_next().await {
+        match joined.expect("join duplicate spawn task") {
+            Ok(_) => ok += 1,
+            Err(SwarmError::DuplicateInstance(_)) => duplicate += 1,
+            Err(other) => panic!("unexpected duplicate-race result: {other}"),
+        }
+    }
+
+    assert_eq!(ok, 1);
+    assert_eq!(duplicate, 1);
+    assert_eq!(
+        coordinator.remaining().committed_memory_bytes_remaining,
+        Some(512),
+        "only the winning live session may retain a memory reservation"
+    );
+    coordinator.drain_all().await.unwrap();
+    assert_eq!(
+        coordinator.remaining().committed_memory_bytes_remaining,
+        Some(1024)
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn rank6_committed_memory_reaper_releases_reservation() {
+    let (ledger, _drain) = ledger_pair();
+    let factory = Arc::new(ControllableFactory::new(
+        FactoryBehavior::Succeed,
+        Duration::from_millis(1),
+        ledger.clone(),
+    ));
+    let budget = RunBudget::defaulted(1)
+        .with_concurrency(1)
+        .with_committed_memory_ceiling(1024);
+    let config = SwarmConfig::new(budget)
+        .with_lease_ttl(Duration::from_millis(40))
+        .with_reaper_scan_interval(Duration::from_millis(20));
+    let coordinator =
+        SwarmCoordinator::new(config, factory, Arc::new(RecordingSwarmSink::new()), ledger);
+    coordinator.start_reaper();
+    coordinator
+        .spawn_session(spawn_req(instance(26)).with_committed_memory_bytes(1024))
+        .await
+        .unwrap();
+    assert_eq!(
+        coordinator.remaining().committed_memory_bytes_remaining,
+        Some(0)
+    );
+
+    tokio::time::sleep(Duration::from_millis(180)).await;
+
+    coordinator.stop_reaper();
+    assert_eq!(coordinator.live_session_count(), 0);
+    assert_eq!(
+        coordinator.remaining().committed_memory_bytes_remaining,
+        Some(1024),
+        "lease reaper must return the live session's memory reservation"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn rank6_committed_memory_concurrent_reservations_never_overcommit() {
+    let (ledger, _drain) = ledger_pair();
+    let factory = Arc::new(ControllableFactory::new(
+        FactoryBehavior::Succeed,
+        Duration::from_millis(40),
+        ledger.clone(),
+    ));
+    let budget = RunBudget::defaulted(16)
+        .with_concurrency(16)
+        .with_committed_memory_ceiling(1024);
+    let coordinator = Arc::new(SwarmCoordinator::new(
+        SwarmConfig::new(budget),
+        factory,
+        Arc::new(RecordingSwarmSink::new()),
+        ledger,
+    ));
+
+    let n = 8usize;
+    let mut js = JoinSet::new();
+    for i in 0..n {
+        let coordinator = coordinator.clone();
+        js.spawn(async move {
+            coordinator
+                .spawn_session(spawn_req(instance(100 + i as u32)).with_committed_memory_bytes(512))
+                .await
+        });
+    }
+    let mut accepted = 0;
+    let mut memory_refused = 0;
+    while let Some(joined) = js.join_next().await {
+        match joined.expect("join concurrent reservation task") {
+            Ok(_) => accepted += 1,
+            Err(SwarmError::BudgetExhausted { dimension }) if dimension == "committed_memory" => {
+                memory_refused += 1;
+            }
+            Err(other) => panic!("unexpected concurrent reservation result: {other}"),
+        }
+    }
+    assert!(
+        accepted <= 2,
+        "accepted {accepted} would exceed 1024/512 cap"
+    );
+    assert_eq!(accepted + memory_refused, n);
+    assert_eq!(
+        coordinator.remaining().committed_memory_bytes_remaining,
+        Some(1024 - (accepted as u64 * 512))
+    );
+    coordinator.drain_all().await.unwrap();
+    assert_eq!(
+        coordinator.remaining().committed_memory_bytes_remaining,
+        Some(1024)
+    );
+}
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn rank6_cold_start_bound_throttles_concurrent_boots_below_run_concurrency() {
@@ -727,7 +1342,11 @@ async fn proof_4_failure_fingerprint_breaker_trips_and_suppresses() {
     }
 
     assert!(sink.contains(SwarmFrEventId::BreakerTripped));
-    assert_eq!(sink.count_of(SwarmFrEventId::BreakerTripped), 1, "trip once");
+    assert_eq!(
+        sink.count_of(SwarmFrEventId::BreakerTripped),
+        1,
+        "trip once"
+    );
     assert!(
         breaker_open >= 1,
         "breaker must suppress at least one later spawn"
@@ -791,13 +1410,20 @@ async fn proof_6_cancel_session_cancels_unloads_evicts_emits() {
     let sink = Arc::new(RecordingSwarmSink::new());
 
     let budget = RunBudget::defaulted(4).with_concurrency(4);
-    let coordinator = SwarmCoordinator::new(SwarmConfig::new(budget), factory, sink.clone(), ledger);
+    let coordinator =
+        SwarmCoordinator::new(SwarmConfig::new(budget), factory, sink.clone(), ledger);
 
     let iid = instance(0);
     coordinator.spawn_session(spawn_req(iid)).await.unwrap();
-    assert_eq!(coordinator.session_state(iid), Some(ModelSessionState::Ready));
+    assert_eq!(
+        coordinator.session_state(iid),
+        Some(ModelSessionState::Ready)
+    );
 
-    coordinator.cancel_session(iid, "operator_cancel").await.unwrap();
+    coordinator
+        .cancel_session(iid, "operator_cancel")
+        .await
+        .unwrap();
 
     // Evicted from registry, cancelled + evicted events emitted.
     assert_eq!(coordinator.session_state(iid), None);
@@ -808,7 +1434,10 @@ async fn proof_6_cancel_session_cancels_unloads_evicts_emits() {
 
     // Ledger has a matching stop row.
     let rows = drain(&drain_h, store).await;
-    let stops = rows.iter().filter(|e| matches!(e, LedgerEvent::Stop(_))).count();
+    let stops = rows
+        .iter()
+        .filter(|e| matches!(e, LedgerEvent::Stop(_)))
+        .count();
     assert_eq!(stops, 1);
 }
 
@@ -828,7 +1457,9 @@ async fn proof_7_no_orphan_after_run() {
     ));
     let sink = Arc::new(RecordingSwarmSink::new());
 
-    let budget = RunBudget::defaulted(4).with_concurrency(4).with_lifetime_spawns(1000);
+    let budget = RunBudget::defaulted(4)
+        .with_concurrency(4)
+        .with_lifetime_spawns(1000);
     let coordinator = Arc::new(SwarmCoordinator::new(
         SwarmConfig::new(budget),
         factory.clone(),
@@ -914,7 +1545,10 @@ async fn proof_d1_teardown_frees_model_on_terminate_and_lease_expiry() {
     coordinator.spawn_session(spawn_req(iid0)).await.unwrap();
     assert_eq!(teardown_calls.load(Ordering::SeqCst), 0);
     assert_eq!(unload_calls.load(Ordering::SeqCst), 0);
-    coordinator.cancel_session(iid0, "operator_cancel").await.unwrap();
+    coordinator
+        .cancel_session(iid0, "operator_cancel")
+        .await
+        .unwrap();
     assert_eq!(
         teardown_calls.load(Ordering::SeqCst),
         1,
@@ -966,7 +1600,9 @@ async fn proof_d2_concurrent_same_instance_no_orphan_start() {
     ));
     let sink = Arc::new(RecordingSwarmSink::new());
 
-    let budget = RunBudget::defaulted(8).with_concurrency(8).with_lifetime_spawns(1000);
+    let budget = RunBudget::defaulted(8)
+        .with_concurrency(8)
+        .with_lifetime_spawns(1000);
     let coordinator = Arc::new(SwarmCoordinator::new(
         SwarmConfig::new(budget),
         factory,
@@ -1037,7 +1673,9 @@ async fn proof_d3_open_breaker_gates_factory_admission() {
     let create_calls = factory.create_calls.clone();
     let sink = Arc::new(RecordingSwarmSink::new());
 
-    let budget = RunBudget::defaulted(4).with_concurrency(4).with_lifetime_spawns(1000);
+    let budget = RunBudget::defaulted(4)
+        .with_concurrency(4)
+        .with_lifetime_spawns(1000);
     let config = SwarmConfig::new(budget).with_breaker(BreakerConfig {
         failure_threshold: 3,
         cooldown: Duration::from_secs(60),
@@ -1097,7 +1735,9 @@ async fn proof_c4_breaker_heals_via_real_success() {
     let factory = Arc::new(HealableFactory::new(ledger.clone(), 2));
     let sink = Arc::new(RecordingSwarmSink::new());
 
-    let budget = RunBudget::defaulted(4).with_concurrency(4).with_lifetime_spawns(1000);
+    let budget = RunBudget::defaulted(4)
+        .with_concurrency(4)
+        .with_lifetime_spawns(1000);
     // Short cooldown so the breaker half-opens and admits a probe; the REAL
     // success on that probe is what must heal it. The probe alone (half-open)
     // does NOT reset consecutive_failures to 0 — only record_success does, which
@@ -1109,10 +1749,7 @@ async fn proof_c4_breaker_heals_via_real_success() {
     });
     let coordinator = SwarmCoordinator::new(config, factory.clone(), sink.clone(), ledger);
 
-    let fp = FailureFingerprint::compute(
-        SwarmErrorClass::FactoryFailed,
-        &factory.fail_message,
-    );
+    let fp = FailureFingerprint::compute(SwarmErrorClass::FactoryFailed, &factory.fail_message);
 
     // Drive the SAME instance to trip the breaker for this signature.
     let iid = instance(3);
@@ -1150,7 +1787,10 @@ async fn proof_c4_breaker_heals_via_real_success() {
         0,
         "real success resets the consecutive-failure count to 0"
     );
-    assert!(coordinator.breaker_admits(&fp), "healed signature admitted again");
+    assert!(
+        coordinator.breaker_admits(&fp),
+        "healed signature admitted again"
+    );
 
     coordinator.cancel_session(iid, "cleanup").await.unwrap();
 }

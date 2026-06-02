@@ -27,6 +27,8 @@ vi.mock("../../lib/ipc/swarm_runtime", async () => {
       lifetimeSpawnsRemaining: 100,
       tokensRemaining: null,
       costMicrosRemaining: null,
+      committedMemoryBytesRemaining: null,
+      committedMemoryBytesCap: null,
       budgetExhausted: false,
     })),
     listActiveSessions: vi.fn(async () => []),
@@ -51,7 +53,12 @@ vi.mock("../../lib/ipc/swarm_runtime", async () => {
 });
 
 import { SwarmOperatorSurface } from "./SwarmOperatorSurface";
-import { boardSnapshot, getSpawnTemplate, listActiveSessions } from "../../lib/ipc/swarm_runtime";
+import {
+  boardSnapshot,
+  getSpawnTemplate,
+  listActiveSessions,
+  resourceSnapshot,
+} from "../../lib/ipc/swarm_runtime";
 
 describe("SwarmOperatorSurface", () => {
   test("the Swarm Board is behind a disclosure COLLAPSED by default and not everything-at-once", () => {
@@ -75,6 +82,30 @@ describe("SwarmOperatorSurface", () => {
     // Lazy: the board component is absent and boardSnapshot was never called.
     expect(screen.queryByTestId("swarm-board")).toBeNull();
     expect(boardSnapshotMock).not.toHaveBeenCalled();
+  });
+
+  test("resource badge treats committed-memory exhaustion as local-only", async () => {
+    vi.mocked(resourceSnapshot).mockResolvedValueOnce({
+      concurrencyCap: 4,
+      concurrencyInUse: 0,
+      concurrencyAvailable: 4,
+      liveSessions: 0,
+      lifetimeSpawnsRemaining: 100,
+      tokensRemaining: null,
+      costMicrosRemaining: null,
+      committedMemoryBytesRemaining: 0,
+      committedMemoryBytesCap: 16 * 1024 * 1024 * 1024,
+      budgetExhausted: true,
+    });
+
+    render(<SwarmOperatorSurface />);
+
+    expect(await screen.findByTestId("disclosure-resource-budget-toggle")).toHaveTextContent(
+      /local memory exhausted/i,
+    );
+    expect(await screen.findByTestId("swarm-stat-exhausted")).toHaveTextContent(
+      /cloud lanes remain available/i,
+    );
   });
 
   test("opening the board disclosure lazy-mounts the live board", async () => {

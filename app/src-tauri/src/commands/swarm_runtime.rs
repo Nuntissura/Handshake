@@ -63,6 +63,10 @@ use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
 use futures_util::StreamExt;
+use handshake_core::flight_recorder::FlightRecorder;
+use handshake_core::model_runtime::cloud::{
+    CliBridgeConfig, CliSubprocessSpawner, LiveCliSpawner, SecretsVault,
+};
 use handshake_core::model_runtime::registry::RuntimeBinding;
 use handshake_core::model_runtime::{
     CancellationToken, GenPrompt, GenerateRequest, ModelId, ModelRuntime, ProviderKind,
@@ -72,24 +76,20 @@ use handshake_core::process_ledger::{
     LedgerBatcher, LedgerBatcherConfig, LedgerEvent, LedgerOverflowEvent, ProcessLedgerError,
     ProcessLedgerOverflowSink, ProcessLedgerStore,
 };
-use handshake_core::model_runtime::cloud::{
-    CliBridgeConfig, CliSubprocessSpawner, LiveCliSpawner, SecretsVault,
-};
-use handshake_core::flight_recorder::FlightRecorder;
 use handshake_core::sandbox::SandboxAdapterRegistry;
 use handshake_core::swarm_orchestration::{
-    BroadcastSwarmSink, CloudLaneFactoryConfig, DurableSwarmFrBridge, FanoutSwarmSink,
-    FlightRecorderSwarmSink, LiveSession, ModelInstanceId, ModelSessionFactory, ModelSessionState,
-    ProductionModelSessionFactory, RunBudget, SpawnRequest, SwarmConfig, SwarmCoordinator,
-    SwarmError, SwarmEvent, SwarmEventSink, SwarmResult,
+    BroadcastSwarmSink, ByokCloudProvider, CloudLaneFactoryConfig, DurableSwarmFrBridge,
+    FanoutSwarmSink, FlightRecorderSwarmSink, LiveSession, ModelInstanceId, ModelSessionFactory,
+    ModelSessionState, ProductionModelSessionFactory, RunBudget, SpawnRequest, SwarmConfig,
+    SwarmCoordinator, SwarmError, SwarmEvent, SwarmEventSink, SwarmResult,
 };
 use serde::{Deserialize, Serialize};
 use tauri::State;
 use uuid::Uuid;
 
 use super::spawn_template_store::{
-    SessionSpawnTemplate, SpawnTemplateStore, TemplateIsolationTier, TemplateProvider,
-    TemplateRuntimeBinding,
+    SessionSpawnTemplate, SpawnTemplateStore, TemplateByokCloudProvider, TemplateIsolationTier,
+    TemplateProvider, TemplateRuntimeBinding,
 };
 
 /// FR-EVT tag stamped on swarm lifecycle events forwarded to structured stderr
@@ -97,11 +97,16 @@ use super::spawn_template_store::{
 pub const FR_EVT_SWARM_LIFECYCLE: &str = "FR-EVT-SWARM-LIFECYCLE";
 
 pub const KERNEL_SWARM_SPAWN_SESSION_IPC_CHANNEL: &str = "kernel_swarm_spawn_session";
+pub const KERNEL_SWARM_SPAWN_LOCAL_CLOUD_PAIR_IPC_CHANNEL: &str =
+    "kernel_swarm_spawn_local_cloud_pair";
+pub const KERNEL_SWARM_SPAWN_WITH_CLOUD_ESCALATION_IPC_CHANNEL: &str =
+    "kernel_swarm_spawn_with_cloud_escalation";
 pub const KERNEL_SWARM_CANCEL_SESSION_IPC_CHANNEL: &str = "kernel_swarm_cancel_session";
-pub const KERNEL_SWARM_LIST_ACTIVE_SESSIONS_IPC_CHANNEL: &str =
-    "kernel_swarm_list_active_sessions";
+pub const KERNEL_SWARM_LIST_ACTIVE_SESSIONS_IPC_CHANNEL: &str = "kernel_swarm_list_active_sessions";
 pub const KERNEL_SWARM_RESOURCE_SNAPSHOT_IPC_CHANNEL: &str = "kernel_swarm_resource_snapshot";
 pub const KERNEL_SWARM_CHAT_GENERATE_IPC_CHANNEL: &str = "kernel_swarm_chat_generate";
+pub const KERNEL_SWARM_CHAT_GENERATE_WITH_CLOUD_ESCALATION_IPC_CHANNEL: &str =
+    "kernel_swarm_chat_generate_with_cloud_escalation";
 pub const KERNEL_SWARM_LIST_WORKTREES_IPC_CHANNEL: &str = "kernel_swarm_list_worktrees";
 pub const KERNEL_SWARM_RESUME_SESSION_IPC_CHANNEL: &str = "kernel_swarm_resume_session";
 pub const KERNEL_SWARM_GET_SPAWN_TEMPLATE_IPC_CHANNEL: &str = "kernel_swarm_get_spawn_template";
@@ -109,6 +114,8 @@ pub const KERNEL_SWARM_GET_SPAWN_TEMPLATE_IPC_CHANNEL: &str = "kernel_swarm_get_
 /// Max tokens a single chat-box generate will produce. Bounded so an operator
 /// chat turn cannot run away (HBR loop-cap spirit) — the UI runs short turns.
 const CHAT_MAX_TOKENS: u32 = 256;
+const SWARM_COMMITTED_MEMORY_CEILING_BYTES_ENV: &str =
+    "HANDSHAKE_SWARM_COMMITTED_MEMORY_CEILING_BYTES";
 
 /// In-process [`ProcessLedgerStore`] the app owns for the swarm coordinator. Not
 /// a fake: it durably accumulates every START/STOP row for the running session
@@ -121,7 +128,10 @@ pub struct InProcessLedgerStore {
 
 impl InProcessLedgerStore {
     pub fn rows(&self) -> Vec<LedgerEvent> {
-        self.events.lock().expect("swarm ledger store poisoned").clone()
+        self.events
+            .lock()
+            .expect("swarm ledger store poisoned")
+            .clone()
     }
 }
 
@@ -172,13 +182,15 @@ struct TrackedSession {
     /// For cloud sessions, the allowlisted cloud model name. `None` for local.
     cloud_model_name: Option<String>,
     /// Operator-assigned VM/sandbox worktree (mirrors the SpawnRequest; the
-    /// coordinator also carries it for board grouping). RECORDED ONLY.
+    /// coordinator also carries it for board grouping).
     worktree_id: Option<String>,
     /// Operator-assigned on-disk place (attribution only; never executed). The
     /// SpawnRequest carries no companion on the SwarmEvent, so this side-table is
     /// the surfacing path for the list/board/transcript rows.
     working_dir: Option<String>,
-    /// Operator-intended isolation tier (RECORDED ONLY, not enforced).
+    /// Operator-intended isolation tier. Tier3Microvm is load-bearing for
+    /// Local+LlamaCpp spawns when the sandbox registry is wired; the other
+    /// combinations remain attribution until their substrates ship.
     isolation_tier: Option<SwarmIsolationTierIpc>,
 }
 
@@ -268,6 +280,10 @@ pub struct SwarmRuntimeState {
     /// re-spawned via `kernel_swarm_resume_session`. Disk-agnostic under
     /// `app_data_root`, mirroring the calendar `SwarmScheduleStore`.
     spawn_template_store: SpawnTemplateStore,
+    /// Optional Rank-6 committed-memory ceiling wired into the live app
+    /// coordinator. `None` preserves legacy callers; `Some` makes every spawn
+    /// fail closed unless it carries a committed-memory estimate.
+    committed_memory_ceiling_bytes: Option<u64>,
 }
 
 impl std::fmt::Debug for SwarmRuntimeState {
@@ -304,6 +320,34 @@ fn load_official_cli_lane(
     Some((spawner, config))
 }
 
+fn committed_memory_ceiling_from_env() -> Option<u64> {
+    match std::env::var(SWARM_COMMITTED_MEMORY_CEILING_BYTES_ENV) {
+        Ok(raw) => match parse_committed_memory_ceiling(&raw) {
+            Ok(Some(bytes)) => Some(bytes),
+            Ok(None) => {
+                eprintln!(
+                    "{FR_EVT_SWARM_LIFECYCLE}: ignoring {SWARM_COMMITTED_MEMORY_CEILING_BYTES_ENV}=0; \
+                     committed-memory admission ceiling remains uncapped"
+                );
+                None
+            }
+            Err(error) => {
+                eprintln!(
+                    "{FR_EVT_SWARM_LIFECYCLE}: ignoring invalid \
+                     {SWARM_COMMITTED_MEMORY_CEILING_BYTES_ENV}={raw:?}: {error}"
+                );
+                None
+            }
+        },
+        Err(_) => None,
+    }
+}
+
+fn parse_committed_memory_ceiling(raw: &str) -> Result<Option<u64>, std::num::ParseIntError> {
+    let bytes = raw.trim().parse::<u64>()?;
+    Ok((bytes > 0).then_some(bytes))
+}
+
 impl SwarmRuntimeState {
     /// Build the production swarm runtime with the cloud lane wired to the
     /// host OS keychain vault (the same `OsKeychainSecretsVault` the cloud-lane
@@ -326,11 +370,8 @@ impl SwarmRuntimeState {
             .ok()
             .filter(|s| !s.trim().is_empty())
             .unwrap_or_else(|| "openai".to_string());
-        let cloud = CloudLaneFactoryConfig::from_vault(
-            vault,
-            Some(anthropic_lane),
-            Some(openai_lane),
-        );
+        let cloud =
+            CloudLaneFactoryConfig::from_vault(vault, Some(anthropic_lane), Some(openai_lane));
         Self::production_with_cloud_and_recorder(cloud, None, app_data_root, None)
     }
 
@@ -356,11 +397,8 @@ impl SwarmRuntimeState {
             .ok()
             .filter(|s| !s.trim().is_empty())
             .unwrap_or_else(|| "openai".to_string());
-        let cloud = CloudLaneFactoryConfig::from_vault(
-            vault,
-            Some(anthropic_lane),
-            Some(openai_lane),
-        );
+        let cloud =
+            CloudLaneFactoryConfig::from_vault(vault, Some(anthropic_lane), Some(openai_lane));
         Self::production_with_cloud_and_recorder(cloud, None, app_data_root, sandbox_registry)
     }
 
@@ -428,6 +466,23 @@ impl SwarmRuntimeState {
         app_data_root: &Path,
         sandbox_registry: Option<Arc<SandboxAdapterRegistry>>,
     ) -> Self {
+        let committed_memory_ceiling_bytes = committed_memory_ceiling_from_env();
+        Self::production_with_cloud_and_recorder_and_committed_memory_ceiling(
+            cloud,
+            recorder,
+            app_data_root,
+            sandbox_registry,
+            committed_memory_ceiling_bytes,
+        )
+    }
+
+    fn production_with_cloud_and_recorder_and_committed_memory_ceiling(
+        cloud: CloudLaneFactoryConfig,
+        recorder: Option<Arc<dyn FlightRecorder>>,
+        app_data_root: &Path,
+        sandbox_registry: Option<Arc<SandboxAdapterRegistry>>,
+        committed_memory_ceiling_bytes: Option<u64>,
+    ) -> Self {
         let store = InProcessLedgerStore::default();
         let overflow = Arc::new(CountingOverflowSink::default());
         let (ledger, writer_task) = LedgerBatcher::spawn(
@@ -448,10 +503,12 @@ impl SwarmRuntimeState {
                 // observability so the CLI lane emits FR-EVT-LLM-INFER-* like the
                 // BYOK siblings. No recorder => FR-INFER-silent, otherwise identical.
                 let observability = recorder.clone().map(|fr| {
-                    Arc::new(handshake_core::model_runtime::cloud::CloudLaneObservability {
-                        flight_recorder: fr,
-                        consent: None,
-                    })
+                    Arc::new(
+                        handshake_core::model_runtime::cloud::CloudLaneObservability {
+                            flight_recorder: fr,
+                            consent: None,
+                        },
+                    )
                 });
                 cloud.with_official_cli_observed(spawner, config, observability)
             }
@@ -468,9 +525,11 @@ impl SwarmRuntimeState {
         // from the supplied `CloudLaneFactoryConfig` (MT-206): a cloud spawn
         // builds a real BYOK runtime when the operator has stored a key, and
         // returns a typed ProviderNotConfigured otherwise.
-        let concurrency =
-            handshake_core::swarm_orchestration::default_swarm_concurrency().max(1);
-        let budget = RunBudget::defaulted(concurrency).with_concurrency(concurrency);
+        let concurrency = handshake_core::swarm_orchestration::default_swarm_concurrency().max(1);
+        let mut budget = RunBudget::defaulted(concurrency).with_concurrency(concurrency);
+        if let Some(bytes) = committed_memory_ceiling_bytes {
+            budget = budget.with_committed_memory_ceiling(bytes);
+        }
         let config = SwarmConfig::new(budget);
 
         // WP-KERNEL-004 wave 1: the sandbox adapter registry is threaded in from
@@ -481,11 +540,8 @@ impl SwarmRuntimeState {
         // absent (test seams / FR-fallback `production`) the non-sandbox spawn
         // paths stay byte-for-byte unchanged and a Tier-3 spawn returns a typed
         // FactoryFailed rather than silently downgrading.
-        let production_factory = ProductionModelSessionFactory::new(
-            ledger.clone(),
-            cloud,
-            sandbox_registry,
-        );
+        let production_factory =
+            ProductionModelSessionFactory::new(ledger.clone(), cloud, sandbox_registry);
         let factory = Arc::new(TrackingFactory {
             inner: production_factory,
             table: sessions.clone(),
@@ -544,6 +600,7 @@ impl SwarmRuntimeState {
             terminal_capture: None,
             capture_sinks: Arc::new(Mutex::new(HashMap::new())),
             spawn_template_store,
+            committed_memory_ceiling_bytes,
         }
     }
 
@@ -578,12 +635,13 @@ impl SwarmRuntimeState {
     pub async fn attach_spawn_capture(
         &self,
         swarm_id: Option<String>,
+        worktree_id: Option<String>,
         instance_id: String,
     ) -> Option<String> {
         let runtime = self.terminal_capture.clone()?;
         let binding = handshake_core::terminal::SessionBinding {
             swarm_id,
-            worktree_id: None,
+            worktree_id,
             instance_id: Some(instance_id.clone()),
         };
         let (info, sink) = runtime
@@ -658,6 +716,10 @@ impl SwarmRuntimeState {
         &self.spawn_template_store
     }
 
+    pub fn committed_memory_ceiling_bytes(&self) -> Option<u64> {
+        self.committed_memory_ceiling_bytes
+    }
+
     /// Override the resume-template store with one bound to an explicit path.
     /// Builder-style; used by tests so a spawn persists into a `tempfile::tempdir`
     /// the test then reads back (the `production()` constructors root it at the
@@ -700,10 +762,7 @@ impl SwarmRuntimeState {
     /// Resolve the live runtime + model id for a tracked instance, reconciling
     /// the side-table first. Returns `None` if the session is gone (so the chat
     /// command can surface a typed "session no longer live" error).
-    fn resolve_runtime(
-        &self,
-        iid: ModelInstanceId,
-    ) -> Option<(Arc<dyn ModelRuntime>, ModelId)> {
+    fn resolve_runtime(&self, iid: ModelInstanceId) -> Option<(Arc<dyn ModelRuntime>, ModelId)> {
         // Reconcile first so a stale entry does not hand back a freed runtime.
         let live = match self.coordinator.session_state(iid) {
             Some(state) if !state.is_terminal() => true,
@@ -744,6 +803,44 @@ impl SwarmProviderIpc {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+pub enum ByokCloudProviderIpc {
+    Anthropic,
+    #[serde(rename = "openai", alias = "open_ai")]
+    OpenAi,
+}
+
+impl ByokCloudProviderIpc {
+    fn to_core(self) -> ByokCloudProvider {
+        match self {
+            Self::Anthropic => ByokCloudProvider::Anthropic,
+            Self::OpenAi => ByokCloudProvider::OpenAi,
+        }
+    }
+
+    fn from_core(provider: ByokCloudProvider) -> Self {
+        match provider {
+            ByokCloudProvider::Anthropic => Self::Anthropic,
+            ByokCloudProvider::OpenAi => Self::OpenAi,
+        }
+    }
+
+    fn to_template_provider(self) -> TemplateByokCloudProvider {
+        match self {
+            Self::Anthropic => TemplateByokCloudProvider::Anthropic,
+            Self::OpenAi => TemplateByokCloudProvider::OpenAi,
+        }
+    }
+
+    fn from_template_provider(provider: TemplateByokCloudProvider) -> Self {
+        match provider {
+            TemplateByokCloudProvider::Anthropic => Self::Anthropic,
+            TemplateByokCloudProvider::OpenAi => Self::OpenAi,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum SwarmRuntimeBindingIpc {
     LlamaCpp,
     Candle,
@@ -761,9 +858,9 @@ impl SwarmRuntimeBindingIpc {
 /// Operator-intended isolation tier the spawn form records on a session. Mirrors
 /// `handshake_core::sandbox::adapter::IsolationTier` 1:1 (snake_case serde
 /// matches the core wire vocabulary). Deliberately a thin IPC enum rather than a
-/// re-export of the core type, so the app IPC boundary stays decoupled from a
-/// core type whose primary purpose (execution-substrate selection) is OUT OF
-/// SCOPE here. RECORDED ONLY — nothing maps this to an execution substrate today.
+/// re-export of the core type, so the app IPC boundary stays decoupled. Tier3 is
+/// load-bearing for Local+LlamaCpp when the sandbox registry is wired; the other
+/// combinations remain attribution until their substrates ship.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum SwarmIsolationTierIpc {
@@ -821,6 +918,10 @@ pub struct SwarmSpawnRequestIpc {
     /// Cloud: required. The allowlisted cloud model name (e.g. `gpt-4o`).
     #[serde(default)]
     pub cloud_model_name: Option<String>,
+    /// BYOK cloud only: exact provider flavor. Optional for backward
+    /// compatibility; when supplied the production factory honors it exactly.
+    #[serde(default)]
+    pub byok_cloud_provider: Option<ByokCloudProviderIpc>,
     /// Which concurrent instance index of this model to spawn (default 0). The
     /// same artifact can run as several instances for throughput.
     #[serde(default)]
@@ -828,9 +929,13 @@ pub struct SwarmSpawnRequestIpc {
     /// Parent session id for ledger lineage (defaults to an operator tag).
     #[serde(default)]
     pub parent_session_id: Option<String>,
+    /// Optional swarm grouping id. Pair/escalation workflows require this to
+    /// match across local+cloud peers so board/Terminal/FR attribution is shared.
+    #[serde(default)]
+    pub swarm_id: Option<String>,
     /// Optional VM/sandbox worktree this session is ASSIGNED to (board swimlane +
     /// per-worktree recovery grouping). Blank/whitespace => None (unassigned,
-    /// honest). RECORDED ONLY: it does NOT route execution into a VM today.
+    /// honest).
     #[serde(default)]
     pub worktree_id: Option<String>,
     /// Optional on-disk place the operator assigns the session (absolute OR
@@ -839,11 +944,37 @@ pub struct SwarmSpawnRequestIpc {
     /// attribution only.
     #[serde(default)]
     pub working_dir: Option<String>,
-    /// OPTIONAL recorded-only isolation tier the operator intends for this session
-    /// (tier1_container | tier2_syscall | tier3_microvm). RECORDED as the bridge to
-    /// future VM execution; NOT enforced — the session still runs in-process.
+    /// Optional isolation tier the operator intends for this session
+    /// (tier1_container | tier2_syscall | tier3_microvm). Tier3 is enforced for
+    /// Local+LlamaCpp spawns when the production sandbox registry is wired.
     #[serde(default)]
     pub isolation_tier: Option<SwarmIsolationTierIpc>,
+    /// Rank-6 local committed-memory estimate for admission control and VM
+    /// memory sizing. Only local requests reserve this host memory; cloud
+    /// requests ignore it so cloud fallback can escape local memory pressure.
+    /// When the app run configures a committed-memory ceiling, local spawns must
+    /// carry an estimate or fail closed before model/VM boot.
+    #[serde(default)]
+    pub committed_memory_bytes: Option<u64>,
+}
+
+/// Operator request to launch a local model and a cloud peer together. This is a
+/// composition over the same validated spawn request shape: local remains a real
+/// local/sandbox spawn and cloud remains a real BYOK/official-CLI spawn.
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SwarmLocalCloudPairRequestIpc {
+    pub local: SwarmSpawnRequestIpc,
+    pub cloud: SwarmSpawnRequestIpc,
+}
+
+/// Operator request to try a VM/local spawn first, then escalate to the explicit
+/// cloud request only when the local coordinator refusal is capacity-shaped.
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SwarmCloudEscalationRequestIpc {
+    pub local: SwarmSpawnRequestIpc,
+    pub cloud: SwarmSpawnRequestIpc,
 }
 
 // ---------------------------------------------------------------------------
@@ -938,12 +1069,25 @@ pub(crate) fn template_from_ipc(
         } else {
             trimmed_opt(&request.cloud_model_name)
         },
+        byok_cloud_provider: if matches!(request.provider, SwarmProviderIpc::ByokCloud) {
+            request
+                .byok_cloud_provider
+                .map(ByokCloudProviderIpc::to_template_provider)
+        } else {
+            None
+        },
         instance: request.instance,
+        swarm_id: trimmed_opt(&request.swarm_id),
         worktree_id: trimmed_opt(&request.worktree_id),
         working_dir: trimmed_opt(&request.working_dir),
         isolation_tier: request
             .isolation_tier
             .map(SwarmIsolationTierIpc::to_template_tier),
+        committed_memory_bytes: if is_local {
+            request.committed_memory_bytes.filter(|bytes| *bytes > 0)
+        } else {
+            None
+        },
         origin_session_id: origin_session_id.to_string(),
         captured_at: chrono::Utc::now(),
     }
@@ -968,14 +1112,19 @@ pub(crate) fn template_to_request_ipc(
             .runtime_binding
             .map(SwarmRuntimeBindingIpc::from_template_binding),
         cloud_model_name: template.cloud_model_name.clone(),
+        byok_cloud_provider: template
+            .byok_cloud_provider
+            .map(ByokCloudProviderIpc::from_template_provider),
         instance: template.instance,
         // Lineage: the resumed-from session id (NOT the operator default tag).
         parent_session_id: Some(origin_session_id.to_string()),
+        swarm_id: template.swarm_id.clone(),
         worktree_id: template.worktree_id.clone(),
         working_dir: template.working_dir.clone(),
         isolation_tier: template
             .isolation_tier
             .map(SwarmIsolationTierIpc::from_template_tier),
+        committed_memory_bytes: template.committed_memory_bytes,
     }
 }
 
@@ -1000,6 +1149,93 @@ impl From<ModelInstanceId> for SwarmInstanceIdIpc {
     }
 }
 
+/// One measured spawn attempt inside a composed operator workflow. The command
+/// returns attempts rather than throwing on the first lane so partial success is
+/// visible and attributable.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SwarmSpawnAttemptIpc {
+    pub provider: String,
+    pub instance_id: Option<SwarmInstanceIdIpc>,
+    pub error: Option<String>,
+}
+
+impl SwarmSpawnAttemptIpc {
+    fn success(provider: SwarmProviderIpc, instance_id: SwarmInstanceIdIpc) -> Self {
+        Self {
+            provider: provider_str(provider.to_provider_kind()).to_string(),
+            instance_id: Some(instance_id),
+            error: None,
+        }
+    }
+
+    fn failure(provider: SwarmProviderIpc, error: impl Into<String>) -> Self {
+        Self {
+            provider: provider_str(provider.to_provider_kind()).to_string(),
+            instance_id: None,
+            error: Some(error.into()),
+        }
+    }
+
+    fn is_success(&self) -> bool {
+        self.instance_id.is_some() && self.error.is_none()
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SwarmLocalCloudPairResultIpc {
+    pub local: SwarmSpawnAttemptIpc,
+    pub cloud: SwarmSpawnAttemptIpc,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SwarmCloudEscalationResultIpc {
+    /// `local` when the local lane spawned, `cloud` when capacity escalation
+    /// spawned the cloud lane, or `None` when no lane spawned.
+    pub selected: Option<String>,
+    pub escalated: bool,
+    pub escalation_reason: Option<String>,
+    pub local: SwarmSpawnAttemptIpc,
+    pub cloud: Option<SwarmSpawnAttemptIpc>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SwarmEscalationTaskClassIpc {
+    Routine,
+    Classification,
+    HardReasoning,
+    ForceCloud,
+    ForceLocal,
+}
+
+/// Generate on a local/VM session first, with an explicit cloud fallback request
+/// unless the task class explicitly forces the cloud lane.
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SwarmChatGenerateWithCloudEscalationRequestIpc {
+    pub local_instance_id: String,
+    pub prompt: String,
+    pub cloud: SwarmSpawnRequestIpc,
+    #[serde(default)]
+    pub task_class: Option<SwarmEscalationTaskClassIpc>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SwarmChatGenerateWithCloudEscalationResponseIpc {
+    pub selected: Option<String>,
+    pub escalated: bool,
+    pub escalation_reason: Option<String>,
+    pub local_error: Option<String>,
+    pub local: Option<SwarmChatResponseIpc>,
+    pub cloud_instance: Option<SwarmInstanceIdIpc>,
+    pub cloud: Option<SwarmChatResponseIpc>,
+    pub cloud_error: Option<String>,
+}
+
 /// ROI#3: the stored resume template, surfaced to the UI (camelCase) for the
 /// edit-then-resume PREFILL path (`kernel_swarm_get_spawn_template`). Mirrors the
 /// spawn form fields so the operator can tweak (e.g. repoint a newer artifact)
@@ -1013,10 +1249,13 @@ pub struct SessionSpawnTemplateIpc {
     pub sha256_expected: Option<String>,
     pub runtime_binding: Option<SwarmRuntimeBindingIpc>,
     pub cloud_model_name: Option<String>,
+    pub byok_cloud_provider: Option<ByokCloudProviderIpc>,
     pub instance: u32,
+    pub swarm_id: Option<String>,
     pub worktree_id: Option<String>,
     pub working_dir: Option<String>,
     pub isolation_tier: Option<SwarmIsolationTierIpc>,
+    pub committed_memory_bytes: Option<u64>,
     pub origin_session_id: String,
     pub captured_at: String,
 }
@@ -1031,12 +1270,17 @@ impl From<SessionSpawnTemplate> for SessionSpawnTemplateIpc {
                 .runtime_binding
                 .map(SwarmRuntimeBindingIpc::from_template_binding),
             cloud_model_name: t.cloud_model_name,
+            byok_cloud_provider: t
+                .byok_cloud_provider
+                .map(ByokCloudProviderIpc::from_template_provider),
             instance: t.instance,
+            swarm_id: t.swarm_id,
             worktree_id: t.worktree_id,
             working_dir: t.working_dir,
             isolation_tier: t
                 .isolation_tier
                 .map(SwarmIsolationTierIpc::from_template_tier),
+            committed_memory_bytes: t.committed_memory_bytes,
             origin_session_id: t.origin_session_id,
             captured_at: t.captured_at.to_rfc3339(),
         }
@@ -1055,11 +1299,12 @@ pub struct SwarmSessionIpc {
     pub artifact_path: Option<String>,
     pub cloud_model_name: Option<String>,
     /// Operator-assigned VM/sandbox worktree (board swimlane / recovery group).
-    /// `None` => unassigned. RECORDED ONLY (no VM execution today).
+    /// `None` => unassigned.
     pub worktree_id: Option<String>,
     /// Operator-assigned on-disk place (attribution only; never executed/resolved).
     pub working_dir: Option<String>,
-    /// Operator-intended isolation tier (RECORDED ONLY, not enforced).
+    /// Operator-intended isolation tier. Tier3 local llama.cpp is enforced when
+    /// the sandbox registry is wired; other combinations remain attribution.
     pub isolation_tier: Option<SwarmIsolationTierIpc>,
 }
 
@@ -1080,6 +1325,11 @@ pub struct SwarmResourceSnapshotIpc {
     /// Optional token / cost ceilings (None = uncapped this run).
     pub tokens_remaining: Option<u64>,
     pub cost_micros_remaining: Option<u64>,
+    /// Optional committed-memory ceiling headroom, in bytes. `None` means the
+    /// current app run did not configure a committed-memory ceiling.
+    pub committed_memory_bytes_remaining: Option<u64>,
+    /// Optional committed-memory ceiling, in bytes, for operator display.
+    pub committed_memory_bytes_cap: Option<u64>,
     pub budget_exhausted: bool,
 }
 
@@ -1099,6 +1349,134 @@ pub struct SwarmChatResponseIpc {
 // Tauri commands (thin; delegate to the managed coordinator + side-table)
 // ---------------------------------------------------------------------------
 
+#[derive(Debug)]
+enum SpawnCommandError {
+    Validation(String),
+    Swarm(SwarmError),
+}
+
+impl SpawnCommandError {
+    fn is_capacity_refusal(&self) -> bool {
+        match self {
+            Self::Swarm(error) => error.is_capacity_refusal(),
+            Self::Validation(_) => false,
+        }
+    }
+}
+
+impl std::fmt::Display for SpawnCommandError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Validation(error) => f.write_str(error),
+            Self::Swarm(error) => write!(f, "{error}"),
+        }
+    }
+}
+
+async fn after_successful_swarm_spawn(
+    request: &SwarmSpawnRequestIpc,
+    state: &SwarmRuntimeState,
+    iid: ModelInstanceId,
+) {
+    // ROI#3 STATE RECOVERY: persist a resume template keyed by the live
+    // composite instance_id so this exact session can be re-spawned later
+    // (`kernel_swarm_resume_session`). BEST-EFFORT: a store-write failure
+    // must NOT fail an otherwise-successful spawn (the real model already
+    // loaded) — it only makes the session non-resumable, surfaced honestly
+    // via the FR/stderr line and a `resumable=false` summary.
+    let template = template_from_ipc(request, &iid.to_string());
+    if let Err(error) = state.spawn_template_store.upsert(iid.to_string(), template) {
+        eprintln!("{FR_EVT_SWARM_LIFECYCLE}: resume template persist failed for {iid}: {error}");
+    }
+    // §10.1 capture seam: when wired, open a read-only capture session bound to
+    // this swarm spawn so the operator can inspect background work in Terminal.
+    let _ = state
+        .attach_spawn_capture(
+            trimmed_opt(&request.swarm_id),
+            trimmed_opt(&request.worktree_id),
+            iid.to_string(),
+        )
+        .await;
+}
+
+async fn spawn_session_inner(
+    request: SwarmSpawnRequestIpc,
+    state: &SwarmRuntimeState,
+) -> Result<SwarmInstanceIdIpc, SpawnCommandError> {
+    let coordinator = state.coordinator();
+    let spawn = build_spawn_request(&request).map_err(SpawnCommandError::Validation)?;
+    let instance_id = spawn.instance_id;
+    match coordinator.spawn_session(spawn).await {
+        Ok(iid) => {
+            after_successful_swarm_spawn(&request, state, iid).await;
+            Ok(iid.into())
+        }
+        Err(error) => {
+            // Reconcile the side-table: a failed spawn must not leave a tracked
+            // entry (the TrackingFactory only inserts on success, but a
+            // duplicate-rollback can race — reconcile to be safe).
+            let _ = state.resolve_runtime(instance_id);
+            eprintln!("{FR_EVT_SWARM_LIFECYCLE}: spawn failed: {error}");
+            Err(SpawnCommandError::Swarm(error))
+        }
+    }
+}
+
+async fn spawn_attempt(
+    request: SwarmSpawnRequestIpc,
+    state: &SwarmRuntimeState,
+) -> SwarmSpawnAttemptIpc {
+    let provider = request.provider;
+    match spawn_session_inner(request, state).await {
+        Ok(instance_id) => SwarmSpawnAttemptIpc::success(provider, instance_id),
+        Err(error) => SwarmSpawnAttemptIpc::failure(provider, error.to_string()),
+    }
+}
+
+fn validate_local_cloud_orchestration(
+    local: &SwarmSpawnRequestIpc,
+    cloud: &SwarmSpawnRequestIpc,
+) -> Result<(), String> {
+    if local.provider != SwarmProviderIpc::Local {
+        return Err("local request must use provider=local".to_string());
+    }
+    if cloud.provider == SwarmProviderIpc::Local {
+        return Err("cloud request must use provider=byok_cloud or official_cli".to_string());
+    }
+    let local_swarm = trimmed_opt(&local.swarm_id);
+    let cloud_swarm = trimmed_opt(&cloud.swarm_id);
+    let Some(local_swarm) = local_swarm else {
+        return Err("local+cloud orchestration requires a non-empty shared swarm_id".to_string());
+    };
+    if cloud_swarm.as_deref() != Some(local_swarm.as_str()) {
+        return Err(
+            "local+cloud orchestration requires cloud.swarm_id to match local.swarm_id".to_string(),
+        );
+    }
+    let local_worktree = trimmed_opt(&local.worktree_id);
+    let cloud_worktree = trimmed_opt(&cloud.worktree_id);
+    let Some(local_worktree) = local_worktree else {
+        return Err(
+            "local+cloud orchestration requires a non-empty shared worktree_id".to_string(),
+        );
+    };
+    if cloud_worktree.as_deref() != Some(local_worktree.as_str()) {
+        return Err(
+            "local+cloud orchestration requires cloud.worktree_id to match local.worktree_id"
+                .to_string(),
+        );
+    }
+    let local_working_dir = trimmed_opt(&local.working_dir);
+    let cloud_working_dir = trimmed_opt(&cloud.working_dir);
+    if local_working_dir != cloud_working_dir {
+        return Err(
+            "local+cloud orchestration requires matching working_dir values when supplied"
+                .to_string(),
+        );
+    }
+    Ok(())
+}
+
 /// Spawn a swarm session: a local model from an artifact path, or a cloud
 /// model. Enforces the coordinator bounds (concurrency / lifetime ceiling /
 /// budget / breaker) and records a real process-ledger START. Returns the
@@ -1110,38 +1488,82 @@ pub async fn kernel_swarm_spawn_session(
     state: State<'_, SwarmRuntimeState>,
 ) -> Result<SwarmInstanceIdIpc, String> {
     let _ = KERNEL_SWARM_SPAWN_SESSION_IPC_CHANNEL;
-    let coordinator = state.coordinator();
-    let spawn = build_spawn_request(&request)?;
-    let instance_id = spawn.instance_id;
-    match coordinator.spawn_session(spawn).await {
-        Ok(iid) => {
-            // ROI#3 STATE RECOVERY: persist a resume template keyed by the live
-            // composite instance_id so this exact session can be re-spawned later
-            // (`kernel_swarm_resume_session`). BEST-EFFORT: a store-write failure
-            // must NOT fail an otherwise-successful spawn (the real model already
-            // loaded) — it only makes the session non-resumable, surfaced honestly
-            // via the FR/stderr line and a `resumable=false` summary.
-            let template = template_from_ipc(&request, &iid.to_string());
-            if let Err(error) = state.spawn_template_store.upsert(iid.to_string(), template) {
-                eprintln!(
-                    "{FR_EVT_SWARM_LIFECYCLE}: resume template persist failed for {iid}: {error}"
-                );
+    spawn_session_inner(request, &state)
+        .await
+        .map_err(|error| error.to_string())
+}
+
+/// Spawn the operator's local+cloud pair as one workflow. Each lane is still a
+/// real bounded coordinator spawn; the command returns both measured attempts so
+/// partial success is visible instead of hidden behind the first failure.
+#[tauri::command]
+pub async fn kernel_swarm_spawn_local_cloud_pair(
+    request: SwarmLocalCloudPairRequestIpc,
+    state: State<'_, SwarmRuntimeState>,
+) -> Result<SwarmLocalCloudPairResultIpc, String> {
+    let _ = KERNEL_SWARM_SPAWN_LOCAL_CLOUD_PAIR_IPC_CHANNEL;
+    validate_local_cloud_orchestration(&request.local, &request.cloud)?;
+    let local_request = request.local;
+    let cloud_request = request.cloud;
+    let (local, cloud) = tokio::join!(
+        spawn_attempt(local_request, &state),
+        spawn_attempt(cloud_request, &state)
+    );
+    if !local.is_success() && !cloud.is_success() {
+        eprintln!(
+            "{FR_EVT_SWARM_LIFECYCLE}: local+cloud pair failed: local={:?} cloud={:?}",
+            local.error, cloud.error
+        );
+    }
+    Ok(SwarmLocalCloudPairResultIpc { local, cloud })
+}
+
+/// Try the local/VM lane first and escalate to an explicit cloud request only
+/// when the local refusal is capacity-shaped (concurrency, budget, breaker).
+/// Load/hash/file/runtime failures stay local failures and do not cause hidden
+/// data egress.
+#[tauri::command]
+pub async fn kernel_swarm_spawn_with_cloud_escalation(
+    request: SwarmCloudEscalationRequestIpc,
+    state: State<'_, SwarmRuntimeState>,
+) -> Result<SwarmCloudEscalationResultIpc, String> {
+    let _ = KERNEL_SWARM_SPAWN_WITH_CLOUD_ESCALATION_IPC_CHANNEL;
+    validate_local_cloud_orchestration(&request.local, &request.cloud)?;
+
+    let local_provider = request.local.provider;
+    match spawn_session_inner(request.local, &state).await {
+        Ok(instance_id) => Ok(SwarmCloudEscalationResultIpc {
+            selected: Some("local".to_string()),
+            escalated: false,
+            escalation_reason: None,
+            local: SwarmSpawnAttemptIpc::success(local_provider, instance_id),
+            cloud: None,
+        }),
+        Err(local_error) => {
+            let local_error_text = local_error.to_string();
+            let local = SwarmSpawnAttemptIpc::failure(local_provider, local_error_text.clone());
+            if !local_error.is_capacity_refusal() {
+                return Ok(SwarmCloudEscalationResultIpc {
+                    selected: None,
+                    escalated: false,
+                    escalation_reason: None,
+                    local,
+                    cloud: None,
+                });
             }
-            // §10.1 capture seam (first real swarm producer): when wired, open a
-            // read-only capture session bound to this swarm's swimlane so the
-            // operator can inspect its background work in the Terminal panel.
-            let _ = state
-                .attach_spawn_capture(request.parent_session_id.clone(), iid.to_string())
-                .await;
-            Ok(iid.into())
-        }
-        Err(error) => {
-            // Reconcile the side-table: a failed spawn must not leave a tracked
-            // entry (the TrackingFactory only inserts on success, but a
-            // duplicate-rollback can race — reconcile to be safe).
-            let _ = state.resolve_runtime(instance_id);
-            eprintln!("{FR_EVT_SWARM_LIFECYCLE}: spawn failed: {error}");
-            Err(error.to_string())
+
+            let cloud_provider = request.cloud.provider;
+            let cloud_attempt = match spawn_session_inner(request.cloud, &state).await {
+                Ok(instance_id) => SwarmSpawnAttemptIpc::success(cloud_provider, instance_id),
+                Err(error) => SwarmSpawnAttemptIpc::failure(cloud_provider, error.to_string()),
+            };
+            Ok(SwarmCloudEscalationResultIpc {
+                selected: cloud_attempt.is_success().then(|| "cloud".to_string()),
+                escalated: true,
+                escalation_reason: Some(local_error_text),
+                local,
+                cloud: Some(cloud_attempt),
+            })
         }
     }
 }
@@ -1445,6 +1867,8 @@ pub async fn kernel_swarm_resource_snapshot(
         lifetime_spawns_remaining: remaining.lifetime_spawns_remaining,
         tokens_remaining: remaining.tokens_remaining,
         cost_micros_remaining: remaining.cost_micros_remaining,
+        committed_memory_bytes_remaining: remaining.committed_memory_bytes_remaining,
+        committed_memory_bytes_cap: state.committed_memory_ceiling_bytes(),
         budget_exhausted: remaining.exhausted,
     })
 }
@@ -1461,15 +1885,46 @@ pub async fn kernel_swarm_chat_generate(
     state: State<'_, SwarmRuntimeState>,
 ) -> Result<SwarmChatResponseIpc, String> {
     let _ = KERNEL_SWARM_CHAT_GENERATE_IPC_CHANNEL;
+    chat_generate_inner(&instance_id, &prompt, &state).await
+}
+
+async fn chat_generate_inner(
+    instance_id: &str,
+    prompt: &str,
+    state: &SwarmRuntimeState,
+) -> Result<SwarmChatResponseIpc, String> {
+    let trimmed = validate_chat_prompt(prompt)?;
+    let (iid, runtime, model_id) = resolve_chat_target(instance_id, state)?;
+    chat_generate_resolved_inner(iid, runtime, model_id, trimmed, state).await
+}
+
+fn validate_chat_prompt(prompt: &str) -> Result<&str, String> {
     let trimmed = prompt.trim();
     if trimmed.is_empty() {
-        return Err("prompt must not be empty".to_string());
+        Err("prompt must not be empty".to_string())
+    } else {
+        Ok(trimmed)
     }
-    let iid = parse_instance_id(&instance_id)?;
+}
+
+fn resolve_chat_target(
+    instance_id: &str,
+    state: &SwarmRuntimeState,
+) -> Result<(ModelInstanceId, Arc<dyn ModelRuntime>, ModelId), String> {
+    let iid = parse_instance_id(instance_id)?;
     let (runtime, model_id) = state
         .resolve_runtime(iid)
         .ok_or_else(|| format!("swarm session {iid} is no longer live (cancelled or reaped)"))?;
+    Ok((iid, runtime, model_id))
+}
 
+async fn chat_generate_resolved_inner(
+    iid: ModelInstanceId,
+    runtime: Arc<dyn ModelRuntime>,
+    model_id: ModelId,
+    trimmed: &str,
+    state: &SwarmRuntimeState,
+) -> Result<SwarmChatResponseIpc, String> {
     let coordinator = state.coordinator();
     // Drive the lifecycle: READY -> GENERATING for the turn, then back to READY.
     // A failed transition is non-fatal to the generate (the session may already
@@ -1551,6 +2006,215 @@ pub async fn kernel_swarm_chat_generate(
     })
 }
 
+/// Generate on a local/VM session first, then spawn/generate through an
+/// explicit cloud lane only if the local turn fails and the task is not
+/// force-local. `force_cloud` skips the local turn. This is intentionally
+/// opt-in: the caller supplies the cloud provider/model/worktree request, so
+/// egress cannot happen by hidden default.
+#[tauri::command]
+pub async fn kernel_swarm_chat_generate_with_cloud_escalation(
+    request: SwarmChatGenerateWithCloudEscalationRequestIpc,
+    state: State<'_, SwarmRuntimeState>,
+) -> Result<SwarmChatGenerateWithCloudEscalationResponseIpc, String> {
+    let _ = KERNEL_SWARM_CHAT_GENERATE_WITH_CLOUD_ESCALATION_IPC_CHANNEL;
+    chat_generate_with_cloud_escalation_inner(request, &state).await
+}
+
+async fn chat_generate_with_cloud_escalation_inner(
+    request: SwarmChatGenerateWithCloudEscalationRequestIpc,
+    state: &SwarmRuntimeState,
+) -> Result<SwarmChatGenerateWithCloudEscalationResponseIpc, String> {
+    let prompt = validate_chat_prompt(&request.prompt)?.to_string();
+
+    if matches!(
+        request.task_class,
+        Some(SwarmEscalationTaskClassIpc::ForceLocal)
+    ) {
+        let (local_iid, local_runtime, local_model_id) =
+            match resolve_chat_target(&request.local_instance_id, state) {
+                Ok(target) => target,
+                Err(local_error) => {
+                    return Ok(SwarmChatGenerateWithCloudEscalationResponseIpc {
+                        selected: None,
+                        escalated: false,
+                        escalation_reason: None,
+                        local_error: Some(local_error),
+                        local: None,
+                        cloud_instance: None,
+                        cloud: None,
+                        cloud_error: Some("force_local blocks cloud escalation".to_string()),
+                    });
+                }
+            };
+        return match chat_generate_resolved_inner(
+            local_iid,
+            local_runtime,
+            local_model_id,
+            &prompt,
+            state,
+        )
+        .await
+        {
+            Ok(local) => Ok(SwarmChatGenerateWithCloudEscalationResponseIpc {
+                selected: Some("local".to_string()),
+                escalated: false,
+                escalation_reason: None,
+                local_error: None,
+                local: Some(local),
+                cloud_instance: None,
+                cloud: None,
+                cloud_error: None,
+            }),
+            Err(local_error) => Ok(SwarmChatGenerateWithCloudEscalationResponseIpc {
+                selected: None,
+                escalated: false,
+                escalation_reason: None,
+                local_error: Some(local_error),
+                local: None,
+                cloud_instance: None,
+                cloud: None,
+                cloud_error: Some("force_local blocks cloud escalation".to_string()),
+            }),
+        };
+    }
+
+    if matches!(
+        request.task_class,
+        Some(SwarmEscalationTaskClassIpc::ForceCloud)
+    ) {
+        parse_instance_id(&request.local_instance_id)?;
+        return spawn_generate_cloud_escalation(
+            request.cloud,
+            &request.local_instance_id,
+            &prompt,
+            "force_cloud requested; skipped local generate".to_string(),
+            state,
+        )
+        .await;
+    }
+
+    let (local_iid, local_runtime, local_model_id) =
+        match resolve_chat_target(&request.local_instance_id, state) {
+            Ok(target) => target,
+            Err(local_error) => {
+                return Ok(SwarmChatGenerateWithCloudEscalationResponseIpc {
+                    selected: None,
+                    escalated: false,
+                    escalation_reason: None,
+                    local_error: Some(local_error),
+                    local: None,
+                    cloud_instance: None,
+                    cloud: None,
+                    cloud_error: Some(
+                        "cloud escalation requires a live local session attempt".to_string(),
+                    ),
+                });
+            }
+        };
+
+    match chat_generate_resolved_inner(local_iid, local_runtime, local_model_id, &prompt, state)
+        .await
+    {
+        Ok(local) => Ok(SwarmChatGenerateWithCloudEscalationResponseIpc {
+            selected: Some("local".to_string()),
+            escalated: false,
+            escalation_reason: None,
+            local_error: None,
+            local: Some(local),
+            cloud_instance: None,
+            cloud: None,
+            cloud_error: None,
+        }),
+        Err(local_error) => {
+            if request.cloud.provider == SwarmProviderIpc::Local {
+                return Ok(SwarmChatGenerateWithCloudEscalationResponseIpc {
+                    selected: None,
+                    escalated: false,
+                    escalation_reason: None,
+                    local_error: Some(local_error),
+                    local: None,
+                    cloud_instance: None,
+                    cloud: None,
+                    cloud_error: Some(
+                        "cloud escalation request must target a cloud provider".to_string(),
+                    ),
+                });
+            }
+
+            spawn_generate_cloud_escalation(
+                request.cloud,
+                &request.local_instance_id,
+                &prompt,
+                local_error,
+                state,
+            )
+            .await
+        }
+    }
+}
+
+async fn spawn_generate_cloud_escalation(
+    mut cloud_request: SwarmSpawnRequestIpc,
+    parent_session_id: &str,
+    prompt: &str,
+    escalation_reason: String,
+    state: &SwarmRuntimeState,
+) -> Result<SwarmChatGenerateWithCloudEscalationResponseIpc, String> {
+    if cloud_request.provider == SwarmProviderIpc::Local {
+        return Ok(SwarmChatGenerateWithCloudEscalationResponseIpc {
+            selected: None,
+            escalated: false,
+            escalation_reason: None,
+            local_error: Some(escalation_reason),
+            local: None,
+            cloud_instance: None,
+            cloud: None,
+            cloud_error: Some("cloud escalation request must target a cloud provider".to_string()),
+        });
+    }
+
+    if trimmed_opt(&cloud_request.parent_session_id).is_none() {
+        cloud_request.parent_session_id = Some(parent_session_id.to_string());
+    }
+    let cloud_instance = match spawn_session_inner(cloud_request, state).await {
+        Ok(instance) => instance,
+        Err(error) => {
+            return Ok(SwarmChatGenerateWithCloudEscalationResponseIpc {
+                selected: None,
+                escalated: true,
+                escalation_reason: Some(escalation_reason),
+                local_error: None,
+                local: None,
+                cloud_instance: None,
+                cloud: None,
+                cloud_error: Some(error.to_string()),
+            });
+        }
+    };
+    match chat_generate_inner(&cloud_instance.composite, prompt, state).await {
+        Ok(cloud) => Ok(SwarmChatGenerateWithCloudEscalationResponseIpc {
+            selected: Some("cloud".to_string()),
+            escalated: true,
+            escalation_reason: Some(escalation_reason),
+            local_error: None,
+            local: None,
+            cloud_instance: Some(cloud_instance),
+            cloud: Some(cloud),
+            cloud_error: None,
+        }),
+        Err(error) => Ok(SwarmChatGenerateWithCloudEscalationResponseIpc {
+            selected: None,
+            escalated: true,
+            escalation_reason: Some(escalation_reason),
+            local_error: None,
+            local: None,
+            cloud_instance: Some(cloud_instance),
+            cloud: None,
+            cloud_error: Some(error),
+        }),
+    }
+}
+
 // ---------------------------------------------------------------------------
 // helpers
 // ---------------------------------------------------------------------------
@@ -1584,6 +2248,9 @@ fn apply_recorded_assignment(
     mut spawn: SpawnRequest,
     request: &SwarmSpawnRequestIpc,
 ) -> SpawnRequest {
+    if let Some(swarm_id) = trimmed_opt(&request.swarm_id) {
+        spawn = spawn.with_swarm(swarm_id);
+    }
     if let Some(wt) = trimmed_opt(&request.worktree_id) {
         spawn = spawn.with_worktree(wt);
     }
@@ -1592,6 +2259,11 @@ fn apply_recorded_assignment(
     }
     if let Some(tier) = request.isolation_tier {
         spawn = spawn.with_isolation_tier(tier.to_isolation_tier());
+    }
+    if matches!(request.provider, SwarmProviderIpc::Local) {
+        if let Some(bytes) = request.committed_memory_bytes.filter(|bytes| *bytes > 0) {
+            spawn = spawn.with_committed_memory_bytes(bytes);
+        }
     }
     spawn
 }
@@ -1618,7 +2290,9 @@ fn build_spawn_request(request: &SwarmSpawnRequestIpc) -> Result<SpawnRequest, S
         SwarmProviderIpc::Local => {
             let binding = request
                 .runtime_binding
-                .ok_or_else(|| "local spawn requires a runtime_binding (candle | llama_cpp)".to_string())?
+                .ok_or_else(|| {
+                    "local spawn requires a runtime_binding (candle | llama_cpp)".to_string()
+                })?
                 .to_runtime_binding();
             let path = request
                 .artifact_path
@@ -1647,8 +2321,18 @@ fn build_spawn_request(request: &SwarmSpawnRequestIpc) -> Result<SpawnRequest, S
             // runtime_binding is ignored for cloud runtime selection but the
             // SpawnRequest constructor needs a value; Candle is a harmless
             // placeholder the cloud dispatch path never reads for engine choice.
-            SpawnRequest::new(instance_id, RuntimeBinding::Candle, "operator", parent)
-                .with_cloud_provider(request.provider.to_provider_kind(), model_name.to_string())
+            let mut spawn =
+                SpawnRequest::new(instance_id, RuntimeBinding::Candle, "operator", parent)
+                    .with_cloud_provider(
+                        request.provider.to_provider_kind(),
+                        model_name.to_string(),
+                    );
+            if matches!(request.provider, SwarmProviderIpc::ByokCloud) {
+                if let Some(provider) = request.byok_cloud_provider {
+                    spawn = spawn.with_byok_cloud_provider(provider.to_core());
+                }
+            }
+            spawn
         }
     };
 
@@ -1684,6 +2368,7 @@ fn is_provider_not_configured(error: &SwarmError) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::VecDeque;
 
     #[tokio::test]
     async fn swarm_runtime_state_constructs_and_exposes_a_live_coordinator() {
@@ -1699,6 +2384,42 @@ mod tests {
         assert!(state.live_tracked_sessions().is_empty());
     }
 
+    #[tokio::test]
+    async fn production_state_wires_committed_memory_ceiling_into_budget() {
+        let state =
+            SwarmRuntimeState::production_with_cloud_and_recorder_and_committed_memory_ceiling(
+                CloudLaneFactoryConfig::unconfigured(),
+                None,
+                std::path::Path::new(""),
+                None,
+                Some(8 * 1024 * 1024 * 1024),
+            );
+        assert_eq!(
+            state.committed_memory_ceiling_bytes(),
+            Some(8 * 1024 * 1024 * 1024)
+        );
+        assert_eq!(
+            state
+                .coordinator()
+                .remaining()
+                .committed_memory_bytes_remaining,
+            Some(8 * 1024 * 1024 * 1024)
+        );
+    }
+
+    #[test]
+    fn parse_committed_memory_ceiling_rejects_invalid_and_zero_values() {
+        assert_eq!(
+            parse_committed_memory_ceiling("8589934592").expect("valid bytes"),
+            Some(8 * 1024 * 1024 * 1024)
+        );
+        assert_eq!(parse_committed_memory_ceiling("0").expect("zero ok"), None);
+        assert!(
+            parse_committed_memory_ceiling("not-bytes").is_err(),
+            "invalid input must not silently become a ceiling"
+        );
+    }
+
     fn local_request(path: &str) -> SwarmSpawnRequestIpc {
         SwarmSpawnRequestIpc {
             provider: SwarmProviderIpc::Local,
@@ -1706,11 +2427,14 @@ mod tests {
             sha256_expected: Some("ab".repeat(32)),
             runtime_binding: Some(SwarmRuntimeBindingIpc::Candle),
             cloud_model_name: None,
+            byok_cloud_provider: None,
             instance: 0,
             parent_session_id: None,
+            swarm_id: None,
             worktree_id: None,
             working_dir: None,
             isolation_tier: None,
+            committed_memory_bytes: None,
         }
     }
 
@@ -1723,11 +2447,14 @@ mod tests {
             sha256_expected: None,
             runtime_binding: None,
             cloud_model_name: Some(model.to_string()),
+            byok_cloud_provider: None,
             instance: 0,
             parent_session_id: None,
+            swarm_id: None,
             worktree_id: None,
             working_dir: None,
             isolation_tier: None,
+            committed_memory_bytes: None,
         }
     }
 
@@ -1773,40 +2500,69 @@ mod tests {
     }
 
     #[test]
+    fn byok_cloud_provider_ipc_wire_uses_openai_not_open_ai() {
+        assert_eq!(
+            serde_json::to_string(&ByokCloudProviderIpc::OpenAi).expect("serialize"),
+            "\"openai\""
+        );
+        assert_eq!(
+            serde_json::from_str::<ByokCloudProviderIpc>("\"openai\"").expect("deserialize openai"),
+            ByokCloudProviderIpc::OpenAi
+        );
+        assert_eq!(
+            serde_json::from_str::<ByokCloudProviderIpc>("\"open_ai\"")
+                .expect("deserialize legacy alias"),
+            ByokCloudProviderIpc::OpenAi
+        );
+    }
+
+    #[test]
     fn build_spawn_request_applies_trimmed_worktree_working_dir_and_tier() {
         // Local arm: worktree + working_dir trimmed; tier mapped 1:1.
         let mut req = local_request("some/model.safetensors");
         req.worktree_id = Some("  wt-a  ".to_string());
+        req.swarm_id = Some("  swarm-a  ".to_string());
         req.working_dir = Some("  D:/work/wt-a  ".to_string());
         req.isolation_tier = Some(SwarmIsolationTierIpc::Tier3Microvm);
+        req.committed_memory_bytes = Some(4096);
         let spawn = build_spawn_request(&req).expect("valid local request");
+        assert_eq!(spawn.swarm_id(), Some("swarm-a"));
         assert_eq!(spawn.worktree_id(), Some("wt-a"));
         assert_eq!(spawn.working_dir(), Some("D:/work/wt-a"));
         assert_eq!(
             spawn.isolation_tier(),
             Some(handshake_core::sandbox::adapter::IsolationTier::Tier3Microvm)
         );
+        assert_eq!(spawn.committed_memory_bytes, Some(4096));
 
-        // Cloud arm: same recording rule applies after the cloud build.
+        // Cloud arm: attribution fields still apply after the cloud build, but
+        // committed memory is host-local admission and must not double-charge a
+        // cloud fallback.
         let req = SwarmSpawnRequestIpc {
             provider: SwarmProviderIpc::ByokCloud,
             artifact_path: None,
             sha256_expected: None,
             runtime_binding: None,
             cloud_model_name: Some("gpt-4o".to_string()),
+            byok_cloud_provider: Some(ByokCloudProviderIpc::OpenAi),
             instance: 0,
             parent_session_id: None,
+            swarm_id: Some("swarm-cloud".to_string()),
             worktree_id: Some("\twt-cloud\n".to_string()),
             working_dir: Some("./worktrees/cloud".to_string()),
             isolation_tier: Some(SwarmIsolationTierIpc::Tier1Container),
+            committed_memory_bytes: Some(2048),
         };
         let spawn = build_spawn_request(&req).expect("valid cloud request");
+        assert_eq!(spawn.swarm_id(), Some("swarm-cloud"));
         assert_eq!(spawn.worktree_id(), Some("wt-cloud"));
+        assert_eq!(spawn.byok_cloud_provider, Some(ByokCloudProvider::OpenAi));
         assert_eq!(spawn.working_dir(), Some("./worktrees/cloud"));
         assert_eq!(
             spawn.isolation_tier(),
             Some(handshake_core::sandbox::adapter::IsolationTier::Tier1Container)
         );
+        assert_eq!(spawn.committed_memory_bytes, None);
     }
 
     #[test]
@@ -1814,10 +2570,12 @@ mod tests {
         // Blank / whitespace-only => None (honest "unassigned"), both arms.
         let mut req = local_request("some/model.safetensors");
         req.worktree_id = Some("   ".to_string());
+        req.swarm_id = Some("   ".to_string());
         req.working_dir = Some("".to_string());
         req.isolation_tier = None;
         let spawn = build_spawn_request(&req).expect("valid local request");
         assert_eq!(spawn.worktree_id(), None);
+        assert_eq!(spawn.swarm_id(), None);
         assert_eq!(spawn.working_dir(), None);
         assert_eq!(spawn.isolation_tier(), None);
 
@@ -1833,9 +2591,18 @@ mod tests {
     fn swarm_isolation_tier_ipc_round_trips_through_core() {
         use handshake_core::sandbox::adapter::IsolationTier;
         for (ipc, core) in [
-            (SwarmIsolationTierIpc::Tier1Container, IsolationTier::Tier1Container),
-            (SwarmIsolationTierIpc::Tier2Syscall, IsolationTier::Tier2Syscall),
-            (SwarmIsolationTierIpc::Tier3Microvm, IsolationTier::Tier3Microvm),
+            (
+                SwarmIsolationTierIpc::Tier1Container,
+                IsolationTier::Tier1Container,
+            ),
+            (
+                SwarmIsolationTierIpc::Tier2Syscall,
+                IsolationTier::Tier2Syscall,
+            ),
+            (
+                SwarmIsolationTierIpc::Tier3Microvm,
+                IsolationTier::Tier3Microvm,
+            ),
         ] {
             assert_eq!(ipc.to_isolation_tier(), core);
             assert_eq!(SwarmIsolationTierIpc::from_isolation_tier(core), ipc);
@@ -1874,10 +2641,7 @@ mod tests {
             .await
             .expect_err("cloud spawn with no configured lane must fail");
         assert!(is_provider_not_configured(&err), "got {err}");
-        assert!(
-            err.to_string().contains("PROVIDER_NOT_CONFIGURED"),
-            "{err}"
-        );
+        assert!(err.to_string().contains("PROVIDER_NOT_CONFIGURED"), "{err}");
         // No live session, no tracked entry, no orphan ledger START.
         assert_eq!(coordinator.live_session_count(), 0);
         assert!(state.live_tracked_sessions().is_empty());
@@ -1914,6 +2678,179 @@ mod tests {
     // ---- MT-206: vault-backed cloud lane dispatch (no live network) ----
 
     use handshake_core::model_runtime::cloud::InMemorySecretsVault;
+    use handshake_core::model_runtime::{
+        Embedding, FinishReason, GeneratedToken, KvCacheHandle, LoadSpec, LoraStackHandle,
+        ModelCapabilities, ModelRuntimeError, Score, SteeringHookHandle, TokenStream,
+    };
+    use handshake_core::swarm_orchestration::{CloudLiveRuntime, CloudRuntimeBuilder};
+
+    #[derive(Clone)]
+    enum StaticGenerateResponse {
+        Text(String),
+        Error(String),
+    }
+
+    struct StaticCloudBuilder {
+        provider: ProviderKind,
+        builds: Arc<Mutex<Vec<Option<String>>>>,
+        responses: Arc<Mutex<VecDeque<StaticGenerateResponse>>>,
+        fallback: StaticGenerateResponse,
+    }
+
+    impl StaticCloudBuilder {
+        fn openai(text: impl Into<String>) -> Self {
+            let response = StaticGenerateResponse::Text(text.into());
+            Self {
+                provider: ProviderKind::ByokCloud,
+                builds: Arc::new(Mutex::new(Vec::new())),
+                responses: Arc::new(Mutex::new(VecDeque::new())),
+                fallback: response,
+            }
+        }
+
+        fn openai_sequence(responses: Vec<StaticGenerateResponse>) -> Self {
+            let fallback = responses
+                .last()
+                .cloned()
+                .unwrap_or_else(|| StaticGenerateResponse::Text("cloud-ok".to_string()));
+            Self {
+                provider: ProviderKind::ByokCloud,
+                builds: Arc::new(Mutex::new(Vec::new())),
+                responses: Arc::new(Mutex::new(VecDeque::from(responses))),
+                fallback,
+            }
+        }
+
+        fn build_count(&self) -> usize {
+            self.builds.lock().expect("static builder lock").len()
+        }
+
+        fn next_response(&self) -> StaticGenerateResponse {
+            self.responses
+                .lock()
+                .expect("static builder lock")
+                .pop_front()
+                .unwrap_or_else(|| self.fallback.clone())
+        }
+    }
+
+    #[async_trait]
+    impl CloudRuntimeBuilder for StaticCloudBuilder {
+        fn provider(&self) -> ProviderKind {
+            self.provider
+        }
+
+        async fn build_loaded(
+            &self,
+            _model_name: &str,
+            session_id: Option<String>,
+        ) -> Result<CloudLiveRuntime, String> {
+            self.builds
+                .lock()
+                .expect("static builder lock")
+                .push(session_id);
+            Ok(CloudLiveRuntime {
+                runtime: Arc::new(StaticTokenRuntime {
+                    response: self.next_response(),
+                }),
+                model_id: ModelId::new_v7(),
+            })
+        }
+    }
+
+    struct StaticTokenRuntime {
+        response: StaticGenerateResponse,
+    }
+
+    #[async_trait]
+    impl ModelRuntime for StaticTokenRuntime {
+        fn adapter_name(&self) -> &'static str {
+            "static_cloud_test_runtime"
+        }
+
+        async fn load(&mut self, _spec: LoadSpec) -> Result<ModelId, ModelRuntimeError> {
+            Ok(ModelId::new_v7())
+        }
+
+        async fn unload(&mut self, _id: ModelId) -> Result<(), ModelRuntimeError> {
+            Ok(())
+        }
+
+        fn generate(&self, _req: GenerateRequest) -> TokenStream {
+            match &self.response {
+                StaticGenerateResponse::Text(text) => {
+                    Box::pin(futures_util::stream::iter(vec![Ok(GeneratedToken {
+                        token_id: 0,
+                        text: text.clone(),
+                        logprob: None,
+                        finish_reason: Some(FinishReason::Stop),
+                    })]))
+                }
+                StaticGenerateResponse::Error(error) => {
+                    Box::pin(futures_util::stream::iter(vec![Err(
+                        ModelRuntimeError::GenerateError(error.clone()),
+                    )]))
+                }
+            }
+        }
+
+        async fn score(
+            &self,
+            _id: ModelId,
+            _sequence: Vec<u32>,
+        ) -> Result<Score, ModelRuntimeError> {
+            Err(ModelRuntimeError::ScoreError(
+                "static cloud test runtime does not score".to_string(),
+            ))
+        }
+
+        async fn embed(&self, _id: ModelId, _text: &str) -> Result<Embedding, ModelRuntimeError> {
+            Err(ModelRuntimeError::EmbedError(
+                "static cloud test runtime does not embed".to_string(),
+            ))
+        }
+
+        fn capabilities(&self, _id: ModelId) -> Result<&ModelCapabilities, ModelRuntimeError> {
+            Err(ModelRuntimeError::CapabilityNotSupported {
+                capability: "capabilities".to_string(),
+                adapter: self.adapter_name().to_string(),
+            })
+        }
+
+        fn kv_cache(&self, _id: ModelId) -> Result<KvCacheHandle, ModelRuntimeError> {
+            Err(ModelRuntimeError::KvCacheError(
+                "static cloud test runtime has no kv cache".to_string(),
+            ))
+        }
+
+        fn lora_stack(&self, _id: ModelId) -> Result<LoraStackHandle, ModelRuntimeError> {
+            Err(ModelRuntimeError::LoraStackError(
+                "static cloud test runtime has no lora stack".to_string(),
+            ))
+        }
+
+        fn steering_hooks(&self, _id: ModelId) -> Result<SteeringHookHandle, ModelRuntimeError> {
+            Err(ModelRuntimeError::SteeringHookError(
+                "static cloud test runtime has no steering hooks".to_string(),
+            ))
+        }
+
+        fn cancel(&self, token: CancellationToken) {
+            token.cancel();
+        }
+    }
+
+    fn state_with_static_openai_cloud(
+        builder: Arc<StaticCloudBuilder>,
+        app_data_root: &std::path::Path,
+    ) -> SwarmRuntimeState {
+        SwarmRuntimeState::production_with_cloud(CloudLaneFactoryConfig {
+            anthropic: None,
+            openai: Some(builder),
+            official_cli: None,
+        })
+        .with_spawn_template_store(SpawnTemplateStore::new(app_data_root))
+    }
 
     /// With a vault holding an anthropic key under the configured lane, a cloud
     /// ByokCloud spawn for an allowlisted model BUILDS a real session: the
@@ -1950,7 +2887,10 @@ mod tests {
         assert!(state.resolve_runtime(iid).is_some());
         // The coordinator reports the trimmed worktree in its grouping (drives the
         // board swimlane), and list_worktrees enumerates it with a live count of 1.
-        assert_eq!(coordinator.session_grouping(iid), Some((None, Some("wt-x".to_string()))));
+        assert_eq!(
+            coordinator.session_grouping(iid),
+            Some((None, Some("wt-x".to_string())))
+        );
         let worktrees = list_worktrees_inner(&state);
         assert_eq!(worktrees.len(), 1);
         assert_eq!(worktrees[0].worktree_id, "wt-x");
@@ -2091,6 +3031,47 @@ mod tests {
         assert_eq!(coordinator.live_session_count(), 0);
     }
 
+    #[tokio::test]
+    async fn cloud_spawn_ignores_committed_memory_estimate_under_host_memory_ceiling() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let builder = Arc::new(StaticCloudBuilder::openai("cloud-ok"));
+        let state =
+            SwarmRuntimeState::production_with_cloud_and_recorder_and_committed_memory_ceiling(
+                CloudLaneFactoryConfig {
+                    anthropic: None,
+                    openai: Some(builder.clone()),
+                    official_cli: None,
+                },
+                None,
+                tmp.path(),
+                None,
+                Some(1),
+            );
+        let mut cloud = cloud_request("gpt-4o");
+        cloud.byok_cloud_provider = Some(ByokCloudProviderIpc::OpenAi);
+        cloud.committed_memory_bytes = Some(8 * 1024 * 1024 * 1024);
+
+        let id = spawn_session_inner(cloud, &state)
+            .await
+            .expect("cloud spawn must not be rejected by host committed-memory ceiling");
+
+        assert_eq!(builder.build_count(), 1);
+        assert_eq!(state.coordinator().live_session_count(), 1);
+        assert_eq!(
+            state
+                .coordinator()
+                .remaining()
+                .committed_memory_bytes_remaining,
+            Some(1),
+            "cloud spawn must not reserve host committed memory"
+        );
+        state
+            .coordinator()
+            .cancel_session(parse_instance_id(&id.composite).expect("parse id"), "test")
+            .await
+            .expect("cancel cloud");
+    }
+
     /// MIXED local + cloud parallel spawn through ONE coordinator: a cloud
     /// session (real anthropic BYOK runtime, credentialed via the vault) and a
     /// local candle session spawned concurrently. The local artifact does not
@@ -2146,6 +3127,315 @@ mod tests {
         assert_eq!(coordinator.live_session_count(), 0);
     }
 
+    #[tokio::test]
+    async fn chat_generate_escalation_force_local_blocks_cloud_when_local_missing() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let builder = Arc::new(StaticCloudBuilder::openai("cloud-ok"));
+        let state = state_with_static_openai_cloud(builder.clone(), tmp.path());
+        let local_iid = ModelInstanceId::new(ModelId::new_v7(), 0).to_string();
+        let mut cloud = cloud_request("gpt-4o");
+        cloud.byok_cloud_provider = Some(ByokCloudProviderIpc::OpenAi);
+
+        let response = chat_generate_with_cloud_escalation_inner(
+            SwarmChatGenerateWithCloudEscalationRequestIpc {
+                local_instance_id: local_iid,
+                prompt: "summarize this".to_string(),
+                cloud,
+                task_class: Some(SwarmEscalationTaskClassIpc::ForceLocal),
+            },
+            &state,
+        )
+        .await
+        .expect("command result");
+
+        assert_eq!(response.selected, None);
+        assert!(!response.escalated);
+        assert!(
+            response
+                .cloud_error
+                .as_deref()
+                .is_some_and(|e| e.contains("force_local")),
+            "cloud_error: {:?}",
+            response.cloud_error
+        );
+        assert!(response.local_error.is_some(), "local failure is surfaced");
+        assert_eq!(
+            builder.build_count(),
+            0,
+            "force_local must not even spawn the explicit cloud request"
+        );
+        assert_eq!(state.coordinator().live_session_count(), 0);
+    }
+
+    #[tokio::test]
+    async fn chat_generate_refuses_missing_local_without_cloud_spawn() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let builder = Arc::new(StaticCloudBuilder::openai("cloud-ok"));
+        let state = state_with_static_openai_cloud(builder.clone(), tmp.path());
+        let local_iid = ModelInstanceId::new(ModelId::new_v7(), 0).to_string();
+        let mut cloud = cloud_request("gpt-4o");
+        cloud.byok_cloud_provider = Some(ByokCloudProviderIpc::OpenAi);
+        cloud.swarm_id = Some("swarm-escalate".to_string());
+        cloud.worktree_id = Some("wt-escalate".to_string());
+
+        let response = chat_generate_with_cloud_escalation_inner(
+            SwarmChatGenerateWithCloudEscalationRequestIpc {
+                local_instance_id: local_iid,
+                prompt: "classify this".to_string(),
+                cloud,
+                task_class: Some(SwarmEscalationTaskClassIpc::Classification),
+            },
+            &state,
+        )
+        .await
+        .expect("command result");
+
+        assert_eq!(response.selected, None);
+        assert!(!response.escalated);
+        assert!(
+            response
+                .local_error
+                .as_deref()
+                .is_some_and(|e| e.contains("no longer live")),
+            "local_error: {:?}",
+            response.local_error
+        );
+        assert!(
+            response
+                .cloud_error
+                .as_deref()
+                .is_some_and(|e| e.contains("live local session attempt")),
+            "cloud_error: {:?}",
+            response.cloud_error
+        );
+        assert_eq!(builder.build_count(), 0);
+        assert_eq!(state.coordinator().live_session_count(), 0);
+    }
+
+    #[tokio::test]
+    async fn chat_generate_refuses_invalid_local_id_without_cloud_spawn() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let builder = Arc::new(StaticCloudBuilder::openai("cloud-ok"));
+        let state = state_with_static_openai_cloud(builder.clone(), tmp.path());
+        let mut cloud = cloud_request("gpt-4o");
+        cloud.byok_cloud_provider = Some(ByokCloudProviderIpc::OpenAi);
+
+        let error = chat_generate_with_cloud_escalation_inner(
+            SwarmChatGenerateWithCloudEscalationRequestIpc {
+                local_instance_id: "not-a-valid-instance-id".to_string(),
+                prompt: "classify this".to_string(),
+                cloud,
+                task_class: Some(SwarmEscalationTaskClassIpc::Classification),
+            },
+            &state,
+        )
+        .await
+        .expect("command should return a structured no-escalation response");
+
+        assert_eq!(error.selected, None);
+        assert!(!error.escalated);
+        assert!(
+            error
+                .local_error
+                .as_deref()
+                .is_some_and(|e| e.contains("instance_id must be")),
+            "local_error: {:?}",
+            error.local_error
+        );
+        assert_eq!(builder.build_count(), 0);
+        assert_eq!(state.coordinator().live_session_count(), 0);
+    }
+
+    #[tokio::test]
+    async fn chat_generate_refuses_blank_prompt_without_cloud_spawn() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let builder = Arc::new(StaticCloudBuilder::openai("cloud-ok"));
+        let state = state_with_static_openai_cloud(builder.clone(), tmp.path());
+        let local_iid = ModelInstanceId::new(ModelId::new_v7(), 0).to_string();
+        let mut cloud = cloud_request("gpt-4o");
+        cloud.byok_cloud_provider = Some(ByokCloudProviderIpc::OpenAi);
+
+        let error = chat_generate_with_cloud_escalation_inner(
+            SwarmChatGenerateWithCloudEscalationRequestIpc {
+                local_instance_id: local_iid,
+                prompt: "   \n\t".to_string(),
+                cloud,
+                task_class: Some(SwarmEscalationTaskClassIpc::Classification),
+            },
+            &state,
+        )
+        .await
+        .expect_err("blank prompt is a caller error, not a cloud fallback response");
+
+        assert!(error.contains("prompt must not be empty"), "error: {error}");
+        assert_eq!(builder.build_count(), 0);
+        assert_eq!(state.coordinator().live_session_count(), 0);
+    }
+
+    #[tokio::test]
+    async fn chat_generate_force_cloud_refuses_blank_prompt_before_spawn() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let builder = Arc::new(StaticCloudBuilder::openai("cloud-ok"));
+        let state = state_with_static_openai_cloud(builder.clone(), tmp.path());
+        let local_iid = ModelInstanceId::new(ModelId::new_v7(), 0).to_string();
+        let mut cloud = cloud_request("gpt-4o");
+        cloud.byok_cloud_provider = Some(ByokCloudProviderIpc::OpenAi);
+
+        let error = chat_generate_with_cloud_escalation_inner(
+            SwarmChatGenerateWithCloudEscalationRequestIpc {
+                local_instance_id: local_iid,
+                prompt: "".to_string(),
+                cloud,
+                task_class: Some(SwarmEscalationTaskClassIpc::ForceCloud),
+            },
+            &state,
+        )
+        .await
+        .expect_err("force_cloud still validates prompt before cloud spawn");
+
+        assert!(error.contains("prompt must not be empty"), "error: {error}");
+        assert_eq!(builder.build_count(), 0);
+        assert_eq!(state.coordinator().live_session_count(), 0);
+    }
+
+    #[tokio::test]
+    async fn chat_generate_escalates_after_live_local_generate_failure() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let builder = Arc::new(StaticCloudBuilder::openai_sequence(vec![
+            StaticGenerateResponse::Error("local runtime overloaded".to_string()),
+            StaticGenerateResponse::Text("cloud-ok".to_string()),
+        ]));
+        let state = state_with_static_openai_cloud(builder.clone(), tmp.path());
+        let mut local_candidate = cloud_request("gpt-4o");
+        local_candidate.byok_cloud_provider = Some(ByokCloudProviderIpc::OpenAi);
+        let local_instance = spawn_session_inner(local_candidate, &state)
+            .await
+            .expect("live local-candidate runtime");
+        assert_eq!(builder.build_count(), 1);
+
+        let mut cloud = cloud_request("gpt-4o");
+        cloud.byok_cloud_provider = Some(ByokCloudProviderIpc::OpenAi);
+        cloud.swarm_id = Some("swarm-escalate".to_string());
+        cloud.worktree_id = Some("wt-escalate".to_string());
+
+        let response = chat_generate_with_cloud_escalation_inner(
+            SwarmChatGenerateWithCloudEscalationRequestIpc {
+                local_instance_id: local_instance.composite.clone(),
+                prompt: "classify this".to_string(),
+                cloud,
+                task_class: Some(SwarmEscalationTaskClassIpc::Classification),
+            },
+            &state,
+        )
+        .await
+        .expect("command result");
+
+        assert_eq!(response.selected.as_deref(), Some("cloud"));
+        assert!(response.escalated);
+        assert!(
+            response
+                .escalation_reason
+                .as_deref()
+                .is_some_and(|r| r.contains("local runtime overloaded")),
+            "escalation_reason: {:?}",
+            response.escalation_reason
+        );
+        assert_eq!(response.local_error, None);
+        let cloud = response.cloud.as_ref().expect("cloud generated");
+        assert_eq!(cloud.text, "cloud-ok");
+        assert_eq!(cloud.token_count, 1);
+        assert_eq!(cloud.finish_reason.as_deref(), Some("stop"));
+        assert_eq!(builder.build_count(), 2);
+        assert_eq!(state.coordinator().live_session_count(), 2);
+        let worktrees = list_worktrees_inner(&state);
+        assert_eq!(worktrees.len(), 1);
+        assert_eq!(worktrees[0].worktree_id, "wt-escalate");
+
+        let local_iid = parse_instance_id(&local_instance.composite).expect("parse local iid");
+        let cloud_iid = parse_instance_id(
+            &response
+                .cloud_instance
+                .as_ref()
+                .expect("cloud instance")
+                .composite,
+        )
+        .expect("parse cloud iid");
+        state
+            .coordinator()
+            .cancel_session(local_iid, "test_cancel")
+            .await
+            .expect("cancel local");
+        state
+            .coordinator()
+            .cancel_session(cloud_iid, "test_cancel")
+            .await
+            .expect("cancel cloud");
+        assert_eq!(state.coordinator().live_session_count(), 0);
+    }
+
+    #[tokio::test]
+    async fn chat_generate_force_cloud_skips_a_live_local_candidate() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let builder = Arc::new(StaticCloudBuilder::openai("cloud-ok"));
+        let state = state_with_static_openai_cloud(builder.clone(), tmp.path());
+        let mut existing = cloud_request("gpt-4o");
+        existing.byok_cloud_provider = Some(ByokCloudProviderIpc::OpenAi);
+        let existing_instance = spawn_session_inner(existing, &state)
+            .await
+            .expect("first cloud-backed candidate live");
+        assert_eq!(builder.build_count(), 1);
+
+        let mut cloud = cloud_request("gpt-4o");
+        cloud.byok_cloud_provider = Some(ByokCloudProviderIpc::OpenAi);
+        let response = chat_generate_with_cloud_escalation_inner(
+            SwarmChatGenerateWithCloudEscalationRequestIpc {
+                local_instance_id: existing_instance.composite.clone(),
+                prompt: "force the cloud lane".to_string(),
+                cloud,
+                task_class: Some(SwarmEscalationTaskClassIpc::ForceCloud),
+            },
+            &state,
+        )
+        .await
+        .expect("command result");
+
+        assert_eq!(response.selected.as_deref(), Some("cloud"));
+        assert!(response.escalated);
+        assert!(
+            response.local.is_none(),
+            "force_cloud must not return the already-live local candidate"
+        );
+        assert!(
+            response
+                .escalation_reason
+                .as_deref()
+                .is_some_and(|r| r.contains("force_cloud")),
+            "escalation_reason: {:?}",
+            response.escalation_reason
+        );
+        assert_eq!(builder.build_count(), 2);
+        let cloud_instance = response.cloud_instance.as_ref().expect("cloud instance");
+        assert_ne!(
+            cloud_instance.composite, existing_instance.composite,
+            "force_cloud spawned/generated on a new explicit cloud lane"
+        );
+
+        let first_iid =
+            parse_instance_id(&existing_instance.composite).expect("parse existing iid");
+        let second_iid = parse_instance_id(&cloud_instance.composite).expect("parse cloud iid");
+        state
+            .coordinator()
+            .cancel_session(first_iid, "test_cancel")
+            .await
+            .expect("cancel first");
+        state
+            .coordinator()
+            .cancel_session(second_iid, "test_cancel")
+            .await
+            .expect("cancel second");
+        assert_eq!(state.coordinator().live_session_count(), 0);
+    }
+
     // ---- ROI#3 STATE RECOVERY: resume-template capture + rebuild + resume ----
 
     /// `template_from_ipc` captures EXACTLY the validated local fields (artifact +
@@ -2155,20 +3445,32 @@ mod tests {
     fn template_from_ipc_captures_validated_local_fields() {
         let mut req = local_request("D:/models/qwen.safetensors");
         req.instance = 3;
+        req.swarm_id = Some("  swarm-a  ".to_string());
         req.worktree_id = Some("  wt-a  ".to_string());
         req.working_dir = Some("   ".to_string()); // blank => None
         req.isolation_tier = Some(SwarmIsolationTierIpc::Tier3Microvm);
         req.cloud_model_name = Some("ignored-for-local".to_string());
         let tpl = template_from_ipc(&req, "origin#0");
         assert_eq!(tpl.provider, TemplateProvider::Local);
-        assert_eq!(tpl.artifact_path.as_deref(), Some("D:/models/qwen.safetensors"));
+        assert_eq!(
+            tpl.artifact_path.as_deref(),
+            Some("D:/models/qwen.safetensors")
+        );
         assert_eq!(tpl.sha256_expected.as_deref(), Some(&"ab".repeat(32)[..]));
         assert_eq!(tpl.runtime_binding, Some(TemplateRuntimeBinding::Candle));
-        assert_eq!(tpl.cloud_model_name, None, "local must not capture cloud name");
+        assert_eq!(
+            tpl.cloud_model_name, None,
+            "local must not capture cloud name"
+        );
+        assert_eq!(tpl.byok_cloud_provider, None);
         assert_eq!(tpl.instance, 3);
+        assert_eq!(tpl.swarm_id.as_deref(), Some("swarm-a"), "trimmed");
         assert_eq!(tpl.worktree_id.as_deref(), Some("wt-a"), "trimmed");
         assert_eq!(tpl.working_dir, None, "blank working_dir trimmed to None");
-        assert_eq!(tpl.isolation_tier, Some(TemplateIsolationTier::Tier3Microvm));
+        assert_eq!(
+            tpl.isolation_tier,
+            Some(TemplateIsolationTier::Tier3Microvm)
+        );
         assert_eq!(tpl.origin_session_id, "origin#0");
     }
 
@@ -2176,13 +3478,22 @@ mod tests {
     /// (no artifact/sha/binding), preserving the honest local/cloud split.
     #[test]
     fn template_from_ipc_captures_only_cloud_model_name_for_cloud() {
-        let req = cloud_request("claude-sonnet-4");
+        let mut req = cloud_request("claude-sonnet-4");
+        req.byok_cloud_provider = Some(ByokCloudProviderIpc::Anthropic);
+        req.swarm_id = Some("swarm-cloud".to_string());
+        req.committed_memory_bytes = Some(123456789);
         let tpl = template_from_ipc(&req, "origin#1");
         assert_eq!(tpl.provider, TemplateProvider::ByokCloud);
         assert_eq!(tpl.cloud_model_name.as_deref(), Some("claude-sonnet-4"));
+        assert_eq!(
+            tpl.byok_cloud_provider,
+            Some(TemplateByokCloudProvider::Anthropic)
+        );
+        assert_eq!(tpl.swarm_id.as_deref(), Some("swarm-cloud"));
         assert_eq!(tpl.artifact_path, None);
         assert_eq!(tpl.sha256_expected, None);
         assert_eq!(tpl.runtime_binding, None);
+        assert_eq!(tpl.committed_memory_bytes, None);
         assert_eq!(tpl.origin_session_id, "origin#1");
     }
 
@@ -2197,13 +3508,22 @@ mod tests {
         let tpl = template_from_ipc(&original, "ORIGIN#0");
         let rebuilt = template_to_request_ipc(&tpl, "ORIGIN#0");
         assert_eq!(rebuilt.parent_session_id.as_deref(), Some("ORIGIN#0"));
-        assert_eq!(rebuilt.artifact_path.as_deref(), Some("D:/models/qwen.safetensors"));
-        assert_eq!(rebuilt.sha256_expected.as_deref(), Some(&"ab".repeat(32)[..]));
+        assert_eq!(
+            rebuilt.artifact_path.as_deref(),
+            Some("D:/models/qwen.safetensors")
+        );
+        assert_eq!(
+            rebuilt.sha256_expected.as_deref(),
+            Some(&"ab".repeat(32)[..])
+        );
 
         // build_spawn_request accepts it and carries the integrity gate + lineage.
         let spawn = build_spawn_request(&rebuilt).expect("rebuilt request is valid");
         assert_eq!(spawn.runtime_binding, RuntimeBinding::Candle);
-        assert_eq!(spawn.model_artifact_path(), Some("D:/models/qwen.safetensors"));
+        assert_eq!(
+            spawn.model_artifact_path(),
+            Some("D:/models/qwen.safetensors")
+        );
         // Two rebuilds mint DISTINCT fresh model ids (never reuse the origin id).
         let spawn_b = build_spawn_request(&template_to_request_ipc(&tpl, "ORIGIN#0"))
             .expect("second rebuild valid");
@@ -2238,13 +3558,18 @@ mod tests {
         // does (the persist tail lives in the Tauri command body; here we drive
         // the coordinator + persist seam directly since we cannot fabricate State).
         let mut req = cloud_request("claude-sonnet-4");
+        req.byok_cloud_provider = Some(ByokCloudProviderIpc::Anthropic);
+        req.swarm_id = Some("swarm-resume".to_string());
         req.worktree_id = Some("wt-resume".to_string());
         req.working_dir = Some("D:/work/wt-resume".to_string());
         let spawn = build_spawn_request(&req).expect("valid cloud request");
         let origin_iid = coordinator.spawn_session(spawn).await.expect("origin live");
         let origin_composite = origin_iid.to_string();
         store
-            .upsert(&origin_composite, template_from_ipc(&req, &origin_composite))
+            .upsert(
+                &origin_composite,
+                template_from_ipc(&req, &origin_composite),
+            )
             .expect("persist origin template");
 
         // The origin session is now resumable: a template exists for it.
@@ -2257,12 +3582,26 @@ mod tests {
             .expect("get ok")
             .expect("template present");
         let resume_req = template_to_request_ipc(&tpl, &origin_composite);
-        assert_eq!(resume_req.parent_session_id.as_deref(), Some(origin_composite.as_str()));
-        assert_eq!(resume_req.cloud_model_name.as_deref(), Some("claude-sonnet-4"));
+        assert_eq!(
+            resume_req.parent_session_id.as_deref(),
+            Some(origin_composite.as_str())
+        );
+        assert_eq!(
+            resume_req.cloud_model_name.as_deref(),
+            Some("claude-sonnet-4")
+        );
         assert_eq!(resume_req.worktree_id.as_deref(), Some("wt-resume"));
+        assert_eq!(resume_req.swarm_id.as_deref(), Some("swarm-resume"));
+        assert_eq!(
+            resume_req.byok_cloud_provider,
+            Some(ByokCloudProviderIpc::Anthropic)
+        );
         assert_eq!(resume_req.working_dir.as_deref(), Some("D:/work/wt-resume"));
         let resume_spawn = build_spawn_request(&resume_req).expect("resume request valid");
-        let new_iid = coordinator.spawn_session(resume_spawn).await.expect("resumed live");
+        let new_iid = coordinator
+            .spawn_session(resume_spawn)
+            .await
+            .expect("resumed live");
 
         // Fresh composite id (distinct model id from the origin) — no collision.
         assert_ne!(new_iid.model_id, origin_iid.model_id);
@@ -2272,7 +3611,10 @@ mod tests {
         // the shared command tail does).
         let new_composite = new_iid.to_string();
         store
-            .upsert(&new_composite, template_from_ipc(&resume_req, &new_composite))
+            .upsert(
+                &new_composite,
+                template_from_ipc(&resume_req, &new_composite),
+            )
             .expect("persist resumed template");
         assert!(state.spawn_template_store().contains(&new_composite));
         // The resumed session's template is captured FROM the new session
@@ -2287,8 +3629,14 @@ mod tests {
             "resume request lineage parent = the origin session"
         );
 
-        coordinator.cancel_session(origin_iid, "t").await.expect("cancel origin");
-        coordinator.cancel_session(new_iid, "t").await.expect("cancel resumed");
+        coordinator
+            .cancel_session(origin_iid, "t")
+            .await
+            .expect("cancel origin");
+        coordinator
+            .cancel_session(new_iid, "t")
+            .await
+            .expect("cancel resumed");
     }
 
     /// Resume of an id with NO stored template surfaces the typed
@@ -2325,18 +3673,34 @@ mod tests {
     #[test]
     fn session_spawn_template_ipc_maps_all_fields() {
         let mut req = local_request("D:/models/qwen.safetensors");
+        req.swarm_id = Some("swarm-z".to_string());
         req.worktree_id = Some("wt-z".to_string());
         req.working_dir = Some("D:/work/wt-z".to_string());
         req.isolation_tier = Some(SwarmIsolationTierIpc::Tier2Syscall);
+        req.committed_memory_bytes = Some(7 * 1024 * 1024 * 1024);
         let tpl = template_from_ipc(&req, "origin#5");
+        let rebuilt = template_to_request_ipc(&tpl, "origin#5");
+        assert_eq!(rebuilt.committed_memory_bytes, Some(7 * 1024 * 1024 * 1024));
         let dto = SessionSpawnTemplateIpc::from(tpl);
         assert_eq!(dto.provider, SwarmProviderIpc::Local);
-        assert_eq!(dto.artifact_path.as_deref(), Some("D:/models/qwen.safetensors"));
+        assert_eq!(
+            dto.artifact_path.as_deref(),
+            Some("D:/models/qwen.safetensors")
+        );
         assert_eq!(dto.runtime_binding, Some(SwarmRuntimeBindingIpc::Candle));
+        assert_eq!(dto.byok_cloud_provider, None);
+        assert_eq!(dto.swarm_id.as_deref(), Some("swarm-z"));
         assert_eq!(dto.worktree_id.as_deref(), Some("wt-z"));
         assert_eq!(dto.working_dir.as_deref(), Some("D:/work/wt-z"));
-        assert_eq!(dto.isolation_tier, Some(SwarmIsolationTierIpc::Tier2Syscall));
+        assert_eq!(
+            dto.isolation_tier,
+            Some(SwarmIsolationTierIpc::Tier2Syscall)
+        );
+        assert_eq!(dto.committed_memory_bytes, Some(7 * 1024 * 1024 * 1024));
         assert_eq!(dto.origin_session_id, "origin#5");
-        assert!(!dto.captured_at.is_empty(), "captured_at serialized as rfc3339");
+        assert!(
+            !dto.captured_at.is_empty(),
+            "captured_at serialized as rfc3339"
+        );
     }
 }

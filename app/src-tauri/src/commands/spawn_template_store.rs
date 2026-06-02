@@ -5,12 +5,13 @@
 //!
 //! Nothing persisted today can reconstruct a swarm spawn. `SessionSummary`
 //! (`session_transcript.rs`) carries only id/kind/timestamps/model/provider; the
-//! FR `SessionSpawned` event carries process/parent/instance but NOT
-//! artifact_path / sha256 / cloud_model_name / worktree_id / working_dir /
-//! isolation_tier; and `build_spawn_request` mints a FRESH `ModelId` per spawn so
-//! the request content is never recoverable from the live instance id. Therefore
-//! "resume this recorded session with its original config" REQUIRES persisting a
-//! spawn TEMPLATE at spawn time, keyed by the session's composite `instance_id`.
+//! FR `SessionSpawned` event carries process/parent/instance and grouping
+//! (`swarm_id` / `worktree_id`) but NOT artifact_path / sha256 /
+//! cloud_model_name / exact BYOK provider / working_dir / isolation_tier; and
+//! `build_spawn_request` mints a FRESH `ModelId` per spawn so the request content
+//! is never recoverable from the live instance id. Therefore "resume this
+//! recorded session with its original config" REQUIRES persisting a spawn
+//! TEMPLATE at spawn time, keyed by the session's composite `instance_id`.
 //!
 //! ## Relationship to the calendar `SpawnTemplate`
 //!
@@ -52,20 +53,31 @@ pub const SPAWN_TEMPLATES_FILE: &str = "session_spawn_templates.json";
 
 /// Current on-disk schema version. Bumped if the persisted shape changes so a
 /// future loader can migrate rather than silently mis-parse.
-pub const SPAWN_TEMPLATES_SCHEMA_VERSION: u32 = 1;
+pub const SPAWN_TEMPLATES_SCHEMA_VERSION: u32 = 2;
 
 /// Operator-intended isolation tier captured on a resume template. Mirrors the
 /// swarm IPC `SwarmIsolationTierIpc` (and through it
 /// `handshake_core::sandbox::adapter::IsolationTier`) 1:1. The calendar template
-/// never modelled isolation, so this is defined locally. RECORDED ONLY — resume
-/// re-applies it to the rebuilt request exactly as the original spawn recorded
-/// it, but nothing maps it to an execution substrate today.
+/// never modelled isolation, so this is defined locally. Resume re-applies it
+/// to the rebuilt request exactly as the original spawn recorded
+/// it. Tier3 local llama.cpp is load-bearing when the sandbox registry is wired;
+/// other combinations remain attribution.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum TemplateIsolationTier {
     Tier1Container,
     Tier2Syscall,
     Tier3Microvm,
+}
+
+/// Exact BYOK provider flavor captured on a resume template. Optional for
+/// backward compatibility with pre-v2 templates and non-BYOK providers.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TemplateByokCloudProvider {
+    Anthropic,
+    #[serde(rename = "openai", alias = "open_ai")]
+    OpenAi,
 }
 
 /// The resume-complete spawn TEMPLATE captured per session at spawn time. Every
@@ -99,11 +111,18 @@ pub struct SessionSpawnTemplate {
     /// `ProviderNotConfigured`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cloud_model_name: Option<String>,
+    /// Cloud: exact BYOK provider flavor when the operator selected one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub byok_cloud_provider: Option<TemplateByokCloudProvider>,
     /// Which concurrent instance index the original session used (default 0).
     #[serde(default)]
     pub instance: u32,
+    /// Operator-assigned swarm grouping (board swimlane / paired orchestration
+    /// identity). Re-applied to the rebuilt request on resume.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub swarm_id: Option<String>,
     /// Operator-assigned worktree binding (board swimlane / per-worktree
-    /// recovery). RECORDED ONLY. Re-applied to the rebuilt request on resume.
+    /// recovery / paired orchestration). Re-applied to the rebuilt request on resume.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub worktree_id: Option<String>,
     /// Operator-assigned on-disk place (attribution only; never executed/resolved).
@@ -111,9 +130,14 @@ pub struct SessionSpawnTemplate {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub working_dir: Option<String>,
     /// Operator-intended isolation tier. NOT in the calendar template — added
-    /// here for resume fidelity. RECORDED ONLY, not enforced.
+    /// here for resume fidelity.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub isolation_tier: Option<TemplateIsolationTier>,
+    /// Rank-6 committed-memory estimate captured from the successful spawn.
+    /// Preserved on resume so a run with committed-memory admission enabled does
+    /// not fail closed merely because the template dropped the estimate.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub committed_memory_bytes: Option<u64>,
     /// The session this template was captured from (the lineage root for resume).
     /// On resume the rebuilt request's `parent_session_id` is set to this, so the
     /// FR `SessionSpawned.parent_session_id` records "resumed from X".
@@ -171,18 +195,43 @@ impl SpawnTemplateStore {
     /// so the caller can surface it rather than silently dropping templates.
     pub fn load(&self) -> Result<SpawnTemplateDoc, String> {
         match std::fs::read(&self.path) {
-            Ok(bytes) => serde_json::from_slice::<SpawnTemplateDoc>(&bytes).map_err(|error| {
-                format!(
-                    "spawn template store at {} is corrupt: {error}",
-                    self.path.display()
-                )
-            }),
+            Ok(bytes) => {
+                let doc = serde_json::from_slice::<SpawnTemplateDoc>(&bytes).map_err(|error| {
+                    format!(
+                        "spawn template store at {} is corrupt: {error}",
+                        self.path.display()
+                    )
+                })?;
+                self.normalize_loaded_doc(doc)
+            }
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
                 Ok(SpawnTemplateDoc::default())
             }
             Err(error) => Err(format!(
                 "failed to read spawn template store at {}: {error}",
                 self.path.display()
+            )),
+        }
+    }
+
+    fn normalize_loaded_doc(&self, mut doc: SpawnTemplateDoc) -> Result<SpawnTemplateDoc, String> {
+        match doc.schema_version {
+            SPAWN_TEMPLATES_SCHEMA_VERSION => Ok(doc),
+            // v1 -> v2 only added optional fields with serde defaults. Loading
+            // it as v2 is a lossless migration; the next save persists v2.
+            1 => {
+                doc.schema_version = SPAWN_TEMPLATES_SCHEMA_VERSION;
+                Ok(doc)
+            }
+            version if version > SPAWN_TEMPLATES_SCHEMA_VERSION => Err(format!(
+                "spawn template store at {} uses unsupported schema_version {version}; this app supports {}",
+                self.path.display(),
+                SPAWN_TEMPLATES_SCHEMA_VERSION
+            )),
+            version => Err(format!(
+                "spawn template store at {} uses unsupported schema_version {version}; expected {} or compatible v1",
+                self.path.display(),
+                SPAWN_TEMPLATES_SCHEMA_VERSION
             )),
         }
     }
@@ -200,7 +249,9 @@ impl SpawnTemplateStore {
                 )
             })?;
         }
-        let json = serde_json::to_vec_pretty(doc)
+        let mut doc = doc.clone();
+        doc.schema_version = SPAWN_TEMPLATES_SCHEMA_VERSION;
+        let json = serde_json::to_vec_pretty(&doc)
             .map_err(|error| format!("failed to serialize spawn templates: {error}"))?;
         let tmp = self
             .path
@@ -265,10 +316,13 @@ mod tests {
             sha256_expected: Some("ab".repeat(32)),
             runtime_binding: Some(TemplateRuntimeBinding::Candle),
             cloud_model_name: None,
+            byok_cloud_provider: None,
             instance: 2,
+            swarm_id: Some("swarm-research".to_string()),
             worktree_id: Some("wt-research".to_string()),
             working_dir: Some("D:/work/wt-research".to_string()),
             isolation_tier: Some(TemplateIsolationTier::Tier3Microvm),
+            committed_memory_bytes: Some(6 * 1024 * 1024 * 1024),
             origin_session_id: origin.to_string(),
             captured_at: Utc::now(),
         }
@@ -281,10 +335,13 @@ mod tests {
             sha256_expected: None,
             runtime_binding: None,
             cloud_model_name: Some("claude-sonnet-4".to_string()),
+            byok_cloud_provider: Some(TemplateByokCloudProvider::Anthropic),
             instance: 0,
+            swarm_id: None,
             worktree_id: None,
             working_dir: None,
             isolation_tier: None,
+            committed_memory_bytes: None,
             origin_session_id: origin.to_string(),
             captured_at: Utc::now(),
         }
@@ -304,6 +361,64 @@ mod tests {
     }
 
     #[test]
+    fn template_byok_provider_serializes_openai_and_reads_legacy_open_ai_alias() {
+        assert_eq!(
+            serde_json::to_string(&TemplateByokCloudProvider::OpenAi).expect("serialize"),
+            "\"openai\""
+        );
+        assert_eq!(
+            serde_json::from_str::<TemplateByokCloudProvider>("\"openai\"")
+                .expect("deserialize openai"),
+            TemplateByokCloudProvider::OpenAi
+        );
+        assert_eq!(
+            serde_json::from_str::<TemplateByokCloudProvider>("\"open_ai\"")
+                .expect("deserialize legacy alias"),
+            TemplateByokCloudProvider::OpenAi
+        );
+    }
+
+    #[test]
+    fn v1_store_loads_as_lossless_v2_migration() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let store = SpawnTemplateStore::new(tmp.path());
+        let key = "11111111-1111-7111-8111-111111111111#2";
+        let mut doc = SpawnTemplateDoc::default();
+        doc.schema_version = 1;
+        doc.templates
+            .insert(key.to_string(), sample_local("origin#0"));
+        std::fs::write(
+            store.path(),
+            serde_json::to_vec_pretty(&doc).expect("serialize v1 doc"),
+        )
+        .expect("write v1 doc");
+
+        let loaded = store.load().expect("v1 loads through migration");
+        assert_eq!(loaded.schema_version, SPAWN_TEMPLATES_SCHEMA_VERSION);
+        assert!(loaded.templates.contains_key(key));
+    }
+
+    #[test]
+    fn future_schema_version_fails_closed() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let store = SpawnTemplateStore::new(tmp.path());
+        let mut doc = SpawnTemplateDoc::default();
+        doc.schema_version = SPAWN_TEMPLATES_SCHEMA_VERSION + 1;
+        std::fs::write(
+            store.path(),
+            serde_json::to_vec_pretty(&doc).expect("serialize future doc"),
+        )
+        .expect("write future doc");
+
+        let err = store.load().expect_err("future version must not load");
+        assert!(err.contains("unsupported schema_version"), "{err}");
+        assert!(
+            !store.contains("anything#0"),
+            "list surfaces future schemas as not resumable instead of panicking"
+        );
+    }
+
+    #[test]
     fn upsert_then_get_round_trips_local_through_a_real_file() {
         let tmp = tempfile::tempdir().expect("tempdir");
         let store = SpawnTemplateStore::new(tmp.path());
@@ -315,7 +430,10 @@ mod tests {
 
         let got = store.get(key).expect("get ok").expect("present");
         assert_eq!(got.provider, TemplateProvider::Local);
-        assert_eq!(got.artifact_path.as_deref(), Some("D:/models/qwen.safetensors"));
+        assert_eq!(
+            got.artifact_path.as_deref(),
+            Some("D:/models/qwen.safetensors")
+        );
         assert_eq!(got.sha256_expected.as_deref(), Some(&"ab".repeat(32)[..]));
         assert_eq!(got.runtime_binding, Some(TemplateRuntimeBinding::Candle));
         assert_eq!(got.instance, 2);
@@ -323,7 +441,11 @@ mod tests {
         // two fields the calendar template lacked, plus the resume lineage root).
         assert_eq!(got.worktree_id.as_deref(), Some("wt-research"));
         assert_eq!(got.working_dir.as_deref(), Some("D:/work/wt-research"));
-        assert_eq!(got.isolation_tier, Some(TemplateIsolationTier::Tier3Microvm));
+        assert_eq!(
+            got.isolation_tier,
+            Some(TemplateIsolationTier::Tier3Microvm)
+        );
+        assert_eq!(got.committed_memory_bytes, Some(6 * 1024 * 1024 * 1024));
         assert_eq!(got.origin_session_id, "origin#0");
         assert!(store.contains(key));
     }
@@ -348,7 +470,11 @@ mod tests {
         let doc = store.load().expect("reload");
         assert_eq!(doc.templates.len(), 2, "re-upsert did not add a row");
         assert_eq!(
-            doc.templates.get(b).expect("b present").cloud_model_name.as_deref(),
+            doc.templates
+                .get(b)
+                .expect("b present")
+                .cloud_model_name
+                .as_deref(),
             Some("gpt-4o")
         );
     }

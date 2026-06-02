@@ -16,16 +16,14 @@ use std::time::Duration;
 use chrono::{DateTime, Utc};
 use tokio::sync::{OwnedSemaphorePermit, Semaphore};
 use tokio::task::JoinHandle;
-use uuid::Uuid;
 
 use crate::model_runtime::CancellationToken;
+use crate::model_runtime::ProviderKind;
 use crate::process_ledger::{
     LedgerBatcher, ProcessEngineKind, ProcessOwnershipRecordId, ProcessStop, ReclaimTrigger,
 };
 
-use super::breaker::{
-    AdmitDecision, BreakerConfig, FailureFingerprint, FailureFingerprintBreaker,
-};
+use super::breaker::{AdmitDecision, BreakerConfig, FailureFingerprint, FailureFingerprintBreaker};
 use super::error::{SwarmError, SwarmResult};
 use super::events::{SwarmEvent, SwarmEventSink};
 use super::factory::{LiveSession, ModelSessionFactory, SessionTeardown};
@@ -127,6 +125,10 @@ pub struct SessionHandle {
     /// when the session is ungrouped/ad-hoc.
     swarm_id: Option<String>,
     worktree_id: Option<String>,
+    /// Rank-6 committed-memory bytes reserved for this live session. Released
+    /// only after terminal teardown, so new sessions are not admitted while a
+    /// cancelling VM/model still owns memory.
+    committed_memory_bytes: u64,
 }
 
 impl SessionHandle {
@@ -177,12 +179,83 @@ struct Accounting {
     last_failure_signature: HashMap<ModelInstanceId, FailureFingerprint>,
     tokens_used: u64,
     cost_micros_used: u64,
+    committed_memory_bytes_used: u64,
+}
+
+/// Cancellation-safe committed-memory reservation. Async spawn admission crosses
+/// `await` points before a `SessionHandle` exists; dropping this guard releases
+/// the reservation unless ownership was transferred into the registry.
+struct CommittedMemoryReservation {
+    inner: Arc<Inner>,
+    bytes: u64,
+    armed: bool,
+}
+
+impl CommittedMemoryReservation {
+    fn reserve(inner: Arc<Inner>, bytes: u64) -> Result<Self, String> {
+        inner.try_reserve_committed_memory(bytes)?;
+        Ok(Self {
+            inner,
+            bytes,
+            armed: true,
+        })
+    }
+
+    fn disarm(&mut self) {
+        self.armed = false;
+    }
+}
+
+impl Drop for CommittedMemoryReservation {
+    fn drop(&mut self) {
+        if self.armed {
+            self.inner.release_committed_memory(self.bytes);
+            self.armed = false;
+        }
+    }
+}
+
+/// Cancellation-safe lifetime-spawn reservation. Successful registry insertion
+/// consumes the lifetime budget; every rollback path, including task abort,
+/// returns it.
+struct LifetimeSpawnReservation {
+    inner: Arc<Inner>,
+    reserved: u64,
+    armed: bool,
+}
+
+impl LifetimeSpawnReservation {
+    fn reserve(inner: Arc<Inner>) -> Self {
+        let reserved = inner.lifetime_spawns.fetch_add(1, Ordering::SeqCst) + 1;
+        Self {
+            inner,
+            reserved,
+            armed: true,
+        }
+    }
+
+    fn disarm(&mut self) {
+        self.armed = false;
+    }
+}
+
+impl Drop for LifetimeSpawnReservation {
+    fn drop(&mut self) {
+        if self.armed {
+            self.inner.lifetime_spawns.fetch_sub(1, Ordering::SeqCst);
+            self.armed = false;
+        }
+    }
 }
 
 /// The coordinator handle the operator/scheduler holds.
 pub struct SwarmCoordinator {
     inner: Arc<Inner>,
     reaper: Mutex<Option<JoinHandle<()>>>,
+}
+
+fn reserves_host_committed_memory(request: &SpawnRequest) -> bool {
+    matches!(request.provider, None | Some(ProviderKind::Local))
 }
 
 impl SwarmCoordinator {
@@ -197,8 +270,9 @@ impl SwarmCoordinator {
         ledger: LedgerBatcher,
     ) -> Self {
         let semaphore = Arc::new(Semaphore::new(config.budget.max_concurrent.max(1)));
-        let cold_start_semaphore =
-            Arc::new(Semaphore::new(config.budget.max_concurrent_cold_starts.max(1)));
+        let cold_start_semaphore = Arc::new(Semaphore::new(
+            config.budget.max_concurrent_cold_starts.max(1),
+        ));
         let breaker = FailureFingerprintBreaker::new(config.breaker);
         let inner = Arc::new(Inner {
             registry: Mutex::new(HashMap::new()),
@@ -251,7 +325,7 @@ impl SwarmCoordinator {
     /// bound failure returns a typed error and the partially-acquired resources
     /// are released.
     pub async fn spawn_session(&self, request: SpawnRequest) -> SwarmResult<ModelInstanceId> {
-        let inner = &self.inner;
+        let inner = Arc::clone(&self.inner);
         let instance_id = request.instance_id;
 
         // (0a) Duplicate pre-check (best-effort, fast path). The authoritative
@@ -288,19 +362,43 @@ impl SwarmCoordinator {
             }
         }
 
-        // (1) Budget: token/cost ceilings exhausted?
-        if let Some(dimension) = inner.exhausted_budget_dimension() {
+        // (1) Budget: token/cost ceilings exhausted? These are global run
+        // ceilings. Committed memory is provider-aware and checked below so
+        // cloud lanes can still escape saturated local host memory.
+        if let Some(dimension) = inner.exhausted_global_budget_dimension() {
             self.emit_spawn_rejected(instance_id, &format!("budget:{dimension}"));
             return Err(SwarmError::BudgetExhausted { dimension });
         }
+        let committed_memory_bytes = if !reserves_host_committed_memory(&request) {
+            0
+        } else if inner.config.budget.max_committed_memory_bytes.is_some() {
+            match request.committed_memory_bytes {
+                Some(bytes) => bytes,
+                None => {
+                    let dimension = "committed_memory_unestimated".to_string();
+                    self.emit_spawn_rejected(instance_id, &format!("budget:{dimension}"));
+                    return Err(SwarmError::BudgetExhausted { dimension });
+                }
+            }
+        } else {
+            request.committed_memory_bytes.unwrap_or(0)
+        };
+        let mut committed_memory_reservation =
+            match CommittedMemoryReservation::reserve(Arc::clone(&inner), committed_memory_bytes) {
+                Ok(reservation) => reservation,
+                Err(dimension) => {
+                    self.emit_spawn_rejected(instance_id, &format!("budget:{dimension}"));
+                    return Err(SwarmError::BudgetExhausted { dimension });
+                }
+            };
 
         // (2) Lifetime spawn ceiling (monotonic, HBR-SWARM-002 semantics).
         // Reserve a slot atomically; roll back if anything downstream fails so
         // a rejected spawn does not permanently consume budget.
-        let reserved = inner.lifetime_spawns.fetch_add(1, Ordering::SeqCst) + 1;
+        let mut lifetime_reservation = LifetimeSpawnReservation::reserve(Arc::clone(&inner));
+        let reserved = lifetime_reservation.reserved;
         let ceiling = inner.config.budget.max_lifetime_spawns;
         if reserved > ceiling {
-            inner.lifetime_spawns.fetch_sub(1, Ordering::SeqCst);
             self.emit_spawn_rejected(instance_id, "lifetime_ceiling");
             return Err(SwarmError::LifetimeSpawnCeilingReached {
                 spawned: reserved.saturating_sub(1),
@@ -313,7 +411,6 @@ impl SwarmCoordinator {
         let permit = match inner.semaphore.clone().try_acquire_owned() {
             Ok(p) => p,
             Err(_) => {
-                inner.lifetime_spawns.fetch_sub(1, Ordering::SeqCst);
                 let cap = inner.config.budget.max_concurrent;
                 self.emit_spawn_rejected(instance_id, "concurrency_cap");
                 return Err(SwarmError::ConcurrencyCapReached {
@@ -323,16 +420,16 @@ impl SwarmCoordinator {
             }
         };
 
-        // (4) Factory create — the real (or controllable) load. The factory
-        // records the process-ledger START (C7): it owns the START so that any
-        // factory failure stops its own START before returning, leaving no
-        // orphan. The coordinator owns the STOP symmetrically on every terminal
-        // path. (See `terminate` / `reap_expired`.)
         // (3b) Cold-start admission: bound SIMULTANEOUS boots separately from
         // run-concurrency. An admitted spawn waits here for a boot slot, then
         // releases it the instant boot completes (the permit is scoped to the
         // create() call), so a RUNNING session never holds a boot slot. The
         // boot/networking layer (TAP/CNI) is the scale wall, not the running count.
+        // (4) Factory create — the real (or controllable) load. The factory
+        // records the process-ledger START (C7): it owns the START so that any
+        // factory failure stops its own START before returning, leaving no
+        // orphan. The coordinator owns the STOP symmetrically on every terminal
+        // path. (See `terminate` / `reap_expired`.)
         let create_result = {
             let _boot_permit = inner
                 .cold_start_semaphore
@@ -351,9 +448,12 @@ impl SwarmCoordinator {
                 // exists, roll back this spawn's permit + lifetime reservation
                 // AND fully tear down the just-created session (cancel +
                 // teardown + ledger STOP) so the loser leaves no orphan START.
-                let inserted = self.try_insert_ready(&request, live, permit);
+                let inserted =
+                    self.try_insert_ready(&request, live, permit, committed_memory_bytes);
                 match inserted {
                     Ok(()) => {
+                        lifetime_reservation.disarm();
+                        committed_memory_reservation.disarm();
                         // Heal the breaker for this instance's tracked signature
                         // on a real success (C4). A signature that tripped
                         // recovers after a genuine success, not only cooldown.
@@ -372,7 +472,6 @@ impl SwarmCoordinator {
                         // Lost the race: an instance is already live. Release
                         // permit + lifetime reservation and tear down the loser.
                         drop(permit);
-                        inner.lifetime_spawns.fetch_sub(1, Ordering::SeqCst);
                         self.teardown_orphan(instance_id, live).await;
                         Err(SwarmError::DuplicateInstance(instance_id))
                     }
@@ -384,7 +483,6 @@ impl SwarmCoordinator {
                 // (C7) to have stopped any START it recorded before failing, so
                 // there is no orphan START to clean up here.
                 drop(permit);
-                inner.lifetime_spawns.fetch_sub(1, Ordering::SeqCst);
 
                 // Feed the failure-fingerprint breaker. Only genuine failures
                 // (not capacity refusals) accrue. Track the signature per
@@ -529,15 +627,20 @@ impl SwarmCoordinator {
         let cost_remaining = budget
             .max_total_cost_micros
             .map(|max| max.saturating_sub(acc.cost_micros_used));
+        let committed_memory_bytes_remaining = budget
+            .max_committed_memory_bytes
+            .map(|max| max.saturating_sub(acc.committed_memory_bytes_used));
         let lifetime_remaining = budget.max_lifetime_spawns.saturating_sub(lifetime);
         let exhausted = lifetime_remaining == 0
             || tokens_remaining == Some(0)
-            || cost_remaining == Some(0);
+            || cost_remaining == Some(0)
+            || committed_memory_bytes_remaining == Some(0);
         BudgetRemaining {
             concurrency_permits_available: self.inner.semaphore.available_permits(),
             lifetime_spawns_remaining: lifetime_remaining,
             tokens_remaining,
             cost_micros_remaining: cost_remaining,
+            committed_memory_bytes_remaining,
             exhausted,
         }
     }
@@ -558,10 +661,7 @@ impl SwarmCoordinator {
     /// Test-only: number of consecutive failures the breaker has recorded for a
     /// signature (C4 healing proof — a real success must reset this to 0).
     #[cfg(test)]
-    pub(crate) fn breaker_consecutive_failures_for_test(
-        &self,
-        fp: &FailureFingerprint,
-    ) -> u32 {
+    pub(crate) fn breaker_consecutive_failures_for_test(&self, fp: &FailureFingerprint) -> u32 {
         self.inner
             .breaker
             .lock()
@@ -762,6 +862,7 @@ impl SwarmCoordinator {
         request: &SpawnRequest,
         live: LiveSession,
         permit: OwnedSemaphorePermit,
+        committed_memory_bytes: u64,
     ) -> Result<(), (LiveSession, OwnedSemaphorePermit)> {
         let now = Utc::now();
         // rank-7: a per-spawn time_box overrides the configured lease_ttl, so a
@@ -801,6 +902,7 @@ impl SwarmCoordinator {
                 started_at: now,
                 swarm_id: request.swarm_id.clone(),
                 worktree_id: request.worktree_id.clone(),
+                committed_memory_bytes,
             };
             registry.insert(instance_id, handle);
         }
@@ -809,6 +911,8 @@ impl SwarmCoordinator {
             instance_id,
             parent_session_id: request.parent_session_id.clone(),
             process_uuid,
+            swarm_id: request.swarm_id.clone(),
+            worktree_id: request.worktree_id.clone(),
         });
         self.inner
             .sink
@@ -879,6 +983,8 @@ impl SwarmCoordinator {
         if let Some(teardown) = handle.teardown.take() {
             let _ = teardown().await;
         }
+        self.inner
+            .release_committed_memory(handle.committed_memory_bytes);
 
         // Write the matching process-ledger stop row so there is no orphan.
         let stop = self.build_stop(
@@ -984,19 +1090,14 @@ impl SwarmCoordinator {
 
 impl Drop for SwarmCoordinator {
     fn drop(&mut self) {
-        if let Some(handle) = self
-            .reaper
-            .lock()
-            .ok()
-            .and_then(|mut g| g.take())
-        {
+        if let Some(handle) = self.reaper.lock().ok().and_then(|mut g| g.take()) {
             handle.abort();
         }
     }
 }
 
 impl Inner {
-    fn exhausted_budget_dimension(&self) -> Option<String> {
+    fn exhausted_global_budget_dimension(&self) -> Option<String> {
         let budget = &self.config.budget;
         let acc = self.accounting.lock().expect("accounting poisoned");
         if let Some(max) = budget.max_total_tokens {
@@ -1010,6 +1111,37 @@ impl Inner {
             }
         }
         None
+    }
+
+    /// Reserve committed memory before factory/model/VM creation. The caller
+    /// must release the same amount on every later rollback or teardown path.
+    /// A zero reservation is a no-op so requests without estimates stay
+    /// backward-compatible.
+    fn try_reserve_committed_memory(&self, bytes: u64) -> Result<(), String> {
+        if bytes == 0 {
+            return Ok(());
+        }
+        let Some(max) = self.config.budget.max_committed_memory_bytes else {
+            return Ok(());
+        };
+        let mut acc = self.accounting.lock().expect("accounting poisoned");
+        let next = acc.committed_memory_bytes_used.saturating_add(bytes);
+        if next > max {
+            return Err("committed_memory".to_string());
+        }
+        acc.committed_memory_bytes_used = next;
+        Ok(())
+    }
+
+    /// Release a previous committed-memory reservation. Saturating subtraction
+    /// keeps teardown idempotent under defensive double-release bugs while still
+    /// preserving no-overcommit on the normal single-release path.
+    fn release_committed_memory(&self, bytes: u64) {
+        if bytes == 0 {
+            return;
+        }
+        let mut acc = self.accounting.lock().expect("accounting poisoned");
+        acc.committed_memory_bytes_used = acc.committed_memory_bytes_used.saturating_sub(bytes);
     }
 
     /// Heal the breaker for an instance's tracked failure signature after a
@@ -1030,7 +1162,10 @@ impl Inner {
 
     /// The most recent failure signature observed for `instance_id`, if any.
     /// Drives the breaker ADMISSION gate (D3).
-    fn last_failure_signature_for(&self, instance_id: ModelInstanceId) -> Option<FailureFingerprint> {
+    fn last_failure_signature_for(
+        &self,
+        instance_id: ModelInstanceId,
+    ) -> Option<FailureFingerprint> {
         self.accounting
             .lock()
             .expect("accounting poisoned")
@@ -1085,7 +1220,9 @@ async fn reap_expired(inner: &Arc<Inner>) {
             let mut registry = inner.registry.lock().expect("registry poisoned");
             registry.remove(&instance_id)
         };
-        let Some(handle) = handle.as_mut() else { continue };
+        let Some(handle) = handle.as_mut() else {
+            continue;
+        };
         handle.cancel.cancel();
         handle.runtime.cancel(handle.cancel.clone());
 
@@ -1096,6 +1233,7 @@ async fn reap_expired(inner: &Arc<Inner>) {
         if let Some(teardown) = handle.teardown.take() {
             let _ = teardown().await;
         }
+        inner.release_committed_memory(handle.committed_memory_bytes);
 
         let stop = ProcessStop {
             process_uuid: handle.process_record_id.as_uuid(),

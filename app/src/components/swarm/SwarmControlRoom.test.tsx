@@ -11,6 +11,33 @@ const spawnSessionMock = vi.fn(async (_request: Record<string, unknown>) => ({
   instance: 0,
   composite: "m#0",
 }));
+const spawnLocalCloudPairMock = vi.fn(async (_request: Record<string, unknown>) => ({
+  local: {
+    provider: "local",
+    instanceId: { modelId: "local-m", instance: 0, composite: "local-m#0" },
+    error: null,
+  },
+  cloud: {
+    provider: "byok_cloud",
+    instanceId: { modelId: "cloud-m", instance: 0, composite: "cloud-m#0" },
+    error: null,
+  },
+}));
+const spawnWithCloudEscalationMock = vi.fn(async (_request: Record<string, unknown>) => ({
+  selected: "cloud",
+  escalated: true,
+  escalationReason: "SWARM_CONCURRENCY_CAP_REACHED: 4 of 4 permits in use",
+  local: {
+    provider: "local",
+    instanceId: null,
+    error: "SWARM_CONCURRENCY_CAP_REACHED: 4 of 4 permits in use",
+  },
+  cloud: {
+    provider: "byok_cloud",
+    instanceId: { modelId: "cloud-m", instance: 0, composite: "cloud-m#0" },
+    error: null,
+  },
+}));
 const listWorktreesMock = vi.fn(async () => [
   { worktreeId: "wt-existing", liveSessionCount: 2 },
 ]);
@@ -30,20 +57,35 @@ vi.mock("../../lib/ipc/swarm_runtime", async () => {
       lifetimeSpawnsRemaining: 100,
       tokensRemaining: null,
       costMicrosRemaining: null,
+      committedMemoryBytesRemaining: 8 * 1024 * 1024 * 1024,
+      committedMemoryBytesCap: 16 * 1024 * 1024 * 1024,
       budgetExhausted: false,
     })),
     listActiveSessions: () => listActiveSessionsMock(),
     listWorktrees: () => listWorktreesMock(),
     spawnSession: (request: Record<string, unknown>) => spawnSessionMock(request),
+    spawnLocalCloudPair: (request: Record<string, unknown>) => spawnLocalCloudPairMock(request),
+    spawnWithCloudEscalation: (request: Record<string, unknown>) =>
+      spawnWithCloudEscalationMock(request),
     cancelSession: vi.fn(),
     chatGenerate: vi.fn(),
   };
 });
 
-import { SwarmControlRoom, effectiveWorktreeId, NEW_WORKTREE_SENTINEL } from "./SwarmControlRoom";
+import {
+  SwarmControlRoom,
+  committedMemoryMiBToBytes,
+  committedMemorySubmitBytes,
+  effectiveWorktreeId,
+  swarmBudgetExhaustionLabel,
+  swarmResourceBadge,
+  NEW_WORKTREE_SENTINEL,
+} from "./SwarmControlRoom";
 
 beforeEach(() => {
   spawnSessionMock.mockClear();
+  spawnLocalCloudPairMock.mockClear();
+  spawnWithCloudEscalationMock.mockClear();
   listWorktreesMock.mockClear();
   listActiveSessionsMock.mockClear();
   listActiveSessionsMock.mockResolvedValue([]);
@@ -69,6 +111,53 @@ describe("effectiveWorktreeId", () => {
   });
 });
 
+describe("committedMemoryMiBToBytes", () => {
+  test("converts positive MiB strings to byte estimates", () => {
+    expect(committedMemoryMiBToBytes("6144")).toBe(6 * 1024 * 1024 * 1024);
+  });
+
+  test("blank and invalid values omit the estimate", () => {
+    expect(committedMemoryMiBToBytes("")).toBeUndefined();
+    expect(committedMemoryMiBToBytes("0")).toBeUndefined();
+    expect(committedMemoryMiBToBytes("-1")).toBeUndefined();
+    expect(committedMemoryMiBToBytes("not-a-number")).toBeUndefined();
+  });
+
+  test("preserves exact template bytes when the prefilled MiB value is unchanged", () => {
+    expect(committedMemorySubmitBytes("118", 123456789)).toBe(123456789);
+  });
+});
+
+describe("swarm budget labels", () => {
+  const baseSnapshot = {
+    concurrencyCap: 4,
+    concurrencyInUse: 0,
+    concurrencyAvailable: 4,
+    liveSessions: 0,
+    lifetimeSpawnsRemaining: 100,
+    tokensRemaining: null,
+    costMicrosRemaining: null,
+    committedMemoryBytesRemaining: 0,
+    committedMemoryBytesCap: 16 * 1024 * 1024 * 1024,
+    budgetExhausted: true,
+  };
+
+  test("committed-memory-only exhaustion is local-lane specific", () => {
+    expect(swarmBudgetExhaustionLabel(baseSnapshot)).toBe(
+      "Local committed memory exhausted - local spawns are blocked; cloud lanes remain available",
+    );
+    expect(swarmResourceBadge(baseSnapshot)).toBe("local memory exhausted");
+  });
+
+  test("global budget exhaustion still reports all spawns blocked", () => {
+    const tokenExhausted = { ...baseSnapshot, tokensRemaining: 0 };
+    expect(swarmBudgetExhaustionLabel(tokenExhausted)).toBe(
+      "Budget exhausted - spawns are blocked",
+    );
+    expect(swarmResourceBadge(tokenExhausted)).toBe("budget exhausted");
+  });
+});
+
 describe("SwarmControlRoom spawn-form assignment controls", () => {
   test("the worktree picker lists discovered worktrees + a new-entry option, and the isolation honesty note is shown", async () => {
     render(<SwarmControlRoom />);
@@ -85,12 +174,16 @@ describe("SwarmControlRoom spawn-form assignment controls", () => {
     expect(within(select).getByRole("option", { name: /Unassigned/ })).toBeInTheDocument();
     expect(within(select).getByRole("option", { name: /New worktree/ })).toBeInTheDocument();
 
-    // The mandatory "recorded, not enforced" honesty note is present.
+    // The mandatory Tier3 scope honesty note is present.
     expect(screen.getByTestId("swarm-isolation-note")).toHaveTextContent(
-      /recorded, not yet enforced/i,
+      /Tier3 microVM is enforced for local llama\.cpp/i,
     );
     // The disk working-dir field is optional and present.
     expect(screen.getByTestId("swarm-spawn-working-dir")).toBeInTheDocument();
+    expect(screen.getByTestId("swarm-spawn-committed-memory-mib")).toBeInTheDocument();
+    expect(screen.getByTestId("swarm-stat-committed-memory")).toHaveTextContent(
+      /Committed memory: 8\.0 GiB \/ 16\.0 GiB remaining/i,
+    );
   });
 
   test("selecting '+ New worktree…' reveals a free-text input whose value is threaded onto the spawn request", async () => {
@@ -131,10 +224,38 @@ describe("SwarmControlRoom spawn-form assignment controls", () => {
     fireEvent.change(screen.getByTestId("swarm-spawn-isolation-tier"), {
       target: { value: "tier3_microvm" },
     });
+    fireEvent.change(screen.getByTestId("swarm-spawn-committed-memory-mib"), {
+      target: { value: "6144" },
+    });
 
+    fireEvent.change(screen.getByTestId("swarm-spawn-artifact-path"), {
+      target: { value: "D:/models/tiny.safetensors" },
+    });
+    fireEvent.change(screen.getByTestId("swarm-spawn-sha256"), {
+      target: { value: "ab".repeat(32) },
+    });
+    fireEvent.click(screen.getByTestId("swarm-spawn-submit"));
+
+    await waitFor(() => expect(spawnSessionMock).toHaveBeenCalled());
+    const req = lastSpawnRequest();
+    expect(req.provider).toBe("local");
+    expect(req.worktreeId).toBe("wt-existing");
+    expect(req.workingDir).toBe("D:/work/wt-foo");
+    expect(req.isolationTier).toBe("tier3_microvm");
+    expect(req.committedMemoryBytes).toBe(6 * 1024 * 1024 * 1024);
+  });
+
+  test("cloud-only spawn hides and omits the local committed-memory estimate", async () => {
+    render(<SwarmControlRoom />);
+    await screen.findByTestId("swarm-spawn-worktree-select");
+    expect(screen.getByTestId("swarm-spawn-committed-memory-mib")).toBeInTheDocument();
+    fireEvent.change(screen.getByTestId("swarm-spawn-committed-memory-mib"), {
+      target: { value: "6144" },
+    });
     fireEvent.change(screen.getByTestId("swarm-spawn-provider"), {
       target: { value: "byok_cloud" },
     });
+    expect(screen.queryByTestId("swarm-spawn-committed-memory-mib")).toBeNull();
     fireEvent.change(screen.getByTestId("swarm-spawn-cloud-model"), {
       target: { value: "gpt-4o" },
     });
@@ -142,9 +263,8 @@ describe("SwarmControlRoom spawn-form assignment controls", () => {
 
     await waitFor(() => expect(spawnSessionMock).toHaveBeenCalled());
     const req = lastSpawnRequest();
-    expect(req.worktreeId).toBe("wt-existing");
-    expect(req.workingDir).toBe("D:/work/wt-foo");
-    expect(req.isolationTier).toBe("tier3_microvm");
+    expect(req.provider).toBe("byok_cloud");
+    expect("committedMemoryBytes" in req).toBe(false);
   });
 
   test("blank assignment omits worktree/workingDir/isolationTier (honest unassigned)", async () => {
@@ -163,6 +283,104 @@ describe("SwarmControlRoom spawn-form assignment controls", () => {
     expect("worktreeId" in req).toBe(false);
     expect("workingDir" in req).toBe(false);
     expect("isolationTier" in req).toBe(false);
+    expect("committedMemoryBytes" in req).toBe(false);
+    expect("swarmId" in req).toBe(false);
+  });
+
+  test("local+cloud pair workflow sends both lane requests with shared assignment", async () => {
+    render(<SwarmControlRoom />);
+    await screen.findByTestId("swarm-spawn-worktree-select");
+
+    fireEvent.change(screen.getByTestId("swarm-spawn-workflow"), {
+      target: { value: "local_cloud_pair" },
+    });
+    fireEvent.change(screen.getByTestId("swarm-spawn-binding"), {
+      target: { value: "llama_cpp" },
+    });
+    fireEvent.change(screen.getByTestId("swarm-spawn-artifact-path"), {
+      target: { value: "D:/models/tiny.gguf" },
+    });
+    fireEvent.change(screen.getByTestId("swarm-spawn-sha256"), {
+      target: { value: "ab".repeat(32) },
+    });
+    fireEvent.change(screen.getByTestId("swarm-spawn-cloud-provider"), {
+      target: { value: "official_cli" },
+    });
+    fireEvent.change(screen.getByTestId("swarm-spawn-cloud-model"), {
+      target: { value: "claude-sonnet-4" },
+    });
+    fireEvent.change(screen.getByTestId("swarm-spawn-worktree-select"), {
+      target: { value: NEW_WORKTREE_SENTINEL },
+    });
+    fireEvent.change(await screen.findByTestId("swarm-spawn-worktree-new"), {
+      target: { value: "wt-pair" },
+    });
+    fireEvent.change(screen.getByTestId("swarm-spawn-working-dir"), {
+      target: { value: "./worktrees/wt-pair" },
+    });
+    fireEvent.change(screen.getByTestId("swarm-spawn-isolation-tier"), {
+      target: { value: "tier3_microvm" },
+    });
+    fireEvent.change(screen.getByTestId("swarm-spawn-committed-memory-mib"), {
+      target: { value: "4096" },
+    });
+    fireEvent.click(screen.getByTestId("swarm-spawn-submit"));
+
+    await waitFor(() => expect(spawnLocalCloudPairMock).toHaveBeenCalled());
+    const pairCalls = spawnLocalCloudPairMock.mock.calls;
+    const request = pairCalls[pairCalls.length - 1][0] as {
+      local: Record<string, unknown>;
+      cloud: Record<string, unknown>;
+    };
+    expect(request.local.provider).toBe("local");
+    expect(request.local.runtimeBinding).toBe("llama_cpp");
+    expect(request.local.swarmId).toBe("wt-pair");
+    expect(request.local.worktreeId).toBe("wt-pair");
+    expect(request.local.committedMemoryBytes).toBe(4 * 1024 * 1024 * 1024);
+    expect(request.cloud.provider).toBe("official_cli");
+    expect(request.cloud.cloudModelName).toBe("claude-sonnet-4");
+    expect(request.cloud.swarmId).toBe("wt-pair");
+    expect(request.cloud.worktreeId).toBe("wt-pair");
+    expect(request.cloud.workingDir).toBe("./worktrees/wt-pair");
+    expect("committedMemoryBytes" in request.cloud).toBe(false);
+    expect(screen.getByTestId("swarm-spawn-notice")).toHaveTextContent(/Pair attempted/i);
+  });
+
+  test("capacity escalation workflow calls the explicit local-then-cloud IPC", async () => {
+    render(<SwarmControlRoom />);
+    await screen.findByTestId("swarm-spawn-worktree-select");
+
+    fireEvent.change(screen.getByTestId("swarm-spawn-workflow"), {
+      target: { value: "local_cloud_escalation" },
+    });
+    fireEvent.change(screen.getByTestId("swarm-spawn-artifact-path"), {
+      target: { value: "D:/models/tiny.safetensors" },
+    });
+    fireEvent.change(screen.getByTestId("swarm-spawn-sha256"), {
+      target: { value: "cd".repeat(32) },
+    });
+    fireEvent.change(screen.getByTestId("swarm-spawn-cloud-model"), {
+      target: { value: "gpt-4o" },
+    });
+    fireEvent.change(screen.getByTestId("swarm-spawn-worktree-select"), {
+      target: { value: "wt-existing" },
+    });
+    fireEvent.click(screen.getByTestId("swarm-spawn-submit"));
+
+    await waitFor(() => expect(spawnWithCloudEscalationMock).toHaveBeenCalled());
+    const escalationCalls = spawnWithCloudEscalationMock.mock.calls;
+    const request = escalationCalls[escalationCalls.length - 1][0] as {
+      local: Record<string, unknown>;
+      cloud: Record<string, unknown>;
+    };
+    expect(request.local.provider).toBe("local");
+    expect(request.cloud.provider).toBe("byok_cloud");
+    expect(request.cloud.byokCloudProvider).toBe("openai");
+    expect(request.local.swarmId).toBe("wt-existing");
+    expect(request.local.worktreeId).toBe("wt-existing");
+    expect(request.cloud.swarmId).toBe("wt-existing");
+    expect(request.cloud.worktreeId).toBe("wt-existing");
+    expect(screen.getByTestId("swarm-spawn-notice")).toHaveTextContent(/Escalated to cloud/i);
   });
 
   test("the sessions table renders a Worktree column showing the assigned id or — when unassigned", async () => {

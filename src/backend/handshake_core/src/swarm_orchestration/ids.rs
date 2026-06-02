@@ -7,9 +7,20 @@ use std::fmt;
 
 use serde::{Deserialize, Serialize};
 
+use crate::model_runtime::registry::RuntimeBinding;
 use crate::model_runtime::ModelId;
 use crate::model_runtime::ProviderKind;
-use crate::model_runtime::registry::RuntimeBinding;
+
+/// Specific BYOK provider under the coarse `ProviderKind::ByokCloud` lane.
+/// Kept optional on [`SpawnRequest`] for backward compatibility: old callers
+/// that only say "byok_cloud" keep the existing production fallback order.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ByokCloudProvider {
+    Anthropic,
+    #[serde(rename = "openai", alias = "open_ai")]
+    OpenAi,
+}
 
 /// Identifies one *instance* of a model in the swarm. The same `ModelId` may
 /// run as multiple concurrent instances (e.g. two llama.cpp workers of the
@@ -51,6 +62,10 @@ pub struct SpawnRequest {
     /// passes to the cloud adapter's allowlisted `load`. Required for cloud
     /// providers; ignored for local.
     pub cloud_model_name: Option<String>,
+    /// Optional provider flavor for `ProviderKind::ByokCloud`. Without this the
+    /// production factory uses its legacy configured-lane fallback; with it, the
+    /// requested Anthropic/OpenAI lane must be configured and is honored exactly.
+    pub byok_cloud_provider: Option<ByokCloudProvider>,
     /// Role that owns the spawned process (recorded in the process ledger).
     pub owner_role: String,
     /// Optional governance attribution carried into the ledger.
@@ -104,6 +119,14 @@ pub struct SpawnRequest {
     /// reaper reclaims it at expiry -- a time-boxed (e.g. calendar-scheduled)
     /// session needs NO new teardown code. `None` uses the configured lease_ttl.
     pub time_box: Option<std::time::Duration>,
+    /// Rank-6 committed-memory admission estimate for this session, in bytes.
+    /// For local provider lanes, the coordinator reserves this amount before
+    /// factory/model/VM creation and releases it only after terminal teardown.
+    /// When a run configures a committed-memory ceiling, local `None` is
+    /// rejected fail-closed as an unestimated request. Cloud/external provider
+    /// lanes do not reserve host committed memory, so their estimates are
+    /// ignored by admission and remain backward-compatible.
+    pub committed_memory_bytes: Option<u64>,
 }
 
 impl SpawnRequest {
@@ -118,6 +141,7 @@ impl SpawnRequest {
             runtime_binding,
             provider: None,
             cloud_model_name: None,
+            byok_cloud_provider: None,
             owner_role: owner_role.into(),
             owner_wp: None,
             role_id: None,
@@ -131,6 +155,7 @@ impl SpawnRequest {
             working_dir: None,
             isolation_tier: None,
             time_box: None,
+            committed_memory_bytes: None,
         }
     }
 
@@ -160,6 +185,12 @@ impl SpawnRequest {
     ) -> Self {
         self.provider = Some(provider);
         self.cloud_model_name = Some(model_name.into());
+        self
+    }
+
+    /// Select the exact BYOK provider under `ProviderKind::ByokCloud`.
+    pub fn with_byok_cloud_provider(mut self, provider: ByokCloudProvider) -> Self {
+        self.byok_cloud_provider = Some(provider);
         self
     }
 
@@ -195,10 +226,7 @@ impl SpawnRequest {
 
     /// Record the operator-intended isolation tier. RECORDED ONLY — see the
     /// `isolation_tier` field doc; not enforced (the session runs in-process).
-    pub fn with_isolation_tier(
-        mut self,
-        tier: crate::sandbox::adapter::IsolationTier,
-    ) -> Self {
+    pub fn with_isolation_tier(mut self, tier: crate::sandbox::adapter::IsolationTier) -> Self {
         self.isolation_tier = Some(tier);
         self
     }
@@ -208,6 +236,14 @@ impl SpawnRequest {
     /// runs; reuses the lease+reaper teardown path (no new teardown code).
     pub fn with_time_box(mut self, ttl: std::time::Duration) -> Self {
         self.time_box = Some(ttl);
+        self
+    }
+
+    /// Rank-6: reserve committed memory for this session before load/VM boot.
+    /// A zero estimate is treated as no reservation so callers can pass through
+    /// optional estimates without creating a permanent zero-valued field.
+    pub fn with_committed_memory_bytes(mut self, bytes: u64) -> Self {
+        self.committed_memory_bytes = (bytes > 0).then_some(bytes);
         self
     }
 
@@ -257,6 +293,11 @@ pub struct RunBudget {
     pub max_lifetime_spawns: u64,
     pub max_total_tokens: Option<u64>,
     pub max_total_cost_micros: Option<u64>,
+    /// Rank-6 no-overcommit cap for total live committed memory, in bytes.
+    /// Reservations are charged before factory.create()/VM boot and released
+    /// after terminal teardown, so the admitted set cannot exceed this ceiling.
+    #[serde(default)]
+    pub max_committed_memory_bytes: Option<u64>,
 }
 
 impl RunBudget {
@@ -271,10 +312,10 @@ impl RunBudget {
         Self {
             max_concurrent,
             max_concurrent_cold_starts: max_concurrent,
-            max_lifetime_spawns:
-                crate::test_harness::invariants::HBR_SWARM_002_LOOP_CAP as u64,
+            max_lifetime_spawns: crate::test_harness::invariants::HBR_SWARM_002_LOOP_CAP as u64,
             max_total_tokens: None,
             max_total_cost_micros: None,
+            max_committed_memory_bytes: None,
         }
     }
 
@@ -305,6 +346,12 @@ impl RunBudget {
         self.max_total_cost_micros = Some(max_total_cost_micros);
         self
     }
+
+    /// Rank-6: cap total committed memory of live sessions, in bytes.
+    pub fn with_committed_memory_ceiling(mut self, max_committed_memory_bytes: u64) -> Self {
+        self.max_committed_memory_bytes = Some(max_committed_memory_bytes);
+        self
+    }
 }
 
 impl Default for RunBudget {
@@ -322,5 +369,7 @@ pub struct BudgetRemaining {
     pub lifetime_spawns_remaining: u64,
     pub tokens_remaining: Option<u64>,
     pub cost_micros_remaining: Option<u64>,
+    #[serde(default)]
+    pub committed_memory_bytes_remaining: Option<u64>,
     pub exhausted: bool,
 }

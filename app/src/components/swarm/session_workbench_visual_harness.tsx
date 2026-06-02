@@ -112,6 +112,8 @@ mockIPC((cmd: string) => {
         lifetimeSpawnsRemaining: 100,
         tokensRemaining: null,
         costMicrosRemaining: null,
+        committedMemoryBytesRemaining: 6 * 1024 * 1024 * 1024,
+        committedMemoryBytesCap: 12 * 1024 * 1024 * 1024,
         budgetExhausted: false,
       };
     case "kernel_swarm_board_snapshot":

@@ -4,7 +4,10 @@ import {
   listActiveSessions,
   listWorktrees,
   resourceSnapshot,
+  spawnLocalCloudPair,
   spawnSession,
+  spawnWithCloudEscalation,
+  type ByokCloudProvider,
   type SessionSpawnTemplate,
   type SwarmIsolationTier,
   type SwarmProvider,
@@ -18,6 +21,8 @@ import { OperatorChat } from "./OperatorChat";
 
 /** Sentinel option that reveals the free-text "new worktree" input. */
 export const NEW_WORKTREE_SENTINEL = "__new__";
+
+export type SwarmSpawnWorkflow = "single" | "local_cloud_pair" | "local_cloud_escalation";
 
 /** Isolation tiers offered in the recorded-only selector (none + the 3 tiers). */
 export const ISOLATION_TIER_OPTIONS: ReadonlyArray<{ value: SwarmIsolationTier; label: string }> = [
@@ -43,6 +48,73 @@ function errorMessage(error: unknown): string {
   if (error instanceof Error) return error.message;
   if (typeof error === "string") return error;
   return "Unknown error";
+}
+
+const BYTES_PER_MIB = 1024 * 1024;
+const BYTES_PER_GIB = 1024 * BYTES_PER_MIB;
+
+export function committedMemoryMiBToBytes(value: string): number | undefined {
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+  const parsed = Number(trimmed);
+  if (!Number.isFinite(parsed) || parsed <= 0) return undefined;
+  return Math.ceil(parsed * BYTES_PER_MIB);
+}
+
+function committedMemoryBytesToMiBValue(bytes?: number | null): string {
+  if (!bytes || bytes <= 0) return "";
+  return String(Math.ceil(bytes / BYTES_PER_MIB));
+}
+
+export function committedMemorySubmitBytes(
+  value: string,
+  preservedBytes?: number | null,
+): number | undefined {
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+  if (
+    preservedBytes &&
+    preservedBytes > 0 &&
+    committedMemoryBytesToMiBValue(preservedBytes) === trimmed
+  ) {
+    return preservedBytes;
+  }
+  return committedMemoryMiBToBytes(value);
+}
+
+function formatBudgetBytes(bytes?: number | null): string {
+  if (bytes === undefined || bytes === null) return "uncapped";
+  if (bytes >= BYTES_PER_GIB) return `${(bytes / BYTES_PER_GIB).toFixed(1)} GiB`;
+  if (bytes >= BYTES_PER_MIB) return `${Math.round(bytes / BYTES_PER_MIB)} MiB`;
+  return `${bytes} B`;
+}
+
+export function isLocalCommittedMemoryOnlyExhausted(
+  snapshot: SwarmResourceSnapshot,
+): boolean {
+  return (
+    snapshot.budgetExhausted &&
+    snapshot.committedMemoryBytesRemaining === 0 &&
+    snapshot.lifetimeSpawnsRemaining !== 0 &&
+    snapshot.tokensRemaining !== 0 &&
+    snapshot.costMicrosRemaining !== 0
+  );
+}
+
+export function swarmBudgetExhaustionLabel(
+  snapshot: SwarmResourceSnapshot,
+): string | null {
+  if (!snapshot.budgetExhausted) return null;
+  if (isLocalCommittedMemoryOnlyExhausted(snapshot)) {
+    return "Local committed memory exhausted - local spawns are blocked; cloud lanes remain available";
+  }
+  return "Budget exhausted - spawns are blocked";
+}
+
+export function swarmResourceBadge(snapshot: SwarmResourceSnapshot): string {
+  if (isLocalCommittedMemoryOnlyExhausted(snapshot)) return "local memory exhausted";
+  if (snapshot.budgetExhausted) return "budget exhausted";
+  return `${snapshot.concurrencyInUse}/${snapshot.concurrencyCap} in use`;
 }
 
 /**
@@ -75,7 +147,11 @@ export function useSwarmRoom() {
   const [snapshot, setSnapshot] = useState<SnapshotState>({ status: "loading" });
 
   // Spawn form state.
+  const [spawnWorkflow, setSpawnWorkflow] = useState<SwarmSpawnWorkflow>("single");
   const [provider, setProvider] = useState<SwarmProvider>("local");
+  const [cloudProvider, setCloudProvider] =
+    useState<Extract<SwarmProvider, "byok_cloud" | "official_cli">>("byok_cloud");
+  const [byokCloudProvider, setByokCloudProvider] = useState<ByokCloudProvider>("openai");
   const [runtimeBinding, setRuntimeBinding] = useState<SwarmRuntimeBinding>("candle");
   const [artifactPath, setArtifactPath] = useState("");
   const [sha256, setSha256] = useState("");
@@ -86,16 +162,21 @@ export function useSwarmRoom() {
   const [spawnNotice, setSpawnNotice] = useState<string | null>(null);
 
   // Worktree / disk-location / isolation-tier ASSIGNMENT state (governance glue
-  // #2: assign a session a place on disk or a VM/sandbox worktree). All recorded
-  // attribution only — none of these route execution today (honest).
+  // #2: assign a session a place on disk or a VM/sandbox worktree). Tier3 local
+  // llama.cpp is load-bearing when sandbox support is wired; other combinations
+  // remain attribution.
   //
   // `worktreeSelection` is the <select> value: a discovered worktree id, the
   // NEW_WORKTREE_SENTINEL (reveal the free-text input), or "" (unassigned).
   const [worktrees, setWorktrees] = useState<SwarmWorktree[]>([]);
+  const [swarmId, setSwarmId] = useState("");
   const [worktreeSelection, setWorktreeSelection] = useState("");
   const [newWorktreeId, setNewWorktreeId] = useState("");
   const [workingDir, setWorkingDir] = useState("");
   const [isolationTier, setIsolationTier] = useState<SwarmIsolationTier | "">("");
+  const [committedMemoryMiB, setCommittedMemoryMiB] = useState("");
+  const [committedMemoryPrefillBytes, setCommittedMemoryPrefillBytes] =
+    useState<number | null>(null);
 
   // Selected session for the operator chat box (composite instance id).
   const [chatInstanceId, setChatInstanceId] = useState<string | null>(null);
@@ -153,30 +234,81 @@ export function useSwarmRoom() {
     setSpawnNotice(null);
     setSpawning(true);
     try {
-      const request: SwarmSpawnRequest = { provider, instance };
-      if (provider === "local") {
-        request.runtimeBinding = runtimeBinding;
-        request.artifactPath = artifactPath.trim();
-        request.sha256Expected = sha256.trim();
+      const applyAssignment = (request: SwarmSpawnRequest) => {
+        const wt = effectiveWorktreeId(worktreeSelection, newWorktreeId);
+        const swarm = swarmId.trim() || (spawnWorkflow !== "single" ? wt : "");
+        if (swarm) request.swarmId = swarm;
+        if (wt) request.worktreeId = wt;
+        const wd = workingDir.trim();
+        if (wd) request.workingDir = wd;
+        if (isolationTier) request.isolationTier = isolationTier;
+        const committedBytes = committedMemorySubmitBytes(
+          committedMemoryMiB,
+          committedMemoryPrefillBytes,
+        );
+        if (request.provider === "local" && committedBytes) {
+          request.committedMemoryBytes = committedBytes;
+        }
+        return request;
+      };
+      const localRequest = () =>
+        applyAssignment({
+          provider: "local",
+          runtimeBinding,
+          artifactPath: artifactPath.trim(),
+          sha256Expected: sha256.trim(),
+          instance,
+        });
+      const cloudRequest = (selectedProvider: Extract<SwarmProvider, "byok_cloud" | "official_cli">) =>
+        applyAssignment({
+          provider: selectedProvider,
+          cloudModelName: cloudModelName.trim(),
+          ...(selectedProvider === "byok_cloud" ? { byokCloudProvider } : {}),
+          instance,
+        });
+
+      let selectedComposite: string | null = null;
+      if (spawnWorkflow === "local_cloud_pair") {
+        const result = await spawnLocalCloudPair({
+          local: localRequest(),
+          cloud: cloudRequest(cloudProvider),
+        });
+        selectedComposite = result.local.instanceId?.composite ?? result.cloud.instanceId?.composite ?? null;
+        const localText = result.local.instanceId
+          ? `local ${result.local.instanceId.composite}`
+          : `local failed: ${result.local.error}`;
+        const cloudText = result.cloud.instanceId
+          ? `cloud ${result.cloud.instanceId.composite}`
+          : `cloud failed: ${result.cloud.error}`;
+        setSpawnNotice(`Pair attempted: ${localText}; ${cloudText}`);
+      } else if (spawnWorkflow === "local_cloud_escalation") {
+        const result = await spawnWithCloudEscalation({
+          local: localRequest(),
+          cloud: cloudRequest(cloudProvider),
+        });
+        selectedComposite =
+          result.cloud?.instanceId?.composite ?? result.local.instanceId?.composite ?? null;
+        if (result.selected === "local" && result.local.instanceId) {
+          setSpawnNotice(`Spawned local session ${result.local.instanceId.composite}`);
+        } else if (result.selected === "cloud" && result.cloud?.instanceId) {
+          setSpawnNotice(
+            `Escalated to cloud session ${result.cloud.instanceId.composite}: ${result.escalationReason}`,
+          );
+        } else {
+          setSpawnNotice(`No session spawned: ${result.local.error ?? "local spawn failed"}`);
+        }
       } else {
-        request.cloudModelName = cloudModelName.trim();
+        const request =
+          provider === "local"
+            ? localRequest()
+            : cloudRequest(provider as Extract<SwarmProvider, "byok_cloud" | "official_cli">);
+        const id = await spawnSession(request);
+        selectedComposite = id.composite;
+        setSpawnNotice(`Spawned session ${id.composite}`);
       }
-
-      // Worktree / disk-location / isolation-tier ASSIGNMENT (recorded only;
-      // does NOT route execution). Provider-independent: local AND cloud
-      // sessions can be assigned. Blank => omit so the backend records `None`
-      // (honest "unassigned"), mirroring the form-trim contract.
-      const wt = effectiveWorktreeId(worktreeSelection, newWorktreeId);
-      if (wt) request.worktreeId = wt;
-      const wd = workingDir.trim();
-      if (wd) request.workingDir = wd;
-      if (isolationTier) request.isolationTier = isolationTier;
-
-      const id = await spawnSession(request);
-      setSpawnNotice(`Spawned session ${id.composite}`);
       // Auto-select the new session for the chat box — ANY provider is chattable
       // now (the chat generate path is provider-agnostic), not just local.
-      setChatInstanceId(id.composite);
+      if (selectedComposite) setChatInstanceId(selectedComposite);
       await refresh();
       await refreshWorktrees();
     } catch (error) {
@@ -187,16 +319,22 @@ export function useSwarmRoom() {
       setSpawning(false);
     }
   }, [
+    spawnWorkflow,
     provider,
+    cloudProvider,
+    byokCloudProvider,
     runtimeBinding,
     artifactPath,
     sha256,
     cloudModelName,
     instance,
     worktreeSelection,
+    swarmId,
     newWorktreeId,
     workingDir,
     isolationTier,
+    committedMemoryMiB,
+    committedMemoryPrefillBytes,
     refresh,
     refreshWorktrees,
   ]);
@@ -214,6 +352,8 @@ export function useSwarmRoom() {
     setArtifactPath(tpl.artifactPath ?? "");
     setSha256(tpl.sha256Expected ?? "");
     setCloudModelName(tpl.cloudModelName ?? "");
+    setByokCloudProvider(tpl.byokCloudProvider ?? "openai");
+    setSwarmId(tpl.swarmId ?? "");
     if (tpl.worktreeId) {
       setWorktreeSelection(NEW_WORKTREE_SENTINEL);
       setNewWorktreeId(tpl.worktreeId);
@@ -223,6 +363,10 @@ export function useSwarmRoom() {
     }
     setWorkingDir(tpl.workingDir ?? "");
     setIsolationTier(tpl.isolationTier ?? "");
+    const templateMemoryBytes =
+      tpl.provider === "local" ? (tpl.committedMemoryBytes ?? null) : null;
+    setCommittedMemoryPrefillBytes(templateMemoryBytes);
+    setCommittedMemoryMiB(committedMemoryBytesToMiBValue(templateMemoryBytes));
     // A resume mints a fresh instance ordinal; default to 0 (the operator can
     // bump it if they intend a concurrent peer of an existing instance).
     setInstance(0);
@@ -256,8 +400,14 @@ export function useSwarmRoom() {
   return {
     sessions,
     snapshot,
+    spawnWorkflow,
+    setSpawnWorkflow,
     provider,
     setProvider,
+    cloudProvider,
+    setCloudProvider,
+    byokCloudProvider,
+    setByokCloudProvider,
     runtimeBinding,
     setRuntimeBinding,
     artifactPath,
@@ -269,6 +419,8 @@ export function useSwarmRoom() {
     instance,
     setInstance,
     worktrees,
+    swarmId,
+    setSwarmId,
     worktreeSelection,
     setWorktreeSelection,
     newWorktreeId,
@@ -277,6 +429,8 @@ export function useSwarmRoom() {
     setWorkingDir,
     isolationTier,
     setIsolationTier,
+    committedMemoryMiB,
+    setCommittedMemoryMiB,
     spawning,
     spawnError,
     spawnNotice,
@@ -348,8 +502,14 @@ export function SwarmResourceSection({ snapshot }: { snapshot: SnapshotState }) 
 /** Spawn-a-session form block. */
 export function SwarmSpawnSection({ room }: { room: SwarmRoom }) {
   const {
+    spawnWorkflow,
+    setSpawnWorkflow,
     provider,
     setProvider,
+    cloudProvider,
+    setCloudProvider,
+    byokCloudProvider,
+    setByokCloudProvider,
     runtimeBinding,
     setRuntimeBinding,
     artifactPath,
@@ -361,6 +521,8 @@ export function SwarmSpawnSection({ room }: { room: SwarmRoom }) {
     instance,
     setInstance,
     worktrees,
+    swarmId,
+    setSwarmId,
     worktreeSelection,
     setWorktreeSelection,
     newWorktreeId,
@@ -369,6 +531,8 @@ export function SwarmSpawnSection({ room }: { room: SwarmRoom }) {
     setWorkingDir,
     isolationTier,
     setIsolationTier,
+    committedMemoryMiB,
+    setCommittedMemoryMiB,
     spawning,
     spawnError,
     spawnNotice,
@@ -376,6 +540,12 @@ export function SwarmSpawnSection({ room }: { room: SwarmRoom }) {
   } = room;
 
   const showNewWorktreeInput = worktreeSelection === NEW_WORKTREE_SENTINEL;
+  const needsLocalConfig = spawnWorkflow !== "single" || provider === "local";
+  const needsCloudConfig = spawnWorkflow !== "single" || provider !== "local";
+  const selectedCloudProvider =
+    spawnWorkflow === "single" ? provider : cloudProvider;
+  const showByokFlavor = needsCloudConfig && selectedCloudProvider === "byok_cloud";
+  const showCommittedMemoryInput = needsLocalConfig;
 
   return (
     <form
@@ -389,17 +559,48 @@ export function SwarmSpawnSection({ room }: { room: SwarmRoom }) {
     >
       <div className="swarm-spawn-form__row">
         <label>
-          <span>Provider</span>
+          <span>Workflow</span>
           <select
-            value={provider}
-            data-testid="swarm-spawn-provider"
-            onChange={(event) => setProvider(event.target.value as SwarmProvider)}
+            value={spawnWorkflow}
+            data-testid="swarm-spawn-workflow"
+            onChange={(event) => setSpawnWorkflow(event.target.value as SwarmSpawnWorkflow)}
           >
-            <option value="local">Local (on-disk artifact)</option>
-            <option value="byok_cloud">Cloud (BYOK)</option>
-            <option value="official_cli">Cloud (official CLI)</option>
+            <option value="single">Single session</option>
+            <option value="local_cloud_pair">Local + cloud pair</option>
+            <option value="local_cloud_escalation">Local then cloud on capacity</option>
           </select>
         </label>
+        {spawnWorkflow === "single" ? (
+          <label>
+            <span>Provider</span>
+            <select
+              value={provider}
+              data-testid="swarm-spawn-provider"
+              onChange={(event) => setProvider(event.target.value as SwarmProvider)}
+            >
+              <option value="local">Local (on-disk artifact)</option>
+              <option value="byok_cloud">Cloud (BYOK)</option>
+              <option value="official_cli">Cloud (official CLI)</option>
+            </select>
+          </label>
+        ) : (
+          <label>
+            <span>Cloud peer</span>
+            <select
+              value={cloudProvider}
+              data-testid="swarm-spawn-cloud-provider"
+              onChange={(event) =>
+                setCloudProvider(event.target.value as Extract<SwarmProvider, "byok_cloud" | "official_cli">)
+              }
+            >
+              <option value="byok_cloud">Cloud (BYOK)</option>
+              <option value="official_cli">Cloud (official CLI)</option>
+            </select>
+          </label>
+        )}
+      </div>
+
+      <div className="swarm-spawn-form__row">
         <label>
           <span>Instance #</span>
           <input
@@ -412,8 +613,9 @@ export function SwarmSpawnSection({ room }: { room: SwarmRoom }) {
         </label>
       </div>
 
-      {provider === "local" ? (
+      {needsLocalConfig ? (
         <>
+          {needsCloudConfig ? <h3 className="swarm-spawn-form__subhead">Local model</h3> : null}
           <div className="swarm-spawn-form__row">
             <label>
               <span>Runtime binding</span>
@@ -450,27 +652,54 @@ export function SwarmSpawnSection({ room }: { room: SwarmRoom }) {
             />
           </label>
         </>
-      ) : (
-        <label className="swarm-spawn-form__full">
-          <span>Cloud model name</span>
-          <input
-            type="text"
-            value={cloudModelName}
-            placeholder="gpt-4o / claude-sonnet-4"
-            data-testid="swarm-spawn-cloud-model"
-            onChange={(event) => setCloudModelName(event.target.value)}
-          />
-        </label>
-      )}
+      ) : null}
+
+      {needsCloudConfig ? (
+        <>
+          <label className="swarm-spawn-form__full">
+            <span>{needsLocalConfig ? "Cloud peer model name" : "Cloud model name"}</span>
+            <input
+              type="text"
+              value={cloudModelName}
+              placeholder="gpt-4o / claude-sonnet-4"
+              data-testid="swarm-spawn-cloud-model"
+              onChange={(event) => setCloudModelName(event.target.value)}
+            />
+          </label>
+          {showByokFlavor ? (
+            <label className="swarm-spawn-form__full">
+              <span>BYOK lane</span>
+              <select
+                value={byokCloudProvider}
+                data-testid="swarm-spawn-byok-provider"
+                onChange={(event) => setByokCloudProvider(event.target.value as ByokCloudProvider)}
+              >
+                <option value="openai">OpenAI</option>
+                <option value="anthropic">Anthropic</option>
+              </select>
+            </label>
+          ) : null}
+        </>
+      ) : null}
 
       {/* Worktree / disk-location / isolation-tier ASSIGNMENT (governance glue
-          #2). Provider-independent — local AND cloud sessions can be assigned.
-          Recorded attribution only: none of these route execution today. */}
+          #2). Provider-independent — local AND cloud sessions can be assigned. */}
       <fieldset
         className="swarm-spawn-form__assignment"
         data-testid="swarm-spawn-assignment"
       >
         <legend>Assignment (optional)</legend>
+
+        <label className="swarm-spawn-form__full">
+          <span>Swarm id</span>
+          <input
+            type="text"
+            value={swarmId}
+            placeholder="e.g. research-swarm (pair/escalation uses worktree if blank)"
+            data-testid="swarm-spawn-swarm-id"
+            onChange={(event) => setSwarmId(event.target.value)}
+          />
+        </label>
 
         <div className="swarm-spawn-form__row">
           <label>
@@ -533,17 +762,37 @@ export function SwarmSpawnSection({ room }: { room: SwarmRoom }) {
               ))}
             </select>
           </label>
+          {showCommittedMemoryInput ? (
+            <label>
+              <span>Local committed memory (MiB)</span>
+              <input
+                type="number"
+                min={1}
+                step={1}
+                value={committedMemoryMiB}
+                placeholder="e.g. 6144"
+                data-testid="swarm-spawn-committed-memory-mib"
+                onChange={(event) => setCommittedMemoryMiB(event.target.value)}
+              />
+            </label>
+          ) : null}
         </div>
         <p className="swarm-notice" data-testid="swarm-isolation-note">
-          Execution isolation is recorded, not yet enforced — the session runs
-          in-process; VM execution is a future step. The worktree and working dir
-          are recorded as assignment/attribution and do not route execution today.
+          Tier3 microVM is enforced for local llama.cpp when sandbox support is wired.
+          Committed memory is reserved when the app run has a memory ceiling.
+          Other tier/provider combinations remain assignment metadata.
         </p>
       </fieldset>
 
       <div className="swarm-spawn-form__actions">
         <button type="submit" disabled={spawning} data-testid="swarm-spawn-submit">
-          {spawning ? "Spawning..." : "Spawn session"}
+          {spawning
+            ? "Spawning..."
+            : spawnWorkflow === "local_cloud_pair"
+              ? "Spawn pair"
+              : spawnWorkflow === "local_cloud_escalation"
+                ? "Spawn with escalation"
+                : "Spawn session"}
         </button>
       </div>
 
@@ -655,6 +904,13 @@ export function ResourceBar({ snapshot }: { snapshot: SwarmResourceSnapshot }) {
     snapshot.concurrencyCap > 0
       ? Math.round((snapshot.concurrencyInUse / snapshot.concurrencyCap) * 100)
       : 0;
+  const exhaustionLabel = swarmBudgetExhaustionLabel(snapshot);
+  const committedCap = snapshot.committedMemoryBytesCap ?? null;
+  const committedRemaining = snapshot.committedMemoryBytesRemaining ?? null;
+  const committedMemoryLabel =
+    committedCap === null
+      ? "uncapped"
+      : `${formatBudgetBytes(committedRemaining)} / ${formatBudgetBytes(committedCap)} remaining`;
   return (
     <div className="swarm-resource-bar__inner" data-testid="swarm-resource-bar-inner">
       <div className="swarm-resource-bar__meter" aria-label="Concurrency usage">
@@ -681,9 +937,12 @@ export function ResourceBar({ snapshot }: { snapshot: SwarmResourceSnapshot }) {
         <li data-testid="swarm-stat-cost">
           Cost remaining (micros): {snapshot.costMicrosRemaining ?? "uncapped"}
         </li>
-        {snapshot.budgetExhausted ? (
+        <li data-testid="swarm-stat-committed-memory">
+          Committed memory: {committedMemoryLabel}
+        </li>
+        {exhaustionLabel ? (
           <li className="swarm-error" data-testid="swarm-stat-exhausted">
-            Budget exhausted — spawns are blocked
+            {exhaustionLabel}
           </li>
         ) : null}
       </ul>

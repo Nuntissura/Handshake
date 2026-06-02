@@ -417,8 +417,7 @@ fn build_response(
     let mut live_terminal_added = false;
     if let Some((term_id, text, ts)) = live_scrollback {
         if !text.is_empty() {
-            merged =
-                session_transcript::append_terminal_scrollback(merged, term_id, text, ts);
+            merged = session_transcript::append_terminal_scrollback(merged, term_id, text, ts);
             live_terminal_added = true;
         }
     }
@@ -659,10 +658,7 @@ fn truncate_title(content: &str) -> String {
 
 /// Merge chat + FR session summaries, deduped by `session_id` (a chat UUID and a
 /// composite instance id never collide, but dedup keeps the contract total).
-fn merge_summaries(
-    chat: Vec<SessionSummary>,
-    fr: Vec<SessionSummary>,
-) -> Vec<SessionSummary> {
+fn merge_summaries(chat: Vec<SessionSummary>, fr: Vec<SessionSummary>) -> Vec<SessionSummary> {
     let mut by_id: HashMap<String, SessionSummary> = HashMap::new();
     for s in chat.into_iter().chain(fr.into_iter()) {
         by_id.entry(s.session_id.clone()).or_insert(s);
@@ -923,11 +919,7 @@ async fn scan_candidate(
                     let ts = Some(entry.timestamp());
                     for field in session_transcript::searchable_text(&entry) {
                         if let Some(snippet) = make_snippet(&field, query_lc) {
-                            matches.push(RawMatch {
-                                kind,
-                                ts,
-                                snippet,
-                            });
+                            matches.push(RawMatch { kind, ts, snippet });
                         }
                     }
                 }
@@ -940,7 +932,10 @@ async fn scan_candidate(
 
 /// Build one ranked `SessionSearchHit` from a candidate + its raw matches, or
 /// `None` when the candidate had no matches in the active lane filter.
-fn hit_from_matches(summary: &SessionSummary, mut matches: Vec<RawMatch>) -> Option<SessionSearchHit> {
+fn hit_from_matches(
+    summary: &SessionSummary,
+    mut matches: Vec<RawMatch>,
+) -> Option<SessionSearchHit> {
     if matches.is_empty() {
         return None;
     }
@@ -1149,7 +1144,11 @@ fn build_export_header(
 /// `model_id`/`provider` from a composite id and the kind from the id shape.
 fn synth_min_summary(session_id: &str) -> SessionSummary {
     let (model_id, provider) = split_instance_id(session_id);
-    let kind = if session_id.contains('#') { "swarm" } else { "chat" };
+    let kind = if session_id.contains('#') {
+        "swarm"
+    } else {
+        "chat"
+    };
     SessionSummary {
         session_id: session_id.to_string(),
         kind: kind.to_string(),
@@ -1170,14 +1169,10 @@ fn synth_min_summary(session_id: &str) -> SessionSummary {
 /// the operator's chosen dir.
 fn write_export_file(path: &Path, content: &str) -> Result<u64, String> {
     if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent)
-            .map_err(|e| format!("create export dir failed: {e}"))?;
+        std::fs::create_dir_all(parent).map_err(|e| format!("create export dir failed: {e}"))?;
     }
     let bytes = content.as_bytes();
-    let ext = path
-        .extension()
-        .and_then(|e| e.to_str())
-        .unwrap_or("out");
+    let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("out");
     let tmp = path.with_extension(format!("{ext}.tmp.{}", std::process::id()));
     std::fs::write(&tmp, bytes).map_err(|e| format!("write temp export failed: {e}"))?;
     std::fs::rename(&tmp, path).map_err(|e| {
@@ -1265,8 +1260,7 @@ pub async fn kernel_session_export(
     if session_id.is_empty() {
         return Err("session_id must not be empty".to_string());
     }
-    let fmt = ExportFormat::from_ipc(&format)
-        .ok_or_else(|| format!("unknown format: {format}"))?;
+    let fmt = ExportFormat::from_ipc(&format).ok_or_else(|| format!("unknown format: {format}"))?;
 
     // Chat lane: path-keyed by session_id (same as transcript_get).
     let chat_entries = session_chat_log::read_chat_log(&state.app_data_root, &session_id)?;
@@ -1285,14 +1279,7 @@ pub async fn kernel_session_export(
     let live = live_terminal_scrollback(&state.terminal, &session_id);
 
     // FULL merge, no kind filter — REUSE the aggregator.
-    let response = build_response(
-        &session_id,
-        chat,
-        fr_events,
-        recorder_available,
-        live,
-        None,
-    );
+    let response = build_response(&session_id, chat, fr_events, recorder_available, live, None);
 
     // Resolve the summary (discovery reuse) for the header + not-found honesty.
     let summary = resolve_single_summary(&state, &session_id).await;
@@ -1408,7 +1395,10 @@ mod tests {
 
     #[test]
     fn build_response_merges_chat_and_fr_in_order() {
-        let chat = vec![chat_input(1, 10, "user", "hi"), chat_input(2, 40, "assistant", "yo")];
+        let chat = vec![
+            chat_input(1, 10, "user", "hi"),
+            chat_input(2, 40, "assistant", "yo"),
+        ];
         let fr = vec![swarm_event(20, "m#0")];
         let resp = build_response("m#0", chat, fr, true, None, None);
         // chat(10), fr+process(20), chat(40): chat=2, fr=1, process=1.
@@ -1503,7 +1493,10 @@ mod tests {
     fn parse_kinds_rejects_unknown() {
         assert!(parse_kinds(Some(vec!["bogus".to_string()])).is_err());
         let ok = parse_kinds(Some(vec!["chat_turn".to_string(), "process".to_string()])).unwrap();
-        assert_eq!(ok, Some(vec![TranscriptKind::ChatTurn, TranscriptKind::Process]));
+        assert_eq!(
+            ok,
+            Some(vec![TranscriptKind::ChatTurn, TranscriptKind::Process])
+        );
         assert_eq!(parse_kinds(None).unwrap(), None);
     }
 
@@ -1690,12 +1683,25 @@ mod tests {
             resumable: true,
         };
         let v = serde_json::to_value(&summary).unwrap();
-        for key in ["sessionId", "startedAt", "lastActivityAt", "modelId", "worktreeId", "resumable"] {
+        for key in [
+            "sessionId",
+            "startedAt",
+            "lastActivityAt",
+            "modelId",
+            "worktreeId",
+            "resumable",
+        ] {
             assert!(v.get(key).is_some(), "expected camelCase {key}");
         }
         assert_eq!(v["worktreeId"], serde_json::json!("wt-x"));
         assert_eq!(v["resumable"], serde_json::json!(true));
-        for key in ["session_id", "started_at", "last_activity_at", "model_id", "worktree_id"] {
+        for key in [
+            "session_id",
+            "started_at",
+            "last_activity_at",
+            "model_id",
+            "worktree_id",
+        ] {
             assert!(v.get(key).is_none(), "snake_case {key} must not leak");
         }
         // SourceCounts keys are single-word -> unchanged by camelCase.
@@ -1717,7 +1723,10 @@ mod tests {
         };
         let v = serde_json::to_value(&resp).unwrap();
         assert!(v.get("sessionId").is_some(), "expected camelCase sessionId");
-        assert!(v.get("sourceStatus").is_some(), "expected camelCase sourceStatus");
+        assert!(
+            v.get("sourceStatus").is_some(),
+            "expected camelCase sourceStatus"
+        );
         assert!(v.get("session_id").is_none(), "snake_case must not leak");
         assert!(v.get("source_status").is_none(), "snake_case must not leak");
         // SourceState values serialize snake_case (matches the TS union).
@@ -1734,7 +1743,10 @@ mod tests {
         // A secret adjacent to the match must be masked in the emitted snippet.
         let text = "before the API_KEY=supersecret123 and the cargo build matched here";
         let snippet = make_snippet(text, "cargo").expect("match");
-        assert!(snippet.contains("cargo"), "snippet keeps the match: {snippet}");
+        assert!(
+            snippet.contains("cargo"),
+            "snippet keeps the match: {snippet}"
+        );
         assert!(
             snippet.contains("***REDACTED***"),
             "adjacent secret redacted: {snippet}"
@@ -1819,7 +1831,11 @@ mod tests {
             .collect();
         let hit = hit_from_matches(&summary, matches).expect("hit");
         assert_eq!(hit.match_count, 12, "true total preserved");
-        assert_eq!(hit.snippets.len(), PER_SESSION_SNIPPET_CAP, "snippets capped");
+        assert_eq!(
+            hit.snippets.len(),
+            PER_SESSION_SNIPPET_CAP,
+            "snippets capped"
+        );
         // ts-asc ordered.
         assert_eq!(hit.snippets[0].ts, Some(at(0)));
         assert_eq!(hit.snippets[0].entry_kind, "terminal_chunk");
@@ -1915,7 +1931,10 @@ mod tests {
             .find(|h| h.session_id == chat_session)
             .expect("forgot hit on chat session");
         assert_eq!(chat_hit.match_count, 2, "both forgot turns matched");
-        assert!(chat_hit.snippets.iter().all(|s| s.entry_kind == "chat_turn"));
+        assert!(chat_hit
+            .snippets
+            .iter()
+            .all(|s| s.entry_kind == "chat_turn"));
         // The secret-bearing turn's snippet is redacted; raw secret never appears.
         assert!(
             chat_hit
@@ -1935,10 +1954,20 @@ mod tests {
 
         // (c) worktree filter scopes to the recorded wt-recovery-1 (the swarm
         // session); the chat session has no worktree -> excluded.
-        let resp =
-            search_sessions(&state, "forgot", None, Some("wt-recovery-1"), None, None, 50).await;
+        let resp = search_sessions(
+            &state,
+            "forgot",
+            None,
+            Some("wt-recovery-1"),
+            None,
+            None,
+            50,
+        )
+        .await;
         assert!(
-            resp.hits.iter().all(|h| h.session_id == instance || h.match_count == 0),
+            resp.hits
+                .iter()
+                .all(|h| h.session_id == instance || h.match_count == 0),
             "worktree filter excludes the chat session"
         );
         assert!(
@@ -1974,7 +2003,10 @@ mod tests {
             50,
         )
         .await;
-        assert!(resp.hits.is_empty(), "no session overlaps the future window");
+        assert!(
+            resp.hits.is_empty(),
+            "no session overlaps the future window"
+        );
 
         // (f) honest no-match -> empty hits, query echoed, not truncated.
         let resp = search_sessions(&state, "zzz-nomatch-zzz", None, None, None, None, 50).await;
@@ -2077,7 +2109,13 @@ mod tests {
         ] {
             assert!(hit.get(key).is_some(), "expected camelCase {key}");
         }
-        for key in ["session_id", "model_id", "worktree_id", "started_at", "match_count"] {
+        for key in [
+            "session_id",
+            "model_id",
+            "worktree_id",
+            "started_at",
+            "match_count",
+        ] {
             assert!(hit.get(key).is_none(), "snake_case {key} must not leak");
         }
         let snip = &hit["snippets"][0];
@@ -2171,10 +2209,13 @@ mod tests {
                     sha256_expected: None,
                     runtime_binding: None,
                     cloud_model_name: Some("claude-sonnet-4".to_string()),
+                    byok_cloud_provider: None,
                     instance: 0,
+                    swarm_id: None,
                     worktree_id: None,
                     working_dir: None,
                     isolation_tier: None,
+                    committed_memory_bytes: None,
                     origin_session_id: "model-x#0".to_string(),
                     captured_at: Utc::now(),
                 },
@@ -2183,8 +2224,14 @@ mod tests {
 
         overlay_resumable(&state, &mut summaries);
         // Only the swarm session with a stored template is now resumable.
-        assert!(summaries[0].resumable, "swarm id with template => resumable");
-        assert!(!summaries[1].resumable, "chat id has no template => not resumable");
+        assert!(
+            summaries[0].resumable,
+            "swarm id with template => resumable"
+        );
+        assert!(
+            !summaries[1].resumable,
+            "chat id has no template => not resumable"
+        );
     }
 
     // -----------------------------------------------------------------------
@@ -2270,18 +2317,16 @@ mod tests {
         let header = build_export_header(&instance, &summary, &resp.entries);
 
         let dest = app_data_root.join(SESSION_EXPORT_DIR);
-        let out = write_session_export(
-            &instance,
-            &resp.entries,
-            &header,
-            ExportFormat::Both,
-            &dest,
-        )
-        .expect("export ok");
+        let out =
+            write_session_export(&instance, &resp.entries, &header, ExportFormat::Both, &dest)
+                .expect("export ok");
 
         assert_eq!(out.files.len(), 2, "both md + json written");
         assert!(!out.empty);
-        assert!(out.redacted_field_count >= 1, "the terminal secret was masked");
+        assert!(
+            out.redacted_field_count >= 1,
+            "the terminal secret was masked"
+        );
 
         for f in &out.files {
             let p = Path::new(&f.path);
@@ -2327,12 +2372,20 @@ mod tests {
         let header = build_export_header(chat_session, &summary, &resp.entries);
 
         let dest = app_data_root.join(SESSION_EXPORT_DIR);
-        let out =
-            write_session_export(chat_session, &resp.entries, &header, ExportFormat::Markdown, &dest)
-                .expect("export ok");
+        let out = write_session_export(
+            chat_session,
+            &resp.entries,
+            &header,
+            ExportFormat::Markdown,
+            &dest,
+        )
+        .expect("export ok");
         assert_eq!(out.files.len(), 1);
         let content = std::fs::read_to_string(&out.files[0].path).expect("read");
-        assert!(!content.contains("supersecretexportval"), "chat secret redacted on disk");
+        assert!(
+            !content.contains("supersecretexportval"),
+            "chat secret redacted on disk"
+        );
         assert!(content.contains("***REDACTED***"));
         assert!(out.redacted_field_count >= 1);
     }
@@ -2367,7 +2420,11 @@ mod tests {
         assert!(out.empty, "empty flag set");
         assert_eq!(out.files.len(), 2);
         let md = std::fs::read_to_string(
-            &out.files.iter().find(|f| f.format == "markdown").unwrap().path,
+            &out.files
+                .iter()
+                .find(|f| f.format == "markdown")
+                .unwrap()
+                .path,
         )
         .unwrap();
         assert!(md.contains("_No entries recorded for this session._"));
@@ -2412,7 +2469,13 @@ mod tests {
             redacted_field_count: 2,
         };
         let v = serde_json::to_value(&resp).unwrap();
-        for key in ["sessionId", "destDir", "files", "empty", "redactedFieldCount"] {
+        for key in [
+            "sessionId",
+            "destDir",
+            "files",
+            "empty",
+            "redactedFieldCount",
+        ] {
             assert!(v.get(key).is_some(), "expected camelCase {key}");
         }
         for key in ["session_id", "dest_dir", "redacted_field_count"] {
@@ -2436,8 +2499,8 @@ mod tests {
         if session_id.is_empty() {
             return Err("session_id must not be empty".to_string());
         }
-        let fmt = ExportFormat::from_ipc(format)
-            .ok_or_else(|| format!("unknown format: {format}"))?;
+        let fmt =
+            ExportFormat::from_ipc(format).ok_or_else(|| format!("unknown format: {format}"))?;
 
         let chat_entries = session_chat_log::read_chat_log(&state.app_data_root, &session_id)?;
         let chat: Vec<ChatTurnInput> = chat_entries.iter().map(chat_input_from_entry).collect();
@@ -2449,8 +2512,7 @@ mod tests {
             None => (Vec::new(), false),
         };
         let live = live_terminal_scrollback(&state.terminal, &session_id);
-        let response =
-            build_response(&session_id, chat, fr_events, recorder_available, live, None);
+        let response = build_response(&session_id, chat, fr_events, recorder_available, live, None);
         let summary = resolve_single_summary(state, &session_id).await;
         if response.entries.is_empty() && summary.is_none() {
             return Err(format!("SESSION_NOT_FOUND: {session_id}"));
