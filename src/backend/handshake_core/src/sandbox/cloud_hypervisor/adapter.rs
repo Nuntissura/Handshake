@@ -19,9 +19,9 @@ use uuid::Uuid;
 use crate::sandbox::wsl2_podman::wsl_detection::default_wsl_exe;
 use crate::sandbox::{
     encode_guest_channel_exec_request, parse_guest_channel_exec_result, AdapterCapabilities,
-    AdapterId, BindMode, Command, ExecResult, GpuPassthrough, IsolationStrength, IsolationTier,
-    NetPolicy, ProcessHandle, ProcessSpec, ProcessStatus, ResourceLimits, SandboxAdapter,
-    SandboxAdapterError, Signal, SnapshotRef, ThroughputClass,
+    AdapterId, BindMode, BindSpec, Command, ExecResult, GpuPassthrough, IsolationStrength,
+    IsolationTier, NetPolicy, ProcessHandle, ProcessSpec, ProcessStatus, ResourceLimits,
+    SandboxAdapter, SandboxAdapterError, Signal, SnapshotRef, ThroughputClass,
 };
 
 #[cfg(windows)]
@@ -840,8 +840,10 @@ impl CloudHypervisorAdapter {
 
     /// Boot a long-lived idle persistent VM with an API socket (the snapshot/
     /// restore model). Builds a per-VM idle initramfs (busybox + an `/init` that
-    /// loops updating `/tmp/hsk-tick` and never powers off), launches CH as a retained
-    /// background child, waits for the API socket to appear, and
+    /// loops updating `/tmp/hsk-tick` and never powers off), with declared
+    /// read-only binds already baked into the guest image so warm-started model
+    /// agents can see the same model/runner paths after restore. Launches CH as
+    /// a retained background child, waits for the API socket to appear, and
     /// registers a persistent handle. Absolute WSL paths are used throughout so
     /// the snapshot config records an absolute serial path that a restored VM
     /// resolves regardless of the CH process working directory.
@@ -849,6 +851,7 @@ impl CloudHypervisorAdapter {
         &self,
         idle_timeout_ms: Option<u64>,
         resource_limits: ResourceLimits,
+        binds: Vec<BindRecord>,
     ) -> Result<ProcessHandle, SandboxAdapterError> {
         let vm_id = Uuid::now_v7().simple().to_string();
         let vm_root = format!("{}/persistent-{vm_id}", self.config.work_dir);
@@ -857,7 +860,7 @@ impl CloudHypervisorAdapter {
         let serial_log = format!("{vm_root}/serial.log");
         let idle_cpio = format!("{vm_root}/idle.cpio");
 
-        if let Err(error) = build_idle_initramfs(&self.config, &vm_root, &idle_cpio).await {
+        if let Err(error) = build_idle_initramfs(&self.config, &vm_root, &idle_cpio, &binds).await {
             let _ = remove_wsl_path(&self.config, &vm_root).await;
             return Err(error);
         }
@@ -923,6 +926,7 @@ impl CloudHypervisorAdapter {
         hstate.persistent = Some(vm);
         hstate.idle_timeout_ms = idle_timeout_ms;
         hstate.resource_limits = resource_limits;
+        hstate.binds = binds;
         self.handles
             .lock()
             .map_err(|error| spawn_failed(format!("handle registry poisoned: {error}")))?
@@ -1086,8 +1090,9 @@ impl SandboxAdapter for CloudHypervisorAdapter {
             .unwrap_or(false);
         if persistent {
             let idle_timeout_ms = persistent_idle_timeout_ms(&spec)?;
+            let binds = persistent_bind_records_from_spec(&spec.binds)?;
             return self
-                .spawn_persistent(idle_timeout_ms, spec.resource_limits.clone())
+                .spawn_persistent(idle_timeout_ms, spec.resource_limits.clone(), binds)
                 .await;
         }
         if spec.idle_timeout_ms.is_some() {
@@ -1309,6 +1314,12 @@ impl SandboxAdapter for CloudHypervisorAdapter {
             .ok_or(SandboxAdapterError::ProcessHandleStale {
                 process_id: handle.id,
             })?;
+        if state.persistent.is_some() {
+            return Err(spawn_failed(
+                "persistent cloud_hypervisor fs_bind after boot is unsupported; declare binds on \
+                 ProcessSpec.binds before spawn so they are baked into the persistent initramfs",
+            ));
+        }
         // Replace any prior bind at the same guest path so re-binding is
         // idempotent rather than baking the directory in twice.
         state
@@ -2199,6 +2210,43 @@ fn validate_guest_path(guest_path: &Path) -> Result<String, SandboxAdapterError>
     Ok(rel.to_string())
 }
 
+fn persistent_bind_records_from_spec(
+    binds: &[BindSpec],
+) -> Result<Vec<BindRecord>, SandboxAdapterError> {
+    let mut records = Vec::with_capacity(binds.len());
+    for bind in binds {
+        if bind.mode != BindMode::ReadOnly {
+            return Err(spawn_failed(format!(
+                "persistent cloud_hypervisor only supports ReadOnly binds today; bind {} at {} \
+                 requested {:?}, but warm VM binds are baked into the initramfs and have no \
+                 write-back or noexec remount path",
+                bind.host_path.display(),
+                bind.guest_path.display(),
+                bind.mode
+            )));
+        }
+        records.push(BindRecord {
+            host_path: bind.host_path.clone(),
+            guest_path: bind.guest_path.clone(),
+            guest_rel: validate_persistent_guest_path(&bind.guest_path)?,
+            mode: bind.mode,
+        });
+    }
+    Ok(records)
+}
+
+fn validate_persistent_guest_path(guest_path: &Path) -> Result<String, SandboxAdapterError> {
+    let rel = validate_guest_path(guest_path)?;
+    let first = rel.split('/').next().unwrap_or_default();
+    if first == "tmp" {
+        return Err(SandboxAdapterError::BindGuestPathInvalid {
+            guest_path: guest_path.to_path_buf(),
+            reason: "persistent cloud_hypervisor binds must not target /tmp; the serial agent owns /tmp/hsk-* for exec temp files, boot proof, and snapshot tick state".to_string(),
+        });
+    }
+    Ok(rel)
+}
+
 /// Translate a Windows host path to its WSL `/mnt/<drive>/...` mount path so the
 /// per-exec initramfs build (which runs inside WSL) can read host data. A path
 /// that already looks like a POSIX path (starts with `/`) is returned as-is so
@@ -2295,14 +2343,16 @@ async fn build_per_exec_initramfs(
 
 /// Build the per-VM agent initramfs for the persistent-VM model: a fresh
 /// `<vm_root>/ir` tree with busybox + the `/init` command agent (which loops
-/// updating `/tmp/hsk-tick` and never powers off), packed to `<idle_cpio>` via
-/// `cpio -o -H newc`.
-/// This mirrors `build_per_exec_initramfs` but bakes in no binds and uses the
-/// idle init script instead of the per-exec one.
+/// updating `/tmp/hsk-tick` and never powers off), plus declared read-only
+/// binds, packed to `<idle_cpio>` via `cpio -o -H newc`.
+/// This mirrors `build_per_exec_initramfs` but uses the idle init script instead
+/// of the per-exec one and intentionally rejects ReadWrite binds before it is
+/// called because there is no persistent write-back path.
 async fn build_idle_initramfs(
     config: &CloudHypervisorConfig,
     vm_root: &str,
     idle_cpio: &str,
+    binds: &[BindRecord],
 ) -> Result<(), SandboxAdapterError> {
     let ir = format!("{vm_root}/ir");
     let mut script = String::new();
@@ -2323,6 +2373,15 @@ async fn build_idle_initramfs(
         "chmod +x {init}; ",
         init = sh_quote_wsl(&format!("{ir}/init"))
     ));
+    for bind in binds {
+        let src = windows_to_wsl_path(&bind.host_path)?;
+        let dst = format!("{ir}/{}", bind.guest_rel);
+        script.push_str(&format!(
+            "mkdir -p {dst}; cp -a {src}/. {dst}/; ",
+            dst = sh_quote_wsl(&dst),
+            src = sh_quote_wsl(&src),
+        ));
+    }
     script.push_str(&format!(
         "(cd {ir} && find . -print0 | cpio --null -o -H newc 2>/dev/null > {cpio}); echo HSK_IDLE_OK",
         ir = sh_quote_wsl(&ir),
@@ -3061,6 +3120,105 @@ mod tests {
                 assert!(reason.contains("idle_timeout_ms"));
                 assert!(reason.contains("persistent"));
                 assert!(reason.contains("refusing to silently ignore"));
+            }
+            other => panic!("expected typed SpawnFailed, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn persistent_bind_records_preserve_declared_read_only_binds() {
+        let binds = vec![BindSpec {
+            host_path: PathBuf::from("D:/models"),
+            guest_path: PathBuf::from("/models"),
+            mode: BindMode::ReadOnly,
+        }];
+
+        let records = persistent_bind_records_from_spec(&binds).expect("persistent binds");
+        assert_eq!(records.len(), 1);
+        assert_eq!(records[0].host_path, PathBuf::from("D:/models"));
+        assert_eq!(records[0].guest_path, PathBuf::from("/models"));
+        assert_eq!(records[0].guest_rel, "models");
+        assert_eq!(records[0].mode, BindMode::ReadOnly);
+    }
+
+    #[test]
+    fn persistent_bind_records_fail_closed_for_unsupported_modes() {
+        for mode in [BindMode::ReadWrite, BindMode::NoExec] {
+            let binds = vec![BindSpec {
+                host_path: PathBuf::from("D:/models"),
+                guest_path: PathBuf::from("/models"),
+                mode,
+            }];
+            let err = persistent_bind_records_from_spec(&binds)
+                .expect_err("unsupported persistent bind mode must fail closed");
+            match err {
+                SandboxAdapterError::SpawnFailed { reason, .. } => {
+                    assert!(reason.contains("only supports ReadOnly binds"));
+                    assert!(reason.contains("initramfs"));
+                    assert!(reason.contains("write-back or noexec"));
+                }
+                other => panic!("expected typed SpawnFailed, got {other:?}"),
+            }
+        }
+    }
+
+    #[test]
+    fn persistent_bind_records_reject_agent_owned_tmp_paths() {
+        for guest_path in ["/tmp", "/tmp/hsk-tick", "/tmp/hsk-agent.err"] {
+            let binds = vec![BindSpec {
+                host_path: PathBuf::from("D:/models"),
+                guest_path: PathBuf::from(guest_path),
+                mode: BindMode::ReadOnly,
+            }];
+            let err = persistent_bind_records_from_spec(&binds)
+                .expect_err("persistent binds must not clobber serial agent /tmp paths");
+            match err {
+                SandboxAdapterError::BindGuestPathInvalid {
+                    guest_path: rejected,
+                    reason,
+                } => {
+                    assert_eq!(rejected, PathBuf::from(guest_path));
+                    assert!(reason.contains("must not target /tmp"));
+                    assert!(reason.contains("serial agent owns /tmp/hsk-*"));
+                    assert!(reason.contains("snapshot tick state"));
+                }
+                other => panic!("expected typed BindGuestPathInvalid, got {other:?}"),
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn fs_bind_on_persistent_handle_fails_closed_after_boot() {
+        let adapter = CloudHypervisorAdapter::new_for_test();
+        let handle = ProcessHandle::new(
+            AdapterId::new(CLOUD_HYPERVISOR_ADAPTER_ID),
+            None,
+            "hsk-ch-persistent-bind-test",
+        );
+        let mut state = HandleState::default();
+        state.persistent = Some(PersistentVm {
+            api_socket: "/work/persistent-test/api.sock".to_string(),
+            agent_socket: "/work/persistent-test/agent.sock".to_string(),
+            serial_log: "/work/persistent-test/serial.log".to_string(),
+            vm_root: "/work/persistent-test".to_string(),
+        });
+        adapter.handles.lock().unwrap().insert(handle.id, state);
+
+        let err = adapter
+            .fs_bind(
+                &handle,
+                PathBuf::from("D:/models"),
+                PathBuf::from("/models"),
+                BindMode::ReadOnly,
+            )
+            .await
+            .expect_err("late persistent bind must not be silently accepted");
+
+        match err {
+            SandboxAdapterError::SpawnFailed { reason, .. } => {
+                assert!(reason.contains("fs_bind after boot is unsupported"));
+                assert!(reason.contains("ProcessSpec.binds before spawn"));
+                assert!(reason.contains("persistent initramfs"));
             }
             other => panic!("expected typed SpawnFailed, got {other:?}"),
         }
