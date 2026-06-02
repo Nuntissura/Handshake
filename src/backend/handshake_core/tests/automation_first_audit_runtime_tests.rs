@@ -107,7 +107,7 @@ fn run_audit(args: &[&str]) -> std::process::Output {
 /// runtime harness provably covers the WHOLE inventory rather than a
 /// hand-picked subset (MT-020 red-team control #1).
 fn discover_ipc_command_inventory() -> Vec<(String, bool)> {
-    let output = run_audit(&["--json"]);
+    let output = run_audit(&["--json", "--static-source-scan-ok"]);
     let report: Value =
         serde_json::from_slice(&output.stdout).expect("automation-first audit emits json");
     report["commands"]

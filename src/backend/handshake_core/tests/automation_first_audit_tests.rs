@@ -36,8 +36,31 @@ fn stdout_json(output: &std::process::Output) -> Value {
 }
 
 #[test]
-fn automation_first_audit_tests_full_tauri_command_inventory_passes_without_os_input() {
+fn automation_first_audit_tests_default_certifying_mode_requires_runtime_evidence() {
     let output = run_audit(&["--json"]);
+    assert!(
+        !output.status.success(),
+        "plain automation-first audit must not certify from static source scan:\nstdout={}\nstderr={}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let report = stdout_json(&output);
+
+    assert_eq!(report["schema_id"], "hsk.automation_first_audit@1");
+    assert_eq!(report["certification_mode"], "runtime_probe_required");
+    assert_eq!(report["runtime_probe"]["required"], true);
+    assert_eq!(report["runtime_probe"]["evidence_present"], false);
+    assert_eq!(report["status"], "FAIL");
+    assert!(report["violations"]
+        .as_array()
+        .expect("violations array")
+        .iter()
+        .any(|violation| violation["code"] == "RUNTIME_PROBE_EVIDENCE_REQUIRED"));
+}
+
+#[test]
+fn automation_first_audit_tests_static_source_scan_is_explicitly_non_certifying() {
+    let output = run_audit(&["--json", "--static-source-scan-ok"]);
     assert!(
         output.status.success(),
         "automation-first audit failed:\nstdout={}\nstderr={}",
@@ -47,6 +70,12 @@ fn automation_first_audit_tests_full_tauri_command_inventory_passes_without_os_i
     let report = stdout_json(&output);
 
     assert_eq!(report["schema_id"], "hsk.automation_first_audit@1");
+    assert_eq!(report["certification_mode"], "static_source_scan_explicit");
+    assert_eq!(report["runtime_probe"]["required"], false);
+    assert_eq!(
+        report["runtime_probe"]["static_source_scan_allowed"],
+        true
+    );
     assert_eq!(report["status"], "PASS");
     assert_eq!(
         report["foreground_exempt_commands"]
@@ -82,7 +111,12 @@ fn automation_first_audit_tests_full_tauri_command_inventory_passes_without_os_i
 
 #[test]
 fn automation_first_audit_tests_synthetic_foreground_api_violation_fails_loudly() {
-    let output = run_audit(&["--json", "--fixture", "synthetic-violation"]);
+    let output = run_audit(&[
+        "--json",
+        "--fixture",
+        "synthetic-violation",
+        "--static-source-scan-ok",
+    ]);
     assert!(!output.status.success(), "synthetic violation must fail");
     let report = stdout_json(&output);
 
@@ -104,7 +138,12 @@ fn automation_first_audit_tests_synthetic_foreground_api_violation_fails_loudly(
 fn automation_first_audit_tests_report_is_on_demand_markdown_projection() {
     let temp = tempfile::tempdir().expect("temp dir");
     let out = temp.path().join("audit-report.md");
-    let output = run_audit(&["--report", "--out", out.to_str().expect("out utf8")]);
+    let output = run_audit(&[
+        "--report",
+        "--out",
+        out.to_str().expect("out utf8"),
+        "--static-source-scan-ok",
+    ]);
     assert!(
         output.status.success(),
         "report generation failed:\nstdout={}\nstderr={}",
@@ -115,5 +154,6 @@ fn automation_first_audit_tests_report_is_on_demand_markdown_projection() {
     let report = std::fs::read_to_string(out).expect("audit report written");
     assert!(report.contains("# Automation-First Audit"));
     assert!(report.contains("status: PASS"));
+    assert!(report.contains("certification_mode: static_source_scan_explicit"));
     assert!(report.contains("visual_debug::kernel_visual_debug_screenshot"));
 }
