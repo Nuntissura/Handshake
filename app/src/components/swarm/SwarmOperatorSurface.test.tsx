@@ -53,6 +53,7 @@ vi.mock("../../lib/ipc/swarm_runtime", async () => {
     getSpawnTemplate: vi.fn(async () => ({
       provider: "byok_cloud",
       cloudModelName: "claude-sonnet-4",
+      instance: 7,
       worktreeId: "wt-recovery-1",
       workingDir: "D:/work/wt-recovery-1",
       isolationTier: "tier3_microvm",
@@ -331,6 +332,10 @@ describe("SwarmOperatorSurface", () => {
     fireEvent.change(screen.getByTestId("operator-chat-session"), {
       target: { value: "beta-cloud#0" },
     });
+    fireEvent.click(screen.getByTestId("disclosure-spawn-session-toggle"));
+    fireEvent.change(screen.getByTestId("swarm-spawn-workflow"), {
+      target: { value: "local_cloud_escalation" },
+    });
 
     // Click Resume -> the host reads the stored template for this session.
     const resumeBtn = await screen.findByTestId("session-workbench-resume");
@@ -346,7 +351,9 @@ describe("SwarmOperatorSurface", () => {
     await vi.waitFor(() =>
       expect((screen.getByTestId("swarm-spawn-cloud-model") as HTMLInputElement).value).toBe("claude-sonnet-4"),
     );
+    expect((screen.getByTestId("swarm-spawn-workflow") as HTMLSelectElement).value).toBe("single");
     expect((screen.getByTestId("swarm-spawn-provider") as HTMLSelectElement).value).toBe("byok_cloud");
+    expect((screen.getByTestId("swarm-spawn-instance") as HTMLInputElement).value).toBe("7");
     // The recorded worktree is threaded through the free-text new-worktree entry.
     expect((screen.getByTestId("swarm-spawn-worktree-new") as HTMLInputElement).value).toBe("wt-recovery-1");
     expect((screen.getByTestId("swarm-spawn-working-dir") as HTMLInputElement).value).toBe("D:/work/wt-recovery-1");

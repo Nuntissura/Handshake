@@ -41,6 +41,7 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 use chrono::{DateTime, Utc};
+use handshake_core::model_runtime::WarmVmSnapshotManifest;
 use serde::{Deserialize, Serialize};
 
 // Reuse the calendar's provider + runtime-binding enums verbatim: they already
@@ -90,7 +91,8 @@ pub enum TemplateByokCloudProvider {
 /// fields are stored as `None` (the same trimming rule the spawn build applies).
 /// Cloud templates store only `cloud_model_name` (never a key — keys live in the
 /// `OsKeychainSecretsVault`); local templates store `artifact_path` +
-/// `sha256_expected` + `runtime_binding`.
+/// `sha256_expected` + `runtime_binding` plus a warm restore manifest when a
+/// restored warm-VM spawn supplied one.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub struct SessionSpawnTemplate {
@@ -111,6 +113,11 @@ pub struct SessionSpawnTemplate {
     /// cold/default for backward-compatible templates.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub local_execution_mode: Option<TemplateLocalExecutionMode>,
+    /// Local warm VM only: restored snapshot manifest captured from the spawn
+    /// request so resume can replay the same warm-start path instead of dropping
+    /// to a cold warm-VM boot.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub warm_vm_restore_manifest: Option<WarmVmSnapshotManifest>,
     /// Cloud: allowlisted cloud model name (e.g. `claude-sonnet-4`, `gpt-4o`).
     /// NEVER the BYOK key — resume re-resolves the key from the vault via the
     /// same lane, so a resume after key rotation/removal honestly fails
@@ -323,6 +330,7 @@ mod tests {
             sha256_expected: Some("ab".repeat(32)),
             runtime_binding: Some(TemplateRuntimeBinding::Candle),
             local_execution_mode: Some(TemplateLocalExecutionMode::Cold),
+            warm_vm_restore_manifest: None,
             cloud_model_name: None,
             byok_cloud_provider: None,
             instance: 2,
@@ -343,6 +351,7 @@ mod tests {
             sha256_expected: None,
             runtime_binding: None,
             local_execution_mode: None,
+            warm_vm_restore_manifest: None,
             cloud_model_name: Some("claude-sonnet-4".to_string()),
             byok_cloud_provider: Some(TemplateByokCloudProvider::Anthropic),
             instance: 0,

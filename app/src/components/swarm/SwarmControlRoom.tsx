@@ -17,6 +17,7 @@ import {
   type SwarmSession,
   type SwarmSpawnRequest,
   type SwarmWorktree,
+  type WarmVmRestoreManifest,
 } from "../../lib/ipc/swarm_runtime";
 import { OperatorChat, type OperatorChatCloudEscalation } from "./OperatorChat";
 
@@ -96,6 +97,18 @@ function formatBudgetBytes(bytes?: number | null): string {
   if (bytes >= BYTES_PER_GIB) return `${(bytes / BYTES_PER_GIB).toFixed(1)} GiB`;
   if (bytes >= BYTES_PER_MIB) return `${Math.round(bytes / BYTES_PER_MIB)} MiB`;
   return `${bytes} B`;
+}
+
+export function parseWarmVmRestoreManifestJson(
+  value: string,
+): WarmVmRestoreManifest | undefined {
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+  const parsed = JSON.parse(trimmed) as unknown;
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new Error("warm restore manifest must be a JSON object");
+  }
+  return parsed as WarmVmRestoreManifest;
 }
 
 export function isLocalCommittedMemoryOnlyExhausted(
@@ -188,6 +201,7 @@ export function useSwarmRoom() {
   const [committedMemoryMiB, setCommittedMemoryMiB] = useState("");
   const [committedMemoryPrefillBytes, setCommittedMemoryPrefillBytes] =
     useState<number | null>(null);
+  const [warmVmRestoreManifestJson, setWarmVmRestoreManifestJson] = useState("");
 
   // Selected session for the operator chat box (composite instance id).
   const [chatInstanceId, setChatInstanceId] = useState<string | null>(null);
@@ -263,16 +277,25 @@ export function useSwarmRoom() {
         return request;
       };
       const localRequest = () =>
-        applyAssignment({
-          provider: "local",
-          runtimeBinding,
-          ...(localExecutionMode === "warm_vm"
-            ? { localExecutionMode }
-            : {}),
-          artifactPath: artifactPath.trim(),
-          sha256Expected: sha256.trim(),
-          instance,
-        });
+        {
+          const warmVmRestoreManifest =
+            localExecutionMode === "warm_vm"
+              ? parseWarmVmRestoreManifestJson(warmVmRestoreManifestJson)
+              : undefined;
+          return applyAssignment({
+            provider: "local",
+            runtimeBinding,
+            ...(localExecutionMode === "warm_vm"
+              ? {
+                  localExecutionMode,
+                  ...(warmVmRestoreManifest ? { warmVmRestoreManifest } : {}),
+                }
+              : {}),
+            artifactPath: artifactPath.trim(),
+            sha256Expected: sha256.trim(),
+            instance,
+          });
+        };
       const cloudRequest = (selectedProvider: Extract<SwarmProvider, "byok_cloud" | "official_cli">) =>
         applyAssignment({
           provider: selectedProvider,
@@ -350,6 +373,7 @@ export function useSwarmRoom() {
     isolationTier,
     committedMemoryMiB,
     committedMemoryPrefillBytes,
+    warmVmRestoreManifestJson,
     refresh,
     refreshWorktrees,
   ]);
@@ -362,6 +386,7 @@ export function useSwarmRoom() {
   // known worktree id through the free-text "new worktree" entry so the value is
   // always visible + editable even if it is not in the discovered list.
   const prefillSpawnForm = useCallback((tpl: SessionSpawnTemplate) => {
+    setSpawnWorkflow("single");
     setProvider(tpl.provider);
     setRuntimeBinding(tpl.runtimeBinding ?? "candle");
     setLocalExecutionMode(tpl.localExecutionMode ?? "cold");
@@ -379,13 +404,16 @@ export function useSwarmRoom() {
     }
     setWorkingDir(tpl.workingDir ?? "");
     setIsolationTier(tpl.isolationTier ?? "");
+    setWarmVmRestoreManifestJson(
+      tpl.warmVmRestoreManifest
+        ? JSON.stringify(tpl.warmVmRestoreManifest, null, 2)
+        : "",
+    );
     const templateMemoryBytes =
       tpl.provider === "local" ? (tpl.committedMemoryBytes ?? null) : null;
     setCommittedMemoryPrefillBytes(templateMemoryBytes);
     setCommittedMemoryMiB(committedMemoryBytesToMiBValue(templateMemoryBytes));
-    // A resume mints a fresh instance ordinal; default to 0 (the operator can
-    // bump it if they intend a concurrent peer of an existing instance).
-    setInstance(0);
+    setInstance(tpl.instance ?? 0);
     setSpawnError(null);
     setSpawnNotice(`Prefilled from recorded session ${tpl.originSessionId} — edit and Spawn to resume`);
   }, []);
@@ -449,6 +477,8 @@ export function useSwarmRoom() {
     setIsolationTier,
     committedMemoryMiB,
     setCommittedMemoryMiB,
+    warmVmRestoreManifestJson,
+    setWarmVmRestoreManifestJson,
     spawning,
     spawnError,
     spawnNotice,
@@ -587,6 +617,8 @@ export function SwarmSpawnSection({ room }: { room: SwarmRoom }) {
     setIsolationTier,
     committedMemoryMiB,
     setCommittedMemoryMiB,
+    warmVmRestoreManifestJson,
+    setWarmVmRestoreManifestJson,
     spawning,
     spawnError,
     spawnNotice,
@@ -600,6 +632,8 @@ export function SwarmSpawnSection({ room }: { room: SwarmRoom }) {
     spawnWorkflow === "single" ? provider : cloudProvider;
   const showByokFlavor = needsCloudConfig && selectedCloudProvider === "byok_cloud";
   const showCommittedMemoryInput = needsLocalConfig;
+  const showWarmVmRestoreManifestInput =
+    needsLocalConfig && localExecutionMode === "warm_vm";
 
   return (
     <form
@@ -721,6 +755,20 @@ export function SwarmSpawnSection({ room }: { room: SwarmRoom }) {
               onChange={(event) => setSha256(event.target.value)}
             />
           </label>
+          {showWarmVmRestoreManifestInput ? (
+            <label className="swarm-spawn-form__full">
+              <span>Warm restore manifest JSON</span>
+              <textarea
+                value={warmVmRestoreManifestJson}
+                placeholder='{"protocol_id":"hsk.warm_agent","protocol_version":1,...}'
+                data-testid="swarm-spawn-warm-restore-manifest"
+                rows={5}
+                onChange={(event) =>
+                  setWarmVmRestoreManifestJson(event.target.value)
+                }
+              />
+            </label>
+          ) : null}
         </>
       ) : null}
 

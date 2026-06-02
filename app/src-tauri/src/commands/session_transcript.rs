@@ -2209,6 +2209,7 @@ mod tests {
                     sha256_expected: None,
                     runtime_binding: None,
                     local_execution_mode: None,
+                    warm_vm_restore_manifest: None,
                     cloud_model_name: Some("claude-sonnet-4".to_string()),
                     byok_cloud_provider: None,
                     instance: 0,

@@ -89,6 +89,7 @@ import {
   committedMemoryMiBToBytes,
   committedMemorySubmitBytes,
   effectiveWorktreeId,
+  parseWarmVmRestoreManifestJson,
   swarmBudgetExhaustionLabel,
   swarmResourceBadge,
   NEW_WORKTREE_SENTINEL,
@@ -109,6 +110,24 @@ function lastSpawnRequest() {
   const calls = spawnSessionMock.mock.calls;
   expect(calls.length).toBeGreaterThan(0);
   return calls[calls.length - 1][0] as Record<string, unknown>;
+}
+
+function warmRestoreManifest(worktreeId = "wt-existing") {
+  return {
+    protocol_id: "hsk.warm_agent",
+    protocol_version: 1,
+    worktree_id: worktreeId,
+    model_artifact_sha256: "ab".repeat(32),
+    model_guest_path: "/models/tiny.gguf",
+    ready_nonce: "ready-nonce",
+    snapshot: {
+      id: "018f3b8e-1111-7111-8111-111111111111",
+      adapter_id: "cloud_hypervisor",
+      snapshot_dir: "/snapshots/wt-existing",
+      created_at_utc: "2026-06-02T00:00:00Z",
+      observe_path: null,
+    },
+  };
 }
 
 describe("effectiveWorktreeId", () => {
@@ -138,6 +157,15 @@ describe("committedMemoryMiBToBytes", () => {
 
   test("preserves exact template bytes when the prefilled MiB value is unchanged", () => {
     expect(committedMemorySubmitBytes("118", 123456789)).toBe(123456789);
+  });
+});
+
+describe("parseWarmVmRestoreManifestJson", () => {
+  test("parses the core snake_case manifest shape and rejects non-objects", () => {
+    const manifest = warmRestoreManifest();
+    expect(parseWarmVmRestoreManifestJson(JSON.stringify(manifest))).toEqual(manifest);
+    expect(parseWarmVmRestoreManifestJson("   ")).toBeUndefined();
+    expect(() => parseWarmVmRestoreManifestJson("[]")).toThrow(/JSON object/);
   });
 });
 
@@ -281,6 +309,57 @@ describe("SwarmControlRoom spawn-form assignment controls", () => {
     const req = lastSpawnRequest();
     expect(req.provider).toBe("byok_cloud");
     expect("committedMemoryBytes" in req).toBe(false);
+  });
+
+  test("warm VM spawn sends parsed restore manifest when provided", async () => {
+    render(<SwarmControlRoom />);
+    await screen.findByTestId("swarm-spawn-worktree-select");
+    const manifest = warmRestoreManifest();
+
+    fireEvent.change(screen.getByTestId("swarm-spawn-binding"), {
+      target: { value: "llama_cpp" },
+    });
+    fireEvent.change(screen.getByTestId("swarm-spawn-local-execution-mode"), {
+      target: { value: "warm_vm" },
+    });
+    fireEvent.change(screen.getByTestId("swarm-spawn-artifact-path"), {
+      target: { value: "D:/models/tiny.gguf" },
+    });
+    fireEvent.change(screen.getByTestId("swarm-spawn-sha256"), {
+      target: { value: "ab".repeat(32) },
+    });
+    fireEvent.change(screen.getByTestId("swarm-spawn-worktree-select"), {
+      target: { value: "wt-existing" },
+    });
+    fireEvent.change(screen.getByTestId("swarm-spawn-isolation-tier"), {
+      target: { value: "tier3_microvm" },
+    });
+    fireEvent.change(screen.getByTestId("swarm-spawn-warm-restore-manifest"), {
+      target: { value: JSON.stringify(manifest) },
+    });
+    fireEvent.click(screen.getByTestId("swarm-spawn-submit"));
+
+    await waitFor(() => expect(spawnSessionMock).toHaveBeenCalled());
+    const req = lastSpawnRequest();
+    expect(req.localExecutionMode).toBe("warm_vm");
+    expect(req.warmVmRestoreManifest).toEqual(manifest);
+  });
+
+  test("invalid warm VM restore manifest JSON fails before IPC", async () => {
+    render(<SwarmControlRoom />);
+    await screen.findByTestId("swarm-spawn-worktree-select");
+
+    fireEvent.change(screen.getByTestId("swarm-spawn-local-execution-mode"), {
+      target: { value: "warm_vm" },
+    });
+    fireEvent.change(screen.getByTestId("swarm-spawn-warm-restore-manifest"), {
+      target: { value: "[]" },
+    });
+    fireEvent.click(screen.getByTestId("swarm-spawn-submit"));
+
+    await screen.findByTestId("swarm-spawn-error");
+    expect(spawnSessionMock).not.toHaveBeenCalled();
+    expect(screen.getByTestId("swarm-spawn-error")).toHaveTextContent(/JSON object/);
   });
 
   test("blank assignment omits worktree/workingDir/isolationTier (honest unassigned)", async () => {

@@ -18,6 +18,24 @@ export type SwarmLocalExecutionMode = "cold" | "warm_vm";
  */
 export type SwarmIsolationTier = "tier1_container" | "tier2_syscall" | "tier3_microvm";
 
+export interface SwarmSnapshotRef {
+  id: string;
+  adapter_id: string;
+  snapshot_dir: string;
+  created_at_utc: string;
+  observe_path?: string | null;
+}
+
+export interface WarmVmRestoreManifest {
+  protocol_id: string;
+  protocol_version: number;
+  worktree_id: string;
+  model_artifact_sha256: string;
+  model_guest_path: string;
+  ready_nonce: string;
+  snapshot: SwarmSnapshotRef;
+}
+
 export interface SwarmSpawnRequest {
   provider: SwarmProvider;
   /** Local: required. On-disk model artifact (safetensors / GGUF). */
@@ -32,6 +50,8 @@ export interface SwarmSpawnRequest {
    * the resident warm agent is unavailable.
    */
   localExecutionMode?: SwarmLocalExecutionMode;
+  /** Local warm VM only: previously captured warm snapshot manifest to restore. */
+  warmVmRestoreManifest?: WarmVmRestoreManifest;
   /** Cloud: required. Allowlisted cloud model name (e.g. gpt-4o). */
   cloudModelName?: string;
   /** BYOK cloud only: exact Anthropic/OpenAI lane when selected. */
@@ -215,7 +235,8 @@ export async function spawnWithCloudEscalation(
  * session can be reconstructed later. Cloud sessions carry only the model NAME
  * (never the BYOK key — keys stay in the OS keychain vault, re-resolved on
  * resume); local sessions carry path + sha (the integrity gate is re-applied on
- * resume). `originSessionId` is the lineage root the resumed-from session id.
+ * resume) and warm restore manifests when supplied. `originSessionId` is the
+ * lineage root the resumed-from session id.
  */
 export interface SessionSpawnTemplate {
   provider: SwarmProvider;
@@ -223,8 +244,10 @@ export interface SessionSpawnTemplate {
   sha256Expected?: string | null;
   runtimeBinding?: SwarmRuntimeBinding | null;
   localExecutionMode?: SwarmLocalExecutionMode | null;
+  warmVmRestoreManifest?: WarmVmRestoreManifest | null;
   cloudModelName?: string | null;
   byokCloudProvider?: ByokCloudProvider | null;
+  instance?: number | null;
   swarmId?: string | null;
   worktreeId?: string | null;
   workingDir?: string | null;

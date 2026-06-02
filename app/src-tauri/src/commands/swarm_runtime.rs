@@ -70,7 +70,7 @@ use handshake_core::model_runtime::cloud::{
 use handshake_core::model_runtime::registry::RuntimeBinding;
 use handshake_core::model_runtime::{
     CancellationToken, GenPrompt, GenerateRequest, ModelId, ModelRuntime, ProviderKind,
-    SamplingParams,
+    SamplingParams, WarmVmSnapshotManifest,
 };
 use handshake_core::process_ledger::{
     LedgerBatcher, LedgerBatcherConfig, LedgerEvent, LedgerOverflowEvent, ProcessLedgerError,
@@ -965,6 +965,10 @@ pub struct SwarmSpawnRequestIpc {
     /// means legacy cold/default behavior. Warm VM is validated before spawn.
     #[serde(default)]
     pub local_execution_mode: Option<SwarmLocalExecutionModeIpc>,
+    /// Local warm VM only: a previously captured warm snapshot manifest to
+    /// restore instead of cold-loading the model in a new VM.
+    #[serde(default)]
+    pub warm_vm_restore_manifest: Option<WarmVmSnapshotManifest>,
     /// Cloud: required. The allowlisted cloud model name (e.g. `gpt-4o`).
     #[serde(default)]
     pub cloud_model_name: Option<String>,
@@ -1088,7 +1092,8 @@ impl SwarmIsolationTierIpc {
 /// ONLY after a successful spawn, so the request is known-good; this applies the
 /// SAME blank => None trimming rule the spawn build uses (`trimmed_opt`), so the
 /// template records exactly the fields the spawn accepted. Cloud captures the
-/// model name; local captures artifact + sha + binding. The `origin_session_id`
+/// model name; local captures artifact + sha + binding, plus a warm restore
+/// manifest when a restored warm-VM spawn supplied one. The `origin_session_id`
 /// is the captured-from session (the resume lineage root).
 pub(crate) fn template_from_ipc(
     request: &SwarmSpawnRequestIpc,
@@ -1118,6 +1123,15 @@ pub(crate) fn template_from_ipc(
             request
                 .local_execution_mode
                 .map(SwarmLocalExecutionModeIpc::to_template_mode)
+        } else {
+            None
+        },
+        warm_vm_restore_manifest: if is_local
+            && matches!(
+                request.local_execution_mode,
+                Some(SwarmLocalExecutionModeIpc::WarmVm)
+            ) {
+            request.warm_vm_restore_manifest.clone()
         } else {
             None
         },
@@ -1171,6 +1185,7 @@ pub(crate) fn template_to_request_ipc(
         local_execution_mode: template
             .local_execution_mode
             .map(SwarmLocalExecutionModeIpc::from_template_mode),
+        warm_vm_restore_manifest: template.warm_vm_restore_manifest.clone(),
         cloud_model_name: template.cloud_model_name.clone(),
         byok_cloud_provider: template
             .byok_cloud_provider
@@ -1309,6 +1324,7 @@ pub struct SessionSpawnTemplateIpc {
     pub sha256_expected: Option<String>,
     pub runtime_binding: Option<SwarmRuntimeBindingIpc>,
     pub local_execution_mode: Option<SwarmLocalExecutionModeIpc>,
+    pub warm_vm_restore_manifest: Option<WarmVmSnapshotManifest>,
     pub cloud_model_name: Option<String>,
     pub byok_cloud_provider: Option<ByokCloudProviderIpc>,
     pub instance: u32,
@@ -1333,6 +1349,7 @@ impl From<SessionSpawnTemplate> for SessionSpawnTemplateIpc {
             local_execution_mode: t
                 .local_execution_mode
                 .map(SwarmLocalExecutionModeIpc::from_template_mode),
+            warm_vm_restore_manifest: t.warm_vm_restore_manifest,
             cloud_model_name: t.cloud_model_name,
             byok_cloud_provider: t
                 .byok_cloud_provider
@@ -2379,12 +2396,29 @@ fn build_spawn_request(request: &SwarmSpawnRequestIpc) -> Result<SpawnRequest, S
             match request.local_execution_mode {
                 Some(SwarmLocalExecutionModeIpc::WarmVm) => {
                     validate_warm_vm_request(request, binding)?;
-                    spawn = spawn.with_warm_vm_execution();
+                    spawn = if let Some(manifest) = request.warm_vm_restore_manifest.clone() {
+                        spawn.with_warm_vm_restore_manifest(manifest)
+                    } else {
+                        spawn.with_warm_vm_execution()
+                    };
                 }
                 Some(SwarmLocalExecutionModeIpc::Cold) => {
+                    if request.warm_vm_restore_manifest.is_some() {
+                        return Err(
+                            "warm_vm_restore_manifest requires local_execution_mode=warm_vm"
+                                .to_string(),
+                        );
+                    }
                     spawn.local_execution_mode = Some(LocalExecutionMode::Cold);
                 }
-                None => {}
+                None => {
+                    if request.warm_vm_restore_manifest.is_some() {
+                        return Err(
+                            "warm_vm_restore_manifest requires local_execution_mode=warm_vm"
+                                .to_string(),
+                        );
+                    }
+                }
             }
             spawn
         }
@@ -2395,6 +2429,11 @@ fn build_spawn_request(request: &SwarmSpawnRequestIpc) -> Result<SpawnRequest, S
             ) {
                 return Err(
                     "warm_vm local_execution_mode is only valid for provider=local".to_string(),
+                );
+            }
+            if request.warm_vm_restore_manifest.is_some() {
+                return Err(
+                    "warm_vm_restore_manifest is only valid for provider=local warm_vm".to_string(),
                 );
             }
             let model_name = request
@@ -2438,6 +2477,24 @@ fn validate_warm_vm_request(
     }
     if trimmed_opt(&request.worktree_id).is_none() {
         return Err("warm_vm local_execution_mode requires a non-empty worktree_id".to_string());
+    }
+    if let Some(manifest) = request.warm_vm_restore_manifest.as_ref() {
+        let worktree_id = trimmed_opt(&request.worktree_id)
+            .expect("checked non-empty worktree_id before manifest validation");
+        if manifest.worktree_id != worktree_id {
+            return Err(format!(
+                "warm_vm_restore_manifest worktree_id mismatch: expected {}, got {}",
+                worktree_id, manifest.worktree_id
+            ));
+        }
+        let sha = trimmed_opt(&request.sha256_expected)
+            .expect("local request sha256_expected is validated before warm_vm checks");
+        if manifest.model_artifact_sha256 != sha {
+            return Err(
+                "warm_vm_restore_manifest model_artifact_sha256 must match sha256_expected"
+                    .to_string(),
+            );
+        }
     }
     Ok(())
 }
@@ -2530,6 +2587,7 @@ mod tests {
             sha256_expected: Some("ab".repeat(32)),
             runtime_binding: Some(SwarmRuntimeBindingIpc::Candle),
             local_execution_mode: None,
+            warm_vm_restore_manifest: None,
             cloud_model_name: None,
             byok_cloud_provider: None,
             instance: 0,
@@ -2551,6 +2609,7 @@ mod tests {
             sha256_expected: None,
             runtime_binding: None,
             local_execution_mode: None,
+            warm_vm_restore_manifest: None,
             cloud_model_name: Some(model.to_string()),
             byok_cloud_provider: None,
             instance: 0,
@@ -2561,6 +2620,19 @@ mod tests {
             isolation_tier: None,
             committed_memory_bytes: None,
         }
+    }
+
+    fn warm_restore_manifest(worktree_id: &str, sha256: &str) -> WarmVmSnapshotManifest {
+        WarmVmSnapshotManifest::new(
+            worktree_id,
+            sha256,
+            "/models/model.gguf",
+            "ready-nonce",
+            handshake_core::sandbox::SnapshotRef::new(
+                handshake_core::sandbox::AdapterId::new("cloud_hypervisor"),
+                format!("/snapshots/{worktree_id}"),
+            ),
+        )
     }
 
     #[test]
@@ -2649,6 +2721,7 @@ mod tests {
             sha256_expected: None,
             runtime_binding: None,
             local_execution_mode: None,
+            warm_vm_restore_manifest: None,
             cloud_model_name: Some("gpt-4o".to_string()),
             byok_cloud_provider: Some(ByokCloudProviderIpc::OpenAi),
             instance: 0,
@@ -2761,6 +2834,116 @@ mod tests {
         cloud.local_execution_mode = Some(SwarmLocalExecutionModeIpc::WarmVm);
         let err = build_spawn_request(&cloud).expect_err("cloud warm mode rejected");
         assert!(err.contains("provider=local"), "{err}");
+    }
+
+    #[test]
+    fn build_spawn_request_warm_vm_restore_manifest_is_routed_and_validated() {
+        let sha = "ab".repeat(32);
+        let manifest = warm_restore_manifest("wt-warm", &sha);
+        let mut req = local_request("some/model.gguf");
+        req.sha256_expected = Some(sha.clone());
+        req.runtime_binding = Some(SwarmRuntimeBindingIpc::LlamaCpp);
+        req.local_execution_mode = Some(SwarmLocalExecutionModeIpc::WarmVm);
+        req.isolation_tier = Some(SwarmIsolationTierIpc::Tier3Microvm);
+        req.worktree_id = Some(" wt-warm ".to_string());
+        req.warm_vm_restore_manifest = Some(manifest.clone());
+
+        let spawn = build_spawn_request(&req).expect("valid warm restore request");
+        assert!(spawn.wants_warm_vm_execution());
+        assert_eq!(spawn.warm_vm_restore_manifest, Some(manifest));
+
+        let mut cold = req.clone();
+        cold.local_execution_mode = Some(SwarmLocalExecutionModeIpc::Cold);
+        let err = build_spawn_request(&cold).expect_err("cold restore rejected");
+        assert!(
+            err.contains("warm_vm_restore_manifest requires local_execution_mode=warm_vm"),
+            "{err}"
+        );
+
+        let mut implicit_cold = req.clone();
+        implicit_cold.local_execution_mode = None;
+        let err = build_spawn_request(&implicit_cold).expect_err("implicit cold restore rejected");
+        assert!(
+            err.contains("warm_vm_restore_manifest requires local_execution_mode=warm_vm"),
+            "{err}"
+        );
+
+        let mut wrong_worktree = req.clone();
+        wrong_worktree.warm_vm_restore_manifest = Some(warm_restore_manifest("wt-other", &sha));
+        let err = build_spawn_request(&wrong_worktree).expect_err("wrong worktree rejected");
+        assert!(err.contains("worktree_id mismatch"), "{err}");
+
+        let mut wrong_sha = req.clone();
+        wrong_sha.warm_vm_restore_manifest =
+            Some(warm_restore_manifest("wt-warm", &"cd".repeat(32)));
+        let err = build_spawn_request(&wrong_sha).expect_err("wrong sha rejected");
+        assert!(err.contains("model_artifact_sha256"), "{err}");
+
+        let mut cloud = cloud_request("gpt-4o");
+        cloud.warm_vm_restore_manifest = Some(warm_restore_manifest("wt-warm", &sha));
+        let err = build_spawn_request(&cloud).expect_err("cloud restore manifest rejected");
+        assert!(err.contains("provider=local warm_vm"), "{err}");
+    }
+
+    #[test]
+    fn warm_vm_restore_manifest_ipc_serde_uses_camel_outer_and_snake_nested() {
+        let sha = "ab".repeat(32);
+        let wire = serde_json::json!({
+            "provider": "local",
+            "artifactPath": "D:/models/model.gguf",
+            "sha256Expected": sha,
+            "runtimeBinding": "llama_cpp",
+            "localExecutionMode": "warm_vm",
+            "worktreeId": "wt-warm",
+            "isolationTier": "tier3_microvm",
+            "warmVmRestoreManifest": {
+                "protocol_id": "hsk.warm_agent",
+                "protocol_version": 1,
+                "worktree_id": "wt-warm",
+                "model_artifact_sha256": sha,
+                "model_guest_path": "/models/model.gguf",
+                "ready_nonce": "ready-nonce",
+                "snapshot": {
+                    "id": "018f3b8e-1111-7111-8111-111111111111",
+                    "adapter_id": "cloud_hypervisor",
+                    "snapshot_dir": "/snapshots/wt-warm",
+                    "created_at_utc": "2026-06-02T00:00:00Z",
+                    "observe_path": null
+                }
+            }
+        });
+        let req: SwarmSpawnRequestIpc =
+            serde_json::from_value(wire).expect("wire shape deserializes");
+        assert!(req.warm_vm_restore_manifest.is_some());
+        let spawn = build_spawn_request(&req).expect("deserialized request builds");
+        assert!(spawn.warm_vm_restore_manifest.is_some());
+
+        let camel_nested = serde_json::json!({
+            "provider": "local",
+            "artifactPath": "D:/models/model.gguf",
+            "sha256Expected": sha,
+            "runtimeBinding": "llama_cpp",
+            "localExecutionMode": "warm_vm",
+            "worktreeId": "wt-warm",
+            "isolationTier": "tier3_microvm",
+            "warmVmRestoreManifest": {
+                "protocolId": "hsk.warm_agent",
+                "protocolVersion": 1,
+                "worktreeId": "wt-warm",
+                "modelArtifactSha256": sha,
+                "modelGuestPath": "/models/model.gguf",
+                "readyNonce": "ready-nonce",
+                "snapshot": {
+                    "id": "018f3b8e-1111-7111-8111-111111111111",
+                    "adapterId": "cloud_hypervisor",
+                    "snapshotDir": "/snapshots/wt-warm",
+                    "createdAtUtc": "2026-06-02T00:00:00Z"
+                }
+            }
+        });
+        let err = serde_json::from_value::<SwarmSpawnRequestIpc>(camel_nested)
+            .expect_err("nested camelCase manifest is rejected");
+        assert!(err.to_string().contains("unknown field"), "{err}");
     }
 
     #[test]
@@ -3615,6 +3798,7 @@ mod tests {
             tpl.local_execution_mode,
             Some(TemplateLocalExecutionMode::WarmVm)
         );
+        assert_eq!(tpl.warm_vm_restore_manifest, None);
         assert_eq!(
             tpl.cloud_model_name, None,
             "local must not capture cloud name"
@@ -3651,8 +3835,30 @@ mod tests {
         assert_eq!(tpl.sha256_expected, None);
         assert_eq!(tpl.runtime_binding, None);
         assert_eq!(tpl.local_execution_mode, None);
+        assert_eq!(tpl.warm_vm_restore_manifest, None);
         assert_eq!(tpl.committed_memory_bytes, None);
         assert_eq!(tpl.origin_session_id, "origin#1");
+    }
+
+    #[test]
+    fn template_round_trip_preserves_warm_restore_manifest_for_warm_vm_resume() {
+        let sha = "ab".repeat(32);
+        let manifest = warm_restore_manifest("wt-warm", &sha);
+        let mut req = local_request("D:/models/model.gguf");
+        req.sha256_expected = Some(sha);
+        req.runtime_binding = Some(SwarmRuntimeBindingIpc::LlamaCpp);
+        req.local_execution_mode = Some(SwarmLocalExecutionModeIpc::WarmVm);
+        req.warm_vm_restore_manifest = Some(manifest.clone());
+        req.worktree_id = Some("wt-warm".to_string());
+        req.isolation_tier = Some(SwarmIsolationTierIpc::Tier3Microvm);
+
+        let tpl = template_from_ipc(&req, "origin#0");
+        assert_eq!(tpl.warm_vm_restore_manifest, Some(manifest.clone()));
+
+        let rebuilt = template_to_request_ipc(&tpl, "origin#0");
+        assert_eq!(rebuilt.warm_vm_restore_manifest, Some(manifest.clone()));
+        let spawn = build_spawn_request(&rebuilt).expect("warm restore template rebuilds");
+        assert_eq!(spawn.warm_vm_restore_manifest, Some(manifest));
     }
 
     /// `template_to_request_ipc` rebuilds a request whose `parent_session_id` is
