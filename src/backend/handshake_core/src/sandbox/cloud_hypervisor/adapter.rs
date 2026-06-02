@@ -9,6 +9,7 @@ use std::{
 use async_trait::async_trait;
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use bytes::Bytes;
+use serde::{Deserialize, Serialize};
 use tokio::{
     io::AsyncWriteExt,
     process::{Child, Command as TokioCommand},
@@ -19,7 +20,7 @@ use crate::sandbox::wsl2_podman::wsl_detection::default_wsl_exe;
 use crate::sandbox::{
     AdapterCapabilities, AdapterId, BindMode, Command, ExecResult, GpuPassthrough,
     IsolationStrength, IsolationTier, NetPolicy, ProcessHandle, ProcessSpec, ProcessStatus,
-    SandboxAdapter, SandboxAdapterError, Signal, SnapshotRef, ThroughputClass,
+    ResourceLimits, SandboxAdapter, SandboxAdapterError, Signal, SnapshotRef, ThroughputClass,
 };
 
 #[cfg(windows)]
@@ -81,6 +82,12 @@ pub const SANDBOX_MODE_PERSISTENT: &str = "persistent";
 /// rather than churn the shared `ProcessSpec` struct across its 40+ call sites.
 pub const SANDBOX_IDLE_TIMEOUT_METADATA_KEY: &str = "hsk.sandbox.idle_timeout_ms";
 
+pub const CLOUD_HYPERVISOR_WARM_AGENT_REQUIRED_TRANSPORT: &str = "virtio-vsock guest agent channel";
+pub const CLOUD_HYPERVISOR_WARM_AGENT_UNAVAILABLE_REASON: &str =
+    "Cloud Hypervisor persistent VMs currently boot an idle snapshot target only; \
+     warm-agent RPC and live token streaming require a guest agent plus a \
+     bidirectional virtio-vsock channel";
+
 /// Marker the idle `/init` prints exactly once at boot. The snapshot/restore
 /// state-preservation test asserts this appears exactly once in the serial log
 /// (a second occurrence after restore would mean the VM rebooted instead of
@@ -128,8 +135,80 @@ const DEFAULT_BUSYBOX: &str = "/usr/bin/busybox";
 const DEFAULT_MEMORY_MIB: u32 = 256;
 const DEFAULT_VCPUS: u32 = 1;
 const DEFAULT_COMMAND_TIMEOUT_MS: u64 = 60_000;
+const DEFAULT_BALLOON_SIZE_MIB: u32 = 0;
+const DEFAULT_BALLOON_DEFLATE_ON_OOM: bool = true;
+const DEFAULT_BALLOON_FREE_PAGE_REPORTING: bool = true;
 /// Probe / log-read commands are quick; keep them well under the boot timeout.
 const PROBE_TIMEOUT_MS: u64 = 15_000;
+
+/// Optional Cloud Hypervisor virtio-balloon device configuration.
+///
+/// The device is disabled by default (`size_mib == None`) to keep the proven
+/// VM boot shape unchanged. Operators can enable it with
+/// `HANDSHAKE_CH_BALLOON_SIZE_MIB`; the generated CH argv uses the documented
+/// `--balloon size=<n>M,deflate_on_oom=on|off,free_page_reporting=on|off`
+/// form.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CloudHypervisorBalloonConfig {
+    size_mib: Option<u32>,
+    deflate_on_oom: bool,
+    free_page_reporting: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CloudHypervisorWarmAgentStatus {
+    pub adapter_id: AdapterId,
+    pub snapshot_supported: bool,
+    pub persistent_exec_supported: bool,
+    pub warm_agent_supported: bool,
+    pub live_token_stream_supported: bool,
+    pub required_transport: String,
+    pub unavailable_reason: Option<String>,
+}
+
+impl CloudHypervisorWarmAgentStatus {
+    fn unsupported() -> Self {
+        Self {
+            adapter_id: AdapterId::new(CLOUD_HYPERVISOR_ADAPTER_ID),
+            snapshot_supported: true,
+            persistent_exec_supported: false,
+            warm_agent_supported: false,
+            live_token_stream_supported: false,
+            required_transport: CLOUD_HYPERVISOR_WARM_AGENT_REQUIRED_TRANSPORT.to_string(),
+            unavailable_reason: Some(CLOUD_HYPERVISOR_WARM_AGENT_UNAVAILABLE_REASON.to_string()),
+        }
+    }
+}
+
+impl CloudHypervisorBalloonConfig {
+    pub fn disabled() -> Self {
+        Self {
+            size_mib: None,
+            deflate_on_oom: DEFAULT_BALLOON_DEFLATE_ON_OOM,
+            free_page_reporting: DEFAULT_BALLOON_FREE_PAGE_REPORTING,
+        }
+    }
+
+    pub fn new(size_mib: u32, deflate_on_oom: bool, free_page_reporting: bool) -> Self {
+        Self {
+            size_mib: if size_mib == 0 { None } else { Some(size_mib) },
+            deflate_on_oom,
+            free_page_reporting,
+        }
+    }
+
+    pub fn size_mib(&self) -> Option<u32> {
+        self.size_mib
+    }
+
+    pub fn deflate_on_oom(&self) -> bool {
+        self.deflate_on_oom
+    }
+
+    pub fn free_page_reporting(&self) -> bool {
+        self.free_page_reporting
+    }
+}
 
 /// Configuration for [`CloudHypervisorAdapter`].
 ///
@@ -147,6 +226,9 @@ const PROBE_TIMEOUT_MS: u64 = 15_000;
 /// | `memory_mib`     | `HANDSHAKE_CH_MEMORY_MIB`     |
 /// | `vcpus`          | `HANDSHAKE_CH_VCPUS`          |
 /// | `command_timeout_ms` | `HANDSHAKE_CH_TIMEOUT_MS` |
+/// | `balloon.size_mib` | `HANDSHAKE_CH_BALLOON_SIZE_MIB` |
+/// | `balloon.deflate_on_oom` | `HANDSHAKE_CH_BALLOON_DEFLATE_ON_OOM` |
+/// | `balloon.free_page_reporting` | `HANDSHAKE_CH_BALLOON_FREE_PAGE_REPORTING` |
 ///
 /// The host-side `wsl.exe` launcher resolves via `PATH` (`HANDSHAKE_CH_WSL_EXE`
 /// overrides it) so the Windows side stays portable too.
@@ -163,6 +245,7 @@ pub struct CloudHypervisorConfig {
     memory_mib: u32,
     vcpus: u32,
     command_timeout_ms: u64,
+    balloon: CloudHypervisorBalloonConfig,
 }
 
 impl CloudHypervisorConfig {
@@ -210,6 +293,10 @@ impl CloudHypervisorConfig {
         self.command_timeout_ms
     }
 
+    pub fn balloon(&self) -> &CloudHypervisorBalloonConfig {
+        &self.balloon
+    }
+
     pub fn with_command_timeout_ms(mut self, timeout_ms: u64) -> Self {
         self.command_timeout_ms = timeout_ms;
         self
@@ -232,6 +319,17 @@ impl Default for CloudHypervisorConfig {
             memory_mib: env_u32("HANDSHAKE_CH_MEMORY_MIB", DEFAULT_MEMORY_MIB),
             vcpus: env_u32("HANDSHAKE_CH_VCPUS", DEFAULT_VCPUS),
             command_timeout_ms: env_u64("HANDSHAKE_CH_TIMEOUT_MS", DEFAULT_COMMAND_TIMEOUT_MS),
+            balloon: CloudHypervisorBalloonConfig::new(
+                env_u32("HANDSHAKE_CH_BALLOON_SIZE_MIB", DEFAULT_BALLOON_SIZE_MIB),
+                env_bool(
+                    "HANDSHAKE_CH_BALLOON_DEFLATE_ON_OOM",
+                    DEFAULT_BALLOON_DEFLATE_ON_OOM,
+                ),
+                env_bool(
+                    "HANDSHAKE_CH_BALLOON_FREE_PAGE_REPORTING",
+                    DEFAULT_BALLOON_FREE_PAGE_REPORTING,
+                ),
+            ),
         }
     }
 }
@@ -259,6 +357,17 @@ fn env_u64(key: &str, default: u64) -> u64 {
         .unwrap_or(default)
 }
 
+fn env_bool(key: &str, default: bool) -> bool {
+    match std::env::var(key) {
+        Ok(value) => match value.trim().to_ascii_lowercase().as_str() {
+            "1" | "true" | "yes" | "on" => true,
+            "0" | "false" | "no" | "off" => false,
+            _ => default,
+        },
+        Err(_) => default,
+    }
+}
+
 /// One recorded host->guest directory bind for a handle. Binds are baked into
 /// the per-exec initramfs at boot time (there is no virtio-fs/virtio-pci in the
 /// guest kernel), and `ReadWrite` binds are written back via the serial-tar
@@ -281,9 +390,10 @@ struct BindRecord {
 struct PersistentVm {
     /// Absolute WSL path of the CH API socket driving this VM (pause/snapshot).
     api_socket: String,
-    /// Absolute WSL path of the serial log this VM (and any VM restored from its
-    /// snapshot) writes to. Always absolute so the restored VM resolves it
-    /// regardless of the CH process working directory.
+    /// Absolute WSL path of the current handle's serial log. Restored handles
+    /// get their own restore-owned serial log when `restore()` rewrites the
+    /// copied CH snapshot config, so this path is per live handle rather than a
+    /// durable observation path for all descendants.
     serial_log: String,
     /// Per-VM scratch root inside WSL holding the idle initramfs build tree +
     /// cpio; removed on `kill` for atomic cleanup.
@@ -300,6 +410,7 @@ struct HandleState {
     exit_code: Option<i32>,
     killed: bool,
     binds: Vec<BindRecord>,
+    resource_limits: ResourceLimits,
     /// `Some` for a persistent handle (snapshot/restore model); `None` for the
     /// ephemeral default model.
     persistent: Option<PersistentVm>,
@@ -331,6 +442,7 @@ impl Default for HandleState {
             exit_code: None,
             killed: false,
             binds: Vec::new(),
+            resource_limits: ResourceLimits::default(),
             persistent: None,
             idle_timeout_ms: None,
             last_active: Instant::now(),
@@ -362,9 +474,7 @@ impl CloudHypervisorAdapter {
     /// Any failure returns [`SandboxAdapterError::AdapterUnavailable`] so the
     /// bootstrap registry gracefully skips this adapter on non-WSL / non-KVM
     /// hosts instead of failing the whole sandbox bring-up.
-    pub async fn try_new(
-        config: CloudHypervisorConfig,
-    ) -> Result<Self, SandboxAdapterError> {
+    pub async fn try_new(config: CloudHypervisorConfig) -> Result<Self, SandboxAdapterError> {
         verify_available(&config).await?;
         Ok(Self {
             config,
@@ -397,15 +507,20 @@ impl CloudHypervisorAdapter {
             .map(|bytes| String::from_utf8_lossy(&bytes).to_string())
     }
 
-    /// WSL-side serial-log path for a persistent handle (the absolute path the
-    /// VM, and any VM restored from its snapshot, writes its console to).
-    /// Returns `None` for ephemeral or stale handles.
+    /// WSL-side serial-log path for this persistent handle's current VM.
+    /// Restored handles expose their own restore-owned serial log rather than
+    /// appending to the source VM's log. Returns `None` for ephemeral or stale
+    /// handles.
     pub fn handle_serial_log_path(&self, handle: &ProcessHandle) -> Option<String> {
         self.handles.lock().ok().and_then(|map| {
             map.get(&handle.id)
                 .and_then(|state| state.persistent.as_ref().map(|vm| vm.serial_log.clone()))
                 .filter(|path| !path.is_empty())
         })
+    }
+
+    pub fn warm_agent_status(&self) -> CloudHypervisorWarmAgentStatus {
+        CloudHypervisorWarmAgentStatus::unsupported()
     }
 
     /// Enumerate the live persistent (snapshot-capable) handle ids this adapter
@@ -518,7 +633,9 @@ impl CloudHypervisorAdapter {
             .lock()
             .map_err(|error| snapshot_failed(format!("handle registry poisoned: {error}")))?;
         if snapshot_has_live_clone(
-            guard.values().map(|s| (s.restored_from.as_deref(), s.killed)),
+            guard
+                .values()
+                .map(|s| (s.restored_from.as_deref(), s.killed)),
             snapshot_dir,
         ) {
             return Err(snapshot_failed(format!(
@@ -580,13 +697,14 @@ impl CloudHypervisorAdapter {
         rw_b64: &str,
         initramfs: &str,
         serial_log: &str,
-    ) -> Vec<String> {
+        memory_mib: u32,
+    ) -> Result<Vec<String>, SandboxAdapterError> {
         let cmdline = if rw_b64.is_empty() {
             format!("console=ttyS0 hsk.cmd={command_b64}")
         } else {
             format!("console=ttyS0 hsk.cmd={command_b64} hsk.rw={rw_b64}")
         };
-        vec![
+        let mut args = vec![
             "-d".to_string(),
             self.config.distro.clone(),
             "-e".to_string(),
@@ -604,8 +722,43 @@ impl CloudHypervisorAdapter {
             "--cpus".to_string(),
             format!("boot={}", self.config.vcpus),
             "--memory".to_string(),
-            format!("size={}M", self.config.memory_mib),
-        ]
+            format!("size={memory_mib}M"),
+        ];
+        append_balloon_args(&mut args, memory_mib, self.config.balloon())?;
+        Ok(args)
+    }
+
+    fn persistent_boot_args(
+        &self,
+        api_socket: &str,
+        idle_cpio: &str,
+        serial_log: &str,
+        memory_mib: u32,
+    ) -> Result<Vec<String>, SandboxAdapterError> {
+        let mut args = vec![
+            "-d".to_string(),
+            self.config.distro.clone(),
+            "-e".to_string(),
+            self.config.ch_bin.clone(),
+            "--api-socket".to_string(),
+            api_socket.to_string(),
+            "--kernel".to_string(),
+            self.config.kernel.clone(),
+            "--initramfs".to_string(),
+            idle_cpio.to_string(),
+            "--cmdline".to_string(),
+            "console=ttyS0".to_string(),
+            "--serial".to_string(),
+            format!("file={serial_log}"),
+            "--console".to_string(),
+            "off".to_string(),
+            "--cpus".to_string(),
+            format!("boot={}", self.config.vcpus),
+            "--memory".to_string(),
+            format!("size={memory_mib}M"),
+        ];
+        append_balloon_args(&mut args, memory_mib, self.config.balloon())?;
+        Ok(args)
     }
 
     /// Boot a long-lived idle persistent VM with an API socket (the snapshot/
@@ -618,6 +771,7 @@ impl CloudHypervisorAdapter {
     async fn spawn_persistent(
         &self,
         idle_timeout_ms: Option<u64>,
+        resource_limits: ResourceLimits,
     ) -> Result<ProcessHandle, SandboxAdapterError> {
         let vm_id = Uuid::now_v7().simple().to_string();
         let vm_root = format!("{}/persistent-{vm_id}", self.config.work_dir);
@@ -632,28 +786,9 @@ impl CloudHypervisorAdapter {
 
         // Boot args for the persistent idle VM (absolute serial path so the
         // snapshot config is CWD-independent).
-        let boot_args = vec![
-            "-d".to_string(),
-            self.config.distro.clone(),
-            "-e".to_string(),
-            self.config.ch_bin.clone(),
-            "--api-socket".to_string(),
-            api_socket.clone(),
-            "--kernel".to_string(),
-            self.config.kernel.clone(),
-            "--initramfs".to_string(),
-            idle_cpio.clone(),
-            "--cmdline".to_string(),
-            "console=ttyS0".to_string(),
-            "--serial".to_string(),
-            format!("file={serial_log}"),
-            "--console".to_string(),
-            "off".to_string(),
-            "--cpus".to_string(),
-            format!("boot={}", self.config.vcpus),
-            "--memory".to_string(),
-            format!("size={}M", self.config.memory_mib),
-        ];
+        let memory_mib = memory_mib_from_limits(&resource_limits, self.config.memory_mib);
+        let boot_args =
+            self.persistent_boot_args(&api_socket, &idle_cpio, &serial_log, memory_mib)?;
 
         let child = match spawn_persistent_child(self.config.wsl_exe(), &boot_args) {
             Ok(child) => child,
@@ -693,6 +828,7 @@ impl CloudHypervisorAdapter {
         let mut hstate = HandleState::default();
         hstate.persistent = Some(vm);
         hstate.idle_timeout_ms = idle_timeout_ms;
+        hstate.resource_limits = resource_limits;
         self.handles
             .lock()
             .map_err(|error| spawn_failed(format!("handle registry poisoned: {error}")))?
@@ -754,6 +890,8 @@ impl CloudHypervisorAdapter {
 #[async_trait]
 impl SandboxAdapter for CloudHypervisorAdapter {
     async fn spawn(&self, spec: ProcessSpec) -> Result<ProcessHandle, SandboxAdapterError> {
+        validate_supported_resource_limits(&spec.resource_limits)?;
+
         // Re-probe so a handle is never minted against a runtime that has gone
         // away (mirrors DockerAdapter::ensure_runtime_available).
         verify_available(&self.config).await?;
@@ -787,7 +925,9 @@ impl SandboxAdapter for CloudHypervisorAdapter {
                 .get(SANDBOX_IDLE_TIMEOUT_METADATA_KEY)
                 .and_then(|value| value.trim().parse::<u64>().ok())
                 .filter(|value| *value > 0);
-            return self.spawn_persistent(idle_timeout_ms).await;
+            return self
+                .spawn_persistent(idle_timeout_ms, spec.resource_limits.clone())
+                .await;
         }
 
         // Ephemeral model: the VM itself is not booted here, a fresh VM is
@@ -800,7 +940,13 @@ impl SandboxAdapter for CloudHypervisorAdapter {
         self.handles
             .lock()
             .map_err(|error| spawn_failed(format!("handle registry poisoned: {error}")))?
-            .insert(handle.id, HandleState::default());
+            .insert(
+                handle.id,
+                HandleState {
+                    resource_limits: spec.resource_limits,
+                    ..HandleState::default()
+                },
+            );
         Ok(handle)
     }
 
@@ -837,7 +983,11 @@ impl SandboxAdapter for CloudHypervisorAdapter {
         if self
             .handles
             .lock()
-            .map(|map| map.get(&handle.id).map(|state| state.killed).unwrap_or(false))
+            .map(|map| {
+                map.get(&handle.id)
+                    .map(|state| state.killed)
+                    .unwrap_or(false)
+            })
             .unwrap_or(false)
         {
             return Err(spawn_failed(
@@ -847,12 +997,12 @@ impl SandboxAdapter for CloudHypervisorAdapter {
 
         // Snapshot the binds declared for this handle so the per-exec initramfs
         // can bake them in. RW binds also drive the serial-tar write-back.
-        let binds = self
+        let (binds, resource_limits) = self
             .handles
             .lock()
             .map(|map| {
                 map.get(&handle.id)
-                    .map(|state| state.binds.clone())
+                    .map(|state| (state.binds.clone(), state.resource_limits.clone()))
                     .unwrap_or_default()
             })
             .unwrap_or_default();
@@ -890,7 +1040,13 @@ impl SandboxAdapter for CloudHypervisorAdapter {
             return Err(error);
         }
 
-        let boot_args = self.boot_args(&command_b64, &rw_b64, &initramfs_cpio, &serial_log);
+        let boot_args = self.boot_args(
+            &command_b64,
+            &rw_b64,
+            &initramfs_cpio,
+            &serial_log,
+            memory_mib_from_limits(&resource_limits, self.config.memory_mib),
+        )?;
 
         let start = Instant::now();
         let boot = run_host_command(
@@ -1035,11 +1191,10 @@ impl SandboxAdapter for CloudHypervisorAdapter {
         // scratch root. For the ephemeral model there is no long-lived VM to
         // signal between execs (any in-flight child is reaped by
         // run_host_command's kill_on_drop once its exec future is dropped).
-        let persistent = self
-            .handles
-            .lock()
-            .ok()
-            .and_then(|map| map.get(&handle.id).and_then(|state| state.persistent.clone()));
+        let persistent = self.handles.lock().ok().and_then(|map| {
+            map.get(&handle.id)
+                .and_then(|state| state.persistent.clone())
+        });
         if let Some(vm) = persistent {
             // Dropping the Child terminates the CH process (kill_on_drop). Also
             // issue an explicit kill so termination does not depend solely on
@@ -1054,9 +1209,8 @@ impl SandboxAdapter for CloudHypervisorAdapter {
             if let Some(mut child) = child {
                 let _ = child.start_kill();
                 // kill_on_drop(true) still reaps the process if the wait elapses.
-                let _ =
-                    tokio::time::timeout(Duration::from_millis(PROBE_TIMEOUT_MS), child.wait())
-                        .await;
+                let _ = tokio::time::timeout(Duration::from_millis(PROBE_TIMEOUT_MS), child.wait())
+                    .await;
             }
             let _ = remove_wsl_path(&self.config, &vm.api_socket).await;
             let _ = remove_wsl_path(&self.config, &vm.vm_root).await;
@@ -1065,9 +1219,7 @@ impl SandboxAdapter for CloudHypervisorAdapter {
         if let Ok(mut map) = self.handles.lock() {
             if let Some(state) = map.get_mut(&handle.id) {
                 state.killed = true;
-                state.status = ProcessStatus::Killed {
-                    by_signal: _signal,
-                };
+                state.status = ProcessStatus::Killed { by_signal: _signal };
             }
         }
         Ok(())
@@ -1101,10 +1253,7 @@ impl SandboxAdapter for CloudHypervisorAdapter {
     /// paused CPU + RAM + device state so [`restore`] can resume it.
     ///
     /// [`restore`]: CloudHypervisorAdapter::restore
-    async fn snapshot(
-        &self,
-        handle: &ProcessHandle,
-    ) -> Result<SnapshotRef, SandboxAdapterError> {
+    async fn snapshot(&self, handle: &ProcessHandle) -> Result<SnapshotRef, SandboxAdapterError> {
         self.ensure_handle(handle)?;
         // Snapshotting is activity: reset the idle clock so the reaper does not
         // race a VM that is actively being checkpointed.
@@ -1113,7 +1262,10 @@ impl SandboxAdapter for CloudHypervisorAdapter {
             .handles
             .lock()
             .ok()
-            .and_then(|map| map.get(&handle.id).and_then(|state| state.persistent.clone()))
+            .and_then(|map| {
+                map.get(&handle.id)
+                    .and_then(|state| state.persistent.clone())
+            })
             .ok_or_else(|| {
                 snapshot_failed(
                     "snapshot requires a persistent handle; spawn with metadata \
@@ -1121,11 +1273,11 @@ impl SandboxAdapter for CloudHypervisorAdapter {
                 )
             })?;
 
-        // Record the original VM's absolute serial path as the snapshot's
-        // observation channel: CH bakes this same absolute path into the
-        // snapshot config, so the restored VM keeps appending its TICK stream
-        // there. Carrying it on the SnapshotRef lets `restore` reattach serial
-        // observation (otherwise the restored handle has no readable console).
+        // Record the source VM's absolute serial path as snapshot observation
+        // metadata. Restore now copies the snapshot and rewrites the copy's
+        // `serial.file` to a restore-owned log, so this path describes the
+        // captured source stream only; restored handles attach their own serial
+        // path during `restore`.
         let snap_ref = SnapshotRef::new(
             AdapterId::new(CLOUD_HYPERVISOR_ADAPTER_ID),
             format!("{}/snap-{}", self.config.work_dir, Uuid::now_v7().simple()),
@@ -1237,10 +1389,7 @@ impl SandboxAdapter for CloudHypervisorAdapter {
     /// independent), and the restored guest writes its serial to its own log, so
     /// tearing down the original VM cannot delete the snapshot or the restored
     /// VM's console.
-    async fn restore(
-        &self,
-        snapshot: &SnapshotRef,
-    ) -> Result<ProcessHandle, SandboxAdapterError> {
+    async fn restore(&self, snapshot: &SnapshotRef) -> Result<ProcessHandle, SandboxAdapterError> {
         verify_available(&self.config).await?;
         if snapshot.adapter_id != AdapterId::new(CLOUD_HYPERVISOR_ADAPTER_ID) {
             return Err(snapshot_failed(format!(
@@ -1289,8 +1438,11 @@ impl SandboxAdapter for CloudHypervisorAdapter {
         // copy's CH `serial.file` to a restore-owned log, and restore from the
         // COPY. The original snapshot is left intact and re-restorable, and the
         // restored VM owns its own console + scratch.
-        let restore_root =
-            format!("{}/restore-{}", self.config.work_dir, Uuid::now_v7().simple());
+        let restore_root = format!(
+            "{}/restore-{}",
+            self.config.work_dir,
+            Uuid::now_v7().simple()
+        );
         let restore_serial = format!("{restore_root}/serial.log");
         let restore_config = format!("{restore_root}/config.json");
         let api_socket = format!("{restore_root}/ch.sock");
@@ -1414,6 +1566,13 @@ impl SandboxAdapter for CloudHypervisorAdapter {
             // The persistent-VM model implements real pause+snapshot+restore via
             // Cloud Hypervisor + ch-remote (Master Spec v02.187 §3.5.7 #7).
             supports_snapshot: true,
+            // The current persistent VM is an idle snapshot target only. Exec,
+            // warm-agent RPC, and live token streaming require the follow-on
+            // guest channel, so advertise them as unsupported rather than imply
+            // warm inference is already live.
+            supports_persistent_exec: false,
+            supports_warm_agent: false,
+            supports_live_token_stream: false,
         }
     }
 }
@@ -1449,6 +1608,61 @@ fn shell_quote(value: &str) -> String {
     format!("'{}'", value.replace('\'', "'\\''"))
 }
 
+fn memory_mib_from_limits(limits: &ResourceLimits, default_mib: u32) -> u32 {
+    const MIB: u64 = 1024 * 1024;
+    limits
+        .memory_bytes
+        .filter(|bytes| *bytes > 0)
+        .map(|bytes| bytes.saturating_add(MIB - 1) / MIB)
+        .map(|mib| mib.clamp(1, u64::from(u32::MAX)) as u32)
+        .unwrap_or(default_mib.max(1))
+}
+
+fn append_balloon_args(
+    args: &mut Vec<String>,
+    memory_mib: u32,
+    balloon: &CloudHypervisorBalloonConfig,
+) -> Result<(), SandboxAdapterError> {
+    let Some(size_mib) = balloon.size_mib() else {
+        return Ok(());
+    };
+    if size_mib > memory_mib {
+        return Err(spawn_failed(format!(
+            "cloud_hypervisor balloon size {size_mib}M exceeds guest memory {memory_mib}M; \
+             refusing invalid --balloon configuration"
+        )));
+    }
+    args.push("--balloon".to_string());
+    args.push(format!(
+        "size={size_mib}M,deflate_on_oom={},free_page_reporting={}",
+        on_off(balloon.deflate_on_oom()),
+        on_off(balloon.free_page_reporting())
+    ));
+    Ok(())
+}
+
+fn on_off(value: bool) -> &'static str {
+    if value {
+        "on"
+    } else {
+        "off"
+    }
+}
+
+fn validate_supported_resource_limits(limits: &ResourceLimits) -> Result<(), SandboxAdapterError> {
+    if limits.disk_read_bytes_per_sec.is_some()
+        || limits.disk_write_bytes_per_sec.is_some()
+        || limits.net_bandwidth_bytes_per_sec.is_some()
+    {
+        return Err(spawn_failed(
+            "cloud_hypervisor ResourceLimits disk/net bytes-per-second token-bucket limits \
+             are not enforceable by this adapter path yet; refusing to silently ignore \
+             requested per-device rate limits",
+        ));
+    }
+    Ok(())
+}
+
 struct ParsedSerial {
     stdout: String,
     exit_code: i32,
@@ -1464,11 +1678,16 @@ fn parse_serial_markers(serial_text: &str) -> Option<ParsedSerial> {
 
     let body = &serial_text[after_begin..end];
     // Drop the single newline that follows the BEGIN marker line.
-    let stdout = body.strip_prefix("\r\n").or_else(|| body.strip_prefix('\n')).unwrap_or(body);
+    let stdout = body
+        .strip_prefix("\r\n")
+        .or_else(|| body.strip_prefix('\n'))
+        .unwrap_or(body);
     let stdout = stdout.trim_end_matches(['\r', '\n']).to_string();
 
     let after_prefix = &serial_text[end + HSK_END_PREFIX.len()..];
-    let code_str = after_prefix.find(HSK_END_SUFFIX).map(|idx| &after_prefix[..idx])?;
+    let code_str = after_prefix
+        .find(HSK_END_SUFFIX)
+        .map(|idx| &after_prefix[..idx])?;
     let exit_code = code_str.trim().parse::<i32>().ok()?;
 
     Some(ParsedSerial { stdout, exit_code })
@@ -1543,10 +1762,7 @@ async fn verify_available(config: &CloudHypervisorConfig) -> Result<(), SandboxA
     Ok(())
 }
 
-async fn read_serial_log(
-    config: &CloudHypervisorConfig,
-    serial_log: &str,
-) -> Option<Vec<u8>> {
+async fn read_serial_log(config: &CloudHypervisorConfig, serial_log: &str) -> Option<Vec<u8>> {
     let output = run_host_command(
         config.wsl_exe(),
         &[
@@ -1604,10 +1820,14 @@ async fn best_effort_resume(config: &CloudHypervisorConfig, api_socket: &str) {
 
 /// Recursively remove a WSL-side path (per-exec scratch root). Best-effort.
 async fn remove_wsl_path(config: &CloudHypervisorConfig, path: &str) -> bool {
-    run_wsl_sh(config, &format!("rm -rf {}", sh_quote_wsl(path)), PROBE_TIMEOUT_MS)
-        .await
-        .map(|output| output.exit_code == 0)
-        .unwrap_or(false)
+    run_wsl_sh(
+        config,
+        &format!("rm -rf {}", sh_quote_wsl(path)),
+        PROBE_TIMEOUT_MS,
+    )
+    .await
+    .map(|output| output.exit_code == 0)
+    .unwrap_or(false)
 }
 
 /// Run a `sh -c <script>` inside the configured WSL distro and return the raw
@@ -1827,10 +2047,7 @@ async fn build_idle_initramfs(
 /// VM and RETAIN the [`Child`] (unlike `run_host_command`, which waits for the
 /// process to exit). `kill_on_drop(true)` means dropping the returned child also
 /// terminates the CH process, so the adapter can tear the VM down deterministically.
-fn spawn_persistent_child(
-    wsl_exe: &Path,
-    args: &[String],
-) -> Result<Child, SandboxAdapterError> {
+fn spawn_persistent_child(wsl_exe: &Path, args: &[String]) -> Result<Child, SandboxAdapterError> {
     let mut command = TokioCommand::new(wsl_exe);
     command
         .args(args)
@@ -1839,15 +2056,15 @@ fn spawn_persistent_child(
         .stderr(Stdio::null())
         .kill_on_drop(true);
     hide_command_window(&mut command);
-    command.spawn().map_err(|error| {
-        SandboxAdapterError::AdapterUnavailable {
+    command
+        .spawn()
+        .map_err(|error| SandboxAdapterError::AdapterUnavailable {
             adapter_id: AdapterId::new(CLOUD_HYPERVISOR_ADAPTER_ID),
             reason: format!(
                 "failed to spawn persistent cloud-hypervisor via `{}`: {error}",
                 wsl_exe.to_string_lossy()
             ),
-        }
-    })
+        })
 }
 
 /// Poll inside WSL until `path` exists (the API socket / serial log a booting
@@ -2013,12 +2230,15 @@ async fn run_host_command(
         .kill_on_drop(true);
     hide_command_window(&mut command);
 
-    let mut child = command.spawn().map_err(|error| {
-        SandboxAdapterError::AdapterUnavailable {
+    let mut child = command
+        .spawn()
+        .map_err(|error| SandboxAdapterError::AdapterUnavailable {
             adapter_id: AdapterId::new(CLOUD_HYPERVISOR_ADAPTER_ID),
-            reason: format!("failed to spawn `{}`: {error}", executable.to_string_lossy()),
-        }
-    })?;
+            reason: format!(
+                "failed to spawn `{}`: {error}",
+                executable.to_string_lossy()
+            ),
+        })?;
 
     if let Some(input) = stdin {
         if let Some(mut child_stdin) = child.stdin.take() {
@@ -2330,6 +2550,126 @@ mod tests {
     }
 
     #[test]
+    fn capabilities_are_honest_about_snapshot_without_warm_exec() {
+        let caps = CloudHypervisorAdapter::new_for_test().capabilities();
+        assert!(caps.supports_snapshot);
+        assert!(
+            !caps.supports_persistent_exec,
+            "persistent exec needs the follow-on guest channel"
+        );
+        assert!(
+            !caps.supports_warm_agent,
+            "warm-agent RPC is not live until the guest agent exists"
+        );
+        assert!(
+            !caps.supports_live_token_stream,
+            "current sandbox streaming is post-hoc chunking, not live decode"
+        );
+    }
+
+    #[test]
+    fn warm_agent_status_is_machine_readable_and_fail_closed() {
+        let adapter = CloudHypervisorAdapter::new_for_test();
+        let status = adapter.warm_agent_status();
+        assert_eq!(
+            status.adapter_id,
+            AdapterId::new(CLOUD_HYPERVISOR_ADAPTER_ID)
+        );
+        assert!(status.snapshot_supported);
+        assert!(!status.persistent_exec_supported);
+        assert!(!status.warm_agent_supported);
+        assert!(!status.live_token_stream_supported);
+        assert_eq!(
+            status.required_transport,
+            CLOUD_HYPERVISOR_WARM_AGENT_REQUIRED_TRANSPORT
+        );
+        let reason = status
+            .unavailable_reason
+            .as_deref()
+            .expect("unsupported status carries reason");
+        assert!(reason.contains("idle snapshot target"));
+        assert!(reason.contains("guest agent"));
+        assert!(reason.contains("virtio-vsock"));
+
+        let encoded = serde_json::to_value(&status).expect("serialize warm status");
+        assert_eq!(encoded["warm_agent_supported"], false);
+        assert_eq!(encoded["live_token_stream_supported"], false);
+        assert_eq!(
+            encoded["required_transport"],
+            CLOUD_HYPERVISOR_WARM_AGENT_REQUIRED_TRANSPORT
+        );
+    }
+
+    #[test]
+    fn persistent_boot_args_do_not_advertise_warm_transport_without_agent() {
+        let adapter = CloudHypervisorAdapter::new_for_test();
+        let args = adapter
+            .persistent_boot_args(
+                "/work/vm/ch.sock",
+                "/work/vm/idle.cpio",
+                "/work/vm/serial.log",
+                256,
+            )
+            .expect("persistent boot args");
+
+        assert!(args
+            .windows(2)
+            .any(|pair| pair[0] == "--api-socket" && pair[1] == "/work/vm/ch.sock"));
+        assert!(args
+            .windows(2)
+            .any(|pair| pair[0] == "--serial" && pair[1] == "file=/work/vm/serial.log"));
+        assert!(args
+            .windows(2)
+            .any(|pair| pair[0] == "--cmdline" && pair[1] == "console=ttyS0"));
+        assert!(
+            !args.iter().any(|arg| arg.contains("vsock")),
+            "do not configure a bidirectional warm-agent transport before the guest agent exists"
+        );
+        assert!(
+            !args.iter().any(|arg| arg.contains("hsk.warm_agent")),
+            "persistent init must not imply a warm-agent protocol until the guest serves it"
+        );
+    }
+
+    #[tokio::test]
+    async fn exec_on_persistent_handle_fails_closed_before_booting_ephemeral_vm() {
+        let adapter = CloudHypervisorAdapter::new_for_test();
+        let handle = ProcessHandle::new(
+            AdapterId::new(CLOUD_HYPERVISOR_ADAPTER_ID),
+            None,
+            "hsk-ch-persistent-test",
+        );
+        let mut state = HandleState::default();
+        state.persistent = Some(PersistentVm {
+            api_socket: "/work/persistent-test/api.sock".to_string(),
+            serial_log: "/work/persistent-test/serial.log".to_string(),
+            vm_root: "/work/persistent-test".to_string(),
+        });
+        adapter.handles.lock().unwrap().insert(handle.id, state);
+
+        let err = adapter
+            .exec(
+                &handle,
+                Command {
+                    argv: vec!["true".to_string()],
+                    env_overlay: Default::default(),
+                    stdin: None,
+                    timeout_ms: Some(1),
+                },
+            )
+            .await
+            .expect_err("persistent exec must fail closed until a guest agent exists");
+
+        match err {
+            SandboxAdapterError::SpawnFailed { reason, .. } => {
+                assert!(reason.contains("exec into a persistent"));
+                assert!(reason.contains("vsock guest agent"));
+            }
+            other => panic!("expected typed SpawnFailed, got {other:?}"),
+        }
+    }
+
+    #[test]
     fn ch_remote_args_shape() {
         let config = CloudHypervisorConfig::default();
         let args = ch_remote_args(&config, "/run/ch.sock", &["pause".to_string()]);
@@ -2419,6 +2759,127 @@ mod tests {
     }
 
     #[test]
+    fn resource_limit_memory_bytes_rounds_up_to_cloud_hypervisor_mib() {
+        let default_mib = 256;
+        assert_eq!(
+            memory_mib_from_limits(&ResourceLimits::default(), default_mib),
+            default_mib
+        );
+        assert_eq!(
+            memory_mib_from_limits(
+                &ResourceLimits {
+                    memory_bytes: Some(1),
+                    ..Default::default()
+                },
+                default_mib,
+            ),
+            1,
+            "a sub-MiB reservation rounds up to CH's smallest MiB unit"
+        );
+        assert_eq!(
+            memory_mib_from_limits(
+                &ResourceLimits {
+                    memory_bytes: Some(257 * 1024 * 1024 - 1),
+                    ..Default::default()
+                },
+                default_mib,
+            ),
+            257,
+            "CH memory size must be ceil(bytes/MiB), never rounded down"
+        );
+    }
+
+    #[test]
+    fn boot_args_use_process_spec_memory_limit_not_global_default() {
+        let adapter = CloudHypervisorAdapter::new_for_test();
+        let limits = ResourceLimits {
+            memory_bytes: Some(768 * 1024 * 1024),
+            ..Default::default()
+        };
+        let args = adapter
+            .boot_args(
+                "Y21k",
+                "",
+                "/work/initramfs.cpio",
+                "/work/serial.log",
+                memory_mib_from_limits(&limits, adapter.config.memory_mib),
+            )
+            .expect("valid CH argv");
+        let memory_pos = args
+            .iter()
+            .position(|arg| arg == "--memory")
+            .expect("CH argv includes --memory");
+        assert_eq!(
+            args.get(memory_pos + 1).map(String::as_str),
+            Some("size=768M")
+        );
+    }
+
+    #[test]
+    fn boot_args_include_cloud_hypervisor_balloon_when_configured() {
+        let mut adapter = CloudHypervisorAdapter::new_for_test();
+        adapter.config.balloon = CloudHypervisorBalloonConfig::new(128, true, false);
+        let args = adapter
+            .boot_args("Y21k", "", "/work/initramfs.cpio", "/work/serial.log", 512)
+            .expect("balloon fits inside guest memory");
+        let balloon_pos = args
+            .iter()
+            .position(|arg| arg == "--balloon")
+            .expect("CH argv includes --balloon");
+        assert_eq!(
+            args.get(balloon_pos + 1).map(String::as_str),
+            Some("size=128M,deflate_on_oom=on,free_page_reporting=off")
+        );
+    }
+
+    #[test]
+    fn balloon_larger_than_guest_memory_fails_before_spawn() {
+        let mut args = Vec::new();
+        let err = append_balloon_args(
+            &mut args,
+            256,
+            &CloudHypervisorBalloonConfig::new(512, true, true),
+        )
+        .expect_err("invalid balloon size must fail closed");
+        assert!(args.is_empty(), "no partial --balloon argv on failure");
+        match err {
+            SandboxAdapterError::SpawnFailed { reason, .. } => {
+                assert!(reason.contains("balloon size 512M"));
+                assert!(reason.contains("guest memory 256M"));
+            }
+            other => panic!("expected typed SpawnFailed, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn disk_and_net_rate_limits_fail_closed_until_adapter_enforces_them() {
+        for limits in [
+            ResourceLimits {
+                disk_read_bytes_per_sec: Some(1_000_000),
+                ..Default::default()
+            },
+            ResourceLimits {
+                disk_write_bytes_per_sec: Some(1_000_000),
+                ..Default::default()
+            },
+            ResourceLimits {
+                net_bandwidth_bytes_per_sec: Some(1_000_000),
+                ..Default::default()
+            },
+        ] {
+            let err = validate_supported_resource_limits(&limits)
+                .expect_err("nonzero CH rate limit must fail closed");
+            match err {
+                SandboxAdapterError::SpawnFailed { reason, .. } => {
+                    assert!(reason.contains("not enforceable"));
+                    assert!(reason.contains("per-device rate limits"));
+                }
+                other => panic!("expected typed SpawnFailed, got {other:?}"),
+            }
+        }
+    }
+
+    #[test]
     fn default_config_uses_proven_values_when_env_unset() {
         // Note: this asserts the compiled-in defaults, not env overrides.
         let config = CloudHypervisorConfig {
@@ -2433,9 +2894,11 @@ mod tests {
             memory_mib: DEFAULT_MEMORY_MIB,
             vcpus: DEFAULT_VCPUS,
             command_timeout_ms: DEFAULT_COMMAND_TIMEOUT_MS,
+            balloon: CloudHypervisorBalloonConfig::disabled(),
         };
         assert_eq!(config.memory_mib(), 256);
         assert_eq!(config.vcpus(), 1);
         assert_eq!(config.command_timeout_ms(), 60_000);
+        assert_eq!(config.balloon().size_mib(), None);
     }
 }

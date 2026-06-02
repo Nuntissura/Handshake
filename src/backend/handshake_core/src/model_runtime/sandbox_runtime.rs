@@ -51,8 +51,8 @@ use async_trait::async_trait;
 use futures::stream;
 
 use crate::sandbox::{
-    AdapterId, BindMode, Command, ImageRef, NetPolicy, ProcessHandle, ProcessSpec, ResourceLimits,
-    SandboxAdapter, Signal, TrustClass,
+    AdapterId, BindMode, BindSpec, Command, ImageRef, NetPolicy, ProcessHandle, ProcessSpec,
+    ResourceLimits, SandboxAdapter, Signal, TrustClass,
 };
 
 use super::{
@@ -69,6 +69,10 @@ pub const SANDBOX_RUNTIME_ADAPTER: &str = "sandbox_model_runtime";
 /// model at `<GGUF_GUEST_ROOT>/<filename>`. Must match the bind root (asserted
 /// in the unit test) so a guest-path mismatch (research risk #4) cannot ship.
 pub const GGUF_GUEST_ROOT: &str = "/models";
+/// Guest mount point for a host-provided llama.cpp runner. Tier-3 product
+/// routing uses this instead of assuming the guest image happens to contain a
+/// `llama-cli` binary on PATH.
+pub const SANDBOX_RUNNER_GUEST_ROOT: &str = "/runtime";
 
 /// Configuration for one boxed local model: the host GGUF, the dir bound
 /// read-only into the guest, the runner's guest path, and the sizing/trust
@@ -84,6 +88,11 @@ pub struct SandboxModelConfig {
     /// Guest path / PATH name of the llama runner (e.g. `"llama-cli"` if on the
     /// guest rootfs PATH, or an absolute `/usr/bin/llama-cli`).
     pub runner_guest_path: String,
+    /// Optional host path to the runner binary. When set, `load()` validates the
+    /// file and binds its parent directory ReadOnly at
+    /// [`SANDBOX_RUNNER_GUEST_ROOT`], while `runner_guest_path` points at the
+    /// mounted binary.
+    pub runner_host_path: Option<PathBuf>,
     /// Trust class for the boxed workload. Defaults to the conservative
     /// [`TrustClass::UntrustedAgent`], whose `min_isolation_tier()` is
     /// `Tier3Microvm`, so registry selection enforces the microVM minimum.
@@ -106,10 +115,24 @@ impl SandboxModelConfig {
             gguf_host_path: gguf_host_path.into(),
             gguf_root_bind: gguf_root_bind.into(),
             runner_guest_path: runner_guest_path.into(),
+            runner_host_path: None,
             trust_class: TrustClass::UntrustedAgent,
             memory_bytes: None,
             timeout_ms: None,
         }
+    }
+
+    pub fn with_runner_host_path(mut self, path: impl Into<PathBuf>) -> Self {
+        let path = path.into();
+        if let Some(file_name) = path.file_name() {
+            self.runner_guest_path = format!(
+                "{}/{}",
+                SANDBOX_RUNNER_GUEST_ROOT.trim_end_matches('/'),
+                file_name.to_string_lossy()
+            );
+        }
+        self.runner_host_path = Some(path);
+        self
     }
 
     pub fn with_memory_bytes(mut self, bytes: u64) -> Self {
@@ -139,30 +162,75 @@ impl SandboxModelConfig {
 
     /// Absolute guest path the runner reads the model from.
     pub fn guest_gguf_path(&self) -> String {
-        format!("{}/{}", GGUF_GUEST_ROOT.trim_end_matches('/'), self.gguf_filename())
+        format!(
+            "{}/{}",
+            GGUF_GUEST_ROOT.trim_end_matches('/'),
+            self.gguf_filename()
+        )
+    }
+
+    fn runner_bind_spec(&self) -> Option<Result<BindSpec, ModelRuntimeError>> {
+        self.runner_host_path.as_ref().map(|runner| {
+            let file_name = runner.file_name().ok_or_else(|| {
+                ModelRuntimeError::LoadError(format!(
+                    "sandbox runner path has no file name: {}",
+                    runner.display()
+                ))
+            })?;
+            let expected_guest_path = format!(
+                "{}/{}",
+                SANDBOX_RUNNER_GUEST_ROOT.trim_end_matches('/'),
+                file_name.to_string_lossy()
+            );
+            if self.runner_guest_path != expected_guest_path {
+                return Err(ModelRuntimeError::LoadError(format!(
+                    "sandbox runner guest path {} must match host runner file name at {}",
+                    self.runner_guest_path, expected_guest_path
+                )));
+            }
+            let runner_parent = runner.parent().ok_or_else(|| {
+                ModelRuntimeError::LoadError(format!(
+                    "sandbox runner path has no parent directory to bind: {}",
+                    runner.display()
+                ))
+            })?;
+            Ok(BindSpec {
+                host_path: runner_parent.to_path_buf(),
+                guest_path: PathBuf::from(SANDBOX_RUNNER_GUEST_ROOT),
+                mode: BindMode::ReadOnly,
+            })
+        })
     }
 }
 
-/// Build the inference [`ProcessSpec`] for a boxed local model. Lifts the
-/// builder SHAPE from `model_runtime/sandbox_binding.rs::process_spec_from_model_spec`
-/// but carries the runner argv on the per-exec [`Command`] (the ephemeral CH
-/// path takes argv from the command, not `ProcessSpec.cmd`). The GGUF dir is
-/// declared as the ReadOnly bind under [`GGUF_GUEST_ROOT`]; `net_policy` is
-/// `DenyAll` (CH microVMs boot with no network device); `trust_class` flows from
-/// the config so an `UntrustedAgent` workload forces the Tier-3 minimum.
-pub fn inference_process_spec(model_id: ModelId, cfg: &SandboxModelConfig) -> ProcessSpec {
-    ProcessSpec {
+/// Fallible builder for the inference [`ProcessSpec`] for a boxed local model.
+/// Lifts the builder SHAPE from
+/// `model_runtime/sandbox_binding.rs::process_spec_from_model_spec` but carries
+/// the runner argv on the per-exec [`Command`] (the ephemeral CH path takes argv
+/// from the command, not `ProcessSpec.cmd`). The GGUF dir is declared as the
+/// ReadOnly bind under [`GGUF_GUEST_ROOT`]; `net_policy` is `DenyAll` (CH
+/// microVMs boot with no network device); `trust_class` flows from the config so
+/// an `UntrustedAgent` workload forces the Tier-3 minimum.
+pub fn try_inference_process_spec(
+    model_id: ModelId,
+    cfg: &SandboxModelConfig,
+) -> Result<ProcessSpec, ModelRuntimeError> {
+    let mut binds = vec![BindSpec {
+        host_path: cfg.gguf_root_bind.clone(),
+        guest_path: PathBuf::from(GGUF_GUEST_ROOT),
+        mode: BindMode::ReadOnly,
+    }];
+    if let Some(runner_bind) = cfg.runner_bind_spec().transpose()? {
+        binds.push(runner_bind);
+    }
+    Ok(ProcessSpec {
         id: AdapterId::new(format!("sandbox-model:{model_id}")),
         image_or_root: ImageRef::new("llama_cpp"),
         // argv is carried on the per-exec Command (ephemeral exec path), not here.
         cmd: vec![],
         env: BTreeMap::new(),
         cwd: None,
-        binds: vec![crate::sandbox::BindSpec {
-            host_path: cfg.gguf_root_bind.clone(),
-            guest_path: PathBuf::from(GGUF_GUEST_ROOT),
-            mode: BindMode::ReadOnly,
-        }],
+        binds,
         net_policy: NetPolicy::DenyAll,
         resource_limits: ResourceLimits {
             memory_bytes: cfg.memory_bytes,
@@ -174,7 +242,14 @@ pub fn inference_process_spec(model_id: ModelId, cfg: &SandboxModelConfig) -> Pr
         // No `hsk.sandbox.mode=persistent` marker => the proven ephemeral
         // per-exec boot path. Persistent mode is the snapshot/restore seam only.
         metadata: BTreeMap::new(),
-    }
+    })
+}
+
+/// Infallible compatibility wrapper for existing call sites. Production paths
+/// should prefer [`try_inference_process_spec`] so malformed runner delivery
+/// config returns a typed load/factory error instead of panicking.
+pub fn inference_process_spec(model_id: ModelId, cfg: &SandboxModelConfig) -> ProcessSpec {
+    try_inference_process_spec(model_id, cfg).expect("invalid sandbox model inference process spec")
 }
 
 /// Build the per-exec inference [`Command`]: the runner reads the bound GGUF and
@@ -451,6 +526,29 @@ impl ModelRuntime for SandboxModelRuntime {
                 self.cfg.gguf_root_bind.display()
             )));
         }
+        let runner_bind = if let Some(bind) = self.cfg.runner_bind_spec() {
+            let bind = bind?;
+            let runner = self.cfg.runner_host_path.as_ref().ok_or_else(|| {
+                ModelRuntimeError::LoadError(
+                    "sandbox runner bind requested but runner_host_path is missing".to_string(),
+                )
+            })?;
+            if !runner.is_file() {
+                return Err(ModelRuntimeError::LoadError(format!(
+                    "sandbox runner binary not found: {}",
+                    runner.display()
+                )));
+            }
+            if !bind.host_path.is_dir() {
+                return Err(ModelRuntimeError::LoadError(format!(
+                    "sandbox runner bind root must be an existing directory: {}",
+                    bind.host_path.display()
+                )));
+            }
+            Some(bind)
+        } else {
+            None
+        };
         // The GGUF must live under the bound dir so the guest path
         // `<GGUF_GUEST_ROOT>/<file>` actually resolves (research risk #4).
         if self.cfg.gguf_host_path.parent() != Some(self.cfg.gguf_root_bind.as_path()) {
@@ -468,12 +566,11 @@ impl ModelRuntime for SandboxModelRuntime {
             }
         }
 
-        let spec = inference_process_spec(self.model_id, &self.cfg);
-        let handle = self
-            .adapter
-            .spawn(spec)
-            .await
-            .map_err(|err| ModelRuntimeError::LoadError(format!("sandbox spawn failed: {err}")))?;
+        let spec = try_inference_process_spec(self.model_id, &self.cfg)?;
+        let handle =
+            self.adapter.spawn(spec).await.map_err(|err| {
+                ModelRuntimeError::LoadError(format!("sandbox spawn failed: {err}"))
+            })?;
         // Register the GGUF dir bind so the ephemeral per-exec initramfs bakes
         // it (the CH adapter reads binds from handle state, not ProcessSpec.binds).
         self.adapter
@@ -487,6 +584,14 @@ impl ModelRuntime for SandboxModelRuntime {
             .map_err(|err| {
                 ModelRuntimeError::LoadError(format!("sandbox gguf fs_bind failed: {err}"))
             })?;
+        if let Some(bind) = runner_bind {
+            self.adapter
+                .fs_bind(&handle, bind.host_path, bind.guest_path, bind.mode)
+                .await
+                .map_err(|err| {
+                    ModelRuntimeError::LoadError(format!("sandbox runner fs_bind failed: {err}"))
+                })?;
+        }
 
         self.handle = Some(handle);
         Ok(self.model_id)
@@ -567,8 +672,8 @@ mod tests {
     use super::*;
     use crate::model_runtime::{GenPrompt, SamplingParams};
     use crate::sandbox::{
-        AdapterCapabilities, BindSpec, ExecResult, GpuPassthrough, IsolationStrength, IsolationTier,
-        ProcessStatus, SandboxAdapterError, SnapshotRef, ThroughputClass,
+        AdapterCapabilities, BindSpec, ExecResult, GpuPassthrough, IsolationStrength,
+        IsolationTier, ProcessStatus, SandboxAdapterError, SnapshotRef, ThroughputClass,
     };
     use bytes::Bytes;
     use futures::StreamExt;
@@ -734,6 +839,9 @@ mod tests {
                 isolation_tier: IsolationTier::Tier3Microvm,
                 requires_nested_virt: true,
                 supports_snapshot: true,
+                supports_persistent_exec: false,
+                supports_warm_agent: false,
+                supports_live_token_stream: false,
             }
         }
     }
@@ -746,6 +854,15 @@ mod tests {
         let gguf = dir.join("model.gguf");
         std::fs::write(&gguf, b"GGUF-FAKE").expect("write fake gguf");
         (dir, gguf)
+    }
+
+    fn temp_runner() -> (PathBuf, PathBuf) {
+        let dir =
+            std::env::temp_dir().join(format!("hsk-sbx-runner-{}", uuid::Uuid::now_v7().simple()));
+        std::fs::create_dir_all(&dir).expect("mk temp runner dir");
+        let runner = dir.join("llama-cli");
+        std::fs::write(&runner, b"#!/bin/sh\n").expect("write fake runner");
+        (dir, runner)
     }
 
     fn cfg_for(dir: &PathBuf, gguf: &PathBuf) -> SandboxModelConfig {
@@ -839,6 +956,102 @@ mod tests {
         let _ = std::fs::remove_dir_all(dir);
     }
 
+    #[tokio::test]
+    async fn configured_runner_is_bound_readonly_and_used_as_guest_binary() {
+        let (dir, gguf) = temp_gguf();
+        let (runner_dir, runner) = temp_runner();
+        let (adapter, obs) = FakeSandboxAdapter::new(ExecScript::Completion("ok".to_string()));
+        let cfg = SandboxModelConfig::new(gguf.clone(), dir.clone(), "llama-cli")
+            .with_runner_host_path(runner.clone())
+            .with_timeout_ms(60_000);
+        let mut rt = SandboxModelRuntime::new(adapter, cfg);
+        let spec = LoadSpec {
+            artifact_path: gguf.clone(),
+            sha256_expected: String::new(),
+            runtime_kind: crate::model_runtime::RuntimeKind::LlamaCpp,
+            sampling_defaults: SamplingParams::default(),
+            kv_cache_policy: crate::model_runtime::KvCachePolicy::default(),
+            declared_capabilities: ModelCapabilities::default(),
+            provider: ProviderKind::Local,
+            engine_origin: Some("llama_cpp".to_string()),
+            external_engine_import: None,
+        };
+        let _ = rt.load(spec).await.expect("load binds gguf and runner");
+        let mut stream = rt.generate(gen_req(rt.model_id(), "say hi", 8));
+        while stream.next().await.is_some() {}
+
+        let o = obs.lock().unwrap();
+        let process_spec = o.last_spec.as_ref().expect("spawn spec");
+        assert!(
+            process_spec.binds.iter().any(|b| {
+                b.host_path == runner_dir
+                    && b.guest_path == PathBuf::from(SANDBOX_RUNNER_GUEST_ROOT)
+                    && b.mode == BindMode::ReadOnly
+            }),
+            "runner bind is declared on ProcessSpec"
+        );
+        assert!(
+            o.last_binds.iter().any(|b| {
+                b.host_path == runner_dir
+                    && b.guest_path == PathBuf::from(SANDBOX_RUNNER_GUEST_ROOT)
+                    && b.mode == BindMode::ReadOnly
+            }),
+            "runner dir is also registered through fs_bind for CH per-exec initramfs"
+        );
+        let cmd = o.last_command.as_ref().expect("exec command");
+        assert_eq!(cmd.argv[0], "/runtime/llama-cli");
+        drop(o);
+        let _ = std::fs::remove_dir_all(dir);
+        let _ = std::fs::remove_dir_all(runner_dir);
+    }
+
+    #[tokio::test]
+    async fn configured_runner_missing_fails_before_spawn() {
+        let (dir, gguf) = temp_gguf();
+        let missing_runner = dir.join("missing-llama-cli");
+        let (adapter, obs) = FakeSandboxAdapter::new(ExecScript::Completion("ok".to_string()));
+        let cfg = SandboxModelConfig::new(gguf.clone(), dir.clone(), "llama-cli")
+            .with_runner_host_path(missing_runner.clone());
+        let mut rt = SandboxModelRuntime::new(adapter, cfg);
+        let spec = LoadSpec {
+            artifact_path: gguf.clone(),
+            sha256_expected: String::new(),
+            runtime_kind: crate::model_runtime::RuntimeKind::LlamaCpp,
+            sampling_defaults: SamplingParams::default(),
+            kv_cache_policy: crate::model_runtime::KvCachePolicy::default(),
+            declared_capabilities: ModelCapabilities::default(),
+            provider: ProviderKind::Local,
+            engine_origin: Some("llama_cpp".to_string()),
+            external_engine_import: None,
+        };
+        let err = rt
+            .load(spec)
+            .await
+            .expect_err("missing runner must fail before sandbox spawn");
+        assert!(format!("{err}").contains("sandbox runner binary not found"));
+        assert!(
+            obs.lock().unwrap().last_spec.is_none(),
+            "load failure before runner validation must not spawn a sandbox handle"
+        );
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn fallible_process_spec_rejects_mismatched_runner_guest_path() {
+        let (dir, gguf) = temp_gguf();
+        let (runner_dir, runner) = temp_runner();
+        let mut cfg = SandboxModelConfig::new(gguf.clone(), dir.clone(), "llama-cli")
+            .with_runner_host_path(runner);
+        cfg.runner_guest_path = "/runtime/not-the-runner".to_string();
+
+        let err = try_inference_process_spec(ModelId::new_v7(), &cfg)
+            .expect_err("mismatched runner guest path must fail closed");
+        assert!(format!("{err}").contains("sandbox runner guest path"));
+
+        let _ = std::fs::remove_dir_all(dir);
+        let _ = std::fs::remove_dir_all(runner_dir);
+    }
+
     /// Test 2: the fake completion's chunks concatenate IN ORDER and the
     /// terminal token is Stop.
     #[tokio::test]
@@ -858,7 +1071,11 @@ mod tests {
             }
         }
         assert!(texts.len() >= 2, "expected multiple chunks, got {texts:?}");
-        assert_eq!(texts.join(""), completion, "chunks concatenate to completion");
+        assert_eq!(
+            texts.join(""),
+            completion,
+            "chunks concatenate to completion"
+        );
         assert_eq!(terminal, Some(FinishReason::Stop));
         let _ = std::fs::remove_dir_all(dir);
     }
@@ -878,7 +1095,10 @@ mod tests {
             }
         }
         assert!(saw_any, "stream must not be silently empty");
-        assert!(saw_error, "non-zero exit must surface as a GenerateError item");
+        assert!(
+            saw_error,
+            "non-zero exit must surface as a GenerateError item"
+        );
         let _ = std::fs::remove_dir_all(dir);
     }
 
@@ -893,7 +1113,10 @@ mod tests {
                 saw_error = true;
             }
         }
-        assert!(saw_error, "exec failure must surface as a GenerateError item");
+        assert!(
+            saw_error,
+            "exec failure must surface as a GenerateError item"
+        );
         let _ = std::fs::remove_dir_all(dir);
     }
 
@@ -902,7 +1125,7 @@ mod tests {
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn cancel_kills_vm_and_terminal_is_cancelled() {
         let (rt, obs, dir) = loaded(ExecScript::Completion("x".to_string())).await;
-        let mut req = gen_req(rt.model_id(), "p", 8);
+        let req = gen_req(rt.model_id(), "p", 8);
         // Pre-cancel so the exec thread takes the Cancelled terminal path
         // deterministically (no VM boot, no race).
         req.cancel.cancel();
@@ -926,7 +1149,10 @@ mod tests {
             }
             tokio::time::sleep(std::time::Duration::from_millis(5)).await;
         }
-        assert!(obs.lock().unwrap().kill_called, "cancel() must call adapter.kill");
+        assert!(
+            obs.lock().unwrap().kill_called,
+            "cancel() must call adapter.kill"
+        );
         let _ = std::fs::remove_dir_all(dir);
     }
 
@@ -943,7 +1169,10 @@ mod tests {
                 saw_error = true;
             }
         }
-        assert!(saw_error, "generate before load must surface a GenerateError");
+        assert!(
+            saw_error,
+            "generate before load must surface a GenerateError"
+        );
         let _ = std::fs::remove_dir_all(dir);
     }
 

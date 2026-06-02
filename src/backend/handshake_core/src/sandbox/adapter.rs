@@ -112,6 +112,12 @@ pub struct AdapterCapabilities {
     pub requires_nested_virt: bool,
     #[serde(default)]
     pub supports_snapshot: bool,
+    #[serde(default)]
+    pub supports_persistent_exec: bool,
+    #[serde(default)]
+    pub supports_warm_agent: bool,
+    #[serde(default)]
+    pub supports_live_token_stream: bool,
 }
 
 impl AdapterCapabilities {
@@ -133,6 +139,9 @@ pub fn default_no_op_capabilities() -> AdapterCapabilities {
         isolation_tier: IsolationTier::Tier1Container,
         requires_nested_virt: false,
         supports_snapshot: false,
+        supports_persistent_exec: false,
+        supports_warm_agent: false,
+        supports_live_token_stream: false,
     }
 }
 
@@ -174,10 +183,7 @@ pub trait SandboxAdapter: Send + Sync {
     /// default, which returns a typed
     /// [`SandboxAdapterError::SnapshotUnsupported`]. Only adapters whose
     /// [`AdapterCapabilities::supports_snapshot`] is `true` override this.
-    async fn snapshot(
-        &self,
-        handle: &ProcessHandle,
-    ) -> Result<SnapshotRef, SandboxAdapterError> {
+    async fn snapshot(&self, handle: &ProcessHandle) -> Result<SnapshotRef, SandboxAdapterError> {
         let _ = handle;
         Err(SandboxAdapterError::SnapshotUnsupported {
             adapter_id: self.capabilities().adapter_id,
@@ -189,10 +195,7 @@ pub trait SandboxAdapter: Send + Sync {
     /// the default returns [`SandboxAdapterError::SnapshotUnsupported`].
     ///
     /// [`snapshot`]: SandboxAdapter::snapshot
-    async fn restore(
-        &self,
-        snapshot: &SnapshotRef,
-    ) -> Result<ProcessHandle, SandboxAdapterError> {
+    async fn restore(&self, snapshot: &SnapshotRef) -> Result<ProcessHandle, SandboxAdapterError> {
         let _ = snapshot;
         Err(SandboxAdapterError::SnapshotUnsupported {
             adapter_id: self.capabilities().adapter_id,

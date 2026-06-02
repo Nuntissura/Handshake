@@ -335,10 +335,16 @@ export function SwarmBoard({ onInspectTerminal, onReviewSession, terminalIpc = d
           </h4>
           <div
             className="board-columns"
-            style={{ display: "grid", gridTemplateColumns: `repeat(${BOARD_COLUMNS.length}, 1fr)`, gap: 8 }}
+            style={{
+              display: "grid",
+              gridTemplateColumns: `repeat(${BOARD_COLUMNS.length}, minmax(112px, 1fr))`,
+              gap: 8,
+              overflowX: "auto",
+              paddingBottom: 4,
+            }}
           >
             {BOARD_COLUMNS.map((col) => (
-              <div key={col} className="board-column" style={{ minWidth: 0 }}>
+              <div key={col} className="board-column" style={{ minWidth: 112 }}>
                 <div
                   style={{
                     fontSize: 11,

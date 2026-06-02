@@ -244,12 +244,13 @@ pub struct SnapshotRef {
     pub adapter_id: AdapterId,
     pub snapshot_dir: String,
     pub created_at_utc: DateTime<Utc>,
-    /// Optional adapter-side path where the snapshot's live output stream
-    /// continues to be observable after a restore (for the Cloud Hypervisor
-    /// adapter this is the original VM's absolute serial-log path, which the
-    /// restored VM keeps appending to). Lets callers confirm that restored
-    /// state resumed rather than rebooted. `None` when the adapter exposes no
-    /// such observation channel.
+    /// Optional adapter-side path where the snapshot's source live output stream
+    /// was observable at capture time. For Cloud Hypervisor this is the source
+    /// VM's absolute serial-log path; restore copies the snapshot and rewrites
+    /// the copy to a restore-owned serial log, so restored handles expose their
+    /// current observation path through adapter handle inspection rather than by
+    /// reusing this field. `None` when the adapter exposes no such observation
+    /// metadata.
     #[serde(default)]
     pub observe_path: Option<String>,
 }
@@ -342,10 +343,10 @@ fn format_capability_set(capabilities: &BTreeSet<RequiredCapability>) -> String 
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::adapter::{
         AdapterCapabilities, GpuPassthrough, IsolationStrength, IsolationTier, ThroughputClass,
     };
+    use super::*;
 
     #[test]
     fn resource_limits_rate_limit_builders_and_serde() {
@@ -365,7 +366,10 @@ mod tests {
 
         // Unlimited (default) omits the rate-limit keys entirely.
         let none = serde_json::to_string(&ResourceLimits::default()).expect("serialize default");
-        assert!(!none.contains("bytes_per_sec"), "omitted limits must not serialize: {none}");
+        assert!(
+            !none.contains("bytes_per_sec"),
+            "omitted limits must not serialize: {none}"
+        );
     }
 
     #[test]
@@ -404,12 +408,29 @@ mod tests {
             isolation_tier: IsolationTier::Tier3Microvm,
             requires_nested_virt: true,
             supports_snapshot: true,
+            supports_persistent_exec: false,
+            supports_warm_agent: false,
+            supports_live_token_stream: false,
         };
         let json = serde_json::to_string(&caps).expect("serialize capabilities");
         let back: AdapterCapabilities =
             serde_json::from_str(&json).expect("deserialize capabilities");
         assert_eq!(back, caps);
         assert!(back.supports_snapshot);
+        assert!(!back.supports_persistent_exec);
+        assert!(!back.supports_warm_agent);
+        assert!(!back.supports_live_token_stream);
         assert!(back.requires_nested_virt);
+    }
+
+    #[test]
+    fn adapter_capabilities_decodes_legacy_rows_without_warm_flags() {
+        let legacy = r#"{"adapter_id":"cloud_hypervisor","runtime_available":true,"filesystem_isolation_strength":"very_strong","network_isolation_strength":"very_strong","gpu_passthrough":"none","stdio_throughput_class":"low","win32_native_fidelity":false,"cross_machine_portable":true,"isolation_tier":"tier3_microvm","requires_nested_virt":true,"supports_snapshot":true}"#;
+        let decoded: AdapterCapabilities =
+            serde_json::from_str(legacy).expect("decode legacy AdapterCapabilities");
+        assert!(decoded.supports_snapshot);
+        assert!(!decoded.supports_persistent_exec);
+        assert!(!decoded.supports_warm_agent);
+        assert!(!decoded.supports_live_token_stream);
     }
 }

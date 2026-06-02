@@ -12,24 +12,25 @@
 //!
 //! ## Wave 1 boundary
 //!
-//! This lands a REACHABLE, fake-adapter-tested snapshot/restore seam — NOT
-//! generate-from-warm-VM. Serving `generate()` from a restored warm VM with no
-//! model reload requires the persistent-`exec` vsock guest agent that the CH
-//! adapter explicitly defers (exec into a running persistent VM fails closed
-//! today). So `generate()` stays on the ephemeral-exec path in
-//! [`crate::model_runtime::SandboxModelRuntime`]; this registry proves the
-//! per-worktree snapshot/restore WIRING separately. Serving inference from the
-//! restored warm VM is a FLAGGED FOLLOW-ON.
+//! This now lands a REACHABLE, fake-adapter-tested snapshot/restore seam plus
+//! warm-start manifests that bind a snapshot to the warm-agent protocol version,
+//! ready nonce, guest model path, and model artifact hash. Serving `generate()`
+//! from a restored warm VM with no model reload still requires the live
+//! serial/vsock guest transport and a model-bearing guest image; the registry
+//! prevents stale snapshot reuse but does not fake live token generation.
 
 use std::collections::HashMap;
 use std::sync::Arc;
 
 use tokio::sync::Mutex;
 
+use crate::model_runtime::{
+    validate_ready_frame, WarmAgentGuestFrame, WarmAgentProtocolError, WarmVmSnapshotManifest,
+};
 use crate::sandbox::{
     AdapterId, ImageRef, NetPolicy, ProcessHandle, ProcessSpec, ResourceLimits, SandboxAdapter,
-    SandboxAdapterError, Signal, SnapshotRef, TrustClass,
-    SANDBOX_MODE_METADATA_KEY, SANDBOX_MODE_PERSISTENT,
+    SandboxAdapterError, Signal, SnapshotRef, TrustClass, SANDBOX_MODE_METADATA_KEY,
+    SANDBOX_MODE_PERSISTENT,
 };
 
 /// Error type for the worktree VM registry. Wraps the adapter error plus the
@@ -38,6 +39,8 @@ use crate::sandbox::{
 pub enum WorktreeVmError {
     #[error("no microVM is bound to worktree `{worktree_id}`; call ensure_worktree_vm first")]
     NotBound { worktree_id: String },
+    #[error(transparent)]
+    WarmAgent(#[from] WarmAgentProtocolError),
     #[error(transparent)]
     Sandbox(#[from] SandboxAdapterError),
 }
@@ -140,6 +143,73 @@ impl WorktreeVmRegistry {
         Ok(handle)
     }
 
+    /// Snapshot a worktree VM after its in-guest warm agent has reported a
+    /// loaded model. The returned manifest binds the raw VM snapshot to the
+    /// warm-agent protocol version, ready nonce, guest model path, and model
+    /// artifact hash. A later restore validates this manifest before rebinding
+    /// the worktree so stale snapshots cannot masquerade as usable warm model
+    /// state.
+    pub async fn snapshot_warm_model(
+        &self,
+        worktree_id: &str,
+        model_artifact_sha256: &str,
+        model_guest_path: &str,
+        ready: &WarmAgentGuestFrame,
+    ) -> Result<WarmVmSnapshotManifest, WorktreeVmError> {
+        validate_ready_frame(ready)?;
+        let (ready_nonce, loaded_model_sha256, loaded_model_guest_path) = match ready {
+            WarmAgentGuestFrame::Ready {
+                ready_nonce,
+                loaded_model_sha256,
+                loaded_model_guest_path,
+                ..
+            } => (
+                ready_nonce.as_str(),
+                loaded_model_sha256.as_deref(),
+                loaded_model_guest_path.as_deref(),
+            ),
+            _ => unreachable!("validate_ready_frame rejects non-ready frames"),
+        };
+        if loaded_model_sha256 != Some(model_artifact_sha256) {
+            return Err(WarmAgentProtocolError::ModelHashMismatch {
+                expected: model_artifact_sha256.to_string(),
+                actual: loaded_model_sha256.unwrap_or("<missing>").to_string(),
+            }
+            .into());
+        }
+        if loaded_model_guest_path != Some(model_guest_path) {
+            return Err(WarmAgentProtocolError::ModelGuestPathMismatch {
+                expected: model_guest_path.to_string(),
+                actual: loaded_model_guest_path.unwrap_or("<missing>").to_string(),
+            }
+            .into());
+        }
+        let snapshot = self.snapshot(worktree_id).await?;
+        Ok(WarmVmSnapshotManifest::new(
+            worktree_id,
+            model_artifact_sha256,
+            model_guest_path,
+            ready_nonce,
+            snapshot,
+        ))
+    }
+
+    /// Restore a warm-model snapshot only when its protocol, model hash, and
+    /// guest model path still match the requested artifact. This is the
+    /// warm-start guardrail: restored process state is usable only after the
+    /// manifest proves it was captured from the same model identity and guest
+    /// location that the caller is about to serve.
+    pub async fn restore_warm_model(
+        &self,
+        manifest: &WarmVmSnapshotManifest,
+        expected_model_artifact_sha256: &str,
+        expected_model_guest_path: &str,
+    ) -> Result<ProcessHandle, WorktreeVmError> {
+        manifest.validate_for_restore(expected_model_artifact_sha256, expected_model_guest_path)?;
+        self.restore(&manifest.worktree_id, &manifest.snapshot)
+            .await
+    }
+
     /// Tear down the worktree's bound VM (best-effort kill) and unbind it.
     pub async fn teardown_worktree_vm(&self, worktree_id: &str) -> Result<(), WorktreeVmError> {
         let handle = self.persistent.lock().await.remove(worktree_id);
@@ -158,6 +228,7 @@ impl WorktreeVmRegistry {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::model_runtime::{WARM_AGENT_PROTOCOL_ID, WARM_AGENT_PROTOCOL_VERSION};
     use crate::sandbox::{
         AdapterCapabilities, BindMode, Command, ExecResult, GpuPassthrough, IsolationStrength,
         IsolationTier, ProcessStatus, ThroughputClass,
@@ -244,11 +315,10 @@ mod tests {
             _handle: &ProcessHandle,
         ) -> Result<SnapshotRef, SandboxAdapterError> {
             self.obs.lock().unwrap().snapshot_called = true;
-            Ok(SnapshotRef::new(
-                AdapterId::new("cloud_hypervisor"),
-                "/fake/snap",
+            Ok(
+                SnapshotRef::new(AdapterId::new("cloud_hypervisor"), "/fake/snap")
+                    .with_observe_path("/fake/serial.log"),
             )
-            .with_observe_path("/fake/serial.log"))
         }
         async fn restore(
             &self,
@@ -274,6 +344,9 @@ mod tests {
                 isolation_tier: IsolationTier::Tier3Microvm,
                 requires_nested_virt: true,
                 supports_snapshot: true,
+                supports_persistent_exec: false,
+                supports_warm_agent: false,
+                supports_live_token_stream: false,
             }
         }
     }
@@ -282,6 +355,17 @@ mod tests {
         let obs = Arc::new(StdMutex::new(Obs::default()));
         let adapter = Arc::new(FakeVmAdapter { obs: obs.clone() });
         (WorktreeVmRegistry::new(adapter), obs)
+    }
+
+    fn ready_frame(model_hash: &str, model_guest_path: &str) -> WarmAgentGuestFrame {
+        WarmAgentGuestFrame::Ready {
+            protocol_id: WARM_AGENT_PROTOCOL_ID.to_string(),
+            protocol_version: WARM_AGENT_PROTOCOL_VERSION,
+            agent_id: "warm-agent-1".to_string(),
+            ready_nonce: "nonce-1".to_string(),
+            loaded_model_sha256: Some(model_hash.to_string()),
+            loaded_model_guest_path: Some(model_guest_path.to_string()),
+        }
     }
 
     #[tokio::test]
@@ -304,7 +388,10 @@ mod tests {
         let (reg, obs) = registry();
         reg.ensure_worktree_vm("wt-1").await.expect("boot");
         let snap = reg.snapshot("wt-1").await.expect("snapshot");
-        assert!(obs.lock().unwrap().snapshot_called, "adapter.snapshot driven");
+        assert!(
+            obs.lock().unwrap().snapshot_called,
+            "adapter.snapshot driven"
+        );
         assert_eq!(snap.observe_path.as_deref(), Some("/fake/serial.log"));
 
         let restored = reg.restore("wt-1", &snap).await.expect("restore");
@@ -312,6 +399,88 @@ mod tests {
         assert_eq!(restored.sandbox_internal_id, "hsk-ch-restored");
         // The worktree is rebound to the restored handle.
         assert!(reg.is_bound("wt-1").await);
+    }
+
+    #[tokio::test]
+    async fn warm_snapshot_manifest_restores_only_matching_model_hash() {
+        let (reg, obs) = registry();
+        reg.ensure_worktree_vm("wt-warm").await.expect("boot");
+        let ready = ready_frame("sha-warm", "/models/model.gguf");
+        let manifest = reg
+            .snapshot_warm_model("wt-warm", "sha-warm", "/models/model.gguf", &ready)
+            .await
+            .expect("warm snapshot manifest");
+        assert_eq!(manifest.worktree_id, "wt-warm");
+        assert_eq!(manifest.model_artifact_sha256, "sha-warm");
+        assert_eq!(manifest.model_guest_path, "/models/model.gguf");
+
+        let restored = reg
+            .restore_warm_model(&manifest, "sha-warm", "/models/model.gguf")
+            .await
+            .expect("matching hash restores");
+        assert_eq!(restored.sandbox_internal_id, "hsk-ch-restored");
+        assert!(obs.lock().unwrap().restore_called);
+
+        obs.lock().unwrap().restore_called = false;
+        let stale = reg
+            .restore_warm_model(&manifest, "sha-new", "/models/model.gguf")
+            .await
+            .expect_err("stale model hash fails before restore");
+        assert!(matches!(
+            stale,
+            WorktreeVmError::WarmAgent(WarmAgentProtocolError::ModelHashMismatch { .. })
+        ));
+        assert!(
+            !obs.lock().unwrap().restore_called,
+            "stale manifest must not call adapter.restore"
+        );
+
+        let stale_path = reg
+            .restore_warm_model(&manifest, "sha-warm", "/models/other.gguf")
+            .await
+            .expect_err("stale guest path fails before restore");
+        assert!(matches!(
+            stale_path,
+            WorktreeVmError::WarmAgent(WarmAgentProtocolError::ModelGuestPathMismatch { .. })
+        ));
+        assert!(
+            !obs.lock().unwrap().restore_called,
+            "stale guest path must not call adapter.restore"
+        );
+    }
+
+    #[tokio::test]
+    async fn warm_snapshot_rejects_ready_frame_mismatch_before_snapshot() {
+        let (reg, obs) = registry();
+        reg.ensure_worktree_vm("wt-warm").await.expect("boot");
+
+        let stale_hash = ready_frame("sha-old", "/models/model.gguf");
+        let err = reg
+            .snapshot_warm_model("wt-warm", "sha-warm", "/models/model.gguf", &stale_hash)
+            .await
+            .expect_err("hash mismatch fails before snapshot");
+        assert!(matches!(
+            err,
+            WorktreeVmError::WarmAgent(WarmAgentProtocolError::ModelHashMismatch { .. })
+        ));
+        assert!(
+            !obs.lock().unwrap().snapshot_called,
+            "hash mismatch must not capture a VM snapshot"
+        );
+
+        let stale_path = ready_frame("sha-warm", "/models/other.gguf");
+        let err = reg
+            .snapshot_warm_model("wt-warm", "sha-warm", "/models/model.gguf", &stale_path)
+            .await
+            .expect_err("guest path mismatch fails before snapshot");
+        assert!(matches!(
+            err,
+            WorktreeVmError::WarmAgent(WarmAgentProtocolError::ModelGuestPathMismatch { .. })
+        ));
+        assert!(
+            !obs.lock().unwrap().snapshot_called,
+            "path mismatch must not capture a VM snapshot"
+        );
     }
 
     #[tokio::test]
@@ -327,6 +496,9 @@ mod tests {
         reg.ensure_worktree_vm("wt-1").await.expect("boot");
         reg.teardown_worktree_vm("wt-1").await.expect("teardown");
         assert!(obs.lock().unwrap().kill_called, "adapter.kill driven");
-        assert!(!reg.is_bound("wt-1").await, "worktree unbound after teardown");
+        assert!(
+            !reg.is_bound("wt-1").await,
+            "worktree unbound after teardown"
+        );
     }
 }
