@@ -45,6 +45,8 @@
 
 pub mod adapter;
 pub mod guest_agent;
+pub mod warm_agent_package;
 
 pub use adapter::*;
 pub use guest_agent::*;
+pub use warm_agent_package::*;

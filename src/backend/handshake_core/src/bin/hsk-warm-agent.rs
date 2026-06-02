@@ -71,7 +71,7 @@ impl AgentConfig {
     fn from_env() -> Result<Self, AgentError> {
         Ok(Self {
             server_bin: env::var("HSK_WARM_AGENT_LLAMA_SERVER")
-                .unwrap_or_else(|_| "llama-server".to_string()),
+                .unwrap_or_else(|_| default_llama_server_bin()),
             host: env::var("HSK_WARM_AGENT_HOST").unwrap_or_else(|_| DEFAULT_HOST.to_string()),
             port: env_u16("HSK_WARM_AGENT_PORT")?.unwrap_or(DEFAULT_PORT),
             ctx_size: env_u32("HSK_WARM_AGENT_CTX")?,
@@ -99,6 +99,24 @@ impl AgentConfig {
     fn health_url(&self) -> String {
         format!("{}/health", self.base_url())
     }
+}
+
+fn default_llama_server_bin() -> String {
+    env::current_exe()
+        .ok()
+        .and_then(|path| sibling_llama_server_path(&path))
+        .map(|path| path.to_string_lossy().to_string())
+        .unwrap_or_else(|| "llama-server".to_string())
+}
+
+fn sibling_llama_server_path(agent_exe_path: &Path) -> Option<std::path::PathBuf> {
+    let parent = agent_exe_path.parent()?;
+    let candidate = parent.join(if cfg!(windows) {
+        "llama-server.exe"
+    } else {
+        "llama-server"
+    });
+    candidate.is_file().then_some(candidate)
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -813,6 +831,27 @@ mod tests {
         assert!(validate_model_path("models/model.gguf").is_err());
         assert!(validate_model_path("/tmp/model.gguf").is_err());
         assert!(validate_model_path("/models/with space.gguf").is_err());
+    }
+
+    #[test]
+    fn default_llama_server_prefers_sibling_binary() {
+        let dir =
+            std::env::temp_dir().join(format!("hsk-warm-agent-{}", uuid::Uuid::now_v7().simple()));
+        std::fs::create_dir_all(&dir).expect("create temp dir");
+        let agent = dir.join(if cfg!(windows) {
+            "hsk-warm-agent.exe"
+        } else {
+            "hsk-warm-agent"
+        });
+        let server = dir.join(if cfg!(windows) {
+            "llama-server.exe"
+        } else {
+            "llama-server"
+        });
+        std::fs::write(&agent, b"agent").expect("write agent");
+        std::fs::write(&server, b"server").expect("write server");
+        assert_eq!(sibling_llama_server_path(&agent), Some(server));
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[tokio::test]

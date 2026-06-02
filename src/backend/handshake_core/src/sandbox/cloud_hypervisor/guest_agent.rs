@@ -6,6 +6,8 @@
 //! advertise support once a guest image serves this contract over serial or
 //! vsock.
 
+use std::{fs::File, io::Read, path::Path};
+
 use serde::{Deserialize, Serialize};
 
 pub const CLOUD_HYPERVISOR_WARM_AGENT_REQUIRED_TRANSPORT: &str =
@@ -20,6 +22,16 @@ pub const CLOUD_HYPERVISOR_WARM_AGENT_UNAVAILABLE_REASON: &str =
      but warm-model RPC and live token streaming require a resident model-serving \
      guest agent/image; serial is the bootstrap transport and virtio-vsock remains \
      the hardened follow-on";
+pub const CLOUD_HYPERVISOR_WARM_AGENT_PACKAGE_MANIFEST_FILE: &str = "hsk-warm-agent.package.json";
+
+const ELF64_HEADER_LEN: usize = 64;
+const ELFCLASS64: u8 = 2;
+const ELFDATA2LSB: u8 = 1;
+const EV_CURRENT: u32 = 1;
+const ET_EXEC: u16 = 2;
+const ET_DYN: u16 = 3;
+const EM_X86_64: u16 = 62;
+const PT_INTERP: u32 = 3;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CloudHypervisorWarmAgentContract {
@@ -70,9 +82,145 @@ pub fn warm_agent_unavailable_detail() -> String {
     )
 }
 
+pub fn validate_warm_agent_host_candidate(path: &Path) -> Result<(), String> {
+    if !path.is_file() {
+        return Err(format!(
+            "warm-agent host path must point at a Linux guest executable file; missing: {}",
+            path.display()
+        ));
+    }
+    let file_name = path
+        .file_name()
+        .and_then(|value| value.to_str())
+        .ok_or_else(|| "warm-agent host path must have a UTF-8 file name".to_string())?;
+    if file_name.chars().any(char::is_whitespace) {
+        return Err(format!(
+            "warm-agent file name must not contain whitespace: {file_name}"
+        ));
+    }
+    if path
+        .extension()
+        .and_then(|value| value.to_str())
+        .map(|value| value.eq_ignore_ascii_case("exe"))
+        .unwrap_or(false)
+    {
+        return Err(format!(
+            "warm-agent host path must be a Linux guest executable, not a Windows .exe: {}",
+            path.display()
+        ));
+    }
+
+    let mut bytes = Vec::new();
+    File::open(path)
+        .and_then(|mut file| file.read_to_end(&mut bytes))
+        .map_err(|error| format!("warm-agent host path is unreadable: {error}"))?;
+    if bytes.len() >= 2 && bytes[..2] == *b"MZ" {
+        return Err(format!(
+            "warm-agent host path has a Windows PE/MZ header; build/package a Linux ELF agent before binding it into Cloud Hypervisor: {}",
+            path.display()
+        ));
+    }
+    validate_static_x86_64_elf_bytes(path, &bytes)
+}
+
+fn validate_static_x86_64_elf_bytes(path: &Path, bytes: &[u8]) -> Result<(), String> {
+    if bytes.len() < ELF64_HEADER_LEN || bytes[..4] != *b"\x7fELF" {
+        return Err(format!(
+            "warm-agent host path must be a packaged static Linux x86_64 ELF guest artifact: {}",
+            path.display()
+        ));
+    }
+    if bytes[4] != ELFCLASS64 || bytes[5] != ELFDATA2LSB || bytes[6] != EV_CURRENT as u8 {
+        return Err(format!(
+            "warm-agent host path must be a 64-bit little-endian ELF guest artifact: {}",
+            path.display()
+        ));
+    }
+    let elf_type = read_u16_le(bytes, 16);
+    if !matches!(elf_type, ET_EXEC | ET_DYN) {
+        return Err(format!(
+            "warm-agent host path must be an executable Linux ELF artifact: {}",
+            path.display()
+        ));
+    }
+    let machine = read_u16_le(bytes, 18);
+    if machine != EM_X86_64 {
+        return Err(format!(
+            "warm-agent host path must target x86_64 for the Cloud Hypervisor guest, got ELF machine {machine}: {}",
+            path.display()
+        ));
+    }
+    let version = read_u32_le(bytes, 20);
+    if version != EV_CURRENT {
+        return Err(format!(
+            "warm-agent host path has an unsupported ELF version {version}: {}",
+            path.display()
+        ));
+    }
+
+    let program_header_offset: usize = read_u64_le(bytes, 32)
+        .try_into()
+        .map_err(|_| "warm-agent ELF program-header offset overflows host usize".to_string())?;
+    let program_header_entry_size = read_u16_le(bytes, 54) as usize;
+    let program_header_count = read_u16_le(bytes, 56) as usize;
+    if program_header_offset == 0 || program_header_entry_size < 4 || program_header_count == 0 {
+        return Err(format!(
+            "warm-agent host path must include ELF program headers for guest execution: {}",
+            path.display()
+        ));
+    }
+    let program_header_bytes = program_header_entry_size
+        .checked_mul(program_header_count)
+        .and_then(|len| program_header_offset.checked_add(len))
+        .ok_or_else(|| "warm-agent ELF program-header table overflows host usize".to_string())?;
+    if program_header_bytes > bytes.len() {
+        return Err(format!(
+            "warm-agent host path has a truncated ELF program-header table: {}",
+            path.display()
+        ));
+    }
+    for index in 0..program_header_count {
+        let offset = program_header_offset + index * program_header_entry_size;
+        if read_u32_le(bytes, offset) == PT_INTERP {
+            return Err(format!(
+                "warm-agent host path must be statically linked for the BusyBox initramfs guest; dynamic loader PT_INTERP found: {}",
+                path.display()
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn read_u16_le(bytes: &[u8], offset: usize) -> u16 {
+    u16::from_le_bytes([bytes[offset], bytes[offset + 1]])
+}
+
+fn read_u32_le(bytes: &[u8], offset: usize) -> u32 {
+    u32::from_le_bytes([
+        bytes[offset],
+        bytes[offset + 1],
+        bytes[offset + 2],
+        bytes[offset + 3],
+    ])
+}
+
+fn read_u64_le(bytes: &[u8], offset: usize) -> u64 {
+    u64::from_le_bytes([
+        bytes[offset],
+        bytes[offset + 1],
+        bytes[offset + 2],
+        bytes[offset + 3],
+        bytes[offset + 4],
+        bytes[offset + 5],
+        bytes[offset + 6],
+        bytes[offset + 7],
+    ])
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::io::Write;
 
     #[test]
     fn contract_requires_resident_model_agent_and_rejects_shell_fallback() {
@@ -90,5 +238,94 @@ mod tests {
             contract.guest_path_metadata_key,
             CLOUD_HYPERVISOR_WARM_AGENT_GUEST_PATH_METADATA_KEY
         );
+    }
+
+    #[test]
+    fn host_candidate_rejects_windows_exe_and_mz_header() {
+        let dir =
+            std::env::temp_dir().join(format!("hsk-warm-agent-{}", uuid::Uuid::now_v7().simple()));
+        std::fs::create_dir_all(&dir).expect("create temp dir");
+        let exe = dir.join("hsk-warm-agent.exe");
+        std::fs::write(&exe, b"not even pe").expect("write exe");
+        assert!(validate_warm_agent_host_candidate(&exe)
+            .expect_err("exe extension rejects")
+            .contains("Windows .exe"));
+
+        let mz = dir.join("hsk-warm-agent");
+        let mut file = std::fs::File::create(&mz).expect("create mz");
+        file.write_all(b"MZ").expect("write mz");
+        assert!(validate_warm_agent_host_candidate(&mz)
+            .expect_err("mz header rejects")
+            .contains("Windows PE/MZ"));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn host_candidate_accepts_linux_elf_guest_artifact_name() {
+        let dir =
+            std::env::temp_dir().join(format!("hsk-warm-agent-{}", uuid::Uuid::now_v7().simple()));
+        std::fs::create_dir_all(&dir).expect("create temp dir");
+        let agent = dir.join("hsk-warm-agent");
+        std::fs::write(&agent, minimal_static_x86_64_elf()).expect("write elf");
+        validate_warm_agent_host_candidate(&agent).expect("static x86_64 ELF candidate accepted");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn host_candidate_rejects_shell_script_even_without_pe_header() {
+        let dir =
+            std::env::temp_dir().join(format!("hsk-warm-agent-{}", uuid::Uuid::now_v7().simple()));
+        std::fs::create_dir_all(&dir).expect("create temp dir");
+        let agent = dir.join("hsk-warm-agent");
+        std::fs::write(&agent, b"#!/bin/sh\n").expect("write shell");
+        assert!(validate_warm_agent_host_candidate(&agent)
+            .expect_err("shell script must not advertise production warm support")
+            .contains("static Linux x86_64 ELF"));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn host_candidate_rejects_elf_magic_without_executable_guest_shape() {
+        let dir =
+            std::env::temp_dir().join(format!("hsk-warm-agent-{}", uuid::Uuid::now_v7().simple()));
+        std::fs::create_dir_all(&dir).expect("create temp dir");
+        let agent = dir.join("hsk-warm-agent");
+        std::fs::write(&agent, b"\x7fELFfake-test").expect("write malformed elf");
+        assert!(validate_warm_agent_host_candidate(&agent)
+            .expect_err("bare magic must not pass production binding")
+            .contains("static Linux x86_64 ELF"));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn host_candidate_rejects_dynamic_loader_elf() {
+        let dir =
+            std::env::temp_dir().join(format!("hsk-warm-agent-{}", uuid::Uuid::now_v7().simple()));
+        std::fs::create_dir_all(&dir).expect("create temp dir");
+        let agent = dir.join("hsk-warm-agent");
+        let mut elf = minimal_static_x86_64_elf();
+        elf[64..68].copy_from_slice(&PT_INTERP.to_le_bytes());
+        std::fs::write(&agent, elf).expect("write dynamic elf");
+        assert!(validate_warm_agent_host_candidate(&agent)
+            .expect_err("dynamic ELF must not pass production binding")
+            .contains("statically linked"));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    fn minimal_static_x86_64_elf() -> Vec<u8> {
+        let mut elf = vec![0_u8; ELF64_HEADER_LEN + 56];
+        elf[0..4].copy_from_slice(b"\x7fELF");
+        elf[4] = ELFCLASS64;
+        elf[5] = ELFDATA2LSB;
+        elf[6] = EV_CURRENT as u8;
+        elf[16..18].copy_from_slice(&ET_DYN.to_le_bytes());
+        elf[18..20].copy_from_slice(&EM_X86_64.to_le_bytes());
+        elf[20..24].copy_from_slice(&EV_CURRENT.to_le_bytes());
+        elf[32..40].copy_from_slice(&(ELF64_HEADER_LEN as u64).to_le_bytes());
+        elf[52..54].copy_from_slice(&(ELF64_HEADER_LEN as u16).to_le_bytes());
+        elf[54..56].copy_from_slice(&56_u16.to_le_bytes());
+        elf[56..58].copy_from_slice(&1_u16.to_le_bytes());
+        elf[64..68].copy_from_slice(&1_u32.to_le_bytes());
+        elf
     }
 }

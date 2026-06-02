@@ -99,6 +99,11 @@ path = "src/bin/hsk-warm-agent.rs"
 test = false
 
 [[bin]]
+name = "hsk-warm-agent-package"
+path = "src/bin/hsk-warm-agent-package.rs"
+test = false
+
+[[bin]]
 name = "abliterate"
 path = "src/bin/abliterate.rs"
 required-features = ["candle-runtime-engine"]

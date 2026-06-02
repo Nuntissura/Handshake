@@ -44,7 +44,7 @@ use crate::process_ledger::{
     record_spawn, LedgerBatcher, ProcessEngineKind, ProcessOwnershipRecordId, SpawnMeta,
 };
 use crate::sandbox::{
-    BindMode, BindSpec, SandboxAdapterRegistry,
+    validate_warm_agent_host_candidate, BindMode, BindSpec, SandboxAdapterRegistry,
     CLOUD_HYPERVISOR_WARM_AGENT_GUEST_PATH_METADATA_KEY, CLOUD_HYPERVISOR_WARM_AGENT_GUEST_ROOT,
     CLOUD_HYPERVISOR_WARM_AGENT_HOST_PATH_ENV,
 };
@@ -66,13 +66,12 @@ fn warm_agent_bind_from_env() -> Result<Option<(BindSpec, String)>, SwarmError> 
         return Ok(None);
     };
     let host_path = std::path::PathBuf::from(path);
-    if !host_path.is_file() {
-        return Err(SwarmError::FactoryFailed(format!(
+    validate_warm_agent_host_candidate(&host_path).map_err(|error| {
+        SwarmError::FactoryFailed(format!(
             "warm VM local execution requires {CLOUD_HYPERVISOR_WARM_AGENT_HOST_PATH_ENV} \
-             to point at an executable guest warm-agent file; missing: {}",
-            host_path.display()
-        )));
-    }
+             to point at a packaged Linux guest warm-agent artifact: {error}"
+        ))
+    })?;
     let file_name = host_path
         .file_name()
         .and_then(|value| value.to_str())
@@ -2886,6 +2885,23 @@ mod tests {
         (dir, runner)
     }
 
+    fn minimal_static_x86_64_elf() -> Vec<u8> {
+        let mut elf = vec![0_u8; 64 + 56];
+        elf[0..4].copy_from_slice(b"\x7fELF");
+        elf[4] = 2;
+        elf[5] = 1;
+        elf[6] = 1;
+        elf[16..18].copy_from_slice(&3_u16.to_le_bytes());
+        elf[18..20].copy_from_slice(&62_u16.to_le_bytes());
+        elf[20..24].copy_from_slice(&1_u32.to_le_bytes());
+        elf[32..40].copy_from_slice(&64_u64.to_le_bytes());
+        elf[52..54].copy_from_slice(&64_u16.to_le_bytes());
+        elf[54..56].copy_from_slice(&56_u16.to_le_bytes());
+        elf[56..58].copy_from_slice(&1_u16.to_le_bytes());
+        elf[64..68].copy_from_slice(&1_u32.to_le_bytes());
+        elf
+    }
+
     fn restore_env_var(key: &str, prior: Option<std::ffi::OsString>) {
         match prior {
             Some(value) => std::env::set_var(key, value),
@@ -2909,7 +2925,8 @@ mod tests {
             std::env::temp_dir().join(format!("hsk-warm-agent-{}", uuid::Uuid::now_v7().simple()));
         std::fs::create_dir_all(&dir).expect("mk warm agent dir");
         let agent = dir.join("hsk-warm-agent");
-        std::fs::write(&agent, b"#!/bin/sh\n").expect("write fake warm agent");
+        std::fs::write(&agent, minimal_static_x86_64_elf())
+            .expect("write fake static ELF warm agent");
         std::env::set_var(CLOUD_HYPERVISOR_WARM_AGENT_HOST_PATH_ENV, &agent);
 
         let (bind, guest_path) = warm_agent_bind_from_env()
@@ -2932,6 +2949,13 @@ mod tests {
             "{detail}"
         );
         assert!(detail.contains("missing"), "{detail}");
+
+        let exe = bind.host_path.join("hsk-warm-agent.exe");
+        std::fs::write(&exe, b"MZ").expect("write windows exe stand-in");
+        std::env::set_var(CLOUD_HYPERVISOR_WARM_AGENT_HOST_PATH_ENV, &exe);
+        let err = warm_agent_bind_from_env().expect_err("windows exe must fail closed");
+        let detail = format!("{err}");
+        assert!(detail.contains("Windows .exe"), "{detail}");
 
         restore_env_var(CLOUD_HYPERVISOR_WARM_AGENT_HOST_PATH_ENV, prior);
         let _ = std::fs::remove_dir_all(bind.host_path);
@@ -3074,7 +3098,8 @@ mod tests {
         ));
         std::fs::create_dir_all(&warm_dir).expect("mk warm agent dir");
         let warm_agent = warm_dir.join("hsk-warm-agent");
-        std::fs::write(&warm_agent, b"#!/bin/sh\n").expect("write fake warm agent");
+        std::fs::write(&warm_agent, minimal_static_x86_64_elf())
+            .expect("write fake static ELF warm agent");
         let prior_runner = std::env::var_os(SANDBOX_LLAMA_CLI_HOST_PATH_ENV);
         let prior_warm_agent = std::env::var_os(CLOUD_HYPERVISOR_WARM_AGENT_HOST_PATH_ENV);
         std::env::set_var(SANDBOX_LLAMA_CLI_HOST_PATH_ENV, &runner);

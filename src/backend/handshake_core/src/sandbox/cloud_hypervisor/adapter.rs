@@ -30,9 +30,10 @@ use crate::sandbox::{
 };
 
 use super::guest_agent::{
-    warm_agent_unavailable_detail, CLOUD_HYPERVISOR_WARM_AGENT_CMDLINE_KEY,
-    CLOUD_HYPERVISOR_WARM_AGENT_GUEST_PATH_METADATA_KEY, CLOUD_HYPERVISOR_WARM_AGENT_HOST_PATH_ENV,
-    CLOUD_HYPERVISOR_WARM_AGENT_REQUIRED_TRANSPORT, CLOUD_HYPERVISOR_WARM_AGENT_UNAVAILABLE_REASON,
+    validate_warm_agent_host_candidate, warm_agent_unavailable_detail,
+    CLOUD_HYPERVISOR_WARM_AGENT_CMDLINE_KEY, CLOUD_HYPERVISOR_WARM_AGENT_GUEST_PATH_METADATA_KEY,
+    CLOUD_HYPERVISOR_WARM_AGENT_HOST_PATH_ENV, CLOUD_HYPERVISOR_WARM_AGENT_REQUIRED_TRANSPORT,
+    CLOUD_HYPERVISOR_WARM_AGENT_UNAVAILABLE_REASON,
 };
 
 #[cfg(windows)]
@@ -172,7 +173,9 @@ warm_agent_loop() {
     echo '{"type":"error","code":"warm_agent_missing","message":"configured warm agent is not executable"}' >&3
     return 1
   fi
-  HSK_WARM_AGENT_TRANSPORT=serial exec "$warm_agent" <&3 >&3 2>/tmp/hsk-warm-agent.err
+  warm_agent_dir=${warm_agent%/*}
+  [ "$warm_agent_dir" != "$warm_agent" ] || warm_agent_dir="/"
+  PATH="$warm_agent_dir:$PATH" HSK_WARM_AGENT_TRANSPORT=serial exec "$warm_agent" <&3 >&3 2>/tmp/hsk-warm-agent.err
 }
 if cat /proc/cmdline | tr ' ' '\n' | grep -q '^hsk.warm_agent='; then
   while true; do warm_agent_loop 2>/tmp/hsk-warm-agent-launch.err; /bin/busybox sleep 1; done &
@@ -244,6 +247,10 @@ pub struct CloudHypervisorWarmAgentStatus {
 
 impl CloudHypervisorWarmAgentStatus {
     fn unsupported() -> Self {
+        Self::unsupported_with_reason(CLOUD_HYPERVISOR_WARM_AGENT_UNAVAILABLE_REASON.to_string())
+    }
+
+    fn unsupported_with_reason(reason: String) -> Self {
         Self {
             adapter_id: AdapterId::new(CLOUD_HYPERVISOR_ADAPTER_ID),
             snapshot_supported: true,
@@ -251,7 +258,7 @@ impl CloudHypervisorWarmAgentStatus {
             warm_agent_supported: false,
             live_token_stream_supported: false,
             required_transport: CLOUD_HYPERVISOR_WARM_AGENT_REQUIRED_TRANSPORT.to_string(),
-            unavailable_reason: Some(CLOUD_HYPERVISOR_WARM_AGENT_UNAVAILABLE_REASON.to_string()),
+            unavailable_reason: Some(reason),
         }
     }
 
@@ -300,9 +307,12 @@ impl CloudHypervisorBalloonConfig {
 
 /// Configuration for [`CloudHypervisorAdapter`].
 ///
-/// All paths are WSL-side (Linux) paths because the VM artifacts live inside
-/// the WSL2 filesystem. Each field defaults to the proven host value and is
-/// overridable via the matching `HANDSHAKE_CH_*` environment variable:
+/// Most paths are WSL-side (Linux) paths because the VM artifacts live inside
+/// the WSL2 filesystem. `warm_agent_host_path` is the host-side packaged Linux
+/// ELF artifact path that production binds into the guest, and it must validate
+/// before this adapter advertises warm-agent support. Each field defaults to
+/// the proven host value and is overridable via the matching `HANDSHAKE_CH_*`
+/// environment variable:
 ///
 /// | field            | env var                       |
 /// |------------------|-------------------------------|
@@ -392,7 +402,15 @@ impl CloudHypervisorConfig {
     }
 
     pub fn warm_agent_configured(&self) -> bool {
-        self.warm_agent_host_path.is_some()
+        self.warm_agent_host_path
+            .as_deref()
+            .is_some_and(|path| validate_warm_agent_host_candidate(path).is_ok())
+    }
+
+    fn warm_agent_config_error(&self) -> Option<String> {
+        self.warm_agent_host_path
+            .as_deref()
+            .and_then(|path| validate_warm_agent_host_candidate(path).err())
     }
 
     pub fn with_command_timeout_ms(mut self, timeout_ms: u64) -> Self {
@@ -649,6 +667,10 @@ impl CloudHypervisorAdapter {
     pub fn warm_agent_status(&self) -> CloudHypervisorWarmAgentStatus {
         if self.config.warm_agent_configured() {
             CloudHypervisorWarmAgentStatus::supported()
+        } else if let Some(error) = self.config.warm_agent_config_error() {
+            CloudHypervisorWarmAgentStatus::unsupported_with_reason(format!(
+                "{CLOUD_HYPERVISOR_WARM_AGENT_UNAVAILABLE_REASON}; configured warm-agent host path is not a packaged static guest artifact: {error}"
+            ))
         } else {
             CloudHypervisorWarmAgentStatus::unsupported()
         }
@@ -1864,6 +1886,10 @@ impl SandboxAdapter for CloudHypervisorAdapter {
         self.ensure_handle(handle)?;
         let status = self.warm_agent_status();
         if !status.warm_agent_supported || !status.live_token_stream_supported {
+            let unavailable_detail = status
+                .unavailable_reason
+                .clone()
+                .unwrap_or_else(warm_agent_unavailable_detail);
             return Err(spawn_failed(format!(
                 "Cloud Hypervisor warm-agent transport unavailable: required_transport={}, \
                  persistent_exec_supported={}, warm_agent_supported={}, \
@@ -1872,7 +1898,7 @@ impl SandboxAdapter for CloudHypervisorAdapter {
                 status.persistent_exec_supported,
                 status.warm_agent_supported,
                 status.live_token_stream_supported,
-                warm_agent_unavailable_detail()
+                unavailable_detail
             )));
         }
         let vm = self
@@ -1906,7 +1932,7 @@ impl SandboxAdapter for CloudHypervisorAdapter {
     }
 
     fn capabilities(&self) -> AdapterCapabilities {
-        let warm_agent_configured = self.config.warm_agent_configured();
+        let warm_agent_supported = self.warm_agent_status().warm_agent_supported;
         AdapterCapabilities {
             adapter_id: AdapterId::new(CLOUD_HYPERVISOR_ADAPTER_ID),
             runtime_available: true,
@@ -1927,8 +1953,8 @@ impl SandboxAdapter for CloudHypervisorAdapter {
             // path by configuring HANDSHAKE_CH_WARM_AGENT_HOST_PATH; without it
             // the adapter advertises only the generic command channel.
             supports_persistent_exec: true,
-            supports_warm_agent: warm_agent_configured,
-            supports_live_token_stream: warm_agent_configured,
+            supports_warm_agent: warm_agent_supported,
+            supports_live_token_stream: warm_agent_supported,
         }
     }
 }
@@ -3533,6 +3559,35 @@ mod tests {
 
     use super::*;
 
+    fn minimal_static_x86_64_elf() -> Vec<u8> {
+        let mut elf = vec![0_u8; 64 + 56];
+        elf[0..4].copy_from_slice(b"\x7fELF");
+        elf[4] = 2;
+        elf[5] = 1;
+        elf[6] = 1;
+        elf[16..18].copy_from_slice(&3_u16.to_le_bytes());
+        elf[18..20].copy_from_slice(&62_u16.to_le_bytes());
+        elf[20..24].copy_from_slice(&1_u32.to_le_bytes());
+        elf[32..40].copy_from_slice(&64_u64.to_le_bytes());
+        elf[52..54].copy_from_slice(&64_u16.to_le_bytes());
+        elf[54..56].copy_from_slice(&56_u16.to_le_bytes());
+        elf[56..58].copy_from_slice(&1_u16.to_le_bytes());
+        elf[64..68].copy_from_slice(&1_u32.to_le_bytes());
+        elf
+    }
+
+    fn static_warm_agent_fixture(label: &str) -> (std::path::PathBuf, std::path::PathBuf) {
+        let dir = std::env::temp_dir().join(format!(
+            "hsk-ch-warm-agent-{label}-{}",
+            Uuid::now_v7().simple()
+        ));
+        std::fs::create_dir_all(&dir).expect("create warm-agent fixture dir");
+        let agent = dir.join("hsk-warm-agent");
+        std::fs::write(&agent, minimal_static_x86_64_elf())
+            .expect("write static warm-agent fixture");
+        (dir, agent)
+    }
+
     const FAKE_LIVE_WARM_AGENT_SH: &str = r#"#!/bin/sh
 json_value() {
   key="$1"
@@ -3994,21 +4049,49 @@ done
     }
 
     #[test]
-    fn capabilities_advertise_warm_agent_only_when_configured() {
-        let mut adapter = CloudHypervisorAdapter::new_for_test();
-        adapter.config = adapter
+    fn capabilities_advertise_warm_agent_only_for_valid_static_guest_artifact() {
+        let invalid_dir =
+            std::env::temp_dir().join(format!("hsk-ch-warm-invalid-{}", Uuid::now_v7().simple()));
+        std::fs::create_dir_all(&invalid_dir).expect("create invalid warm-agent dir");
+        let invalid_agent = invalid_dir.join("hsk-warm-agent");
+        std::fs::write(&invalid_agent, b"#!/bin/sh\n").expect("write invalid warm-agent script");
+        let mut invalid_adapter = CloudHypervisorAdapter::new_for_test();
+        invalid_adapter.config = invalid_adapter
             .config
             .clone()
-            .with_warm_agent_host_path("/host/bin/hsk-warm-agent");
+            .with_warm_agent_host_path(&invalid_agent);
+        let invalid_caps = invalid_adapter.capabilities();
+        assert!(
+            !invalid_caps.supports_warm_agent,
+            "configured non-static artifact must not advertise warm-model RPC"
+        );
+        assert!(
+            !invalid_caps.supports_live_token_stream,
+            "configured non-static artifact must not advertise live warm frames"
+        );
+        let invalid_status = invalid_adapter.warm_agent_status();
+        assert!(!invalid_status.warm_agent_supported);
+        assert!(
+            invalid_status
+                .unavailable_reason
+                .as_deref()
+                .unwrap_or_default()
+                .contains("not a packaged static guest artifact"),
+            "{invalid_status:?}"
+        );
+
+        let (dir, agent) = static_warm_agent_fixture("caps");
+        let mut adapter = CloudHypervisorAdapter::new_for_test();
+        adapter.config = adapter.config.clone().with_warm_agent_host_path(&agent);
 
         let caps = adapter.capabilities();
         assert!(
             caps.supports_warm_agent,
-            "configured resident agent path should opt into warm-model RPC"
+            "validated resident agent path should opt into warm-model RPC"
         );
         assert!(
             caps.supports_live_token_stream,
-            "configured resident agent path should opt into live warm frames"
+            "validated resident agent path should opt into live warm frames"
         );
 
         let status = adapter.warm_agent_status();
@@ -4018,6 +4101,8 @@ done
             status.unavailable_reason.is_none(),
             "supported warm-agent status should not carry stale unsupported text"
         );
+        let _ = std::fs::remove_dir_all(invalid_dir);
+        let _ = std::fs::remove_dir_all(dir);
     }
 
     #[test]
@@ -4150,6 +4235,7 @@ done
     fn init_script_runs_warm_agent_only_when_cmdline_configured() {
         assert!(AGENT_INIT_SCRIPT.contains("hsk.warm_agent"));
         assert!(AGENT_INIT_SCRIPT.contains("HSK_WARM_AGENT_TRANSPORT=serial"));
+        assert!(AGENT_INIT_SCRIPT.contains("PATH=\"$warm_agent_dir:$PATH\""));
         assert!(AGENT_INIT_SCRIPT.contains("exec \"$warm_agent\" <&3 >&3"));
         assert!(AGENT_INIT_SCRIPT.contains("agent_loop()"));
         assert!(AGENT_INIT_SCRIPT.contains("HSK-EXEC"));
@@ -4460,11 +4546,9 @@ done
 
     #[tokio::test]
     async fn warm_agent_transport_rejects_cold_persistent_command_handle() {
+        let (dir, agent) = static_warm_agent_fixture("cold-transport");
         let mut adapter = CloudHypervisorAdapter::new_for_test();
-        adapter.config = adapter
-            .config
-            .clone()
-            .with_warm_agent_host_path("/host/bin/hsk-warm-agent");
+        adapter.config = adapter.config.clone().with_warm_agent_host_path(&agent);
         let handle = ProcessHandle::new(
             AdapterId::new(CLOUD_HYPERVISOR_ADAPTER_ID),
             None,
@@ -4488,15 +4572,14 @@ done
             format!("{err}").contains("booted or restored with hsk.warm_agent"),
             "{err}"
         );
+        let _ = std::fs::remove_dir_all(dir);
     }
 
     #[tokio::test]
     async fn warm_agent_transport_accepts_warm_boot_provenance() {
+        let (dir, agent) = static_warm_agent_fixture("warm-transport");
         let mut adapter = CloudHypervisorAdapter::new_for_test();
-        adapter.config = adapter
-            .config
-            .clone()
-            .with_warm_agent_host_path("/host/bin/hsk-warm-agent");
+        adapter.config = adapter.config.clone().with_warm_agent_host_path(&agent);
         let handle = ProcessHandle::new(
             AdapterId::new(CLOUD_HYPERVISOR_ADAPTER_ID),
             None,
@@ -4516,6 +4599,7 @@ done
             .warm_agent_transport(&handle)
             .await
             .expect("warm-provenance handle exposes warm transport");
+        let _ = std::fs::remove_dir_all(dir);
     }
 
     /// Live Cloud Hypervisor warm-agent serial bridge proof. This intentionally
@@ -4561,7 +4645,12 @@ done
             "fake warm-agent setup failed: {}",
             prep.stderr_text()
         );
-        config = config.with_warm_agent_host_path(&warm_agent);
+        let (capability_dir, capability_agent) = static_warm_agent_fixture("live-capability");
+        // This live proof intentionally binds a BusyBox shell agent below to
+        // test the serial bridge. The adapter capability gate is about whether
+        // a packaged static guest artifact is configured, so keep that proof as
+        // a separate host-side fixture instead of weakening production status.
+        config = config.with_warm_agent_host_path(&capability_agent);
         let adapter = CloudHypervisorAdapter::try_new(config.clone())
             .await
             .expect("real CloudHypervisorAdapter available on this desktop");
@@ -4670,6 +4759,7 @@ done
         if let Err(error) = adapter.kill(&handle, Signal::Kill).await {
             failures.push(format!("kill live warm VM: {error}"));
         }
+        let _ = std::fs::remove_dir_all(capability_dir);
         match run_wsl_sh(
             &config,
             &format!("rm -rf {}", sh_quote_wsl(&warm_root)),
