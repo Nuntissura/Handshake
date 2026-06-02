@@ -204,9 +204,13 @@ impl SandboxAdapter for Wsl2PodmanAdapter {
                 guest_path.to_string_lossy()
             ),
         ];
-        let output =
-            run_podman_command(&self.config, &args, None, Some(self.config.command_timeout_ms()))
-                .await?;
+        let output = run_podman_command(
+            &self.config,
+            &args,
+            None,
+            Some(self.config.command_timeout_ms()),
+        )
+        .await?;
         if output.exit_code != 0 {
             return Err(SandboxAdapterError::CopyFailed {
                 adapter_id: AdapterId::new(WSL2_PODMAN_ADAPTER_ID),
@@ -232,9 +236,13 @@ impl SandboxAdapter for Wsl2PodmanAdapter {
             ),
             windows_path_to_wsl_mount_path(&host_path),
         ];
-        let output =
-            run_podman_command(&self.config, &args, None, Some(self.config.command_timeout_ms()))
-                .await?;
+        let output = run_podman_command(
+            &self.config,
+            &args,
+            None,
+            Some(self.config.command_timeout_ms()),
+        )
+        .await?;
         if output.exit_code != 0 {
             return Err(SandboxAdapterError::CopyFailed {
                 adapter_id: AdapterId::new(WSL2_PODMAN_ADAPTER_ID),
@@ -394,6 +402,9 @@ impl SandboxAdapter for Wsl2PodmanAdapter {
             isolation_tier: IsolationTier::Tier1Container,
             requires_nested_virt: false,
             supports_snapshot: false,
+            supports_persistent_exec: false,
+            supports_warm_agent: false,
+            supports_live_token_stream: false,
         }
     }
 }

@@ -262,6 +262,7 @@ fn validation_job(net_policy: Option<NetPolicy>) -> ValidationJobSpec {
         memory_bytes: Some(134_217_728),
         cpu_cores: Some(2),
         timeout_ms: None,
+        ..Default::default()
     };
     job.metadata = BTreeMap::from([("source".to_string(), "kernel_003_parity".to_string())]);
     job
@@ -280,6 +281,9 @@ fn capabilities(adapter_id: &str, stdio: ThroughputClass) -> AdapterCapabilities
         isolation_tier: IsolationTier::Tier1Container,
         requires_nested_virt: false,
         supports_snapshot: false,
+        supports_persistent_exec: false,
+        supports_warm_agent: false,
+        supports_live_token_stream: false,
     }
 }
 

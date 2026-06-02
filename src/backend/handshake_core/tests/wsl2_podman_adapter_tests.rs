@@ -110,6 +110,38 @@ fn podman_run_args_map_process_spec_to_default_isolation_controls() {
 }
 
 #[test]
+fn podman_run_args_fail_closed_for_unenforced_rate_limits() {
+    for limits in [
+        ResourceLimits {
+            disk_read_bytes_per_sec: Some(1_000_000),
+            ..Default::default()
+        },
+        ResourceLimits {
+            disk_write_bytes_per_sec: Some(1_000_000),
+            ..Default::default()
+        },
+        ResourceLimits {
+            net_bandwidth_bytes_per_sec: Some(1_000_000),
+            ..Default::default()
+        },
+    ] {
+        let mut spec = spec_with_net_policy(NetPolicy::DenyAll);
+        spec.resource_limits = limits;
+        let err = podman_run_args(&spec).expect_err(
+            "WSL2-Podman must fail closed rather than silently ignore requested rate limits",
+        );
+        match err {
+            SandboxAdapterError::SpawnFailed { adapter_id, reason } => {
+                assert_eq!(adapter_id, AdapterId::new(WSL2_PODMAN_ADAPTER_ID));
+                assert!(reason.contains("not enforceable"));
+                assert!(reason.contains("per-device rate limits"));
+            }
+            other => panic!("expected typed SpawnFailed, got {other:?}"),
+        }
+    }
+}
+
+#[test]
 fn loopback_and_allowlist_network_policies_have_explicit_spawn_modes() {
     // Master Spec v02.188 §3.5.1 #5 / §3.5.7: NetPolicy::LoopbackOnly MUST
     // actually reach host 127.0.0.1 services. The honest rootless-podman

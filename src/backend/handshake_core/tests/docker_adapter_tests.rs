@@ -89,6 +89,38 @@ fn docker_run_args_map_process_spec_to_compat_isolation_controls() {
 }
 
 #[test]
+fn docker_run_args_fail_closed_for_unenforced_rate_limits() {
+    for limits in [
+        ResourceLimits {
+            disk_read_bytes_per_sec: Some(1_000_000),
+            ..Default::default()
+        },
+        ResourceLimits {
+            disk_write_bytes_per_sec: Some(1_000_000),
+            ..Default::default()
+        },
+        ResourceLimits {
+            net_bandwidth_bytes_per_sec: Some(1_000_000),
+            ..Default::default()
+        },
+    ] {
+        let mut spec = spec_with_net_policy(NetPolicy::DenyAll);
+        spec.resource_limits = limits;
+        let err = docker_run_args(&spec, "ctr").expect_err(
+            "Docker must fail closed rather than silently ignore requested rate limits",
+        );
+        match err {
+            SandboxAdapterError::SpawnFailed { adapter_id, reason } => {
+                assert_eq!(adapter_id, AdapterId::new(DOCKER_ADAPTER_ID));
+                assert!(reason.contains("not enforceable"));
+                assert!(reason.contains("per-device rate limits"));
+            }
+            other => panic!("expected typed SpawnFailed, got {other:?}"),
+        }
+    }
+}
+
+#[test]
 fn docker_network_policies_fail_closed_until_firewall_seeding_exists() {
     let deny_all =
         docker_run_args(&spec_with_net_policy(NetPolicy::DenyAll), "ctr").expect("deny args");

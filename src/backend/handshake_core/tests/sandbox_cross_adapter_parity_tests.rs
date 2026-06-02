@@ -605,7 +605,7 @@ impl SandboxAdapter for StubAdapter {
         AdapterCapabilities {
             adapter_id: AdapterId::new(&self.adapter_id),
             runtime_available: true,
-filesystem_isolation_strength: IsolationStrength::Strong,
+            filesystem_isolation_strength: IsolationStrength::Strong,
             network_isolation_strength: IsolationStrength::Strong,
             gpu_passthrough: GpuPassthrough::None,
             stdio_throughput_class: ThroughputClass::Medium,
@@ -614,6 +614,9 @@ filesystem_isolation_strength: IsolationStrength::Strong,
             isolation_tier: IsolationTier::Tier1Container,
             requires_nested_virt: false,
             supports_snapshot: false,
+            supports_persistent_exec: false,
+            supports_warm_agent: false,
+            supports_live_token_stream: false,
         }
     }
 }

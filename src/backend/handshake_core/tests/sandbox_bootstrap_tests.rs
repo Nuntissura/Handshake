@@ -208,6 +208,9 @@ fn wsl2_caps() -> AdapterCapabilities {
         isolation_tier: IsolationTier::Tier1Container,
         requires_nested_virt: false,
         supports_snapshot: false,
+        supports_persistent_exec: false,
+        supports_warm_agent: false,
+        supports_live_token_stream: false,
     }
 }
 
@@ -224,6 +227,9 @@ fn docker_caps() -> AdapterCapabilities {
         isolation_tier: IsolationTier::Tier1Container,
         requires_nested_virt: false,
         supports_snapshot: false,
+        supports_persistent_exec: false,
+        supports_warm_agent: false,
+        supports_live_token_stream: false,
     }
 }
 

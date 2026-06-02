@@ -9,7 +9,7 @@ use tokio::{io::AsyncWriteExt, process::Command as TokioCommand};
 
 use crate::sandbox::{
     AdapterId, BindMode, BindSpec, NetAllowlistEntry, NetPolicy, ProcessSpec, ProcessStatus,
-    SandboxAdapterError, DOCKER_ADAPTER_ID,
+    ResourceLimits, SandboxAdapterError, DOCKER_ADAPTER_ID,
 };
 
 use super::adapter::DockerConfig;
@@ -61,6 +61,7 @@ pub fn docker_run_args(
     if spec.cmd.is_empty() {
         return Err(spawn_failed("ProcessSpec.cmd must not be empty"));
     }
+    validate_supported_resource_limits(&spec.resource_limits)?;
 
     let mut args = vec![
         "run".to_string(),
@@ -103,6 +104,20 @@ pub fn docker_run_args(
     args.push(spec.image_or_root.as_str().to_string());
     args.extend(spec.cmd.iter().cloned());
     Ok(args)
+}
+
+fn validate_supported_resource_limits(limits: &ResourceLimits) -> Result<(), SandboxAdapterError> {
+    if limits.disk_read_bytes_per_sec.is_some()
+        || limits.disk_write_bytes_per_sec.is_some()
+        || limits.net_bandwidth_bytes_per_sec.is_some()
+    {
+        return Err(spawn_failed(
+            "Docker ResourceLimits disk/net bytes-per-second token-bucket limits are not \
+             enforceable by this adapter path yet; refusing to silently ignore requested \
+             per-device rate limits",
+        ));
+    }
+    Ok(())
 }
 
 pub fn docker_exec_args(

@@ -5,10 +5,13 @@ use std::{
 };
 
 use handshake_core::sandbox::{
-    AdapterId, BindMode, GpuPassthrough, ImageRef, IsolationStrength, NetAllowlistEntry, NetPolicy,
-    NetProtocol, ProcessHandle, ProcessSpec, ProcessStatus, RequiredCapability, ResourceLimits,
-    SandboxAdapter, SandboxAdapterError, Signal, ThroughputClass, TrustClass,
-    WindowsNativeJailAdapter, WINDOWS_NATIVE_JAIL_ADAPTER_ID, WINDOWS_NATIVE_JAIL_BACKEND_APPROVED,
+    AdapterId, BindMode, GpuPassthrough, ImageRef, IsolationStrength, NetPolicy, ProcessHandle,
+    ProcessSpec, RequiredCapability, ResourceLimits, SandboxAdapter, SandboxAdapterError, Signal,
+    ThroughputClass, TrustClass, WindowsNativeJailAdapter, WINDOWS_NATIVE_JAIL_ADAPTER_ID,
+};
+#[cfg(all(target_os = "windows", feature = "win-native-integration"))]
+use handshake_core::sandbox::{
+    NetAllowlistEntry, NetProtocol, ProcessStatus, WINDOWS_NATIVE_JAIL_BACKEND_APPROVED,
 };
 
 #[test]
@@ -215,6 +218,33 @@ async fn windows_native_jail_unavailable_path_fails_closed_with_typed_error() {
             );
         }
         other => panic!("expected AdapterUnavailable, got {other:?}"),
+    }
+}
+
+#[tokio::test]
+async fn windows_native_jail_rejects_unenforced_rate_limits_before_backend_dispatch() {
+    let adapter = WindowsNativeJailAdapter::unavailable_for_current_host();
+    for limits in [
+        ResourceLimits {
+            disk_read_bytes_per_sec: Some(1_000_000),
+            ..Default::default()
+        },
+        ResourceLimits {
+            disk_write_bytes_per_sec: Some(1_000_000),
+            ..Default::default()
+        },
+        ResourceLimits {
+            net_bandwidth_bytes_per_sec: Some(1_000_000),
+            ..Default::default()
+        },
+    ] {
+        let mut spec = process_spec(vec!["cmd.exe", "/C", "echo ok"]);
+        spec.resource_limits = limits;
+        let error = adapter
+            .spawn(spec)
+            .await
+            .expect_err("Windows-native must fail closed for unenforced rate limits");
+        assert_spawn_failed_reason_contains(error, "per-device rate limits");
     }
 }
 

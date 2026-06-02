@@ -259,6 +259,7 @@ impl SandboxAdapter for WindowsNativeJailAdapter {
                 "WindowsNativeJailAdapter requires ProcessSpec.cmd; empty command refused",
             ));
         }
+        validate_supported_resource_limits(&spec.resource_limits)?;
 
         #[cfg(target_os = "windows")]
         {
@@ -500,6 +501,20 @@ fn reject_unsupported_network_policy(policy: &NetPolicy) -> Result<(), SandboxAd
             reason: "Windows native AppContainer launch cannot enforce host allowlists without broad internetClient capability; use DenyAll for MT-046".to_string(),
         }),
     }
+}
+
+fn validate_supported_resource_limits(limits: &ResourceLimits) -> Result<(), SandboxAdapterError> {
+    if limits.disk_read_bytes_per_sec.is_some()
+        || limits.disk_write_bytes_per_sec.is_some()
+        || limits.net_bandwidth_bytes_per_sec.is_some()
+    {
+        return Err(spawn_failed(
+            "WindowsNativeJailAdapter ResourceLimits disk/net bytes-per-second token-bucket limits \
+             are not enforceable by this adapter path yet; refusing to silently ignore requested \
+             per-device rate limits",
+        ));
+    }
+    Ok(())
 }
 
 #[cfg(target_os = "windows")]

@@ -12,7 +12,7 @@ use handshake_core::sandbox::{
     ProcessStatus, RequiredCapability, ResourceLimits, SandboxAdapter, SandboxAdapterError,
     SandboxAdapterRegistry, SandboxSelectionFailure, Signal, ThroughputClass, TrustClass,
     WindowsNativeJailAdapter, DOCKER_ADAPTER_ID, SANDBOX_SELECTION_FAILURE_EVENT_FAMILY,
-    WINDOWS_NATIVE_JAIL_ADAPTER_ID,
+    WINDOWS_NATIVE_JAIL_ADAPTER_ID, WINDOWS_NATIVE_JAIL_BACKEND_APPROVED,
 };
 
 #[derive(Debug, Clone)]
@@ -223,7 +223,7 @@ fn unavailable_windows_native_jail_default_fails_even_without_required_capabilit
 }
 
 #[test]
-fn registry_list_exposes_approved_windows_native_jail_runtime_availability() {
+fn registry_list_masks_windows_native_jail_until_backend_is_approved() {
     let mut registry = SandboxAdapterRegistry::new(AdapterId::new("wsl2_podman"));
     registry.register(adapter(wsl2_podman_capabilities()));
     registry.register(adapter(
@@ -236,21 +236,38 @@ fn registry_list_exposes_approved_windows_native_jail_runtime_availability() {
         .find(|caps| caps.adapter_id == AdapterId::new(WINDOWS_NATIVE_JAIL_ADAPTER_ID))
         .expect("windows native jail should be listed");
 
-    assert!(windows_caps.runtime_available);
-    assert!(windows_caps.win32_native_fidelity);
-    assert_eq!(
-        windows_caps.filesystem_isolation_strength,
-        IsolationStrength::VeryStrong
-    );
-    assert_eq!(
-        windows_caps.network_isolation_strength,
-        IsolationStrength::VeryStrong
-    );
-    assert_eq!(windows_caps.stdio_throughput_class, ThroughputClass::High);
+    if WINDOWS_NATIVE_JAIL_BACKEND_APPROVED {
+        assert!(windows_caps.runtime_available);
+        assert!(windows_caps.win32_native_fidelity);
+        assert_eq!(
+            windows_caps.filesystem_isolation_strength,
+            IsolationStrength::VeryStrong
+        );
+        assert_eq!(
+            windows_caps.network_isolation_strength,
+            IsolationStrength::VeryStrong
+        );
+        assert_eq!(windows_caps.stdio_throughput_class, ThroughputClass::High);
+    } else {
+        assert!(
+            !windows_caps.runtime_available,
+            "unapproved Windows-native backend must not become runtime-available just because an adapter with the reserved id registered"
+        );
+        assert!(!windows_caps.win32_native_fidelity);
+        assert_eq!(
+            windows_caps.filesystem_isolation_strength,
+            IsolationStrength::Weak
+        );
+        assert_eq!(
+            windows_caps.network_isolation_strength,
+            IsolationStrength::Weak
+        );
+        assert_eq!(windows_caps.stdio_throughput_class, ThroughputClass::Low);
+    }
 }
 
 #[test]
-fn registry_get_returns_approved_windows_native_jail_runtime_adapter() {
+fn registry_get_masks_windows_native_jail_until_backend_is_approved() {
     let mut registry = SandboxAdapterRegistry::new(AdapterId::new("wsl2_podman"));
     registry.register(adapter(wsl2_podman_capabilities()));
     registry.register(adapter(
@@ -262,29 +279,47 @@ fn registry_get_returns_approved_windows_native_jail_runtime_adapter() {
         .expect("windows native jail should be registered");
     let capabilities = adapter.capabilities();
 
-    assert!(capabilities.runtime_available);
-    assert!(capabilities.win32_native_fidelity);
+    if WINDOWS_NATIVE_JAIL_BACKEND_APPROVED {
+        assert!(capabilities.runtime_available);
+        assert!(capabilities.win32_native_fidelity);
+    } else {
+        assert!(
+            !capabilities.runtime_available,
+            "registry.get must return the unavailable guard adapter until the real backend is approved"
+        );
+        assert!(!capabilities.win32_native_fidelity);
+    }
 }
 
 #[test]
-fn selection_accepts_runtime_available_windows_native_jail_after_mt045_approval() {
+fn selection_masks_windows_native_jail_until_backend_is_approved() {
     let mut registry = SandboxAdapterRegistry::new(AdapterId::new("wsl2_podman"));
     registry.register(adapter(wsl2_podman_capabilities()));
     registry.register(adapter(
         fake_runtime_available_windows_native_jail_capabilities(),
     ));
 
-    let selected = select(
+    let result = select(
         &registry,
         &process_spec(BTreeSet::from([RequiredCapability::Win32NativeFidelity])),
         None,
-    )
-    .expect("approved runtime windows-native adapter should satisfy Win32 fidelity");
-
-    assert_eq!(
-        selected.capabilities().adapter_id,
-        AdapterId::new(WINDOWS_NATIVE_JAIL_ADAPTER_ID)
     );
+
+    if WINDOWS_NATIVE_JAIL_BACKEND_APPROVED {
+        let selected =
+            result.expect("approved runtime windows-native adapter should satisfy Win32 fidelity");
+        assert_eq!(
+            selected.capabilities().adapter_id,
+            AdapterId::new(WINDOWS_NATIVE_JAIL_ADAPTER_ID)
+        );
+    } else {
+        match expect_selection_error(result) {
+            SandboxSelectionFailure::CapabilityUnsatisfied { required, .. } => {
+                assert_eq!(required, vec![RequiredCapability::Win32NativeFidelity]);
+            }
+            other => panic!("expected CapabilityUnsatisfied, got {other:?}"),
+        }
+    }
 }
 
 #[test]

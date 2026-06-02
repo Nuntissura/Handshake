@@ -191,9 +191,13 @@ impl SandboxAdapter for DockerAdapter {
                 guest_path.to_string_lossy()
             ),
         ];
-        let output =
-            run_docker_command(&self.config, &args, None, Some(self.config.command_timeout_ms()))
-                .await?;
+        let output = run_docker_command(
+            &self.config,
+            &args,
+            None,
+            Some(self.config.command_timeout_ms()),
+        )
+        .await?;
         if output.exit_code != 0 {
             return Err(SandboxAdapterError::CopyFailed {
                 adapter_id: AdapterId::new(DOCKER_ADAPTER_ID),
@@ -219,9 +223,13 @@ impl SandboxAdapter for DockerAdapter {
             ),
             host_path.to_string_lossy().to_string(),
         ];
-        let output =
-            run_docker_command(&self.config, &args, None, Some(self.config.command_timeout_ms()))
-                .await?;
+        let output = run_docker_command(
+            &self.config,
+            &args,
+            None,
+            Some(self.config.command_timeout_ms()),
+        )
+        .await?;
         if output.exit_code != 0 {
             return Err(SandboxAdapterError::CopyFailed {
                 adapter_id: AdapterId::new(DOCKER_ADAPTER_ID),
@@ -377,6 +385,9 @@ impl SandboxAdapter for DockerAdapter {
             isolation_tier: IsolationTier::Tier1Container,
             requires_nested_virt: false,
             supports_snapshot: false,
+            supports_persistent_exec: false,
+            supports_warm_agent: false,
+            supports_live_token_stream: false,
         }
     }
 }

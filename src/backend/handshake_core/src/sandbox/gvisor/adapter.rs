@@ -15,7 +15,7 @@ use crate::sandbox::wsl2_podman::wsl_detection::default_wsl_exe;
 use crate::sandbox::{
     AdapterCapabilities, AdapterId, BindMode, Command, ExecResult, GpuPassthrough,
     IsolationStrength, IsolationTier, NetPolicy, ProcessHandle, ProcessSpec, ProcessStatus,
-    SandboxAdapter, SandboxAdapterError, Signal, ThroughputClass,
+    ResourceLimits, SandboxAdapter, SandboxAdapterError, Signal, ThroughputClass,
 };
 
 #[cfg(windows)]
@@ -261,7 +261,8 @@ impl GvisorAdapter {
 
 #[async_trait]
 impl SandboxAdapter for GvisorAdapter {
-    async fn spawn(&self, _spec: ProcessSpec) -> Result<ProcessHandle, SandboxAdapterError> {
+    async fn spawn(&self, spec: ProcessSpec) -> Result<ProcessHandle, SandboxAdapterError> {
+        validate_supported_resource_limits(&spec.resource_limits)?;
         // Re-probe so a handle is never minted against a runtime that has gone
         // away (mirrors the cloud_hypervisor / docker pattern). The sandbox
         // itself is not started here: the ephemeral model starts a fresh
@@ -291,7 +292,11 @@ impl SandboxAdapter for GvisorAdapter {
         if self
             .handles
             .lock()
-            .map(|map| map.get(&handle.id).map(|state| state.killed).unwrap_or(false))
+            .map(|map| {
+                map.get(&handle.id)
+                    .map(|state| state.killed)
+                    .unwrap_or(false)
+            })
             .unwrap_or(false)
         {
             return Err(spawn_failed(
@@ -436,6 +441,9 @@ impl SandboxAdapter for GvisorAdapter {
             // gVisor's `systrap`/`ptrace` platform does not need nested virt.
             requires_nested_virt: false,
             supports_snapshot: false,
+            supports_persistent_exec: false,
+            supports_warm_agent: false,
+            supports_live_token_stream: false,
         }
     }
 }
@@ -608,7 +616,10 @@ async fn run_host_command(
         .spawn()
         .map_err(|error| SandboxAdapterError::AdapterUnavailable {
             adapter_id: AdapterId::new(GVISOR_ADAPTER_ID),
-            reason: format!("failed to spawn `{}`: {error}", executable.to_string_lossy()),
+            reason: format!(
+                "failed to spawn `{}`: {error}",
+                executable.to_string_lossy()
+            ),
         })?;
 
     if let Some(input) = stdin {
@@ -697,6 +708,20 @@ fn net_policy_failed(reason: impl ToString) -> SandboxAdapterError {
     }
 }
 
+fn validate_supported_resource_limits(limits: &ResourceLimits) -> Result<(), SandboxAdapterError> {
+    if limits.disk_read_bytes_per_sec.is_some()
+        || limits.disk_write_bytes_per_sec.is_some()
+        || limits.net_bandwidth_bytes_per_sec.is_some()
+    {
+        return Err(spawn_failed(
+            "gVisor ResourceLimits disk/net bytes-per-second token-bucket limits are not \
+             enforceable by this adapter path yet; refusing to silently ignore requested \
+             per-device rate limits",
+        ));
+    }
+    Ok(())
+}
+
 fn unavailable(reason: impl ToString) -> SandboxAdapterError {
     SandboxAdapterError::AdapterUnavailable {
         adapter_id: AdapterId::new(GVISOR_ADAPTER_ID),
@@ -738,7 +763,10 @@ mod tests {
             stdin: None,
             timeout_ms: None,
         };
-        assert_eq!(build_command_line(&cmd), "export FOO='bar baz'; printenv FOO");
+        assert_eq!(
+            build_command_line(&cmd),
+            "export FOO='bar baz'; printenv FOO"
+        );
     }
 
     #[test]
@@ -787,6 +815,66 @@ mod tests {
         };
         let args = adapter.exec_args("true");
         assert!(args.contains(&"--ignore-cgroups".to_string()));
+    }
+
+    #[tokio::test]
+    async fn spawn_fails_closed_for_unenforced_rate_limits_before_runtime_probe() {
+        let config = GvisorConfig {
+            distro: "Ubuntu".to_string(),
+            user: "root".to_string(),
+            wsl_exe: PathBuf::from("wsl.exe"),
+            runsc_bin: "/opt/runsc".to_string(),
+            platform: "systrap".to_string(),
+            work_dir: "/work".to_string(),
+            command_timeout_ms: DEFAULT_COMMAND_TIMEOUT_MS,
+            ignore_cgroups: false,
+        };
+        let adapter = GvisorAdapter {
+            config,
+            handles: Arc::new(Mutex::new(HashMap::new())),
+        };
+
+        for limits in [
+            ResourceLimits {
+                disk_read_bytes_per_sec: Some(1_000_000),
+                ..Default::default()
+            },
+            ResourceLimits {
+                disk_write_bytes_per_sec: Some(1_000_000),
+                ..Default::default()
+            },
+            ResourceLimits {
+                net_bandwidth_bytes_per_sec: Some(1_000_000),
+                ..Default::default()
+            },
+        ] {
+            let spec = ProcessSpec {
+                id: AdapterId::new("gvisor-rate-limit-test"),
+                image_or_root: crate::sandbox::ImageRef::new("runsc-do"),
+                cmd: vec!["true".to_string()],
+                env: BTreeMap::new(),
+                cwd: None,
+                binds: Vec::new(),
+                net_policy: NetPolicy::DenyAll,
+                resource_limits: limits,
+                idle_timeout_ms: None,
+                required_capabilities: Default::default(),
+                trust_class: crate::sandbox::TrustClass::UntrustedAgent,
+                metadata: BTreeMap::new(),
+            };
+            let err = adapter
+                .spawn(spec)
+                .await
+                .expect_err("gVisor must fail closed for unenforced rate limits");
+            match err {
+                SandboxAdapterError::SpawnFailed { adapter_id, reason } => {
+                    assert_eq!(adapter_id, AdapterId::new(GVISOR_ADAPTER_ID));
+                    assert!(reason.contains("not enforceable"), "{reason}");
+                    assert!(reason.contains("per-device rate limits"), "{reason}");
+                }
+                other => panic!("expected SpawnFailed, got {other:?}"),
+            }
+        }
     }
 
     #[test]

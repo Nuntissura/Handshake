@@ -10,10 +10,10 @@ use handshake_core::{
     sandbox::{
         build_promotion_request, docker_run_args, podman_run_args, replay_sandbox_promotion_events,
         AdapterCapabilities, AdapterId, BindMode, Command, ExecResult, GpuPassthrough,
-        IsolationStrength, IsolationTier, ProcessHandle, ProcessSpec, ProcessStatus, SandboxAdapter,
-        SandboxAdapterError, SandboxPromotionOutcome, SandboxValidationEvidence, Signal,
-        ThroughputClass, ValidationJobSpec, ValidationProcessSpecBuilder, ValidationSandboxRunner,
-        DOCKER_ADAPTER_ID, WSL2_PODMAN_ADAPTER_ID,
+        IsolationStrength, IsolationTier, ProcessHandle, ProcessSpec, ProcessStatus,
+        SandboxAdapter, SandboxAdapterError, SandboxPromotionOutcome, SandboxValidationEvidence,
+        Signal, ThroughputClass, ValidationJobSpec, ValidationProcessSpecBuilder,
+        ValidationSandboxRunner, DOCKER_ADAPTER_ID, WSL2_PODMAN_ADAPTER_ID,
     },
 };
 use serde::Deserialize;
@@ -350,5 +350,8 @@ fn strong_capabilities(adapter_id: &str) -> AdapterCapabilities {
         isolation_tier: IsolationTier::Tier1Container,
         requires_nested_virt: false,
         supports_snapshot: false,
+        supports_persistent_exec: false,
+        supports_warm_agent: false,
+        supports_live_token_stream: false,
     }
 }

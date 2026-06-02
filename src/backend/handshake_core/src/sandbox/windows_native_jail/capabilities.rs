@@ -22,6 +22,9 @@ pub fn windows_native_jail_target_capabilities() -> AdapterCapabilities {
         isolation_tier: IsolationTier::Tier1Container,
         requires_nested_virt: false,
         supports_snapshot: false,
+        supports_persistent_exec: false,
+        supports_warm_agent: false,
+        supports_live_token_stream: false,
     }
 }
 
@@ -38,6 +41,9 @@ pub fn windows_native_jail_unavailable_capabilities() -> AdapterCapabilities {
         isolation_tier: IsolationTier::Tier1Container,
         requires_nested_virt: false,
         supports_snapshot: false,
+        supports_persistent_exec: false,
+        supports_warm_agent: false,
+        supports_live_token_stream: false,
     }
 }
 
@@ -56,10 +62,7 @@ mod tests {
     /// Mirror of `selection::capability_satisfied` for the GPU arms (that fn is
     /// private to selection.rs). MT-046 proof must verify the *consume* semantics:
     /// a GPU-required capability must be unsatisfied by these caps.
-    fn gpu_capability_satisfied(
-        required: RequiredCapability,
-        caps: &AdapterCapabilities,
-    ) -> bool {
+    fn gpu_capability_satisfied(required: RequiredCapability, caps: &AdapterCapabilities) -> bool {
         match required {
             RequiredCapability::NvidiaCudaPassthrough => {
                 caps.gpu_passthrough == GpuPassthrough::NvidiaCuda
