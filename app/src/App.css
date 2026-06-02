@@ -2511,6 +2511,33 @@ body {
   color: var(--accent-color, #2563eb);
 }
 
+.operator-chat__escalation {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.75rem;
+  align-items: center;
+  margin: 0.5rem 0;
+  padding: 0.6rem;
+  border: 1px dotted var(--border-color, #d0d4dc);
+  border-radius: 6px;
+}
+
+.operator-chat__escalation legend {
+  padding: 0 0.25rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.operator-chat__escalation label {
+  display: flex;
+  gap: 0.35rem;
+  align-items: center;
+}
+
+.operator-chat__escalation select {
+  padding: 0.35rem 0.45rem;
+}
+
 .operator-chat__log {
   max-height: 280px;
   overflow-y: auto;

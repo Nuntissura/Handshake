@@ -8,6 +8,7 @@ import { beforeEach, describe, expect, test, vi } from "vitest";
 // mock only the chatGenerate IPC CALL; the rest of the component is real.
 
 const chatGenerateMock = vi.fn();
+const chatGenerateWithCloudEscalationMock = vi.fn();
 
 vi.mock("../../lib/ipc/swarm_runtime", async () => {
   const actual = await vi.importActual<typeof import("../../lib/ipc/swarm_runtime")>(
@@ -16,6 +17,8 @@ vi.mock("../../lib/ipc/swarm_runtime", async () => {
   return {
     ...actual,
     chatGenerate: (instanceId: string, prompt: string) => chatGenerateMock(instanceId, prompt),
+    chatGenerateWithCloudEscalation: (request: unknown) =>
+      chatGenerateWithCloudEscalationMock(request),
   };
 });
 
@@ -63,6 +66,7 @@ const DEAD = makeSession({
 
 beforeEach(() => {
   chatGenerateMock.mockReset();
+  chatGenerateWithCloudEscalationMock.mockReset();
 });
 
 describe("canChat (pure helper)", () => {
@@ -172,5 +176,86 @@ describe("OperatorChat cloud generate (provider-agnostic path)", () => {
     fireEvent.click(screen.getByTestId("operator-chat-send"));
 
     expect(await screen.findByTestId("operator-chat-error")).toHaveTextContent("session no longer live");
+  });
+
+  test("local session can opt into cloud escalation and renders the cloud result", async () => {
+    chatGenerateWithCloudEscalationMock.mockResolvedValueOnce({
+      selected: "cloud",
+      escalated: true,
+      escalationReason: "local runtime overloaded",
+      localError: null,
+      local: null,
+      cloudInstance: { modelId: "cloud-fallback", instance: 0, composite: "cloud-fallback#0" },
+      cloud: { text: "Recovered from cloud.", tokenCount: 4, finishReason: "stop" },
+      cloudError: null,
+    });
+
+    render(
+      <OperatorChat
+        selectedInstanceId="alpha-model#0"
+        sessions={[LOCAL]}
+        onSelectInstance={() => {}}
+        cloudEscalation={{
+          label: "openai · gpt-4o",
+          request: {
+            provider: "byok_cloud",
+            byokCloudProvider: "openai",
+            cloudModelName: "gpt-4o",
+            swarmId: "wt-feature-x",
+            worktreeId: "wt-feature-x",
+          },
+        }}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId("operator-chat-escalation-enabled"));
+    fireEvent.change(screen.getByTestId("operator-chat-escalation-task-class"), {
+      target: { value: "hard_reasoning" },
+    });
+    fireEvent.change(screen.getByTestId("operator-chat-input"), {
+      target: { value: "try local first" },
+    });
+    fireEvent.click(screen.getByTestId("operator-chat-send"));
+
+    await waitFor(() => {
+      expect(chatGenerateWithCloudEscalationMock).toHaveBeenCalledWith({
+        localInstanceId: "alpha-model#0",
+        prompt: "try local first",
+        cloud: {
+          provider: "byok_cloud",
+          byokCloudProvider: "openai",
+          cloudModelName: "gpt-4o",
+          swarmId: "wt-feature-x",
+          worktreeId: "wt-feature-x",
+        },
+        taskClass: "hard_reasoning",
+      });
+    });
+    expect(chatGenerateMock).not.toHaveBeenCalled();
+    expect(await screen.findByText("Escalated to cloud: local runtime overloaded")).toBeInTheDocument();
+    expect(await screen.findByText("Recovered from cloud.")).toBeInTheDocument();
+  });
+
+  test("cloud fallback is disabled for non-local sessions", async () => {
+    render(
+      <OperatorChat
+        selectedInstanceId="beta-cloud#0"
+        sessions={[CLOUD]}
+        onSelectInstance={() => {}}
+        cloudEscalation={{
+          label: "openai · gpt-4o",
+          request: {
+            provider: "byok_cloud",
+            byokCloudProvider: "openai",
+            cloudModelName: "gpt-4o",
+          },
+        }}
+      />,
+    );
+
+    expect(screen.getByTestId("operator-chat-escalation-enabled")).toBeDisabled();
+    expect(screen.getByTestId("operator-chat-escalation-note")).toHaveTextContent(
+      /Select a READY local session/i,
+    );
   });
 });

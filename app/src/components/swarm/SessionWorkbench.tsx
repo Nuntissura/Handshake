@@ -1,5 +1,5 @@
 import { OperatorChat } from "./OperatorChat";
-import type { SwarmRoom } from "./SwarmControlRoom";
+import { operatorChatCloudEscalation, type SwarmRoom } from "./SwarmControlRoom";
 
 // SessionWorkbench (WP-KERNEL-004 governance glue #3): the operator's front-end
 // wrapper over the CLI backend. For the currently-selected chat session it
@@ -80,6 +80,7 @@ export function SessionWorkbench({
         selectedInstanceId={room.chatInstanceId}
         sessions={room.allSessions}
         onSelectInstance={room.setChatInstanceId}
+        cloudEscalation={operatorChatCloudEscalation(room)}
       />
 
       {/* (b) + (c) the two off-main-window affordances for THIS session. They act

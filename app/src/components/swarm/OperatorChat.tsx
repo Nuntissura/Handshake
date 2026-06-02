@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   chatGenerate,
+  chatGenerateWithCloudEscalation,
+  type SwarmEscalationTaskClass,
   type SwarmSession,
+  type SwarmSpawnRequest,
 } from "../../lib/ipc/swarm_runtime";
 
 // OperatorChat: a REAL operator <-> model chat box. The operator picks ANY
@@ -78,6 +81,11 @@ interface ChatTurn {
   tokenCount?: number;
 }
 
+export interface OperatorChatCloudEscalation {
+  request: SwarmSpawnRequest;
+  label: string;
+}
+
 interface OperatorChatProps {
   selectedInstanceId: string | null;
   /**
@@ -88,17 +96,26 @@ interface OperatorChatProps {
    */
   sessions: SwarmSession[];
   onSelectInstance: (instanceId: string | null) => void;
+  /**
+   * Optional explicit cloud fallback lane. When supplied, the operator can opt
+   * into local/VM-first generation with cloud fallback. The backend still owns
+   * the real escalation decision; this prop only supplies the cloud lane request.
+   */
+  cloudEscalation?: OperatorChatCloudEscalation;
 }
 
 export function OperatorChat({
   selectedInstanceId,
   sessions,
   onSelectInstance,
+  cloudEscalation,
 }: OperatorChatProps) {
   const [prompt, setPrompt] = useState("");
   const [turns, setTurns] = useState<ChatTurn[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [escalationEnabled, setEscalationEnabled] = useState(false);
+  const [taskClass, setTaskClass] = useState<SwarmEscalationTaskClass>("routine");
   const logRef = useRef<HTMLDivElement>(null);
 
   // Reset the transcript when the operator switches sessions (each session is a
@@ -114,6 +131,32 @@ export function OperatorChat({
     }
   }, [turns]);
 
+  const hasSessions = sessions.length > 0;
+  // The currently-selected session object (if any), used to gate the composer on
+  // its lifecycle state honestly.
+  const selectedSession = selectedInstanceId
+    ? sessions.find((s) => s.instanceId.composite === selectedInstanceId) ?? null
+    : null;
+  // A selected session is chattable only when live (READY/GENERATING). If it is
+  // selected but not chattable, we disable the composer and explain why rather
+  // than letting Send fail opaquely.
+  const selectedChattable = selectedSession ? canChat(selectedSession) : false;
+  const selectedCanEscalate =
+    selectedChattable && selectedSession?.provider === "local";
+  const cloudEscalationReady =
+    !!cloudEscalation
+    && cloudEscalation.request.provider !== "local"
+    && !!cloudEscalation.request.cloudModelName?.trim();
+  const escalationActive =
+    escalationEnabled && selectedCanEscalate && cloudEscalationReady && !!selectedInstanceId;
+  const composerDisabled = !selectedInstanceId || !selectedChattable;
+
+  useEffect(() => {
+    if (escalationEnabled && (!selectedCanEscalate || !cloudEscalationReady)) {
+      setEscalationEnabled(false);
+    }
+  }, [cloudEscalationReady, escalationEnabled, selectedCanEscalate]);
+
   const handleSend = useCallback(async () => {
     const text = prompt.trim();
     if (!text || !selectedInstanceId) {
@@ -124,6 +167,44 @@ export function OperatorChat({
     setTurns((prev) => [...prev, { role: "operator", text }]);
     setPrompt("");
     try {
+      if (escalationActive && cloudEscalation) {
+        const response = await chatGenerateWithCloudEscalation({
+          localInstanceId: selectedInstanceId,
+          prompt: text,
+          cloud: cloudEscalation.request,
+          taskClass,
+        });
+        if (response.escalated) {
+          setTurns((prev) => [
+            ...prev,
+            {
+              role: "system",
+              text: `Escalated to cloud: ${response.escalationReason ?? "cloud fallback selected"}`,
+            },
+          ]);
+        }
+        const selectedResponse = response.cloud ?? response.local;
+        if (!selectedResponse) {
+          throw new Error(
+            response.cloudError
+              ?? response.localError
+              ?? "cloud escalation produced no model response",
+          );
+        }
+        setTurns((prev) => [
+          ...prev,
+          {
+            role: "model",
+            text:
+              selectedResponse.text.length > 0
+                ? selectedResponse.text
+                : "(model produced no text)",
+            finishReason: selectedResponse.finishReason,
+            tokenCount: selectedResponse.tokenCount,
+          },
+        ]);
+        return;
+      }
       // REAL generate through the spawned session (any provider — the backend
       // generate path is provider-agnostic).
       const response = await chatGenerate(selectedInstanceId, text);
@@ -145,19 +226,7 @@ export function OperatorChat({
     } finally {
       setBusy(false);
     }
-  }, [prompt, selectedInstanceId]);
-
-  const hasSessions = sessions.length > 0;
-  // The currently-selected session object (if any), used to gate the composer on
-  // its lifecycle state honestly.
-  const selectedSession = selectedInstanceId
-    ? sessions.find((s) => s.instanceId.composite === selectedInstanceId) ?? null
-    : null;
-  // A selected session is chattable only when live (READY/GENERATING). If it is
-  // selected but not chattable, we disable the composer and explain why rather
-  // than letting Send fail opaquely.
-  const selectedChattable = selectedSession ? canChat(selectedSession) : false;
-  const composerDisabled = !selectedInstanceId || !selectedChattable;
+  }, [cloudEscalation, escalationActive, prompt, selectedInstanceId, taskClass]);
 
   return (
     <section
@@ -210,6 +279,51 @@ export function OperatorChat({
         <p className="swarm-notice" data-testid="operator-chat-unsupported">
           Session is {selectedSession.state}; not ready for a chat turn.
         </p>
+      ) : null}
+
+      {cloudEscalation ? (
+        <fieldset
+          className="operator-chat__escalation"
+          data-testid="operator-chat-escalation"
+        >
+          <legend>Cloud fallback</legend>
+          <label className="operator-chat__escalation-toggle">
+            <input
+              type="checkbox"
+              checked={escalationEnabled}
+              disabled={!selectedCanEscalate || !cloudEscalationReady || busy}
+              onChange={(event) => setEscalationEnabled(event.target.checked)}
+              data-testid="operator-chat-escalation-enabled"
+            />
+            <span>Escalate local failures to {cloudEscalation.label}</span>
+          </label>
+          <label>
+            <span>Task class</span>
+            <select
+              value={taskClass}
+              disabled={!escalationEnabled || busy}
+              onChange={(event) =>
+                setTaskClass(event.target.value as SwarmEscalationTaskClass)
+              }
+              data-testid="operator-chat-escalation-task-class"
+            >
+              <option value="routine">routine</option>
+              <option value="classification">classification</option>
+              <option value="hard_reasoning">hard_reasoning</option>
+              <option value="force_cloud">force_cloud</option>
+              <option value="force_local">force_local</option>
+            </select>
+          </label>
+          {!selectedCanEscalate && selectedSession ? (
+            <p className="muted" data-testid="operator-chat-escalation-note">
+              Select a READY local session to enable VM-local to cloud fallback.
+            </p>
+          ) : !cloudEscalationReady ? (
+            <p className="muted" data-testid="operator-chat-escalation-note">
+              Set a cloud model in the spawn form before enabling fallback.
+            </p>
+          ) : null}
+        </fieldset>
       ) : null}
 
       <div

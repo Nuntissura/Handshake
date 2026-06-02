@@ -17,7 +17,7 @@ import {
   type SwarmSpawnRequest,
   type SwarmWorktree,
 } from "../../lib/ipc/swarm_runtime";
-import { OperatorChat } from "./OperatorChat";
+import { OperatorChat, type OperatorChatCloudEscalation } from "./OperatorChat";
 
 /** Sentinel option that reveals the free-text "new worktree" input. */
 export const NEW_WORKTREE_SENTINEL = "__new__";
@@ -446,6 +446,39 @@ export function useSwarmRoom() {
 
 export type SwarmRoom = ReturnType<typeof useSwarmRoom>;
 
+export function operatorChatCloudEscalation(room: SwarmRoom): OperatorChatCloudEscalation {
+  const selectedSession = room.chatInstanceId
+    ? room.allSessions.find((session) => session.instanceId.composite === room.chatInstanceId)
+    : null;
+  const worktreeSelection = room.worktreeSelection ?? "";
+  const newWorktreeId = room.newWorktreeId ?? "";
+  const cloudProvider = room.cloudProvider ?? "byok_cloud";
+  const byokCloudProvider = room.byokCloudProvider ?? "openai";
+  const worktreeId =
+    selectedSession?.worktreeId
+    ?? effectiveWorktreeId(worktreeSelection, newWorktreeId);
+  const workingDir = selectedSession?.workingDir ?? (room.workingDir ?? "").trim();
+  const cloudModelName = (room.cloudModelName ?? "").trim();
+  const request: SwarmSpawnRequest = {
+    provider: cloudProvider,
+    cloudModelName,
+    instance: room.instance ?? 0,
+    ...(cloudProvider === "byok_cloud"
+      ? { byokCloudProvider }
+      : {}),
+  };
+  const swarmId = (selectedSession?.worktreeId ?? (room.swarmId ?? "").trim()) || worktreeId;
+  if (swarmId) request.swarmId = swarmId;
+  if (worktreeId) request.worktreeId = worktreeId;
+  if (workingDir) request.workingDir = workingDir;
+  const lane =
+    cloudProvider === "byok_cloud" ? byokCloudProvider : "official_cli";
+  return {
+    request,
+    label: `${lane} · ${cloudModelName || "cloud model not set"}`,
+  };
+}
+
 export function SwarmControlRoom() {
   const room = useSwarmRoom();
 
@@ -473,6 +506,7 @@ export function SwarmControlRoom() {
         selectedInstanceId={room.chatInstanceId}
         sessions={room.allSessions}
         onSelectInstance={room.setChatInstanceId}
+        cloudEscalation={operatorChatCloudEscalation(room)}
       />
     </section>
   );

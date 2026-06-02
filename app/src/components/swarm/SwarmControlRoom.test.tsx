@@ -38,6 +38,16 @@ const spawnWithCloudEscalationMock = vi.fn(async (_request: Record<string, unkno
     error: null,
   },
 }));
+const chatGenerateWithCloudEscalationMock = vi.fn(async (_request: Record<string, unknown>) => ({
+  selected: "cloud",
+  escalated: true,
+  escalationReason: "local overloaded",
+  localError: null,
+  local: null,
+  cloudInstance: { modelId: "cloud-m", instance: 0, composite: "cloud-m#0" },
+  cloud: { text: "cloud answer", tokenCount: 2, finishReason: "stop" },
+  cloudError: null,
+}));
 const listWorktreesMock = vi.fn(async () => [
   { worktreeId: "wt-existing", liveSessionCount: 2 },
 ]);
@@ -67,6 +77,8 @@ vi.mock("../../lib/ipc/swarm_runtime", async () => {
     spawnLocalCloudPair: (request: Record<string, unknown>) => spawnLocalCloudPairMock(request),
     spawnWithCloudEscalation: (request: Record<string, unknown>) =>
       spawnWithCloudEscalationMock(request),
+    chatGenerateWithCloudEscalation: (request: Record<string, unknown>) =>
+      chatGenerateWithCloudEscalationMock(request),
     cancelSession: vi.fn(),
     chatGenerate: vi.fn(),
   };
@@ -86,6 +98,7 @@ beforeEach(() => {
   spawnSessionMock.mockClear();
   spawnLocalCloudPairMock.mockClear();
   spawnWithCloudEscalationMock.mockClear();
+  chatGenerateWithCloudEscalationMock.mockClear();
   listWorktreesMock.mockClear();
   listActiveSessionsMock.mockClear();
   listActiveSessionsMock.mockResolvedValue([]);
@@ -381,6 +394,60 @@ describe("SwarmControlRoom spawn-form assignment controls", () => {
     expect(request.cloud.swarmId).toBe("wt-existing");
     expect(request.cloud.worktreeId).toBe("wt-existing");
     expect(screen.getByTestId("swarm-spawn-notice")).toHaveTextContent(/Escalated to cloud/i);
+  });
+
+  test("operator chat exposes explicit cloud fallback using the spawn form cloud lane", async () => {
+    listActiveSessionsMock.mockResolvedValue([
+      {
+        instanceId: { modelId: "local-m", instance: 0, composite: "local-m#0" },
+        state: "READY",
+        provider: "local",
+        runtimeBinding: "candle",
+        artifactPath: "/m/local.safetensors",
+        cloudModelName: null,
+        worktreeId: "wt-selected-session",
+        workingDir: "D:/work/selected-session",
+      },
+    ]);
+    render(<SwarmControlRoom />);
+    await screen.findByTestId("swarm-spawn-worktree-select");
+
+    fireEvent.change(screen.getByTestId("swarm-spawn-workflow"), {
+      target: { value: "local_cloud_escalation" },
+    });
+    fireEvent.change(screen.getByTestId("swarm-spawn-cloud-model"), {
+      target: { value: "gpt-4o" },
+    });
+    fireEvent.change(screen.getByTestId("swarm-spawn-worktree-select"), {
+      target: { value: "wt-existing" },
+    });
+    fireEvent.change(screen.getByTestId("swarm-spawn-swarm-id"), {
+      target: { value: "stale-form-swarm" },
+    });
+    fireEvent.change(screen.getByTestId("operator-chat-session"), {
+      target: { value: "local-m#0" },
+    });
+
+    expect(screen.getByTestId("operator-chat-escalation")).toBeInTheDocument();
+    expect(screen.getByTestId("operator-chat-escalation-enabled")).toBeEnabled();
+    expect(screen.getByTestId("operator-chat-escalation")).toHaveTextContent(
+      /openai · gpt-4o/i,
+    );
+    fireEvent.click(screen.getByTestId("operator-chat-escalation-enabled"));
+    fireEvent.change(screen.getByTestId("operator-chat-input"), {
+      target: { value: "fallback please" },
+    });
+    fireEvent.click(screen.getByTestId("operator-chat-send"));
+
+    await waitFor(() => expect(chatGenerateWithCloudEscalationMock).toHaveBeenCalled());
+    const request = chatGenerateWithCloudEscalationMock.mock.calls[
+      chatGenerateWithCloudEscalationMock.mock.calls.length - 1
+    ]?.[0] as {
+      cloud: Record<string, unknown>;
+    };
+    expect(request.cloud.worktreeId).toBe("wt-selected-session");
+    expect(request.cloud.workingDir).toBe("D:/work/selected-session");
+    expect(request.cloud.swarmId).toBe("wt-selected-session");
   });
 
   test("the sessions table renders a Worktree column showing the assigned id or — when unassigned", async () => {

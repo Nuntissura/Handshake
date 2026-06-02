@@ -38,6 +38,16 @@ vi.mock("../../lib/ipc/swarm_runtime", async () => {
     spawnSession: vi.fn(),
     cancelSession: vi.fn(),
     chatGenerate: vi.fn(),
+    chatGenerateWithCloudEscalation: vi.fn(async () => ({
+      selected: "cloud",
+      escalated: true,
+      escalationReason: "local overloaded",
+      localError: null,
+      local: null,
+      cloudInstance: { modelId: "cloud-m", instance: 0, composite: "cloud-m#0" },
+      cloud: { text: "cloud answer", tokenCount: 2, finishReason: "stop" },
+      cloudError: null,
+    })),
     // ROI #3: the edit-then-resume path reads the stored template; default to a
     // populated template so the prefill test can assert the form is filled.
     getSpawnTemplate: vi.fn(async () => ({
@@ -55,6 +65,7 @@ vi.mock("../../lib/ipc/swarm_runtime", async () => {
 import { SwarmOperatorSurface } from "./SwarmOperatorSurface";
 import {
   boardSnapshot,
+  chatGenerateWithCloudEscalation,
   getSpawnTemplate,
   listActiveSessions,
   resourceSnapshot,
@@ -170,6 +181,52 @@ describe("SwarmOperatorSurface", () => {
       "data-provider",
       "official_cli",
     );
+  });
+
+  test("app-mounted Session workbench exposes VM-local to cloud fallback", async () => {
+    vi.mocked(chatGenerateWithCloudEscalation).mockClear();
+    vi.mocked(listActiveSessions).mockResolvedValue([
+      {
+        instanceId: { modelId: "alpha-model", instance: 0, composite: "alpha-model#0" },
+        state: "READY",
+        provider: "local",
+        runtimeBinding: "candle",
+        artifactPath: "D:/models/alpha/model.safetensors",
+        cloudModelName: null,
+        worktreeId: "wt-surface-session",
+        workingDir: "D:/work/wt-surface-session",
+      },
+    ]);
+
+    render(<SwarmOperatorSurface />);
+
+    fireEvent.click(screen.getByTestId("disclosure-spawn-session-toggle"));
+    fireEvent.change(await screen.findByTestId("swarm-spawn-workflow"), {
+      target: { value: "local_cloud_escalation" },
+    });
+    fireEvent.change(screen.getByTestId("swarm-spawn-cloud-model"), {
+      target: { value: "gpt-4o" },
+    });
+
+    fireEvent.click(screen.getByTestId("disclosure-operator-chat-toggle"));
+    await screen.findByTestId("operator-chat-option-alpha-model#0");
+    fireEvent.change(screen.getByTestId("operator-chat-session"), {
+      target: { value: "alpha-model#0" },
+    });
+
+    expect(screen.getByTestId("operator-chat-escalation-enabled")).toBeEnabled();
+    fireEvent.click(screen.getByTestId("operator-chat-escalation-enabled"));
+    fireEvent.change(screen.getByTestId("operator-chat-input"), {
+      target: { value: "fallback please" },
+    });
+    fireEvent.click(screen.getByTestId("operator-chat-send"));
+
+    await vi.waitFor(() => expect(chatGenerateWithCloudEscalation).toHaveBeenCalled());
+    const calls = vi.mocked(chatGenerateWithCloudEscalation).mock.calls;
+    const request = calls[calls.length - 1]?.[0];
+    expect(request?.cloud.cloudModelName).toBe("gpt-4o");
+    expect(request?.cloud.worktreeId).toBe("wt-surface-session");
+    expect(request?.cloud.workingDir).toBe("D:/work/wt-surface-session");
   });
 
   test("the off-main-window Terminal drawer is mounted (reachable) and collapsed by default", () => {
