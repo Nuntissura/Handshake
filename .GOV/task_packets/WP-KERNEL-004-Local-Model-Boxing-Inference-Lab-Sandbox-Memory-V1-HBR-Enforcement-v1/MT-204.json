@@ -7,7 +7,7 @@
   "cluster_subscope": "SWARM.1",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-06-01T00:00:00Z",
-  "updated_at_utc": "2026-06-02T08:33:51Z",
+  "updated_at_utc": "2026-06-02T09:23:32Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -55,9 +55,7 @@
     "src/backend/handshake_core/src/model_runtime/sandbox_runtime.rs",
     "src/backend/handshake_core/src/process_ledger/table.rs",
     "app/src-tauri/src/commands/swarm_runtime.rs",
-    "app/src-tauri/src/lib.rs",
-    "src/backend/handshake_core/tests/swarm_production_factory_tests.rs",
-    "app/src-tauri/tests/swarm_runtime_state_tests.rs"
+    "app/src-tauri/src/lib.rs"
   ],
   "depends_on_mts": [
     "MT-202",
@@ -148,10 +146,10 @@
     "Every production constructor must be quiet: no foreground windows, no focus capture, no unbounded background process."
   ],
   "proof_commands": [
-    "cargo test -p handshake_core --lib --target-dir ../Handshake_Artifacts/handshake-cargo-target swarm_production_factory",
-    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target --test swarm_production_factory_tests -- --test-threads=1",
-    "cargo test --manifest-path app/src-tauri/Cargo.toml --target-dir ../Handshake_Artifacts/handshake-cargo-target swarm_runtime_state",
-    "cargo check --manifest-path app/src-tauri/Cargo.toml --target-dir ../Handshake_Artifacts/handshake-cargo-target"
+    "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib swarm_orchestration::production_factory::tests -- --nocapture",
+    "cargo test --manifest-path app/src-tauri/Cargo.toml swarm_runtime_state -- --nocapture",
+    "cargo test --manifest-path app/src-tauri/Cargo.toml swarm_runtime -- --nocapture",
+    "cargo check --manifest-path app/src-tauri/Cargo.toml"
   ],
   "validator_focus": [
     "No fake/test runtime is reachable from production app state.",
@@ -176,9 +174,10 @@
     "AC-SANDBOX-SNAPSHOT-RESTORE"
   ],
   "lifecycle": {
-    "active": true,
-    "status": "PENDING",
+    "active": false,
+    "status": "READY_FOR_VALIDATION",
     "validator_verdict": "PENDING",
+    "integration_validator_verdict": "PENDING",
     "depends_on": [
       "MT-202",
       "MT-203"
@@ -188,15 +187,32 @@
       "MT-206",
       "MT-207"
     ],
-    "claimed_by": null,
-    "claimed_at_utc": null,
+    "claimed_by": "KERNEL_BUILDER-20260602-072224",
+    "claimed_at_utc": "2026-06-02T07:22:24Z",
     "completed_by": null,
-    "readiness_note": "Do not mark READY_FOR_VALIDATION without a proper checklist receipt and focused proof logs."
+    "ready_for_validation_by": "KERNEL_BUILDER-20260602-072224",
+    "ready_for_validation_at_utc": "2026-06-02T09:27:52.366Z",
+    "ready_for_validation_reason": "Production swarm factory/app-state wiring has current focused proof; KB_READY_CHECKLIST receipt and handoff receipt are emitted during this 2026-06-02 remediation. Validator review remains pending.",
+    "kb_ready_checklist_receipt_ref": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl#MT-204@2026-06-02T09:27:52.366Z",
+    "handoff_receipt_ref": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/RECEIPTS.jsonl#KERNEL004-MT204-RFV-HANDOFF-20260602",
+    "implementation_evidence": {
+      "implemented_by": "KERNEL_BUILDER-20260602-072224 over committed product branch wtc-kernel-004-fold-v1",
+      "latest_product_commits": [
+        "92db9cb3 feat(WP-KERNEL-004): persist swarm grouping in lifecycle events",
+        "2d79eab6 feat(WP-KERNEL-004): enforce committed memory admission",
+        "174428c4 feat(WP-KERNEL-004): close GUI runtime blockers",
+        "53011d52 feat(WP-KERNEL-004): add persistent VM serial exec channel"
+      ],
+      "proof": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib swarm_orchestration::production_factory::tests -- --nocapture (19 passed; env-gated real cloud smoke skipped without credentials); cargo test --manifest-path app/src-tauri/Cargo.toml swarm_runtime_state -- --nocapture (1 passed); cargo test --manifest-path app/src-tauri/Cargo.toml swarm_runtime -- --nocapture (33 passed); cargo check --manifest-path app/src-tauri/Cargo.toml (exit 0).",
+      "adversarial_review": "Ptolemy reviewed the four-file swarm lifecycle event diff and returned PASS; Poincare separately identified the LedgerDecorator copy boundary as a product hole, which is fixed in a separate reviewed patch path.",
+      "readiness_note": "This is Kernel Builder READY_FOR_VALIDATION handoff only. Integration Validator must still review production factory wiring and no-orphan invariants."
+    }
   },
   "governance_notes": [
     "Governance repair 2026-06-02 reconciled packet.json so MT-204..MT-207 are declared contracts, not missing follow-ons.",
     "packet.json now records MT-204 as the active/claimable next follow-on while preserving MT-202 and MT-203 as READY_FOR_VALIDATION pending Integration Validator review.",
-    "The visible governance worktree does not include the full product source topology referenced by the research basis; validators must verify against the product worktree before implementation."
+    "The visible governance worktree does not include the full product source topology referenced by the research basis; validators must verify against the product worktree before implementation.",
+    "Remediation 2026-06-02 corrected stale proof_commands that referenced non-existent integration-test targets; current proof uses module-path production_factory tests and app swarm_runtime command tests in the product worktree."
   ],
   "red_team": {
     "required": true,

@@ -7,7 +7,7 @@
   "cluster_subscope": "SWARM.3",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-06-01T00:00:00Z",
-  "updated_at_utc": "2026-06-02T08:33:51Z",
+  "updated_at_utc": "2026-06-02T09:23:32Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -54,7 +54,9 @@
     "src/backend/handshake_core/src/session_checkpoint/mod.rs",
     "src/backend/handshake_core/src/model_runtime/cloud/mod.rs",
     "app/src-tauri/src/commands/swarm_runtime.rs",
-    "src/backend/handshake_core/tests/swarm_routing_escalation_tests.rs"
+    "app/src/lib/ipc/swarm_runtime.ts",
+    "app/src/components/swarm/SwarmControlRoom.tsx",
+    "app/src/components/swarm/OperatorChat.tsx"
   ],
   "depends_on_mts": [
     "MT-203",
@@ -151,9 +153,9 @@
     "Cloud factory invocation remains quiet and bounded by existing process rules."
   ],
   "proof_commands": [
-    "cargo test -p handshake_core --lib --target-dir ../Handshake_Artifacts/handshake-cargo-target swarm_orchestration::routing",
-    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target --test swarm_routing_escalation_tests -- --test-threads=1",
-    "cargo test --manifest-path app/src-tauri/Cargo.toml --target-dir ../Handshake_Artifacts/handshake-cargo-target swarm_route_preview"
+    "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib swarm_orchestration::routing -- --nocapture",
+    "cargo test --manifest-path app/src-tauri/Cargo.toml swarm_runtime -- --nocapture",
+    "pnpm --dir app exec vitest run src/components/swarm/SwarmControlRoom.test.tsx src/components/swarm/OperatorChat.test.tsx"
   ],
   "validator_focus": [
     "ForceLocal and data-egress blocks prevent cloud factory invocation for every local failure class.",
@@ -178,9 +180,10 @@
     "AC-CLOUD-ESCALATION-CONSENT"
   ],
   "lifecycle": {
-    "active": true,
-    "status": "PENDING",
+    "active": false,
+    "status": "READY_FOR_VALIDATION",
     "validator_verdict": "PENDING",
+    "integration_validator_verdict": "PENDING",
     "depends_on": [
       "MT-203",
       "MT-204",
@@ -189,15 +192,30 @@
     "blocks": [
       "MT-207"
     ],
-    "claimed_by": null,
-    "claimed_at_utc": null,
+    "claimed_by": "KERNEL_BUILDER-20260602-072224",
+    "claimed_at_utc": "2026-06-02T07:22:24Z",
     "completed_by": null,
-    "readiness_note": "Do not mark READY_FOR_VALIDATION without a route-matrix checklist, cloud-factory negative proofs, and durable timeline evidence."
+    "ready_for_validation_by": "KERNEL_BUILDER-20260602-072224",
+    "ready_for_validation_at_utc": "2026-06-02T09:28:26.370Z",
+    "ready_for_validation_reason": "VM-local/local to cloud routing policy has route-matrix and app command proof, including ForceLocal blocks and chat-generation cloud escalation. KB_READY_CHECKLIST receipt and handoff receipt are emitted during this 2026-06-02 remediation. Validator review remains pending.",
+    "kb_ready_checklist_receipt_ref": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl#MT-206@2026-06-02T09:28:26.370Z",
+    "handoff_receipt_ref": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/RECEIPTS.jsonl#KERNEL004-MT206-RFV-HANDOFF-20260602",
+    "implementation_evidence": {
+      "implemented_by": "KERNEL_BUILDER-20260602-072224 over committed product branch wtc-kernel-004-fold-v1",
+      "latest_product_commits": [
+        "92db9cb3 feat(WP-KERNEL-004): persist swarm grouping in lifecycle events",
+        "174428c4 feat(WP-KERNEL-004): close GUI runtime blockers"
+      ],
+      "proof": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib swarm_orchestration::routing -- --nocapture (20 passed); cargo test --manifest-path app/src-tauri/Cargo.toml swarm_runtime -- --nocapture (33 passed, including mixed_local_and_cloud_spawn_route_through_one_coordinator, chat_generate_escalation_force_local_blocks_cloud_when_local_missing, chat_generate_escalates_after_live_local_generate_failure, and chat_generate_force_cloud_skips_a_live_local_candidate); pnpm --dir app exec vitest run src/components/swarm/SwarmControlRoom.test.tsx src/components/swarm/OperatorChat.test.tsx (25 passed).",
+      "adversarial_review": "Ptolemy reviewed the swarm routing/event diff and returned PASS; false-completion risk remains that this is route/control proof, not MT-207 warm model-streaming.",
+      "readiness_note": "This is Kernel Builder READY_FOR_VALIDATION handoff only. Integration Validator must still review route idempotency, durable route timeline, and cloud-factory negative paths."
+    }
   },
   "governance_notes": [
     "Governance repair 2026-06-02 reconciled packet.json so MT-206 is declared as a current follow-on contract.",
     "packet.json keeps MT-204 as the active/claimable next follow-on; MT-206 remains PENDING until its MT-204/MT-205 prerequisites are ready or a later operator-directed sequencing change occurs.",
-    "The contract intentionally treats VM-local->cloud escalation as a technical route policy. It does not add legal/compliance paperwork gates."
+    "The contract intentionally treats VM-local->cloud escalation as a technical route policy. It does not add legal/compliance paperwork gates.",
+    "Remediation 2026-06-02 corrected stale proof_commands that referenced a non-existent swarm_routing_escalation_tests target and absent swarm_route_preview filter; current proof uses routing module tests plus app swarm_runtime escalation tests."
   ],
   "red_team": {
     "required": true,

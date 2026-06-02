@@ -389,8 +389,8 @@
       "remaining_wp_status": "In Progress",
       "summary": "LLVM/libclang and CMake are installed/configured; native llama.cpp compile and focused native tests pass when CARGO_TARGET_DIR is kept short under Handshake_Artifacts."
     },
-    "next_id": "MT-204",
-    "next_id_note": "Governance repair 2026-06-01: MT-202 and MT-203 are READY_FOR_VALIDATION with KB_READY_CHECKLIST receipts and existing implementation evidence; MT-204 is the next claimable follow-on contract. MT-204..MT-207 now exist and must not be treated as missing follow-ons or completed without Integration Validator review.",
+    "next_id": "MT-207",
+    "next_id_note": "Remediation 2026-06-02: MT-204, MT-205, and MT-206 are READY_FOR_VALIDATION with current focused proof and KB_READY_CHECKLIST/handoff receipts; MT-207 remains the next claimable follow-on for persistent VM warm streaming, restored-snapshot warm-start, and distillation trace capture. This is Kernel Builder handoff state only, not an Integration Validator pass.",
     "operator_clarification_20260521": {
       "artifact_root_cleanup_20260522": {
         "operator_authorized": "surgical delete authorized by operator after MT-091 post-commit hook surfaced artifact-hygiene warning",
@@ -1235,9 +1235,9 @@
     "status": "NOT_GENERATED_BY_DEFAULT"
   },
   "microtasks": {
-    "active_id": "MT-204",
+    "active_id": "MT-207",
     "blocked_count": 0,
-    "claimable_id": "MT-204",
+    "claimable_id": "MT-207",
     "completed_count": 0,
     "contract_glob": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-*.json",
     "declared_count": 190,
@@ -1434,15 +1434,15 @@
       "MT-207"
     ],
     "id_gaps_note": "ID ranges with intentional gaps reflect cluster mid-range count choices: MT-059..060 (cluster B reserved unused, used 041..058), MT-131..140 (cluster C reserved unused, used 061..130), and MT-171..175 (cluster D reserved unused, used 141..170). MT-201..MT-207 are now declared contracts and are not missing follow-ons.",
-    "next_id": "MT-204",
-    "next_id_note": "Governance repair 2026-06-01: MT-202 and MT-203 are READY_FOR_VALIDATION with KB_READY_CHECKLIST receipts and existing implementation evidence; MT-204 is the next claimable follow-on contract. MT-204..MT-207 now exist and must not be treated as missing follow-ons or completed without Integration Validator review.",
-    "pending_count": 4,
+    "next_id": "MT-207",
+    "next_id_note": "Remediation 2026-06-02: MT-204, MT-205, and MT-206 are READY_FOR_VALIDATION with current focused proof and KB_READY_CHECKLIST/handoff receipts; MT-207 remains the next claimable follow-on for persistent VM warm streaming, restored-snapshot warm-start, and distillation trace capture. This is Kernel Builder handoff state only, not an Integration Validator pass.",
+    "pending_count": 1,
     "sequencing_note": "KERNEL_BUILDER implements MTs back to back with no per-MT WP Validator gate per validation_topology = INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1. Cluster ordering: A then B then C then D then X, subject to dependency relationships in each MT.depends_on_mts field. Authored 2026-05-18T03:00Z by 5 parallel Opus cluster subagents per operator decision to launch in parallel.",
-    "status_counts_note": "Governance repair 2026-06-01: filesystem scan found 190 MT contracts. Current lifecycle counts after MT-202/MT-203 handoff are READY_FOR_VALIDATION_PHASE2=31, READY_FOR_VALIDATION=153, RETIRED_UNDER_E5_NO_CURATED_ABLITERATED_REGISTRY=2, PENDING=4 (MT-204..MT-207), CLAIMED=0. This is registry repair only, not an Integration Validator pass.",
-    "status_counts_recorded_at_utc": "2026-06-01T22:28:00Z"
+    "status_counts_note": "Remediation 2026-06-02: filesystem scan found 190 MT contracts. Current lifecycle counts after MT-204/MT-205/MT-206 handoff are READY_FOR_VALIDATION_PHASE2=31, READY_FOR_VALIDATION=156, RETIRED_UNDER_E5_NO_CURATED_ABLITERATED_REGISTRY=2, PENDING=1 (MT-207), CLAIMED=0. This is Kernel Builder handoff state only, not an Integration Validator pass.",
+    "status_counts_recorded_at_utc": "2026-06-02T09:23:32Z"
   },
-  "next_id": "MT-204",
-  "next_id_note": "Governance repair 2026-06-01: MT-202 and MT-203 are READY_FOR_VALIDATION with KB_READY_CHECKLIST receipts and existing implementation evidence; MT-204 is the next claimable follow-on contract. MT-204..MT-207 now exist and must not be treated as missing follow-ons or completed without Integration Validator review.",
+  "next_id": "MT-207",
+  "next_id_note": "Remediation 2026-06-02: MT-204, MT-205, and MT-206 are READY_FOR_VALIDATION with current focused proof and KB_READY_CHECKLIST/handoff receipts; MT-207 remains the next claimable follow-on for persistent VM warm streaming, restored-snapshot warm-start, and distillation trace capture. This is Kernel Builder handoff state only, not an Integration Validator pass.",
   "red_team": {
     "minimum_controls": [
       "Packet contract must reference refinement contract before any MT authoring or coder work.",
@@ -1654,7 +1654,7 @@
     "worktree_dir": "../wtc-kernel-004-fold-v1",
     "worktree_gov_junction": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-004-fold-v1/.GOV -> D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV"
   },
-  "updated_at_utc": "2026-06-01T22:28:00Z",
+  "updated_at_utc": "2026-06-02T09:23:32Z",
   "workflow": {
     "authority": "ORCHESTRATOR",
     "coder_compatible_execution_lane": "CODER_A",

@@ -7,7 +7,7 @@
   "cluster_subscope": "SWARM.2",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-06-01T00:00:00Z",
-  "updated_at_utc": "2026-06-02T08:33:51Z",
+  "updated_at_utc": "2026-06-02T09:23:32Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -54,7 +54,12 @@
     "app/src/App.tsx",
     "app/src/App.css",
     "app/src/App.test.tsx",
-    "app/tests/swarm-control-room.spec.ts"
+    "app/src/components/swarm/SwarmControlRoom.test.tsx",
+    "app/src/components/swarm/SwarmOperatorSurface.test.tsx",
+    "app/src/components/swarm/OperatorChat.test.tsx",
+    "tests/visual/swarm-spawn-assignment.spec.ts",
+    "tests/visual/swarm-board.spec.ts",
+    "tests/visual/session-workbench.spec.ts"
   ],
   "depends_on_mts": [
     "MT-203",
@@ -150,10 +155,10 @@
     "Do not create marketing/hero UI; the control room is the primary first screen for this feature."
   ],
   "proof_commands": [
-    "cargo test --manifest-path app/src-tauri/Cargo.toml --target-dir ../Handshake_Artifacts/handshake-cargo-target swarm_runtime_commands",
-    "pnpm --dir app test -- --run App.test.tsx",
-    "pnpm --dir app typecheck",
-    "pnpm --dir app test:e2e -- swarm-control-room.spec.ts"
+    "cargo test --manifest-path app/src-tauri/Cargo.toml swarm_runtime -- --nocapture",
+    "pnpm --dir app exec vitest run src/App.test.tsx src/components/swarm/SwarmControlRoom.test.tsx src/components/swarm/SwarmOperatorSurface.test.tsx src/components/swarm/OperatorChat.test.tsx",
+    "pnpm --dir app exec tsc --noEmit",
+    "pnpm --dir app exec playwright test ../tests/visual/swarm-spawn-assignment.spec.ts ../tests/visual/swarm-board.spec.ts ../tests/visual/session-workbench.spec.ts"
   ],
   "validator_focus": [
     "All spawn/cancel/escalate actions route through the coordinator and produce receipts.",
@@ -179,9 +184,10 @@
     "AC-SWARM-HARNESS-INVARIANTS"
   ],
   "lifecycle": {
-    "active": true,
-    "status": "PENDING",
+    "active": false,
+    "status": "READY_FOR_VALIDATION",
     "validator_verdict": "PENDING",
+    "integration_validator_verdict": "PENDING",
     "depends_on": [
       "MT-203",
       "MT-204"
@@ -190,15 +196,30 @@
       "MT-206",
       "MT-207"
     ],
-    "claimed_by": null,
-    "claimed_at_utc": null,
+    "claimed_by": "KERNEL_BUILDER-20260602-072224",
+    "claimed_at_utc": "2026-06-02T07:22:24Z",
     "completed_by": null,
-    "readiness_note": "Do not mark READY_FOR_VALIDATION without a proper checklist receipt, command proof, and visual evidence."
+    "ready_for_validation_by": "KERNEL_BUILDER-20260602-072224",
+    "ready_for_validation_at_utc": "2026-06-02T09:28:01.909Z",
+    "ready_for_validation_reason": "Operator orchestration surface has current Rust, Vitest, TypeScript, and display-dependent Playwright proof; KB_READY_CHECKLIST receipt and handoff receipt are emitted during this 2026-06-02 remediation. Validator review remains pending.",
+    "kb_ready_checklist_receipt_ref": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl#MT-205@2026-06-02T09:28:01.909Z",
+    "handoff_receipt_ref": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/RECEIPTS.jsonl#KERNEL004-MT205-RFV-HANDOFF-20260602",
+    "implementation_evidence": {
+      "implemented_by": "KERNEL_BUILDER-20260602-072224 over committed product branch wtc-kernel-004-fold-v1",
+      "latest_product_commits": [
+        "92db9cb3 feat(WP-KERNEL-004): persist swarm grouping in lifecycle events",
+        "174428c4 feat(WP-KERNEL-004): close GUI runtime blockers"
+      ],
+      "proof": "cargo test --manifest-path app/src-tauri/Cargo.toml swarm_runtime -- --nocapture (33 passed); pnpm --dir app exec vitest run src/App.test.tsx (10 passed); pnpm --dir app exec vitest run src/components/swarm/SwarmControlRoom.test.tsx src/components/swarm/SwarmOperatorSurface.test.tsx src/components/swarm/OperatorChat.test.tsx (33 passed); pnpm --dir app exec tsc --noEmit (exit 0); pnpm --dir app exec playwright test ../tests/visual/swarm-spawn-assignment.spec.ts ../tests/visual/swarm-board.spec.ts ../tests/visual/session-workbench.spec.ts (15 passed).",
+      "adversarial_review": "Ptolemy reviewed the committed swarm grouping event patch and returned PASS. Visual Playwright proof covers normal, constrained, and edge board/workbench harnesses.",
+      "readiness_note": "This is Kernel Builder READY_FOR_VALIDATION handoff only. Integration Validator must still review UI usability, dropped-event reconciliation, and no-foreground guarantees."
+    }
   },
   "governance_notes": [
     "Governance repair 2026-06-02 reconciled packet.json so MT-205 is declared as a current follow-on contract blocked by MT-204.",
     "packet.json keeps MT-204 as the active/claimable next follow-on; MT-205 remains PENDING until MT-204 reaches READY_FOR_VALIDATION or a later operator-directed sequencing change occurs.",
-    "The visible governance worktree has only a small app source subset; implementation must be verified against the product worktree."
+    "The visible governance worktree has only a small app source subset; implementation must be verified against the product worktree.",
+    "Remediation 2026-06-02 corrected stale proof_commands that referenced missing app/tests paths and a non-existent typecheck script; current proof uses package-local Vitest, TypeScript, and tests/visual Playwright harnesses."
   ],
   "red_team": {
     "required": true,
