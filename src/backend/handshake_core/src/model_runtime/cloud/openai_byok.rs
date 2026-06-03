@@ -732,7 +732,13 @@ async fn run_live_stream(
     while let Some(event) = sse.next().await {
         if cancel_req.is_cancelled() || cancel_runtime.is_cancelled() {
             record_final_audit(&audit_sink, &audit_template, CloudCallStatus::Cancelled);
-            emit_fr_end(&fr_ctx, token_index, &start_instant, FinishReason::Cancelled).await;
+            emit_fr_end(
+                &fr_ctx,
+                token_index,
+                &start_instant,
+                FinishReason::Cancelled,
+            )
+            .await;
             let _ = sender.send(Ok(terminal_token(FinishReason::Cancelled)));
             return;
         }
@@ -809,8 +815,13 @@ async fn run_live_stream(
                             &audit_template,
                             CloudCallStatus::Cancelled,
                         );
-                        emit_fr_end(&fr_ctx, token_index, &start_instant, FinishReason::Cancelled)
-                            .await;
+                        emit_fr_end(
+                            &fr_ctx,
+                            token_index,
+                            &start_instant,
+                            FinishReason::Cancelled,
+                        )
+                        .await;
                         return;
                     }
                 } else if let Some(finish) = finish_mapped {
@@ -835,10 +846,7 @@ async fn run_live_stream(
 /// recorder. When no recorder is attached this is a no-op (exact prior
 /// behaviour). Recorder failures are logged and swallowed — observ-
 /// ability must never abort or fail the live generation.
-async fn emit_fr_event(
-    fr_ctx: &LaneFrContext,
-    event: crate::flight_recorder::FlightRecorderEvent,
-) {
+async fn emit_fr_event(fr_ctx: &LaneFrContext, event: crate::flight_recorder::FlightRecorderEvent) {
     if let Some(recorder) = fr_ctx.flight_recorder.as_ref() {
         if let Err(err) = recorder.record_event(event).await {
             tracing::warn!(

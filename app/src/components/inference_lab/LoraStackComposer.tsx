@@ -20,9 +20,9 @@ import {
 // behavior + acceptance criteria + red_team controls preserved.
 //
 // AC-INFER-LAB-UI-TOGGLES: hidden (display:none) when supportsLora=false.
-// AC-INFER-LAB-UI-AB-COMPARE: A/B compare per-strength is deferred to a
-// follow-up MT because there is no generation IPC surfaced yet. Recorded
-// as residual_risk on MT-091. The strength slider UI surface lands here.
+// MT-098 now owns live A/B compare through ABCompare + steering_generate_ab.
+// Per-strength LoRA comparison remains outside this panel; this surface owns
+// stack mount/swap/unmount plus strength sliders.
 // All mutations route through the kernel_model_runtime_lora_* IPC, which
 // preflights ModelRuntimeState.lora_command_binding via KernelActionCatalogV1
 // before touching the live runtime (see app/src-tauri/src/commands/lora.rs).

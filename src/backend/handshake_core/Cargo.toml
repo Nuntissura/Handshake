@@ -136,9 +136,9 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt", "json"]
 tracing-appender = "0.2"
 thiserror = "2.0.17"
 duckdb = { version = "1.4.3", optional = true, features = ["bundled"] }
-reqwest = { version = "0.12", features = ["json", "stream", "rustls-tls"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "stream", "rustls-tls"] }
 eventsource-stream = "0.2"
-keyring = { version = "3", features = ["apple-native", "windows-native", "linux-native-sync-persistent", "crypto-rust"] }
+keyring = { version = "3", optional = true, features = ["apple-native", "windows-native", "linux-native-sync-persistent", "crypto-rust"] }
 secrecy = { version = "0.10", features = ["serde"] }
 tokio-tungstenite = "0.26"
 futures = "0.3"
@@ -213,9 +213,10 @@ windows = { version = "0.62.2", features = ["Win32_Foundation", "Win32_UI_Input_
 windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Graphics_Gdi", "Win32_Security", "Win32_Security_Authorization", "Win32_Storage_FileSystem", "Win32_System_Console", "Win32_System_JobObjects", "Win32_System_LibraryLoader", "Win32_System_Pipes", "Win32_System_Threading", "Win32_System_WindowsProgramming", "Win32_UI_Input_KeyboardAndMouse", "Win32_UI_WindowsAndMessaging"] }
 
 [features]
-default = ["runtime-full"]
+default = ["runtime-full", "os-keychain"]
 kernel-runtime = []
 runtime-full = ["kernel-runtime", "tokenization"]
+os-keychain = ["dep:keyring"]
 kernel-proof = ["runtime-full"]
 inspector = []
 swarm_ipc = []
@@ -239,6 +240,11 @@ required-features = ["duckdb-flight-recorder", "test-utils"]
 name = "calendar_storage_tests"
 path = "tests/calendar_storage_tests.rs"
 required-features = ["test-utils"]
+
+[[test]]
+name = "cloud_os_keychain_vault_tests"
+path = "tests/cloud_os_keychain_vault_tests.rs"
+required-features = ["os-keychain"]
 
 [[test]]
 name = "kernel_crdt_persistence_tests"

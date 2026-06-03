@@ -246,7 +246,9 @@ pub fn candle_embed_tokens(
             ModelRuntimeError::EmbedError(format!("Candle embed mean-pool failed: {error}"))
         })?;
     let vector: Vec<f32> = pooled.to_vec1().map_err(|error| {
-        ModelRuntimeError::EmbedError(format!("Candle embed failed to materialize vector: {error}"))
+        ModelRuntimeError::EmbedError(format!(
+            "Candle embed failed to materialize vector: {error}"
+        ))
     })?;
 
     validate_embedding_vector(vector, expected_dim)
@@ -295,7 +297,10 @@ mod tests {
         let denom = (1.0_f64.exp() + 2.0_f64.exp() + 3.0_f64.exp()).ln();
         let expected = (3.0_f64 - denom) as f32;
         assert!((lp - expected).abs() < 1e-5, "lp={lp} expected={expected}");
-        assert!(lp < 0.0, "log-prob of a non-dominant token must be negative");
+        assert!(
+            lp < 0.0,
+            "log-prob of a non-dominant token must be negative"
+        );
     }
 
     #[test]
@@ -350,9 +355,7 @@ mod tests {
         use crate::model_runtime::ModelRuntime;
 
         let Some(artifact) = std::env::var_os("HANDSHAKE_TEST_CANDLE_LLAMA_MODEL") else {
-            eprintln!(
-                "SKIP real_tinyllama_score_embed: HANDSHAKE_TEST_CANDLE_LLAMA_MODEL not set"
-            );
+            eprintln!("SKIP real_tinyllama_score_embed: HANDSHAKE_TEST_CANDLE_LLAMA_MODEL not set");
             return;
         };
         let artifact = std::path::PathBuf::from(artifact);
@@ -402,7 +405,10 @@ mod tests {
             assert!(v.is_finite(), "embedding value {i} must be finite: {v}");
         }
         let norm = embedding.vector.iter().map(|v| v * v).sum::<f32>().sqrt();
-        assert!(norm.is_finite() && norm > 0.0, "embedding must have positive norm");
+        assert!(
+            norm.is_finite() && norm > 0.0,
+            "embedding must have positive norm"
+        );
         eprintln!(
             "REAL embed: dim={} norm={:.4} head={:?}",
             embedding.vector.len(),

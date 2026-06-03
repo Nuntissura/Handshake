@@ -14,8 +14,8 @@ import {
 // AC-INFER-LAB-UI-TOGGLES: hidden (return null) when neither speculative
 // nor Eagle3 is supported. Eagle3 is always visible-but-disabled with the
 // deferral note when supportsEagle3=false (per operator E-4).
-// AC-INFER-LAB-UI-AB-COMPARE: deferred to a follow-up MT (same residual
-// risk as MT-091 / MT-094 — no generation IPC exposed yet).
+// MT-098 now owns live A/B compare through ABCompare + steering_generate_ab.
+// This panel remains scoped to speculative decoding controls.
 
 type Props = {
   modelId: string;

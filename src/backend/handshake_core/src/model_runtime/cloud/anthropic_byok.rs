@@ -722,7 +722,13 @@ async fn run_live_stream(
     while let Some(event) = sse.next().await {
         if cancel_req.is_cancelled() || cancel_runtime.is_cancelled() {
             record_final_audit(&audit_sink, &audit_template, CloudCallStatus::Cancelled);
-            emit_fr_end(&fr_ctx, token_index, &start_instant, FinishReason::Cancelled).await;
+            emit_fr_end(
+                &fr_ctx,
+                token_index,
+                &start_instant,
+                FinishReason::Cancelled,
+            )
+            .await;
             let _ = sender.send(Ok(terminal_token(FinishReason::Cancelled)));
             return;
         }
@@ -775,8 +781,7 @@ async fn run_live_stream(
                         // best-effort inter-token wall time. Mirrors the
                         // OpenAI BYOK sibling (MT-125).
                         let now = std::time::Instant::now();
-                        let latency_ms =
-                            now.duration_since(last_token_instant).as_millis() as u64;
+                        let latency_ms = now.duration_since(last_token_instant).as_millis() as u64;
                         last_token_instant = now;
                         if should_emit_token_event(token_index) {
                             emit_fr_event(
@@ -861,10 +866,7 @@ async fn run_live_stream(
 /// behaviour). Recorder failures are logged and swallowed — observ-
 /// ability must never abort or fail the live generation. Mirrors the
 /// OpenAI BYOK sibling (MT-125).
-async fn emit_fr_event(
-    fr_ctx: &LaneFrContext,
-    event: crate::flight_recorder::FlightRecorderEvent,
-) {
+async fn emit_fr_event(fr_ctx: &LaneFrContext, event: crate::flight_recorder::FlightRecorderEvent) {
     if let Some(recorder) = fr_ctx.flight_recorder.as_ref() {
         if let Err(err) = recorder.record_event(event).await {
             tracing::warn!(

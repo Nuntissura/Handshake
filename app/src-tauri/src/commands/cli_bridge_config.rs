@@ -372,10 +372,7 @@ pub fn get_config_impl(
 ) -> Result<CliBridgeConfigSummary, CliBridgeConfigError> {
     // Re-read the store so a corrupt on-disk file surfaces honestly (the
     // in-memory doc may be the default fallback from construction).
-    let doc = state
-        .store
-        .load()
-        .map_err(CliBridgeConfigError::Store)?;
+    let doc = state.store.load().map_err(CliBridgeConfigError::Store)?;
     // Keep the in-memory guard in sync with the freshly-read doc.
     {
         let mut guard = state.doc_write()?;
@@ -427,9 +424,7 @@ pub fn set_config_impl(
         args_template: request.args_template,
         output_format: request.output_format,
         model_allowlist,
-        working_dir: request
-            .working_dir
-            .filter(|s| !s.trim().is_empty()),
+        working_dir: request.working_dir.filter(|s| !s.trim().is_empty()),
         timeout_seconds: request.timeout_seconds,
         env_vars,
         updated_at_utc: Some(now),
@@ -538,10 +533,7 @@ pub fn test_config_impl(request: TestCliBridgeConfigRequest) -> CliBridgeTestRec
                 CliBridgeTestReceipt {
                     ok: false,
                     version_line,
-                    detail: format!(
-                        "'{exe} {version_arg}' exited {code}: {}",
-                        stderr.trim()
-                    ),
+                    detail: format!("'{exe} {version_arg}' exited {code}: {}", stderr.trim()),
                 }
             }
         }
@@ -673,13 +665,19 @@ mod tests {
                 preset.id
             );
         }
-        let claude = presets.iter().find(|p| p.id == "claude_code").expect("claude");
+        let claude = presets
+            .iter()
+            .find(|p| p.id == "claude_code")
+            .expect("claude");
         assert_eq!(claude.cli_kind, StoredCliKind::ClaudeCode);
         assert!(!claude.model_allowlist.is_empty());
         let codex = presets.iter().find(|p| p.id == "codex_cli").expect("codex");
         assert!(codex.args_template.iter().any(|a| a == "exec"));
         let generic = presets.iter().find(|p| p.id == "generic").expect("generic");
-        assert!(generic.model_allowlist.is_empty(), "generic allowlist operator-supplied");
+        assert!(
+            generic.model_allowlist.is_empty(),
+            "generic allowlist operator-supplied"
+        );
     }
 
     #[test]

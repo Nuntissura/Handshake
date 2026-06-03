@@ -162,7 +162,11 @@ impl CliBridgeConfigDoc {
             executable_path: PathBuf::from(self.executable_path.clone()),
             args_template: self.args_template.clone(),
             output_format: self.output_format.to_core(),
-            env_vars: self.env_vars.iter().map(|(k, v)| (k.clone(), v.clone())).collect(),
+            env_vars: self
+                .env_vars
+                .iter()
+                .map(|(k, v)| (k.clone(), v.clone()))
+                .collect(),
             working_dir: self
                 .working_dir
                 .as_ref()

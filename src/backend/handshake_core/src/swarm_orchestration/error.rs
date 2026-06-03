@@ -75,7 +75,9 @@ pub enum SwarmError {
     /// The failure-fingerprint circuit breaker is open for the supplied
     /// signature; spawns/retries that would carry this signature are
     /// suppressed until the cooldown elapses.
-    #[error("SWARM_BREAKER_OPEN: signature={signature} cooldown_remaining_ms={cooldown_remaining_ms}")]
+    #[error(
+        "SWARM_BREAKER_OPEN: signature={signature} cooldown_remaining_ms={cooldown_remaining_ms}"
+    )]
     BreakerOpen {
         signature: String,
         cooldown_remaining_ms: u128,

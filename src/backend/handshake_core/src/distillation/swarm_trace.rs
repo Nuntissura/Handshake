@@ -16,6 +16,7 @@ use crate::models::skill_bank::{
 use super::redaction::redact_entry;
 
 pub const DISTILLATION_SWARM_TRACE_VERSION: &str = "distillation_swarm_trace_v1";
+pub const DISTILLATION_SWARM_TRACE_QUEUE_SCHEMA: &str = "distillation_swarm_trace_queue_entry_v1";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -69,10 +70,65 @@ pub enum SwarmTraceIneligibleReason {
     LocalOutputNotAllowed,
     CloudOutputNotAllowed,
     EmptyPrompt,
+    EmptySessionId,
+    EmptyRouteReason,
     EmptyLocalLabel,
+    EmptyLocalModelId,
     EmptyCloudLabel,
+    EmptyCloudModelId,
     EmptyLocalOutput,
     EmptyCloudOutput,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SwarmTraceRouteOutcome {
+    LocalAccepted,
+    CloudEscalated,
+    CloudFailed,
+    ForceCloud,
+    ForceLocalBlocked,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SwarmTraceRouteMetadata {
+    pub session_id: String,
+    pub route_reason: String,
+    pub route_outcome: SwarmTraceRouteOutcome,
+    pub local_model_id: String,
+    pub cloud_model_id: String,
+    pub local_confidence_basis_points: Option<u16>,
+    pub validation_labels: Vec<String>,
+}
+
+impl SwarmTraceRouteMetadata {
+    pub fn new(
+        session_id: impl Into<String>,
+        route_reason: impl Into<String>,
+        route_outcome: SwarmTraceRouteOutcome,
+        local_model_id: impl Into<String>,
+        cloud_model_id: impl Into<String>,
+    ) -> Self {
+        Self {
+            session_id: session_id.into(),
+            route_reason: route_reason.into(),
+            route_outcome,
+            local_model_id: local_model_id.into(),
+            cloud_model_id: cloud_model_id.into(),
+            local_confidence_basis_points: None,
+            validation_labels: Vec::new(),
+        }
+    }
+
+    pub fn with_local_confidence_basis_points(mut self, basis_points: u16) -> Self {
+        self.local_confidence_basis_points = Some(basis_points.min(10_000));
+        self
+    }
+
+    pub fn with_validation_labels(mut self, labels: Vec<String>) -> Self {
+        self.validation_labels = labels;
+        self
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -86,6 +142,7 @@ pub struct SwarmTraceCandidate {
     pub cloud_output: String,
     pub comparison_labels: Vec<String>,
     pub eligibility: SwarmTraceEligibility,
+    pub route: Option<SwarmTraceRouteMetadata>,
 }
 
 impl SwarmTraceCandidate {
@@ -108,6 +165,7 @@ impl SwarmTraceCandidate {
             cloud_output: cloud_output.into(),
             comparison_labels: vec!["local_cloud_output_comparison".to_string()],
             eligibility: SwarmTraceEligibility::eligible(),
+            route: None,
         }
     }
 
@@ -118,6 +176,11 @@ impl SwarmTraceCandidate {
 
     pub fn with_eligibility(mut self, eligibility: SwarmTraceEligibility) -> Self {
         self.eligibility = eligibility;
+        self
+    }
+
+    pub fn with_route_metadata(mut self, route: SwarmTraceRouteMetadata) -> Self {
+        self.route = Some(route);
         self
     }
 }
@@ -136,10 +199,18 @@ pub struct DistillationSwarmTraceBundle {
     pub sample_id: String,
     pub prompt: String,
     pub outputs: Vec<SwarmTraceOutput>,
+    pub route: Option<SwarmTraceRouteMetadata>,
     pub comparison_labels: Vec<String>,
     pub eligibility: SwarmTraceEligibility,
     pub redactions_applied: Vec<SwarmTraceRedaction>,
     pub captured_at_utc: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DistillationSwarmTraceQueueEntry {
+    pub schema: String,
+    pub bundle: DistillationSwarmTraceBundle,
+    pub eligible_for_training_review: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
@@ -195,6 +266,7 @@ pub fn capture_distillation_swarm_trace_at(
                 output: cloud_output,
             },
         ],
+        route: candidate.route,
         comparison_labels: candidate.comparison_labels,
         eligibility: candidate.eligibility,
         redactions_applied,
@@ -202,10 +274,42 @@ pub fn capture_distillation_swarm_trace_at(
     })
 }
 
+pub fn prepare_distillation_swarm_trace_queue_entry(
+    candidate: SwarmTraceCandidate,
+) -> Result<DistillationSwarmTraceQueueEntry, SwarmTraceError> {
+    prepare_distillation_swarm_trace_queue_entry_at(candidate, Utc::now())
+}
+
+pub fn prepare_distillation_swarm_trace_queue_entry_at(
+    candidate: SwarmTraceCandidate,
+    captured_at_utc: DateTime<Utc>,
+) -> Result<DistillationSwarmTraceQueueEntry, SwarmTraceError> {
+    let bundle = capture_distillation_swarm_trace_at(candidate, captured_at_utc)?;
+    Ok(DistillationSwarmTraceQueueEntry {
+        schema: DISTILLATION_SWARM_TRACE_QUEUE_SCHEMA.to_string(),
+        bundle,
+        eligible_for_training_review: true,
+    })
+}
+
 fn validate_candidate(candidate: &SwarmTraceCandidate) -> Vec<SwarmTraceIneligibleReason> {
     let mut reasons = candidate.eligibility.ineligible_reasons();
     if candidate.prompt.trim().is_empty() {
         reasons.push(SwarmTraceIneligibleReason::EmptyPrompt);
+    }
+    if let Some(route) = &candidate.route {
+        if route.session_id.trim().is_empty() {
+            reasons.push(SwarmTraceIneligibleReason::EmptySessionId);
+        }
+        if route.route_reason.trim().is_empty() {
+            reasons.push(SwarmTraceIneligibleReason::EmptyRouteReason);
+        }
+        if route.local_model_id.trim().is_empty() {
+            reasons.push(SwarmTraceIneligibleReason::EmptyLocalModelId);
+        }
+        if route.cloud_model_id.trim().is_empty() {
+            reasons.push(SwarmTraceIneligibleReason::EmptyCloudModelId);
+        }
     }
     if candidate.local_label.trim().is_empty() {
         reasons.push(SwarmTraceIneligibleReason::EmptyLocalLabel);
@@ -240,7 +344,11 @@ fn redact_trace_field(
 
     match &redaction.redacted_entry.snapshots_input.messages[0].content {
         Content::Plain(text) => text.clone(),
-        Content::Segments(_) => String::new(),
+        Content::Segments(segments) => segments
+            .iter()
+            .map(|segment| segment.text.as_str())
+            .collect::<Vec<_>>()
+            .join(""),
     }
 }
 

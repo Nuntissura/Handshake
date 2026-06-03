@@ -429,11 +429,7 @@ impl CandleSteeringHooks {
                 "refusal ablation direction has zero or non-finite L2 norm".to_string(),
             ));
         }
-        let dot: f32 = activation
-            .iter()
-            .zip(direction)
-            .map(|(a, d)| a * d)
-            .sum();
+        let dot: f32 = activation.iter().zip(direction).map(|(a, d)| a * d).sum();
         let coeff = dot / dir_norm_sq;
         activation
             .into_iter()

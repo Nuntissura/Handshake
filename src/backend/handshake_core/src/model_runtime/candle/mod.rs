@@ -46,9 +46,7 @@ pub use rwkv_v6::CandleRwkvV6Model;
 #[cfg(feature = "candle-runtime-engine")]
 pub use rwkv_v7::CandleRwkvV7Model;
 #[cfg(feature = "candle-runtime-engine")]
-pub use ssm_state::{
-    snapshot_to_tensor, tensor_to_snapshot, LockedSsmStateSource, SsmStateSource,
-};
+pub use ssm_state::{snapshot_to_tensor, tensor_to_snapshot, LockedSsmStateSource, SsmStateSource};
 pub use state_vector::{
     load_from_artifact_store, load_from_artifact_store_into_handle, load_from_bytes,
     load_into_handle, persist_to_artifact_store, persist_to_bytes, SSMStateSnapshot,

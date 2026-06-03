@@ -244,11 +244,7 @@ mod tests {
         assert_eq!(snap.dtype, "f32");
         assert_eq!(snap.shape, vec![2, 2]);
         let restored = snapshot_to_tensor(&snap, &device).unwrap();
-        let restored_vec = restored
-            .flatten_all()
-            .unwrap()
-            .to_vec1::<f32>()
-            .unwrap();
+        let restored_vec = restored.flatten_all().unwrap().to_vec1::<f32>().unwrap();
         assert_eq!(restored_vec, vec![1.0, 2.0, 3.0, 4.0]);
         // round-trip again to prove the snapshot is byte-stable
         let snap2 = tensor_to_snapshot(&restored).unwrap();
@@ -269,6 +265,9 @@ mod tests {
     fn parse_dtype_label_rejects_unknown() {
         let err = parse_dtype_label("complex64").unwrap_err();
         let message = format!("{err:?}");
-        assert!(message.contains("unsupported ssm tensor dtype label"), "got: {message}");
+        assert!(
+            message.contains("unsupported ssm tensor dtype label"),
+            "got: {message}"
+        );
     }
 }

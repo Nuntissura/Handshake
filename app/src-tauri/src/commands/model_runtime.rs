@@ -382,8 +382,8 @@ pub async fn model_runtime_load(
     if base_model_tag.is_empty() {
         return Err("base_model_tag must not be empty".to_string());
     }
-    let registered_by = OperatorId::try_new(request.registered_by.trim())
-        .map_err(|error| error.to_string())?;
+    let registered_by =
+        OperatorId::try_new(request.registered_by.trim()).map_err(|error| error.to_string())?;
     let sha256 = decode_sha256_hex(&request.sha256_expected)?;
 
     // Reuse the shared, proven candle-load path (the same helper the swarm
@@ -394,12 +394,15 @@ pub async fn model_runtime_load(
         runtime,
         model_id,
         capabilities,
-    } = load_local_candle_model(artifact_path.clone(), request.sha256_expected.trim().to_string())
-        .await
-        .map_err(|error| {
-            eprintln!("{FR_EVT_LLM_MODEL_LOAD}: load failed: {error}");
-            error.to_string()
-        })?;
+    } = load_local_candle_model(
+        artifact_path.clone(),
+        request.sha256_expected.trim().to_string(),
+    )
+    .await
+    .map_err(|error| {
+        eprintln!("{FR_EVT_LLM_MODEL_LOAD}: load failed: {error}");
+        error.to_string()
+    })?;
 
     let registration = ModelRegistration {
         model_id,
@@ -433,10 +436,7 @@ pub async fn kernel_model_runtime_unload(
 
 /// Inner unload logic (testable with `&ModelRuntimeState`). See
 /// `kernel_model_runtime_unload` for the full contract.
-pub async fn model_runtime_unload(
-    model_id: &str,
-    state: &ModelRuntimeState,
-) -> Result<(), String> {
+pub async fn model_runtime_unload(model_id: &str, state: &ModelRuntimeState) -> Result<(), String> {
     let parsed = parse_model_id(model_id)?;
     // Detaching the sole owning Arc frees the CandleRuntime + loaded weights.
     let detached = state.detach_live_runtime(parsed)?;
@@ -744,7 +744,10 @@ mod tests {
         // validates the artifact is a real file and fails loud when it is not.
         let state = ModelRuntimeState::default();
         let err = model_runtime_load(
-            load_request("D:/__handshake_no_such_model__/model.safetensors", &"ab".repeat(32)),
+            load_request(
+                "D:/__handshake_no_such_model__/model.safetensors",
+                &"ab".repeat(32),
+            ),
             &state,
         )
         .await

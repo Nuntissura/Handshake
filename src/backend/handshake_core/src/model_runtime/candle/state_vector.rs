@@ -569,10 +569,7 @@ impl InMemoryStateVectorOps {
             })
     }
 
-    fn write_live_snapshot(
-        &self,
-        snapshot: &SSMStateSnapshot,
-    ) -> Result<(), ModelRuntimeError> {
+    fn write_live_snapshot(&self, snapshot: &SSMStateSnapshot) -> Result<(), ModelRuntimeError> {
         #[cfg(feature = "candle-runtime-engine")]
         {
             if let Some(source) = self.state_source.as_ref() {

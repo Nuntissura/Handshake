@@ -38,12 +38,14 @@ pub struct CloudLaneObservability {
     pub consent: Option<CloudConsentContext>,
 }
 
+pub use agent_activity::{
+    parse_line as parse_agent_activity_line, AgentActivity, AgentActivityKind,
+};
 pub use anthropic_byok::{
     AnthropicByokError, AnthropicByokRuntime, AnthropicModelHandle, ANTHROPIC_API_KEY_HEADER,
     ANTHROPIC_API_VERSION, ANTHROPIC_MESSAGES_PATH, ANTHROPIC_VERSION_HEADER,
     DEFAULT_ANTHROPIC_MODEL_ALLOWLIST,
 };
-pub use agent_activity::{parse_line as parse_agent_activity_line, AgentActivity, AgentActivityKind};
 pub use cli_bridge_runtime::CliBridgeModelRuntime;
 pub use consent_gate::{ConsentDecision, ConsentGate, ConsentGateError, ConsentProvider};
 pub use official_cli_bridge::{

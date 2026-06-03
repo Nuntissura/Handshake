@@ -575,7 +575,11 @@ pub async fn steering_generate_ab(
     if request.prompts.is_empty() {
         return Err("activation steering AB-compare requires at least one prompt".to_string());
     }
-    if request.prompts.iter().any(|prompt| prompt.trim().is_empty()) {
+    if request
+        .prompts
+        .iter()
+        .any(|prompt| prompt.trim().is_empty())
+    {
         return Err("activation steering AB-compare prompts must not be blank".to_string());
     }
     if request.active_vector_ids.is_empty() {
@@ -598,9 +602,14 @@ pub async fn steering_generate_ab(
     let mut comparisons = Vec::with_capacity(request.prompts.len());
     for prompt in &request.prompts {
         // BEFORE / baseline: steering vectors inactive.
-        let inactive_completion =
-            generate_completion(runtime.as_ref(), model_id, prompt, &inactive_ids, max_tokens)
-                .await?;
+        let inactive_completion = generate_completion(
+            runtime.as_ref(),
+            model_id,
+            prompt,
+            &inactive_ids,
+            max_tokens,
+        )
+        .await?;
         // AFTER / steered: the proposed steering vectors active.
         let active_completion =
             generate_completion(runtime.as_ref(), model_id, prompt, &active_ids, max_tokens)
@@ -1295,7 +1304,11 @@ mod tests {
         (dir, store)
     }
 
-    fn set_active_request(model_id: ModelId, id: SteeringVectorId, ack: bool) -> SteeringSetActiveRequestIpc {
+    fn set_active_request(
+        model_id: ModelId,
+        id: SteeringVectorId,
+        ack: bool,
+    ) -> SteeringSetActiveRequestIpc {
         SteeringSetActiveRequestIpc {
             model_id: model_id.to_string(),
             vector_ids: vec![id.to_string()],
@@ -1385,7 +1398,9 @@ mod tests {
         .await
         .expect("approve succeeds");
         assert_eq!(result.event_type, FR_EVT_LLM_INFER_STEER_APPROVE);
-        store_arc.ensure_activatable(&[id]).expect("approved vector is now activatable");
+        store_arc
+            .ensure_activatable(&[id])
+            .expect("approved vector is now activatable");
     }
 
     #[tokio::test]

@@ -11,6 +11,7 @@
 use std::{
     collections::BTreeMap,
     env,
+    net::TcpListener,
     path::Path,
     process::Stdio,
     sync::{
@@ -35,7 +36,6 @@ use tokio::{
 };
 
 const DEFAULT_HOST: &str = "127.0.0.1";
-const DEFAULT_PORT: u16 = 18080;
 const DEFAULT_STARTUP_TIMEOUT_MS: u64 = 120_000;
 const DEFAULT_REQUEST_TIMEOUT_MS: u64 = 600_000;
 const HEALTH_POLL_MS: u64 = 250;
@@ -65,15 +65,23 @@ struct AgentConfig {
     startup_timeout: Duration,
     request_timeout: Duration,
     extra_args: Vec<String>,
+    persistent_serial_input: bool,
 }
 
 impl AgentConfig {
     fn from_env() -> Result<Self, AgentError> {
+        let persistent_serial_input =
+            env::var("HSK_WARM_AGENT_TRANSPORT").ok().as_deref() == Some("serial");
+        let host = env::var("HSK_WARM_AGENT_HOST").unwrap_or_else(|_| DEFAULT_HOST.to_string());
+        let port = match env_u16("HSK_WARM_AGENT_PORT")? {
+            Some(port) => port,
+            None => allocate_loopback_port(&host)?,
+        };
         Ok(Self {
             server_bin: env::var("HSK_WARM_AGENT_LLAMA_SERVER")
                 .unwrap_or_else(|_| default_llama_server_bin()),
-            host: env::var("HSK_WARM_AGENT_HOST").unwrap_or_else(|_| DEFAULT_HOST.to_string()),
-            port: env_u16("HSK_WARM_AGENT_PORT")?.unwrap_or(DEFAULT_PORT),
+            host,
+            port,
             ctx_size: env_u32("HSK_WARM_AGENT_CTX")?,
             startup_timeout: Duration::from_millis(
                 env_u64("HSK_WARM_AGENT_STARTUP_TIMEOUT_MS")?.unwrap_or(DEFAULT_STARTUP_TIMEOUT_MS),
@@ -85,6 +93,7 @@ impl AgentConfig {
                 .ok()
                 .map(|raw| raw.split_whitespace().map(str::to_string).collect())
                 .unwrap_or_default(),
+            persistent_serial_input,
         })
     }
 
@@ -117,6 +126,22 @@ fn sibling_llama_server_path(agent_exe_path: &Path) -> Option<std::path::PathBuf
         "llama-server"
     });
     candidate.is_file().then_some(candidate)
+}
+
+fn allocate_loopback_port(host: &str) -> Result<u16, AgentError> {
+    let listener = TcpListener::bind((host, 0)).map_err(|error| {
+        AgentError::Config(format!(
+            "failed to allocate ephemeral warm-agent port on {host}: {error}"
+        ))
+    })?;
+    listener
+        .local_addr()
+        .map(|addr| addr.port())
+        .map_err(|error| {
+            AgentError::Config(format!(
+                "failed to read allocated ephemeral warm-agent port on {host}: {error}"
+            ))
+        })
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -175,23 +200,52 @@ impl WarmAgent {
 
     async fn run(mut self) -> Result<(), AgentError> {
         let (sender, mut receiver) = mpsc::unbounded_channel();
-        tokio::spawn(read_stdin_frames(sender.clone()));
+        tokio::spawn(read_stdin_frames(
+            sender.clone(),
+            self.cfg.persistent_serial_input,
+        ));
 
+        self.run_event_loop(&mut receiver, sender, self.cfg.persistent_serial_input)
+            .await
+    }
+
+    async fn run_event_loop(
+        &mut self,
+        receiver: &mut mpsc::UnboundedReceiver<AgentEvent>,
+        events: mpsc::UnboundedSender<AgentEvent>,
+        exit_on_input_close: bool,
+    ) -> Result<(), AgentError> {
+        let mut input_closed = false;
         while let Some(event) = receiver.recv().await {
             match event {
                 AgentEvent::HostFrame(Ok(frame)) => {
-                    self.handle_frame(frame, &sender).await?;
+                    self.handle_frame(frame, &events).await?;
                 }
                 AgentEvent::HostFrame(Err(error)) => {
                     self.emit_error(None, "decode_error", &error.to_string())
                         .await?;
                 }
-                AgentEvent::HostInputClosed => break,
+                AgentEvent::HostInputClosed => {
+                    if exit_on_input_close {
+                        for active in self.active.values() {
+                            active.cancel.cancel();
+                        }
+                        self.active.clear();
+                        break;
+                    }
+                    input_closed = true;
+                    if self.active.is_empty() {
+                        break;
+                    }
+                }
                 AgentEvent::GenerationDone { request_id, result } => {
                     self.active.remove(&request_id);
                     if let Err(error) = result {
                         self.emit_error(Some(&request_id), "generate_error", &error.to_string())
                             .await?;
+                    }
+                    if input_closed && self.active.is_empty() {
+                        break;
                     }
                 }
             }
@@ -277,7 +331,8 @@ impl WarmAgent {
             .arg(MODEL_ALIAS)
             .stdout(Stdio::null())
             .stderr(Stdio::inherit())
-            .stdin(Stdio::null());
+            .stdin(Stdio::null())
+            .kill_on_drop(true);
         if let Some(ctx_size) = self.cfg.ctx_size {
             command.arg("-c").arg(ctx_size.to_string());
         }
@@ -350,6 +405,13 @@ impl WarmAgent {
                 cancel: cancel.clone(),
             },
         );
+        emit_frame(
+            &self.output,
+            &WarmAgentGuestFrame::Heartbeat {
+                request_id: Some(request_id.clone()),
+            },
+        )
+        .await?;
         let output = Arc::clone(&self.output);
         let client = self.client.clone();
         let cfg = self.cfg.clone();
@@ -451,7 +513,7 @@ async fn main() {
     }
 }
 
-async fn read_stdin_frames(sender: mpsc::UnboundedSender<AgentEvent>) {
+async fn read_stdin_frames(sender: mpsc::UnboundedSender<AgentEvent>, persistent_serial: bool) {
     let stdin = BufReader::new(io::stdin());
     let mut lines = stdin.lines();
     loop {
@@ -461,14 +523,25 @@ async fn read_stdin_frames(sender: mpsc::UnboundedSender<AgentEvent>) {
                     .map_err(|error| AgentError::Protocol(error.to_string()));
                 let _ = sender.send(AgentEvent::HostFrame(decoded));
             }
-            Ok(None) => break,
+            Ok(None) => {
+                if persistent_serial {
+                    eprintln!("warm-agent serial stdin closed; exiting for init-wrapper restart");
+                }
+                let _ = sender.send(AgentEvent::HostInputClosed);
+                return;
+            }
             Err(error) => {
+                if persistent_serial {
+                    eprintln!(
+                        "warm-agent serial stdin read failed; exiting for init-wrapper restart"
+                    );
+                }
                 let _ = sender.send(AgentEvent::HostFrame(Err(AgentError::Io(error))));
-                break;
+                let _ = sender.send(AgentEvent::HostInputClosed);
+                return;
             }
         }
     }
-    let _ = sender.send(AgentEvent::HostInputClosed);
 }
 
 async fn stream_completion(
@@ -854,6 +927,126 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
     }
 
+    #[test]
+    fn default_port_allocation_uses_available_loopback_port() {
+        let port = allocate_loopback_port(DEFAULT_HOST).expect("allocate port");
+        assert!(port > 0);
+    }
+
+    #[test]
+    fn explicit_warm_agent_port_env_is_honored() {
+        let prior_port = env::var("HSK_WARM_AGENT_PORT").ok();
+        let prior_transport = env::var("HSK_WARM_AGENT_TRANSPORT").ok();
+        env::set_var("HSK_WARM_AGENT_PORT", "18444");
+        env::remove_var("HSK_WARM_AGENT_TRANSPORT");
+        let cfg = AgentConfig::from_env().expect("config from env");
+        match prior_port {
+            Some(value) => env::set_var("HSK_WARM_AGENT_PORT", value),
+            None => env::remove_var("HSK_WARM_AGENT_PORT"),
+        }
+        match prior_transport {
+            Some(value) => env::set_var("HSK_WARM_AGENT_TRANSPORT", value),
+            None => env::remove_var("HSK_WARM_AGENT_TRANSPORT"),
+        }
+        assert_eq!(cfg.port, 18_444);
+    }
+
+    #[test]
+    fn serial_transport_env_enables_persistent_input() {
+        let prior = env::var("HSK_WARM_AGENT_TRANSPORT").ok();
+        env::set_var("HSK_WARM_AGENT_TRANSPORT", "serial");
+        let cfg = AgentConfig::from_env().expect("config from env");
+        match prior {
+            Some(value) => env::set_var("HSK_WARM_AGENT_TRANSPORT", value),
+            None => env::remove_var("HSK_WARM_AGENT_TRANSPORT"),
+        }
+        assert!(cfg.persistent_serial_input);
+    }
+
+    #[tokio::test]
+    async fn input_close_waits_for_active_generation_before_shutdown() {
+        let mut agent = WarmAgent::new(AgentConfig {
+            server_bin: "unused".to_string(),
+            host: "127.0.0.1".to_string(),
+            port: 9,
+            ctx_size: None,
+            startup_timeout: Duration::from_millis(50),
+            request_timeout: Duration::from_millis(50),
+            extra_args: Vec::new(),
+            persistent_serial_input: false,
+        });
+        agent.active.insert(
+            "gen-before-eof".to_string(),
+            ActiveGeneration {
+                cancel: CancelFlag::default(),
+            },
+        );
+        let (sender, mut receiver) = mpsc::unbounded_channel();
+        sender
+            .send(AgentEvent::HostInputClosed)
+            .expect("send input close");
+        let loop_events = sender.clone();
+        let loop_task = tokio::spawn(async move {
+            agent
+                .run_event_loop(&mut receiver, loop_events, false)
+                .await
+        });
+
+        time::sleep(Duration::from_millis(25)).await;
+        assert!(
+            !loop_task.is_finished(),
+            "input close must not shut down while generation is active"
+        );
+        sender
+            .send(AgentEvent::GenerationDone {
+                request_id: "gen-before-eof".to_string(),
+                result: Ok(()),
+            })
+            .expect("send generation done");
+        let result = time::timeout(Duration::from_secs(1), loop_task)
+            .await
+            .expect("loop exits after generation completes")
+            .expect("loop task joins");
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn serial_input_close_cancels_active_generation_and_exits_promptly() {
+        let cancel = CancelFlag::default();
+        let mut agent = WarmAgent::new(AgentConfig {
+            server_bin: "unused".to_string(),
+            host: "127.0.0.1".to_string(),
+            port: 9,
+            ctx_size: None,
+            startup_timeout: Duration::from_millis(50),
+            request_timeout: Duration::from_millis(50),
+            extra_args: Vec::new(),
+            persistent_serial_input: true,
+        });
+        agent.active.insert(
+            "serial-gen-before-eof".to_string(),
+            ActiveGeneration {
+                cancel: cancel.clone(),
+            },
+        );
+        let (sender, mut receiver) = mpsc::unbounded_channel();
+        sender
+            .send(AgentEvent::HostInputClosed)
+            .expect("send serial input close");
+        let loop_events = sender.clone();
+        let loop_task =
+            tokio::spawn(
+                async move { agent.run_event_loop(&mut receiver, loop_events, true).await },
+            );
+
+        let result = time::timeout(Duration::from_secs(1), loop_task)
+            .await
+            .expect("serial loop exits promptly after EOF")
+            .expect("loop task joins");
+        assert!(result.is_ok());
+        assert!(cancel.is_cancelled());
+    }
+
     #[tokio::test]
     async fn cancellation_returns_while_http_headers_are_pending() {
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
@@ -874,6 +1067,7 @@ mod tests {
             startup_timeout: Duration::from_millis(50),
             request_timeout: Duration::from_secs(30),
             extra_args: Vec::new(),
+            persistent_serial_input: false,
         };
         let cancel = CancelFlag::default();
         let request = WarmAgentGenerateRequest {

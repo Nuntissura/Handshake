@@ -1083,9 +1083,8 @@ pub fn run() {
             // managed `Arc<SandboxAdapterRegistry>` (managed before `.setup` runs);
             // cloning the Arc shares the live registry without taking it out of
             // state (the `kernel_sandbox_*` commands still resolve it).
-            let sandbox_registry_for_swarm: Arc<
-                handshake_core::sandbox::SandboxAdapterRegistry,
-            > = (*app.state::<Arc<handshake_core::sandbox::SandboxAdapterRegistry>>()).clone();
+            let sandbox_registry_for_swarm: Arc<handshake_core::sandbox::SandboxAdapterRegistry> =
+                (*app.state::<Arc<handshake_core::sandbox::SandboxAdapterRegistry>>()).clone();
             let mut swarm_state = match swarm_recorder {
                 Some(recorder) => {
                     commands::swarm_runtime::SwarmRuntimeState::production_with_fr_recorder(
@@ -1126,9 +1125,7 @@ pub fn run() {
                 .await
             })
             .map_err(|error| {
-                std::io::Error::other(format!(
-                    "TRACK 1 swarm scheduler bootstrap failed: {error}"
-                ))
+                std::io::Error::other(format!("TRACK 1 swarm scheduler bootstrap failed: {error}"))
             })?;
             app.manage(scheduler_state);
 

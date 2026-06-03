@@ -168,7 +168,10 @@ mod tests {
         assert!(ics.contains("Morning research swarm"), "{ics}");
         assert!(ics.contains("0 0 9 * * *"), "cron must appear: {ics}");
         assert!(ics.contains("research"), "swarm id must appear: {ics}");
-        assert!(ics.contains("handshake-swarm-morning-research@handshake"), "uid: {ics}");
+        assert!(
+            ics.contains("handshake-swarm-morning-research@handshake"),
+            "uid: {ics}"
+        );
     }
 
     #[tokio::test]

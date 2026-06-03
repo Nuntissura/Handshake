@@ -243,7 +243,9 @@ struct Utf8ChunkDecoder {
 
 impl Utf8ChunkDecoder {
     fn new() -> Self {
-        Self { pending: Vec::new() }
+        Self {
+            pending: Vec::new(),
+        }
     }
 
     /// Append `bytes`, decode the longest valid UTF-8 prefix, and return it.
@@ -276,7 +278,8 @@ impl Utf8ChunkDecoder {
                     // keep only what follows so the decoder never stalls.
                     Some(n) => {
                         let bad_end = valid + n;
-                        let bad = String::from_utf8_lossy(&self.pending[valid..bad_end]).into_owned();
+                        let bad =
+                            String::from_utf8_lossy(&self.pending[valid..bad_end]).into_owned();
                         let remainder = self.pending.split_off(bad_end);
                         self.pending = remainder;
                         format!("{good}{bad}")
@@ -468,8 +471,7 @@ impl CliBridgeModelRuntime {
                         }
                     }
                 };
-                let should_cancel =
-                    || req_cancel.is_cancelled() || runtime_cancel.is_cancelled();
+                let should_cancel = || req_cancel.is_cancelled() || runtime_cancel.is_cancelled();
 
                 let result = spawner.spawn_streaming_cancellable(
                     &config,
@@ -972,7 +974,9 @@ mod tests {
         }
     }
 
-    async fn loaded_runtime(spawner: Arc<dyn CliSubprocessSpawner>) -> (CliBridgeModelRuntime, ModelId) {
+    async fn loaded_runtime(
+        spawner: Arc<dyn CliSubprocessSpawner>,
+    ) -> (CliBridgeModelRuntime, ModelId) {
         let mut rt = CliBridgeModelRuntime::new(spawner, good_config());
         let spec = crate::model_runtime::LoadSpec {
             artifact_path: PathBuf::new(),
@@ -1040,7 +1044,10 @@ mod tests {
             }
         }
         assert!(saw_any, "stream must not be silently empty");
-        assert!(saw_error, "spawn failure must surface as a GenerateError item");
+        assert!(
+            saw_error,
+            "spawn failure must surface as a GenerateError item"
+        );
     }
 
     /// Test 3: cancellation kills the child and ends the stream with
@@ -1054,7 +1061,10 @@ mod tests {
         let (rt, id) = loaded_runtime(spawner).await;
         let mut req = gen_req(id);
         let cancel = req.cancel.clone();
-        req = GenerateRequest { cancel: cancel.clone(), ..req };
+        req = GenerateRequest {
+            cancel: cancel.clone(),
+            ..req
+        };
 
         let mut stream = rt.generate(req);
         // Pull the first real token, then cancel.
@@ -1092,7 +1102,7 @@ mod tests {
         // Build chunks that deliberately split multibyte sequences.
         let e_start = "h".len(); // 1
         let chunk1 = bytes[..e_start + 1].to_vec(); // 'h' + first byte of 'é'
-        // emoji is the last 4 bytes; split it 2/2.
+                                                    // emoji is the last 4 bytes; split it 2/2.
         let emoji_len = "🎉".len(); // 4
         let emoji_start = bytes.len() - emoji_len;
         let chunk2 = bytes[e_start + 1..emoji_start + 2].to_vec(); // rest of é .. first half of emoji
@@ -1111,7 +1121,10 @@ mod tests {
                 out.push_str(&token.text);
             }
         }
-        assert_eq!(out, full, "reassembled token text must equal the CLI stdout");
+        assert_eq!(
+            out, full,
+            "reassembled token text must equal the CLI stdout"
+        );
     }
 
     /// Sanity: every CLI-bridge capability is false and the unsupported methods
@@ -1220,25 +1233,46 @@ mod tests {
             .filter_map(|p| p.get("event_id").and_then(|v| v.as_str()).map(String::from))
             .collect();
         let count = |needle: &str| ids.iter().filter(|e| e.as_str() == needle).count();
-        assert_eq!(count(FR_EVT_LLM_INFER_START), 1, "exactly one START: {ids:?}");
+        assert_eq!(
+            count(FR_EVT_LLM_INFER_START),
+            1,
+            "exactly one START: {ids:?}"
+        );
         assert_eq!(count(FR_EVT_LLM_INFER_END), 1, "exactly one END: {ids:?}");
-        assert!(count(FR_EVT_LLM_INFER_TOKEN) >= 1, "at least one sampled TOKEN: {ids:?}");
+        assert!(
+            count(FR_EVT_LLM_INFER_TOKEN) >= 1,
+            "at least one sampled TOKEN: {ids:?}"
+        );
         // START precedes END; all share one request_id correlation.
-        let start_idx = ids.iter().position(|e| e == FR_EVT_LLM_INFER_START).unwrap();
+        let start_idx = ids
+            .iter()
+            .position(|e| e == FR_EVT_LLM_INFER_START)
+            .unwrap();
         let end_idx = ids.iter().rposition(|e| e == FR_EVT_LLM_INFER_END).unwrap();
         assert!(start_idx < end_idx, "START must precede END");
         let req_ids: std::collections::HashSet<String> = payloads
             .iter()
-            .filter_map(|p| p.get("request_id").and_then(|v| v.as_str()).map(String::from))
+            .filter_map(|p| {
+                p.get("request_id")
+                    .and_then(|v| v.as_str())
+                    .map(String::from)
+            })
             .collect();
-        assert_eq!(req_ids.len(), 1, "all infer events share one request_id: {req_ids:?}");
+        assert_eq!(
+            req_ids.len(),
+            1,
+            "all infer events share one request_id: {req_ids:?}"
+        );
 
         // The END event reports the real generated-token count.
         let end = payloads
             .iter()
             .find(|p| p.get("event_id").and_then(|v| v.as_str()) == Some(FR_EVT_LLM_INFER_END))
             .unwrap();
-        assert_eq!(end.get("tokens_generated").and_then(|v| v.as_u64()), Some(20));
+        assert_eq!(
+            end.get("tokens_generated").and_then(|v| v.as_u64()),
+            Some(20)
+        );
     }
 
     /// Without observability, generate() emits NO FR events but produces the
@@ -1324,12 +1358,10 @@ mod tests {
         let stdout = format!("{line}\n");
         let chunks: Vec<Vec<u8>> = vec![stdout.into_bytes()];
 
-        let mut rt = CliBridgeModelRuntime::new(
-            Arc::new(ChunkSpawner { chunks }),
-            good_config_json(),
-        )
-        .with_lane_observability(obs_with(recorder.clone()))
-        .with_session_correlation("mid#0");
+        let mut rt =
+            CliBridgeModelRuntime::new(Arc::new(ChunkSpawner { chunks }), good_config_json())
+                .with_lane_observability(obs_with(recorder.clone()))
+                .with_session_correlation("mid#0");
         let id = rt.load(cli_spec()).await.expect("load");
 
         let _ = drain_text(rt.generate(gen_req(id))).await;
@@ -1360,15 +1392,26 @@ mod tests {
             .unwrap();
         assert_eq!(toolcall.get("name").and_then(|v| v.as_str()), Some("Bash"));
         assert_eq!(
-            toolcall.get("detail").and_then(|d| d.get("command")).unwrap(),
+            toolcall
+                .get("detail")
+                .and_then(|d| d.get("command"))
+                .unwrap(),
             "ls"
         );
         // Agent + INFER events share the one request_id correlation.
         let req_ids: std::collections::HashSet<String> = payloads
             .iter()
-            .filter_map(|p| p.get("request_id").and_then(|v| v.as_str()).map(String::from))
+            .filter_map(|p| {
+                p.get("request_id")
+                    .and_then(|v| v.as_str())
+                    .map(String::from)
+            })
             .collect();
-        assert_eq!(req_ids.len(), 1, "one request_id across infer+agent: {req_ids:?}");
+        assert_eq!(
+            req_ids.len(),
+            1,
+            "one request_id across infer+agent: {req_ids:?}"
+        );
     }
 
     /// RawText mode: NO agent events, and byte-identical token output (the
@@ -1387,7 +1430,10 @@ mod tests {
         let id = rt.load(cli_spec()).await.expect("load");
 
         let out = drain_text(rt.generate(gen_req(id))).await;
-        assert_eq!(out, line, "raw token output must be byte-identical in RawText mode");
+        assert_eq!(
+            out, line,
+            "raw token output must be byte-identical in RawText mode"
+        );
         assert!(
             agent_event_ids(&recorder).is_empty(),
             "RawText mode must emit ZERO agent events"
@@ -1402,18 +1448,20 @@ mod tests {
         let recorder = Arc::new(CollectingRecorder::default());
         let line = "{not valid json\n";
         let chunks: Vec<Vec<u8>> = vec![line.as_bytes().to_vec()];
-        let mut rt = CliBridgeModelRuntime::new(
-            Arc::new(ChunkSpawner { chunks }),
-            good_config_json(),
-        )
-        .with_lane_observability(obs_with(recorder.clone()))
-        .with_session_correlation("mid#0");
+        let mut rt =
+            CliBridgeModelRuntime::new(Arc::new(ChunkSpawner { chunks }), good_config_json())
+                .with_lane_observability(obs_with(recorder.clone()))
+                .with_session_correlation("mid#0");
         let id = rt.load(cli_spec()).await.expect("load");
 
         let out = drain_text(rt.generate(gen_req(id))).await;
         assert_eq!(out, line, "raw token still streams unchanged");
         let ids = agent_event_ids(&recorder);
-        assert_eq!(ids, vec![FR_EVT_AGENT_OTHER.to_string()], "malformed -> one OTHER");
+        assert_eq!(
+            ids,
+            vec![FR_EVT_AGENT_OTHER.to_string()],
+            "malformed -> one OTHER"
+        );
     }
 
     /// A JSONL stream NOT ending with '\n' flushes its final partial line at
@@ -1428,11 +1476,9 @@ mod tests {
         })
         .to_string();
         let chunks: Vec<Vec<u8>> = vec![line.into_bytes()];
-        let mut rt = CliBridgeModelRuntime::new(
-            Arc::new(ChunkSpawner { chunks }),
-            good_config_json(),
-        )
-        .with_lane_observability(obs_with(recorder.clone()));
+        let mut rt =
+            CliBridgeModelRuntime::new(Arc::new(ChunkSpawner { chunks }), good_config_json())
+                .with_lane_observability(obs_with(recorder.clone()));
         let id = rt.load(cli_spec()).await.expect("load");
         let _ = drain_text(rt.generate(gen_req(id))).await;
         assert!(
@@ -1470,10 +1516,8 @@ mod tests {
     /// load() rejects a non-OfficialCli provider with a typed LoadError.
     #[tokio::test]
     async fn load_rejects_wrong_provider() {
-        let mut rt = CliBridgeModelRuntime::new(
-            Arc::new(ChunkSpawner { chunks: vec![] }),
-            good_config(),
-        );
+        let mut rt =
+            CliBridgeModelRuntime::new(Arc::new(ChunkSpawner { chunks: vec![] }), good_config());
         let mut spec = crate::model_runtime::LoadSpec {
             artifact_path: PathBuf::new(),
             sha256_expected: String::new(),

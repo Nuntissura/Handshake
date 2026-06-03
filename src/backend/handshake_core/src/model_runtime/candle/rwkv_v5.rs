@@ -166,20 +166,24 @@ impl OwnedTimeMix {
             };
             let key = ((xs * &self.time_mix_key).map_err(gen_err)?
                 + &shifted * (1.0 - &self.time_mix_key).map_err(gen_err)?)
-                .map_err(gen_err)?;
+            .map_err(gen_err)?;
             let value = ((xs * &self.time_mix_value).map_err(gen_err)?
                 + &shifted * (1.0 - &self.time_mix_value).map_err(gen_err)?)
-                .map_err(gen_err)?;
+            .map_err(gen_err)?;
             let receptance = ((xs * &self.time_mix_receptance).map_err(gen_err)?
                 + &shifted * (1.0 - &self.time_mix_receptance).map_err(gen_err)?)
-                .map_err(gen_err)?;
+            .map_err(gen_err)?;
             let gate = ((xs * &self.time_mix_gate).map_err(gen_err)?
                 + &shifted * (1.0 - &self.time_mix_gate).map_err(gen_err)?)
-                .map_err(gen_err)?;
+            .map_err(gen_err)?;
 
             let key_out = self.key.forward(&key).map_err(gen_err)?;
-            let key_out =
-                lora_stack.apply_to_linear_output(&self.key_target, &key_out, &key, lora_overrides)?;
+            let key_out = lora_stack.apply_to_linear_output(
+                &self.key_target,
+                &key_out,
+                &key,
+                lora_overrides,
+            )?;
             let value_out = self.value.forward(&value).map_err(gen_err)?;
             let value_out = lora_stack.apply_to_linear_output(
                 &self.value_target,
@@ -202,7 +206,8 @@ impl OwnedTimeMix {
                 lora_overrides,
             )?;
             let gate_out = candle_nn::ops::silu(&gate_out).map_err(gen_err)?;
-            state.per_layer[self.layer_id].extract_key_value = xs.i((.., t - 1)).map_err(gen_err)?;
+            state.per_layer[self.layer_id].extract_key_value =
+                xs.i((.., t - 1)).map_err(gen_err)?;
             (receptance_out, key_out, value_out, gate_out)
         };
         // linear attention (headwise WKV recurrence).
@@ -249,9 +254,14 @@ impl OwnedTimeMix {
                 .and_then(|t| t.contiguous())
                 .map_err(gen_err)?;
             let at = kt.matmul(&vt).map_err(gen_err)?;
-            let rhs = (time_faaaa.broadcast_mul(&at).map_err(gen_err)? + &state_).map_err(gen_err)?;
-            let out_ = rt.matmul(&rhs).and_then(|t| t.squeeze(2)).map_err(gen_err)?;
-            state_ = (&at + time_decay.broadcast_mul(&state_).map_err(gen_err)?).map_err(gen_err)?;
+            let rhs =
+                (time_faaaa.broadcast_mul(&at).map_err(gen_err)? + &state_).map_err(gen_err)?;
+            let out_ = rt
+                .matmul(&rhs)
+                .and_then(|t| t.squeeze(2))
+                .map_err(gen_err)?;
+            state_ =
+                (&at + time_decay.broadcast_mul(&state_).map_err(gen_err)?).map_err(gen_err)?;
             out.push(out_)
         }
         let out = Tensor::cat(&out, 1)
@@ -263,8 +273,12 @@ impl OwnedTimeMix {
             .map_err(gen_err)?;
         let out = (out * gate).map_err(gen_err)?;
         let out_proj = self.output.forward(&out).map_err(gen_err)?;
-        let out_proj =
-            lora_stack.apply_to_linear_output(&self.output_target, &out_proj, &out, lora_overrides)?;
+        let out_proj = lora_stack.apply_to_linear_output(
+            &self.output_target,
+            &out_proj,
+            &out,
+            lora_overrides,
+        )?;
         state.per_layer[self.layer_id].linear_attention = state_;
         Ok(out_proj)
     }
@@ -291,8 +305,8 @@ impl OwnedChannelMix {
         let int_size = cfg
             .intermediate_size
             .unwrap_or(((cfg.hidden_size as f64 * 3.5) as usize) / 32 * 32);
-        let key = candle_nn::linear_no_bias(cfg.hidden_size, int_size, vb.pp("key"))
-            .map_err(load_err)?;
+        let key =
+            candle_nn::linear_no_bias(cfg.hidden_size, int_size, vb.pp("key")).map_err(load_err)?;
         let receptance =
             candle_nn::linear_no_bias(cfg.hidden_size, cfg.hidden_size, vb.pp("receptance"))
                 .map_err(load_err)?;
@@ -330,7 +344,9 @@ impl OwnedChannelMix {
                 .broadcast_mul(&(1.0 - &self.time_mix_key).map_err(gen_err)?)
                 .map_err(gen_err)?)
         .map_err(gen_err)?;
-        let receptance = (xs.broadcast_mul(&self.time_mix_receptance).map_err(gen_err)?
+        let receptance = (xs
+            .broadcast_mul(&self.time_mix_receptance)
+            .map_err(gen_err)?
             + shifted
                 .broadcast_mul(&(1.0 - &self.time_mix_receptance).map_err(gen_err)?)
                 .map_err(gen_err)?)
@@ -340,8 +356,12 @@ impl OwnedChannelMix {
             lora_stack.apply_to_linear_output(&self.key_target, &key_out, &key, lora_overrides)?;
         let key_out = key_out.relu().and_then(|t| t.sqr()).map_err(gen_err)?;
         let value = key_out.apply(&self.value).map_err(gen_err)?;
-        let value =
-            lora_stack.apply_to_linear_output(&self.value_target, &value, &key_out, lora_overrides)?;
+        let value = lora_stack.apply_to_linear_output(
+            &self.value_target,
+            &value,
+            &key_out,
+            lora_overrides,
+        )?;
         let receptance_out = receptance.apply(&self.receptance).map_err(gen_err)?;
         let receptance_out = lora_stack.apply_to_linear_output(
             &self.receptance_target,
@@ -350,8 +370,9 @@ impl OwnedChannelMix {
             lora_overrides,
         )?;
         let receptance_out = candle_nn::ops::sigmoid(&receptance_out).map_err(gen_err)?;
-        state.per_layer[self.layer_id].feed_forward =
-            xs.i((.., xs.dim(1).map_err(gen_err)? - 1)).map_err(gen_err)?;
+        state.per_layer[self.layer_id].feed_forward = xs
+            .i((.., xs.dim(1).map_err(gen_err)? - 1))
+            .map_err(gen_err)?;
         (receptance_out * value).map_err(gen_err)
     }
 }
@@ -371,12 +392,10 @@ struct OwnedBlock {
 
 impl OwnedBlock {
     fn new(layer_id: usize, cfg: &Config, vb: VarBuilder) -> Result<Self, ModelRuntimeError> {
-        let ln1 =
-            candle_nn::layer_norm(cfg.hidden_size, cfg.layer_norm_epsilon, vb.pp("ln1"))
-                .map_err(load_err)?;
-        let ln2 =
-            candle_nn::layer_norm(cfg.hidden_size, cfg.layer_norm_epsilon, vb.pp("ln2"))
-                .map_err(load_err)?;
+        let ln1 = candle_nn::layer_norm(cfg.hidden_size, cfg.layer_norm_epsilon, vb.pp("ln1"))
+            .map_err(load_err)?;
+        let ln2 = candle_nn::layer_norm(cfg.hidden_size, cfg.layer_norm_epsilon, vb.pp("ln2"))
+            .map_err(load_err)?;
         let pre_ln = if layer_id == 0 {
             Some(
                 candle_nn::layer_norm(cfg.hidden_size, cfg.layer_norm_epsilon, vb.pp("pre_ln"))
@@ -407,9 +426,12 @@ impl OwnedBlock {
             None => xs.clone(),
             Some(pre_ln) => xs.apply(pre_ln).map_err(gen_err)?,
         };
-        let attention =
-            self.time_mix
-                .forward(&xs.apply(&self.ln1).map_err(gen_err)?, state, lora_stack, lora_overrides)?;
+        let attention = self.time_mix.forward(
+            &xs.apply(&self.ln1).map_err(gen_err)?,
+            state,
+            lora_stack,
+            lora_overrides,
+        )?;
         let xs = (xs + attention).map_err(gen_err)?;
         let feed_forward = self.channel_mix.forward(
             &xs.apply(&self.ln2).map_err(gen_err)?,
@@ -443,8 +465,8 @@ impl InstrumentedRwkvV5 {
         for block_index in 0..cfg.num_hidden_layers {
             blocks.push(OwnedBlock::new(block_index, cfg, vb_b.pp(block_index))?);
         }
-        let ln_out = candle_nn::layer_norm(cfg.hidden_size, 1e-5, vb_m.pp("ln_out"))
-            .map_err(load_err)?;
+        let ln_out =
+            candle_nn::layer_norm(cfg.hidden_size, 1e-5, vb_m.pp("ln_out")).map_err(load_err)?;
         let head = candle_nn::linear_no_bias(cfg.hidden_size, cfg.vocab_size, vb.pp("head"))
             .map_err(load_err)?;
         Ok(Self {
@@ -476,7 +498,8 @@ impl InstrumentedRwkvV5 {
         for (block_idx, block) in self.blocks.iter().enumerate() {
             xs = block.forward(&xs, state, lora_stack, lora_overrides)?;
             let li = LayerIndex::new(block_idx as u32);
-            xs = hooks.apply_record_and_capture_tensor(li, HookPoint::ResidStream, &xs, snapshot)?;
+            xs =
+                hooks.apply_record_and_capture_tensor(li, HookPoint::ResidStream, &xs, snapshot)?;
             if self.layers_are_rescaled && (block_idx + 1) % self.rescale_every == 0 {
                 xs = (xs / 2.).map_err(gen_err)?;
             }
@@ -708,7 +731,9 @@ fn load_err(error: candle_core::Error) -> ModelRuntimeError {
 }
 
 fn gen_err(error: candle_core::Error) -> ModelRuntimeError {
-    ModelRuntimeError::GenerateError(format!("Candle instrumented RWKV v5 forward failed: {error}"))
+    ModelRuntimeError::GenerateError(format!(
+        "Candle instrumented RWKV v5 forward failed: {error}"
+    ))
 }
 
 /// Pack a v5/v6 RWKV `State` (per_layer Vec of {extract_key_value,
@@ -1083,7 +1108,14 @@ mod tests {
             for &tid in &seq {
                 last = Some(
                     owned
-                        .forward(&token(tid, &device), &mut state, &hooks, &[], &lora, overrides)
+                        .forward(
+                            &token(tid, &device),
+                            &mut state,
+                            &hooks,
+                            &[],
+                            &lora,
+                            overrides,
+                        )
                         .unwrap(),
                 );
             }
@@ -1128,8 +1160,7 @@ mod tests {
             base_model_compat: BaseModelTag::new("candle-rwkv-v5"),
             license_tag: LicenseTag::new("test-license"),
         };
-        lora
-            .mount(descriptor, LoraStrength::try_new(1.0).unwrap())
+        lora.mount(descriptor, LoraStrength::try_new(1.0).unwrap())
             .await
             .expect("RWKV LoRA mounts");
 

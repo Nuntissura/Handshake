@@ -204,10 +204,7 @@ fn claude_message_blocks(value: &Value) -> Vec<AgentActivity> {
                     .unwrap_or("tool")
                     .to_string();
                 let input = block.get("input").cloned().unwrap_or(Value::Null);
-                let call_id = block
-                    .get("id")
-                    .and_then(Value::as_str)
-                    .map(str::to_string);
+                let call_id = block.get("id").and_then(Value::as_str).map(str::to_string);
                 out.push(AgentActivity::ToolCall {
                     name,
                     input,
@@ -304,8 +301,7 @@ fn parse_codex_line(line: &str) -> Vec<AgentActivity> {
     // Emit on item.completed; additionally emit on item.started ONLY for
     // command_execution so a long-running command appears immediately. This
     // avoids double rows from item.updated.
-    let emit = ty == "item.completed"
-        || (ty == "item.started" && item_type == "command_execution");
+    let emit = ty == "item.completed" || (ty == "item.started" && item_type == "command_execution");
     if !emit {
         return Vec::new();
     }
@@ -629,7 +625,12 @@ mod tests {
     #[test]
     fn malformed_json_line_becomes_other_never_dropped() {
         let raw = "{not valid json at all";
-        for kind in [CliKind::ClaudeCode, CliKind::CodexCli, CliKind::GeminiCli, CliKind::Other] {
+        for kind in [
+            CliKind::ClaudeCode,
+            CliKind::CodexCli,
+            CliKind::GeminiCli,
+            CliKind::Other,
+        ] {
             let acts = parse_line(kind, raw);
             assert_eq!(acts.len(), 1, "{kind:?} must keep the line");
             assert_eq!(

@@ -63,13 +63,11 @@ use crate::model_runtime::{
     CancellationToken, GenPrompt, GenerateRequest, ModelId, ModelRuntime, ModelRuntimeError,
     SamplingParams,
 };
-use crate::swarm_orchestration::{
-    ModelInstanceId, SpawnRequest, SwarmCoordinator, SwarmError,
-};
+use crate::swarm_orchestration::{ModelInstanceId, SpawnRequest, SwarmCoordinator, SwarmError};
 
 use super::candidate_registry::{CandidateRegistry, CandidateRegistryError};
-use super::corpus_extractor::{TrainingCorpus, TrainingTurn};
 use super::content_review::ContentReviewConfig;
+use super::corpus_extractor::{TrainingCorpus, TrainingTurn};
 use super::peft_pipeline::{
     distill, DistillError, DistillJobConfig, DistilledLoraArtifact, PeftTrainerExecutor,
 };
@@ -303,10 +301,16 @@ impl ParallelDistillOrchestrator {
         match (&teacher_spawn, &student_spawn) {
             (Ok(_), Ok(_)) => {}
             (Err(_), Ok(_)) => {
-                let _ = self.coordinator.cancel_session(student_iid, "peer_spawn_failed").await;
+                let _ = self
+                    .coordinator
+                    .cancel_session(student_iid, "peer_spawn_failed")
+                    .await;
             }
             (Ok(_), Err(_)) => {
-                let _ = self.coordinator.cancel_session(teacher_iid, "peer_spawn_failed").await;
+                let _ = self
+                    .coordinator
+                    .cancel_session(teacher_iid, "peer_spawn_failed")
+                    .await;
             }
             (Err(_), Err(_)) => {}
         }
@@ -500,13 +504,12 @@ impl ParallelDistillOrchestrator {
             // The prompt bytes form a real token sequence for the score seam;
             // the engine returns its mean log-probability over the sequence.
             let sequence: Vec<u32> = sample.prompt.bytes().map(u32::from).collect();
-            let score = runtime
-                .score(model_id, sequence)
-                .await
-                .map_err(|source| ParallelDistillError::StudentScore {
+            let score = runtime.score(model_id, sequence).await.map_err(|source| {
+                ParallelDistillError::StudentScore {
                     sample_id: sample.id.clone(),
                     source,
-                })?;
+                }
+            })?;
             scores.push(StudentBaselineScore {
                 sample_id: sample.id.clone(),
                 mean_logprob: score.mean_logprob,

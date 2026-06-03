@@ -20,8 +20,8 @@ import {
 // When only one of the two capabilities is declared, the panel renders
 // the supported half (e.g., the prefix TTL slider remains visible on a
 // prefix-only adapter even if quant is None).
-// AC-INFER-LAB-UI-AB-COMPARE: A/B compare is deferred to a follow-up MT
-// (no generation IPC exposed yet — same residual_risk as MT-091).
+// MT-098 now owns live A/B compare through ABCompare + steering_generate_ab.
+// This panel remains scoped to KV cache controls and does not own generation UI.
 // AC-MODEL-RUNTIME-CONTROL-PANEL: live occupancy bar + hit-rate badge
 // satisfy the panel field set for this MT.
 //

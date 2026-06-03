@@ -7,36 +7,37 @@ use std::{
 };
 
 use async_trait::async_trait;
-use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
+use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use bytes::Bytes;
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use tokio::{
-    io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader},
-    process::{Child, Command as TokioCommand},
+    io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader, Lines},
+    process::{Child, ChildStdin, ChildStdout, Command as TokioCommand},
 };
 use uuid::Uuid;
 
 use crate::model_runtime::{
-    WARM_AGENT_MAX_FRAME_BYTES, WarmAgentFrameStream, WarmAgentGenerateRequest,
-    WarmAgentGuestFrame, WarmAgentHostFrame, WarmAgentTransport, WarmVmTransportError,
-    decode_warm_agent_frame, encode_warm_agent_frame,
+    decode_warm_agent_frame, encode_warm_agent_frame, WarmAgentFrameStream,
+    WarmAgentGenerateRequest, WarmAgentGuestFrame, WarmAgentHostFrame, WarmAgentTransport,
+    WarmVmTransportError, WARM_AGENT_MAX_FRAME_BYTES,
 };
 use crate::sandbox::wsl2_podman::wsl_detection::default_wsl_exe;
 use crate::sandbox::{
-    AdapterCapabilities, AdapterId, BindMode, BindSpec, Command, ExecResult, GpuPassthrough,
-    IsolationStrength, IsolationTier, NetPolicy, ProcessHandle, ProcessSpec, ProcessStatus,
-    ResourceLimits, SandboxAdapter, SandboxAdapterError, Signal, SnapshotRef, ThroughputClass,
-    encode_guest_channel_exec_request, parse_guest_channel_exec_result,
+    encode_guest_channel_exec_request, parse_guest_channel_exec_result, AdapterCapabilities,
+    AdapterId, BindMode, BindSpec, Command, ExecResult, GpuPassthrough, IsolationStrength,
+    IsolationTier, NetPolicy, ProcessHandle, ProcessSpec, ProcessStatus, ResourceLimits,
+    SandboxAdapter, SandboxAdapterError, Signal, SnapshotRef, ThroughputClass,
 };
 
 use super::guest_agent::{
-    CLOUD_HYPERVISOR_WARM_AGENT_CMDLINE_KEY, CLOUD_HYPERVISOR_WARM_AGENT_GUEST_PATH_METADATA_KEY,
-    CLOUD_HYPERVISOR_WARM_AGENT_HOST_PATH_ENV, CLOUD_HYPERVISOR_WARM_AGENT_REQUIRED_TRANSPORT,
-    CLOUD_HYPERVISOR_WARM_AGENT_UNAVAILABLE_REASON, warm_agent_unavailable_detail,
+    warm_agent_unavailable_detail, CLOUD_HYPERVISOR_WARM_AGENT_CMDLINE_KEY,
+    CLOUD_HYPERVISOR_WARM_AGENT_GUEST_PATH_METADATA_KEY, CLOUD_HYPERVISOR_WARM_AGENT_HOST_PATH_ENV,
+    CLOUD_HYPERVISOR_WARM_AGENT_REQUIRED_TRANSPORT, CLOUD_HYPERVISOR_WARM_AGENT_UNAVAILABLE_REASON,
 };
 use super::warm_agent_package::{
-    WarmAgentGuestPackageManifest, WarmAgentPackageError,
-    validate_warm_agent_package_candidate_with_runtime_probe,
+    validate_warm_agent_package_candidate_with_runtime_probe, WarmAgentGuestPackageManifest,
+    WarmAgentPackageError,
 };
 
 #[cfg(windows)]
@@ -179,7 +180,14 @@ warm_agent_loop() {
   fi
   warm_agent_dir=${warm_agent%/*}
   [ "$warm_agent_dir" != "$warm_agent" ] || warm_agent_dir="/"
-  PATH="$warm_agent_dir:$PATH" HSK_WARM_AGENT_TRANSPORT=serial exec "$warm_agent" <&3 >&3 2>/tmp/hsk-warm-agent.err
+  warm_agent_err="/tmp/hsk-warm-agent.err"
+  : >"$warm_agent_err"
+  PATH="$warm_agent_dir:$PATH" HSK_WARM_AGENT_TRANSPORT=serial "$warm_agent" <&3 >&3 2>"$warm_agent_err"
+  rc=$?
+  msg=$(base64 -w0 "$warm_agent_err" 2>/dev/null)
+  [ -n "$msg" ] || msg="-"
+  echo "{\"type\":\"error\",\"request_id\":null,\"code\":\"warm_agent_exit\",\"message\":\"warm-agent exited rc=$rc stderr_b64=$msg\"}" >&3
+  return "$rc"
 }
 if cat /proc/cmdline | tr ' ' '\n' | grep -q '^hsk.warm_agent='; then
   while true; do warm_agent_loop 2>/tmp/hsk-warm-agent-launch.err; /bin/busybox sleep 1; done &
@@ -195,6 +203,7 @@ const PERSISTENT_BOOT_TIMEOUT_MS: u64 = 30_000;
 /// Poll interval while waiting for WSL-side socket/file paths to appear.
 const PERSISTENT_POLL_INTERVAL_MS: u64 = 250;
 const SERIAL_AGENT_BRIDGE_MAX_ARG_FRAME_BYTES: usize = 16 * 1024;
+const WARM_AGENT_BRIDGE_STDERR_TAIL_BYTES: usize = 16 * 1024;
 const WARM_AGENT_SNAPSHOT_MARKER_FILE: &str = ".hsk-warm-agent-guest-path";
 const COMMITTED_MEMORY_SNAPSHOT_MARKER_FILE: &str = ".hsk-committed-memory-mib";
 const VM_ROOT_OWNER_PID_FILE: &str = ".hsk-owner-pid";
@@ -223,7 +232,9 @@ const DEFAULT_BALLOON_SIZE_MIB: u32 = 0;
 const DEFAULT_BALLOON_DEFLATE_ON_OOM: bool = true;
 const DEFAULT_BALLOON_FREE_PAGE_REPORTING: bool = true;
 /// Probe / log-read commands are quick; keep them well under the boot timeout.
-const PROBE_TIMEOUT_MS: u64 = 15_000;
+const DEFAULT_PROBE_TIMEOUT_MS: u64 = 15_000;
+const PROBE_TIMEOUT_MS: u64 = DEFAULT_PROBE_TIMEOUT_MS;
+const WARM_AGENT_PERSISTENT_BRIDGE_CANCEL_PREFIX: &str = "__HSK_WARM_BRIDGE_CANCEL__ ";
 
 /// Optional Cloud Hypervisor virtio-balloon device configuration.
 ///
@@ -330,6 +341,7 @@ impl CloudHypervisorBalloonConfig {
 /// | `committed_memory_budget_mib` | `HANDSHAKE_CH_COMMITTED_MEMORY_BUDGET_MIB` |
 /// | `vcpus`          | `HANDSHAKE_CH_VCPUS`          |
 /// | `command_timeout_ms` | `HANDSHAKE_CH_TIMEOUT_MS` |
+/// | `probe_timeout_ms` | `HANDSHAKE_CH_PROBE_TIMEOUT_MS` |
 /// | `balloon.size_mib` | `HANDSHAKE_CH_BALLOON_SIZE_MIB` |
 /// | `balloon.deflate_on_oom` | `HANDSHAKE_CH_BALLOON_DEFLATE_ON_OOM` |
 /// | `balloon.free_page_reporting` | `HANDSHAKE_CH_BALLOON_FREE_PAGE_REPORTING` |
@@ -352,6 +364,7 @@ pub struct CloudHypervisorConfig {
     committed_memory_budget_config_error: Option<String>,
     vcpus: u32,
     command_timeout_ms: u64,
+    probe_timeout_ms: u64,
     balloon: CloudHypervisorBalloonConfig,
     warm_agent_host_path: Option<PathBuf>,
     #[cfg(test)]
@@ -408,6 +421,10 @@ impl CloudHypervisorConfig {
         self.command_timeout_ms
     }
 
+    pub fn probe_timeout_ms(&self) -> u64 {
+        self.probe_timeout_ms
+    }
+
     pub fn balloon(&self) -> &CloudHypervisorBalloonConfig {
         &self.balloon
     }
@@ -442,6 +459,11 @@ impl CloudHypervisorConfig {
 
     pub fn with_command_timeout_ms(mut self, timeout_ms: u64) -> Self {
         self.command_timeout_ms = timeout_ms;
+        self
+    }
+
+    pub fn with_probe_timeout_ms(mut self, timeout_ms: u64) -> Self {
+        self.probe_timeout_ms = timeout_ms.max(1);
         self
     }
 
@@ -493,6 +515,7 @@ impl Default for CloudHypervisorConfig {
             committed_memory_budget_config_error,
             vcpus: env_u32("HANDSHAKE_CH_VCPUS", DEFAULT_VCPUS),
             command_timeout_ms: env_u64("HANDSHAKE_CH_TIMEOUT_MS", DEFAULT_COMMAND_TIMEOUT_MS),
+            probe_timeout_ms: env_u64("HANDSHAKE_CH_PROBE_TIMEOUT_MS", DEFAULT_PROBE_TIMEOUT_MS),
             balloon: CloudHypervisorBalloonConfig::new(
                 env_u32("HANDSHAKE_CH_BALLOON_SIZE_MIB", DEFAULT_BALLOON_SIZE_MIB),
                 env_bool(
@@ -690,6 +713,14 @@ impl Default for HandleState {
 /// terminates the CH process, so removing an entry here tears down the VM.
 type PersistentChildren = Arc<tokio::sync::Mutex<HashMap<Uuid, Child>>>;
 type PersistentExecLocks = Arc<Mutex<HashMap<Uuid, Arc<tokio::sync::Mutex<()>>>>>;
+type WarmAgentBridgeSlot = Arc<tokio::sync::Mutex<PersistentWarmSerialBridgeSlot>>;
+type WarmAgentBridges = Arc<Mutex<HashMap<Uuid, WarmAgentBridgeSlot>>>;
+
+#[derive(Default)]
+struct PersistentWarmSerialBridgeSlot {
+    bridge: Option<PersistentWarmSerialBridge>,
+    closing: bool,
+}
 
 #[derive(Debug, Default)]
 struct CommittedMemoryState {
@@ -700,7 +731,7 @@ type CommittedMemoryRegistry = Mutex<HashMap<String, CommittedMemoryState>>;
 
 static COMMITTED_MEMORY_REGISTRY: OnceLock<CommittedMemoryRegistry> = OnceLock::new();
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct CloudHypervisorAdapter {
     config: CloudHypervisorConfig,
     handles: Arc<Mutex<HashMap<Uuid, HandleState>>>,
@@ -709,6 +740,20 @@ pub struct CloudHypervisorAdapter {
     /// One in-flight serial command per persistent VM handle. Different VMs may
     /// execute independently, but one CH serial socket is a single command stream.
     persistent_exec_locks: PersistentExecLocks,
+    /// One persistent host-side warm-agent bridge per VM handle.
+    warm_agent_bridges: WarmAgentBridges,
+}
+
+impl std::fmt::Debug for CloudHypervisorAdapter {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("CloudHypervisorAdapter")
+            .field("config", &self.config)
+            .field("handles", &self.handles)
+            .field("persistent_children", &"<registry>")
+            .field("persistent_exec_locks", &"<registry>")
+            .field("warm_agent_bridges", &"<registry>")
+            .finish()
+    }
 }
 
 #[derive(Debug)]
@@ -748,6 +793,7 @@ impl CloudHypervisorAdapter {
             handles: Arc::new(Mutex::new(HashMap::new())),
             persistent_children: Arc::new(tokio::sync::Mutex::new(HashMap::new())),
             persistent_exec_locks: Arc::new(Mutex::new(HashMap::new())),
+            warm_agent_bridges: Arc::new(Mutex::new(HashMap::new())),
         })
     }
 
@@ -1024,6 +1070,7 @@ impl CloudHypervisorAdapter {
             handles: Arc::new(Mutex::new(HashMap::new())),
             persistent_children: Arc::new(tokio::sync::Mutex::new(HashMap::new())),
             persistent_exec_locks: Arc::new(Mutex::new(HashMap::new())),
+            warm_agent_bridges: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 
@@ -1038,6 +1085,41 @@ impl CloudHypervisorAdapter {
             .entry(handle_id)
             .or_insert_with(|| Arc::new(tokio::sync::Mutex::new(())))
             .clone())
+    }
+
+    fn warm_agent_bridge_for(
+        &self,
+        handle_id: Uuid,
+    ) -> Result<WarmAgentBridgeSlot, SandboxAdapterError> {
+        let mut bridges = self.warm_agent_bridges.lock().map_err(|error| {
+            spawn_failed(format!("warm-agent bridge registry poisoned: {error}"))
+        })?;
+        Ok(bridges
+            .entry(handle_id)
+            .or_insert_with(|| {
+                Arc::new(tokio::sync::Mutex::new(
+                    PersistentWarmSerialBridgeSlot::default(),
+                ))
+            })
+            .clone())
+    }
+
+    async fn kill_warm_agent_bridge_for(&self, handle_id: Uuid) {
+        let bridge = self
+            .warm_agent_bridges
+            .lock()
+            .ok()
+            .and_then(|mut bridges| bridges.remove(&handle_id))
+            .map(|slot| async move {
+                let mut state = slot.lock().await;
+                state.closing = true;
+                state.bridge.take()
+            });
+        if let Some(bridge_future) = bridge {
+            if let Some(mut bridge) = bridge_future.await {
+                let _ = bridge.kill_and_stderr().await;
+            }
+        }
     }
 
     fn ensure_handle(&self, handle: &ProcessHandle) -> Result<(), SandboxAdapterError> {
@@ -1691,6 +1773,7 @@ impl SandboxAdapter for CloudHypervisorAdapter {
                 .and_then(|state| state.persistent.clone())
         });
         if let Some(vm) = persistent {
+            self.kill_warm_agent_bridge_for(handle.id).await;
             // Dropping the Child terminates the CH process (kill_on_drop). Also
             // issue an explicit kill so termination does not depend solely on
             // drop ordering, then best-effort clean the socket + scratch root.
@@ -1731,6 +1814,9 @@ impl SandboxAdapter for CloudHypervisorAdapter {
         if let Ok(mut locks) = self.persistent_exec_locks.lock() {
             locks.remove(&handle.id);
         }
+        if let Ok(mut bridges) = self.warm_agent_bridges.lock() {
+            bridges.remove(&handle.id);
+        }
         Ok(())
     }
 
@@ -1766,6 +1852,17 @@ impl SandboxAdapter for CloudHypervisorAdapter {
     /// [`restore`]: CloudHypervisorAdapter::restore
     async fn snapshot(&self, handle: &ProcessHandle) -> Result<SnapshotRef, SandboxAdapterError> {
         self.ensure_handle(handle)?;
+        let serial_lock = self.persistent_exec_lock_for(handle.id)?;
+        let _serial_guard =
+            tokio::time::timeout(Duration::from_millis(PROBE_TIMEOUT_MS), serial_lock.lock())
+                .await
+                .map_err(|_| {
+                    snapshot_failed(format!(
+                        "snapshot timed out waiting for warm-agent serial channel for handle {}; \
+                 cancel or finish in-flight warm generation before snapshot",
+                        handle.id
+                    ))
+                })?;
         // Snapshotting is activity: reset the idle clock so the reaper does not
         // race a VM that is actively being checkpointed.
         self.touch_activity(handle.id);
@@ -2240,6 +2337,7 @@ impl SandboxAdapter for CloudHypervisorAdapter {
             vm_root: vm.vm_root,
             handle_id: handle.id,
             serial_lock: self.persistent_exec_lock_for(handle.id)?,
+            bridge: self.warm_agent_bridge_for(handle.id)?,
         }))
     }
 
@@ -2336,7 +2434,11 @@ fn append_balloon_args(
 }
 
 fn on_off(value: bool) -> &'static str {
-    if value { "on" } else { "off" }
+    if value {
+        "on"
+    } else {
+        "off"
+    }
 }
 
 const CH_RATE_LIMIT_REFILL_TIME_MS: u64 = 1_000;
@@ -2456,7 +2558,7 @@ async fn verify_available(config: &CloudHypervisorConfig) -> Result<(), SandboxA
         config.wsl_exe(),
         &["-l".to_string(), "-q".to_string()],
         None,
-        Some(PROBE_TIMEOUT_MS),
+        Some(config.probe_timeout_ms()),
         Uuid::nil(),
     )
     .await
@@ -2499,7 +2601,7 @@ async fn verify_available(config: &CloudHypervisorConfig) -> Result<(), SandboxA
             probe_script,
         ],
         None,
-        Some(PROBE_TIMEOUT_MS),
+        Some(config.probe_timeout_ms()),
         Uuid::nil(),
     )
     .await
@@ -3088,6 +3190,7 @@ struct CloudHypervisorSerialWarmAgentTransport {
     vm_root: String,
     handle_id: Uuid,
     serial_lock: Arc<tokio::sync::Mutex<()>>,
+    bridge: WarmAgentBridgeSlot,
 }
 
 #[async_trait]
@@ -3106,29 +3209,114 @@ impl WarmAgentTransport for CloudHypervisorSerialWarmAgentTransport {
         };
         let encoded = encode_warm_agent_frame(&frame)?;
         let timeout_ms = self.config.command_timeout_ms();
-        let _guard = tokio::time::timeout(
-            Duration::from_millis(timeout_ms),
-            self.serial_lock.lock(),
-        )
-        .await
-        .map_err(|_| {
-            WarmVmTransportError::Transport(format!(
+        let _guard =
+            tokio::time::timeout(Duration::from_millis(timeout_ms), self.serial_lock.lock())
+                .await
+                .map_err(|_| {
+                    WarmVmTransportError::Transport(format!(
                 "warm-agent serial channel is busy for handle {}; timed out waiting for load",
                 self.handle_id
             ))
+                })?;
+        let mut bridge_guard = self.bridge.lock().await;
+        if bridge_guard.closing {
+            return Err(WarmVmTransportError::Transport(
+                "persistent warm-agent bridge is shutting down".to_string(),
+            ));
+        }
+        if bridge_guard
+            .bridge
+            .as_mut()
+            .is_some_and(PersistentWarmSerialBridge::has_exited)
+        {
+            bridge_guard.bridge = None;
+        }
+        if bridge_guard.bridge.is_none() {
+            bridge_guard.bridge = Some(
+                spawn_persistent_warm_serial_bridge(
+                    &self.config,
+                    &self.agent_socket,
+                    self.handle_id,
+                )
+                .await?,
+            );
+        }
+        let mut bridge = bridge_guard.bridge.take().ok_or_else(|| {
+            WarmVmTransportError::Transport("persistent warm-agent bridge missing".to_string())
         })?;
-        let output = run_warm_serial_agent_rpc(
-            &self.config,
-            &self.agent_socket,
-            "load",
-            &request_id,
-            Bytes::from(encoded),
-            timeout_ms,
-            self.handle_id,
-        )
-        .await
-        .map_err(|error| WarmVmTransportError::Transport(error.to_string()))?;
-        decode_first_warm_frame(&output)
+        drop(bridge_guard);
+        if let Err(error) = bridge.send_frame(Bytes::from(encoded)).await {
+            let _ = bridge.kill_and_stderr().await;
+            return Err(error);
+        }
+        let deadline = Instant::now() + Duration::from_millis(timeout_ms);
+        loop {
+            if self.bridge.lock().await.closing {
+                let cancel = WarmAgentHostFrame::Cancel {
+                    request_id: request_id.clone(),
+                };
+                if let Ok(frame) = encode_warm_agent_frame(&cancel) {
+                    let _ = bridge.send_frame(Bytes::from(frame)).await;
+                }
+                let _ = bridge.kill_and_stderr().await;
+                return Err(WarmVmTransportError::Transport(
+                    "persistent warm-agent bridge is shutting down".to_string(),
+                ));
+            }
+            let remaining = deadline.saturating_duration_since(Instant::now());
+            if remaining.is_zero() {
+                let stderr_text = bridge.kill_and_stderr().await;
+                return Err(WarmVmTransportError::Transport(format!(
+                    "timed out waiting for persistent warm-agent load response for {request_id}{}",
+                    warm_bridge_stderr_suffix(&stderr_text)
+                )));
+            }
+            let line = match tokio::time::timeout(
+                remaining.min(Duration::from_millis(250)),
+                bridge.next_line(),
+            )
+            .await
+            {
+                Ok(Ok(Some(line))) => line,
+                Ok(Ok(None)) => {
+                    let stderr_text = bridge.kill_and_stderr().await;
+                    return Err(WarmVmTransportError::Transport(format!(
+                        "persistent warm-agent bridge closed before load response for {request_id}{}",
+                        warm_bridge_stderr_suffix(&stderr_text)
+                    )));
+                }
+                Ok(Err(error)) => {
+                    let _ = bridge.kill_and_stderr().await;
+                    return Err(error);
+                }
+                Err(_) => continue,
+            };
+            let frame = match decode_first_warm_frame(&line) {
+                Ok(frame) => frame,
+                Err(error) => {
+                    let stderr_text = bridge.kill_and_stderr().await;
+                    return Err(WarmVmTransportError::Transport(format!(
+                        "persistent warm-agent bridge protocol decode failed for load request {request_id}: {error}{}",
+                        warm_bridge_stderr_suffix(&stderr_text)
+                    )));
+                }
+            };
+            match &frame {
+                WarmAgentGuestFrame::Ready { .. } | WarmAgentGuestFrame::Error { .. } => {
+                    let mut bridge_guard = self.bridge.lock().await;
+                    if bridge_guard.closing {
+                        drop(bridge_guard);
+                        let _ = bridge.kill_and_stderr().await;
+                        return Err(WarmVmTransportError::Transport(
+                            "persistent warm-agent bridge is shutting down".to_string(),
+                        ));
+                    }
+                    bridge_guard.bridge = Some(bridge);
+                    return Ok(frame);
+                }
+                _ => continue,
+            }
+        }
     }
 
     fn generate(&self, request: WarmAgentGenerateRequest) -> WarmAgentFrameStream {
@@ -3155,6 +3343,7 @@ impl WarmAgentTransport for CloudHypervisorSerialWarmAgentTransport {
             handle_id: self.handle_id,
             cancel_path,
             serial_lock: Arc::clone(&self.serial_lock),
+            bridge: Arc::clone(&self.bridge),
             sender,
         };
         tokio::spawn(run_warm_serial_agent_stream(task));
@@ -3184,6 +3373,29 @@ impl WarmAgentTransport for CloudHypervisorSerialWarmAgentTransport {
     }
 
     async fn shutdown(&self) -> Result<(), WarmVmTransportError> {
+        let mut bridge_guard = self.bridge.lock().await;
+        bridge_guard.closing = true;
+        let idle_bridge = bridge_guard.bridge.take();
+        drop(bridge_guard);
+        if let Some(mut bridge) = idle_bridge {
+            let _ = bridge.kill_and_stderr().await;
+        }
+        let _serial_guard = tokio::time::timeout(
+            Duration::from_millis(self.config.command_timeout_ms()),
+            self.serial_lock.lock(),
+        )
+        .await
+        .map_err(|_| {
+            WarmVmTransportError::Transport(format!(
+                "timed out waiting for warm-agent serial channel shutdown for handle {}",
+                self.handle_id
+            ))
+        })?;
+        let mut bridge_guard = self.bridge.lock().await;
+        if let Some(mut bridge) = bridge_guard.bridge.take() {
+            drop(bridge_guard);
+            let _ = bridge.kill_and_stderr().await;
+        }
         Ok(())
     }
 }
@@ -3197,24 +3409,8 @@ struct WarmSerialStreamTask {
     handle_id: Uuid,
     cancel_path: String,
     serial_lock: Arc<tokio::sync::Mutex<()>>,
+    bridge: WarmAgentBridgeSlot,
     sender: tokio::sync::mpsc::UnboundedSender<Result<WarmAgentGuestFrame, WarmVmTransportError>>,
-}
-
-async fn collect_warm_bridge_stderr(
-    stderr_task: Option<tokio::task::JoinHandle<String>>,
-) -> String {
-    match stderr_task {
-        Some(task) => task.await.unwrap_or_default().trim().to_string(),
-        None => String::new(),
-    }
-}
-
-async fn kill_warm_bridge_and_collect_stderr(
-    child: &mut Child,
-    stderr_task: Option<tokio::task::JoinHandle<String>>,
-) -> String {
-    let _ = child.kill().await;
-    collect_warm_bridge_stderr(stderr_task).await
 }
 
 fn warm_bridge_stderr_suffix(stderr_text: &str) -> String {
@@ -3243,139 +3439,152 @@ async fn run_warm_serial_agent_stream(task: WarmSerialStreamTask) {
             return;
         }
     };
-    let mut child = match spawn_warm_serial_bridge(
-        &task.config,
-        &task.agent_socket,
-        "generate",
-        &task.request_id,
-        Some(&task.cancel_path),
-        task.timeout_ms,
-        task.payload,
-        task.handle_id,
-    )
-    .await
-    {
-        Ok(child) => child,
-        Err(error) => {
-            let _ = task
-                .sender
-                .send(Err(WarmVmTransportError::Transport(error.to_string())));
-            return;
-        }
-    };
-    let stderr_task = child.stderr.take().map(|mut stderr| {
-        tokio::spawn(async move {
-            let mut text = String::new();
-            let _ = stderr.read_to_string(&mut text).await;
-            text
-        })
-    });
-    let Some(stdout) = child.stdout.take() else {
-        let stderr_text = kill_warm_bridge_and_collect_stderr(&mut child, stderr_task).await;
+    let mut bridge_guard = task.bridge.lock().await;
+    if bridge_guard.closing {
         let _ = task.sender.send(Err(WarmVmTransportError::Transport(
-            format!(
-                "warm-agent bridge stdout missing{}",
-                warm_bridge_stderr_suffix(&stderr_text)
-            ),
+            "persistent warm-agent bridge is shutting down".to_string(),
         )));
         return;
-    };
-    let mut lines = BufReader::new(stdout).lines();
-    loop {
-        match lines.next_line().await {
-            Ok(Some(line)) => match decode_warm_agent_frame::<WarmAgentGuestFrame>(&line) {
-                Ok(frame) => {
-                    if task.sender.send(Ok(frame)).is_err() {
-                        let _ =
-                            kill_warm_bridge_and_collect_stderr(&mut child, stderr_task).await;
-                        return;
-                    }
-                }
-                Err(error) => {
-                    let stderr_text =
-                        kill_warm_bridge_and_collect_stderr(&mut child, stderr_task).await;
-                    let _ = task
-                        .sender
-                        .send(Err(WarmVmTransportError::Transport(format!(
-                            "warm-agent bridge protocol decode failed for request {}: {error}{}",
-                            task.request_id,
-                            warm_bridge_stderr_suffix(&stderr_text)
-                        ))));
-                    return;
-                }
-            },
-            Ok(None) => break,
+    }
+    if bridge_guard
+        .bridge
+        .as_mut()
+        .is_some_and(PersistentWarmSerialBridge::has_exited)
+    {
+        bridge_guard.bridge = None;
+    }
+    if bridge_guard.bridge.is_none() {
+        match spawn_persistent_warm_serial_bridge(&task.config, &task.agent_socket, task.handle_id)
+            .await
+        {
+            Ok(bridge) => bridge_guard.bridge = Some(bridge),
             Err(error) => {
-                let stderr_text =
-                    kill_warm_bridge_and_collect_stderr(&mut child, stderr_task).await;
-                let _ = task
-                    .sender
-                    .send(Err(WarmVmTransportError::Transport(format!(
-                        "warm-agent bridge stdout read failed: {error}{}",
-                        warm_bridge_stderr_suffix(&stderr_text)
-                    ))));
+                let _ = task.sender.send(Err(error));
                 return;
             }
         }
     }
-    let wait_result = child.wait().await;
-    let stderr_text = collect_warm_bridge_stderr(stderr_task).await;
-    match wait_result {
-        Ok(status) if status.success() => {}
-        Ok(status) => {
+    let Some(mut bridge) = bridge_guard.bridge.take() else {
+        let _ = task.sender.send(Err(WarmVmTransportError::Transport(
+            "persistent warm-agent bridge missing".to_string(),
+        )));
+        return;
+    };
+    drop(bridge_guard);
+    if let Err(error) = bridge
+        .set_cancel_path(&task.request_id, &task.cancel_path)
+        .await
+    {
+        let _ = bridge.kill_and_stderr().await;
+        let _ = task.sender.send(Err(error));
+        return;
+    }
+    if let Err(error) = bridge.send_frame(task.payload).await {
+        let _ = bridge.kill_and_stderr().await;
+        let _ = task.sender.send(Err(error));
+        return;
+    }
+    let deadline = Instant::now() + Duration::from_millis(task.timeout_ms);
+    let mut saw_guest_frame = false;
+    loop {
+        if task.bridge.lock().await.closing {
+            let cancel = WarmAgentHostFrame::Cancel {
+                request_id: task.request_id.clone(),
+            };
+            if let Ok(frame) = encode_warm_agent_frame(&cancel) {
+                let _ = bridge.send_frame(Bytes::from(frame)).await;
+            }
+            let _ = bridge.kill_and_stderr().await;
+            let _ = task.sender.send(Err(WarmVmTransportError::Transport(
+                "persistent warm-agent bridge is shutting down".to_string(),
+            )));
+            return;
+        }
+        if task.sender.is_closed() {
+            let cancel = WarmAgentHostFrame::Cancel {
+                request_id: task.request_id.clone(),
+            };
+            if let Ok(frame) = encode_warm_agent_frame(&cancel) {
+                let _ = bridge.send_frame(Bytes::from(frame)).await;
+            }
+            let _ = bridge.kill_and_stderr().await;
+            return;
+        }
+        let remaining = deadline.saturating_duration_since(Instant::now());
+        if remaining.is_zero() {
+            let stderr_text = bridge.kill_and_stderr().await;
             let _ = task
                 .sender
                 .send(Err(WarmVmTransportError::Transport(format!(
-                    "warm-agent bridge exited non-zero for request {}: {}{}",
+                    "timed out waiting for persistent warm-agent generate response for {}{}",
                     task.request_id,
-                    status,
                     warm_bridge_stderr_suffix(&stderr_text)
                 ))));
+            return;
         }
-        Err(error) => {
-            let _ = task
-                .sender
-                .send(Err(WarmVmTransportError::Transport(format!(
-                    "warm-agent bridge wait failed for request {}: {error}",
-                    task.request_id
+        let line = match tokio::time::timeout(
+            remaining.min(Duration::from_millis(100)),
+            bridge.next_line(),
+        )
+        .await
+        {
+            Ok(Ok(Some(line))) => line,
+            Ok(Ok(None)) => {
+                let stderr_text = bridge.kill_and_stderr().await;
+                let close_stage = if saw_guest_frame {
+                    "terminal response"
+                } else {
+                    "generate response"
+                };
+                let _ = task
+                    .sender
+                    .send(Err(WarmVmTransportError::Transport(format!(
+                        "persistent warm-agent bridge closed before {close_stage} for {}{}",
+                        task.request_id,
+                        warm_bridge_stderr_suffix(&stderr_text)
+                    ))));
+                return;
+            }
+            Ok(Err(error)) => {
+                let _ = bridge.kill_and_stderr().await;
+                let _ = task.sender.send(Err(error));
+                return;
+            }
+            Err(_) => continue,
+        };
+        match decode_warm_agent_frame::<WarmAgentGuestFrame>(&line) {
+            Ok(frame) => {
+                saw_guest_frame = true;
+                let terminal = matches!(frame, WarmAgentGuestFrame::Complete { .. })
+                    || matches!(frame, WarmAgentGuestFrame::Error { .. });
+                if task.sender.send(Ok(frame)).is_err() {
+                    let _ = bridge.kill_and_stderr().await;
+                    return;
+                }
+                if terminal {
+                    let mut bridge_guard = task.bridge.lock().await;
+                    if bridge_guard.closing {
+                        drop(bridge_guard);
+                        let _ = bridge.kill_and_stderr().await;
+                        return;
+                    }
+                    bridge_guard.bridge = Some(bridge);
+                    return;
+                }
+            }
+            Err(error) => {
+                let stderr_text = bridge.kill_and_stderr().await;
+                let _ = task
+                    .sender
+                    .send(Err(WarmVmTransportError::Transport(format!(
+                    "persistent warm-agent bridge protocol decode failed for request {}: {error}{}",
+                    task.request_id,
+                    warm_bridge_stderr_suffix(&stderr_text)
                 ))));
+                return;
+            }
         }
     }
-}
-
-async fn run_warm_serial_agent_rpc(
-    config: &CloudHypervisorConfig,
-    agent_socket: &str,
-    mode: &str,
-    request_id: &str,
-    payload: Bytes,
-    timeout_ms: u64,
-    handle_id: Uuid,
-) -> Result<String, SandboxAdapterError> {
-    let output = run_warm_serial_bridge_command(
-        config,
-        agent_socket,
-        mode,
-        request_id,
-        None,
-        timeout_ms,
-        payload,
-        handle_id,
-    )
-    .await?;
-    if output.exit_code != 0 {
-        return Err(spawn_failed(format!(
-            "warm-agent serial bridge failed (exit {}): {}",
-            output.exit_code,
-            output.stderr_text()
-        )));
-    }
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    stdout
-        .lines()
-        .find(|line| !line.trim().is_empty())
-        .map(|line| line.to_string())
-        .ok_or_else(|| spawn_failed("warm-agent serial bridge returned no response"))
 }
 
 fn decode_first_warm_frame(line: &str) -> Result<WarmAgentGuestFrame, WarmVmTransportError> {
@@ -3383,6 +3592,7 @@ fn decode_first_warm_frame(line: &str) -> Result<WarmAgentGuestFrame, WarmVmTran
 }
 
 fn warm_agent_cancel_path(vm_root: &str, request_id: &str) -> String {
+    let request_id = safe_warm_agent_cancel_segment(request_id);
     format!(
         "{}/warm-cancel-{}",
         vm_root.trim_end_matches('/'),
@@ -3390,96 +3600,329 @@ fn warm_agent_cancel_path(vm_root: &str, request_id: &str) -> String {
     )
 }
 
-const WARM_AGENT_SERIAL_BRIDGE_PY: &str = r#"
+fn safe_warm_agent_cancel_segment(request_id: &str) -> String {
+    let hash = Sha256::digest(request_id.as_bytes());
+    let hash_suffix = hex::encode(hash);
+    let max_prefix_len = 128usize.saturating_sub(hash_suffix.len() + 1);
+    let mut segment = request_id
+        .chars()
+        .map(|ch| {
+            if ch.is_ascii_alphanumeric() || matches!(ch, '-' | '_') {
+                ch
+            } else {
+                '_'
+            }
+        })
+        .take(max_prefix_len)
+        .collect::<String>();
+    if segment.is_empty() {
+        segment.push_str("request");
+    }
+    format!("{segment}-{hash_suffix}")
+}
+
+const WARM_AGENT_PERSISTENT_SERIAL_BRIDGE_PY: &str = r#"
 import json
 import os
 import select
 import socket
 import sys
+import threading
 import time
 
 path = sys.argv[1]
-mode = sys.argv[2]
-request_id = sys.argv[3]
-timeout_ms = int(sys.argv[4])
-cancel_path = sys.argv[5]
-max_frame_bytes = int(sys.argv[6])
-payload = sys.stdin.buffer.read()
-if len(payload) > max_frame_bytes:
-    sys.stderr.write("warm-agent request exceeded max frame bytes for " + request_id + "\n")
-    sys.exit(125)
+max_frame_bytes = int(sys.argv[2])
+control_prefix = b"__HSK_WARM_BRIDGE_CANCEL__ "
+keepalive_id = "__hsk_bridge_keepalive__"
+keepalive_interval_secs = 0.2
+last_keepalive = 0.0
 
-deadline = time.monotonic() + (timeout_ms / 1000.0)
 sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-sock.settimeout(min(5.0, max(0.1, timeout_ms / 1000.0)))
 sock.connect(path)
 sock.setblocking(False)
-sock.sendall(payload)
-buf = b""
-cancel_sent = False
+
+send_lock = threading.Lock()
+cancel_lock = threading.Lock()
+cancel_state = {"request_id": None, "cancel_path": None, "sent": False}
+
+def bridge_log(message):
+    sys.stderr.write("warm-agent bridge: " + message + "\n")
+    sys.stderr.flush()
+
+def set_cancel_state(request_id, cancel_path):
+    with cancel_lock:
+        cancel_state["request_id"] = request_id
+        cancel_state["cancel_path"] = cancel_path
+        cancel_state["sent"] = False
+
+def clear_cancel_if_terminal(line_bytes):
+    with cancel_lock:
+        request_id = cancel_state["request_id"]
+    if not request_id:
+        return
+    try:
+        frame = json.loads(line_bytes.decode("utf-8"))
+    except Exception:
+        return
+    frame_type = frame.get("type")
+    frame_request = frame.get("request_id")
+    terminal = (
+        (frame_type == "complete" and frame_request == request_id)
+        or (frame_type == "error" and frame_request in (None, request_id))
+    )
+    if terminal:
+        with cancel_lock:
+            if cancel_state["request_id"] == request_id:
+                cancel_state["request_id"] = None
+                cancel_state["cancel_path"] = None
+                cancel_state["sent"] = False
 
 def maybe_send_cancel():
-    global cancel_sent
-    if cancel_sent or cancel_path == "-":
+    with cancel_lock:
+        request_id = cancel_state["request_id"]
+        cancel_path = cancel_state["cancel_path"]
+        sent = cancel_state["sent"]
+    if sent or not request_id or not cancel_path:
         return
     if not os.path.exists(cancel_path):
         return
     frame = json.dumps({"type": "cancel", "request_id": request_id}, separators=(",", ":")).encode("utf-8") + b"\n"
-    sock.sendall(frame)
-    cancel_sent = True
+    send_or_die(frame, "cancel")
+    with cancel_lock:
+        if cancel_state["request_id"] == request_id:
+            cancel_state["sent"] = True
 
-def terminal(line_bytes):
+def maybe_send_keepalive():
+    global last_keepalive
+    now = time.monotonic()
+    if now - last_keepalive < keepalive_interval_secs:
+        return
+    frame = json.dumps({"type": "ping", "request_id": keepalive_id}, separators=(",", ":")).encode("utf-8") + b"\n"
+    send_or_die(frame, "keepalive")
+    last_keepalive = now
+
+def should_suppress_response(line_bytes):
     try:
         frame = json.loads(line_bytes.decode("utf-8"))
     except Exception:
         return False
-    frame_type = frame.get("type")
-    frame_request = frame.get("request_id")
-    if frame_type == "error" and (frame_request in (None, request_id)):
-        return True
-    if mode == "load":
-        return frame_type == "ready"
-    if mode == "generate":
-        return frame_type == "complete" and frame_request == request_id
-    return False
+    return frame.get("type") == "heartbeat" and frame.get("request_id") == keepalive_id
 
-while time.monotonic() < deadline:
+def send_all(data):
+    view = memoryview(data)
+    while view:
+        _, ready, _ = select.select([], [sock], [], 5.0)
+        if not ready:
+            raise TimeoutError("socket write readiness timed out")
+        sent = sock.send(view)
+        if sent == 0:
+            raise RuntimeError("socket write returned zero bytes")
+        view = view[sent:]
+
+def send_or_die(data, label):
+    try:
+        with send_lock:
+            send_all(data)
+    except Exception as exc:
+        sys.stderr.write("warm-agent " + label + " send failed: " + str(exc) + "\n")
+        sys.stderr.flush()
+        os._exit(126)
+
+def pump_stdin():
+    while True:
+        line = sys.stdin.buffer.readline()
+        if not line:
+            break
+        if len(line) > max_frame_bytes:
+            sys.stderr.write("warm-agent request line exceeded max frame bytes\n")
+            sys.stderr.flush()
+            break
+        if line.startswith(control_prefix):
+            try:
+                control = json.loads(line[len(control_prefix):].decode("utf-8"))
+                set_cancel_state(str(control["request_id"]), str(control["cancel_path"]))
+                bridge_log("cancel-control request_id=" + str(control["request_id"]))
+            except Exception as exc:
+                sys.stderr.write("warm-agent cancel-control decode failed: " + str(exc) + "\n")
+                sys.stderr.flush()
+                break
+            continue
+        try:
+            frame = json.loads(line.decode("utf-8"))
+            bridge_log("request type=" + str(frame.get("type")))
+        except Exception:
+            bridge_log("request type=<decode-failed>")
+        send_or_die(line, "request")
+
+threading.Thread(target=pump_stdin, daemon=True).start()
+
+buf = b""
+while True:
     maybe_send_cancel()
-    remaining = max(0.0, deadline - time.monotonic())
-    ready, _, _ = select.select([sock], [], [], min(0.1, remaining))
+    maybe_send_keepalive()
+    ready, _, _ = select.select([sock], [], [], 0.1)
     if not ready:
         continue
     chunk = sock.recv(4096)
     if not chunk:
+        bridge_log("socket eof")
         break
     buf += chunk
     if len(buf) > max_frame_bytes:
-        sys.stderr.write("warm-agent response exceeded max frame bytes for " + request_id + "\n")
+        sys.stderr.write("warm-agent response exceeded max frame bytes\n")
+        sys.stderr.flush()
         sys.exit(125)
     while b"\n" in buf:
         line, buf = buf.split(b"\n", 1)
         if len(line) > max_frame_bytes:
-            sys.stderr.write("warm-agent response line exceeded max frame bytes for " + request_id + "\n")
+            sys.stderr.write("warm-agent response line exceeded max frame bytes\n")
+            sys.stderr.flush()
             sys.exit(125)
+        suppress_response = should_suppress_response(line)
+        if not suppress_response:
+            try:
+                frame = json.loads(line.decode("utf-8"))
+                bridge_log("response type=" + str(frame.get("type")))
+            except Exception:
+                bridge_log("response type=<decode-failed>")
+        clear_cancel_if_terminal(line)
+        if suppress_response:
+            continue
         sys.stdout.buffer.write(line + b"\n")
         sys.stdout.buffer.flush()
-        if terminal(line):
-            sys.exit(0)
-
-sys.stderr.write("timed out waiting for warm-agent " + mode + " response for " + request_id + "\n")
-sys.exit(124)
+os._exit(0)
 "#;
 
-async fn spawn_warm_serial_bridge(
+struct PersistentWarmSerialBridge {
+    child: Child,
+    stdin: ChildStdin,
+    stdout: Lines<BufReader<ChildStdout>>,
+    stderr_task: Option<tokio::task::JoinHandle<String>>,
+}
+
+impl PersistentWarmSerialBridge {
+    fn has_exited(&mut self) -> bool {
+        self.child.try_wait().ok().flatten().is_some()
+    }
+
+    async fn set_cancel_path(
+        &mut self,
+        request_id: &str,
+        cancel_path: &str,
+    ) -> Result<(), WarmVmTransportError> {
+        let payload = encode_persistent_bridge_cancel_control(request_id, cancel_path)?;
+        self.stdin
+            .write_all(payload.as_bytes())
+            .await
+            .map_err(|error| {
+                WarmVmTransportError::Transport(format!(
+                    "persistent warm-agent bridge cancel-control write failed: {error}"
+                ))
+            })?;
+        self.stdin.flush().await.map_err(|error| {
+            WarmVmTransportError::Transport(format!(
+                "persistent warm-agent bridge cancel-control flush failed: {error}"
+            ))
+        })
+    }
+
+    async fn send_frame(&mut self, payload: Bytes) -> Result<(), WarmVmTransportError> {
+        self.stdin.write_all(&payload).await.map_err(|error| {
+            WarmVmTransportError::Transport(format!(
+                "persistent warm-agent bridge stdin write failed: {error}"
+            ))
+        })?;
+        self.stdin.flush().await.map_err(|error| {
+            WarmVmTransportError::Transport(format!(
+                "persistent warm-agent bridge stdin flush failed: {error}"
+            ))
+        })
+    }
+
+    async fn next_line(&mut self) -> Result<Option<String>, WarmVmTransportError> {
+        self.stdout.next_line().await.map_err(|error| {
+            WarmVmTransportError::Transport(format!(
+                "persistent warm-agent bridge stdout read failed: {error}"
+            ))
+        })
+    }
+
+    async fn kill_and_stderr(&mut self) -> String {
+        let _ = self.child.start_kill();
+        let _ =
+            tokio::time::timeout(Duration::from_millis(PROBE_TIMEOUT_MS), self.child.wait()).await;
+        let Some(task) = self.stderr_task.take() else {
+            return String::new();
+        };
+        tokio::time::timeout(Duration::from_millis(PROBE_TIMEOUT_MS), task)
+            .await
+            .ok()
+            .and_then(Result::ok)
+            .unwrap_or_default()
+            .trim()
+            .to_string()
+    }
+}
+
+impl Drop for PersistentWarmSerialBridge {
+    fn drop(&mut self) {
+        let _ = self.child.start_kill();
+    }
+}
+
+fn encode_persistent_bridge_cancel_control(
+    request_id: &str,
+    cancel_path: &str,
+) -> Result<String, WarmVmTransportError> {
+    let body = serde_json::to_string(&serde_json::json!({
+        "request_id": request_id,
+        "cancel_path": cancel_path,
+    }))
+    .map_err(|error| {
+        WarmVmTransportError::Transport(format!(
+            "persistent warm-agent bridge cancel-control encode failed: {error}"
+        ))
+    })?;
+    let frame = format!("{WARM_AGENT_PERSISTENT_BRIDGE_CANCEL_PREFIX}{body}\n");
+    if frame.len() > WARM_AGENT_MAX_FRAME_BYTES {
+        return Err(WarmVmTransportError::Transport(format!(
+            "persistent warm-agent bridge cancel-control exceeded max frame bytes: {} > {}",
+            frame.len(),
+            WARM_AGENT_MAX_FRAME_BYTES
+        )));
+    }
+    Ok(frame)
+}
+
+async fn read_bounded_text_tail<R>(reader: &mut R, max_bytes: usize) -> String
+where
+    R: tokio::io::AsyncRead + Unpin,
+{
+    if max_bytes == 0 {
+        return String::new();
+    }
+    let mut tail = Vec::new();
+    let mut buf = [0_u8; 4096];
+    loop {
+        let read = match reader.read(&mut buf).await {
+            Ok(0) => break,
+            Ok(read) => read,
+            Err(_) => break,
+        };
+        tail.extend_from_slice(&buf[..read]);
+        if tail.len() > max_bytes {
+            let excess = tail.len() - max_bytes;
+            tail.drain(..excess);
+        }
+    }
+    String::from_utf8_lossy(&tail).into_owned()
+}
+
+async fn spawn_persistent_warm_serial_bridge(
     config: &CloudHypervisorConfig,
     agent_socket: &str,
-    mode: &str,
-    request_id: &str,
-    cancel_path: Option<&str>,
-    timeout_ms: u64,
-    payload: Bytes,
     handle_id: Uuid,
-) -> Result<Child, SandboxAdapterError> {
+) -> Result<PersistentWarmSerialBridge, WarmVmTransportError> {
     let args = vec![
         "-d".to_string(),
         config.distro.clone(),
@@ -3487,12 +3930,8 @@ async fn spawn_warm_serial_bridge(
         "python3".to_string(),
         "-u".to_string(),
         "-c".to_string(),
-        WARM_AGENT_SERIAL_BRIDGE_PY.to_string(),
+        WARM_AGENT_PERSISTENT_SERIAL_BRIDGE_PY.to_string(),
         agent_socket.to_string(),
-        mode.to_string(),
-        request_id.to_string(),
-        timeout_ms.to_string(),
-        cancel_path.unwrap_or("-").to_string(),
         WARM_AGENT_MAX_FRAME_BYTES.to_string(),
     ];
     let mut command = TokioCommand::new(config.wsl_exe());
@@ -3503,60 +3942,29 @@ async fn spawn_warm_serial_bridge(
         .stderr(Stdio::piped())
         .kill_on_drop(true);
     hide_command_window(&mut command);
-    let mut child = command
-        .spawn()
-        .map_err(|error| SandboxAdapterError::AdapterUnavailable {
-            adapter_id: AdapterId::new(CLOUD_HYPERVISOR_ADAPTER_ID),
-            reason: format!(
-                "failed to spawn warm-agent bridge via `{}`: {error}",
-                config.wsl_exe().to_string_lossy()
-            ),
-        })?;
-    if let Some(mut stdin) = child.stdin.take() {
-        stdin.write_all(&payload).await.map_err(|error| {
-            spawn_failed(format!("warm-agent bridge stdin write failed: {error}"))
-        })?;
-        stdin.shutdown().await.map_err(|error| {
-            spawn_failed(format!("warm-agent bridge stdin close failed: {error}"))
-        })?;
-    }
-    let _ = handle_id;
-    Ok(child)
-}
-
-async fn run_warm_serial_bridge_command(
-    config: &CloudHypervisorConfig,
-    agent_socket: &str,
-    mode: &str,
-    request_id: &str,
-    cancel_path: Option<&str>,
-    timeout_ms: u64,
-    payload: Bytes,
-    handle_id: Uuid,
-) -> Result<CliOutput, SandboxAdapterError> {
-    let args = vec![
-        "-d".to_string(),
-        config.distro.clone(),
-        "-e".to_string(),
-        "python3".to_string(),
-        "-u".to_string(),
-        "-c".to_string(),
-        WARM_AGENT_SERIAL_BRIDGE_PY.to_string(),
-        agent_socket.to_string(),
-        mode.to_string(),
-        request_id.to_string(),
-        timeout_ms.to_string(),
-        cancel_path.unwrap_or("-").to_string(),
-        WARM_AGENT_MAX_FRAME_BYTES.to_string(),
-    ];
-    run_host_command(
-        config.wsl_exe(),
-        &args,
-        Some(payload),
-        Some(timeout_ms.saturating_add(PROBE_TIMEOUT_MS)),
-        handle_id,
-    )
-    .await
+    let mut child = command.spawn().map_err(|error| {
+        WarmVmTransportError::Transport(format!(
+            "failed to spawn persistent warm-agent bridge for handle {handle_id} via `{}`: {error}",
+            config.wsl_exe().to_string_lossy()
+        ))
+    })?;
+    let stdin = child.stdin.take().ok_or_else(|| {
+        WarmVmTransportError::Transport("persistent warm-agent bridge stdin missing".to_string())
+    })?;
+    let stdout = child.stdout.take().ok_or_else(|| {
+        WarmVmTransportError::Transport("persistent warm-agent bridge stdout missing".to_string())
+    })?;
+    let stderr_task = child.stderr.take().map(|mut stderr| {
+        tokio::spawn(async move {
+            read_bounded_text_tail(&mut stderr, WARM_AGENT_BRIDGE_STDERR_TAIL_BYTES).await
+        })
+    });
+    Ok(PersistentWarmSerialBridge {
+        child,
+        stdin,
+        stdout: BufReader::new(stdout).lines(),
+        stderr_task,
+    })
 }
 
 fn encode_serial_agent_bridge_frame_arg(frame: &str) -> Result<String, SandboxAdapterError> {
@@ -3702,7 +4110,11 @@ fn parse_files_section(serial_text: &str) -> Option<String> {
         .chars()
         .filter(|c| c.is_ascii_alphanumeric() || matches!(c, '+' | '/' | '='))
         .collect();
-    if blob.is_empty() { None } else { Some(blob) }
+    if blob.is_empty() {
+        None
+    } else {
+        Some(blob)
+    }
 }
 
 /// Host-process runner mirroring the Docker/Podman bridge style: hides the
@@ -4174,9 +4586,9 @@ mod tests {
     use crate::sandbox::{ImageRef, TrustClass};
 
     use super::super::warm_agent_package::{
-        WARM_AGENT_PACKAGE_AGENT_BINARY_MARKER, WARM_AGENT_PACKAGE_LLAMA_SERVER_MARKERS,
         manifest_for_test_recorded_probe_artifact, package_manifest_path_for_agent,
-        validate_warm_agent_package_manifest_candidate,
+        validate_warm_agent_package_manifest_candidate, WARM_AGENT_PACKAGE_AGENT_BINARY_MARKER,
+        WARM_AGENT_PACKAGE_LLAMA_SERVER_MARKERS,
     };
     use super::*;
 
@@ -4248,6 +4660,10 @@ json_value() {
 
 while IFS= read -r line; do
   case "$line" in
+    *\"type\":\"ping\"*)
+      request_id=$(json_value request_id)
+      printf '{"type":"heartbeat","request_id":"%s"}\n' "$request_id"
+      ;;
     *\"type\":\"load\"*)
       request_id=$(json_value request_id)
       model_path=$(json_value model_guest_path)
@@ -5013,22 +5429,18 @@ done
             )
             .expect("persistent boot args");
 
-        assert!(
-            args.windows(2)
-                .any(|pair| pair[0] == "--api-socket" && pair[1] == "/work/vm/ch.sock")
-        );
-        assert!(
-            args.windows(2)
-                .any(|pair| pair[0] == "--serial" && pair[1] == "socket=/work/vm/agent.sock")
-        );
-        assert!(
-            args.windows(2)
-                .any(|pair| pair[0] == "--console" && pair[1] == "file=/work/vm/serial.log")
-        );
-        assert!(
-            args.windows(2)
-                .any(|pair| pair[0] == "--cmdline" && pair[1] == "console=hvc0")
-        );
+        assert!(args
+            .windows(2)
+            .any(|pair| pair[0] == "--api-socket" && pair[1] == "/work/vm/ch.sock"));
+        assert!(args
+            .windows(2)
+            .any(|pair| pair[0] == "--serial" && pair[1] == "socket=/work/vm/agent.sock"));
+        assert!(args
+            .windows(2)
+            .any(|pair| pair[0] == "--console" && pair[1] == "file=/work/vm/serial.log"));
+        assert!(args
+            .windows(2)
+            .any(|pair| pair[0] == "--cmdline" && pair[1] == "console=hvc0"));
         assert!(
             !args.iter().any(|arg| arg.contains("vsock")),
             "vsock remains the follow-on transport and must not be implied by the serial agent"
@@ -5088,29 +5500,98 @@ done
     }
 
     #[test]
-    fn warm_agent_bridge_uses_stdin_payload_and_live_cancel_polling() {
-        assert!(WARM_AGENT_SERIAL_BRIDGE_PY.contains("sys.stdin.buffer.read()"));
-        assert!(WARM_AGENT_SERIAL_BRIDGE_PY.contains("max_frame_bytes = int(sys.argv[6])"));
-        assert!(WARM_AGENT_SERIAL_BRIDGE_PY.contains("os.path.exists(cancel_path)"));
-        assert!(WARM_AGENT_SERIAL_BRIDGE_PY.contains("\"type\": \"cancel\""));
-        assert!(WARM_AGENT_SERIAL_BRIDGE_PY.contains("frame_type == \"complete\""));
+    fn persistent_warm_agent_bridge_preserves_cancel_polling() {
+        assert!(WARM_AGENT_PERSISTENT_SERIAL_BRIDGE_PY.contains("control_prefix"));
+        assert!(WARM_AGENT_PERSISTENT_SERIAL_BRIDGE_PY.contains("os.path.exists(cancel_path)"));
+        assert!(WARM_AGENT_PERSISTENT_SERIAL_BRIDGE_PY
+            .contains("json.dumps({\"type\": \"cancel\", \"request_id\": request_id}"));
+        assert!(WARM_AGENT_PERSISTENT_SERIAL_BRIDGE_PY.contains("clear_cancel_if_terminal"));
         assert!(
             include_str!("adapter.rs").contains(".stderr(Stdio::piped())"),
-            "warm-agent bridge stderr must be captured for actionable stream failures"
+            "persistent bridge stderr must be captured for actionable stream failures"
         );
         assert!(
             include_str!("adapter.rs")
-                .contains("warm-agent bridge protocol decode failed for request"),
+                .contains("persistent warm-agent bridge protocol decode failed for request"),
             "protocol decode failures should include captured bridge stderr"
         );
         assert!(
-            include_str!("adapter.rs").contains("warm-agent bridge stdout read failed:"),
+            include_str!("adapter.rs").contains("persistent warm-agent bridge stdout read failed:"),
             "stdout read failures should include captured bridge stderr"
         );
         assert!(
             include_str!("adapter.rs").contains("warm_bridge_stderr_suffix"),
             "stderr formatting should stay centralized across stream failure branches"
         );
+
+        let control = encode_persistent_bridge_cancel_control(
+            "req-cancel",
+            "/home/ilja_smets/handshake-sandbox/vm/warm-cancel-req-cancel",
+        )
+        .expect("cancel control encodes");
+        assert!(control.starts_with(WARM_AGENT_PERSISTENT_BRIDGE_CANCEL_PREFIX));
+        assert!(control.ends_with('\n'));
+        assert!(control.contains("\"request_id\":\"req-cancel\""));
+        assert!(control.contains("\"cancel_path\":"));
+    }
+
+    #[test]
+    fn warm_agent_cancel_path_sanitizes_request_id_segment() {
+        let path = warm_agent_cancel_path("/vm/root/", "../bad/id:with spaces");
+        assert!(path.starts_with("/vm/root/warm-cancel-___bad_id_with_spaces-"));
+        let segment = path
+            .strip_prefix("/vm/root/warm-cancel-")
+            .expect("cancel path prefix");
+        assert!(!segment.contains('/'));
+        assert!(!segment.contains(".."));
+        assert!(segment.len() <= 128);
+    }
+
+    #[test]
+    fn warm_agent_cancel_path_hash_suffix_prevents_sanitized_collisions() {
+        let first = warm_agent_cancel_path("/vm/root", "agent/a");
+        let second = warm_agent_cancel_path("/vm/root", "agent:a");
+        assert_ne!(
+            first, second,
+            "request IDs that sanitize to the same prefix must retain distinct cancel files"
+        );
+        assert!(first.starts_with("/vm/root/warm-cancel-agent_a-"));
+        assert!(second.starts_with("/vm/root/warm-cancel-agent_a-"));
+    }
+
+    #[tokio::test]
+    async fn warm_agent_shutdown_marks_busy_bridge_slot_closing_before_waiting() {
+        let serial_lock = Arc::new(tokio::sync::Mutex::new(()));
+        let bridge = Arc::new(tokio::sync::Mutex::new(
+            PersistentWarmSerialBridgeSlot::default(),
+        ));
+        let transport = CloudHypervisorSerialWarmAgentTransport {
+            config: CloudHypervisorConfig::default().with_command_timeout_ms(1_000),
+            agent_socket: "/tmp/hsk-agent.sock".to_string(),
+            vm_root: "/tmp/hsk-vm-root".to_string(),
+            handle_id: Uuid::now_v7(),
+            serial_lock: Arc::clone(&serial_lock),
+            bridge: Arc::clone(&bridge),
+        };
+        let serial_guard = serial_lock.lock().await;
+        let shutdown = tokio::spawn(async move { transport.shutdown().await });
+
+        tokio::time::sleep(Duration::from_millis(25)).await;
+        assert!(
+            bridge.lock().await.closing,
+            "shutdown must mark the slot closing before waiting on a busy serial channel"
+        );
+        assert!(
+            !shutdown.is_finished(),
+            "shutdown should wait for the in-use serial channel instead of reporting success early"
+        );
+
+        drop(serial_guard);
+        let result = tokio::time::timeout(Duration::from_secs(1), shutdown)
+            .await
+            .expect("shutdown completes after serial channel releases")
+            .expect("shutdown task joins");
+        assert!(result.is_ok());
     }
 
     #[test]
@@ -5118,7 +5599,8 @@ done
         assert!(AGENT_INIT_SCRIPT.contains("hsk.warm_agent"));
         assert!(AGENT_INIT_SCRIPT.contains("HSK_WARM_AGENT_TRANSPORT=serial"));
         assert!(AGENT_INIT_SCRIPT.contains("PATH=\"$warm_agent_dir:$PATH\""));
-        assert!(AGENT_INIT_SCRIPT.contains("exec \"$warm_agent\" <&3 >&3"));
+        assert!(AGENT_INIT_SCRIPT.contains("\"$warm_agent\" <&3 >&3"));
+        assert!(AGENT_INIT_SCRIPT.contains("warm_agent_exit"));
         assert!(AGENT_INIT_SCRIPT.contains("agent_loop()"));
         assert!(AGENT_INIT_SCRIPT.contains("HSK-EXEC"));
     }
@@ -5821,6 +6303,7 @@ done
             committed_memory_budget_config_error: None,
             vcpus: DEFAULT_VCPUS,
             command_timeout_ms: DEFAULT_COMMAND_TIMEOUT_MS,
+            probe_timeout_ms: DEFAULT_PROBE_TIMEOUT_MS,
             balloon: CloudHypervisorBalloonConfig::disabled(),
             warm_agent_host_path: None,
             warm_agent_package_validator: None,
@@ -5828,6 +6311,7 @@ done
         assert_eq!(config.memory_mib(), 256);
         assert_eq!(config.vcpus(), 1);
         assert_eq!(config.command_timeout_ms(), 60_000);
+        assert_eq!(config.probe_timeout_ms(), 15_000);
         assert_eq!(config.balloon().size_mib(), None);
     }
 }

@@ -596,7 +596,10 @@ mod tests {
             matches!(result, Err(DistilledMountError::Refused { .. })),
             "{result:?}"
         );
-        assert!(!mounted.get(), "pending candidate must not reach the mount path");
+        assert!(
+            !mounted.get(),
+            "pending candidate must not reach the mount path"
+        );
     }
 
     #[tokio::test]

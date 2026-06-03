@@ -110,7 +110,10 @@ impl ModelRuntime for ControllableWorker {
                 }
                 tokio::time::sleep(delay).await;
                 if cancel.is_cancelled() {
-                    return Some((Err(ModelRuntimeError::Cancelled), (max, guard, cancel, delay, max)));
+                    return Some((
+                        Err(ModelRuntimeError::Cancelled),
+                        (max, guard, cancel, delay, max),
+                    ));
                 }
                 let token = Ok(crate::model_runtime::GeneratedToken {
                     token_id: i as u32,
@@ -174,7 +177,8 @@ struct ControllableFactory {
     work_delay: Duration,
     /// Runtimes handed out, keyed by instance id, so the resolver can return
     /// exactly the runtime the coordinator registered for that session.
-    handed_out: Arc<Mutex<std::collections::HashMap<ModelInstanceId, (Arc<dyn ModelRuntime>, ModelId)>>>,
+    handed_out:
+        Arc<Mutex<std::collections::HashMap<ModelInstanceId, (Arc<dyn ModelRuntime>, ModelId)>>>,
 }
 
 impl ControllableFactory {
@@ -269,7 +273,8 @@ impl ModelSessionFactory for ControllableFactory {
 /// (it hands back the live worker the coordinator drives), standing in for the
 /// production coordinator accessor the platform gap calls for.
 struct FactoryRuntimeResolver {
-    handed_out: Arc<Mutex<std::collections::HashMap<ModelInstanceId, (Arc<dyn ModelRuntime>, ModelId)>>>,
+    handed_out:
+        Arc<Mutex<std::collections::HashMap<ModelInstanceId, (Arc<dyn ModelRuntime>, ModelId)>>>,
 }
 
 impl SessionRuntimeResolver for FactoryRuntimeResolver {
@@ -391,7 +396,9 @@ fn build(
     }
     let factory = Arc::new(factory);
     let sink = Arc::new(RecordingSwarmSink::new());
-    let budget = RunBudget::defaulted(4).with_concurrency(4).with_lifetime_spawns(1000);
+    let budget = RunBudget::defaulted(4)
+        .with_concurrency(4)
+        .with_lifetime_spawns(1000);
     let coordinator = Arc::new(SwarmCoordinator::new(
         SwarmConfig::new(budget),
         factory.clone(),
@@ -406,12 +413,20 @@ fn build(
 }
 
 fn plan(teacher: ModelInstanceId, student: ModelInstanceId) -> ParallelDistillPlan {
-    let teacher_req =
-        SpawnRequest::new(teacher, RuntimeBinding::Candle, "DISTILL_TEACHER", "distill-parent")
-            .with_local_artifact("teacher-art", "aa".repeat(32));
-    let student_req =
-        SpawnRequest::new(student, RuntimeBinding::Candle, "DISTILL_STUDENT", "distill-parent")
-            .with_local_artifact("student-art", "bb".repeat(32));
+    let teacher_req = SpawnRequest::new(
+        teacher,
+        RuntimeBinding::Candle,
+        "DISTILL_TEACHER",
+        "distill-parent",
+    )
+    .with_local_artifact("teacher-art", "aa".repeat(32));
+    let student_req = SpawnRequest::new(
+        student,
+        RuntimeBinding::Candle,
+        "DISTILL_STUDENT",
+        "distill-parent",
+    )
+    .with_local_artifact("student-art", "bb".repeat(32));
     ParallelDistillPlan::new(teacher_req, student_req, samples()).with_teacher_max_tokens(4)
 }
 
@@ -427,8 +442,7 @@ async fn proof_teacher_student_run_concurrently_and_feed_pipeline() {
     let student = instance(1);
     // A per-token work delay big enough that, if the two ran serially, total
     // time would be ~2x; the overlap is what makes peak busy reach 2.
-    let (coordinator, factory, orchestrator, drain_h) =
-        build(Duration::from_millis(15), None);
+    let (coordinator, factory, orchestrator, drain_h) = build(Duration::from_millis(15), None);
     let store = Arc::new(InMemoryStore::default());
     let plan = plan(teacher, student);
 
@@ -455,7 +469,11 @@ async fn proof_teacher_student_run_concurrently_and_feed_pipeline() {
     // The teacher produced real completions for every sample.
     assert_eq!(run.corpus.turns.len(), 3);
     for turn in &run.corpus.turns {
-        assert!(!turn.completion.is_empty(), "teacher produced tokens for {}", turn.id);
+        assert!(
+            !turn.completion.is_empty(),
+            "teacher produced tokens for {}",
+            turn.id
+        );
     }
     // The student was scored in parallel for every sample.
     assert_eq!(run.student_baseline.len(), 3);
@@ -463,8 +481,14 @@ async fn proof_teacher_student_run_concurrently_and_feed_pipeline() {
     // Both sessions completed -> no live sessions, ledger symmetric.
     assert_eq!(coordinator.live_session_count(), 0);
     let rows = drain(&drain_h, store).await;
-    let starts = rows.iter().filter(|e| matches!(e, LedgerEvent::Start(_))).count();
-    let stops = rows.iter().filter(|e| matches!(e, LedgerEvent::Stop(_))).count();
+    let starts = rows
+        .iter()
+        .filter(|e| matches!(e, LedgerEvent::Start(_)))
+        .count();
+    let stops = rows
+        .iter()
+        .filter(|e| matches!(e, LedgerEvent::Stop(_)))
+        .count();
     assert_eq!(starts, 2, "two model STARTs (teacher + student)");
     assert_eq!(stops, 2, "two STOPs — no orphan");
 
@@ -483,7 +507,10 @@ async fn proof_teacher_student_run_concurrently_and_feed_pipeline() {
     )
     .expect("existing pipeline consumes the teacher corpus");
     assert_eq!(artifact.corpus_turn_count, 3);
-    assert!(executor.seen.lock().unwrap().is_some(), "trainer received the corpus");
+    assert!(
+        executor.seen.lock().unwrap().is_some(),
+        "trainer received the corpus"
+    );
 
     registry
         .register("distill-lora-1", artifact, "2026-05-31T00:00:00Z")
@@ -505,8 +532,7 @@ async fn proof_teacher_student_run_concurrently_and_feed_pipeline() {
 async fn proof_full_run_registers_pending_candidate() {
     let teacher = instance(2);
     let student = instance(3);
-    let (coordinator, _factory, orchestrator, _drain) =
-        build(Duration::from_millis(5), None);
+    let (coordinator, _factory, orchestrator, _drain) = build(Duration::from_millis(5), None);
     let plan = plan(teacher, student);
     let tmp = tempfile::tempdir().unwrap();
     let executor = RecordingExecutor {
@@ -553,7 +579,10 @@ async fn proof_absent_teacher_fails_typed_and_cleans_up_student() {
         .await
         .expect_err("absent teacher must fail");
     assert!(
-        matches!(err, ParallelDistillError::TeacherSpawn(SwarmError::FactoryFailed(_))),
+        matches!(
+            err,
+            ParallelDistillError::TeacherSpawn(SwarmError::FactoryFailed(_))
+        ),
         "expected typed TeacherSpawn(FactoryFailed), got {err:?}"
     );
 
@@ -566,8 +595,14 @@ async fn proof_absent_teacher_fails_typed_and_cleans_up_student() {
     // Ledger symmetric for the one session that started (student START + STOP);
     // the failed teacher recorded no START.
     let rows = drain(&drain_h, store).await;
-    let starts = rows.iter().filter(|e| matches!(e, LedgerEvent::Start(_))).count();
-    let stops = rows.iter().filter(|e| matches!(e, LedgerEvent::Stop(_))).count();
+    let starts = rows
+        .iter()
+        .filter(|e| matches!(e, LedgerEvent::Start(_)))
+        .count();
+    let stops = rows
+        .iter()
+        .filter(|e| matches!(e, LedgerEvent::Stop(_)))
+        .count();
     assert_eq!(starts, stops, "no orphan START after the failed run");
 }
 
@@ -579,15 +614,17 @@ async fn proof_absent_teacher_fails_typed_and_cleans_up_student() {
 async fn proof_no_samples_is_typed_error() {
     let teacher = instance(6);
     let student = instance(7);
-    let (coordinator, _factory, orchestrator, _drain) =
-        build(Duration::from_millis(1), None);
+    let (coordinator, _factory, orchestrator, _drain) = build(Duration::from_millis(1), None);
     let mut p = plan(teacher, student);
     p.samples.clear();
     let err = orchestrator
         .run_concurrent_generation(&p, "2026-05-31T03:00:00Z")
         .await
         .expect_err("no samples");
-    assert!(matches!(err, ParallelDistillError::NoSamples), "got {err:?}");
+    assert!(
+        matches!(err, ParallelDistillError::NoSamples),
+        "got {err:?}"
+    );
     assert_eq!(coordinator.live_session_count(), 0, "no sessions spawned");
 }
 
@@ -637,12 +674,20 @@ async fn real_parallel_tinyllama_teacher_student_generates() {
 
     let teacher = instance(0);
     let student = instance(1);
-    let teacher_req =
-        SpawnRequest::new(teacher, RuntimeBinding::Candle, "DISTILL_TEACHER", "real-distill")
-            .with_local_artifact(artifact.clone(), sha256.clone());
-    let student_req =
-        SpawnRequest::new(student, RuntimeBinding::Candle, "DISTILL_STUDENT", "real-distill")
-            .with_local_artifact(artifact.clone(), sha256.clone());
+    let teacher_req = SpawnRequest::new(
+        teacher,
+        RuntimeBinding::Candle,
+        "DISTILL_TEACHER",
+        "real-distill",
+    )
+    .with_local_artifact(artifact.clone(), sha256.clone());
+    let student_req = SpawnRequest::new(
+        student,
+        RuntimeBinding::Candle,
+        "DISTILL_STUDENT",
+        "real-distill",
+    )
+    .with_local_artifact(artifact.clone(), sha256.clone());
 
     // Spawn both in parallel through the real coordinator (ledger-attributed).
     let c1 = coordinator.clone();
@@ -653,15 +698,27 @@ async fn real_parallel_tinyllama_teacher_student_generates() {
     );
     ra.expect("real teacher spawn");
     rb.expect("real student spawn");
-    assert_eq!(coordinator.live_session_count(), 2, "both real sessions live in parallel");
+    assert_eq!(
+        coordinator.live_session_count(),
+        2,
+        "both real sessions live in parallel"
+    );
 
     // Resolve the live runtimes via the coordinator test accessor (the same
     // handles it registered) and run a REAL teacher generate + student score
     // concurrently.
-    let t_rt = coordinator.session_runtime_for_test(teacher).expect("teacher rt");
-    let t_id = coordinator.session_model_id_for_test(teacher).expect("teacher id");
-    let s_rt = coordinator.session_runtime_for_test(student).expect("student rt");
-    let s_id = coordinator.session_model_id_for_test(student).expect("student id");
+    let t_rt = coordinator
+        .session_runtime_for_test(teacher)
+        .expect("teacher rt");
+    let t_id = coordinator
+        .session_model_id_for_test(teacher)
+        .expect("teacher id");
+    let s_rt = coordinator
+        .session_runtime_for_test(student)
+        .expect("student rt");
+    let s_id = coordinator
+        .session_model_id_for_test(student)
+        .expect("student id");
 
     let gen = |rt: Arc<dyn ModelRuntime>, id: ModelId| async move {
         use futures::StreamExt;
@@ -695,7 +752,10 @@ async fn real_parallel_tinyllama_teacher_student_generates() {
     let (produced_teacher, produced_student) =
         tokio::join!(gen(t_rt.clone(), t_id), gen(s_rt.clone(), s_id));
     assert!(produced_teacher > 0, "real teacher generated tokens");
-    assert!(produced_student > 0, "real student session generated tokens in parallel");
+    assert!(
+        produced_student > 0,
+        "real student session generated tokens in parallel"
+    );
 
     // PLATFORM GAP (honest, out of this module's ownership): the candle adapter
     // (`src/model_runtime/candle/adapter.rs::score`) does not yet implement the
@@ -708,7 +768,10 @@ async fn real_parallel_tinyllama_teacher_student_generates() {
     // runtime that DOES implement `score`, so the concurrent orchestration's
     // student-scoring branch is fully proven there.
     let student_score = s_rt
-        .score(s_id, "The capital of France is".bytes().map(u32::from).collect())
+        .score(
+            s_id,
+            "The capital of France is".bytes().map(u32::from).collect(),
+        )
         .await;
     match student_score {
         Ok(_) => { /* candle gained a real score impl — also acceptable */ }
@@ -721,12 +784,24 @@ async fn real_parallel_tinyllama_teacher_student_generates() {
         Err(other) => panic!("unexpected student score error: {other:?}"),
     }
 
-    coordinator.complete_session(teacher).await.expect("complete teacher");
-    coordinator.complete_session(student).await.expect("complete student");
+    coordinator
+        .complete_session(teacher)
+        .await
+        .expect("complete teacher");
+    coordinator
+        .complete_session(student)
+        .await
+        .expect("complete student");
     assert_eq!(coordinator.live_session_count(), 0);
     let rows = drain(&drain_h, store).await;
-    let starts = rows.iter().filter(|e| matches!(e, LedgerEvent::Start(_))).count();
-    let stops = rows.iter().filter(|e| matches!(e, LedgerEvent::Stop(_))).count();
+    let starts = rows
+        .iter()
+        .filter(|e| matches!(e, LedgerEvent::Start(_)))
+        .count();
+    let stops = rows
+        .iter()
+        .filter(|e| matches!(e, LedgerEvent::Stop(_)))
+        .count();
     assert_eq!(starts, 2, "two real model STARTs");
     assert_eq!(stops, 2, "two STOPs — no orphan");
 }

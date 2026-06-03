@@ -180,6 +180,58 @@ export interface SwarmChatGenerateWithCloudEscalationRequest {
   prompt: string;
   cloud: SwarmSpawnRequest;
   taskClass?: SwarmEscalationTaskClass;
+  localConfidenceBasisPoints?: number;
+  minLocalConfidenceBasisPoints?: number;
+  validationLabels?: string[];
+}
+
+export type SwarmTraceOutputSource = "local" | "cloud";
+export type SwarmTraceRouteOutcome =
+  | "local_accepted"
+  | "cloud_escalated"
+  | "cloud_failed"
+  | "force_cloud"
+  | "force_local_blocked";
+
+export interface SwarmTraceOutput {
+  source: SwarmTraceOutputSource;
+  label: string;
+  output: string;
+}
+
+export interface SwarmTraceRouteMetadata {
+  session_id: string;
+  route_reason: string;
+  route_outcome: SwarmTraceRouteOutcome;
+  local_model_id: string;
+  cloud_model_id: string;
+  local_confidence_basis_points: number | null;
+  validation_labels: string[];
+}
+
+export interface DistillationSwarmTraceQueueEntry {
+  schema: string;
+  bundle: {
+    version: string;
+    trace_id: string;
+    sample_id: string;
+    prompt: string;
+    outputs: SwarmTraceOutput[];
+    route: SwarmTraceRouteMetadata | null;
+    comparison_labels: string[];
+    eligibility: {
+      distillation_allowed: boolean;
+      local_output_allowed: boolean;
+      cloud_output_allowed: boolean;
+    };
+    redactions_applied: Array<{
+      field: string;
+      secrets_found: boolean;
+      pii_found: boolean;
+    }>;
+    captured_at_utc: string;
+  };
+  eligible_for_training_review: boolean;
 }
 
 export interface SwarmChatGenerateWithCloudEscalationResponse {
@@ -191,6 +243,7 @@ export interface SwarmChatGenerateWithCloudEscalationResponse {
   cloudInstance: SwarmInstanceId | null;
   cloud: SwarmChatResponse | null;
   cloudError: string | null;
+  distillationTrace: DistillationSwarmTraceQueueEntry | null;
 }
 
 export async function spawnSession(request: SwarmSpawnRequest): Promise<SwarmInstanceId> {

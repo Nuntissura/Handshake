@@ -16,10 +16,10 @@ use std::sync::Arc;
 use base64::Engine;
 use handshake_core::capabilities::CapabilityRegistry;
 use handshake_core::flight_recorder::FlightRecorder;
+use handshake_core::terminal::TerminalSessionType;
 use handshake_core::terminal::{
     PtySpawnConfig, SessionBinding, SessionInfo, SessionOutput, TerminalRuntime,
 };
-use handshake_core::terminal::TerminalSessionType;
 use serde::{Deserialize, Serialize};
 use tauri::State;
 use tokio::sync::broadcast;
@@ -395,8 +395,7 @@ pub fn spawn_terminal_forwarder(
             match rx.recv().await {
                 Ok(SessionOutput::Chunk(bytes)) => {
                     seq = seq.saturating_add(1);
-                    let chunk_base64 =
-                        base64::engine::general_purpose::STANDARD.encode(&bytes);
+                    let chunk_base64 = base64::engine::general_purpose::STANDARD.encode(&bytes);
                     let _ = app.emit(
                         "terminal://output",
                         TerminalOutputIpc {

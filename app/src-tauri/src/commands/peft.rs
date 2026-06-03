@@ -32,9 +32,7 @@ use handshake_core::distillation::{
 use handshake_core::flight_recorder::{
     FlightRecorder, FlightRecorderActor, FlightRecorderEvent, FlightRecorderEventType,
 };
-use handshake_core::process_ledger::{
-    LedgerBatcher, LedgerBatcherConfig, NoopOverflowSink,
-};
+use handshake_core::process_ledger::{LedgerBatcher, LedgerBatcherConfig, NoopOverflowSink};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use uuid::Uuid;
@@ -99,7 +97,10 @@ pub struct PeftLedgerStore {
 
 impl PeftLedgerStore {
     pub fn rows(&self) -> Vec<handshake_core::process_ledger::LedgerEvent> {
-        self.events.lock().expect("peft ledger store poisoned").clone()
+        self.events
+            .lock()
+            .expect("peft ledger store poisoned")
+            .clone()
     }
 }
 

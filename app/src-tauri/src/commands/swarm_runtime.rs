@@ -63,6 +63,10 @@ use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
 use futures_util::StreamExt;
+use handshake_core::distillation::swarm_trace::{
+    prepare_distillation_swarm_trace_queue_entry, DistillationSwarmTraceQueueEntry,
+    SwarmTraceCandidate, SwarmTraceRouteMetadata, SwarmTraceRouteOutcome,
+};
 use handshake_core::flight_recorder::FlightRecorder;
 use handshake_core::model_runtime::cloud::{
     CliBridgeConfig, CliSubprocessSpawner, LiveCliSpawner, SecretsVault,
@@ -1400,6 +1404,16 @@ pub struct SwarmChatGenerateWithCloudEscalationRequestIpc {
     pub cloud: SwarmSpawnRequestIpc,
     #[serde(default)]
     pub task_class: Option<SwarmEscalationTaskClassIpc>,
+    /// Optional local confidence score in basis points (0..=10000). When paired
+    /// with `min_local_confidence_basis_points` and below threshold, the command
+    /// keeps the local output as a student candidate and also generates through
+    /// the explicit cloud lane for a distillation trace.
+    #[serde(default)]
+    pub local_confidence_basis_points: Option<u16>,
+    #[serde(default)]
+    pub min_local_confidence_basis_points: Option<u16>,
+    #[serde(default)]
+    pub validation_labels: Vec<String>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -1413,6 +1427,16 @@ pub struct SwarmChatGenerateWithCloudEscalationResponseIpc {
     pub cloud_instance: Option<SwarmInstanceIdIpc>,
     pub cloud: Option<SwarmChatResponseIpc>,
     pub cloud_error: Option<String>,
+    pub distillation_trace: Option<DistillationSwarmTraceQueueEntry>,
+}
+
+#[derive(Clone, Debug)]
+struct LocalEscalationTraceInput {
+    instance_id: String,
+    model_id: String,
+    response: SwarmChatResponseIpc,
+    confidence_basis_points: Option<u16>,
+    validation_labels: Vec<String>,
 }
 
 /// ROI#3: the stored resume template, surfaced to the UI (camelCase) for the
@@ -2243,10 +2267,10 @@ async fn chat_generate_resolved_inner(
 }
 
 /// Generate on a local/VM session first, then spawn/generate through an
-/// explicit cloud lane only if the local turn fails and the task is not
-/// force-local. `force_cloud` skips the local turn. This is intentionally
-/// opt-in: the caller supplies the cloud provider/model/worktree request, so
-/// egress cannot happen by hidden default.
+/// explicit cloud lane only if the local turn fails, the caller marks the local
+/// confidence below threshold, or the task class explicitly forces cloud.
+/// This is intentionally opt-in: the caller supplies the cloud
+/// provider/model/worktree request, so egress cannot happen by hidden default.
 #[tauri::command]
 pub async fn kernel_swarm_chat_generate_with_cloud_escalation(
     request: SwarmChatGenerateWithCloudEscalationRequestIpc,
@@ -2279,6 +2303,7 @@ async fn chat_generate_with_cloud_escalation_inner(
                         cloud_instance: None,
                         cloud: None,
                         cloud_error: Some("force_local blocks cloud escalation".to_string()),
+                        distillation_trace: None,
                     });
                 }
             };
@@ -2300,6 +2325,7 @@ async fn chat_generate_with_cloud_escalation_inner(
                 cloud_instance: None,
                 cloud: None,
                 cloud_error: None,
+                distillation_trace: None,
             }),
             Err(local_error) => Ok(SwarmChatGenerateWithCloudEscalationResponseIpc {
                 selected: None,
@@ -2310,6 +2336,7 @@ async fn chat_generate_with_cloud_escalation_inner(
                 cloud_instance: None,
                 cloud: None,
                 cloud_error: Some("force_local blocks cloud escalation".to_string()),
+                distillation_trace: None,
             }),
         };
     }
@@ -2324,6 +2351,7 @@ async fn chat_generate_with_cloud_escalation_inner(
             &request.local_instance_id,
             &prompt,
             "force_cloud requested; skipped local generate".to_string(),
+            None,
             state,
         )
         .await;
@@ -2344,6 +2372,7 @@ async fn chat_generate_with_cloud_escalation_inner(
                     cloud_error: Some(
                         "cloud escalation requires a live local session attempt".to_string(),
                     ),
+                    distillation_trace: None,
                 });
             }
         };
@@ -2351,16 +2380,57 @@ async fn chat_generate_with_cloud_escalation_inner(
     match chat_generate_resolved_inner(local_iid, local_runtime, local_model_id, &prompt, state)
         .await
     {
-        Ok(local) => Ok(SwarmChatGenerateWithCloudEscalationResponseIpc {
-            selected: Some("local".to_string()),
-            escalated: false,
-            escalation_reason: None,
-            local_error: None,
-            local: Some(local),
-            cloud_instance: None,
-            cloud: None,
-            cloud_error: None,
-        }),
+        Ok(local) => {
+            if let Some(escalation_reason) = low_confidence_escalation_reason(&request) {
+                if request.cloud.provider == SwarmProviderIpc::Local {
+                    return Ok(SwarmChatGenerateWithCloudEscalationResponseIpc {
+                        selected: Some("local".to_string()),
+                        escalated: false,
+                        escalation_reason: Some(escalation_reason),
+                        local_error: None,
+                        local: Some(local),
+                        cloud_instance: None,
+                        cloud: None,
+                        cloud_error: Some(
+                            "cloud escalation request must target a cloud provider".to_string(),
+                        ),
+                        distillation_trace: None,
+                    });
+                }
+
+                let local_trace = LocalEscalationTraceInput {
+                    instance_id: local_iid.to_string(),
+                    model_id: local_model_id.to_string(),
+                    response: local,
+                    confidence_basis_points: request
+                        .local_confidence_basis_points
+                        .map(|value| value.min(10_000)),
+                    validation_labels: request.validation_labels.clone(),
+                };
+
+                return spawn_generate_cloud_escalation(
+                    request.cloud,
+                    &request.local_instance_id,
+                    &prompt,
+                    escalation_reason,
+                    Some(local_trace),
+                    state,
+                )
+                .await;
+            }
+
+            Ok(SwarmChatGenerateWithCloudEscalationResponseIpc {
+                selected: Some("local".to_string()),
+                escalated: false,
+                escalation_reason: None,
+                local_error: None,
+                local: Some(local),
+                cloud_instance: None,
+                cloud: None,
+                cloud_error: None,
+                distillation_trace: None,
+            })
+        }
         Err(local_error) => {
             if request.cloud.provider == SwarmProviderIpc::Local {
                 return Ok(SwarmChatGenerateWithCloudEscalationResponseIpc {
@@ -2374,6 +2444,7 @@ async fn chat_generate_with_cloud_escalation_inner(
                     cloud_error: Some(
                         "cloud escalation request must target a cloud provider".to_string(),
                     ),
+                    distillation_trace: None,
                 });
             }
 
@@ -2382,6 +2453,7 @@ async fn chat_generate_with_cloud_escalation_inner(
                 &request.local_instance_id,
                 &prompt,
                 local_error,
+                None,
                 state,
             )
             .await
@@ -2394,6 +2466,7 @@ async fn spawn_generate_cloud_escalation(
     parent_session_id: &str,
     prompt: &str,
     escalation_reason: String,
+    local_trace: Option<LocalEscalationTraceInput>,
     state: &SwarmRuntimeState,
 ) -> Result<SwarmChatGenerateWithCloudEscalationResponseIpc, String> {
     if cloud_request.provider == SwarmProviderIpc::Local {
@@ -2406,6 +2479,7 @@ async fn spawn_generate_cloud_escalation(
             cloud_instance: None,
             cloud: None,
             cloud_error: Some("cloud escalation request must target a cloud provider".to_string()),
+            distillation_trace: None,
         });
     }
 
@@ -2424,30 +2498,104 @@ async fn spawn_generate_cloud_escalation(
                 cloud_instance: None,
                 cloud: None,
                 cloud_error: Some(error.to_string()),
+                distillation_trace: None,
             });
         }
     };
     match chat_generate_inner(&cloud_instance.composite, prompt, state).await {
-        Ok(cloud) => Ok(SwarmChatGenerateWithCloudEscalationResponseIpc {
-            selected: Some("cloud".to_string()),
-            escalated: true,
-            escalation_reason: Some(escalation_reason),
-            local_error: None,
-            local: None,
-            cloud_instance: Some(cloud_instance),
-            cloud: Some(cloud),
-            cloud_error: None,
-        }),
+        Ok(cloud) => {
+            let distillation_trace = build_distillation_trace_queue_entry(
+                parent_session_id,
+                prompt,
+                &escalation_reason,
+                local_trace.as_ref(),
+                &cloud_instance,
+                &cloud,
+            );
+            Ok(SwarmChatGenerateWithCloudEscalationResponseIpc {
+                selected: Some("cloud".to_string()),
+                escalated: true,
+                escalation_reason: Some(escalation_reason),
+                local_error: None,
+                local: local_trace.as_ref().map(|trace| trace.response.clone()),
+                cloud_instance: Some(cloud_instance),
+                cloud: Some(cloud),
+                cloud_error: None,
+                distillation_trace,
+            })
+        }
         Err(error) => Ok(SwarmChatGenerateWithCloudEscalationResponseIpc {
             selected: None,
             escalated: true,
             escalation_reason: Some(escalation_reason),
             local_error: None,
-            local: None,
+            local: local_trace.as_ref().map(|trace| trace.response.clone()),
             cloud_instance: Some(cloud_instance),
             cloud: None,
             cloud_error: Some(error),
+            distillation_trace: None,
         }),
+    }
+}
+
+fn low_confidence_escalation_reason(
+    request: &SwarmChatGenerateWithCloudEscalationRequestIpc,
+) -> Option<String> {
+    let confidence = request.local_confidence_basis_points?.min(10_000);
+    let threshold = request.min_local_confidence_basis_points?.min(10_000);
+    if confidence < threshold {
+        Some(format!(
+            "local confidence {confidence}bp below threshold {threshold}bp; escalated to cloud"
+        ))
+    } else {
+        None
+    }
+}
+
+fn build_distillation_trace_queue_entry(
+    parent_session_id: &str,
+    prompt: &str,
+    escalation_reason: &str,
+    local_trace: Option<&LocalEscalationTraceInput>,
+    cloud_instance: &SwarmInstanceIdIpc,
+    cloud: &SwarmChatResponseIpc,
+) -> Option<DistillationSwarmTraceQueueEntry> {
+    let local_trace = local_trace?;
+    let mut route = SwarmTraceRouteMetadata::new(
+        parent_session_id,
+        escalation_reason,
+        SwarmTraceRouteOutcome::CloudEscalated,
+        local_trace.model_id.clone(),
+        cloud_instance.model_id.clone(),
+    )
+    .with_validation_labels(local_trace.validation_labels.clone());
+    if let Some(confidence) = local_trace.confidence_basis_points {
+        route = route.with_local_confidence_basis_points(confidence);
+    }
+
+    let candidate = SwarmTraceCandidate::new(
+        Uuid::now_v7(),
+        format!("{}::{}", local_trace.instance_id, cloud_instance.composite),
+        prompt,
+        format!("local:{}", local_trace.model_id),
+        local_trace.response.text.clone(),
+        format!("cloud:{}", cloud_instance.model_id),
+        cloud.text.clone(),
+    )
+    .with_comparison_labels(vec![
+        "swarm-escalation".to_string(),
+        "local-cloud-distillation".to_string(),
+    ])
+    .with_route_metadata(route);
+
+    match prepare_distillation_swarm_trace_queue_entry(candidate) {
+        Ok(entry) => Some(entry),
+        Err(error) => {
+            eprintln!(
+                "{FR_EVT_SWARM_LIFECYCLE}: distillation trace capture skipped for {parent_session_id}: {error}"
+            );
+            None
+        }
     }
 }
 
@@ -3629,6 +3777,9 @@ mod tests {
                 prompt: "summarize this".to_string(),
                 cloud,
                 task_class: Some(SwarmEscalationTaskClassIpc::ForceLocal),
+                local_confidence_basis_points: None,
+                min_local_confidence_basis_points: None,
+                validation_labels: Vec::new(),
             },
             &state,
         )
@@ -3671,6 +3822,9 @@ mod tests {
                 prompt: "classify this".to_string(),
                 cloud,
                 task_class: Some(SwarmEscalationTaskClassIpc::Classification),
+                local_confidence_basis_points: None,
+                min_local_confidence_basis_points: None,
+                validation_labels: Vec::new(),
             },
             &state,
         )
@@ -3713,6 +3867,9 @@ mod tests {
                 prompt: "classify this".to_string(),
                 cloud,
                 task_class: Some(SwarmEscalationTaskClassIpc::Classification),
+                local_confidence_basis_points: None,
+                min_local_confidence_basis_points: None,
+                validation_labels: Vec::new(),
             },
             &state,
         )
@@ -3748,6 +3905,9 @@ mod tests {
                 prompt: "   \n\t".to_string(),
                 cloud,
                 task_class: Some(SwarmEscalationTaskClassIpc::Classification),
+                local_confidence_basis_points: None,
+                min_local_confidence_basis_points: None,
+                validation_labels: Vec::new(),
             },
             &state,
         )
@@ -3774,6 +3934,9 @@ mod tests {
                 prompt: "".to_string(),
                 cloud,
                 task_class: Some(SwarmEscalationTaskClassIpc::ForceCloud),
+                local_confidence_basis_points: None,
+                min_local_confidence_basis_points: None,
+                validation_labels: Vec::new(),
             },
             &state,
         )
@@ -3811,6 +3974,9 @@ mod tests {
                 prompt: "classify this".to_string(),
                 cloud,
                 task_class: Some(SwarmEscalationTaskClassIpc::Classification),
+                local_confidence_basis_points: None,
+                min_local_confidence_basis_points: None,
+                validation_labels: Vec::new(),
             },
             &state,
         )
@@ -3861,6 +4027,118 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn chat_generate_low_confidence_escalation_returns_distillation_trace_queue_entry() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let builder = Arc::new(StaticCloudBuilder::openai_sequence(vec![
+            StaticGenerateResponse::Text(
+                "local answer kept safe context while under threshold".to_string(),
+            ),
+            StaticGenerateResponse::Text(
+                "cloud teacher answer kept stronger comparison".to_string(),
+            ),
+        ]));
+        let state = state_with_static_openai_cloud(builder.clone(), tmp.path());
+        let mut local_candidate = cloud_request("gpt-4o");
+        local_candidate.byok_cloud_provider = Some(ByokCloudProviderIpc::OpenAi);
+        let local_instance = spawn_session_inner(local_candidate, &state)
+            .await
+            .expect("live local-candidate runtime");
+
+        let mut cloud = cloud_request("gpt-4o");
+        cloud.byok_cloud_provider = Some(ByokCloudProviderIpc::OpenAi);
+        cloud.swarm_id = Some("swarm-trace".to_string());
+        cloud.worktree_id = Some("wt-trace".to_string());
+
+        let response = chat_generate_with_cloud_escalation_inner(
+            SwarmChatGenerateWithCloudEscalationRequestIpc {
+                local_instance_id: local_instance.composite.clone(),
+                prompt: "Classify with OPENAI_API_KEY=sk-trace-secret but preserve safe context"
+                    .to_string(),
+                cloud,
+                task_class: Some(SwarmEscalationTaskClassIpc::Classification),
+                local_confidence_basis_points: Some(4_200),
+                min_local_confidence_basis_points: Some(8_000),
+                validation_labels: vec!["low-confidence".to_string(), "teacher-win".to_string()],
+            },
+            &state,
+        )
+        .await
+        .expect("command result");
+
+        assert_eq!(response.selected.as_deref(), Some("cloud"));
+        assert!(response.escalated);
+        assert_eq!(
+            response.local.as_ref().expect("student retained").text,
+            "local answer kept safe context while under threshold"
+        );
+        assert_eq!(
+            response.cloud.as_ref().expect("teacher generated").text,
+            "cloud teacher answer kept stronger comparison"
+        );
+        let trace = response
+            .distillation_trace
+            .as_ref()
+            .expect("low-confidence escalation returns trace entry");
+        assert_eq!(
+            trace.schema,
+            handshake_core::distillation::swarm_trace::DISTILLATION_SWARM_TRACE_QUEUE_SCHEMA
+        );
+        assert!(trace.eligible_for_training_review);
+        assert!(!trace.bundle.prompt.contains("sk-trace-secret"));
+        assert!(trace.bundle.prompt.contains("preserve safe context"));
+        let route = trace.bundle.route.as_ref().expect("route metadata");
+        assert_eq!(route.session_id, local_instance.composite);
+        assert_eq!(route.route_outcome, SwarmTraceRouteOutcome::CloudEscalated);
+        assert_eq!(route.local_confidence_basis_points, Some(4_200));
+        assert_eq!(
+            route.validation_labels,
+            vec!["low-confidence".to_string(), "teacher-win".to_string()]
+        );
+        assert!(!route.local_model_id.trim().is_empty());
+        assert_eq!(
+            trace.bundle.outputs[0].label,
+            format!("local:{}", route.local_model_id)
+        );
+        assert_eq!(
+            route.cloud_model_id,
+            response
+                .cloud_instance
+                .as_ref()
+                .expect("cloud instance")
+                .model_id
+        );
+        assert_eq!(trace.bundle.outputs.len(), 2);
+        assert_eq!(
+            trace.bundle.outputs[0].output,
+            "local answer kept safe context while under threshold"
+        );
+        assert_eq!(
+            trace.bundle.outputs[1].output,
+            "cloud teacher answer kept stronger comparison"
+        );
+
+        let local_iid = parse_instance_id(&local_instance.composite).expect("parse local iid");
+        let cloud_iid = parse_instance_id(
+            &response
+                .cloud_instance
+                .as_ref()
+                .expect("cloud instance")
+                .composite,
+        )
+        .expect("parse cloud iid");
+        state
+            .coordinator()
+            .cancel_session(local_iid, "test_cancel")
+            .await
+            .expect("cancel local");
+        state
+            .coordinator()
+            .cancel_session(cloud_iid, "test_cancel")
+            .await
+            .expect("cancel cloud");
+    }
+
+    #[tokio::test]
     async fn chat_generate_force_cloud_skips_a_live_local_candidate() {
         let tmp = tempfile::tempdir().expect("tempdir");
         let builder = Arc::new(StaticCloudBuilder::openai("cloud-ok"));
@@ -3880,6 +4158,9 @@ mod tests {
                 prompt: "force the cloud lane".to_string(),
                 cloud,
                 task_class: Some(SwarmEscalationTaskClassIpc::ForceCloud),
+                local_confidence_basis_points: None,
+                min_local_confidence_basis_points: None,
+                validation_labels: Vec::new(),
             },
             &state,
         )

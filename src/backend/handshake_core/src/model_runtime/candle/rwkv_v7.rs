@@ -296,9 +296,21 @@ impl OwnedTimeMix {
         state.att_x_prev = x.clone();
 
         // 2. Genuine Linear projections + LoRA delta (owned r/k/v).
-        let r = self.linear_lora(&self.receptance, &self.receptance_target, &xr, lora_stack, lora_overrides)?;
+        let r = self.linear_lora(
+            &self.receptance,
+            &self.receptance_target,
+            &xr,
+            lora_stack,
+            lora_overrides,
+        )?;
         let k = self.linear_lora(&self.key, &self.key_target, &xk, lora_stack, lora_overrides)?;
-        let v = self.linear_lora(&self.value, &self.value_target, &xv, lora_stack, lora_overrides)?;
+        let v = self.linear_lora(
+            &self.value,
+            &self.value_target,
+            &xv,
+            lora_stack,
+            lora_overrides,
+        )?;
 
         // 3. Decay: w = exp(-0.606531 * sigmoid(w0 + tanh(xw @ w1) @ w2)).
         let w = mm1d(&mm1d(&xw, &self.w1)?.tanh().map_err(gen_err)?, &self.w2)?;
@@ -321,10 +333,9 @@ impl OwnedTimeMix {
                 ))
             })?;
             if let (Some(v0), Some(v1), Some(v2)) = (&self.v0, &self.v1, &self.v2) {
-                let gate = candle_nn::ops::sigmoid(
-                    &(v0 + mm1d(&mm1d(&xv, v1)?, v2)?).map_err(gen_err)?,
-                )
-                .map_err(gen_err)?;
+                let gate =
+                    candle_nn::ops::sigmoid(&(v0 + mm1d(&mm1d(&xv, v1)?, v2)?).map_err(gen_err)?)
+                        .map_err(gen_err)?;
                 let v = (&v
                     + (&v_first - &v)
                         .and_then(|d| d.broadcast_mul(&gate))
@@ -379,7 +390,10 @@ impl OwnedTimeMix {
         // ab = (-kk).view(H,N,1) @ (kk * a).view(H,1,N)  — ICL correction.
         let kk_h = kk.reshape((h, n)).map_err(gen_err)?;
         let a_h = a.reshape((h, n)).map_err(gen_err)?;
-        let neg_kk = kk_h.neg().and_then(|t| t.reshape((h, n, 1))).map_err(gen_err)?;
+        let neg_kk = kk_h
+            .neg()
+            .and_then(|t| t.reshape((h, n, 1)))
+            .map_err(gen_err)?;
         let kk_a = (&kk_h * &a_h)
             .and_then(|t| t.reshape((h, 1, n)))
             .map_err(gen_err)?;
@@ -434,8 +448,13 @@ impl OwnedTimeMix {
 
         // 11. Output projection (owned Linear + LoRA delta) on (out * g).
         let gated = (out * g).map_err(gen_err)?;
-        let out =
-            self.linear_lora(&self.output, &self.output_target, &gated, lora_stack, lora_overrides)?;
+        let out = self.linear_lora(
+            &self.output,
+            &self.output_target,
+            &gated,
+            lora_stack,
+            lora_overrides,
+        )?;
 
         Ok((out, v_first))
     }
@@ -516,8 +535,12 @@ impl OwnedChannelMix {
         // Down-projection (owned Linear + LoRA delta).
         let key_out_2d = key_out.unsqueeze(0).map_err(gen_err)?;
         let value_out = self.value.forward(&key_out_2d).map_err(gen_err)?;
-        let value_out =
-            lora_stack.apply_to_linear_output(&self.value_target, &value_out, &key_out_2d, lora_overrides)?;
+        let value_out = lora_stack.apply_to_linear_output(
+            &self.value_target,
+            &value_out,
+            &key_out_2d,
+            lora_overrides,
+        )?;
         value_out.squeeze(0).map_err(gen_err)
     }
 }
@@ -665,7 +688,8 @@ impl InstrumentedRwkvV7 {
             v_first = Some(new_v_first);
             // Residual-stream steering seam: the per-token layer-block output.
             let li = LayerIndex::new(block_idx as u32);
-            xs = hooks.apply_record_and_capture_tensor(li, HookPoint::ResidStream, &xs, snapshot)?;
+            xs =
+                hooks.apply_record_and_capture_tensor(li, HookPoint::ResidStream, &xs, snapshot)?;
         }
 
         let logits = xs
@@ -964,7 +988,9 @@ fn load_err(error: candle_core::Error) -> ModelRuntimeError {
 }
 
 fn gen_err(error: candle_core::Error) -> ModelRuntimeError {
-    ModelRuntimeError::GenerateError(format!("Candle instrumented RWKV v7 forward failed: {error}"))
+    ModelRuntimeError::GenerateError(format!(
+        "Candle instrumented RWKV v7 forward failed: {error}"
+    ))
 }
 
 pub fn artifact_config_declares_rwkv_v7(path: &Path) -> Result<bool, ModelRuntimeError> {
@@ -1284,7 +1310,14 @@ mod tests {
                 .forward(&token(tid, &device), &mut candle_state, &[tid])
                 .unwrap();
             let owned_logits = owned
-                .forward(&token(tid, &device), &mut owned_state, &hooks, &[], &lora, &[])
+                .forward(
+                    &token(tid, &device),
+                    &mut owned_state,
+                    &hooks,
+                    &[],
+                    &lora,
+                    &[],
+                )
                 .unwrap();
             let c = logits_vec(&candle_logits);
             let o = logits_vec(&owned_logits);
@@ -1325,7 +1358,14 @@ mod tests {
             for &tid in &seq {
                 last = Some(
                     owned
-                        .forward(&token(tid, &device), &mut state, &hooks, &[], &lora, overrides)
+                        .forward(
+                            &token(tid, &device),
+                            &mut state,
+                            &hooks,
+                            &[],
+                            &lora,
+                            overrides,
+                        )
                         .unwrap(),
                 );
             }
@@ -1370,8 +1410,7 @@ mod tests {
             base_model_compat: BaseModelTag::new("candle-rwkv-v7"),
             license_tag: LicenseTag::new("test-license"),
         };
-        lora
-            .mount(descriptor, LoraStrength::try_new(1.0).unwrap())
+        lora.mount(descriptor, LoraStrength::try_new(1.0).unwrap())
             .await
             .expect("RWKV v7 LoRA mounts");
 

@@ -819,7 +819,10 @@ impl CliSubprocessSpawner for LiveCliSpawner {
         let mut child = cmd
             .spawn()
             .map_err(|err| OfficialCliBridgeError::SpawnFailed {
-                reason: format!("failed to spawn {}: {err}", config.executable_path.display()),
+                reason: format!(
+                    "failed to spawn {}: {err}",
+                    config.executable_path.display()
+                ),
                 exit_code: None,
             })?;
         let pid = child.id();
@@ -1019,7 +1022,10 @@ impl CliSubprocessSpawner for LiveCliSpawner {
         let mut child = cmd
             .spawn()
             .map_err(|err| OfficialCliBridgeError::SpawnFailed {
-                reason: format!("failed to spawn {}: {err}", config.executable_path.display()),
+                reason: format!(
+                    "failed to spawn {}: {err}",
+                    config.executable_path.display()
+                ),
                 exit_code: None,
             })?;
         let pid = child.id();
@@ -1518,7 +1524,13 @@ mod tests {
             );
         }
         for runtime_var in [
-            "PATH", "USERPROFILE", "APPDATA", "LOCALAPPDATA", "SystemRoot", "TEMP", "HOME",
+            "PATH",
+            "USERPROFILE",
+            "APPDATA",
+            "LOCALAPPDATA",
+            "SystemRoot",
+            "TEMP",
+            "HOME",
             "ComSpec",
         ] {
             assert!(

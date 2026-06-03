@@ -23,13 +23,13 @@ use super::{
 use super::{
     generate::{candle_generate_stream, CandleGenerationCodec, TokenizerGenerationCodec},
     mamba2::{artifact_config_declares_mamba2, CandleMamba2Model},
-    score_embed::{candle_embed_tokens, candle_score_sequence},
     rwkv_v5::{
         artifact_config_declares_rwkv_v5, artifact_config_declares_unversioned_rwkv,
         CandleRwkvV5Model,
     },
     rwkv_v6::{artifact_config_declares_rwkv_v6, CandleRwkvV6Model},
     rwkv_v7::{artifact_config_declares_rwkv_v7, CandleRwkvV7Model},
+    score_embed::{candle_embed_tokens, candle_score_sequence},
     ssm_state::{LockedSsmStateSource, SsmStateSource},
     transformer::{CandleLlamaModel, TransformerModel},
 };
@@ -453,7 +453,9 @@ impl ModelRuntime for CandleRuntime {
                 )));
             };
             let encoding = tokenizer.encode(text, true).map_err(|error| {
-                ModelRuntimeError::EmbedError(format!("Candle embed tokenizer encode failed: {error}"))
+                ModelRuntimeError::EmbedError(format!(
+                    "Candle embed tokenizer encode failed: {error}"
+                ))
             })?;
             let token_ids = encoding.get_ids().to_vec();
 

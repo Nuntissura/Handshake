@@ -142,7 +142,9 @@ impl OwnedMamba2Mixer {
         let xbc_conv = self.apply_conv1d(&xbc, &mut state.conv_states[self.layer_idx])?;
         let xbc_conv = candle_nn::ops::silu(&xbc_conv).map_err(gen_err)?;
 
-        let x_conv = xbc_conv.narrow(D::Minus1, 0, self.d_inner).map_err(gen_err)?;
+        let x_conv = xbc_conv
+            .narrow(D::Minus1, 0, self.d_inner)
+            .map_err(gen_err)?;
         let b = xbc_conv
             .narrow(D::Minus1, self.d_inner, self.ngroups * self.d_state)
             .map_err(gen_err)?;
@@ -233,16 +235,12 @@ impl OwnedMamba2Mixer {
         let heads_per_group = self.nheads / self.ngroups;
         let b = b
             .unsqueeze(2)
-            .and_then(|t| {
-                t.broadcast_as((b_sz, self.ngroups, heads_per_group, self.d_state))
-            })
+            .and_then(|t| t.broadcast_as((b_sz, self.ngroups, heads_per_group, self.d_state)))
             .and_then(|t| t.reshape((b_sz, self.nheads, self.d_state)))
             .map_err(gen_err)?;
         let c = c
             .unsqueeze(2)
-            .and_then(|t| {
-                t.broadcast_as((b_sz, self.ngroups, heads_per_group, self.d_state))
-            })
+            .and_then(|t| t.broadcast_as((b_sz, self.ngroups, heads_per_group, self.d_state)))
             .and_then(|t| t.reshape((b_sz, self.nheads, self.d_state)))
             .map_err(gen_err)?;
 
@@ -251,9 +249,7 @@ impl OwnedMamba2Mixer {
             .exp()
             .and_then(|t| t.unsqueeze(D::Minus1))
             .and_then(|t| t.unsqueeze(D::Minus1))
-            .and_then(|t| {
-                t.broadcast_as((b_sz, self.nheads, self.headdim, self.d_state))
-            })
+            .and_then(|t| t.broadcast_as((b_sz, self.nheads, self.headdim, self.d_state)))
             .map_err(gen_err)?;
 
         let x_unsq = x.unsqueeze(D::Minus1).map_err(gen_err)?;
@@ -263,15 +259,12 @@ impl OwnedMamba2Mixer {
         let dt_expanded = dt
             .unsqueeze(D::Minus1)
             .and_then(|t| t.unsqueeze(D::Minus1))
-            .and_then(|t| {
-                t.broadcast_as((b_sz, self.nheads, self.headdim, self.d_state))
-            })
+            .and_then(|t| t.broadcast_as((b_sz, self.nheads, self.headdim, self.d_state)))
             .map_err(gen_err)?;
 
         // SSM recurrence: h = exp(A*dt) * h + dt * (x ⊗ B)
-        *h = ((&*h * &decay).map_err(gen_err)?
-            + (&dt_expanded * &x_b).map_err(gen_err)?)
-        .map_err(gen_err)?;
+        *h = ((&*h * &decay).map_err(gen_err)? + (&dt_expanded * &x_b).map_err(gen_err)?)
+            .map_err(gen_err)?;
 
         let c_unsq = c.unsqueeze(2).map_err(gen_err)?;
         let c_broadcast = c_unsq.broadcast_as(h.shape()).map_err(gen_err)?;
@@ -356,7 +349,8 @@ impl InstrumentedMamba2 {
         for (idx, layer) in self.layers.iter().enumerate() {
             xs = layer.forward_step(&xs, state, lora_stack, lora_overrides)?;
             let li = LayerIndex::new(idx as u32);
-            xs = hooks.apply_record_and_capture_tensor(li, HookPoint::ResidStream, &xs, snapshot)?;
+            xs =
+                hooks.apply_record_and_capture_tensor(li, HookPoint::ResidStream, &xs, snapshot)?;
         }
         state.pos += 1;
         xs.apply(&self.norm_f)
@@ -645,7 +639,9 @@ fn load_err(error: candle_core::Error) -> ModelRuntimeError {
 }
 
 fn gen_err(error: candle_core::Error) -> ModelRuntimeError {
-    ModelRuntimeError::GenerateError(format!("Candle instrumented Mamba2 forward failed: {error}"))
+    ModelRuntimeError::GenerateError(format!(
+        "Candle instrumented Mamba2 forward failed: {error}"
+    ))
 }
 
 pub fn artifact_config_declares_mamba2(artifact_path: &Path) -> Result<bool, ModelRuntimeError> {
@@ -805,7 +801,10 @@ mod tests {
                 Tensor::randn(0f32, 0.2f32, shape.to_vec(), device).unwrap(),
             );
         };
-        put("embeddings.weight".to_string(), &[d.padded_vocab, d.d_model]);
+        put(
+            "embeddings.weight".to_string(),
+            &[d.padded_vocab, d.d_model],
+        );
         put("norm_f.weight".to_string(), &[d.d_model]);
         for i in 0..cfg.n_layer {
             put(format!("layers.{i}.norm.weight"), &[d.d_model]);
@@ -851,9 +850,11 @@ mod tests {
         let cfg = tiny_config();
         let weights = random_weights(&cfg, &device);
 
-        let candle_model =
-            CandleMamba2::new(&cfg, VarBuilder::from_tensors(weights.clone(), DType::F32, &device))
-                .expect("candle mamba2 builds");
+        let candle_model = CandleMamba2::new(
+            &cfg,
+            VarBuilder::from_tensors(weights.clone(), DType::F32, &device),
+        )
+        .expect("candle mamba2 builds");
         let mut candle_state = State::new(1, &cfg, DType::F32, &device).unwrap();
 
         let owned =
@@ -944,8 +945,7 @@ mod tests {
             base_model_compat: BaseModelTag::new("candle-mamba2"),
             license_tag: LicenseTag::new("test-license"),
         };
-        lora
-            .mount(descriptor, LoraStrength::try_new(1.0).unwrap())
+        lora.mount(descriptor, LoraStrength::try_new(1.0).unwrap())
             .await
             .expect("SSM LoRA mounts");
 
@@ -953,7 +953,14 @@ mod tests {
             let mut state = State::new(1, &cfg, DType::F32, &device).unwrap();
             logits_vec(
                 &owned
-                    .forward_step(&token(4, &device), &mut state, &hooks, &[], &lora, &[lora_id])
+                    .forward_step(
+                        &token(4, &device),
+                        &mut state,
+                        &hooks,
+                        &[],
+                        &lora,
+                        &[lora_id],
+                    )
                     .unwrap(),
             )
         };

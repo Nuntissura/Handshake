@@ -480,7 +480,7 @@ pub fn build_wsl_static_musl_package_script(
         ),
         format!("mkdir -p {}", sh_quote(wsl_output_dir)),
         format!(
-            "cargo build --release --target {target} --bin {name} --manifest-path {manifest} --target-dir {target_dir}",
+            "cargo build --release --target {target} --bin {name} --manifest-path {manifest} --target-dir {target_dir} --no-default-features --features runtime-full",
             target = WARM_AGENT_PACKAGE_BUILD_TARGET,
             name = WARM_AGENT_PACKAGE_BINARY_NAME,
             manifest = sh_quote(wsl_manifest_path),
@@ -766,6 +766,7 @@ mod tests {
         assert!(script.contains("x86_64-unknown-linux-musl"));
         assert!(script.contains("x86_64-linux-musl-gcc"));
         assert!(script.contains("--bin hsk-warm-agent"));
+        assert!(script.contains("--no-default-features --features runtime-full"));
         assert!(script.contains("cp '/tooling/llama-server' '/out/llama-server'"));
         assert!(script.contains("\"type\":\"ping\""));
         assert!(script.contains("\"request_id\":\"package-probe\""));

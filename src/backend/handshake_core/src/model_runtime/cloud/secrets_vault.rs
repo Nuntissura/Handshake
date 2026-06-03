@@ -154,6 +154,7 @@ impl<V: SecretsVault + 'static> ApiKeyProvider for VaultApiKeyProvider<V> {
 /// so collisions across Handshake installs on the same host are
 /// avoided by varying the namespace (e.g. with an operator-chosen
 /// suffix or a per-install UUID).
+#[cfg(feature = "os-keychain")]
 pub const HANDSHAKE_KEYCHAIN_SERVICE: &str = "handshake-cloud-keys";
 
 /// Production [`SecretsVault`] impl backed by the host OS
@@ -172,10 +173,12 @@ pub const HANDSHAKE_KEYCHAIN_SERVICE: &str = "handshake-cloud-keys";
 /// mapped to [`SecretsVaultError::KeychainBackend`], except for
 /// `keyring::Error::NoEntry` which maps to
 /// [`SecretsVaultError::NoSecretForLane`].
+#[cfg(feature = "os-keychain")]
 pub struct OsKeychainSecretsVault {
     service_namespace: String,
 }
 
+#[cfg(feature = "os-keychain")]
 impl OsKeychainSecretsVault {
     /// Construct a vault that maps lane ids onto entries in the
     /// host OS credential store under the supplied service
@@ -205,6 +208,7 @@ impl OsKeychainSecretsVault {
     }
 }
 
+#[cfg(feature = "os-keychain")]
 impl SecretsVault for OsKeychainSecretsVault {
     fn put(&self, lane: &str, secret: String) -> Result<(), SecretsVaultError> {
         if lane.trim().is_empty() {
@@ -349,177 +353,181 @@ mod tests {
         assert!(dbg.contains("openai"));
     }
 
-    // -----------------------------------------------------------
-    // OsKeychainSecretsVault unit tests
-    //
-    // These tests exercise the production code path (which goes
-    // through `keyring::Entry::new` + `set_password` / `get_password`
-    // / `delete_credential`) but reroute the underlying credential
-    // builder to the keyring crate's mock backend so the host OS
-    // credential store is never touched during `cargo test`.
-    //
-    // The mock backend uses `CredentialPersistence::EntryOnly`:
-    // each `Entry::new(svc, user)` materialises a fresh
-    // `MockCredential` with no shared state across calls. That is
-    // perfect for validating the wiring (lane / secret guards,
-    // error mapping for `NoEntry`, idempotent delete, listing) but
-    // cannot be used to demonstrate a put-then-get round-trip
-    // through fresh entries. The real round-trip is covered by
-    // the platform-gated integration test in
-    // `tests/cloud_os_keychain_vault_tests.rs`, which talks to the
-    // actual OS credential store.
-    // -----------------------------------------------------------
+    #[cfg(feature = "os-keychain")]
+    mod os_keychain_tests {
+        use super::*;
+        use std::sync::Once;
 
-    use std::sync::Once;
+        // -----------------------------------------------------------
+        // OsKeychainSecretsVault unit tests
+        //
+        // These tests exercise the production code path (which goes
+        // through `keyring::Entry::new` + `set_password` / `get_password`
+        // / `delete_credential`) but reroute the underlying credential
+        // builder to the keyring crate's mock backend so the host OS
+        // credential store is never touched during `cargo test`.
+        //
+        // The mock backend uses `CredentialPersistence::EntryOnly`:
+        // each `Entry::new(svc, user)` materialises a fresh
+        // `MockCredential` with no shared state across calls. That is
+        // perfect for validating the wiring (lane / secret guards,
+        // error mapping for `NoEntry`, idempotent delete, listing) but
+        // cannot be used to demonstrate a put-then-get round-trip
+        // through fresh entries. The real round-trip is covered by
+        // the platform-gated integration test in
+        // `tests/cloud_os_keychain_vault_tests.rs`, which talks to the
+        // actual OS credential store.
+        // -----------------------------------------------------------
 
-    /// Install the keyring mock backend exactly once per test
-    /// process. `set_default_credential_builder` itself tolerates
-    /// repeated calls, but routing through `Once` keeps the
-    /// install side-effect bounded and explicit.
-    fn install_mock_keyring_backend() {
-        static INSTALL: Once = Once::new();
-        INSTALL.call_once(|| {
+        /// Install the keyring mock backend exactly once per test
+        /// process. `set_default_credential_builder` itself tolerates
+        /// repeated calls, but routing through `Once` keeps the
+        /// install side-effect bounded and explicit.
+        fn install_mock_keyring_backend() {
+            static INSTALL: Once = Once::new();
+            INSTALL.call_once(|| {
             keyring::set_default_credential_builder(keyring::mock::default_credential_builder());
         });
-    }
-
-    #[test]
-    fn os_keychain_vault_construct_records_service_namespace() {
-        install_mock_keyring_backend();
-        let vault = OsKeychainSecretsVault::new("handshake-os-keychain-ctor-test");
-        assert_eq!(vault.service_namespace(), "handshake-os-keychain-ctor-test");
-    }
-
-    #[test]
-    fn os_keychain_vault_default_service_constant_is_stable() {
-        // Pin the namespace constant so the integration test and
-        // any operator-facing docs stay in sync.
-        assert_eq!(HANDSHAKE_KEYCHAIN_SERVICE, "handshake-cloud-keys");
-    }
-
-    #[test]
-    fn os_keychain_vault_rejects_empty_lane_on_put() {
-        install_mock_keyring_backend();
-        let vault = OsKeychainSecretsVault::new("handshake-os-keychain-empty-lane-put");
-        let err = vault
-            .put("", "sk-value".to_string())
-            .expect_err("empty lane");
-        assert!(matches!(err, SecretsVaultError::EmptyLaneId));
-        // Whitespace-only lane is also rejected.
-        let err = vault
-            .put("   ", "sk-value".to_string())
-            .expect_err("whitespace lane");
-        assert!(matches!(err, SecretsVaultError::EmptyLaneId));
-    }
-
-    #[test]
-    fn os_keychain_vault_rejects_empty_lane_on_get_and_delete() {
-        install_mock_keyring_backend();
-        let vault = OsKeychainSecretsVault::new("handshake-os-keychain-empty-lane-getdel");
-        assert!(matches!(
-            vault.get("").unwrap_err(),
-            SecretsVaultError::EmptyLaneId
-        ));
-        assert!(matches!(
-            vault.delete(" ").unwrap_err(),
-            SecretsVaultError::EmptyLaneId
-        ));
-    }
-
-    #[test]
-    fn os_keychain_vault_rejects_empty_secret_value() {
-        install_mock_keyring_backend();
-        let vault = OsKeychainSecretsVault::new("handshake-os-keychain-empty-secret");
-        let err = vault
-            .put("openai-empty-secret", "".to_string())
-            .expect_err("empty secret");
-        assert!(matches!(err, SecretsVaultError::EmptySecretValue));
-    }
-
-    #[test]
-    fn os_keychain_vault_get_unknown_lane_returns_no_secret_for_lane() {
-        install_mock_keyring_backend();
-        let vault = OsKeychainSecretsVault::new("handshake-os-keychain-get-unknown");
-        // Mock backend treats every fresh entry as having no
-        // password; the vault must map `keyring::Error::NoEntry`
-        // to `SecretsVaultError::NoSecretForLane(lane)` and
-        // preserve the lane id in the error payload.
-        let err = vault
-            .get("openai-unknown-lane")
-            .expect_err("unknown lane should error");
-        match err {
-            SecretsVaultError::NoSecretForLane(lane) => {
-                assert_eq!(lane, "openai-unknown-lane");
-            }
-            other => panic!("expected NoSecretForLane, got {other:?}"),
         }
-    }
 
-    #[test]
-    fn os_keychain_vault_delete_on_missing_lane_is_idempotent() {
-        install_mock_keyring_backend();
-        let vault = OsKeychainSecretsVault::new("handshake-os-keychain-delete-missing");
-        // Operator-initiated key rotation issues delete first;
-        // a non-existent lane must succeed so the rotation
-        // workflow is not blocked on prior state.
-        vault
-            .delete("never-stored-lane")
-            .expect("delete on missing lane must be idempotent");
-        // Calling delete twice in a row also stays Ok.
-        vault
-            .delete("never-stored-lane")
-            .expect("repeat delete on missing lane must be idempotent");
-    }
+        #[test]
+        fn os_keychain_vault_construct_records_service_namespace() {
+            install_mock_keyring_backend();
+            let vault = OsKeychainSecretsVault::new("handshake-os-keychain-ctor-test");
+            assert_eq!(vault.service_namespace(), "handshake-os-keychain-ctor-test");
+        }
 
-    #[test]
-    fn os_keychain_vault_put_against_mock_backend_returns_ok() {
-        install_mock_keyring_backend();
-        let vault = OsKeychainSecretsVault::new("handshake-os-keychain-put-ok");
-        // The mock backend's CredentialPersistence is EntryOnly,
-        // so we cannot read the value back through a fresh entry
-        // in this unit test. We can still pin that the production
-        // put() path drives `set_password` without surfacing an
-        // error, which exercises the full validation + entry-
-        // construction + set_password code path against the real
-        // `keyring::Entry` API. The full put/get/delete round
-        // trip is covered by the platform-gated integration test.
-        vault
-            .put("openai-put-ok", "sk-mock-stored".to_string())
-            .expect("put must succeed against mock backend");
-    }
+        #[test]
+        fn os_keychain_vault_default_service_constant_is_stable() {
+            // Pin the namespace constant so the integration test and
+            // any operator-facing docs stay in sync.
+            assert_eq!(HANDSHAKE_KEYCHAIN_SERVICE, "handshake-cloud-keys");
+        }
 
-    #[test]
-    fn os_keychain_vault_list_lanes_returns_empty_per_doc_contract() {
-        install_mock_keyring_backend();
-        let vault = OsKeychainSecretsVault::new("handshake-os-keychain-list");
-        // Documented contract: list_lanes always returns an empty
-        // Vec on the OS keychain backend; callers must keep a
-        // parallel lane registry if they need discovery.
-        let lanes = vault.list_lanes().expect("list_lanes must succeed");
-        assert!(lanes.is_empty(), "expected empty Vec, got {lanes:?}");
-    }
+        #[test]
+        fn os_keychain_vault_rejects_empty_lane_on_put() {
+            install_mock_keyring_backend();
+            let vault = OsKeychainSecretsVault::new("handshake-os-keychain-empty-lane-put");
+            let err = vault
+                .put("", "sk-value".to_string())
+                .expect_err("empty lane");
+            assert!(matches!(err, SecretsVaultError::EmptyLaneId));
+            // Whitespace-only lane is also rejected.
+            let err = vault
+                .put("   ", "sk-value".to_string())
+                .expect_err("whitespace lane");
+            assert!(matches!(err, SecretsVaultError::EmptyLaneId));
+        }
 
-    #[test]
-    fn os_keychain_vault_is_send_and_sync_for_arc_dyn_use() {
-        // Sanity: the production vault must be `Send + Sync`
-        // because the cloud BYOK runtimes hand it around as
-        // `Arc<dyn SecretsVault>` across async task boundaries.
-        fn assert_send_sync<T: Send + Sync>() {}
-        assert_send_sync::<OsKeychainSecretsVault>();
-    }
+        #[test]
+        fn os_keychain_vault_rejects_empty_lane_on_get_and_delete() {
+            install_mock_keyring_backend();
+            let vault = OsKeychainSecretsVault::new("handshake-os-keychain-empty-lane-getdel");
+            assert!(matches!(
+                vault.get("").unwrap_err(),
+                SecretsVaultError::EmptyLaneId
+            ));
+            assert!(matches!(
+                vault.delete(" ").unwrap_err(),
+                SecretsVaultError::EmptyLaneId
+            ));
+        }
 
-    #[test]
-    fn os_keychain_vault_satisfies_secrets_vault_object_safety() {
-        // Pin object-safety: a downstream caller must be able to
-        // erase the concrete type behind `Arc<dyn SecretsVault>`
-        // exactly the way `VaultApiKeyProvider` does, so the
-        // BYOK runtimes can swap impls at runtime.
-        install_mock_keyring_backend();
-        let vault: Arc<dyn SecretsVault> =
-            Arc::new(OsKeychainSecretsVault::new("handshake-os-keychain-objsafe"));
-        let err = vault
-            .get("lane-that-does-not-exist")
-            .expect_err("dyn dispatch on get must surface NoSecretForLane");
-        assert!(matches!(err, SecretsVaultError::NoSecretForLane(_)));
+        #[test]
+        fn os_keychain_vault_rejects_empty_secret_value() {
+            install_mock_keyring_backend();
+            let vault = OsKeychainSecretsVault::new("handshake-os-keychain-empty-secret");
+            let err = vault
+                .put("openai-empty-secret", "".to_string())
+                .expect_err("empty secret");
+            assert!(matches!(err, SecretsVaultError::EmptySecretValue));
+        }
+
+        #[test]
+        fn os_keychain_vault_get_unknown_lane_returns_no_secret_for_lane() {
+            install_mock_keyring_backend();
+            let vault = OsKeychainSecretsVault::new("handshake-os-keychain-get-unknown");
+            // Mock backend treats every fresh entry as having no
+            // password; the vault must map `keyring::Error::NoEntry`
+            // to `SecretsVaultError::NoSecretForLane(lane)` and
+            // preserve the lane id in the error payload.
+            let err = vault
+                .get("openai-unknown-lane")
+                .expect_err("unknown lane should error");
+            match err {
+                SecretsVaultError::NoSecretForLane(lane) => {
+                    assert_eq!(lane, "openai-unknown-lane");
+                }
+                other => panic!("expected NoSecretForLane, got {other:?}"),
+            }
+        }
+
+        #[test]
+        fn os_keychain_vault_delete_on_missing_lane_is_idempotent() {
+            install_mock_keyring_backend();
+            let vault = OsKeychainSecretsVault::new("handshake-os-keychain-delete-missing");
+            // Operator-initiated key rotation issues delete first;
+            // a non-existent lane must succeed so the rotation
+            // workflow is not blocked on prior state.
+            vault
+                .delete("never-stored-lane")
+                .expect("delete on missing lane must be idempotent");
+            // Calling delete twice in a row also stays Ok.
+            vault
+                .delete("never-stored-lane")
+                .expect("repeat delete on missing lane must be idempotent");
+        }
+
+        #[test]
+        fn os_keychain_vault_put_against_mock_backend_returns_ok() {
+            install_mock_keyring_backend();
+            let vault = OsKeychainSecretsVault::new("handshake-os-keychain-put-ok");
+            // The mock backend's CredentialPersistence is EntryOnly,
+            // so we cannot read the value back through a fresh entry
+            // in this unit test. We can still pin that the production
+            // put() path drives `set_password` without surfacing an
+            // error, which exercises the full validation + entry-
+            // construction + set_password code path against the real
+            // `keyring::Entry` API. The full put/get/delete round
+            // trip is covered by the platform-gated integration test.
+            vault
+                .put("openai-put-ok", "sk-mock-stored".to_string())
+                .expect("put must succeed against mock backend");
+        }
+
+        #[test]
+        fn os_keychain_vault_list_lanes_returns_empty_per_doc_contract() {
+            install_mock_keyring_backend();
+            let vault = OsKeychainSecretsVault::new("handshake-os-keychain-list");
+            // Documented contract: list_lanes always returns an empty
+            // Vec on the OS keychain backend; callers must keep a
+            // parallel lane registry if they need discovery.
+            let lanes = vault.list_lanes().expect("list_lanes must succeed");
+            assert!(lanes.is_empty(), "expected empty Vec, got {lanes:?}");
+        }
+
+        #[test]
+        fn os_keychain_vault_is_send_and_sync_for_arc_dyn_use() {
+            // Sanity: the production vault must be `Send + Sync`
+            // because the cloud BYOK runtimes hand it around as
+            // `Arc<dyn SecretsVault>` across async task boundaries.
+            fn assert_send_sync<T: Send + Sync>() {}
+            assert_send_sync::<OsKeychainSecretsVault>();
+        }
+
+        #[test]
+        fn os_keychain_vault_satisfies_secrets_vault_object_safety() {
+            // Pin object-safety: a downstream caller must be able to
+            // erase the concrete type behind `Arc<dyn SecretsVault>`
+            // exactly the way `VaultApiKeyProvider` does, so the
+            // BYOK runtimes can swap impls at runtime.
+            install_mock_keyring_backend();
+            let vault: Arc<dyn SecretsVault> =
+                Arc::new(OsKeychainSecretsVault::new("handshake-os-keychain-objsafe"));
+            let err = vault
+                .get("lane-that-does-not-exist")
+                .expect_err("dyn dispatch on get must surface NoSecretForLane");
+            assert!(matches!(err, SecretsVaultError::NoSecretForLane(_)));
+        }
     }
 }
