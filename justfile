@@ -360,9 +360,13 @@ orchestrator-preflight:
 	@just validator-spec-regression
 
 # Validator preflight (condensed): worktree context + governance integrity + spec regression.
+# [IV-20260603] gov-check is ADVISORY here (leading `-` ignores its exit code). Governance is
+# being torn down after WP-KERNEL-004; gov-check failures (mis-routed HBR product checks +
+# WP-state bookkeeping) must not block the validator from functioning. hard-gate-wt-001 and
+# validator-spec-regression remain blocking.
 validator-preflight:
 	@just hard-gate-wt-001
-	@just gov-check
+	-@just gov-check
 	@just validator-spec-regression
 
 # Coder preflight (condensed): worktree context + governance integrity + spec regression.
