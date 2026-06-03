@@ -93,7 +93,21 @@ export const AUTHORITY_KIND_VALUES = [
   "INTEGRATION_VALIDATOR",
   "SECONDARY_VALIDATOR",
 ];
+export const RECEIPT_AUTHORITY_KIND_VALUES = [
+  ...AUTHORITY_KIND_VALUES,
+  "PRIMARY_OPERATOR",
+  "VALIDATOR_AUTHORED_PASS_GATE",
+  "VALIDATOR_AUTHORED_WP_FINAL_GATE",
+  "VALIDATOR_AUTHORED_WP_PASS_GATE",
+  "ADVERSARIAL_REVIEW",
+];
 export const VALIDATOR_ROLE_KIND_VALUES = ["WP_VALIDATOR", "INTEGRATION_VALIDATOR", "SECONDARY_VALIDATOR"];
+export const RECEIPT_VALIDATOR_ROLE_KIND_VALUES = [
+  ...VALIDATOR_ROLE_KIND_VALUES,
+  "MT_PASS_GATE",
+  "WP_FINAL_GATE",
+  "MT_ADVERSARIAL_GATE",
+];
 export const RELAY_ESCALATION_POLICY_STATE_VALUES = ["DEFERRED", "AUTO_RETRY_ALLOWED", "AUTO_RETRY_BLOCKED"];
 export const RELAY_ESCALATION_NEXT_STRATEGY_VALUES = ["QUEUED_DEFER", "ALTERNATE_METHOD", "ALTERNATE_MODEL", "HUMAN_STOP"];
 export const RELAY_ESCALATION_BUDGET_SCOPE_VALUES = ["NONE", "RELAY_ESCALATION_CYCLE", "SAME_FAILURE_REWAKE", "WORKER_INTERRUPT_CYCLE"];
@@ -108,6 +122,16 @@ export const RECEIPT_ROLE_VALUES = [
   "VALIDATOR",
 ];
 export const ROUTABLE_ROLE_VALUES = ["OPERATOR", "ORCHESTRATOR", "CODER", "MEMORY_MANAGER", "WP_VALIDATOR", "INTEGRATION_VALIDATOR", "VALIDATOR"];
+export const RECEIPT_TARGET_ROLE_VALUES = [...ROUTABLE_ROLE_VALUES, "KERNEL_BUILDER"];
+export const LEGACY_LIFECYCLE_RECEIPT_KIND_VALUES = [
+  "BLOCKED",
+  "READY_FOR_VALIDATION",
+  "COMPLETED",
+  "FAIL_NEEDS_REWORK",
+  "WP_BLOCKED",
+  "OPERATOR_WAIVER",
+  "RETRACTION",
+];
 export const RECEIPT_KIND_VALUES = [
   "ASSIGNMENT",
   "STATUS",
@@ -133,6 +157,7 @@ export const RECEIPT_KIND_VALUES = [
   "MEMORY_PROPOSAL",
   "MEMORY_FLAG",
   "MEMORY_RGF_CANDIDATE",
+  ...LEGACY_LIFECYCLE_RECEIPT_KIND_VALUES,
 ];
 export const REVIEW_OPEN_RECEIPT_KIND_VALUES = [
   "VALIDATOR_KICKOFF",
@@ -195,7 +220,13 @@ export function isNullableSha(value) {
   return value === null || (typeof value === "string" && SHA_RE.test(value));
 }
 
-function validateMicrotaskContract(value, prefix, errors) {
+function validateMicrotaskContract(value, prefix, errors, { allowLegacyString = false } = {}) {
+  if (allowLegacyString && typeof value === "string") {
+    if (!isNonEmptyString(value)) {
+      errors.push(`${prefix} legacy string pointer must be a non-empty string`);
+    }
+    return;
+  }
   if (!(value === undefined || value === null || isPlainObject(value))) {
     errors.push(`${prefix} must be null or an object`);
     return;
@@ -775,6 +806,7 @@ export function validateRuntimeStatus(data) {
     [LEGACY_TASK_PACKETS_DIRNAME, WORK_PACKETS_LOGICAL_DIRNAME].some((dirName) =>
       new RegExp(`^${prefix}/${dirName}/WP-.*\\.md$`).test(normalizedTaskPacket)
       || new RegExp(`^${prefix}/${dirName}/WP-[^/]+/packet\\.md$`).test(normalizedTaskPacket)
+      || new RegExp(`^${prefix}/${dirName}/WP-[^/]+/packet\\.json$`).test(normalizedTaskPacket)
     );
   const taskPacketMatchesAuthoritativePath = authoritativeTaskPacketAbs
     ? resolvedTaskPacketAbs === authoritativeTaskPacketAbs
@@ -784,7 +816,7 @@ export function validateRuntimeStatus(data) {
     || matchesPacketPath(taskPacketPrefix)
     || matchesPacketPath(taskPacketFallback)
   )) {
-    errors.push(`task_packet must point to ${GOV_ROOT_REPO_REL}/task_packets/WP-*.md, ${GOV_ROOT_REPO_REL}/task_packets/WP-*/packet.md, or the logical ${GOV_ROOT_REPO_REL}/work_packets equivalents`);
+    errors.push(`task_packet must point to ${GOV_ROOT_REPO_REL}/task_packets/WP-*.md, ${GOV_ROOT_REPO_REL}/task_packets/WP-*/packet.md, ${GOV_ROOT_REPO_REL}/task_packets/WP-*/packet.json, or the logical ${GOV_ROOT_REPO_REL}/work_packets equivalents`);
   }
   const currentPaths = communicationPathsForWp(data.wp_id);
   const declaredCommDir = normalize(data.communication_dir);
@@ -1119,8 +1151,8 @@ export function validateReceipt(entry) {
   if (!isNonEmptyString(entry.wp_id) || !/^WP-/.test(entry.wp_id)) errors.push("wp_id must start with WP-");
   if (!RECEIPT_ROLE_VALUES.includes(entry.actor_role)) errors.push(`actor_role invalid (${entry.actor_role})`);
   if (!isNonEmptyString(entry.actor_session)) errors.push("actor_session must be a non-empty string");
-  if (!AUTHORITY_KIND_VALUES.includes(entry.actor_authority_kind)) errors.push(`actor_authority_kind invalid (${entry.actor_authority_kind})`);
-  if (!(entry.validator_role_kind === null || VALIDATOR_ROLE_KIND_VALUES.includes(entry.validator_role_kind))) {
+  if (!RECEIPT_AUTHORITY_KIND_VALUES.includes(entry.actor_authority_kind)) errors.push(`actor_authority_kind invalid (${entry.actor_authority_kind})`);
+  if (!(entry.validator_role_kind === null || RECEIPT_VALIDATOR_ROLE_KIND_VALUES.includes(entry.validator_role_kind))) {
     errors.push(`validator_role_kind invalid (${entry.validator_role_kind})`);
   } else if (entry.actor_role === "WP_VALIDATOR" && entry.validator_role_kind !== "WP_VALIDATOR") {
     errors.push("validator_role_kind must be WP_VALIDATOR when actor_role is WP_VALIDATOR");
@@ -1135,14 +1167,16 @@ export function validateReceipt(entry) {
     const verbValidation = validateInterRoleVerbBody(entry.verb, entry.verb_body);
     if (!verbValidation.ok) errors.push(...verbValidation.errors);
   } else if (!(entry.verb_body === undefined || entry.verb_body === null)) {
-    errors.push("verb_body is only allowed when verb is set");
+    if (!(entry.receipt_kind === "STATUS" && isPlainObject(entry.verb_body))) {
+      errors.push("verb_body is only allowed when verb is set");
+    }
   }
   if (!isNonEmptyString(entry.summary)) errors.push("summary must be a non-empty string");
   if (!isNullableString(entry.branch)) errors.push("branch must be null or a non-empty string");
   if (!isNullableString(entry.worktree_dir)) errors.push("worktree_dir must be null or a non-empty string");
   if (!isNullableString(entry.state_before)) errors.push("state_before must be null or a non-empty string");
   if (!isNullableString(entry.state_after)) errors.push("state_after must be null or a non-empty string");
-  if (!(entry.target_role === undefined || entry.target_role === null || ROUTABLE_ROLE_VALUES.includes(entry.target_role))) {
+  if (!(entry.target_role === undefined || entry.target_role === null || RECEIPT_TARGET_ROLE_VALUES.includes(entry.target_role))) {
     errors.push(`target_role invalid (${entry.target_role})`);
   }
   if (!(entry.target_session === undefined || isNullableString(entry.target_session))) {
@@ -1163,7 +1197,7 @@ export function validateReceipt(entry) {
   if (!(entry.packet_row_ref === undefined || isNullableString(entry.packet_row_ref))) {
     errors.push("packet_row_ref must be null or a non-empty string");
   }
-  validateMicrotaskContract(entry.microtask_contract, "microtask_contract", errors);
+  validateMicrotaskContract(entry.microtask_contract, "microtask_contract", errors, { allowLegacyString: true });
   validateMechanicalResult(entry.mechanical_result, "mechanical_result", errors);
   if (entry.receipt_kind === "MT_VERDICT_MECHANICAL") {
     if (!isPlainObject(entry.mechanical_result)) {

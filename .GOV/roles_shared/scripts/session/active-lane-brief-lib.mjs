@@ -12,6 +12,7 @@ import {
   relayEscalationPolicyBudgetLabel,
 } from "../lib/wp-relay-policy-lib.mjs";
 import { evaluateWpRelayEscalation } from "../lib/wp-relay-escalation-lib.mjs";
+import { parsePacketStatus } from "../lib/wp-authority-projection-lib.mjs";
 import { checkAllNotifications, checkNotifications } from "../wp/wp-check-notifications.mjs";
 import { evaluateSessionGovernanceState } from "./session-governance-state-lib.mjs";
 import { loadSessionRegistry } from "./session-registry-lib.mjs";
@@ -126,6 +127,11 @@ export function buildActiveLaneBrief({
     throw new Error(`Task packet not found: ${packetPath}`);
   }
   const packetText = packetContext.packetText || fs.readFileSync(packetAbsPath, "utf8");
+  const effectiveRoleConfig = {
+    ...roleConfig,
+    branch: packetContext.localBranch || roleConfig.branch,
+    worktreeDir: packetContext.localWorktreeDir || roleConfig.worktreeDir,
+  };
   const governanceRepoRoot = repoRoot;
   const runtimeStatusFile = packetContext.runtimeStatusFile || parseSingleField(packetText, "WP_RUNTIME_STATUS_FILE");
   const receiptsFile = packetContext.receiptsFile || parseSingleField(packetText, "WP_RECEIPTS_FILE");
@@ -140,7 +146,7 @@ export function buildActiveLaneBrief({
   const session = (registry.sessions || []).find((entry) => entry.session_key === sessionKey(normalizedRole, wpId)) || null;
   const governanceState = evaluateSessionGovernanceState(governanceRepoRoot, {
     wp_id: wpId,
-    local_worktree_dir: roleConfig.worktreeDir,
+    local_worktree_dir: effectiveRoleConfig.worktreeDir,
   });
   const notifications = checkNotifications({ wpId, role: normalizedRole });
   const pendingNotifications = Object.values(checkAllNotifications({ wpId })).flatMap((entry) => entry.notifications || []);
@@ -167,6 +173,7 @@ export function buildActiveLaneBrief({
   const terminalNoiseSuppressed = Boolean(
     governanceState.terminalTaskBoardStatus
     || isTerminalPacketStatus(governanceState.packetStatus)
+    || isTerminalPacketStatus(parsePacketStatus(packetText))
     || runtimeProjection.terminal,
   );
   const hiddenNotificationCount = notifications.historyHidden
@@ -248,10 +255,10 @@ export function buildActiveLaneBrief({
     packet_path: packetPath,
     command_surface_path: COMMAND_SURFACE_PATH,
     role_config: {
-      branch: roleConfig.branch,
-      worktree_dir: roleConfig.worktreeDir,
-      startup_command: roleConfig.startupCommand,
-      next_command: roleConfig.nextCommand,
+      branch: effectiveRoleConfig.branch,
+      worktree_dir: effectiveRoleConfig.worktreeDir,
+      startup_command: effectiveRoleConfig.startupCommand,
+      next_command: effectiveRoleConfig.nextCommand,
     },
     runtime: {
       status: normalize(runtimeProjection.runtime_status),

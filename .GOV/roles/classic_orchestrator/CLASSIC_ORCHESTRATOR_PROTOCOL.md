@@ -32,6 +32,16 @@ The Classic Orchestrator is the workflow authority for the manual relay workflow
 
 For approved spec enrichment, Classic Orchestrator resolves current spec authority through `.GOV/spec/SPEC_CURRENT.md` (`handshake.spec_current@1` JSON) to the active indexed bundle manifest, resolver `INDEX.json`, and ordered `spec-modules/`. Enrichment uses copy-first versioned bundles, updates manifest/changelog/SPEC_CURRENT metadata as needed, and archives non-current version folders under `.GOV/spec/spec_archive/`; `Handshake_Master_Spec_v*.md` monolith files are source baselines/provenance, not active edit targets.
 
+## HBR Gate Obligations
+
+This role must honor `HANDSHAKE_BUILD_RULES.json` v1.2.0+ (see Codex CX-131, Master Spec §5.6, registry at `.GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json`).
+
+- At WP claim: read `packet.acceptance_matrix.hbr` and confirm row applicability.
+- At MT execution: ensure the relayed role produces evidence per `evidence_kind` for each Applicable HBR rule.
+- At role handoff: HandoffGate (MT-004) MUST PASS or the handoff is blocked.
+- At closeout: confirm no HBR row is `PENDING`, `STEER`, or `BLOCKED` per CX-503B1.
+- Applicable pillars for this role: SWARM, MAN. Classic Orchestrator is manual-relay only, and HBR gates apply equally to manual-relay dispatch, handoff, and ModelManual currency.
+
 ## Current Indexed Master Spec Write Surface [CX-SPEC-IDX] (HARD)
 
 Classic Orchestrator is one of the only roles allowed to patch current Master Spec content. The complete allowed spec-writer set is: `ORCHESTRATOR`, `ACTIVATION_MANAGER`, `CLASSIC_ORCHESTRATOR`, `INTEGRATION_VALIDATOR`, and classic `VALIDATOR`. In `MANUAL_RELAY`, Classic Orchestrator owns the pre-launch spec-enrichment write path that Activation Manager owns only on `ORCHESTRATOR_MANAGED`.

@@ -43,6 +43,7 @@ This file is a human-readable projection of the machine workflow contract. It ex
 - If a bundled packet has low MT count, think through 3-5 causes before launch: Activation Manager compressed to save paperwork, folded source stubs were not mapped, proof commands span unrelated boundaries, helper/schema work was not assigned to an early dependency MT, or readiness is stale and counting old files.
 
 3. Downstream launch
+   - HBR matrix gate: run `just hbr-matrix-check` before any Coder handoff. Do not wake Coder into implementation or handoff while required HBR rows remain `PENDING`, `STEER`, or `BLOCKED`.
    - `just phase-check STARTUP WP-{ID} CODER`
    - `just launch-wp-validator-session WP-{ID}`
    - `just launch-coder-session WP-{ID}`
@@ -62,6 +63,7 @@ This file is a human-readable projection of the machine workflow contract. It ex
 
 6. Whole-WP closeout prep
    - Confirm all MTs have WP Validator PASS receipts.
+   - HBR closeout smoke gate: run `just hbr-visual-smoke`, `just hbr-swarm-n8`, and `just hbr-inspector-smoke` before Integration Validator closeout; preserve their reports as HBR evidence.
    - If no whole-WP `CODER_HANDOFF` exists and no `committed_handoff_head_sha` is recorded, steer Coder to publish the final handoff first. Per-MT PASS receipts are not a committed target for Integration Validator closeout.
    - After final `CODER_HANDOFF`, run `just phase-check HANDOFF WP-{ID} WP_VALIDATOR --range <base>..<head>` to write durable committed validation evidence for the exact final range.
    - `just closeout-repair WP-{ID}` may repair deterministic prep drift, but terminal `phase-check CLOSEOUT` waits until the Integration Validator has written its final review/verdict.

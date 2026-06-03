@@ -1,12 +1,12 @@
 import fs from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 import {
   GOV_ROOT_REPO_REL,
   REPO_ROOT,
   normalizePath,
   repoPathAbs,
 } from "../lib/runtime-paths.mjs";
+import { isInvokedAsMain } from "../lib/invocation-path-lib.mjs";
 import { sha256Short, stableStringify } from "../lib/packet-contract-lib.mjs";
 
 export const RESIDUAL_ARTIFACT_WRITER_INVENTORY_PATH = `${GOV_ROOT_REPO_REL}/roles_shared/records/RESIDUAL_ARTIFACT_WRITER_INVENTORY.json`;
@@ -425,7 +425,6 @@ function main() {
   console.log(`residual-artifact-writer-inventory ${shouldSync ? "synced" : "ok"}: ${inventory.totals.entries} writer(s), ${inventory.totals.migration_candidates} migration candidate(s)`);
 }
 
-const invokedPath = process.argv[1] ? path.resolve(process.argv[1]) : "";
-if (invokedPath && path.resolve(fileURLToPath(import.meta.url)) === invokedPath) {
+if (isInvokedAsMain(import.meta.url, process.argv[1])) {
   main();
 }

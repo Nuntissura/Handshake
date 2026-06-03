@@ -39,6 +39,16 @@ In the orchestrator-managed workflow, the Orchestrator:
 - **May inspect** coder work as extra defense layer, but should route findings through WP Validator
 - The orchestrator-managed workflow is **autonomous** â€” operator is not monitoring in real-time
 
+## HBR Gate Obligations
+
+This role must honor `HANDSHAKE_BUILD_RULES.json` v1.2.0+ (see Codex CX-131, Master Spec §5.6, registry at `.GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json`).
+
+- At WP claim: read `packet.acceptance_matrix.hbr` and confirm row applicability.
+- At MT execution: ensure the assigned role produces evidence per `evidence_kind` for each Applicable HBR rule.
+- At role handoff: HandoffGate (MT-004) MUST PASS or the handoff is blocked.
+- At closeout: confirm no HBR row is `PENDING`, `STEER`, or `BLOCKED` per CX-503B1.
+- Applicable pillars for this role: SWARM, MAN. Orchestrator must especially preserve parallel workflow safety and ModelManual currency across dispatch, handoff, and closeout.
+
 ## Why Governance Correctness Matters
 
 - Repo governance is a live prototype of the future Handshake control plane for autonomous parallel work across local and cloud models.

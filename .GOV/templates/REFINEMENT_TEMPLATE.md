@@ -172,6 +172,16 @@ Requirements (HARD):
   - PILLAR: RAG | STATUS: <TOUCHED|NOT_TOUCHED|UNKNOWN> | NOTES: <fill> | STUB_WP_IDS: <comma-separated WP-... | NONE>
 - PILLAR_ALIGNMENT_VERDICT: PENDING (OK | NEEDS_SPEC_UPDATE | NEEDS_STUBS)
 
+### HBR_PILLAR_REVIEW (HANDSHAKE_BUILD_RULES applicability review)
+- Rule: before signature, review each HBR pillar for applicability, evidence expectations, and explicit not-applicable rationale.
+- hbr_pillar_review:
+  - INT: applicable: <YES|NO|UNKNOWN> | evidence_path: <path/receipt or NONE> | notes: <fill>
+  - SWARM: applicable: <YES|NO|UNKNOWN> | evidence_path: <path/receipt or NONE> | notes: <fill>
+  - VIS: applicable: <YES|NO|UNKNOWN> | evidence_path: <path/receipt or NONE> | notes: <fill>
+  - QUIET: applicable: <YES|NO|UNKNOWN> | evidence_path: <path/receipt or NONE> | notes: <fill>
+  - MAN: applicable: <YES|NO|UNKNOWN> | evidence_path: <path/receipt or NONE> | notes: <fill>
+- HBR_PILLAR_REVIEW_VERDICT: PENDING (OK | NEEDS_PACKET_HBR_ROWS | NEEDS_NOT_APPLICABLE_RATIONALE)
+
 ### PILLAR_DECOMPOSITION (deeper pillar -> subfeature/capability slice mapping)
 - Rule: for `REFINEMENT_FORMAT_VERSION >= 2026-03-08`, decompose touched or adjacent pillars into concrete capability slices so Appendix 12 can grow beyond coarse pillar rows. This is where Calendar/Loom/Locus/Stage/Studio/Atelier-Lens/Command Center/Flight Recorder/RAG mixes become explicit. Derive pillar slices and subfeatures from the current Master Spec; do not invent pillar semantics from memory. Silent omission is forbidden; every row must resolve through `IN_THIS_WP`, `NEW_STUB`, or `SPEC_UPDATE_NOW`.
 - Required row format:

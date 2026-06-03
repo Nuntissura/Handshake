@@ -4,7 +4,10 @@ import { parseMergeProgressionTruth } from "../scripts/lib/merge-progression-tru
 import { packetRequiresMergeContainmentTruth } from "../scripts/session/session-policy.mjs";
 import { registerFailCaptureHook, failWithMemory } from "../scripts/lib/fail-capture-lib.mjs";
 import { runAbsorber } from "../scripts/lib/artifact-normalizers/index.mjs";
-import { readWorkPacketContract } from "../scripts/lib/work-packet-contract-read-lib.mjs";
+import {
+  buildContractDerivedPacketProjectionText,
+  readWorkPacketContract,
+} from "../scripts/lib/work-packet-contract-read-lib.mjs";
 import { readStubContractForMarkdownPath } from "../scripts/wp/task-packet-stub-contracts.mjs";
 
 registerFailCaptureHook("packet-truth-check.mjs", { role: "SHARED" });
@@ -30,6 +33,10 @@ function packetIdFromPath(packetPath) {
     const base = normalized.split("/").pop() || "";
     const stripped = base.replace(/\.contract\.json$/i, "");
     return /^WP-/.test(stripped) ? stripped : "";
+  }
+  if (/\/packet\.(json|md)$/i.test(normalized)) {
+    const parentName = normalized.split("/").at(-2) || "";
+    return /^WP-/.test(parentName) ? parentName : "";
   }
   return inferWpIdFromPacketPath(normalized);
 }
@@ -178,7 +185,9 @@ function readPacketInventory(dir, kind) {
     let isContractOnlyStub = false;
     if (entry.isDirectory()) {
       if (kind !== "official" || !entry.name.startsWith("WP-")) continue;
-      filePath = `${dir}/${entry.name}/packet.md`.replace(/\\/g, "/");
+      const packetMdPath = `${dir}/${entry.name}/packet.md`.replace(/\\/g, "/");
+      const packetJsonPath = `${dir}/${entry.name}/packet.json`.replace(/\\/g, "/");
+      filePath = fs.existsSync(repoPathAbs(packetMdPath)) ? packetMdPath : packetJsonPath;
       if (!fs.existsSync(repoPathAbs(filePath))) continue;
       packetId = entry.name;
     } else if (entry.isFile() && entry.name.endsWith(".md") && entry.name !== "README.md") {
@@ -211,6 +220,13 @@ function readPacketInventory(dir, kind) {
     const contractState = kind === "stub" ? null : readWorkPacketContract(packetId);
     const contract = contractState?.contract && typeof contractState.contract === "object" ? contractState.contract : null;
     const stubContract = stubContractState?.contract && typeof stubContractState.contract === "object" ? stubContractState.contract : null;
+    if (!text && contract) {
+      text = buildContractDerivedPacketProjectionText({
+        contract,
+        packetText: "",
+        source: contractState?.source || "",
+      });
+    }
     entries.push({
       kind,
       filePath,

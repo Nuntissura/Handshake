@@ -75,13 +75,22 @@ function parseMicrotaskContract(mtAbsPath, mtRelPath) {
   }
   const scope = contract?.scope && typeof contract.scope === "object" ? contract.scope : {};
   const lifecycle = contract?.lifecycle && typeof contract.lifecycle === "object" ? contract.lifecycle : {};
-  const clause = String(scope.summary || contract?.clause || mtId).trim();
-  const codeSurfaces = normalizeScopeEntries(Array.isArray(scope.allowed_paths) ? scope.allowed_paths : []);
+  const clause = String(scope.summary || contract?.title || contract?.goal || contract?.clause || mtId).trim();
+  const codeSurfaces = normalizeScopeEntries(
+    Array.isArray(scope.allowed_paths)
+      ? scope.allowed_paths
+      : (Array.isArray(contract?.owned_files) ? contract.owned_files : []),
+  );
   const expectedTests = Array.isArray(scope.proof_targets)
     ? scope.proof_targets.map((entry) => String(entry || "").trim()).filter(Boolean)
-    : [];
-  const dependsOnList = Array.isArray(lifecycle.depends_on)
-    ? lifecycle.depends_on.map((entry) => String(entry || "").trim()).filter(Boolean)
+    : (Array.isArray(contract?.proof_commands)
+        ? contract.proof_commands.map((entry) => String(entry || "").trim()).filter(Boolean)
+        : []);
+  const dependsOnSource = Array.isArray(lifecycle.depends_on)
+    ? lifecycle.depends_on
+    : (Array.isArray(contract?.depends_on_mts) ? contract.depends_on_mts : []);
+  const dependsOnList = Array.isArray(dependsOnSource)
+    ? dependsOnSource.map((entry) => String(entry || "").trim()).filter(Boolean)
     : [];
   const dependsOn = dependsOnList.length > 0 ? dependsOnList.join(", ") : "NONE";
   const heuristicRisk = classifyHeuristicRiskText(JSON.stringify(contract));
@@ -93,6 +102,8 @@ function parseMicrotaskContract(mtAbsPath, mtRelPath) {
     codeSurfaces,
     expectedTests,
     dependsOn,
+    lifecycleStatus: String(lifecycle.status || "").trim().toUpperCase(),
+    lifecycleActive: lifecycle.active === true,
     heuristicRisk,
     packetPath: normalizePath(contract?.markdown_projection?.path || mtRelPath),
     contractPath: normalizePath(mtRelPath),
@@ -307,6 +318,19 @@ function stateFromReceipt(receipt = {}) {
   return "DECLARED";
 }
 
+function stateFromLifecycle(definition = {}) {
+  const status = String(definition.lifecycleStatus || "").trim().toUpperCase();
+  if (["COMPLETED", "COMPLETE", "DONE", "CLEARED"].includes(status)) return "CLEARED";
+  if (["CLAIMED", "ACTIVE", "IN_PROGRESS"].includes(status) || definition.lifecycleActive === true) return "ACTIVE";
+  return "DECLARED";
+}
+
+function lifecycleStateReason(definition = {}) {
+  const status = String(definition.lifecycleStatus || "").trim().toUpperCase();
+  if (!status && definition.lifecycleActive !== true) return "declared_only";
+  return `lifecycle:${status || "ACTIVE"}`;
+}
+
 function findFirstItemByState(items = [], expectedState = "") {
   const normalized = String(expectedState || "").trim().toUpperCase();
   return items.find((entry) => String(entry?.state || "").trim().toUpperCase() === normalized) || null;
@@ -368,8 +392,9 @@ export function deriveWpMicrotaskPlan({
       code_surfaces: definition.codeSurfaces,
       expected_tests: definition.expectedTests,
       heuristic_risk: definition.heuristicRisk,
-      state: "DECLARED",
-      state_reason: "declared_only",
+      lifecycle_status: definition.lifecycleStatus || null,
+      state: stateFromLifecycle(definition),
+      state_reason: lifecycleStateReason(definition),
       last_activity_at: null,
       last_receipt_kind: null,
       last_actor_role: null,
@@ -394,6 +419,12 @@ export function deriveWpMicrotaskPlan({
     const entry = byId.get(definition.mtId);
     if (!entry) continue;
     const nextState = stateFromReceipt(receipt);
+    if (
+      String(entry.lifecycle_status || "").trim().toUpperCase() === "COMPLETED"
+      && nextState === "ACTIVE"
+    ) {
+      continue;
+    }
     const currentTs = parseTimestamp(entry.last_activity_at);
     const receiptTs = parseTimestamp(receipt?.timestamp_utc);
     if (Number.isFinite(currentTs) && Number.isFinite(receiptTs) && receiptTs < currentTs) continue;

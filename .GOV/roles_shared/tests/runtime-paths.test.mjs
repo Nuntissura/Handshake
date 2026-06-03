@@ -3,6 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 import {
   ensureWorkPacketLifecycleLayout,
   listArchivedWorkPacketEntriesAtRepo,
@@ -39,6 +40,7 @@ test("listWorkPacketEntriesAt discovers flat and folder packets while skipping R
         packetPath: ".GOV/task_packets/WP-1-Folder-v1/packet.md",
         packetDir: ".GOV/task_packets/WP-1-Folder-v1",
         isFolder: true,
+        packetContractPath: ".GOV/task_packets/WP-1-Folder-v1/packet.json",
       },
     ]);
   } finally {
@@ -56,6 +58,37 @@ test("repoPathAbs anchors repo-relative paths while preserving absolute paths", 
   assert.equal(repoPathAbs(absolutePath), absolutePath);
 });
 
+test("GOV_ROOT_REPO_REL stays stable when HANDSHAKE_GOV_ROOT points at a junctioned governance root", async (t) => {
+  const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
+  const targetGovRoot = path.join(repoRoot, ".GOV");
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "runtime-paths-gov-root-"));
+  const linkedGovRoot = path.join(tempRoot, "gov-root-link");
+  const previousGovRoot = process.env.HANDSHAKE_GOV_ROOT;
+
+  try {
+    try {
+      fs.symlinkSync(targetGovRoot, linkedGovRoot, process.platform === "win32" ? "junction" : "dir");
+    } catch (error) {
+      t.skip(`cannot create local governance root link: ${error.message}`);
+      return;
+    }
+
+    process.env.HANDSHAKE_GOV_ROOT = linkedGovRoot;
+    const runtimePathsUrl = new URL(`../scripts/lib/runtime-paths.mjs?gov-root-link-test=${Date.now()}`, import.meta.url);
+    const runtimePaths = await import(runtimePathsUrl.href);
+
+    assert.equal(runtimePaths.GOV_ROOT_REPO_REL, ".GOV");
+    assert.equal(path.resolve(runtimePaths.GOV_ROOT_ABS), fs.realpathSync.native(targetGovRoot));
+  } finally {
+    if (previousGovRoot === undefined) {
+      delete process.env.HANDSHAKE_GOV_ROOT;
+    } else {
+      process.env.HANDSHAKE_GOV_ROOT = previousGovRoot;
+    }
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+});
+
 test("resolveWorkPacketPathAtRepo accepts canonical work_packets roots during compatibility migration", () => {
   const repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), "runtime-paths-work-packets-"));
   try {
@@ -67,6 +100,27 @@ test("resolveWorkPacketPathAtRepo accepts canonical work_packets roots during co
     assert.ok(resolved);
     assert.equal(resolved.packetPath, ".GOV/work_packets/WP-TEST-WORK-PACKETS-v1/packet.md");
     assert.equal(resolved.isFolder, true);
+  } finally {
+    fs.rmSync(repoRoot, { recursive: true, force: true });
+  }
+});
+
+test("resolveWorkPacketPathAtRepo resolves JSON-only folder packet contracts", () => {
+  const repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), "runtime-paths-json-packet-"));
+  try {
+    const packetPath = path.join(repoRoot, ".GOV", "task_packets", "WP-TEST-JSON-PACKET-v1", "packet.json");
+    fs.mkdirSync(path.dirname(packetPath), { recursive: true });
+    fs.writeFileSync(packetPath, JSON.stringify({
+      schema_id: "hsk.work_packet_contract@1",
+      wp_id: "WP-TEST-JSON-PACKET-v1",
+    }), "utf8");
+
+    const resolved = resolveWorkPacketPathAtRepo(repoRoot, "WP-TEST-JSON-PACKET-v1");
+    assert.ok(resolved);
+    assert.equal(resolved.packetPath, ".GOV/task_packets/WP-TEST-JSON-PACKET-v1/packet.json");
+    assert.equal(resolved.packetDir, ".GOV/task_packets/WP-TEST-JSON-PACKET-v1");
+    assert.equal(resolved.isFolder, true);
+    assert.equal(resolved.packetContractPath, ".GOV/task_packets/WP-TEST-JSON-PACKET-v1/packet.json");
   } finally {
     fs.rmSync(repoRoot, { recursive: true, force: true });
   }

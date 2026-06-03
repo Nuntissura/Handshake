@@ -50,6 +50,22 @@ test("registerFailCaptureHook installs only one process listener pair", () => {
   assert.equal(payload.after.exit - payload.before.exit, 1);
 });
 
+test("fail-capture import does not load SQLite-backed memory", () => {
+  const script = `
+    const lib = await import(${JSON.stringify(`file://${LIB_PATH.replace(/\\/g, "/")}`)});
+    lib.registerFailCaptureHook("no-sqlite-warning.mjs", { role: "SHARED" });
+    console.log("registered");
+  `;
+  const result = spawnSync(process.execPath, ["--input-type=module", "-e", script], {
+    cwd: REPO_ROOT,
+    encoding: "utf8",
+  });
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(String(result.stdout || "").trim(), "registered");
+  assert.doesNotMatch(result.stderr, /SQLite|node:sqlite/i);
+});
+
 test("registerFailCaptureHook captures exit(1) without capturing expected exit(2)", () => {
   const oneScript = `
     const lib = await import(${JSON.stringify(`file://${LIB_PATH.replace(/\\/g, "/")}`)});

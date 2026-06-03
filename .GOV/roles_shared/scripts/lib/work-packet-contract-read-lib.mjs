@@ -135,7 +135,14 @@ export function listWorkPacketIdsForContractImport() {
   if (!fs.existsSync(rootAbs)) return [];
   const ids = new Set();
   for (const entry of fs.readdirSync(rootAbs, { withFileTypes: true })) {
-    if (entry.isDirectory() && /^WP-/.test(entry.name) && fs.existsSync(path.join(rootAbs, entry.name, "packet.md"))) {
+    if (
+      entry.isDirectory()
+      && /^WP-/.test(entry.name)
+      && (
+        fs.existsSync(path.join(rootAbs, entry.name, "packet.md"))
+        || fs.existsSync(path.join(rootAbs, entry.name, "packet.json"))
+      )
+    ) {
       ids.add(entry.name);
     } else if (entry.isFile() && /^WP-[A-Za-z0-9._-]+\.md$/.test(entry.name)) {
       ids.add(entry.name.replace(/\.md$/i, ""));
@@ -246,7 +253,9 @@ export function readWorkPacketContract(wpId) {
   if (!resolved) return { ok: false, source: "MISSING", contract: null, resolved: null, packetText: "" };
   const contractPath = contractPathFor(resolved, "packet.json");
   const contract = contractPath ? readJsonIfExists(contractPath.abs) : null;
-  const packetText = readTextIfExists(resolved.packetAbsPath);
+  const packetText = /\.json$/i.test(String(resolved.packetPath || ""))
+    ? ""
+    : readTextIfExists(resolved.packetAbsPath);
   if (contract) {
     return {
       ok: true,
@@ -306,7 +315,6 @@ export function updateWorkPacketLifecycleContract({
   const contractPath = state.contractPath || path.posix.join(state.resolved.packetDir, "packet.json");
   const projectionRel = state.resolved.packetPath;
   const projectionAbs = state.resolved.packetAbsPath;
-  const projectionBody = stripGeneratedProjectionHeader(projectionText || state.packetText || "");
   const sourceFile = normalizePath(
     state.contract?.authority_files?.packet_contract
     || contractPath,
@@ -319,6 +327,22 @@ export function updateWorkPacketLifecycleContract({
       ...(lifecyclePatch || {}),
     },
   };
+  if (!/\.md$/i.test(String(projectionRel || "")) || !fs.existsSync(projectionAbs)) {
+    nextContract.authority_files = {
+      ...(nextContract.authority_files || {}),
+      packet_contract: contractPath,
+    };
+    fs.writeFileSync(contractAbsPath, stableStringify(nextContract), "utf8");
+    return {
+      updated: true,
+      reason: "updated_primary_contract_without_markdown_projection",
+      packetText: projectionText || state.packetText || "",
+      contract: nextContract,
+      contractPath,
+      contractAbsPath,
+    };
+  }
+  const projectionBody = stripGeneratedProjectionHeader(projectionText || state.packetText || "");
   nextContract.authority_files = {
     ...(nextContract.authority_files || {}),
     packet_contract: contractPath,
@@ -391,6 +415,20 @@ export function buildWorkPacketCommunicationView(wpId) {
     || contract.authority_files?.packet_projection
     || "",
   );
+  const legacyPacketText = state.packetText || "";
+  const packetTextForEvaluation = legacyPacketText
+    || (state.source === "PRIMARY_MACHINE_READABLE"
+      ? buildContractDerivedPacketProjectionText({
+          contract,
+          packetText: "",
+          source: state.source,
+        })
+      : "");
+  const packetProjectionWritable = Boolean(
+    state.resolved?.packetAbsPath
+    && /\.md$/i.test(String(state.resolved?.packetPath || ""))
+    && fs.existsSync(state.resolved.packetAbsPath),
+  );
 
   return {
     ok: true,
@@ -399,7 +437,9 @@ export function buildWorkPacketCommunicationView(wpId) {
     baseWpId: normalizeBaseWpId(contract.base_wp_id || parsePacketSingleField(packetText, "BASE_WP_ID"), wpId),
     packetPath,
     packetAbsPath: state.resolved?.packetAbsPath || (packetPath ? repoPathAbs(packetPath) : ""),
-    packetText,
+    packetText: packetTextForEvaluation,
+    legacyPacketText,
+    packetProjectionWritable,
     contract,
     workflowLane: workflow.lane || parsePacketSingleField(packetText, "WORKFLOW_LANE"),
     packetFormatVersion: lifecycle.packet_format_version || parsePacketSingleField(packetText, "PACKET_FORMAT_VERSION"),
@@ -410,6 +450,7 @@ export function buildWorkPacketCommunicationView(wpId) {
     runtimeStatusFile,
     receiptsFile,
     notificationsFile,
+    coderCompatibleExecutionLane: workflow.coder_compatible_execution_lane || "",
     executionOwner: workflow.execution_owner || parsePacketSingleField(packetText, "EXECUTION_OWNER"),
     workflowAuthority: workflow.authority || parsePacketSingleField(packetText, "WORKFLOW_AUTHORITY"),
     technicalAdvisor: workflow.technical_advisor || parsePacketSingleField(packetText, "TECHNICAL_ADVISOR"),
@@ -450,11 +491,15 @@ export function buildContractDerivedPacketProjectionText({ contract = null, pack
 
   appendIfPresent(lines, formatProjectionField("WP_ID", normalizedContract.wp_id));
   appendIfPresent(lines, formatProjectionField("BASE_WP_ID", normalizedContract.base_wp_id));
-  appendIfPresent(lines, formatProjectionField("Status", contractOrPacketField(lifecycle.status, packetText, "Status")));
+  appendIfPresent(lines, `- **Status:** ${contractOrPacketField(lifecycle.status, packetText, "Status")}`);
   appendIfPresent(lines, formatProjectionField("WORKFLOW_LANE", contractOrPacketField(workflow.lane, packetText, "WORKFLOW_LANE")));
   appendIfPresent(lines, formatProjectionField("WORKFLOW_AUTHORITY", contractOrPacketField(workflow.authority, packetText, "WORKFLOW_AUTHORITY")));
-  appendIfPresent(lines, formatProjectionField("EXECUTION_OWNER", contractOrPacketField(workflow.execution_owner, packetText, "EXECUTION_OWNER")));
+  appendIfPresent(lines, formatProjectionField("EXECUTION_OWNER", contractOrPacketField(workflow.coder_compatible_execution_lane || workflow.execution_owner, packetText, "EXECUTION_OWNER")));
   appendIfPresent(lines, formatProjectionField("SESSION_START_AUTHORITY", contractOrPacketField(workflow.session_start_authority, packetText, "SESSION_START_AUTHORITY")));
+  appendIfPresent(lines, formatProjectionField("TECHNICAL_ADVISOR", contractOrPacketField(workflow.technical_advisor, packetText, "TECHNICAL_ADVISOR")));
+  appendIfPresent(lines, formatProjectionField("TECHNICAL_AUTHORITY", contractOrPacketField(workflow.technical_authority, packetText, "TECHNICAL_AUTHORITY")));
+  appendIfPresent(lines, formatProjectionField("MERGE_AUTHORITY", contractOrPacketField(workflow.merge_authority, packetText, "MERGE_AUTHORITY")));
+  appendIfPresent(lines, formatProjectionField("AGENTIC_MODE", contractOrPacketField(workflow.agentic_mode || (workflow.kernel_builder_consolidation ? "YES" : ""), packetText, "AGENTIC_MODE")));
   appendIfPresent(lines, formatProjectionField("WP_COMMUNICATION_DIR", contractOrPacketField(workflow.communication_dir, packetText, "WP_COMMUNICATION_DIR")));
   appendIfPresent(lines, formatProjectionField("WP_THREAD_FILE", contractOrPacketField(workflow.thread_file, packetText, "WP_THREAD_FILE")));
   appendIfPresent(lines, formatProjectionField("WP_RUNTIME_STATUS_FILE", contractOrPacketField(workflow.runtime_status_file, packetText, "WP_RUNTIME_STATUS_FILE")));
@@ -488,6 +533,11 @@ export function buildContractDerivedPacketProjectionText({ contract = null, pack
   appendIfPresent(lines, formatProjectionList("OUT_OF_SCOPE", scope.forbidden_paths || []));
   appendIfPresent(lines, formatProjectionList("SPEC_ANCHOR", scope.spec_anchors || []));
   appendIfPresent(lines, formatProjectionList("ACCEPTANCE_CRITERIA", scope.acceptance_criteria || []));
+  lines.push("");
+  lines.push("## CURRENT_STATE (AUTHORITATIVE SNAPSHOT; MUTABLE)");
+  lines.push("Verdict: PENDING");
+  lines.push("Blockers: NONE");
+  lines.push("Next: N/A");
 
   const legacyText = stripGeneratedProjectionHeader(packetText);
   if (legacyText.trim()) {
@@ -736,6 +786,19 @@ export function importWorkPacketContracts(wpId, { dryRun = false, repair = true 
   const actions = [];
   const packetContractPath = contractPathFor(state.resolved, "packet.json");
   const packetExists = packetContractPath && fs.existsSync(packetContractPath.abs);
+  const hasMarkdownPacketProjection = Boolean(
+    state.resolved?.packetAbsPath
+    && /\.md$/i.test(String(state.resolved?.packetPath || ""))
+    && fs.existsSync(state.resolved.packetAbsPath),
+  );
+  if (packetExists && !hasMarkdownPacketProjection) {
+    return {
+      wp_id: wpId,
+      ok: true,
+      dry_run: dryRun,
+      actions: repair ? [{ kind: "JSON_ONLY_PRIMARY_PACKET_NO_PROJECTION_REPAIR", path: packetContractPath.rel }] : [],
+    };
+  }
   if (!packetExists || repair) {
     actions.push({ kind: packetExists ? "REPAIR_PACKET_PROJECTION" : "IMPORT_PACKET", path: packetContractPath.rel });
     if (!dryRun) {

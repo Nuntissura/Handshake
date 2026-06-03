@@ -1,0 +1,90 @@
+{
+  "schema": "hsk.sandbox_callsite_migration@1",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "mt_id": "MT-054",
+  "generated_at_utc": "2026-05-19T00:04:56.636Z",
+  "source_scan": {
+    "product_root_resolution": "../wtc-kernel-004-fold-v1",
+    "forbidden_patterns": [
+      "DocketAdapter",
+      "docket_adapter",
+      "DockerRunner",
+      "docker_runner"
+    ],
+    "scanned_roots": [
+      "src/backend/handshake_core/src/kernel",
+      "src/backend/handshake_core/src/storage"
+    ],
+    "checked_files": 156,
+    "result": "pass",
+    "current_hits": []
+  },
+  "changes": [
+    {
+      "status": "guard_added",
+      "file": ".GOV/roles_shared/checks/no-direct-docket-adapter-import-check.mjs",
+      "line": 1,
+      "before": "No deterministic governance proof command existed for MT-054 direct KERNEL-003 Docker/Docket consumer regressions.",
+      "after": "Added a Node guard that resolves the product worktree, scans kernel/storage Rust production roots, and fails closed on DocketAdapter, docket_adapter, DockerRunner, or docker_runner identifiers.",
+      "rationale": "The product code is already migrated; the durable guard prevents future kernel/storage consumers from bypassing SandboxAdapter injection."
+    },
+    {
+      "status": "already_migrated_verified",
+      "file": "src/backend/handshake_core/src/kernel",
+      "line": null,
+      "before": "Kernel code was in MT-054 scope for possible direct KERNEL-003 Docker/Docket callsites.",
+      "after": "The source scan found no DocketAdapter, docket_adapter, DockerRunner, or docker_runner identifiers in the kernel production root.",
+      "rationale": "Kernel consumers remain free of concrete KERNEL-003 Docker/Docket surfaces and must continue to flow through adapter boundaries."
+    },
+    {
+      "status": "already_migrated_verified",
+      "file": "src/backend/handshake_core/src/storage",
+      "line": null,
+      "before": "Storage code was in MT-054 scope for possible direct KERNEL-003 Docker/Docket callsites.",
+      "after": "The source scan found no DocketAdapter, docket_adapter, DockerRunner, or docker_runner identifiers in the storage production root.",
+      "rationale": "Storage consumers remain free of concrete KERNEL-003 Docker/Docket surfaces and must continue to flow through adapter boundaries."
+    },
+    {
+      "status": "already_migrated_verified",
+      "file": "src/backend/handshake_core/src/sandbox/adapter.rs",
+      "line": 65,
+      "before": "Consumers could have been coupled to concrete KERNEL-003 Docker/Docket types instead of the KERNEL-004 sandbox abstraction.",
+      "after": "The KERNEL-004 `crate::sandbox::SandboxAdapter` trait is the adapter boundary for injected sandbox consumers.",
+      "rationale": "MT-054 is satisfied by consumer flow through the KERNEL-004 adapter abstraction, not direct Docker/Docket consumption."
+    },
+    {
+      "status": "already_migrated_verified",
+      "file": "src/backend/handshake_core/src/kernel/sandbox/adapter.rs",
+      "line": 85,
+      "before": "The repo contains a second `SandboxAdapter` trait under `kernel/sandbox`, which could be confused with the KERNEL-004 adapter boundary during review.",
+      "after": "The guard intentionally bans concrete Docket/Docker identifiers rather than `SandboxAdapter`, so the old internal KERNEL-003 trait is not treated as a Docker/Docket consumer.",
+      "rationale": "This preserves the MT-054 distinction between allowed adapter abstractions and forbidden concrete KERNEL-003 Docker/Docket surfaces."
+    }
+  ],
+  "validation": {
+    "commands": [
+      {
+        "command": "node --test .GOV/roles_shared/checks/no-direct-docket-adapter-import-check.test.mjs",
+        "cwd": ".",
+        "exit_code": 0,
+        "stdout": "tests 3; pass 3; fail 0",
+        "stderr": ""
+      },
+      {
+        "command": "node .GOV/roles_shared/checks/no-direct-docket-adapter-import-check.mjs",
+        "cwd": ".",
+        "exit_code": 0,
+        "stdout": "no-direct-docket-adapter-import-check ok (156 file(s) checked in ../wtc-kernel-004-fold-v1)",
+        "stderr": ""
+      },
+      {
+        "command": "rg -n \"DocketAdapter|docket_adapter|DockerRunner|docker_runner\" \"../wtc-kernel-004-fold-v1/src/backend/handshake_core/src/kernel\" \"../wtc-kernel-004-fold-v1/src/backend/handshake_core/src/storage\"",
+        "cwd": ".",
+        "exit_code": 1,
+        "stdout": "",
+        "stderr": "",
+        "result": "no_matches_expected"
+      }
+    ]
+  }
+}

@@ -901,7 +901,23 @@ function parseSingleField(text, label) {
 }
 
 export function resolveDeclaredCoderWorktreeDir(wpId) {
-  return parseSingleField(readPacketText(wpId), "LOCAL_WORKTREE_DIR") || defaultCoderWorktreeDir(wpId);
+  const packetText = readPacketText(wpId);
+  const legacyMarkdownValue = parseSingleField(packetText, "LOCAL_WORKTREE_DIR");
+  if (legacyMarkdownValue) return legacyMarkdownValue;
+
+  try {
+    const contract = JSON.parse(packetText);
+    const contractValue = String(
+      contract?.source_control?.worktree_dir
+      || contract?.source_control?.local_worktree_dir
+      || "",
+    ).trim();
+    if (contractValue) return contractValue;
+  } catch {
+    // Legacy Markdown packets are not JSON.
+  }
+
+  return defaultCoderWorktreeDir(wpId);
 }
 
 export function resolveDeclaredCoderWorktreeCwd(wpId) {

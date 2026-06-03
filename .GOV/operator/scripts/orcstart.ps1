@@ -14,7 +14,7 @@ $repoDisplay = "../" + (Split-Path -Leaf $repoRoot)
 $promptDocDisplay = ".GOV/operator/docs_local/Handshake_Role_Startup_Prompts.md"
 $kbstartCmdDisplay = ".\kbstart.cmd"
 $includeLauncherBindings = ($env:ORCSTART_EXPOSE_LAUNCHER_BINDINGS -ne "0")
-$minimumStartupTimeoutMs = 600000
+$minimumStartupTimeoutMs = 1200000
 $recommendedStartupTimeoutMs = 1200000
 $startupTimeoutGuidance = "Startup can take several minutes. Use shell timeout >= $minimumStartupTimeoutMs ms / 10 minutes; $recommendedStartupTimeoutMs ms / 20 minutes is recommended on this host under load."
 

@@ -347,22 +347,22 @@
   ],
 
   "critical_files_tier_1": [
-    "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/roles_shared/scripts/lib/runtime-paths.mjs",
-    "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/roles_shared/checks/refinement-check.mjs",
-    "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/roles/orchestrator/checks/orchestrator_gates.mjs",
-    "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/roles_shared/scripts/lib/work-packet-contract-read-lib.mjs",
-    "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/roles_shared/scripts/wp/wp-contract-import.mjs"
+    ".GOV/roles_shared/scripts/lib/runtime-paths.mjs",
+    ".GOV/roles_shared/checks/refinement-check.mjs",
+    ".GOV/roles/orchestrator/checks/orchestrator_gates.mjs",
+    ".GOV/roles_shared/scripts/lib/work-packet-contract-read-lib.mjs",
+    ".GOV/roles_shared/scripts/wp/wp-contract-import.mjs"
   ],
 
   "critical_files_tier_2": [
-    "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/roles/orchestrator/scripts/orchestrator-next.mjs",
-    "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/roles/orchestrator/scripts/create-task-packet.mjs",
-    "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/roles/orchestrator/scripts/task-board-set.mjs",
-    "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/roles/orchestrator/scripts/wp-traceability-set.mjs",
-    "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/roles_shared/scripts/build-order-sync.mjs",
-    "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/roles/coder/checks/pre-work-check.mjs",
-    "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/roles/activation_manager/scripts/activation-manager.mjs",
-    "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/roles_shared/schemas/REFINEMENT_CONTRACT.schema.json",
-    "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/refinement.json"
+    ".GOV/roles/orchestrator/scripts/orchestrator-next.mjs",
+    ".GOV/roles/orchestrator/scripts/create-task-packet.mjs",
+    ".GOV/roles/orchestrator/scripts/task-board-set.mjs",
+    ".GOV/roles/orchestrator/scripts/wp-traceability-set.mjs",
+    ".GOV/roles_shared/scripts/build-order-sync.mjs",
+    ".GOV/roles/coder/checks/pre-work-check.mjs",
+    ".GOV/roles/activation_manager/scripts/activation-manager.mjs",
+    ".GOV/roles_shared/schemas/REFINEMENT_CONTRACT.schema.json",
+    ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/refinement.json"
   ]
 }

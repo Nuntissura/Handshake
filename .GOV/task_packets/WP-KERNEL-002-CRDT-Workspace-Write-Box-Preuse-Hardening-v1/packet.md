@@ -1,4 +1,4 @@
-<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1/packet.json source_hash=59ef3c4ec3173d9d projection_hash=cb7fa80ef3468ac3 generated_at_utc=2026-05-14T23:54:42.504Z generator=wp-receipt-append.mjs -->
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1/packet.json source_hash=ace9547bc7929887 projection_hash=cb7fa80ef3468ac3 generated_at_utc=2026-05-18T02:42:33.753Z generator=codex-json-first-blocked-status-sync -->
 # TASK_PACKET_TEMPLATE
 
 Generated projection template for `packet.md` during the contract migration. Do not hand-copy this Markdown into future work as authority; author or update `packet.json` / `WORK_PACKET_CONTRACT_TEMPLATE.json` first, then generate a projection only when a current contract or explicit Operator request requires one.

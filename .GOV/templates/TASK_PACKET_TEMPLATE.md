@@ -221,8 +221,15 @@ Next: N/A
 ## PACKET_ACCEPTANCE_MATRIX (AUTHORITATIVE SNAPSHOT; MUTABLE)
 - Rule: this is the executable acceptance contract for packet closure. New packets must keep stable row IDs and move each required row to `PROVED`, `CONFIRMED`, or `NOT_APPLICABLE` with evidence before PASS.
 - Rule: use `STEER` or `BLOCKED` for unresolved required rows instead of narrative closure.
+- HBR_CONTEXT:
+  - hbr.tags_declared: []
+  - hbr.not_applicable_overrides: []
 - ACCEPTANCE_ROWS:
   - ID: AC-001 | REQUIREMENT: <reviewable acceptance requirement> | REQUIRED: YES | EVIDENCE_KIND: <COMMAND|TEST|CLAUSE_CLOSURE_MATRIX|ARTIFACT|MANUAL_REVIEW> | OWNER: <CODER|WP_VALIDATOR|INTEGRATION_VALIDATOR> | STATUS: <PENDING|PROVED|CONFIRMED|STEER|BLOCKED|NOT_APPLICABLE> | EVIDENCE: <concrete command/artifact/row or NONE> | REASON: <reason when NOT_APPLICABLE or NONE>
+- HBR_ROWS:
+  - acceptance_matrix.schema_version: 1
+  - acceptance_matrix.hbr: []
+  - acceptance_matrix.hbr_not_applicable: []
 
 ## SPEC_DEBT_STATUS (AUTHORITATIVE SNAPSHOT; MUTABLE)
 - OPEN_SPEC_DEBT: <YES|NO>

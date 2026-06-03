@@ -10,6 +10,7 @@ import {
   buildGovernanceTopology,
   writeGovernanceTopology,
 } from "../scripts/lib/governance-topology-lib.mjs";
+import { writePublicSurfaceConsolidation } from "../scripts/topology/public-surface-consolidation.mjs";
 
 function resolveRepoRoot() {
   const injectedRepoRoot = String(process.env.HANDSHAKE_ACTIVE_REPO_ROOT || "").trim();
@@ -68,10 +69,10 @@ function printRecorded(recorded) {
   }
 }
 
-// Governance-only checks (no product source scanning).
+// Governance checks plus lightweight HBR product-surface drift gates.
 // Bundled checks [RGF-194] run sub-checks as child processes and collect ALL failures.
-// 6 bundles replace 24 individual imports; 8 standalone checks remain (unique purpose, no natural grouping).
-const checkSteps = [
+// HBR matrix/manual validation is wired here so `just gov-check` blocks incomplete HBR evidence.
+const allCheckSteps = [
   ["spec-current-check", "../scripts/spec-current-check.mjs", "SPEC"],
   ["spec-bundle-check", "./spec-bundle-check.mjs", "SPEC"],
   ["atelier_role_registry_check", "./atelier_role_registry_check.mjs", "GOVERNANCE_STRUCTURE"],
@@ -79,6 +80,24 @@ const checkSteps = [
   ["packet-truth-bundle-check", "./packet-truth-bundle-check.mjs", "WORK_PACKET"],
   ["mt-packet-scope-alignment-check", "./mt-packet-scope-alignment-check.mjs", "WORK_PACKET"],
   ["kb-ready-checklist-coverage-check", "./kb-ready-checklist-coverage-check.mjs", "WORK_PACKET"],
+  ["hbr-matrix-check", "./hbr-matrix-check.mjs", "WORK_PACKET", ["--all-packets"]],
+  // [IV-20260603] HBR product-surface smoke checks removed from gov-check. They are
+  // model-operated product tools (frontend/backend/visual/GUI/swarm inspection), not
+  // governance machine gates, and they resolved repoRoot to the product-free
+  // wt-gov-kernel worktree (pnpm "No package found", cargo "Cargo.toml does not exist").
+  // They belong inside the Handshake product, driven and judged by a role/model.
+  // Removed per operator decision (kernel reset; governance teardown after WP-KERNEL-004).
+  // Was: hbr-visual-smoke, hbr-inspector-smoke, hbr-swarm-n8, hbr-swarm-invariants.
+  // See REPO_GOVERNANCE_CHANGELOG.
+  ["role-protocol-hbr-linkage", "./role-protocol-hbr-linkage.mjs", "GOVERNANCE_STRUCTURE"],
+  ["template-hbr-fields", "./template-hbr-fields.mjs", "GOVERNANCE_STRUCTURE"],
+  ["discovery-hbr-pointers", "./discovery-hbr-pointers.mjs", "GOVERNANCE_STRUCTURE"],
+  ["hbr-man-001-paired-diff", "./hbr-man-001-paired-diff.mjs", "PRODUCT_MANUAL"],
+  // [IV-20260603] hbr-man-003-scan removed: product ModelManual self-consistency scan
+  // resolved to wt-gov-kernel (no product code) -> "ModelManual content missing".
+  // Product-owned, not a governance gate. See REPO_GOVERNANCE_CHANGELOG.
+  ["hbr-quiet-api-lint", "./hbr-quiet-api-lint.mjs", "PRODUCT_QUIET"],
+  ["docker-not-default-adapter-check", "./docker-not-default-adapter-check.mjs", "PRODUCT_SANDBOX"],
   ["semantic-proof-check", "./semantic-proof-check.mjs", "GOVERNANCE_STRUCTURE"],
   ["computed-policy-gate-check", "./computed-policy-gate-check.mjs", "GOVERNANCE_STRUCTURE"],
   ["historical-smoketest-lineage-check", "./historical-smoketest-lineage-check.mjs", "AUDIT"],
@@ -91,14 +110,32 @@ const checkSteps = [
   ["governance-structure-bundle-check", "./governance-structure-bundle-check.mjs", "GOVERNANCE_STRUCTURE"],
   ["topology-bundle-check", "./topology-bundle-check.mjs", "TOPOLOGY"],
   ["phase1-add-coverage-check", "./phase1-add-coverage-check.mjs", "COVERAGE"],
-  ["memory-health-check", "./memory-health-check.mjs", "MEMORY"],
-].map(([check, relativePath, phase]) => ({
+].map(([check, relativePath, phase, args = []]) => ({
   check,
   scriptPath: checkScript(relativePath),
+  args,
   phase,
   ownerRole: "SHARED",
   sideEffectClass: "READ_ONLY_OR_DIAGNOSTIC",
 }));
+
+const onlyChecks = String(process.env.HANDSHAKE_GOV_CHECK_ONLY || "")
+  .split(",")
+  .map((entry) => entry.trim())
+  .filter(Boolean);
+if (onlyChecks.length > 0 && process.env.HANDSHAKE_GOV_CHECK_TEST_MODE !== "1") {
+  console.error("HANDSHAKE_GOV_CHECK_ONLY is restricted to HANDSHAKE_GOV_CHECK_TEST_MODE=1");
+  process.exit(3);
+}
+const checkSteps = onlyChecks.length > 0
+  ? allCheckSteps.filter((step) => onlyChecks.includes(step.check))
+  : allCheckSteps;
+if (onlyChecks.length > 0 && checkSteps.length !== onlyChecks.length) {
+  const found = new Set(checkSteps.map((step) => step.check));
+  const missing = onlyChecks.filter((check) => !found.has(check));
+  console.error(`unknown HANDSHAKE_GOV_CHECK_ONLY check(s): ${missing.join(", ")}`);
+  process.exit(3);
+}
 
 const env = {
   ...process.env,
@@ -109,6 +146,8 @@ const env = {
 const failures = [];
 
 if (syncTopologyMode) {
+  const publicSurfaceRecord = writePublicSurfaceConsolidation();
+  console.log(`public-surface-consolidation-sync ok: ${publicSurfaceRecord.totals.public_surfaces} public surface(s)`);
   const topologyPath = writeGovernanceTopology(buildGovernanceTopology());
   console.log(`governance-topology-sync ok: ${topologyPath}`);
 }
@@ -123,6 +162,7 @@ if (listMode || dryRunMode) {
       check: step.check,
       phase: step.phase,
       script_path: step.scriptPath,
+      args: step.args,
       owner_role: step.ownerRole,
       side_effect_class: step.sideEffectClass,
     })),
@@ -135,6 +175,7 @@ for (const step of checkSteps) {
   const result = runSubprocessCheckStep({
     check: step.check,
     scriptPath: step.scriptPath,
+    args: step.args,
     phase: step.phase,
     bundle: "gov-check",
     ownerRole: step.ownerRole,
@@ -156,53 +197,6 @@ for (const step of checkSteps) {
     });
   }
 }
-
-// Lightweight memory maintenance: runs dedup if >6h stale, full compact if >24h stale.
-// Safe on every gov-check: staleness gates prevent redundant work.
-async function runMemoryMaintenance() {
-  const outputLines = [];
-  try {
-    const memFs = await import("node:fs");
-    const memPath = await import("node:path");
-    const { GOVERNANCE_RUNTIME_ROOT_ABS } = await import("../scripts/lib/runtime-paths.mjs");
-    const dbPath = memPath.default.join(GOVERNANCE_RUNTIME_ROOT_ABS, "roles_shared", "GOVERNANCE_MEMORY.db");
-    if (!memFs.default.existsSync(dbPath)) {
-      outputLines.push("memory database not present; maintenance skipped");
-    } else {
-      const { DatabaseSync } = await import("node:sqlite");
-      const db = new DatabaseSync(dbPath, { readOnly: true });
-      let sinceMs = Infinity;
-      try {
-        const last = db.prepare("SELECT run_at FROM consolidation_log ORDER BY run_at DESC LIMIT 1").get();
-        sinceMs = last ? Date.now() - new Date(last.run_at).getTime() : Infinity;
-      } finally {
-        try { db.close(); } catch {}
-      }
-      if (sinceMs > 6 * 60 * 60 * 1000) {
-        const scriptPath = path.resolve(govRoot, "roles_shared", "scripts", "memory", "memory-compact.mjs");
-        try {
-          execFileSync(process.execPath, [scriptPath], { cwd: checkCwd, stdio: "ignore", env });
-          outputLines.push("compaction ran");
-        } catch {
-          outputLines.push("compaction attempted; non-fatal failure");
-        }
-      } else {
-        outputLines.push("compaction not due");
-      }
-    }
-  } catch (error) {
-    outputLines.push(`maintenance skipped: ${error?.message || String(error || "")}`);
-  }
-
-  return recordCheckResult({
-    check: "memory-maintenance",
-    verdict: "OK",
-    summary: "memory-maintenance ok",
-    details: { output_lines: outputLines },
-  });
-}
-
-printRecorded(await runMemoryMaintenance());
 
 const finalResult = recordCheckResult({
   check: "gov-check",

@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://handshake.local/gov/schemas/hbr-vis-gap.schema.json",
+  "title": "HBR Visual Verification Gap Receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "emitted_at_utc",
+    "evidence_pointer",
+    "gap_class",
+    "hbr_id",
+    "proposed_followup_wp",
+    "receipt_kind",
+    "receipt_uuid",
+    "schema_version",
+    "surface_name",
+    "surface_path",
+    "wp_id"
+  ],
+  "properties": {
+    "emitted_at_utc": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "evidence_pointer": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "minLength": 1
+    },
+    "gap_class": {
+      "enum": [
+        "no_cdp_handle",
+        "native_child_window",
+        "opaque_canvas",
+        "shadow_root_inaccessible",
+        "other"
+      ]
+    },
+    "hbr_id": {
+      "const": "HBR-VIS-005"
+    },
+    "proposed_followup_wp": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^WP-"
+    },
+    "receipt_kind": {
+      "const": "HBR_VIS_GAP"
+    },
+    "receipt_uuid": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "schema_version": {
+      "const": 1
+    },
+    "surface_name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "surface_path": {
+      "type": "string",
+      "minLength": 1
+    },
+    "wp_id": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}

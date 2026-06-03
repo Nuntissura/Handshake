@@ -1,0 +1,102 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://handshake.local/gov/schemas/hbr-vis-regression.schema.json",
+  "title": "HBR Visual Regression Receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "baseline_hash",
+    "captured_hash",
+    "color_scheme",
+    "drift_regions",
+    "edge_state_tag",
+    "emitted_at_utc",
+    "evidence_pointer",
+    "locale",
+    "pixel_diff_percent",
+    "project_name",
+    "receipt_kind",
+    "receipt_uuid",
+    "route",
+    "scenario_id",
+    "schema_version",
+    "viewport"
+  ],
+  "properties": {
+    "baseline_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "captured_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "color_scheme": {
+      "enum": ["light", "dark"]
+    },
+    "drift_regions": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["h", "w", "x", "y"],
+        "properties": {
+          "h": { "type": "integer", "minimum": 1 },
+          "w": { "type": "integer", "minimum": 1 },
+          "x": { "type": "integer", "minimum": 0 },
+          "y": { "type": "integer", "minimum": 0 }
+        }
+      }
+    },
+    "edge_state_tag": {
+      "enum": ["normal", "empty", "error", "loading", "multi_item"]
+    },
+    "emitted_at_utc": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{3}Z$"
+    },
+    "evidence_pointer": {
+      "type": ["string", "null"]
+    },
+    "locale": {
+      "type": "string",
+      "minLength": 2
+    },
+    "pixel_diff_percent": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 100
+    },
+    "project_name": {
+      "type": ["string", "null"]
+    },
+    "receipt_kind": {
+      "const": "HBR_VIS_REGRESSION"
+    },
+    "receipt_uuid": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "route": {
+      "type": "string",
+      "minLength": 1
+    },
+    "scenario_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9_-]*$"
+    },
+    "schema_version": {
+      "const": 1
+    },
+    "viewport": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["height", "width"],
+      "properties": {
+        "height": { "type": "integer", "minimum": 1 },
+        "width": { "type": "integer", "minimum": 1 }
+      }
+    }
+  }
+}

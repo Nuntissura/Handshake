@@ -125,6 +125,113 @@ test("listDeclaredWpMicrotasks parses hydrated backtick lists for code surfaces"
   }
 });
 
+test("listDeclaredWpMicrotasks parses JSON-only packet folders and top-level MT contract fields", () => {
+  const wpId = "WP-TEST-MICROTASK-JSON-ONLY-v1";
+  const packetDir = path.join(repoRoot, ".GOV", "task_packets", wpId);
+  fs.mkdirSync(packetDir, { recursive: true });
+  fs.writeFileSync(path.join(packetDir, "packet.json"), JSON.stringify({
+    schema_id: "hsk.work_packet_contract@1",
+    wp_id: wpId,
+  }), "utf8");
+  fs.writeFileSync(
+    path.join(packetDir, "MT-001.json"),
+    JSON.stringify({
+      schema_id: "hsk.microtask_contract@1",
+      mt_id: "MT-001",
+      wp_id: wpId,
+      title: "JSON-only contract parsing",
+      goal: "Parse top-level KERNEL MT contract fields",
+      owned_files: ["src/backend/handshake_core/src/hbr/mod.rs"],
+      proof_commands: ["cargo test hbr_registry_tests"],
+      depends_on_mts: [],
+      lifecycle: {
+        status: "PENDING",
+      },
+    }),
+    "utf8",
+  );
+
+  try {
+    const microtasks = listDeclaredWpMicrotasks(wpId);
+    assert.equal(microtasks.length, 1);
+    assert.equal(microtasks[0].mtId, "MT-001");
+    assert.equal(microtasks[0].clause, "JSON-only contract parsing");
+    assert.deepEqual(microtasks[0].codeSurfaces, ["src/backend/handshake_core/src/hbr/mod.rs"]);
+    assert.deepEqual(microtasks[0].expectedTests, ["cargo test hbr_registry_tests"]);
+    assert.equal(microtasks[0].dependsOn, "NONE");
+  } finally {
+    fs.rmSync(packetDir, { recursive: true, force: true });
+  }
+});
+
+test("deriveWpMicrotaskPlan advances after JSON lifecycle completion without receipt downgrade", () => {
+  const wpId = "WP-TEST-MICROTASK-JSON-LIFECYCLE-v1";
+  const packetDir = path.join(repoRoot, ".GOV", "task_packets", wpId);
+  fs.mkdirSync(packetDir, { recursive: true });
+  fs.writeFileSync(path.join(packetDir, "packet.json"), JSON.stringify({
+    schema_id: "hsk.work_packet_contract@1",
+    wp_id: wpId,
+  }), "utf8");
+  fs.writeFileSync(
+    path.join(packetDir, "MT-001.json"),
+    JSON.stringify({
+      schema_id: "hsk.microtask_contract@1",
+      mt_id: "MT-001",
+      wp_id: wpId,
+      title: "Completed JSON MT",
+      owned_files: ["src/first.rs"],
+      proof_commands: ["cargo test first"],
+      depends_on_mts: [],
+      lifecycle: {
+        status: "COMPLETED",
+      },
+    }),
+    "utf8",
+  );
+  fs.writeFileSync(
+    path.join(packetDir, "MT-002.json"),
+    JSON.stringify({
+      schema_id: "hsk.microtask_contract@1",
+      mt_id: "MT-002",
+      wp_id: wpId,
+      title: "Next JSON MT",
+      owned_files: ["src/second.rs"],
+      proof_commands: ["cargo test second"],
+      depends_on_mts: ["MT-001"],
+      lifecycle: {
+        status: "PENDING",
+        depends_on: ["MT-001"],
+      },
+    }),
+    "utf8",
+  );
+
+  try {
+    const plan = deriveWpMicrotaskPlan({
+      wpId,
+      receipts: [
+        {
+          timestamp_utc: "2026-04-05T10:00:00Z",
+          actor_role: "CODER",
+          receipt_kind: "CODER_INTENT",
+          correlation_id: "intent-1",
+          microtask_contract: {
+            scope_ref: "MT-001",
+          },
+        },
+      ],
+    });
+
+    assert.equal(plan.items[0].mt_id, "MT-001");
+    assert.equal(plan.items[0].state, "CLEARED");
+    assert.equal(plan.active_microtask?.mt_id, "MT-002");
+    assert.equal(plan.active_microtask?.state, "DECLARED");
+    assert.equal(plan.previous_microtask?.mt_id, "MT-001");
+  } finally {
+    fs.rmSync(packetDir, { recursive: true, force: true });
+  }
+});
+
 test("deriveWpMicrotaskPlan treats MT STEER review responses as repair required", () => {
   const wpId = "WP-TEST-MICROTASK-STEER-SUMMARY-v1";
   const packetDir = path.join(repoRoot, ".GOV", "task_packets", wpId);

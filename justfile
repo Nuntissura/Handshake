@@ -9,18 +9,39 @@ CARGO_TARGET_DIR := "{{ARTIFACT_ROOT}}/handshake-cargo-target"
 docs-check:
 	node "{{GOV_ROOT}}/roles_shared/checks/docs-check.mjs"
 
+hbr-matrix-check:
+	node "{{GOV_ROOT}}/roles_shared/checks/hbr-matrix-check.mjs" --all-packets
+
+hbr-man-001 *FLAGS="":
+	$activeRoot = if ($env:HANDSHAKE_ACTIVE_REPO_ROOT) { $env:HANDSHAKE_ACTIVE_REPO_ROOT } else { & node "{{GOV_ROOT}}/roles_shared/scripts/topology/resolve-protected-worktree.mjs" handshake_main --path-only; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE } }; node "{{GOV_ROOT}}/roles_shared/checks/hbr-man-001-paired-diff.mjs" --repo-root (Resolve-Path $activeRoot).Path {{FLAGS}}
+
+hbr-man-003 *FLAGS="":
+	$activeRoot = if ($env:HANDSHAKE_ACTIVE_REPO_ROOT) { $env:HANDSHAKE_ACTIVE_REPO_ROOT } else { & node "{{GOV_ROOT}}/roles_shared/scripts/topology/resolve-protected-worktree.mjs" handshake_main --path-only; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE } }; $env:HANDSHAKE_GOV_ROOT=(Resolve-Path "{{GOV_ROOT}}").Path; node "{{GOV_ROOT}}/roles_shared/checks/hbr-man-003-scan.mjs" --repo-root (Resolve-Path $activeRoot).Path --gov-root $env:HANDSHAKE_GOV_ROOT {{FLAGS}}
+
+hbr-quiet-api-lint *FLAGS="":
+	$activeRoot = if ($env:HANDSHAKE_ACTIVE_REPO_ROOT) { $env:HANDSHAKE_ACTIVE_REPO_ROOT } else { & node "{{GOV_ROOT}}/roles_shared/scripts/topology/resolve-protected-worktree.mjs" handshake_main --path-only; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE } }; $env:HANDSHAKE_GOV_ROOT=(Resolve-Path "{{GOV_ROOT}}").Path; node "{{GOV_ROOT}}/roles_shared/checks/hbr-quiet-api-lint.mjs" --repo-root (Resolve-Path $activeRoot).Path {{FLAGS}}
+
+hbr-visual-smoke *FLAGS="":
+	$activeRoot = if ($env:HANDSHAKE_ACTIVE_REPO_ROOT) { $env:HANDSHAKE_ACTIVE_REPO_ROOT } else { & node "{{GOV_ROOT}}/roles_shared/scripts/topology/resolve-protected-worktree.mjs" handshake_main --path-only; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE } }; $env:HANDSHAKE_GOV_ROOT=(Resolve-Path "{{GOV_ROOT}}").Path; node "{{GOV_ROOT}}/roles_shared/checks/hbr-visual-smoke.mjs" --repo-root (Resolve-Path $activeRoot).Path {{FLAGS}}
+
+hbr-inspector-smoke *FLAGS="":
+	$activeRoot = if ($env:HANDSHAKE_ACTIVE_REPO_ROOT) { $env:HANDSHAKE_ACTIVE_REPO_ROOT } else { & node "{{GOV_ROOT}}/roles_shared/scripts/topology/resolve-protected-worktree.mjs" handshake_main --path-only; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE } }; $env:HANDSHAKE_GOV_ROOT=(Resolve-Path "{{GOV_ROOT}}").Path; node "{{GOV_ROOT}}/roles_shared/checks/hbr-inspector-smoke.mjs" --repo-root (Resolve-Path $activeRoot).Path {{FLAGS}}
+
+hbr-swarm-n8 *FLAGS="":
+	$activeRoot = if ($env:HANDSHAKE_ACTIVE_REPO_ROOT) { $env:HANDSHAKE_ACTIVE_REPO_ROOT } else { & node "{{GOV_ROOT}}/roles_shared/scripts/topology/resolve-protected-worktree.mjs" handshake_main --path-only; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE } }; $env:HANDSHAKE_GOV_ROOT=(Resolve-Path "{{GOV_ROOT}}").Path; node "{{GOV_ROOT}}/roles_shared/checks/hbr-swarm-n8.mjs" --repo-root (Resolve-Path $activeRoot).Path {{FLAGS}}
+
+hbr-swarm-invariants *FLAGS="":
+	$activeRoot = if ($env:HANDSHAKE_ACTIVE_REPO_ROOT) { $env:HANDSHAKE_ACTIVE_REPO_ROOT } else { & node "{{GOV_ROOT}}/roles_shared/scripts/topology/resolve-protected-worktree.mjs" handshake_main --path-only; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE } }; $env:HANDSHAKE_GOV_ROOT=(Resolve-Path "{{GOV_ROOT}}").Path; node "{{GOV_ROOT}}/roles_shared/checks/hbr-swarm-invariants.mjs" --repo-root (Resolve-Path $activeRoot).Path {{FLAGS}}
+
+generate-model-manual-md:
+	$activeRoot = if ($env:HANDSHAKE_ACTIVE_REPO_ROOT) { $env:HANDSHAKE_ACTIVE_REPO_ROOT } else { & node "{{GOV_ROOT}}/roles_shared/scripts/topology/resolve-protected-worktree.mjs" handshake_main --path-only; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE } }; $repoRoot = (Resolve-Path $activeRoot).Path; $artifactRoot = (Resolve-Path "{{ARTIFACT_ROOT}}").Path; $targetDir = Join-Path $artifactRoot "handshake-cargo-target"; New-Item -ItemType Directory -Force -Path $targetDir | Out-Null; $manifest = Join-Path $repoRoot "src\backend\handshake_core\Cargo.toml"; $out = Join-Path $repoRoot "app\MODEL_MANUAL.md"; $content = & cargo run --manifest-path $manifest --target-dir $targetDir --bin model_manual_md_gen; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; [System.IO.File]::WriteAllText($out, (($content -join [Environment]::NewLine) + [Environment]::NewLine), (New-Object System.Text.UTF8Encoding($false))); Write-Host "generated $out"
+
 gov-check *FLAGS="":
 	just docs-check
-	$mainRoot = (& node "{{GOV_ROOT}}/roles_shared/scripts/topology/resolve-protected-worktree.mjs" handshake_main --path-only); if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; $env:HANDSHAKE_ACTIVE_REPO_ROOT=(Resolve-Path $mainRoot).Path; $env:HANDSHAKE_GOV_ROOT=(Resolve-Path "{{GOV_ROOT}}").Path; node "{{GOV_ROOT}}/roles_shared/checks/gov-check.mjs" {{FLAGS}}
+	$activeRoot = if ($env:HANDSHAKE_ACTIVE_REPO_ROOT) { $env:HANDSHAKE_ACTIVE_REPO_ROOT } else { & node "{{GOV_ROOT}}/roles_shared/scripts/topology/resolve-protected-worktree.mjs" handshake_main --path-only; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE } }; $env:HANDSHAKE_ACTIVE_REPO_ROOT=(Resolve-Path $activeRoot).Path; $env:HANDSHAKE_GOV_ROOT=(Resolve-Path "{{GOV_ROOT}}").Path; node "{{GOV_ROOT}}/roles_shared/checks/gov-check.mjs" {{FLAGS}}
 
 gov-staged-index-survey:
 	node "{{GOV_ROOT}}/roles_shared/scripts/lib/startup-index-staleness-check.mjs"
-
-gov-mt-packet-scope-alignment-check *FLAGS="":
-	node "{{GOV_ROOT}}/roles_shared/checks/mt-packet-scope-alignment-check.mjs" {{FLAGS}}
-
-gov-kb-ready-checklist-coverage-check *FLAGS="":
-	node "{{GOV_ROOT}}/roles_shared/checks/kb-ready-checklist-coverage-check.mjs" {{FLAGS}}
 
 canonise-gov:
 	@node "{{GOV_ROOT}}/roles_shared/scripts/checks/canonise-gov.mjs"
@@ -72,6 +93,12 @@ spec-eof-appendices-check:
 
 wp-declared-topology-check wp-id:
 	node "{{GOV_ROOT}}/roles_shared/checks/wp-declared-topology-check.mjs" {{wp-id}}
+
+gov-mt-packet-scope-alignment-check *FLAGS="":
+	node "{{GOV_ROOT}}/roles_shared/checks/mt-packet-scope-alignment-check.mjs" {{FLAGS}}
+
+gov-kb-ready-checklist-coverage-check *FLAGS="":
+	node "{{GOV_ROOT}}/roles_shared/checks/kb-ready-checklist-coverage-check.mjs" {{FLAGS}}
 
 validator-policy-gate wp-id:
 	node "{{GOV_ROOT}}/roles_shared/checks/computed-policy-gate-check.mjs" {{wp-id}}

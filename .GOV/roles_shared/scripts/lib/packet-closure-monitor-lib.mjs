@@ -213,12 +213,38 @@ export function buildPacketAcceptanceRowsFromClauses(clauseRows = []) {
   });
 }
 
+export function buildDefaultHbrContext() {
+  return {
+    tags_declared: [],
+    not_applicable_overrides: [],
+  };
+}
+
+export function buildDefaultHbrAcceptanceMatrix() {
+  return {
+    schema_version: 1,
+    hbr: [],
+    hbr_not_applicable: [],
+  };
+}
+
+export function buildDefaultHbrObligations() {
+  return [];
+}
+
 export function formatPacketAcceptanceMatrixSection(clauseRows = []) {
   return `## PACKET_ACCEPTANCE_MATRIX (AUTHORITATIVE SNAPSHOT; MUTABLE)
 - Rule: this is the executable acceptance contract for packet closure. New packets must keep stable row IDs and move each required row to PROVED, CONFIRMED, or NOT_APPLICABLE with evidence before PASS.
 - Rule: use STEER or BLOCKED for unresolved required rows instead of narrative closure.
+- HBR_CONTEXT:
+  - hbr.tags_declared: []
+  - hbr.not_applicable_overrides: []
 - ACCEPTANCE_ROWS:
-${formatList(buildPacketAcceptanceRowsFromClauses(clauseRows))}`;
+${formatList(buildPacketAcceptanceRowsFromClauses(clauseRows))}
+- HBR_ROWS:
+  - acceptance_matrix.schema_version: 1
+  - acceptance_matrix.hbr: []
+  - acceptance_matrix.hbr_not_applicable: []`;
 }
 
 function canonicalizeCoderStatus(rawValue) {

@@ -63,6 +63,15 @@
     "spec_anchors": [],
     "acceptance_criteria": []
   },
+  "hbr": {
+    "tags_declared": [],
+    "not_applicable_overrides": []
+  },
+  "acceptance_matrix": {
+    "schema_version": 1,
+    "hbr": [],
+    "hbr_not_applicable": []
+  },
   "refinement": {
     "contract_file": ".GOV/task_packets/{{WP_ID}}/refinement.json",
     "status": "PENDING",

@@ -11,6 +11,9 @@ import {
   stampContractProjectionMetadata,
 } from "../lib/packet-contract-lib.mjs";
 import {
+  buildDefaultHbrAcceptanceMatrix,
+  buildDefaultHbrContext,
+  buildDefaultHbrObligations,
   formatClauseClosureMatrixSection,
   formatPacketAcceptanceMatrixSection,
   formatSharedSurfaceMonitoringSection,
@@ -621,6 +624,8 @@ function packetContract() {
       broad_tool_allowlist: ["NONE"],
       acceptance_criteria: acceptanceCriteria,
     },
+    hbr: buildDefaultHbrContext(),
+    acceptance_matrix: buildDefaultHbrAcceptanceMatrix(),
     refinement: {
       contract_file: `${PACKET_DIR}/refinement.json`,
       projection_file: `${PACKET_DIR}/refinement.md`,
@@ -789,6 +794,7 @@ function microtaskContract({ id, title, index }) {
       "No CKC-only runtime authority copied into Handshake.",
       noSqliteRule,
     ],
+    hbr_obligations: buildDefaultHbrObligations(),
   };
 }
 

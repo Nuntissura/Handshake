@@ -8,6 +8,7 @@
 
 import fs from "node:fs";
 import { GOV_ROOT_REPO_REL, repoPathAbs, resolveWorkPacketPath } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
+import { buildWorkPacketEvaluatorView } from "../../../roles_shared/scripts/lib/work-packet-contract-read-lib.mjs";
 import { parseJsonFile, validateRuntimeStatus } from "../../../roles_shared/scripts/lib/wp-communications-lib.mjs";
 import { syncRuntimeProjectionFromPacket } from "../../../roles_shared/scripts/lib/packet-runtime-projection-lib.mjs";
 import {
@@ -260,13 +261,14 @@ function main() {
     fail("Missing task board", [`Expected: ${TASK_BOARD_PATH}`]);
   }
 
-  const resolvedPacket = resolveWorkPacketPath(wpId);
-  const packetPath = resolvedPacket?.packetPath || "";
-  const packetAbsPath = repoPathAbs(packetPath);
-  if (!packetPath || !fs.existsSync(packetAbsPath)) {
+  const packetView = buildWorkPacketEvaluatorView(wpId);
+  const resolvedPacket = packetView?.ok ? null : resolveWorkPacketPath(wpId);
+  const packetPath = packetView?.ok ? packetView.packetPath : (resolvedPacket?.packetPath || "");
+  const packetAbsPath = packetView?.ok ? packetView.packetAbsPath : repoPathAbs(packetPath);
+  if (!packetPath || !packetAbsPath || !fs.existsSync(packetAbsPath)) {
     fail("Official packet not found", [packetPath || `<missing packet path for ${wpId}>`]);
   }
-  const packetText = readText(packetAbsPath);
+  const packetText = packetView?.ok ? packetView.packetText : readText(packetAbsPath);
   const runtimeContext = loadDeclaredRuntimeContext(packetText);
   const expectedPacketStatus = expectedPacketStatusForTaskBoardStatus(status);
   const actualPacketStatus = parsePacketStatus(packetText);

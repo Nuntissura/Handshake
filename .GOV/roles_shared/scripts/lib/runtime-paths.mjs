@@ -45,6 +45,15 @@ function readPersistedUserEnv(name) {
   }
 }
 
+function canonicalExistingPath(targetPath) {
+  const resolvedPath = path.resolve(String(targetPath || ""));
+  try {
+    return fs.realpathSync.native(resolvedPath);
+  } catch {
+    return resolvedPath;
+  }
+}
+
 export function normalizePath(value) {
   return String(value || "").replace(/\\/g, "/");
 }
@@ -70,9 +79,9 @@ function resolveGovRoot() {
   ).trim();
   if (directValue) {
     const candidate = path.resolve(directValue);
-    if (fs.existsSync(candidate)) return candidate;
+    if (fs.existsSync(candidate)) return canonicalExistingPath(candidate);
   }
-  return path.resolve(REPO_ROOT, ".GOV");
+  return canonicalExistingPath(path.resolve(REPO_ROOT, ".GOV"));
 }
 
 export const GOV_ROOT_ABS = resolveGovRoot();
@@ -150,13 +159,18 @@ export function listWorkPacketEntriesAt(taskPacketsRootAbs, taskPacketsRootRel, 
   for (const dirent of fs.readdirSync(rootAbs, { withFileTypes: true })) {
     if (dirent.isDirectory()) {
       if (skipDirNames.has(dirent.name)) continue;
-      const packetPathAbs = path.join(rootAbs, dirent.name, "packet.md");
-      if (!fs.existsSync(packetPathAbs)) continue;
+      const packetMdPathAbs = path.join(rootAbs, dirent.name, "packet.md");
+      const packetJsonPathAbs = path.join(rootAbs, dirent.name, "packet.json");
+      const packetFileName = fs.existsSync(packetMdPathAbs)
+        ? "packet.md"
+        : (fs.existsSync(packetJsonPathAbs) ? "packet.json" : "");
+      if (!packetFileName) continue;
       entries.push({
         wpId: dirent.name,
-        packetPath: normalizePath(path.join(rootRel, dirent.name, "packet.md")),
+        packetPath: normalizePath(path.join(rootRel, dirent.name, packetFileName)),
         packetDir: normalizePath(path.join(rootRel, dirent.name)),
         isFolder: true,
+        packetContractPath: normalizePath(path.join(rootRel, dirent.name, "packet.json")),
       });
       continue;
     }
@@ -262,6 +276,8 @@ export function resolveWorkPacketPathAtRepo(repoRoot, wpId, localGovRootRel = ".
   for (const candidate of workPacketRootCandidatesAt(govRootAbs, normalizedGovRootRel)) {
     const folderPath = normalizePath(path.join(candidate.rootRel, wpId, "packet.md"));
     const folderAbsPath = path.join(candidate.rootAbs, wpId, "packet.md");
+    const folderContractPath = normalizePath(path.join(candidate.rootRel, wpId, "packet.json"));
+    const folderContractAbsPath = path.join(candidate.rootAbs, wpId, "packet.json");
     const flatPath = normalizePath(path.join(candidate.rootRel, `${wpId}.md`));
     const flatAbsPath = path.join(candidate.rootAbs, `${wpId}.md`);
     if (fs.existsSync(folderAbsPath)) {
@@ -271,6 +287,19 @@ export function resolveWorkPacketPathAtRepo(repoRoot, wpId, localGovRootRel = ".
         packetDir: normalizePath(path.join(candidate.rootRel, wpId)),
         packetDirAbs: path.join(candidate.rootAbs, wpId),
         isFolder: true,
+        packetContractPath: folderContractPath,
+        packetContractAbsPath: folderContractAbsPath,
+      };
+    }
+    if (fs.existsSync(folderContractAbsPath)) {
+      return {
+        packetPath: folderContractPath,
+        packetAbsPath: folderContractAbsPath,
+        packetDir: normalizePath(path.join(candidate.rootRel, wpId)),
+        packetDirAbs: path.join(candidate.rootAbs, wpId),
+        isFolder: true,
+        packetContractPath: folderContractPath,
+        packetContractAbsPath: folderContractAbsPath,
       };
     }
     if (fs.existsSync(flatAbsPath)) {
@@ -286,6 +315,8 @@ export function resolveWorkPacketPathAtRepo(repoRoot, wpId, localGovRootRel = ".
   for (const archiveCandidate of workPacketArchiveRootCandidatesAt(govRootAbs, normalizedGovRootRel)) {
     const folderPath = normalizePath(path.join(archiveCandidate.rootRel, wpId, "packet.md"));
     const folderAbsPath = path.join(archiveCandidate.rootAbs, wpId, "packet.md");
+    const folderContractPath = normalizePath(path.join(archiveCandidate.rootRel, wpId, "packet.json"));
+    const folderContractAbsPath = path.join(archiveCandidate.rootAbs, wpId, "packet.json");
     const flatPath = normalizePath(path.join(archiveCandidate.rootRel, `${wpId}.md`));
     const flatAbsPath = path.join(archiveCandidate.rootAbs, `${wpId}.md`);
     if (fs.existsSync(folderAbsPath)) {
@@ -296,6 +327,20 @@ export function resolveWorkPacketPathAtRepo(repoRoot, wpId, localGovRootRel = ".
         packetDirAbs: path.join(archiveCandidate.rootAbs, wpId),
         isFolder: true,
         lifecycleClass: archiveCandidate.lifecycleClass,
+        packetContractPath: folderContractPath,
+        packetContractAbsPath: folderContractAbsPath,
+      };
+    }
+    if (fs.existsSync(folderContractAbsPath)) {
+      return {
+        packetPath: folderContractPath,
+        packetAbsPath: folderContractAbsPath,
+        packetDir: normalizePath(path.join(archiveCandidate.rootRel, wpId)),
+        packetDirAbs: path.join(archiveCandidate.rootAbs, wpId),
+        isFolder: true,
+        lifecycleClass: archiveCandidate.lifecycleClass,
+        packetContractPath: folderContractPath,
+        packetContractAbsPath: folderContractAbsPath,
       };
     }
     if (fs.existsSync(flatAbsPath)) {

@@ -47,6 +47,7 @@
     "acceptance_criteria": [],
     "proof_targets": []
   },
+  "hbr_obligations": [],
   "handoff": {
     "coder_session": null,
     "wp_validator_session": null,

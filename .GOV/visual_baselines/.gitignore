@@ -1,0 +1,5 @@
+# Visual baselines are content-addressed PNGs named <sha256>.png.
+# Default policy: reviewed baseline PNGs may be checked in while this directory stays below 100MB.
+# If the directory would exceed 100MB, set HANDSHAKE_VISUAL_BASELINE_ROOT to an operator-controlled external baseline store.
+# Keep this stub so no-context models can discover the baseline contract even when PNGs are externalized.
+!.gitignore

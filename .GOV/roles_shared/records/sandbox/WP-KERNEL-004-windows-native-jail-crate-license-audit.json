@@ -1,0 +1,151 @@
+{
+  "schema": "hsk.sandbox_crate_audit@1",
+  "audited_at_utc": "2026-05-18T19:47:46.716Z",
+  "audited_by": "KERNEL_BUILDER-MT-045",
+  "audit_method": {
+    "network_sources": [
+      "crates.io API",
+      "GitHub REST API",
+      "GitHub raw source",
+      "RustSec advisory-db GitHub contents API"
+    ],
+    "notes": [
+      "Win32 surface coverage is heuristic source inspection for named API families.",
+      "cargo_audit_clean is direct RustSec candidate advisory status, not a full cargo-audit transitive graph run."
+    ]
+  },
+  "candidates": [
+    {
+      "crate_name": "codex-windows-sandbox",
+      "source_kind": "github_workspace_crate",
+      "source_urls": {
+        "crates_io_api": "https://crates.io/api/v1/crates/codex-windows-sandbox",
+        "repository": "https://github.com/openai/codex",
+        "crate_source": "https://github.com/openai/codex/tree/main/codex-rs/windows-sandbox-rs",
+        "cargo_toml": "https://raw.githubusercontent.com/openai/codex/main/codex-rs/windows-sandbox-rs/Cargo.toml",
+        "license": "https://raw.githubusercontent.com/openai/codex/main/LICENSE",
+        "rustsec_direct_advisories": "https://github.com/RustSec/advisory-db/tree/main/crates/codex-windows-sandbox"
+      },
+      "version_audited": "0.0.0",
+      "license_spdx": "Apache-2.0",
+      "license_findings": [
+        "crates.io API returned 404; candidate is only available as an OpenAI Codex workspace crate."
+      ],
+      "last_commit_utc": "2026-05-18T18:00:03Z",
+      "open_issues": 4525,
+      "open_issues_basis": "GitHub repository open_issues_count; workspace-crate-specific issue counts are not available without a separate search heuristic.",
+      "maintainer_count": 100,
+      "maintainer_count_basis": "GitHub contributors count from the first page because workspace crate owners are not published on crates.io.",
+      "ci_present": true,
+      "cargo_audit_clean": true,
+      "cargo_audit_basis": "cargo-audit CLI was not required; direct crate advisories were checked in RustSec advisory-db. Transitive dependency advisories are not fully enumerated for this workspace crate.",
+      "rustsec_direct_advisories": [],
+      "transitive_dep_count": 21,
+      "dependency_count_basis": "Declared direct dependency names parsed from the workspace crate Cargo.toml; not a full resolved cargo tree.",
+      "unmaintained_deps": [],
+      "win32_surface_coverage": {
+        "job_objects": true,
+        "app_container": false,
+        "restricted_tokens": true
+      },
+      "async_compatible": true,
+      "integration_tests_present": true,
+      "hard_blockers": [
+        "CRATE_NOT_PUBLISHED_ON_CRATES_IO",
+        "WIN32_TRINITY_MISSING_APP_CONTAINER"
+      ],
+      "score": 62
+    },
+    {
+      "crate_name": "rappct",
+      "source_kind": "crates_io_registry_crate",
+      "source_urls": {
+        "crates_io_api": "https://crates.io/api/v1/crates/rappct",
+        "crates_io_page": "https://crates.io/crates/rappct",
+        "docs_rs": "https://docs.rs/rappct/latest/rappct/",
+        "repository": "https://github.com/cpjet64/rappct",
+        "release_source": "https://github.com/cpjet64/rappct/tree/rappct-v0.13.3",
+        "cargo_toml": "https://raw.githubusercontent.com/cpjet64/rappct/rappct-v0.13.3/Cargo.toml",
+        "license": "https://raw.githubusercontent.com/cpjet64/rappct/rappct-v0.13.3/LICENSE",
+        "rustsec_direct_advisories": "https://github.com/RustSec/advisory-db/tree/main/crates/rappct"
+      },
+      "version_audited": "0.13.3",
+      "license_spdx": "MIT",
+      "license_findings": [
+        "GitHub repository license API reports NOASSERTION even though Cargo.toml and LICENSE identify MIT.",
+        "Repository default branch Cargo.toml version 0.13.10 differs from latest crates.io version 0.13.3; MT-046 should consume only the audited registry version unless a new audit is run.",
+        "Some historical rappct versions are yanked on crates.io; current audited version is not yanked."
+      ],
+      "last_commit_utc": "2026-03-05T20:04:42Z",
+      "open_issues": 3,
+      "open_issues_basis": "GitHub repository open_issues_count, which may include pull requests.",
+      "maintainer_count": 1,
+      "maintainer_count_basis": "crates.io owners API.",
+      "ci_present": true,
+      "cargo_audit_clean": true,
+      "cargo_audit_basis": "Direct crate advisories checked in RustSec advisory-db; cargo-audit CLI was not required for this governance proof command.",
+      "rustsec_direct_advisories": [],
+      "transitive_dep_count": 8,
+      "dependency_count_basis": "crates.io version dependency API count; not a fully resolved cargo tree.",
+      "unmaintained_deps": [],
+      "win32_surface_coverage": {
+        "job_objects": true,
+        "app_container": true,
+        "restricted_tokens": false
+      },
+      "async_compatible": false,
+      "integration_tests_present": true,
+      "hard_blockers": [
+        "WIN32_TRINITY_MISSING_RESTRICTED_TOKENS"
+      ],
+      "score": 76
+    }
+  ],
+  "decision": {
+    "chosen_crate": "rappct",
+    "chosen_version": "0.13.3",
+    "rationale": "MT-046 remediation selected rappct 0.13.3 after supplemental source-level validation. It is a crates.io-published MIT crate, compiles on the local Windows toolchain, and provides AppContainer profile creation, LPAC support, AppContainer ACL grants, stdio-pipe launch, and Job Object kill-on-close support. rappct does not expose a public Restricted Token API, so MT-046 uses rappct as the audited substrate and closes the missing trinity layer with a narrow local Win32 bridge confined to restricted_appcontainer.rs and job_object_wrap.rs. The alternate codex-windows-sandbox candidate is not published on crates.io, is a Codex workspace-internal crate with path dependencies/helper-binary assumptions, and does not provide AppContainer/LPAC coverage as a drop-in backend.",
+    "alternative_rejected": [
+      "codex-windows-sandbox"
+    ],
+    "alternative_rejected_reason": {
+      "codex-windows-sandbox": "CRATE_NOT_PUBLISHED_ON_CRATES_IO; WORKSPACE_INTERNAL_PATH_DEPS; HELPER_BINARY_ASSUMPTIONS; WIN32_TRINITY_MISSING_APP_CONTAINER"
+    },
+    "license_acceptance_path": "No GPL-3.0 or proprietary license blocker was found. rappct 0.13.3 is MIT-licensed and acceptable for product dependency adoption under the MT-046 residual-risk record. codex-windows-sandbox remains Apache-2.0 but is not selected because it is not a drop-in published dependency for this product path.",
+    "operator_escalation_required": false,
+    "supplemental_validation_20260526": {
+      "validated_by": "MT-046-REMEDIATOR",
+      "sources_checked": [
+        "cargo search rappct --limit 5",
+        "cargo info rappct",
+        "local Cargo registry source for rappct 0.13.3",
+        "local rappct windows_launch test",
+        "OpenAI Codex codex-rs/windows-sandbox-rs GitHub source",
+        "local CreateRestrictedToken SID probe for AppContainer/capability SID validity",
+        "local MT-046 token/file/job/network runtime probes"
+      ],
+      "proof_commands": [
+        "cargo check --manifest-path src/backend/handshake_core/Cargo.toml -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target --target x86_64-pc-windows-msvc --features win-native-integration",
+        "cargo test --manifest-path src/backend/handshake_core/Cargo.toml -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target --target x86_64-pc-windows-msvc --features win-native-integration --test windows_native_jail_adapter_tests -- --test-threads=1 --nocapture",
+        "cargo test --manifest-path src/backend/handshake_core/Cargo.toml -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target --target x86_64-pc-windows-msvc --features win-native-integration --test sandbox_selection_tests --test sandbox_promotion_binding_tests -- --test-threads=1 --nocapture",
+        "static test in windows_native_jail_adapter_tests validates CreateRestrictedToken/CreateProcessAsUserW/SECURITY_CAPABILITIES/JOB_LIST calls are present and confined to the audited wrapper files"
+      ],
+      "residual_risks": [
+        "rappct lacks public Restricted Token API coverage; MT-046 closes this at the product layer through a narrow local Win32 bridge instead of accepting a missing runtime boundary.",
+        "LPAC attribute application is attempted but runtime token telemetry reports is_lpac=false when composed with CreateProcessAsUserW on the validated host; MT-046 acceptance is AppContainer + Restricted Token + Job Object, so LPAC is retained as telemetry rather than overclaimed.",
+        "rappct ACL grant helper has no matching revoke helper; AppContainer profile deletion and temp-path isolation are used for cleanup, but file ACL cleanup remains a hardening watchpoint.",
+        "LoopbackOnly and host allowlist networking are rejected loudly until a loopback-exemption or WFP allowlist enforcement path is implemented without broad internetClient capability."
+      ],
+      "mitigations": [
+        "Direct windows-sys Win32 isolation calls are confined to restricted_appcontainer.rs and job_object_wrap.rs and covered by a static contract test.",
+        "Runtime token probe asserts is_appcontainer=true and is_restricted=true.",
+        "Runtime file probe asserts read-only bind write denial, read-write bind success, outside existing read denial, and outside existing write denial.",
+        "Runtime job probe asserts TerminateJobObject kills the child tree.",
+        "Runtime network probe asserts DenyAll outbound TCP cannot connect.",
+        "Adapter initialization probes AppContainer support with unique profile names, retries transient profile API failures, and serializes profile create/delete calls.",
+        "Promotion binding requires WindowsNativeJail runtime availability plus VeryStrong filesystem isolation before accepting win32_native_fidelity evidence.",
+        "LoopbackOnly and host allowlist network policies fail loudly instead of overclaiming enforcement."
+      ]
+    }
+  }
+}
