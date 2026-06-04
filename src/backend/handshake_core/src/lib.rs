@@ -135,6 +135,8 @@ macro_rules! params {
 pub mod ace;
 #[cfg(feature = "runtime-full")]
 pub mod ai_ready_data;
+/// Atelier/Lens domain (WP-KERNEL-005 CastKit Codex fold-in): PostgreSQL/CRDT only.
+pub mod atelier;
 #[cfg(feature = "runtime-full")]
 pub mod api;
 #[cfg(feature = "runtime-full")]
