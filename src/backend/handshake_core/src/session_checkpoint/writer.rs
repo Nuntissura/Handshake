@@ -1,5 +1,6 @@
 //! MT-191 Checkpoint write path: periodic + event-triggered + pre-shutdown.
 
+use sqlx::postgres::PgPool;
 use std::sync::{Arc, Mutex as StdMutex};
 use std::time::Duration;
 use thiserror::Error;
@@ -43,6 +44,8 @@ pub enum CheckpointWriterError {
     ShutdownForced,
     #[error("flight recorder error: {0}")]
     Recorder(#[from] RecorderError),
+    #[error("checkpoint sink error: {0}")]
+    Sink(String),
 }
 
 #[async_trait::async_trait]
@@ -59,8 +62,8 @@ pub trait CheckpointSink: Send + Sync {
 }
 
 /// In-memory `CheckpointSink` for tests. Production wires
-/// `PostgresCheckpointSink` (small wrapper around `RoleMailboxRepository`-style
-/// batch insert; left to MT-193 wiring).
+/// [`PostgresCheckpointSink`] (below), which batch-inserts checkpoint rows into
+/// the `kernel_session_checkpoint` table from migration 0024.
 pub struct InMemoryCheckpointSink {
     pub written: Mutex<Vec<SessionCheckpoint>>,
 }
@@ -89,6 +92,81 @@ impl CheckpointSink for InMemoryCheckpointSink {
         let n = batch.len() as u64;
         buf.extend(batch);
         Ok(n)
+    }
+}
+
+/// Production `CheckpointSink` backed by a real `PgPool`.
+///
+/// Each `write_batch` performs a single append-only multi-row `INSERT` into the
+/// `kernel_session_checkpoint` table (migration 0024). The column list, ordering,
+/// UUID-v7 `checkpoint_id`, and `state_kind` text encoding match the direct
+/// INSERTs used by MT-193's restart-resume path
+/// (`process_ledger::restart_resume`), so cadence-driven checkpoints and
+/// recovery-time checkpoints land in the same schema with the same conventions.
+///
+/// Inserts are batched (up to one statement per drained batch) so the writer's
+/// background drainer never round-trips per row. The table's `checkpoint_id`
+/// primary key makes the write idempotent against duplicate-id retries; rows are
+/// never updated in place (append-only), consistent with the checkpoint table's
+/// `ORDER BY created_at_utc DESC` latest-wins read pattern.
+#[derive(Clone)]
+pub struct PostgresCheckpointSink {
+    pool: PgPool,
+}
+
+impl PostgresCheckpointSink {
+    pub fn new(pool: PgPool) -> Self {
+        Self { pool }
+    }
+
+    pub fn pool(&self) -> &PgPool {
+        &self.pool
+    }
+}
+
+#[async_trait::async_trait]
+impl CheckpointSink for PostgresCheckpointSink {
+    async fn write_batch(
+        &self,
+        batch: Vec<SessionCheckpoint>,
+    ) -> Result<u64, CheckpointWriterError> {
+        if batch.is_empty() {
+            return Ok(0);
+        }
+
+        // Single multi-row INSERT keyed off the v7 checkpoint_id primary key.
+        // Append-only: on a duplicate checkpoint_id (idempotent retry of an
+        // already-persisted batch) we DO NOTHING rather than error, matching the
+        // append-only/latest-wins convention of kernel_session_checkpoint.
+        let mut builder = sqlx::QueryBuilder::<sqlx::Postgres>::new(
+            "INSERT INTO kernel_session_checkpoint (\
+                checkpoint_id, session_id, model_session_id, last_event_ledger_seq, \
+                compact_state, state_kind, pending_artifacts, created_at_utc, \
+                created_by_process, schema_version) ",
+        );
+        builder.push_values(batch.iter(), |mut row, cp| {
+            row.push_bind(cp.checkpoint_id.as_uuid())
+                .push_bind(cp.session_id)
+                .push_bind(cp.model_session_id)
+                .push_bind(cp.last_event_ledger_seq)
+                .push_bind(cp.compact_state.clone())
+                .push_bind(cp.state_kind.as_str())
+                .push_bind(
+                    serde_json::to_value(&cp.pending_artifacts)
+                        .unwrap_or_else(|_| serde_json::json!([])),
+                )
+                .push_bind(cp.created_at_utc)
+                .push_bind(cp.created_by_process)
+                .push_bind(i32::from(cp.schema_version));
+        });
+        builder.push(" ON CONFLICT (checkpoint_id) DO NOTHING");
+
+        let result = builder
+            .build()
+            .execute(&self.pool)
+            .await
+            .map_err(|err| CheckpointWriterError::Sink(err.to_string()))?;
+        Ok(result.rows_affected())
     }
 }
 

@@ -212,7 +212,7 @@ fn mt149_model_manual_apply_routes_through_catalog_action_id() {
         )
         .expect("apply_proposal must succeed");
 
-    match updated {
+    match &updated {
         EditableSurfaceSnapshot::ModelManual {
             before_text,
             after_text,
@@ -225,8 +225,17 @@ fn mt149_model_manual_apply_routes_through_catalog_action_id() {
         other => panic!("expected ModelManual snapshot; got {other:?}"),
     }
 
-    // Catalog routing proof: write_section ran exactly once with the
+    // apply_proposal is sandbox-scoped: it computes the candidate snapshot but
+    // does NOT route a live catalog write. The write happens only on promote.
+    assert_eq!(
+        writes.borrow().len(),
+        0,
+        "apply_proposal must not write live authority (sandbox-scoped)"
+    );
+
+    // Promotion routes the live write through the catalog exactly once with the
     // declared catalog action_id + write_box schema_id.
+    surface.promote(&updated).expect("promote must succeed");
     let records = writes.borrow();
     assert_eq!(records.len(), 1);
     let rec = &records[0];
@@ -258,18 +267,27 @@ fn mt149_retrieval_policy_apply_routes_through_catalog_action_id() {
         .apply_proposal(&snapshot, SurfaceProposal::RetrievalPolicyValue { new_value: 16 })
         .expect("apply_proposal must succeed");
 
-    match updated {
+    match &updated {
         EditableSurfaceSnapshot::RetrievalPolicy {
             before_value,
             after_value,
             ..
         } => {
-            assert_eq!(before_value, 8);
-            assert_eq!(after_value, 16);
+            assert_eq!(*before_value, 8);
+            assert_eq!(*after_value, 16);
         }
         other => panic!("expected RetrievalPolicy snapshot; got {other:?}"),
     }
 
+    // apply_proposal is sandbox-scoped: no live catalog write yet.
+    assert_eq!(
+        writes.borrow().len(),
+        0,
+        "apply_proposal must not write live authority (sandbox-scoped)"
+    );
+
+    // Promotion routes the live write through the catalog exactly once.
+    surface.promote(&updated).expect("promote must succeed");
     let records = writes.borrow();
     assert_eq!(records.len(), 1);
     let rec = &records[0];

@@ -284,6 +284,28 @@ impl EditableSurfaceProvider for MutationObserver {
             }),
         }
     }
+
+    fn promote(
+        &self,
+        snapshot: &EditableSurfaceSnapshot,
+    ) -> Result<(), EditableSurfaceError> {
+        // MT-170 mock: writes the candidate to the live value. The MT-170
+        // scenarios drive apply_proposal directly only after gate approval, so
+        // the apply_count==0-while-pending invariants are unaffected; promote is
+        // provided to satisfy the EditableSurfaceProvider contract.
+        match snapshot {
+            EditableSurfaceSnapshot::RetrievalPolicy { after_value, .. } => {
+                *self.value.borrow_mut() = *after_value;
+                Ok(())
+            }
+            EditableSurfaceSnapshot::ModelManual { .. } => {
+                Err(EditableSurfaceError::MismatchedTarget {
+                    expected: "retrieval_policy_params",
+                    got: "model_manual_capsule_text",
+                })
+            }
+        }
+    }
 }
 
 // ============================================================================

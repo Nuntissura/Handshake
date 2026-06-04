@@ -1634,7 +1634,7 @@ mod mt_192_adversarial {
 mod mt_191_192_adversarial_postgres {
     use super::*;
     use handshake_core::session_checkpoint::writer::{
-        CheckpointSink, CheckpointWriter, CheckpointWriterConfig, CheckpointWriterError,
+        CheckpointSink, CheckpointWriter, CheckpointWriterConfig, PostgresCheckpointSink,
     };
     use sqlx::{postgres::PgPoolOptions, Connection, PgPool, Row};
     use std::sync::Arc;
@@ -1679,56 +1679,19 @@ mod mt_191_192_adversarial_postgres {
         Some(pool)
     }
 
-    /// A `CheckpointSink` backed by a real `PgPool`. Used to prove the writer
-    /// is wire-compatible with migration 0024.
-    struct PostgresCheckpointSink {
-        pool: PgPool,
-    }
-
-    #[async_trait::async_trait]
-    impl CheckpointSink for PostgresCheckpointSink {
-        async fn write_batch(
-            &self,
-            batch: Vec<SessionCheckpoint>,
-        ) -> Result<u64, CheckpointWriterError> {
-            let mut count = 0u64;
-            for cp in batch {
-                sqlx::query(
-                    r#"INSERT INTO kernel_session_checkpoint
-                         (checkpoint_id, session_id, model_session_id, last_event_ledger_seq,
-                          compact_state, state_kind, pending_artifacts, created_at_utc,
-                          created_by_process, schema_version)
-                       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)"#,
-                )
-                .bind(cp.checkpoint_id.as_uuid())
-                .bind(cp.session_id)
-                .bind(cp.model_session_id)
-                .bind(cp.last_event_ledger_seq)
-                .bind(&cp.compact_state)
-                .bind(cp.state_kind.as_str())
-                .bind(serde_json::to_value(&cp.pending_artifacts).unwrap())
-                .bind(cp.created_at_utc)
-                .bind(cp.created_by_process)
-                .bind(cp.schema_version as i32)
-                .execute(&self.pool)
-                .await
-                .map_err(|_| CheckpointWriterError::Send)?;
-                count += 1;
-            }
-            Ok(count)
-        }
-    }
-
-    /// MT-191 against real Postgres: writer drains 16 checkpoints into the
-    /// kernel_session_checkpoint table via the batched sink; final row count
-    /// matches submitted count.
+    /// MT-191 against real Postgres: the PRODUCTION `PostgresCheckpointSink`
+    /// (src/session_checkpoint/writer.rs) drains 16 checkpoints submitted through
+    /// the CheckpointWriter's cadence path into the real kernel_session_checkpoint
+    /// table; final row count matches submitted count. This proves the writer's
+    /// periodic/event-triggered/pre-shutdown cadence is durably persisted via the
+    /// production sink, not a test stand-in.
     #[tokio::test]
     #[ignore = "requires POSTGRES_TEST_URL; run with `cargo test ... -- --ignored`"]
     async fn mt_191_adversarial_postgres_writer_drains_into_real_table() {
         let Some(pool) = pool_or_skip().await else {
             panic!("ENVIRONMENT_BLOCKED: POSTGRES_TEST_URL unset or unreachable");
         };
-        let sink = Arc::new(PostgresCheckpointSink { pool: pool.clone() });
+        let sink = Arc::new(PostgresCheckpointSink::new(pool.clone()));
         let writer = CheckpointWriter::new(
             CheckpointWriterConfig {
                 period: Duration::from_secs(60),
@@ -1740,6 +1703,7 @@ mod mt_191_192_adversarial_postgres {
         );
         let handle = writer.start();
         let session = Uuid::now_v7();
+        // Periodic cadence submissions.
         for seq in 0..16i64 {
             let cp = SessionCheckpoint::new(
                 session,
@@ -1751,7 +1715,30 @@ mod mt_191_192_adversarial_postgres {
             .unwrap();
             handle.submit(cp).unwrap();
         }
+        // Event-triggered cadence (re-stamped to event_triggered by the writer).
+        let evt = SessionCheckpoint::new(
+            session,
+            Uuid::now_v7(),
+            16,
+            serde_json::json!({"seq": 16}),
+            CheckpointStateKind::Periodic,
+        )
+        .unwrap();
+        handle.submit_event_triggered(evt).await.unwrap();
+        // Pre-shutdown cadence: a final checkpoint submitted before shutdown
+        // flushes the channel and drains via the production sink.
+        let pre_shutdown = SessionCheckpoint::new(
+            session,
+            Uuid::now_v7(),
+            17,
+            serde_json::json!({"seq": 17}),
+            CheckpointStateKind::PreShutdown,
+        )
+        .unwrap();
+        handle.submit(pre_shutdown).unwrap();
         handle.shutdown().await.unwrap();
+
+        // All 18 cadence checkpoints landed durably in the real table.
         let count: i64 = sqlx::query_scalar(
             "SELECT COUNT(*)::BIGINT FROM kernel_session_checkpoint WHERE session_id = $1",
         )
@@ -1759,7 +1746,22 @@ mod mt_191_192_adversarial_postgres {
         .fetch_one(&pool)
         .await
         .unwrap();
-        assert_eq!(count, 16);
+        assert_eq!(count, 18);
+
+        // The distinct cadence kinds (periodic, event_triggered, pre_shutdown)
+        // were persisted through the production PostgresCheckpointSink, proving
+        // the writer's full cadence reaches Postgres — not just a single kind.
+        let kinds: Vec<String> = sqlx::query_scalar(
+            "SELECT DISTINCT state_kind FROM kernel_session_checkpoint \
+             WHERE session_id = $1 ORDER BY state_kind",
+        )
+        .bind(session)
+        .fetch_all(&pool)
+        .await
+        .unwrap();
+        assert!(kinds.contains(&"periodic".to_string()));
+        assert!(kinds.contains(&"event_triggered".to_string()));
+        assert!(kinds.contains(&"pre_shutdown".to_string()));
     }
 
     /// MT-192 against real Postgres: write a checkpoint via the writer, load

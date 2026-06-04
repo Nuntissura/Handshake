@@ -748,19 +748,12 @@ fn e2e_reject_iteration_completes_without_applying_surface_mutation() {
     // the audit ledger has a permanent entry of the rejection rationale.
     assert_eq!(recorder.fr_event_count(FR_EVT_CAPSULE_INJECTED), 1);
 
-    // Critical: the surface IS still written by execute_isolate_surface
-    // (it writes via the write_param callback during apply_proposal).
-    // The MT-149 surface contract does the write at the surface layer;
-    // the "surface mutation not applied" guarantee for Reject paths
-    // belongs to the PromotionGate flow (which is NOT submitted for
-    // Reject — see assertion below).
-    //
-    // We assert that no PromotionGate submission would have fired on a
-    // Reject decision: the gate adapter is engaged only by the orchestrator
-    // when AcceptRejectDecision::Accept. Here, no gate is submitted; we
-    // verify by checking that the stored top_k IS updated by the snapshot
-    // apply (which is the engine-level behavior) but the proposal would
-    // have been pre-gated by Accept in a production flow.
+    // HARD BAR (kernel-reset brief: isolate -> sandbox -> eval -> accept/
+    // reject -> promote). After a Reject the LIVE authority store MUST NOT
+    // contain the proposed value. IsolateEditableSurface (stage 2) is now
+    // sandbox-scoped — apply_proposal computes the candidate snapshot but
+    // does NOT write live authority. Promotion happens only on Accept, which
+    // did not occur here, so the store stays at the baseline top_k = 6.
     let stored = store
         .lock()
         .unwrap()
@@ -768,9 +761,108 @@ fn e2e_reject_iteration_completes_without_applying_surface_mutation() {
         .copied();
     assert_eq!(
         stored,
-        Some(8),
-        "snapshot apply still writes through the surface; promotion gating happens upstream"
+        Some(6),
+        "Reject must leave the live authority surface unchanged (no premature promotion)"
     );
+}
+
+// ---------------------------------------------------------------------------
+// 3b. Mirror of (3) on the Accept path: the proposed value is written to the
+//     live authority surface ONLY after the gate accepts (promotion), and the
+//     snapshot before the AcceptReject stage proves the store was still at
+//     baseline up to that point.
+// ---------------------------------------------------------------------------
+
+#[test]
+fn e2e_accept_iteration_promotes_to_live_surface_only_after_gate() {
+    let corpus = load_fixture_corpus();
+    let kp = StaticKeyProvider::deterministic("mt-167-accept-key");
+    let split = corpus.split(19, &kp, "mt-167-accept-key").unwrap();
+
+    let sandbox = CountingSandbox::new();
+    let runner = DeterministicValidatorRunner { pass_rate: 0.7 };
+    let evaluator = ValidatorFirstPassEvaluator::new(&sandbox, &runner);
+    let (store, surface) = build_seeded_retrieval_policy_surface();
+    let picker = FixedTopKPicker::new(8);
+    let accept_gate = AlwaysAcceptingGate::new();
+    let recorder = CapsuleRecorderMock::new();
+    let core = LoopCore::new();
+
+    // Drive stage-by-stage so we can observe the store is still at baseline
+    // right after IsolateEditableSurface (apply_proposal is sandbox-scoped).
+    let mut iteration = LoopIteration::new(1);
+    core.execute_choose_target(&mut iteration, &[], &picker)
+        .unwrap();
+    iteration.advance().unwrap();
+    core.execute_isolate_surface(&mut iteration, &surface, &picker)
+        .unwrap();
+    // After stage 2 the candidate rides in the snapshot, but the LIVE store
+    // must still be at baseline 6 — no premature write.
+    assert_eq!(
+        store
+            .lock()
+            .unwrap()
+            .get(&(TaskType::ValidatorHbrTestPacket, PolicyParameter::TopK))
+            .copied(),
+        Some(6),
+        "IsolateEditableSurface must be sandbox-scoped; no live write before gate"
+    );
+    iteration.advance().unwrap();
+    core.execute_run_in_sandbox(&mut iteration, &sandbox)
+        .unwrap();
+    iteration.advance().unwrap();
+    core.execute_eval(&mut iteration, &split, &kp, &evaluator)
+        .unwrap();
+    iteration.advance().unwrap();
+    core.execute_accept_reject(&mut iteration, &accept_gate)
+        .unwrap();
+    // Still no live write until promotion runs.
+    assert_eq!(
+        store
+            .lock()
+            .unwrap()
+            .get(&(TaskType::ValidatorHbrTestPacket, PolicyParameter::TopK))
+            .copied(),
+        Some(6),
+        "AcceptReject decision alone must not write live authority"
+    );
+    // Promotion runs only on Accept and is the ONLY live-authority write.
+    core.execute_promote_if_accepted(&iteration, &surface)
+        .unwrap();
+    assert_eq!(
+        store
+            .lock()
+            .unwrap()
+            .get(&(TaskType::ValidatorHbrTestPacket, PolicyParameter::TopK))
+            .copied(),
+        Some(8),
+        "Accept must promote the proposed value to the live authority surface"
+    );
+
+    // The full composed driver yields the same end state.
+    let (store2, surface2) = build_seeded_retrieval_policy_surface();
+    let picker2 = FixedTopKPicker::new(8);
+    let gate2 = AlwaysAcceptingGate::new();
+    let recorder2 = CapsuleRecorderMock::new();
+    let sandbox2 = CountingSandbox::new();
+    let runner2 = DeterministicValidatorRunner { pass_rate: 0.7 };
+    let evaluator2 = ValidatorFirstPassEvaluator::new(&sandbox2, &runner2);
+    let done = core
+        .run_one_iteration(
+            &[], 1, &picker2, &surface2, &sandbox2, &evaluator2, &split, &kp, &gate2, &recorder2,
+        )
+        .expect("accept iteration completes");
+    assert_eq!(done.stage, LoopStage::Complete);
+    assert_eq!(
+        store2
+            .lock()
+            .unwrap()
+            .get(&(TaskType::ValidatorHbrTestPacket, PolicyParameter::TopK))
+            .copied(),
+        Some(8),
+        "run_one_iteration promotes on Accept"
+    );
+    let _ = recorder;
 }
 
 // ---------------------------------------------------------------------------

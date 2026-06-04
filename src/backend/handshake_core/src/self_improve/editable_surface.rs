@@ -142,17 +142,39 @@ impl ForbiddenSurfaceGuard {
 
 /// Trait implemented by every concrete editable surface (ModelManual,
 /// RetrievalPolicy). The guard runs unconditionally before snapshot.
+///
+/// Authority-write isolation contract (kernel-reset brief: isolate -> run in
+/// sandbox -> eval -> accept/reject -> promote):
+///
+/// - [`snapshot`](EditableSurfaceProvider::snapshot) READS the live authority
+///   surface and returns a before==after snapshot. No mutation.
+/// - [`apply_proposal`](EditableSurfaceProvider::apply_proposal) computes a
+///   SANDBOX-SCOPED proposed snapshot (`after` carries the candidate value). It
+///   validates/clamps the proposal but MUST NOT write to the live authority
+///   surface. The returned snapshot is what the sandbox + evaluator run against.
+/// - [`promote`](EditableSurfaceProvider::promote) is the ONLY method that
+///   writes the candidate value to the live authority surface. The loop core
+///   calls it exclusively after the AcceptReject stage yields `Accept` (gate
+///   approved). On `Reject`/`Pending` it is never called, so the live authority
+///   store is left unchanged.
 pub trait EditableSurfaceProvider {
     fn snapshot(
         &self,
         target: &LoopTarget,
     ) -> Result<EditableSurfaceSnapshot, EditableSurfaceError>;
 
+    /// Compute the proposed (sandbox-scoped) snapshot. MUST NOT mutate the
+    /// live authority surface — promotion is deferred to [`promote`].
     fn apply_proposal(
         &self,
         snapshot: &EditableSurfaceSnapshot,
         proposal: SurfaceProposal,
     ) -> Result<EditableSurfaceSnapshot, EditableSurfaceError>;
+
+    /// Write the proposed snapshot's `after` value to the live authority
+    /// surface. Called by the loop core only after gate approval. Idempotent at
+    /// the surface level: promoting a no-op snapshot is a successful no-write.
+    fn promote(&self, snapshot: &EditableSurfaceSnapshot) -> Result<(), EditableSurfaceError>;
 }
 
 /// Concrete editable surface for ModelManual section text. Production
@@ -234,7 +256,9 @@ where
                         message: "model manual text exceeds 1MiB cap".to_string(),
                     });
                 }
-                (self.write_section)(manual_section_id, &new_text)?;
+                // Sandbox-scoped: do NOT write to live authority here. The
+                // candidate text rides in `after_text`; the live ModelManual
+                // section is mutated only by `promote` after gate approval.
                 Ok(EditableSurfaceSnapshot::ModelManual {
                     manual_section_id: manual_section_id.clone(),
                     before_text: before_text.clone(),
@@ -245,6 +269,28 @@ where
                 expected: "model_manual_capsule_text",
                 got: "retrieval_policy_params",
             }),
+        }
+    }
+
+    fn promote(&self, snapshot: &EditableSurfaceSnapshot) -> Result<(), EditableSurfaceError> {
+        match snapshot {
+            EditableSurfaceSnapshot::ModelManual {
+                manual_section_id,
+                before_text,
+                after_text,
+            } => {
+                // No-op promotions write nothing (idempotent at the surface).
+                if before_text == after_text {
+                    return Ok(());
+                }
+                (self.write_section)(manual_section_id, after_text)
+            }
+            EditableSurfaceSnapshot::RetrievalPolicy { .. } => {
+                Err(EditableSurfaceError::MismatchedTarget {
+                    expected: "model_manual_capsule_text",
+                    got: "retrieval_policy_params",
+                })
+            }
         }
     }
 }
@@ -323,7 +369,9 @@ where
                 SurfaceProposal::RetrievalPolicyValue { new_value },
             ) => {
                 clamp_policy_value(*parameter, new_value)?;
-                (self.write_param)(*task_type, *parameter, new_value)?;
+                // Sandbox-scoped: do NOT write to live authority here. The
+                // candidate value rides in `after_value`; the live policy table
+                // is mutated only by `promote` after gate approval.
                 Ok(EditableSurfaceSnapshot::RetrievalPolicy {
                     task_type: *task_type,
                     parameter: *parameter,
@@ -335,6 +383,31 @@ where
                 expected: "retrieval_policy_params",
                 got: "model_manual_capsule_text",
             }),
+        }
+    }
+
+    fn promote(&self, snapshot: &EditableSurfaceSnapshot) -> Result<(), EditableSurfaceError> {
+        match snapshot {
+            EditableSurfaceSnapshot::RetrievalPolicy {
+                task_type,
+                parameter,
+                before_value,
+                after_value,
+            } => {
+                // Re-validate the candidate at the authority boundary before
+                // any live write, then no-op when nothing changed.
+                clamp_policy_value(*parameter, *after_value)?;
+                if before_value == after_value {
+                    return Ok(());
+                }
+                (self.write_param)(*task_type, *parameter, *after_value)
+            }
+            EditableSurfaceSnapshot::ModelManual { .. } => {
+                Err(EditableSurfaceError::MismatchedTarget {
+                    expected: "retrieval_policy_params",
+                    got: "model_manual_capsule_text",
+                })
+            }
         }
     }
 }
@@ -542,17 +615,21 @@ mod tests {
                 SurfaceProposal::RetrievalPolicyValue { new_value: 8 },
             )
             .unwrap();
-        match applied {
+        match &applied {
             EditableSurfaceSnapshot::RetrievalPolicy {
                 before_value,
                 after_value,
                 ..
             } => {
-                assert_eq!(before_value, 6);
-                assert_eq!(after_value, 8);
+                assert_eq!(*before_value, 6);
+                assert_eq!(*after_value, 8);
             }
             _ => panic!("expected retrieval policy snapshot"),
         }
+        // apply_proposal is sandbox-scoped: no live write yet.
+        assert_eq!(writes.borrow().len(), 0);
+        // promote performs the single live-authority write.
+        surface.promote(&applied).unwrap();
         assert_eq!(writes.borrow().len(), 1);
     }
 
@@ -580,7 +657,7 @@ mod tests {
                 },
             )
             .unwrap();
-        match applied {
+        match &applied {
             EditableSurfaceSnapshot::ModelManual {
                 before_text,
                 after_text,
@@ -591,6 +668,10 @@ mod tests {
             }
             _ => panic!("expected model manual snapshot"),
         }
+        // apply_proposal is sandbox-scoped: no live write yet.
+        assert_eq!(writes.borrow().len(), 0);
+        // promote performs the single live-authority write.
+        surface.promote(&applied).unwrap();
         assert_eq!(writes.borrow().len(), 1);
     }
 }

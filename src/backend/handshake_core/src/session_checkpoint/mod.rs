@@ -31,6 +31,6 @@ pub use restart::{
     ResumeError, ResumeReport, ResumedSessionInfo,
 };
 pub use writer::{
-    CheckpointHandle, CheckpointWriter, CheckpointWriterConfig, CheckpointWriterError,
-    StateSnapshotter,
+    CheckpointHandle, CheckpointSink, CheckpointWriter, CheckpointWriterConfig,
+    CheckpointWriterError, InMemoryCheckpointSink, PostgresCheckpointSink, StateSnapshotter,
 };

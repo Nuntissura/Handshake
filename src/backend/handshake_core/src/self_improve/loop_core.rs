@@ -181,6 +181,17 @@ pub trait LoopStageExecutor {
         gate: &dyn OperatorGate,
     ) -> Result<(), LoopCoreError>;
 
+    /// Promote the proposed editable-surface snapshot to the live authority
+    /// surface IFF the AcceptReject stage yielded `Accept`. On `Reject` (or a
+    /// missing decision) the live authority surface is left untouched. This is
+    /// the only step in the loop that writes live authority — `apply_proposal`
+    /// at the IsolateEditableSurface stage is sandbox-scoped and does not write.
+    fn execute_promote_if_accepted(
+        &self,
+        iteration: &LoopIteration,
+        surface: &dyn EditableSurfaceProvider,
+    ) -> Result<(), LoopCoreError>;
+
     fn execute_record(
         &self,
         iteration: &mut LoopIteration,
@@ -235,6 +246,11 @@ impl LoopCore {
 
         // Stage 5: AcceptReject
         self.execute_accept_reject(&mut iteration, gate)?;
+
+        // Promotion: write the proposed snapshot to the LIVE authority surface
+        // ONLY when the gate accepted. On Reject the live authority store is
+        // never mutated (the IsolateEditableSurface stage was sandbox-scoped).
+        self.execute_promote_if_accepted(&iteration, surface)?;
 
         // Stage 6: RecordAsMemory (always run — Rejects also recorded for
         // future-iteration learning) then Complete.
@@ -340,6 +356,32 @@ impl LoopStageExecutor for LoopCore {
             }))?;
         let decision = gate.decide(iteration, eval).map_err(LoopCoreError::Gate)?;
         iteration.decision = Some(decision);
+        Ok(())
+    }
+
+    fn execute_promote_if_accepted(
+        &self,
+        iteration: &LoopIteration,
+        surface: &dyn EditableSurfaceProvider,
+    ) -> Result<(), LoopCoreError> {
+        // Only an explicit Accept may touch the live authority surface. Reject
+        // and a missing/unresolved decision both leave it untouched.
+        if !matches!(
+            iteration.decision,
+            Some(AcceptRejectDecision::Accept { .. })
+        ) {
+            return Ok(());
+        }
+        let snapshot =
+            iteration
+                .editable_surface_snapshot
+                .as_ref()
+                .ok_or(LoopCoreError::Iteration(
+                    LoopIterationError::MissingSnapshot {
+                        stage: LoopStage::AcceptReject,
+                    },
+                ))?;
+        surface.promote(snapshot).map_err(LoopCoreError::Surface)?;
         Ok(())
     }
 
