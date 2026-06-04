@@ -1,0 +1,662 @@
+{
+  "schema_id": "hsk.work_packet_stub_contract@1",
+  "schema_version": "work_packet_stub_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "execution_authority": "NON_EXECUTION_STUB",
+  "wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
+  "base_wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor",
+  "created_at_utc": "2026-06-04T00:00:00Z",
+  "source_files": {
+    "stub_contract": ".GOV/task_packets/stubs/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1.contract.json",
+    "markdown_projection": ".GOV/task_packets/stubs/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1.md"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/stubs/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1.md",
+    "status": "PENDING_GENERATION",
+    "projection_sha256": "PENDING_GENERATION",
+    "generated_by": "task-packet-stub-contracts.mjs"
+  },
+  "lifecycle": {
+    "status": "STUB (NOT READY FOR DEV)",
+    "format_version": "2026-04-06",
+    "activation_required": true,
+    "user_signature_required": false,
+    "refinement_required_before_execution": true
+  },
+  "build_order": {
+    "domain": "CROSS_BOUNDARY",
+    "tech_blocker": "YES",
+    "value_tier": "HIGH",
+    "risk_tier": "HIGH",
+    "depends_on": [
+      "WP-1-Postgres-Primary-Control-Plane-Foundation",
+      "WP-1-AI-Ready-Data-Architecture",
+      "WP-1-Loom-MVP",
+      "WP-1-Spec-Router-SpecPromptCompiler",
+      "WP-1-Front-End-Memory-System",
+      "WP-1-Artifact-System-Foundations",
+      "WP-1-Flight-Recorder",
+      "WP-1-Model-Onboarding-ContextPacks",
+      "WP-1-Project-Brain-Runtime-Backfill",
+      "WP-1-Semantic-Catalog"
+    ],
+    "blocks": [
+      "WP-1-RAG-Retrieval-Mode-Policy",
+      "WP-1-Thinking-Pipeline-Runtime-Backfill",
+      "WP-1-AIReady-Index-Evidence-Export",
+      "WP-1-AIReady-RelationshipIds-GraphRetrieval",
+      "WP-1-ContextPack-Recorder-Visibility"
+    ]
+  },
+  "spec_trace": {
+    "spec_target": ".GOV/spec/SPEC_CURRENT.md",
+    "roadmap_pointer": "Operator-requested kernel build 0007 concept captured on 2026-06-04: Handshake Project Knowledge Index plus Loom/Obsidian clone integration and HS_Rich_Text_Editor, side by side, as the editor and knowledge substrate for no-context model recovery.",
+    "roadmap_add_coverage": "Adds a Postgres-canonical project knowledge graph, wiki/Loom projection, Obsidian-like navigation, context bundle compiler, and rich text/code/media editor that replaces the earlier separate Monaco/text-editor idea. Because WP-KERNEL-007 already exists in this worktree, this stub uses the next available non-colliding kernel ID WP-KERNEL-009 while preserving the operator's requested build-0007 intent here."
+  },
+  "session_policy": {
+    "session_start_authority": "ORCHESTRATOR_ONLY",
+    "session_host_preference": "HANDSHAKE_ACP_BROKER",
+    "session_launch_policy": "ORCHESTRATOR_ACP_DIRECT_HEADLESS_PRIMARY",
+    "role_model_profile_policy": "ROLE_MODEL_PROFILE_CATALOG_V1",
+    "planned_execution_owner_range": "Coder-A..Coder-Z"
+  },
+  "operator_request": {
+    "requested_name": "wp kernel build 0007 stub",
+    "assigned_non_colliding_wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
+    "collision_reason": "WP-KERNEL-007-Principal-Visitor-Pass-MCP-Gate-v1 already exists as a separate stub in .GOV/task_packets/stubs and must not be overwritten or duplicated.",
+    "verbatim_notes": "HS_Rich_Text_Editor:\nSupports many coding formats\ncreates codeblocks automatically?\nsave to: format\ncan use hyperlinks\nembeded videos\nembeded albums\nembed slideshow [[HS_slideshow]]\nnsert picture [[HS_images]]\nfile linking like obsidian\nfolder linking + color labels\nproject linking",
+    "normalized_interpretation": [
+      "The rich text editor is not a small note editor; it is the unified Handshake authoring surface that replaces the earlier separate Monaco editor plus plain text editor idea.",
+      "The editor must work side by side with the Handshake Obsidian clone / Loom wiki surface, not as a later unrelated add-on.",
+      "The project knowledge index must solve model context rot by making project code, specs, work packets, taskboard state, changelogs, workflow artifacts, and research retrievable through typed machine-readable entities and relationships.",
+      "The canonical storage target is PostgreSQL. Markdown, HTML, wiki pages, editor exports, and generated context bundles are projections, not the durable source of truth.",
+      "Future implementation should care more about correct product behavior against this stub, the master spec, and product code reality than about repo-governance paperwork polish."
+    ]
+  },
+  "draft_scope": {
+    "intent": "- What: Build Handshake's Project Knowledge Index and HS_Rich_Text_Editor as a single integrated product foundation.\n- Why: Handshake is large and wears multiple hats: IDE, harness, creative tool, memory system, spec workflow, and future Obsidian replacement. Without a canonical project knowledge layer, models compartmentalize work and lose the full shape of the system when context windows reset.\n- Product goal: Every managed project can be indexed into a typed PostgreSQL knowledge graph. Code, specs, taskboard rows, work packets, microtasks, changelogs, research notes, workflow JSON, media metadata, and rich documents become connected entities with source spans and evidence. The Loom/Obsidian surface is the human-facing projection; context bundles are the model-facing projection.\n- Editor goal: HS_Rich_Text_Editor becomes the unified text/code/media authoring surface. It supports rich documents, code blocks, embedded media, file/folder/project links, backlinks, local graphs, and deterministic saves.\n- No-context goal: A future model must be able to read this stub, inspect the cited local code/spec surfaces, promote the stub to a full packet, split it into MTs, and start implementation without relying on conversation memory.",
+    "scope_sketch": "- IN_SCOPE:\n  - PostgreSQL-canonical knowledge entities, edges, spans, claims, indexing runs, wiki projections, rich documents, rich document blocks, rich document links, and context bundle runs.\n  - Source indexing for project code, specs, task packets, microtasks, taskboard rows, changelogs, workflow artifacts, research notes, media manifests, and relevant JSON artifacts.\n  - Code indexing with Tree-sitter as the first parser family, plus room for LSP/SCIP import where it adds precision.\n  - Understand-Anything-inspired source graph: parse source files into code/document structure, enrich with LLM-generated summaries and relationship hypotheses, and keep evidence spans for every derived claim.\n  - Karpathy LLM Wiki-inspired compiled wiki: build persistent topic pages from indexed source, make them clickable and editable, and regenerate stale pages deterministically.\n  - Obsidian-like product surface: backlinks, file links, folder links, project links, local graph, search, tags, color labels, and note/project navigation.\n  - HS_Rich_Text_Editor: rich authoring, code blocks, hyperlinks, embedded videos, embedded albums, embedded slideshows, embedded images, file linking, folder linking, folder color labels, and project linking.\n  - Context Bundle Compiler: produce bounded, cited, model-facing bundles for a task, file, code symbol, spec topic, work packet, media asset, research topic, or project.\n  - Retrieval debug views: explain which entities, spans, edges, wiki pages, and source files were used for a model bundle.\n  - Backfill from existing Loom, AI-ready data, artifact, FEMS, and spec-router surfaces where practical.\n- OUT_OF_SCOPE:\n  - Replacing PostgreSQL with SQLite, Valkey, Redis, or any external cache as canonical Handshake storage.\n  - Making Markdown files the durable authority for rich documents or the project knowledge graph.\n  - Shipping a full commercial Obsidian competitor in one pass; the first implementation should ship the core integrated substrate and the most important navigation/editor workflows.\n  - Legal/compliance paperwork systems; not relevant to this editor/indexing WP unless the operator separately creates a product feature for it.\n  - Whole-repo governance refactor for its own sake; governance artifacts are inputs to the product knowledge index, not the main value target here.\n  - External cloud sync, collaboration servers, or multi-user conflict-free rich text editing unless explicitly added in the refinement.",
+    "acceptance_criteria": "- AC-001: Stub-level only until activated; Coder and Validator may not start from this stub directly.\n- ACTIVATION-AC-001: Refinement confirms the canonical storage model: PostgreSQL truth, generated Markdown/wiki/HTML/context-bundle projections only, and no SQLite-in-Handshake path.\n- ACTIVATION-AC-002: Refinement names the exact product code worktree, entrypoints, database migrations, and UI surfaces to touch.\n- ACTIVATION-AC-003: Refinement records current research basis and rejects/accepts candidate libraries for the rich editor and code indexing.\n- ACTIVATION-AC-004: Refinement defines the first vertical slice small enough to implement: project source registry -> index run -> entities/edges/spans -> wiki projection -> context bundle -> rich editor save/load.\n- ACTIVATION-AC-005: Refinement defines rich document save format, block schema, link schema, embed schema, and export/import projections.\n- ACTIVATION-AC-006: Refinement defines stale index detection, source hashing, reindex behavior, and evidence-span retention.\n- ACTIVATION-AC-007: Refinement defines how Loom/Obsidian navigation, backlinks, local graph, folder labels, and project links reuse or extend current Loom code.\n- ACTIVATION-AC-008: Refinement defines the retrieval-debug and no-context model manual requirements before implementation starts.\n- ACTIVATION-AC-009: Work packet promotion creates MT contracts detailed enough for parallel implementation across backend schema/indexing, frontend editor/wiki, retrieval/context compiler, and verification.\n- PRODUCT-AC-001: A managed project can be indexed from configured roots into PostgreSQL with content hashes and typed entities/edges/spans.\n- PRODUCT-AC-002: A code file, spec topic, work packet, taskboard row, and workflow JSON artifact can all become indexable source records with citations back to exact source paths/spans.\n- PRODUCT-AC-003: A user can create/edit/save/load a rich document with prose, code blocks, hyperlinks, images, video/embed references, albums, slideshow references, file links, folder links, folder color labels, and project links.\n- PRODUCT-AC-004: The editor can create or suggest code blocks from pasted/fenced/indented code without silently corrupting prose.\n- PRODUCT-AC-005: Backlinks and local graph show relationships between rich docs, files, folders, projects, specs, work packets, and code symbols.\n- PRODUCT-AC-006: Context Bundle Compiler can build a bounded task bundle with source citations and explainable retrieval evidence.\n- PRODUCT-AC-007: Generated wiki pages are projections with source/evidence metadata; they never become unchecked authority over canonical project sources.\n- PRODUCT-AC-008: Visual/debug verification proves the editor UI is readable, navigable, non-overlapping, and can round-trip document saves across desktop and narrow viewports.",
+    "governance_artifact_stance": "- The operator has explicitly said future work packets will not rely on repo governance as the primary correctness target. Treat this stub as a launch record, not as product truth.\n- Correct product behavior against the master spec, current product code, and this operator intent outranks paperwork polish.\n- This stub still uses current governance conventions so it can be found by existing tools, but implementation must not optimize for generating more paperwork instead of building the product substrate."
+  },
+  "research_basis": {
+    "sources_checked": [
+      {
+        "name": "Understand-Anything",
+        "url": "https://github.com/Lum1104/Understand-Anything",
+        "relevant_pattern": "Tree-sitter-powered source understanding plus LLM-enriched graph/wiki over a codebase."
+      },
+      {
+        "name": "Karpathy LLM Wiki gist",
+        "url": "https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f",
+        "relevant_pattern": "Persistent LLM-generated wiki that compiles repository understanding into durable pages."
+      },
+      {
+        "name": "Aider repository map",
+        "url": "https://aider.chat/docs/repomap.html",
+        "relevant_pattern": "Compact ranked repository map for LLM coding context."
+      },
+      {
+        "name": "Sourcegraph precise code navigation / SCIP",
+        "url": "https://sourcegraph.com/docs/code-navigation/precise-code-navigation",
+        "relevant_pattern": "Language-aware symbol graph and references through a standard index format."
+      },
+      {
+        "name": "Obsidian backlinks and graph",
+        "url": "https://obsidian.md/help/plugins/backlinks",
+        "relevant_pattern": "User-facing backlinks and graph navigation for connected notes."
+      },
+      {
+        "name": "Obsidian graph view",
+        "url": "https://obsidian.md/help/plugins/graph",
+        "relevant_pattern": "Global and local graph views over note links."
+      },
+      {
+        "name": "Microsoft GraphRAG query docs",
+        "url": "https://microsoft.github.io/graphrag//query/overview/",
+        "relevant_pattern": "Graph-based retrieval and local/global query modes."
+      },
+      {
+        "name": "Tree-sitter documentation",
+        "url": "https://tree-sitter.github.io/tree-sitter/",
+        "relevant_pattern": "Incremental parser family suitable for code symbols and structural spans."
+      },
+      {
+        "name": "Tiptap documentation",
+        "url": "https://tiptap.dev/docs",
+        "relevant_pattern": "ProseMirror-based extensible rich text editor with custom nodes and extensions."
+      },
+      {
+        "name": "ProseMirror documentation",
+        "url": "https://prosemirror.net/docs/",
+        "relevant_pattern": "Structured document model and plugin architecture for rich text editing."
+      },
+      {
+        "name": "Monaco Editor documentation",
+        "url": "https://microsoft.github.io/monaco-editor/",
+        "relevant_pattern": "Code editor used by VS Code; candidate for embedded code-block editing."
+      },
+      {
+        "name": "CodeMirror documentation",
+        "url": "https://codemirror.net/docs/",
+        "relevant_pattern": "Embeddable code editor candidate for rich document code blocks."
+      }
+    ],
+    "patterns_found": [
+      "The most useful model-facing project memory is not a single vector index. It is a layered system: exact source spans, typed graph edges, keyword/vector retrieval, generated wiki summaries, and task-specific context bundle compilation.",
+      "Generated wiki pages are useful only when treated as projections with citations and freshness metadata. They become dangerous if treated as authority.",
+      "Code navigation needs structural parsing at minimum; Tree-sitter is the practical first layer, while LSP/SCIP can add precision later for references/definitions across languages.",
+      "Obsidian's value is mostly navigation and connected thinking: backlinks, links, local graph, folder organization, tags, and fast search. Handshake should keep those UX wins but store canonical truth in PostgreSQL.",
+      "Rich text editor frameworks work best when the saved format is a structured document tree/block model, not HTML strings. HTML/Markdown are useful exports/projections."
+    ],
+    "reuse_opportunities": [
+      "Reuse AI-ready Bronze/Silver indexing and retrieval concepts already present in the product code.",
+      "Reuse Loom storage, graph, and search foundations for wiki/Obsidian-style projections.",
+      "Reuse Artifact System for media/embed backing assets and evidence exports.",
+      "Reuse FEMS and Model Onboarding ContextPacks for model-facing bundle conventions.",
+      "Reuse Flight Recorder for index-run, context-bundle, and editor-save observability.",
+      "Reuse Spec Router / SpecPromptCompiler ideas for deterministic spec-topic extraction and model bundle prompts."
+    ],
+    "rejected_options": [
+      "Markdown-only vault as canonical authority: rejected because Handshake needs deterministic machine-readable state recovery and typed links across code/specs/workflow artifacts.",
+      "Vector database only: rejected because vector search alone loses exact spans, typed relationships, freshness state, and deterministic explainability.",
+      "Graph-only system without source spans: rejected because generated relationships need citations and repair paths.",
+      "Valkey/Redis as canonical project memory: rejected because it is not the durable relational source of truth Handshake needs here; it can be considered later only for cache/queue/lock/live-state use.",
+      "SQLite inside Handshake: rejected by current project authority and by the need for one PostgreSQL control plane.",
+      "Separate Monaco editor plus separate note editor: rejected in favor of HS_Rich_Text_Editor with embedded code blocks/code editor nodes."
+    ],
+    "selected_approach": "PostgreSQL-canonical typed project knowledge graph plus Loom/Obsidian/wiki projections plus a context-bundle compiler plus HS_Rich_Text_Editor as the unified rich/code/media authoring surface.",
+    "risks": [
+      "Overbuilding the graph before a thin vertical slice proves value.",
+      "LLM-generated wiki pages introducing hallucinated authority.",
+      "Index staleness after file moves, branch changes, taskboard changes, or migrations.",
+      "Rich editor save-format churn causing data loss.",
+      "Frontend editor and graph UI becoming too broad for one work packet."
+    ],
+    "mitigations": [
+      "Start with a strict vertical slice and defer broad language/media coverage until the core round trip works.",
+      "Every generated claim must carry provenance: source spans, generator version, prompt/schema version, model, timestamp, and confidence/status.",
+      "Use content hashes, indexing runs, stale flags, and source registry roots so freshness is observable.",
+      "Version rich document schema and write migrations/tests before UI polish.",
+      "Split activation into parallel MTs only after refinement locks the shared schema contract."
+    ],
+    "validation_plan": [
+      "Backend schema/migration tests for knowledge entities, edges, spans, source registry, rich documents, and context bundle runs.",
+      "Round-trip tests for rich documents including prose, code, links, and embed nodes.",
+      "Indexer fixture tests for code, spec markdown, work packet JSON/Markdown, taskboard rows, changelog entries, workflow JSON, and media metadata.",
+      "Retrieval/context bundle tests that prove citations, freshness, and graph traversal are deterministic.",
+      "Frontend visual/debug tests for editor, backlinks, local graph, search, and project/folder navigation.",
+      "Failure-path tests for stale sources, missing files, broken links, invalid embeds, duplicate links, and LLM wiki hallucination quarantine."
+    ]
+  },
+  "existing_project_reuse": {
+    "governance_anchors": [
+      ".GOV/codex/Handshake_Codex_v1.4.md [CX-503R] PostgreSQL-only Handshake storage",
+      ".GOV/spec/SPEC_CURRENT.md",
+      ".GOV/spec/master-spec-v02.188/spec-modules/00-preamble.md",
+      ".GOV/spec/master-spec-v02.188/spec-modules/07-6-development-roadmap.md",
+      ".GOV/roles_shared/records/TASK_BOARD.md",
+      ".GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md",
+      ".GOV/roles_shared/records/BUILD_ORDER.md"
+    ],
+    "product_surfaces_to_inspect_before_activation": [
+      "../wtc-kernel-004-fold-v1/src/backend/handshake_core/src/storage/mod.rs",
+      "../wtc-kernel-004-fold-v1/src/backend/handshake_core/src/kernel/sandbox/no_sqlite_tripwire.rs",
+      "../wtc-kernel-004-fold-v1/src/backend/handshake_core/src/ai_ready_data/indexing.rs",
+      "../wtc-kernel-004-fold-v1/src/backend/handshake_core/src/ai_ready_data/retrieval.rs",
+      "../wtc-kernel-004-fold-v1/src/backend/handshake_core/src/ai_ready_data/pipeline.rs",
+      "../wtc-kernel-004-fold-v1/src/backend/handshake_core/migrations/0012_ai_ready_data_arch.sql",
+      "../wtc-kernel-004-fold-v1/src/backend/handshake_core/migrations/0013_loom_mvp.sql",
+      "../wtc-kernel-004-fold-v1/src/backend/handshake_core/src/storage/loom.rs",
+      "../wtc-kernel-004-fold-v1/app/src/components/DocumentView.tsx",
+      "../wtc-kernel-004-fold-v1/app/src/components/WorkspaceSidebar.tsx",
+      "../wtc-kernel-004-fold-v1/app/src/App.tsx"
+    ],
+    "expected_reuse": [
+      "PostgreSQL primary control plane and no-SQLite tripwire stay authoritative.",
+      "AI-ready data indexing/retrieval provides existing ingestion and hybrid retrieval concepts.",
+      "Loom MVP provides existing block/graph/search semantics to extend into Obsidian-like navigation.",
+      "Artifact System provides durable media and evidence materialization for embeds.",
+      "FEMS and ContextPacks provide model-facing memory/bundle patterns.",
+      "Flight Recorder provides traceability for indexing runs, bundle compilation, and editor save failures."
+    ]
+  },
+  "architecture_seed": {
+    "system_name": "Handshake Project Knowledge Index + Loom Rich Editor",
+    "storage_model": {
+      "canonical": "PostgreSQL",
+      "projection_examples": [
+        "Loom/wiki pages",
+        "Markdown export",
+        "HTML export",
+        "context bundles",
+        "search index snapshots",
+        "debug/evidence reports"
+      ],
+      "hard_constraints": [
+        "No SQLite inside Handshake.",
+        "No markdown vault as canonical authority.",
+        "No Valkey/Redis canonical memory for this work packet.",
+        "Every generated summary/claim must be traceable to source entities/spans or explicitly marked unsupported."
+      ]
+    },
+    "core_components": [
+      {
+        "name": "Project Source Registry",
+        "purpose": "Register managed project roots, source files, source kinds, content hashes, modified times, and index eligibility."
+      },
+      {
+        "name": "Knowledge Entity/Edge/Span Store",
+        "purpose": "Persist typed entities and relationships with source spans and evidence."
+      },
+      {
+        "name": "Code Indexer",
+        "purpose": "Use Tree-sitter first to extract symbols, imports, definitions, comments, tests, and structural spans; leave room for SCIP/LSP precision later."
+      },
+      {
+        "name": "Spec/Governance/Workflow Artifact Indexer",
+        "purpose": "Index specs, work packets, microtasks, taskboard rows, changelogs, workflow JSON, receipts, and research notes as project knowledge inputs."
+      },
+      {
+        "name": "LLM Wiki Compiler",
+        "purpose": "Generate cited project wiki pages/topic summaries from indexed sources and mark them stale when sources change."
+      },
+      {
+        "name": "Loom/Obsidian Projection Surface",
+        "purpose": "Expose notes, wiki pages, backlinks, local graph, folder/project navigation, tags, color labels, and search."
+      },
+      {
+        "name": "HS_Rich_Text_Editor",
+        "purpose": "Unified rich text, code, media, link, and project authoring surface."
+      },
+      {
+        "name": "Context Bundle Compiler",
+        "purpose": "Compile bounded, cited, task-specific context bundles for models with no prior conversation context."
+      },
+      {
+        "name": "Retrieval Debug / Evidence View",
+        "purpose": "Show why a bundle or wiki page contains each source, span, edge, and summary."
+      }
+    ],
+    "data_model_seed": {
+      "new_tables_to_consider": [
+        "project_source_roots",
+        "project_source_files",
+        "indexing_runs",
+        "knowledge_entities",
+        "knowledge_edges",
+        "knowledge_spans",
+        "knowledge_claims",
+        "knowledge_wiki_pages",
+        "code_symbols",
+        "rich_documents",
+        "rich_document_blocks",
+        "rich_document_links",
+        "rich_document_embeds",
+        "context_bundle_runs",
+        "context_bundle_items"
+      ],
+      "existing_tables_or_concepts_to_reuse_where_practical": [
+        "ai_bronze_records",
+        "ai_silver_records",
+        "loom_blocks",
+        "loom_edges",
+        "assets",
+        "artifact manifests",
+        "flight recorder events"
+      ],
+      "entity_kinds": [
+        "project",
+        "file",
+        "folder",
+        "spec_topic",
+        "work_packet",
+        "microtask",
+        "taskboard_row",
+        "changelog_entry",
+        "workflow_artifact",
+        "research_note",
+        "rich_document",
+        "rich_block",
+        "code_symbol",
+        "code_file",
+        "test",
+        "media_asset",
+        "model_context_bundle",
+        "wiki_page"
+      ],
+      "edge_types": [
+        "implements",
+        "tests",
+        "mentions",
+        "derives_from",
+        "changed_by",
+        "validates",
+        "depends_on",
+        "blocks",
+        "contradicts",
+        "supersedes",
+        "embeds",
+        "links_to",
+        "contains",
+        "describes",
+        "indexes",
+        "generated_by",
+        "cites",
+        "same_as"
+      ],
+      "span_model": [
+        "source_file_id",
+        "path",
+        "byte_start",
+        "byte_end",
+        "line_start",
+        "line_end",
+        "hash_at_index_time",
+        "parser",
+        "parser_version",
+        "indexing_run_id"
+      ]
+    }
+  },
+  "hs_rich_text_editor": {
+    "product_role": "The single Handshake authoring surface for rich text, code, notes, specs, research, workflow artifacts, and media-linked project knowledge.",
+    "relationship_to_monaco": "Monaco or CodeMirror may still be embedded inside code-block nodes, but the user-facing product should not require a separate Monaco editor plus separate note editor. HS_Rich_Text_Editor owns the unified document experience.",
+    "canonical_save_format": {
+      "selected": "PostgreSQL-backed structured document AST/block JSON with stable entity IDs and schema versioning.",
+      "projections": [
+        "Markdown export",
+        "HTML export",
+        "plain text extraction",
+        "context bundle extraction",
+        "wiki/Loom projection"
+      ],
+      "open_decisions": [
+        "Choose Tiptap/ProseMirror or another structured editor framework during refinement.",
+        "Choose Monaco vs CodeMirror for embedded code blocks during refinement.",
+        "Define whether rich documents reuse Loom blocks directly or use a sibling table with Loom projection."
+      ]
+    },
+    "required_features": [
+      "Supports many coding formats and language-aware code blocks.",
+      "Can create code blocks automatically from fenced code, pasted code, language hints, indentation, or slash-command selection.",
+      "Can use normal hyperlinks.",
+      "Can embed videos by stored asset, URL, or artifact reference.",
+      "Can embed albums as ordered media asset groups.",
+      "Can embed slideshow references using syntax like [[HS_slideshow]].",
+      "Can insert pictures using syntax like [[HS_images]] and drag/drop or paste flows.",
+      "Can link files like Obsidian-style wikilinks.",
+      "Can link folders and apply folder color labels.",
+      "Can link projects and project entities.",
+      "Can show backlinks and local graph relationships for current document/entity.",
+      "Can expose stable IDs/selectors for frontend model-driven testing."
+    ],
+    "link_syntax_seed": [
+      "[[note:title]]",
+      "[[file:path-or-id]]",
+      "[[folder:path-or-id]]",
+      "[[project:id-or-name]]",
+      "[[spec:topic-id]]",
+      "[[wp:WP-ID]]",
+      "[[symbol:qualified-name]]",
+      "[[HS_slideshow:id-or-name]]",
+      "[[HS_images:id-or-name]]",
+      "[[album:id-or-name]]",
+      "[[video:id-or-name]]"
+    ],
+    "auto_codeblock_rules_seed": [
+      "Triple-backtick paste creates a code-block node with language if specified.",
+      "Large pasted text with high code-likeness can prompt or automatically wrap as code depending on operator preference.",
+      "Indented multi-line text can suggest a code block but must not silently rewrite prose.",
+      "Language detection confidence must be visible or reversible.",
+      "The user can convert code block back to plain text without data loss.",
+      "Code block node stores language, raw text, display settings, lint markers if present, and source link if pasted from an indexed file."
+    ],
+    "embed_rules_seed": [
+      "Embeds store references to artifact/media/source IDs, not random absolute filesystem paths.",
+      "External URLs may be stored but should be explicitly typed and previewed safely.",
+      "Missing media/embed targets render as repairable broken-link nodes, not blank UI.",
+      "Albums and slideshows are ordered collections with stable item IDs and optional captions.",
+      "Large image/video collections must reuse artifact storage and lazy loading."
+    ]
+  },
+  "side_by_side_delivery": {
+    "must_preserve": [
+      "Project Knowledge Index",
+      "Loom/Obsidian clone integration",
+      "HS_Rich_Text_Editor"
+    ],
+    "delivery_guidance": [
+      "Do not split the rich editor away and forget it; it is the operator's Monaco/text-editor replacement.",
+      "Do not build the Obsidian clone as a standalone Markdown vault; it must sit on the same PostgreSQL knowledge substrate as project indexing.",
+      "If the refinement splits this into multiple WPs, create child WPs that explicitly link back to this stub and preserve all three pillars."
+    ]
+  },
+  "microtask_plan_draft": [
+    {
+      "mt_id": "MT-001",
+      "title": "Research Refresh And Product Surface Inventory",
+      "scope": "Re-check current rich editor, code indexing, graph retrieval, and Obsidian-like implementations; inspect current Handshake product code and master spec anchors.",
+      "verification": "Research summary and local surface inventory are recorded before schema work starts."
+    },
+    {
+      "mt_id": "MT-002",
+      "title": "PostgreSQL Knowledge Schema Draft",
+      "scope": "Define migrations for source registry, entities, edges, spans, claims, wiki pages, rich documents, and context bundle runs.",
+      "verification": "Migration tests prove schema applies and rolls back in the product test database."
+    },
+    {
+      "mt_id": "MT-003",
+      "title": "Project Source Registry And Hashing",
+      "scope": "Register project roots/files, source kinds, hashes, ignored paths, and stale detection.",
+      "verification": "Fixture project indexes changed/unchanged/deleted files deterministically."
+    },
+    {
+      "mt_id": "MT-004",
+      "title": "Spec Workpacket Workflow Artifact Indexer",
+      "scope": "Parse specs, taskboard rows, work packets, microtasks, changelogs, workflow JSON, and research notes into typed source records.",
+      "verification": "Fixture artifacts produce cited entities/spans without relying on prose-only heuristics."
+    },
+    {
+      "mt_id": "MT-005",
+      "title": "Tree-sitter Code Indexer Pilot",
+      "scope": "Index first supported code languages into code symbols, definitions, references where available, imports, comments, and structural spans.",
+      "verification": "Code fixtures produce deterministic symbols and source spans."
+    },
+    {
+      "mt_id": "MT-006",
+      "title": "SCIP Or LSP Import Contract",
+      "scope": "Define optional future import shape for precise code navigation without blocking Tree-sitter MVP.",
+      "verification": "Contract has tests or sample fixture and does not become required for the MVP."
+    },
+    {
+      "mt_id": "MT-007",
+      "title": "Knowledge Edge Builder",
+      "scope": "Create deterministic edges from parsed links, imports, task/spec references, file paths, and artifact references.",
+      "verification": "Edge fixtures cover implements/tests/mentions/depends_on/links_to/contains/supersedes."
+    },
+    {
+      "mt_id": "MT-008",
+      "title": "LLM Wiki Compiler Contract",
+      "scope": "Define prompt/schema/output storage for cited generated wiki/topic pages and stale markers.",
+      "verification": "Generated pages must cite source spans and unsupported claims must be rejected or quarantined."
+    },
+    {
+      "mt_id": "MT-009",
+      "title": "Context Bundle Compiler MVP",
+      "scope": "Compile bounded, cited model context bundles from exact lookup, graph traversal, keyword/vector retrieval, and wiki projection inputs.",
+      "verification": "Bundle fixtures prove deterministic ordering, token/size bounds, and evidence output."
+    },
+    {
+      "mt_id": "MT-010",
+      "title": "HS Rich Document Schema",
+      "scope": "Define document, block, link, embed, codeblock, album, slideshow, and media reference schema with versioning.",
+      "verification": "Round-trip tests preserve all block types and reject invalid links safely."
+    },
+    {
+      "mt_id": "MT-011",
+      "title": "Rich Editor UI Shell",
+      "scope": "Build the primary editor surface, toolbar/menus, document list, save/load, and stable test selectors.",
+      "verification": "Visual tests prove readable layout, no overlap, save/load path, and keyboard/mouse basics."
+    },
+    {
+      "mt_id": "MT-012",
+      "title": "Embedded Code Block Editor",
+      "scope": "Integrate Monaco or CodeMirror into code-block nodes with language metadata and copy/convert actions.",
+      "verification": "Code blocks save/load, language changes persist, and large pasted code remains responsive."
+    },
+    {
+      "mt_id": "MT-013",
+      "title": "Editor Links And Embeds",
+      "scope": "Implement hyperlinks, file links, folder links, project links, image embeds, video embeds, albums, and slideshows.",
+      "verification": "Broken targets render as repairable nodes and valid targets open/navigate correctly."
+    },
+    {
+      "mt_id": "MT-014",
+      "title": "Obsidian Backlinks Local Graph And Folder Labels",
+      "scope": "Expose backlinks, local graph, folder tree, tags, folder color labels, and project navigation over the knowledge graph.",
+      "verification": "Graph/backlinks update after save and remain usable on small and medium fixture vaults/projects."
+    },
+    {
+      "mt_id": "MT-015",
+      "title": "Index Freshness And Rebuild Controls",
+      "scope": "Show stale/missing source status, index run history, and rebuild controls.",
+      "verification": "Changing/deleting/moving fixture files updates stale state and recovery actions."
+    },
+    {
+      "mt_id": "MT-016",
+      "title": "Retrieval Debug Evidence View",
+      "scope": "Show bundle inputs, selected entities/spans/edges, wiki pages, ranking reasons, and omitted candidates.",
+      "verification": "A no-context model can inspect why a bundle was produced and cite exact evidence."
+    },
+    {
+      "mt_id": "MT-017",
+      "title": "Existing Loom And AI-ready Data Backfill",
+      "scope": "Backfill or bridge existing Loom and AI-ready records into the new knowledge model where practical.",
+      "verification": "Existing Loom/AI-ready tests continue passing and bridge fixtures produce expected entities."
+    },
+    {
+      "mt_id": "MT-018",
+      "title": "Backend Test Matrix",
+      "scope": "Cover schema, indexer, graph, wiki compiler, bundle compiler, and persistence failure paths.",
+      "verification": "Backend tests pass with PostgreSQL test configuration and no SQLite dependency."
+    },
+    {
+      "mt_id": "MT-019",
+      "title": "Frontend Visual QA And Accessibility Smoke",
+      "scope": "Use browser/visual diagnostics for editor, graph, links, embeds, search, and responsive layout.",
+      "verification": "Screenshots/evidence show readable controls, no overlap, and coherent navigation."
+    },
+    {
+      "mt_id": "MT-020",
+      "title": "No-context Model Manual And Operator Debug Paths",
+      "scope": "Document how a fresh model should index a project, inspect graph/wiki/editor state, compile bundles, and recover from failures.",
+      "verification": "Manual includes startup commands, expected inputs/outputs, failure modes, recovery steps, and debug evidence paths."
+    }
+  ],
+  "failure_scenarios": [
+    {
+      "scenario": "Generated wiki page is treated as authority and drifts from source code/specs.",
+      "mitigation": "Wiki pages are projections only, carry source spans and generation metadata, and are marked stale when source hashes change.",
+      "verification": "Tests mutate a cited source and prove the wiki page becomes stale until regenerated."
+    },
+    {
+      "scenario": "Context bundle omits the spec or WP that actually governs the code being edited.",
+      "mitigation": "Bundle compiler combines exact references, graph neighbors, keyword/vector retrieval, and dependency edges; debug view exposes omissions.",
+      "verification": "Fixture task asks for code behavior and bundle must include linked spec topic and WP evidence."
+    },
+    {
+      "scenario": "Rich editor save format changes and old documents cannot load.",
+      "mitigation": "Version the document schema, write migrations, and keep round-trip fixtures for every block/embed/link type.",
+      "verification": "Old fixture documents load after migrations and preserve content/links."
+    },
+    {
+      "scenario": "Auto-codeblock detection corrupts normal prose or mixed notes.",
+      "mitigation": "Use reversible conversion, confidence thresholds, user-visible correction, and no silent rewrite for low-confidence input.",
+      "verification": "Paste fixtures cover prose, mixed prose/code, fenced code, JSON, and shell logs."
+    },
+    {
+      "scenario": "Embeds store machine-local absolute paths and break when the project moves.",
+      "mitigation": "Embeds reference artifact/media/source IDs or repo-relative/configured roots; portability checks reject hardcoded local paths.",
+      "verification": "Move-root fixture proves documents and embeds still resolve through configured roots/artifact IDs."
+    },
+    {
+      "scenario": "Knowledge graph grows huge and becomes slower than raw file search.",
+      "mitigation": "Index incrementally, store hashes, add proper relational indexes, bound graph traversals, and expose slow-query diagnostics.",
+      "verification": "Performance fixture with large file/edge counts checks index timings and query bounds."
+    },
+    {
+      "scenario": "Obsidian clone becomes a Markdown-only island disconnected from IDE/harness state.",
+      "mitigation": "Use the same PostgreSQL entities/edges/spans as code/spec/workflow indexing and treat Markdown as export only.",
+      "verification": "A note link can resolve to a code symbol, file, folder, project, spec topic, and WP entity."
+    },
+    {
+      "scenario": "LLM relationship extraction invents links that look real.",
+      "mitigation": "Separate deterministic edges from inferred edges; inferred edges require evidence, confidence, generator metadata, and review/quarantine state.",
+      "verification": "Unsupported generated relationship fixture is rejected or marked untrusted."
+    },
+    {
+      "scenario": "Implementation tries to introduce SQLite or a second durable database for the editor.",
+      "mitigation": "Activation contract repeats PostgreSQL-only constraint and tests should include the existing no-SQLite tripwire.",
+      "verification": "No SQLite references or dependencies are added; no-SQLite tripwire remains passing."
+    },
+    {
+      "scenario": "One giant WP becomes too broad for reliable parallel implementation.",
+      "mitigation": "Refinement must lock a vertical slice and may split child WPs, but child WPs must preserve all three pillars and link back to this stub.",
+      "verification": "Activation review checks MT boundaries and child WP preservation map if split."
+    }
+  ],
+  "activation_contract": {
+    "may_start_coder": false,
+    "may_start_validator": false,
+    "required_activation_steps": [
+      "verify_wp_id_collision_handled_and_wp_kernel_007_not_overwritten",
+      "refresh_external_research_basis",
+      "inspect_current_product_code_surfaces",
+      "create_or_refresh_refinement_with_red_team_section",
+      "lock_postgresql_canonical_schema_direction",
+      "choose_or_defer_editor_framework_and_codeblock_editor",
+      "define_first_vertical_slice_and_child_wp_split_if_needed",
+      "obtain_user_signature_or_explicit_activation_approval",
+      "create_official_work_packet_contract",
+      "create_microtask_contracts",
+      "move_task_board_entry_from_stub_to_ready_for_dev"
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "PROJECT_KNOWLEDGE_INDEX_AND_RICH_EDITOR_V1",
+    "assumptions_to_attack": [
+      "A PostgreSQL knowledge graph is the right durable substrate for Handshake project memory.",
+      "Generated wiki pages help models more than they confuse source-of-truth boundaries.",
+      "The rich editor can replace separate Monaco/text editor expectations without losing code-editing power.",
+      "Loom/Obsidian UI can be built on top of canonical typed entities rather than Markdown files.",
+      "A thin vertical slice can be built without blocking on full code intelligence for every language.",
+      "Model context rot is reduced by context bundle compilation plus evidence, not by dumping more raw files into prompts."
+    ],
+    "minimum_controls": [
+      "Keep execution_authority=NON_EXECUTION_STUB.",
+      "Require refinement before Coder/Validator launch.",
+      "Keep generated wiki pages and editor exports as projections, not source authority.",
+      "Require source spans/evidence on generated claims and context bundle items.",
+      "Require no-SQLite/PostgreSQL-only verification before implementation closeout.",
+      "Require visual frontend verification for editor and graph surfaces.",
+      "Require round-trip save/load tests before claiming rich editor implementation complete."
+    ]
+  }
+}
