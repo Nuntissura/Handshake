@@ -284,7 +284,7 @@ mod tests {
     use crate::llm::{
         CompletionRequest, CompletionResponse, LlmClient, LlmError, ModelProfile, TokenUsage,
     };
-    use crate::storage::{sqlite::SqliteDatabase, Database};
+    use crate::storage::{tests::optional_postgres_backend_from_env, Database};
     use crate::workflows::{SessionRegistry, SessionSchedulerConfig};
     use crate::AppState;
     use std::sync::Arc;
@@ -324,26 +324,29 @@ mod tests {
         }
     }
 
-    async fn setup_state() -> Result<AppState, Box<dyn std::error::Error>> {
-        let sqlite = SqliteDatabase::connect("sqlite::memory:", 5).await?;
-        sqlite.run_migrations().await?;
+    async fn setup_state() -> Result<Option<AppState>, Box<dyn std::error::Error>> {
+        let Some(storage) = optional_postgres_backend_from_env().await? else {
+            return Ok(None);
+        };
 
         let recorder = Arc::new(DuckDbFlightRecorder::new_in_memory(32)?);
 
-        Ok(AppState {
-            storage: sqlite.into_arc(),
+        Ok(Some(AppState {
+            storage,
             flight_recorder: recorder.clone(),
             diagnostics: recorder,
             llm_client: Arc::new(TestLlmClient::new()),
             capability_registry: Arc::new(CapabilityRegistry::new()),
             session_registry: Arc::new(SessionRegistry::new(SessionSchedulerConfig::default())),
-        })
+        }))
     }
 
     #[tokio::test]
     async fn list_events_preserves_model_session_id_filter_and_payload(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let state = setup_state().await?;
+        let Some(state) = setup_state().await? else {
+            return Ok(());
+        };
         let trace_id = Uuid::now_v7();
 
         state

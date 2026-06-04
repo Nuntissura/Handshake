@@ -125,7 +125,10 @@ pub fn terminate_run(
     // `CancelledByOperator`. Persistence of the cause happens below on the
     // first terminal transition.
     if run.status.is_terminal() {
-        return run.terminal_cause.clone().unwrap_or(TerminalCause::CompletedOk);
+        return run
+            .terminal_cause
+            .clone()
+            .unwrap_or(TerminalCause::CompletedOk);
     }
     if token.is_cancelled() {
         run.status = SandboxRunStatus::Rejected;
@@ -199,7 +202,14 @@ mod tests {
         let t = CancellationToken::new();
         t.cancel();
         let clock = ManualClock::new(Duration::from_millis(0));
-        let cause = terminate_run(&mut run, &t, &clock, Some(Duration::from_secs(60)), None, None);
+        let cause = terminate_run(
+            &mut run,
+            &t,
+            &clock,
+            Some(Duration::from_secs(60)),
+            None,
+            None,
+        );
         assert_eq!(cause, TerminalCause::CancelledByOperator);
         assert_eq!(run.status, SandboxRunStatus::Rejected);
         assert!(run.finished_at_utc.is_some());
@@ -211,7 +221,14 @@ mod tests {
         run.status = SandboxRunStatus::Started;
         let t = CancellationToken::new();
         let clock = ManualClock::new(Duration::from_secs(120));
-        let cause = terminate_run(&mut run, &t, &clock, Some(Duration::from_secs(60)), None, None);
+        let cause = terminate_run(
+            &mut run,
+            &t,
+            &clock,
+            Some(Duration::from_secs(60)),
+            None,
+            None,
+        );
         assert_eq!(cause, TerminalCause::WallTimeoutExpired);
         assert_eq!(run.status, SandboxRunStatus::Rejected);
     }
@@ -313,7 +330,14 @@ mod tests {
         run.status = SandboxRunStatus::Started;
         let t = CancellationToken::new();
         let clock = ManualClock::new(Duration::from_secs(5));
-        let cause = terminate_run(&mut run, &t, &clock, Some(Duration::from_secs(60)), None, None);
+        let cause = terminate_run(
+            &mut run,
+            &t,
+            &clock,
+            Some(Duration::from_secs(60)),
+            None,
+            None,
+        );
         assert_eq!(cause, TerminalCause::CompletedOk);
         assert_eq!(run.status, SandboxRunStatus::Started);
     }

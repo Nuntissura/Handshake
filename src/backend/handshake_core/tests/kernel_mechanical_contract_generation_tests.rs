@@ -360,7 +360,10 @@ fn kernel_mechanical_contract_just_gov_check_produces_command_receipt_with_candi
     use std::time::{Duration, SystemTime};
 
     let just_version = Command::new("just").arg("--version").output();
-    if just_version.map(|out| !out.status.success()).unwrap_or(true) {
+    if just_version
+        .map(|out| !out.status.success())
+        .unwrap_or(true)
+    {
         eprintln!("SKIP: `just` is not on PATH; skipping wrapped-receipt integration test");
         return;
     }

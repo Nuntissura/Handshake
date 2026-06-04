@@ -73,10 +73,26 @@ impl DescriptorValidationError {
 }
 
 const SHELL_PROGRAMS: &[&str] = &[
-    "sh", "bash", "zsh", "dash", "ksh", "fish", "tcsh", "csh", "xonsh", "nushell", "nu", "cmd",
-    "cmd.exe", "powershell", "powershell.exe", "pwsh", "pwsh.exe",
+    "sh",
+    "bash",
+    "zsh",
+    "dash",
+    "ksh",
+    "fish",
+    "tcsh",
+    "csh",
+    "xonsh",
+    "nushell",
+    "nu",
+    "cmd",
+    "cmd.exe",
+    "powershell",
+    "powershell.exe",
+    "pwsh",
+    "pwsh.exe",
     // H-A2 fix: BusyBox dispatches to multiple shells; wsl.exe can launch shells inside WSL.
-    "busybox", "wsl.exe",
+    "busybox",
+    "wsl.exe",
 ];
 
 /// Programs that aren't shells themselves but are commonly chained to invoke
@@ -203,10 +219,7 @@ pub fn validate_descriptor(d: &CommandDescriptorV1) -> Result<(), DescriptorVali
         });
         if has_code_flag {
             return Err(DescriptorValidationError::ShellInvocation {
-                detail: format!(
-                    "interpreter `{}` invoked with code-payload flag",
-                    d.program
-                ),
+                detail: format!("interpreter `{}` invoked with code-payload flag", d.program),
             });
         }
     }
@@ -274,10 +287,7 @@ impl<'a> ExecAllowlistGate<'a> {
                 run.policy_version_id.clone(),
                 DenialKind::PolicyDenied,
                 Some(SandboxCapability::ProcessSpawn),
-                format!(
-                    "exec descriptor `{}` rejected",
-                    descriptor.descriptor_id
-                ),
+                format!("exec descriptor `{}` rejected", descriptor.descriptor_id),
                 shape_err.as_reason(),
             ));
         }
@@ -294,10 +304,7 @@ impl<'a> ExecAllowlistGate<'a> {
                 run.policy_version_id.clone(),
                 DenialKind::PolicyDenied,
                 Some(SandboxCapability::ProcessSpawn),
-                format!(
-                    "exec descriptor `{}` rejected",
-                    descriptor.descriptor_id
-                ),
+                format!("exec descriptor `{}` rejected", descriptor.descriptor_id),
                 if self.allowlist.commands.is_empty() {
                     "exec allowlist is empty; default-deny applies".to_string()
                 } else {
@@ -392,7 +399,9 @@ mod tests {
         let allowlist = ProcessExecAllowlistV1::default();
         let gate = ExecAllowlistGate::new(&allowlist);
         let d = ok_descriptor();
-        let den = gate.check(&run(), &d).expect_err("empty allowlist must deny");
+        let den = gate
+            .check(&run(), &d)
+            .expect_err("empty allowlist must deny");
         assert_eq!(den.kind, DenialKind::PolicyDenied);
         assert!(den.reason.contains("default-deny"));
     }

@@ -1,0 +1,13 @@
+# MT-122: Python dependencies for the PEFT LoRA distillation trainer
+# (scripts/distill/train_lora.py). Pin major/minor; the Rust executor
+# is responsible for invoking the script under a Handshake-managed
+# Python environment (cluster-B sandbox + MT-069 process ledger).
+#
+# Versions track current PEFT/Transformers/PyTorch as of WP-KERNEL-004.
+
+torch>=2.4,<3.0
+transformers>=4.45,<5.0
+peft>=0.13,<1.0
+datasets>=3.0,<4.0
+accelerate>=1.0,<2.0
+sentencepiece>=0.2,<1.0

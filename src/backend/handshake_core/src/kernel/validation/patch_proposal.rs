@@ -49,7 +49,10 @@ impl std::fmt::Display for PatchProposalError {
             Self::EmptyProposalId => write!(f, "PatchProposal.proposal_id must not be empty"),
             Self::EmptyBaseRef => write!(f, "PatchProposal.base_ref must not be empty"),
             Self::NoTargetRanges => {
-                write!(f, "PatchProposal.target_ranges must contain at least one range")
+                write!(
+                    f,
+                    "PatchProposal.target_ranges must contain at least one range"
+                )
             }
             Self::InvalidRange { path, start, end } => write!(
                 f,
@@ -130,20 +133,22 @@ mod tests {
     #[test]
     fn invalid_range_rejected() {
         let r = PatchProposal::new("p1", "main", vec![TargetRange::new("a.rs", 0, 5)]);
-        assert!(matches!(r.unwrap_err(), PatchProposalError::InvalidRange { .. }));
+        assert!(matches!(
+            r.unwrap_err(),
+            PatchProposalError::InvalidRange { .. }
+        ));
 
         let r = PatchProposal::new("p1", "main", vec![TargetRange::new("a.rs", 5, 4)]);
-        assert!(matches!(r.unwrap_err(), PatchProposalError::InvalidRange { .. }));
+        assert!(matches!(
+            r.unwrap_err(),
+            PatchProposalError::InvalidRange { .. }
+        ));
     }
 
     #[test]
     fn well_formed_proposal_accepted_and_covers_query_works() {
-        let p = PatchProposal::new(
-            "p1",
-            "abc123",
-            vec![TargetRange::new("src/a.rs", 10, 20)],
-        )
-        .unwrap();
+        let p =
+            PatchProposal::new("p1", "abc123", vec![TargetRange::new("src/a.rs", 10, 20)]).unwrap();
         assert!(p.covers("src/a.rs", 15));
         assert!(!p.covers("src/a.rs", 21));
         assert!(!p.covers("src/b.rs", 15));

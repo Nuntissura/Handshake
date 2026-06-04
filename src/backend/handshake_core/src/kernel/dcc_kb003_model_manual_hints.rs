@@ -80,7 +80,9 @@ impl DccKb003ManualHintsV1 {
                         format!(
                             "policy {} denied capability {}; grant or narrow the policy",
                             d.policy_version_id,
-                            d.capability.clone().unwrap_or_else(|| "<unspecified>".into())
+                            d.capability
+                                .clone()
+                                .unwrap_or_else(|| "<unspecified>".into())
                         ),
                     ));
                 }
@@ -202,7 +204,10 @@ mod tests {
 
     #[test]
     fn hints_for_awaiting_promotion_eligible_say_promote() {
-        let mut p = base(DccSandboxOutcome::AwaitingPromotion, SandboxRunStatus::Completed);
+        let mut p = base(
+            DccSandboxOutcome::AwaitingPromotion,
+            SandboxRunStatus::Completed,
+        );
         p.validation = Some(DccValidationSummaryV1 {
             validation_run_id: "VR-1".into(),
             verdict: "PASS".into(),
@@ -217,7 +222,10 @@ mod tests {
 
     #[test]
     fn hints_for_denied_by_policy_recommend_escalation() {
-        let mut p = base(DccSandboxOutcome::DeniedByPolicy, SandboxRunStatus::Rejected);
+        let mut p = base(
+            DccSandboxOutcome::DeniedByPolicy,
+            SandboxRunStatus::Rejected,
+        );
         p.denial = Some(DccDenialSummaryV1 {
             denial_id: "DEN-1".into(),
             kind: "POLICY_DENIED".into(),
@@ -233,7 +241,10 @@ mod tests {
 
     #[test]
     fn hints_for_missing_validation_recommend_inspect() {
-        let p = base(DccSandboxOutcome::AwaitingPromotion, SandboxRunStatus::Completed);
+        let p = base(
+            DccSandboxOutcome::AwaitingPromotion,
+            SandboxRunStatus::Completed,
+        );
         let cs = DccKb003PromotionControlStateV1::derive(&p, true, None);
         let h = DccKb003ManualHintsV1::derive(&p, &cs);
         assert!(h.hints.iter().any(|x| x.category == HintCategory::Inspect));

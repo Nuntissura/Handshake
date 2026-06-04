@@ -35,10 +35,7 @@ impl DccKb003PortableExportV1 {
     /// Partition `members` against the default redaction policy and produce
     /// the export + report. Non-exportable members are listed in the report
     /// with a stable reason so the operator can see what was withheld.
-    pub fn partition(
-        sandbox_run_id: impl Into<String>,
-        members: Vec<PortableMemberV1>,
-    ) -> Self {
+    pub fn partition(sandbox_run_id: impl Into<String>, members: Vec<PortableMemberV1>) -> Self {
         let raw: Vec<(String, Kb003ArtifactClass)> = members
             .into_iter()
             .map(|m| (m.artifact_ref, m.artifact_class))

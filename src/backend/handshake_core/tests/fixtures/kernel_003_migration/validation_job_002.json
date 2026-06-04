@@ -1,0 +1,86 @@
+{
+  "name": "trivial-no-bind",
+  "job": {
+    "job_id": "VALJOB-K003-002",
+    "image_or_root": "docker.io/library/alpine:3.20",
+    "cmd": ["sleep", "30"],
+    "env": {
+      "KERNEL003_FIXTURE": "trivial"
+    },
+    "cwd": null,
+    "binds": [],
+    "net_policy": "deny_all",
+    "resource_limits": {
+      "memory_bytes": null,
+      "cpu_cores": null,
+      "timeout_ms": 10000
+    },
+    "required_capabilities": ["cross_machine_portable"],
+    "work_profile_override": null,
+    "metadata": {
+      "shape": "trivial_no_bind",
+      "source": "kernel_003_migration"
+    }
+  },
+  "expected_process_spec": {
+    "id": "validation-job:VALJOB-K003-002",
+    "image_or_root": "docker.io/library/alpine:3.20",
+    "cmd": ["sleep", "30"],
+    "env": {
+      "KERNEL003_FIXTURE": "trivial"
+    },
+    "cwd": null,
+    "binds": [],
+    "net_policy": "deny_all",
+    "resource_limits": {
+      "memory_bytes": null,
+      "cpu_cores": null,
+      "timeout_ms": 10000
+    },
+    "required_capabilities": ["cross_machine_portable"],
+    "metadata": {
+      "shape": "trivial_no_bind",
+      "source": "kernel_003_migration",
+      "validation_job_id": "VALJOB-K003-002",
+      "validation_lane": "model_written_code"
+    }
+  },
+  "expected_docker_args": [
+    "run",
+    "-d",
+    "--name",
+    "hsk-k003-migration",
+    "--read-only",
+    "--tmpfs",
+    "/tmp:rw,noexec,nosuid,nodev,mode=1777",
+    "--pids-limit",
+    "4096",
+    "--network",
+    "none",
+    "-e",
+    "KERNEL003_FIXTURE=trivial",
+    "docker.io/library/alpine:3.20",
+    "sleep",
+    "30"
+  ],
+  "expected_podman_args": [
+    "--remote=false",
+    "run",
+    "-d",
+    "--userns",
+    "keep-id",
+    "--read-only",
+    "--tmpfs",
+    "/tmp:rw,noexec,nosuid,nodev,mode=1777",
+    "--pids-limit",
+    "4096",
+    "--network",
+    "none",
+    "-e",
+    "KERNEL003_FIXTURE=trivial",
+    "docker.io/library/alpine:3.20",
+    "sleep",
+    "30"
+  ],
+  "candidate_artifact_id": "ART-K003-MIGRATION-002"
+}

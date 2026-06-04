@@ -1,0 +1,25 @@
+{
+  "schema_id": "hsk.sandbox_cross_adapter_parity@1",
+  "name": "net_deny_all",
+  "description": "Attempt a DNS lookup with NetPolicy=DenyAll. `getent hosts handshake.invalid` must fail. The exit_code parity is enforced; the underlying tool may exit 1 (no resolution) or 2 (network unreachable) — both are non-zero.",
+  "spec": {
+    "id": "placeholder",
+    "image_or_root": "alpine:3.20",
+    "cmd": ["sh", "-c", "getent hosts handshake.invalid && exit 0 || exit $?"],
+    "env": {},
+    "cwd": null,
+    "binds": [],
+    "net_policy": "deny_all",
+    "resource_limits": {
+      "memory_bytes": null,
+      "cpu_cores": null,
+      "timeout_ms": null
+    },
+    "required_capabilities": ["very_strong_network_isolation"],
+    "metadata": {}
+  },
+  "expected": {
+    "exit_code_class": "non_zero",
+    "stop_reason_contains": "status:exited"
+  }
+}

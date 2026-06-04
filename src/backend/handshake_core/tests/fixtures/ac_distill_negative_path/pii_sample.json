@@ -1,0 +1,11 @@
+{
+  "id": "pii-1",
+  "session_id": "session-pii",
+  "model_id": "model-local",
+  "prompt": "Contact Alice at alice@example.com or +1 555 123 4567 before adding this to training.",
+  "completion": "Do not promote this fragment.",
+  "finish_reason": "stop",
+  "license_tag": "MIT",
+  "source_event_ids": ["evt-pii-1"],
+  "sourced_at_utc": "2026-05-24T00:00:00Z"
+}

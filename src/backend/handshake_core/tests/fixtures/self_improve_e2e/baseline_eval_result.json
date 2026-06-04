@@ -1,0 +1,28 @@
+{
+  "train": {
+    "pass_rate": 0.5,
+    "pass_count": 9,
+    "total_count": 18,
+    "latency_p95_ms": 110,
+    "capsule_bytes_p95": 22000,
+    "per_item_results": []
+  },
+  "dev": {
+    "pass_rate": 0.5,
+    "pass_count": 3,
+    "total_count": 6,
+    "latency_p95_ms": 120,
+    "capsule_bytes_p95": 24000,
+    "per_item_results": []
+  },
+  "holdout": {
+    "pass_rate": 0.5,
+    "pass_count": 3,
+    "total_count": 6,
+    "latency_p95_ms": 120,
+    "capsule_bytes_p95": 24000,
+    "per_item_results": []
+  },
+  "evaluated_at_utc": "2026-05-20T00:00:00Z",
+  "snapshot_hash": "0000000000000000000000000000000000000000000000000000000000000000"
+}

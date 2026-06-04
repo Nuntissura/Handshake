@@ -85,9 +85,7 @@ impl<'a> FilesystemScopeGuard<'a> {
         //    pops cancel each other out lexically, treat the use of `..` as a
         //    traversal attempt unless the normalised result still sits cleanly
         //    inside a declared root for this mode.
-        let has_dotdot_segment = candidate
-            .split(['/', '\\'])
-            .any(|seg| seg == "..");
+        let has_dotdot_segment = candidate.split(['/', '\\']).any(|seg| seg == "..");
 
         // 4. Lexical normalisation. If escape sentinel is present after
         //    normalisation, the path escapes.
@@ -311,11 +309,7 @@ mod tests {
     fn root_path_itself_is_allowed() {
         let s = scope();
         let g = FilesystemScopeGuard::new(&s);
-        g.check(
-            &run(),
-            "handshake-product/kb003/work/x",
-            FsAccessMode::Read,
-        )
-        .expect("root itself must pass");
+        g.check(&run(), "handshake-product/kb003/work/x", FsAccessMode::Read)
+            .expect("root itself must pass");
     }
 }

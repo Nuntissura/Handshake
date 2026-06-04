@@ -1,0 +1,11 @@
+{
+  "id": "license-untaggable-1",
+  "session_id": "session-license",
+  "model_id": "model-local",
+  "prompt": "This fragment has no license tag.",
+  "completion": "It must be quarantined instead of promoted.",
+  "finish_reason": "stop",
+  "license_tag": "",
+  "source_event_ids": ["evt-license-1"],
+  "sourced_at_utc": "2026-05-24T00:00:00Z"
+}

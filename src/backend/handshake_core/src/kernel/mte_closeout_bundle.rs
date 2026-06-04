@@ -96,9 +96,7 @@ impl MteCloseoutBundleV1 {
         }
         if matches!(lane_settlement.verdict, MteLaneVerdict::Pass) {
             if aggregate.promotion_counts.rejected > 0 {
-                return Err(
-                    CloseoutBundleBuildError::PassSettlementButAggregateHasRejections,
-                );
+                return Err(CloseoutBundleBuildError::PassSettlementButAggregateHasRejections);
             }
             if lane_settlement.approval.is_none() {
                 return Err(CloseoutBundleBuildError::PassSettlementWithoutApproval);
@@ -106,12 +104,10 @@ impl MteCloseoutBundleV1 {
         }
         let per_mt_count = per_mt_summaries.len() as u32;
         if per_mt_count != aggregate.total_mts {
-            return Err(
-                CloseoutBundleBuildError::PerMtCountDisagreesWithAggregate {
-                    per_mt_count,
-                    aggregate_count: aggregate.total_mts,
-                },
-            );
+            return Err(CloseoutBundleBuildError::PerMtCountDisagreesWithAggregate {
+                per_mt_count,
+                aggregate_count: aggregate.total_mts,
+            });
         }
         Ok(Self {
             schema_version: Self::SCHEMA_VERSION.to_string(),
@@ -146,9 +142,7 @@ mod tests {
     use super::*;
     use crate::kernel::mte_aggregate_summary::{MtePromotionCounts, MteStatusCounts};
     use crate::kernel::mte_lane_settlement::LaneApprovalEvidenceV1;
-    use crate::kernel::mte_per_mt_summary::{
-        MteMtStatus, MtePromotionOutcomeView,
-    };
+    use crate::kernel::mte_per_mt_summary::{MteMtStatus, MtePromotionOutcomeView};
     use crate::kernel::mte_validation_report_projection::MteValidationReportProjectionV1;
     use crate::kernel::validation::report::{DescriptorOutcome, ValidationReport};
     use crate::kernel::validation::status::ValidationStatus;
@@ -237,15 +231,8 @@ mod tests {
         let agg = agg_pass(1);
         let s = settlement_pass(agg.clone());
         let mts = per_mt(1);
-        let err = MteCloseoutBundleV1::build(
-            "WP-OTHER",
-            s,
-            agg,
-            mts,
-            vec!["PR-0".into()],
-            vec![],
-        )
-        .unwrap_err();
+        let err = MteCloseoutBundleV1::build("WP-OTHER", s, agg, mts, vec!["PR-0".into()], vec![])
+            .unwrap_err();
         assert_eq!(
             err,
             CloseoutBundleBuildError::AggregateLaneSettlementWpMismatch
@@ -257,8 +244,7 @@ mod tests {
         let agg = agg_pass(2);
         let s = settlement_pass(agg.clone());
         let mts = per_mt(1); // mismatch
-        let err = MteCloseoutBundleV1::build("WP-X", s, agg, mts, vec![], vec![])
-            .unwrap_err();
+        let err = MteCloseoutBundleV1::build("WP-X", s, agg, mts, vec![], vec![]).unwrap_err();
         match err {
             CloseoutBundleBuildError::PerMtCountDisagreesWithAggregate {
                 per_mt_count,
@@ -278,8 +264,7 @@ mod tests {
         // Settlement was built before the corruption; bundle catches it.
         let s = settlement_pass(agg_pass(1));
         let mts = per_mt(1);
-        let err = MteCloseoutBundleV1::build("WP-X", s, agg, mts, vec![], vec![])
-            .unwrap_err();
+        let err = MteCloseoutBundleV1::build("WP-X", s, agg, mts, vec![], vec![]).unwrap_err();
         assert_eq!(
             err,
             CloseoutBundleBuildError::PassSettlementButAggregateHasRejections
@@ -290,8 +275,7 @@ mod tests {
     fn empty_wp_id_rejected() {
         let agg = agg_pass(0);
         let s = settlement_pass(agg.clone());
-        let err = MteCloseoutBundleV1::build("", s, agg, vec![], vec![], vec![])
-            .unwrap_err();
+        let err = MteCloseoutBundleV1::build("", s, agg, vec![], vec![], vec![]).unwrap_err();
         assert_eq!(err, CloseoutBundleBuildError::EmptyWpId);
     }
 }

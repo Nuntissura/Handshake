@@ -1212,26 +1212,38 @@ mod tests {
 
         // New 8 security guards (§2.6.6.7.11.1-8)
         assert!(pipeline.validator_names().contains(&"determinism_guard"));
-        assert!(pipeline
-            .validator_names()
-            .contains(&"artifact_handle_only_guard"));
-        assert!(pipeline
-            .validator_names()
-            .contains(&"compaction_schema_guard"));
-        assert!(pipeline
-            .validator_names()
-            .contains(&"memory_promotion_guard"));
+        assert!(
+            pipeline
+                .validator_names()
+                .contains(&"artifact_handle_only_guard")
+        );
+        assert!(
+            pipeline
+                .validator_names()
+                .contains(&"compaction_schema_guard")
+        );
+        assert!(
+            pipeline
+                .validator_names()
+                .contains(&"memory_promotion_guard")
+        );
         assert!(pipeline.validator_names().contains(&"cloud_leakage_guard"));
-        assert!(pipeline
-            .validator_names()
-            .contains(&"prompt_injection_guard"));
-        assert!(pipeline
-            .validator_names()
-            .contains(&"job_boundary_routing_guard"));
+        assert!(
+            pipeline
+                .validator_names()
+                .contains(&"prompt_injection_guard")
+        );
+        assert!(
+            pipeline
+                .validator_names()
+                .contains(&"job_boundary_routing_guard")
+        );
         assert!(pipeline.validator_names().contains(&"local_payload_guard"));
-        assert!(pipeline
-            .validator_names()
-            .contains(&"view_mode_hard_drop_guard"));
+        assert!(
+            pipeline
+                .validator_names()
+                .contains(&"view_mode_hard_drop_guard")
+        );
     }
 
     #[tokio::test]

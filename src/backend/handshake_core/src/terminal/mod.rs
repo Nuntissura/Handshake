@@ -25,9 +25,16 @@ use crate::terminal::redaction::SecretRedactor;
 
 pub mod config;
 pub mod guards;
+pub mod pty;
 pub mod redaction;
+pub mod runtime;
 pub mod session;
 
+pub use pty::{PtyError, PtyOutput, PtySession, PtySpawnConfig};
+pub use runtime::{
+    CaptureSink, RuntimeError, SessionBinding, SessionInfo, SessionKind, SessionOutput,
+    TerminalRuntime, CAP_TERMINAL_ATTACH_HUMAN, CAP_TERMINAL_INTERACT,
+};
 pub use session::{TerminalSession, TerminalSessionType};
 
 #[derive(Clone, Debug)]

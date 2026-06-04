@@ -15,7 +15,7 @@
 //!    `AdapterRunOutcome::Denied`.
 
 use super::adapter::{
-    AdapterError, AdapterKind, AdapterIsolationTier, AdapterRunOutcome, SandboxAdapter,
+    AdapterError, AdapterIsolationTier, AdapterKind, AdapterRunOutcome, SandboxAdapter,
 };
 use super::policy::{CapabilityDecision, SandboxCapability, SandboxPolicyV1};
 use super::run::SandboxRunV1;
@@ -149,7 +149,9 @@ mod tests {
         );
         run.requested_capabilities = SandboxCapability::ALL.to_vec();
         let ws = SandboxWorkspaceV1::new_default("k", "handshake-product/kb003/work/x");
-        let outcome = adapter.run(&run, &ws, &pol).expect("run returns Ok with Denied outcome");
+        let outcome = adapter
+            .run(&run, &ws, &pol)
+            .expect("run returns Ok with Denied outcome");
         match outcome {
             AdapterRunOutcome::Denied(d) => {
                 assert_eq!(d.kind, DenialKind::PolicyDenied);
@@ -158,15 +160,16 @@ mod tests {
             other => panic!("expected Denied outcome, got {:?}", other),
         }
         // And the derived status:
-        let derived = AdapterRunOutcome::Denied(crate::kernel::sandbox::denial::SandboxDenialRecordV1::new(
-            "SBX-x",
-            "POL@1",
-            DenialKind::PolicyDenied,
-            Some(SandboxCapability::Network),
-            "x",
-            "y",
-        ))
-        .to_status();
+        let derived =
+            AdapterRunOutcome::Denied(crate::kernel::sandbox::denial::SandboxDenialRecordV1::new(
+                "SBX-x",
+                "POL@1",
+                DenialKind::PolicyDenied,
+                Some(SandboxCapability::Network),
+                "x",
+                "y",
+            ))
+            .to_status();
         assert_eq!(derived, SandboxRunStatus::Rejected);
     }
 
@@ -249,13 +252,22 @@ mod tests {
             let mut p = pol.clone();
             p.default_decision = CapabilityDecision::Deny;
             p
-        }).unwrap();
-        let mut run = SandboxRunV1::new_requested("KTR-1", "SES-1", "policy_scoped_local", pol.version_id(), "WSP-1");
+        })
+        .unwrap();
+        let mut run = SandboxRunV1::new_requested(
+            "KTR-1",
+            "SES-1",
+            "policy_scoped_local",
+            pol.version_id(),
+            "WSP-1",
+        );
         // M7: must explicitly request capabilities for pre_check to iterate them.
         run.requested_capabilities = SandboxCapability::ALL.to_vec();
         let mut ws = SandboxWorkspaceV1::new_default("k", "handshake-product/kb003/work/y");
         ws.allow_write = false;
-        let err = adapter.run(&run, &ws, &pol).expect_err("read-only workspace must error");
+        let err = adapter
+            .run(&run, &ws, &pol)
+            .expect_err("read-only workspace must error");
         match err {
             AdapterError::WorkspaceViolation(msg) => assert!(msg.contains("read-only")),
             other => panic!("expected WorkspaceViolation, got {:?}", other),
@@ -290,7 +302,9 @@ mod tests {
         );
         run.requested_capabilities = vec![SandboxCapability::Network];
         let ws = SandboxWorkspaceV1::new_default("k", "handshake-product/kb003/work/h5");
-        let outcome = adapter.run(&run, &ws, &pol).expect("grant must pass pre_check");
+        let outcome = adapter
+            .run(&run, &ws, &pol)
+            .expect("grant must pass pre_check");
         match outcome {
             AdapterRunOutcome::Completed { .. } => {}
             other => panic!("expected Completed after valid grant, got {:?}", other),

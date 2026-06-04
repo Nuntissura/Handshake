@@ -66,8 +66,13 @@ impl MteRetryBudgetV1 {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum MteRetryVerdict {
-    Allow { next_attempt: u32, backoff_seconds: u32 },
-    Declined { reason: &'static str },
+    Allow {
+        next_attempt: u32,
+        backoff_seconds: u32,
+    },
+    Declined {
+        reason: &'static str,
+    },
 }
 
 impl MteRetryVerdict {

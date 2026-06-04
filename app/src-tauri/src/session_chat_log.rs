@@ -229,16 +229,16 @@ pub fn session_chat_append(
     Ok(())
 }
 
-#[tauri::command]
-pub fn session_chat_read(
-    state: State<SessionChatLogState>,
-    session_id: String,
-    limit: Option<u64>,
+/// Shared, command-free reader for a session's `chat.jsonl`. Parses every row,
+/// sorts by `(turn_index, created_at_utc, message_id)`, and returns the full
+/// ordered set. A missing file yields an empty vec (honest — a swarm composite
+/// `instance_id` has no chat file). Reused by both [`session_chat_read`] and the
+/// unified session-transcript aggregator so the parse stays single-sourced.
+pub fn read_chat_log(
+    app_data_root: &Path,
+    session_id: &str,
 ) -> Result<Vec<SessionChatLogEntryV0_1>, String> {
-    let session_id = session_id.trim().to_string();
-    let _ = require_uuid_string_non_nil("session_id", &session_id)?;
-
-    let path = chat_log_path(&state.app_data_root, &session_id);
+    let path = chat_log_path(app_data_root, session_id);
     if !path.exists() {
         return Ok(Vec::new());
     }
@@ -268,6 +268,20 @@ pub fn session_chat_read(
             &b.message_id,
         ))
     });
+
+    Ok(entries)
+}
+
+#[tauri::command]
+pub fn session_chat_read(
+    state: State<SessionChatLogState>,
+    session_id: String,
+    limit: Option<u64>,
+) -> Result<Vec<SessionChatLogEntryV0_1>, String> {
+    let session_id = session_id.trim().to_string();
+    let _ = require_uuid_string_non_nil("session_id", &session_id)?;
+
+    let mut entries = read_chat_log(&state.app_data_root, &session_id)?;
 
     if let Some(limit) = limit {
         if limit == 0 {

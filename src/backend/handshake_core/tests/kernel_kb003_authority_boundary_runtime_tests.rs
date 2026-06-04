@@ -111,10 +111,8 @@ fn promotion_gate_actor_permitted_at_storage_boundary() {
         "PromotionGate actor must succeed at the decision boundary; got {:?}",
         dec_result
     );
-    let rec_result = store.insert_promotion_receipt(
-        &sample_receipt_row(),
-        AuthorityMutationActor::PromotionGate,
-    );
+    let rec_result = store
+        .insert_promotion_receipt(&sample_receipt_row(), AuthorityMutationActor::PromotionGate);
     assert!(
         rec_result.is_ok(),
         "PromotionGate actor must succeed at the receipt boundary; got {:?}",

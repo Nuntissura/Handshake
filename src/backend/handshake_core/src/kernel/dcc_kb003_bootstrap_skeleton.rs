@@ -94,7 +94,9 @@ impl BootstrapSkeletonProjectionV1 {
     /// process restart).
     pub fn covers_happy_path(&self) -> bool {
         let needs = Self::required_happy_path_kinds();
-        needs.iter().all(|k| self.receipts.iter().any(|r| r.kind == *k))
+        needs
+            .iter()
+            .all(|k| self.receipts.iter().any(|r| r.kind == *k))
     }
 }
 
@@ -108,12 +110,42 @@ mod tests {
         BootstrapSkeletonProjectionV1::new(
             run_id,
             vec![
-                SkeletonReceiptV1 { kind: SkeletonReceiptKind::SandboxRunRequested, receipt_id: "R1".into(), recorded_at_utc: now, artifact_ref: None },
-                SkeletonReceiptV1 { kind: SkeletonReceiptKind::SandboxRunStarted, receipt_id: "R2".into(), recorded_at_utc: now, artifact_ref: None },
-                SkeletonReceiptV1 { kind: SkeletonReceiptKind::SandboxRunCompleted, receipt_id: "R3".into(), recorded_at_utc: now, artifact_ref: Some("ART-log".into()) },
-                SkeletonReceiptV1 { kind: SkeletonReceiptKind::ValidationRunRecorded, receipt_id: "R4".into(), recorded_at_utc: now, artifact_ref: Some("ART-vr".into()) },
-                SkeletonReceiptV1 { kind: SkeletonReceiptKind::PromotionDecided, receipt_id: "R5".into(), recorded_at_utc: now, artifact_ref: None },
-                SkeletonReceiptV1 { kind: SkeletonReceiptKind::PromotionReceiptIssued, receipt_id: "R6".into(), recorded_at_utc: now, artifact_ref: Some("ART-pr".into()) },
+                SkeletonReceiptV1 {
+                    kind: SkeletonReceiptKind::SandboxRunRequested,
+                    receipt_id: "R1".into(),
+                    recorded_at_utc: now,
+                    artifact_ref: None,
+                },
+                SkeletonReceiptV1 {
+                    kind: SkeletonReceiptKind::SandboxRunStarted,
+                    receipt_id: "R2".into(),
+                    recorded_at_utc: now,
+                    artifact_ref: None,
+                },
+                SkeletonReceiptV1 {
+                    kind: SkeletonReceiptKind::SandboxRunCompleted,
+                    receipt_id: "R3".into(),
+                    recorded_at_utc: now,
+                    artifact_ref: Some("ART-log".into()),
+                },
+                SkeletonReceiptV1 {
+                    kind: SkeletonReceiptKind::ValidationRunRecorded,
+                    receipt_id: "R4".into(),
+                    recorded_at_utc: now,
+                    artifact_ref: Some("ART-vr".into()),
+                },
+                SkeletonReceiptV1 {
+                    kind: SkeletonReceiptKind::PromotionDecided,
+                    receipt_id: "R5".into(),
+                    recorded_at_utc: now,
+                    artifact_ref: None,
+                },
+                SkeletonReceiptV1 {
+                    kind: SkeletonReceiptKind::PromotionReceiptIssued,
+                    receipt_id: "R6".into(),
+                    recorded_at_utc: now,
+                    artifact_ref: Some("ART-pr".into()),
+                },
             ],
         )
     }
@@ -127,7 +159,8 @@ mod tests {
     #[test]
     fn missing_promotion_decision_fails_coverage() {
         let mut p = full_happy_path("SBX-1");
-        p.receipts.retain(|r| r.kind != SkeletonReceiptKind::PromotionDecided);
+        p.receipts
+            .retain(|r| r.kind != SkeletonReceiptKind::PromotionDecided);
         assert!(!p.covers_happy_path());
     }
 

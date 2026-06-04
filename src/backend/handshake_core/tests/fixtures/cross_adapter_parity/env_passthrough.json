@@ -1,0 +1,31 @@
+{
+  "schema_id": "hsk.sandbox_cross_adapter_parity@1",
+  "name": "env_passthrough",
+  "description": "Set HANDSHAKE_MT057=present in ProcessSpec.env; assert the process can read it via `printenv`. Exit_code == 0 only when the env var was actually injected; exit 7 marks 'env var missing'.",
+  "spec": {
+    "id": "placeholder",
+    "image_or_root": "alpine:3.20",
+    "cmd": [
+      "sh",
+      "-c",
+      "test \"$HANDSHAKE_MT057\" = \"present\" && exit 0 || exit 7"
+    ],
+    "env": {
+      "HANDSHAKE_MT057": "present"
+    },
+    "cwd": null,
+    "binds": [],
+    "net_policy": "deny_all",
+    "resource_limits": {
+      "memory_bytes": null,
+      "cpu_cores": null,
+      "timeout_ms": null
+    },
+    "required_capabilities": [],
+    "metadata": {}
+  },
+  "expected": {
+    "exit_code_class": "zero",
+    "stop_reason_contains": "status:exited"
+  }
+}

@@ -690,52 +690,117 @@ impl DuckDbFlightRecorder {
         // Convert Vec<Box<dyn ToSql>> to something duckdb can use
         let param_refs: Vec<&dyn duckdb::ToSql> = params.iter().map(|p| p.as_ref()).collect();
 
-        struct RawEvent {
-            event_id: String,
-            trace_id: String,
-            timestamp_epoch: f64,
-            actor: String,
-            actor_id: String,
-            event_type: String,
-            job_id: Option<String>,
-            workflow_id: Option<String>,
-            model_id: Option<String>,
-            model_session_id: Option<String>,
-            wsids: Option<String>,
-            activity_span_id: Option<String>,
-            session_span_id: Option<String>,
-            capability_id: Option<String>,
-            policy_decision_id: Option<String>,
-            payload: String,
-        }
-
         let event_iter = stmt
-            .query_map(duckdb::params_from_iter(param_refs), |row| {
-                Ok(RawEvent {
-                    event_id: row.get(0)?,
-                    trace_id: row.get(1)?,
-                    timestamp_epoch: row.get(2)?,
-                    actor: row.get(3)?,
-                    actor_id: row.get(4)?,
-                    event_type: row.get(5)?,
-                    job_id: row.get(6)?,
-                    workflow_id: row.get(7)?,
-                    model_id: row.get(8)?,
-                    model_session_id: row.get(9)?,
-                    wsids: row.get(10)?,
-                    activity_span_id: row.get(11)?,
-                    session_span_id: row.get(12)?,
-                    capability_id: row.get(13)?,
-                    policy_decision_id: row.get(14)?,
-                    payload: row.get(15)?,
-                })
-            })
+            .query_map(duckdb::params_from_iter(param_refs), raw_event_from_row)
             .map_err(|e| RecorderError::SinkError(e.to_string()))?;
 
         let mut events = Vec::new();
         for raw_res in event_iter {
             let raw = raw_res.map_err(|e| RecorderError::SinkError(e.to_string()))?;
+            events.push(decode_raw_event(raw)?);
+        }
 
+        Ok(events)
+    }
+
+    /// Session-scoped raw query (the "raw seam" for the unified transcript). See
+    /// [`super::FlightRecorder::list_session_scoped_events`] for why this is
+    /// necessary: it matches `session_span_id = id` OR
+    /// `json_extract_string(payload,'$.instance_id') = id` with NO 200-row cap,
+    /// ordered ascending. Reuses the SAME column list + row decode as
+    /// [`Self::query_events`] so a stored-event shape change can't drift between
+    /// the two read paths.
+    fn query_session_scoped_events(
+        &self,
+        session_id: &str,
+        from: Option<chrono::DateTime<chrono::Utc>>,
+        to: Option<chrono::DateTime<chrono::Utc>>,
+    ) -> Result<Vec<FlightRecorderEvent>, RecorderError> {
+        let conn = self.conn.lock().map_err(|_| RecorderError::LockError)?;
+
+        let mut params: Vec<Box<dyn duckdb::ToSql>> = Vec::new();
+        // ?1 is reused by both OR branches.
+        params.push(Box::new(session_id.to_string()));
+        let mut query = String::from(
+            "SELECT event_id, trace_id, EXTRACT(EPOCH FROM timestamp), actor, actor_id, event_type, job_id, workflow_id, model_id, model_session_id, wsids, activity_span_id, session_span_id, capability_id, policy_decision_id, payload FROM events WHERE (session_span_id = ?1 OR json_extract_string(payload, '$.instance_id') = ?1)",
+        );
+        if let Some(from) = from {
+            params.push(Box::new(from.to_rfc3339()));
+            query.push_str(&format!(" AND timestamp >= ?{}", params.len()));
+        }
+        if let Some(to) = to {
+            params.push(Box::new(to.to_rfc3339()));
+            query.push_str(&format!(" AND timestamp <= ?{}", params.len()));
+        }
+        // No LIMIT: token-level replay must not silently truncate. Ascending so
+        // the merge sees the natural session order.
+        query.push_str(" ORDER BY timestamp ASC");
+
+        let mut stmt = conn
+            .prepare(&query)
+            .map_err(|e| RecorderError::SinkError(e.to_string()))?;
+        let param_refs: Vec<&dyn duckdb::ToSql> = params.iter().map(|p| p.as_ref()).collect();
+        let event_iter = stmt
+            .query_map(duckdb::params_from_iter(param_refs), raw_event_from_row)
+            .map_err(|e| RecorderError::SinkError(e.to_string()))?;
+
+        let mut events = Vec::new();
+        for raw_res in event_iter {
+            let raw = raw_res.map_err(|e| RecorderError::SinkError(e.to_string()))?;
+            events.push(decode_raw_event(raw)?);
+        }
+        Ok(events)
+    }
+}
+
+/// One stored event row, decoded from the canonical 16-column SELECT used by
+/// both [`DuckDbFlightRecorder::query_events`] and
+/// [`DuckDbFlightRecorder::query_session_scoped_events`].
+struct RawEvent {
+    event_id: String,
+    trace_id: String,
+    timestamp_epoch: f64,
+    actor: String,
+    actor_id: String,
+    event_type: String,
+    job_id: Option<String>,
+    workflow_id: Option<String>,
+    model_id: Option<String>,
+    model_session_id: Option<String>,
+    wsids: Option<String>,
+    activity_span_id: Option<String>,
+    session_span_id: Option<String>,
+    capability_id: Option<String>,
+    policy_decision_id: Option<String>,
+    payload: String,
+}
+
+/// Map a DuckDB row (in the canonical column order) into a [`RawEvent`].
+fn raw_event_from_row(row: &duckdb::Row<'_>) -> duckdb::Result<RawEvent> {
+    Ok(RawEvent {
+        event_id: row.get(0)?,
+        trace_id: row.get(1)?,
+        timestamp_epoch: row.get(2)?,
+        actor: row.get(3)?,
+        actor_id: row.get(4)?,
+        event_type: row.get(5)?,
+        job_id: row.get(6)?,
+        workflow_id: row.get(7)?,
+        model_id: row.get(8)?,
+        model_session_id: row.get(9)?,
+        wsids: row.get(10)?,
+        activity_span_id: row.get(11)?,
+        session_span_id: row.get(12)?,
+        capability_id: row.get(13)?,
+        policy_decision_id: row.get(14)?,
+        payload: row.get(15)?,
+    })
+}
+
+/// Decode a [`RawEvent`] into a [`FlightRecorderEvent`], applying the stored
+/// `event_type` string -> enum back-compat mapping table.
+fn decode_raw_event(raw: RawEvent) -> Result<FlightRecorderEvent, RecorderError> {
+    {
             let event_id = uuid::Uuid::parse_str(&raw.event_id)
                 .map_err(|e| RecorderError::InvalidEvent(format!("invalid event_id: {}", e)))?;
             let trace_id = uuid::Uuid::parse_str(&raw.trace_id)
@@ -762,6 +827,8 @@ impl DuckDbFlightRecorder {
                 "terminal_command" => super::FlightRecorderEventType::TerminalCommand,
                 "editor_edit" => super::FlightRecorderEventType::EditorEdit,
                 "llm_inference" => super::FlightRecorderEventType::LlmInference,
+                "llm_infer.spec_accept" => super::FlightRecorderEventType::LlmInferenceSpecAccept,
+                "llm_infer.spec_reject" => super::FlightRecorderEventType::LlmInferenceSpecReject,
                 "tool_call" => super::FlightRecorderEventType::ToolCall,
                 "diagnostic" => super::FlightRecorderEventType::Diagnostic,
                 "micro_task_loop_started" => super::FlightRecorderEventType::MicroTaskLoopStarted,
@@ -954,6 +1021,7 @@ impl DuckDbFlightRecorder {
                 "workspace_cross_session.approved" => {
                     super::FlightRecorderEventType::WorkspaceCrossSessionApproved
                 }
+                "distill.pii_detected" => super::FlightRecorderEventType::DistillPiiDetected,
                 "capability_action" => {
                     if payload_type == Some("terminal_command") {
                         super::FlightRecorderEventType::TerminalCommand
@@ -965,7 +1033,7 @@ impl DuckDbFlightRecorder {
                 _ => super::FlightRecorderEventType::System,
             };
 
-            events.push(super::FlightRecorderEvent {
+            Ok(super::FlightRecorderEvent {
                 event_id,
                 trace_id,
                 timestamp,
@@ -982,10 +1050,7 @@ impl DuckDbFlightRecorder {
                 capability_id: raw.capability_id,
                 policy_decision_id: raw.policy_decision_id,
                 payload,
-            });
-        }
-
-        Ok(events)
+            })
     }
 }
 
@@ -1009,6 +1074,15 @@ impl FlightRecorder for DuckDbFlightRecorder {
         filter: super::EventFilter,
     ) -> Result<Vec<FlightRecorderEvent>, RecorderError> {
         self.query_events(filter)
+    }
+
+    async fn list_session_scoped_events(
+        &self,
+        session_id: &str,
+        from: Option<chrono::DateTime<chrono::Utc>>,
+        to: Option<chrono::DateTime<chrono::Utc>>,
+    ) -> Result<Vec<FlightRecorderEvent>, RecorderError> {
+        self.query_session_scoped_events(session_id, from, to)
     }
 
     fn duckdb_connection(&self) -> Option<Arc<Mutex<DuckDbConnection>>> {

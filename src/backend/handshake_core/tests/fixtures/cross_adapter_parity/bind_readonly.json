@@ -1,0 +1,31 @@
+{
+  "schema_id": "hsk.sandbox_cross_adapter_parity@1",
+  "name": "bind_readonly",
+  "description": "Touch a file inside a ReadOnly bind mount; expect a non-zero exit on every adapter and a STOP ledger row with exit_code != 0. The harness does not assert EROFS specifically because BSD/musl/glibc spell it differently — non-zero is the parity invariant.",
+  "spec": {
+    "id": "placeholder",
+    "image_or_root": "alpine:3.20",
+    "cmd": ["sh", "-c", "touch /readonly_bind/should_fail && exit 0 || exit 13"],
+    "env": {},
+    "cwd": null,
+    "binds": [
+      {
+        "host_path": "/tmp",
+        "guest_path": "/readonly_bind",
+        "mode": "read_only"
+      }
+    ],
+    "net_policy": "deny_all",
+    "resource_limits": {
+      "memory_bytes": null,
+      "cpu_cores": null,
+      "timeout_ms": null
+    },
+    "required_capabilities": [],
+    "metadata": {}
+  },
+  "expected": {
+    "exit_code_class": "non_zero",
+    "stop_reason_contains": "status:exited"
+  }
+}

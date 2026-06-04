@@ -52,7 +52,11 @@ pub struct Kb003PerMtSummaryV1 {
 impl Kb003PerMtSummaryV1 {
     pub const SCHEMA_VERSION: &'static str = "hsk.kernel.kb003_mt_summary@1";
 
-    pub fn completed(mt_id: impl Into<String>, attempt_index: u32, artifact_refs: Vec<String>) -> Self {
+    pub fn completed(
+        mt_id: impl Into<String>,
+        attempt_index: u32,
+        artifact_refs: Vec<String>,
+    ) -> Self {
         Self {
             schema_version: Self::SCHEMA_VERSION.to_string(),
             summary_id: format!("MTSUM-{}", Uuid::now_v7()),
@@ -143,7 +147,9 @@ mod tests {
 
     #[test]
     fn failed_summary_records_typed_reason() {
-        let reason = BlockedReason::MissingApproval { missing_field: "operator_id".into() };
+        let reason = BlockedReason::MissingApproval {
+            missing_field: "operator_id".into(),
+        };
         let s = Kb003PerMtSummaryV1::failed("MT-003", 0, reason, vec![]);
         assert_eq!(s.status, MtTerminalStatus::Failed);
         assert!(s.blocked_reason.is_some());

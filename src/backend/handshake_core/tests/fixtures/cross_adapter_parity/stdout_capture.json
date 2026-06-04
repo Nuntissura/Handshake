@@ -1,0 +1,26 @@
+{
+  "schema_id": "hsk.sandbox_cross_adapter_parity@1",
+  "name": "stdout_capture",
+  "description": "Spawn `echo handshake-mt057-stdout` and verify exit_code==0 plus a substring predicate that future MTs can flip on once per-adapter stdout capture is wired through ProcessHandle (today the stdout_predicate is auto-passed by the harness).",
+  "spec": {
+    "id": "placeholder",
+    "image_or_root": "alpine:3.20",
+    "cmd": ["sh", "-c", "echo handshake-mt057-stdout"],
+    "env": {},
+    "cwd": null,
+    "binds": [],
+    "net_policy": "deny_all",
+    "resource_limits": {
+      "memory_bytes": null,
+      "cpu_cores": null,
+      "timeout_ms": null
+    },
+    "required_capabilities": [],
+    "metadata": {}
+  },
+  "expected": {
+    "exit_code_class": "zero",
+    "stop_reason_contains": "status:exited",
+    "stdout_predicate": { "substring": "handshake-mt057-stdout" }
+  }
+}

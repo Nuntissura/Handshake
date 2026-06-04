@@ -4,6 +4,53 @@ version = "0.1.0"
 edition = "2021"
 license = "MIT"
 
+[package.metadata.handshake.inspector_read_isolation]
+source_globs = ["src/inspector_read/*.rs"]
+deny_mutable_self_methods = true
+deny_interior_mutability = true
+deny_kernel_write_side_imports = [
+  "crate::kernel::action_catalog",
+  "crate::kernel::direct_edit_guard",
+  "crate::kernel::kb003_promotion",
+  "crate::kernel::pre_use_kernel_acceptance_run",
+  "crate::kernel::validation::patch_proposal",
+  "crate::kernel::write_boxes",
+]
+
+[lints.clippy]
+assertions_on_constants = "allow"
+await_holding_lock = "allow"
+bind_instead_of_map = "allow"
+cloned_ref_to_slice_refs = "allow"
+collapsible_if = "allow"
+collapsible_str_replace = "allow"
+default_constructed_unit_structs = "allow"
+derivable_impls = "allow"
+disallowed_methods = "deny"
+double_ended_iterator_last = "allow"
+enum_variant_names = "allow"
+explicit_auto_deref = "allow"
+field_reassign_with_default = "allow"
+io_other_error = "allow"
+large_enum_variant = "allow"
+manual_div_ceil = "allow"
+manual_is_multiple_of = "allow"
+manual_range_patterns = "allow"
+manual_strip = "allow"
+needless_lifetimes = "allow"
+question_mark = "allow"
+redundant_closure = "allow"
+result_large_err = "allow"
+sliced_string_as_bytes = "allow"
+too_many_arguments = "allow"
+unit_arg = "allow"
+unnecessary_get_then_check = "allow"
+unnecessary_lazy_evaluations = "allow"
+unnecessary_map_or = "allow"
+unnecessary_sort_by = "allow"
+useless_format = "allow"
+useless_vec = "allow"
+
 [[bin]]
 name = "handshake_core"
 path = "src/main.rs"
@@ -17,64 +64,232 @@ required-features = ["app-runtime"]
 [[bin]]
 name = "handshake"
 path = "src/bin/handshake.rs"
+test = false
+
+[[bin]]
+name = "mt046_token_probe"
+path = "src/bin/mt046_token_probe.rs"
+required-features = ["win-native-integration"]
+test = false
+
+# MT-058 — live Win32 foreground-steal payload for ESC-WIN32-FOREGROUND-INJECT
+# (the HBR-QUIET-001 acid test). Built on the Windows CI lane with
+# `--features win-native-integration`; produces
+# `handshake-foreground-inject-probe.exe`, whose absolute path Cargo exposes to
+# the integration-test crate as CARGO_BIN_EXE_handshake-foreground-inject-probe.
+[[bin]]
+name = "handshake-foreground-inject-probe"
+path = "src/bin/handshake-foreground-inject-probe.rs"
+required-features = ["win-native-integration"]
+test = false
+
+[[bin]]
+name = "model_manual_md_gen"
+path = "src/bin/model_manual_md_gen.rs"
+test = false
+
+[[bin]]
+name = "handshake-swarm"
+path = "src/bin/handshake-swarm.rs"
+test = false
+
+[[bin]]
+name = "hsk-warm-agent"
+path = "src/bin/hsk-warm-agent.rs"
+test = false
+
+[[bin]]
+name = "hsk-warm-agent-package"
+path = "src/bin/hsk-warm-agent-package.rs"
+test = false
+
+[[bin]]
+name = "abliterate"
+path = "src/bin/abliterate.rs"
+required-features = ["candle-runtime-engine"]
+
+[[bin]]
+name = "peft_train"
+path = "src/bin/peft_train.rs"
+test = false
+
+# MT-027 — headless driver for the a2 visual smoke focus audit. Runs the real
+# `operator_foreground::focus_audit` FocusAuditHandle over a supplied run_id and
+# prints the genuine FocusAuditReport JSON, so the smoke never hardcodes
+# `handshake_owned_events: []`.
+[[bin]]
+name = "focus-audit-probe"
+path = "src/bin/focus-audit-probe.rs"
+test = false
 
 [dependencies]
-axum = "0.7"
+axum = { version = "0.7", features = ["ws"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-tokio = { version = "1", features = ["macros", "rt-multi-thread", "process", "time"] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "process", "sync", "time", "io-util"] }
 tower-http = { version = "0.6", features = ["cors"] }
-sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio-rustls", "sqlite", "postgres", "macros", "migrate", "chrono"] }
-uuid = { version = "1", features = ["v7", "fast-rng", "serde"] }
+sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio-rustls", "postgres", "macros", "migrate", "chrono", "uuid", "json"] }
+uuid = { version = "1", features = ["v4", "v7", "fast-rng", "serde"] }
 chrono = { version = "0.4", features = ["serde", "clock"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt", "json"] }
 tracing-appender = "0.2"
 thiserror = "2.0.17"
 duckdb = { version = "1.4.3", optional = true, features = ["bundled"] }
-reqwest = { version = "0.12", features = ["json"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "stream", "rustls-tls"] }
+eventsource-stream = "0.2"
+keyring = { version = "3", optional = true, features = ["apple-native", "windows-native", "linux-native-sync-persistent", "crypto-rust"] }
+secrecy = { version = "0.10", features = ["serde"] }
+tokio-tungstenite = "0.26"
+futures = "0.3"
+futures-util = "0.3"
 async-trait = "0.1"
 once_cell = "1.20"
 sha2 = "0.10"
+blake3 = "1"
 hex = "0.4"
+# RustCrypto HMAC. Pairs with sha2::Sha256 to back the MT-029 / MT-030
+# per-run shared-secret inspector envelope authentication (replaces the
+# prior keyless SHA-256 envelope signature that any local process could
+# forge).
+hmac = "0.12"
+subtle = "2"
+# OS cryptographically-secure RNG for the MT-029 inspector per-run secret.
+# Replaces Uuid::now_v7(), whose value embeds the launch millisecond and
+# leaves only a small random tail; getrandom draws the secret straight from
+# the operating-system CSPRNG so it carries no launch-time structure.
+getrandom = "0.2"
+# Half-precision float types for CRIT-1 / MT-088 SSM state-vector
+# (de)serialization. Already a transitive dep via candle-core; declared
+# directly so candle/ssm_state.rs can name half::f16 / half::bf16 when
+# packing F16/BF16 SSM tensors to SSMTensorSnapshot bytes.
+half = "2"
+# Real AEAD cipher for MT-150 HBR test-packet corpus holdout encryption.
+# RustCrypto/AEADs ChaCha20-Poly1305 implementation; standardised in RFC 8439.
+# Replaces the prior hand-rolled SHA-256-CTR + HMAC-SHA256 construction that
+# violated MT-150 minimum_control "real AEAD cipher; not a stub".
+chacha20poly1305 = "0.10"
 base64 = "0.22"
 unicode-normalization = "0.1"
 idna = "1"
 caseless = "0.2"
+bytes = { version = "1", features = ["serde"] }
+globset = "0.4"
 image = { version = "0.25", default-features = false, features = ["png", "jpeg"] }
 tree-sitter = "0.24"
 tree-sitter-rust = "0.23"
 tree-sitter-javascript = "0.23"
 tree-sitter-typescript = "0.23"
+# Native engine crates stay behind an explicit feature until adapter MTs own host toolchain proof.
+llama-cpp-2 = { version = "0.1.146", default-features = false, optional = true }
+llama-cpp-sys-2 = { version = "0.1.146", default-features = false, optional = true }
+candle-core = { version = "0.10.2", optional = true }
+candle-nn = { version = "0.10.2", optional = true }
+candle-transformers = { version = "0.10.2", optional = true }
 tiktoken-rs = { version = "0.5", optional = true }
 # Disable the esaxx default feature to avoid static CRT conflicts on Windows.
-tokenizers = { version = "0.15", optional = true, default-features = false, features = ["onig", "progressbar"] }
+tokenizers = { version = "0.23.1", optional = true, default-features = false, features = ["onig", "progressbar"] }
 regex = "1"
 zip = { version = "0.6", default-features = false, features = ["deflate"] }
 jsonschema = "0.17"
+which = "8"
+icalendar = "0.17.10"
+tokio-cron-scheduler = "0.15.1"
+# Cross-platform PTY abstraction (wezterm). Backs the interactive Integrated
+# Terminal PtySession: spawns a shell under a real pseudo-terminal (ConPTY on
+# Windows, openpty on Unix) so xterm.js gets genuine TTY behavior. The crate
+# manages the ConPTY console window itself; CREATE_NO_WINDOW is not regressed at
+# any of the existing CLI/MCP/PEFT/screenshot spawn sites.
+portable-pty = "0.9.0"
 
 [dev-dependencies]
 tempfile = "3"
+wiremock = "0.6"
+
+[target.'cfg(windows)'.dependencies]
+rappct = { version = "0.13.3", default-features = false }
+wineventhook = "0.11.0"
+windows = { version = "0.62.2", features = ["Win32_Foundation", "Win32_UI_Input_KeyboardAndMouse", "Win32_UI_WindowsAndMessaging"] }
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Graphics_Gdi", "Win32_Security", "Win32_Security_Authorization", "Win32_Storage_FileSystem", "Win32_System_Console", "Win32_System_JobObjects", "Win32_System_LibraryLoader", "Win32_System_Pipes", "Win32_System_Threading", "Win32_System_WindowsProgramming", "Win32_UI_Input_KeyboardAndMouse", "Win32_UI_WindowsAndMessaging"] }
 
 [features]
-default = ["runtime-full"]
+default = ["runtime-full", "os-keychain"]
 kernel-runtime = []
 runtime-full = ["kernel-runtime", "tokenization"]
+os-keychain = ["dep:keyring"]
 kernel-proof = ["runtime-full"]
+inspector = []
+swarm_ipc = []
+candle-runtime-engine = ["dep:candle-core", "dep:candle-nn", "dep:candle-transformers", "dep:tokenizers"]
+llama-cpp-runtime-engine = ["dep:llama-cpp-2", "dep:llama-cpp-sys-2"]
+model-runtime-engines = ["llama-cpp-runtime-engine", "candle-runtime-engine"]
 app-runtime = ["runtime-full", "duckdb-flight-recorder"]
 duckdb-flight-recorder = ["dep:duckdb"]
 tokenization = ["dep:tiktoken-rs", "dep:tokenizers"]
 test-utils = []  # Exposes test helper utilities for integration tests
+wsl2-integration = []
+docker-integration = []
+win-native-integration = []
 
 [[test]]
 name = "ai_ready_data_arch_tests"
 path = "tests/ai_ready_data_arch_tests.rs"
-required-features = ["duckdb-flight-recorder"]
+required-features = ["duckdb-flight-recorder", "test-utils"]
+
+[[test]]
+name = "calendar_storage_tests"
+path = "tests/calendar_storage_tests.rs"
+required-features = ["test-utils"]
+
+[[test]]
+name = "cloud_os_keychain_vault_tests"
+path = "tests/cloud_os_keychain_vault_tests.rs"
+required-features = ["os-keychain"]
+
+[[test]]
+name = "kernel_crdt_persistence_tests"
+path = "tests/kernel_crdt_persistence_tests.rs"
+required-features = ["test-utils"]
+
+[[test]]
+name = "kernel_crdt_promotion_bridge_tests"
+path = "tests/kernel_crdt_promotion_bridge_tests.rs"
+required-features = ["test-utils"]
+
+[[test]]
+name = "kernel_crdt_snapshot_tests"
+path = "tests/kernel_crdt_snapshot_tests.rs"
+required-features = ["test-utils"]
+
+[[test]]
+name = "kernel_end_to_end_tests"
+path = "tests/kernel_end_to_end_tests.rs"
+required-features = ["test-utils"]
+
+[[test]]
+name = "kernel_postgres_event_ledger_tests"
+path = "tests/kernel_postgres_event_ledger_tests.rs"
+required-features = ["test-utils"]
+
+[[test]]
+name = "memory_persistence_postgres_tests"
+path = "tests/memory_persistence_postgres_tests.rs"
+required-features = ["test-utils"]
+
+[[test]]
+name = "memory_ipc_postgres_tests"
+path = "tests/memory_ipc_postgres_tests.rs"
+required-features = ["test-utils"]
+
+[[test]]
+name = "memory_capsule_e2e_postgres_tests"
+path = "tests/memory_capsule_e2e_postgres_tests.rs"
+required-features = ["test-utils"]
 
 [[test]]
 name = "mcp_e2e_tests"
 path = "tests/mcp_e2e_tests.rs"
-required-features = ["duckdb-flight-recorder"]
+required-features = ["duckdb-flight-recorder", "test-utils"]
 
 [[test]]
 name = "mcp_gate_tests"
@@ -84,7 +299,7 @@ required-features = ["duckdb-flight-recorder"]
 [[test]]
 name = "mex_tests"
 path = "tests/mex_tests.rs"
-required-features = ["duckdb-flight-recorder"]
+required-features = ["duckdb-flight-recorder", "test-utils"]
 
 [[test]]
 name = "micro_task_executor_tests"
@@ -102,6 +317,146 @@ path = "tests/role_mailbox_tests.rs"
 required-features = ["duckdb-flight-recorder"]
 
 [[test]]
+name = "role_mailbox_v1_tests"
+path = "tests/role_mailbox_v1_tests.rs"
+required-features = ["test-utils"]
+
+[[test]]
+name = "role_mailbox_repo_tests"
+path = "tests/role_mailbox_repo_tests.rs"
+required-features = ["test-utils"]
+
+[[test]]
+name = "role_mailbox_lease_tests"
+path = "tests/role_mailbox_lease_tests.rs"
+required-features = ["test-utils"]
+
+[[test]]
+name = "role_mailbox_router_tests"
+path = "tests/role_mailbox_router_tests.rs"
+required-features = ["test-utils"]
+
+[[test]]
+name = "role_mailbox_exporter_tests"
+path = "tests/role_mailbox_exporter_tests.rs"
+required-features = ["test-utils"]
+
+[[test]]
+name = "role_mailbox_backpressure_tests"
+path = "tests/role_mailbox_backpressure_tests.rs"
+required-features = ["test-utils"]
+
+[[test]]
+name = "role_mailbox_handoff_tests"
+path = "tests/role_mailbox_handoff_tests.rs"
+required-features = ["test-utils"]
+
+[[test]]
+name = "mt_executor_tests"
+path = "tests/mt_executor_tests.rs"
+required-features = ["test-utils"]
+
+[[test]]
+name = "micro_task_job_tests"
+path = "tests/micro_task_job_tests.rs"
+required-features = ["test-utils"]
+
+[[test]]
+name = "mt_loop_control_tests"
+path = "tests/mt_loop_control_tests.rs"
+required-features = ["test-utils"]
+
+[[test]]
+name = "mt_scheduler_tests"
+path = "tests/mt_scheduler_tests.rs"
+required-features = ["test-utils"]
+
+[[test]]
+name = "mt_outcome_tests"
+path = "tests/mt_outcome_tests.rs"
+required-features = ["test-utils"]
+
+[[test]]
+name = "session_checkpoint_tests"
+path = "tests/session_checkpoint_tests.rs"
+required-features = ["test-utils"]
+
+[[test]]
+name = "restart_resume_tests"
+path = "tests/restart_resume_tests.rs"
+required-features = ["test-utils"]
+
+[[test]]
+name = "restart_resume_postgres_tests"
+path = "tests/restart_resume_postgres_tests.rs"
+required-features = ["test-utils"]
+
+[[test]]
+name = "idempotency_tests"
+path = "tests/idempotency_tests.rs"
+required-features = ["test-utils"]
+
+[[test]]
+name = "bitemporal_indexing_tests"
+path = "tests/bitemporal_indexing_tests.rs"
+required-features = ["test-utils"]
+
+[[test]]
+name = "outcome_feedback_tests"
+path = "tests/outcome_feedback_tests.rs"
+required-features = ["test-utils"]
+
+[[test]]
+name = "pinned_core_tests"
+path = "tests/pinned_core_tests.rs"
+required-features = ["test-utils"]
+
+[[test]]
+name = "hygiene_manager_tests"
+path = "tests/hygiene_manager_tests.rs"
+required-features = ["test-utils"]
+
+[[test]]
+name = "calibration_tests"
+path = "tests/calibration_tests.rs"
+required-features = ["test-utils"]
+
+[[test]]
+name = "replay_eval_tests"
+path = "tests/replay_eval_tests.rs"
+required-features = ["test-utils"]
+
+[[test]]
+name = "spawn_tree_harvester_tests"
+path = "tests/spawn_tree_harvester_tests.rs"
+required-features = ["test-utils"]
+
+[[test]]
+name = "fems_integration_e2e_tests"
+path = "tests/fems_integration_e2e_tests.rs"
+required-features = ["test-utils"]
+
+[[test]]
+name = "ac_distill_negative_path_tests"
+path = "tests/ac_distill_negative_path_tests.rs"
+required-features = ["test-utils"]
+
+[[test]]
+name = "crash_recovery_e2e"
+path = "tests/crash_recovery_e2e/mod.rs"
+required-features = ["test-utils"]
+
+[[test]]
+name = "observability_aggregate_queries_tests"
+path = "tests/observability_aggregate_queries_tests.rs"
+required-features = ["test-utils"]
+
+[[test]]
+name = "flight_recorder_span_tests"
+path = "tests/flight_recorder_span_tests.rs"
+required-features = ["test-utils"]
+
+[[test]]
 name = "role_registry_append_only_tests"
 path = "tests/role_registry_append_only_tests.rs"
 required-features = ["duckdb-flight-recorder"]
@@ -112,6 +467,11 @@ path = "tests/runtime_chat_events_tests.rs"
 required-features = ["duckdb-flight-recorder"]
 
 [[test]]
+name = "storage_conformance"
+path = "tests/storage_conformance.rs"
+required-features = ["test-utils"]
+
+[[test]]
 name = "terminal_guards_tests"
 path = "tests/terminal_guards_tests.rs"
 required-features = ["duckdb-flight-recorder"]
@@ -119,4 +479,9 @@ required-features = ["duckdb-flight-recorder"]
 [[test]]
 name = "terminal_session_tests"
 path = "tests/terminal_session_tests.rs"
+required-features = ["duckdb-flight-recorder"]
+
+[[test]]
+name = "distillation_corpus_extractor_tests"
+path = "tests/distillation_corpus_extractor_tests.rs"
 required-features = ["duckdb-flight-recorder"]

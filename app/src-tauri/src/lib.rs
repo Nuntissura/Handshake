@@ -1,17 +1,339 @@
+#![deny(clippy::disallowed_methods)]
+
 use std::{
     net::Ipv4Addr,
     path::{Path, PathBuf},
     process::{Child, Command, Stdio},
-    sync::Mutex,
+    sync::{Arc, Mutex},
 };
 
 mod fonts;
+mod foreground_exception_window;
+mod foreground_warning;
+mod inspector;
+mod manual;
+mod quiet_window;
 mod session_chat_log;
+mod swarm;
+mod visual_debug;
 
+mod commands {
+    pub mod caa;
+    pub mod cli_bridge_config;
+    pub mod cli_bridge_store;
+    pub mod cloud_lane;
+    pub mod distillation;
+    pub mod focus_audit;
+    pub mod foreground_exception;
+    pub mod kv_cache;
+    pub mod lora;
+    pub mod memory_calibration;
+    pub mod memory_capsule;
+    pub mod memory_pin;
+    pub mod model_runtime;
+    pub mod peft;
+    pub mod refusal;
+    pub mod sandbox;
+    pub mod self_improve;
+    pub mod session_distill;
+    pub mod session_transcript;
+    pub mod spawn_template_store;
+    pub mod speculative;
+    pub mod steering;
+    pub mod subquadratic;
+    pub mod swarm_runtime;
+    pub mod swarm_schedule;
+    pub mod swarm_schedule_store;
+    pub mod terminal;
+    #[cfg(test)]
+    pub mod testing;
+}
+
+use quiet_window::QuietWindowBuilder;
 use serde::{Deserialize, Serialize};
-use tauri::{AppHandle, Manager, Url, WebviewUrl, WebviewWindowBuilder, WindowEvent};
+use tauri::{AppHandle, Manager, Url, WebviewUrl, WindowEvent};
 use time::format_description::well_known::Rfc3339;
 use uuid::Uuid;
+
+macro_rules! handshake_invoke_handlers {
+    () => {
+        tauri::generate_handler![
+            greet,
+            md_output_root_dir_get,
+            md_output_root_dir_set,
+            md_sessions_list,
+            md_session_create,
+            md_session_open,
+            md_session_export_cookies,
+            fonts::fonts_bootstrap_pack,
+            fonts::fonts_rebuild_manifest,
+            fonts::fonts_list,
+            fonts::fonts_import,
+            fonts::fonts_remove,
+            foreground_warning::foreground_warning_emit,
+            inspector::kernel_inspector_port,
+            inspector::kernel_inspector_list_sessions,
+            inspector::kernel_inspector_session_state,
+            inspector::kernel_inspector_event_ledger_tail,
+            inspector::kernel_inspector_process_ledger_active,
+            inspector::kernel_inspector_trace_projection,
+            inspector::kernel_inspector_loaded_models,
+            commands::model_runtime::kernel_model_runtime_capabilities,
+            commands::model_runtime::kernel_model_runtime_list_loaded,
+            commands::model_runtime::kernel_model_runtime_load,
+            commands::model_runtime::kernel_model_runtime_unload,
+            commands::swarm_runtime::kernel_swarm_spawn_session,
+            commands::swarm_runtime::kernel_swarm_spawn_local_cloud_pair,
+            commands::swarm_runtime::kernel_swarm_spawn_with_cloud_escalation,
+            commands::swarm_runtime::kernel_swarm_resume_session,
+            commands::swarm_runtime::kernel_swarm_get_spawn_template,
+            commands::swarm_runtime::kernel_swarm_cancel_session,
+            commands::swarm_runtime::kernel_swarm_list_active_sessions,
+            commands::swarm_runtime::kernel_swarm_list_worktrees,
+            commands::swarm_runtime::kernel_swarm_resource_snapshot,
+            commands::swarm_runtime::kernel_swarm_board_snapshot,
+            commands::swarm_runtime::kernel_swarm_chat_generate,
+            commands::swarm_runtime::kernel_swarm_chat_generate_with_cloud_escalation,
+            commands::swarm_schedule::kernel_swarm_schedule_add,
+            commands::swarm_schedule::kernel_swarm_schedule_list,
+            commands::swarm_schedule::kernel_swarm_schedule_remove,
+            commands::swarm_schedule::kernel_swarm_schedule_export_ics,
+            commands::lora::kernel_model_runtime_lora_mount,
+            commands::lora::kernel_model_runtime_lora_unmount,
+            commands::lora::kernel_model_runtime_lora_swap,
+            commands::lora::kernel_model_runtime_lora_list,
+            commands::kv_cache::kernel_model_runtime_kv_set_quantization,
+            commands::kv_cache::kernel_model_runtime_kv_prefix_commit,
+            commands::kv_cache::kernel_model_runtime_kv_prefix_restore,
+            commands::kv_cache::kernel_model_runtime_kv_evict_all,
+            commands::kv_cache::kernel_model_runtime_kv_occupancy,
+            commands::speculative::kernel_model_runtime_spec_set_mode,
+            commands::speculative::kernel_model_runtime_spec_get_mode,
+            commands::speculative::kernel_model_runtime_spec_validate,
+            commands::subquadratic::kernel_model_runtime_subquad_state_commit,
+            commands::subquadratic::kernel_model_runtime_subquad_state_restore,
+            commands::subquadratic::kernel_model_runtime_subquad_state_list,
+            commands::subquadratic::kernel_model_runtime_subquad_state_evict_all,
+            commands::subquadratic::kernel_model_runtime_subquad_persist,
+            commands::subquadratic::kernel_model_runtime_subquad_rehydrate,
+            commands::memory_capsule::kernel_memory_capsule_list_recent,
+            commands::memory_capsule::kernel_memory_capsule_get,
+            commands::memory_capsule::kernel_memory_capsule_suppress_item,
+            commands::memory_capsule::kernel_memory_capsule_suppress_capsule,
+            commands::memory_calibration::kernel_memory_calibration_snapshot,
+            commands::memory_pin::kernel_memory_pin_set,
+            commands::memory_pin::kernel_memory_pin_unset,
+            commands::memory_pin::kernel_memory_pin_list,
+            commands::sandbox::kernel_sandbox_list_adapters,
+            commands::sandbox::kernel_sandbox_capabilities,
+            commands::self_improve::kernel_self_improve_status,
+            commands::self_improve::kernel_self_improve_pause,
+            commands::self_improve::kernel_self_improve_unpause,
+            commands::self_improve::kernel_self_improve_review_pending,
+            commands::self_improve::kernel_self_improve_approve_promotion,
+            commands::self_improve::kernel_self_improve_reject_promotion,
+            commands::steering::kernel_model_runtime_steering_capture,
+            commands::steering::kernel_model_runtime_steering_register_vector,
+            commands::steering::kernel_model_runtime_steering_set_active,
+            commands::steering::kernel_model_runtime_steering_unregister,
+            commands::steering::kernel_model_runtime_steering_list_vectors,
+            commands::steering::kernel_model_runtime_steering_approve,
+            commands::steering::kernel_model_runtime_steering_generate_ab,
+            commands::focus_audit::kernel_operator_foreground_focus_audit_start,
+            commands::focus_audit::kernel_operator_foreground_focus_audit_stop,
+            commands::foreground_exception::foreground_exception_window_open,
+            commands::refusal::kernel_model_runtime_refusal_extract,
+            commands::caa::kernel_model_runtime_caa_extract,
+            commands::session_distill::kernel_session_mark_for_distillation,
+            commands::session_distill::kernel_session_get_distill_flag,
+            commands::distillation::list_distill_sessions,
+            commands::distillation::list_distill_candidates,
+            commands::distillation::list_distill_jobs,
+            commands::distillation::extract_distill_corpus,
+            commands::distillation::promote_distill_candidate,
+            commands::distillation::reject_distill_candidate,
+            commands::peft::start_peft_training_job,
+            commands::cloud_lane::list_cloud_lanes,
+            commands::cloud_lane::register_cloud_lane,
+            commands::cloud_lane::remove_cloud_lane,
+            commands::cloud_lane::toggle_cloud_lane,
+            commands::cloud_lane::store_api_key,
+            commands::cloud_lane::rotate_api_key,
+            commands::cloud_lane::delete_api_key,
+            commands::cloud_lane::list_stored_keys,
+            commands::cloud_lane::grant_consent,
+            commands::cloud_lane::deny_consent,
+            commands::cli_bridge_config::kernel_cli_bridge_get_config,
+            commands::cli_bridge_config::kernel_cli_bridge_set_config,
+            commands::cli_bridge_config::kernel_cli_bridge_clear_config,
+            commands::cli_bridge_config::kernel_cli_bridge_list_presets,
+            commands::cli_bridge_config::kernel_cli_bridge_test_config,
+            manual::model_manual_get,
+            manual::model_manual_list_commands,
+            manual::model_manual_search,
+            session_chat_log::session_chat_get_session_id,
+            session_chat_log::session_chat_append,
+            session_chat_log::session_chat_read,
+            visual_debug::kernel_visual_debug_launch_config,
+            visual_debug::kernel_visual_debug_port,
+            visual_debug::kernel_visual_debug_screenshot,
+            visual_debug::kernel_visual_debug_dom_snapshot,
+            visual_debug::kernel_visual_debug_console_stream_start,
+            visual_debug::kernel_visual_debug_console_stream_stop,
+            commands::terminal::kernel_terminal_create_session,
+            commands::terminal::kernel_terminal_write_stdin,
+            commands::terminal::kernel_terminal_resize,
+            commands::terminal::kernel_terminal_close_session,
+            commands::terminal::kernel_terminal_list_sessions,
+            commands::terminal::kernel_terminal_run_command,
+            commands::terminal::kernel_terminal_scrollback,
+            commands::terminal::kernel_terminal_authorize_interactive,
+            commands::session_transcript::kernel_session_list,
+            commands::session_transcript::kernel_session_transcript_get,
+            commands::session_transcript::kernel_session_search,
+            commands::session_transcript::kernel_session_export,
+        ]
+    };
+    ($($extra:path),+ $(,)?) => {
+        tauri::generate_handler![
+            greet,
+            md_output_root_dir_get,
+            md_output_root_dir_set,
+            md_sessions_list,
+            md_session_create,
+            md_session_open,
+            md_session_export_cookies,
+            fonts::fonts_bootstrap_pack,
+            fonts::fonts_rebuild_manifest,
+            fonts::fonts_list,
+            fonts::fonts_import,
+            fonts::fonts_remove,
+            foreground_warning::foreground_warning_emit,
+            inspector::kernel_inspector_port,
+            inspector::kernel_inspector_list_sessions,
+            inspector::kernel_inspector_session_state,
+            inspector::kernel_inspector_event_ledger_tail,
+            inspector::kernel_inspector_process_ledger_active,
+            inspector::kernel_inspector_trace_projection,
+            inspector::kernel_inspector_loaded_models,
+            commands::model_runtime::kernel_model_runtime_capabilities,
+            commands::model_runtime::kernel_model_runtime_list_loaded,
+            commands::model_runtime::kernel_model_runtime_load,
+            commands::model_runtime::kernel_model_runtime_unload,
+            commands::swarm_runtime::kernel_swarm_spawn_session,
+            commands::swarm_runtime::kernel_swarm_spawn_local_cloud_pair,
+            commands::swarm_runtime::kernel_swarm_spawn_with_cloud_escalation,
+            commands::swarm_runtime::kernel_swarm_resume_session,
+            commands::swarm_runtime::kernel_swarm_get_spawn_template,
+            commands::swarm_runtime::kernel_swarm_cancel_session,
+            commands::swarm_runtime::kernel_swarm_list_active_sessions,
+            commands::swarm_runtime::kernel_swarm_list_worktrees,
+            commands::swarm_runtime::kernel_swarm_resource_snapshot,
+            commands::swarm_runtime::kernel_swarm_board_snapshot,
+            commands::swarm_runtime::kernel_swarm_chat_generate,
+            commands::swarm_runtime::kernel_swarm_chat_generate_with_cloud_escalation,
+            commands::swarm_schedule::kernel_swarm_schedule_add,
+            commands::swarm_schedule::kernel_swarm_schedule_list,
+            commands::swarm_schedule::kernel_swarm_schedule_remove,
+            commands::swarm_schedule::kernel_swarm_schedule_export_ics,
+            commands::lora::kernel_model_runtime_lora_mount,
+            commands::lora::kernel_model_runtime_lora_unmount,
+            commands::lora::kernel_model_runtime_lora_swap,
+            commands::lora::kernel_model_runtime_lora_list,
+            commands::kv_cache::kernel_model_runtime_kv_set_quantization,
+            commands::kv_cache::kernel_model_runtime_kv_prefix_commit,
+            commands::kv_cache::kernel_model_runtime_kv_prefix_restore,
+            commands::kv_cache::kernel_model_runtime_kv_evict_all,
+            commands::kv_cache::kernel_model_runtime_kv_occupancy,
+            commands::speculative::kernel_model_runtime_spec_set_mode,
+            commands::speculative::kernel_model_runtime_spec_get_mode,
+            commands::speculative::kernel_model_runtime_spec_validate,
+            commands::subquadratic::kernel_model_runtime_subquad_state_commit,
+            commands::subquadratic::kernel_model_runtime_subquad_state_restore,
+            commands::subquadratic::kernel_model_runtime_subquad_state_list,
+            commands::subquadratic::kernel_model_runtime_subquad_state_evict_all,
+            commands::subquadratic::kernel_model_runtime_subquad_persist,
+            commands::subquadratic::kernel_model_runtime_subquad_rehydrate,
+            commands::memory_capsule::kernel_memory_capsule_list_recent,
+            commands::memory_capsule::kernel_memory_capsule_get,
+            commands::memory_capsule::kernel_memory_capsule_suppress_item,
+            commands::memory_capsule::kernel_memory_capsule_suppress_capsule,
+            commands::memory_calibration::kernel_memory_calibration_snapshot,
+            commands::memory_pin::kernel_memory_pin_set,
+            commands::memory_pin::kernel_memory_pin_unset,
+            commands::memory_pin::kernel_memory_pin_list,
+            commands::sandbox::kernel_sandbox_list_adapters,
+            commands::sandbox::kernel_sandbox_capabilities,
+            commands::self_improve::kernel_self_improve_status,
+            commands::self_improve::kernel_self_improve_pause,
+            commands::self_improve::kernel_self_improve_unpause,
+            commands::self_improve::kernel_self_improve_review_pending,
+            commands::self_improve::kernel_self_improve_approve_promotion,
+            commands::self_improve::kernel_self_improve_reject_promotion,
+            commands::steering::kernel_model_runtime_steering_capture,
+            commands::steering::kernel_model_runtime_steering_register_vector,
+            commands::steering::kernel_model_runtime_steering_set_active,
+            commands::steering::kernel_model_runtime_steering_unregister,
+            commands::steering::kernel_model_runtime_steering_list_vectors,
+            commands::steering::kernel_model_runtime_steering_approve,
+            commands::steering::kernel_model_runtime_steering_generate_ab,
+            commands::focus_audit::kernel_operator_foreground_focus_audit_start,
+            commands::focus_audit::kernel_operator_foreground_focus_audit_stop,
+            commands::foreground_exception::foreground_exception_window_open,
+            commands::refusal::kernel_model_runtime_refusal_extract,
+            commands::caa::kernel_model_runtime_caa_extract,
+            commands::session_distill::kernel_session_mark_for_distillation,
+            commands::session_distill::kernel_session_get_distill_flag,
+            commands::distillation::list_distill_sessions,
+            commands::distillation::list_distill_candidates,
+            commands::distillation::list_distill_jobs,
+            commands::distillation::extract_distill_corpus,
+            commands::distillation::promote_distill_candidate,
+            commands::distillation::reject_distill_candidate,
+            commands::peft::start_peft_training_job,
+            commands::cloud_lane::list_cloud_lanes,
+            commands::cloud_lane::register_cloud_lane,
+            commands::cloud_lane::remove_cloud_lane,
+            commands::cloud_lane::toggle_cloud_lane,
+            commands::cloud_lane::store_api_key,
+            commands::cloud_lane::rotate_api_key,
+            commands::cloud_lane::delete_api_key,
+            commands::cloud_lane::list_stored_keys,
+            commands::cloud_lane::grant_consent,
+            commands::cloud_lane::deny_consent,
+            commands::cli_bridge_config::kernel_cli_bridge_get_config,
+            commands::cli_bridge_config::kernel_cli_bridge_set_config,
+            commands::cli_bridge_config::kernel_cli_bridge_clear_config,
+            commands::cli_bridge_config::kernel_cli_bridge_list_presets,
+            commands::cli_bridge_config::kernel_cli_bridge_test_config,
+            manual::model_manual_get,
+            manual::model_manual_list_commands,
+            manual::model_manual_search,
+            session_chat_log::session_chat_get_session_id,
+            session_chat_log::session_chat_append,
+            session_chat_log::session_chat_read,
+            visual_debug::kernel_visual_debug_launch_config,
+            visual_debug::kernel_visual_debug_port,
+            visual_debug::kernel_visual_debug_screenshot,
+            visual_debug::kernel_visual_debug_dom_snapshot,
+            visual_debug::kernel_visual_debug_console_stream_start,
+            visual_debug::kernel_visual_debug_console_stream_stop,
+            commands::terminal::kernel_terminal_create_session,
+            commands::terminal::kernel_terminal_write_stdin,
+            commands::terminal::kernel_terminal_resize,
+            commands::terminal::kernel_terminal_close_session,
+            commands::terminal::kernel_terminal_list_sessions,
+            commands::terminal::kernel_terminal_run_command,
+            commands::terminal::kernel_terminal_scrollback,
+            commands::terminal::kernel_terminal_authorize_interactive,
+            commands::session_transcript::kernel_session_list,
+            commands::session_transcript::kernel_session_transcript_get,
+            commands::session_transcript::kernel_session_search,
+            commands::session_transcript::kernel_session_export,
+            $($extra),+
+        ]
+    };
+}
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
@@ -36,12 +358,18 @@ impl OrchestratorState {
         let database_url = std::env::var("DATABASE_URL").unwrap_or_else(|_| {
             "postgres://postgres:postgres@localhost:65432/handshake_test".to_string()
         });
-        cmd.args(["run", "--features", "app-runtime", "--bin", "handshake_core"])
-            .current_dir(workdir)
-            .env("HANDSHAKE_WORKSPACE_ROOT", workspace_root())
-            .env("DATABASE_URL", database_url)
-            .stdout(Stdio::inherit())
-            .stderr(Stdio::inherit());
+        cmd.args([
+            "run",
+            "--features",
+            "app-runtime",
+            "--bin",
+            "handshake_core",
+        ])
+        .current_dir(workdir)
+        .env("HANDSHAKE_WORKSPACE_ROOT", workspace_root())
+        .env("DATABASE_URL", database_url)
+        .stdout(Stdio::inherit())
+        .stderr(Stdio::inherit());
 
         let child = cmd.spawn()?;
         println!("spawned handshake_core via cargo run (pid {})", child.id());
@@ -79,6 +407,70 @@ fn orchestrator_workdir() -> PathBuf {
         .join("src")
         .join("backend")
         .join("handshake_core")
+}
+
+fn peft_job_spawner_state() -> commands::peft::PeftJobSpawnerState {
+    // MT-122: discovery uses the workspace root + the bundled
+    // `scripts/distill/train_lora.py`. If the Python interpreter isn't on
+    // PATH or the script isn't bundled (rare; only happens in detached
+    // build trees), construct a state pointing at non-existent paths so
+    // `start_peft_training_job` returns a real TrainerUnavailable error.
+    // The error is the real subprocess error, not a placeholder.
+    let repo_root = workspace_root();
+    match commands::peft::PeftJobSpawnerState::from_repo_discovery(&repo_root) {
+        Ok(state) => state,
+        Err(error) => {
+            eprintln!(
+                "MT-122 peft job spawner state init failed: {error}; \
+                 commands will surface real TrainerUnavailable errors until repaired"
+            );
+            commands::peft::PeftJobSpawnerState::new(
+                PathBuf::from("python"),
+                repo_root
+                    .join("scripts")
+                    .join("distill")
+                    .join("train_lora.py"),
+            )
+        }
+    }
+}
+
+fn distillation_jobs_state_from_app_data_root(
+    app_data_root: &Path,
+) -> Result<commands::distillation::DistillationJobsState, String> {
+    let recorder_root = app_data_root.join("flight_recorder");
+    std::fs::create_dir_all(&recorder_root).map_err(|error| {
+        format!(
+            "create Tauri distillation flight recorder root {}: {error}",
+            recorder_root.display()
+        )
+    })?;
+    let recorder_path = recorder_root.join("distillation_jobs.duckdb");
+    let recorder = handshake_core::flight_recorder::duckdb::DuckDbFlightRecorder::new_on_path(
+        &recorder_path,
+        7,
+    )
+    .map_err(|error| {
+        format!(
+            "open Tauri distillation flight recorder {}: {error}",
+            recorder_path.display()
+        )
+    })?;
+    let recorder: Arc<dyn handshake_core::flight_recorder::FlightRecorder> = Arc::new(recorder);
+    Ok(commands::distillation::DistillationJobsState::new(recorder))
+}
+
+fn steering_vector_store_state() -> Result<commands::steering::SteeringVectorStoreState, String> {
+    let workspace = workspace_root();
+    let root = workspace.join(".handshake").join("steering_vector_store");
+    std::fs::create_dir_all(&root)
+        .map_err(|error| format!("create steering vector store root {root:?}: {error}"))?;
+    let store = Arc::new(
+        handshake_core::model_runtime::techniques::steering_vector_store::SteeringVectorStore::new(
+            root,
+        ),
+    );
+    Ok(commands::steering::SteeringVectorStoreState::new(store))
 }
 
 const MD_OUTPUT_ROOT_DIR_SCHEMA_V0: &str = "hsk.output_root_dir@v0";
@@ -315,8 +707,7 @@ fn navigation_allowed(url: &Url, allow_private_network: bool) -> bool {
 fn cookie_field_sanitize(input: &str) -> String {
     input
         .replace('\t', " ")
-        .replace('\r', "")
-        .replace('\n', "")
+        .replace(['\r', '\n'], "")
         .trim()
         .to_string()
 }
@@ -422,7 +813,11 @@ fn md_session_create(app: AppHandle, label: String) -> Result<MdSessionRecordV0,
 }
 
 #[tauri::command]
-fn md_session_open(app: AppHandle, session_id: String, start_url: String) -> Result<(), String> {
+async fn md_session_open(
+    app: AppHandle,
+    session_id: String,
+    start_url: String,
+) -> Result<(), String> {
     let root = workspace_root();
     let mut registry = load_or_init_sessions_registry(&root)?;
     let record = registry
@@ -439,7 +834,6 @@ fn md_session_open(app: AppHandle, session_id: String, start_url: String) -> Res
     let label = format!("md-stage-session-{}", record.session_id);
     if let Some(existing) = app.get_webview_window(&label) {
         let _ = existing.navigate(url);
-        let _ = existing.set_focus();
         record.last_used_at = Some(now_rfc3339()?);
         let _ = save_sessions_registry(&root, &registry);
         return Ok(());
@@ -448,7 +842,7 @@ fn md_session_open(app: AppHandle, session_id: String, start_url: String) -> Res
     let data_dir = stage_session_data_dir(&app, &record.session_id)?;
     let allow_private_network = record.allow_private_network;
 
-    WebviewWindowBuilder::new(&app, label, WebviewUrl::External(url))
+    QuietWindowBuilder::new(&app, label, WebviewUrl::External(url))
         .title(format!("Stage Session: {}", record.label))
         .data_directory(data_dir)
         .on_navigation(move |url| navigation_allowed(url, allow_private_network))
@@ -513,8 +907,86 @@ async fn md_session_export_cookies(app: AppHandle, session_id: String) -> Result
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    let visual_debug_state = visual_debug::VisualDebugState::initialize()
+        .expect("WebView2 CDP visual debug launch config");
+    let inspector_reader: Arc<dyn handshake_core::inspector_read::InspectorReadV1> =
+        Arc::new(handshake_core::inspector_read::InspectorReadSnapshot::default());
+    let sandbox_registry = Arc::new(
+        handshake_core::sandbox::build_default_registry()
+            .expect("sandbox adapter registry bootstrap failed"),
+    );
+
+    // MT-129: Cloud Lane IPC state wires the frontend control panel to
+    // the production `OsKeychainSecretsVault` (Windows Credential
+    // Manager via the `keyring` crate) + a fresh `ConsentGate`. The
+    // in-memory lane registration registry lives inside
+    // `CloudLaneIpcState` and is rebuilt on app start (the OS
+    // keychain has no enumeration API; lane discovery is via the
+    // registry).
+    let cloud_lane_vault: Arc<dyn handshake_core::model_runtime::cloud::SecretsVault> = Arc::new(
+        handshake_core::model_runtime::cloud::secrets_vault::OsKeychainSecretsVault::new(
+            handshake_core::model_runtime::cloud::secrets_vault::HANDSHAKE_KEYCHAIN_SERVICE,
+        ),
+    );
+    let cloud_lane_consent_gate =
+        Arc::new(handshake_core::model_runtime::cloud::ConsentGate::default());
+    let cloud_lane_state =
+        commands::cloud_lane::CloudLaneIpcState::new(cloud_lane_vault, cloud_lane_consent_gate);
+
+    // MT-068 + MT-096: the steering vector store backs the
+    // `kernel_model_runtime_steering_register_vector` command with the
+    // production `SteeringVectorStore` (MT-097). The store root lives under
+    // the workspace `Handshake_Output/steering-vectors` directory so it is
+    // visible to operators and follows the disk-agnostic portability policy.
+    // When the workspace path cannot be resolved we fall back to a detached
+    // store state; commands then dispatch through the live adapter without
+    // persistence.
+    let steering_store_state = match steering_vector_store_state() {
+        Ok(state) => state,
+        Err(error) => {
+            eprintln!("steering vector store init failed: {error}; falling back to detached store");
+            commands::steering::SteeringVectorStoreState::detached()
+        }
+    };
+
+    let builder = tauri::Builder::default()
+        .manage(visual_debug_state)
+        .manage(inspector::InspectorPortState::new(None))
+        .manage(inspector_reader)
+        .manage(commands::model_runtime::ModelRuntimeState::default())
+        .manage(commands::speculative::SpeculativeModeOverrides::default())
+        .manage(steering_store_state)
+        .manage(commands::memory_capsule::MemoryCapsuleIpcState::default())
+        .manage(commands::memory_calibration::MemoryCalibrationIpcState::from_env_or_unavailable())
+        .manage(commands::memory_pin::MemoryPinIpcState::from_env_or_unavailable())
+        .manage(commands::session_distill::SessionDistillState::default())
+        // MT-124: Distillation Queue UI (DistillationQueue.tsx) reads
+        // through the production CandidateRegistry (MT-123). The
+        // app-data-root FlightRecorder is managed in setup after Tauri
+        // resolves the platform data directory.
+        .manage(commands::distillation::DistillationCandidateState::default())
+        // MT-122: PEFT training job spawner state. The Python interpreter +
+        // trainer script are resolved at construction time from the workspace
+        // root. If resolution fails the runtime falls back to a detached
+        // state whose `start_peft_training_job` returns a real error rather
+        // than a placeholder result.
+        .manage(peft_job_spawner_state())
+        .manage(cloud_lane_state)
+        .manage(sandbox_registry)
+        // MT-155: self-improvement loop IPC. Default state holds a fresh
+        // LoopIpcState (24h iteration budget = 25 per HBR-SWARM-002). The
+        // production PromotionGateSubmitter wiring lives in a follow-on MT
+        // alongside the scheduler binding (MT-156); until then the approve
+        // command returns a typed GateUnavailable error so the operator
+        // gets a real failure instead of a placeholder success.
+        .manage(commands::self_improve::SelfImproveIpcState::default())
+        // MT-027: focus-audit IPC state holds the live `FocusAuditHandle`
+        // map across the start -> (visual run) -> stop round-trip so the a2
+        // smoke can drive the real Win32 foreground audit instead of asserting
+        // a hardcoded empty `handshake_owned_events` vector.
+        .manage(commands::focus_audit::FocusAuditIpcState::new())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
             let _ = fonts::fonts_bootstrap_pack(app.handle().clone(), None);
@@ -523,8 +995,181 @@ pub fn run() {
             let app_data_root = app
                 .path()
                 .app_data_dir()
-                .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
+                .map_err(|e| std::io::Error::other(e.to_string()))?;
+            // rank-3: a DuckDB Flight Recorder for the swarm, so deployed
+            // swarm/VM lifecycle events persist + are queryable (board drill-down
+            // + audit). Best-effort: on init failure the swarm falls back to the
+            // structured-stderr FR sink rather than failing app startup.
+            let swarm_recorder: Option<Arc<dyn handshake_core::flight_recorder::FlightRecorder>> = {
+                let _ = std::fs::create_dir_all(&app_data_root);
+                let path = app_data_root.join("swarm_flight_recorder.duckdb");
+                match handshake_core::flight_recorder::duckdb::DuckDbFlightRecorder::new_on_path(
+                    &path, 7,
+                ) {
+                    Ok(rec) => Some(Arc::new(rec)),
+                    Err(error) => {
+                        eprintln!("swarm flight recorder init failed ({error}); using stderr sink");
+                        None
+                    }
+                }
+            };
+            let distillation_jobs_state =
+                distillation_jobs_state_from_app_data_root(&app_data_root).map_err(|error| {
+                    std::io::Error::other(format!(
+                        "MT-124 distillation jobs FlightRecorder init failed: {error}"
+                    ))
+                })?;
+            // TRACK 1 (calendar): the swarm schedule store lives under the SAME
+            // app_data_root. Clone the owned PathBuf before `app_data_root` is
+            // moved into the SessionChatLogState below so the scheduler bootstrap
+            // (further down) still has a disk-agnostic store root to bind to.
+            let schedule_store_root = app_data_root.clone();
+            // CLI-bridge operator config state: the settings-menu config surface
+            // (kernel_cli_bridge_* commands) reads/writes a disk-backed config under
+            // the SAME app_data_root. When configured, the production swarm runtime
+            // (load_official_cli_lane, above) flips `official_cli` from None to a live
+            // CliBridgeCloudRuntimeBuilder at next launch. No API key is stored.
+            app.manage(commands::cli_bridge_config::CliBridgeConfigState::new(
+                &schedule_store_root,
+            ));
             app.manage(session_chat_log::SessionChatLogState::new(app_data_root));
+            app.manage(distillation_jobs_state);
+
+            // MT-204: the production multi-model SWARM coordinator. Built inside
+            // `setup` so the background ledger writer + lease reaper spawn into
+            // the live Tauri async runtime. Later swarm commands (MT-205) and the
+            // cloud routing policy (MT-206) drive this managed coordinator.
+            // TRACK 1 (calendar): the scheduler shares the SAME durable recorder
+            // the swarm runtime uses, so `FR-EVT-SWARM-SCHED-*` fires land in the
+            // same DuckDB Flight Recorder. Clone the handle before the match below
+            // consumes `swarm_recorder` into the swarm runtime constructor.
+            let schedule_recorder = swarm_recorder.clone();
+            // INTEGRATED TERMINAL (spec §10.1): build the production
+            // `TerminalRuntime` bound to the SAME durable DuckDB Flight Recorder
+            // the swarm path uses, so `FR-EVT-TERMINAL-SESSION-OPEN / -COMMAND-EXEC
+            // / -SESSION-CLOSE` land in the same recorder as the swarm lifecycle
+            // events. The capability registry is the canonical one (validates the
+            // `terminal.interact` gate). The runtime is wired only when the durable
+            // recorder exists; if the swarm FR init fell back to the stderr sink
+            // (None) the terminal capture seam stays UNWIRED rather than faked
+            // (honest-disabled), matching the swarm's best-effort fallback.
+            let terminal_recorder = swarm_recorder.clone();
+            let terminal_runtime: Option<handshake_core::terminal::TerminalRuntime> =
+                terminal_recorder.map(|recorder| {
+                    let capabilities =
+                        Arc::new(handshake_core::capabilities::CapabilityRegistry::new());
+                    handshake_core::terminal::TerminalRuntime::new(capabilities, recorder)
+                });
+            // UNIFIED PER-SESSION RECORD (governance glue #1): the transcript
+            // aggregator reads the SAME durable recorder (both FR seams) +
+            // app_data_root (chat.jsonl discovery) + the live terminal runtime
+            // (still-open capture scrollback enrichment) the swarm/terminal paths
+            // use. Built BEFORE `swarm_recorder` + `terminal_runtime` are consumed
+            // below so it shares their handles. When the durable FR fell back to
+            // the stderr sink (`None`), the FR/terminal/process lanes report
+            // `unavailable` and only `chat.jsonl` is read (honest-disabled).
+            let transcript_recorder = swarm_recorder.clone();
+            let transcript_app_data_root = schedule_store_root.clone();
+            let transcript_terminal = terminal_runtime.clone();
+            app.manage(commands::session_transcript::SessionTranscriptState::new(
+                transcript_recorder,
+                transcript_app_data_root,
+                transcript_terminal,
+            ));
+            // WP-KERNEL-004 wave 1 Integrate: hand the production swarm factory the
+            // SAME sandbox adapter registry that was managed into app state above
+            // (line ~969), so a Local+LlamaCpp swarm spawn requesting Tier3Microvm
+            // routes to the CH sandboxed-local runtime. `app.state()` resolves the
+            // managed `Arc<SandboxAdapterRegistry>` (managed before `.setup` runs);
+            // cloning the Arc shares the live registry without taking it out of
+            // state (the `kernel_sandbox_*` commands still resolve it).
+            let sandbox_registry_for_swarm: Arc<handshake_core::sandbox::SandboxAdapterRegistry> =
+                (*app.state::<Arc<handshake_core::sandbox::SandboxAdapterRegistry>>()).clone();
+            let mut swarm_state = match swarm_recorder {
+                Some(recorder) => {
+                    commands::swarm_runtime::SwarmRuntimeState::production_with_fr_recorder(
+                        recorder,
+                        &schedule_store_root,
+                        Some(sandbox_registry_for_swarm),
+                    )
+                }
+                None => commands::swarm_runtime::SwarmRuntimeState::production_with_registry(
+                    &schedule_store_root,
+                    Some(sandbox_registry_for_swarm),
+                ),
+            };
+            // Wire the §10.1 capture seam: each swarm spawn opens a read-only
+            // AiJob capture session bound to its swarm_id swimlane through the
+            // SAME terminal runtime the panel reads. Only when both the terminal
+            // runtime and the swarm recorder were built (i.e. the durable FR is up).
+            if let Some(runtime) = terminal_runtime.clone() {
+                swarm_state = swarm_state.with_terminal_capture(runtime);
+            }
+            // rank-4: start the single board forwarder (broadcast -> typed
+            // swarm://event deltas) before managing the state moves it.
+            let board_events = swarm_state.board_events();
+
+            // TRACK 1 (calendar) Integrate wiring: construct the SwarmSchedulerState
+            // bound to the SAME managed coordinator, LOAD persisted schedules,
+            // RE-ARM them, apply the SKIP catch-up policy, and START the scheduler.
+            // `production_bootstrap` calls `tokio::runtime::Handle::current()`, so
+            // it must run inside the Tauri async runtime; `block_on` provides that
+            // context (and re-arming a tiny operator-authored schedule set is fast).
+            let scheduler_coordinator = swarm_state.coordinator();
+            let scheduler_state = tauri::async_runtime::block_on(async move {
+                commands::swarm_schedule::SwarmSchedulerState::production_bootstrap(
+                    scheduler_coordinator,
+                    &schedule_store_root,
+                    schedule_recorder,
+                )
+                .await
+            })
+            .map_err(|error| {
+                std::io::Error::other(format!("TRACK 1 swarm scheduler bootstrap failed: {error}"))
+            })?;
+            app.manage(scheduler_state);
+
+            app.manage(swarm_state);
+            commands::swarm_runtime::spawn_swarm_board_forwarder(
+                app.handle().clone(),
+                board_events,
+            );
+
+            // INTEGRATED TERMINAL (spec §10.1): manage the TerminalRuntimeState so
+            // the `kernel_terminal_*` commands resolve it, then start the output
+            // forwarder. The runtime has a PER-SESSION output broadcast (interactive
+            // PTYs + read-only capture sessions are created dynamically by IPC and
+            // by background producers like the swarm spawn path), so unlike the
+            // swarm board's single broadcast there is no one channel to forward.
+            // The reaper-style watcher below reconciles `list_sessions()` and spawns
+            // exactly one `spawn_terminal_forwarder` per newly-observed session id,
+            // mirroring `spawn_swarm_board_forwarder` per session: each forwarder
+            // re-emits `terminal://output` / `terminal://exit` and `terminal://resync`
+            // on broadcast lag. When the durable FR is down the terminal runtime is
+            // unwired (honest-disabled) and the commands return a real
+            // "terminal runtime not available" error rather than faking output.
+            if let Some(runtime) = terminal_runtime {
+                app.manage(commands::terminal::TerminalRuntimeState::from_runtime(
+                    runtime.clone(),
+                ));
+                let forwarder_app = app.handle().clone();
+                tauri::async_runtime::spawn(async move {
+                    use std::collections::HashSet;
+                    let mut forwarded: HashSet<String> = HashSet::new();
+                    loop {
+                        for info in runtime.list_sessions() {
+                            if forwarded.insert(info.session_id.clone()) {
+                                commands::terminal::spawn_terminal_forwarder(
+                                    forwarder_app.clone(),
+                                    runtime.clone(),
+                                    info.session_id,
+                                );
+                            }
+                        }
+                        tokio::time::sleep(std::time::Duration::from_millis(250)).await;
+                    }
+                });
+            }
 
             let state = OrchestratorState::default();
             state.spawn(orchestrator_workdir())?;
@@ -540,24 +1185,67 @@ pub fn run() {
                     state.kill();
                 }
             }
-        })
-        .invoke_handler(tauri::generate_handler![
-            greet,
-            md_output_root_dir_get,
-            md_output_root_dir_set,
-            md_sessions_list,
-            md_session_create,
-            md_session_open,
-            md_session_export_cookies,
-            fonts::fonts_bootstrap_pack,
-            fonts::fonts_rebuild_manifest,
-            fonts::fonts_list,
-            fonts::fonts_import,
-            fonts::fonts_remove,
-            session_chat_log::session_chat_get_session_id,
-            session_chat_log::session_chat_append,
-            session_chat_log::session_chat_read,
-        ])
+        });
+
+    #[cfg(all(debug_assertions, feature = "swarm_ipc"))]
+    let builder = builder.invoke_handler(handshake_invoke_handlers!(swarm::kernel_swarm_run));
+
+    #[cfg(not(all(debug_assertions, feature = "swarm_ipc")))]
+    let builder = builder.invoke_handler(handshake_invoke_handlers!());
+
+    builder
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use handshake_core::flight_recorder::{
+        EventFilter, FlightRecorderActor, FlightRecorderEvent, FlightRecorderEventType,
+    };
+    use serde_json::json;
+
+    #[tokio::test]
+    async fn distillation_jobs_state_from_app_data_root_attaches_writable_duckdb_recorder() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let state = distillation_jobs_state_from_app_data_root(tmp.path())
+            .expect("app data root should create a writable distillation jobs recorder");
+        let recorder = state
+            .recorder()
+            .expect("recorder should be attached")
+            .clone();
+
+        let event = FlightRecorderEvent::new(
+            FlightRecorderEventType::DistillPiiDetected,
+            FlightRecorderActor::System,
+            Uuid::now_v7(),
+            json!({
+                "type": "distill.pii_detected",
+                "fr_event_id": "FR-EVT-DISTILL-PII-DETECT",
+                "turn_id": "turn-app-root-recorder",
+                "pii_kinds": ["email"],
+                "severity": "High"
+            }),
+        )
+        .with_job_id("job-app-root-recorder");
+
+        recorder
+            .record_event(event)
+            .await
+            .expect("app recorder should accept valid distill event");
+        let events = recorder
+            .list_events(EventFilter {
+                job_id: Some("job-app-root-recorder".to_string()),
+                ..EventFilter::default()
+            })
+            .await
+            .expect("app recorder should list recorded distill events");
+
+        assert_eq!(events.len(), 1);
+        assert_eq!(
+            events[0].event_type,
+            FlightRecorderEventType::DistillPiiDetected
+        );
+    }
 }

@@ -359,7 +359,10 @@ mod tests {
     #[test]
     fn secret_env_key_value_is_redacted() {
         let mut env = BTreeMap::new();
-        env.insert("AWS_SECRET_ACCESS_KEY".into(), "lol/notReal/value+12345".into());
+        env.insert(
+            "AWS_SECRET_ACCESS_KEY".into(),
+            "lol/notReal/value+12345".into(),
+        );
         env.insert("PATH".into(), "/usr/bin".into());
         let out = r().redact_env(&env);
         assert_eq!(out["AWS_SECRET_ACCESS_KEY"], "[REDACTED:ENV]");

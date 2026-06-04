@@ -216,7 +216,8 @@ fn badge(badge_id: &str, session_id: &str, label: &str) -> SessionAnnounceBackBa
 // Each test fails if a future change reverts to hardcoded synthesis.
 
 #[test]
-fn kernel_dcc_session_spawn_tree_mt043_announce_back_badges_derive_from_flight_recorder_payload_fields() {
+fn kernel_dcc_session_spawn_tree_mt043_announce_back_badges_derive_from_flight_recorder_payload_fields(
+) {
     let parent = model_session_for_test("session.parent", Vec::new());
     let child = model_session_for_test("session.child", Vec::new());
     let other = model_session_for_test("session.other-window", Vec::new());
@@ -286,7 +287,9 @@ fn kernel_dcc_session_spawn_tree_mt043_cascade_cancel_derives_from_session_capab
     assert!(evidence
         .cascade_cancel_session_ids
         .contains("session.cancellable"));
-    assert!(!evidence.cascade_cancel_session_ids.contains("session.other"));
+    assert!(!evidence
+        .cascade_cancel_session_ids
+        .contains("session.other"));
 }
 
 #[test]
@@ -347,5 +350,10 @@ fn flight_recorder_event(
     event_type: FlightRecorderEventType,
     payload: serde_json::Value,
 ) -> FlightRecorderEvent {
-    FlightRecorderEvent::new(event_type, FlightRecorderActor::System, Uuid::now_v7(), payload)
+    FlightRecorderEvent::new(
+        event_type,
+        FlightRecorderActor::System,
+        Uuid::now_v7(),
+        payload,
+    )
 }

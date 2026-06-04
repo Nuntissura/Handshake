@@ -329,6 +329,8 @@ pub struct MemoryPackItem {
     pub confidence: f64,
     pub scope_refs: Vec<FemsEntityRef>,
     pub source_refs: Vec<FemsSourceRef>,
+    #[serde(default)]
+    pub pinned: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub last_verified_at: Option<String>,
 }
@@ -2028,6 +2030,7 @@ mod tests {
                 confidence: 0.8,
                 scope_refs,
                 source_refs,
+                pinned: false,
                 last_verified_at: None,
             }],
             token_estimate: 42,
@@ -2098,6 +2101,7 @@ mod tests {
                 confidence: 0.8,
                 scope_refs,
                 source_refs,
+                pinned: false,
                 last_verified_at: None,
             }],
             token_estimate: 42,

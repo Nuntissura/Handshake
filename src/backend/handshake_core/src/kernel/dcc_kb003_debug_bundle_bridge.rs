@@ -177,7 +177,11 @@ mod tests {
         (0..n)
             .map(|i| {
                 DebugDiagnosticEntryV1::new(
-                    if i % 5 == 0 { DebugSeverity::Error } else { DebugSeverity::Info },
+                    if i % 5 == 0 {
+                        DebugSeverity::Error
+                    } else {
+                        DebugSeverity::Info
+                    },
                     format!("plugin:p{i}"),
                     format!("msg {i}"),
                 )

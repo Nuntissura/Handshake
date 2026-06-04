@@ -24,6 +24,9 @@ const CANONICAL_CAPABILITY_IDS: &[&str] = &[
     "CALENDAR_ACTIVITY_SUMMARY",
     "CALENDAR_COMPARE_ACTIVITY_WINDOWS",
     "terminal.attach_human",
+    // Integrated Terminal (spec §10.1, TERM-INVARIANTS): an AiJob session must
+    // hold terminal.interact before its stdin is wired ("Take control" gate).
+    "terminal.interact",
     "export.debug_bundle",
     "export.governance_pack",
     "fr.read",

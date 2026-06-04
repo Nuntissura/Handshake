@@ -13,6 +13,7 @@ use handshake_core::{
     },
     logging,
     models::HealthResponse,
+    process_ledger::restart_resume::PostgresRestartResumeRunner,
     storage::{
         self,
         retention::{Janitor, JanitorConfig},
@@ -52,7 +53,23 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
         storage_mode = %storage_config.mode,
         "control-plane storage mode resolved"
     );
-    let storage = storage::init_storage_with_config(&storage_config).await?;
+    let control_plane = storage::init_control_plane_storage_with_config(&storage_config).await?;
+    let restart_report = PostgresRestartResumeRunner::new(control_plane.postgres_pool.clone())
+        .run()
+        .await?;
+    tracing::info!(
+        target: "handshake_core::restart_resume",
+        report_id = %restart_report.report_id,
+        sessions_examined = restart_report.sessions_examined,
+        sessions_resumed = restart_report.sessions_resumed.len(),
+        sessions_recovery_failed = restart_report.sessions_recovery_failed.len(),
+        "startup restart-resume pass completed"
+    );
+    if startup_recovery_only_requested() {
+        write_startup_recovery_report(&restart_report)?;
+        return Ok(());
+    }
+    let storage = control_plane.database.clone();
     let recorder = init_flight_recorder().await?;
     let flight_recorder: Arc<dyn FlightRecorder> = recorder.clone();
     let diagnostics: Arc<dyn DiagnosticsStore> = recorder.clone();
@@ -117,6 +134,34 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
 
     let listener = TcpListener::bind(addr).await?;
     axum::serve(listener, app).await?;
+    Ok(())
+}
+
+fn startup_recovery_only_requested() -> bool {
+    std::env::var("HANDSHAKE_STARTUP_RECOVERY_ONLY")
+        .ok()
+        .as_deref()
+        == Some("1")
+}
+
+fn write_startup_recovery_report(
+    report: &handshake_core::session_checkpoint::ResumeReport,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let Some(path) = std::env::var_os("HANDSHAKE_STARTUP_RECOVERY_REPORT_FILE").map(PathBuf::from)
+    else {
+        return Ok(());
+    };
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    let payload = serde_json::json!({
+        "report_id": report.report_id,
+        "sessions_examined": report.sessions_examined,
+        "sessions_resumed": report.sessions_resumed.len(),
+        "sessions_recovery_failed": report.sessions_recovery_failed.len(),
+        "fr_events_emitted": report.fr_events_emitted,
+    });
+    std::fs::write(path, serde_json::to_vec_pretty(&payload)?)?;
     Ok(())
 }
 

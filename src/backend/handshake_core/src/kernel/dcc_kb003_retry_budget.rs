@@ -72,10 +72,16 @@ pub enum RetryBudgetOutcome {
     AttemptsRemaining { used: u32, remaining: u32 },
     /// Budget exhausted; exhaustion is recoverable — caller should emit a
     /// typed BlockedReason.
-    ExhaustedBlocked { used: u32, last_reason: BlockedReason },
+    ExhaustedBlocked {
+        used: u32,
+        last_reason: BlockedReason,
+    },
     /// Budget exhausted; exhaustion is terminal — caller should emit a typed
     /// FAILED status (no retry).
-    ExhaustedFailed { used: u32, last_reason: BlockedReason },
+    ExhaustedFailed {
+        used: u32,
+        last_reason: BlockedReason,
+    },
 }
 
 impl RetryBudget {
@@ -97,7 +103,11 @@ impl RetryBudget {
 
     /// Record an attempt outcome. The caller is the runner; this method does
     /// not itself perform the action.
-    pub fn record_attempt(&mut self, outcome_tag: impl Into<String>, failure_reason_short: Option<String>) {
+    pub fn record_attempt(
+        &mut self,
+        outcome_tag: impl Into<String>,
+        failure_reason_short: Option<String>,
+    ) {
         let idx = self.used();
         self.attempts.push(RetryAttemptV1 {
             attempt_index: idx,
@@ -165,7 +175,10 @@ mod tests {
 
     #[test]
     fn config_rejects_zero_attempts() {
-        let cfg = RetryBudgetConfigV1 { max_attempts: 0, exhaustion_is_terminal: false };
+        let cfg = RetryBudgetConfigV1 {
+            max_attempts: 0,
+            exhaustion_is_terminal: false,
+        };
         assert!(RetryBudget::new(cfg).is_err());
     }
 
@@ -174,7 +187,13 @@ mod tests {
         let mut b = RetryBudget::new(RetryBudgetConfigV1::DEFAULT_SANDBOX).unwrap();
         b.record_attempt("fail", Some("transient".into()));
         let out = b.decide_next(reason());
-        assert!(matches!(out, RetryBudgetOutcome::AttemptsRemaining { used: 1, remaining: 2 }));
+        assert!(matches!(
+            out,
+            RetryBudgetOutcome::AttemptsRemaining {
+                used: 1,
+                remaining: 2
+            }
+        ));
     }
 
     #[test]

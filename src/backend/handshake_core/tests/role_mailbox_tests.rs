@@ -19,7 +19,7 @@ use handshake_core::{
         RoleMailboxMessageType, TranscriptionLink, TranscriptionTargetKind,
     },
     runtime_governance::RuntimeGovernancePaths,
-    storage::{sqlite::SqliteDatabase, Database},
+    storage::{tests::optional_postgres_backend_from_env, Database},
     workflows::locus::{
         validate_structured_collaboration_record, StructuredCollaborationRecordFamily,
         StructuredCollaborationValidationCode, StructuredCollaborationValidationResult,
@@ -71,19 +71,20 @@ fn test_guard() -> std::sync::MutexGuard<'static, ()> {
 
 async fn setup_api_state(
     recorder: Arc<DuckDbFlightRecorder>,
-) -> Result<AppState, Box<dyn std::error::Error>> {
-    let sqlite = SqliteDatabase::connect("sqlite::memory:", 5).await?;
-    sqlite.run_migrations().await?;
+) -> Result<Option<AppState>, Box<dyn std::error::Error>> {
+    let Some(storage) = optional_postgres_backend_from_env().await? else {
+        return Ok(None);
+    };
     let flight_recorder: Arc<dyn FlightRecorder> = recorder.clone();
 
-    Ok(AppState {
-        storage: sqlite.into_arc(),
+    Ok(Some(AppState {
+        storage,
         flight_recorder: flight_recorder.clone(),
         diagnostics: recorder,
         llm_client: Arc::new(TestLlmClient::new()),
         capability_registry: Arc::new(CapabilityRegistry::new()),
         session_registry: Arc::new(SessionRegistry::new(SessionSchedulerConfig::default())),
-    })
+    }))
 }
 
 async fn start_role_mailbox_api_server(
@@ -798,7 +799,9 @@ async fn role_mailbox_index_api_returns_valid_structured_export(
         .export_repo(&test_context(), "operator".to_string())
         .await?;
 
-    let state = setup_api_state(recorder.clone()).await?;
+    let Some(state) = setup_api_state(recorder.clone()).await? else {
+        return Ok(());
+    };
     let (base_url, server) = start_role_mailbox_api_server(state).await?;
     let response = reqwest::get(format!("{base_url}/role_mailbox/index")).await?;
     server.abort();
@@ -843,7 +846,9 @@ async fn role_mailbox_index_api_rejects_invalid_structured_export(
     index_json["authority_refs"] = json!([".GOV/roles_shared/ROLE_MAILBOX/index.json"]);
     fs::write(&index_path, serde_json::to_vec_pretty(&index_json)?)?;
 
-    let state = setup_api_state(recorder.clone()).await?;
+    let Some(state) = setup_api_state(recorder.clone()).await? else {
+        return Ok(());
+    };
     let (base_url, server) = start_role_mailbox_api_server(state).await?;
     let response = reqwest::get(format!("{base_url}/role_mailbox/index")).await?;
     let status = response.status();

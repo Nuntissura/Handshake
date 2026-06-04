@@ -37,12 +37,7 @@ pub struct MteStatusCounts {
 
 impl MteStatusCounts {
     pub fn total(&self) -> u32 {
-        self.pending
-            + self.running
-            + self.completed
-            + self.failed
-            + self.blocked
-            + self.cancelled
+        self.pending + self.running + self.completed + self.failed + self.blocked + self.cancelled
     }
 }
 
@@ -109,8 +104,7 @@ impl MteAggregateSummaryV1 {
             if let (Some(start), Some(end)) = (s.started_at_utc, s.finished_at_utc) {
                 let dur = end.signed_duration_since(start);
                 if dur.num_milliseconds() > 0 {
-                    wall_time_ms = wall_time_ms
-                        .saturating_add(dur.num_milliseconds() as u64);
+                    wall_time_ms = wall_time_ms.saturating_add(dur.num_milliseconds() as u64);
                 }
             }
             if !s.status.is_terminal() {
@@ -199,7 +193,16 @@ mod tests {
             None
         };
         MtePerMtSummaryV1::build(
-            id, "WP-X", None, status, proj, promo, blockers, 0, started, finished,
+            id,
+            "WP-X",
+            None,
+            status,
+            proj,
+            promo,
+            blockers,
+            0,
+            started,
+            finished,
             vec![],
         )
         .unwrap()
@@ -310,8 +313,7 @@ mod tests {
             reason: "manual".into(),
         });
         assert_eq!(
-            agg.blocker_counts_by_tag
-                .get("MTE_BLOCKED_OPERATOR_PAUSED"),
+            agg.blocker_counts_by_tag.get("MTE_BLOCKED_OPERATOR_PAUSED"),
             Some(&2)
         );
     }

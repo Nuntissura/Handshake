@@ -1,0 +1,5 @@
+error[E0599]: no method named `append_event` found for reference `&dyn InspectorReadV1` in the current scope
+ --> tests/ui/inspector_read_write_leak.rs:6:16
+  |
+6 |         reader.append_event(EventLedgerRow::default());
+  |                ^^^^^^^^^^^^ method not found in `&dyn InspectorReadV1`

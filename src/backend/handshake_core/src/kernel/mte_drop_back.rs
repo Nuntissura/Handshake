@@ -180,9 +180,8 @@ mod tests {
             blocking_outcomes: vec!["x".into()],
             report_artifact_ref: None,
         };
-        let dec = MteDropBackDecisionV1::for_promotion_rejection(
-            "MT-1", "WP-X", None, &reason, None,
-        );
+        let dec =
+            MteDropBackDecisionV1::for_promotion_rejection("MT-1", "WP-X", None, &reason, None);
         assert_eq!(dec.action, MteDropBackAction::HoldInPlace);
         assert!(dec.target_mt_id.is_none());
     }
@@ -210,9 +209,8 @@ mod tests {
         let reason = PromotionRejectionReason::MissingApproval {
             missing_field: "operator_id".into(),
         };
-        let dec = MteDropBackDecisionV1::for_promotion_rejection(
-            "MT-1", "WP-X", None, &reason, None,
-        );
+        let dec =
+            MteDropBackDecisionV1::for_promotion_rejection("MT-1", "WP-X", None, &reason, None);
         assert_eq!(dec.action, MteDropBackAction::Escalate);
     }
 
@@ -221,9 +219,8 @@ mod tests {
         let reason = PromotionRejectionReason::PostgresFailure {
             storage_error: "deadlock".into(),
         };
-        let dec = MteDropBackDecisionV1::for_promotion_rejection(
-            "MT-1", "WP-X", None, &reason, None,
-        );
+        let dec =
+            MteDropBackDecisionV1::for_promotion_rejection("MT-1", "WP-X", None, &reason, None);
         assert_eq!(dec.action, MteDropBackAction::HoldInPlace);
     }
 
@@ -232,12 +229,8 @@ mod tests {
         let reason = MteBlockedReason::DependencyMissing {
             missing_dependency_id: "MT-0".into(),
         };
-        let dec = MteDropBackDecisionV1::for_blocked_reason(
-            "MT-1",
-            "WP-X",
-            Some("MT-0".into()),
-            &reason,
-        );
+        let dec =
+            MteDropBackDecisionV1::for_blocked_reason("MT-1", "WP-X", Some("MT-0".into()), &reason);
         assert_eq!(dec.action, MteDropBackAction::DropToPrior);
         assert_eq!(dec.target_mt_id.as_deref(), Some("MT-0"));
     }
@@ -249,12 +242,8 @@ mod tests {
             observed: 5000,
             cap: 1000,
         };
-        let dec = MteDropBackDecisionV1::for_blocked_reason(
-            "MT-1",
-            "WP-X",
-            Some("MT-0".into()),
-            &reason,
-        );
+        let dec =
+            MteDropBackDecisionV1::for_blocked_reason("MT-1", "WP-X", Some("MT-0".into()), &reason);
         assert_eq!(dec.action, MteDropBackAction::Escalate);
         assert!(dec.target_mt_id.is_none());
     }

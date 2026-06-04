@@ -14,6 +14,12 @@ use unicode_normalization::UnicodeNormalization;
 use uuid::Uuid;
 
 pub mod duckdb;
+pub mod events_agent_activity;
+pub mod events_llm_infer;
+pub mod fr_emitter;
+pub mod fr_event_registry;
+pub mod span_repo;
+pub mod spans;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
@@ -38,6 +44,10 @@ impl fmt::Display for FlightRecorderActor {
 pub enum FlightRecorderEventType {
     System,
     LlmInference,
+    /// FR-EVT-LLM-INFER-SPEC-ACCEPT: speculative inference accepted tokens.
+    LlmInferenceSpecAccept,
+    /// FR-EVT-LLM-INFER-SPEC-REJECT: speculative inference rejected tokens.
+    LlmInferenceSpecReject,
     TerminalCommand,
     EditorEdit,
     Diagnostic,
@@ -197,6 +207,8 @@ pub enum FlightRecorderEventType {
     DistillCheckpointCreated,
     DistillEvalCompleted,
     DistillPromotionDecided,
+    /// FR-EVT-DISTILL-PII-DETECT: privacy-preserving content review PII gate.
+    DistillPiiDetected,
 }
 
 impl fmt::Display for FlightRecorderEventType {
@@ -204,6 +216,12 @@ impl fmt::Display for FlightRecorderEventType {
         match self {
             FlightRecorderEventType::System => write!(f, "system"),
             FlightRecorderEventType::LlmInference => write!(f, "llm_inference"),
+            FlightRecorderEventType::LlmInferenceSpecAccept => {
+                write!(f, "llm_infer.spec_accept")
+            }
+            FlightRecorderEventType::LlmInferenceSpecReject => {
+                write!(f, "llm_infer.spec_reject")
+            }
             FlightRecorderEventType::TerminalCommand => write!(f, "terminal_command"),
             FlightRecorderEventType::EditorEdit => write!(f, "editor_edit"),
             FlightRecorderEventType::Diagnostic => write!(f, "diagnostic"),
@@ -427,6 +445,7 @@ impl fmt::Display for FlightRecorderEventType {
             FlightRecorderEventType::DistillPromotionDecided => {
                 write!(f, "distill.promotion_decided")
             }
+            FlightRecorderEventType::DistillPiiDetected => write!(f, "distill.pii_detected"),
         }
     }
 }
@@ -869,6 +888,32 @@ impl FlightRecorderEvent {
                 }
                 validate_llm_inference_payload(&self.payload)
             }
+            FlightRecorderEventType::LlmInferenceSpecAccept => {
+                let model_id = self.model_id.as_deref().map(str::trim).unwrap_or("");
+                if model_id.is_empty() {
+                    return Err(RecorderError::InvalidEvent(
+                        "model_id must be present for llm_infer.spec_accept".to_string(),
+                    ));
+                }
+                validate_llm_infer_spec_payload(
+                    &self.payload,
+                    "FR-EVT-LLM-INFER-SPEC-ACCEPT",
+                    "llm_infer.spec_accept",
+                )
+            }
+            FlightRecorderEventType::LlmInferenceSpecReject => {
+                let model_id = self.model_id.as_deref().map(str::trim).unwrap_or("");
+                if model_id.is_empty() {
+                    return Err(RecorderError::InvalidEvent(
+                        "model_id must be present for llm_infer.spec_reject".to_string(),
+                    ));
+                }
+                validate_llm_infer_spec_payload(
+                    &self.payload,
+                    "FR-EVT-LLM-INFER-SPEC-REJECT",
+                    "llm_infer.spec_reject",
+                )
+            }
             FlightRecorderEventType::CapabilityAction => {
                 validate_capability_action_payload(&self.payload)
             }
@@ -1015,6 +1060,9 @@ impl FlightRecorderEvent {
             }
             FlightRecorderEventType::DistillPromotionDecided => {
                 validate_distill_promotion_decided_payload(&self.payload)
+            }
+            FlightRecorderEventType::DistillPiiDetected => {
+                validate_distill_pii_detected_payload(&self.payload)
             }
             _ => Ok(()),
         }
@@ -5561,6 +5609,104 @@ fn validate_llm_inference_payload(payload: &Value) -> Result<(), RecorderError> 
     Ok(())
 }
 
+fn validate_llm_infer_spec_payload(
+    payload: &Value,
+    expected_event_id: &str,
+    expected_type: &str,
+) -> Result<(), RecorderError> {
+    let map = payload_object(payload)?;
+    require_exact_keys(
+        map,
+        &[
+            "schema_version",
+            "event_id",
+            "type",
+            "trace_id",
+            "model_id",
+            "draft_model_id",
+            "adapter",
+            "mode",
+            "round_index",
+            "accepted_tokens",
+            "rejected_tokens",
+            "generated_tokens",
+            "draft_calls",
+        ],
+    )?;
+    require_fixed_string(map, "schema_version", "hsk.fr.llm_infer_spec@0.1")?;
+    require_fixed_string(map, "event_id", expected_event_id)?;
+    require_fixed_string(map, "type", expected_type)?;
+    require_uuid_string_non_nil(map, "trace_id")?;
+    require_string(map, "model_id")?;
+    require_string_or_null_nonempty(map, "draft_model_id")?;
+    require_fixed_string(map, "adapter", "llama_cpp")?;
+
+    match require_key(map, "mode")? {
+        Value::String(value) if matches!(value.as_str(), "ngram" | "draft_model") => {}
+        _ => {
+            return Err(RecorderError::InvalidEvent(
+                "payload field mode must be one of: ngram, draft_model".to_string(),
+            ));
+        }
+    }
+
+    let round_index = require_non_negative_integer_value(map, "round_index")?;
+    if round_index == 0 {
+        return Err(RecorderError::InvalidEvent(
+            "payload field round_index must be greater than zero".to_string(),
+        ));
+    }
+    let accepted_tokens = require_non_negative_integer_value(map, "accepted_tokens")?;
+    let rejected_tokens = require_non_negative_integer_value(map, "rejected_tokens")?;
+    let generated_tokens = require_non_negative_integer_value(map, "generated_tokens")?;
+    let draft_calls = require_non_negative_integer_value(map, "draft_calls")?;
+    if draft_calls == 0 {
+        return Err(RecorderError::InvalidEvent(
+            "payload field draft_calls must be greater than zero".to_string(),
+        ));
+    }
+    if generated_tokens != accepted_tokens.saturating_add(rejected_tokens) {
+        return Err(RecorderError::InvalidEvent(
+            "payload field generated_tokens must equal accepted_tokens + rejected_tokens"
+                .to_string(),
+        ));
+    }
+
+    match expected_type {
+        "llm_infer.spec_accept" if accepted_tokens == 0 => {
+            return Err(RecorderError::InvalidEvent(
+                "payload field accepted_tokens must be greater than zero for SPEC-ACCEPT"
+                    .to_string(),
+            ));
+        }
+        "llm_infer.spec_reject" if rejected_tokens == 0 => {
+            return Err(RecorderError::InvalidEvent(
+                "payload field rejected_tokens must be greater than zero for SPEC-REJECT"
+                    .to_string(),
+            ));
+        }
+        _ => {}
+    }
+
+    Ok(())
+}
+
+fn require_non_negative_integer_value(
+    map: &Map<String, Value>,
+    key: &str,
+) -> Result<u64, RecorderError> {
+    match require_key(map, key)? {
+        Value::Number(value) => value.as_u64().ok_or_else(|| {
+            RecorderError::InvalidEvent(format!(
+                "payload field {key} must be a non-negative integer"
+            ))
+        }),
+        _ => Err(RecorderError::InvalidEvent(format!(
+            "payload field {key} must be a non-negative integer"
+        ))),
+    }
+}
+
 /// Validate the ace_validation sub-object per §2.6.6.7.12
 fn validate_ace_validation_payload(payload: &Value) -> Result<(), RecorderError> {
     let map = payload_object(payload)?;
@@ -5864,6 +6010,28 @@ pub trait FlightRecorder: Send + Sync {
         &self,
         filter: EventFilter,
     ) -> Result<Vec<FlightRecorderEvent>, RecorderError>;
+
+    /// Lists ALL events for a session keyed by the swarm composite `instance_id`
+    /// (`<model_id>#<instance>`), matching `session_span_id = id` OR
+    /// `payload.instance_id = id`. This is the "raw seam" the unified
+    /// per-session transcript needs: `EventFilter` exposes only
+    /// `model_session_id` (which swarm/terminal/inference events do NOT set), and
+    /// `list_events` hard-caps at 200 rows — neither is sufficient to join the
+    /// three id-spaces or to replay a long session.
+    ///
+    /// Ordering is ascending by timestamp; there is NO row cap (the caller may
+    /// time-window via `from`/`to`). The default implementation returns an empty
+    /// vec so a non-DuckDB recorder degrades honestly (the transcript reports the
+    /// FR lane as `unavailable` rather than fabricating rows). DuckDB-backed
+    /// recorders override this with a scoped `SELECT`.
+    async fn list_session_scoped_events(
+        &self,
+        _session_id: &str,
+        _from: Option<DateTime<Utc>>,
+        _to: Option<DateTime<Utc>>,
+    ) -> Result<Vec<FlightRecorderEvent>, RecorderError> {
+        Ok(Vec::new())
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -6007,6 +6175,36 @@ fn validate_distill_promotion_decided_payload(payload: &Value) -> Result<(), Rec
     }
     require_string(map, "reason")?;
     Ok(())
+}
+
+fn validate_distill_pii_detected_payload(payload: &Value) -> Result<(), RecorderError> {
+    let map = payload_object(payload)?;
+    require_exact_keys(
+        map,
+        &["type", "fr_event_id", "turn_id", "pii_kinds", "severity"],
+    )?;
+    require_fixed_string(map, "type", "distill.pii_detected")?;
+    require_fixed_string(map, "fr_event_id", "FR-EVT-DISTILL-PII-DETECT")?;
+    require_string(map, "turn_id")?;
+
+    for kind in require_string_array(map, "pii_kinds")? {
+        match kind {
+            "email" | "phone" | "credit_card" | "api_key" | "windows_user_path" | "mac_address"
+            | "ipv4" => {}
+            _ => {
+                return Err(RecorderError::InvalidEvent(format!(
+                    "payload field pii_kinds contains unknown PII kind: {kind}"
+                )))
+            }
+        }
+    }
+
+    match require_key(map, "severity")? {
+        Value::String(severity) if matches!(severity.as_str(), "Low" | "Medium" | "High") => Ok(()),
+        _ => Err(RecorderError::InvalidEvent(
+            "payload field severity must be Low, Medium, or High".to_string(),
+        )),
+    }
 }
 
 #[cfg(test)]
@@ -6878,6 +7076,10 @@ mod tests {
         assert_eq!(
             FlightRecorderEventType::DistillPromotionDecided.to_string(),
             "distill.promotion_decided"
+        );
+        assert_eq!(
+            FlightRecorderEventType::DistillPiiDetected.to_string(),
+            "distill.pii_detected"
         );
     }
 }

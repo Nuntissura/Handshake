@@ -8,9 +8,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::kernel::kb003_artifact_classes::{
-    Kb003ArtifactClass, metadata_for,
-};
+use crate::kernel::kb003_artifact_classes::{metadata_for, Kb003ArtifactClass};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
@@ -31,15 +29,27 @@ pub struct VisualEvidenceItem {
 
 impl VisualEvidenceItem {
     pub fn screenshot(artifact_ref: impl Into<String>) -> Self {
-        Self::from_kind(EvidenceKind::Screenshot, Kb003ArtifactClass::SandboxScreenshot, artifact_ref)
+        Self::from_kind(
+            EvidenceKind::Screenshot,
+            Kb003ArtifactClass::SandboxScreenshot,
+            artifact_ref,
+        )
     }
 
     pub fn dom_dump(artifact_ref: impl Into<String>) -> Self {
-        Self::from_kind(EvidenceKind::DomDump, Kb003ArtifactClass::SandboxManifest, artifact_ref)
+        Self::from_kind(
+            EvidenceKind::DomDump,
+            Kb003ArtifactClass::SandboxManifest,
+            artifact_ref,
+        )
     }
 
     pub fn log(artifact_ref: impl Into<String>) -> Self {
-        Self::from_kind(EvidenceKind::Log, Kb003ArtifactClass::SandboxLog, artifact_ref)
+        Self::from_kind(
+            EvidenceKind::Log,
+            Kb003ArtifactClass::SandboxLog,
+            artifact_ref,
+        )
     }
 
     fn from_kind(
@@ -78,7 +88,9 @@ impl VisualEvidenceAttachment {
         self.items.push(item);
     }
     pub fn has_screenshot(&self) -> bool {
-        self.items.iter().any(|i| i.kind == EvidenceKind::Screenshot)
+        self.items
+            .iter()
+            .any(|i| i.kind == EvidenceKind::Screenshot)
     }
     pub fn has_dom_or_log(&self) -> bool {
         self.items

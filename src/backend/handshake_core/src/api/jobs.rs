@@ -22,6 +22,7 @@ type ApiResult<T> = Result<T, ApiError>;
 const FEMS_PROTOCOL_MEMORY_EXTRACT_V0_1: &str = "memory_extract_v0.1";
 const FEMS_PROTOCOL_MEMORY_CONSOLIDATE_V0_1: &str = "memory_consolidate_v0.1";
 const FEMS_PROTOCOL_MEMORY_FORGET_V0_1: &str = "memory_forget_v0.1";
+const FEMS_PROTOCOL_MEMORY_HYGIENE_V0_1: &str = "memory_hygiene_v0.1";
 
 fn is_fems_protocol(protocol_id: &str) -> bool {
     matches!(
@@ -29,6 +30,7 @@ fn is_fems_protocol(protocol_id: &str) -> bool {
         FEMS_PROTOCOL_MEMORY_EXTRACT_V0_1
             | FEMS_PROTOCOL_MEMORY_CONSOLIDATE_V0_1
             | FEMS_PROTOCOL_MEMORY_FORGET_V0_1
+            | FEMS_PROTOCOL_MEMORY_HYGIENE_V0_1
     )
 }
 
@@ -376,19 +378,20 @@ mod tests {
     use crate::capabilities::CapabilityRegistry;
     use crate::flight_recorder::duckdb::DuckDbFlightRecorder;
     use crate::llm::ollama::InMemoryLlmClient;
-    use crate::storage::{sqlite::SqliteDatabase, Database, JobState};
+    use crate::storage::{tests::optional_postgres_backend_from_env, Database, JobState};
     use axum::extract::State;
     use serde_json::json;
     use std::sync::Arc;
 
-    async fn setup_state() -> Result<AppState, Box<dyn std::error::Error>> {
-        let sqlite = SqliteDatabase::connect("sqlite::memory:", 5).await?;
-        sqlite.run_migrations().await?;
+    async fn setup_state() -> Result<Option<AppState>, Box<dyn std::error::Error>> {
+        let Some(storage) = optional_postgres_backend_from_env().await? else {
+            return Ok(None);
+        };
 
         let flight_recorder = Arc::new(DuckDbFlightRecorder::new_in_memory(7)?);
 
-        Ok(AppState {
-            storage: sqlite.into_arc(),
+        Ok(Some(AppState {
+            storage,
             flight_recorder: flight_recorder.clone(),
             diagnostics: flight_recorder,
             llm_client: Arc::new(InMemoryLlmClient::new("ok".into())),
@@ -396,7 +399,7 @@ mod tests {
             session_registry: Arc::new(crate::workflows::SessionRegistry::new(
                 crate::workflows::SessionSchedulerConfig::default(),
             )),
-        })
+        }))
     }
 
     fn terminal_command() -> (String, Vec<String>) {
@@ -412,7 +415,9 @@ mod tests {
 
     #[tokio::test]
     async fn create_job_rejects_unknown_job_kind() -> Result<(), Box<dyn std::error::Error>> {
-        let state = setup_state().await?;
+        let Some(state) = setup_state().await? else {
+            return Ok(());
+        };
         let request = CreateJobRequest {
             job_kind: "unknown_job".to_string(),
             protocol_id: "protocol-default".to_string(),
@@ -428,7 +433,9 @@ mod tests {
     #[tokio::test]
     async fn create_job_allows_terminal_when_authorized() -> Result<(), Box<dyn std::error::Error>>
     {
-        let state = setup_state().await?;
+        let Some(state) = setup_state().await? else {
+            return Ok(());
+        };
         let (program, args) = terminal_command();
 
         let request = CreateJobRequest {
@@ -465,7 +472,9 @@ mod tests {
 
     #[tokio::test]
     async fn create_job_accepts_fems_job_kind_alias() -> Result<(), Box<dyn std::error::Error>> {
-        let state = setup_state().await?;
+        let Some(state) = setup_state().await? else {
+            return Ok(());
+        };
         let request = CreateJobRequest {
             job_kind: "memory_extract_v0.1".to_string(),
             protocol_id: "memory_extract_v0.1".to_string(),
@@ -489,7 +498,9 @@ mod tests {
     #[tokio::test]
     async fn create_job_rejects_mismatched_fems_alias_protocol(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let state = setup_state().await?;
+        let Some(state) = setup_state().await? else {
+            return Ok(());
+        };
         let request = CreateJobRequest {
             job_kind: "memory_extract_v0.1".to_string(),
             protocol_id: "memory_forget_v0.1".to_string(),

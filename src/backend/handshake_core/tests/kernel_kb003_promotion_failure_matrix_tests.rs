@@ -134,7 +134,11 @@ fn assert_authority_not_mutated(store: &InMemoryKb003Storage) {
 
 /// Helper: assert the rejection decision carries the specified typed reason.
 fn assert_rejection_reason(dec: &PromotionDecisionV1, expected_tag: &str) {
-    assert!(!dec.is_accepted(), "decision must be Rejected; got {:?}", dec.outcome);
+    assert!(
+        !dec.is_accepted(),
+        "decision must be Rejected; got {:?}",
+        dec.outcome
+    );
     assert_eq!(
         dec.outcome.tag(),
         expected_tag,
@@ -325,7 +329,10 @@ fn missing_artifact_rejection_does_not_mutate_authority() {
             expected_artifact_ref,
             bundle_id,
         } => {
-            assert_eq!(expected_artifact_ref, "kb003://promotion_receipt/never_present");
+            assert_eq!(
+                expected_artifact_ref,
+                "kb003://promotion_receipt/never_present"
+            );
             assert_eq!(*bundle_id, Some(bun.bundle_id));
         }
         other => panic!("expected MissingArtifact, got {other:?}"),
@@ -360,10 +367,7 @@ impl Kb003Storage for StorageRefusingDecisionInsert {
     fn authority_mode(&self) -> AuthorityMode {
         self.mode
     }
-    fn do_insert_sandbox_run(
-        &mut self,
-        _run: &SandboxRunV1,
-    ) -> Result<(), Kb003StorageError> {
+    fn do_insert_sandbox_run(&mut self, _run: &SandboxRunV1) -> Result<(), Kb003StorageError> {
         Ok(())
     }
     fn do_update_sandbox_run_status(
@@ -586,8 +590,7 @@ fn matrix_covers_all_eight_promotion_rejection_variants() {
             detail: "x".into(),
         },
     ];
-    let tags: std::collections::BTreeSet<&'static str> =
-        variants.iter().map(|v| v.tag()).collect();
+    let tags: std::collections::BTreeSet<&'static str> = variants.iter().map(|v| v.tag()).collect();
     assert_eq!(
         tags.len(),
         8,
@@ -818,8 +821,7 @@ fn postgres_failure_retry_is_idempotent() {
     assert!(out1.receipt.storage_error_detail.is_some());
     assert!(out2.receipt.storage_error_detail.is_some());
     assert_ne!(
-        out1.receipt.storage_error_detail,
-        out2.receipt.storage_error_detail,
+        out1.receipt.storage_error_detail, out2.receipt.storage_error_detail,
         "raw storage_error_detail should preserve the wobble for observability"
     );
 }

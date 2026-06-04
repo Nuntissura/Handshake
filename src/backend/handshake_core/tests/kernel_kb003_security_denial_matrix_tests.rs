@@ -23,11 +23,13 @@
 use handshake_core::kernel::sandbox::adapter::{AdapterRunOutcome, SandboxAdapter};
 use handshake_core::kernel::sandbox::denial::{DenialKind, SandboxDenialRecordV1};
 use handshake_core::kernel::sandbox::exec_allowlist::{
-    reject_raw_shell_string, validate_descriptor, CommandDescriptorV1,
-    DescriptorValidationError, ExecAllowlistGate,
+    reject_raw_shell_string, validate_descriptor, CommandDescriptorV1, DescriptorValidationError,
+    ExecAllowlistGate,
 };
 use handshake_core::kernel::sandbox::fs_guard::{FilesystemScopeGuard, FsAccessMode};
-use handshake_core::kernel::sandbox::hard_isolation::{HardIsolationAdapter, HardIsolationAvailability};
+use handshake_core::kernel::sandbox::hard_isolation::{
+    HardIsolationAdapter, HardIsolationAvailability,
+};
 use handshake_core::kernel::sandbox::hard_isolation_container::ContainerAdapterStub;
 use handshake_core::kernel::sandbox::hard_isolation_microvm::MicroVmAdapterStub;
 use handshake_core::kernel::sandbox::host_platform_probe::HostKind;
@@ -41,8 +43,7 @@ use handshake_core::kernel::sandbox::policy::{
     SandboxCapability, SandboxPolicyV1,
 };
 use handshake_core::kernel::sandbox::policy_default_deny::{
-    FilesystemScopeV1, NetworkGateV1, NetworkGrantV1, ProcessExecAllowlistV1,
-    SandboxPolicyBundleV1,
+    FilesystemScopeV1, NetworkGateV1, NetworkGrantV1, ProcessExecAllowlistV1, SandboxPolicyBundleV1,
 };
 use handshake_core::kernel::sandbox::run::SandboxRunV1;
 use handshake_core::kernel::sandbox::workspace::SandboxWorkspaceV1;
@@ -52,20 +53,41 @@ use handshake_core::kernel::sandbox::workspace_materializer::{
 use std::collections::BTreeMap;
 
 fn run() -> SandboxRunV1 {
-    SandboxRunV1::new_requested("KTR-mt075", "SES-mt075", "process_tier", "POL-test@1", "WSP-test")
+    SandboxRunV1::new_requested(
+        "KTR-mt075",
+        "SES-mt075",
+        "process_tier",
+        "POL-test@1",
+        "WSP-test",
+    )
 }
 
 /// Helper: assert every typed denial we surface is well-formed evidence.
 fn assert_typed_evidence(d: &SandboxDenialRecordV1) {
     // Discriminant + reason are non-empty and serializable.
     assert!(!d.denial_id.is_empty(), "denial_id must be present");
-    assert!(d.denial_id.starts_with("DEN-"), "denial_id must use DEN- prefix");
-    assert!(!d.reason.trim().is_empty(), "denial reason must be non-empty");
-    assert!(!d.action_description.trim().is_empty(), "action description must be non-empty");
+    assert!(
+        d.denial_id.starts_with("DEN-"),
+        "denial_id must use DEN- prefix"
+    );
+    assert!(
+        !d.reason.trim().is_empty(),
+        "denial reason must be non-empty"
+    );
+    assert!(
+        !d.action_description.trim().is_empty(),
+        "action description must be non-empty"
+    );
     // kind round-trips through serde so a no-context consumer can read it.
     let json = serde_json::to_string(d).expect("denial must serialise");
-    assert!(json.contains("\"kind\""), "serialised denial must carry kind tag: {json}");
-    assert!(json.contains("\"reason\""), "serialised denial must carry reason: {json}");
+    assert!(
+        json.contains("\"kind\""),
+        "serialised denial must carry kind tag: {json}"
+    );
+    assert!(
+        json.contains("\"reason\""),
+        "serialised denial must carry reason: {json}"
+    );
     // Round-trip back.
     let back: SandboxDenialRecordV1 = serde_json::from_str(&json).expect("denial round-trips");
     assert_eq!(back.kind, d.kind);
@@ -87,11 +109,23 @@ fn fs_guard_denials_emit_typed_evidence_for_every_escape_shape() {
 
     // Each entry: (candidate, mode, must-mention-substring)
     let cases: Vec<(&str, FsAccessMode, &str)> = vec![
-        ("handshake-product/kb003/work/x/../../secrets", FsAccessMode::Read, "traversal"),
+        (
+            "handshake-product/kb003/work/x/../../secrets",
+            FsAccessMode::Read,
+            "traversal",
+        ),
         ("/etc/passwd", FsAccessMode::Read, "absolute"),
-        ("C:/Windows/system32/cmd.exe", FsAccessMode::Read, "absolute"),
+        (
+            "C:/Windows/system32/cmd.exe",
+            FsAccessMode::Read,
+            "absolute",
+        ),
         ("\\\\srv\\share\\f", FsAccessMode::Read, "UNC"),
-        ("handshake-product/kb003/work/x/sub/file.txt", FsAccessMode::Write, "WRITE"),
+        (
+            "handshake-product/kb003/work/x/sub/file.txt",
+            FsAccessMode::Write,
+            "WRITE",
+        ),
     ];
     for (path, mode, needle) in cases {
         let den = g
@@ -217,7 +251,10 @@ fn exec_allowlist_denials_emit_typed_evidence_for_every_failure_shape() {
         provenance_ref: "y".into(),
     };
     let err = validate_descriptor(&bash).unwrap_err();
-    assert!(matches!(err, DescriptorValidationError::ShellInvocation { .. }));
+    assert!(matches!(
+        err,
+        DescriptorValidationError::ShellInvocation { .. }
+    ));
     // Route through allowlist gate too — should emit typed denial citing shell reason.
     let allowlist = ProcessExecAllowlistV1::default();
     let gate = ExecAllowlistGate::new(&allowlist);
@@ -291,8 +328,14 @@ fn container_stub_is_always_blocked_with_typed_missing_dependency() {
             missing_dependency,
             reason,
         } => {
-            assert!(!missing_dependency.trim().is_empty(), "missing_dependency must be non-empty");
-            assert!(!reason.trim().is_empty(), "blocked reason must be non-empty");
+            assert!(
+                !missing_dependency.trim().is_empty(),
+                "missing_dependency must be non-empty"
+            );
+            assert!(
+                !reason.trim().is_empty(),
+                "blocked reason must be non-empty"
+            );
             assert!(missing_dependency.contains("docker") || missing_dependency.contains("podman"));
         }
         other => panic!("container stub must be Blocked, got {other:?}"),
@@ -319,10 +362,7 @@ fn container_stub_is_always_blocked_with_typed_missing_dependency() {
 fn microvm_stub_is_unsupported_on_windows_forced_host() {
     let a = MicroVmAdapterStub::with_forced_host(HostKind::Windows);
     match a.probe_availability() {
-        HardIsolationAvailability::Unsupported {
-            host_kind,
-            reason,
-        } => {
+        HardIsolationAvailability::Unsupported { host_kind, reason } => {
             assert_eq!(host_kind, "windows");
             assert!(!reason.trim().is_empty());
         }
@@ -356,9 +396,8 @@ fn no_sqlite_tripwire_refuses_every_non_postgres_authority_mode() {
         AuthorityMode::SqliteOffline,
         AuthorityMode::Test,
     ] {
-        let err = guard_authority_write(mode).expect_err(
-            "KB003 must refuse non-Postgres authority writes (no-sqlite tripwire)",
-        );
+        let err = guard_authority_write(mode)
+            .expect_err("KB003 must refuse non-Postgres authority writes (no-sqlite tripwire)");
         match err {
             NoSqliteTripwireError::NonPostgresAuthority {
                 mode: actual_mode,
@@ -469,9 +508,9 @@ fn denial_kinds_observed_in_matrix_cover_three_critical_variants() {
 
 #[test]
 fn h5_grant_evidence_ref_matrix_across_five_sensitive_capabilities() {
+    use handshake_core::kernel::sandbox::adapter::SandboxAdapter;
     use handshake_core::kernel::sandbox::policy::PolicyBuildError;
     use handshake_core::kernel::sandbox::policy_scoped_local::PolicyScopedLocalAdapter;
-    use handshake_core::kernel::sandbox::adapter::SandboxAdapter;
 
     let capabilities = [
         SandboxCapability::FilesystemEscape,
@@ -499,7 +538,13 @@ fn h5_grant_evidence_ref_matrix_across_five_sensitive_capabilities() {
             .expect("default-deny core stays Deny so adapter accepts the policy");
         good_adapter
             .pre_check(&run(), &good_pol, &[cap])
-            .unwrap_or_else(|d| panic!("valid grant for {} must pass pre_check; got {:?}", cap.as_str(), d));
+            .unwrap_or_else(|d| {
+                panic!(
+                    "valid grant for {} must pass pre_check; got {:?}",
+                    cap.as_str(),
+                    d
+                )
+            });
 
         // ---- negative path: empty evidence_ref ----
         let mut bad_pol = SandboxPolicyV1::default_deny("h5-bad");
@@ -516,8 +561,7 @@ fn h5_grant_evidence_ref_matrix_across_five_sensitive_capabilities() {
         match bad_pol.validate_grants() {
             Err(PolicyBuildError::CapabilityGrantMissingEvidence { capability }) => {
                 assert_eq!(
-                    capability,
-                    cap,
+                    capability, cap,
                     "build-time rejection must name the offending capability"
                 );
             }

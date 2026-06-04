@@ -1,0 +1,24 @@
+[
+  {
+    "id": "near-dup-1",
+    "session_id": "session-dedup",
+    "model_id": "model-local",
+    "prompt": "Explain why distillation candidates need review gates.",
+    "completion": "Candidates need review gates so raw trace fragments do not become Skill Bank entries automatically.",
+    "finish_reason": "stop",
+    "license_tag": "MIT",
+    "source_event_ids": ["evt-dedup-1"],
+    "sourced_at_utc": "2026-05-24T00:00:00Z"
+  },
+  {
+    "id": "near-dup-2",
+    "session_id": "session-dedup",
+    "model_id": "model-local",
+    "prompt": "Explain why distillation candidates need review gates.",
+    "completion": "Candidates need review gates so raw trace fragments do not automatically become Skill Bank entries.",
+    "finish_reason": "stop",
+    "license_tag": "MIT",
+    "source_event_ids": ["evt-dedup-2"],
+    "sourced_at_utc": "2026-05-24T00:00:00Z"
+  }
+]

@@ -119,7 +119,11 @@ mod tests {
         for class in all {
             let m = metadata_for(class).expect("metadata row missing");
             assert!(!m.content_type.is_empty(), "{:?} content_type empty", class);
-            assert!(!m.retention_root.is_empty(), "{:?} retention_root empty", class);
+            assert!(
+                !m.retention_root.is_empty(),
+                "{:?} retention_root empty",
+                class
+            );
             assert!(
                 m.retention_root.starts_with("handshake-product/"),
                 "{:?} retention_root must live under external artifact root (CX-212E)",
@@ -131,7 +135,15 @@ mod tests {
     #[test]
     fn screenshots_and_redactions_are_export_gated() {
         // MT-009 risk: confidential evidence should not export by default.
-        assert!(!metadata_for(Kb003ArtifactClass::SandboxScreenshot).unwrap().exportable_by_default);
-        assert!(!metadata_for(Kb003ArtifactClass::RedactionNote).unwrap().exportable_by_default);
+        assert!(
+            !metadata_for(Kb003ArtifactClass::SandboxScreenshot)
+                .unwrap()
+                .exportable_by_default
+        );
+        assert!(
+            !metadata_for(Kb003ArtifactClass::RedactionNote)
+                .unwrap()
+                .exportable_by_default
+        );
     }
 }

@@ -43,6 +43,11 @@ use crate::{
         },
         openai_compat_canonical_request_bytes, CompletionRequest, LlmError, ModelTier,
     },
+    memory::{
+        bitemporal::PostgresBitemporalMemoryIndex,
+        hygiene::{HygieneConfig, HygieneJobRunner},
+        PostgresKernelActionSubmitter,
+    },
     mex::gates::evaluate_session_safety_gates,
     mex::runtime::{
         AdapterError as MexAdapterError, EngineAdapter, MexRuntimeError, ShellEngineAdapter,
@@ -232,8 +237,6 @@ struct MediaDownloaderSignals {
 
 static MEDIA_DOWNLOADER_SIGNAL_REGISTRY: Lazy<Mutex<HashMap<Uuid, MediaDownloaderSignals>>> =
     Lazy::new(|| Mutex::new(HashMap::new()));
-
-static SESSION_SCHEDULER_LOCK: Lazy<TokioMutex<()>> = Lazy::new(|| TokioMutex::new(()));
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum SessionSchedulerLane {
@@ -507,6 +510,7 @@ pub struct MultiModelSession {
 #[derive(Debug, Clone)]
 pub struct SessionRegistry {
     inner: Arc<RwLock<SessionRegistryInner>>,
+    dispatch_lock: Arc<TokioMutex<()>>,
 }
 
 #[derive(Debug)]
@@ -541,6 +545,7 @@ impl SessionRegistry {
                     scheduler_config.rate_limit_tokens_per_minute,
                 ),
             })),
+            dispatch_lock: Arc::new(TokioMutex::new(())),
         }
     }
 
@@ -628,7 +633,6 @@ impl SessionRegistry {
                 .multi_model_session
                 .active_sessions
                 .remove(&session_id);
-            inner.worktree_registry.remove(&session_id);
         } else {
             inner
                 .multi_model_session
@@ -1174,7 +1178,7 @@ fn parse_session_message_inputs(job: &AiJob) -> Result<Vec<SessionMessageInput>,
             _ => {
                 return Err(WorkflowError::Terminal(
                     "model_run session_messages.token_count must be an integer or null".to_string(),
-                ))
+                ));
             }
         };
 
@@ -1184,7 +1188,7 @@ fn parse_session_message_inputs(job: &AiJob) -> Result<Vec<SessionMessageInput>,
             _ => {
                 return Err(WorkflowError::Terminal(
                     "model_run session_messages.redacted must be a boolean".to_string(),
-                ))
+                ));
             }
         };
 
@@ -1203,7 +1207,7 @@ fn parse_session_message_inputs(job: &AiJob) -> Result<Vec<SessionMessageInput>,
             _ => {
                 return Err(WorkflowError::Terminal(
                     "model_run session_messages.tool_call_id must be a string or null".to_string(),
-                ))
+                ));
             }
         };
 
@@ -1233,7 +1237,7 @@ fn parse_session_message_inputs(job: &AiJob) -> Result<Vec<SessionMessageInput>,
                 return Err(WorkflowError::Terminal(
                     "model_run session_messages.attachments must be an array of strings"
                         .to_string(),
-                ))
+                ));
             }
         };
 
@@ -1265,7 +1269,7 @@ fn parse_session_message_inputs(job: &AiJob) -> Result<Vec<SessionMessageInput>,
             _ => {
                 return Err(WorkflowError::Terminal(
                     "model_run session_messages.source_trusted must be a boolean".to_string(),
-                ))
+                ));
             }
         };
 
@@ -4051,7 +4055,7 @@ fn task_board_mirror_contract(
             return Err(WorkflowError::Terminal(format!(
                 "failed to read task board mirror {}: {err}",
                 task_board_path.display()
-            )))
+            )));
         }
     };
 
@@ -5044,7 +5048,7 @@ async fn execute_locus_micro_task_operation(
             return Err(WorkflowError::Terminal(
                 "micro-task structured registry wrapper received non-micro-task operation"
                     .to_string(),
-            ))
+            ));
         }
     };
     let payload = db.execute_locus_operation(op).await?;
@@ -5071,7 +5075,7 @@ async fn execute_locus_work_packet_operation(
             return Err(WorkflowError::Terminal(
                 "work-packet structured registry wrapper received non-work-packet operation"
                     .to_string(),
-            ))
+            ));
         }
     };
     let payload = db.execute_locus_operation(op).await?;
@@ -8431,17 +8435,33 @@ async fn dispatch_model_run_job(state: &AppState, job: AiJob) -> Result<(), Work
 
     emit_session_scheduler_dispatch_event(state, trace_id, &job, &metadata, queue_wait_ms).await?;
 
-    let state_clone = state.clone();
+    let state_for_run = state.clone();
+    let state_for_failure = state.clone();
+    let job_id = job.job_id;
+    let workflow_run_id = workflow_run.id;
+    let node_exec_id = node_exec.id;
     tokio::spawn(async move {
-        let _ = run_and_finalize_workflow_job(state_clone, job, workflow_run, node_exec, trace_id)
+        if let Err(err) =
+            run_and_finalize_workflow_job(state_for_run, job, workflow_run, node_exec, trace_id)
+                .await
+        {
+            mark_workflow_job_failed_if_non_terminal(
+                &state_for_failure,
+                job_id,
+                workflow_run_id,
+                node_exec_id,
+                trace_id,
+                err.to_string(),
+            )
             .await;
+        }
     });
 
     Ok(())
 }
 
 async fn run_model_run_dispatch_loop(state: AppState) -> Result<(), WorkflowError> {
-    let _guard = SESSION_SCHEDULER_LOCK.lock().await;
+    let _guard = state.session_registry.dispatch_lock.lock().await;
     let config = state.session_registry.scheduler_config().await;
 
     loop {
@@ -8552,6 +8572,24 @@ async fn model_run_cancel_reason(state: &AppState, job_id: Uuid) -> Result<Strin
     Ok(reason)
 }
 
+async fn persist_model_run_session_state(
+    state: &AppState,
+    job: &AiJob,
+    metadata: &ModelRunMetadata,
+    session_state: ModelSessionState,
+) -> Result<(), WorkflowError> {
+    let session = state
+        .storage
+        .update_model_session_state(
+            metadata.session_id.as_str(),
+            session_state,
+            Some(job.job_id),
+        )
+        .await?;
+    state.session_registry.upsert_session(session).await;
+    Ok(())
+}
+
 async fn run_model_run_job(
     state: &AppState,
     job: &AiJob,
@@ -8626,6 +8664,13 @@ async fn run_model_run_job(
                         .with_model_session_id(metadata.session_id.clone()),
                     )
                     .await;
+                    persist_model_run_session_state(
+                        state,
+                        job,
+                        &metadata,
+                        ModelSessionState::Blocked,
+                    )
+                    .await?;
                     return Ok(RunJobOutcome {
                         state: JobState::AwaitingUser,
                         status_reason: "paused_cloud_consent".to_string(),
@@ -8658,6 +8703,8 @@ async fn run_model_run_job(
                 .with_model_session_id(metadata.session_id.clone()),
             )
             .await;
+            persist_model_run_session_state(state, job, &metadata, ModelSessionState::Blocked)
+                .await?;
             return Ok(RunJobOutcome {
                 state: JobState::AwaitingUser,
                 status_reason: "paused_cloud_consent".to_string(),
@@ -8692,6 +8739,8 @@ async fn run_model_run_job(
                 .with_model_session_id(metadata.session_id.clone()),
             )
             .await;
+            persist_model_run_session_state(state, job, &metadata, ModelSessionState::Blocked)
+                .await?;
             return Ok(RunJobOutcome {
                 state: JobState::AwaitingUser,
                 status_reason: "paused_cloud_consent".to_string(),
@@ -8727,6 +8776,8 @@ async fn run_model_run_job(
                 .with_model_session_id(metadata.session_id.clone()),
             )
             .await;
+            persist_model_run_session_state(state, job, &metadata, ModelSessionState::Blocked)
+                .await?;
             return Ok(RunJobOutcome {
                 state: JobState::AwaitingUser,
                 status_reason: "paused_cloud_consent".to_string(),
@@ -8769,6 +8820,8 @@ async fn run_model_run_job(
                 .with_model_session_id(metadata.session_id.clone()),
             )
             .await;
+            persist_model_run_session_state(state, job, &metadata, ModelSessionState::Blocked)
+                .await?;
             return Ok(RunJobOutcome {
                 state: JobState::AwaitingUser,
                 status_reason: "paused_cloud_consent".to_string(),
@@ -8878,6 +8931,7 @@ async fn run_model_run_job(
         "estimated_cost_usd": metadata.estimated_cost_usd,
     });
 
+    persist_model_run_session_state(state, job, &metadata, ModelSessionState::Completed).await?;
     emit_session_state_change_event(
         state,
         trace_id,
@@ -9525,26 +9579,167 @@ pub async fn start_workflow_for_job(
         || matches!(job.job_kind, JobKind::LoomPreviewGenerate);
 
     if is_background_job {
-        let state_clone = state.clone();
+        let state_for_run = state.clone();
+        let state_for_failure = state.clone();
         let job_clone = job.clone();
         let workflow_run_clone = workflow_run.clone();
         let node_exec_clone = node_exec.clone();
+        let job_id = job.job_id;
+        let workflow_run_id = workflow_run.id;
+        let node_exec_id = node_exec.id;
 
         tokio::spawn(async move {
-            let _ = run_and_finalize_workflow_job(
-                state_clone,
+            if let Err(err) = run_and_finalize_workflow_job(
+                state_for_run,
                 job_clone,
                 workflow_run_clone,
                 node_exec_clone,
                 trace_id,
             )
-            .await;
+            .await
+            {
+                mark_workflow_job_failed_if_non_terminal(
+                    &state_for_failure,
+                    job_id,
+                    workflow_run_id,
+                    node_exec_id,
+                    trace_id,
+                    err.to_string(),
+                )
+                .await;
+            }
         });
 
         return Ok(workflow_run);
     }
 
     run_and_finalize_workflow_job(state.clone(), job, workflow_run, node_exec, trace_id).await
+}
+
+fn is_terminal_job_state(state: &JobState) -> bool {
+    matches!(
+        state,
+        JobState::Completed
+            | JobState::CompletedWithIssues
+            | JobState::Failed
+            | JobState::Cancelled
+            | JobState::Poisoned
+            | JobState::Stalled
+    )
+}
+
+async fn mark_workflow_job_failed_if_non_terminal(
+    state: &AppState,
+    job_id: Uuid,
+    workflow_run_id: Uuid,
+    node_exec_id: Uuid,
+    trace_id: Uuid,
+    error: String,
+) {
+    let should_mark_failed = match state.storage.get_ai_job(job_id.to_string().as_str()).await {
+        Ok(current) => !is_terminal_job_state(&current.state),
+        Err(err) => {
+            tracing::warn!(
+                target: "handshake_core::workflow_engine",
+                job_id = %job_id,
+                error = %err,
+                "failed to inspect job after workflow finalization error"
+            );
+            true
+        }
+    };
+
+    if !should_mark_failed {
+        tracing::warn!(
+            target: "handshake_core::workflow_engine",
+            job_id = %job_id,
+            workflow_run_id = %workflow_run_id,
+            error = %error,
+            "workflow finalization returned an error after job reached a terminal state"
+        );
+        return;
+    }
+
+    if let Err(err) = state
+        .storage
+        .update_workflow_node_execution_status(
+            node_exec_id,
+            JobState::Failed,
+            None,
+            Some(error.clone()),
+        )
+        .await
+    {
+        tracing::warn!(
+            target: "handshake_core::workflow_engine",
+            job_id = %job_id,
+            workflow_run_id = %workflow_run_id,
+            node_exec_id = %node_exec_id,
+            error = %err,
+            "failed to mark workflow node failed after finalization error"
+        );
+    }
+
+    let _ = state
+        .storage
+        .heartbeat_workflow(workflow_run_id, Utc::now())
+        .await;
+
+    if let Err(err) = state
+        .storage
+        .update_ai_job_status(JobStatusUpdate {
+            job_id,
+            state: JobState::Failed,
+            error_message: Some(error.clone()),
+            status_reason: "workflow_finalization_failed".to_string(),
+            metrics: None,
+            workflow_run_id: Some(workflow_run_id),
+            trace_id: Some(trace_id),
+            job_outputs: None,
+        })
+        .await
+    {
+        tracing::warn!(
+            target: "handshake_core::workflow_engine",
+            job_id = %job_id,
+            workflow_run_id = %workflow_run_id,
+            error = %err,
+            "failed to mark job failed after workflow finalization error"
+        );
+    }
+
+    if let Err(err) = state
+        .storage
+        .update_workflow_run_status(workflow_run_id, JobState::Failed, Some(error.clone()))
+        .await
+    {
+        tracing::warn!(
+            target: "handshake_core::workflow_engine",
+            job_id = %job_id,
+            workflow_run_id = %workflow_run_id,
+            error = %err,
+            "failed to mark workflow run failed after finalization error"
+        );
+    }
+
+    record_event_safely(
+        state,
+        FlightRecorderEvent::new(
+            FlightRecorderEventType::System,
+            FlightRecorderActor::System,
+            trace_id,
+            json!({
+                "component": "workflow_engine",
+                "message": "workflow finalization failed after async dispatch",
+                "job_id": job_id.to_string(),
+                "workflow_run_id": workflow_run_id.to_string(),
+                "error": error,
+            }),
+        )
+        .with_job_id(job_id.to_string())
+        .with_workflow_id(workflow_run_id.to_string()),
+    )
+    .await;
 }
 
 async fn run_and_finalize_workflow_job(
@@ -13489,7 +13684,7 @@ mod context_pack_tests {
                     std::io::ErrorKind::Other,
                     "expected Selected on regen_allowed miss",
                 )
-                .into())
+                .into());
             }
         };
 
@@ -13526,7 +13721,7 @@ mod context_pack_tests {
                     std::io::ErrorKind::Other,
                     "expected Fallback on stale with regen_allowed=false",
                 )
-                .into())
+                .into());
             }
         }
 
@@ -13560,7 +13755,7 @@ mod context_pack_tests {
                     std::io::ErrorKind::Other,
                     "expected Fallback on stale with regen_required",
                 )
-                .into())
+                .into());
             }
         }
 
@@ -13588,7 +13783,7 @@ mod context_pack_tests {
                     std::io::ErrorKind::Other,
                     "expected Selected on stale with regen_allowed=true",
                 )
-                .into())
+                .into());
             }
         }
 
@@ -20736,6 +20931,7 @@ async fn run_loom_preview_generate_job(
 const FEMS_PROTOCOL_MEMORY_EXTRACT_V0_1: &str = "memory_extract_v0.1";
 const FEMS_PROTOCOL_MEMORY_CONSOLIDATE_V0_1: &str = "memory_consolidate_v0.1";
 const FEMS_PROTOCOL_MEMORY_FORGET_V0_1: &str = "memory_forget_v0.1";
+const FEMS_PROTOCOL_MEMORY_HYGIENE_V0_1: &str = "memory_hygiene_v0.1";
 const FEMS_RESULT_SCHEMA_V0_1: &str = "hsk.fems.result@0.1";
 const FEMS_MEMORY_PROPOSAL_SCHEMA_V0_1: &str = "hsk.memory_write_proposal@0.1";
 const FEMS_MEMORY_COMMIT_REPORT_SCHEMA_V0_1: &str = "hsk.memory_commit_report@0.1";
@@ -20810,6 +21006,7 @@ fn is_fems_protocol(protocol_id: &str) -> bool {
         FEMS_PROTOCOL_MEMORY_EXTRACT_V0_1
             | FEMS_PROTOCOL_MEMORY_CONSOLIDATE_V0_1
             | FEMS_PROTOCOL_MEMORY_FORGET_V0_1
+            | FEMS_PROTOCOL_MEMORY_HYGIENE_V0_1
     )
 }
 
@@ -21321,6 +21518,7 @@ fn build_memory_pack(
             confidence,
             scope_refs: scope_refs.to_vec(),
             source_refs,
+            pinned: false,
             last_verified_at: None,
         });
     }
@@ -21405,10 +21603,84 @@ fn parse_disable_memory_guardrail(inputs: &Value) -> bool {
         .unwrap_or(false)
 }
 
+fn parse_fems_hygiene_config(inputs: &Value) -> Result<HygieneConfig, WorkflowError> {
+    let config_value = inputs
+        .get("hygiene_config")
+        .cloned()
+        .or_else(|| {
+            inputs
+                .get("tasks")
+                .cloned()
+                .map(|tasks| json!({ "tasks": tasks }))
+        })
+        .unwrap_or_else(|| {
+            json!({
+                "tasks": [
+                    { "task": "consolidate", "max_pairs": 64 },
+                    { "task": "prune_stale", "older_than_secs": 2_592_000u64, "min_score": 0.2 },
+                    { "task": "flag_contradictions" },
+                    { "task": "promote_procedural", "min_use_count": 5, "min_pass_rate": 0.8 }
+                ]
+            })
+        });
+    let config: HygieneConfig = serde_json::from_value(config_value)
+        .map_err(|err| WorkflowError::Terminal(err.to_string()))?;
+    config
+        .validate()
+        .map_err(|err| WorkflowError::Terminal(err.to_string()))?;
+    Ok(config)
+}
+
 fn fems_artifact_handle(kind: &str, stable_id: &str) -> ArtifactHandle {
     let artifact_id = deterministic_uuid_from_seed(format!("fems:{kind}:{stable_id}").as_str());
     let path = format!(".handshake/fems/{kind}/{stable_id}.json");
     ArtifactHandle::new(artifact_id, path)
+}
+
+async fn run_fems_hygiene_job(
+    state: &AppState,
+    job: &AiJob,
+    _workflow_run_id: Uuid,
+    _trace_id: Uuid,
+    inputs: &Value,
+) -> Result<RunJobOutcome, WorkflowError> {
+    let config = parse_fems_hygiene_config(inputs)?;
+    let report = {
+        let fems = PostgresBitemporalMemoryIndex::with_db(Arc::clone(&state.storage));
+        let submitter = PostgresKernelActionSubmitter::with_db(Arc::clone(&state.storage));
+        let runner = HygieneJobRunner::new(&fems, &submitter);
+        runner
+            .run_once(config)
+            .map_err(|err| WorkflowError::Terminal(err.to_string()))?
+    };
+    let required_ops = report
+        .tasks
+        .iter()
+        .map(|task| task.items_acted_on)
+        .sum::<u32>();
+    let output = json!({
+        "schema_version": FEMS_RESULT_SCHEMA_V0_1,
+        "protocol_id": job.protocol_id,
+        "hygiene_report": report,
+        "review": {
+            "status": if required_ops > 0 { "awaiting_review" } else { "no_candidates" },
+            "required_ops": required_ops,
+        },
+        "runtime": {
+            "llm_runtime_required": false,
+            "mutation_mode": "kernel_action_catalog_review_gated",
+        },
+    });
+    state
+        .storage
+        .set_job_outputs(&job.job_id.to_string(), Some(output.clone()))
+        .await?;
+    Ok(RunJobOutcome {
+        state: JobState::Completed,
+        status_reason: "completed".to_string(),
+        output: Some(output),
+        error_message: None,
+    })
 }
 
 async fn run_fems_memory_job(
@@ -21418,6 +21690,9 @@ async fn run_fems_memory_job(
     trace_id: Uuid,
 ) -> Result<RunJobOutcome, WorkflowError> {
     let inputs = parse_inputs(job.job_inputs.as_ref());
+    if job.protocol_id == FEMS_PROTOCOL_MEMORY_HYGIENE_V0_1 {
+        return run_fems_hygiene_job(state, job, workflow_run_id, trace_id, &inputs).await;
+    }
     let requested_policy = parse_memory_policy(&inputs)?;
     let provider_is_cloud = inputs
         .get("provider")
@@ -22720,7 +22995,7 @@ async fn run_media_downloader_control_job(
                 status_reason: "invalid_job_inputs".to_string(),
                 output: None,
                 error_message: Some(err.to_string()),
-            })
+            });
         }
     };
 
@@ -22767,7 +23042,7 @@ async fn run_media_downloader_control_job(
                 status_reason: "invalid_job_inputs".to_string(),
                 output: None,
                 error_message: Some("target_job_id must be a UUID".to_string()),
-            })
+            });
         }
     };
 
@@ -22844,7 +23119,7 @@ async fn run_media_downloader_control_job(
                 status_reason: "invalid_job_inputs".to_string(),
                 output: None,
                 error_message: Some("unsupported action".to_string()),
-            })
+            });
         }
     }
 
@@ -23029,7 +23304,7 @@ async fn run_media_downloader_cookie_import_job(
                 status_reason: "invalid_job_inputs".to_string(),
                 output: None,
                 error_message: Some(err.to_string()),
-            })
+            });
         }
     };
 
@@ -23287,7 +23562,7 @@ async fn run_media_downloader_job(
                 status_reason: "invalid_job_inputs".to_string(),
                 output: None,
                 error_message: Some(err.to_string()),
-            })
+            });
         }
     };
 
@@ -23393,7 +23668,7 @@ async fn run_media_downloader_job(
                     status_reason: "invalid_job_inputs".to_string(),
                     output: None,
                     error_message: Some("unsupported auth.mode".to_string()),
-                })
+                });
             }
         }
     }
@@ -24153,7 +24428,7 @@ fn md_ensure_safe_rel_path(rel_path: &str) -> Result<(), WorkflowError> {
             | std::path::Component::RootDir => {
                 return Err(WorkflowError::Terminal(
                     "invalid relative path (traversal)".to_string(),
-                ))
+                ));
             }
             _ => {}
         }
@@ -27838,26 +28113,28 @@ mod tests {
     use crate::llm::ollama::InMemoryLlmClient;
     use crate::runtime_governance::{RUNTIME_GOVERNANCE_DEFAULT_ROOT, RUNTIME_GOVERNANCE_ROOT_ENV};
     use crate::storage::{
-        sqlite::SqliteDatabase, tests::postgres_backend_from_env, AccessMode, Database, JobKind,
-        JobMetrics, JobState, ModelSession, ModelSessionState, SafetyMode,
+        tests::{optional_postgres_backend_from_env, postgres_backend_from_env},
+        AccessMode, Database, JobKind, JobMetrics, JobState, ModelSession, ModelSessionState,
+        SafetyMode,
     };
     use serde_json::json;
     use std::sync::{Arc, Mutex};
 
-    async fn setup_state() -> Result<AppState, Box<dyn std::error::Error>> {
-        let sqlite = SqliteDatabase::connect("sqlite::memory:", 5).await?;
-        sqlite.run_migrations().await?;
+    async fn setup_state() -> Result<Option<AppState>, Box<dyn std::error::Error>> {
+        let Some(storage) = optional_postgres_backend_from_env().await? else {
+            return Ok(None);
+        };
 
         let flight_recorder = Arc::new(DuckDbFlightRecorder::new_in_memory(7)?);
 
-        Ok(AppState {
-            storage: sqlite.into_arc(),
+        Ok(Some(AppState {
+            storage,
             flight_recorder: flight_recorder.clone(),
             diagnostics: flight_recorder,
             llm_client: Arc::new(InMemoryLlmClient::new("ok".into())),
             capability_registry: Arc::new(CapabilityRegistry::new()),
             session_registry: Arc::new(SessionRegistry::new(SessionSchedulerConfig::default())),
-        })
+        }))
     }
 
     static RUNTIME_ENV_LOCK: Mutex<()> = Mutex::new(());
@@ -28142,7 +28419,9 @@ mod tests {
     #[tokio::test]
     async fn task_board_projection_preserves_updated_at_then_wp_id_order(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let state = setup_state().await?;
+        let Some(state) = setup_state().await? else {
+            return Ok(());
+        };
 
         let _env_lock = RUNTIME_ENV_LOCK.lock().expect("runtime env lock poisoned");
         let tmp = tempfile::tempdir()?;
@@ -28517,7 +28796,9 @@ mod tests {
     #[tokio::test]
     async fn job_fails_when_missing_required_capability() -> Result<(), Box<dyn std::error::Error>>
     {
-        let state = setup_state().await?;
+        let Some(state) = setup_state().await? else {
+            return Ok(());
+        };
         let job = state
             .storage
             .create_ai_job(crate::storage::NewAiJob {
@@ -28549,7 +28830,9 @@ mod tests {
     #[cfg(feature = "duckdb-flight-recorder")]
     #[tokio::test]
     async fn terminal_job_enforces_capability() -> Result<(), Box<dyn std::error::Error>> {
-        let state = setup_state().await?;
+        let Some(state) = setup_state().await? else {
+            return Ok(());
+        };
         let job = state
             .storage
             .create_ai_job(crate::storage::NewAiJob {
@@ -28581,7 +28864,9 @@ mod tests {
     #[cfg(feature = "duckdb-flight-recorder")]
     #[tokio::test]
     async fn terminal_job_runs_when_authorized() -> Result<(), Box<dyn std::error::Error>> {
-        let state = setup_state().await?;
+        let Some(state) = setup_state().await? else {
+            return Ok(());
+        };
 
         let (program, args) = if cfg!(target_os = "windows") {
             ("cmd", vec!["/C", "echo", "hello"])
@@ -28629,7 +28914,9 @@ mod tests {
     #[tokio::test]
     async fn workflow_persists_node_history_and_outputs() -> Result<(), Box<dyn std::error::Error>>
     {
-        let state = setup_state().await?;
+        let Some(state) = setup_state().await? else {
+            return Ok(());
+        };
         let (program, args) = terminal_command();
 
         let job = state
@@ -28667,7 +28954,9 @@ mod tests {
     #[tokio::test]
     async fn debug_bundle_export_rejects_workflow_run_scope_without_workflow_run_id(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let state = setup_state().await?;
+        let Some(state) = setup_state().await? else {
+            return Ok(());
+        };
         let job = create_debug_bundle_job(&state, json!({ "kind": "workflow_run" })).await?;
         let job_id = job.job_id;
 
@@ -28696,7 +28985,9 @@ mod tests {
     #[tokio::test]
     async fn debug_bundle_export_rejects_workflow_node_execution_scope_without_workflow_run_id(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let state = setup_state().await?;
+        let Some(state) = setup_state().await? else {
+            return Ok(());
+        };
         let job = create_debug_bundle_job(
             &state,
             json!({
@@ -28732,7 +29023,9 @@ mod tests {
     #[tokio::test]
     async fn debug_bundle_export_rejects_workflow_node_execution_scope_without_node_id(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let state = setup_state().await?;
+        let Some(state) = setup_state().await? else {
+            return Ok(());
+        };
         let job = create_debug_bundle_job(
             &state,
             json!({
@@ -28768,7 +29061,9 @@ mod tests {
     #[cfg(feature = "duckdb-flight-recorder")]
     #[tokio::test]
     async fn test_poisoning_trap() -> Result<(), Box<dyn std::error::Error>> {
-        let state = setup_state().await?;
+        let Some(state) = setup_state().await? else {
+            return Ok(());
+        };
         let job = state
             .storage
             .create_ai_job(crate::storage::NewAiJob {
@@ -28812,7 +29107,9 @@ mod tests {
     #[cfg(feature = "duckdb-flight-recorder")]
     #[tokio::test]
     async fn test_mark_stalled_workflows() -> Result<(), Box<dyn std::error::Error>> {
-        let state = setup_state().await?;
+        let Some(state) = setup_state().await? else {
+            return Ok(());
+        };
 
         // 1. Create a job and a "Running" workflow run with an old heartbeat
         let job = state
@@ -28881,7 +29178,9 @@ mod tests {
     #[cfg(feature = "duckdb-flight-recorder")]
     #[tokio::test]
     async fn test_create_session_checkpoint() -> Result<(), Box<dyn std::error::Error>> {
-        let state = setup_state().await?;
+        let Some(state) = setup_state().await? else {
+            return Ok(());
+        };
         let session = create_test_model_session(&state, ModelSessionState::Created, None).await?;
 
         let checkpointed =
@@ -28915,7 +29214,9 @@ mod tests {
     #[cfg(feature = "duckdb-flight-recorder")]
     #[tokio::test]
     async fn test_recover_session_from_checkpoint() -> Result<(), Box<dyn std::error::Error>> {
-        let state = setup_state().await?;
+        let Some(state) = setup_state().await? else {
+            return Ok(());
+        };
         let session = create_test_model_session(&state, ModelSessionState::Active, None).await?;
 
         let checkpoint = state
@@ -28954,7 +29255,9 @@ mod tests {
     #[tokio::test]
     async fn test_mark_stalled_workflows_recovers_orphaned_active_session(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let state = setup_state().await?;
+        let Some(state) = setup_state().await? else {
+            return Ok(());
+        };
         let job = state
             .storage
             .create_ai_job(crate::storage::NewAiJob {
@@ -28998,7 +29301,9 @@ mod tests {
     #[tokio::test]
     async fn test_recover_session_from_checkpoint_idempotent(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let state = setup_state().await?;
+        let Some(state) = setup_state().await? else {
+            return Ok(());
+        };
         let session = create_test_model_session(&state, ModelSessionState::Active, None).await?;
         create_session_checkpoint(&state, &session.session_id, "integration").await?;
 
@@ -29029,7 +29334,9 @@ mod tests {
     async fn test_startup_recovery_blocks_job_acceptance() -> Result<(), Box<dyn std::error::Error>>
     {
         reset_startup_recovery_gate_for_test();
-        let state = setup_state().await?;
+        let Some(state) = setup_state().await? else {
+            return Ok(());
+        };
         enable_startup_recovery_gate();
 
         let create_future = crate::jobs::create_job(
@@ -29066,7 +29373,9 @@ mod tests {
     async fn run_job_rejects_budget_exceeded() -> Result<(), Box<dyn std::error::Error>> {
         use crate::storage::{NewBlock, NewDocument, NewWorkspace, WriteContext};
 
-        let state = setup_state().await?;
+        let Some(state) = setup_state().await? else {
+            return Ok(());
+        };
         let ctx = WriteContext::human(None);
 
         // Create workspace
@@ -29278,11 +29587,32 @@ mod tests {
         Ok(())
     }
 
+    #[test]
+    fn fems_hygiene_protocol_is_runtime_routable_without_memory_items() -> Result<(), WorkflowError>
+    {
+        assert!(is_fems_protocol(FEMS_PROTOCOL_MEMORY_HYGIENE_V0_1));
+        assert!(!is_fems_commit_protocol(FEMS_PROTOCOL_MEMORY_HYGIENE_V0_1));
+
+        let default_config = parse_fems_hygiene_config(&json!({}))?;
+        assert!(!default_config.tasks.is_empty());
+
+        let explicit_config = parse_fems_hygiene_config(&json!({
+            "tasks": [
+                { "task": "consolidate", "max_pairs": 3 },
+                { "task": "promote_procedural", "min_use_count": 4, "min_pass_rate": 0.8 }
+            ]
+        }))?;
+        assert_eq!(explicit_config.tasks.len(), 2);
+        Ok(())
+    }
+
     #[cfg(feature = "duckdb-flight-recorder")]
     #[tokio::test]
     async fn fems_extract_emits_proposal_without_commit_and_without_raw_fr_content(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let state = setup_state().await?;
+        let Some(state) = setup_state().await? else {
+            return Ok(());
+        };
 
         let job = state
             .storage
@@ -29374,7 +29704,9 @@ mod tests {
     #[tokio::test]
     async fn dcc_ready_query_projection_is_backend_backed() -> Result<(), Box<dyn std::error::Error>>
     {
-        let state = setup_state().await?;
+        let Some(state) = setup_state().await? else {
+            return Ok(());
+        };
 
         let _env_lock = RUNTIME_ENV_LOCK.lock().expect("runtime env lock poisoned");
         let tmp = tempfile::tempdir()?;
@@ -29591,7 +29923,9 @@ mod tests {
     #[tokio::test]
     async fn dcc_session_binding_projection_matches_runtime_state(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let state = setup_state().await?;
+        let Some(state) = setup_state().await? else {
+            return Ok(());
+        };
 
         let _env_lock = RUNTIME_ENV_LOCK.lock().expect("runtime env lock poisoned");
         let tmp = tempfile::tempdir()?;
@@ -29787,7 +30121,9 @@ mod tests {
     #[tokio::test]
     async fn validator_gate_runtime_summary_links_check_evidence(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let state = setup_state().await?;
+        let Some(state) = setup_state().await? else {
+            return Ok(());
+        };
 
         let _env_lock = RUNTIME_ENV_LOCK.lock().expect("runtime env lock poisoned");
         let tmp = tempfile::tempdir()?;
@@ -30688,7 +31024,9 @@ mod tests {
     #[tokio::test]
     async fn governance_workflow_mirror_gate_transition_emits_fr_event(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let state = setup_state().await?;
+        let Some(state) = setup_state().await? else {
+            return Ok(());
+        };
 
         let _env_lock = RUNTIME_ENV_LOCK.lock().expect("runtime env lock poisoned");
         let tmp = tempfile::tempdir()?;
@@ -30950,7 +31288,9 @@ mod tests {
     #[tokio::test]
     async fn dcc_mailbox_projection_preserves_wait_reasons(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let state = setup_state().await?;
+        let Some(state) = setup_state().await? else {
+            return Ok(());
+        };
 
         let _env_lock = RUNTIME_ENV_LOCK.lock().expect("runtime env lock poisoned");
         let tmp = tempfile::tempdir()?;
@@ -31250,7 +31590,9 @@ mod tests {
     #[tokio::test]
     async fn dcc_task_board_filters_by_state_family_and_queue_reason(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let state = setup_state().await?;
+        let Some(state) = setup_state().await? else {
+            return Ok(());
+        };
 
         let _env_lock = RUNTIME_ENV_LOCK.lock().expect("runtime env lock poisoned");
         let tmp = tempfile::tempdir()?;
@@ -31489,7 +31831,9 @@ mod tests {
     #[tokio::test]
     async fn dcc_compact_summary_contract_preserves_stable_ids(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let state = setup_state().await?;
+        let Some(state) = setup_state().await? else {
+            return Ok(());
+        };
 
         let _env_lock = RUNTIME_ENV_LOCK.lock().expect("runtime env lock poisoned");
         let tmp = tempfile::tempdir()?;

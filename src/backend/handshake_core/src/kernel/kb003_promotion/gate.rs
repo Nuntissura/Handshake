@@ -181,7 +181,9 @@ impl PromotionGate {
             },
             decided_at_utc: decision.decided_at_utc.to_rfc3339(),
         };
-        if let Err(e) = storage.insert_promotion_decision(&decision_row, AuthorityMutationActor::PromotionGate) {
+        if let Err(e) =
+            storage.insert_promotion_decision(&decision_row, AuthorityMutationActor::PromotionGate)
+        {
             // Storage failure folds into a typed rejection so callers still get
             // a receipt explaining what happened. H4 fix: the rejection-reason
             // body still carries the raw error string (for rationale_short and
@@ -448,15 +450,22 @@ mod tests {
     use uuid::Uuid;
 
     fn completed_run() -> SandboxRunV1 {
-        let mut run = SandboxRunV1::new_requested("KTR-1", "SES-1", "process_tier", "POL-1@1", "WSP-1");
+        let mut run =
+            SandboxRunV1::new_requested("KTR-1", "SES-1", "process_tier", "POL-1@1", "WSP-1");
         run.status = SandboxRunStatus::Completed;
         run
     }
 
     fn pass_report() -> ValidationReport {
         let mut r = ValidationReport::new(Uuid::now_v7());
-        r.push(DescriptorOutcome::new("no_sandbox_escape", ValidationStatus::pass()));
-        r.push(DescriptorOutcome::new("artifact_hashes_valid", ValidationStatus::pass()));
+        r.push(DescriptorOutcome::new(
+            "no_sandbox_escape",
+            ValidationStatus::pass(),
+        ));
+        r.push(DescriptorOutcome::new(
+            "artifact_hashes_valid",
+            ValidationStatus::pass(),
+        ));
         r
     }
 
@@ -514,10 +523,18 @@ mod tests {
         let dec = PromotionGate::decide(&inputs);
         match dec.outcome {
             PromotionOutcome::Rejected {
-                reason: PromotionRejectionReason::ValidationFailure { blocking_outcomes, report_artifact_ref, .. },
+                reason:
+                    PromotionRejectionReason::ValidationFailure {
+                        blocking_outcomes,
+                        report_artifact_ref,
+                        ..
+                    },
             } => {
                 assert!(blocking_outcomes.iter().any(|n| n == "no_sandbox_escape"));
-                assert!(report_artifact_ref.is_some(), "MT-046 anchors report artifact");
+                assert!(
+                    report_artifact_ref.is_some(),
+                    "MT-046 anchors report artifact"
+                );
             }
             other => panic!("expected ValidationFailure, got {other:?}"),
         }
@@ -541,7 +558,10 @@ mod tests {
         strict.treat_advisory_as_blocking = true;
         match PromotionGate::decide(&strict).outcome {
             PromotionOutcome::Rejected {
-                reason: PromotionRejectionReason::ValidationFailure { blocking_outcomes, .. },
+                reason:
+                    PromotionRejectionReason::ValidationFailure {
+                        blocking_outcomes, ..
+                    },
             } => {
                 assert!(blocking_outcomes.iter().any(|n| n == "lint_advisory"));
             }
@@ -556,7 +576,8 @@ mod tests {
         let report = pass_report();
         let bun = bundle(&run);
         let mut inputs = good_inputs(&run, &report, &bun);
-        inputs.approval = OperatorApprovalEvidence::new("", "OPR-1", "operator_review_receipt", "r");
+        inputs.approval =
+            OperatorApprovalEvidence::new("", "OPR-1", "operator_review_receipt", "r");
         match PromotionGate::decide(&inputs).outcome {
             PromotionOutcome::Rejected {
                 reason: PromotionRejectionReason::MissingApproval { missing_field },
@@ -593,7 +614,11 @@ mod tests {
         inputs.required_artifact_refs = vec!["kb003://promotion_receipt/never".into()];
         match PromotionGate::decide(&inputs).outcome {
             PromotionOutcome::Rejected {
-                reason: PromotionRejectionReason::MissingArtifact { expected_artifact_ref, bundle_id },
+                reason:
+                    PromotionRejectionReason::MissingArtifact {
+                        expected_artifact_ref,
+                        bundle_id,
+                    },
             } => {
                 assert_eq!(expected_artifact_ref, "kb003://promotion_receipt/never");
                 assert_eq!(bundle_id, Some(bun.bundle_id));
@@ -636,7 +661,12 @@ mod tests {
         inputs.denial = Some(&denial);
         match PromotionGate::decide(&inputs).outcome {
             PromotionOutcome::Rejected {
-                reason: PromotionRejectionReason::PolicyDenial { capability, policy_version_id, .. },
+                reason:
+                    PromotionRejectionReason::PolicyDenial {
+                        capability,
+                        policy_version_id,
+                        ..
+                    },
             } => {
                 assert_eq!(capability.as_deref(), Some("NETWORK"));
                 assert_eq!(policy_version_id, "POL-1@1");
@@ -655,7 +685,10 @@ mod tests {
         let mut store = InMemoryKb003Storage::new_postgres_primary();
         let out = PromotionGate::evaluate(inputs, &mut store).unwrap();
         assert!(out.decision.is_accepted());
-        assert_eq!(out.stored_receipt_id.as_deref(), Some(out.receipt.receipt_id.as_str()));
+        assert_eq!(
+            out.stored_receipt_id.as_deref(),
+            Some(out.receipt.receipt_id.as_str())
+        );
         assert_eq!(store.promotion_receipts.len(), 1);
         assert_eq!(store.promotion_decisions.len(), 1);
         assert_eq!(store.promotion_decisions[0].decision, "ACCEPTED");
@@ -684,7 +717,11 @@ mod tests {
             out2.stored_receipt_id.as_deref(),
             Some(out1.receipt.receipt_id.as_str())
         );
-        assert_eq!(store.promotion_receipts.len(), 1, "no duplicate receipt row");
+        assert_eq!(
+            store.promotion_receipts.len(),
+            1,
+            "no duplicate receipt row"
+        );
     }
 
     // Idempotency conflict: same key + different payload surfaces as a typed
@@ -705,7 +742,10 @@ mod tests {
         let out2 = PromotionGate::evaluate(inputs2, &mut store).unwrap();
         match out2.decision.outcome {
             PromotionOutcome::Rejected {
-                reason: PromotionRejectionReason::DuplicateIdempotencyKey { idempotency_key, .. },
+                reason:
+                    PromotionRejectionReason::DuplicateIdempotencyKey {
+                        idempotency_key, ..
+                    },
             } => assert_eq!(idempotency_key, "IK-1"),
             other => panic!("expected DuplicateIdempotencyKey, got {other:?}"),
         }

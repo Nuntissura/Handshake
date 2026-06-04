@@ -141,11 +141,7 @@ impl<'a> MteResourceCapEvaluator<'a> {
     /// Evaluate usage against caps. Delegates to the sandbox-side
     /// `ResourceCapEvaluator` (MT-026) so the deterministic order and
     /// evidence shape stay identical across both layers.
-    pub fn evaluate(
-        &self,
-        run: &SandboxRunV1,
-        usage: &ResourceUsageV1,
-    ) -> MteResourceDecision {
+    pub fn evaluate(&self, run: &SandboxRunV1, usage: &ResourceUsageV1) -> MteResourceDecision {
         let sandbox_caps = self.caps.to_sandbox_caps();
         let inner = ResourceCapEvaluator::new(&sandbox_caps).evaluate(run, usage);
         match inner {

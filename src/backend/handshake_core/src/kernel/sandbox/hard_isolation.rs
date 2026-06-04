@@ -9,12 +9,25 @@
 //! converts an "unavailable backing runtime" condition into a typed
 //! `AdapterRunOutcome::Denied` (`DenialKind::AdapterUnavailable`).
 //!
-//! No hard-isolation adapter under this WP performs execution. They MUST surface
-//! BLOCKED/UNSUPPORTED through this slot so absence is never confused with
-//! success. Downstream batches (Wave E / future Wave C) may replace the
-//! placeholder runtimes once Docker/Podman/Firecracker integration lands.
+//! No hard-isolation adapter under this WP performs workload execution. They
+//! MUST surface BLOCKED/UNSUPPORTED through this slot so absence is never
+//! confused with success. Availability probes are allowed to run fixed,
+//! bounded, non-workload commands such as `docker --version`; downstream batches
+//! may replace the placeholder runtimes once Docker/Podman/Firecracker
+//! integration lands.
+
+use std::path::Path;
+use std::process::{Command, Stdio};
+use std::thread;
+use std::time::{Duration, Instant};
 
 use serde::{Deserialize, Serialize};
+
+#[cfg(windows)]
+use std::os::windows::process::CommandExt;
+
+#[cfg(windows)]
+const CREATE_NO_WINDOW: u32 = 0x08000000;
 
 use super::adapter::{AdapterError, AdapterIsolationTier, AdapterKind, AdapterRunOutcome};
 use super::denial::{DenialKind, SandboxDenialRecordV1};
@@ -36,15 +49,48 @@ pub enum HardIsolationAvailability {
     },
     /// Host platform / build configuration cannot support this isolation tier.
     /// Example: microVM tier on Windows when no hypervisor backend is present.
-    Unsupported {
-        reason: String,
-        host_kind: String,
-    },
+    Unsupported { reason: String, host_kind: String },
     /// Tier could theoretically run on this host, but a required dependency is
     /// missing. Example: container tier with no docker/podman binary in PATH.
     Blocked {
         reason: String,
         missing_dependency: String,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RuntimeProbeCandidate {
+    pub runtime_id: &'static str,
+    pub command: String,
+    pub args: Vec<String>,
+}
+
+impl RuntimeProbeCandidate {
+    pub fn new(runtime_id: &'static str, command: impl Into<String>, args: &[&str]) -> Self {
+        Self {
+            runtime_id,
+            command: command.into(),
+            args: args.iter().map(|arg| (*arg).to_string()).collect(),
+        }
+    }
+
+    fn command_line(&self) -> String {
+        std::iter::once(self.command.as_str())
+            .chain(self.args.iter().map(String::as_str))
+            .collect::<Vec<_>>()
+            .join(" ")
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum RuntimeProbeOutcome {
+    Detected {
+        runtime_id: String,
+        command_line: String,
+        runtime_version: String,
+    },
+    Missing {
+        detail: String,
     },
 }
 
@@ -70,13 +116,138 @@ impl HardIsolationAvailability {
     }
 }
 
+const RUNTIME_PROBE_TIMEOUT: Duration = Duration::from_millis(750);
+
+pub fn probe_runtime_candidates(candidates: &[RuntimeProbeCandidate]) -> RuntimeProbeOutcome {
+    let mut failures = Vec::new();
+    for candidate in candidates {
+        match probe_runtime_candidate(candidate) {
+            Ok(version) => {
+                return RuntimeProbeOutcome::Detected {
+                    runtime_id: candidate.runtime_id.to_string(),
+                    command_line: candidate.command_line(),
+                    runtime_version: version,
+                };
+            }
+            Err(error) => failures.push(format!("{} => {error}", candidate.command_line())),
+        }
+    }
+    RuntimeProbeOutcome::Missing {
+        detail: if failures.is_empty() {
+            "no runtime probe candidates were configured".to_string()
+        } else {
+            failures.join("; ")
+        },
+    }
+}
+
+fn probe_runtime_candidate(candidate: &RuntimeProbeCandidate) -> Result<String, String> {
+    if is_shell_like_dispatcher(&candidate.command) {
+        return Err(format!(
+            "rejected shell-like dispatcher `{}`; runtime probes must use direct \
+             fixed binary commands",
+            candidate.command
+        ));
+    }
+    let mut command = Command::new(&candidate.command);
+    command
+        .args(&candidate.args)
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
+    #[cfg(windows)]
+    command.creation_flags(CREATE_NO_WINDOW);
+    let mut child = command
+        .spawn()
+        .map_err(|error| format!("spawn failed: {error}"))?;
+
+    let started = Instant::now();
+    loop {
+        match child.try_wait() {
+            Ok(Some(status)) => {
+                let output = child
+                    .wait_with_output()
+                    .map_err(|error| format!("output collection failed after exit: {error}"))?;
+                if status.success() {
+                    return Ok(first_probe_line(&output.stdout, &output.stderr));
+                }
+                return Err(format!(
+                    "exit {status}; stdout=`{}` stderr=`{}`",
+                    compact_probe_text(&output.stdout),
+                    compact_probe_text(&output.stderr)
+                ));
+            }
+            Ok(None) if started.elapsed() >= RUNTIME_PROBE_TIMEOUT => {
+                let _ = child.kill();
+                let _ = child.wait();
+                return Err(format!(
+                    "timed out after {}ms",
+                    RUNTIME_PROBE_TIMEOUT.as_millis()
+                ));
+            }
+            Ok(None) => thread::sleep(Duration::from_millis(10)),
+            Err(error) => {
+                let _ = child.kill();
+                let _ = child.wait();
+                return Err(format!("wait failed: {error}"));
+            }
+        }
+    }
+}
+
+fn is_shell_like_dispatcher(command: &str) -> bool {
+    let name = Path::new(command)
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or(command)
+        .to_ascii_lowercase();
+    matches!(
+        name.as_str(),
+        "cmd"
+            | "cmd.exe"
+            | "powershell"
+            | "powershell.exe"
+            | "pwsh"
+            | "pwsh.exe"
+            | "wsl"
+            | "wsl.exe"
+            | "sh"
+            | "bash"
+            | "zsh"
+    )
+}
+
+fn first_probe_line(stdout: &[u8], stderr: &[u8]) -> String {
+    let stdout = compact_probe_text(stdout);
+    if !stdout.is_empty() {
+        return stdout;
+    }
+    let stderr = compact_probe_text(stderr);
+    if !stderr.is_empty() {
+        return stderr;
+    }
+    "version command exited successfully without output".to_string()
+}
+
+fn compact_probe_text(bytes: &[u8]) -> String {
+    String::from_utf8_lossy(bytes)
+        .lines()
+        .map(str::trim)
+        .find(|line| !line.is_empty())
+        .unwrap_or("")
+        .chars()
+        .take(240)
+        .collect()
+}
+
 /// Marker trait every hard-isolation adapter implements in addition to
 /// `SandboxAdapter`. It lets the selection layer (`adapter_selection`) probe
 /// availability without running the sandbox, and forces every stub to declare
 /// a backing-runtime story.
 pub trait HardIsolationAdapter: super::adapter::SandboxAdapter {
-    /// Probe the host for the backing runtime. Implementations MUST be pure
-    /// (no execution, no shell-out) so adapter selection stays deterministic.
+    /// Probe the host for the backing runtime. Implementations may run fixed
+    /// bounded version/status commands, but MUST NOT execute operator payloads
+    /// or mint successful workload outcomes from probe success alone.
     fn probe_availability(&self) -> HardIsolationAvailability;
 
     /// Stable hard-isolation tier label, e.g. "container", "microvm".
@@ -273,8 +444,7 @@ mod tests {
             reason: "not installed".into(),
             missing_dependency: "podman".into(),
         };
-        let outcome =
-            typed_unavailable_outcome(&run, &kind, "container", &avail, None).unwrap();
+        let outcome = typed_unavailable_outcome(&run, &kind, "container", &avail, None).unwrap();
         match outcome {
             AdapterRunOutcome::Denied(d) => {
                 assert_eq!(d.kind, DenialKind::AdapterUnavailable);
@@ -304,6 +474,55 @@ mod tests {
         match err {
             AdapterError::Internal(msg) => assert!(msg.contains("AVAILABLE")),
             other => panic!("expected Internal error, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn runtime_probe_detects_current_test_binary_help() {
+        let current_exe = std::env::current_exe().expect("current test binary path");
+        let probe = RuntimeProbeCandidate::new(
+            "current_test_binary",
+            current_exe.to_string_lossy().to_string(),
+            &["--help"],
+        );
+        match probe_runtime_candidates(&[probe]) {
+            RuntimeProbeOutcome::Detected {
+                runtime_id,
+                runtime_version,
+                ..
+            } => {
+                assert_eq!(runtime_id, "current_test_binary");
+                assert!(!runtime_version.is_empty());
+            }
+            other => panic!("expected detected test binary probe, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn runtime_probe_reports_missing_candidates_without_passing_static_audit() {
+        let probe = RuntimeProbeCandidate::new(
+            "definitely_missing",
+            "hsk-definitely-missing-runtime-probe-binary",
+            &["--version"],
+        );
+        match probe_runtime_candidates(&[probe]) {
+            RuntimeProbeOutcome::Missing { detail } => {
+                assert!(detail.contains("hsk-definitely-missing-runtime-probe-binary"));
+                assert!(detail.contains("spawn failed"));
+            }
+            other => panic!("expected missing probe detail, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn runtime_probe_rejects_shell_like_dispatcher_candidates() {
+        let probe = RuntimeProbeCandidate::new("wsl_dispatcher", "wsl.exe", &["-e", "true"]);
+        match probe_runtime_candidates(&[probe]) {
+            RuntimeProbeOutcome::Missing { detail } => {
+                assert!(detail.contains("rejected shell-like dispatcher"));
+                assert!(detail.contains("wsl.exe"));
+            }
+            other => panic!("expected dispatcher rejection, got {other:?}"),
         }
     }
 }

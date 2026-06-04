@@ -39,13 +39,13 @@ use handshake_core::kernel::dcc_kb003_blocked_reasons::DccKb003BlockedReasonOver
 use handshake_core::kernel::dcc_kb003_model_manual_hints::DccKb003ManualHintsV1;
 use handshake_core::kernel::dcc_kb003_promotion_control_state::DccKb003PromotionControlStateV1;
 use handshake_core::kernel::dcc_kb003_rollup::DccKb003RollupV1;
+use handshake_core::kernel::mte_authority_mutation_boundary::AuthorityMutationActor;
 use handshake_core::kernel::sandbox::policy::SandboxPolicyV1;
 use handshake_core::kernel::sandbox::replay_projection::{
     reconstruct_projection, ReplayInputsV1, ReplayPromotionFactsV1, ReplayValidationFactsV1,
 };
 use handshake_core::kernel::sandbox::run::{SandboxRunId, SandboxRunStatus, SandboxRunV1};
 use handshake_core::kernel::sandbox::workspace::SandboxWorkspaceV1;
-use handshake_core::kernel::mte_authority_mutation_boundary::AuthorityMutationActor;
 use handshake_core::storage::kb003_storage::{
     InMemoryKb003Storage, Kb003Storage, PromotionDecisionRowV1, PromotionReceiptRowV1,
     ValidationRunRowV1,
@@ -59,8 +59,13 @@ fn build_workspace() -> SandboxWorkspaceV1 {
 fn build_chain_in_storage(
     store: &mut InMemoryKb003Storage,
     workspace: &SandboxWorkspaceV1,
-) -> (SandboxRunV1, SandboxPolicyV1, ValidationRunRowV1, PromotionDecisionRowV1, PromotionReceiptRowV1)
-{
+) -> (
+    SandboxRunV1,
+    SandboxPolicyV1,
+    ValidationRunRowV1,
+    PromotionDecisionRowV1,
+    PromotionReceiptRowV1,
+) {
     // 1. Policy version.
     let policy = SandboxPolicyV1::default_deny("mt077-baseline");
     store.insert_sandbox_policy_version(&policy).unwrap();
@@ -233,10 +238,16 @@ fn full_chain_survives_simulated_restart_and_rollup_replays_identically() {
     );
 
     // ---- Additional load-bearing field-level checks ----
-    assert_eq!(post_rollup.projection_family_id, DccKb003RollupV1::FAMILY_ID);
+    assert_eq!(
+        post_rollup.projection_family_id,
+        DccKb003RollupV1::FAMILY_ID
+    );
     assert_eq!(post_rollup.sandbox_run_id, run_id);
     assert_eq!(post_rollup.projection.policy_version_id, policy_version_id);
-    assert_eq!(post_rollup.projection.run_status, SandboxRunStatus::Completed);
+    assert_eq!(
+        post_rollup.projection.run_status,
+        SandboxRunStatus::Completed
+    );
     assert!(post_rollup.projection.validation.is_some());
     assert!(post_rollup.projection.promotion.is_some());
     assert_eq!(post_rollup.projection.workspace_id, workspace.workspace_id);
@@ -287,7 +298,10 @@ fn replay_uses_only_durable_rows_no_session_state() {
         "rollup must be self-describing from durable rows alone"
     );
     // Promotion decision survived as PROMOTED.
-    let prom = rollup.projection.promotion.expect("promotion summary present");
+    let prom = rollup
+        .projection
+        .promotion
+        .expect("promotion summary present");
     assert_eq!(prom.decision, "PROMOTED");
     assert_eq!(prom.receipt_id.as_deref(), Some("PR-mt077-stable"));
 }

@@ -2,9 +2,9 @@ use handshake_core::kernel::{
     action_catalog::{kernel002_action_catalog, validate_kernel_action_catalog},
     action_envelope::AuthorityEffect,
     fems_mt_handoff_memory_context::{
-        project_fems_mt_handoff_memory_context, validate_fems_mt_handoff_memory_context,
         FemsMtFailedAttemptV1, FemsMtHandoffItemKind, FemsMtHandoffMemoryContextV1,
-        FemsMtHandoffMemoryItemV1, FemsMtHandoffReason,
+        FemsMtHandoffMemoryItemV1, FemsMtHandoffReason, project_fems_mt_handoff_memory_context,
+        validate_fems_mt_handoff_memory_context,
     },
 };
 
@@ -33,28 +33,133 @@ fn kernel_collaboration_memory_handoff_projects_bounded_receiving_pack_items() {
         project_fems_mt_handoff_memory_context(&context).expect("handoff projection builds");
 
     assert!(projection.effective_handoff_tokens <= context.max_handoff_tokens);
-    assert!(projection
-        .selected_item_ids
-        .contains(&"item-procedure-recommended".to_string()));
-    assert!(projection
-        .boosted_item_ids
-        .contains(&"item-procedure-recommended".to_string()));
-    assert!(projection
-        .failed_attempt_ids
-        .contains(&"attempt-local-small-timeout".to_string()));
-    assert!(projection
-        .dropped_item_ids
-        .contains(&"item-over-budget".to_string()));
-    assert!(projection
-        .deterministic_reduction_markers
-        .iter()
-        .any(|marker| marker.contains("item-over-budget")));
+    assert!(
+        projection
+            .selected_item_ids
+            .contains(&"item-procedure-recommended".to_string())
+    );
+    assert!(
+        projection
+            .boosted_item_ids
+            .contains(&"item-procedure-recommended".to_string())
+    );
+    assert!(
+        projection
+            .failed_attempt_ids
+            .contains(&"attempt-local-small-timeout".to_string())
+    );
+    assert!(
+        projection
+            .dropped_item_ids
+            .contains(&"item-over-budget".to_string())
+    );
+    assert!(
+        projection
+            .deterministic_reduction_markers
+            .iter()
+            .any(|marker| marker.contains("item-over-budget"))
+    );
     assert_eq!(projection.fr_event_ref, "FR-EVT-MEM-004-mt036-handoff");
     assert_eq!(
         projection.locus_mt_iteration_ref,
         "locus://wp-kernel-002/MT-036/iteration-2"
     );
     assert!(!projection.mutates_long_term_memory);
+}
+
+#[test]
+fn kernel_collaboration_memory_handoff_projects_explicit_pins_before_score_ordering() {
+    let mut context = sample_context();
+    context.carried_items = vec![
+        item(
+            "item-high-score",
+            FemsMtHandoffItemKind::MemoryPackItem,
+            100,
+            100,
+            false,
+            false,
+        ),
+        item(
+            "item-explicit-pinned-low-score",
+            FemsMtHandoffItemKind::MemoryPackItem,
+            100,
+            1,
+            false,
+            false,
+        ),
+        item(
+            "item-unpinned-overflow",
+            FemsMtHandoffItemKind::MemoryPackItem,
+            100,
+            90,
+            false,
+            false,
+        ),
+        item(
+            "item-procedure-recommended",
+            FemsMtHandoffItemKind::RecommendedProceduralItem,
+            1,
+            1,
+            true,
+            false,
+        ),
+    ];
+    context.carried_items[1].pinned = true;
+    context.recommended_item_ids = vec!["item-procedure-recommended".to_string()];
+    context.max_handoff_tokens = 201;
+
+    let projection =
+        project_fems_mt_handoff_memory_context(&context).expect("handoff projection builds");
+
+    assert_eq!(
+        projection.selected_item_ids,
+        vec![
+            "item-explicit-pinned-low-score",
+            "item-high-score",
+            "item-procedure-recommended"
+        ]
+    );
+    assert_eq!(projection.effective_handoff_tokens, 201);
+    assert!(
+        projection
+            .dropped_item_ids
+            .contains(&"item-unpinned-overflow".to_string())
+    );
+}
+
+#[test]
+fn kernel_collaboration_memory_handoff_rejects_pinned_items_over_handoff_budget() {
+    let mut context = sample_context();
+    context.carried_items = vec![
+        item(
+            "item-explicit-pinned-too-large",
+            FemsMtHandoffItemKind::MemoryPackItem,
+            202,
+            1,
+            false,
+            false,
+        ),
+        item(
+            "item-procedure-recommended",
+            FemsMtHandoffItemKind::RecommendedProceduralItem,
+            1,
+            1,
+            true,
+            false,
+        ),
+    ];
+    context.carried_items[0].pinned = true;
+    context.recommended_item_ids = vec!["item-procedure-recommended".to_string()];
+    context.max_handoff_tokens = 201;
+
+    let errors = validate_fems_mt_handoff_memory_context(&context)
+        .expect_err("pinned handoff overflow must fail validation");
+
+    assert!(
+        errors
+            .iter()
+            .any(|error| error.field == "carried_items.pinned")
+    );
 }
 
 #[test]
@@ -71,25 +176,37 @@ fn kernel_collaboration_memory_handoff_rejects_cross_wp_promotion_and_bad_proven
     let errors = validate_fems_mt_handoff_memory_context(&context)
         .expect_err("unsafe handoff context must fail");
 
-    assert!(errors
-        .iter()
-        .any(|error| error.field == "cross_wp_handoff_allowed"));
-    assert!(errors
-        .iter()
-        .any(|error| error.field == "automatic_long_term_merge_allowed"));
+    assert!(
+        errors
+            .iter()
+            .any(|error| error.field == "cross_wp_handoff_allowed")
+    );
+    assert!(
+        errors
+            .iter()
+            .any(|error| error.field == "automatic_long_term_merge_allowed")
+    );
     assert!(errors.iter().any(|error| error.field == "fr_event_ref"));
-    assert!(errors
-        .iter()
-        .any(|error| error.field == "target_session_id"));
-    assert!(errors
-        .iter()
-        .any(|error| error.field == "carried_items.provenance_ref"));
-    assert!(errors
-        .iter()
-        .any(|error| error.field == "carried_items.scope_refs"));
-    assert!(errors
-        .iter()
-        .any(|error| error.field == "recommended_item_ids"));
+    assert!(
+        errors
+            .iter()
+            .any(|error| error.field == "target_session_id")
+    );
+    assert!(
+        errors
+            .iter()
+            .any(|error| error.field == "carried_items.provenance_ref")
+    );
+    assert!(
+        errors
+            .iter()
+            .any(|error| error.field == "carried_items.scope_refs")
+    );
+    assert!(
+        errors
+            .iter()
+            .any(|error| error.field == "recommended_item_ids")
+    );
 }
 
 #[test]
@@ -102,10 +219,12 @@ fn kernel_collaboration_memory_handoff_catalogs_projection_action() {
         .expect("FEMS MT handoff memory context action must be cataloged");
 
     assert_eq!(action.authority_effect, AuthorityEffect::ProjectionOnly);
-    assert!(action
-        .validation_hooks
-        .iter()
-        .any(|hook| hook.hook_id == "fems_handoff_context_provenance"));
+    assert!(
+        action
+            .validation_hooks
+            .iter()
+            .any(|hook| hook.hook_id == "fems_handoff_context_provenance")
+    );
 }
 
 fn sample_context() -> FemsMtHandoffMemoryContextV1 {
@@ -208,6 +327,7 @@ fn item(
         provenance_ref: format!("provenance://session-local-small-1/{item_id}"),
         token_count,
         base_score_x100,
+        pinned: false,
         predecessor_recommended,
         source_attempt_failed,
     }

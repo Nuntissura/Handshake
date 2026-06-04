@@ -171,6 +171,8 @@ pub enum KernelError {
     Artifact(String),
     #[error("kernel flight recorder error: {0}")]
     FlightRecorder(String),
+    #[error("kernel model runtime error: {0}")]
+    ModelRuntime(String),
 }
 
 pub type KernelResult<T> = Result<T, KernelError>;
@@ -226,6 +228,9 @@ pub enum KernelEventType {
     PromotionRejected,
     FlightRecorderMirrorRecorded,
     TraceReplayed,
+    InspectorReplayDrive,
+    FrEvtLedgerOverflow,
+    HbrHandoffGate,
 }
 
 impl KernelEventType {
@@ -256,6 +261,9 @@ impl KernelEventType {
             Self::PromotionRejected => "PROMOTION_REJECTED",
             Self::FlightRecorderMirrorRecorded => "FLIGHT_RECORDER_MIRROR_RECORDED",
             Self::TraceReplayed => "TRACE_REPLAYED",
+            Self::InspectorReplayDrive => "INSPECTOR_REPLAY_DRIVE",
+            Self::FrEvtLedgerOverflow => "FR_EVT_LEDGER_OVERFLOW",
+            Self::HbrHandoffGate => "HBR_HANDOFF_GATE",
         }
     }
 
@@ -286,6 +294,9 @@ impl KernelEventType {
             KernelEventType::PromotionRejected,
             KernelEventType::FlightRecorderMirrorRecorded,
             KernelEventType::TraceReplayed,
+            KernelEventType::InspectorReplayDrive,
+            KernelEventType::FrEvtLedgerOverflow,
+            KernelEventType::HbrHandoffGate,
         ]
     }
 }

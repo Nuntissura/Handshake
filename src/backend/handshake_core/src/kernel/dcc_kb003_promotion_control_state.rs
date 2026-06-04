@@ -44,7 +44,9 @@ impl PromotionIneligibilityReason {
 #[serde(tag = "kind", rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum PromotionEligibility {
     Eligible,
-    Ineligible { reasons: Vec<PromotionIneligibilityReason> },
+    Ineligible {
+        reasons: Vec<PromotionIneligibilityReason>,
+    },
 }
 
 impl PromotionEligibility {
@@ -57,7 +59,11 @@ impl PromotionEligibility {
 
     pub fn add(&mut self, reason: PromotionIneligibilityReason) {
         match self {
-            Self::Eligible => *self = Self::Ineligible { reasons: vec![reason] },
+            Self::Eligible => {
+                *self = Self::Ineligible {
+                    reasons: vec![reason],
+                }
+            }
             Self::Ineligible { reasons } => reasons.push(reason),
         }
     }
@@ -193,7 +199,10 @@ mod tests {
 
     #[test]
     fn ineligible_when_validation_blocks() {
-        let mut p = base(DccSandboxOutcome::AwaitingPromotion, SandboxRunStatus::Completed);
+        let mut p = base(
+            DccSandboxOutcome::AwaitingPromotion,
+            SandboxRunStatus::Completed,
+        );
         p.validation = Some(DccValidationSummaryV1 {
             validation_run_id: "VR-1".into(),
             verdict: "FAIL".into(),
@@ -228,7 +237,10 @@ mod tests {
 
     #[test]
     fn ineligible_when_approval_required_and_missing() {
-        let mut p = base(DccSandboxOutcome::AwaitingPromotion, SandboxRunStatus::Completed);
+        let mut p = base(
+            DccSandboxOutcome::AwaitingPromotion,
+            SandboxRunStatus::Completed,
+        );
         p.validation = Some(DccValidationSummaryV1 {
             validation_run_id: "VR-1".into(),
             verdict: "PASS".into(),
@@ -242,7 +254,10 @@ mod tests {
 
     #[test]
     fn eligible_when_all_gates_pass() {
-        let mut p = base(DccSandboxOutcome::AwaitingPromotion, SandboxRunStatus::Completed);
+        let mut p = base(
+            DccSandboxOutcome::AwaitingPromotion,
+            SandboxRunStatus::Completed,
+        );
         p.validation = Some(DccValidationSummaryV1 {
             validation_run_id: "VR-1".into(),
             verdict: "PASS".into(),

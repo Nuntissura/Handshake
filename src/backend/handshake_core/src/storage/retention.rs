@@ -458,7 +458,7 @@ fn dir_size_bytes(root: &Path) -> std::io::Result<u64> {
 mod tests {
     use super::*;
     use crate::flight_recorder::{EventFilter, RecorderError};
-    use crate::storage::sqlite::SqliteDatabase;
+    use crate::storage::tests::optional_postgres_backend_from_env;
     use crate::storage::{AccessMode, JobKind, JobMetrics, NewAiJob, SafetyMode};
     use async_trait::async_trait;
     use chrono::Utc;
@@ -516,35 +516,33 @@ mod tests {
     }
 
     async fn setup_test_db() -> Result<
-        (
+        Option<(
             Arc<dyn Database>,
             Arc<dyn FlightRecorder>,
             Arc<Mutex<Vec<FlightRecorderEvent>>>,
             tempfile::TempDir,
             tempfile::TempDir,
-        ),
+        )>,
         Box<dyn Error>,
     > {
         let workspace_dir = tempdir()?;
 
         let db_dir = tempdir()?;
-        let db_path = db_dir.path().join("test.db");
-        let db_url = format!("sqlite://{}?mode=rwc", db_path.display());
-
-        let db = SqliteDatabase::connect(&db_url, 1).await?;
-        db.run_migrations().await?;
+        let Some(db) = optional_postgres_backend_from_env().await? else {
+            return Ok(None);
+        };
 
         // In-memory recorder for tests
         let recorder = MemoryRecorder::new(7);
         let events = recorder.events();
 
-        Ok((
-            db.into_arc(),
+        Ok(Some((
+            db,
             Arc::new(recorder),
             events,
             db_dir,
             workspace_dir,
-        ))
+        )))
     }
 
     async fn create_test_job(
@@ -579,7 +577,10 @@ mod tests {
 
     #[tokio::test]
     async fn test_prune_respects_pinned_items() -> Result<(), Box<dyn Error>> {
-        let (db, flight_recorder, _events, _db_dir, workspace_dir) = setup_test_db().await?;
+        let Some((db, flight_recorder, _events, _db_dir, workspace_dir)) = setup_test_db().await?
+        else {
+            return Ok(());
+        };
 
         // Create an old, completed, pinned job (should be spared)
         let old_date = Utc::now() - Duration::days(60);
@@ -622,7 +623,10 @@ mod tests {
 
     #[tokio::test]
     async fn test_prune_respects_window() -> Result<(), Box<dyn Error>> {
-        let (db, flight_recorder, _events, _db_dir, workspace_dir) = setup_test_db().await?;
+        let Some((db, flight_recorder, _events, _db_dir, workspace_dir)) = setup_test_db().await?
+        else {
+            return Ok(());
+        };
 
         // Create a recent job (within window, should be spared)
         let recent_date = Utc::now() - Duration::days(5);
@@ -655,7 +659,10 @@ mod tests {
 
     #[tokio::test]
     async fn test_dry_run_does_not_delete() -> Result<(), Box<dyn Error>> {
-        let (db, flight_recorder, _events, _db_dir, workspace_dir) = setup_test_db().await?;
+        let Some((db, flight_recorder, _events, _db_dir, workspace_dir)) = setup_test_db().await?
+        else {
+            return Ok(());
+        };
 
         // Create an old job
         let old_date = Utc::now() - Duration::days(60);
@@ -690,7 +697,10 @@ mod tests {
 
     #[tokio::test]
     async fn test_min_versions_constraint() -> Result<(), Box<dyn Error>> {
-        let (db, flight_recorder, _events, _db_dir, workspace_dir) = setup_test_db().await?;
+        let Some((db, flight_recorder, _events, _db_dir, workspace_dir)) = setup_test_db().await?
+        else {
+            return Ok(());
+        };
 
         // Create exactly 3 old jobs (min_versions = 3)
         let old_date = Utc::now() - Duration::days(60);
@@ -723,7 +733,10 @@ mod tests {
 
     #[tokio::test]
     async fn test_flight_recorder_event_emitted() -> Result<(), Box<dyn Error>> {
-        let (db, flight_recorder, events, _db_dir, workspace_dir) = setup_test_db().await?;
+        let Some((db, flight_recorder, events, _db_dir, workspace_dir)) = setup_test_db().await?
+        else {
+            return Ok(());
+        };
 
         let config = JanitorConfig::default();
         let janitor = Janitor::new(db, flight_recorder, config);

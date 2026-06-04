@@ -156,9 +156,7 @@ impl ValidationReport {
     /// outcome is FAIL/BLOCKED/ERROR. Advisory/Unsupported/Skipped do not
     /// block by default.
     pub fn aggregate_blocks_promotion(&self) -> bool {
-        self.outcomes
-            .iter()
-            .any(|o| o.status.blocks_promotion())
+        self.outcomes.iter().any(|o| o.status.blocks_promotion())
     }
 
     /// Kind-aware promotion-gate projection (KB003 remediation H3):

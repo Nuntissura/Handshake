@@ -34,10 +34,7 @@ impl DccPromotionOverlay {
             decision_id: decision.decision_id.clone(),
             decision: decision.outcome.tag().to_string(),
             receipt_id: Some(receipt.receipt_id.clone()),
-            receipt_artifact_ref: Some(format!(
-                "kb003://promotion_receipt/{}",
-                receipt.receipt_id
-            )),
+            receipt_artifact_ref: Some(format!("kb003://promotion_receipt/{}", receipt.receipt_id)),
             rationale_short: match &decision.outcome {
                 PromotionOutcome::Accepted => "accepted".to_string(),
                 PromotionOutcome::Rejected { reason } => reason.rationale_short(),
@@ -48,7 +45,8 @@ impl DccPromotionOverlay {
         // Re-derive outcome with the new promotion evidence.
         let has_denial = projection.denial.is_some();
         let has_accepted = matches!(decision.outcome, PromotionOutcome::Accepted);
-        projection.outcome = DccSandboxOutcome::derive(projection.run_status, has_denial, has_accepted);
+        projection.outcome =
+            DccSandboxOutcome::derive(projection.run_status, has_denial, has_accepted);
 
         // Surface receipt + bundle handles in the projection's artifact list so
         // operators can open them from DCC without a second join.
@@ -70,9 +68,9 @@ impl DccPromotionOverlay {
             .artifact_classes_in_view
             .contains(&crate::kernel::kb003_artifact_classes::Kb003ArtifactClass::PromotionReceipt)
         {
-            projection.artifact_classes_in_view.push(
-                crate::kernel::kb003_artifact_classes::Kb003ArtifactClass::PromotionReceipt,
-            );
+            projection
+                .artifact_classes_in_view
+                .push(crate::kernel::kb003_artifact_classes::Kb003ArtifactClass::PromotionReceipt);
         }
     }
 }
@@ -119,9 +117,11 @@ mod tests {
 
     fn sample_bundle() -> Kb003ArtifactBundleV1 {
         let run = SandboxRunV1::new_requested("KTR-1", "SES-1", "process_tier", "POL-1@1", "WSP-1");
-        let handles = vec![
-            Kb003ArtifactHandleV1::new(Kb003ArtifactClass::SandboxLog, "h1aaaaaaaaaaaaaa").unwrap(),
-        ];
+        let handles =
+            vec![
+                Kb003ArtifactHandleV1::new(Kb003ArtifactClass::SandboxLog, "h1aaaaaaaaaaaaaa")
+                    .unwrap(),
+            ];
         KbArtifactBundleAssembler::assemble(&run, handles).unwrap()
     }
 
@@ -136,7 +136,10 @@ mod tests {
         let prom = p.promotion.as_ref().unwrap();
         assert_eq!(prom.decision, "ACCEPTED");
         assert_eq!(prom.receipt_id.as_deref(), Some(r.receipt_id.as_str()));
-        assert!(p.artifact_refs.iter().any(|s| s.starts_with("kb003://promotion_receipt/")));
+        assert!(p
+            .artifact_refs
+            .iter()
+            .any(|s| s.starts_with("kb003://promotion_receipt/")));
         assert!(p
             .artifact_classes_in_view
             .contains(&Kb003ArtifactClass::PromotionReceipt));

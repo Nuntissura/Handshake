@@ -92,7 +92,9 @@ impl LaneWakeReceiptV1 {
             return false;
         }
         match self.event {
-            LaneWakeEvent::Wake => self.prior_blocked_reason.is_some() && !self.rationale_short.is_empty(),
+            LaneWakeEvent::Wake => {
+                self.prior_blocked_reason.is_some() && !self.rationale_short.is_empty()
+            }
             LaneWakeEvent::Settle => !self.rationale_short.is_empty(),
         }
     }
@@ -130,7 +132,9 @@ mod tests {
 
     #[test]
     fn wake_receipt_includes_reason_and_refs() {
-        let reason = BlockedReason::MissingApproval { missing_field: "operator_id".into() };
+        let reason = BlockedReason::MissingApproval {
+            missing_field: "operator_id".into(),
+        };
         let r = LaneWakeReceiptV1::wake(
             BlockedLane::Promotion,
             vec!["kb003://promotion_receipt/PR-1".into()],
@@ -157,7 +161,10 @@ mod tests {
 
     #[test]
     fn wake_receipt_requires_receipt_refs() {
-        let reason = BlockedReason::AdapterUnavailable { adapter_kind: "x".into(), host_detail: "y".into() };
+        let reason = BlockedReason::AdapterUnavailable {
+            adapter_kind: "x".into(),
+            host_detail: "y".into(),
+        };
         let mut r = LaneWakeReceiptV1::wake(BlockedLane::Sandbox, vec![], reason, "x");
         r.receipt_refs.clear();
         assert!(!r.is_well_formed());
@@ -177,7 +184,10 @@ mod tests {
             "operator granted network capability",
         );
         let row = DccKb003LaneWakeRowV1::from_receipt(&r);
-        assert_eq!(row.prior_blocked_tag.as_deref(), Some("BLOCKED_POLICY_DENIED"));
+        assert_eq!(
+            row.prior_blocked_tag.as_deref(),
+            Some("BLOCKED_POLICY_DENIED")
+        );
         assert_eq!(row.lane, BlockedLane::Sandbox);
     }
 }

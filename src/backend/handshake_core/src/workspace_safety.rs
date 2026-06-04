@@ -8,9 +8,12 @@ use std::io;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::str;
+use std::sync::Mutex;
 use uuid::Uuid;
 
 use crate::flight_recorder::{FlightRecorderActor, FlightRecorderEvent, FlightRecorderEventType};
+
+static SESSION_WORKTREE_GIT_LOCK: Mutex<()> = Mutex::new(());
 
 /// Tracks active session-level workspace allocations.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -368,6 +371,9 @@ pub fn ensure_session_worktree_allocation(
     repo_root: &Path,
     session_id: &str,
 ) -> io::Result<SessionWorktreeAllocation> {
+    let _git_guard = SESSION_WORKTREE_GIT_LOCK
+        .lock()
+        .map_err(|_| io::Error::new(io::ErrorKind::Other, "session worktree git lock poisoned"))?;
     let worktree_path = session_worktree_path(repo_root, session_id);
 
     if worktree_path.exists() {
@@ -410,6 +416,9 @@ pub fn ensure_session_worktree_allocation(
 }
 
 pub fn cleanup_session_worktree(repo_root: &Path, worktree_path: &Path) -> io::Result<()> {
+    let _git_guard = SESSION_WORKTREE_GIT_LOCK
+        .lock()
+        .map_err(|_| io::Error::new(io::ErrorKind::Other, "session worktree git lock poisoned"))?;
     let output = Command::new("git")
         .arg("-C")
         .arg(repo_root)

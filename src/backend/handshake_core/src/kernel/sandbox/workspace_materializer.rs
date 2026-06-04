@@ -217,9 +217,7 @@ mod tests {
         }
     }
 
-    fn fake_hasher(
-        path: &str,
-    ) -> Result<(String, u64), MaterializationError> {
+    fn fake_hasher(path: &str) -> Result<(String, u64), MaterializationError> {
         Ok((format!("sha256:fake:{}", path), path.len() as u64))
     }
 
@@ -272,8 +270,7 @@ mod tests {
         assert_eq!(manifest.entries.len(), 2);
         // Sorted by sandbox path.
         assert!(
-            manifest.entries[0].sandbox_relative_path
-                <= manifest.entries[1].sandbox_relative_path
+            manifest.entries[0].sandbox_relative_path <= manifest.entries[1].sandbox_relative_path
         );
         // No undeclared source landed.
         for e in &manifest.entries {

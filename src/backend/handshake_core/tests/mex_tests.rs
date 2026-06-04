@@ -27,9 +27,10 @@ use handshake_core::mex::runtime::{EngineAdapter, MexRuntime, MexRuntimeError};
 use handshake_core::mex::supply_chain::ToolRunner;
 use handshake_core::mex::{SupplyChainAllowlists, SupplyChainEngineAdapter, TerminalServiceRunner};
 use handshake_core::storage::{
-    tests::sqlite_backend, AccessMode, CalendarEventWindowQuery, CalendarSourceProviderType,
-    CalendarSourceSyncState, CalendarSourceUpsert, CalendarSourceWritePolicy, JobKind, JobMetrics,
-    NewAiJob, NewWorkspace, SafetyMode, WriteContext,
+    tests::postgres_backend_from_env, AccessMode, CalendarEventWindowQuery,
+    CalendarSourceProviderType, CalendarSourceSyncState, CalendarSourceUpsert,
+    CalendarSourceWritePolicy, JobKind, JobMetrics, NewAiJob, NewWorkspace, SafetyMode,
+    StorageError, WriteContext,
 };
 use handshake_core::terminal::config::TerminalConfig;
 use handshake_core::terminal::redaction::PatternRedactor;
@@ -76,17 +77,24 @@ impl LlmClient for EchoLlmClient {
     }
 }
 
-async fn calendar_sync_test_state() -> Result<AppState, Box<dyn std::error::Error>> {
-    let storage = sqlite_backend().await?;
+async fn calendar_sync_test_state() -> Result<Option<AppState>, Box<dyn std::error::Error>> {
+    let storage = match postgres_backend_from_env().await {
+        Ok(storage) => storage,
+        Err(StorageError::Validation(msg)) if msg.contains("POSTGRES_TEST_URL not set") => {
+            eprintln!("Skipping calendar sync storage-backed MEX test: {msg}");
+            return Ok(None);
+        }
+        Err(err) => return Err(Box::new(err) as Box<dyn std::error::Error>),
+    };
     let flight_recorder = recorder();
-    Ok(AppState {
+    Ok(Some(AppState {
         storage,
         flight_recorder: flight_recorder.clone(),
         diagnostics: flight_recorder,
         llm_client: Arc::new(EchoLlmClient::new()),
         capability_registry: Arc::new(CapabilityRegistry::new()),
         session_registry: Arc::new(SessionRegistry::new(SessionSchedulerConfig::default())),
-    })
+    }))
 }
 
 struct FakeToolRunner {
@@ -807,9 +815,12 @@ async fn calendar_sync_runtime_denies_wrong_profile_without_unknown_capability()
         "expected denied gate outcome event"
     );
 
-    let state = calendar_sync_test_state()
+    let Some(state) = calendar_sync_test_state()
         .await
-        .expect("calendar sync state should initialize");
+        .expect("calendar sync state should initialize")
+    else {
+        return;
+    };
     let job = state
         .storage
         .create_ai_job(NewAiJob {
@@ -869,7 +880,9 @@ async fn calendar_sync_runtime_denies_wrong_profile_without_unknown_capability()
 #[tokio::test]
 async fn calendar_sync_workflow_imports_read_only_source_and_updates_sync_state(
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let state = calendar_sync_test_state().await?;
+    let Some(state) = calendar_sync_test_state().await? else {
+        return Ok(());
+    };
     let ctx = WriteContext::human(Some("calendar-sync-test".to_string()));
     let workspace = state
         .storage

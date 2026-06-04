@@ -19,8 +19,7 @@ use super::run::SandboxRunStatus;
 use crate::kernel::kb003_artifact_classes::Kb003ArtifactClass;
 use crate::kernel::kb003_schemas::{
     SCHEMA_KERNEL_PROMOTION_DECISION_V1, SCHEMA_KERNEL_PROMOTION_RECEIPT_V1,
-    SCHEMA_KERNEL_SANDBOX_POLICY_V1, SCHEMA_KERNEL_SANDBOX_RUN_V1,
-    SCHEMA_KERNEL_VALIDATION_RUN_V1,
+    SCHEMA_KERNEL_SANDBOX_POLICY_V1, SCHEMA_KERNEL_SANDBOX_RUN_V1, SCHEMA_KERNEL_VALIDATION_RUN_V1,
 };
 
 /// Projection family id; the DCC layout registry pins this preset by id so
@@ -42,7 +41,11 @@ pub enum DccSandboxOutcome {
 }
 
 impl DccSandboxOutcome {
-    pub fn derive(status: SandboxRunStatus, has_denial: bool, has_promotion_accepted: bool) -> Self {
+    pub fn derive(
+        status: SandboxRunStatus,
+        has_denial: bool,
+        has_promotion_accepted: bool,
+    ) -> Self {
         match status {
             SandboxRunStatus::Requested => Self::Pending,
             SandboxRunStatus::Started => Self::Running,
@@ -170,12 +173,12 @@ impl DccSandboxProjectionV1 {
         }
         match self.outcome {
             DccSandboxOutcome::DeniedByPolicy => self.denial.is_some(),
-            DccSandboxOutcome::Promoted => {
-                self.promotion.is_some() && self.validation.is_some()
-            }
+            DccSandboxOutcome::Promoted => self.promotion.is_some() && self.validation.is_some(),
             DccSandboxOutcome::FailedValidation => self.validation.is_some(),
             DccSandboxOutcome::AwaitingPromotion => self.validation.is_some(),
-            DccSandboxOutcome::Pending | DccSandboxOutcome::Running | DccSandboxOutcome::Rejected => {
+            DccSandboxOutcome::Pending
+            | DccSandboxOutcome::Running
+            | DccSandboxOutcome::Rejected => {
                 // Pending/Running need no extra evidence; raw Rejected may exist before a
                 // denial record is persisted (e.g. adapter unavailable before policy check).
                 true
@@ -209,7 +212,10 @@ mod tests {
         assert_eq!(Out::derive(St::Started, false, false), Out::Running);
         assert_eq!(Out::derive(St::Rejected, true, false), Out::DeniedByPolicy);
         assert_eq!(Out::derive(St::Rejected, false, false), Out::Rejected);
-        assert_eq!(Out::derive(St::Completed, false, false), Out::AwaitingPromotion);
+        assert_eq!(
+            Out::derive(St::Completed, false, false),
+            Out::AwaitingPromotion
+        );
         assert_eq!(Out::derive(St::Completed, false, true), Out::Promoted);
     }
 
@@ -231,7 +237,10 @@ mod tests {
 
     #[test]
     fn summary_line_includes_identity_and_outcome() {
-        let p = sample_projection(SandboxRunStatus::Completed, DccSandboxOutcome::AwaitingPromotion);
+        let p = sample_projection(
+            SandboxRunStatus::Completed,
+            DccSandboxOutcome::AwaitingPromotion,
+        );
         let line = p.summary_line();
         assert!(line.contains("SBX-test"));
         assert!(line.contains("AwaitingPromotion"));
@@ -239,7 +248,10 @@ mod tests {
 
     #[test]
     fn self_describing_requires_evidence_for_denied_outcome() {
-        let mut projection = sample_projection(SandboxRunStatus::Rejected, DccSandboxOutcome::DeniedByPolicy);
+        let mut projection = sample_projection(
+            SandboxRunStatus::Rejected,
+            DccSandboxOutcome::DeniedByPolicy,
+        );
         // No denial attached => not self-describing.
         projection.denial = None;
         assert!(!projection.is_self_describing());
@@ -252,12 +264,16 @@ mod tests {
             reason: "default_deny NETWORK".into(),
             policy_version_id: "POL-1@1".into(),
         });
-        assert!(projection.is_self_describing(), "denial summary makes the projection self-describing");
+        assert!(
+            projection.is_self_describing(),
+            "denial summary makes the projection self-describing"
+        );
     }
 
     #[test]
     fn self_describing_requires_promotion_and_validation_for_promoted_outcome() {
-        let mut projection = sample_projection(SandboxRunStatus::Completed, DccSandboxOutcome::Promoted);
+        let mut projection =
+            sample_projection(SandboxRunStatus::Completed, DccSandboxOutcome::Promoted);
         projection.validation = None;
         projection.promotion = None;
         assert!(!projection.is_self_describing());

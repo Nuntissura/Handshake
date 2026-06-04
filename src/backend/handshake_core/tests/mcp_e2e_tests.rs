@@ -13,7 +13,7 @@ use handshake_core::mcp::jsonrpc::{
     JsonRpcId, JsonRpcMessage, JsonRpcNotification, JsonRpcResponse,
 };
 use handshake_core::mcp::transport::duplex::DuplexTransport;
-use handshake_core::storage::tests::{postgres_backend_from_env, sqlite_backend};
+use handshake_core::storage::tests::postgres_backend_from_env;
 use handshake_core::storage::{
     AccessMode, AiJobListFilter, Database, JobKind, JobMetrics, JobState, JobStatusUpdate,
     ModelSessionState, NewAiJob, NewModelSession, SafetyMode, StorageError,
@@ -241,15 +241,6 @@ async fn stub_server_e2e(
             }
         }
     }
-}
-
-#[tokio::test]
-async fn mcp_e2e_tests_sqlite_persists_progress_mapping_records_fr_events_and_hydrates_ref(
-) -> Result<(), Box<dyn std::error::Error>> {
-    let db = sqlite_backend()
-        .await
-        .map_err(|err| Box::new(err) as Box<dyn std::error::Error>)?;
-    run_mcp_e2e(db).await
 }
 
 #[tokio::test]

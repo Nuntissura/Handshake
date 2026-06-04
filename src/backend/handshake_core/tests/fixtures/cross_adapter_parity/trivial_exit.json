@@ -1,0 +1,25 @@
+{
+  "schema_id": "hsk.sandbox_cross_adapter_parity@1",
+  "name": "trivial_exit",
+  "description": "Spawn `true` and assert exit_code==0 across every adapter — the smoke baseline that proves the per-adapter spawn/wait/exit_code path is alive.",
+  "spec": {
+    "id": "placeholder",
+    "image_or_root": "alpine:3.20",
+    "cmd": ["true"],
+    "env": {},
+    "cwd": null,
+    "binds": [],
+    "net_policy": "deny_all",
+    "resource_limits": {
+      "memory_bytes": null,
+      "cpu_cores": null,
+      "timeout_ms": null
+    },
+    "required_capabilities": [],
+    "metadata": {}
+  },
+  "expected": {
+    "exit_code_class": "zero",
+    "stop_reason_contains": "status:exited"
+  }
+}

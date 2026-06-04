@@ -1,0 +1,122 @@
+{
+  "name": "binds-env-deny-all",
+  "job": {
+    "job_id": "VALJOB-K003-001",
+    "image_or_root": "docker.io/library/rust:1.82",
+    "cmd": ["cargo", "test", "--locked"],
+    "env": {
+      "HANDSHAKE_VALIDATION": "kernel003",
+      "RUST_LOG": "info"
+    },
+    "cwd": "/workspace",
+    "binds": [
+      {
+        "host_path": "D:/kernel003/work",
+        "guest_path": "/workspace",
+        "mode": "read_write"
+      }
+    ],
+    "net_policy": "deny_all",
+    "resource_limits": {
+      "memory_bytes": 134217728,
+      "cpu_cores": 2,
+      "timeout_ms": null
+    },
+    "required_capabilities": ["high_stdio_throughput"],
+    "work_profile_override": null,
+    "metadata": {
+      "shape": "binds_env_deny_all",
+      "source": "kernel_003_migration"
+    }
+  },
+  "expected_process_spec": {
+    "id": "validation-job:VALJOB-K003-001",
+    "image_or_root": "docker.io/library/rust:1.82",
+    "cmd": ["cargo", "test", "--locked"],
+    "env": {
+      "HANDSHAKE_VALIDATION": "kernel003",
+      "RUST_LOG": "info"
+    },
+    "cwd": "/workspace",
+    "binds": [
+      {
+        "host_path": "D:/kernel003/work",
+        "guest_path": "/workspace",
+        "mode": "read_write"
+      }
+    ],
+    "net_policy": "deny_all",
+    "resource_limits": {
+      "memory_bytes": 134217728,
+      "cpu_cores": 2,
+      "timeout_ms": null
+    },
+    "required_capabilities": ["high_stdio_throughput"],
+    "metadata": {
+      "shape": "binds_env_deny_all",
+      "source": "kernel_003_migration",
+      "validation_job_id": "VALJOB-K003-001",
+      "validation_lane": "model_written_code"
+    }
+  },
+  "expected_docker_args": [
+    "run",
+    "-d",
+    "--name",
+    "hsk-k003-migration",
+    "--read-only",
+    "--tmpfs",
+    "/tmp:rw,noexec,nosuid,nodev,mode=1777",
+    "--pids-limit",
+    "4096",
+    "--network",
+    "none",
+    "-w",
+    "/workspace",
+    "-e",
+    "HANDSHAKE_VALIDATION=kernel003",
+    "-e",
+    "RUST_LOG=info",
+    "-v",
+    "D:/kernel003/work:/workspace:rw",
+    "--memory",
+    "134217728",
+    "--cpus",
+    "2",
+    "docker.io/library/rust:1.82",
+    "cargo",
+    "test",
+    "--locked"
+  ],
+  "expected_podman_args": [
+    "--remote=false",
+    "run",
+    "-d",
+    "--userns",
+    "keep-id",
+    "--read-only",
+    "--tmpfs",
+    "/tmp:rw,noexec,nosuid,nodev,mode=1777",
+    "--pids-limit",
+    "4096",
+    "--network",
+    "none",
+    "-w",
+    "/workspace",
+    "-e",
+    "HANDSHAKE_VALIDATION=kernel003",
+    "-e",
+    "RUST_LOG=info",
+    "-v",
+    "/mnt/d/kernel003/work:/workspace:rw",
+    "--memory",
+    "134217728",
+    "--cpus",
+    "2",
+    "docker.io/library/rust:1.82",
+    "cargo",
+    "test",
+    "--locked"
+  ],
+  "candidate_artifact_id": "ART-K003-MIGRATION-001"
+}

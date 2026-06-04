@@ -54,10 +54,7 @@ pub fn verify_candidate_ranges(
     let mut violations = Vec::new();
     for edit in observed {
         // Find any declared range matching this path.
-        let path_declared = proposal
-            .target_ranges
-            .iter()
-            .any(|r| r.path == edit.path);
+        let path_declared = proposal.target_ranges.iter().any(|r| r.path == edit.path);
         if !path_declared {
             violations.push(RangeViolation::UndeclaredPath {
                 path: edit.path.clone(),
@@ -99,10 +96,7 @@ mod tests {
 
     #[test]
     fn unexpected_path_rejected() {
-        let v = verify_candidate_ranges(
-            &proposal(),
-            &[ObservedEdit::new("src/c.rs", 1, 5)],
-        );
+        let v = verify_candidate_ranges(&proposal(), &[ObservedEdit::new("src/c.rs", 1, 5)]);
         assert!(!v.is_clean());
         assert!(matches!(
             v.violations[0],
@@ -112,10 +106,7 @@ mod tests {
 
     #[test]
     fn out_of_declared_range_rejected() {
-        let v = verify_candidate_ranges(
-            &proposal(),
-            &[ObservedEdit::new("src/a.rs", 5, 25)],
-        );
+        let v = verify_candidate_ranges(&proposal(), &[ObservedEdit::new("src/a.rs", 5, 25)]);
         assert!(!v.is_clean());
         assert!(matches!(
             v.violations[0],

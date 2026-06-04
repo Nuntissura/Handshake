@@ -42,16 +42,12 @@ pub struct MteValidationReportProjectionV1 {
 }
 
 impl MteValidationReportProjectionV1 {
-    pub const SCHEMA_VERSION: &'static str =
-        "hsk.kernel.mte.validation_report_projection@1";
+    pub const SCHEMA_VERSION: &'static str = "hsk.kernel.mte.validation_report_projection@1";
 
     /// Reduce a `ValidationReport` into the projection. `report_artifact_ref`
     /// is the bundle-relative handle that the DCC surface can use to fetch
     /// the raw report if the operator drills down.
-    pub fn from_report(
-        report: &ValidationReport,
-        report_artifact_ref: Option<String>,
-    ) -> Self {
+    pub fn from_report(report: &ValidationReport, report_artifact_ref: Option<String>) -> Self {
         let mut counts: BTreeMap<String, usize> = BTreeMap::new();
         let mut blocking = Vec::new();
         let mut advisory = Vec::new();
@@ -205,8 +201,7 @@ mod tests {
     #[test]
     fn one_line_summary_is_self_describing() {
         let r = report_with_mix();
-        let s = MteValidationReportProjectionV1::from_report(&r, None)
-            .one_line_summary();
+        let s = MteValidationReportProjectionV1::from_report(&r, None).one_line_summary();
         assert!(s.contains("total=4"));
         assert!(s.contains("blocks=true"));
         assert!(s.contains("FAIL:1"));

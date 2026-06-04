@@ -1,0 +1,74 @@
+{
+  "schema_version": "handshake_core_tests_readme@1",
+  "tests": [
+    {
+      "test_id": "candle_e2e_smoke",
+      "test_file": "tests/candle_e2e_smoke.rs",
+      "description": "per-family skip if unset",
+      "run_command": "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target candle_e2e_smoke -- --ignored",
+      "required_env": [
+        "HANDSHAKE_TEST_CANDLE_MODEL_DIR",
+        "HANDSHAKE_TEST_MAMBA2_MODEL_DIR",
+        "HANDSHAKE_TEST_RWKV_V5_MODEL_DIR",
+        "HANDSHAKE_TEST_RWKV_V6_MODEL_DIR",
+        "HANDSHAKE_TEST_RWKV_V7_MODEL_DIR"
+      ],
+      "skip_policy": "Each family checks its env var and required model.safetensors/tokenizer.json files before loading; missing inputs emit a SKIPPED outcome instead of panicking.",
+      "families": [
+        {
+          "family": "transformer",
+          "env_var": "HANDSHAKE_TEST_CANDLE_MODEL_DIR",
+          "coverage": ["load", "generate", "activation_capture", "zero_vector_identity", "lora_mount", "refusal_extract", "refusal_ablation"]
+        },
+        {
+          "family": "mamba2",
+          "env_var": "HANDSHAKE_TEST_MAMBA2_MODEL_DIR",
+          "coverage": ["load", "generate", "state_vector_commit_restore", "tamper_hash_rejection"]
+        },
+        {
+          "family": "rwkv_v5",
+          "env_var": "HANDSHAKE_TEST_RWKV_V5_MODEL_DIR",
+          "coverage": ["load", "generate", "state_vector_commit_restore", "tamper_hash_rejection"]
+        },
+        {
+          "family": "rwkv_v6",
+          "env_var": "HANDSHAKE_TEST_RWKV_V6_MODEL_DIR",
+          "coverage": ["load", "generate", "state_vector_commit_restore", "tamper_hash_rejection"]
+        },
+        {
+          "family": "rwkv_v7",
+          "env_var": "HANDSHAKE_TEST_RWKV_V7_MODEL_DIR",
+          "coverage": ["load", "generate", "state_vector_commit_restore", "tamper_hash_rejection"]
+        }
+      ]
+    },
+    {
+      "test_id": "llama_cpp_e2e_smoke",
+      "test_file": "tests/llama_cpp_e2e_smoke.rs",
+      "description": "ignored end-to-end llama.cpp runtime smoke test covering load, capabilities, generation, optional LoRA, KV quantization/prefix replay, ngram speculation, score, embed, flight-recorder events, and unload",
+      "run_command": "cargo test -p handshake_core --features llama-cpp-runtime-engine --target-dir ../Handshake_Artifacts/handshake-cargo-target --test llama_cpp_e2e_smoke llama_cpp_e2e_smoke -- --ignored --nocapture",
+      "required_env": [
+        "HANDSHAKE_TEST_GGUF_PATH"
+      ],
+      "optional_env": [
+        "HANDSHAKE_TEST_LORA_PATH",
+        "HANDSHAKE_TEST_LORA_BASE_TAG",
+        "HANDSHAKE_TEST_LORA_EXPECT_DIFFERENT"
+      ],
+      "skip_policy": "If HANDSHAKE_TEST_GGUF_PATH is absent, the ignored smoke test emits a SKIPPED outcome and returns success. If HANDSHAKE_TEST_LORA_PATH is absent, only the LoRA substep is skipped and the remaining smoke path still executes. If HANDSHAKE_TEST_LORA_EXPECT_DIFFERENT is present, the LoRA substep also requires a curated fixture that changes the deterministic token stream. If either path env var is present but invalid, the test fails loudly.",
+      "artifact_policy": "Use CARGO_TARGET_DIR or --target-dir under ../Handshake_Artifacts/handshake-cargo-target; do not write smoke-test artifacts into the repository.",
+      "coverage": [
+        "load",
+        "capabilities",
+        "generate",
+        "optional_lora_mount_override_unmount",
+        "kv_quantization_prefix_commit_restore_replay",
+        "ngram_speculative_generation",
+        "score",
+        "embed_or_embedding_capability_skip",
+        "flight_recorder_generation_and_spec_events",
+        "unload_absence_checks"
+      ]
+    }
+  ]
+}

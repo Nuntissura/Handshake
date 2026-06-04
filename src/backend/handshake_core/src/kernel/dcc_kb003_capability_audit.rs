@@ -29,7 +29,10 @@ pub enum CapabilityProvenanceV1 {
     /// Reference to a stored evidence artifact (manifest, screenshot, log).
     ArtifactRef { artifact_ref: String },
     /// Operator approval evidence (typically captured at policy-edit time).
-    OperatorApproval { operator_id: String, approval_id: String },
+    OperatorApproval {
+        operator_id: String,
+        approval_id: String,
+    },
     /// Denial id when the capability was denied.
     DenialRef { denial_id: String },
 }
@@ -106,7 +109,10 @@ impl DccKb003CapabilityAuditV1 {
         self.rows.iter().all(|r| r.is_well_formed())
     }
 
-    pub fn rows_for(&self, capability: SandboxCapability) -> impl Iterator<Item = &CapabilityAuditRowV1> {
+    pub fn rows_for(
+        &self,
+        capability: SandboxCapability,
+    ) -> impl Iterator<Item = &CapabilityAuditRowV1> {
         self.rows.iter().filter(move |r| r.capability == capability)
     }
 }
@@ -153,14 +159,18 @@ mod tests {
             SandboxCapability::SecretRead,
             CapabilityDecision::Deny,
             "POL-1@1",
-            vec![CapabilityProvenanceV1::ArtifactRef { artifact_ref: "ART-1".into() }],
+            vec![CapabilityProvenanceV1::ArtifactRef {
+                artifact_ref: "ART-1".into(),
+            }],
         );
         assert!(!bad.is_well_formed());
         let good = CapabilityAuditRowV1::new(
             SandboxCapability::SecretRead,
             CapabilityDecision::Deny,
             "POL-1@1",
-            vec![CapabilityProvenanceV1::DenialRef { denial_id: "DEN-1".into() }],
+            vec![CapabilityProvenanceV1::DenialRef {
+                denial_id: "DEN-1".into(),
+            }],
         );
         assert!(good.is_well_formed());
     }
@@ -174,7 +184,9 @@ mod tests {
             SandboxCapability::ProcessSpawn,
             CapabilityDecision::Allow(grant(SandboxCapability::ProcessSpawn, "")),
             "POL-1@1",
-            vec![CapabilityProvenanceV1::ArtifactRef { artifact_ref: "ART-1".into() }],
+            vec![CapabilityProvenanceV1::ArtifactRef {
+                artifact_ref: "ART-1".into(),
+            }],
         );
         assert!(!r.is_well_formed());
     }
@@ -188,13 +200,17 @@ mod tests {
                     SandboxCapability::Network,
                     CapabilityDecision::Allow(grant(SandboxCapability::Network, "ART-net-grant")),
                     "POL-1@1",
-                    vec![CapabilityProvenanceV1::ArtifactRef { artifact_ref: "ART-net-eval".into() }],
+                    vec![CapabilityProvenanceV1::ArtifactRef {
+                        artifact_ref: "ART-net-eval".into(),
+                    }],
                 ),
                 CapabilityAuditRowV1::new(
                     SandboxCapability::SecretRead,
                     CapabilityDecision::Deny,
                     "POL-1@1",
-                    vec![CapabilityProvenanceV1::DenialRef { denial_id: "DEN-2".into() }],
+                    vec![CapabilityProvenanceV1::DenialRef {
+                        denial_id: "DEN-2".into(),
+                    }],
                 ),
             ],
         );

@@ -27,9 +27,7 @@ pub struct NetworkCapabilityGate<'a> {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum NetworkDecision {
-    Allowed {
-        matched_grant: NetworkGrantV1,
-    },
+    Allowed { matched_grant: NetworkGrantV1 },
     Denied(SandboxDenialRecordV1),
 }
 
@@ -168,22 +166,24 @@ impl<'a> NetworkCapabilityGate<'a> {
             Some(g) => NetworkDecision::Allowed {
                 matched_grant: g.clone(),
             },
-            None => NetworkDecision::Denied(SandboxDenialRecordV1::new(
-                run.run_id.0.clone(),
-                run.policy_version_id.clone(),
-                DenialKind::PolicyDenied,
-                Some(SandboxCapability::Network),
-                format!("network reach `{}`", host),
-                if self.gate.grants.is_empty() {
-                    "no network grants in policy".to_string()
-                } else if self.gate.grants.iter().any(|g| {
-                    g.approval_ref.trim().is_empty() || g.provenance_ref.trim().is_empty()
-                }) {
-                    "matching grant missing approval_ref or provenance_ref".to_string()
-                } else {
-                    format!("host `{}` does not match any granted pattern", host)
-                },
-            )),
+            None => {
+                NetworkDecision::Denied(SandboxDenialRecordV1::new(
+                    run.run_id.0.clone(),
+                    run.policy_version_id.clone(),
+                    DenialKind::PolicyDenied,
+                    Some(SandboxCapability::Network),
+                    format!("network reach `{}`", host),
+                    if self.gate.grants.is_empty() {
+                        "no network grants in policy".to_string()
+                    } else if self.gate.grants.iter().any(|g| {
+                        g.approval_ref.trim().is_empty() || g.provenance_ref.trim().is_empty()
+                    }) {
+                        "matching grant missing approval_ref or provenance_ref".to_string()
+                    } else {
+                        format!("host `{}` does not match any granted pattern", host)
+                    },
+                ))
+            }
         }
     }
 
@@ -286,15 +286,12 @@ fn normalize_host_input(host: &str) -> Result<String, String> {
     if host.is_empty() {
         return Err("empty host".into());
     }
-    if host
-        .bytes()
-        .any(|b| matches!(b, 0x00..=0x1F | 0x7F))
-    {
+    if host.bytes().any(|b| matches!(b, 0x00..=0x1F | 0x7F)) {
         return Err("control character in host".into());
     }
     let nfkc: String = host.nfkc().collect();
-    let ascii = idna::domain_to_ascii(&nfkc)
-        .map_err(|e| format!("IDNA encoding failed: {:?}", e))?;
+    let ascii =
+        idna::domain_to_ascii(&nfkc).map_err(|e| format!("IDNA encoding failed: {:?}", e))?;
     validate_ascii_host_shape(&ascii)?;
     Ok(ascii.to_ascii_lowercase())
 }
@@ -304,14 +301,13 @@ fn normalize_host_pattern(pattern: &str) -> Result<String, String> {
     if pattern == "*" {
         return Ok(pattern.to_string());
     }
-    let (prefix, body, suffix) =
-        if let Some(rest) = pattern.strip_prefix("*.") {
-            ("*.", rest, "")
-        } else if let Some(rest) = pattern.strip_suffix(".*") {
-            ("", rest, ".*")
-        } else {
-            ("", pattern, "")
-        };
+    let (prefix, body, suffix) = if let Some(rest) = pattern.strip_prefix("*.") {
+        ("*.", rest, "")
+    } else if let Some(rest) = pattern.strip_suffix(".*") {
+        ("", rest, ".*")
+    } else {
+        ("", pattern, "")
+    };
     if body.is_empty() {
         return Err("empty host pattern body".into());
     }
@@ -338,10 +334,7 @@ fn validate_ascii_host_shape(host: &str) -> Result<(), String> {
         if label.len() > 63 {
             return Err(format!("label `{}` exceeds 63 octets", label));
         }
-        if !label
-            .chars()
-            .all(|c| c.is_ascii_alphanumeric() || c == '-')
-        {
+        if !label.chars().all(|c| c.is_ascii_alphanumeric() || c == '-') {
             return Err(format!("label `{}` has non-LDH characters", label));
         }
     }
@@ -376,19 +369,18 @@ mod tests {
     #[test]
     fn allowed_capability_but_no_grant_still_denies() {
         let mut core = SandboxPolicyV1::default_deny("baseline");
-        core.overrides
-            .push((
-                SandboxCapability::Network,
-                CapabilityDecision::Allow(crate::kernel::sandbox::policy::CapabilityGrant {
-                    capability: SandboxCapability::Network,
-                    evidence_ref: crate::kernel::sandbox::policy::CapabilityEvidenceRef::new(
-                        "ART-net-test",
-                    ),
-                    approval_ref: Some(crate::kernel::sandbox::policy::OperatorApprovalRef::new(
-                        "APR-net-test",
-                    )),
-                }),
-            ));
+        core.overrides.push((
+            SandboxCapability::Network,
+            CapabilityDecision::Allow(crate::kernel::sandbox::policy::CapabilityGrant {
+                capability: SandboxCapability::Network,
+                evidence_ref: crate::kernel::sandbox::policy::CapabilityEvidenceRef::new(
+                    "ART-net-test",
+                ),
+                approval_ref: Some(crate::kernel::sandbox::policy::OperatorApprovalRef::new(
+                    "APR-net-test",
+                )),
+            }),
+        ));
         let gate = NetworkGateV1::default();
         let g = NetworkCapabilityGate::new(&core, &gate);
         match g.check_host(&run(), "api.example.com") {
@@ -402,19 +394,18 @@ mod tests {
     #[test]
     fn grant_without_refs_is_treated_as_missing() {
         let mut core = SandboxPolicyV1::default_deny("baseline");
-        core.overrides
-            .push((
-                SandboxCapability::Network,
-                CapabilityDecision::Allow(crate::kernel::sandbox::policy::CapabilityGrant {
-                    capability: SandboxCapability::Network,
-                    evidence_ref: crate::kernel::sandbox::policy::CapabilityEvidenceRef::new(
-                        "ART-net-test",
-                    ),
-                    approval_ref: Some(crate::kernel::sandbox::policy::OperatorApprovalRef::new(
-                        "APR-net-test",
-                    )),
-                }),
-            ));
+        core.overrides.push((
+            SandboxCapability::Network,
+            CapabilityDecision::Allow(crate::kernel::sandbox::policy::CapabilityGrant {
+                capability: SandboxCapability::Network,
+                evidence_ref: crate::kernel::sandbox::policy::CapabilityEvidenceRef::new(
+                    "ART-net-test",
+                ),
+                approval_ref: Some(crate::kernel::sandbox::policy::OperatorApprovalRef::new(
+                    "APR-net-test",
+                )),
+            }),
+        ));
         let mut gate = NetworkGateV1::default();
         gate.grants.push(NetworkGrantV1 {
             host_pattern: "api.example.com".into(),
@@ -433,19 +424,18 @@ mod tests {
     #[test]
     fn full_grant_allows_matching_host() {
         let mut core = SandboxPolicyV1::default_deny("baseline");
-        core.overrides
-            .push((
-                SandboxCapability::Network,
-                CapabilityDecision::Allow(crate::kernel::sandbox::policy::CapabilityGrant {
-                    capability: SandboxCapability::Network,
-                    evidence_ref: crate::kernel::sandbox::policy::CapabilityEvidenceRef::new(
-                        "ART-net-test",
-                    ),
-                    approval_ref: Some(crate::kernel::sandbox::policy::OperatorApprovalRef::new(
-                        "APR-net-test",
-                    )),
-                }),
-            ));
+        core.overrides.push((
+            SandboxCapability::Network,
+            CapabilityDecision::Allow(crate::kernel::sandbox::policy::CapabilityGrant {
+                capability: SandboxCapability::Network,
+                evidence_ref: crate::kernel::sandbox::policy::CapabilityEvidenceRef::new(
+                    "ART-net-test",
+                ),
+                approval_ref: Some(crate::kernel::sandbox::policy::OperatorApprovalRef::new(
+                    "APR-net-test",
+                )),
+            }),
+        ));
         let mut gate = NetworkGateV1::default();
         gate.grants.push(NetworkGrantV1 {
             host_pattern: "*.example.com".into(),
@@ -466,19 +456,18 @@ mod tests {
     #[test]
     fn unmatched_host_denies_even_with_grants() {
         let mut core = SandboxPolicyV1::default_deny("baseline");
-        core.overrides
-            .push((
-                SandboxCapability::Network,
-                CapabilityDecision::Allow(crate::kernel::sandbox::policy::CapabilityGrant {
-                    capability: SandboxCapability::Network,
-                    evidence_ref: crate::kernel::sandbox::policy::CapabilityEvidenceRef::new(
-                        "ART-net-test",
-                    ),
-                    approval_ref: Some(crate::kernel::sandbox::policy::OperatorApprovalRef::new(
-                        "APR-net-test",
-                    )),
-                }),
-            ));
+        core.overrides.push((
+            SandboxCapability::Network,
+            CapabilityDecision::Allow(crate::kernel::sandbox::policy::CapabilityGrant {
+                capability: SandboxCapability::Network,
+                evidence_ref: crate::kernel::sandbox::policy::CapabilityEvidenceRef::new(
+                    "ART-net-test",
+                ),
+                approval_ref: Some(crate::kernel::sandbox::policy::OperatorApprovalRef::new(
+                    "APR-net-test",
+                )),
+            }),
+        ));
         let mut gate = NetworkGateV1::default();
         gate.grants.push(NetworkGrantV1 {
             host_pattern: "*.example.com".into(),
@@ -497,10 +486,16 @@ mod tests {
     #[test]
     fn wildcard_grant_without_approval_refused() {
         let err = NetworkGrant::build("*", None, Some("PRV-1".into()), false).unwrap_err();
-        assert_eq!(err, NetworkGrantBuildError::WildcardRequiresOperatorApproval);
+        assert_eq!(
+            err,
+            NetworkGrantBuildError::WildcardRequiresOperatorApproval
+        );
         let err2 =
             NetworkGrant::build("*", Some("".into()), Some("PRV-1".into()), false).unwrap_err();
-        assert_eq!(err2, NetworkGrantBuildError::WildcardRequiresOperatorApproval);
+        assert_eq!(
+            err2,
+            NetworkGrantBuildError::WildcardRequiresOperatorApproval
+        );
         // With approval_ref present, wildcard is allowed.
         let ok =
             NetworkGrant::build("*", Some("APR-OP-1".into()), Some("PRV-1".into()), false).unwrap();
@@ -514,19 +509,18 @@ mod tests {
         // ASCII "example.com" must therefore NOT match the homograph host —
         // they canonicalise to different ASCII forms, which is the whole point.
         let mut core = SandboxPolicyV1::default_deny("baseline");
-        core.overrides
-            .push((
-                SandboxCapability::Network,
-                CapabilityDecision::Allow(crate::kernel::sandbox::policy::CapabilityGrant {
-                    capability: SandboxCapability::Network,
-                    evidence_ref: crate::kernel::sandbox::policy::CapabilityEvidenceRef::new(
-                        "ART-net-test",
-                    ),
-                    approval_ref: Some(crate::kernel::sandbox::policy::OperatorApprovalRef::new(
-                        "APR-net-test",
-                    )),
-                }),
-            ));
+        core.overrides.push((
+            SandboxCapability::Network,
+            CapabilityDecision::Allow(crate::kernel::sandbox::policy::CapabilityGrant {
+                capability: SandboxCapability::Network,
+                evidence_ref: crate::kernel::sandbox::policy::CapabilityEvidenceRef::new(
+                    "ART-net-test",
+                ),
+                approval_ref: Some(crate::kernel::sandbox::policy::OperatorApprovalRef::new(
+                    "APR-net-test",
+                )),
+            }),
+        ));
         let mut gate = NetworkGateV1::default();
         gate.grants.push(NetworkGrantV1 {
             host_pattern: "example.com".into(),
@@ -556,19 +550,18 @@ mod tests {
     #[test]
     fn host_with_newline_rejected() {
         let mut core = SandboxPolicyV1::default_deny("baseline");
-        core.overrides
-            .push((
-                SandboxCapability::Network,
-                CapabilityDecision::Allow(crate::kernel::sandbox::policy::CapabilityGrant {
-                    capability: SandboxCapability::Network,
-                    evidence_ref: crate::kernel::sandbox::policy::CapabilityEvidenceRef::new(
-                        "ART-net-test",
-                    ),
-                    approval_ref: Some(crate::kernel::sandbox::policy::OperatorApprovalRef::new(
-                        "APR-net-test",
-                    )),
-                }),
-            ));
+        core.overrides.push((
+            SandboxCapability::Network,
+            CapabilityDecision::Allow(crate::kernel::sandbox::policy::CapabilityGrant {
+                capability: SandboxCapability::Network,
+                evidence_ref: crate::kernel::sandbox::policy::CapabilityEvidenceRef::new(
+                    "ART-net-test",
+                ),
+                approval_ref: Some(crate::kernel::sandbox::policy::OperatorApprovalRef::new(
+                    "APR-net-test",
+                )),
+            }),
+        ));
         let mut gate = NetworkGateV1::default();
         gate.grants.push(NetworkGrantV1 {
             host_pattern: "*".into(),
@@ -591,19 +584,18 @@ mod tests {
     #[test]
     fn apex_excluded_when_flag_set() {
         let mut core = SandboxPolicyV1::default_deny("baseline");
-        core.overrides
-            .push((
-                SandboxCapability::Network,
-                CapabilityDecision::Allow(crate::kernel::sandbox::policy::CapabilityGrant {
-                    capability: SandboxCapability::Network,
-                    evidence_ref: crate::kernel::sandbox::policy::CapabilityEvidenceRef::new(
-                        "ART-net-test",
-                    ),
-                    approval_ref: Some(crate::kernel::sandbox::policy::OperatorApprovalRef::new(
-                        "APR-net-test",
-                    )),
-                }),
-            ));
+        core.overrides.push((
+            SandboxCapability::Network,
+            CapabilityDecision::Allow(crate::kernel::sandbox::policy::CapabilityGrant {
+                capability: SandboxCapability::Network,
+                evidence_ref: crate::kernel::sandbox::policy::CapabilityEvidenceRef::new(
+                    "ART-net-test",
+                ),
+                approval_ref: Some(crate::kernel::sandbox::policy::OperatorApprovalRef::new(
+                    "APR-net-test",
+                )),
+            }),
+        ));
         let gate_v1 = NetworkGateV1::default();
         let g = NetworkCapabilityGate::new(&core, &gate_v1);
         let strict = vec![NetworkGrant::build(

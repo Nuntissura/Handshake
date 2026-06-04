@@ -27,6 +27,50 @@ fn kernel_action_catalog_has_required_model_facing_actions() {
 }
 
 #[test]
+fn editable_surface_actions_are_registered_with_expected_write_boxes() {
+    let catalog = kernel002_action_catalog();
+    validate_kernel_action_catalog(&catalog).expect("catalog must validate");
+
+    let model_manual = catalog
+        .action("kernel.model_manual.update_section")
+        .expect("model manual update action must be registered");
+    assert_eq!(
+        model_manual.authority_effect,
+        AuthorityEffect::PrePromotionEvidenceOnly
+    );
+    assert_eq!(
+        model_manual.approval_posture,
+        ApprovalPosture::RequiresPromotionGate
+    );
+    assert!(
+        model_manual.expected_write_boxes.iter().any(|write_box| {
+            write_box.write_box_schema_id == "hsk.write_box.model_manual_section@1"
+                && write_box.target_id == "manual_section"
+        }),
+        "model manual action must declare the ModelManual write-box schema"
+    );
+
+    let policy = catalog
+        .action("kernel.memory_capsule.policy_table_update")
+        .expect("memory capsule policy table update action must be registered");
+    assert_eq!(
+        policy.authority_effect,
+        AuthorityEffect::PrePromotionEvidenceOnly
+    );
+    assert_eq!(
+        policy.approval_posture,
+        ApprovalPosture::RequiresPromotionGate
+    );
+    assert!(
+        policy.expected_write_boxes.iter().any(|write_box| {
+            write_box.write_box_schema_id == "hsk.write_box.memory_capsule_policy_update@1"
+                && write_box.target_id == "memory_capsule_policy"
+        }),
+        "retrieval policy action must declare the MemoryCapsule policy write-box schema"
+    );
+}
+
+#[test]
 fn every_catalog_action_has_stable_contract_and_dcc_metadata() {
     let catalog = kernel002_action_catalog();
     let mut seen = HashSet::new();

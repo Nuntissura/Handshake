@@ -157,12 +157,7 @@ mod tests {
     }
 
     fn input(pairs: &[(&'static str, &str)]) -> MapInput {
-        MapInput(
-            pairs
-                .iter()
-                .map(|(k, v)| (*k, (*v).to_string()))
-                .collect(),
-        )
+        MapInput(pairs.iter().map(|(k, v)| (*k, (*v).to_string())).collect())
     }
 
     #[test]

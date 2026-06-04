@@ -46,13 +46,19 @@ pub struct DropBackPolicyV1 {
 
 impl DropBackPolicyV1 {
     pub const fn never() -> Self {
-        Self { mode: DropBackMode::Never }
+        Self {
+            mode: DropBackMode::Never,
+        }
     }
     pub const fn always() -> Self {
-        Self { mode: DropBackMode::Always }
+        Self {
+            mode: DropBackMode::Always,
+        }
     }
     pub const fn smart() -> Self {
-        Self { mode: DropBackMode::Smart }
+        Self {
+            mode: DropBackMode::Smart,
+        }
     }
 
     /// Decide whether to rollback given the failure reason. Pure function;
@@ -63,7 +69,9 @@ impl DropBackPolicyV1 {
             DropBackMode::Always => DropBackDecision::Rollback,
             DropBackMode::Smart => match reason.disposition() {
                 // Recoverable disposition → rollback; user can retry cleanly.
-                BlockedDisposition::Retry | BlockedDisposition::Escalate => DropBackDecision::Rollback,
+                BlockedDisposition::Retry | BlockedDisposition::Escalate => {
+                    DropBackDecision::Rollback
+                }
                 // Hard gate → preserve so operator can inspect partial state.
                 BlockedDisposition::Gate => DropBackDecision::Preserve,
             },
@@ -110,7 +118,9 @@ mod tests {
         }
     }
     fn escalate_reason() -> BlockedReason {
-        BlockedReason::MissingApproval { missing_field: "operator_id".into() }
+        BlockedReason::MissingApproval {
+            missing_field: "operator_id".into(),
+        }
     }
 
     #[test]

@@ -22,9 +22,7 @@ use serde_json::json;
 use uuid::Uuid;
 
 use crate::kernel::context_bundle::{canonical_json_bytes, sha256_hex};
-use crate::kernel::kb003_artifact_classes::{
-    metadata_for, HashPolicy, Kb003ArtifactClass,
-};
+use crate::kernel::kb003_artifact_classes::{metadata_for, HashPolicy, Kb003ArtifactClass};
 use crate::kernel::kb003_schemas::SCHEMA_KERNEL_PROMOTION_RECEIPT_V1;
 
 use super::decision::{PromotionDecisionV1, PromotionOutcome};
@@ -102,7 +100,13 @@ impl PromotionReceiptV1 {
         artifact_refs: Vec<String>,
         storage_error_detail: Option<String>,
     ) -> Self {
-        let mut receipt = Self::new(decision, idempotency_key, bundle_id, bundle_sha256, artifact_refs);
+        let mut receipt = Self::new(
+            decision,
+            idempotency_key,
+            bundle_id,
+            bundle_sha256,
+            artifact_refs,
+        );
         receipt.storage_error_detail = storage_error_detail;
         receipt
     }
@@ -179,7 +183,10 @@ mod tests {
     // MT-042/043 acceptance: receipt hash policy is CanonicalJsonSha256.
     #[test]
     fn hash_policy_matches_class_table() {
-        assert_eq!(PromotionReceiptV1::hash_policy(), HashPolicy::CanonicalJsonSha256);
+        assert_eq!(
+            PromotionReceiptV1::hash_policy(),
+            HashPolicy::CanonicalJsonSha256
+        );
     }
 
     // Equivalent receipts hash to the same payload_hash even though
@@ -212,7 +219,10 @@ mod tests {
     fn fresh_decisions_with_same_inputs_hash_identically() {
         let d1 = PromotionDecisionV1::accepted("SBX-x", "VR-x");
         let d2 = PromotionDecisionV1::accepted("SBX-x", "VR-x");
-        assert_ne!(d1.decision_id, d2.decision_id, "decision_id is ephemeral UUID");
+        assert_ne!(
+            d1.decision_id, d2.decision_id,
+            "decision_id is ephemeral UUID"
+        );
         let r1 = PromotionReceiptV1::new(
             d1,
             "IK-test",

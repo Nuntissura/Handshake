@@ -42,17 +42,19 @@ pub struct ValidationRun {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ValidationRunError {
-    InvalidTransition { from: ValidationRunStatus, to: ValidationRunStatus },
+    InvalidTransition {
+        from: ValidationRunStatus,
+        to: ValidationRunStatus,
+    },
     EmptyField(&'static str),
 }
 
 impl std::fmt::Display for ValidationRunError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::InvalidTransition { from, to } => write!(
-                f,
-                "invalid ValidationRun transition: {from:?} -> {to:?}"
-            ),
+            Self::InvalidTransition { from, to } => {
+                write!(f, "invalid ValidationRun transition: {from:?} -> {to:?}")
+            }
             Self::EmptyField(name) => write!(f, "ValidationRun.{name} must not be empty"),
         }
     }
@@ -221,7 +223,10 @@ mod tests {
         let first = ValidationRun::new("cand-A", "sess-1", "task-1").unwrap();
         let replay = ValidationRun::replay_of(&first, "sess-2", "task-2").unwrap();
         assert_eq!(replay.original_run_id, Some(first.run_id));
-        assert_ne!(replay.run_id, first.run_id, "replay must mint a fresh run_id");
+        assert_ne!(
+            replay.run_id, first.run_id,
+            "replay must mint a fresh run_id"
+        );
         assert!(replay.is_replay());
         // Replay copies candidate, accepts fresh session/task.
         assert_eq!(replay.candidate_id, "cand-A");

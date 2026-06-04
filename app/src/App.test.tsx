@@ -293,7 +293,13 @@ vi.mock("./lib/api", () => ({
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import App from "./App";
 import { FlightRecorderView } from "./components/FlightRecorderView";
-import { createDiagnostic, getEvents, getKernelDccProjection, type FlightEvent } from "./lib/api";
+import {
+  createDiagnostic,
+  getEvents,
+  getKernelDccProjection,
+  listWorkspaces,
+  type FlightEvent,
+} from "./lib/api";
 
 it("renders desktop shell header and shows coordinator status", () => {
   render(<App />);
@@ -302,13 +308,109 @@ it("renders desktop shell header and shows coordinator status", () => {
   expect(screen.getByTestId("system-status")).toBeInTheDocument();
 });
 
-it("loads the backend Kernel DCC projection when opened", async () => {
+it("renders main window shell and stable layout hooks", () => {
+  render(<App />);
+
+  const mainWindow = screen.getByTestId("main-window");
+
+  expect(mainWindow).toHaveAttribute("data-stable-layout", "main-window-v1");
+  expect(mainWindow).toHaveAttribute("data-stable-id", "main-window");
+  expect(mainWindow).toHaveAttribute("data-project-drawer-open", "true");
+  expect(mainWindow).toHaveAttribute("data-file-drawer-open", "true");
+  expect(mainWindow).toHaveAttribute("data-bottom-drawer-open", "true");
+  expect(screen.getByTestId("module-rail")).toBeInTheDocument();
+  expect(screen.getByTestId("file-drawer")).toBeInTheDocument();
+  expect(screen.getByTestId("pane-grid")).toBeInTheDocument();
+});
+
+it("switches active project by project tab", async () => {
+  vi.mocked(listWorkspaces).mockResolvedValueOnce([
+    { id: "project-main", name: "Project Main", created_at: "2025-01-01T00:00:00Z", updated_at: "2025-01-01T00:00:00Z" },
+    { id: "project-aux", name: "Project Aux", created_at: "2025-01-01T00:00:00Z", updated_at: "2025-01-01T00:00:00Z" },
+  ]);
+
+  render(<App />);
+  const mainWindow = screen.getByTestId("main-window");
+
+  fireEvent.click(await screen.findByTestId("project-project-aux"));
+  expect(mainWindow).toHaveAttribute("data-active-project-id", "project-aux");
+});
+
+it("switches module context and keeps pane context wired", async () => {
+  render(<App />);
+
+  const mainWindow = screen.getByTestId("main-window");
+  fireEvent.click(screen.getByTestId("module-ckc"));
+  expect(mainWindow).toHaveAttribute("data-active-module", "CKC");
+
+  expect(screen.getByTestId("pane-pane-a").getAttribute("data-pane-type")).toBe("kernel-dcc");
+});
+
+it("switches pane-local tabs within one pane", async () => {
+  render(<App />);
+
+  const jobsTab = await screen.findByTestId("pane-pane-a.tab.jobs");
+  fireEvent.click(jobsTab);
+
+  expect(jobsTab).toHaveClass("main-pane__tab--active");
+});
+
+it("updates split weights from splitters", async () => {
+  render(<App />);
+
+  const mainWindow = screen.getByTestId("main-window");
+  const paneGrid = screen.getByTestId("pane-grid");
+  const getBoundingClientRectSpy = vi.spyOn(paneGrid, "getBoundingClientRect").mockReturnValue({
+    width: 1200,
+    height: 900,
+    top: 0,
+    left: 0,
+    right: 1200,
+    bottom: 900,
+    x: 0,
+    y: 0,
+    toJSON: () => ({}),
+  } as DOMRect);
+
+  try {
+    const splitter = screen.getByTestId("main-window-splitter-vertical");
+    fireEvent.pointerDown(splitter, { clientX: 600, clientY: 0, pointerId: 9 });
+    fireEvent.pointerMove(window.document, { clientX: 700, clientY: 0, pointerId: 9 });
+    fireEvent.pointerUp(window.document, { clientX: 700, clientY: 0, pointerId: 9 });
+
+    const pointerChanged = mainWindow.getAttribute("data-split-weights");
+    expect(pointerChanged).not.toEqual("0.500,0.550");
+
+    fireEvent.keyDown(splitter, { key: "ArrowLeft" });
+    await waitFor(() => expect(mainWindow).not.toHaveAttribute("data-split-weights", pointerChanged ?? ""));
+  } finally {
+    getBoundingClientRectSpy.mockRestore();
+  }
+});
+
+it("toggles bottom drawer state in DOM attributes", () => {
+  render(<App />);
+
+  const mainWindow = screen.getByTestId("main-window");
+  const bottomToggle = screen.getByTestId("bottom-drawer.toggle");
+
+  fireEvent.click(bottomToggle);
+  expect(mainWindow).toHaveAttribute("data-bottom-drawer-open", "false");
+  expect(screen.queryByTestId("search-status-region")).not.toBeInTheDocument();
+
+  fireEvent.click(bottomToggle);
+  expect(mainWindow).toHaveAttribute("data-bottom-drawer-open", "true");
+  expect(screen.getByTestId("search-status-region")).toBeInTheDocument();
+});
+
+it("loads the backend Kernel DCC projection when module pane is set to CKC", async () => {
   vi.mocked(getKernelDccProjection).mockClear();
 
   render(<App />);
 
-  fireEvent.click(screen.getByRole("button", { name: /Kernel DCC/i }));
+  fireEvent.click(screen.getByTestId("module-ckc"));
 
+  expect(screen.getByTestId("main-window")).toHaveAttribute("data-active-module", "CKC");
   expect((await screen.findAllByText("work-app-backend-123")).length).toBeGreaterThan(0);
   expect(screen.getByText("panel-app-backend-test")).toBeInTheDocument();
   expect(screen.getAllByText("wb-app-backend").length).toBeGreaterThan(0);

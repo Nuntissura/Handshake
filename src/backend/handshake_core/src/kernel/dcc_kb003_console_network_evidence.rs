@@ -68,7 +68,12 @@ pub struct NetworkExchangeV1 {
 }
 
 impl NetworkExchangeV1 {
-    pub fn success(method: impl Into<String>, url: impl Into<String>, status_code: u16, duration_ms: u64) -> Self {
+    pub fn success(
+        method: impl Into<String>,
+        url: impl Into<String>,
+        status_code: u16,
+        duration_ms: u64,
+    ) -> Self {
         Self {
             method: method.into(),
             url: url.into(),
@@ -79,7 +84,12 @@ impl NetworkExchangeV1 {
             error_detail: None,
         }
     }
-    pub fn http_error(method: impl Into<String>, url: impl Into<String>, status_code: u16, duration_ms: u64) -> Self {
+    pub fn http_error(
+        method: impl Into<String>,
+        url: impl Into<String>,
+        status_code: u16,
+        duration_ms: u64,
+    ) -> Self {
         Self {
             method: method.into(),
             url: url.into(),
@@ -90,7 +100,11 @@ impl NetworkExchangeV1 {
             error_detail: None,
         }
     }
-    pub fn blocked(method: impl Into<String>, url: impl Into<String>, detail: impl Into<String>) -> Self {
+    pub fn blocked(
+        method: impl Into<String>,
+        url: impl Into<String>,
+        detail: impl Into<String>,
+    ) -> Self {
         Self {
             method: method.into(),
             url: url.into(),
@@ -138,8 +152,16 @@ impl Kb003ConsoleNetworkEvidenceV1 {
         let no = network.len();
         let console_trunc = co > console_cap;
         let net_trunc = no > network_cap;
-        let console = if console_trunc { console.into_iter().take(console_cap).collect() } else { console };
-        let network = if net_trunc { network.into_iter().take(network_cap).collect() } else { network };
+        let console = if console_trunc {
+            console.into_iter().take(console_cap).collect()
+        } else {
+            console
+        };
+        let network = if net_trunc {
+            network.into_iter().take(network_cap).collect()
+        } else {
+            network
+        };
         Self {
             schema_version: Self::SCHEMA_VERSION.to_string(),
             sandbox_run_id: sandbox_run_id.into(),
@@ -174,7 +196,10 @@ mod tests {
     fn failure_evidence_detected_from_console_error() {
         let ev = Kb003ConsoleNetworkEvidenceV1::new(
             "SBX-1",
-            vec![ConsoleEntryV1::new(ConsoleLevel::Error, "uncaught TypeError")],
+            vec![ConsoleEntryV1::new(
+                ConsoleLevel::Error,
+                "uncaught TypeError",
+            )],
             vec![],
             100,
             100,

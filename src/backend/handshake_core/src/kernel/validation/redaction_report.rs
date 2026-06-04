@@ -9,9 +9,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::kernel::kb003_artifact_classes::{
-    Kb003ArtifactClass, metadata_for,
-};
+use crate::kernel::kb003_artifact_classes::{metadata_for, Kb003ArtifactClass};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RedactionEntry {
@@ -85,9 +83,15 @@ mod tests {
     fn default_export_is_redacted_and_lists_denied_artifacts() {
         let candidates = vec![
             ("art://log/1".to_string(), Kb003ArtifactClass::SandboxLog),
-            ("art://shot/1".to_string(), Kb003ArtifactClass::SandboxScreenshot),
+            (
+                "art://shot/1".to_string(),
+                Kb003ArtifactClass::SandboxScreenshot,
+            ),
             ("art://red/1".to_string(), Kb003ArtifactClass::RedactionNote),
-            ("art://report/1".to_string(), Kb003ArtifactClass::ValidationReport),
+            (
+                "art://report/1".to_string(),
+                Kb003ArtifactClass::ValidationReport,
+            ),
         ];
         let (exported, redacted) = RedactionReport::partition_default_policy(&candidates);
         // Logs and reports exportable by default; screenshots and redaction
@@ -101,7 +105,11 @@ mod tests {
         let report = RedactionReport::new(redacted);
         assert_eq!(report.artifact_class, Kb003ArtifactClass::RedactionNote);
         // Denied artifacts are listed.
-        let redacted_refs: Vec<&str> = report.entries.iter().map(|e| e.artifact_ref.as_str()).collect();
+        let redacted_refs: Vec<&str> = report
+            .entries
+            .iter()
+            .map(|e| e.artifact_ref.as_str())
+            .collect();
         assert!(redacted_refs.contains(&"art://shot/1"));
         assert!(redacted_refs.contains(&"art://red/1"));
         assert_eq!(report.entries.len(), 2);
