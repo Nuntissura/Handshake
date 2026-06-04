@@ -15,7 +15,7 @@ const CHECK_SCRIPT = fileURLToPath(new URL("./hbr-man-003-scan.mjs", import.meta
 const GOV_ROOT = path.resolve(path.dirname(CHECK_SCRIPT), "../..");
 const REPO_ROOT = path.resolve(GOV_ROOT, "..");
 const ARTIFACT_ROOT = path.resolve(
-  process.env.HANDSHAKE_ARTIFACT_ROOT || path.join(REPO_ROOT, "..", "..", "Handshake_Artifacts"),
+  process.env.HANDSHAKE_ARTIFACT_ROOT || path.join(REPO_ROOT, "..", "Handshake_Artifacts"),
 );
 const TEST_ARTIFACT_ROOT = path.join(ARTIFACT_ROOT, "hbr-man-003-scan-tests");
 

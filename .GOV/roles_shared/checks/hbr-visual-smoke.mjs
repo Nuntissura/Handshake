@@ -43,7 +43,7 @@ function scriptRepoRoot() {
 function artifactRoot(repoRoot) {
   return process.env.HANDSHAKE_ARTIFACT_ROOT
     ? path.resolve(process.env.HANDSHAKE_ARTIFACT_ROOT)
-    : path.resolve(repoRoot, "..", "..", "Handshake_Artifacts");
+    : path.resolve(repoRoot, "..", "Handshake_Artifacts");
 }
 
 function timestampSlug(date = new Date()) {
