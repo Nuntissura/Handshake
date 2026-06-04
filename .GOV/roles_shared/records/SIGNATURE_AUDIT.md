@@ -23,6 +23,7 @@
 
 | Signature | Used By | Date/Time | Purpose | Master Spec Version | Notes |
 |-----------|---------|-----------|---------|-------------------|-------|
+| ilja040620261643 | Orchestrator | 2026-06-04 16:43 | Work packet creation: WP-KERNEL-005 | v02.189 | Approved after Technical Refinement (see .GOV/task_packets/WP-KERNEL-005/refinement.md ). |
 | ilja150520260208 | Orchestrator | 2026-05-15 02:08 | Work packet creation: WP-KERNEL-003-Sandbox-Validation-Promotion-v1 | v02.185 | Approved after Technical Refinement (see .GOV/refinements/WP-KERNEL-003-Sandbox-Validation-Promotion-v1.md ). |
 | ilja140520260455 | Orchestrator | 2026-05-14 04:55 | Work packet creation: WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1 | v02.185 | Approved after Technical Refinement (see .GOV/refinements/WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1.md ). |
 | ilja140520260015 | Orchestrator | 2026-05-14 00:15 | Work packet creation: WP-KERNEL-001-Event-Ledger-Session-Broker-v1 | v02.184 | Approved after Technical Refinement (see .GOV/task_packets/WP-KERNEL-001-Event-Ledger-Session-Broker-v1/refinement.md ). |

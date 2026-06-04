@@ -4,7 +4,7 @@
   "authority_surface": "MACHINE_CONTRACT",
   "rendered_md_projection_path": ".GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md",
   "rendered_md_projection_policy": "GENERATED_FROM_JSON_DO_NOT_HAND_EDIT",
-  "updated_at_utc": "2026-06-04T03:13:28.706Z",
+  "updated_at_utc": "2026-06-04T17:08:24.562Z",
   "entries": [
     {
       "base_wp_id": "WP-1-ACE-Auditability",
@@ -995,6 +995,12 @@
       "active_packet_path": ".GOV/task_packets/stubs/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1.contract.json",
       "task_board_projection": "Stub Backlog (Not Activated): WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
       "notes": "PRIMARY_MACHINE_READABLE_STUB; no .md sibling; preserves operator-requested kernel build 0007 intent without colliding with existing WP-KERNEL-007"
+    },
+    {
+      "base_wp_id": "WP-KERNEL-005",
+      "active_packet_path": ".GOV/task_packets/WP-KERNEL-005/packet.md",
+      "task_board_projection": "TBD",
+      "notes": ""
     }
   ],
   "superseded_activation_history": [

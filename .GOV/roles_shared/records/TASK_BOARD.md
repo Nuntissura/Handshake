@@ -72,6 +72,7 @@ Entry format (recommended):
 ## Ready for Dev
 
 A WP is only Ready for Dev if its Active Packet (per `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md`) is an official packet under `.GOV/task_packets/` (not a stub).
+- **[WP-KERNEL-005]** - [READY_FOR_DEV]
 
 
 
@@ -130,9 +131,6 @@ Note: This section is an **inventory list**, not a priority order. Do not infer 
 - **[WP-1-MTE-LoRA-Wiring-v1]** - [STUB]
 - **[WP-1-AI-UX-Rewrite-v2]** - [STUB]
 - **[WP-1-PDF-Pipeline-v2]** - [STUB]
-- **[WP-1-Atelier-Lens-CKC-Core-Data-Intake-v1]** - [STUB]
-- **[WP-1-Atelier-Lens-CKC-Pose-ComfyUI-Pipeline-v1]** - [STUB]
-- **[WP-1-Atelier-Lens-CKC-Model-Workflow-Diagnostics-v1]** - [STUB]
 - **[WP-1-Studio-Runtime-Visibility-v1]** - [STUB]
 - **[WP-1-Calendar-Lens-v3]** - [STUB]
 - **[WP-1-Calendar-Policy-Integration-v1]** - [STUB]
@@ -1237,6 +1235,9 @@ Entry format for this section:
 ---
 
 ## Superseded (Archive)
+- **[WP-1-Atelier-Lens-CKC-Core-Data-Intake-v1]** - [SUPERSEDED]
+- **[WP-1-Atelier-Lens-CKC-Pose-ComfyUI-Pipeline-v1]** - [SUPERSEDED]
+- **[WP-1-Atelier-Lens-CKC-Model-Workflow-Diagnostics-v1]** - [SUPERSEDED]
 - **[WP-1-Postgres-Control-Plane-Shift-Bundle-v1]** - [SUPERSEDED]
 - **[WP-1-Media-Downloader-v1]** - [SUPERSEDED]
 - **[WP-1-AppState-Refactoring]** - [SUPERSEDED]

@@ -241,6 +241,7 @@ Format:
 | WP-KERNEL-007-Principal-Visitor-Pass-MCP-Gate | .GOV/task_packets/stubs/WP-KERNEL-007-Principal-Visitor-Pass-MCP-Gate-v1.contract.json | Stub Backlog (Not Activated): WP-KERNEL-007-Principal-Visitor-Pass-MCP-Gate-v1 | PRIMARY_MACHINE_READABLE_STUB; no .md sibling (contract is authority surface) |
 | WP-KERNEL-008-Principal-Profile-CRM-Layer | .GOV/task_packets/stubs/WP-KERNEL-008-Principal-Profile-CRM-Layer-v1.contract.json | Stub Backlog (Not Activated): WP-KERNEL-008-Principal-Profile-CRM-Layer-v1 | PRIMARY_MACHINE_READABLE_STUB; no .md sibling (contract is authority surface) |
 | WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor | .GOV/task_packets/stubs/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1.contract.json | Stub Backlog (Not Activated): WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1 | PRIMARY_MACHINE_READABLE_STUB; no .md sibling; preserves operator-requested kernel build 0007 intent without colliding with existing WP-KERNEL-007 |
+| WP-KERNEL-005 | .GOV/task_packets/WP-KERNEL-005/packet.md | TBD |  |
 
 ## Superseded Activation History
 
