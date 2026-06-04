@@ -14,13 +14,20 @@ use thiserror::Error;
 
 pub mod annotation;
 pub mod collections;
+pub mod comfy;
+pub mod command_corpus;
 pub mod core;
+pub mod downloader;
 pub mod exports;
 pub mod intake;
 pub mod media;
+pub mod pose;
 pub mod search;
 pub mod settings;
 pub mod sheet;
+pub mod sourcing;
+pub mod stealth_window;
+pub mod transcript;
 
 pub use self::core::{Character, NewCharacter};
 pub use self::media::{MediaAsset, NewMediaAsset};
@@ -126,6 +133,11 @@ impl AtelierStore {
         sqlx::raw_sql(include_str!("../../migrations/0031_atelier_core_data.sql"))
             .execute(&mut *tx)
             .await?;
+        sqlx::raw_sql(include_str!(
+            "../../migrations/0032_atelier_pose_diagnostics.sql"
+        ))
+        .execute(&mut *tx)
+        .await?;
         tx.commit().await?;
         Ok(())
     }
