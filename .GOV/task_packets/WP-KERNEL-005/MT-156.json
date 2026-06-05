@@ -22,19 +22,22 @@
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": null,
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KB-KERNEL-005-CLOSEOUT",
     "review_request_receipt_id": null,
     "review_response_receipt_id": null,
     "wp_validator_session": null
   },
   "lifecycle": {
-    "active": false,
+    "active": true,
     "blocks": [],
     "depends_on": [
       "MT-155"
     ],
-    "status": "PENDING",
-    "validator_verdict": "PENDING"
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "PENDING",
+    "claimed_by": "KB-KERNEL-005-CLOSEOUT",
+    "ready_for_validation_at_utc": "2026-06-05T05:23:09.923Z",
+    "ready_by": "KB-KERNEL-005-CLOSEOUT"
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.326Z",
