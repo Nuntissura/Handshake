@@ -2,6 +2,7 @@ use axum::{routing::get, Router};
 
 use crate::AppState;
 
+pub mod atelier;
 pub mod bundles;
 pub mod canvases;
 pub mod diagnostics;
@@ -26,6 +27,7 @@ pub fn routes(state: AppState) -> Router {
     let governance_pack_routes = governance_pack::routes(state.clone());
     let role_mailbox_routes = role_mailbox::routes(state.clone());
     let kernel_routes = kernel::routes(state.clone());
+    let atelier_routes = atelier::routes(state.clone());
     let log_routes = Router::new()
         .route("/logs/tail", get(logs::tail_logs))
         .with_state(state.clone());
@@ -41,4 +43,5 @@ pub fn routes(state: AppState) -> Router {
         .merge(governance_pack_routes)
         .merge(role_mailbox_routes)
         .merge(kernel_routes)
+        .merge(atelier_routes)
 }

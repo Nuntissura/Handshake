@@ -18,6 +18,7 @@ import { FontManagerView } from "./components/FontManagerView";
 import { MediaDownloaderView } from "./components/MediaDownloaderView";
 import { ModelRuntimePanel } from "./components/model_runtime_panel";
 import { SwarmOperatorSurface } from "./components/swarm";
+import AtelierPanel from "./components/AtelierPanel";
 import { SettingsMenu } from "./components/SettingsMenu";
 import { loadSwarmBoardDefaultOpen } from "./lib/globalSettings";
 import {
@@ -57,7 +58,8 @@ type PaneTabId =
   | "swarm"
   | "problems"
   | "jobs"
-  | "timeline";
+  | "timeline"
+  | "atelier";
 
 type PaneId = "pane-a" | "pane-b" | "pane-c" | "pane-d";
 
@@ -94,6 +96,7 @@ const TAB_LABEL_BY_ID: Record<PaneTabId, string> = {
   problems: "Problems",
   jobs: "Jobs",
   timeline: "Timeline",
+  atelier: "Atelier",
 };
 
 const MODULE_DEFINITIONS: {
@@ -114,8 +117,8 @@ const MODULE_DEFINITIONS: {
     id: "CKC",
     label: "CKC",
     dataId: "module-ckc",
-    tabs: ["kernel-dcc", "problems", "jobs", "timeline"],
-    defaultTab: "kernel-dcc",
+    tabs: ["atelier", "kernel-dcc", "problems", "jobs", "timeline"],
+    defaultTab: "atelier",
   },
   {
     id: "INGEST",
@@ -479,6 +482,8 @@ function App() {
       content = <ProblemsView onSelect={setSelection} />;
     } else if (pane.activeTab === "jobs") {
       content = <JobsView onSelect={setSelection} focusJobId={focusJobId} />;
+    } else if (pane.activeTab === "atelier") {
+      content = <AtelierPanel />;
     } else {
       content = (
         <TimelineView

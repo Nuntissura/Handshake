@@ -86,7 +86,19 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
         llm_client,
         capability_registry,
         session_registry,
+        postgres_pool: control_plane.postgres_pool.clone(),
     };
+
+    // Bootstrap the WP-KERNEL-005 atelier schema (idempotent, advisory-locked)
+    // on the shared pool so the atelier HTTP surface is queryable from startup.
+    {
+        let atelier = handshake_core::atelier::AtelierStore::new(control_plane.postgres_pool.clone());
+        if let Err(err) = atelier.ensure_schema().await {
+            tracing::error!(target: "handshake_core::atelier", error = %err, "atelier ensure_schema failed at startup");
+            return Err(Box::new(err));
+        }
+        tracing::info!(target: "handshake_core::atelier", "atelier schema ensured");
+    }
 
     // [HSK-WF-003] Startup Recovery Loop
     // Scan for and mark 'Running' workflows > 30s old as 'Stalled'.

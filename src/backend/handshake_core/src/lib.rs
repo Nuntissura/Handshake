@@ -240,4 +240,7 @@ pub struct AppState {
     pub llm_client: Arc<dyn LlmClient>,
     pub capability_registry: Arc<capabilities::CapabilityRegistry>,
     pub session_registry: Arc<workflows::SessionRegistry>,
+    /// Shared PostgreSQL pool for domains that own their schema directly
+    /// (e.g. the WP-KERNEL-005 atelier store). Reused, never reconnected.
+    pub postgres_pool: sqlx::PgPool,
 }

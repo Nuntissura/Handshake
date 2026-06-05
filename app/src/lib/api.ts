@@ -1224,3 +1224,81 @@ export async function exportGovernancePack(
 ): Promise<GovernancePackExportResponse> {
   return request("/api/governance_pack/export", { method: "POST", body: input });
 }
+
+// WP-KERNEL-005 Atelier domain
+export type AtelierOverview = {
+  tables: { name: string; rows: number }[];
+  event_families: { family: string; count: number }[];
+};
+
+export type AtelierIntakeBatch = {
+  batch_id: string;
+  idempotency_key: string;
+  source_label: string;
+  status: string;
+  created_at_utc: string;
+};
+
+export type AtelierIntakeItems = {
+  lane_counts: {
+    new: number;
+    accepted: number;
+    rejected: number;
+    deferred: number;
+  };
+  items: {
+    item_id: string;
+    source_path: string;
+    file_name: string;
+    lane: string;
+    byte_len: number;
+  }[];
+};
+
+export type AtelierCommandCorpusEntry = {
+  entry_id: string;
+  action_id: string;
+  owner: string;
+  execution_class: string;
+  foreground_flag: boolean;
+  manual_anchor: string;
+};
+
+export type AtelierStealthWindow = {
+  window_ref_id: string;
+  owner_actor: string;
+  title: string;
+  visibility: string;
+  status: string;
+  revision: number;
+};
+
+export async function getAtelierOverview(): Promise<AtelierOverview> {
+  return request("/atelier/overview");
+}
+
+export async function listAtelierIntakeBatches(): Promise<AtelierIntakeBatch[]> {
+  return request("/atelier/intake/batches");
+}
+
+export async function openAtelierIntakeBatch(
+  idempotencyKey: string,
+  sourceLabel: string,
+): Promise<AtelierIntakeBatch> {
+  return request("/atelier/intake/batches", {
+    method: "POST",
+    body: { idempotency_key: idempotencyKey, source_label: sourceLabel },
+  });
+}
+
+export async function getAtelierIntakeItems(batchId: string): Promise<AtelierIntakeItems> {
+  return request(`/atelier/intake/batches/${encodeURIComponent(batchId)}/items`);
+}
+
+export async function listAtelierCommandCorpus(): Promise<AtelierCommandCorpusEntry[]> {
+  return request("/atelier/command-corpus");
+}
+
+export async function listAtelierStealthWindows(): Promise<AtelierStealthWindow[]> {
+  return request("/atelier/stealth/windows");
+}
