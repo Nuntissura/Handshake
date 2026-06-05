@@ -47,6 +47,22 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
         .allow_methods(Any)
         .allow_headers(Any);
 
+    // Managed PostgreSQL lifecycle (task #9): start (or adopt) Handshake's own
+    // hidden cluster BEFORE storage init, so no operator has to launch Postgres
+    // manually and no console window pops. Idempotent — an already-running
+    // cluster on the configured port is adopted, never double-started.
+    let managed_pg = handshake_core::managed_postgres::ManagedPostgres::ensure_running(
+        handshake_core::managed_postgres::ManagedPostgresConfig::from_env(),
+    )
+    .await?;
+    if managed_pg.is_enabled() && std::env::var(storage::DATABASE_URL_ENV).is_err() {
+        std::env::set_var(storage::DATABASE_URL_ENV, managed_pg.database_url());
+        tracing::info!(
+            target: "handshake_core::managed_postgres",
+            "DATABASE_URL resolved from the managed cluster"
+        );
+    }
+
     let storage_config = storage::ControlPlaneStorageConfig::from_env()?;
     tracing::info!(
         target: "handshake_core",
@@ -145,7 +161,14 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
     tracing::info!(target: "handshake_core", listen_addr = %addr, "handshake_core started");
 
     let listener = TcpListener::bind(addr).await?;
-    axum::serve(listener, app).await?;
+    let serve_result = axum::serve(listener, app).await;
+
+    // Best-effort teardown when the serve loop ends: stop the cluster only if
+    // Handshake started it (adopted/external clusters are left untouched).
+    if let Err(err) = managed_pg.stop().await {
+        tracing::warn!(target: "handshake_core::managed_postgres", error = %err, "managed PostgreSQL stop failed at shutdown");
+    }
+    serve_result?;
     Ok(())
 }
 
