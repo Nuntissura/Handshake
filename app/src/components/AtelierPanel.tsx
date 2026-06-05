@@ -27,6 +27,12 @@ function errorMessage(err: unknown, fallback: string): string {
 }
 
 function generateIdempotencyKey(): string {
+  // crypto.randomUUID is collision-proof; the backend treats idempotency_key as
+  // a uniqueness key (ON CONFLICT), so a Math.random collision would silently
+  // return a pre-existing batch instead of opening a new one.
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return `ui-${crypto.randomUUID()}`;
+  }
   return `ui-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 

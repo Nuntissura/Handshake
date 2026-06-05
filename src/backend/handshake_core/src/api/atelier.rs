@@ -79,19 +79,34 @@ fn internal_error(err: impl std::fmt::Display) -> (StatusCode, Json<ErrorRespons
     )
 }
 
-// Malformed `Path<Uuid>` / JSON body inputs are rejected with a 400 by Axum's
-// own extractors before a handler runs, so this helper is currently uninvoked;
-// it is retained as the canonical 400 shape for handlers that need to reject a
-// semantically-bad-but-well-typed input.
-#[allow(dead_code)]
-fn bad_request(err: impl std::fmt::Display) -> (StatusCode, Json<ErrorResponse>) {
-    tracing::error!(target: "handshake_core::atelier", error = %err, "bad_request");
-    (
-        StatusCode::BAD_REQUEST,
-        Json(ErrorResponse {
-            error: "bad_request",
-        }),
-    )
+/// Map an `AtelierError` to an HTTP status, mirroring `workspaces.rs`
+/// `map_storage_error`: a missing aggregate is 404, a semantically-bad input is
+/// 400, and infra/storage failures are 500. (Malformed `Path<Uuid>` / JSON body
+/// inputs are already rejected with a 400 by Axum's extractors before a handler
+/// runs.) The body never leaks internals — it is a fixed `&'static str` code.
+fn atelier_error(err: crate::atelier::AtelierError) -> (StatusCode, Json<ErrorResponse>) {
+    use crate::atelier::AtelierError;
+    match err {
+        AtelierError::NotFound(detail) => {
+            tracing::warn!(target: "handshake_core::atelier", %detail, "not_found");
+            (
+                StatusCode::NOT_FOUND,
+                Json(ErrorResponse {
+                    error: "not_found",
+                }),
+            )
+        }
+        AtelierError::Validation(detail) => {
+            tracing::warn!(target: "handshake_core::atelier", %detail, "bad_request");
+            (
+                StatusCode::BAD_REQUEST,
+                Json(ErrorResponse {
+                    error: "bad_request",
+                }),
+            )
+        }
+        other => internal_error(other),
+    }
 }
 
 #[derive(Debug, Serialize)]
@@ -172,7 +187,7 @@ async fn list_intake_batches(
     let batches = store
         .list_intake_batches(None, LIST_CAP)
         .await
-        .map_err(internal_error)?;
+        .map_err(atelier_error)?;
 
     let out = batches
         .into_iter()
@@ -209,7 +224,7 @@ async fn create_intake_batch(
             character_internal_id: None,
         })
         .await
-        .map_err(internal_error)?;
+        .map_err(atelier_error)?;
 
     tracing::info!(target: "handshake_core::atelier", route = "/atelier/intake/batches", status = "created", batch_id = %batch.batch_id, "open intake batch");
 
@@ -269,21 +284,32 @@ async fn list_intake_batch_items(
     let lane_counts = store
         .intake_lane_counts(batch_id)
         .await
-        .map_err(internal_error)?;
+        .map_err(atelier_error)?;
 
-    let items = store
-        .list_intake_items(batch_id, None)
-        .await
-        .map_err(internal_error)?;
+    // The typed `list_intake_items` is uncapped; a batch can hold tens of
+    // thousands of items, so use a direct capped query (LIST_CAP) like the
+    // other list routes. The lane_counts header carries the true totals.
+    let rows = sqlx::query(
+        r#"SELECT item_id, source_path, file_name, lane, byte_len
+           FROM atelier_intake_item
+           WHERE batch_id = $1
+           ORDER BY created_at_utc ASC
+           LIMIT $2"#,
+    )
+    .bind(batch_id)
+    .bind(LIST_CAP)
+    .fetch_all(&state.postgres_pool)
+    .await
+    .map_err(internal_error)?;
 
-    let items = items
-        .into_iter()
-        .map(|i| IntakeItemResponse {
-            item_id: i.item_id,
-            source_path: i.source_path,
-            file_name: i.file_name,
-            lane: i.lane.as_str().to_string(),
-            byte_len: i.byte_len,
+    let items = rows
+        .iter()
+        .map(|row| IntakeItemResponse {
+            item_id: row.get("item_id"),
+            source_path: row.get("source_path"),
+            file_name: row.get("file_name"),
+            lane: row.get("lane"),
+            byte_len: row.get("byte_len"),
         })
         .collect();
 
