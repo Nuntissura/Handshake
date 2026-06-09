@@ -58,6 +58,7 @@ use sqlx::{QueryBuilder, Row};
 use std::collections::BTreeMap;
 use uuid::Uuid;
 
+use super::intake::IntakeLane;
 use super::{reject_legacy_runtime_ref, AtelierError, AtelierResult, AtelierStore};
 
 /// ComfyUI intake event families (MT-202, extends the MT-005 coverage set).
@@ -183,6 +184,131 @@ fn is_secret_key(key: &str) -> bool {
         "session_token",
     ];
     NEEDLES.iter().any(|needle| lowered.contains(needle))
+}
+
+/// Map a recorded governed ComfyUI output (`IntakeOutput`, Section 6.9.4) to the
+/// Core intake lane it lands in (MT-107 / MT-108).
+///
+/// This is the image-sourcing adapter → Core intake-state bridge: a workflow
+/// output that has been materialized through the ArtifactStore is routed into
+/// the operator's accepted / pending / rejected lane vocabulary
+/// ([`IntakeLane`]) so generated and imported outputs join the same triage
+/// surface as folder-scanned sources. The decision is derived from the output's
+/// [`RoutingIntent`]:
+///   * `Artifact` — a first-class durable artifact → `Accepted` (it is a real,
+///     gallery-visible output of the run).
+///   * `Sidecar` — a durable sidecar bound to a primary → `Accepted` (it is a
+///     materialized, lineage-bound output; sidecar visibility is a gallery
+///     concern, not a triage-lane concern).
+///   * `Transient` — a preview that is not persisted as a durable artifact →
+///     `Skipped` (nothing durable to accept; the operator can re-run for a
+///     persisted variant).
+///
+/// The function is pure and deterministic: the same output always maps to the
+/// same lane, so the comfy→intake path produces idempotent, replay-stable lane
+/// assignments. It never inspects credentials or raw bytes.
+pub fn map_comfy_output_to_intake_lane(output: &IntakeOutput) -> IntakeLane {
+    map_comfy_routing_intent_to_intake_lane(output.routing_intent)
+}
+
+/// Lane decision for a [`RoutingIntent`] without a full [`IntakeOutput`] record
+/// (MT-108). Used to decide a lane at capability-declaration time, before an
+/// output row exists, so the accepted/pending/rejected lanes are preserved for
+/// both generated and imported outputs. Kept consistent with
+/// [`map_comfy_output_to_intake_lane`] so there is exactly one routing rule.
+pub fn map_comfy_routing_intent_to_intake_lane(routing_intent: RoutingIntent) -> IntakeLane {
+    match routing_intent {
+        RoutingIntent::Artifact | RoutingIntent::Sidecar => IntakeLane::Accepted,
+        RoutingIntent::Transient => IntakeLane::Skipped,
+    }
+}
+
+/// A Handshake-native ComfyUI execution endpoint reference and its declared
+/// kind (MT-109). This is the adapter-boundary contract: Comfy-compatible
+/// workflow execution is an integrated, capability-gated Handshake-native
+/// adapter, never a manual ComfyUI app on a direct endpoint. The config carries
+/// only a portable `endpoint_ref` (e.g. a capability-profile / managed-adapter
+/// handle) — never a raw socket, localhost URL, or direct LLM/model-server
+/// endpoint.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ComfyEndpointConfig {
+    /// Portable Handshake-native reference to the managed execution adapter.
+    pub endpoint_ref: String,
+    /// Declared adapter kind; only the Handshake-native managed kind is
+    /// authorized for execution.
+    pub adapter_kind: ComfyAdapterKind,
+}
+
+/// The declared execution-adapter kind for a [`ComfyEndpointConfig`] (MT-109).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ComfyAdapterKind {
+    /// The only authorized kind: execution runs through the capability-gated
+    /// Handshake-native Workflow-Engine `engine.comfyui` adapter.
+    HandshakeNativeManaged,
+    /// A direct, un-managed ComfyUI endpoint (e.g. a raw `localhost:8188`
+    /// server). Never authorized for execution; declaring this kind is a
+    /// validation error.
+    DirectComfyEndpoint,
+    /// A direct LLM / model-server endpoint. Never authorized; declaring this
+    /// kind is a validation error.
+    DirectLlmEndpoint,
+}
+
+impl ComfyAdapterKind {
+    pub fn as_token(self) -> &'static str {
+        match self {
+            ComfyAdapterKind::HandshakeNativeManaged => "handshake_native_managed",
+            ComfyAdapterKind::DirectComfyEndpoint => "direct_comfy_endpoint",
+            ComfyAdapterKind::DirectLlmEndpoint => "direct_llm_endpoint",
+        }
+    }
+
+    /// Whether this adapter kind is authorized to execute Comfy-compatible
+    /// workflows. Only the Handshake-native managed adapter is authorized.
+    pub fn is_authorized_for_execution(self) -> bool {
+        matches!(self, ComfyAdapterKind::HandshakeNativeManaged)
+    }
+}
+
+impl ComfyEndpointConfig {
+    /// Validate this endpoint config for the ComfyUI adapter boundary (MT-109).
+    ///
+    /// REJECTS any non-Handshake-native execution endpoint: a direct ComfyUI
+    /// endpoint kind, a direct LLM / model-server endpoint kind, or an
+    /// `endpoint_ref` that resolves to a localhost / direct-LLM / machine-local
+    /// authority (reusing the canonical [`reject_legacy_runtime_ref`] boundary
+    /// shared with every other atelier ref). Only a Handshake-native managed
+    /// adapter with a portable ref passes.
+    pub fn validate(&self) -> AtelierResult<()> {
+        if !self.adapter_kind.is_authorized_for_execution() {
+            return Err(AtelierError::Validation(format!(
+                "ComfyUI endpoint adapter_kind {} is not authorized for execution; \
+                 only the Handshake-native managed engine.comfyui adapter may execute workflows",
+                self.adapter_kind.as_token()
+            )));
+        }
+        // The ref itself must be a portable Handshake-native handle, not a
+        // localhost / direct-LLM / machine-local execution endpoint. This is the
+        // direct-localhost ComfyUI execution rejection (also exercised by MT-119
+        // via reject_direct_localhost_comfy_execution).
+        reject_legacy_runtime_ref("comfy endpoint_ref", &self.endpoint_ref)?;
+        Ok(())
+    }
+}
+
+/// Explicit guard rejecting DIRECT localhost ComfyUI execution (MT-119).
+///
+/// Comfy-compatible workflow execution is only permitted through the
+/// capability-gated Handshake-native managed adapter. A direct
+/// `localhost:8188`-style execution endpoint (or any loopback / machine-local /
+/// direct-LLM authority) is never an authorized execution path. Returns an
+/// error when `endpoint_ref` names such a direct endpoint; returns `Ok(())`
+/// only for a portable Handshake-native ref. Reuses the canonical
+/// [`reject_legacy_runtime_ref`] boundary so the localhost/loopback rejection
+/// rule has a single source of truth.
+pub fn reject_direct_localhost_comfy_execution(endpoint_ref: &str) -> AtelierResult<()> {
+    reject_legacy_runtime_ref("comfy execution endpoint_ref", endpoint_ref)
 }
 
 fn validate_identity_metadata_component(

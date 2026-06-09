@@ -97,6 +97,11 @@
   "MT-102",
   "MT-103",
   "MT-105",
+  "MT-107",
+  "MT-108",
+  "MT-109",
+  "MT-119",
+  "MT-120",
   "MT-122",
   "MT-123",
   "MT-124",
@@ -823,6 +828,46 @@
    "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_manual_tests manual_covers_pose_comfy_surfaces --target-dir ../Handshake_Artifacts/handshake-cargo-target",
    "remediated_by": "KERNEL_BUILDER",
    "remediation_note": "pose/comfy ModelManual coverage rows + coverage test"
+  },
+  {
+   "mt_id": "MT-107",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test atelier_comfy_intake_routing_tests mt107_mt108_comfy_output_maps_into_accepted_pending_rejected_lanes --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "comfy->intake routing fns + endpoint/localhost guards + ordering test, live-PG proven"
+  },
+  {
+   "mt_id": "MT-108",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test atelier_comfy_intake_routing_tests mt107_mt108_comfy_output_maps_into_accepted_pending_rejected_lanes --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "comfy->intake routing fns + endpoint/localhost guards + ordering test, live-PG proven"
+  },
+  {
+   "mt_id": "MT-109",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test atelier_comfy_intake_routing_tests mt109_endpoint_config_rejects_unauthorized_endpoints --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "comfy->intake routing fns + endpoint/localhost guards + ordering test, live-PG proven"
+  },
+  {
+   "mt_id": "MT-119",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test atelier_comfy_intake_routing_tests mt119_rejects_direct_localhost_comfy_execution --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "comfy->intake routing fns + endpoint/localhost guards + ordering test, live-PG proven"
+  },
+  {
+   "mt_id": "MT-120",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test atelier_comfy_intake_routing_tests mt120_artifact_ref_is_persisted_before_registration_id --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "comfy->intake routing fns + endpoint/localhost guards + ordering test, live-PG proven"
   }
  ]
 }
