@@ -7,24 +7,30 @@
 //!
 //! Concurrency is driven with `join_all` so many queries are in flight against
 //! the shared pool at once (genuine DB-level contention on the ON CONFLICT
-//! paths). Gated on DATABASE_URL; a no-op skip when unset. Storage authority is
-//! PostgreSQL only (no SQLite, no Docker, no localhost).
+//! paths). Uses DATABASE_URL when explicitly provided; otherwise falls back to
+//! Handshake-managed local PostgreSQL. Storage authority is PostgreSQL only (no
+//! SQLite, no Docker).
 
-use std::collections::HashSet;
+mod atelier_pg_support;
+
+use std::{collections::HashSet, time::Duration};
 
 use futures::future::join_all;
-use handshake_core::atelier::intake::{NewIntakeBatch, NewIntakeItem};
+use handshake_core::atelier::intake::{
+    IntakeBatchMode, IntakeProfileMode, NewIntakeBatch, NewIntakeItem,
+};
 use handshake_core::atelier::{AtelierStore, NewMediaAsset};
+use sqlx::postgres::PgPoolOptions;
 use uuid::Uuid;
 
-fn database_url() -> Option<String> {
-    std::env::var("DATABASE_URL").ok().filter(|s| !s.is_empty())
-}
-
 async fn connected_store(url: &str) -> AtelierStore {
-    let store = AtelierStore::connect(url)
+    let pool = PgPoolOptions::new()
+        .max_connections(32)
+        .acquire_timeout(Duration::from_secs(120))
+        .connect(url)
         .await
         .expect("connect to PostgreSQL");
+    let store = AtelierStore::new(pool);
     store.ensure_schema().await.expect("ensure atelier schema");
     store
 }
@@ -34,8 +40,8 @@ async fn connected_store(url: &str) -> AtelierStore {
 /// lock. Every concurrent connect+ensure_schema must succeed.
 #[tokio::test]
 async fn swarm_concurrent_schema_bootstrap_is_race_free() {
-    let Some(url) = database_url() else {
-        eprintln!("SKIP swarm_concurrent_schema_bootstrap_is_race_free: DATABASE_URL not set");
+    let Some(url) = atelier_pg_support::database_url().await else {
+        eprintln!("SKIP swarm_concurrent_schema_bootstrap_is_race_free: PostgreSQL unavailable");
         return;
     };
 
@@ -59,8 +65,8 @@ async fn swarm_concurrent_schema_bootstrap_is_race_free() {
 /// lane-count must equal the total ingested (no lost or phantom rows).
 #[tokio::test]
 async fn mass_concurrent_intake_persists_every_item() {
-    let Some(url) = database_url() else {
-        eprintln!("SKIP mass_concurrent_intake_persists_every_item: DATABASE_URL not set");
+    let Some(url) = atelier_pg_support::database_url().await else {
+        eprintln!("SKIP mass_concurrent_intake_persists_every_item: PostgreSQL unavailable");
         return;
     };
     let store = connected_store(&url).await;
@@ -70,7 +76,14 @@ async fn mass_concurrent_intake_persists_every_item() {
         .open_intake_batch(&NewIntakeBatch {
             idempotency_key: format!("swarm-mass-{run}"),
             source_label: "swarm mass ingestion".to_string(),
+            source_ref: None,
+            mode: IntakeBatchMode::Manual,
+            profile_mode: IntakeProfileMode::LooseProfile,
             character_internal_id: None,
+            target_character_id: None,
+            target_sheet_version_id: None,
+            target_collection_id: None,
+            resume_cursor: None,
         })
         .await
         .expect("open intake batch");
@@ -84,8 +97,11 @@ async fn mass_concurrent_intake_persists_every_item() {
         let batch_id = batch.batch_id;
         async move {
             for i in 0..PER_WORKER {
-                // Globally-unique source_path so every add is a distinct item.
-                let path = format!("/inbox/{run}/w{w}/i{i}-{}.png", Uuid::new_v4());
+                // Globally-unique portable source ref so every add is a distinct item.
+                let path = format!(
+                    "source://operator-inbox/{run}/w{w}/i{i}-{}.png",
+                    Uuid::new_v4()
+                );
                 store
                     .add_intake_item(
                         batch_id,
@@ -108,8 +124,8 @@ async fn mass_concurrent_intake_persists_every_item() {
         .await
         .expect("lane counts");
     assert_eq!(
-        counts.new, total,
-        "every concurrently-ingested item must land in the New lane exactly once"
+        counts.pending, total,
+        "every concurrently-ingested item must land in the Pending lane exactly once"
     );
 }
 
@@ -120,25 +136,29 @@ async fn mass_concurrent_intake_persists_every_item() {
 /// same bytes from many sources.
 #[tokio::test]
 async fn concurrent_identical_hash_dedups_to_one_asset() {
-    let Some(url) = database_url() else {
-        eprintln!("SKIP concurrent_identical_hash_dedups_to_one_asset: DATABASE_URL not set");
+    let Some(url) = atelier_pg_support::database_url().await else {
+        eprintln!("SKIP concurrent_identical_hash_dedups_to_one_asset: PostgreSQL unavailable");
         return;
     };
     let store = connected_store(&url).await;
 
-    let shared_hash = format!("sha256-{}", Uuid::new_v4());
+    let artifact = atelier_pg_support::write_native_media_artifact(b"swarm-dedup-media");
+    let shared_hash = artifact.content_hash.clone();
+    let artifact_ref = artifact.artifact_ref.clone();
+    let byte_len = artifact.byte_len;
 
     let futs = (0..20).map(|_| {
         let store = store.clone();
         let hash = shared_hash.clone();
+        let artifact_ref = artifact_ref.clone();
         async move {
             store
                 .materialize_media_asset(&NewMediaAsset {
                     content_hash: hash.clone(),
                     mime: "image/png".to_string(),
-                    byte_len: 4096,
+                    byte_len,
                     source_provenance: Some("swarm-dedup".to_string()),
-                    artifact_ref: format!("artifact://atelier/media/{}", Uuid::new_v4()),
+                    artifact_ref,
                 })
                 .await
                 .expect("materialize under concurrency must not raise duplicate-key")
@@ -170,8 +190,8 @@ async fn concurrent_identical_hash_dedups_to_one_asset() {
 /// proving a swarm re-scanning the same source path cannot fork the item.
 #[tokio::test]
 async fn concurrent_same_source_path_is_idempotent() {
-    let Some(url) = database_url() else {
-        eprintln!("SKIP concurrent_same_source_path_is_idempotent: DATABASE_URL not set");
+    let Some(url) = atelier_pg_support::database_url().await else {
+        eprintln!("SKIP concurrent_same_source_path_is_idempotent: PostgreSQL unavailable");
         return;
     };
     let store = connected_store(&url).await;
@@ -181,11 +201,18 @@ async fn concurrent_same_source_path_is_idempotent() {
         .open_intake_batch(&NewIntakeBatch {
             idempotency_key: format!("swarm-idem-{run}"),
             source_label: "swarm idempotency".to_string(),
+            source_ref: None,
+            mode: IntakeBatchMode::Manual,
+            profile_mode: IntakeProfileMode::LooseProfile,
             character_internal_id: None,
+            target_character_id: None,
+            target_sheet_version_id: None,
+            target_collection_id: None,
+            resume_cursor: None,
         })
         .await
         .expect("open intake batch");
-    let shared_path = format!("/inbox/{run}/contended.png");
+    let shared_path = format!("source://operator-inbox/{run}/contended.png");
 
     let futs = (0..16).map(|_| {
         let store = store.clone();
@@ -220,7 +247,7 @@ async fn concurrent_same_source_path_is_idempotent() {
         .await
         .expect("lane counts");
     assert_eq!(
-        counts.new, 1,
+        counts.pending, 1,
         "only one item may exist for the contended source_path"
     );
 }

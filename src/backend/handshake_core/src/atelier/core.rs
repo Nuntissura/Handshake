@@ -39,7 +39,9 @@ impl AtelierStore {
     /// the `internal_id` is the storage key and is never the public identity.
     pub async fn create_character(&self, new: &NewCharacter) -> AtelierResult<Character> {
         if new.public_id.trim().is_empty() {
-            return Err(AtelierError::Validation("public_id must not be empty".into()));
+            return Err(AtelierError::Validation(
+                "public_id must not be empty".into(),
+            ));
         }
         let row = sqlx::query(
             r#"INSERT INTO atelier_character (public_id, display_name)
@@ -57,7 +59,6 @@ impl AtelierStore {
             &character.public_id,
             serde_json::json!({
                 "public_id": character.public_id,
-                "display_name": character.display_name,
             }),
         )
         .await?;

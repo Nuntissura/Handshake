@@ -16,18 +16,21 @@
 //! `Uuid::new_v4()`. Only `handshake_core` + `tokio` + `uuid` + `serde_json`
 //! (+ std) are used; sqlx is never imported directly.
 
-use handshake_core::atelier::pose::{
-    pose_event_family, CalibrationState, DetectorStatus, IdentityProfileKind, NewIdentityProfile,
-    NewPoseRig, PoseRig, CanvasSize, BODY_KEYPOINT_COUNT, FACE_KEYPOINT_COUNT, HAND_KEYPOINT_COUNT,
-};
-use handshake_core::atelier::{AtelierStore, NewCharacter};
-use uuid::Uuid;
+mod atelier_pg_support;
 
-fn database_url() -> Option<String> {
-    std::env::var("DATABASE_URL")
-        .ok()
-        .filter(|value| !value.trim().is_empty())
-}
+use handshake_core::atelier::collections::NewCollection;
+use handshake_core::atelier::pose::{
+    pose_event_family, CalibrationHandKind, CalibrationHandRow, CalibrationMarkerColors,
+    CalibrationMarkerVisibility, CalibrationState, CanvasSize, DetectorStatus, IdentityCropBox,
+    IdentityCropLandmark, IdentityProfileKind, NewIdentityCropArtifact, NewIdentityProfile,
+    NewPoseCalibration, NewPoseContextState, NewPoseRig, NewPoseSidecar, NewPoseWorkspaceRigState,
+    NewPoseWorkspaceRouteTarget, PoseContextKind, PoseOpenPoseSidecarStripItem, PoseRig,
+    PoseSidecarGalleryProjection, PoseSidecarKind, PoseSidecarStatus, PoseSourceImageStripItem,
+    PoseWorkspaceKeyboardAction, PoseWorkspaceKeyboardActionRequest, PoseWorkspaceRigState,
+    UpdateIdentityProfile, BODY_KEYPOINT_COUNT, FACE_KEYPOINT_COUNT, HAND_KEYPOINT_COUNT,
+};
+use handshake_core::atelier::{AtelierStore, NewCharacter, NewMediaAsset};
+use uuid::Uuid;
 
 /// Connect + ensure schema, the shared preamble every test runs against a real
 /// Postgres.
@@ -52,7 +55,7 @@ async fn fresh_character(store: &AtelierStore) -> Uuid {
     character.internal_id
 }
 
-/// A valid OpenPose keypoint payload (CKC `rigToOpenposeJson`): body-18 (the
+/// A valid OpenPose keypoint payload (legacy source `rigToOpenposeJson`): body-18 (the
 /// only required field) plus zero-filled face-70 and both hands-21.
 fn valid_keypoints() -> serde_json::Value {
     serde_json::json!({
@@ -63,6 +66,10 @@ fn valid_keypoints() -> serde_json::Value {
             "hand_right_keypoints_2d": vec![0.0_f64; HAND_KEYPOINT_COUNT * 3],
         }]
     })
+}
+
+fn artifact_manifest_ref(artifact_ref: &str) -> String {
+    artifact_ref.replace("/payload", "/artifact.json")
 }
 
 /// Ingest a fresh, run-unique rig for a character and return it.
@@ -78,7 +85,13 @@ async fn fresh_rig(store: &AtelierStore, character_internal_id: Uuid) -> PoseRig
                 height: 1536,
             },
             detector_provider: "mediapipe.tasks-vision.pose".to_string(),
+            detector_model: "BlazePose GHUM".to_string(),
+            detector_model_version: "mediapipe-tasks-vision-0.10.20".to_string(),
+            source_asset_version_ref: None,
+            source_asset_path_ref: None,
+            confidence_available: true,
             detector_status: DetectorStatus::Detected,
+            error_reason: None,
             keypoints_json: valid_keypoints(),
             sidecar_ref: Some(format!("artifact://atelier/pose/{}", Uuid::new_v4())),
         })
@@ -86,26 +99,65 @@ async fn fresh_rig(store: &AtelierStore, character_internal_id: Uuid) -> PoseRig
         .expect("ingest pose rig")
 }
 
+async fn expect_pose_source_ref_rejected(
+    store: &AtelierStore,
+    character_internal_id: Uuid,
+    source_ref: String,
+    reason: &str,
+) {
+    let result = store
+        .ingest_pose_rig(&NewPoseRig {
+            character_internal_id,
+            source_asset_id: None,
+            source_ref,
+            content_hash: format!("sha256-{}", Uuid::new_v4()),
+            canvas: CanvasSize {
+                width: 64,
+                height: 64,
+            },
+            detector_provider: "mediapipe".to_string(),
+            detector_model: "BlazePose GHUM".to_string(),
+            detector_model_version: "mediapipe-tasks-vision-0.10.20".to_string(),
+            source_asset_version_ref: None,
+            source_asset_path_ref: None,
+            confidence_available: true,
+            detector_status: DetectorStatus::Detected,
+            error_reason: None,
+            keypoints_json: valid_keypoints(),
+            sidecar_ref: None,
+        })
+        .await;
+    assert!(result.is_err(), "{reason}");
+}
+
 #[tokio::test]
 async fn atelier_pose_rig_ingest_idempotency_and_roundtrip() {
-    let Some(url) = database_url() else {
-        eprintln!("SKIP atelier_pose_rig_ingest_idempotency_and_roundtrip: DATABASE_URL not set");
+    let Some(url) = atelier_pg_support::database_url().await else {
+        eprintln!("SKIP atelier_pose_rig_ingest_idempotency_and_roundtrip: PostgreSQL unavailable");
         return;
     };
     let store = connected_store(&url).await;
     let character = fresh_character(&store).await;
-
-    let events_before = store
-        .count_events(pose_event_family::POSE_RIG_INGESTED)
+    let source_artifact = atelier_pg_support::write_native_media_artifact(b"mt-087-source-image");
+    let source_asset = store
+        .materialize_media_asset(&NewMediaAsset {
+            content_hash: source_artifact.content_hash.clone(),
+            mime: "image/png".to_string(),
+            byte_len: source_artifact.byte_len,
+            source_provenance: Some("mt-087 pose source asset".to_string()),
+            artifact_ref: source_artifact.artifact_ref.clone(),
+        })
         .await
-        .expect("count rig-ingested events before");
+        .expect("materialize pose source asset");
 
     // --- ingest a rig with REAL OpenPose keypoints ---
-    let source_ref = format!("portrait://{}", Uuid::new_v4());
+    let source_ref = format!("media://{}", source_asset.asset_id);
+    let source_asset_version_ref = format!("media-version://{}/v1", source_asset.asset_id);
+    let source_asset_path_ref = format!("source://operator-inbox/{}/portrait.png", Uuid::new_v4());
     let content_hash = format!("sha256-{}", Uuid::new_v4());
     let new = NewPoseRig {
         character_internal_id: character,
-        source_asset_id: None,
+        source_asset_id: Some(source_asset.asset_id),
         source_ref: source_ref.clone(),
         content_hash: content_hash.clone(),
         canvas: CanvasSize {
@@ -113,7 +165,13 @@ async fn atelier_pose_rig_ingest_idempotency_and_roundtrip() {
             height: 1024,
         },
         detector_provider: "mediapipe.tasks-vision.pose".to_string(),
+        detector_model: "BlazePose GHUM".to_string(),
+        detector_model_version: "mediapipe-tasks-vision-0.10.20".to_string(),
+        source_asset_version_ref: Some(source_asset_version_ref.clone()),
+        source_asset_path_ref: Some(source_asset_path_ref.clone()),
+        confidence_available: true,
         detector_status: DetectorStatus::Detected,
+        error_reason: None,
         keypoints_json: valid_keypoints(),
         sidecar_ref: Some(format!("artifact://atelier/pose/{}", Uuid::new_v4())),
     };
@@ -125,6 +183,17 @@ async fn atelier_pose_rig_ingest_idempotency_and_roundtrip() {
     assert_eq!(rig.content_hash, content_hash);
     assert_eq!(rig.canvas.width, 768);
     assert_eq!(rig.canvas.height, 1024);
+    assert_eq!(rig.detector_model, "BlazePose GHUM");
+    assert_eq!(rig.detector_model_version, "mediapipe-tasks-vision-0.10.20");
+    assert_eq!(
+        rig.source_asset_version_ref.as_deref(),
+        Some(source_asset_version_ref.as_str())
+    );
+    assert_eq!(
+        rig.source_asset_path_ref.as_deref(),
+        Some(source_asset_path_ref.as_str())
+    );
+    assert!(rig.confidence_available);
     assert_eq!(rig.detector_status, DetectorStatus::Detected);
     let fetched = store.get_pose_rig(rig.rig_id).await.expect("get rig");
     assert_eq!(fetched, rig, "get_pose_rig round-trips the ingested rig");
@@ -147,7 +216,18 @@ async fn atelier_pose_rig_ingest_idempotency_and_roundtrip() {
                 height: 1024,
             },
             detector_provider: "fallback".to_string(),
+            detector_model: "fallback-pose-model".to_string(),
+            detector_model_version: "fallback-v2".to_string(),
+            source_asset_version_ref: Some(format!("media-version://{}/v2", source_asset.asset_id)),
+            source_asset_path_ref: Some(format!(
+                "source://operator-inbox/{}/portrait-redetect.png",
+                Uuid::new_v4()
+            )),
+            confidence_available: false,
             detector_status: DetectorStatus::Fallback,
+            error_reason: Some(
+                "deterministic body-18 fallback: face and hand landmarks unavailable".to_string(),
+            ),
             keypoints_json: valid_keypoints(),
             sidecar_ref: None,
         })
@@ -170,12 +250,97 @@ async fn atelier_pose_rig_ingest_idempotency_and_roundtrip() {
                 height: 64,
             },
             detector_provider: "mediapipe".to_string(),
+            detector_model: "BlazePose GHUM".to_string(),
+            detector_model_version: "mediapipe-tasks-vision-0.10.20".to_string(),
+            source_asset_version_ref: None,
+            source_asset_path_ref: None,
+            confidence_available: true,
             detector_status: DetectorStatus::Detected,
+            error_reason: None,
             keypoints_json: valid_keypoints(),
             sidecar_ref: None,
         })
         .await;
     assert!(bad.is_err(), "empty content_hash must be rejected");
+
+    // --- INVARIANT: stale local-runtime refs are rejected before storage (MT-004) ---
+    let bad_source_ref = store
+        .ingest_pose_rig(&NewPoseRig {
+            character_internal_id: character,
+            source_asset_id: None,
+            source_ref: "http://localhost:9000/pose.json".to_string(),
+            content_hash: format!("sha256-{}", Uuid::new_v4()),
+            canvas: CanvasSize {
+                width: 64,
+                height: 64,
+            },
+            detector_provider: "mediapipe".to_string(),
+            detector_model: "BlazePose GHUM".to_string(),
+            detector_model_version: "mediapipe-tasks-vision-0.10.20".to_string(),
+            source_asset_version_ref: None,
+            source_asset_path_ref: None,
+            confidence_available: true,
+            detector_status: DetectorStatus::Detected,
+            error_reason: None,
+            keypoints_json: valid_keypoints(),
+            sidecar_ref: None,
+        })
+        .await;
+    assert!(
+        bad_source_ref.is_err(),
+        "localhost pose source_ref must be rejected"
+    );
+    for (forbidden_ref, reason) in [
+        (
+            "ckc://posekit/source-image".to_string(),
+            "CKC namespace pose source_ref must be rejected",
+        ),
+        (
+            "electron://ipc/posekit/source-image".to_string(),
+            "Electron IPC pose source_ref must be rejected",
+        ),
+        (
+            "llm://pose-detector/openpose".to_string(),
+            "direct LLM pose source_ref must be rejected",
+        ),
+        (
+            ".GOV/pose-output/openpose.json".to_string(),
+            ".GOV output pose source_ref must be rejected",
+        ),
+        (
+            "C:\\operator\\pose-source.png".to_string(),
+            "machine-local pose source_ref must be rejected",
+        ),
+    ] {
+        expect_pose_source_ref_rejected(&store, character, forbidden_ref, reason).await;
+    }
+
+    let bad_sidecar_ref = store
+        .ingest_pose_rig(&NewPoseRig {
+            character_internal_id: character,
+            source_asset_id: None,
+            source_ref: format!("portrait://{}", Uuid::new_v4()),
+            content_hash: format!("sha256-{}", Uuid::new_v4()),
+            canvas: CanvasSize {
+                width: 64,
+                height: 64,
+            },
+            detector_provider: "mediapipe".to_string(),
+            detector_model: "BlazePose GHUM".to_string(),
+            detector_model_version: "mediapipe-tasks-vision-0.10.20".to_string(),
+            source_asset_version_ref: None,
+            source_asset_path_ref: None,
+            confidence_available: true,
+            detector_status: DetectorStatus::Detected,
+            error_reason: None,
+            keypoints_json: valid_keypoints(),
+            sidecar_ref: Some(".GOV/pose-sidecar.json".to_string()),
+        })
+        .await;
+    assert!(
+        bad_sidecar_ref.is_err(),
+        ".GOV pose sidecar_ref must be rejected"
+    );
 
     // --- INVARIANT: malformed keypoint cardinality is rejected (structural gate) ---
     let bad_kp = store
@@ -189,7 +354,13 @@ async fn atelier_pose_rig_ingest_idempotency_and_roundtrip() {
                 height: 64,
             },
             detector_provider: "mediapipe".to_string(),
+            detector_model: "BlazePose GHUM".to_string(),
+            detector_model_version: "mediapipe-tasks-vision-0.10.20".to_string(),
+            source_asset_version_ref: None,
+            source_asset_path_ref: None,
+            confidence_available: true,
             detector_status: DetectorStatus::Detected,
+            error_reason: None,
             keypoints_json: serde_json::json!({
                 "people": [{ "pose_keypoints_2d": vec![0.0_f64; 9] }]
             }),
@@ -201,20 +372,213 @@ async fn atelier_pose_rig_ingest_idempotency_and_roundtrip() {
         "wrong body-18 cardinality must be rejected before storage"
     );
 
+    let bad_provenance_ref = store
+        .ingest_pose_rig(&NewPoseRig {
+            character_internal_id: character,
+            source_asset_id: Some(source_asset.asset_id),
+            source_ref: format!("media://{}", source_asset.asset_id),
+            content_hash: format!("sha256-{}", Uuid::new_v4()),
+            canvas: CanvasSize {
+                width: 64,
+                height: 64,
+            },
+            detector_provider: "mediapipe".to_string(),
+            detector_model: "BlazePose GHUM".to_string(),
+            detector_model_version: "mediapipe-tasks-vision-0.10.20".to_string(),
+            source_asset_version_ref: Some(format!("media-version://{}/v2", source_asset.asset_id)),
+            source_asset_path_ref: Some("C:\\operator\\portrait.png".to_string()),
+            confidence_available: true,
+            detector_status: DetectorStatus::Detected,
+            error_reason: None,
+            keypoints_json: valid_keypoints(),
+            sidecar_ref: None,
+        })
+        .await;
+    assert!(
+        bad_provenance_ref.is_err(),
+        "machine-local source_asset_path_ref must be rejected"
+    );
+
+    let fallback_reason =
+        "deterministic body-18 fallback: face and hand landmarks unavailable".to_string();
+    let fallback_rig = store
+        .ingest_pose_rig(&NewPoseRig {
+            character_internal_id: character,
+            source_asset_id: Some(source_asset.asset_id),
+            source_ref: format!("media://{}#fallback", source_asset.asset_id),
+            content_hash: format!("sha256-{}", Uuid::new_v4()),
+            canvas: CanvasSize {
+                width: 768,
+                height: 1024,
+            },
+            detector_provider: "fallback".to_string(),
+            detector_model: "deterministic-body-18".to_string(),
+            detector_model_version: "1".to_string(),
+            source_asset_version_ref: Some(format!("media-version://{}/v3", source_asset.asset_id)),
+            source_asset_path_ref: Some(format!(
+                "source://operator-inbox/{}/portrait-fallback.png",
+                Uuid::new_v4()
+            )),
+            confidence_available: false,
+            detector_status: DetectorStatus::Fallback,
+            error_reason: Some(fallback_reason.clone()),
+            keypoints_json: valid_keypoints(),
+            sidecar_ref: None,
+        })
+        .await
+        .expect("ingest fallback rig with reason");
+    assert_eq!(fallback_rig.detector_status, DetectorStatus::Fallback);
+    assert_eq!(
+        fallback_rig.error_reason.as_deref(),
+        Some(fallback_reason.as_str())
+    );
+    let fetched_fallback = store
+        .get_pose_rig(fallback_rig.rig_id)
+        .await
+        .expect("fetch fallback rig");
+    assert_eq!(
+        fetched_fallback.error_reason.as_deref(),
+        Some(fallback_reason.as_str()),
+        "fallback error_reason must round-trip through Postgres"
+    );
+
+    let failed_reason = "detector job failed: no visible body landmarks".to_string();
+    let failed_rig = store
+        .ingest_pose_rig(&NewPoseRig {
+            character_internal_id: character,
+            source_asset_id: Some(source_asset.asset_id),
+            source_ref: format!("media://{}#failed", source_asset.asset_id),
+            content_hash: format!("sha256-{}", Uuid::new_v4()),
+            canvas: CanvasSize {
+                width: 768,
+                height: 1024,
+            },
+            detector_provider: "mediapipe.tasks-vision.pose".to_string(),
+            detector_model: "BlazePose GHUM".to_string(),
+            detector_model_version: "mediapipe-tasks-vision-0.10.20".to_string(),
+            source_asset_version_ref: Some(format!("media-version://{}/v4", source_asset.asset_id)),
+            source_asset_path_ref: Some(format!(
+                "source://operator-inbox/{}/portrait-failed.png",
+                Uuid::new_v4()
+            )),
+            confidence_available: false,
+            detector_status: DetectorStatus::Failed,
+            error_reason: Some(failed_reason.clone()),
+            keypoints_json: valid_keypoints(),
+            sidecar_ref: None,
+        })
+        .await
+        .expect("ingest failed rig with reason");
+    assert_eq!(failed_rig.detector_status, DetectorStatus::Failed);
+    assert_eq!(
+        failed_rig.error_reason.as_deref(),
+        Some(failed_reason.as_str())
+    );
+
+    let fallback_without_reason = store
+        .ingest_pose_rig(&NewPoseRig {
+            character_internal_id: character,
+            source_asset_id: Some(source_asset.asset_id),
+            source_ref: format!("media://{}#fallback-missing-reason", source_asset.asset_id),
+            content_hash: format!("sha256-{}", Uuid::new_v4()),
+            canvas: CanvasSize {
+                width: 768,
+                height: 1024,
+            },
+            detector_provider: "fallback".to_string(),
+            detector_model: "deterministic-body-18".to_string(),
+            detector_model_version: "1".to_string(),
+            source_asset_version_ref: Some(format!("media-version://{}/v5", source_asset.asset_id)),
+            source_asset_path_ref: Some(format!(
+                "source://operator-inbox/{}/portrait-fallback-missing-reason.png",
+                Uuid::new_v4()
+            )),
+            confidence_available: false,
+            detector_status: DetectorStatus::Fallback,
+            error_reason: None,
+            keypoints_json: valid_keypoints(),
+            sidecar_ref: None,
+        })
+        .await;
+    assert!(
+        fallback_without_reason.is_err(),
+        "fallback detector status must persist a non-empty error_reason"
+    );
+
     // --- EVENT EMISSION: exactly one new rig-ingested event (the duplicate
     //     ingest still upserts + emits, the two rejected ingests must not) ---
     let events_after = store
-        .count_events(pose_event_family::POSE_RIG_INGESTED)
+        .count_events_for_aggregate(
+            pose_event_family::POSE_RIG_INGESTED,
+            "atelier_pose_rig",
+            &rig.rig_id.to_string(),
+        )
         .await
-        .expect("count rig-ingested events after");
+        .expect("count run-scoped rig-ingested events");
     assert_eq!(
-        events_after - events_before,
-        2,
+        events_after, 2,
         "two successful ingests (original + idempotent re-ingest) each emit one event; rejected ingests emit none"
+    );
+    let rig_event_payload: serde_json::Value = sqlx::query_scalar(
+        r#"SELECT payload
+           FROM atelier_event
+           WHERE event_family = $1
+             AND aggregate_type = 'atelier_pose_rig'
+             AND aggregate_id = $2
+           ORDER BY created_at_utc ASC
+           LIMIT 1"#,
+    )
+    .bind(pose_event_family::POSE_RIG_INGESTED)
+    .bind(rig.rig_id.to_string())
+    .fetch_one(store.pool())
+    .await
+    .expect("read pose rig ingest event payload");
+    assert_eq!(
+        rig_event_payload["detector_model"],
+        serde_json::json!("BlazePose GHUM")
+    );
+    assert_eq!(
+        rig_event_payload["detector_model_version"],
+        serde_json::json!("mediapipe-tasks-vision-0.10.20")
+    );
+    assert_eq!(
+        rig_event_payload["source_asset_version_ref"],
+        serde_json::json!(source_asset_version_ref)
+    );
+    assert_eq!(
+        rig_event_payload["source_asset_path_ref"],
+        serde_json::json!(source_asset_path_ref)
+    );
+    assert_eq!(
+        rig_event_payload["confidence_available"],
+        serde_json::json!(true)
+    );
+    assert_eq!(rig_event_payload["error_reason"], serde_json::json!(null));
+
+    let fallback_event_payload: serde_json::Value = sqlx::query_scalar(
+        r#"SELECT payload
+           FROM atelier_event
+           WHERE event_family = $1
+             AND aggregate_type = 'atelier_pose_rig'
+             AND aggregate_id = $2
+           ORDER BY created_at_utc ASC
+           LIMIT 1"#,
+    )
+    .bind(pose_event_family::POSE_RIG_INGESTED)
+    .bind(fallback_rig.rig_id.to_string())
+    .fetch_one(store.pool())
+    .await
+    .expect("read fallback pose rig ingest event payload");
+    assert_eq!(
+        fallback_event_payload["error_reason"],
+        serde_json::json!(fallback_reason)
     );
 
     // The rig is listable for the character.
-    let listed = store.list_pose_rigs(character, 50).await.expect("list rigs");
+    let listed = store
+        .list_pose_rigs(character, 50)
+        .await
+        .expect("list rigs");
     assert!(
         listed.iter().any(|r| r.rig_id == rig.rig_id),
         "ingested rig is listed for its character"
@@ -222,19 +586,1168 @@ async fn atelier_pose_rig_ingest_idempotency_and_roundtrip() {
 }
 
 #[tokio::test]
-async fn atelier_pose_head_pose_upsert_and_limits() {
-    let Some(url) = database_url() else {
-        eprintln!("SKIP atelier_pose_head_pose_upsert_and_limits: DATABASE_URL not set");
+async fn atelier_pose_openpose_png_sidecars_are_registered_as_portable_artifacts() {
+    let Some(url) = atelier_pg_support::database_url().await else {
+        eprintln!(
+            "SKIP atelier_pose_openpose_png_sidecars_are_registered_as_portable_artifacts: PostgreSQL unavailable"
+        );
         return;
     };
     let store = connected_store(&url).await;
     let character = fresh_character(&store).await;
     let rig = fresh_rig(&store, character).await;
 
-    let events_before = store
-        .count_events(pose_event_family::POSE_HEAD_POSE_RECORDED)
+    let json_artifact = atelier_pg_support::write_native_media_artifact(b"openpose-json");
+    let preview_png = atelier_pg_support::write_native_media_artifact(b"openpose-preview-png");
+    let conditioning_png =
+        atelier_pg_support::write_native_media_artifact(b"openpose-conditioning-png");
+
+    let json_sidecar = store
+        .record_pose_sidecar(&NewPoseSidecar {
+            rig_id: rig.rig_id,
+            kind: PoseSidecarKind::OpenPoseJson,
+            artifact_ref: json_artifact.artifact_ref.clone(),
+            manifest_ref: artifact_manifest_ref(&json_artifact.artifact_ref),
+            content_hash: json_artifact.content_hash.clone(),
+            byte_len: json_artifact.byte_len,
+            mime: "application/json".to_string(),
+            width: rig.canvas.width,
+            height: rig.canvas.height,
+            status: PoseSidecarStatus::Rendered,
+            error_message: None,
+        })
         .await
-        .expect("count head-pose events before");
+        .expect("record OpenPose JSON sidecar");
+    let preview_sidecar = store
+        .record_pose_sidecar(&NewPoseSidecar {
+            rig_id: rig.rig_id,
+            kind: PoseSidecarKind::OpenPosePng,
+            artifact_ref: preview_png.artifact_ref.clone(),
+            manifest_ref: artifact_manifest_ref(&preview_png.artifact_ref),
+            content_hash: preview_png.content_hash.clone(),
+            byte_len: preview_png.byte_len,
+            mime: "image/png".to_string(),
+            width: rig.canvas.width,
+            height: rig.canvas.height,
+            status: PoseSidecarStatus::Rendered,
+            error_message: None,
+        })
+        .await
+        .expect("record OpenPose PNG preview sidecar");
+    let conditioning_sidecar = store
+        .record_pose_sidecar(&NewPoseSidecar {
+            rig_id: rig.rig_id,
+            kind: PoseSidecarKind::ConditioningPng,
+            artifact_ref: conditioning_png.artifact_ref.clone(),
+            manifest_ref: artifact_manifest_ref(&conditioning_png.artifact_ref),
+            content_hash: conditioning_png.content_hash.clone(),
+            byte_len: conditioning_png.byte_len,
+            mime: "image/png".to_string(),
+            width: rig.canvas.width,
+            height: rig.canvas.height,
+            status: PoseSidecarStatus::Rendered,
+            error_message: None,
+        })
+        .await
+        .expect("record conditioning PNG sidecar");
+
+    let sidecars = store
+        .list_pose_sidecars(rig.rig_id)
+        .await
+        .expect("list pose sidecars");
+    assert_eq!(sidecars.len(), 3);
+    assert_eq!(
+        sidecars
+            .iter()
+            .map(|sidecar| sidecar.kind)
+            .collect::<Vec<_>>(),
+        vec![
+            PoseSidecarKind::OpenPoseJson,
+            PoseSidecarKind::OpenPosePng,
+            PoseSidecarKind::ConditioningPng
+        ],
+        "sidecars list in deterministic OpenPose/PNG/conditioning order"
+    );
+    assert!(
+        sidecars.iter().all(|sidecar| {
+            sidecar
+                .artifact_ref
+                .starts_with("artifact://.handshake/artifacts/")
+                && !sidecar.artifact_ref.contains(".GOV")
+                && !sidecar.artifact_ref.contains('\\')
+        }),
+        "pose sidecars must be portable ArtifactStore handles outside .GOV"
+    );
+    assert_eq!(json_sidecar.role, "openpose_json");
+    assert_eq!(
+        json_sidecar.manifest_ref,
+        artifact_manifest_ref(&json_artifact.artifact_ref)
+    );
+    assert_eq!(json_sidecar.mime, "application/json");
+    assert_eq!(preview_sidecar.mime, "image/png");
+    assert_eq!(conditioning_sidecar.mime, "image/png");
+    assert_eq!(preview_sidecar.source_ref, rig.source_ref);
+    assert_eq!(preview_sidecar.source_asset_id, rig.source_asset_id);
+    assert_eq!(preview_sidecar.width, rig.canvas.width);
+    assert_eq!(preview_sidecar.height, rig.canvas.height);
+    assert_eq!(preview_sidecar.status, PoseSidecarStatus::Rendered);
+    assert_eq!(preview_sidecar.error_message, None);
+
+    let wrong_mime = store
+        .record_pose_sidecar(&NewPoseSidecar {
+            rig_id: rig.rig_id,
+            kind: PoseSidecarKind::OpenPosePng,
+            artifact_ref: preview_png.artifact_ref.clone(),
+            manifest_ref: artifact_manifest_ref(&preview_png.artifact_ref),
+            content_hash: format!("sha256-{}", Uuid::new_v4()),
+            byte_len: preview_png.byte_len,
+            mime: "image/jpeg".to_string(),
+            width: rig.canvas.width,
+            height: rig.canvas.height,
+            status: PoseSidecarStatus::Rendered,
+            error_message: None,
+        })
+        .await
+        .expect_err("OpenPose PNG sidecars require image/png");
+    assert!(wrong_mime.to_string().contains("mime"));
+
+    let gov_ref = store
+        .record_pose_sidecar(&NewPoseSidecar {
+            rig_id: rig.rig_id,
+            kind: PoseSidecarKind::ConditioningPng,
+            artifact_ref: "artifact://.GOV/pose/openpose.png".to_string(),
+            manifest_ref: artifact_manifest_ref(&conditioning_png.artifact_ref),
+            content_hash: format!("sha256-{}", Uuid::new_v4()),
+            byte_len: conditioning_png.byte_len,
+            mime: "image/png".to_string(),
+            width: rig.canvas.width,
+            height: rig.canvas.height,
+            status: PoseSidecarStatus::Rendered,
+            error_message: None,
+        })
+        .await
+        .expect_err(".GOV pose sidecar refs are rejected");
+    assert!(gov_ref.to_string().contains("artifact_ref"));
+
+    let rendered_with_error = store
+        .record_pose_sidecar(&NewPoseSidecar {
+            rig_id: rig.rig_id,
+            kind: PoseSidecarKind::ConditioningPng,
+            artifact_ref: conditioning_png.artifact_ref.clone(),
+            manifest_ref: artifact_manifest_ref(&conditioning_png.artifact_ref),
+            content_hash: format!("sha256-{}", Uuid::new_v4()),
+            byte_len: conditioning_png.byte_len,
+            mime: "image/png".to_string(),
+            width: rig.canvas.width,
+            height: rig.canvas.height,
+            status: PoseSidecarStatus::Rendered,
+            error_message: Some("should not persist on rendered sidecar".to_string()),
+        })
+        .await
+        .expect_err("rendered sidecars must not carry error messages");
+    assert!(rendered_with_error.to_string().contains("error_message"));
+
+    let preview_events = store
+        .count_events_for_aggregate(
+            pose_event_family::POSE_SIDECAR_RECORDED,
+            "atelier_pose_sidecar",
+            &preview_sidecar.sidecar_id.to_string(),
+        )
+        .await
+        .expect("count pose sidecar event");
+    assert_eq!(preview_events, 1);
+    let json_sidecar_event: serde_json::Value = sqlx::query_scalar(
+        r#"SELECT payload
+           FROM atelier_event
+           WHERE event_family = $1
+             AND aggregate_type = 'atelier_pose_sidecar'
+             AND aggregate_id = $2
+           ORDER BY created_at_utc ASC
+           LIMIT 1"#,
+    )
+    .bind(pose_event_family::POSE_SIDECAR_RECORDED)
+    .bind(json_sidecar.sidecar_id.to_string())
+    .fetch_one(store.pool())
+    .await
+    .expect("read OpenPose JSON sidecar event payload");
+    assert_eq!(
+        json_sidecar_event["role"],
+        serde_json::json!("openpose_json")
+    );
+    assert_eq!(
+        json_sidecar_event["manifest_ref"],
+        serde_json::json!(artifact_manifest_ref(&json_artifact.artifact_ref))
+    );
+}
+
+#[tokio::test]
+async fn atelier_pose_sidecars_lookup_by_source_and_hidden_gallery_projection() {
+    let Some(url) = atelier_pg_support::database_url().await else {
+        eprintln!(
+            "SKIP atelier_pose_sidecars_lookup_by_source_and_hidden_gallery_projection: PostgreSQL unavailable"
+        );
+        return;
+    };
+    let store = connected_store(&url).await;
+    let character = fresh_character(&store).await;
+    let rig = fresh_rig(&store, character).await;
+
+    for (kind, mime, payload) in [
+        (
+            PoseSidecarKind::OpenPoseJson,
+            "application/json",
+            "lookup-openpose-json",
+        ),
+        (
+            PoseSidecarKind::OpenPosePng,
+            "image/png",
+            "lookup-openpose-preview",
+        ),
+        (
+            PoseSidecarKind::ConditioningPng,
+            "image/png",
+            "lookup-conditioning-png",
+        ),
+    ] {
+        let artifact = atelier_pg_support::write_native_media_artifact(payload.as_bytes());
+        store
+            .record_pose_sidecar(&NewPoseSidecar {
+                rig_id: rig.rig_id,
+                kind,
+                artifact_ref: artifact.artifact_ref.clone(),
+                manifest_ref: artifact_manifest_ref(&artifact.artifact_ref),
+                content_hash: artifact.content_hash,
+                byte_len: artifact.byte_len,
+                mime: mime.to_string(),
+                width: rig.canvas.width,
+                height: rig.canvas.height,
+                status: PoseSidecarStatus::Rendered,
+                error_message: None,
+            })
+            .await
+            .expect("record lookup sidecar");
+    }
+
+    let source_sidecars = store
+        .list_pose_sidecars_for_source(&rig.source_ref, Some(rig.rig_id))
+        .await
+        .expect("lookup pose sidecars by source + rig");
+    assert_eq!(source_sidecars.len(), 3);
+    assert!(
+        source_sidecars
+            .iter()
+            .all(|sidecar| sidecar.source_ref == rig.source_ref && sidecar.rig_id == rig.rig_id),
+        "lookup stays scoped to the requested source image and rig"
+    );
+
+    let wrong_source = store
+        .list_pose_sidecars_for_source(&format!("portrait://{}", Uuid::new_v4()), Some(rig.rig_id))
+        .await
+        .expect("wrong source lookup returns empty set");
+    assert!(wrong_source.is_empty());
+
+    let bad_source = store
+        .list_pose_sidecars_for_source(".GOV/pose-source", Some(rig.rig_id))
+        .await
+        .expect_err(".GOV source lookups are rejected");
+    assert!(bad_source.to_string().contains("source_ref"));
+
+    let projection: Vec<PoseSidecarGalleryProjection> = store
+        .pose_sidecar_gallery_projection(rig.rig_id)
+        .await
+        .expect("build pose sidecar gallery projection");
+    assert_eq!(projection.len(), 3);
+    assert!(
+        projection
+            .iter()
+            .all(|item| !item.gallery_visible && item.hidden_reason == "pose_sidecar"),
+        "pose sidecar projection explicitly hides OpenPose/conditioning artifacts from normal galleries"
+    );
+}
+
+#[tokio::test]
+async fn atelier_pose_strip_state_projection_exposes_source_and_openpose_sidecars_for_diagnostics()
+{
+    let Some(url) = atelier_pg_support::database_url().await else {
+        eprintln!(
+            "SKIP atelier_pose_strip_state_projection_exposes_source_and_openpose_sidecars_for_diagnostics: PostgreSQL unavailable"
+        );
+        return;
+    };
+    let store = connected_store(&url).await;
+    let character = fresh_character(&store).await;
+
+    let media_artifact = atelier_pg_support::write_native_media_artifact(b"strip-source-image");
+    let media = store
+        .materialize_media_asset(&NewMediaAsset {
+            content_hash: media_artifact.content_hash.clone(),
+            mime: "image/png".to_string(),
+            byte_len: media_artifact.byte_len,
+            source_provenance: Some("mt-095 strip source".to_string()),
+            artifact_ref: media_artifact.artifact_ref.clone(),
+        })
+        .await
+        .expect("materialize strip source image");
+    let rig = store
+        .ingest_pose_rig(&NewPoseRig {
+            character_internal_id: character,
+            source_asset_id: Some(media.asset_id),
+            source_ref: format!("media://{}", media.asset_id),
+            content_hash: format!("sha256-{}", Uuid::new_v4()),
+            canvas: CanvasSize {
+                width: 1024,
+                height: 1536,
+            },
+            detector_provider: "mediapipe.tasks-vision.pose".to_string(),
+            detector_model: "BlazePose GHUM".to_string(),
+            detector_model_version: "mediapipe-tasks-vision-0.10.20".to_string(),
+            source_asset_version_ref: Some(format!("media-version://{}/v1", media.asset_id)),
+            source_asset_path_ref: Some(format!(
+                "source://operator-inbox/{}/strip-source.png",
+                Uuid::new_v4()
+            )),
+            confidence_available: true,
+            detector_status: DetectorStatus::Detected,
+            error_reason: None,
+            keypoints_json: valid_keypoints(),
+            sidecar_ref: Some(format!("artifact://atelier/pose/{}", Uuid::new_v4())),
+        })
+        .await
+        .expect("ingest strip source-linked rig");
+    let fallback_rig = fresh_rig(&store, character).await;
+
+    for (kind, mime, payload) in [
+        (
+            PoseSidecarKind::OpenPoseJson,
+            "application/json",
+            "strip-json",
+        ),
+        (
+            PoseSidecarKind::OpenPosePng,
+            "image/png",
+            "strip-openpose-png",
+        ),
+        (
+            PoseSidecarKind::ConditioningPng,
+            "image/png",
+            "strip-conditioning-png",
+        ),
+    ] {
+        let artifact = atelier_pg_support::write_native_media_artifact(payload.as_bytes());
+        store
+            .record_pose_sidecar(&NewPoseSidecar {
+                rig_id: rig.rig_id,
+                kind,
+                artifact_ref: artifact.artifact_ref.clone(),
+                manifest_ref: artifact_manifest_ref(&artifact.artifact_ref),
+                content_hash: artifact.content_hash,
+                byte_len: artifact.byte_len,
+                mime: mime.to_string(),
+                width: rig.canvas.width,
+                height: rig.canvas.height,
+                status: PoseSidecarStatus::Rendered,
+                error_message: None,
+            })
+            .await
+            .expect("record strip sidecar");
+    }
+    let failed_json_artifact =
+        atelier_pg_support::write_native_media_artifact(b"strip-json-failed");
+    let failed_json_message = "openpose renderer unavailable";
+    store
+        .record_pose_sidecar(&NewPoseSidecar {
+            rig_id: fallback_rig.rig_id,
+            kind: PoseSidecarKind::OpenPoseJson,
+            artifact_ref: failed_json_artifact.artifact_ref.clone(),
+            manifest_ref: artifact_manifest_ref(&failed_json_artifact.artifact_ref),
+            content_hash: failed_json_artifact.content_hash,
+            byte_len: failed_json_artifact.byte_len,
+            mime: "application/json".to_string(),
+            width: fallback_rig.canvas.width,
+            height: fallback_rig.canvas.height,
+            status: PoseSidecarStatus::Failed,
+            error_message: Some(failed_json_message.to_string()),
+        })
+        .await
+        .expect("record failed OpenPose JSON sidecar");
+
+    let source_strip: Vec<PoseSourceImageStripItem> = store
+        .pose_source_image_strip_state(character, 25)
+        .await
+        .expect("read source-image strip state");
+    let source_item = source_strip
+        .iter()
+        .find(|item| item.rig_id == rig.rig_id)
+        .expect("source image strip includes the rig source");
+    assert_eq!(source_item.source_asset_id, Some(media.asset_id));
+    assert_eq!(source_item.source_ref, rig.source_ref);
+    assert_eq!(
+        source_item.artifact_ref.as_deref(),
+        Some(media.artifact_ref.as_str())
+    );
+    assert_eq!(
+        source_item.content_hash.as_deref(),
+        Some(media.content_hash.as_str())
+    );
+    assert_eq!(source_item.mime.as_deref(), Some("image/png"));
+    assert_eq!(source_item.byte_len, Some(media.byte_len));
+    assert!(source_item.diagnostics_visible);
+    assert!(source_item.gallery_visible);
+    assert_eq!(
+        source_item.jump_target,
+        format!("atelier://pose-rig/{}/source", rig.rig_id)
+    );
+    let fallback_source_item = source_strip
+        .iter()
+        .find(|item| item.rig_id == fallback_rig.rig_id)
+        .expect("source image strip includes source-ref-only fallback rig");
+    assert_eq!(fallback_source_item.source_asset_id, None);
+    assert_eq!(fallback_source_item.source_ref, fallback_rig.source_ref);
+    assert_eq!(fallback_source_item.artifact_ref, None);
+    assert_eq!(fallback_source_item.content_hash, None);
+    assert_eq!(fallback_source_item.mime, None);
+    assert_eq!(fallback_source_item.byte_len, None);
+    assert!(fallback_source_item.diagnostics_visible);
+    assert!(
+        !fallback_source_item.gallery_visible,
+        "source-ref-only rigs are diagnostics-visible without becoming gallery media"
+    );
+
+    let openpose_strip: Vec<PoseOpenPoseSidecarStripItem> = store
+        .pose_openpose_sidecar_strip_state(rig.rig_id)
+        .await
+        .expect("read OpenPose sidecar strip state");
+    assert_eq!(openpose_strip.len(), 2);
+    assert_eq!(
+        openpose_strip
+            .iter()
+            .map(|item| item.kind)
+            .collect::<Vec<_>>(),
+        vec![PoseSidecarKind::OpenPoseJson, PoseSidecarKind::OpenPosePng],
+        "OpenPose strip excludes conditioning PNGs"
+    );
+    assert!(openpose_strip.iter().all(|item| {
+        item.rig_id == rig.rig_id
+            && item.source_ref == rig.source_ref
+            && item
+                .artifact_ref
+                .starts_with("artifact://.handshake/artifacts/")
+            && item.diagnostics_visible
+            && !item.gallery_visible
+            && item.hidden_reason == "pose_sidecar"
+            && item.jump_target == format!("atelier://pose-rig/{}/sidecars", rig.rig_id)
+    }));
+    assert!(openpose_strip
+        .iter()
+        .all(|item| item.error_message.is_none()));
+
+    let failed_openpose_strip: Vec<PoseOpenPoseSidecarStripItem> = store
+        .pose_openpose_sidecar_strip_state(fallback_rig.rig_id)
+        .await
+        .expect("read failed OpenPose sidecar strip state");
+    assert_eq!(failed_openpose_strip.len(), 1);
+    assert_eq!(failed_openpose_strip[0].status, PoseSidecarStatus::Failed);
+    assert_eq!(
+        failed_openpose_strip[0].error_message.as_deref(),
+        Some(failed_json_message),
+        "Diagnostics strip state preserves failed sidecar reason"
+    );
+}
+
+#[tokio::test]
+async fn atelier_pose_context_state_switches_without_deleting_rigs_media_or_links() {
+    let Some(url) = atelier_pg_support::database_url().await else {
+        eprintln!(
+            "SKIP atelier_pose_context_state_switches_without_deleting_rigs_media_or_links: PostgreSQL unavailable"
+        );
+        return;
+    };
+    let store = connected_store(&url).await;
+    let character = fresh_character(&store).await;
+    let workspace_ref = format!("pose-workspace://{}", Uuid::new_v4());
+
+    let media_artifact = atelier_pg_support::write_native_media_artifact(b"context-source-image");
+    let media = store
+        .materialize_media_asset(&NewMediaAsset {
+            content_hash: media_artifact.content_hash.clone(),
+            mime: "image/png".to_string(),
+            byte_len: media_artifact.byte_len,
+            source_provenance: Some("mt-094 pose context source".to_string()),
+            artifact_ref: media_artifact.artifact_ref.clone(),
+        })
+        .await
+        .expect("materialize pose context source media");
+    let rig = store
+        .ingest_pose_rig(&NewPoseRig {
+            character_internal_id: character,
+            source_asset_id: Some(media.asset_id),
+            source_ref: format!("media://{}", media.asset_id),
+            content_hash: format!("sha256-{}", Uuid::new_v4()),
+            canvas: CanvasSize {
+                width: 1024,
+                height: 1536,
+            },
+            detector_provider: "mediapipe.tasks-vision.pose".to_string(),
+            detector_model: "BlazePose GHUM".to_string(),
+            detector_model_version: "mediapipe-tasks-vision-0.10.20".to_string(),
+            source_asset_version_ref: Some(format!("media-version://{}/v1", media.asset_id)),
+            source_asset_path_ref: Some(format!(
+                "source://operator-inbox/{}/context-source.png",
+                Uuid::new_v4()
+            )),
+            confidence_available: true,
+            detector_status: DetectorStatus::Detected,
+            error_reason: None,
+            keypoints_json: valid_keypoints(),
+            sidecar_ref: Some(format!("artifact://atelier/pose/{}", Uuid::new_v4())),
+        })
+        .await
+        .expect("ingest source-linked pose rig");
+    let unbound_rig = fresh_rig(&store, character).await;
+    let collection = store
+        .create_collection(&NewCollection {
+            name: format!("pose-context-{}", Uuid::new_v4()),
+            notes: "pose context collection".to_string(),
+            tags: vec!["pose".to_string()],
+            character_internal_id: Some(character),
+            sheet_version_id: None,
+        })
+        .await
+        .expect("create pose context collection");
+    let other_character = fresh_character(&store).await;
+    let other_rig = fresh_rig(&store, other_character).await;
+
+    let blank = store
+        .set_pose_context_state(&NewPoseContextState {
+            workspace_ref: workspace_ref.clone(),
+            kind: PoseContextKind::Blank,
+            source_asset_id: None,
+            character_internal_id: None,
+            collection_id: None,
+            selected_rig_id: None,
+            requested_by: "mt-094-context".to_string(),
+        })
+        .await
+        .expect("set blank pose context");
+    assert_eq!(blank.kind, PoseContextKind::Blank);
+
+    let single_image = store
+        .set_pose_context_state(&NewPoseContextState {
+            workspace_ref: workspace_ref.clone(),
+            kind: PoseContextKind::SingleImage,
+            source_asset_id: Some(media.asset_id),
+            character_internal_id: None,
+            collection_id: None,
+            selected_rig_id: Some(rig.rig_id),
+            requested_by: "mt-094-context".to_string(),
+        })
+        .await
+        .expect("set single-image pose context");
+    assert_eq!(single_image.source_asset_id, Some(media.asset_id));
+    assert_eq!(single_image.selected_rig_id, Some(rig.rig_id));
+
+    let character_linked = store
+        .set_pose_context_state(&NewPoseContextState {
+            workspace_ref: workspace_ref.clone(),
+            kind: PoseContextKind::CharacterLinked,
+            source_asset_id: None,
+            character_internal_id: Some(character),
+            collection_id: None,
+            selected_rig_id: Some(rig.rig_id),
+            requested_by: "mt-094-context".to_string(),
+        })
+        .await
+        .expect("set character-linked pose context");
+    assert_eq!(character_linked.character_internal_id, Some(character));
+
+    let collection_linked = store
+        .set_pose_context_state(&NewPoseContextState {
+            workspace_ref: workspace_ref.clone(),
+            kind: PoseContextKind::CollectionLinked,
+            source_asset_id: None,
+            character_internal_id: Some(character),
+            collection_id: Some(collection.collection_id),
+            selected_rig_id: Some(rig.rig_id),
+            requested_by: "mt-094-context".to_string(),
+        })
+        .await
+        .expect("set collection-linked pose context");
+    assert_eq!(
+        collection_linked.collection_id,
+        Some(collection.collection_id)
+    );
+
+    let current = store
+        .current_pose_context_state(&workspace_ref)
+        .await
+        .expect("read current pose context")
+        .expect("current context exists");
+    assert_eq!(current.context_id, collection_linked.context_id);
+
+    let history = store
+        .list_pose_context_history(&workspace_ref)
+        .await
+        .expect("read pose context history");
+    assert_eq!(
+        history.iter().map(|state| state.kind).collect::<Vec<_>>(),
+        vec![
+            PoseContextKind::Blank,
+            PoseContextKind::SingleImage,
+            PoseContextKind::CharacterLinked,
+            PoseContextKind::CollectionLinked
+        ],
+        "pose context switches are append-only and preserve all prior modes"
+    );
+
+    assert!(
+        store
+            .get_pose_rig(rig.rig_id)
+            .await
+            .expect("rig still exists after context switches")
+            .rig_id
+            == rig.rig_id,
+        "context switches must not delete the selected rig"
+    );
+    assert!(
+        store
+            .get_media_asset_by_hash(&media.content_hash)
+            .await
+            .expect("media still exists after context switches")
+            .is_some(),
+        "context switches must not delete source media"
+    );
+    assert!(
+        store
+            .get_collection(collection.collection_id)
+            .await
+            .expect("collection link still exists after context switches")
+            .collection_id
+            == collection.collection_id,
+        "context switches must not delete linked collections"
+    );
+
+    let invalid_blank = store
+        .set_pose_context_state(&NewPoseContextState {
+            workspace_ref: format!("pose-workspace://{}", Uuid::new_v4()),
+            kind: PoseContextKind::Blank,
+            source_asset_id: Some(media.asset_id),
+            character_internal_id: None,
+            collection_id: None,
+            selected_rig_id: None,
+            requested_by: "mt-094-context".to_string(),
+        })
+        .await
+        .expect_err("blank contexts must not carry image links");
+    assert!(invalid_blank.to_string().contains("blank"));
+
+    let invalid_unbound_single_image = store
+        .set_pose_context_state(&NewPoseContextState {
+            workspace_ref: format!("pose-workspace://{}", Uuid::new_v4()),
+            kind: PoseContextKind::SingleImage,
+            source_asset_id: Some(media.asset_id),
+            character_internal_id: None,
+            collection_id: None,
+            selected_rig_id: Some(unbound_rig.rig_id),
+            requested_by: "mt-094-context".to_string(),
+        })
+        .await
+        .expect_err("single-image contexts must not attach source-unlinked rigs");
+    assert!(invalid_unbound_single_image
+        .to_string()
+        .contains("source_asset_id"));
+
+    let invalid_collection_rig = store
+        .set_pose_context_state(&NewPoseContextState {
+            workspace_ref: format!("pose-workspace://{}", Uuid::new_v4()),
+            kind: PoseContextKind::CollectionLinked,
+            source_asset_id: None,
+            character_internal_id: None,
+            collection_id: Some(collection.collection_id),
+            selected_rig_id: Some(other_rig.rig_id),
+            requested_by: "mt-094-context".to_string(),
+        })
+        .await
+        .expect_err("collection-linked contexts must not attach a rig from another character");
+    assert!(invalid_collection_rig.to_string().contains("collection_id"));
+
+    for context_id in [
+        blank.context_id,
+        single_image.context_id,
+        character_linked.context_id,
+        collection_linked.context_id,
+    ] {
+        let event_count = store
+            .count_events_for_aggregate(
+                pose_event_family::POSE_CONTEXT_STATE_SET,
+                "atelier_pose_context_state",
+                &context_id.to_string(),
+            )
+            .await
+            .expect("count pose context event");
+        assert_eq!(event_count, 1);
+    }
+}
+
+#[tokio::test]
+async fn atelier_pose_multi_rig_workspace_state_tracks_tabs_active_order_dirty_panel() {
+    let Some(url) = atelier_pg_support::database_url().await else {
+        eprintln!(
+            "SKIP atelier_pose_multi_rig_workspace_state_tracks_tabs_active_order_dirty_panel: PostgreSQL unavailable"
+        );
+        return;
+    };
+    let store = connected_store(&url).await;
+    let character = fresh_character(&store).await;
+    let rig_a = fresh_rig(&store, character).await;
+    let rig_b = fresh_rig(&store, character).await;
+    let rig_c = fresh_rig(&store, character).await;
+    let workspace_ref = format!("pose-workspace://{}", Uuid::new_v4());
+    let session_ref = format!("pose-session://{}", Uuid::new_v4());
+    let other_session_ref = format!("pose-session://{}", Uuid::new_v4());
+
+    store
+        .upsert_pose_workspace_rig_state(&NewPoseWorkspaceRigState {
+            workspace_ref: workspace_ref.clone(),
+            session_ref: session_ref.clone(),
+            rig_id: rig_a.rig_id,
+            open: true,
+            sort_order: 1,
+            active: true,
+            dirty_calibration: false,
+            panel_state: serde_json::json!({"panel": "source", "zoom": 1.0}),
+            requested_by: "mt-096-workspace".to_string(),
+        })
+        .await
+        .expect("open rig A as active workspace tab");
+    store
+        .upsert_pose_workspace_rig_state(&NewPoseWorkspaceRigState {
+            workspace_ref: workspace_ref.clone(),
+            session_ref: session_ref.clone(),
+            rig_id: rig_b.rig_id,
+            open: true,
+            sort_order: 0,
+            active: false,
+            dirty_calibration: true,
+            panel_state: serde_json::json!({
+                "panel": "calibration",
+                "expanded": ["head_pose", "limits"]
+            }),
+            requested_by: "mt-096-workspace".to_string(),
+        })
+        .await
+        .expect("open dirty rig B workspace tab");
+    let rig_c_state = store
+        .upsert_pose_workspace_rig_state(&NewPoseWorkspaceRigState {
+            workspace_ref: workspace_ref.clone(),
+            session_ref: session_ref.clone(),
+            rig_id: rig_c.rig_id,
+            open: true,
+            sort_order: 2,
+            active: true,
+            dirty_calibration: false,
+            panel_state: serde_json::json!({"panel": "sidecars"}),
+            requested_by: "mt-096-initial-c".to_string(),
+        })
+        .await
+        .expect("open rig C as active workspace tab");
+
+    let states: Vec<PoseWorkspaceRigState> = store
+        .list_pose_workspace_rig_state(&workspace_ref, &session_ref)
+        .await
+        .expect("list multi-rig workspace state");
+    assert_eq!(
+        states.iter().map(|state| state.rig_id).collect::<Vec<_>>(),
+        vec![rig_b.rig_id, rig_a.rig_id, rig_c.rig_id],
+        "workspace tabs are ordered by explicit sort_order"
+    );
+    assert_eq!(
+        states.iter().filter(|state| state.active).count(),
+        1,
+        "workspace state keeps one active rig"
+    );
+    assert!(states
+        .iter()
+        .any(|state| state.rig_id == rig_c.rig_id && state.active));
+    let dirty_b = states
+        .iter()
+        .find(|state| state.rig_id == rig_b.rig_id)
+        .expect("rig B state present");
+    assert!(dirty_b.dirty_calibration);
+    assert_eq!(
+        dirty_b.panel_state,
+        serde_json::json!({"panel": "calibration", "expanded": ["head_pose", "limits"]})
+    );
+
+    let rig_b_updated = store
+        .upsert_pose_workspace_rig_state(&NewPoseWorkspaceRigState {
+            workspace_ref: workspace_ref.clone(),
+            session_ref: session_ref.clone(),
+            rig_id: rig_b.rig_id,
+            open: true,
+            sort_order: 3,
+            active: true,
+            dirty_calibration: false,
+            panel_state: serde_json::json!({"panel": "identity", "tab": "profile"}),
+            requested_by: "mt-096-switch-active".to_string(),
+        })
+        .await
+        .expect("activate rig B and update panel state");
+    assert!(rig_b_updated.active);
+    assert!(!rig_b_updated.dirty_calibration);
+
+    let states_after_update = store
+        .list_pose_workspace_rig_state(&workspace_ref, &session_ref)
+        .await
+        .expect("list updated multi-rig workspace state");
+    assert_eq!(
+        states_after_update
+            .iter()
+            .map(|state| state.rig_id)
+            .collect::<Vec<_>>(),
+        vec![rig_a.rig_id, rig_c.rig_id, rig_b.rig_id],
+        "updated sort_order is reflected in tab order"
+    );
+    assert_eq!(
+        states_after_update
+            .iter()
+            .filter(|state| state.active)
+            .map(|state| state.rig_id)
+            .collect::<Vec<_>>(),
+        vec![rig_b.rig_id],
+        "activating rig B deactivates prior active rig C"
+    );
+    assert_eq!(
+        states_after_update
+            .iter()
+            .find(|state| state.rig_id == rig_b.rig_id)
+            .expect("rig B updated state present")
+            .panel_state,
+        serde_json::json!({"panel": "identity", "tab": "profile"})
+    );
+
+    let rig_c_deactivation_events = store
+        .count_events_for_aggregate(
+            pose_event_family::POSE_WORKSPACE_RIG_STATE_SET,
+            "atelier_pose_workspace_rig_state",
+            &format!("{}:{}:{}", workspace_ref, session_ref, rig_c.rig_id),
+        )
+        .await
+        .expect("count rig C workspace state events");
+    assert_eq!(
+        rig_c_deactivation_events, 2,
+        "activating rig B emits a deactivation event for prior active rig C"
+    );
+    let rig_b_activation_payload: serde_json::Value = sqlx::query_scalar(
+        r#"SELECT payload
+           FROM atelier_event
+           WHERE event_family = $1
+             AND aggregate_type = 'atelier_pose_workspace_rig_state'
+             AND aggregate_id = $2
+           ORDER BY created_at_utc DESC
+           LIMIT 1"#,
+    )
+    .bind(pose_event_family::POSE_WORKSPACE_RIG_STATE_SET)
+    .bind(format!(
+        "{}:{}:{}",
+        workspace_ref, session_ref, rig_b.rig_id
+    ))
+    .fetch_one(store.pool())
+    .await
+    .expect("read rig B activation event payload");
+    let rig_c_deactivation_payload: serde_json::Value = sqlx::query_scalar(
+        r#"SELECT payload
+           FROM atelier_event
+           WHERE event_family = $1
+             AND aggregate_type = 'atelier_pose_workspace_rig_state'
+             AND aggregate_id = $2
+             AND payload->>'reason' = 'deactivated_by_active_rig_switch'
+           ORDER BY created_at_utc DESC
+           LIMIT 1"#,
+    )
+    .bind(pose_event_family::POSE_WORKSPACE_RIG_STATE_SET)
+    .bind(format!(
+        "{}:{}:{}",
+        workspace_ref, session_ref, rig_c.rig_id
+    ))
+    .fetch_one(store.pool())
+    .await
+    .expect("read rig C deactivation event payload");
+    assert!(rig_c_deactivation_payload.get("requested_by").is_none());
+    assert_eq!(
+        rig_c_deactivation_payload["requested_by_ref"],
+        rig_b_activation_payload["requested_by_ref"],
+        "deactivation event is attributed to the actor that switched active rigs"
+    );
+
+    let duplicate_order = store
+        .upsert_pose_workspace_rig_state(&NewPoseWorkspaceRigState {
+            workspace_ref: workspace_ref.clone(),
+            session_ref: session_ref.clone(),
+            rig_id: rig_c.rig_id,
+            open: true,
+            sort_order: 1,
+            active: false,
+            dirty_calibration: false,
+            panel_state: serde_json::json!({"panel": "sidecars"}),
+            requested_by: "mt-096-workspace".to_string(),
+        })
+        .await
+        .expect_err("open tabs must not share sort_order");
+    assert!(duplicate_order.to_string().contains("sort_order"));
+
+    store
+        .upsert_pose_workspace_rig_state(&NewPoseWorkspaceRigState {
+            workspace_ref: workspace_ref.clone(),
+            session_ref: session_ref.clone(),
+            rig_id: rig_a.rig_id,
+            open: false,
+            sort_order: 0,
+            active: false,
+            dirty_calibration: false,
+            panel_state: serde_json::json!({"panel": "closed"}),
+            requested_by: "mt-096-workspace".to_string(),
+        })
+        .await
+        .expect("close rig A workspace tab");
+    let open_after_close = store
+        .list_pose_workspace_rig_state(&workspace_ref, &session_ref)
+        .await
+        .expect("list open tabs after close");
+    assert_eq!(
+        open_after_close
+            .iter()
+            .map(|state| state.rig_id)
+            .collect::<Vec<_>>(),
+        vec![rig_c.rig_id, rig_b.rig_id],
+        "closed rigs no longer appear in the open-rig tab list, while inactive open tabs remain"
+    );
+
+    store
+        .upsert_pose_workspace_rig_state(&NewPoseWorkspaceRigState {
+            workspace_ref: workspace_ref.clone(),
+            session_ref: other_session_ref.clone(),
+            rig_id: rig_a.rig_id,
+            open: true,
+            sort_order: 0,
+            active: true,
+            dirty_calibration: true,
+            panel_state: serde_json::json!({"panel": "other-session"}),
+            requested_by: "mt-096-workspace".to_string(),
+        })
+        .await
+        .expect("same workspace can hold independent state in another session");
+    let other_session_states = store
+        .list_pose_workspace_rig_state(&workspace_ref, &other_session_ref)
+        .await
+        .expect("list other session workspace state");
+    assert_eq!(other_session_states.len(), 1);
+    assert_eq!(other_session_states[0].rig_id, rig_a.rig_id);
+    assert!(other_session_states[0].dirty_calibration);
+
+    let invalid_workspace = store
+        .upsert_pose_workspace_rig_state(&NewPoseWorkspaceRigState {
+            workspace_ref: ".GOV/pose-workspace".to_string(),
+            session_ref: session_ref.clone(),
+            rig_id: rig_a.rig_id,
+            open: true,
+            sort_order: 4,
+            active: false,
+            dirty_calibration: false,
+            panel_state: serde_json::json!({"panel": "source"}),
+            requested_by: "mt-096-workspace".to_string(),
+        })
+        .await
+        .expect_err(".GOV workspace refs are rejected");
+    assert!(invalid_workspace.to_string().contains("workspace_ref"));
+
+    let invalid_panel = store
+        .upsert_pose_workspace_rig_state(&NewPoseWorkspaceRigState {
+            workspace_ref: workspace_ref.clone(),
+            session_ref: session_ref.clone(),
+            rig_id: rig_a.rig_id,
+            open: true,
+            sort_order: 4,
+            active: false,
+            dirty_calibration: false,
+            panel_state: serde_json::json!("source"),
+            requested_by: "mt-096-workspace".to_string(),
+        })
+        .await
+        .expect_err("panel_state must be a structured object");
+    assert!(invalid_panel.to_string().contains("panel_state"));
+
+    let event_count = store
+        .count_events_for_aggregate(
+            pose_event_family::POSE_WORKSPACE_RIG_STATE_SET,
+            "atelier_pose_workspace_rig_state",
+            &format!(
+                "{}:{}:{}",
+                rig_c_state.workspace_ref, rig_c_state.session_ref, rig_c_state.rig_id
+            ),
+        )
+        .await
+        .expect("count workspace rig state event");
+    assert_eq!(
+        event_count, 2,
+        "rig C has its initial active-state event plus the emitted deactivation event"
+    );
+}
+
+#[tokio::test]
+async fn atelier_pose_workspace_route_and_keyboard_navigation_are_durable() {
+    let Some(url) = atelier_pg_support::database_url().await else {
+        eprintln!(
+            "SKIP atelier_pose_workspace_route_and_keyboard_navigation_are_durable: PostgreSQL unavailable"
+        );
+        return;
+    };
+    let store = connected_store(&url).await;
+    let character = fresh_character(&store).await;
+    let rig_a = fresh_rig(&store, character).await;
+    let rig_b = fresh_rig(&store, character).await;
+    let rig_c = fresh_rig(&store, character).await;
+    let workspace_ref = format!("pose-workspace://{}", Uuid::new_v4());
+    let session_ref = format!("pose-session://{}", Uuid::new_v4());
+
+    for (rig_id, sort_order, active, panel) in [
+        (
+            rig_a.rig_id,
+            1,
+            true,
+            serde_json::json!({"panel": "source"}),
+        ),
+        (
+            rig_b.rig_id,
+            0,
+            false,
+            serde_json::json!({"panel": "identity"}),
+        ),
+        (
+            rig_c.rig_id,
+            2,
+            false,
+            serde_json::json!({"panel": "sidecars"}),
+        ),
+    ] {
+        store
+            .upsert_pose_workspace_rig_state(&NewPoseWorkspaceRigState {
+                workspace_ref: workspace_ref.clone(),
+                session_ref: session_ref.clone(),
+                rig_id,
+                open: true,
+                sort_order,
+                active,
+                dirty_calibration: false,
+                panel_state: panel,
+                requested_by: "mt-097-seed".to_string(),
+            })
+            .await
+            .expect("seed pose workspace rig state");
+    }
+
+    let direct_route = store
+        .route_pose_workspace_to_rig(&NewPoseWorkspaceRouteTarget {
+            workspace_ref: workspace_ref.clone(),
+            session_ref: session_ref.clone(),
+            rig_id: rig_a.rig_id,
+            panel_id: "calibration".to_string(),
+            requested_by: "mt-097-route-direct".to_string(),
+        })
+        .await
+        .expect("resolve direct pose workspace route");
+    assert_eq!(direct_route.rig_id, rig_a.rig_id);
+    assert_eq!(direct_route.panel_id, "calibration");
+    assert_eq!(direct_route.active_sort_order, 1);
+    assert_eq!(direct_route.open_rig_count, 3);
+    assert!(
+        direct_route
+            .route_ref
+            .starts_with("pose-workspace-route://"),
+        "route_ref must be a portable product route, got {}",
+        direct_route.route_ref
+    );
+
+    let next_route = store
+        .apply_pose_workspace_keyboard_action(&PoseWorkspaceKeyboardActionRequest {
+            workspace_ref: workspace_ref.clone(),
+            session_ref: session_ref.clone(),
+            action: PoseWorkspaceKeyboardAction::ActivateNextRig,
+            panel_id: "calibration".to_string(),
+            requested_by: "mt-097-keyboard-next".to_string(),
+        })
+        .await
+        .expect("keyboard next activates the next open rig by sort order");
+    assert_eq!(next_route.rig_id, rig_c.rig_id);
+    assert_eq!(
+        next_route.keyboard_action,
+        Some(PoseWorkspaceKeyboardAction::ActivateNextRig)
+    );
+
+    let previous_route = store
+        .apply_pose_workspace_keyboard_action(&PoseWorkspaceKeyboardActionRequest {
+            workspace_ref: workspace_ref.clone(),
+            session_ref: session_ref.clone(),
+            action: PoseWorkspaceKeyboardAction::ActivatePreviousRig,
+            panel_id: "calibration".to_string(),
+            requested_by: "mt-097-keyboard-previous".to_string(),
+        })
+        .await
+        .expect("keyboard previous activates the previous open rig by sort order");
+    assert_eq!(previous_route.rig_id, rig_a.rig_id);
+    assert_eq!(
+        previous_route.keyboard_action,
+        Some(PoseWorkspaceKeyboardAction::ActivatePreviousRig)
+    );
+
+    let identity_route = store
+        .route_pose_workspace_to_rig(&NewPoseWorkspaceRouteTarget {
+            workspace_ref: workspace_ref.clone(),
+            session_ref: session_ref.clone(),
+            rig_id: rig_b.rig_id,
+            panel_id: "identity".to_string(),
+            requested_by: "mt-097-route-identity".to_string(),
+        })
+        .await
+        .expect("direct route activates requested rig");
+    assert_eq!(identity_route.rig_id, rig_b.rig_id);
+    assert_eq!(identity_route.panel_id, "identity");
+
+    let active_after_routes = store
+        .list_pose_workspace_rig_state(&workspace_ref, &session_ref)
+        .await
+        .expect("list state after routes");
+    assert_eq!(
+        active_after_routes
+            .iter()
+            .filter(|state| state.active)
+            .map(|state| state.rig_id)
+            .collect::<Vec<_>>(),
+        vec![rig_b.rig_id],
+        "route and keyboard APIs update the same durable active-rig state"
+    );
+
+    let invalid_panel = store
+        .route_pose_workspace_to_rig(&NewPoseWorkspaceRouteTarget {
+            workspace_ref,
+            session_ref,
+            rig_id: rig_b.rig_id,
+            panel_id: "identity/details".to_string(),
+            requested_by: "mt-097-invalid-panel".to_string(),
+        })
+        .await
+        .expect_err("route panel ids must be stable tokens");
+    assert!(invalid_panel.to_string().contains("panel_id"));
+}
+
+#[tokio::test]
+async fn atelier_pose_head_pose_upsert_and_limits() {
+    let Some(url) = atelier_pg_support::database_url().await else {
+        eprintln!("SKIP atelier_pose_head_pose_upsert_and_limits: PostgreSQL unavailable");
+        return;
+    };
+    let store = connected_store(&url).await;
+    let character = fresh_character(&store).await;
+    let rig = fresh_rig(&store, character).await;
 
     // --- record a head pose; the quaternion is normalized on the way in ---
     let head = store
@@ -268,9 +1781,49 @@ async fn atelier_pose_head_pose_upsert_and_limits() {
         .expect("get head pose")
         .expect("head pose present");
     assert_eq!(got.yaw_deg, -45.0, "upsert replaced the yaw in place");
-    assert_eq!(got.quaternion, head2.quaternion, "upsert replaced the quaternion");
+    assert_eq!(
+        got.quaternion, head2.quaternion,
+        "upsert replaced the quaternion"
+    );
 
-    // --- INVARIANT: CKC degree limits enforced (yaw +-90 / pitch +-75 / roll +-45) ---
+    // --- MT-089: YXZ Euler input computes the quaternion instead of requiring callers to supply it ---
+    let euler_head = store
+        .record_head_pose_from_yxz_euler(rig.rig_id, 90.0, 0.0, 0.0)
+        .await
+        .expect("record head pose from YXZ Euler");
+    let yaw_half = std::f64::consts::FRAC_1_SQRT_2;
+    assert_eq!(euler_head.yaw_deg, 90.0);
+    assert_eq!(euler_head.pitch_deg, 0.0);
+    assert_eq!(euler_head.roll_deg, 0.0);
+    assert!(
+        euler_head.quaternion[0].abs() < 1e-9
+            && (euler_head.quaternion[1] - yaw_half).abs() < 1e-9
+            && euler_head.quaternion[2].abs() < 1e-9
+            && (euler_head.quaternion[3] - yaw_half).abs() < 1e-9,
+        "YXZ Euler yaw-only conversion should produce [0, sin(45deg), 0, cos(45deg)], got {:?}",
+        euler_head.quaternion
+    );
+
+    // --- MT-089: legacy yaw-only import path preserves yaw and derives the matching quaternion ---
+    let legacy_yaw = store
+        .import_legacy_yaw_head_pose(rig.rig_id, -45.0)
+        .await
+        .expect("import legacy yaw head pose");
+    let yaw_22_5 = (22.5_f64).to_radians().sin();
+    let cos_22_5 = (22.5_f64).to_radians().cos();
+    assert_eq!(legacy_yaw.yaw_deg, -45.0);
+    assert_eq!(legacy_yaw.pitch_deg, 0.0);
+    assert_eq!(legacy_yaw.roll_deg, 0.0);
+    assert!(
+        legacy_yaw.quaternion[0].abs() < 1e-9
+            && (legacy_yaw.quaternion[1] + yaw_22_5).abs() < 1e-9
+            && legacy_yaw.quaternion[2].abs() < 1e-9
+            && (legacy_yaw.quaternion[3] - cos_22_5).abs() < 1e-9,
+        "legacy yaw import should compute a yaw-only quaternion, got {:?}",
+        legacy_yaw.quaternion
+    );
+
+    // --- INVARIANT: legacy source degree limits enforced (yaw +-90 / pitch +-75 / roll +-45) ---
     assert!(
         store
             .record_head_pose(rig.rig_id, 120.0, 0.0, 0.0, [0.0, 0.0, 0.0, 1.0])
@@ -286,32 +1839,30 @@ async fn atelier_pose_head_pose_upsert_and_limits() {
         "degenerate (zero-length) quaternion is rejected"
     );
 
-    // --- EVENT EMISSION: exactly two successful records emitted events ---
-    let events_after = store
-        .count_events(pose_event_family::POSE_HEAD_POSE_RECORDED)
+    // --- EVENT EMISSION: exactly four successful records emitted events ---
+    let event_count = store
+        .count_events_for_aggregate(
+            pose_event_family::POSE_HEAD_POSE_RECORDED,
+            "atelier_pose_rig",
+            &rig.rig_id.to_string(),
+        )
         .await
-        .expect("count head-pose events after");
+        .expect("count run-scoped head-pose events");
     assert_eq!(
-        events_after - events_before,
-        2,
-        "two successful head-pose records each emit one event; rejected ones emit none"
+        event_count, 4,
+        "four successful head-pose records each emit one event; rejected ones emit none"
     );
 }
 
 #[tokio::test]
 async fn atelier_pose_calibration_blocked_preservation() {
-    let Some(url) = database_url() else {
-        eprintln!("SKIP atelier_pose_calibration_blocked_preservation: DATABASE_URL not set");
+    let Some(url) = atelier_pg_support::database_url().await else {
+        eprintln!("SKIP atelier_pose_calibration_blocked_preservation: PostgreSQL unavailable");
         return;
     };
     let store = connected_store(&url).await;
     let character = fresh_character(&store).await;
     let rig = fresh_rig(&store, character).await;
-
-    let events_before = store
-        .count_events(pose_event_family::POSE_CALIBRATION_SET)
-        .await
-        .expect("count calibration events before");
 
     // --- INVARIANT: an Unresolved calibration WITHOUT a block_reason is rejected
     //     (the BLOCKED status must always be auditable, never silently empty) ---
@@ -356,7 +1907,10 @@ async fn atelier_pose_calibration_blocked_preservation() {
         .set_calibration(rig.rig_id, CalibrationState::Unresolved, Some(reason2))
         .await
         .expect("re-set calibration");
-    assert_eq!(cal2.rig_id, rig.rig_id, "calibration stays keyed on the rig");
+    assert_eq!(
+        cal2.rig_id, rig.rig_id,
+        "calibration stays keyed on the rig"
+    );
     let got = store
         .get_calibration(rig.rig_id)
         .await
@@ -369,47 +1923,144 @@ async fn atelier_pose_calibration_blocked_preservation() {
     );
     assert_eq!(got.state, CalibrationState::Unresolved);
 
-    // --- EVENT EMISSION: two successful sets emitted events; two rejected did not ---
-    let events_after = store
-        .count_events(pose_event_family::POSE_CALIBRATION_SET)
+    // --- MT-090: typed calibration data round-trips instead of collapsing to state+reason ---
+    let head_pose_ref = format!("atelier://pose-rig/{}/head-pose", rig.rig_id);
+    let history_ref = format!("calibration-history://{}", Uuid::new_v4());
+    let marker_visibility = CalibrationMarkerVisibility {
+        body: true,
+        face: true,
+        left_hand: true,
+        right_hand: false,
+    };
+    let marker_colors = CalibrationMarkerColors {
+        body: "#ff3366".to_string(),
+        face: "#33ccff".to_string(),
+        left_hand: "#77dd77".to_string(),
+        right_hand: "#999999".to_string(),
+    };
+    let hand_rows = vec![
+        CalibrationHandRow {
+            hand: CalibrationHandKind::Left,
+            visible: true,
+            marker_count: HAND_KEYPOINT_COUNT as i32,
+            confidence_available: true,
+        },
+        CalibrationHandRow {
+            hand: CalibrationHandKind::Right,
+            visible: false,
+            marker_count: HAND_KEYPOINT_COUNT as i32,
+            confidence_available: false,
+        },
+    ];
+    let typed = store
+        .set_pose_calibration(&NewPoseCalibration {
+            rig_id: rig.rig_id,
+            state: CalibrationState::Resolved,
+            block_reason: None,
+            head_pose_ref: Some(head_pose_ref.clone()),
+            marker_visibility: marker_visibility.clone(),
+            marker_colors: marker_colors.clone(),
+            hand_rows: hand_rows.clone(),
+            history_refs: vec![history_ref.clone()],
+        })
         .await
-        .expect("count calibration events after");
+        .expect("set typed pose calibration");
+    assert_eq!(typed.state, CalibrationState::Resolved);
+    assert_eq!(typed.block_reason, None);
+    assert_eq!(typed.head_pose_ref.as_deref(), Some(head_pose_ref.as_str()));
+    assert_eq!(typed.marker_visibility, marker_visibility);
+    assert_eq!(typed.marker_colors, marker_colors);
+    assert_eq!(typed.hand_rows, hand_rows);
+    assert_eq!(typed.history_refs, vec![history_ref.clone()]);
+
+    let fetched_typed = store
+        .get_calibration(rig.rig_id)
+        .await
+        .expect("get typed calibration")
+        .expect("typed calibration present");
     assert_eq!(
-        events_after - events_before,
-        2,
-        "two successful calibration sets each emit one event; rejected sets emit none"
+        fetched_typed, typed,
+        "typed calibration fields round-trip through Postgres"
+    );
+
+    let bad_history_ref = store
+        .set_pose_calibration(&NewPoseCalibration {
+            rig_id: rig.rig_id,
+            state: CalibrationState::Resolved,
+            block_reason: None,
+            head_pose_ref: Some(head_pose_ref.clone()),
+            marker_visibility: CalibrationMarkerVisibility::default(),
+            marker_colors: CalibrationMarkerColors::default(),
+            hand_rows: Vec::new(),
+            history_refs: vec!["C:\\operator\\pose-calibration.json".to_string()],
+        })
+        .await;
+    assert!(
+        bad_history_ref.is_err(),
+        "machine-local calibration history refs must be rejected"
+    );
+
+    // --- EVENT EMISSION: three successful sets emitted events; rejected sets did not ---
+    let event_count = store
+        .count_events_for_aggregate(
+            pose_event_family::POSE_CALIBRATION_SET,
+            "atelier_pose_rig",
+            &rig.rig_id.to_string(),
+        )
+        .await
+        .expect("count run-scoped calibration events");
+    assert_eq!(
+        event_count, 3,
+        "three successful calibration sets each emit one event; rejected sets emit none"
     );
 }
 
 #[tokio::test]
 async fn atelier_identity_profile_append_only_seq_and_redaction() {
-    let Some(url) = database_url() else {
+    let Some(url) = atelier_pg_support::database_url().await else {
         eprintln!(
-            "SKIP atelier_identity_profile_append_only_seq_and_redaction: DATABASE_URL not set"
+            "SKIP atelier_identity_profile_append_only_seq_and_redaction: PostgreSQL unavailable"
         );
         return;
     };
     let store = connected_store(&url).await;
     let character = fresh_character(&store).await;
 
-    let events_before = store
-        .count_events(pose_event_family::IDENTITY_PROFILE_APPENDED)
-        .await
-        .expect("count identity-profile events before");
-
     // --- append the first identity profile; seq starts at 1 for a new character ---
     let p1 = store
         .append_identity_profile(&NewIdentityProfile {
             character_internal_id: character,
             kind: IdentityProfileKind::Face,
+            name: "Front portrait identity".to_string(),
+            description: "Neutral front portrait used for face identity matching".to_string(),
             reference_asset_id: None,
             reference_ref: format!("portrait://{}", Uuid::new_v4()),
+            source_ref: Some(format!("source://identity/{}", Uuid::new_v4())),
+            crop_ref: Some(format!("crop://identity/{}", Uuid::new_v4())),
+            artifact_ref: Some(format!("artifact://identity-profile/{}", Uuid::new_v4())),
             provenance: "source: operator upload".to_string(),
         })
         .await
         .expect("append first identity profile");
     assert_eq!(p1.seq, 1, "first profile for a fresh character is seq 1");
+    assert_eq!(p1.version, 1, "new identity profiles start at version 1");
     assert_eq!(p1.kind, IdentityProfileKind::Face);
+    assert_eq!(p1.name, "Front portrait identity");
+    assert_eq!(
+        p1.description,
+        "Neutral front portrait used for face identity matching"
+    );
+    assert!(p1.source_ref.as_deref().unwrap().starts_with("source://"));
+    assert!(p1.crop_ref.as_deref().unwrap().starts_with("crop://"));
+    assert!(p1
+        .artifact_ref
+        .as_deref()
+        .unwrap()
+        .starts_with("artifact://"));
+    assert!(
+        p1.updated_at_utc >= p1.created_at_utc,
+        "identity profile exposes update timestamp"
+    );
 
     // --- SECRET REDACTION: secret-looking provenance lines are masked before
     //     storage (no raw cookies/tokens ever persisted) ---
@@ -418,14 +2069,22 @@ async fn atelier_identity_profile_append_only_seq_and_redaction() {
         .append_identity_profile(&NewIdentityProfile {
             character_internal_id: character,
             kind: IdentityProfileKind::Reference,
+            name: "Full body identity reference".to_string(),
+            description: "Full-body pose and wardrobe reference".to_string(),
             reference_asset_id: None,
             reference_ref: format!("reference://{}", Uuid::new_v4()),
+            source_ref: Some(format!("source://identity/{}", Uuid::new_v4())),
+            crop_ref: None,
+            artifact_ref: Some(format!("artifact://identity-profile/{}", Uuid::new_v4())),
             provenance: format!("source: civitai\n{raw_secret}\nnote: full-body ref"),
         })
         .await
         .expect("append second identity profile");
     // --- INVARIANT: append-only seq monotonicity (strictly increments) ---
-    assert_eq!(p2.seq, 2, "second profile increments seq to 2 (append-only)");
+    assert_eq!(
+        p2.seq, 2,
+        "second profile increments seq to 2 (append-only)"
+    );
     assert!(
         !p2.provenance.contains("supersecretvalue123"),
         "the raw secret value must NOT be stored: {}",
@@ -453,12 +2112,44 @@ async fn atelier_identity_profile_append_only_seq_and_redaction() {
         "redaction is durable in the stored/queried provenance"
     );
 
+    let fetched_p1 = store
+        .get_identity_profile(p1.profile_id)
+        .await
+        .expect("get identity profile")
+        .expect("identity profile is present");
+    assert_eq!(fetched_p1.profile_id, p1.profile_id);
+    assert_eq!(fetched_p1.name, p1.name);
+
+    let updated_p1 = store
+        .update_identity_profile(&UpdateIdentityProfile {
+            profile_id: p1.profile_id,
+            name: "Front portrait identity v2".to_string(),
+            description: "Updated crop and artifact refs for the face identity record".to_string(),
+            source_ref: Some(format!("source://identity/{}", Uuid::new_v4())),
+            crop_ref: Some(format!("crop://identity/{}", Uuid::new_v4())),
+            artifact_ref: Some(format!("artifact://identity-profile/{}", Uuid::new_v4())),
+            requested_by: "mt-098-update".to_string(),
+        })
+        .await
+        .expect("update identity profile record");
+    assert_eq!(updated_p1.version, 2);
+    assert_eq!(updated_p1.seq, 1, "update preserves append sequence");
+    assert_eq!(updated_p1.name, "Front portrait identity v2");
+    assert!(
+        updated_p1.updated_at_utc >= updated_p1.created_at_utc,
+        "update keeps timestamps queryable"
+    );
+
     // --- kind filter + latest helper round-trip ---
     let faces = store
         .list_identity_profiles(character, Some(IdentityProfileKind::Face))
         .await
         .expect("list face profiles");
-    assert_eq!(faces.len(), 1, "kind filter narrows to the single Face profile");
+    assert_eq!(
+        faces.len(),
+        1,
+        "kind filter narrows to the single Face profile"
+    );
     assert_eq!(faces[0].profile_id, p1.profile_id);
     let latest_ref = store
         .latest_identity_profile(character, IdentityProfileKind::Reference)
@@ -476,23 +2167,337 @@ async fn atelier_identity_profile_append_only_seq_and_redaction() {
             .append_identity_profile(&NewIdentityProfile {
                 character_internal_id: character,
                 kind: IdentityProfileKind::Face,
+                name: "Bad empty ref".to_string(),
+                description: "invalid".to_string(),
                 reference_asset_id: None,
                 reference_ref: "   ".to_string(),
+                source_ref: None,
+                crop_ref: None,
+                artifact_ref: None,
                 provenance: "x".to_string(),
             })
             .await
             .is_err(),
         "empty reference_ref is rejected"
     );
+    assert!(
+        store
+            .append_identity_profile(&NewIdentityProfile {
+                character_internal_id: character,
+                kind: IdentityProfileKind::Face,
+                name: "Bad local ref".to_string(),
+                description: "invalid".to_string(),
+                reference_asset_id: None,
+                reference_ref: "file:///tmp/ref.png".to_string(),
+                source_ref: None,
+                crop_ref: None,
+                artifact_ref: None,
+                provenance: "x".to_string(),
+            })
+            .await
+            .is_err(),
+        "machine-local identity reference_ref is rejected"
+    );
+    assert!(
+        store
+            .update_identity_profile(&UpdateIdentityProfile {
+                profile_id: p1.profile_id,
+                name: "Bad crop".to_string(),
+                description: "invalid".to_string(),
+                source_ref: None,
+                crop_ref: Some("C:\\operator\\face-crop.png".to_string()),
+                artifact_ref: None,
+                requested_by: "mt-098-invalid-update".to_string(),
+            })
+            .await
+            .is_err(),
+        "machine-local crop refs are rejected"
+    );
 
-    // --- EVENT EMISSION: two successful appends emitted events ---
-    let events_after = store
-        .count_events(pose_event_family::IDENTITY_PROFILE_APPENDED)
+    assert!(
+        store
+            .delete_identity_profile(p2.profile_id, "mt-098-delete")
+            .await
+            .expect("delete identity profile"),
+        "delete reports that an active profile was soft-deleted"
+    );
+    assert!(
+        store
+            .get_identity_profile(p2.profile_id)
+            .await
+            .expect("get deleted profile")
+            .is_none(),
+        "deleted identity profiles are hidden from CRUD reads"
+    );
+    let listed_after_delete = store
+        .list_identity_profiles(character, None)
         .await
-        .expect("count identity-profile events after");
+        .expect("list identity profiles after delete");
     assert_eq!(
-        events_after - events_before,
-        2,
-        "two successful identity-profile appends each emit one event; rejected append emits none"
+        listed_after_delete
+            .iter()
+            .map(|profile| profile.profile_id)
+            .collect::<Vec<_>>(),
+        vec![p1.profile_id],
+        "deleted identity profiles are hidden from list projections"
+    );
+
+    // --- EVENT EMISSION: append, update, and delete mutations emitted events ---
+    let p1_event_count = store
+        .count_events_for_aggregate(
+            pose_event_family::IDENTITY_PROFILE_APPENDED,
+            "atelier_identity_profile",
+            &p1.profile_id.to_string(),
+        )
+        .await
+        .expect("count first identity-profile event");
+    let p2_event_count = store
+        .count_events_for_aggregate(
+            pose_event_family::IDENTITY_PROFILE_APPENDED,
+            "atelier_identity_profile",
+            &p2.profile_id.to_string(),
+        )
+        .await
+        .expect("count second identity-profile event");
+    assert_eq!(
+        p1_event_count + p2_event_count,
+        4,
+        "identity-profile append/update/delete mutations each emit one event; rejected mutations emit none"
+    );
+}
+
+#[tokio::test]
+async fn atelier_identity_crop_artifact_links_profile_version_and_manifest() {
+    let Some(url) = atelier_pg_support::database_url().await else {
+        eprintln!(
+            "SKIP atelier_identity_crop_artifact_links_profile_version_and_manifest: PostgreSQL unavailable"
+        );
+        return;
+    };
+    let store = connected_store(&url).await;
+    let character = fresh_character(&store).await;
+
+    let profile = store
+        .append_identity_profile(&NewIdentityProfile {
+            character_internal_id: character,
+            kind: IdentityProfileKind::Face,
+            name: "MT-099 face identity".to_string(),
+            description: "Identity profile that owns a face crop artifact".to_string(),
+            reference_asset_id: None,
+            reference_ref: format!("reference://identity/{}", Uuid::new_v4()),
+            source_ref: Some(format!("source://identity/{}", Uuid::new_v4())),
+            crop_ref: None,
+            artifact_ref: None,
+            provenance: "operator-selected face reference".to_string(),
+        })
+        .await
+        .expect("append identity profile for crop");
+    let profile = store
+        .update_identity_profile(&UpdateIdentityProfile {
+            profile_id: profile.profile_id,
+            name: "MT-099 face identity v2".to_string(),
+            description: "Versioned identity profile that owns a crop artifact".to_string(),
+            source_ref: Some(format!("source://identity/{}", Uuid::new_v4())),
+            crop_ref: None,
+            artifact_ref: None,
+            requested_by: "mt-099-profile-update".to_string(),
+        })
+        .await
+        .expect("bump profile version before crop registration");
+    assert_eq!(profile.version, 2);
+
+    let crop_payload = atelier_pg_support::write_native_media_artifact(b"mt-099-face-crop-512");
+    let crop = store
+        .record_identity_crop_artifact(&NewIdentityCropArtifact {
+            profile_id: profile.profile_id,
+            source_ref: format!("source://identity-crop/{}", Uuid::new_v4()),
+            crop_box: IdentityCropBox {
+                x: 144,
+                y: 96,
+                width: 512,
+                height: 512,
+            },
+            landmarks: vec![
+                IdentityCropLandmark {
+                    name: "left_eye".to_string(),
+                    x: 210.5,
+                    y: 224.25,
+                    confidence: Some(0.98),
+                },
+                IdentityCropLandmark {
+                    name: "right_eye".to_string(),
+                    x: 304.75,
+                    y: 223.5,
+                    confidence: Some(0.97),
+                },
+                IdentityCropLandmark {
+                    name: "mouth_center".to_string(),
+                    x: 257.0,
+                    y: 350.0,
+                    confidence: None,
+                },
+            ],
+            artifact_ref: crop_payload.artifact_ref.clone(),
+            manifest_ref: artifact_manifest_ref(&crop_payload.artifact_ref),
+            content_hash: crop_payload.content_hash.clone(),
+            byte_len: crop_payload.byte_len,
+            mime: "image/png".to_string(),
+            width: 512,
+            height: 512,
+            created_by: "mt-099-crop".to_string(),
+        })
+        .await
+        .expect("record identity crop artifact");
+
+    assert_eq!(crop.profile_id, profile.profile_id);
+    assert_eq!(
+        crop.profile_version, profile.version,
+        "crop record links to the identity profile version active at registration"
+    );
+    assert_eq!(crop.crop_box.width, 512);
+    assert_eq!(crop.crop_box.height, 512);
+    assert_eq!(crop.width, 512);
+    assert_eq!(crop.height, 512);
+    assert_eq!(crop.artifact_ref, crop_payload.artifact_ref);
+    assert_eq!(crop.manifest_ref, artifact_manifest_ref(&crop.artifact_ref));
+    assert_eq!(crop.content_hash, crop_payload.content_hash);
+    assert_eq!(
+        crop.manifest["schema"],
+        "hsk.atelier.identity_crop_artifact_manifest@1"
+    );
+    assert_eq!(crop.manifest["crop_id"], crop.crop_id.to_string());
+    assert_eq!(crop.manifest["profile_id"], profile.profile_id.to_string());
+    assert_eq!(
+        crop.manifest["profile_version"],
+        serde_json::json!(profile.version)
+    );
+    assert_eq!(crop.manifest["source_ref"], crop.source_ref);
+    assert_eq!(crop.manifest["crop_box"]["width"], 512);
+    assert_eq!(crop.manifest["crop_box"]["height"], 512);
+    assert_eq!(crop.manifest["landmarks"][0]["name"], "left_eye");
+    assert_eq!(
+        crop.manifest["artifact_store"]["handle"],
+        crop_payload.artifact_ref
+    );
+    assert_eq!(
+        crop.manifest["artifact_store"]["manifest"],
+        artifact_manifest_ref(&crop_payload.artifact_ref)
+    );
+    assert_eq!(
+        crop.manifest["artifact_store"]["content_hash"],
+        crop_payload.content_hash
+    );
+
+    let fetched = store
+        .get_identity_crop_artifact(crop.crop_id)
+        .await
+        .expect("get identity crop artifact")
+        .expect("crop artifact present");
+    assert_eq!(fetched, crop);
+    let listed = store
+        .list_identity_crop_artifacts(profile.profile_id)
+        .await
+        .expect("list identity crop artifacts");
+    assert_eq!(listed, vec![crop.clone()]);
+
+    let duplicate = store
+        .record_identity_crop_artifact(&NewIdentityCropArtifact {
+            profile_id: profile.profile_id,
+            source_ref: crop.source_ref.clone(),
+            crop_box: crop.crop_box.clone(),
+            landmarks: crop.landmarks.clone(),
+            artifact_ref: crop.artifact_ref.clone(),
+            manifest_ref: crop.manifest_ref.clone(),
+            content_hash: crop.content_hash.clone(),
+            byte_len: crop.byte_len,
+            mime: crop.mime.clone(),
+            width: 512,
+            height: 512,
+            created_by: "mt-099-crop-duplicate".to_string(),
+        })
+        .await
+        .expect("duplicate crop registration is idempotent");
+    assert_eq!(
+        duplicate.crop_id, crop.crop_id,
+        "same profile version + content hash returns existing crop record"
+    );
+
+    assert!(
+        store
+            .record_identity_crop_artifact(&NewIdentityCropArtifact {
+                profile_id: profile.profile_id,
+                source_ref: "C:\\operator\\face.png".to_string(),
+                crop_box: crop.crop_box.clone(),
+                landmarks: crop.landmarks.clone(),
+                artifact_ref: crop.artifact_ref.clone(),
+                manifest_ref: crop.manifest_ref.clone(),
+                content_hash: crop.content_hash.clone(),
+                byte_len: crop.byte_len,
+                mime: crop.mime.clone(),
+                width: 512,
+                height: 512,
+                created_by: "mt-099-bad-source".to_string(),
+            })
+            .await
+            .is_err(),
+        "machine-local source refs are rejected"
+    );
+    assert!(
+        store
+            .record_identity_crop_artifact(&NewIdentityCropArtifact {
+                profile_id: profile.profile_id,
+                source_ref: crop.source_ref.clone(),
+                crop_box: IdentityCropBox {
+                    x: 0,
+                    y: 0,
+                    width: 511,
+                    height: 512,
+                },
+                landmarks: crop.landmarks.clone(),
+                artifact_ref: crop.artifact_ref.clone(),
+                manifest_ref: crop.manifest_ref.clone(),
+                content_hash: crop.content_hash.clone(),
+                byte_len: crop.byte_len,
+                mime: crop.mime.clone(),
+                width: 511,
+                height: 512,
+                created_by: "mt-099-bad-size".to_string(),
+            })
+            .await
+            .is_err(),
+        "identity crop artifacts must be exactly 512x512"
+    );
+    assert!(
+        store
+            .record_identity_crop_artifact(&NewIdentityCropArtifact {
+                profile_id: profile.profile_id,
+                source_ref: crop.source_ref.clone(),
+                crop_box: crop.crop_box.clone(),
+                landmarks: crop.landmarks.clone(),
+                artifact_ref: ".GOV/identity-crop.png".to_string(),
+                manifest_ref: crop.manifest_ref.clone(),
+                content_hash: crop.content_hash.clone(),
+                byte_len: crop.byte_len,
+                mime: crop.mime.clone(),
+                width: 512,
+                height: 512,
+                created_by: "mt-099-bad-artifact".to_string(),
+            })
+            .await
+            .is_err(),
+        ".GOV artifact refs are rejected"
+    );
+
+    let event_count = store
+        .count_events_for_aggregate(
+            pose_event_family::IDENTITY_CROP_ARTIFACT_RECORDED,
+            "atelier_identity_crop_artifact",
+            &crop.crop_id.to_string(),
+        )
+        .await
+        .expect("count identity crop event");
+    assert_eq!(
+        event_count, 1,
+        "only the first successful crop registration emits an event"
     );
 }

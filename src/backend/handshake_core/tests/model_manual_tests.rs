@@ -250,3 +250,220 @@ fn safety_constraints_and_workflows_cover_no_context_operation() {
         );
     }
 }
+
+/// Runtime proof for the WP-KERNEL-005 atelier (Core-Data) microtasks
+/// MT-052..MT-060 and MT-073..MT-075: each atelier surface area must be a
+/// real, no-context ModelManual row — a feature group, its referenced commands
+/// (which must resolve to CommandReference entries), and a covering workflow.
+#[test]
+fn manual_covers_atelier_core_data_surfaces() {
+    let manual = model_manual();
+
+    let group_ids = manual
+        .feature_groups
+        .iter()
+        .map(|group| group.id)
+        .collect::<BTreeSet<_>>();
+    let command_ids = manual
+        .command_reference
+        .iter()
+        .map(|command| command.id)
+        .collect::<BTreeSet<_>>();
+    let workflow_ids = manual
+        .workflows
+        .iter()
+        .map(|workflow| workflow.id)
+        .collect::<BTreeSet<_>>();
+
+    // (MT id, feature_group_id, representative command ids, workflow id) for
+    // each of the 12 atelier microtask areas.
+    let coverage: &[(&str, &str, &[&str], &str)] = &[
+        (
+            "MT-052",
+            "atelier_character_core",
+            &[
+                "atelier_create_character",
+                "atelier_get_character_by_public_id",
+                "atelier_append_sheet_version",
+                "atelier_apply_sheet_field_edits",
+                "atelier_sheet_version_history",
+            ],
+            "atelier_character_identity_and_sheet",
+        ),
+        (
+            "MT-053",
+            "atelier_media_intake",
+            &[
+                "atelier_materialize_media_asset",
+                "atelier_open_intake_batch",
+                "atelier_list_intake_batch_items",
+                "atelier_apply_intake_classification",
+                "atelier_bulk_update_media_review_metadata",
+            ],
+            "atelier_media_library_and_intake_review",
+        ),
+        (
+            "MT-054",
+            "atelier_collections_contact_sheets",
+            &[
+                "atelier_create_collection",
+                "atelier_add_images_to_collection",
+                "atelier_create_contact_sheet",
+                "atelier_render_contact_sheet_svg_artifact",
+                "atelier_plan_contact_sheet_raster_export",
+            ],
+            "atelier_collections_and_contact_sheets",
+        ),
+        (
+            "MT-055",
+            "atelier_documents_scripts",
+            &[
+                "atelier_create_character_document",
+                "atelier_append_character_document_version",
+                "atelier_add_story_card",
+                "atelier_add_story_beat",
+                "atelier_create_character_script",
+            ],
+            "atelier_documents_story_scripts",
+        ),
+        (
+            "MT-056",
+            "atelier_moodboards",
+            &[
+                "atelier_record_moodboard_snapshot",
+                "atelier_record_moodboard_operation",
+                "atelier_request_moodboard_export",
+            ],
+            "atelier_moodboard_snapshot_and_export",
+        ),
+        (
+            "MT-057",
+            "atelier_relationships",
+            &[
+                "atelier_create_character_relationship",
+                "atelier_update_character_relationship",
+                "atelier_character_relationship_graph",
+            ],
+            "atelier_relationship_graph",
+        ),
+        (
+            "MT-058",
+            "atelier_search_tags_similarity",
+            &[
+                "atelier_global_search_with_lens_filters",
+                "atelier_ensure_tag",
+                "atelier_create_tag_rule",
+                "atelier_record_ai_tag_suggestion",
+                "atelier_find_similar_assets",
+            ],
+            "atelier_search_palette_and_similarity",
+        ),
+        (
+            "MT-059",
+            "atelier_exports",
+            &["atelier_request_web_portfolio_export"],
+            "atelier_web_portfolio_export",
+        ),
+        (
+            "MT-073",
+            "atelier_exports",
+            &[
+                "atelier_request_sheet_export",
+                "atelier_build_share_pack_manifest",
+            ],
+            "atelier_share_pack_export",
+        ),
+        (
+            "MT-074",
+            "atelier_exports",
+            &["atelier_build_llm_evidence_pack_manifest"],
+            "atelier_llm_evidence_pack_export",
+        ),
+        (
+            "MT-075",
+            "atelier_exports",
+            &[
+                "atelier_record_backup_manifest",
+                "atelier_backup_restore_preflight",
+            ],
+            "atelier_backup_restore_preflight",
+        ),
+        (
+            "MT-060",
+            "atelier_reset_recovery",
+            &[
+                "atelier_record_atelier_reset",
+                "atelier_list_orphan_manifest_items",
+                "atelier_adopt_orphan_manifest_item",
+            ],
+            "atelier_reset_recovery_and_orphan_adoption",
+        ),
+    ];
+
+    for (mt, group_id, commands, workflow_id) in coverage {
+        assert!(
+            group_ids.contains(group_id),
+            "{mt}: missing atelier feature group {group_id}"
+        );
+
+        let group = manual
+            .feature_groups
+            .iter()
+            .find(|group| group.id == *group_id)
+            .unwrap_or_else(|| panic!("{mt}: feature group {group_id} not found"));
+
+        for command_id in *commands {
+            // The command must exist as a CommandReference entry...
+            assert!(
+                command_ids.contains(command_id),
+                "{mt}: command {command_id} has no CommandReference entry"
+            );
+            // ...and be referenced by the area's feature group so the
+            // self-consistency invariant (no orphan refs) holds.
+            assert!(
+                group.commands.contains(command_id),
+                "{mt}: feature group {group_id} does not reference command {command_id}"
+            );
+        }
+
+        assert!(
+            workflow_ids.contains(workflow_id),
+            "{mt}: missing atelier workflow {workflow_id}"
+        );
+    }
+
+    // The wired atelier surfaces backed by real Axum routes in
+    // src/api/atelier.rs must be marked Wired with their HTTP route as the
+    // ipc_channel, never invented Tauri commands.
+    for (command_id, route) in [
+        ("atelier_open_intake_batch", "/atelier/intake/batches"),
+        (
+            "atelier_list_intake_batch_items",
+            "/atelier/intake/batches/:batch_id/items",
+        ),
+        (
+            "atelier_record_ai_tag_suggestion",
+            "/atelier/ai-tag-suggestions",
+        ),
+    ] {
+        let command = manual
+            .command_reference
+            .iter()
+            .find(|command| command.id == command_id)
+            .unwrap_or_else(|| panic!("missing wired atelier command {command_id}"));
+        assert_eq!(
+            command.status,
+            CommandStatus::Wired,
+            "{command_id} must be Wired"
+        );
+        assert_eq!(
+            command.ipc_channel,
+            Some(route),
+            "{command_id} must carry its Axum route"
+        );
+        assert_eq!(
+            command.tauri_command, None,
+            "{command_id} is an HTTP route, not a Tauri command"
+        );
+    }
+}

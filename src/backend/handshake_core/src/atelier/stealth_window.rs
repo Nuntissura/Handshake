@@ -22,9 +22,9 @@
 //! store refuses to persist a non-quiet window outside an audited foreground
 //! exception.
 //!
-//! CKC source (intent only, never copied): `app/backend/automationStealth.js`
+//! legacy source (intent only, never copied): `app/backend/automationStealth.js`
 //! (background-stealth contract -- no visible window, no focus steal, no taskbar,
-//! quiet by default, skipped attention surfaces logged). CKC stored this as an
+//! quiet by default, skipped attention surfaces logged). legacy source stored this as an
 //! Electron/localhost runtime flag with no durable governed state; Handshake
 //! forbids that and instead persists a typed registry on PostgreSQL
 //! (TECH-POSTGRESQL). SQLite is forbidden in every path (MT-004).
@@ -38,7 +38,7 @@ use serde::{Deserialize, Serialize};
 use sqlx::Row;
 use uuid::Uuid;
 
-use super::{event_family, AtelierError, AtelierResult, AtelierStore};
+use super::{AtelierError, AtelierResult, AtelierStore};
 
 /// Stealth Reference Window event families (MT-205, MT-005).
 ///
@@ -289,6 +289,24 @@ pub struct ContentRef {
     pub pinned_at_utc: DateTime<Utc>,
 }
 
+/// Redacted, governed single-reference view returned by `resolve_ref`
+/// (Section 10.18.5). This is metadata-only by construction: it names the
+/// governed authority and pinned hash, but never includes raw payload bytes,
+/// transcript text, cookies, tokens, or process-local source material.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ResolvedContentRef {
+    pub ref_id: Uuid,
+    pub window_ref_id: Uuid,
+    pub seq: i64,
+    pub ref_kind: ContentRefKind,
+    pub source_authority: String,
+    pub resolver: String,
+    pub content_sha256: String,
+    pub redaction_state: bool,
+    pub payload_included: bool,
+    pub pinned_at_utc: DateTime<Utc>,
+}
+
 /// A stealth-reference-window registry entry (Section 10.18.2).
 ///
 /// Holds REFERENCES only -- never inline product content, media, or secrets --
@@ -372,6 +390,37 @@ fn ref_from_row(row: &sqlx::postgres::PgRow) -> AtelierResult<ContentRef> {
         content_sha256: row.get("content_sha256"),
         redaction_state: row.get("redaction_state"),
         pinned_at_utc: row.get("pinned_at_utc"),
+    })
+}
+
+fn source_authority_for_kind(kind: ContentRefKind) -> &'static str {
+    match kind {
+        ContentRefKind::Artifact | ContentRefKind::Screenshot => "artifact_store",
+        ContentRefKind::SpecAnchor => "spec_router",
+        ContentRefKind::Transcript => "transcript_artifact",
+        ContentRefKind::JobReceipt | ContentRefKind::LedgerEvent => "event_ledger",
+        ContentRefKind::Diagnostic => "diagnostic_surface",
+    }
+}
+
+fn resolved_ref_from_content_ref(content_ref: ContentRef) -> AtelierResult<ResolvedContentRef> {
+    if !content_ref.redaction_state {
+        return Err(AtelierError::Validation(format!(
+            "content ref {} cannot be resolved because its view is not redacted",
+            content_ref.ref_id
+        )));
+    }
+    Ok(ResolvedContentRef {
+        ref_id: content_ref.ref_id,
+        window_ref_id: content_ref.window_ref_id,
+        seq: content_ref.seq,
+        ref_kind: content_ref.ref_kind,
+        source_authority: source_authority_for_kind(content_ref.ref_kind).to_string(),
+        resolver: content_ref.resolver,
+        content_sha256: content_ref.content_sha256,
+        redaction_state: content_ref.redaction_state,
+        payload_included: false,
+        pinned_at_utc: content_ref.pinned_at_utc,
     })
 }
 
@@ -490,37 +539,58 @@ impl AtelierStore {
 
         let layout = new.layout.clone().unwrap_or_else(|| serde_json::json!({}));
 
-        let row = sqlx::query(&format!(
+        let mut tx = self.pool().begin().await?;
+        let window_ref_id = Uuid::now_v7();
+        let Some(row) = sqlx::query(&format!(
             r#"INSERT INTO atelier_stealth_window
-                 (owner_actor, title, visibility, quiet_json, layout_json, status, revision)
-               VALUES ($1, $2, $3, $4, $5, 'open', 1)
-               ON CONFLICT (owner_actor, title) DO UPDATE
-                 SET owner_actor = EXCLUDED.owner_actor
+                 (window_ref_id, owner_actor, title, visibility, quiet_json, layout_json, status, revision)
+               VALUES ($1, $2, $3, $4, $5, $6, 'open', 1)
+               ON CONFLICT (owner_actor, title) DO NOTHING
                RETURNING {WINDOW_COLUMNS}"#
         ))
+        .bind(window_ref_id)
         .bind(&new.owner_actor)
         .bind(&new.title)
         .bind(new.visibility.as_token())
         .bind(new.quiet.to_json())
         .bind(&layout)
-        .fetch_one(self.pool())
-        .await?;
+        .fetch_optional(&mut *tx)
+        .await?
+        else {
+            tx.rollback().await?;
+            return self
+                .get_stealth_window_by_title(&new.owner_actor, &new.title)
+                .await?
+                .ok_or_else(|| {
+                    AtelierError::Validation(format!(
+                        "stealth window conflict for ({}, {}) did not return an existing row",
+                        new.owner_actor, new.title
+                    ))
+                });
+        };
         let window = window_from_row(&row)?;
 
-        self.record_event(
-            STEALTH_REF_WINDOW_CREATED,
-            "atelier_stealth_window",
-            &window.window_ref_id.to_string(),
-            serde_json::json!({
-                "window_ref_id": window.window_ref_id,
-                "owner_actor": window.owner_actor,
-                "title": window.title,
-                "visibility": window.visibility.as_token(),
-                "quiet": window.quiet.to_json(),
-                "revision": window.revision,
-            }),
-        )
-        .await?;
+        if let Err(err) = self
+            .record_event_in_tx(
+                &mut tx,
+                STEALTH_REF_WINDOW_CREATED,
+                "atelier_stealth_window",
+                &window.window_ref_id.to_string(),
+                serde_json::json!({
+                    "window_ref_id": window.window_ref_id,
+                    "owner_actor": window.owner_actor,
+                    "title": window.title,
+                    "visibility": window.visibility.as_token(),
+                    "quiet": window.quiet.to_json(),
+                    "revision": window.revision,
+                }),
+            )
+            .await
+        {
+            tx.rollback().await?;
+            return Err(err);
+        }
+        tx.commit().await?;
         Ok(window)
     }
 
@@ -632,7 +702,7 @@ impl AtelierStore {
             None => {
                 return Err(AtelierError::NotFound(format!(
                     "stealth window {window_ref_id}"
-                )))
+                )));
             }
             Some("closed") => {
                 return Err(AtelierError::Validation(format!(
@@ -649,12 +719,14 @@ impl AtelierStore {
         .fetch_one(&mut *tx)
         .await?;
 
+        let ref_id = Uuid::now_v7();
         let row = sqlx::query(&format!(
             r#"INSERT INTO atelier_stealth_ref
-                 (window_ref_id, seq, ref_kind, resolver, content_sha256, redaction_state)
-               VALUES ($1, $2, $3, $4, $5, $6)
+                 (ref_id, window_ref_id, seq, ref_kind, resolver, content_sha256, redaction_state)
+               VALUES ($1, $2, $3, $4, $5, $6, $7)
                RETURNING {REF_COLUMNS}"#
         ))
+        .bind(ref_id)
         .bind(window_ref_id)
         .bind(next_seq)
         .bind(new.ref_kind.as_token())
@@ -664,35 +736,43 @@ impl AtelierStore {
         .fetch_one(&mut *tx)
         .await?;
 
-        let new_revision: i64 = sqlx::query_scalar(
+        let revision_row = sqlx::query(
             r#"UPDATE atelier_stealth_window
                SET revision = revision + 1, updated_at_utc = NOW()
                WHERE window_ref_id = $1
-               RETURNING revision"#,
+               RETURNING revision, owner_actor"#,
         )
         .bind(window_ref_id)
         .fetch_one(&mut *tx)
         .await?;
-
-        tx.commit().await?;
+        let new_revision: i64 = revision_row.get("revision");
+        let owner_actor: String = revision_row.get("owner_actor");
 
         let content_ref = ref_from_row(&row)?;
-        self.record_event(
-            STEALTH_REF_ADDED,
-            "atelier_stealth_window",
-            &window_ref_id.to_string(),
-            serde_json::json!({
-                "window_ref_id": window_ref_id,
-                "ref_id": content_ref.ref_id,
-                "ref_kind": content_ref.ref_kind.as_token(),
-                "seq": content_ref.seq,
-                // Resolver is a governed id (no secret); content hash only.
-                "resolver": content_ref.resolver,
-                "content_sha256": content_ref.content_sha256,
-                "revision": new_revision,
-            }),
-        )
-        .await?;
+        if let Err(err) = self
+            .record_event_in_tx(
+                &mut tx,
+                STEALTH_REF_ADDED,
+                "atelier_stealth_window",
+                &window_ref_id.to_string(),
+                serde_json::json!({
+                    "window_ref_id": window_ref_id,
+                    "owner_actor": owner_actor,
+                    "ref_id": content_ref.ref_id,
+                    "ref_kind": content_ref.ref_kind.as_token(),
+                    "seq": content_ref.seq,
+                    // Resolver is a governed id (no secret); content hash only.
+                    "resolver": content_ref.resolver,
+                    "content_sha256": content_ref.content_sha256,
+                    "revision": new_revision,
+                }),
+            )
+            .await
+        {
+            tx.rollback().await?;
+            return Err(err);
+        }
+        tx.commit().await?;
         Ok(content_ref)
     }
 
@@ -712,6 +792,32 @@ impl AtelierStore {
         rows.iter().map(ref_from_row).collect()
     }
 
+    /// Resolve one content reference for a window (Section 10.18.5
+    /// `kernel.stealth_ref.resolve_ref`). The returned view is governed,
+    /// redacted metadata only; this read path never emits mutation events and
+    /// never dereferences a process-local, localhost, or filesystem authority.
+    pub async fn resolve_stealth_ref(
+        &self,
+        window_ref_id: Uuid,
+        ref_id: Uuid,
+    ) -> AtelierResult<ResolvedContentRef> {
+        let row = sqlx::query(&format!(
+            r#"SELECT {REF_COLUMNS}
+               FROM atelier_stealth_ref
+               WHERE window_ref_id = $1 AND ref_id = $2"#
+        ))
+        .bind(window_ref_id)
+        .bind(ref_id)
+        .fetch_optional(self.pool())
+        .await?
+        .ok_or_else(|| {
+            AtelierError::NotFound(format!(
+                "stealth content ref {ref_id} in window {window_ref_id}"
+            ))
+        })?;
+        resolved_ref_from_content_ref(ref_from_row(&row)?)
+    }
+
     /// Remove a content reference from a window (Section 10.18.5 `remove_ref`).
     ///
     /// Returns whether a ref was removed. Bumps the window `revision` and emits
@@ -724,6 +830,26 @@ impl AtelierStore {
         ref_id: Uuid,
     ) -> AtelierResult<bool> {
         let mut tx = self.pool().begin().await?;
+
+        let status: Option<String> = sqlx::query_scalar(
+            "SELECT status FROM atelier_stealth_window WHERE window_ref_id = $1 FOR UPDATE",
+        )
+        .bind(window_ref_id)
+        .fetch_optional(&mut *tx)
+        .await?;
+        match status.as_deref() {
+            None => {
+                return Err(AtelierError::NotFound(format!(
+                    "stealth window {window_ref_id}"
+                )));
+            }
+            Some("closed") => {
+                return Err(AtelierError::Validation(format!(
+                    "cannot remove a content ref from closed stealth window {window_ref_id}"
+                )));
+            }
+            Some(_) => {}
+        }
 
         let removed: Option<Uuid> = sqlx::query_scalar(
             r#"DELETE FROM atelier_stealth_ref
@@ -740,29 +866,37 @@ impl AtelierStore {
             return Ok(false);
         }
 
-        let new_revision: i64 = sqlx::query_scalar(
+        let revision_row = sqlx::query(
             r#"UPDATE atelier_stealth_window
                SET revision = revision + 1, updated_at_utc = NOW()
                WHERE window_ref_id = $1
-               RETURNING revision"#,
+               RETURNING revision, owner_actor"#,
         )
         .bind(window_ref_id)
         .fetch_one(&mut *tx)
         .await?;
+        let new_revision: i64 = revision_row.get("revision");
+        let owner_actor: String = revision_row.get("owner_actor");
 
+        if let Err(err) = self
+            .record_event_in_tx(
+                &mut tx,
+                STEALTH_REF_REMOVED,
+                "atelier_stealth_window",
+                &window_ref_id.to_string(),
+                serde_json::json!({
+                    "window_ref_id": window_ref_id,
+                    "owner_actor": owner_actor,
+                    "ref_id": ref_id,
+                    "revision": new_revision,
+                }),
+            )
+            .await
+        {
+            tx.rollback().await?;
+            return Err(err);
+        }
         tx.commit().await?;
-
-        self.record_event(
-            STEALTH_REF_REMOVED,
-            "atelier_stealth_window",
-            &window_ref_id.to_string(),
-            serde_json::json!({
-                "window_ref_id": window_ref_id,
-                "ref_id": ref_id,
-                "revision": new_revision,
-            }),
-        )
-        .await?;
         Ok(true)
     }
 
@@ -794,7 +928,7 @@ impl AtelierStore {
             None => {
                 return Err(AtelierError::NotFound(format!(
                     "stealth window {window_ref_id}"
-                )))
+                )));
             }
             Some("closed") => {
                 return Err(AtelierError::Validation(format!(
@@ -876,21 +1010,27 @@ impl AtelierStore {
             }
         };
 
-        tx.commit().await?;
-
         let window = window_from_row(&row)?;
-        self.record_event(
-            STEALTH_REF_REORDERED,
-            "atelier_stealth_window",
-            &window.window_ref_id.to_string(),
-            serde_json::json!({
-                "window_ref_id": window.window_ref_id,
-                "ordered_ref_ids": ordered_ref_ids,
-                "relayout": layout.is_some(),
-                "revision": window.revision,
-            }),
-        )
-        .await?;
+        if let Err(err) = self
+            .record_event_in_tx(
+                &mut tx,
+                STEALTH_REF_REORDERED,
+                "atelier_stealth_window",
+                &window.window_ref_id.to_string(),
+                serde_json::json!({
+                    "window_ref_id": window.window_ref_id,
+                    "owner_actor": window.owner_actor,
+                    "ordered_ref_ids": ordered_ref_ids,
+                    "relayout": layout.is_some(),
+                    "revision": window.revision,
+                }),
+            )
+            .await
+        {
+            tx.rollback().await?;
+            return Err(err);
+        }
+        tx.commit().await?;
         Ok(window)
     }
 
@@ -916,20 +1056,36 @@ impl AtelierStore {
                 "capture content_sha256 must not be empty".into(),
             ));
         }
-        // Guard: the window must exist (capture receipt can never dangle).
-        let _ = self.get_stealth_window(window_ref_id).await?;
 
         let mut tx = self.pool().begin().await?;
+        let window_row = sqlx::query(&format!(
+            r#"SELECT {WINDOW_COLUMNS}
+               FROM atelier_stealth_window
+               WHERE window_ref_id = $1
+               FOR UPDATE"#
+        ))
+        .bind(window_ref_id)
+        .fetch_optional(&mut *tx)
+        .await?
+        .ok_or_else(|| AtelierError::NotFound(format!("stealth window {window_ref_id}")))?;
+        let window = window_from_row(&window_row)?;
+        if window.status == StealthRefStatus::Closed {
+            return Err(AtelierError::Validation(format!(
+                "cannot record a capture for closed stealth window {window_ref_id}"
+            )));
+        }
 
+        let capture_id = Uuid::now_v7();
         let row = sqlx::query(
             r#"INSERT INTO atelier_stealth_capture
-                 (window_ref_id, artifact_manifest_id, content_sha256)
-               VALUES ($1, $2, $3)
+                 (capture_id, window_ref_id, artifact_manifest_id, content_sha256)
+               VALUES ($1, $2, $3, $4)
                ON CONFLICT (window_ref_id, artifact_manifest_id)
                  DO UPDATE SET content_sha256 = EXCLUDED.content_sha256
                RETURNING capture_id, window_ref_id, artifact_manifest_id,
                          content_sha256, captured_at_utc"#,
         )
+        .bind(capture_id)
         .bind(window_ref_id)
         .bind(artifact_manifest_id)
         .bind(content_sha256)
@@ -946,8 +1102,6 @@ impl AtelierStore {
         .fetch_one(&mut *tx)
         .await?;
 
-        tx.commit().await?;
-
         let receipt = StealthCaptureReceipt {
             capture_id: row.get("capture_id"),
             window_ref_id: row.get("window_ref_id"),
@@ -956,19 +1110,27 @@ impl AtelierStore {
             captured_at_utc: row.get("captured_at_utc"),
         };
 
-        self.record_event(
-            STEALTH_REF_CAPTURED,
-            "atelier_stealth_window",
-            &window_ref_id.to_string(),
-            serde_json::json!({
-                "window_ref_id": window_ref_id,
-                "capture_id": receipt.capture_id,
-                "artifact_manifest_id": receipt.artifact_manifest_id,
-                "content_sha256": receipt.content_sha256,
-                "revision": new_revision,
-            }),
-        )
-        .await?;
+        if let Err(err) = self
+            .record_event_in_tx(
+                &mut tx,
+                STEALTH_REF_CAPTURED,
+                "atelier_stealth_window",
+                &window_ref_id.to_string(),
+                serde_json::json!({
+                    "window_ref_id": window_ref_id,
+                    "owner_actor": window.owner_actor,
+                    "capture_id": receipt.capture_id,
+                    "artifact_manifest_id": receipt.artifact_manifest_id,
+                    "content_sha256": receipt.content_sha256,
+                    "revision": new_revision,
+                }),
+            )
+            .await
+        {
+            tx.rollback().await?;
+            return Err(err);
+        }
+        tx.commit().await?;
         Ok(receipt)
     }
 
@@ -1002,13 +1164,30 @@ impl AtelierStore {
 
     /// Soft-close a window registry entry (Section 10.18.2/6). The row and its
     /// content refs are retained for audit (no silent deletes of governed
-    /// state); only the status flips. Bumps `revision` and emits
-    /// `STEALTH_REF_WINDOW_CLOSED`. Closing an already-closed window is
-    /// idempotent and returns the entry unchanged in status.
+    /// state); only the status flips. The first close bumps `revision` and
+    /// emits `STEALTH_REF_WINDOW_CLOSED`. Closing an already-closed window is
+    /// idempotent and returns the entry unchanged without another event.
     pub async fn close_stealth_window(
         &self,
         window_ref_id: Uuid,
     ) -> AtelierResult<StealthReferenceWindow> {
+        let mut tx = self.pool().begin().await?;
+        let current_row = sqlx::query(&format!(
+            r#"SELECT {WINDOW_COLUMNS}
+               FROM atelier_stealth_window
+               WHERE window_ref_id = $1
+               FOR UPDATE"#
+        ))
+        .bind(window_ref_id)
+        .fetch_optional(&mut *tx)
+        .await?
+        .ok_or_else(|| AtelierError::NotFound(format!("stealth window {window_ref_id}")))?;
+        let current = window_from_row(&current_row)?;
+        if current.status == StealthRefStatus::Closed {
+            tx.commit().await?;
+            return Ok(current);
+        }
+
         let row = sqlx::query(&format!(
             r#"UPDATE atelier_stealth_window
                SET status = 'closed',
@@ -1018,22 +1197,29 @@ impl AtelierStore {
                RETURNING {WINDOW_COLUMNS}"#
         ))
         .bind(window_ref_id)
-        .fetch_optional(self.pool())
+        .fetch_optional(&mut *tx)
         .await?
         .ok_or_else(|| AtelierError::NotFound(format!("stealth window {window_ref_id}")))?;
         let window = window_from_row(&row)?;
 
-        self.record_event(
-            STEALTH_REF_WINDOW_CLOSED,
-            "atelier_stealth_window",
-            &window.window_ref_id.to_string(),
-            serde_json::json!({
-                "window_ref_id": window.window_ref_id,
-                "owner_actor": window.owner_actor,
-                "revision": window.revision,
-            }),
-        )
-        .await?;
+        if let Err(err) = self
+            .record_event_in_tx(
+                &mut tx,
+                STEALTH_REF_WINDOW_CLOSED,
+                "atelier_stealth_window",
+                &window.window_ref_id.to_string(),
+                serde_json::json!({
+                    "window_ref_id": window.window_ref_id,
+                    "owner_actor": window.owner_actor,
+                    "revision": window.revision,
+                }),
+            )
+            .await
+        {
+            tx.rollback().await?;
+            return Err(err);
+        }
+        tx.commit().await?;
         Ok(window)
     }
 }

@@ -135,7 +135,7 @@ macro_rules! params {
 pub mod ace;
 #[cfg(feature = "runtime-full")]
 pub mod ai_ready_data;
-/// Atelier/Lens domain (WP-KERNEL-005 CastKit Codex fold-in): PostgreSQL/CRDT only.
+/// Atelier/Lens domain (WP-KERNEL-005 legacy source fold-in): PostgreSQL/CRDT only.
 pub mod atelier;
 /// Managed PostgreSQL lifecycle (task #9): auto-start a hidden embedded cluster
 /// on startup (no popup window, no Docker), so Handshake provides its own DB.

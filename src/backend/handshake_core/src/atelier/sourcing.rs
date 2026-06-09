@@ -19,7 +19,7 @@
 //! (idempotent ingestion / ingestion key / partial-failure recovery), S6.12.6
 //! (evidence / secret scrubbing / storage authority).
 //!
-//! CKC source (intent only; the SQLite/Electron/localhost original is NOT
+//! Legacy source intent only; the SQLite/Electron/localhost original is NOT
 //! copied): `app/backend/imageSourcingAdapter.js`
 //! (`readSpecVersion`/`resolveHandler` -- the version-keyed handler registry
 //! and the hard "No handler registered for spec_version" rejection;
@@ -31,11 +31,12 @@
 //! MT-005 (event coverage).
 
 use chrono::{DateTime, Utc};
+use jsonschema::{Draft, JSONSchema};
 use serde::{Deserialize, Serialize};
 use sqlx::Row;
 use uuid::Uuid;
 
-use super::{event_family, AtelierError, AtelierResult, AtelierStore};
+use super::{reject_legacy_runtime_ref, AtelierError, AtelierResult, AtelierStore};
 
 /// Sourcing event families (MT-201, MT-005). Defined here so the parent can
 /// fold these into [`super::event_family::ALL`] and the MT-005 coverage check
@@ -260,7 +261,15 @@ const ALLOWED_SPEC_PARAM_KEYS: &[&str] = &[
 /// under such a key is redacted before storage and before any event payload
 /// (S6.12.2 rule 3 / S6.12.6). Matched case-insensitively against the key.
 const SECRET_KEY_MARKERS: &[&str] = &[
-    "secret", "token", "cookie", "password", "passwd", "apikey", "api_key", "auth", "credential",
+    "secret",
+    "token",
+    "cookie",
+    "password",
+    "passwd",
+    "apikey",
+    "api_key",
+    "auth",
+    "credential",
     "bearer",
 ];
 
@@ -458,6 +467,115 @@ fn canonical_json_bytes(value: &serde_json::Value) -> Vec<u8> {
     serde_json::to_vec(value).unwrap_or_default()
 }
 
+fn sourcing_spec_json_schema() -> serde_json::Value {
+    serde_json::json!({
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "required": [
+            "sourcing_spec_id",
+            "schema_version",
+            "source",
+            "handler_family",
+            "handler_version_pin",
+            "params",
+            "required_capabilities"
+        ],
+        "additionalProperties": false,
+        "properties": {
+            "sourcing_spec_id": { "type": "string", "minLength": 1 },
+            "schema_version": {
+                "type": "string",
+                "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+            },
+            "source": {
+                "type": "object",
+                "required": ["kind", "ref"],
+                "additionalProperties": false,
+                "properties": {
+                    "kind": { "type": "string", "minLength": 1 },
+                    "ref": { "type": "string", "minLength": 1 }
+                }
+            },
+            "handler_family": { "type": "string", "minLength": 1 },
+            "handler_version_pin": { "type": "string", "minLength": 1 },
+            "params": { "type": "object" },
+            "required_capabilities": {
+                "type": "array",
+                "items": { "type": "string", "minLength": 1 },
+                "uniqueItems": true
+            },
+            "idempotency_key": { "type": "string", "minLength": 1 }
+        }
+    })
+}
+
+fn validate_sourcing_spec_document(document: &serde_json::Value) -> AtelierResult<()> {
+    let schema = sourcing_spec_json_schema();
+    let compiled = JSONSchema::options()
+        .with_draft(Draft::Draft202012)
+        .compile(&schema)
+        .map_err(|err| {
+            AtelierError::Validation(format!(
+                "invalid sourcing-spec Draft 2020-12 JSON Schema: {err}"
+            ))
+        })?;
+
+    if let Err(errors) = compiled.validate(document) {
+        let details = errors
+            .take(5)
+            .map(|err| format!("{} at {}", err, err.instance_path))
+            .collect::<Vec<_>>()
+            .join("; ");
+        return Err(AtelierError::Validation(format!(
+            "sourcing-spec YAML failed Draft 2020-12 validation: {details}"
+        )));
+    }
+
+    Ok(())
+}
+
+fn required_string_field(
+    document: &serde_json::Value,
+    pointer: &str,
+    label: &str,
+) -> AtelierResult<String> {
+    document
+        .pointer(pointer)
+        .and_then(|value| value.as_str())
+        .map(str::to_string)
+        .ok_or_else(|| {
+            AtelierError::Validation(format!(
+                "sourcing-spec field {label} missing or not a string"
+            ))
+        })
+}
+
+fn required_string_array_field(
+    document: &serde_json::Value,
+    pointer: &str,
+    label: &str,
+) -> AtelierResult<Vec<String>> {
+    let values = document
+        .pointer(pointer)
+        .and_then(|value| value.as_array())
+        .ok_or_else(|| {
+            AtelierError::Validation(format!(
+                "sourcing-spec field {label} missing or not an array"
+            ))
+        })?;
+
+    values
+        .iter()
+        .map(|value| {
+            value.as_str().map(str::to_string).ok_or_else(|| {
+                AtelierError::Validation(format!(
+                    "sourcing-spec field {label} contains a non-string value"
+                ))
+            })
+        })
+        .collect()
+}
+
 /// SHA-256 hex of bytes, via Postgres `digest`/`encode` to avoid pulling a new
 /// crate. Computed by a tiny DB round-trip on the connection pool so the hash
 /// matches whatever the rest of the system would compute server-side.
@@ -477,7 +595,9 @@ async fn sha256_hex(store: &AtelierStore, bytes: &[u8]) -> AtelierResult<String>
 /// for the inclusive range + pin checks this module performs.
 fn semver_cmp(a: &str, b: &str) -> std::cmp::Ordering {
     fn parts(v: &str) -> [u64; 3] {
-        let core = v.trim().trim_start_matches(['v', 'V', '^', '~', '=', '>', '<']);
+        let core = v
+            .trim()
+            .trim_start_matches(['v', 'V', '^', '~', '=', '>', '<']);
         let core = core.split(['-', '+']).next().unwrap_or(core);
         let mut out = [0u64; 3];
         for (i, seg) in core.split('.').take(3).enumerate() {
@@ -535,7 +655,9 @@ fn pin_satisfied(handler_version: &str, pin: &str) -> bool {
 }
 
 fn semver_major(v: &str) -> u64 {
-    let core = v.trim().trim_start_matches(['v', 'V', '^', '~', '=', '>', '<']);
+    let core = v
+        .trim()
+        .trim_start_matches(['v', 'V', '^', '~', '=', '>', '<']);
     let core = core.split(['-', '+']).next().unwrap_or(core);
     core.split('.')
         .next()
@@ -644,6 +766,55 @@ const DECISION_COLUMNS: &str = "decision_id, sourcing_spec_id, spec_hash, handle
                                 resolution_reason, created_at_utc";
 
 impl AtelierStore {
+    /// Parse, Draft-2020-12 validate, and register a YAML sourcing-spec
+    /// document (S6.12.2). The YAML document is converted to JSON before
+    /// validation and then delegated to [`Self::register_sourcing_spec`] so
+    /// secret redaction, canonical hashing, idempotency, storage, and EventLedger
+    /// behavior remain identical to the parsed-spec entrypoint.
+    pub async fn register_sourcing_spec_yaml(
+        &self,
+        yaml: &str,
+    ) -> AtelierResult<SourcingSpecRecord> {
+        let document: serde_json::Value = serde_yaml::from_str(yaml).map_err(|err| {
+            AtelierError::Validation(format!("invalid sourcing-spec YAML document: {err}"))
+        })?;
+        validate_sourcing_spec_document(&document)?;
+
+        let idempotency_key = document
+            .get("idempotency_key")
+            .and_then(|value| value.as_str())
+            .map(str::to_string);
+        let params_json = document
+            .get("params")
+            .cloned()
+            .ok_or_else(|| AtelierError::Validation("sourcing-spec params missing".into()))?;
+
+        self.register_sourcing_spec(&NewSourcingSpec {
+            sourcing_spec_id: required_string_field(
+                &document,
+                "/sourcing_spec_id",
+                "sourcing_spec_id",
+            )?,
+            schema_version: required_string_field(&document, "/schema_version", "schema_version")?,
+            source_kind: required_string_field(&document, "/source/kind", "source.kind")?,
+            source_ref: required_string_field(&document, "/source/ref", "source.ref")?,
+            handler_family: required_string_field(&document, "/handler_family", "handler_family")?,
+            handler_version_pin: required_string_field(
+                &document,
+                "/handler_version_pin",
+                "handler_version_pin",
+            )?,
+            params_json: serde_json::json!({ "params": params_json }),
+            required_capabilities: required_string_array_field(
+                &document,
+                "/required_capabilities",
+                "required_capabilities",
+            )?,
+            idempotency_key,
+        })
+        .await
+    }
+
     /// Register (idempotently) a version-pinned sourcing-spec record (S6.12.2).
     ///
     /// Enforces the parse/validate contract this module owns:
@@ -675,13 +846,7 @@ impl AtelierStore {
                 "handler_version_pin must not be empty".into(),
             ));
         }
-        // Portability: reject machine-local source refs (S6.12.2 source rule).
-        let lowered_ref = new.source_ref.to_ascii_lowercase();
-        if lowered_ref.contains(":\\") || new.source_ref.starts_with("/users/") {
-            return Err(AtelierError::Validation(
-                "source ref must be portable (no drive-letter/user-profile path)".into(),
-            ));
-        }
+        reject_legacy_runtime_ref("source_ref", &new.source_ref)?;
         // No silent coercion: any unknown top-level key in the params object is
         // a hard reject (rule 2). The handler-scoped values live under `params`;
         // the object presented here is the spec body's params map.
@@ -791,6 +956,7 @@ impl AtelierStore {
                 "handler_family and handler_version must not be empty".into(),
             ));
         }
+        reject_legacy_runtime_ref("job_profile_ref", &new.job_profile_ref)?;
         if let Some(existing) = self
             .get_handler_version(&new.handler_family, &new.handler_version)
             .await?
@@ -905,7 +1071,9 @@ impl AtelierStore {
         let spec = self
             .get_sourcing_spec_by_hash(spec_hash)
             .await?
-            .ok_or_else(|| AtelierError::NotFound(format!("sourcing spec spec_hash={spec_hash}")))?;
+            .ok_or_else(|| {
+                AtelierError::NotFound(format!("sourcing spec spec_hash={spec_hash}"))
+            })?;
 
         let candidates = self.list_handler_versions(&spec.handler_family).await?;
         let evaluated: Vec<String> = candidates
@@ -952,8 +1120,11 @@ impl AtelierStore {
             // Capability intersection: union(spec, handler) must be granted.
             let granted: std::collections::BTreeSet<&str> =
                 capabilities_granted.iter().map(String::as_str).collect();
-            let mut required: std::collections::BTreeSet<&str> =
-                spec.required_capabilities.iter().map(String::as_str).collect();
+            let mut required: std::collections::BTreeSet<&str> = spec
+                .required_capabilities
+                .iter()
+                .map(String::as_str)
+                .collect();
             for c in &entry.required_capabilities {
                 required.insert(c.as_str());
             }
@@ -1018,7 +1189,10 @@ impl AtelierStore {
         // No bindable entry: classify the rejection reason deterministically.
         let reason = if pin_matches.is_empty() {
             MismatchReason::NoMatchingVersion
-        } else if pin_matches.iter().all(|c| c.status == HandlerStatus::Sunset) {
+        } else if pin_matches
+            .iter()
+            .all(|c| c.status == HandlerStatus::Sunset)
+        {
             MismatchReason::Sunset
         } else {
             // Pin matched, not all sunset, but none in schema range.
@@ -1187,6 +1361,9 @@ impl AtelierStore {
             decision.spec_hash,
             idempotency_key.unwrap_or("")
         );
+        for artifact_manifest_ref in artifact_manifest_refs {
+            reject_legacy_runtime_ref("artifact_manifest_refs", artifact_manifest_ref)?;
+        }
 
         // Idempotent fast path: a prior receipt under this identity wins and is
         // re-emitted as `deduped`.

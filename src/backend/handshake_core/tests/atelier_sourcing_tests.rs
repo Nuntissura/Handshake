@@ -67,6 +67,30 @@ async fn register_spec(
 }
 
 #[tokio::test]
+async fn atelier_sourcing_rejects_legacy_runtime_source_refs() {
+    let Some(url) = database_url() else {
+        eprintln!("SKIP atelier_sourcing_rejects_legacy_runtime_source_refs: DATABASE_URL not set");
+        return;
+    };
+    let store = connected_store(&url).await;
+
+    let err = store
+        .register_sourcing_spec(&NewSourcingSpec {
+            sourcing_spec_id: format!("spec-{}", Uuid::new_v4()),
+            schema_version: "1.2.0".to_string(),
+            source_kind: "media_url".to_string(),
+            source_ref: "http://localhost:9000/source.json".to_string(),
+            handler_family: format!("media_downloader-{}", Uuid::new_v4()),
+            handler_version_pin: "^1.0.0".to_string(),
+            params_json: serde_json::json!({ "params": { "url": "https://example.invalid/clip.mp4" } }),
+            required_capabilities: vec!["net.fetch".to_string()],
+            idempotency_key: None,
+        })
+        .await;
+    assert!(err.is_err(), "localhost sourcing refs must be rejected");
+}
+
+#[tokio::test]
 async fn atelier_sourcing_spec_idempotency_and_secret_redaction() {
     let Some(url) = database_url() else {
         eprintln!(
@@ -170,6 +194,164 @@ async fn atelier_sourcing_spec_idempotency_and_secret_redaction() {
 }
 
 #[tokio::test]
+async fn atelier_sourcing_yaml_authoring_validates_schema_and_canonicalizes() {
+    let Some(url) = database_url() else {
+        eprintln!(
+            "SKIP atelier_sourcing_yaml_authoring_validates_schema_and_canonicalizes: DATABASE_URL not set"
+        );
+        return;
+    };
+    let store = connected_store(&url).await;
+
+    let sourcing_spec_id = format!("spec-{}", Uuid::new_v4());
+    let source_ref = format!("artifact://atelier/source/{}", Uuid::new_v4());
+    let family = format!("yaml-media-downloader-{}", Uuid::new_v4());
+    let valid_yaml = format!(
+        r#"sourcing_spec_id: "{sourcing_spec_id}"
+schema_version: "1.2.0"
+source:
+  kind: media_url
+  ref: "{source_ref}"
+handler_family: "{family}"
+handler_version_pin: "^1.0.0"
+params:
+  url: "https://example.invalid/clip.mp4"
+  auth_token: "super-secret-token-value"
+  nested:
+    cookie: "sid=abc123"
+required_capabilities:
+  - net.fetch
+idempotency_key: "ingest-A"
+"#
+    );
+
+    let record = store
+        .register_sourcing_spec_yaml(&valid_yaml)
+        .await
+        .expect("register sourcing spec from YAML");
+
+    assert_eq!(record.sourcing_spec_id, sourcing_spec_id);
+    assert_eq!(record.source_kind, "media_url");
+    assert_eq!(record.source_ref, source_ref);
+    assert_eq!(record.handler_family, family);
+    assert_eq!(record.handler_version_pin, "^1.0.0");
+    assert_eq!(
+        record.required_capabilities,
+        vec!["net.fetch".to_string()],
+        "required capabilities round-trip from YAML as an array"
+    );
+    assert_eq!(record.idempotency_key.as_deref(), Some("ingest-A"));
+    assert_eq!(
+        record.spec_hash.len(),
+        64,
+        "YAML registration records the canonical SHA-256 spec identity"
+    );
+    assert!(
+        record.spec_hash.chars().all(|c| c.is_ascii_hexdigit()),
+        "spec_hash is stored as hex SHA-256"
+    );
+
+    let stored = serde_json::to_string(&record.params_json).expect("serialize stored params");
+    assert!(
+        !stored.contains("super-secret-token-value") && !stored.contains("sid=abc123"),
+        "secret-bearing YAML params must be redacted before storage"
+    );
+    assert!(
+        stored.contains("[REDACTED]") && stored.contains("https://example.invalid/clip.mp4"),
+        "redacted secret values and non-secret params are both visible in storage"
+    );
+
+    let same_spec_different_order = format!(
+        r#"handler_version_pin: "^1.0.0"
+handler_family: "{family}"
+required_capabilities:
+  - net.fetch
+params:
+  nested:
+    cookie: "sid=abc123"
+  auth_token: "super-secret-token-value"
+  url: "https://example.invalid/clip.mp4"
+source:
+  ref: "{source_ref}"
+  kind: media_url
+schema_version: "1.2.0"
+sourcing_spec_id: "{sourcing_spec_id}"
+idempotency_key: "ingest-A"
+"#
+    );
+    let again = store
+        .register_sourcing_spec_yaml(&same_spec_different_order)
+        .await
+        .expect("re-register equivalent YAML");
+    assert_eq!(
+        again.record_id, record.record_id,
+        "equivalent YAML with different key order must dedupe to the canonical record"
+    );
+    assert_eq!(again.spec_hash, record.spec_hash);
+
+    let event_count = store
+        .count_events_for_aggregate(
+            sourcing_event_family::SOURCING_SPEC_REGISTERED,
+            "atelier_sourcing_spec",
+            &record.spec_hash,
+        )
+        .await
+        .expect("count YAML spec event for aggregate");
+    assert_eq!(
+        event_count, 1,
+        "only the fresh canonical YAML spec registration emits an event"
+    );
+
+    let malformed_yaml = format!(
+        r#"sourcing_spec_id: "spec-{}"
+schema_version: "1.2.0"
+source:
+  kind: media_url
+  ref: "artifact://atelier/source/{}"
+handler_family: "{family}"
+handler_version_pin: "^1.0.0"
+params:
+  url: "https://example.invalid/clip.mp4"
+required_capabilities: net.fetch
+"#,
+        Uuid::new_v4(),
+        Uuid::new_v4()
+    );
+    assert!(
+        store
+            .register_sourcing_spec_yaml(&malformed_yaml)
+            .await
+            .is_err(),
+        "required_capabilities must be rejected when YAML supplies a scalar instead of an array"
+    );
+
+    let unknown_field_yaml = format!(
+        r#"sourcing_spec_id: "spec-{}"
+schema_version: "1.2.0"
+source:
+  kind: media_url
+  ref: "artifact://atelier/source/{}"
+handler_family: "{family}"
+handler_version_pin: "^1.0.0"
+params:
+  url: "https://example.invalid/clip.mp4"
+required_capabilities:
+  - net.fetch
+surprise: true
+"#,
+        Uuid::new_v4(),
+        Uuid::new_v4()
+    );
+    assert!(
+        store
+            .register_sourcing_spec_yaml(&unknown_field_yaml)
+            .await
+            .is_err(),
+        "unknown top-level YAML fields must be rejected by the JSON Schema"
+    );
+}
+
+#[tokio::test]
 async fn atelier_handler_matrix_immutability_and_event() {
     let Some(url) = database_url() else {
         eprintln!("SKIP atelier_handler_matrix_immutability_and_event: DATABASE_URL not set");
@@ -178,10 +360,6 @@ async fn atelier_handler_matrix_immutability_and_event() {
     let store = connected_store(&url).await;
 
     let family = format!("asr-{}", Uuid::new_v4());
-    let before = store
-        .count_events(sourcing_event_family::HANDLER_MATRIX_ENTRY_PUBLISHED)
-        .await
-        .expect("count matrix-published events before");
 
     // --- publish a matrix entry ---
     let entry = store
@@ -246,15 +424,55 @@ async fn atelier_handler_matrix_immutability_and_event() {
         republished.schema_version_min, "1.0.0",
         "matrix entries are immutable: schema bounds must NOT change on re-publish"
     );
+    let bad_republish = store
+        .publish_handler_version(&NewHandlerVersionEntry {
+            handler_family: family.clone(),
+            handler_version: "1.4.0".to_string(),
+            schema_version_min: "1.0.0".to_string(),
+            schema_version_max: "1.9.9".to_string(),
+            side_effect: SideEffect::Write,
+            idempotency: IdempotencyClass::IdempotentWithKey,
+            required_capabilities: vec!["asr.transcribe".to_string()],
+            determinism: "D2".to_string(),
+            status: HandlerStatus::Active,
+            job_profile_ref: "electron://handler/profile".to_string(),
+        })
+        .await;
+    assert!(
+        bad_republish.is_err(),
+        "legacy runtime job_profile_ref must be rejected before immutable-entry fast path"
+    );
+
+    let bad_fresh = store
+        .publish_handler_version(&NewHandlerVersionEntry {
+            handler_family: format!("asr-{}", Uuid::new_v4()),
+            handler_version: "1.4.0".to_string(),
+            schema_version_min: "1.0.0".to_string(),
+            schema_version_max: "1.9.9".to_string(),
+            side_effect: SideEffect::Write,
+            idempotency: IdempotencyClass::IdempotentWithKey,
+            required_capabilities: vec!["asr.transcribe".to_string()],
+            determinism: "D2".to_string(),
+            status: HandlerStatus::Active,
+            job_profile_ref: "localhost:9000/profile".to_string(),
+        })
+        .await;
+    assert!(
+        bad_fresh.is_err(),
+        "bare localhost job_profile_ref must be rejected on fresh publish"
+    );
 
     // --- EVENT EMISSION: published exactly one NEW entry (re-publish is silent) ---
-    let after = store
-        .count_events(sourcing_event_family::HANDLER_MATRIX_ENTRY_PUBLISHED)
+    let published = store
+        .count_events_for_aggregate(
+            sourcing_event_family::HANDLER_MATRIX_ENTRY_PUBLISHED,
+            "atelier_handler_version_matrix",
+            &entry.entry_id.to_string(),
+        )
         .await
-        .expect("count matrix-published events after");
+        .expect("count matrix-published events for entry");
     assert_eq!(
-        after,
-        before + 1,
+        published, 1,
         "only the genuinely new matrix entry emits an event; re-publish is a silent no-op"
     );
 }
@@ -262,9 +480,7 @@ async fn atelier_handler_matrix_immutability_and_event() {
 #[tokio::test]
 async fn atelier_binding_bound_path_and_idempotent_ingestion() {
     let Some(url) = database_url() else {
-        eprintln!(
-            "SKIP atelier_binding_bound_path_and_idempotent_ingestion: DATABASE_URL not set"
-        );
+        eprintln!("SKIP atelier_binding_bound_path_and_idempotent_ingestion: DATABASE_URL not set");
         return;
     };
     let store = connected_store(&url).await;
@@ -371,7 +587,32 @@ async fn atelier_binding_bound_path_and_idempotent_ingestion() {
         "a first ingestion under this identity is fresh"
     );
     assert_eq!(fresh.handler_version, "2.1.0");
-    assert_eq!(fresh.artifact_manifest_refs, refs, "manifest refs round-trip");
+    assert_eq!(
+        fresh.artifact_manifest_refs, refs,
+        "manifest refs round-trip"
+    );
+    let bad_replay_refs = vec!["artifact://atelier/.GOV/out".to_string()];
+    let bad_replay = store
+        .record_ingestion_receipt(
+            decision.decision_id,
+            Some("batch-A"),
+            &bad_replay_refs,
+            1,
+            0,
+        )
+        .await;
+    assert!(
+        bad_replay.is_err(),
+        ".GOV replay refs must be rejected before ingestion-key dedupe fast path"
+    );
+    let bad_manifest = vec!["artifact://atelier/.GOV/out".to_string()];
+    let bad_manifest_err = store
+        .record_ingestion_receipt(decision.decision_id, Some("batch-B"), &bad_manifest, 1, 0)
+        .await;
+    assert!(
+        bad_manifest_err.is_err(),
+        ".GOV ingestion artifact manifest refs must be rejected"
+    );
 
     // --- IDEMPOTENCY: a repeat under the same identity dedupes to the prior
     // receipt (same receipt_id, outcome flips to deduped) ---

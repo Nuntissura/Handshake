@@ -6,10 +6,10 @@
 //! registration; 6.9.4 output routing into ArtifactStore; 6.9.5 EventLedger +
 //! Flight-Recorder evidence; 6.9.6 SaveImage fallback boundary).
 //!
-//! CKC source (INTENT ONLY, never copied): `comfyui_node/castkit_codex_bridge.py`
-//! (the `CastKitCodexBridge` node: IMAGE outputs, `workflow_json`/`prompt`,
+//! legacy source (INTENT ONLY, never copied): `comfyui_node/legacy_bridge.py`
+//! (the `LegacyBridgeNode` node: IMAGE outputs, `workflow_json`/`prompt`,
 //! `seed`/`model`/`sampler`/`cfg`/`steps`, `filename_hint`, `character_id`,
-//! and a bearer-token POST). The CKC node executes generation, saves to a
+//! and a bearer-token POST). The legacy source node executes generation, saves to a
 //! ComfyUI output directory, and POSTs to a `localhost`/HTTP intake endpoint
 //! with the raw image bytes and a bearer token. Handshake DELIBERATELY does NOT
 //! reproduce any of that execution surface here: there is no socket, no process
@@ -51,12 +51,14 @@
 //! forbidden. Microtasks: MT-202 (ComfyUI intake records), MT-005 (event
 //! coverage).
 
+use crate::capabilities::CapabilityRegistry;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use sqlx::Row;
+use sqlx::{QueryBuilder, Row};
+use std::collections::BTreeMap;
 use uuid::Uuid;
 
-use super::{event_family, AtelierError, AtelierResult, AtelierStore};
+use super::{reject_legacy_runtime_ref, AtelierError, AtelierResult, AtelierStore};
 
 /// ComfyUI intake event families (MT-202, extends the MT-005 coverage set).
 ///
@@ -84,6 +86,14 @@ pub mod comfy_event_family {
     pub const FALLBACK_ENGAGED: &str = "atelier.comfy.intake.fallback.engaged";
     /// A per-job intake receipt was produced at job completion (6.9.5).
     pub const RECEIPT_PRODUCED: &str = "atelier.comfy.intake.receipt.produced";
+    /// A durable workflow-level receipt was recorded for a ComfyUI run.
+    pub const WORKFLOW_RECEIPT_RECORDED: &str = "atelier.comfy.workflow.receipt.recorded";
+    /// A generated output was preserved because registration failed after save.
+    pub const OUTPUT_REGISTRATION_FAILURE_RECORDED: &str =
+        "atelier.comfy.output.registration_failure.recorded";
+    /// A preserved generated output was retried into a normal intake output.
+    pub const OUTPUT_REGISTRATION_FAILURE_RETRIED: &str =
+        "atelier.comfy.output.registration_failure.retried";
 
     /// All ComfyUI intake event families (parity/coverage helper).
     pub const ALL: &[&str] = &[
@@ -94,13 +104,17 @@ pub mod comfy_event_family {
         OUTPUT_DEDUPLICATED,
         FALLBACK_ENGAGED,
         RECEIPT_PRODUCED,
+        WORKFLOW_RECEIPT_RECORDED,
+        OUTPUT_REGISTRATION_FAILURE_RECORDED,
+        OUTPUT_REGISTRATION_FAILURE_RETRIED,
     ];
 }
 
 /// Re-export at module root so callers can write `comfy::PROBE_RECORDED`.
 pub use comfy_event_family::{
     CAPABILITY_REGISTERED, CAPABILITY_REJECTED, FALLBACK_ENGAGED, OUTPUT_DEDUPLICATED,
-    OUTPUT_MATERIALIZED, PROBE_RECORDED, RECEIPT_PRODUCED,
+    OUTPUT_MATERIALIZED, OUTPUT_REGISTRATION_FAILURE_RECORDED, OUTPUT_REGISTRATION_FAILURE_RETRIED,
+    PROBE_RECORDED, RECEIPT_PRODUCED, WORKFLOW_RECEIPT_RECORDED,
 };
 
 /// The slot token used for SaveImage-fallback output rows (Section 6.9.6). A
@@ -108,12 +122,18 @@ pub use comfy_event_family::{
 /// in `source_output_slot` with a null `registration_id`.
 pub const SAVEIMAGE_FALLBACK_SLOT: &str = "saveimage_fallback";
 
+/// Capability required to register and route governed ComfyUI bridge outputs.
+pub const ENGINE_COMFYUI_CAPABILITY: &str = "engine.comfyui";
+
+pub const COMFY_WORKFLOW_RECEIPT_SCHEMA: &str = "hsk.atelier.comfy.workflow_receipt@1";
+
+const ENGINE_COMFYUI_GRANT_PREFIX: &str = "capgrant://engine.comfyui/";
 const REDACTED_PLACEHOLDER: &str = "[REDACTED]";
 
 /// Scrub credential-bearing keys from a free-form provenance JSON object before
 /// it is persisted or echoed into an event payload (LAW-COMFY-INTAKE-005).
 ///
-/// CKC's node POSTed a bearer token and raw image bytes; Handshake stores
+/// legacy source's node POSTed a bearer token and raw image bytes; Handshake stores
 /// neither. Any object key whose (lowercased) name looks like an auth header,
 /// cookie, token, secret, password, or bearer credential is replaced with a
 /// redaction placeholder, recursively. This is intentionally conservative: it
@@ -126,7 +146,10 @@ pub fn scrub_provenance(value: &serde_json::Value) -> serde_json::Value {
             let mut out = serde_json::Map::with_capacity(map.len());
             for (key, child) in map {
                 if is_secret_key(key) {
-                    out.insert(key.clone(), serde_json::Value::String(REDACTED_PLACEHOLDER.into()));
+                    out.insert(
+                        key.clone(),
+                        serde_json::Value::String(REDACTED_PLACEHOLDER.into()),
+                    );
                 } else {
                     out.insert(key.clone(), scrub_provenance(child));
                 }
@@ -160,6 +183,43 @@ fn is_secret_key(key: &str) -> bool {
         "session_token",
     ];
     NEEDLES.iter().any(|needle| lowered.contains(needle))
+}
+
+fn validate_identity_metadata_component(
+    field: &str,
+    value: Option<&serde_json::Value>,
+) -> AtelierResult<()> {
+    if let Some(value) = value {
+        if !value.is_object() && !value.is_array() {
+            return Err(AtelierError::Validation(format!(
+                "identity metadata {field} must be a JSON object or array"
+            )));
+        }
+    }
+    Ok(())
+}
+
+fn workflow_input_metadata_from_identity(
+    metadata: Option<&IdentityWorkflowMetadata>,
+) -> AtelierResult<serde_json::Value> {
+    let Some(metadata) = metadata else {
+        return Ok(serde_json::json!({ "identity": {} }));
+    };
+    validate_identity_metadata_component("landmarks", metadata.landmarks.as_ref())?;
+    validate_identity_metadata_component("measurements", metadata.measurements.as_ref())?;
+    validate_identity_metadata_component("pose_metadata", metadata.pose_metadata.as_ref())?;
+
+    let mut identity = serde_json::Map::new();
+    if let Some(landmarks) = &metadata.landmarks {
+        identity.insert("landmarks".to_string(), scrub_provenance(landmarks));
+    }
+    if let Some(measurements) = &metadata.measurements {
+        identity.insert("measurements".to_string(), scrub_provenance(measurements));
+    }
+    if let Some(pose_metadata) = &metadata.pose_metadata {
+        identity.insert("pose_metadata".to_string(), scrub_provenance(pose_metadata));
+    }
+    Ok(serde_json::json!({ "identity": serde_json::Value::Object(identity) }))
 }
 
 /// Outcome of the bounded bridge-node presence probe (Section 6.9.2).
@@ -278,6 +338,69 @@ impl RoutingIntent {
     }
 }
 
+/// Durable ComfyUI workflow receipt status.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ComfyWorkflowStatus {
+    Queued,
+    Running,
+    Succeeded,
+    Failed,
+    Cancelled,
+}
+
+impl ComfyWorkflowStatus {
+    pub fn as_token(self) -> &'static str {
+        match self {
+            ComfyWorkflowStatus::Queued => "queued",
+            ComfyWorkflowStatus::Running => "running",
+            ComfyWorkflowStatus::Succeeded => "succeeded",
+            ComfyWorkflowStatus::Failed => "failed",
+            ComfyWorkflowStatus::Cancelled => "cancelled",
+        }
+    }
+
+    pub fn from_token(token: &str) -> AtelierResult<Self> {
+        match token {
+            "queued" => Ok(ComfyWorkflowStatus::Queued),
+            "running" => Ok(ComfyWorkflowStatus::Running),
+            "succeeded" => Ok(ComfyWorkflowStatus::Succeeded),
+            "failed" => Ok(ComfyWorkflowStatus::Failed),
+            "cancelled" => Ok(ComfyWorkflowStatus::Cancelled),
+            other => Err(AtelierError::Validation(format!(
+                "unknown comfy workflow status token: {other}"
+            ))),
+        }
+    }
+}
+
+/// Recovery state for a generated output preserved before registration finished.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ComfyOutputRegistrationFailureStatus {
+    Retryable,
+    Registered,
+}
+
+impl ComfyOutputRegistrationFailureStatus {
+    pub fn as_token(self) -> &'static str {
+        match self {
+            ComfyOutputRegistrationFailureStatus::Retryable => "retryable",
+            ComfyOutputRegistrationFailureStatus::Registered => "registered",
+        }
+    }
+
+    pub fn from_token(token: &str) -> AtelierResult<Self> {
+        match token {
+            "retryable" => Ok(ComfyOutputRegistrationFailureStatus::Retryable),
+            "registered" => Ok(ComfyOutputRegistrationFailureStatus::Registered),
+            other => Err(AtelierError::Validation(format!(
+                "unknown comfy output registration failure status token: {other}"
+            ))),
+        }
+    }
+}
+
 /// A bridge-node presence probe record (`ComfyBridgeNodeProbeV1`, Section 6.9.2).
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct BridgeProbe {
@@ -350,6 +473,120 @@ pub struct NewCapabilityRegistration {
     pub consent_decision_ref: Option<String>,
 }
 
+/// Deterministic offline adapter for the Section 6.9 bridge-node contract.
+///
+/// This adapter never opens a socket, spawns ComfyUI, reads local output
+/// folders, or persists bytes. It produces the same probe + capability
+/// registration shape as the governed bridge path so acceptance tests can prove
+/// the storage, gating, EventLedger, and reject-row behavior without external
+/// runtime dependency.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ComfyBridgeFakeAdapterV1 {
+    accepted_outputs: Vec<DeclaredOutput>,
+    rejected_outputs: Vec<(String, String)>,
+}
+
+impl Default for ComfyBridgeFakeAdapterV1 {
+    fn default() -> Self {
+        Self {
+            accepted_outputs: vec![
+                DeclaredOutput {
+                    output_slot: "IMAGE".to_string(),
+                    media_kind: MediaKind::Image,
+                    expected_mime: "image/png".to_string(),
+                    routing_intent: RoutingIntent::Artifact,
+                },
+                DeclaredOutput {
+                    output_slot: "MASK".to_string(),
+                    media_kind: MediaKind::Mask,
+                    expected_mime: "image/png".to_string(),
+                    routing_intent: RoutingIntent::Sidecar,
+                },
+            ],
+            rejected_outputs: vec![(
+                "PREVIEW".to_string(),
+                "transient preview not permitted by capability profile".to_string(),
+            )],
+        }
+    }
+}
+
+impl ComfyBridgeFakeAdapterV1 {
+    pub const NODE_CLASS_ID: &'static str = "ComfyBridgeFakeAdapterV1";
+    pub const BRIDGE_PROTOCOL_VERSION: &'static str = "1.0.0";
+    pub const CAPABILITY_PROFILE_ID: &'static str = "ComfyUIWorker";
+
+    pub fn accepted_outputs(&self) -> &[DeclaredOutput] {
+        &self.accepted_outputs
+    }
+
+    pub fn rejected_outputs(&self) -> &[(String, String)] {
+        &self.rejected_outputs
+    }
+
+    pub fn probe(&self, workflow_run_id: Uuid) -> NewBridgeProbe {
+        NewBridgeProbe {
+            workflow_run_id,
+            node_class_id: Self::NODE_CLASS_ID.to_string(),
+            bridge_protocol_version: Some(Self::BRIDGE_PROTOCOL_VERSION.to_string()),
+            node_instance_ids: vec!["fake-bridge-node".to_string()],
+            probe_outcome: ProbeOutcome::BridgePresent,
+            fallback_reason: None,
+        }
+    }
+
+    pub fn capability_grant_ref(profile_id: &str, evidence_ref: &str) -> String {
+        format!("{ENGINE_COMFYUI_GRANT_PREFIX}{profile_id}/{evidence_ref}")
+    }
+
+    pub fn capability_registration(
+        &self,
+        workflow_run_id: Uuid,
+        capability_profile_id: &str,
+        evidence_ref: &str,
+    ) -> NewCapabilityRegistration {
+        NewCapabilityRegistration {
+            workflow_run_id,
+            node_class_id: Self::NODE_CLASS_ID.to_string(),
+            bridge_protocol_version: Self::BRIDGE_PROTOCOL_VERSION.to_string(),
+            accepted_outputs: self.accepted_outputs.clone(),
+            rejected_outputs: self.rejected_outputs.clone(),
+            capability_grant_ref: Self::capability_grant_ref(capability_profile_id, evidence_ref),
+            consent_decision_ref: None,
+        }
+    }
+}
+
+fn validate_engine_comfyui_grant_ref(grant_ref: &str) -> AtelierResult<()> {
+    let trimmed = grant_ref.trim();
+    let rest = trimmed.strip_prefix(ENGINE_COMFYUI_GRANT_PREFIX).ok_or_else(|| {
+        AtelierError::Validation(format!(
+            "capability_grant_ref must start with {ENGINE_COMFYUI_GRANT_PREFIX} and name a profile granted {ENGINE_COMFYUI_CAPABILITY}"
+        ))
+    })?;
+    let (profile_id, evidence_ref) = rest.split_once('/').ok_or_else(|| {
+        AtelierError::Validation(format!(
+            "capability_grant_ref must include profile/evidence for {ENGINE_COMFYUI_CAPABILITY}"
+        ))
+    })?;
+    if profile_id.trim().is_empty() || evidence_ref.trim().is_empty() {
+        return Err(AtelierError::Validation(format!(
+            "capability_grant_ref must include non-empty profile/evidence for {ENGINE_COMFYUI_CAPABILITY}"
+        )));
+    }
+    reject_legacy_runtime_ref("capability_grant_ref evidence_ref", evidence_ref)?;
+
+    match CapabilityRegistry::new().profile_can(profile_id, ENGINE_COMFYUI_CAPABILITY) {
+        Ok(true) => Ok(()),
+        Ok(false) => Err(AtelierError::Validation(format!(
+            "capability profile {profile_id} is not granted {ENGINE_COMFYUI_CAPABILITY}"
+        ))),
+        Err(err) => Err(AtelierError::Validation(format!(
+            "capability profile {profile_id} cannot grant {ENGINE_COMFYUI_CAPABILITY}: {err}"
+        ))),
+    }
+}
+
 /// One governed intake output record (`ComfyIntakeOutputRecordV1`, 6.9.4), with
 /// the workflow-receipt lineage (prompt-json ref, output image artifact_ref,
 /// graph hash, seed). Used both for bridge-routed outputs and SaveImage-fallback
@@ -381,13 +618,24 @@ pub struct IntakeOutput {
     /// For `sidecar`: the primary artifact it annotates; null otherwise.
     pub parent_artifact_ref: Option<String>,
     // --- Workflow receipt lineage (Section 6.9.4 + 9.12 STOCHASTIC pins) ---
-    /// ArtifactStore ref to the captured prompt/graph JSON (CKC `workflow_json`).
+    /// ArtifactStore ref to the captured prompt/graph JSON (legacy source `workflow_json`).
     pub prompt_json_ref: Option<String>,
     /// Graph hash pin (9.12 determinism).
     pub graph_hash: Option<String>,
     /// Seed pin (9.12 STOCHASTIC determinism).
     pub seed: Option<i64>,
+    /// Workflow input metadata preserved for receipt reconstruction. Identity
+    /// metadata is optional; absence is stored as `{ "identity": {} }`.
+    pub workflow_input_metadata: serde_json::Value,
     pub materialized_at_utc: DateTime<Utc>,
+}
+
+/// Optional identity metadata serialized into workflow receipt inputs (MT-100).
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct IdentityWorkflowMetadata {
+    pub landmarks: Option<serde_json::Value>,
+    pub measurements: Option<serde_json::Value>,
+    pub pose_metadata: Option<serde_json::Value>,
 }
 
 /// Parameters to record a routed intake output. Use [`Self::saveimage_fallback`]
@@ -409,6 +657,7 @@ pub struct NewIntakeOutput {
     pub prompt_json_ref: Option<String>,
     pub graph_hash: Option<String>,
     pub seed: Option<i64>,
+    pub identity_metadata: Option<IdentityWorkflowMetadata>,
 }
 
 impl NewIntakeOutput {
@@ -440,6 +689,7 @@ impl NewIntakeOutput {
             prompt_json_ref: None,
             graph_hash: None,
             seed: None,
+            identity_metadata: None,
         }
     }
 }
@@ -463,16 +713,120 @@ pub struct IntakeReceipt {
     pub probe_outcome: Option<ProbeOutcome>,
     pub registered_output_count: i64,
     pub materialized_artifact_refs: Vec<String>,
+    pub workflow_inputs: Vec<serde_json::Value>,
     pub fallback_engaged: bool,
+}
+
+/// Parameters to record the durable ComfyUI workflow receipt (MT-101).
+#[derive(Clone, Debug)]
+pub struct NewComfyWorkflowReceipt {
+    pub system_id: String,
+    pub workflow_run_id: Uuid,
+    pub workflow_spec_ref: String,
+    pub workflow_json_ref: String,
+    pub prompt_ref: String,
+    pub status: ComfyWorkflowStatus,
+    pub error_ref: Option<String>,
+    pub evidence: serde_json::Value,
+}
+
+/// Durable workflow-level ComfyUI receipt, including all refs and output rows.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ComfyWorkflowReceipt {
+    pub receipt_id: Uuid,
+    pub system_id: String,
+    pub workflow_run_id: Uuid,
+    pub character_ref: Option<String>,
+    pub workflow_spec_ref: String,
+    pub workflow_json_ref: String,
+    pub prompt_ref: String,
+    pub all_refs: serde_json::Value,
+    pub outputs: Vec<serde_json::Value>,
+    pub status: ComfyWorkflowStatus,
+    pub error_ref: Option<String>,
+    pub evidence: serde_json::Value,
+    pub receipt_json: serde_json::Value,
+    pub created_at_utc: DateTime<Utc>,
+    pub updated_at_utc: DateTime<Utc>,
+}
+
+/// Filters for workflow receipt history and stats queries (MT-103).
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct ComfyWorkflowHistoryQuery {
+    pub character_ref: Option<String>,
+    pub workflow_spec_ref: Option<String>,
+    pub status: Option<ComfyWorkflowStatus>,
+    pub from_utc: Option<DateTime<Utc>>,
+    pub to_utc: Option<DateTime<Utc>>,
+}
+
+/// Aggregate stats over the same filtered receipt set returned by history.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ComfyWorkflowStats {
+    pub total_count: i64,
+    pub failure_count: i64,
+    pub status_counts: BTreeMap<String, i64>,
+}
+
+/// Parameters to preserve a generated output when registration failed after save.
+#[derive(Clone, Debug)]
+pub struct NewComfyOutputRegistrationFailure {
+    pub workflow_run_id: Uuid,
+    pub node_execution_id: String,
+    pub attempted_registration_id: Option<Uuid>,
+    pub source_node_instance_id: String,
+    pub source_output_slot: String,
+    pub media_kind: MediaKind,
+    pub mime: String,
+    pub artifact_ref: String,
+    pub artifact_manifest_ref: String,
+    pub content_hash: String,
+    pub routing_intent: RoutingIntent,
+    pub parent_artifact_ref: Option<String>,
+    pub prompt_json_ref: Option<String>,
+    pub graph_hash: Option<String>,
+    pub seed: Option<i64>,
+    pub identity_metadata: Option<IdentityWorkflowMetadata>,
+    pub failure_stage: String,
+    pub failure_reason: String,
+    pub evidence: serde_json::Value,
+}
+
+/// Durable retryable evidence for output-first registration failure recovery.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ComfyOutputRegistrationFailure {
+    pub failure_id: Uuid,
+    pub workflow_run_id: Uuid,
+    pub node_execution_id: String,
+    pub attempted_registration_id: Option<Uuid>,
+    pub source_node_instance_id: String,
+    pub source_output_slot: String,
+    pub media_kind: MediaKind,
+    pub mime: String,
+    pub artifact_ref: String,
+    pub artifact_manifest_ref: String,
+    pub content_hash: String,
+    pub routing_intent: RoutingIntent,
+    pub parent_artifact_ref: Option<String>,
+    pub prompt_json_ref: Option<String>,
+    pub graph_hash: Option<String>,
+    pub seed: Option<i64>,
+    pub workflow_input_metadata: serde_json::Value,
+    pub failure_stage: String,
+    pub failure_reason: String,
+    pub evidence: serde_json::Value,
+    pub status: ComfyOutputRegistrationFailureStatus,
+    pub retry_count: i32,
+    pub resolved_intake_output_id: Option<Uuid>,
+    pub created_at_utc: DateTime<Utc>,
+    pub updated_at_utc: DateTime<Utc>,
 }
 
 fn probe_from_row(row: &sqlx::postgres::PgRow) -> AtelierResult<BridgeProbe> {
     let outcome: String = row.get("probe_outcome");
     let node_instance_ids: serde_json::Value = row.get("node_instance_ids");
-    let node_instance_ids: Vec<String> =
-        serde_json::from_value(node_instance_ids).map_err(|e| {
-            AtelierError::Validation(format!("invalid node_instance_ids json: {e}"))
-        })?;
+    let node_instance_ids: Vec<String> = serde_json::from_value(node_instance_ids)
+        .map_err(|e| AtelierError::Validation(format!("invalid node_instance_ids json: {e}")))?;
     Ok(BridgeProbe {
         probe_id: row.get("probe_id"),
         workflow_run_id: row.get("workflow_run_id"),
@@ -517,7 +871,217 @@ fn output_from_row(row: &sqlx::postgres::PgRow) -> AtelierResult<IntakeOutput> {
         prompt_json_ref: row.get("prompt_json_ref"),
         graph_hash: row.get("graph_hash"),
         seed: row.get("seed"),
+        workflow_input_metadata: row.get("workflow_input_metadata"),
         materialized_at_utc: row.get("materialized_at_utc"),
+    })
+}
+
+fn validate_workflow_system_id(system_id: &str) -> AtelierResult<()> {
+    if system_id.trim().is_empty() || system_id.trim() != system_id {
+        return Err(AtelierError::Validation(
+            "system_id must not be empty or padded".into(),
+        ));
+    }
+    if !system_id
+        .bytes()
+        .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'.' | b'-' | b'_'))
+    {
+        return Err(AtelierError::Validation(
+            "system_id must be a stable ASCII token".into(),
+        ));
+    }
+    Ok(())
+}
+
+fn workflow_receipt_outputs_from_value(
+    value: serde_json::Value,
+) -> AtelierResult<Vec<serde_json::Value>> {
+    match value {
+        serde_json::Value::Array(values) => Ok(values),
+        _ => Err(AtelierError::Validation(
+            "workflow receipt outputs must be a JSON array".into(),
+        )),
+    }
+}
+
+fn workflow_receipt_output_from_row(row: &sqlx::postgres::PgRow) -> serde_json::Value {
+    let intake_output_id: Uuid = row.get("intake_output_id");
+    let workflow_run_id: Uuid = row.get("workflow_run_id");
+    let media_kind: String = row.get("media_kind");
+    let routing_intent: String = row.get("routing_intent");
+    let registration_id: Option<Uuid> = row.get("registration_id");
+    let parent_artifact_ref: Option<String> = row.get("parent_artifact_ref");
+    let prompt_json_ref: Option<String> = row.get("prompt_json_ref");
+    let graph_hash: Option<String> = row.get("graph_hash");
+    let seed: Option<i64> = row.get("seed");
+    let materialized_at_utc: DateTime<Utc> = row.get("materialized_at_utc");
+    serde_json::json!({
+        "intake_output_id": intake_output_id,
+        "workflow_run_id": workflow_run_id,
+        "node_execution_id": row.get::<String, _>("node_execution_id"),
+        "registration_id": registration_id,
+        "source_node_instance_id": row.get::<String, _>("source_node_instance_id"),
+        "source_output_slot": row.get::<String, _>("source_output_slot"),
+        "media_kind": media_kind,
+        "mime": row.get::<String, _>("mime"),
+        "artifact_ref": row.get::<String, _>("artifact_ref"),
+        "artifact_manifest_ref": row.get::<String, _>("artifact_manifest_ref"),
+        "content_hash": row.get::<String, _>("content_hash"),
+        "routing_intent": routing_intent,
+        "parent_artifact_ref": parent_artifact_ref,
+        "prompt_json_ref": prompt_json_ref,
+        "graph_hash": graph_hash,
+        "seed": seed,
+        "workflow_input_metadata": row.get::<serde_json::Value, _>("workflow_input_metadata"),
+        "materialized_at_utc": materialized_at_utc,
+    })
+}
+
+fn workflow_receipt_refs(
+    new: &NewComfyWorkflowReceipt,
+    outputs: &[serde_json::Value],
+) -> serde_json::Value {
+    let output_refs: Vec<serde_json::Value> = outputs
+        .iter()
+        .map(|output| {
+            serde_json::json!({
+                "intake_output_id": output["intake_output_id"].clone(),
+                "artifact_ref": output["artifact_ref"].clone(),
+                "artifact_manifest_ref": output["artifact_manifest_ref"].clone(),
+                "prompt_json_ref": output["prompt_json_ref"].clone(),
+            })
+        })
+        .collect();
+    serde_json::json!({
+        "workflow_spec_ref": &new.workflow_spec_ref,
+        "workflow_json_ref": &new.workflow_json_ref,
+        "prompt_ref": &new.prompt_ref,
+        "error_ref": &new.error_ref,
+        "outputs": output_refs,
+    })
+}
+
+fn workflow_receipt_character_ref(evidence: &serde_json::Value) -> AtelierResult<Option<String>> {
+    let Some(value) = evidence.get("character_ref") else {
+        return Ok(None);
+    };
+    if value.is_null() {
+        return Ok(None);
+    }
+    let Some(character_ref) = value.as_str() else {
+        return Err(AtelierError::Validation(
+            "workflow receipt character_ref evidence must be a string".into(),
+        ));
+    };
+    reject_legacy_runtime_ref("character_ref", character_ref)?;
+    Ok(Some(character_ref.to_string()))
+}
+
+fn workflow_receipt_from_row(row: &sqlx::postgres::PgRow) -> AtelierResult<ComfyWorkflowReceipt> {
+    let status: String = row.get("status");
+    let outputs: serde_json::Value = row.get("outputs");
+    Ok(ComfyWorkflowReceipt {
+        receipt_id: row.get("receipt_id"),
+        system_id: row.get("system_id"),
+        workflow_run_id: row.get("workflow_run_id"),
+        character_ref: row.get("character_ref"),
+        workflow_spec_ref: row.get("workflow_spec_ref"),
+        workflow_json_ref: row.get("workflow_json_ref"),
+        prompt_ref: row.get("prompt_ref"),
+        all_refs: row.get("all_refs"),
+        outputs: workflow_receipt_outputs_from_value(outputs)?,
+        status: ComfyWorkflowStatus::from_token(&status)?,
+        error_ref: row.get("error_ref"),
+        evidence: row.get("evidence"),
+        receipt_json: row.get("receipt_json"),
+        created_at_utc: row.get("created_at_utc"),
+        updated_at_utc: row.get("updated_at_utc"),
+    })
+}
+
+fn validate_registration_failure_shape(
+    artifact_ref: &str,
+    artifact_manifest_ref: &str,
+    content_hash: &str,
+    parent_artifact_ref: Option<&String>,
+    prompt_json_ref: Option<&String>,
+    routing_intent: RoutingIntent,
+    failure_stage: &str,
+    failure_reason: &str,
+    evidence: &serde_json::Value,
+) -> AtelierResult<()> {
+    reject_legacy_runtime_ref("artifact_ref", artifact_ref)?;
+    reject_legacy_runtime_ref("artifact_manifest_ref", artifact_manifest_ref)?;
+    if content_hash.trim().is_empty() || content_hash.trim() != content_hash {
+        return Err(AtelierError::Validation(
+            "content_hash must not be empty or padded".into(),
+        ));
+    }
+    if let Some(parent_artifact_ref) = parent_artifact_ref {
+        reject_legacy_runtime_ref("parent_artifact_ref", parent_artifact_ref)?;
+    }
+    if let Some(prompt_json_ref) = prompt_json_ref {
+        reject_legacy_runtime_ref("prompt_json_ref", prompt_json_ref)?;
+    }
+    if matches!(routing_intent, RoutingIntent::Sidecar)
+        && parent_artifact_ref
+            .map(|value| value.trim().is_empty())
+            .unwrap_or(true)
+    {
+        return Err(AtelierError::Validation(
+            "sidecar output registration failure requires parent_artifact_ref".into(),
+        ));
+    }
+    if failure_stage.trim().is_empty() || failure_stage.trim() != failure_stage {
+        return Err(AtelierError::Validation(
+            "failure_stage must not be empty or padded".into(),
+        ));
+    }
+    if failure_reason.trim().is_empty() || failure_reason.trim() != failure_reason {
+        return Err(AtelierError::Validation(
+            "failure_reason must not be empty or padded".into(),
+        ));
+    }
+    if !evidence.is_object() {
+        return Err(AtelierError::Validation(
+            "output registration failure evidence must be a JSON object".into(),
+        ));
+    }
+    Ok(())
+}
+
+fn output_registration_failure_from_row(
+    row: &sqlx::postgres::PgRow,
+) -> AtelierResult<ComfyOutputRegistrationFailure> {
+    let media_kind: String = row.get("media_kind");
+    let routing_intent: String = row.get("routing_intent");
+    let status: String = row.get("status");
+    Ok(ComfyOutputRegistrationFailure {
+        failure_id: row.get("failure_id"),
+        workflow_run_id: row.get("workflow_run_id"),
+        node_execution_id: row.get("node_execution_id"),
+        attempted_registration_id: row.get("attempted_registration_id"),
+        source_node_instance_id: row.get("source_node_instance_id"),
+        source_output_slot: row.get("source_output_slot"),
+        media_kind: MediaKind::from_token(&media_kind)?,
+        mime: row.get("mime"),
+        artifact_ref: row.get("artifact_ref"),
+        artifact_manifest_ref: row.get("artifact_manifest_ref"),
+        content_hash: row.get("content_hash"),
+        routing_intent: RoutingIntent::from_token(&routing_intent)?,
+        parent_artifact_ref: row.get("parent_artifact_ref"),
+        prompt_json_ref: row.get("prompt_json_ref"),
+        graph_hash: row.get("graph_hash"),
+        seed: row.get("seed"),
+        workflow_input_metadata: row.get("workflow_input_metadata"),
+        failure_stage: row.get("failure_stage"),
+        failure_reason: row.get("failure_reason"),
+        evidence: row.get("evidence"),
+        status: ComfyOutputRegistrationFailureStatus::from_token(&status)?,
+        retry_count: row.get("retry_count"),
+        resolved_intake_output_id: row.get("resolved_intake_output_id"),
+        created_at_utc: row.get("created_at_utc"),
+        updated_at_utc: row.get("updated_at_utc"),
     })
 }
 
@@ -529,10 +1093,7 @@ impl AtelierStore {
     /// than duplicating it (ON CONFLICT on the unique run column). Enforces the
     /// normative rule that `fallback_reason` is required whenever the outcome is
     /// not `bridge_present`. Emits `PROBE_RECORDED`.
-    pub async fn record_bridge_probe(
-        &self,
-        new: &NewBridgeProbe,
-    ) -> AtelierResult<BridgeProbe> {
+    pub async fn record_bridge_probe(&self, new: &NewBridgeProbe) -> AtelierResult<BridgeProbe> {
         if new.node_class_id.trim().is_empty() {
             return Err(AtelierError::Validation(
                 "node_class_id must not be empty".into(),
@@ -640,6 +1201,7 @@ impl AtelierStore {
                 "capability_grant_ref must not be empty".into(),
             ));
         }
+        validate_engine_comfyui_grant_ref(&new.capability_grant_ref)?;
 
         let mut tx = self.pool().begin().await?;
 
@@ -671,18 +1233,14 @@ impl AtelierStore {
         let registration_id: Uuid = reg_row.get("registration_id");
 
         // Replace child rows for replay-stability on re-registration.
-        sqlx::query(
-            "DELETE FROM atelier_comfy_declared_output WHERE registration_id = $1",
-        )
-        .bind(registration_id)
-        .execute(&mut *tx)
-        .await?;
-        sqlx::query(
-            "DELETE FROM atelier_comfy_capability_reject WHERE registration_id = $1",
-        )
-        .bind(registration_id)
-        .execute(&mut *tx)
-        .await?;
+        sqlx::query("DELETE FROM atelier_comfy_declared_output WHERE registration_id = $1")
+            .bind(registration_id)
+            .execute(&mut *tx)
+            .await?;
+        sqlx::query("DELETE FROM atelier_comfy_capability_reject WHERE registration_id = $1")
+            .bind(registration_id)
+            .execute(&mut *tx)
+            .await?;
 
         for (seq, out) in new.accepted_outputs.iter().enumerate() {
             if out.output_slot.trim().is_empty() {
@@ -852,16 +1410,30 @@ impl AtelierStore {
         new: &NewIntakeOutput,
     ) -> AtelierResult<RecordOutputOutcome> {
         if new.artifact_ref.trim().is_empty() {
-            return Err(AtelierError::Validation("artifact_ref must not be empty".into()));
+            return Err(AtelierError::Validation(
+                "artifact_ref must not be empty".into(),
+            ));
         }
+        reject_legacy_runtime_ref("artifact_ref", &new.artifact_ref)?;
         if new.artifact_manifest_ref.trim().is_empty() {
             return Err(AtelierError::Validation(
                 "artifact_manifest_ref must not be empty".into(),
             ));
         }
-        if new.content_hash.trim().is_empty() {
-            return Err(AtelierError::Validation("content_hash must not be empty".into()));
+        reject_legacy_runtime_ref("artifact_manifest_ref", &new.artifact_manifest_ref)?;
+        if let Some(parent_artifact_ref) = &new.parent_artifact_ref {
+            reject_legacy_runtime_ref("parent_artifact_ref", parent_artifact_ref)?;
         }
+        if let Some(prompt_json_ref) = &new.prompt_json_ref {
+            reject_legacy_runtime_ref("prompt_json_ref", prompt_json_ref)?;
+        }
+        if new.content_hash.trim().is_empty() {
+            return Err(AtelierError::Validation(
+                "content_hash must not be empty".into(),
+            ));
+        }
+        let workflow_input_metadata =
+            workflow_input_metadata_from_identity(new.identity_metadata.as_ref())?;
         // Sidecars must bind to a primary; primaries must not (Section 6.9.4).
         match new.routing_intent {
             RoutingIntent::Sidecar => {
@@ -908,15 +1480,17 @@ impl AtelierStore {
                  (workflow_run_id, node_execution_id, registration_id,
                   source_node_instance_id, source_output_slot, media_kind, mime,
                   artifact_ref, artifact_manifest_ref, content_hash, routing_intent,
-                  parent_artifact_ref, prompt_json_ref, graph_hash, seed)
-               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+                  parent_artifact_ref, prompt_json_ref, graph_hash, seed,
+                  workflow_input_metadata)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
                ON CONFLICT (workflow_run_id, content_hash) DO UPDATE
                  SET artifact_ref = EXCLUDED.artifact_ref
                RETURNING intake_output_id, workflow_run_id, node_execution_id,
                          registration_id, source_node_instance_id, source_output_slot,
                          media_kind, mime, artifact_ref, artifact_manifest_ref,
                          content_hash, routing_intent, parent_artifact_ref,
-                         prompt_json_ref, graph_hash, seed, materialized_at_utc"#,
+                         prompt_json_ref, graph_hash, seed, workflow_input_metadata,
+                         materialized_at_utc"#,
         )
         .bind(new.workflow_run_id)
         .bind(&new.node_execution_id)
@@ -933,6 +1507,7 @@ impl AtelierStore {
         .bind(&new.prompt_json_ref)
         .bind(&new.graph_hash)
         .bind(new.seed)
+        .bind(&workflow_input_metadata)
         .fetch_one(self.pool())
         .await?;
         let output = output_from_row(&row)?;
@@ -949,6 +1524,7 @@ impl AtelierStore {
                 "source_output_slot": output.source_output_slot,
                 "graph_hash": output.graph_hash,
                 "seed": output.seed,
+                "workflow_input_metadata": output.workflow_input_metadata,
             }),
         )
         .await?;
@@ -969,7 +1545,8 @@ impl AtelierStore {
                       registration_id, source_node_instance_id, source_output_slot,
                       media_kind, mime, artifact_ref, artifact_manifest_ref,
                       content_hash, routing_intent, parent_artifact_ref,
-                      prompt_json_ref, graph_hash, seed, materialized_at_utc
+                      prompt_json_ref, graph_hash, seed, workflow_input_metadata,
+                      materialized_at_utc
                FROM atelier_comfy_intake_output
                WHERE workflow_run_id = $1 AND content_hash = $2"#,
         )
@@ -993,7 +1570,8 @@ impl AtelierStore {
                       registration_id, source_node_instance_id, source_output_slot,
                       media_kind, mime, artifact_ref, artifact_manifest_ref,
                       content_hash, routing_intent, parent_artifact_ref,
-                      prompt_json_ref, graph_hash, seed, materialized_at_utc
+                      prompt_json_ref, graph_hash, seed, workflow_input_metadata,
+                      materialized_at_utc
                FROM atelier_comfy_intake_output
                WHERE workflow_run_id = $1
                ORDER BY materialized_at_utc ASC, intake_output_id ASC"#,
@@ -1058,6 +1636,235 @@ impl AtelierStore {
         Ok(reason)
     }
 
+    /// Preserve a generated output when registration fails after the image was
+    /// saved. This records retryable evidence without creating a successful
+    /// intake output row.
+    pub async fn record_comfy_output_registration_failure(
+        &self,
+        new: &NewComfyOutputRegistrationFailure,
+    ) -> AtelierResult<ComfyOutputRegistrationFailure> {
+        if new.node_execution_id.trim().is_empty()
+            || new.source_node_instance_id.trim().is_empty()
+            || new.source_output_slot.trim().is_empty()
+            || new.mime.trim().is_empty()
+        {
+            return Err(AtelierError::Validation(
+                "node, output slot, and mime fields must not be empty".into(),
+            ));
+        }
+        validate_registration_failure_shape(
+            &new.artifact_ref,
+            &new.artifact_manifest_ref,
+            &new.content_hash,
+            new.parent_artifact_ref.as_ref(),
+            new.prompt_json_ref.as_ref(),
+            new.routing_intent,
+            &new.failure_stage,
+            &new.failure_reason,
+            &new.evidence,
+        )?;
+        let workflow_input_metadata =
+            workflow_input_metadata_from_identity(new.identity_metadata.as_ref())?;
+        let evidence = scrub_provenance(&new.evidence);
+
+        let row = sqlx::query(
+            r#"INSERT INTO atelier_comfy_output_registration_failure
+                 (workflow_run_id, node_execution_id, attempted_registration_id,
+                  source_node_instance_id, source_output_slot, media_kind, mime,
+                  artifact_ref, artifact_manifest_ref, content_hash, routing_intent,
+                  parent_artifact_ref, prompt_json_ref, graph_hash, seed,
+                  workflow_input_metadata, failure_stage, failure_reason, evidence)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12,
+                       $13, $14, $15, $16, $17, $18, $19)
+               ON CONFLICT (workflow_run_id, content_hash, failure_stage) DO UPDATE
+                 SET node_execution_id = EXCLUDED.node_execution_id,
+                     attempted_registration_id = EXCLUDED.attempted_registration_id,
+                     source_node_instance_id = EXCLUDED.source_node_instance_id,
+                     source_output_slot = EXCLUDED.source_output_slot,
+                     media_kind = EXCLUDED.media_kind,
+                     mime = EXCLUDED.mime,
+                     artifact_ref = EXCLUDED.artifact_ref,
+                     artifact_manifest_ref = EXCLUDED.artifact_manifest_ref,
+                     routing_intent = EXCLUDED.routing_intent,
+                     parent_artifact_ref = EXCLUDED.parent_artifact_ref,
+                     prompt_json_ref = EXCLUDED.prompt_json_ref,
+                     graph_hash = EXCLUDED.graph_hash,
+                     seed = EXCLUDED.seed,
+                     workflow_input_metadata = EXCLUDED.workflow_input_metadata,
+                     failure_reason = EXCLUDED.failure_reason,
+                     evidence = EXCLUDED.evidence,
+                     updated_at_utc = NOW()
+               RETURNING failure_id, workflow_run_id, node_execution_id,
+                         attempted_registration_id, source_node_instance_id,
+                         source_output_slot, media_kind, mime, artifact_ref,
+                         artifact_manifest_ref, content_hash, routing_intent,
+                         parent_artifact_ref, prompt_json_ref, graph_hash, seed,
+                         workflow_input_metadata, failure_stage, failure_reason,
+                         evidence, status, retry_count, resolved_intake_output_id,
+                         created_at_utc, updated_at_utc"#,
+        )
+        .bind(new.workflow_run_id)
+        .bind(&new.node_execution_id)
+        .bind(new.attempted_registration_id)
+        .bind(&new.source_node_instance_id)
+        .bind(&new.source_output_slot)
+        .bind(new.media_kind.as_token())
+        .bind(&new.mime)
+        .bind(&new.artifact_ref)
+        .bind(&new.artifact_manifest_ref)
+        .bind(&new.content_hash)
+        .bind(new.routing_intent.as_token())
+        .bind(&new.parent_artifact_ref)
+        .bind(&new.prompt_json_ref)
+        .bind(&new.graph_hash)
+        .bind(new.seed)
+        .bind(&workflow_input_metadata)
+        .bind(&new.failure_stage)
+        .bind(&new.failure_reason)
+        .bind(&evidence)
+        .fetch_one(self.pool())
+        .await?;
+        let failure = output_registration_failure_from_row(&row)?;
+
+        self.record_event(
+            OUTPUT_REGISTRATION_FAILURE_RECORDED,
+            "atelier_comfy_output_registration_failure",
+            &failure.failure_id.to_string(),
+            serde_json::json!({
+                "failure_id": failure.failure_id,
+                "workflow_run_id": failure.workflow_run_id,
+                "artifact_ref": failure.artifact_ref,
+                "artifact_manifest_ref": failure.artifact_manifest_ref,
+                "content_hash": failure.content_hash,
+                "failure_stage": failure.failure_stage,
+                "status": failure.status.as_token(),
+            }),
+        )
+        .await?;
+        Ok(failure)
+    }
+
+    pub async fn get_comfy_output_registration_failure(
+        &self,
+        failure_id: Uuid,
+    ) -> AtelierResult<Option<ComfyOutputRegistrationFailure>> {
+        let row = sqlx::query(
+            r#"SELECT failure_id, workflow_run_id, node_execution_id,
+                      attempted_registration_id, source_node_instance_id,
+                      source_output_slot, media_kind, mime, artifact_ref,
+                      artifact_manifest_ref, content_hash, routing_intent,
+                      parent_artifact_ref, prompt_json_ref, graph_hash, seed,
+                      workflow_input_metadata, failure_stage, failure_reason,
+                      evidence, status, retry_count, resolved_intake_output_id,
+                      created_at_utc, updated_at_utc
+               FROM atelier_comfy_output_registration_failure
+               WHERE failure_id = $1"#,
+        )
+        .bind(failure_id)
+        .fetch_optional(self.pool())
+        .await?;
+        match row {
+            Some(row) => Ok(Some(output_registration_failure_from_row(&row)?)),
+            None => Ok(None),
+        }
+    }
+
+    pub async fn list_comfy_output_registration_failures(
+        &self,
+        workflow_run_id: Uuid,
+    ) -> AtelierResult<Vec<ComfyOutputRegistrationFailure>> {
+        let rows = sqlx::query(
+            r#"SELECT failure_id, workflow_run_id, node_execution_id,
+                      attempted_registration_id, source_node_instance_id,
+                      source_output_slot, media_kind, mime, artifact_ref,
+                      artifact_manifest_ref, content_hash, routing_intent,
+                      parent_artifact_ref, prompt_json_ref, graph_hash, seed,
+                      workflow_input_metadata, failure_stage, failure_reason,
+                      evidence, status, retry_count, resolved_intake_output_id,
+                      created_at_utc, updated_at_utc
+               FROM atelier_comfy_output_registration_failure
+               WHERE workflow_run_id = $1
+               ORDER BY created_at_utc ASC, failure_id ASC"#,
+        )
+        .bind(workflow_run_id)
+        .fetch_all(self.pool())
+        .await?;
+        rows.iter()
+            .map(output_registration_failure_from_row)
+            .collect()
+    }
+
+    /// Retry a preserved output-first registration failure into the normal
+    /// intake output table, then mark the failure evidence as resolved.
+    pub async fn retry_comfy_output_registration_failure(
+        &self,
+        failure_id: Uuid,
+        registration_id: Option<Uuid>,
+    ) -> AtelierResult<RecordOutputOutcome> {
+        let failure = self
+            .get_comfy_output_registration_failure(failure_id)
+            .await?
+            .ok_or_else(|| {
+                AtelierError::NotFound(format!("comfy output registration failure {failure_id}"))
+            })?;
+        if !matches!(
+            failure.status,
+            ComfyOutputRegistrationFailureStatus::Retryable
+        ) {
+            return Err(AtelierError::Validation(format!(
+                "output registration failure {failure_id} is not retryable"
+            )));
+        }
+
+        let retry = NewIntakeOutput {
+            workflow_run_id: failure.workflow_run_id,
+            node_execution_id: failure.node_execution_id.clone(),
+            registration_id,
+            source_node_instance_id: failure.source_node_instance_id.clone(),
+            source_output_slot: failure.source_output_slot.clone(),
+            media_kind: failure.media_kind,
+            mime: failure.mime.clone(),
+            artifact_ref: failure.artifact_ref.clone(),
+            artifact_manifest_ref: failure.artifact_manifest_ref.clone(),
+            content_hash: failure.content_hash.clone(),
+            routing_intent: failure.routing_intent,
+            parent_artifact_ref: failure.parent_artifact_ref.clone(),
+            prompt_json_ref: failure.prompt_json_ref.clone(),
+            graph_hash: failure.graph_hash.clone(),
+            seed: failure.seed,
+            identity_metadata: None,
+        };
+        let outcome = self.record_intake_output(&retry).await?;
+
+        sqlx::query(
+            r#"UPDATE atelier_comfy_output_registration_failure
+               SET status = 'registered',
+                   retry_count = retry_count + 1,
+                   resolved_intake_output_id = $2,
+                   updated_at_utc = NOW()
+               WHERE failure_id = $1"#,
+        )
+        .bind(failure_id)
+        .bind(outcome.output.intake_output_id)
+        .execute(self.pool())
+        .await?;
+
+        self.record_event(
+            OUTPUT_REGISTRATION_FAILURE_RETRIED,
+            "atelier_comfy_output_registration_failure",
+            &failure_id.to_string(),
+            serde_json::json!({
+                "failure_id": failure_id,
+                "workflow_run_id": outcome.output.workflow_run_id,
+                "intake_output_id": outcome.output.intake_output_id,
+                "registration_id": registration_id,
+                "deduplicated": outcome.deduplicated,
+            }),
+        )
+        .await?;
+        Ok(outcome)
+    }
+
     /// Produce the per-job intake receipt (`ComfyIntakeReceiptV1`, Section
     /// 6.9.5) by summarizing the recorded probe, registration, and outputs. The
     /// receipt is the recoverable artifact that lets a no-context model
@@ -1084,8 +1891,8 @@ impl AtelierStore {
         .fetch_one(self.pool())
         .await?;
 
-        let materialized_artifact_refs: Vec<String> = sqlx::query_scalar(
-            r#"SELECT artifact_ref
+        let output_rows = sqlx::query(
+            r#"SELECT artifact_ref, workflow_input_metadata
                FROM atelier_comfy_intake_output
                WHERE workflow_run_id = $1
                ORDER BY materialized_at_utc ASC, intake_output_id ASC"#,
@@ -1093,6 +1900,21 @@ impl AtelierStore {
         .bind(workflow_run_id)
         .fetch_all(self.pool())
         .await?;
+        let mut materialized_artifact_refs = Vec::with_capacity(output_rows.len());
+        let mut workflow_inputs = Vec::with_capacity(output_rows.len());
+        for row in output_rows {
+            let artifact_ref: String = row.get("artifact_ref");
+            let workflow_input_metadata: serde_json::Value = row.get("workflow_input_metadata");
+            let identity = workflow_input_metadata
+                .get("identity")
+                .cloned()
+                .unwrap_or_else(|| serde_json::json!({}));
+            materialized_artifact_refs.push(artifact_ref.clone());
+            workflow_inputs.push(serde_json::json!({
+                "artifact_ref": artifact_ref,
+                "identity": identity,
+            }));
+        }
 
         let fallback_engaged = self
             .get_saveimage_fallback(workflow_run_id)
@@ -1104,6 +1926,7 @@ impl AtelierStore {
             probe_outcome,
             registered_output_count,
             materialized_artifact_refs,
+            workflow_inputs,
             fallback_engaged,
         };
 
@@ -1116,11 +1939,252 @@ impl AtelierStore {
                 "probe_outcome": receipt.probe_outcome.map(|o| o.as_token()),
                 "registered_output_count": receipt.registered_output_count,
                 "materialized_artifact_count": receipt.materialized_artifact_refs.len(),
+                "workflow_input_count": receipt.workflow_inputs.len(),
                 "fallback_engaged": receipt.fallback_engaged,
             }),
         )
         .await?;
         Ok(receipt)
+    }
+
+    /// Record the durable workflow-level ComfyUI receipt (MT-101).
+    pub async fn record_comfy_workflow_receipt(
+        &self,
+        new: &NewComfyWorkflowReceipt,
+    ) -> AtelierResult<ComfyWorkflowReceipt> {
+        validate_workflow_system_id(&new.system_id)?;
+        reject_legacy_runtime_ref("workflow_spec_ref", &new.workflow_spec_ref)?;
+        reject_legacy_runtime_ref("workflow_json_ref", &new.workflow_json_ref)?;
+        reject_legacy_runtime_ref("prompt_ref", &new.prompt_ref)?;
+        if let Some(error_ref) = &new.error_ref {
+            reject_legacy_runtime_ref("error_ref", error_ref)?;
+        }
+        if matches!(new.status, ComfyWorkflowStatus::Failed)
+            && new
+                .error_ref
+                .as_deref()
+                .map(str::trim)
+                .unwrap_or("")
+                .is_empty()
+        {
+            return Err(AtelierError::Validation(
+                "failed workflow receipt requires error_ref".into(),
+            ));
+        }
+        if !new.evidence.is_object() {
+            return Err(AtelierError::Validation(
+                "workflow receipt evidence must be a JSON object".into(),
+            ));
+        }
+
+        let output_rows = sqlx::query(
+            r#"SELECT intake_output_id, workflow_run_id, node_execution_id,
+                      registration_id, source_node_instance_id, source_output_slot,
+                      media_kind, mime, artifact_ref, artifact_manifest_ref,
+                      content_hash, routing_intent, parent_artifact_ref,
+                      prompt_json_ref, graph_hash, seed, workflow_input_metadata,
+                      materialized_at_utc
+               FROM atelier_comfy_intake_output
+               WHERE workflow_run_id = $1
+               ORDER BY materialized_at_utc ASC, intake_output_id ASC"#,
+        )
+        .bind(new.workflow_run_id)
+        .fetch_all(self.pool())
+        .await?;
+        let outputs: Vec<serde_json::Value> = output_rows
+            .iter()
+            .map(workflow_receipt_output_from_row)
+            .collect();
+        let all_refs = workflow_receipt_refs(new, &outputs);
+        let evidence = scrub_provenance(&new.evidence);
+        let character_ref = workflow_receipt_character_ref(&evidence)?;
+        let receipt_json = serde_json::json!({
+            "schema": COMFY_WORKFLOW_RECEIPT_SCHEMA,
+            "system_id": &new.system_id,
+            "workflow_run_id": new.workflow_run_id,
+            "character_ref": &character_ref,
+            "refs": all_refs.clone(),
+            "outputs": outputs.clone(),
+            "status": new.status.as_token(),
+            "error_ref": &new.error_ref,
+            "evidence": evidence.clone(),
+        });
+
+        let row = sqlx::query(
+            r#"INSERT INTO atelier_comfy_workflow_receipt
+                 (system_id, workflow_run_id, character_ref, workflow_spec_ref,
+                  workflow_json_ref, prompt_ref, all_refs, outputs, status,
+                  error_ref, evidence, receipt_json)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+               ON CONFLICT (workflow_run_id) DO UPDATE
+                 SET system_id = EXCLUDED.system_id,
+                     character_ref = EXCLUDED.character_ref,
+                     workflow_spec_ref = EXCLUDED.workflow_spec_ref,
+                     workflow_json_ref = EXCLUDED.workflow_json_ref,
+                     prompt_ref = EXCLUDED.prompt_ref,
+                     all_refs = EXCLUDED.all_refs,
+                     outputs = EXCLUDED.outputs,
+                     status = EXCLUDED.status,
+                     error_ref = EXCLUDED.error_ref,
+                     evidence = EXCLUDED.evidence,
+                     receipt_json = EXCLUDED.receipt_json,
+                     updated_at_utc = NOW()
+               RETURNING receipt_id, system_id, workflow_run_id, character_ref,
+                         workflow_spec_ref, workflow_json_ref, prompt_ref,
+                         all_refs, outputs, status, error_ref, evidence,
+                         receipt_json, created_at_utc, updated_at_utc"#,
+        )
+        .bind(&new.system_id)
+        .bind(new.workflow_run_id)
+        .bind(&character_ref)
+        .bind(&new.workflow_spec_ref)
+        .bind(&new.workflow_json_ref)
+        .bind(&new.prompt_ref)
+        .bind(&all_refs)
+        .bind(&serde_json::Value::Array(outputs))
+        .bind(new.status.as_token())
+        .bind(&new.error_ref)
+        .bind(&evidence)
+        .bind(&receipt_json)
+        .fetch_one(self.pool())
+        .await?;
+        let receipt = workflow_receipt_from_row(&row)?;
+
+        self.record_event(
+            WORKFLOW_RECEIPT_RECORDED,
+            "atelier_comfy_workflow_receipt",
+            &receipt.workflow_run_id.to_string(),
+            serde_json::json!({
+                "receipt_id": receipt.receipt_id,
+                "workflow_run_id": receipt.workflow_run_id,
+                "system_id": receipt.system_id,
+                "character_ref": receipt.character_ref,
+                "status": receipt.status.as_token(),
+                "output_count": receipt.outputs.len(),
+                "error_ref": receipt.error_ref,
+            }),
+        )
+        .await?;
+        Ok(receipt)
+    }
+
+    /// Fetch the durable workflow-level ComfyUI receipt by workflow run.
+    pub async fn get_comfy_workflow_receipt(
+        &self,
+        workflow_run_id: Uuid,
+    ) -> AtelierResult<Option<ComfyWorkflowReceipt>> {
+        let row = sqlx::query(
+            r#"SELECT receipt_id, system_id, workflow_run_id, workflow_spec_ref,
+                      character_ref, workflow_json_ref, prompt_ref, all_refs,
+                      outputs, status, error_ref, evidence, receipt_json,
+                      created_at_utc, updated_at_utc
+               FROM atelier_comfy_workflow_receipt
+               WHERE workflow_run_id = $1"#,
+        )
+        .bind(workflow_run_id)
+        .fetch_optional(self.pool())
+        .await?;
+        match row {
+            Some(row) => Ok(Some(workflow_receipt_from_row(&row)?)),
+            None => Ok(None),
+        }
+    }
+
+    fn validate_comfy_workflow_history_query(
+        query: &ComfyWorkflowHistoryQuery,
+    ) -> AtelierResult<()> {
+        if let Some(character_ref) = &query.character_ref {
+            reject_legacy_runtime_ref("character_ref", character_ref)?;
+        }
+        if let Some(workflow_spec_ref) = &query.workflow_spec_ref {
+            reject_legacy_runtime_ref("workflow_spec_ref", workflow_spec_ref)?;
+        }
+        if let (Some(from_utc), Some(to_utc)) = (query.from_utc, query.to_utc) {
+            if from_utc > to_utc {
+                return Err(AtelierError::Validation(
+                    "workflow history from_utc must be <= to_utc".into(),
+                ));
+            }
+        }
+        Ok(())
+    }
+
+    fn push_comfy_workflow_history_filters(
+        builder: &mut QueryBuilder<'_, sqlx::Postgres>,
+        query: &ComfyWorkflowHistoryQuery,
+    ) {
+        if let Some(character_ref) = &query.character_ref {
+            builder.push(" AND character_ref = ");
+            builder.push_bind(character_ref.clone());
+        }
+        if let Some(workflow_spec_ref) = &query.workflow_spec_ref {
+            builder.push(" AND workflow_spec_ref = ");
+            builder.push_bind(workflow_spec_ref.clone());
+        }
+        if let Some(status) = query.status {
+            builder.push(" AND status = ");
+            builder.push_bind(status.as_token());
+        }
+        if let Some(from_utc) = query.from_utc {
+            builder.push(" AND created_at_utc >= ");
+            builder.push_bind(from_utc);
+        }
+        if let Some(to_utc) = query.to_utc {
+            builder.push(" AND created_at_utc <= ");
+            builder.push_bind(to_utc);
+        }
+    }
+
+    /// List durable ComfyUI workflow receipts by character, spec, status, and
+    /// time range. Failed receipts are included by default.
+    pub async fn list_comfy_workflow_history(
+        &self,
+        query: &ComfyWorkflowHistoryQuery,
+    ) -> AtelierResult<Vec<ComfyWorkflowReceipt>> {
+        Self::validate_comfy_workflow_history_query(query)?;
+        let mut builder = QueryBuilder::<sqlx::Postgres>::new(
+            r#"SELECT receipt_id, system_id, workflow_run_id, character_ref,
+                      workflow_spec_ref, workflow_json_ref, prompt_ref, all_refs,
+                      outputs, status, error_ref, evidence, receipt_json,
+                      created_at_utc, updated_at_utc
+               FROM atelier_comfy_workflow_receipt
+               WHERE TRUE"#,
+        );
+        Self::push_comfy_workflow_history_filters(&mut builder, query);
+        builder.push(" ORDER BY created_at_utc ASC, receipt_id ASC");
+        let rows = builder.build().fetch_all(self.pool()).await?;
+        rows.iter().map(workflow_receipt_from_row).collect()
+    }
+
+    /// Aggregate ComfyUI workflow receipt stats over the same filter contract as
+    /// history. This counts failures even when no output rows were materialized.
+    pub async fn comfy_workflow_stats(
+        &self,
+        query: &ComfyWorkflowHistoryQuery,
+    ) -> AtelierResult<ComfyWorkflowStats> {
+        Self::validate_comfy_workflow_history_query(query)?;
+        let mut builder = QueryBuilder::<sqlx::Postgres>::new(
+            r#"SELECT status, COUNT(*)::BIGINT AS status_count
+               FROM atelier_comfy_workflow_receipt
+               WHERE TRUE"#,
+        );
+        Self::push_comfy_workflow_history_filters(&mut builder, query);
+        builder.push(" GROUP BY status ORDER BY status ASC");
+        let rows = builder.build().fetch_all(self.pool()).await?;
+        let mut status_counts = BTreeMap::new();
+        let mut total_count = 0_i64;
+        for row in rows {
+            let status: String = row.get("status");
+            let status_count: i64 = row.get("status_count");
+            total_count += status_count;
+            status_counts.insert(status, status_count);
+        }
+        let failure_count = status_counts.get("failed").copied().unwrap_or(0);
+        Ok(ComfyWorkflowStats {
+            total_count,
+            failure_count,
+            status_counts,
+        })
     }
 }
 
@@ -1144,7 +2208,10 @@ mod scrub_tests {
         assert_eq!(scrubbed["title"], serde_json::json!("front yaw"));
         assert_eq!(scrubbed["Authorization"], serde_json::json!("[REDACTED]"));
         assert_eq!(scrubbed["metadata"]["seed"], serde_json::json!(42));
-        assert_eq!(scrubbed["metadata"]["api_key"], serde_json::json!("[REDACTED]"));
+        assert_eq!(
+            scrubbed["metadata"]["api_key"],
+            serde_json::json!("[REDACTED]")
+        );
         assert_eq!(
             scrubbed["metadata"]["nested"]["cookie"],
             serde_json::json!("[REDACTED]")
@@ -1153,7 +2220,10 @@ mod scrub_tests {
             scrubbed["metadata"]["nested"]["model"],
             serde_json::json!("sdxl")
         );
-        assert_eq!(scrubbed["headers"][0]["token"], serde_json::json!("[REDACTED]"));
+        assert_eq!(
+            scrubbed["headers"][0]["token"],
+            serde_json::json!("[REDACTED]")
+        );
         assert_eq!(scrubbed["headers"][1]["ok"], serde_json::json!("v"));
     }
 
@@ -1171,7 +2241,11 @@ mod scrub_tests {
 
     #[test]
     fn routing_and_media_round_trip() {
-        for r in [RoutingIntent::Artifact, RoutingIntent::Sidecar, RoutingIntent::Transient] {
+        for r in [
+            RoutingIntent::Artifact,
+            RoutingIntent::Sidecar,
+            RoutingIntent::Transient,
+        ] {
             assert_eq!(RoutingIntent::from_token(r.as_token()).unwrap(), r);
         }
         for m in [

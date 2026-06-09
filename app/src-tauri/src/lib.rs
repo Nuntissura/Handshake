@@ -39,6 +39,7 @@ mod commands {
     pub mod session_transcript;
     pub mod spawn_template_store;
     pub mod speculative;
+    pub mod stealth_ref;
     pub mod steering;
     pub mod subquadratic;
     pub mod swarm_runtime;
@@ -124,6 +125,9 @@ macro_rules! handshake_invoke_handlers {
             commands::memory_pin::kernel_memory_pin_set,
             commands::memory_pin::kernel_memory_pin_unset,
             commands::memory_pin::kernel_memory_pin_list,
+            commands::stealth_ref::kernel_stealth_ref_list_windows,
+            commands::stealth_ref::kernel_stealth_ref_list_refs,
+            commands::stealth_ref::kernel_stealth_ref_resolve_ref,
             commands::sandbox::kernel_sandbox_list_adapters,
             commands::sandbox::kernel_sandbox_capabilities,
             commands::self_improve::kernel_self_improve_status,
@@ -262,6 +266,9 @@ macro_rules! handshake_invoke_handlers {
             commands::memory_pin::kernel_memory_pin_set,
             commands::memory_pin::kernel_memory_pin_unset,
             commands::memory_pin::kernel_memory_pin_list,
+            commands::stealth_ref::kernel_stealth_ref_list_windows,
+            commands::stealth_ref::kernel_stealth_ref_list_refs,
+            commands::stealth_ref::kernel_stealth_ref_resolve_ref,
             commands::sandbox::kernel_sandbox_list_adapters,
             commands::sandbox::kernel_sandbox_capabilities,
             commands::self_improve::kernel_self_improve_status,
@@ -355,9 +362,6 @@ impl OrchestratorState {
 
         // DEV-ONLY: spawns handshake_core via cargo run; later we'll replace this with a packaged binary path.
         let mut cmd = Command::new("cargo");
-        let database_url = std::env::var("DATABASE_URL").unwrap_or_else(|_| {
-            "postgres://postgres:postgres@localhost:65432/handshake_test".to_string()
-        });
         cmd.args([
             "run",
             "--features",
@@ -367,9 +371,11 @@ impl OrchestratorState {
         ])
         .current_dir(workdir)
         .env("HANDSHAKE_WORKSPACE_ROOT", workspace_root())
-        .env("DATABASE_URL", database_url)
         .stdout(Stdio::inherit())
         .stderr(Stdio::inherit());
+        if let Ok(database_url) = std::env::var("DATABASE_URL") {
+            cmd.env("DATABASE_URL", database_url);
+        }
 
         let child = cmd.spawn()?;
         println!("spawned handshake_core via cargo run (pid {})", child.id());
@@ -912,8 +918,16 @@ pub fn run() {
     let inspector_reader: Arc<dyn handshake_core::inspector_read::InspectorReadV1> =
         Arc::new(handshake_core::inspector_read::InspectorReadSnapshot::default());
     let sandbox_registry = Arc::new(
-        handshake_core::sandbox::build_default_registry()
-            .expect("sandbox adapter registry bootstrap failed"),
+        handshake_core::sandbox::build_default_registry().unwrap_or_else(|error| {
+            eprintln!(
+                "sandbox adapter registry bootstrap degraded: {error}; app startup continues"
+            );
+            handshake_core::sandbox::SandboxAdapterRegistry::new(
+                handshake_core::sandbox::AdapterId::new(
+                    handshake_core::sandbox::WSL2_PODMAN_ADAPTER_ID,
+                ),
+            )
+        }),
     );
 
     // MT-129: Cloud Lane IPC state wires the frontend control panel to
@@ -959,6 +973,7 @@ pub fn run() {
         .manage(commands::memory_capsule::MemoryCapsuleIpcState::default())
         .manage(commands::memory_calibration::MemoryCalibrationIpcState::from_env_or_unavailable())
         .manage(commands::memory_pin::MemoryPinIpcState::from_env_or_unavailable())
+        .manage(commands::stealth_ref::StealthRefIpcState::from_env_or_unavailable())
         .manage(commands::session_distill::SessionDistillState::default())
         // MT-124: Distillation Queue UI (DistillationQueue.tsx) reads
         // through the production CandidateRegistry (MT-123). The

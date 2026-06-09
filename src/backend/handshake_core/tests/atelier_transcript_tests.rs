@@ -17,8 +17,9 @@
 
 use chrono::Utc;
 use handshake_core::atelier::transcript::{
-    transcript_event_family, CaptionFormat, MediaProbeReport, NewCaptionArtifact,
-    NewMediaProbeReport, NewPipelineReceipt, NewTranscriptArtifact, ReceiptKind, ReceiptStatus,
+    transcript_event_family, CaptionFormat, CaptionRenderRequest, MediaProbeReport,
+    NewCaptionArtifact, NewMediaProbeReport, NewPipelineReceipt, NewTranscriptArtifact,
+    ReceiptKind, ReceiptStatus,
 };
 use handshake_core::atelier::AtelierStore;
 use uuid::Uuid;
@@ -69,6 +70,156 @@ async fn fresh_probe(store: &AtelierStore, hash: &str) -> MediaProbeReport {
 }
 
 #[tokio::test]
+async fn atelier_transcript_rejects_legacy_runtime_artifact_refs() {
+    let Some(url) = database_url() else {
+        eprintln!(
+            "SKIP atelier_transcript_rejects_legacy_runtime_artifact_refs: DATABASE_URL not set"
+        );
+        return;
+    };
+    let store = connected_store(&url).await;
+    let hash = fresh_source_hash();
+
+    let err = store
+        .record_media_probe(&NewMediaProbeReport {
+            media_source_id: format!("PRIM-MediaSource:{}", Uuid::new_v4()),
+            source_media_hash: hash,
+            container: "mp4".to_string(),
+            duration_ms: 12_000,
+            streams: serde_json::json!([
+                { "index": 0, "kind": "audio", "codec": "aac", "sample_rate_hz": 48000 }
+            ]),
+            ffprobe_tool_version: "ffprobe 6.1".to_string(),
+            artifact_ref: "file:///tmp/probe-report.json".to_string(),
+            probed_at: Utc::now(),
+        })
+        .await
+        .expect_err("file artifact refs are forbidden");
+    assert!(
+        err.to_string().contains("Handshake-native portable ref"),
+        "unexpected transcript probe error: {err}"
+    );
+}
+
+#[tokio::test]
+async fn atelier_transcript_rejects_legacy_runtime_receipt_and_mux_refs() {
+    let Some(url) = database_url() else {
+        eprintln!(
+            "SKIP atelier_transcript_rejects_legacy_runtime_receipt_and_mux_refs: DATABASE_URL not set"
+        );
+        return;
+    };
+    let store = connected_store(&url).await;
+
+    let hash = fresh_source_hash();
+    let probe = fresh_probe(&store, &hash).await;
+    let transcript = store
+        .record_transcript(&NewTranscriptArtifact {
+            media_source_id: probe.media_source_id.clone(),
+            source_media_hash: hash.clone(),
+            language: "en".to_string(),
+            model: serde_json::json!({ "family": "whisper" }),
+            selection_path: "gpu_happy".to_string(),
+            segments: serde_json::json!([]),
+            timing_anchors: serde_json::json!([]),
+            artifact_ref: format!("artifact://atelier/transcript/{}", Uuid::new_v4()),
+        })
+        .await
+        .expect("record transcript for mux guard");
+
+    let mux_err = store
+        .record_caption(&NewCaptionArtifact {
+            transcript_id: transcript.transcript_id,
+            format: CaptionFormat::Srt,
+            language: "en".to_string(),
+            max_line_chars: 42,
+            max_lines_per_cue: 2,
+            min_cue_ms: 800,
+            max_cue_ms: 7000,
+            cue_count: 0,
+            artifact_ref: format!("artifact://atelier/caption/{}", Uuid::new_v4()),
+            muxed_media_artifact_id: Some("file:///tmp/muxed.mp4".to_string()),
+        })
+        .await
+        .expect_err("machine-local muxed media refs are forbidden");
+    assert!(
+        mux_err
+            .to_string()
+            .contains("Handshake-native portable ref"),
+        "unexpected mux error: {mux_err}"
+    );
+
+    let receipt_err = store
+        .file_pipeline_receipt(&NewPipelineReceipt {
+            kind: ReceiptKind::Transcribe,
+            job_id: format!("job-receipt-ref-{}", Uuid::new_v4()),
+            source_media_hash: hash.clone(),
+            input_artifact_ids: serde_json::json!(["http://localhost:9000/in.wav"]),
+            output_artifact_id: Some("artifact://atelier/transcript/out".to_string()),
+            capability_grants: serde_json::json!([]),
+            tool_versions: serde_json::json!({}),
+            status: ReceiptStatus::Completed,
+            error_class: None,
+            partial_artifact_id: None,
+            emitted_at: Utc::now(),
+        })
+        .await
+        .expect_err("localhost input artifact refs are forbidden");
+    assert!(
+        receipt_err
+            .to_string()
+            .contains("Handshake-native portable ref"),
+        "unexpected receipt input error: {receipt_err}"
+    );
+
+    let receipt_err = store
+        .file_pipeline_receipt(&NewPipelineReceipt {
+            kind: ReceiptKind::Transcribe,
+            job_id: format!("job-receipt-ref-{}", Uuid::new_v4()),
+            source_media_hash: hash.clone(),
+            input_artifact_ids: serde_json::json!(["artifact://atelier/transcript/in"]),
+            output_artifact_id: Some(".GOV/out.json".to_string()),
+            capability_grants: serde_json::json!([]),
+            tool_versions: serde_json::json!({}),
+            status: ReceiptStatus::Completed,
+            error_class: None,
+            partial_artifact_id: None,
+            emitted_at: Utc::now(),
+        })
+        .await
+        .expect_err(".GOV output artifact refs are forbidden");
+    assert!(
+        receipt_err
+            .to_string()
+            .contains("Handshake-native portable ref"),
+        "unexpected receipt output error: {receipt_err}"
+    );
+
+    let receipt_err = store
+        .file_pipeline_receipt(&NewPipelineReceipt {
+            kind: ReceiptKind::CaptionRender,
+            job_id: format!("job-receipt-ref-{}", Uuid::new_v4()),
+            source_media_hash: hash,
+            input_artifact_ids: serde_json::json!(["artifact://atelier/transcript/in"]),
+            output_artifact_id: None,
+            capability_grants: serde_json::json!([]),
+            tool_versions: serde_json::json!({}),
+            status: ReceiptStatus::Failed,
+            error_class: Some("render_error".to_string()),
+            partial_artifact_id: Some(".GOV/partial.vtt".to_string()),
+            emitted_at: Utc::now(),
+        })
+        .await
+        .expect_err(".GOV partial artifact refs are forbidden");
+    assert!(
+        receipt_err
+            .to_string()
+            .contains("Handshake-native portable ref"),
+        "unexpected receipt partial error: {receipt_err}"
+    );
+}
+
+#[tokio::test]
 async fn atelier_probe_idempotent_and_transcript_lineage_roundtrip() {
     let Some(url) = database_url() else {
         eprintln!(
@@ -91,7 +242,10 @@ async fn atelier_probe_idempotent_and_transcript_lineage_roundtrip() {
 
     // --- probe is idempotent on source_media_hash (re-probe returns same id) ---
     let probe = fresh_probe(&store, &hash).await;
-    assert_eq!(probe.source_media_hash, hash, "probe stores the lineage key");
+    assert_eq!(
+        probe.source_media_hash, hash,
+        "probe stores the lineage key"
+    );
     assert_eq!(probe.container, "mp4");
     assert_eq!(probe.duration_ms, 12_000);
 
@@ -274,7 +428,11 @@ async fn atelier_caption_inherits_hash_and_is_idempotent() {
         caption.transcript_id, transcript.transcript_id,
         "caption is bound to its parent transcript"
     );
-    assert_eq!(caption.format, CaptionFormat::Srt, "caption format round-trips");
+    assert_eq!(
+        caption.format,
+        CaptionFormat::Srt,
+        "caption format round-trips"
+    );
     assert_eq!(caption.cue_count, 1);
     assert!(
         caption.derived_from_timing_anchors,
@@ -325,6 +483,130 @@ async fn atelier_caption_inherits_hash_and_is_idempotent() {
 }
 
 #[tokio::test]
+async fn atelier_caption_render_produces_deterministic_sidecars_and_receipt() {
+    let Some(url) = database_url() else {
+        eprintln!(
+            "SKIP atelier_caption_render_produces_deterministic_sidecars_and_receipt: DATABASE_URL not set"
+        );
+        return;
+    };
+    let store = connected_store(&url).await;
+
+    let hash = fresh_source_hash();
+    let probe = fresh_probe(&store, &hash).await;
+    let transcript = store
+        .record_transcript(&NewTranscriptArtifact {
+            media_source_id: probe.media_source_id.clone(),
+            source_media_hash: hash.clone(),
+            language: "en".to_string(),
+            model: serde_json::json!({ "family": "whisper", "variant": "large-v3" }),
+            selection_path: "gpu_happy".to_string(),
+            segments: serde_json::json!([
+                { "segment_id": "s0", "start_ms": 0, "end_ms": 1500, "text": "Hello world." },
+                { "segment_id": "s1", "start_ms": 1500, "end_ms": 3250, "text": "Second cue" }
+            ]),
+            timing_anchors: serde_json::json!([
+                { "anchor_id": "a0", "t_ms": 0, "segment_id": "s0", "kind": "start" },
+                { "anchor_id": "a1", "t_ms": 1500, "segment_id": "s1", "kind": "start" }
+            ]),
+            artifact_ref: format!("artifact://atelier/transcript/{}", Uuid::new_v4()),
+        })
+        .await
+        .expect("record transcript");
+
+    let rendered_srt = store
+        .render_caption(&CaptionRenderRequest {
+            transcript_id: transcript.transcript_id,
+            format: CaptionFormat::Srt,
+            language: "en".to_string(),
+            max_line_chars: 42,
+            max_lines_per_cue: 2,
+            min_cue_ms: 500,
+            max_cue_ms: 7000,
+            muxed_media_artifact_id: None,
+        })
+        .await
+        .expect("render srt caption");
+    assert_eq!(rendered_srt.caption.format, CaptionFormat::Srt);
+    assert_eq!(rendered_srt.caption.cue_count, 2);
+    assert_eq!(rendered_srt.receipt.kind, ReceiptKind::CaptionRender);
+    assert_eq!(rendered_srt.receipt.status, ReceiptStatus::Completed);
+    assert_eq!(
+        rendered_srt.receipt.output_artifact_id.as_deref(),
+        Some(rendered_srt.caption.artifact_ref.as_str())
+    );
+    assert_eq!(
+        rendered_srt.sidecar_text,
+        "1\n00:00:00,000 --> 00:00:01,500\nHello world.\n\n2\n00:00:01,500 --> 00:00:03,250\nSecond cue\n"
+    );
+    assert!(
+        rendered_srt
+            .caption
+            .artifact_ref
+            .starts_with("artifact://atelier/caption/srt/sha256:"),
+        "rendered caption artifact_ref must be content-addressed"
+    );
+
+    let rendered_srt_again = store
+        .render_caption(&CaptionRenderRequest {
+            transcript_id: transcript.transcript_id,
+            format: CaptionFormat::Srt,
+            language: "en".to_string(),
+            max_line_chars: 42,
+            max_lines_per_cue: 2,
+            min_cue_ms: 500,
+            max_cue_ms: 7000,
+            muxed_media_artifact_id: None,
+        })
+        .await
+        .expect("render srt caption again");
+    assert_eq!(
+        rendered_srt.caption.caption_artifact_id, rendered_srt_again.caption.caption_artifact_id,
+        "rendering the same transcript/profile is idempotent on sidecar content hash"
+    );
+    assert_eq!(
+        rendered_srt.sidecar_sha256, rendered_srt_again.sidecar_sha256,
+        "same transcript/profile produces byte-identical sidecar text"
+    );
+
+    let rendered_vtt = store
+        .render_caption(&CaptionRenderRequest {
+            transcript_id: transcript.transcript_id,
+            format: CaptionFormat::Vtt,
+            language: "en".to_string(),
+            max_line_chars: 42,
+            max_lines_per_cue: 2,
+            min_cue_ms: 500,
+            max_cue_ms: 7000,
+            muxed_media_artifact_id: None,
+        })
+        .await
+        .expect("render vtt caption");
+    assert!(rendered_vtt.sidecar_text.starts_with("WEBVTT\n\n"));
+    assert!(rendered_vtt
+        .sidecar_text
+        .contains("00:00:01.500 --> 00:00:03.250"));
+
+    let rendered_ass = store
+        .render_caption(&CaptionRenderRequest {
+            transcript_id: transcript.transcript_id,
+            format: CaptionFormat::Ass,
+            language: "en".to_string(),
+            max_line_chars: 42,
+            max_lines_per_cue: 2,
+            min_cue_ms: 500,
+            max_cue_ms: 7000,
+            muxed_media_artifact_id: None,
+        })
+        .await
+        .expect("render ass caption");
+    assert!(rendered_ass.sidecar_text.contains("[Events]"));
+    assert!(rendered_ass
+        .sidecar_text
+        .contains("Dialogue: 0,0:00:00.00,0:00:01.50"));
+}
+
+#[tokio::test]
 async fn atelier_receipt_redaction_idempotency_and_partial_preservation() {
     let Some(url) = database_url() else {
         eprintln!(
@@ -369,7 +651,10 @@ async fn atelier_receipt_redaction_idempotency_and_partial_preservation() {
         .expect("file completed receipt");
     assert_eq!(receipt.kind, ReceiptKind::Transcribe);
     assert_eq!(receipt.status, ReceiptStatus::Completed);
-    assert_eq!(receipt.feature_id, "FEAT-ASR", "receipt is pinned to FEAT-ASR");
+    assert_eq!(
+        receipt.feature_id, "FEAT-ASR",
+        "receipt is pinned to FEAT-ASR"
+    );
     assert_eq!(
         receipt.output_artifact_id.as_deref(),
         Some("artifact://out/0")

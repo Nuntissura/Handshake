@@ -231,6 +231,7 @@ pub enum KernelEventType {
     InspectorReplayDrive,
     FrEvtLedgerOverflow,
     HbrHandoffGate,
+    AtelierDomainEventRecorded,
 }
 
 impl KernelEventType {
@@ -264,6 +265,7 @@ impl KernelEventType {
             Self::InspectorReplayDrive => "INSPECTOR_REPLAY_DRIVE",
             Self::FrEvtLedgerOverflow => "FR_EVT_LEDGER_OVERFLOW",
             Self::HbrHandoffGate => "HBR_HANDOFF_GATE",
+            Self::AtelierDomainEventRecorded => "ATELIER_DOMAIN_EVENT_RECORDED",
         }
     }
 
@@ -297,6 +299,7 @@ impl KernelEventType {
             KernelEventType::InspectorReplayDrive,
             KernelEventType::FrEvtLedgerOverflow,
             KernelEventType::HbrHandoffGate,
+            KernelEventType::AtelierDomainEventRecorded,
         ]
     }
 }

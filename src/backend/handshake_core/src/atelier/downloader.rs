@@ -1,11 +1,11 @@
-//! Media-downloader-v2 governed records (MT-204, WP-KERNEL-005 CKC fold-in).
+//! Media-downloader-v2 governed records (MT-204, WP-KERNEL-005 legacy source fold-in).
 //!
 //! Spec authority: master-spec-v02.189 Section 6.10 "Media Downloader v2 Depth"
 //! (6.10.2 OutputRootConfigV2, 6.10.3 MdDownloadSessionV2 + MdItemStateV2 staged
 //! resumable sessions + checkpoints, 6.10.4 MdAuthContextV2 + MdAllowlistPolicyV2,
 //! 6.10.5 MdSessionReceiptV2 sanitized telemetry/receipts).
 //!
-//! CKC source (intent only): CastKit-Codex `app backend Media-Downloader-v2`.
+//! legacy source (intent only): legacy source `app backend Media-Downloader-v2`.
 //! The SQLite/Electron/localhost/polling originals are NOT copied; only the
 //! governed DATA + RECEIPT contract is translated. Storage authority is
 //! PostgreSQL + EventLedger only (see [`super::assert_postgres_url`], MT-004).
@@ -26,12 +26,13 @@
 //!
 //! Microtasks: MT-204 (media-downloader-v2 records), MT-005 (event coverage).
 
+use crate::capabilities::CapabilityRegistry;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::Row;
 use uuid::Uuid;
 
-use super::{event_family, AtelierError, AtelierResult, AtelierStore};
+use super::{reject_legacy_runtime_ref, AtelierError, AtelierResult, AtelierStore};
 
 /// Media-downloader-v2 event families (MT-204, extends the MT-005 coverage set).
 ///
@@ -58,6 +59,13 @@ pub mod downloader_event_family {
     /// A recoverable session receipt was produced (6.10.5 LAW-MDV2-TEL-003
     /// MdSessionReceiptV2).
     pub const SESSION_RECEIPT_EMITTED: &str = "atelier.downloader.session_receipt_emitted";
+    /// Canonical leak-safe job-state telemetry (6.10.5 LAW-MDV2-TEL-001).
+    pub const MEDIA_DOWNLOADER_JOB_STATE: &str = "media_downloader.job_state";
+    /// Canonical leak-safe byte-progress telemetry (6.10.5 LAW-MDV2-TEL-001).
+    pub const MEDIA_DOWNLOADER_PROGRESS: &str = "media_downloader.progress";
+    /// Canonical leak-safe per-item terminal result telemetry (6.10.5
+    /// LAW-MDV2-TEL-001).
+    pub const MEDIA_DOWNLOADER_ITEM_RESULT: &str = "media_downloader.item_result";
 
     /// All downloader event families (parity/coverage helper).
     pub const ALL: &[&str] = &[
@@ -69,17 +77,24 @@ pub mod downloader_event_family {
         ITEM_ENQUEUED,
         ITEM_CHECKPOINTED,
         SESSION_RECEIPT_EMITTED,
+        MEDIA_DOWNLOADER_JOB_STATE,
+        MEDIA_DOWNLOADER_PROGRESS,
+        MEDIA_DOWNLOADER_ITEM_RESULT,
     ];
 }
 
 /// Re-export so callers can write `downloader::SESSION_OPENED`.
 pub use downloader_event_family::{
     ALLOWLIST_POLICY_SET, AUTH_CONTEXT_REGISTERED, ITEM_CHECKPOINTED, ITEM_ENQUEUED,
+    MEDIA_DOWNLOADER_ITEM_RESULT, MEDIA_DOWNLOADER_JOB_STATE, MEDIA_DOWNLOADER_PROGRESS,
     OUTPUT_ROOT_CONFIGURED, SESSION_OPENED, SESSION_RECEIPT_EMITTED, SESSION_STAGE_CHANGED,
 };
 
 /// Marker substituted for any value that looks like inline secret material.
 const REDACTED_PLACEHOLDER: &str = "[REDACTED]";
+pub const MEDIA_DOWNLOADER_JOB_KIND: &str = "media_downloader";
+pub const MEDIA_DOWNLOADER_BATCH_PROTOCOL_ID: &str = "hsk.media_downloader.batch.v0";
+const MEDIA_DOWNLOADER_GRANT_PREFIX: &str = "capgrant://media_downloader/";
 
 /// Heuristic guard backing the redaction boundary (Section 6.10.4
 /// LAW-MDV2-AUTH-001/002). Auth material MUST be carried by reference only;
@@ -102,6 +117,25 @@ fn reject_inline_secret(field: &str, value: &str) -> AtelierResult<()> {
         )));
     }
     Ok(())
+}
+
+fn reject_legacy_runtime_refs_in_json(field: &str, value: &serde_json::Value) -> AtelierResult<()> {
+    match value {
+        serde_json::Value::String(text) => reject_legacy_runtime_ref(field, text),
+        serde_json::Value::Array(items) => {
+            for item in items {
+                reject_legacy_runtime_refs_in_json(field, item)?;
+            }
+            Ok(())
+        }
+        serde_json::Value::Object(map) => {
+            for item in map.values() {
+                reject_legacy_runtime_refs_in_json(field, item)?;
+            }
+            Ok(())
+        }
+        _ => Ok(()),
+    }
 }
 
 /// How a downloaded canonical artifact is materialized under the resolved root
@@ -462,6 +496,12 @@ pub struct DownloadSession {
     pub auth_context_ref: Option<Uuid>,
     pub allowlist_policy_id: Uuid,
     pub output_root_id: Uuid,
+    /// Workflow protocol whose capability set was validated before opening.
+    pub protocol_id: String,
+    /// Capability profile used by the Workflow-Engine job.
+    pub capability_profile_id: String,
+    /// Opaque capability grant evidence ref. Never a secret value.
+    pub capability_grant_ref: String,
     pub stage: SessionStage,
     pub created_at_utc: DateTime<Utc>,
     pub updated_at_utc: DateTime<Utc>,
@@ -476,6 +516,9 @@ pub struct OpenDownloadSession {
     pub auth_context_ref: Option<Uuid>,
     pub allowlist_policy_id: Uuid,
     pub output_root_id: Uuid,
+    pub protocol_id: String,
+    pub capability_profile_id: String,
+    pub capability_grant_ref: String,
 }
 
 /// Per-item download state (Section 6.10.3 MdItemStateV2). `resume_token` is an
@@ -581,34 +624,72 @@ pub struct EmitSessionReceipt {
     pub terminal_stage: TerminalStage,
 }
 
-// ---------------------------------------------------------------------------
-// Portable-path guard (Section 6.10.2 LAW-MDV2-OUT-001 / 6.10.6 LAW-MDV2-QUIET-002)
-// ---------------------------------------------------------------------------
+pub(crate) fn validate_media_downloader_capability_grant(
+    protocol_id: &str,
+    capability_profile_id: &str,
+    capability_grant_ref: &str,
+) -> AtelierResult<Vec<String>> {
+    let protocol_id = protocol_id.trim();
+    let capability_profile_id = capability_profile_id.trim();
+    let capability_grant_ref = capability_grant_ref.trim();
 
-/// Reject obvious machine-local absolute paths so a portability defect can never
-/// be persisted as a configured root or materialized reference.
-fn reject_machine_local_path(field: &str, value: &str) -> AtelierResult<()> {
-    let trimmed = value.trim();
-    let drive_letter = {
-        let mut chars = trimmed.chars();
-        match (chars.next(), chars.next()) {
-            (Some(c), Some(':')) => c.is_ascii_alphabetic(),
-            _ => false,
-        }
-    };
-    let machine_local = drive_letter
-        || trimmed.starts_with('/')
-        || trimmed.starts_with("\\\\")
-        || trimmed.contains(":\\")
-        || trimmed.to_ascii_lowercase().contains("/users/")
-        || trimmed.to_ascii_lowercase().contains("\\users\\");
-    if machine_local {
+    if protocol_id.is_empty() {
+        return Err(AtelierError::Validation(
+            "protocol_id must not be empty".into(),
+        ));
+    }
+    if capability_profile_id.is_empty() {
+        return Err(AtelierError::Validation(
+            "capability_profile_id must not be empty".into(),
+        ));
+    }
+
+    let rest = capability_grant_ref
+        .strip_prefix(MEDIA_DOWNLOADER_GRANT_PREFIX)
+        .ok_or_else(|| {
+            AtelierError::Validation(format!(
+                "capability_grant_ref must start with {MEDIA_DOWNLOADER_GRANT_PREFIX}"
+            ))
+        })?;
+    let (grant_profile_id, evidence_ref) = rest.split_once('/').ok_or_else(|| {
+        AtelierError::Validation(
+            "capability_grant_ref must include profile/evidence for media_downloader".into(),
+        )
+    })?;
+    if grant_profile_id.trim().is_empty() || evidence_ref.trim().is_empty() {
+        return Err(AtelierError::Validation(
+            "capability_grant_ref must include non-empty profile/evidence for media_downloader"
+                .into(),
+        ));
+    }
+    reject_legacy_runtime_ref("capability_grant_ref evidence_ref", evidence_ref)?;
+    if grant_profile_id != capability_profile_id {
         return Err(AtelierError::Validation(format!(
-            "{field} must be a portable reference, not a machine-local absolute path \
-             (Section 6.10.2 LAW-MDV2-OUT-001)"
+            "capability_grant_ref profile {grant_profile_id} must match capability_profile_id {capability_profile_id}"
         )));
     }
-    Ok(())
+
+    let registry = CapabilityRegistry::new();
+    let required = registry
+        .required_capabilities_for_job_request(MEDIA_DOWNLOADER_JOB_KIND, protocol_id)
+        .map_err(|err| AtelierError::Validation(err.to_string()))?;
+    for capability in &required {
+        match registry.profile_can(capability_profile_id, capability) {
+            Ok(true) => {}
+            Ok(false) => {
+                return Err(AtelierError::Validation(format!(
+                    "capability profile {capability_profile_id} is not granted required media_downloader capability {capability}"
+                )));
+            }
+            Err(err) => {
+                return Err(AtelierError::Validation(format!(
+                    "capability profile {capability_profile_id} cannot grant required media_downloader capability {capability}: {err}"
+                )));
+            }
+        }
+    }
+
+    Ok(required)
 }
 
 // ---------------------------------------------------------------------------
@@ -667,6 +748,9 @@ fn session_from_row(row: &sqlx::postgres::PgRow) -> AtelierResult<DownloadSessio
         auth_context_ref: row.get("auth_context_ref"),
         allowlist_policy_id: row.get("allowlist_policy_id"),
         output_root_id: row.get("output_root_id"),
+        protocol_id: row.get("protocol_id"),
+        capability_profile_id: row.get("capability_profile_id"),
+        capability_grant_ref: row.get("capability_grant_ref"),
         stage: SessionStage::from_token(&stage)?,
         created_at_utc: row.get("created_at_utc"),
         updated_at_utc: row.get("updated_at_utc"),
@@ -739,7 +823,8 @@ const AUTH_COLUMNS: &str = "auth_context_ref, label, auth_mode, session_ref, \
                             cookie_jar_artifact_ref, header_secret_refs, created_at_utc, \
                             updated_at_utc";
 const SESSION_COLUMNS: &str = "session_id, parent_job_id, idempotency_key, source_kind, \
-                               auth_context_ref, allowlist_policy_id, output_root_id, stage, \
+                               auth_context_ref, allowlist_policy_id, output_root_id, \
+                               protocol_id, capability_profile_id, capability_grant_ref, stage, \
                                created_at_utc, updated_at_utc";
 const ITEM_COLUMNS: &str = "item_id, session_id, normalized_url, stable_source_id, content_hash, \
                             stage, bytes_downloaded, bytes_total, part_path_ref, attempt_count, \
@@ -767,7 +852,8 @@ impl AtelierStore {
                 "configured_root must not be empty".into(),
             ));
         }
-        reject_machine_local_path("configured_root", &input.configured_root)?;
+        reject_legacy_runtime_ref("configured_root", &input.configured_root)?;
+        reject_legacy_runtime_refs_in_json("per_mode_subdirs", &input.per_mode_subdirs)?;
 
         let row = sqlx::query(&format!(
             r#"INSERT INTO atelier_md_output_root
@@ -801,10 +887,7 @@ impl AtelierStore {
     }
 
     /// Fetch an output-root config by id.
-    pub async fn get_output_root_config(
-        &self,
-        root_id: Uuid,
-    ) -> AtelierResult<OutputRootConfig> {
+    pub async fn get_output_root_config(&self, root_id: Uuid) -> AtelierResult<OutputRootConfig> {
         let row = sqlx::query(&format!(
             "SELECT {OUTPUT_ROOT_COLUMNS} FROM atelier_md_output_root WHERE root_id = $1"
         ))
@@ -921,9 +1004,11 @@ impl AtelierStore {
         // Redaction boundary: reject any field that smells like inline secrets.
         if let Some(session_ref) = &input.session_ref {
             reject_inline_secret("session_ref", session_ref)?;
+            reject_legacy_runtime_ref("session_ref", session_ref)?;
         }
         if let Some(jar) = &input.cookie_jar_artifact_ref {
             reject_inline_secret("cookie_jar_artifact_ref", jar)?;
+            reject_legacy_runtime_ref("cookie_jar_artifact_ref", jar)?;
         }
         // header_secret_refs must be an array of reference strings, never inline
         // header values.
@@ -932,6 +1017,7 @@ impl AtelierStore {
                 for entry in items {
                     if let Some(text) = entry.as_str() {
                         reject_inline_secret("header_secret_refs", text)?;
+                        reject_legacy_runtime_ref("header_secret_refs", text)?;
                     } else {
                         return Err(AtelierError::Validation(
                             "header_secret_refs entries must be reference strings".into(),
@@ -1016,10 +1102,7 @@ impl AtelierStore {
 
     /// Fetch an auth context by ref. Auth material remains by-reference; no
     /// secret value is stored to return.
-    pub async fn get_auth_context(
-        &self,
-        auth_context_ref: Uuid,
-    ) -> AtelierResult<AuthContext> {
+    pub async fn get_auth_context(&self, auth_context_ref: Uuid) -> AtelierResult<AuthContext> {
         let row = sqlx::query(&format!(
             "SELECT {AUTH_COLUMNS} FROM atelier_md_auth_context WHERE auth_context_ref = $1"
         ))
@@ -1052,12 +1135,26 @@ impl AtelierStore {
                 "parent_job_id must not be empty".into(),
             ));
         }
+        let required_capabilities = validate_media_downloader_capability_grant(
+            &input.protocol_id,
+            &input.capability_profile_id,
+            &input.capability_grant_ref,
+        )?;
 
         // Idempotent fast path.
         if let Some(existing) = self
             .get_download_session_by_key(&input.idempotency_key)
             .await?
         {
+            if existing.protocol_id.as_str() != input.protocol_id.as_str()
+                || existing.capability_profile_id.as_str() != input.capability_profile_id.as_str()
+                || existing.capability_grant_ref.as_str() != input.capability_grant_ref.as_str()
+            {
+                return Err(AtelierError::Validation(
+                    "idempotency_key is already bound to a different media_downloader capability grant"
+                        .into(),
+                ));
+            }
             return Ok(existing);
         }
 
@@ -1071,8 +1168,9 @@ impl AtelierStore {
         let row = sqlx::query(&format!(
             r#"INSERT INTO atelier_md_download_session
                  (parent_job_id, idempotency_key, source_kind, auth_context_ref,
-                  allowlist_policy_id, output_root_id, stage)
-               VALUES ($1, $2, $3, $4, $5, $6, 'resolving')
+                  allowlist_policy_id, output_root_id, protocol_id,
+                  capability_profile_id, capability_grant_ref, stage)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'resolving')
                ON CONFLICT (idempotency_key) DO UPDATE
                  SET idempotency_key = EXCLUDED.idempotency_key
                RETURNING {SESSION_COLUMNS}"#
@@ -1083,6 +1181,9 @@ impl AtelierStore {
         .bind(input.auth_context_ref)
         .bind(input.allowlist_policy_id)
         .bind(input.output_root_id)
+        .bind(&input.protocol_id)
+        .bind(&input.capability_profile_id)
+        .bind(&input.capability_grant_ref)
         .fetch_one(self.pool())
         .await?;
         let session = session_from_row(&row)?;
@@ -1098,7 +1199,26 @@ impl AtelierStore {
                 "allowlist_policy_id": session.allowlist_policy_id,
                 "output_root_id": session.output_root_id,
                 "auth_context_ref": session.auth_context_ref,
+                "protocol_id": session.protocol_id.clone(),
+                "capability_profile_id": session.capability_profile_id.clone(),
+                "capability_grant_ref": session.capability_grant_ref.clone(),
+                "required_capabilities": required_capabilities,
                 "stage": session.stage.as_token(),
+            }),
+        )
+        .await?;
+        self.record_event(
+            MEDIA_DOWNLOADER_JOB_STATE,
+            "atelier_md_download_session",
+            &session.session_id.to_string(),
+            serde_json::json!({
+                "session_id": session.session_id,
+                "source_kind": session.source_kind.as_token(),
+                "state": session.stage.as_token(),
+                "stage": session.stage.as_token(),
+                "is_terminal": session.stage.is_terminal(),
+                "protocol_id": session.protocol_id.clone(),
+                "capability_profile_id": session.capability_profile_id.clone(),
             }),
         )
         .await?;
@@ -1123,10 +1243,7 @@ impl AtelierStore {
     }
 
     /// Fetch a session by id.
-    pub async fn get_download_session(
-        &self,
-        session_id: Uuid,
-    ) -> AtelierResult<DownloadSession> {
+    pub async fn get_download_session(&self, session_id: Uuid) -> AtelierResult<DownloadSession> {
         let row = sqlx::query(&format!(
             "SELECT {SESSION_COLUMNS} FROM atelier_md_download_session WHERE session_id = $1"
         ))
@@ -1184,6 +1301,21 @@ impl AtelierStore {
                 "session_id": session.session_id,
                 "stage": session.stage.as_token(),
                 "is_terminal": session.stage.is_terminal(),
+            }),
+        )
+        .await?;
+        self.record_event(
+            MEDIA_DOWNLOADER_JOB_STATE,
+            "atelier_md_download_session",
+            &session.session_id.to_string(),
+            serde_json::json!({
+                "session_id": session.session_id,
+                "source_kind": session.source_kind.as_token(),
+                "state": session.stage.as_token(),
+                "stage": session.stage.as_token(),
+                "is_terminal": session.stage.is_terminal(),
+                "protocol_id": session.protocol_id.clone(),
+                "capability_profile_id": session.capability_profile_id.clone(),
             }),
         )
         .await?;
@@ -1327,7 +1459,7 @@ impl AtelierStore {
     ) -> AtelierResult<Checkpoint> {
         // Validate the stage token is one of the known item stages so a corrupt
         // value cannot enter the recovery anchor.
-        let _ = ItemStage::from_token(&input.stage)?;
+        let item_stage = ItemStage::from_token(&input.stage)?;
 
         let mut tx = self.pool().begin().await?;
 
@@ -1395,13 +1527,63 @@ impl AtelierStore {
             serde_json::json!({
                 "session_id": checkpoint.session_id,
                 "item_id": checkpoint.item_id,
-                "stage": checkpoint.stage,
+                "stage": checkpoint.stage.clone(),
                 "bytes_downloaded": checkpoint.bytes_downloaded,
                 "bytes_total": checkpoint.bytes_total,
                 "has_resume_token": checkpoint.resume_token.is_some(),
             }),
         )
         .await?;
+        let telemetry_aggregate_type = if checkpoint.item_id.is_some() {
+            "atelier_md_item_state"
+        } else {
+            "atelier_md_download_session"
+        };
+        let telemetry_aggregate_id = checkpoint
+            .item_id
+            .unwrap_or(checkpoint.session_id)
+            .to_string();
+        self.record_event(
+            MEDIA_DOWNLOADER_PROGRESS,
+            telemetry_aggregate_type,
+            &telemetry_aggregate_id,
+            serde_json::json!({
+                "session_id": checkpoint.session_id,
+                "item_id": checkpoint.item_id,
+                "stage": checkpoint.stage,
+                "progress": {
+                    "bytes_downloaded": checkpoint.bytes_downloaded,
+                    "bytes_total": checkpoint.bytes_total,
+                },
+            }),
+        )
+        .await?;
+        if let Some(item_id) = checkpoint.item_id {
+            let result = match item_stage {
+                ItemStage::Finalized => Some("succeeded"),
+                ItemStage::Skipped => Some("skipped"),
+                ItemStage::Failed => Some("failed"),
+                _ => None,
+            };
+            if let Some(result) = result {
+                self.record_event(
+                    MEDIA_DOWNLOADER_ITEM_RESULT,
+                    "atelier_md_item_state",
+                    &item_id.to_string(),
+                    serde_json::json!({
+                        "session_id": checkpoint.session_id,
+                        "item_id": item_id,
+                        "stage": item_stage.as_token(),
+                        "result": result,
+                        "progress": {
+                            "bytes_downloaded": checkpoint.bytes_downloaded,
+                            "bytes_total": checkpoint.bytes_total,
+                        },
+                    }),
+                )
+                .await?;
+            }
+        }
         Ok(checkpoint)
     }
 
@@ -1446,6 +1628,10 @@ impl AtelierStore {
     ) -> AtelierResult<SessionReceipt> {
         // Denormalize from the session so the receipt is self-contained.
         let session = self.get_download_session(session_id).await?;
+        reject_legacy_runtime_refs_in_json("materialized_paths", &input.materialized_paths)?;
+        if let Some(manifest_artifact_ref) = &input.manifest_artifact_ref {
+            reject_legacy_runtime_ref("manifest_artifact_ref", manifest_artifact_ref)?;
+        }
 
         let row = sqlx::query(&format!(
             r#"INSERT INTO atelier_md_session_receipt

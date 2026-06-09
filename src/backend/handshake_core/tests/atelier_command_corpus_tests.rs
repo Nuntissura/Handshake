@@ -13,18 +13,18 @@
 //! `handshake_core` + `tokio` + `uuid` + `serde_json` (+ std) are used; sqlx is
 //! never imported directly. This module has no character FK.
 
-use handshake_core::atelier::command_corpus::{
-    command_corpus_event_family, BlockedReason, CorpusErrorVariant, CorpusSource,
-    ExecutionClass, UpsertCommandCorpusEntry, MANUAL_ANCHOR_BLOCKED,
-};
-use handshake_core::atelier::AtelierStore;
-use uuid::Uuid;
+mod atelier_pg_support;
 
-fn database_url() -> Option<String> {
-    std::env::var("DATABASE_URL")
-        .ok()
-        .filter(|value| !value.trim().is_empty())
-}
+use handshake_core::atelier::command_corpus::{
+    command_corpus_event_family, BlockedReason, CorpusErrorVariant, CorpusSource, ExecutionClass,
+    RecordCommandCorpusInvocation, UpsertCommandCorpusEntry, MANUAL_ANCHOR_BLOCKED,
+};
+use handshake_core::atelier::{AtelierError, AtelierStore};
+use handshake_core::kernel::KernelEventType;
+use handshake_core::storage::{postgres::PostgresDatabase, Database};
+use sqlx::postgres::PgPoolOptions;
+use std::sync::Arc;
+use uuid::Uuid;
 
 /// Connect + ensure schema, the shared preamble every test runs against a real
 /// Postgres.
@@ -34,6 +34,23 @@ async fn connected_store(url: &str) -> AtelierStore {
         .expect("connect to PostgreSQL");
     store.ensure_schema().await.expect("ensure atelier schema");
     store
+}
+
+async fn connected_store_with_ledger(url: &str) -> (AtelierStore, Arc<dyn Database>) {
+    let pool = PgPoolOptions::new()
+        .max_connections(5)
+        .connect(url)
+        .await
+        .expect("connect to PostgreSQL");
+    let database = PostgresDatabase::new(pool.clone());
+    database
+        .run_migrations()
+        .await
+        .expect("run kernel migrations");
+    let database = database.into_arc();
+    let store = AtelierStore::with_event_ledger(pool, database.clone());
+    store.ensure_schema().await.expect("ensure atelier schema");
+    (store, database)
 }
 
 /// A run-unique, valid (non-blocked, non-governed) catalog descriptor input.
@@ -60,18 +77,35 @@ fn unique_entry_input(manual_anchor: &str) -> UpsertCommandCorpusEntry {
     }
 }
 
+fn assert_blocked_invocation_denial(err: AtelierError, action_id: &str, detail: &str) {
+    match err {
+        AtelierError::Validation(message) => {
+            assert!(
+                message.contains("command_blocked"),
+                "blocked invocation denial must carry the command_blocked code: {message}"
+            );
+            assert!(
+                message.contains(action_id),
+                "blocked invocation denial must name the action_id: {message}"
+            );
+            assert!(
+                message.contains(detail),
+                "blocked invocation denial must include {detail}: {message}"
+            );
+        }
+        other => panic!("expected blocked invocation validation denial, got {other:?}"),
+    }
+}
+
 #[tokio::test]
 async fn corpus_entry_upsert_roundtrip_idempotency_and_event() {
-    let Some(url) = database_url() else {
-        eprintln!("SKIP corpus_entry_upsert_roundtrip_idempotency_and_event: DATABASE_URL not set");
+    let Some(url) = atelier_pg_support::database_url().await else {
+        eprintln!(
+            "SKIP corpus_entry_upsert_roundtrip_idempotency_and_event: PostgreSQL unavailable"
+        );
         return;
     };
     let store = connected_store(&url).await;
-
-    let before = store
-        .count_events(command_corpus_event_family::CORPUS_ENTRY_UPSERTED)
-        .await
-        .expect("count upsert events before");
 
     // --- register a fresh descriptor with a live manual anchor ---
     let manual_anchor = format!("manual.cmd-{}", Uuid::new_v4());
@@ -93,7 +127,10 @@ async fn corpus_entry_upsert_roundtrip_idempotency_and_event() {
         "actor_eligibility list round-trips in order"
     );
     assert_eq!(entry.execution_class, ExecutionClass::PureProjection);
-    assert_eq!(entry.manual_anchor, manual_anchor, "live manual anchor stored");
+    assert_eq!(
+        entry.manual_anchor, manual_anchor,
+        "live manual anchor stored"
+    );
     assert_eq!(entry.input_schema_version, 1);
     assert_eq!(entry.errors.len(), 1, "typed error variant round-trips");
     assert_eq!(entry.errors[0].code, "denied");
@@ -105,7 +142,10 @@ async fn corpus_entry_upsert_roundtrip_idempotency_and_event() {
         .await
         .expect("get command corpus entry")
         .expect("entry present");
-    assert_eq!(fetched.entry_id, entry.entry_id, "fetch returns the same row");
+    assert_eq!(
+        fetched.entry_id, entry.entry_id,
+        "fetch returns the same row"
+    );
 
     // (4) IDEMPOTENCY: re-projecting the same action_id updates in place; the
     // entry_id is stable (ON CONFLICT (action_id) DO UPDATE), no duplicate row.
@@ -120,7 +160,10 @@ async fn corpus_entry_upsert_roundtrip_idempotency_and_event() {
         entry.entry_id, entry2.entry_id,
         "re-upserting the same action_id keeps a stable entry_id (no duplicate)"
     );
-    assert_eq!(entry2.owner, "atelier.command_corpus.v2", "owner updated in place");
+    assert_eq!(
+        entry2.owner, "atelier.command_corpus.v2",
+        "owner updated in place"
+    );
 
     // Exactly one row for this owner namespace's action id (no duplicate).
     let listed = store
@@ -131,21 +174,26 @@ async fn corpus_entry_upsert_roundtrip_idempotency_and_event() {
     assert_eq!(matches, 1, "action_id appears exactly once after re-upsert");
 
     // (6) event emission: two upserts emitted two CORPUS_ENTRY_UPSERTED events.
-    let after = store
-        .count_events(command_corpus_event_family::CORPUS_ENTRY_UPSERTED)
+    let event_count = store
+        .count_events_for_aggregate(
+            command_corpus_event_family::CORPUS_ENTRY_UPSERTED,
+            "atelier_command_corpus_entry",
+            &action_id,
+        )
         .await
-        .expect("count upsert events after");
+        .expect("count run-scoped upsert events");
     assert_eq!(
-        after,
-        before + 2,
+        event_count, 2,
         "each upsert emits exactly one CORPUS_ENTRY_UPSERTED event"
     );
 }
 
 #[tokio::test]
 async fn corpus_external_execution_requires_evidence_invariant() {
-    let Some(url) = database_url() else {
-        eprintln!("SKIP corpus_external_execution_requires_evidence_invariant: DATABASE_URL not set");
+    let Some(url) = atelier_pg_support::database_url().await else {
+        eprintln!(
+            "SKIP corpus_external_execution_requires_evidence_invariant: PostgreSQL unavailable"
+        );
         return;
     };
     let store = connected_store(&url).await;
@@ -183,26 +231,13 @@ async fn corpus_external_execution_requires_evidence_invariant() {
 
 #[tokio::test]
 async fn corpus_blocked_record_upsert_idempotency_clear_on_anchor_and_events() {
-    let Some(url) = database_url() else {
+    let Some(url) = atelier_pg_support::database_url().await else {
         eprintln!(
-            "SKIP corpus_blocked_record_upsert_idempotency_clear_on_anchor_and_events: DATABASE_URL not set"
+            "SKIP corpus_blocked_record_upsert_idempotency_clear_on_anchor_and_events: PostgreSQL unavailable"
         );
         return;
     };
     let store = connected_store(&url).await;
-
-    let blk_before = store
-        .count_events(command_corpus_event_family::CORPUS_BLOCKED_RECORDED)
-        .await
-        .expect("count blocked-recorded events before");
-    let clr_before = store
-        .count_events(command_corpus_event_family::CORPUS_BLOCKED_CLEARED)
-        .await
-        .expect("count blocked-cleared events before");
-    let anc_before = store
-        .count_events(command_corpus_event_family::CORPUS_ENTRY_ANCHORED)
-        .await
-        .expect("count anchored events before");
 
     // Project a descriptor first so we can prove the anchor flips its
     // manual_anchor between the BLOCKED sentinel and a live id.
@@ -223,7 +258,10 @@ async fn corpus_blocked_record_upsert_idempotency_clear_on_anchor_and_events() {
         )
         .await
         .expect("record blocked command");
-    assert_eq!(record.action_id, action_id, "blocked record round-trips action_id");
+    assert_eq!(
+        record.action_id, action_id,
+        "blocked record round-trips action_id"
+    );
     assert_eq!(record.blocked_reason, BlockedReason::NoManualAnchor);
     assert_eq!(record.discovered_in, CorpusSource::IpcHandler);
 
@@ -308,46 +346,260 @@ async fn corpus_blocked_record_upsert_idempotency_clear_on_anchor_and_events() {
 
     // (6) event emission: one block recorded, one cleared, one anchored.
     let blk_after = store
-        .count_events(command_corpus_event_family::CORPUS_BLOCKED_RECORDED)
+        .count_events_for_aggregate(
+            command_corpus_event_family::CORPUS_BLOCKED_RECORDED,
+            "atelier_command_corpus_blocked",
+            &action_id,
+        )
         .await
-        .expect("count blocked-recorded events after");
+        .expect("count run-scoped blocked-recorded events");
     let clr_after = store
-        .count_events(command_corpus_event_family::CORPUS_BLOCKED_CLEARED)
+        .count_events_for_aggregate(
+            command_corpus_event_family::CORPUS_BLOCKED_CLEARED,
+            "atelier_command_corpus_blocked",
+            &action_id,
+        )
         .await
-        .expect("count blocked-cleared events after");
+        .expect("count run-scoped blocked-cleared events");
     let anc_after = store
-        .count_events(command_corpus_event_family::CORPUS_ENTRY_ANCHORED)
+        .count_events_for_aggregate(
+            command_corpus_event_family::CORPUS_ENTRY_ANCHORED,
+            "atelier_command_corpus_entry",
+            &action_id,
+        )
         .await
-        .expect("count anchored events after");
+        .expect("count run-scoped anchored events");
     assert_eq!(
-        blk_after,
-        blk_before + 2,
+        blk_after, 2,
         "two record_blocked_command calls emit two CORPUS_BLOCKED_RECORDED events"
     );
     assert_eq!(
-        clr_after,
-        clr_before + 1,
+        clr_after, 1,
         "clearing the block on anchor emits one CORPUS_BLOCKED_CLEARED event"
     );
     assert_eq!(
-        anc_after,
-        anc_before + 1,
+        anc_after, 1,
         "anchoring emits one CORPUS_ENTRY_ANCHORED event"
     );
 }
 
 #[tokio::test]
-async fn corpus_parity_report_projection_counts_and_event() {
-    let Some(url) = database_url() else {
-        eprintln!("SKIP corpus_parity_report_projection_counts_and_event: DATABASE_URL not set");
+async fn corpus_invocation_guard_denies_blocked_actions_until_anchor_is_supplied() {
+    let Some(url) = atelier_pg_support::database_url().await else {
+        eprintln!(
+            "SKIP corpus_invocation_guard_denies_blocked_actions_until_anchor_is_supplied: PostgreSQL unavailable"
+        );
         return;
     };
     let store = connected_store(&url).await;
 
-    let rep_before = store
-        .count_events(command_corpus_event_family::CORPUS_PARITY_REPORTED)
+    let input = unique_entry_input(MANUAL_ANCHOR_BLOCKED);
+    let action_id = input.action_id.clone();
+    store
+        .upsert_command_corpus_entry(&input)
         .await
-        .expect("count parity-reported events before");
+        .expect("upsert command whose manual anchor is blocked");
+
+    let sentinel_denial = store
+        .guard_command_corpus_invocable(&action_id)
+        .await
+        .expect_err("BLOCKED manual anchor must deny invocation even before a record exists");
+    assert_blocked_invocation_denial(sentinel_denial, &action_id, "manual_anchor=BLOCKED");
+
+    store
+        .record_blocked_command(
+            &action_id,
+            BlockedReason::NoManualAnchor,
+            CorpusSource::IpcHandler,
+            "bind a live ModelManual command id before invocation",
+        )
+        .await
+        .expect("record missing-manual blocked command");
+
+    let recorded_denial = store
+        .guard_command_corpus_invocable(&action_id)
+        .await
+        .expect_err("open BLOCKED record must deny invocation");
+    assert_blocked_invocation_denial(recorded_denial, &action_id, "no_manual_anchor");
+
+    let live_manual = format!("manual.cmd-{}", Uuid::new_v4());
+    store
+        .anchor_command_manual(&action_id, &live_manual)
+        .await
+        .expect("anchor command to clear missing-manual block");
+
+    let invocable = store
+        .guard_command_corpus_invocable(&action_id)
+        .await
+        .expect("anchored command with no open blocks is invocable");
+    assert_eq!(invocable.action_id, action_id);
+    assert_eq!(invocable.manual_anchor, live_manual);
+}
+
+#[tokio::test]
+async fn corpus_invocation_emits_declared_eventledger_event_and_denies_blocked() {
+    let Some(url) = atelier_pg_support::database_url().await else {
+        eprintln!(
+            "SKIP corpus_invocation_emits_declared_eventledger_event_and_denies_blocked: PostgreSQL unavailable"
+        );
+        return;
+    };
+    let (store, database) = connected_store_with_ledger(&url).await;
+
+    let declared_event_family = "atelier.workflow.command_invoked";
+    let mut input = unique_entry_input(&format!("manual.cmd-{}", Uuid::new_v4()));
+    input.execution_class = ExecutionClass::WorkflowJob;
+    input.owner = "atelier.workflow_engine".to_string();
+    input.capabilities = vec!["workflow.dispatch".to_string()];
+    input.evidence_class = vec![declared_event_family.to_string()];
+    let action_id = input.action_id.clone();
+    let entry = store
+        .upsert_command_corpus_entry(&input)
+        .await
+        .expect("upsert workflow command with declared invocation evidence");
+
+    let invocation_id = Uuid::new_v4();
+    let receipt = store
+        .record_command_corpus_invocation(&RecordCommandCorpusInvocation {
+            invocation_id,
+            action_id: action_id.clone(),
+            actor_id: "operator-alpha".to_string(),
+            evidence_event_family: declared_event_family.to_string(),
+            input_ref: format!("input://command-corpus/{}", Uuid::new_v4()),
+            receipt_ref: format!("receipt://command-corpus/{}", Uuid::new_v4()),
+        })
+        .await
+        .expect("record invocation evidence for live command");
+    assert_eq!(receipt.invocation_id, invocation_id);
+    assert_eq!(receipt.action_id, action_id);
+    assert_eq!(receipt.evidence_event_family, declared_event_family);
+    assert_eq!(receipt.execution_class, ExecutionClass::WorkflowJob);
+    assert_eq!(receipt.receipt_shape, entry.receipt_shape);
+
+    let events = database
+        .list_kernel_events_for_aggregate(
+            "atelier_command_corpus_invocation",
+            &invocation_id.to_string(),
+        )
+        .await
+        .expect("list kernel invocation events");
+    assert_eq!(
+        events.len(),
+        1,
+        "exactly one canonical EventLedger row is written for the invocation"
+    );
+    let event = &events[0];
+    assert_eq!(
+        event.event_type,
+        KernelEventType::AtelierDomainEventRecorded
+    );
+    assert_eq!(event.source_component, "atelier");
+    assert_eq!(
+        event.payload["event_family"], declared_event_family,
+        "kernel payload event_family must be the descriptor-declared evidence class"
+    );
+    assert_eq!(
+        event.payload["atelier_payload"]["action_id"],
+        receipt.action_id
+    );
+    assert_eq!(
+        event.payload["atelier_payload"]["execution_class"],
+        "workflow_job"
+    );
+    assert_eq!(
+        event.payload["atelier_payload"]["input_ref"],
+        receipt.input_ref
+    );
+    let serialized_payload = event.payload.to_string();
+    assert!(
+        !serialized_payload.contains("http://")
+            && !serialized_payload.contains("https://")
+            && !serialized_payload.contains("C:\\")
+            && !serialized_payload.contains("secret"),
+        "invocation evidence payload must stay leak-safe and ref-only: {serialized_payload}"
+    );
+
+    let undeclared_invocation_id = Uuid::new_v4();
+    let undeclared = store
+        .record_command_corpus_invocation(&RecordCommandCorpusInvocation {
+            invocation_id: undeclared_invocation_id,
+            action_id: receipt.action_id.clone(),
+            actor_id: "operator-alpha".to_string(),
+            evidence_event_family: "atelier.workflow.not_declared".to_string(),
+            input_ref: format!("input://command-corpus/{}", Uuid::new_v4()),
+            receipt_ref: format!("receipt://command-corpus/{}", Uuid::new_v4()),
+        })
+        .await
+        .expect_err("undeclared evidence event family must be rejected");
+    match undeclared {
+        AtelierError::Validation(message) => assert!(
+            message.contains("declared evidence_class"),
+            "undeclared evidence denial must name declared evidence_class: {message}"
+        ),
+        other => panic!("expected validation error for undeclared evidence family, got {other:?}"),
+    }
+    let undeclared_events = database
+        .list_kernel_events_for_aggregate(
+            "atelier_command_corpus_invocation",
+            &undeclared_invocation_id.to_string(),
+        )
+        .await
+        .expect("list undeclared invocation events");
+    assert!(
+        undeclared_events.is_empty(),
+        "rejected undeclared evidence family must not append an invocation event"
+    );
+
+    let mut blocked_input = unique_entry_input(MANUAL_ANCHOR_BLOCKED);
+    blocked_input.execution_class = ExecutionClass::WorkflowJob;
+    blocked_input.evidence_class = vec![declared_event_family.to_string()];
+    let blocked_action_id = blocked_input.action_id.clone();
+    store
+        .upsert_command_corpus_entry(&blocked_input)
+        .await
+        .expect("upsert blocked workflow command");
+    store
+        .record_blocked_command(
+            &blocked_action_id,
+            BlockedReason::NoManualAnchor,
+            CorpusSource::IpcHandler,
+            "bind a live ModelManual command id before invocation",
+        )
+        .await
+        .expect("record missing manual anchor block");
+    let blocked_invocation_id = Uuid::new_v4();
+    let blocked = store
+        .record_command_corpus_invocation(&RecordCommandCorpusInvocation {
+            invocation_id: blocked_invocation_id,
+            action_id: blocked_action_id.clone(),
+            actor_id: "operator-alpha".to_string(),
+            evidence_event_family: declared_event_family.to_string(),
+            input_ref: format!("input://command-corpus/{}", Uuid::new_v4()),
+            receipt_ref: format!("receipt://command-corpus/{}", Uuid::new_v4()),
+        })
+        .await
+        .expect_err("BLOCKED command must not emit invocation evidence");
+    assert_blocked_invocation_denial(blocked, &blocked_action_id, "no_manual_anchor");
+    let blocked_events = database
+        .list_kernel_events_for_aggregate(
+            "atelier_command_corpus_invocation",
+            &blocked_invocation_id.to_string(),
+        )
+        .await
+        .expect("list blocked invocation events");
+    assert!(
+        blocked_events.is_empty(),
+        "blocked invocation must not append an invocation event"
+    );
+}
+
+#[tokio::test]
+async fn corpus_parity_report_projection_counts_and_event() {
+    let Some(url) = atelier_pg_support::database_url().await else {
+        eprintln!("SKIP corpus_parity_report_projection_counts_and_event: PostgreSQL unavailable");
+        return;
+    };
+    let store = connected_store(&url).await;
 
     // Seed a covered (live-anchored, not blocked) descriptor and a blocked one
     // so the projection has at least one of each to count.
@@ -436,13 +688,16 @@ async fn corpus_parity_report_projection_counts_and_event() {
     );
 
     // (6) event emission: building the report emitted one CORPUS_PARITY_REPORTED.
-    let rep_after = store
-        .count_events(command_corpus_event_family::CORPUS_PARITY_REPORTED)
+    let report_event_count = store
+        .count_events_for_aggregate(
+            command_corpus_event_family::CORPUS_PARITY_REPORTED,
+            "atelier_command_corpus_parity_report",
+            &report.report_id.to_string(),
+        )
         .await
-        .expect("count parity-reported events after");
+        .expect("count run-scoped parity report event");
     assert_eq!(
-        rep_after,
-        rep_before + 1,
+        report_event_count, 1,
         "building a parity report emits exactly one CORPUS_PARITY_REPORTED event"
     );
 }

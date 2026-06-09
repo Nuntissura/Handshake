@@ -15,14 +15,17 @@
 //!     cross-check producing a parity report
 //!     (`PRIM-CommandCorpusParityReportV1`): total / covered / BLOCKED /
 //!     orphaned-manual counts plus per-defect rows.
+//!   * 10.19.5 -- the invocation evidence guard: an invocable command can emit
+//!     only a descriptor-declared EventLedger evidence family; BLOCKED commands
+//!     and undeclared evidence families are denied before any event is written.
 //!
-//! CKC source (INTENT ONLY; the SQLite/Electron/localhost/polling originals are
+//! legacy source (INTENT ONLY; the SQLite/Electron/localhost/polling originals are
 //! never copied): `app/backend/automationCommandMap.js`
 //! (`getAutomationCommandMap`, `TOP_LEVEL_AUTOMATION_IPC`,
 //! `getAllWiredAutomationCommands`, `classifyAutomationCommand` -- the single
 //! canonical command surface) and `app/backend/automationManual.js`
 //! (`featureGroups[].commands`, `commandReference[].id` -- the code-truth rule
-//! that every advertised manual command MUST resolve to a wired command). CKC
+//! that every advertised manual command MUST resolve to a wired command). legacy source
 //! enforced this as a JS self-consistency test over an in-process command list;
 //! Handshake promotes it to a typed, PostgreSQL-backed parity contract.
 //!
@@ -44,7 +47,7 @@ use serde::{Deserialize, Serialize};
 use sqlx::Row;
 use uuid::Uuid;
 
-use super::{event_family, AtelierError, AtelierResult, AtelierStore};
+use super::{AtelierError, AtelierResult, AtelierStore};
 
 /// Command-corpus parity event families (MT-206, MT-005). Defined here so the
 /// parent folds these into [`super::event_family::ALL`] and the MT-005 coverage
@@ -73,13 +76,13 @@ pub mod command_corpus_event_family {
 
 /// Re-export at module root so callers can write `command_corpus::CORPUS_*`.
 pub use command_corpus_event_family::{
-    CORPUS_BLOCKED_CLEARED, CORPUS_BLOCKED_RECORDED, CORPUS_ENTRY_ANCHORED,
-    CORPUS_ENTRY_UPSERTED, CORPUS_PARITY_REPORTED,
+    CORPUS_BLOCKED_CLEARED, CORPUS_BLOCKED_RECORDED, CORPUS_ENTRY_ANCHORED, CORPUS_ENTRY_UPSERTED,
+    CORPUS_PARITY_REPORTED,
 };
 
 /// Mechanical source a command was discovered in (10.19.2 `corpus_source`).
 ///
-/// Mirrors CKC `classifyAutomationCommand` returning preload/renderer vs
+/// Mirrors legacy source `classifyAutomationCommand` returning preload/renderer vs
 /// backend dispatcher origin: `Preload` is the renderer-exposed command name,
 /// `IpcHandler` is the backend `#[tauri::command]` / kernel action handler,
 /// `Both` is a command discovered in both mechanical sources.
@@ -276,6 +279,37 @@ pub struct UpsertCommandCorpusEntry {
     pub evidence_class: Vec<String>,
 }
 
+/// Input to record one command-corpus invocation evidence event. This is a
+/// ref-only receipt bridge: it does not execute the command and does not store
+/// raw params/results. Dispatchers call this after their own execution path has
+/// produced typed input/receipt refs and before exposing the invocation as
+/// auditable evidence.
+#[derive(Clone, Debug)]
+pub struct RecordCommandCorpusInvocation {
+    pub invocation_id: Uuid,
+    pub action_id: String,
+    pub actor_id: String,
+    /// Must exactly match one event family declared in the descriptor's
+    /// `evidence_class`.
+    pub evidence_event_family: String,
+    pub input_ref: String,
+    pub receipt_ref: String,
+}
+
+/// Ref-only receipt returned after an invocation evidence event is appended.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct CommandCorpusInvocationReceipt {
+    pub invocation_id: Uuid,
+    pub action_id: String,
+    pub actor_id: String,
+    pub evidence_event_family: String,
+    pub execution_class: ExecutionClass,
+    pub receipt_shape: String,
+    pub input_ref: String,
+    pub receipt_ref: String,
+    pub accepted_at_utc: DateTime<Utc>,
+}
+
 /// A durable BLOCKED-anchor record (10.19.4, `PRIM-CommandCorpusBlockedRecordV1`).
 ///
 /// Persists until the underlying anchor is supplied or the command leaves the
@@ -366,6 +400,29 @@ fn blocked_from_row(row: &sqlx::postgres::PgRow) -> AtelierResult<CommandCorpusB
     })
 }
 
+fn validate_invocation_ref(field: &str, value: &str) -> AtelierResult<()> {
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        return Err(AtelierError::Validation(format!(
+            "{field} must not be empty"
+        )));
+    }
+    let lower = trimmed.to_ascii_lowercase();
+    if lower.starts_with("http://")
+        || lower.starts_with("https://")
+        || lower.contains("localhost")
+        || lower.contains("127.0.0.1")
+        || trimmed.contains('\\')
+        || trimmed.starts_with('/')
+        || trimmed.contains(":\\")
+    {
+        return Err(AtelierError::Validation(format!(
+            "{field} must be a portable opaque ref, not a URL or machine-local path"
+        )));
+    }
+    Ok(())
+}
+
 const ENTRY_COLUMNS: &str = "entry_id, action_id, corpus_source, owner, actor_eligibility, \
                              params_schema_ref, input_schema_version, capabilities, \
                              execution_class, receipt_shape, errors, foreground_flag, \
@@ -411,9 +468,7 @@ impl AtelierStore {
                 "receipt_shape must reference a typed receipt schema".into(),
             ));
         }
-        if input.execution_class.requires_governed_execution()
-            && input.evidence_class.is_empty()
-        {
+        if input.execution_class.requires_governed_execution() && input.evidence_class.is_empty() {
             return Err(AtelierError::Validation(format!(
                 "execution_class {} requires a governed-execution evidence_class \
                  (Workflow-Engine event/span); declare one or mark the command BLOCKED",
@@ -429,6 +484,8 @@ impl AtelierStore {
             .map_err(|e| AtelierError::Validation(format!("errors: {e}")))?;
         let evidence_json = serde_json::to_value(&input.evidence_class)
             .map_err(|e| AtelierError::Validation(format!("evidence_class: {e}")))?;
+
+        let mut tx = self.pool().begin().await?;
 
         let row = sqlx::query(&format!(
             r#"INSERT INTO atelier_command_corpus_entry
@@ -465,11 +522,12 @@ impl AtelierStore {
         .bind(input.foreground_flag)
         .bind(&input.manual_anchor)
         .bind(evidence_json)
-        .fetch_one(self.pool())
+        .fetch_one(&mut *tx)
         .await?;
 
         let entry = entry_from_row(&row)?;
-        self.record_event(
+        self.record_event_in_tx(
+            &mut tx,
             CORPUS_ENTRY_UPSERTED,
             "atelier_command_corpus_entry",
             &entry.action_id,
@@ -486,6 +544,7 @@ impl AtelierStore {
             }),
         )
         .await?;
+        tx.commit().await?;
         Ok(entry)
     }
 
@@ -535,9 +594,7 @@ impl AtelierStore {
         action_id: &str,
         manual_command_id: &str,
     ) -> AtelierResult<CommandCorpusEntry> {
-        if manual_command_id.trim().is_empty()
-            || manual_command_id == MANUAL_ANCHOR_BLOCKED
-        {
+        if manual_command_id.trim().is_empty() || manual_command_id == MANUAL_ANCHOR_BLOCKED {
             return Err(AtelierError::Validation(
                 "manual_command_id must be a real ModelManual id, not empty or BLOCKED".into(),
             ));
@@ -569,10 +626,9 @@ impl AtelierStore {
         .fetch_optional(&mut *tx)
         .await?;
 
-        tx.commit().await?;
-
         let entry = entry_from_row(&row)?;
-        self.record_event(
+        self.record_event_in_tx(
+            &mut tx,
             CORPUS_ENTRY_ANCHORED,
             "atelier_command_corpus_entry",
             &entry.action_id,
@@ -584,7 +640,8 @@ impl AtelierStore {
         )
         .await?;
         if let Some(blocked_id) = cleared {
-            self.record_event(
+            self.record_event_in_tx(
+                &mut tx,
                 CORPUS_BLOCKED_CLEARED,
                 "atelier_command_corpus_blocked",
                 action_id,
@@ -597,6 +654,7 @@ impl AtelierStore {
             )
             .await?;
         }
+        tx.commit().await?;
         Ok(entry)
     }
 
@@ -663,10 +721,9 @@ impl AtelierStore {
             .await?;
         }
 
-        tx.commit().await?;
-
         let record = blocked_from_row(&row)?;
-        self.record_event(
+        self.record_event_in_tx(
+            &mut tx,
             CORPUS_BLOCKED_RECORDED,
             "atelier_command_corpus_blocked",
             &record.action_id,
@@ -678,6 +735,7 @@ impl AtelierStore {
             }),
         )
         .await?;
+        tx.commit().await?;
         Ok(record)
     }
 
@@ -698,6 +756,142 @@ impl AtelierStore {
         .fetch_all(self.pool())
         .await?;
         rows.iter().map(blocked_from_row).collect()
+    }
+
+    /// Read-only dispatch guard for BLOCKED-004. Callers that execute a
+    /// catalog command can use this immediately before dispatch: any open
+    /// BLOCKED record, or the descriptor's `manual_anchor=BLOCKED` sentinel,
+    /// denies invocation with a typed validation error instead of silently
+    /// treating BLOCKED as an execution grant.
+    pub async fn guard_command_corpus_invocable(
+        &self,
+        action_id: &str,
+    ) -> AtelierResult<CommandCorpusEntry> {
+        if action_id.trim().is_empty() {
+            return Err(AtelierError::Validation(
+                "action_id must not be empty".into(),
+            ));
+        }
+
+        let blocked = self.list_blocked_commands(Some(action_id)).await?;
+        let entry = self.get_command_corpus_entry(action_id).await?;
+
+        if !blocked.is_empty() {
+            let mut details = Vec::new();
+            if let Some(entry) = &entry {
+                if entry.manual_anchor == MANUAL_ANCHOR_BLOCKED {
+                    details.push("manual_anchor=BLOCKED".to_string());
+                }
+            }
+            details.extend(blocked.iter().map(|record| {
+                format!(
+                    "{}: {}",
+                    record.blocked_reason.as_token(),
+                    record.recovery_instruction
+                )
+            }));
+
+            return Err(AtelierError::Validation(format!(
+                "command_blocked: action_id={action_id} is not invocable while BLOCKED ({})",
+                details.join("; ")
+            )));
+        }
+
+        let entry = entry.ok_or_else(|| {
+            AtelierError::NotFound(format!("command corpus entry action_id={action_id}"))
+        })?;
+        if entry.manual_anchor == MANUAL_ANCHOR_BLOCKED {
+            return Err(AtelierError::Validation(format!(
+                "command_blocked: action_id={action_id} is not invocable while manual_anchor=BLOCKED"
+            )));
+        }
+
+        Ok(entry)
+    }
+
+    /// Record a command invocation evidence event of the descriptor-declared
+    /// event family. This is a dispatch-side proof hook, not an executor: it
+    /// first applies [`AtelierStore::guard_command_corpus_invocable`], then
+    /// verifies that the requested event family appears in the descriptor's
+    /// `evidence_class`, and only then appends a canonical EventLedger-backed
+    /// atelier domain event. Payloads are id/ref/count-only so invocation proof
+    /// cannot leak params, receipts, URLs, local paths, or secrets.
+    pub async fn record_command_corpus_invocation(
+        &self,
+        input: &RecordCommandCorpusInvocation,
+    ) -> AtelierResult<CommandCorpusInvocationReceipt> {
+        if input.invocation_id == Uuid::nil() {
+            return Err(AtelierError::Validation(
+                "invocation_id must not be nil".into(),
+            ));
+        }
+        let action_id = input.action_id.trim();
+        if action_id.is_empty() {
+            return Err(AtelierError::Validation(
+                "action_id must not be empty".into(),
+            ));
+        }
+        let actor_id = input.actor_id.trim();
+        if actor_id.is_empty() {
+            return Err(AtelierError::Validation(
+                "actor_id must not be empty".into(),
+            ));
+        }
+        let evidence_event_family = input.evidence_event_family.trim();
+        if evidence_event_family.is_empty() {
+            return Err(AtelierError::Validation(
+                "evidence_event_family must not be empty".into(),
+            ));
+        }
+        validate_invocation_ref("input_ref", &input.input_ref)?;
+        validate_invocation_ref("receipt_ref", &input.receipt_ref)?;
+
+        let entry = self.guard_command_corpus_invocable(action_id).await?;
+        if !entry
+            .evidence_class
+            .iter()
+            .any(|declared| declared.as_str() == evidence_event_family)
+        {
+            return Err(AtelierError::Validation(format!(
+                "evidence_event_family {evidence_event_family} is not in the declared evidence_class for action_id={action_id}"
+            )));
+        }
+
+        let receipt = CommandCorpusInvocationReceipt {
+            invocation_id: input.invocation_id,
+            action_id: action_id.to_string(),
+            actor_id: actor_id.to_string(),
+            evidence_event_family: evidence_event_family.to_string(),
+            execution_class: entry.execution_class,
+            receipt_shape: entry.receipt_shape.clone(),
+            input_ref: input.input_ref.trim().to_string(),
+            receipt_ref: input.receipt_ref.trim().to_string(),
+            accepted_at_utc: Utc::now(),
+        };
+
+        self.record_event(
+            &receipt.evidence_event_family,
+            "atelier_command_corpus_invocation",
+            &receipt.invocation_id.to_string(),
+            serde_json::json!({
+                "invocation_id": receipt.invocation_id,
+                "entry_id": entry.entry_id,
+                "action_id": receipt.action_id,
+                "actor_id": receipt.actor_id,
+                "corpus_source": entry.corpus_source.as_token(),
+                "owner": entry.owner,
+                "execution_class": entry.execution_class.as_token(),
+                "manual_anchor": entry.manual_anchor,
+                "evidence_event_family": receipt.evidence_event_family,
+                "input_ref": receipt.input_ref,
+                "receipt_shape": receipt.receipt_shape,
+                "receipt_ref": receipt.receipt_ref,
+                "capability_count": entry.capabilities.len(),
+                "declared_evidence_count": entry.evidence_class.len(),
+            }),
+        )
+        .await?;
+        Ok(receipt)
     }
 
     /// Materialize a deterministic parity report over the catalog (10.19.3
@@ -728,8 +922,7 @@ impl AtelierStore {
         let total_corpus = entries.len() as i64;
 
         // Distinct action_ids that are blocked.
-        let mut blocked_ids: std::collections::BTreeSet<&str> =
-            std::collections::BTreeSet::new();
+        let mut blocked_ids: std::collections::BTreeSet<&str> = std::collections::BTreeSet::new();
         for b in &blocked {
             blocked_ids.insert(b.action_id.as_str());
         }
@@ -755,14 +948,11 @@ impl AtelierStore {
         let mut covered_count: i64 = 0;
         for e in &entries {
             let is_blocked = blocked_ids.contains(e.action_id.as_str());
-            let has_live_anchor =
-                !is_blocked && e.manual_anchor != MANUAL_ANCHOR_BLOCKED;
+            let has_live_anchor = !is_blocked && e.manual_anchor != MANUAL_ANCHOR_BLOCKED;
             if has_live_anchor {
                 covered_count += 1;
             }
-            if e.execution_class.requires_governed_execution()
-                && e.evidence_class.is_empty()
-            {
+            if e.execution_class.requires_governed_execution() && e.evidence_class.is_empty() {
                 defects.push(ParityDefectRow {
                     action_id: e.action_id.clone(),
                     defect_kind: "missing_event_evidence".to_string(),
@@ -794,6 +984,7 @@ impl AtelierStore {
         let defects_json = serde_json::to_value(&defects)
             .map_err(|e| AtelierError::Validation(format!("defects: {e}")))?;
 
+        let mut tx = self.pool().begin().await?;
         let row = sqlx::query(
             r#"INSERT INTO atelier_command_corpus_parity_report
                  (total_corpus, covered_count, blocked_count, orphaned_manual_count, defects)
@@ -806,7 +997,7 @@ impl AtelierStore {
         .bind(blocked_count)
         .bind(orphaned_manual_count)
         .bind(defects_json)
-        .fetch_one(self.pool())
+        .fetch_one(&mut *tx)
         .await?;
 
         let report = CommandCorpusParityReport {
@@ -819,7 +1010,8 @@ impl AtelierStore {
             created_at_utc: row.get("created_at_utc"),
         };
 
-        self.record_event(
+        self.record_event_in_tx(
+            &mut tx,
             CORPUS_PARITY_REPORTED,
             "atelier_command_corpus_parity_report",
             &report.report_id.to_string(),
@@ -833,6 +1025,7 @@ impl AtelierStore {
             }),
         )
         .await?;
+        tx.commit().await?;
         Ok(report)
     }
 
@@ -852,8 +1045,8 @@ impl AtelierStore {
         match row {
             None => Ok(None),
             Some(r) => {
-                let defects: Vec<ParityDefectRow> =
-                    serde_json::from_value(r.get("defects")).map_err(|e| {
+                let defects: Vec<ParityDefectRow> = serde_json::from_value(r.get("defects"))
+                    .map_err(|e| {
                         AtelierError::Validation(format!("invalid defects payload: {e}"))
                     })?;
                 Ok(Some(CommandCorpusParityReport {

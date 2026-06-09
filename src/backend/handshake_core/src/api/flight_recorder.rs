@@ -284,7 +284,7 @@ mod tests {
     use crate::llm::{
         CompletionRequest, CompletionResponse, LlmClient, LlmError, ModelProfile, TokenUsage,
     };
-    use crate::storage::{tests::optional_postgres_backend_from_env, Database};
+    use crate::storage::{tests::optional_postgres_backend_with_pool_from_env, Database};
     use crate::workflows::{SessionRegistry, SessionSchedulerConfig};
     use crate::AppState;
     use std::sync::Arc;
@@ -325,14 +325,15 @@ mod tests {
     }
 
     async fn setup_state() -> Result<Option<AppState>, Box<dyn std::error::Error>> {
-        let Some(storage) = optional_postgres_backend_from_env().await? else {
+        let Some(backend) = optional_postgres_backend_with_pool_from_env().await? else {
             return Ok(None);
         };
 
         let recorder = Arc::new(DuckDbFlightRecorder::new_in_memory(32)?);
 
         Ok(Some(AppState {
-            storage,
+            storage: backend.database,
+            postgres_pool: backend.postgres_pool,
             flight_recorder: recorder.clone(),
             diagnostics: recorder,
             llm_client: Arc::new(TestLlmClient::new()),

@@ -96,6 +96,7 @@ impl CapabilityRegistry {
         let mut valid_full_ids = HashSet::new();
         valid_full_ids.insert("doc.summarize".to_string());
         valid_full_ids.insert("terminal.exec".to_string()); // Historically used, though proc.exec is axis
+        valid_full_ids.insert("engine.comfyui".to_string());
         valid_full_ids.insert("export.debug_bundle".to_string());
         valid_full_ids.insert("export.governance_pack".to_string());
         valid_full_ids.insert("export.include_payloads".to_string());
@@ -160,6 +161,18 @@ impl CapabilityRegistry {
                     "CALENDAR_DELETE_EXTERNAL".to_string(),
                     "CALENDAR_MOVE_EVENT".to_string(),
                     "CALENDAR_RESOLVE_CONFLICT".to_string(),
+                ],
+            },
+        );
+
+        profiles.insert(
+            "ComfyUIWorker".to_string(),
+            CapabilityProfile {
+                id: "ComfyUIWorker".to_string(),
+                allowed: vec![
+                    "engine.comfyui".to_string(),
+                    "fs.write:artifacts".to_string(),
+                    "proc.exec".to_string(),
                 ],
             },
         );
@@ -503,6 +516,7 @@ mod tests {
         assert!(registry.is_valid("fs.read"));
         assert!(registry.is_valid("fs.read:logs")); // Valid axis + arbitrary scope
         assert!(registry.is_valid("doc.summarize")); // Valid full ID
+        assert!(registry.is_valid("engine.comfyui"));
         assert!(registry.is_valid("locus.read"));
         assert!(registry.is_valid("locus.write"));
         assert!(registry.is_valid("locus.gate"));
@@ -715,6 +729,14 @@ mod tests {
         assert!(matches!(
             registry.profile_can("MediaDownloader", "proc.exec:yt-dlp"),
             Ok(true)
+        ));
+        assert!(matches!(
+            registry.profile_can("ComfyUIWorker", "engine.comfyui"),
+            Ok(true)
+        ));
+        assert!(matches!(
+            registry.profile_can("Analyst", "engine.comfyui"),
+            Ok(false)
         ));
 
         // Unknown profile error

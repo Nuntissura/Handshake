@@ -1,5 +1,21 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { getKernelDccProjection } from "./api";
+import {
+  acceptAtelierAiTagSuggestion,
+  applyAtelierAiTagSuggestion,
+  archiveAtelierDeletionTargets,
+  getKernelDccProjection,
+  importAtelierClipboardImage,
+  listAtelierAiTagSuggestionsForCharacter,
+  listAtelierFilesystemHealthFindings,
+  listAtelierStealthWindows,
+  openAtelierIntakeBatch,
+  previewAtelierDeletionImpact,
+  recordAtelierAiTagSuggestion,
+  recordAtelierUrlImageImport,
+  rejectAtelierAiTagSuggestion,
+  restoreAtelierDeletionTargets,
+  runAtelierFilesystemHealthCheck,
+} from "./api";
 
 describe("Kernel DCC API projection composition", () => {
   afterEach(() => {
@@ -218,6 +234,316 @@ describe("Kernel DCC API projection composition", () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(surface.spawn_tree_projection).toBeNull();
+  });
+});
+
+describe("Atelier API actor context", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("sends actor context when listing stealth windows", async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(jsonResponse([]));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await listAtelierStealthWindows({ actor_id: "operator-alpha" });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://127.0.0.1:37501/atelier/stealth/windows",
+      expect.objectContaining({
+        method: "GET",
+        headers: expect.objectContaining({
+          "x-hsk-actor-id": "operator-alpha",
+        }),
+      }),
+    );
+  });
+
+  it("exposes AI tag suggestion lifecycle routes with explicit actor attribution", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse({ suggestion_id: "suggestion-1", status: "proposed" }))
+      .mockResolvedValueOnce(jsonResponse([{ suggestion_id: "suggestion-1", status: "proposed" }]))
+      .mockResolvedValueOnce(jsonResponse({ suggestion_id: "suggestion-1", status: "accepted" }))
+      .mockResolvedValueOnce(jsonResponse({ suggestion_id: "suggestion-2", status: "rejected" }))
+      .mockResolvedValueOnce(jsonResponse({ suggestion_id: "suggestion-1", status: "applied" }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await recordAtelierAiTagSuggestion({
+      character_internal_id: "character-1",
+      asset_id: null,
+      tag_text: "cinematic lighting",
+      confidence: 0.91,
+      model_receipt_ref: "receipt://atelier/model/1",
+      tool_receipt_ref: "receipt://atelier/tool/1",
+      suggested_by: "model-worker",
+    });
+    await listAtelierAiTagSuggestionsForCharacter("character-1");
+    await acceptAtelierAiTagSuggestion(
+      "suggestion-1",
+      { actor_id: "operator-alpha" },
+      { reason: "matches image" },
+    );
+    await rejectAtelierAiTagSuggestion(
+      "suggestion-2",
+      { actor_id: "operator-beta" },
+      { reason: "does not match image" },
+    );
+    await applyAtelierAiTagSuggestion("suggestion-1", { actor_id: "operator-alpha" });
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      "http://127.0.0.1:37501/atelier/ai-tag-suggestions",
+      expect.objectContaining({
+        method: "POST",
+        body: expect.stringContaining("cinematic lighting"),
+      }),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      "http://127.0.0.1:37501/atelier/ai-tag-suggestions/characters/character-1",
+      expect.objectContaining({ method: "GET" }),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      3,
+      "http://127.0.0.1:37501/atelier/ai-tag-suggestions/suggestion-1/accept",
+      expect.objectContaining({
+        method: "POST",
+        headers: expect.objectContaining({
+          "x-hsk-actor-id": "operator-alpha",
+        }),
+        body: expect.stringContaining("matches image"),
+      }),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      4,
+      "http://127.0.0.1:37501/atelier/ai-tag-suggestions/suggestion-2/reject",
+      expect.objectContaining({
+        method: "POST",
+        headers: expect.objectContaining({
+          "x-hsk-actor-id": "operator-beta",
+        }),
+        body: expect.stringContaining("does not match image"),
+      }),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      5,
+      "http://127.0.0.1:37501/atelier/ai-tag-suggestions/suggestion-1/apply",
+      expect.objectContaining({
+        method: "POST",
+        headers: expect.objectContaining({
+          "x-hsk-actor-id": "operator-alpha",
+        }),
+      }),
+    );
+  });
+
+  it("posts the full Atelier intake batch contract", async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      jsonResponse({
+        batch_id: "batch-1",
+        idempotency_key: "intake-contract-1",
+        source_label: "Linked source",
+        source_ref: "source://atelier/intake/source-1",
+        mode: "sourcing_run",
+        profile_mode: "character_linked",
+        target_character_id: "00000000-0000-0000-0000-000000000001",
+        target_sheet_version_id: "00000000-0000-0000-0000-000000000002",
+        target_collection_id: "00000000-0000-0000-0000-000000000003",
+        status: "open",
+        resume_cursor: "cursor://atelier/intake/intake-contract-1",
+        resumed_at_utc: null,
+        created_at_utc: "2026-06-08T00:00:00Z",
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await openAtelierIntakeBatch({
+      idempotency_key: "intake-contract-1",
+      source_label: "Linked source",
+      source_ref: "source://atelier/intake/source-1",
+      mode: "sourcing_run",
+      profile_mode: "character_linked",
+      target_character_id: "00000000-0000-0000-0000-000000000001",
+      target_sheet_version_id: "00000000-0000-0000-0000-000000000002",
+      target_collection_id: "00000000-0000-0000-0000-000000000003",
+      resume_cursor: "cursor://atelier/intake/intake-contract-1",
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://127.0.0.1:37501/atelier/intake/batches",
+      expect.objectContaining({
+        method: "POST",
+        body: expect.any(String),
+      }),
+    );
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body as string)).toEqual({
+      idempotency_key: "intake-contract-1",
+      source_label: "Linked source",
+      source_ref: "source://atelier/intake/source-1",
+      mode: "sourcing_run",
+      profile_mode: "character_linked",
+      target_character_id: "00000000-0000-0000-0000-000000000001",
+      target_sheet_version_id: "00000000-0000-0000-0000-000000000002",
+      target_collection_id: "00000000-0000-0000-0000-000000000003",
+      resume_cursor: "cursor://atelier/intake/intake-contract-1",
+    });
+  });
+
+  it("exposes filesystem health diagnostics without implicit repair", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse({
+          check: {
+            check_id: "check-1",
+            requested_by: "operator-alpha",
+            scope_label: "gallery",
+            summary: { auto_resync: false, auto_delete: false },
+            created_at_utc: "2026-06-08T00:00:00Z",
+          },
+          findings: [{ finding_id: "finding-1", finding_kind: "missing_thumbnail" }],
+        }),
+      )
+      .mockResolvedValueOnce(jsonResponse([{ finding_id: "finding-1" }]));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await runAtelierFilesystemHealthCheck(
+      { actor_id: "operator-alpha" },
+      { scope_label: "gallery" },
+    );
+    await listAtelierFilesystemHealthFindings("check-1");
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      "http://127.0.0.1:37501/atelier/filesystem-health/checks",
+      expect.objectContaining({
+        method: "POST",
+        headers: expect.objectContaining({
+          "x-hsk-actor-id": "operator-alpha",
+        }),
+        body: expect.stringContaining("gallery"),
+      }),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      "http://127.0.0.1:37501/atelier/filesystem-health/checks/check-1/findings",
+      expect.objectContaining({ method: "GET" }),
+    );
+  });
+
+  it("exposes recoverable deletion preview, archive, and restore routes", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse({ target_count: 2, would_archive_count: 2 }))
+      .mockResolvedValueOnce(jsonResponse({ operation: "archive_deletion_targets" }))
+      .mockResolvedValueOnce(jsonResponse({ operation: "restore_deletion_targets" }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const targets = [
+      { target_type: "media_asset" as const, target_id: "asset-1" },
+      { target_type: "sheet_version" as const, target_id: "sheet-1" },
+    ];
+    await previewAtelierDeletionImpact(
+      { actor_id: "operator-alpha" },
+      { targets, reason: "preview cleanup" },
+    );
+    await archiveAtelierDeletionTargets(
+      { actor_id: "operator-alpha" },
+      { targets, reason: "archive cleanup" },
+    );
+    await restoreAtelierDeletionTargets(
+      { actor_id: "operator-beta" },
+      { targets, reason: "restore cleanup" },
+    );
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      "http://127.0.0.1:37501/atelier/deletion/impact-preview",
+      expect.objectContaining({
+        method: "POST",
+        headers: expect.objectContaining({
+          "x-hsk-actor-id": "operator-alpha",
+        }),
+        body: expect.stringContaining("preview cleanup"),
+      }),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      "http://127.0.0.1:37501/atelier/deletion/archive",
+      expect.objectContaining({
+        method: "POST",
+        headers: expect.objectContaining({
+          "x-hsk-actor-id": "operator-alpha",
+        }),
+        body: expect.stringContaining("archive cleanup"),
+      }),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      3,
+      "http://127.0.0.1:37501/atelier/deletion/restore",
+      expect.objectContaining({
+        method: "POST",
+        headers: expect.objectContaining({
+          "x-hsk-actor-id": "operator-beta",
+        }),
+        body: expect.stringContaining("restore cleanup"),
+      }),
+    );
+  });
+
+  it("exposes clipboard and URL image import routes with actor attribution", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse({ source_kind: "clipboard", status: "materialized" }))
+      .mockResolvedValueOnce(jsonResponse({ source_kind: "url", status: "queued" }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await importAtelierClipboardImage(
+      { actor_id: "operator-import" },
+      {
+        idempotency_key: "clipboard-1",
+        mime: "image/png",
+        content_hash: "sha256:abc",
+        byte_len: 10,
+        artifact_ref: "artifact://.handshake/artifacts/L1/00000000-0000-0000-0000-000000000001/payload",
+        source_application: "system-clipboard",
+      },
+    );
+    await recordAtelierUrlImageImport(
+      { actor_id: "operator-import" },
+      {
+        idempotency_key: "url-1",
+        source_url: "https://example.com/image.png",
+        expected_mime: "image/png",
+        source_label: "example",
+        capability_profile_id: "MediaDownloader",
+        capability_grant_ref: "capgrant://media_downloader/MediaDownloader/evidence-1",
+      },
+    );
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      "http://127.0.0.1:37501/atelier/image-import/clipboard",
+      expect.objectContaining({
+        method: "POST",
+        headers: expect.objectContaining({
+          "x-hsk-actor-id": "operator-import",
+        }),
+        body: expect.stringContaining("system-clipboard"),
+      }),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      "http://127.0.0.1:37501/atelier/image-import/url",
+      expect.objectContaining({
+        method: "POST",
+        headers: expect.objectContaining({
+          "x-hsk-actor-id": "operator-import",
+        }),
+        body: expect.stringContaining("capgrant://media_downloader/MediaDownloader/evidence-1"),
+      }),
+    );
   });
 });
 

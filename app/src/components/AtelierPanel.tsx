@@ -22,6 +22,8 @@ const SECTIONS: { id: Section; label: string }[] = [
   { id: "stealth", label: "Stealth Windows" },
 ];
 
+const ATELIER_PANEL_ACTOR_ID = "operator-atelier-panel";
+
 function errorMessage(err: unknown, fallback: string): string {
   return err instanceof Error ? err.message : fallback;
 }
@@ -400,7 +402,7 @@ const StealthWindowsSection: React.FC = () => {
     let cancelled = false;
     setLoading(true);
     setError(null);
-    listAtelierStealthWindows()
+    listAtelierStealthWindows({ actor_id: ATELIER_PANEL_ACTOR_ID })
       .then((data) => {
         if (!cancelled) {
           setWindows(data);

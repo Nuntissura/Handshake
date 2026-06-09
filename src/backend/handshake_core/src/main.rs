@@ -1,15 +1,15 @@
-use axum::{extract::State, routing::get, Json, Router};
+use axum::{Json, Router, extract::State, routing::get};
 use handshake_core::{
-    api,
+    AppState, api,
     capabilities::CapabilityRegistry,
     diagnostics::DiagnosticsStore,
-    flight_recorder::{duckdb::DuckDbFlightRecorder, FlightRecorder},
+    flight_recorder::{FlightRecorder, duckdb::DuckDbFlightRecorder},
     llm::{
+        DisabledLlmClient, LlmClient, ModelTier,
         guard::CloudEscalationGuard,
         ollama::OllamaAdapter,
         openai_compat::{ApiKey, OpenAiCompatAdapter},
         registry::{ProviderKind, ProviderRegistry, RuntimeRole},
-        DisabledLlmClient, LlmClient, ModelTier,
     },
     logging,
     models::HealthResponse,
@@ -18,7 +18,7 @@ use handshake_core::{
         self,
         retention::{Janitor, JanitorConfig},
     },
-    workflows, AppState,
+    workflows,
 };
 use std::{
     net::SocketAddr,
@@ -108,7 +108,11 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
     // Bootstrap the WP-KERNEL-005 atelier schema (idempotent, advisory-locked)
     // on the shared pool so the atelier HTTP surface is queryable from startup.
     {
-        let atelier = handshake_core::atelier::AtelierStore::new(control_plane.postgres_pool.clone());
+        let atelier = handshake_core::atelier::AtelierStore::with_observability(
+            control_plane.postgres_pool.clone(),
+            storage.clone(),
+            flight_recorder.clone(),
+        );
         if let Err(err) = atelier.ensure_schema().await {
             tracing::error!(target: "handshake_core::atelier", error = %err, "atelier ensure_schema failed at startup");
             return Err(Box::new(err));

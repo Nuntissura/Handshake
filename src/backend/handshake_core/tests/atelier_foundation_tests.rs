@@ -8,8 +8,10 @@
 //! proving stable identity (MT-006), append-only sheet versions (MT-012),
 //! content-hash media dedup (MT-015), and event recording (MT-005).
 
+mod atelier_pg_support;
+
 use handshake_core::atelier::{
-    event_family, AtelierStore, NewCharacter, NewMediaAsset, NewSheetVersion,
+    AtelierStore, NewCharacter, NewMediaAsset, NewSheetVersion, event_family,
 };
 use uuid::Uuid;
 
@@ -91,14 +93,15 @@ async fn atelier_foundation_postgres_round_trip() {
     assert_eq!(latest.seq, 2);
 
     // --- media dedup on content hash (MT-015): idempotent materialize ---
-    let content_hash = format!("sha256-{}", Uuid::new_v4());
+    let artifact = atelier_pg_support::write_native_media_artifact(b"foundation-media");
+    let content_hash = artifact.content_hash.clone();
     let asset_first = store
         .materialize_media_asset(&NewMediaAsset {
             content_hash: content_hash.clone(),
             mime: "image/png".to_string(),
-            byte_len: 2048,
+            byte_len: artifact.byte_len,
             source_provenance: Some("clipboard".to_string()),
-            artifact_ref: "artifact://atelier/media/test".to_string(),
+            artifact_ref: artifact.artifact_ref.clone(),
         })
         .await
         .expect("materialize first");
@@ -106,9 +109,9 @@ async fn atelier_foundation_postgres_round_trip() {
         .materialize_media_asset(&NewMediaAsset {
             content_hash: content_hash.clone(),
             mime: "image/png".to_string(),
-            byte_len: 2048,
+            byte_len: artifact.byte_len,
             source_provenance: Some("clipboard".to_string()),
-            artifact_ref: "artifact://atelier/media/test".to_string(),
+            artifact_ref: artifact.artifact_ref.clone(),
         })
         .await
         .expect("materialize again");

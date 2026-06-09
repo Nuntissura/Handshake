@@ -4,9 +4,9 @@
 //! against media identity (`atelier_media_asset.asset_id`), not against a rig,
 //! so they survive re-pose, re-import, and export.
 //!
-//! CKC source: `app/backend/library.js` `getImageAnnotations` /
+//! legacy source source: `app/backend/library.js` `getImageAnnotations` /
 //! `setImageAnnotations` and `db.js` `ImageAnnotation` (MediaPane annotation
-//! layers). CKC stored a single `annotations_json` blob of point-pins
+//! layers). legacy source stored a single `annotations_json` blob of point-pins
 //! (`{x, y, text}` normalized 0..1) per image. This Handshake fold-in promotes
 //! that blob into a normalized, append-and-query relational model so each typed
 //! region is individually addressable, typed, and survives export. SQLite is
@@ -19,14 +19,14 @@ use serde::{Deserialize, Serialize};
 use sqlx::Row;
 use uuid::Uuid;
 
-use super::{event_family, AtelierError, AtelierResult, AtelierStore};
+use super::{AtelierError, AtelierResult, AtelierStore};
 
 /// Annotation region geometry kind. Decoupled from pose keypoints: these are
 /// operator/model overlays on the 2D media surface, not rig joints.
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum AnnotationKind {
-    /// A single pin at a normalized (x, y) coordinate (the CKC pin).
+    /// A single pin at a normalized (x, y) coordinate (the legacy source pin).
     Point,
     /// An axis-aligned rectangle: (x, y) top-left + (w, h) extent.
     Box,
@@ -67,7 +67,7 @@ pub struct MediaAnnotation {
     pub kind: AnnotationKind,
     /// Optional short typed label (e.g. "wardrobe", "blemish", "focus").
     pub label: Option<String>,
-    /// Free-text operator/model note (the CKC pin `text`).
+    /// Free-text operator/model note (the legacy source pin `text`).
     pub note: String,
     /// Normalized geometry payload validated per `kind`.
     pub geometry: serde_json::Value,
@@ -124,7 +124,7 @@ fn require_num(obj: &serde_json::Value, key: &str) -> AtelierResult<f64> {
 }
 
 /// Validate + canonicalize geometry for a given kind, clamping coordinates to
-/// the normalized 0..1 image space. Mirrors the CKC `clamp01` discipline so
+/// the normalized 0..1 image space. Mirrors the legacy source `clamp01` discipline so
 /// overlays never drift outside the asset and survive export intact.
 fn canonical_geometry(
     kind: AnnotationKind,
@@ -156,7 +156,7 @@ fn canonical_geometry(
                 _ => {
                     return Err(AtelierError::Validation(
                         "polygon annotation requires a 'points' array of >= 3 vertices".into(),
-                    ))
+                    ));
                 }
             };
             let mut out = Vec::with_capacity(pts.len());
@@ -251,7 +251,6 @@ impl AtelierStore {
                 "kind": annotation.kind.as_str(),
                 "label": annotation.label,
                 "seq": annotation.seq,
-                "author": annotation.author,
             }),
         )
         .await?;
@@ -364,12 +363,11 @@ impl AtelierStore {
 
     /// Count annotation overlays on a media asset (used by export + tests).
     pub async fn count_media_annotations(&self, asset_id: Uuid) -> AtelierResult<i64> {
-        let count: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM atelier_media_annotation WHERE asset_id = $1",
-        )
-        .bind(asset_id)
-        .fetch_one(self.pool())
-        .await?;
+        let count: i64 =
+            sqlx::query_scalar("SELECT COUNT(*) FROM atelier_media_annotation WHERE asset_id = $1")
+                .bind(asset_id)
+                .fetch_one(self.pool())
+                .await?;
         Ok(count)
     }
 }

@@ -12,8 +12,8 @@
 //! (6.11.6 LAW: lineage chain); a hop whose hash does not match its upstream is
 //! rejected with a typed validation error rather than persisted.
 //!
-//! CKC source (intent only): CastKit-Codex `app backend ASR/ffmpeg` flow.
-//! Handshake forbids the CKC SQLite/Electron/localhost realization; only the
+//! legacy source source (intent only): legacy source `app backend ASR/ffmpeg` flow.
+//! Handshake forbids the legacy source SQLite/Electron/localhost realization; only the
 //! intent (probe -> extract -> transcribe -> caption, hash-bound lineage,
 //! recoverable receipts) is carried across. Storage authority is PostgreSQL +
 //! EventLedger + ArtifactStore (6.11.2 LAW: storage authority).
@@ -31,10 +31,11 @@
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use sqlx::Row;
 use uuid::Uuid;
 
-use super::{event_family, AtelierError, AtelierResult, AtelierStore};
+use super::{reject_legacy_runtime_ref, AtelierError, AtelierResult, AtelierStore};
 
 /// Transcript/caption job-lifecycle event families (MT-203, MT-005).
 ///
@@ -280,6 +281,31 @@ pub struct NewCaptionArtifact {
     pub muxed_media_artifact_id: Option<String>,
 }
 
+/// Request for deterministic `caption.render` sidecar generation (6.11.5).
+/// This in-process renderer only transforms persisted transcript segments into
+/// sidecar bytes; it does not spawn ffmpeg/Whisper or mutate media.
+#[derive(Clone, Debug)]
+pub struct CaptionRenderRequest {
+    pub transcript_id: Uuid,
+    pub format: CaptionFormat,
+    pub language: String,
+    pub max_line_chars: i64,
+    pub max_lines_per_cue: i64,
+    pub min_cue_ms: i64,
+    pub max_cue_ms: i64,
+    pub muxed_media_artifact_id: Option<String>,
+}
+
+/// Output of `caption.render`: deterministic sidecar bytes plus the canonical
+/// caption artifact record and recoverable caption-render receipt.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct RenderedCaptionArtifact {
+    pub caption: CaptionArtifact,
+    pub receipt: PipelineReceipt,
+    pub sidecar_text: String,
+    pub sidecar_sha256: String,
+}
+
 /// A typed pipeline receipt (6.11.10): `MediaProbeReceiptV1` /
 /// `TranscribeReceiptV1` / `CaptionRenderReceiptV1`. The recoverable evidence
 /// unit (6.11.7): success carries `output_artifact_id`; failure carries
@@ -355,11 +381,12 @@ fn redact_secrets(value: &serde_json::Value) -> serde_json::Value {
             let mut out = serde_json::Map::with_capacity(map.len());
             for (key, val) in map {
                 let lowered = key.to_ascii_lowercase();
-                let is_secret = SECRET_KEY_HINTS
-                    .iter()
-                    .any(|hint| lowered.contains(hint));
+                let is_secret = SECRET_KEY_HINTS.iter().any(|hint| lowered.contains(hint));
                 if is_secret {
-                    out.insert(key.clone(), serde_json::Value::String(REDACTED_PLACEHOLDER.into()));
+                    out.insert(
+                        key.clone(),
+                        serde_json::Value::String(REDACTED_PLACEHOLDER.into()),
+                    );
                 } else {
                     out.insert(key.clone(), redact_secrets(val));
                 }
@@ -390,6 +417,233 @@ fn validate_source_media_hash(hash: &str) -> AtelierResult<()> {
             "source_media_hash sha256 digest must be 64 hex chars, got {hex:?}"
         )))
     }
+}
+
+#[derive(Clone, Debug)]
+struct CaptionCue {
+    start_ms: i64,
+    end_ms: i64,
+    text: String,
+}
+
+fn caption_cues_from_transcript(
+    transcript: &TranscriptArtifact,
+    request: &CaptionRenderRequest,
+) -> AtelierResult<Vec<CaptionCue>> {
+    if request.max_line_chars <= 0 {
+        return Err(AtelierError::Validation(
+            "caption max_line_chars must be > 0".into(),
+        ));
+    }
+    if request.max_lines_per_cue <= 0 {
+        return Err(AtelierError::Validation(
+            "caption max_lines_per_cue must be > 0".into(),
+        ));
+    }
+    if request.min_cue_ms < 0 || request.max_cue_ms < 0 {
+        return Err(AtelierError::Validation(
+            "caption cue duration bounds must be >= 0".into(),
+        ));
+    }
+
+    let segments = transcript.segments.as_array().ok_or_else(|| {
+        AtelierError::Validation("transcript segments must be a JSON array".into())
+    })?;
+    let mut cues = Vec::with_capacity(segments.len());
+    for (idx, segment) in segments.iter().enumerate() {
+        let start_ms = segment
+            .get("start_ms")
+            .and_then(|value| value.as_i64())
+            .ok_or_else(|| {
+                AtelierError::Validation(format!("segment {idx} missing integer start_ms"))
+            })?;
+        let mut end_ms = segment
+            .get("end_ms")
+            .and_then(|value| value.as_i64())
+            .ok_or_else(|| {
+                AtelierError::Validation(format!("segment {idx} missing integer end_ms"))
+            })?;
+        let text = segment
+            .get("text")
+            .and_then(|value| value.as_str())
+            .unwrap_or("")
+            .trim();
+
+        if start_ms < 0 || end_ms <= start_ms {
+            return Err(AtelierError::Validation(format!(
+                "segment {idx} has invalid cue timing"
+            )));
+        }
+        if request.min_cue_ms > 0 && end_ms - start_ms < request.min_cue_ms {
+            end_ms = start_ms + request.min_cue_ms;
+        }
+        if request.max_cue_ms > 0 && end_ms - start_ms > request.max_cue_ms {
+            end_ms = start_ms + request.max_cue_ms;
+        }
+
+        cues.push(CaptionCue {
+            start_ms,
+            end_ms,
+            text: wrap_caption_text(
+                text,
+                request.max_line_chars as usize,
+                request.max_lines_per_cue as usize,
+            ),
+        });
+    }
+    Ok(cues)
+}
+
+fn wrap_caption_text(text: &str, max_line_chars: usize, max_lines: usize) -> String {
+    let mut lines: Vec<String> = Vec::new();
+    let mut current = String::new();
+    for word in text.split_whitespace() {
+        let candidate_len = if current.is_empty() {
+            word.len()
+        } else {
+            current.len() + 1 + word.len()
+        };
+        if !current.is_empty() && candidate_len > max_line_chars {
+            lines.push(current);
+            current = word.to_string();
+        } else {
+            if !current.is_empty() {
+                current.push(' ');
+            }
+            current.push_str(word);
+        }
+    }
+    if !current.is_empty() {
+        lines.push(current);
+    }
+    if lines.is_empty() {
+        return String::new();
+    }
+    if lines.len() > max_lines {
+        let mut kept = lines[..max_lines].to_vec();
+        let overflow = lines[max_lines..].join(" ");
+        if let Some(last) = kept.last_mut() {
+            if !last.is_empty() && !overflow.is_empty() {
+                last.push(' ');
+            }
+            last.push_str(&overflow);
+        }
+        kept.join("\n")
+    } else {
+        lines.join("\n")
+    }
+}
+
+fn format_srt_time(ms: i64) -> String {
+    let hours = ms / 3_600_000;
+    let minutes = (ms % 3_600_000) / 60_000;
+    let seconds = (ms % 60_000) / 1_000;
+    let millis = ms % 1_000;
+    format!("{hours:02}:{minutes:02}:{seconds:02},{millis:03}")
+}
+
+fn format_vtt_time(ms: i64) -> String {
+    let hours = ms / 3_600_000;
+    let minutes = (ms % 3_600_000) / 60_000;
+    let seconds = (ms % 60_000) / 1_000;
+    let millis = ms % 1_000;
+    format!("{hours:02}:{minutes:02}:{seconds:02}.{millis:03}")
+}
+
+fn format_ass_time(ms: i64) -> String {
+    let hours = ms / 3_600_000;
+    let minutes = (ms % 3_600_000) / 60_000;
+    let seconds = (ms % 60_000) / 1_000;
+    let centis = (ms % 1_000) / 10;
+    format!("{hours}:{minutes:02}:{seconds:02}.{centis:02}")
+}
+
+fn escape_ass_text(text: &str) -> String {
+    text.replace('\\', "\\\\")
+        .replace('\n', "\\N")
+        .replace('{', "\\{")
+        .replace('}', "\\}")
+}
+
+fn render_caption_sidecar(
+    transcript: &TranscriptArtifact,
+    request: &CaptionRenderRequest,
+) -> AtelierResult<String> {
+    let cues = caption_cues_from_transcript(transcript, request)?;
+    let mut out = String::new();
+    match request.format {
+        CaptionFormat::Srt => {
+            for (idx, cue) in cues.iter().enumerate() {
+                out.push_str(&(idx + 1).to_string());
+                out.push('\n');
+                out.push_str(&format_srt_time(cue.start_ms));
+                out.push_str(" --> ");
+                out.push_str(&format_srt_time(cue.end_ms));
+                out.push('\n');
+                out.push_str(&cue.text);
+                out.push('\n');
+                if idx + 1 < cues.len() {
+                    out.push('\n');
+                }
+            }
+        }
+        CaptionFormat::Vtt => {
+            out.push_str("WEBVTT\n\n");
+            for cue in &cues {
+                out.push_str(&format_vtt_time(cue.start_ms));
+                out.push_str(" --> ");
+                out.push_str(&format_vtt_time(cue.end_ms));
+                out.push('\n');
+                out.push_str(&cue.text);
+                out.push_str("\n\n");
+            }
+        }
+        CaptionFormat::Ass => {
+            out.push_str("[Script Info]\nScriptType: v4.00+\n\n");
+            out.push_str("[V4+ Styles]\n");
+            out.push_str("Format: Name,Fontname,Fontsize,PrimaryColour,SecondaryColour,OutlineColour,BackColour,Bold,Italic,Underline,StrikeOut,ScaleX,ScaleY,Spacing,Angle,BorderStyle,Outline,Shadow,Alignment,MarginL,MarginR,MarginV,Encoding\n");
+            out.push_str("Style: Default,Arial,36,&H00FFFFFF,&H000000FF,&H00000000,&H80000000,0,0,0,0,100,100,0,0,1,2,0,2,32,32,32,1\n\n");
+            out.push_str("[Events]\n");
+            out.push_str(
+                "Format: Layer,Start,End,Style,Name,MarginL,MarginR,MarginV,Effect,Text\n",
+            );
+            for cue in &cues {
+                out.push_str("Dialogue: 0,");
+                out.push_str(&format_ass_time(cue.start_ms));
+                out.push(',');
+                out.push_str(&format_ass_time(cue.end_ms));
+                out.push_str(",Default,,0,0,0,,");
+                out.push_str(&escape_ass_text(&cue.text));
+                out.push('\n');
+            }
+        }
+    }
+    Ok(out)
+}
+
+fn sha256_text(text: &str) -> String {
+    let digest = Sha256::digest(text.as_bytes());
+    format!("sha256:{digest:x}")
+}
+
+fn reject_legacy_runtime_refs_in_json_array(
+    field: &str,
+    value: &serde_json::Value,
+) -> AtelierResult<()> {
+    let Some(items) = value.as_array() else {
+        return Err(AtelierError::Validation(format!(
+            "{field} must be a JSON array"
+        )));
+    };
+    for item in items {
+        let Some(text) = item.as_str() else {
+            return Err(AtelierError::Validation(format!(
+                "{field} entries must be artifact ref strings"
+            )));
+        };
+        reject_legacy_runtime_ref(field, text)?;
+    }
+    Ok(())
 }
 
 fn probe_from_row(row: &sqlx::postgres::PgRow) -> MediaProbeReport {
@@ -508,6 +762,7 @@ impl AtelierStore {
                 "probe artifact_ref must not be empty".into(),
             ));
         }
+        reject_legacy_runtime_ref("artifact_ref", &new.artifact_ref)?;
         if new.duration_ms < 0 {
             return Err(AtelierError::Validation(
                 "probe duration_ms must be >= 0".into(),
@@ -586,6 +841,7 @@ impl AtelierStore {
                 "transcript artifact_ref must not be empty".into(),
             ));
         }
+        reject_legacy_runtime_ref("artifact_ref", &new.artifact_ref)?;
         if !new.segments.is_array() {
             return Err(AtelierError::Validation(
                 "transcript segments must be a JSON array".into(),
@@ -668,17 +924,20 @@ impl AtelierStore {
     /// transcript's hash; a mismatch is a lineage break and is rejected. Caption
     /// rendering MUST NOT re-run ASR (this method only stores the derived
     /// sidecar record). Idempotent on `artifact_ref`. Emits [`CAPTION_RECORDED`].
-    pub async fn record_caption(
-        &self,
-        new: &NewCaptionArtifact,
-    ) -> AtelierResult<CaptionArtifact> {
+    pub async fn record_caption(&self, new: &NewCaptionArtifact) -> AtelierResult<CaptionArtifact> {
         if new.artifact_ref.trim().is_empty() {
             return Err(AtelierError::Validation(
                 "caption artifact_ref must not be empty".into(),
             ));
         }
+        reject_legacy_runtime_ref("artifact_ref", &new.artifact_ref)?;
+        if let Some(muxed_media_artifact_id) = &new.muxed_media_artifact_id {
+            reject_legacy_runtime_ref("muxed_media_artifact_id", muxed_media_artifact_id)?;
+        }
         if new.cue_count < 0 {
-            return Err(AtelierError::Validation("caption cue_count must be >= 0".into()));
+            return Err(AtelierError::Validation(
+                "caption cue_count must be >= 0".into(),
+            ));
         }
 
         // Lineage LAW (6.11.6): resolve the parent transcript and inherit its
@@ -729,6 +988,73 @@ impl AtelierStore {
         Ok(caption)
     }
 
+    /// Deterministically render a transcript into an SRT/VTT/ASS caption
+    /// sidecar, persist the resulting `CaptionArtifactV1`, and file a
+    /// `CaptionRenderReceiptV1`. The returned sidecar bytes are content
+    /// addressed by sha256; callers can materialize them into ArtifactStore
+    /// using the returned `caption.artifact_ref`.
+    pub async fn render_caption(
+        &self,
+        request: &CaptionRenderRequest,
+    ) -> AtelierResult<RenderedCaptionArtifact> {
+        let transcript = self.get_transcript(request.transcript_id).await?;
+        let sidecar_text = render_caption_sidecar(&transcript, request)?;
+        let sidecar_sha256 = sha256_text(&sidecar_text);
+        let artifact_ref = format!(
+            "artifact://atelier/caption/{}/{}",
+            request.format.as_token(),
+            sidecar_sha256
+        );
+        let cue_count = caption_cues_from_transcript(&transcript, request)?.len() as i64;
+        let caption = self
+            .record_caption(&NewCaptionArtifact {
+                transcript_id: transcript.transcript_id,
+                format: request.format,
+                language: request.language.clone(),
+                max_line_chars: request.max_line_chars,
+                max_lines_per_cue: request.max_lines_per_cue,
+                min_cue_ms: request.min_cue_ms,
+                max_cue_ms: request.max_cue_ms,
+                cue_count,
+                artifact_ref: artifact_ref.clone(),
+                muxed_media_artifact_id: request.muxed_media_artifact_id.clone(),
+            })
+            .await?;
+        let receipt = self
+            .file_pipeline_receipt(&NewPipelineReceipt {
+                kind: ReceiptKind::CaptionRender,
+                job_id: format!(
+                    "caption-render:{}:{}:{}",
+                    transcript.transcript_id,
+                    request.format.as_token(),
+                    sidecar_sha256
+                ),
+                source_media_hash: transcript.source_media_hash.clone(),
+                input_artifact_ids: serde_json::json!([transcript.artifact_ref]),
+                output_artifact_id: Some(caption.artifact_ref.clone()),
+                capability_grants: serde_json::json!({
+                    "workflow": "caption.render",
+                    "external_process": false,
+                    "renderer": "hsk.atelier.caption_render@1",
+                }),
+                tool_versions: serde_json::json!({
+                    "caption_renderer": "hsk.atelier.caption_render@1",
+                }),
+                status: ReceiptStatus::Completed,
+                error_class: None,
+                partial_artifact_id: None,
+                emitted_at: Utc::now(),
+            })
+            .await?;
+
+        Ok(RenderedCaptionArtifact {
+            caption,
+            receipt,
+            sidecar_text,
+            sidecar_sha256,
+        })
+    }
+
     /// List caption artifacts derived from a transcript (creation order).
     pub async fn list_captions_for_transcript(
         &self,
@@ -759,7 +1085,9 @@ impl AtelierStore {
     ) -> AtelierResult<PipelineReceipt> {
         validate_source_media_hash(&new.source_media_hash)?;
         if new.job_id.trim().is_empty() {
-            return Err(AtelierError::Validation("receipt job_id must not be empty".into()));
+            return Err(AtelierError::Validation(
+                "receipt job_id must not be empty".into(),
+            ));
         }
         // Status/field consistency (6.11.7): completed -> output; failed -> error_class.
         match new.status {
@@ -780,13 +1108,14 @@ impl AtelierStore {
         // before they are persisted or echoed into the event ledger.
         let tool_versions = redact_secrets(&new.tool_versions);
         let capability_grants = redact_secrets(&new.capability_grants);
-        let input_artifact_ids = if new.input_artifact_ids.is_array() {
-            new.input_artifact_ids.clone()
-        } else {
-            return Err(AtelierError::Validation(
-                "receipt input_artifact_ids must be a JSON array".into(),
-            ));
-        };
+        reject_legacy_runtime_refs_in_json_array("input_artifact_ids", &new.input_artifact_ids)?;
+        if let Some(output_artifact_id) = &new.output_artifact_id {
+            reject_legacy_runtime_ref("output_artifact_id", output_artifact_id)?;
+        }
+        if let Some(partial_artifact_id) = &new.partial_artifact_id {
+            reject_legacy_runtime_ref("partial_artifact_id", partial_artifact_id)?;
+        }
+        let input_artifact_ids = new.input_artifact_ids.clone();
 
         let row = sqlx::query(&format!(
             r#"INSERT INTO atelier_transcript_receipt
@@ -836,10 +1165,7 @@ impl AtelierStore {
     }
 
     /// Fetch a receipt by its originating job id.
-    pub async fn get_receipt_by_job(
-        &self,
-        job_id: &str,
-    ) -> AtelierResult<Option<PipelineReceipt>> {
+    pub async fn get_receipt_by_job(&self, job_id: &str) -> AtelierResult<Option<PipelineReceipt>> {
         let row = sqlx::query(&format!(
             r#"SELECT {RECEIPT_COLUMNS} FROM atelier_transcript_receipt
                WHERE job_id = $1"#

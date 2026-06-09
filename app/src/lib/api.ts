@@ -1231,12 +1231,35 @@ export type AtelierOverview = {
   event_families: { family: string; count: number }[];
 };
 
+export type AtelierIntakeBatchMode = "manual" | "folder_scan" | "sourcing_run";
+export type AtelierIntakeProfileMode = "loose_profile" | "character_linked";
+
 export type AtelierIntakeBatch = {
   batch_id: string;
   idempotency_key: string;
   source_label: string;
+  source_ref: string;
+  mode: AtelierIntakeBatchMode;
+  profile_mode: AtelierIntakeProfileMode;
+  target_character_id: string | null;
+  target_sheet_version_id: string | null;
+  target_collection_id: string | null;
   status: string;
+  resume_cursor: string | null;
+  resumed_at_utc: string | null;
   created_at_utc: string;
+};
+
+export type OpenAtelierIntakeBatchRequest = {
+  idempotency_key: string;
+  source_label: string;
+  source_ref?: string | null;
+  mode?: AtelierIntakeBatchMode;
+  profile_mode?: AtelierIntakeProfileMode;
+  target_character_id?: string | null;
+  target_sheet_version_id?: string | null;
+  target_collection_id?: string | null;
+  resume_cursor?: string | null;
 };
 
 export type AtelierIntakeItems = {
@@ -1273,6 +1296,140 @@ export type AtelierStealthWindow = {
   revision: number;
 };
 
+export type AtelierAiTagSuggestion = {
+  suggestion_id: string;
+  character_internal_id: string;
+  asset_id: string | null;
+  tag_text: string;
+  confidence: number | null;
+  model_receipt_ref: string;
+  tool_receipt_ref: string;
+  suggested_by: string;
+  status: "proposed" | "accepted" | "rejected" | "applied";
+  decided_by: string | null;
+  decision_reason: string | null;
+  applied_tag_id: string | null;
+  created_at_utc: string;
+  updated_at_utc: string;
+};
+
+export type RecordAtelierAiTagSuggestionRequest = {
+  character_internal_id: string;
+  asset_id?: string | null;
+  tag_text: string;
+  confidence?: number | null;
+  model_receipt_ref: string;
+  tool_receipt_ref: string;
+  suggested_by: string;
+};
+
+export type DecideAtelierAiTagSuggestionRequest = {
+  reason?: string | null;
+};
+
+export type AtelierFilesystemHealthFinding = {
+  finding_id: string;
+  check_id: string;
+  finding_kind:
+    | "missing_original"
+    | "missing_thumbnail"
+    | "inbox_pending"
+    | "untracked_original"
+    | "sidecar_visibility_anomaly";
+  target_type: string;
+  target_id: string;
+  details: Record<string, unknown>;
+  created_at_utc: string;
+};
+
+export type AtelierFilesystemHealthReport = {
+  check: {
+    check_id: string;
+    requested_by: string;
+    scope_label: string | null;
+    summary: Record<string, unknown>;
+    created_at_utc: string;
+  };
+  findings: AtelierFilesystemHealthFinding[];
+};
+
+export type AtelierDeletionTargetKind = "media_asset" | "sheet_version";
+
+export type AtelierDeletionTarget = {
+  target_type: AtelierDeletionTargetKind;
+  target_id: string;
+};
+
+export type AtelierDeletionControlsRequest = {
+  targets: AtelierDeletionTarget[];
+  reason: string;
+};
+
+export type AtelierDeletionImpactTarget = AtelierDeletionTarget & {
+  currently_archived: boolean;
+  would_archive: boolean;
+};
+
+export type AtelierDeletionImpactPreview = {
+  requested_by: string;
+  reason: string;
+  target_count: number;
+  would_archive_count: number;
+  already_archived_count: number;
+  targets: AtelierDeletionImpactTarget[];
+};
+
+export type AtelierBulkOperationReceipt = {
+  receipt_id: string;
+  operation: string;
+  requested_by: string;
+  target_count: number;
+  mutation_count: number;
+  status: string;
+  payload: Record<string, unknown>;
+  created_at_utc: string;
+};
+
+export type AtelierClipboardImageImportRequest = {
+  idempotency_key: string;
+  mime: "image/png" | "image/jpeg" | "image/webp";
+  content_hash: string;
+  byte_len: number;
+  artifact_ref: string;
+  source_application?: string | null;
+};
+
+export type AtelierUrlImageImportRequest = {
+  idempotency_key: string;
+  source_url: string;
+  expected_mime?: "image/png" | "image/jpeg" | "image/webp" | null;
+  source_label?: string | null;
+  capability_profile_id: string;
+  capability_grant_ref: string;
+};
+
+export type AtelierImageImportRecord = {
+  import_id: string;
+  idempotency_key: string;
+  source_kind: "clipboard" | "url";
+  status: "materialized" | "queued";
+  requested_by: string;
+  normalized_url?: string | null;
+  source_url_hash: string;
+  source_host?: string | null;
+  source_label?: string | null;
+  expected_mime?: string | null;
+  capability_profile_id?: string | null;
+  capability_grant_ref?: string | null;
+  required_capabilities: unknown;
+  asset_id?: string | null;
+  artifact_ref?: string | null;
+  source_provenance: string;
+  preflight: Record<string, unknown>;
+  created_at_utc: string;
+  updated_at_utc: string;
+};
+
 export async function getAtelierOverview(): Promise<AtelierOverview> {
   return request("/atelier/overview");
 }
@@ -1282,12 +1439,23 @@ export async function listAtelierIntakeBatches(): Promise<AtelierIntakeBatch[]> 
 }
 
 export async function openAtelierIntakeBatch(
+  input: OpenAtelierIntakeBatchRequest,
+): Promise<AtelierIntakeBatch>;
+export async function openAtelierIntakeBatch(
   idempotencyKey: string,
   sourceLabel: string,
+): Promise<AtelierIntakeBatch>;
+export async function openAtelierIntakeBatch(
+  inputOrKey: OpenAtelierIntakeBatchRequest | string,
+  sourceLabel?: string,
 ): Promise<AtelierIntakeBatch> {
+  const body =
+    typeof inputOrKey === "string"
+      ? { idempotency_key: inputOrKey, source_label: sourceLabel }
+      : inputOrKey;
   return request("/atelier/intake/batches", {
     method: "POST",
-    body: { idempotency_key: idempotencyKey, source_label: sourceLabel },
+    body,
   });
 }
 
@@ -1299,6 +1467,132 @@ export async function listAtelierCommandCorpus(): Promise<AtelierCommandCorpusEn
   return request("/atelier/command-corpus");
 }
 
-export async function listAtelierStealthWindows(): Promise<AtelierStealthWindow[]> {
-  return request("/atelier/stealth/windows");
+export async function runAtelierFilesystemHealthCheck(
+  ctx: WriteContext,
+  input: { scope_label?: string | null } = {},
+): Promise<AtelierFilesystemHealthReport> {
+  return request("/atelier/filesystem-health/checks", {
+    method: "POST",
+    headers: writeContextHeaders(ctx),
+    body: input,
+  });
+}
+
+export async function listAtelierFilesystemHealthFindings(
+  checkId: string,
+): Promise<AtelierFilesystemHealthFinding[]> {
+  return request(
+    `/atelier/filesystem-health/checks/${encodeURIComponent(checkId)}/findings`,
+  );
+}
+
+export async function previewAtelierDeletionImpact(
+  ctx: WriteContext,
+  input: AtelierDeletionControlsRequest,
+): Promise<AtelierDeletionImpactPreview> {
+  return request("/atelier/deletion/impact-preview", {
+    method: "POST",
+    headers: writeContextHeaders(ctx),
+    body: input,
+  });
+}
+
+export async function archiveAtelierDeletionTargets(
+  ctx: WriteContext,
+  input: AtelierDeletionControlsRequest,
+): Promise<AtelierBulkOperationReceipt> {
+  return request("/atelier/deletion/archive", {
+    method: "POST",
+    headers: writeContextHeaders(ctx),
+    body: input,
+  });
+}
+
+export async function restoreAtelierDeletionTargets(
+  ctx: WriteContext,
+  input: AtelierDeletionControlsRequest,
+): Promise<AtelierBulkOperationReceipt> {
+  return request("/atelier/deletion/restore", {
+    method: "POST",
+    headers: writeContextHeaders(ctx),
+    body: input,
+  });
+}
+
+export async function importAtelierClipboardImage(
+  ctx: WriteContext,
+  input: AtelierClipboardImageImportRequest,
+): Promise<AtelierImageImportRecord> {
+  return request("/atelier/image-import/clipboard", {
+    method: "POST",
+    headers: writeContextHeaders(ctx),
+    body: input,
+  });
+}
+
+export async function recordAtelierUrlImageImport(
+  ctx: WriteContext,
+  input: AtelierUrlImageImportRequest,
+): Promise<AtelierImageImportRecord> {
+  return request("/atelier/image-import/url", {
+    method: "POST",
+    headers: writeContextHeaders(ctx),
+    body: input,
+  });
+}
+
+export async function recordAtelierAiTagSuggestion(
+  input: RecordAtelierAiTagSuggestionRequest,
+): Promise<AtelierAiTagSuggestion> {
+  return request("/atelier/ai-tag-suggestions", { method: "POST", body: input });
+}
+
+export async function listAtelierAiTagSuggestionsForCharacter(
+  characterInternalId: string,
+): Promise<AtelierAiTagSuggestion[]> {
+  return request(
+    `/atelier/ai-tag-suggestions/characters/${encodeURIComponent(characterInternalId)}`,
+  );
+}
+
+export async function acceptAtelierAiTagSuggestion(
+  suggestionId: string,
+  ctx: WriteContext,
+  input: DecideAtelierAiTagSuggestionRequest = {},
+): Promise<AtelierAiTagSuggestion> {
+  return request(`/atelier/ai-tag-suggestions/${encodeURIComponent(suggestionId)}/accept`, {
+    method: "POST",
+    headers: writeContextHeaders(ctx),
+    body: input,
+  });
+}
+
+export async function rejectAtelierAiTagSuggestion(
+  suggestionId: string,
+  ctx: WriteContext,
+  input: DecideAtelierAiTagSuggestionRequest = {},
+): Promise<AtelierAiTagSuggestion> {
+  return request(`/atelier/ai-tag-suggestions/${encodeURIComponent(suggestionId)}/reject`, {
+    method: "POST",
+    headers: writeContextHeaders(ctx),
+    body: input,
+  });
+}
+
+export async function applyAtelierAiTagSuggestion(
+  suggestionId: string,
+  ctx: WriteContext,
+): Promise<AtelierAiTagSuggestion> {
+  return request(`/atelier/ai-tag-suggestions/${encodeURIComponent(suggestionId)}/apply`, {
+    method: "POST",
+    headers: writeContextHeaders(ctx),
+  });
+}
+
+export async function listAtelierStealthWindows(
+  ctx: WriteContext,
+): Promise<AtelierStealthWindow[]> {
+  return request("/atelier/stealth/windows", {
+    headers: writeContextHeaders(ctx),
+  });
 }
