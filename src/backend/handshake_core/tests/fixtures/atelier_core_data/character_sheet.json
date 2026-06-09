@@ -1,0 +1,32 @@
+{
+  "_comment": "MT-061 portable non-SQLite fixture corpus: character identity + sheet parsing/versioning. Pure JSON, no SQLite. public_id_slug is made run-unique by the loader; raw_text carries exact bytes (including whitespace) that the sheet parser must preserve.",
+  "characters": [
+    {
+      "public_id_slug": "mt-061-mentor",
+      "display_name": "Mentor Subject",
+      "sheet_versions": [
+        {
+          "raw_text": "CHARACTER TEMPLATE (v2.00)\nIDENTITY\nCHAR-ID-002 — Name: <string|protected>\nCHAR-ID-003 — Alias: <string|editable:sheet-curator>\n  Freeform note that must survive guarded edits  \n",
+          "author": "fixture-loader",
+          "tool": "mt-061-fixture"
+        },
+        {
+          "raw_text": "CHARACTER TEMPLATE (v2.00)\nIDENTITY\nCHAR-ID-002 — Name: <Mentor Subject>\nCHAR-ID-003 — Alias: <The Guide>\n  Freeform note that must survive guarded edits  \n",
+          "author": "fixture-loader",
+          "tool": "mt-061-fixture"
+        }
+      ]
+    },
+    {
+      "public_id_slug": "mt-061-protege",
+      "display_name": "Protégé Subject",
+      "sheet_versions": [
+        {
+          "raw_text": "CHARACTER TEMPLATE (v2.00)\nIDENTITY\nCHAR-ID-002 — Name: <string>\nCHAR-ID-003 — Alias: <string>\n",
+          "author": "fixture-loader",
+          "tool": null
+        }
+      ]
+    }
+  ]
+}

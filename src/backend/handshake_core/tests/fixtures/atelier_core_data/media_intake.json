@@ -1,0 +1,52 @@
+{
+  "_comment": "MT-062 portable non-SQLite fixture corpus: media identity + intake review behavior. payload_seed bytes are written into a portable ArtifactStore (non-SQLite) at load time to produce a real content_hash and artifact_ref; intake batch/item structure exercises intake review lanes.",
+  "media": [
+    {
+      "payload_seed": "mt-062-media-portrait",
+      "mime": "image/png",
+      "source_provenance": "fixture://mt-062/portrait",
+      "review": {
+        "favorite": true,
+        "rating": 5,
+        "frontpage": true,
+        "carousel": false,
+        "notes": "hero shot, fixture-seeded",
+        "review_status": "approved"
+      }
+    },
+    {
+      "payload_seed": "mt-062-media-detail",
+      "mime": "image/png",
+      "source_provenance": "fixture://mt-062/detail",
+      "review": {
+        "favorite": false,
+        "rating": 3,
+        "frontpage": false,
+        "carousel": true,
+        "notes": null,
+        "review_status": "unreviewed"
+      }
+    }
+  ],
+  "intake_batch": {
+    "idempotency_slug": "mt-062-batch",
+    "source_label": "mt-062 fixture intake",
+    "source_ref_slug": "source://mt-062",
+    "items": [
+      {
+        "source_path_slug": "source://mt-062/accepted",
+        "file_name": "accepted.png",
+        "byte_len": 4096,
+        "use_media_index": 0,
+        "lane": "accepted"
+      },
+      {
+        "source_path_slug": "source://mt-062/rejected",
+        "file_name": "rejected.png",
+        "byte_len": 2048,
+        "use_media_index": null,
+        "lane": "rejected"
+      }
+    ]
+  }
+}

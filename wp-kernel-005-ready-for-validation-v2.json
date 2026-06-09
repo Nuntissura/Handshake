@@ -58,7 +58,16 @@
   "MT-058",
   "MT-059",
   "MT-060",
+  "MT-061",
+  "MT-062",
+  "MT-063",
+  "MT-064",
+  "MT-065",
   "MT-066",
+  "MT-067",
+  "MT-068",
+  "MT-069",
+  "MT-070",
   "MT-071",
   "MT-072",
   "MT-073",
@@ -706,6 +715,78 @@
    "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_manual_tests manual_covers_atelier_core_data_surfaces --target-dir ../Handshake_Artifacts/handshake-cargo-target",
    "remediated_by": "KERNEL_BUILDER",
    "remediation_note": "atelier ModelManual coverage rows added + coverage test"
+  },
+  {
+   "mt_id": "MT-061",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test atelier_fixture_corpus_tests mt061_character_sheet_fixture_corpus_round_trips --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "portable non-SQLite fixture corpus + live-PG round-trip test"
+  },
+  {
+   "mt_id": "MT-062",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test atelier_fixture_corpus_tests mt062_media_intake_fixture_corpus_round_trips --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "portable non-SQLite fixture corpus + live-PG round-trip test"
+  },
+  {
+   "mt_id": "MT-063",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test atelier_fixture_corpus_tests mt063_collection_contact_sheet_fixture_corpus_round_trips --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "portable non-SQLite fixture corpus + live-PG round-trip test"
+  },
+  {
+   "mt_id": "MT-064",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test atelier_fixture_corpus_tests mt064_docs_moodboard_relations_fixture_corpus_round_trips --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "portable non-SQLite fixture corpus + live-PG round-trip test"
+  },
+  {
+   "mt_id": "MT-065",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test atelier_fixture_corpus_tests mt065_search_tags_similarity_fixture_corpus_round_trips --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "portable non-SQLite fixture corpus + live-PG round-trip test"
+  },
+  {
+   "mt_id": "MT-067",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test atelier_core_data_tests mt067_core_data_integration_smoke_path --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "negative/edge test against real production guard"
+  },
+  {
+   "mt_id": "MT-068",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test atelier_core_data_tests mt068_sheet_protected_field_edit_is_rejected mt068_sheet_stale_merge_edit_is_rejected --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "negative/edge test against real production guard"
+  },
+  {
+   "mt_id": "MT-069",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test atelier_core_data_tests mt069_export_manifest_rejects_gov_and_machine_paths --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "negative/edge test against real production guard"
+  },
+  {
+   "mt_id": "MT-070",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test atelier_core_data_tests mt070_ai_tag_suggestion_status_graph_is_enforced mt070_ai_tag_suggestion_provenance_survives_reject --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "negative/edge test against real production guard"
   }
  ]
 }

@@ -69,7 +69,7 @@ use handshake_core::atelier::{
     DeletionTargetRef, FilesystemHealthCheckRequest, FilesystemHealthFindingKind,
     MediaDerivativeGenerated, MediaDerivativeKind, MediaDerivativeRequest,
     MediaSidecarRelationKind, NewCharacter, NewMediaAsset, NewMediaSidecarRelation,
-    NewSheetVersion, SetMediaSourceProvenanceRefs,
+    NewSheetVersion, SetMediaSourceProvenanceRefs, SheetFieldEdit, SheetFieldEditRequest,
 };
 use sqlx::Row;
 use uuid::Uuid;
@@ -8185,4 +8185,732 @@ async fn atelier_settings_upsert_scope_redaction_and_delete() {
         .await
         .expect("get after delete");
     assert!(after_delete.is_none(), "deleted preference is gone");
+}
+
+// ---------------------------------------------------------------------------
+// WP-KERNEL-005 closeout negative/edge proofs (MT-067..MT-070).
+//
+// MT-067 exercises one Core/Data pipeline end-to-end against live PostgreSQL.
+// MT-068/069/070 turn the adversarial data-loss / path / review risks named in
+// the MT contracts into failing negative checks against the REAL store guards.
+// Every test is run-scoped: it owns its ids and asserts only on its own rows,
+// never on global counts.
+// ---------------------------------------------------------------------------
+
+/// MT-067 [Core-Data-Intake] Core Integration Smoke Path.
+///
+/// One end-to-end Core/Data sequence against live PostgreSQL/EventLedger:
+/// character -> append sheet version -> materialize media asset -> open intake
+/// batch -> add item -> accept (links media into the target collection) ->
+/// add image to collection -> contact sheet -> global search -> export request
+/// + result + manifest. Each stage asserts its row persisted and that the chain
+/// links correctly (the accepted intake item carries the materialized asset into
+/// the target collection; the export manifest references the same artifact).
+#[tokio::test]
+async fn mt067_core_data_integration_smoke_path() {
+    let Some(url) = database_url() else {
+        eprintln!("SKIP mt067_core_data_integration_smoke_path: DATABASE_URL not set");
+        return;
+    };
+    let store = connected_store(&url).await;
+    let marker = format!("mt067-{}", Uuid::new_v4().simple());
+
+    // 1) character
+    let character = store
+        .create_character(&NewCharacter {
+            public_id: format!("char-{marker}"),
+            display_name: "MT-067 Smoke Subject".to_string(),
+        })
+        .await
+        .expect("create character");
+
+    // 2) append-only sheet version (carries a run-unique search marker)
+    let sheet = store
+        .append_sheet_version(&NewSheetVersion {
+            character_internal_id: character.internal_id,
+            raw_text: format!("Sheet field: smoke path marker {marker}"),
+            author: "mt-067-author".to_string(),
+            tool: Some("mt-067-test".to_string()),
+        })
+        .await
+        .expect("append sheet version");
+    assert_eq!(sheet.character_internal_id, character.internal_id);
+    assert_eq!(sheet.seq, 1, "first version is seq 1");
+
+    // 3) materialize a real media asset from a native artifact payload
+    let artifact =
+        atelier_pg_support::write_native_media_artifact(format!("{marker}-media").as_bytes());
+    let asset = store
+        .materialize_media_asset(&NewMediaAsset {
+            content_hash: artifact.content_hash.clone(),
+            mime: "image/png".to_string(),
+            byte_len: artifact.byte_len,
+            source_provenance: Some(format!("{marker}-intake-source")),
+            artifact_ref: artifact.artifact_ref.clone(),
+        })
+        .await
+        .expect("materialize media asset");
+
+    // 4) collection that will receive the accepted intake media
+    let collection = store
+        .create_collection(&NewCollection {
+            name: format!("collection-{marker}"),
+            notes: "mt-067 smoke collection".to_string(),
+            tags: vec!["mt-067".to_string()],
+            character_internal_id: Some(character.internal_id),
+            sheet_version_id: Some(sheet.version_id),
+        })
+        .await
+        .expect("create collection");
+
+    // 5) open intake batch targeted at the character/sheet/collection
+    let batch = store
+        .open_intake_batch(&NewIntakeBatch {
+            idempotency_key: format!("{marker}-batch"),
+            source_label: "mt-067 smoke intake".to_string(),
+            source_ref: Some(format!("source://{marker}/batch")),
+            mode: IntakeBatchMode::Manual,
+            profile_mode: IntakeProfileMode::CharacterLinked,
+            character_internal_id: Some(character.internal_id),
+            target_character_id: Some(character.internal_id),
+            target_sheet_version_id: Some(sheet.version_id),
+            target_collection_id: Some(collection.collection_id),
+            resume_cursor: None,
+        })
+        .await
+        .expect("open intake batch");
+    assert_eq!(batch.status, BatchStatus::Open, "new batch opens in Open");
+
+    // 6) add an intake item whose content hash matches the materialized asset
+    let item = store
+        .add_intake_item(
+            batch.batch_id,
+            &NewIntakeItem {
+                source_path: format!("source://{marker}/item"),
+                file_name: "smoke.png".to_string(),
+                byte_len: artifact.byte_len,
+                content_hash: Some(asset.content_hash.clone()),
+            },
+        )
+        .await
+        .expect("add intake item");
+
+    // 7) accept the item -> links the matching media asset into the collection
+    let applied = store
+        .apply_intake_classification(&ApplyIntakeClassificationRequest {
+            item_id: item.item_id,
+            lane: IntakeLane::Accepted,
+            reason: Some("mt-067 accepted into target collection".to_string()),
+        })
+        .await
+        .expect("apply accepted intake classification");
+    assert_eq!(applied.item.lane, IntakeLane::Accepted);
+    assert_eq!(
+        applied.asset_id,
+        Some(asset.asset_id),
+        "accepted item resolves to the materialized asset"
+    );
+    assert_eq!(applied.collection_id, Some(collection.collection_id));
+    assert!(
+        applied.collection_inserted,
+        "accepted item is inserted into the target collection"
+    );
+
+    // chain link proof: the accepted asset is now a member of the collection
+    let members = store
+        .list_collection_images(collection.collection_id)
+        .await
+        .expect("list collection images after accept");
+    assert!(
+        members.iter().any(|m| m.asset_id == asset.asset_id),
+        "accepted intake media is a member of the target collection"
+    );
+
+    // 8) contact sheet snapshotting the collection membership
+    let contact_sheet = store
+        .create_contact_sheet(
+            &format!("contact-{marker}"),
+            "manual",
+            Some(collection.collection_id),
+            &[asset.asset_id],
+            &["mt-067".to_string()],
+            None,
+            None,
+        )
+        .await
+        .expect("create contact sheet");
+    assert_eq!(contact_sheet.image_count, 1, "contact sheet captured the asset");
+    assert_eq!(
+        contact_sheet.manifest.get("schema").and_then(|v| v.as_str()),
+        Some("hsk.atelier.contact_sheet@1"),
+        "contact sheet uses the Handshake schema namespace"
+    );
+
+    // 9) global search finds the run-unique sheet marker via a stable jump route
+    let hits = store
+        .global_search(&marker, 20)
+        .await
+        .expect("run global search for smoke marker");
+    assert!(
+        hits.iter().any(|hit| {
+            hit.target_kind == "sheet"
+                && hit.target_id == sheet.version_id.to_string()
+                && hit.jump_target
+                    == format!(
+                        "atelier://sheet/{}/{}",
+                        character.internal_id, sheet.version_id
+                    )
+        }),
+        "global search returns the smoke-path sheet with a stable Handshake jump target"
+    );
+
+    // 10) export request pinned to the sheet version, recorded result + manifest
+    let export = store
+        .request_sheet_export(&NewExportRequest {
+            character_internal_id: character.internal_id,
+            sheet_version_id: sheet.version_id,
+            format: ExportFormat::Markdown,
+            label: Some("mt-067 smoke export".to_string()),
+            requested_by: "mt-067-exporter".to_string(),
+        })
+        .await
+        .expect("request sheet export");
+    assert_eq!(export.sheet_version_id, sheet.version_id);
+    let export_artifact =
+        atelier_pg_support::write_native_media_artifact(format!("{marker}-export").as_bytes());
+    store
+        .record_export_result(
+            export.export_id,
+            &export_artifact.artifact_ref,
+            &export_artifact.content_hash,
+            export_artifact.byte_len,
+        )
+        .await
+        .expect("record export result");
+    // manifest references the same media artifact materialized at the head of the chain
+    let entry = store
+        .add_manifest_entry(
+            export.export_id,
+            ManifestItemKind::Media,
+            &artifact.artifact_ref,
+            &format!("images/{}.png", asset.asset_id),
+        )
+        .await
+        .expect("add media manifest entry");
+    assert_eq!(entry.seq, 1, "first manifest entry is seq 1");
+
+    let manifest = store
+        .export_manifest(export.export_id)
+        .await
+        .expect("read export manifest");
+    assert!(
+        manifest
+            .iter()
+            .any(|m| m.kind == ManifestItemKind::Media
+                && m.artifact_ref == artifact.artifact_ref),
+        "export manifest references the same media artifact that flowed through intake"
+    );
+}
+
+/// MT-068 [Core-Data] sheet edit guard: modifying a protected/published field is
+/// rejected. `parse_sheet_template_version` records the parsed AST (with the
+/// `protected` descriptor preserved) and `apply_sheet_field_edits` denies an edit
+/// to that field with a `protected_field` reason naming the field id, so the
+/// prior sheet version is never silently overwritten.
+#[tokio::test]
+async fn mt068_sheet_protected_field_edit_is_rejected() {
+    let Some(url) = database_url() else {
+        eprintln!("SKIP mt068_sheet_protected_field_edit_is_rejected: DATABASE_URL not set");
+        return;
+    };
+    let store = connected_store(&url).await;
+    let marker = format!("mt068p-{}", Uuid::new_v4().simple());
+    let template_id = format!("wp-kernel-005-{marker}");
+
+    let character = store
+        .create_character(&NewCharacter {
+            public_id: format!("char-{marker}"),
+            display_name: "MT-068 Protected Subject".to_string(),
+        })
+        .await
+        .expect("create character");
+    let raw_sheet = "\
+CHARACTER TEMPLATE (v2.00)
+IDENTITY
+CHAR-ID-002 — Name: <string|protected>
+CHAR-ID-003 — Alias: <string>
+";
+    let original = store
+        .append_sheet_version(&NewSheetVersion {
+            character_internal_id: character.internal_id,
+            raw_text: raw_sheet.to_string(),
+            author: "operator".to_string(),
+            tool: Some("mt-068-original".to_string()),
+        })
+        .await
+        .expect("append original sheet version");
+    let parsed = store
+        .parse_sheet_template_version(original.version_id, &template_id, None)
+        .await
+        .expect("parse sheet template version");
+    let name_field = parsed
+        .ast
+        .fields
+        .iter()
+        .find(|field| field.id == "CHAR-ID-002")
+        .expect("protected name field parsed");
+    assert!(
+        name_field.protected,
+        "protected descriptor is preserved in the parsed AST"
+    );
+
+    let denial = store
+        .apply_sheet_field_edits(&SheetFieldEditRequest {
+            version_id: original.version_id,
+            template_id: template_id.clone(),
+            source_path: None,
+            expected_template_hash: Some(parsed.ast.template_hash.clone()),
+            actor_role: "operator".to_string(),
+            edits: vec![SheetFieldEdit {
+                block_instance_id: None,
+                field_id: "CHAR-ID-002".to_string(),
+                replacement_text: "<rewritten name>".to_string(),
+            }],
+            author: "operator".to_string(),
+            tool: Some("mt-068-protected-denial".to_string()),
+        })
+        .await
+        .expect_err("editing a protected sheet field must be denied");
+    assert!(
+        denial.to_string().contains("protected_field")
+            && denial.to_string().contains("CHAR-ID-002"),
+        "protected-field denial names the reason and the field id: {denial}"
+    );
+
+    // the original version is untouched: still the head, still seq 1, no new version
+    let history = store
+        .sheet_version_history(character.internal_id)
+        .await
+        .expect("load sheet version history");
+    assert_eq!(
+        history.len(),
+        1,
+        "denied protected edit must not append a new version"
+    );
+    assert_eq!(history[0].version_id, original.version_id);
+    assert_eq!(history[0].raw_text, raw_sheet);
+}
+
+/// MT-068 [Core-Data] sheet edit guard: a stale merge (an edit applied against an
+/// outdated base via the wrong `expected_template_hash`) is rejected with a
+/// `stale_selection` reason BEFORE any mutation, preventing silent overwrite of
+/// concurrent changes.
+#[tokio::test]
+async fn mt068_sheet_stale_merge_edit_is_rejected() {
+    let Some(url) = database_url() else {
+        eprintln!("SKIP mt068_sheet_stale_merge_edit_is_rejected: DATABASE_URL not set");
+        return;
+    };
+    let store = connected_store(&url).await;
+    let marker = format!("mt068s-{}", Uuid::new_v4().simple());
+    let template_id = format!("wp-kernel-005-{marker}");
+
+    let character = store
+        .create_character(&NewCharacter {
+            public_id: format!("char-{marker}"),
+            display_name: "MT-068 Stale Subject".to_string(),
+        })
+        .await
+        .expect("create character");
+    let raw_sheet = "\
+CHARACTER TEMPLATE (v2.00)
+IDENTITY
+CHAR-ID-003 — Alias: <string>
+";
+    let original = store
+        .append_sheet_version(&NewSheetVersion {
+            character_internal_id: character.internal_id,
+            raw_text: raw_sheet.to_string(),
+            author: "operator".to_string(),
+            tool: Some("mt-068-stale-original".to_string()),
+        })
+        .await
+        .expect("append original sheet version");
+    let parsed = store
+        .parse_sheet_template_version(original.version_id, &template_id, None)
+        .await
+        .expect("parse sheet template version");
+
+    let stale_denial = store
+        .apply_sheet_field_edits(&SheetFieldEditRequest {
+            version_id: original.version_id,
+            template_id: template_id.clone(),
+            source_path: None,
+            // an outdated base hash -> stale merge against the real head
+            expected_template_hash: Some(format!("stale-{marker}")),
+            actor_role: "operator".to_string(),
+            edits: vec![SheetFieldEdit {
+                block_instance_id: None,
+                field_id: "CHAR-ID-003".to_string(),
+                replacement_text: "<new alias>".to_string(),
+            }],
+            author: "operator".to_string(),
+            tool: Some("mt-068-stale-denial".to_string()),
+        })
+        .await
+        .expect_err("stale base hash must be denied before mutation");
+    assert!(
+        stale_denial.to_string().contains("stale_selection"),
+        "stale merge denial names stale_selection: {stale_denial}"
+    );
+    // and a missing base hash is likewise refused (no unbounded apply)
+    let unbounded_denial = store
+        .apply_sheet_field_edits(&SheetFieldEditRequest {
+            version_id: original.version_id,
+            template_id: template_id.clone(),
+            source_path: None,
+            expected_template_hash: None,
+            actor_role: "operator".to_string(),
+            edits: vec![SheetFieldEdit {
+                block_instance_id: None,
+                field_id: "CHAR-ID-003".to_string(),
+                replacement_text: "<new alias>".to_string(),
+            }],
+            author: "operator".to_string(),
+            tool: Some("mt-068-unbounded-denial".to_string()),
+        })
+        .await
+        .expect_err("missing base hash must be denied");
+    assert!(
+        unbounded_denial.to_string().contains("stale_selection")
+            && unbounded_denial
+                .to_string()
+                .contains("expected_template_hash"),
+        "unbounded apply denial requires expected_template_hash: {unbounded_denial}"
+    );
+
+    // no mutation happened: still exactly one version with the original text
+    let history = store
+        .sheet_version_history(character.internal_id)
+        .await
+        .expect("load sheet version history");
+    assert_eq!(history.len(), 1, "denied stale edits must not append versions");
+    assert_eq!(history[0].raw_text, raw_sheet);
+}
+
+/// MT-069 [Core-Data] artifact-path guard: `.GOV` path variants are rejected in
+/// the export manifest (both artifact_ref and pack_path positions), and
+/// drive-letter / absolute / `file:` machine paths are rejected (disk-agnostic).
+/// Drives the real `reject_legacy_runtime_ref` + `validate_web_portfolio_pack_path`
+/// guards via `add_manifest_entry`.
+#[tokio::test]
+async fn mt069_export_manifest_rejects_gov_and_machine_paths() {
+    let Some(url) = database_url() else {
+        eprintln!("SKIP mt069_export_manifest_rejects_gov_and_machine_paths: DATABASE_URL not set");
+        return;
+    };
+    let store = connected_store(&url).await;
+    let marker = format!("mt069-{}", Uuid::new_v4().simple());
+
+    let character = store
+        .create_character(&NewCharacter {
+            public_id: format!("char-{marker}"),
+            display_name: "MT-069 Path Guard Subject".to_string(),
+        })
+        .await
+        .expect("create character");
+    let sheet = store
+        .append_sheet_version(&NewSheetVersion {
+            character_internal_id: character.internal_id,
+            raw_text: format!("name: {marker}"),
+            author: "operator".to_string(),
+            tool: Some("mt-069".to_string()),
+        })
+        .await
+        .expect("append sheet version");
+    let export = store
+        .request_sheet_export(&NewExportRequest {
+            character_internal_id: character.internal_id,
+            sheet_version_id: sheet.version_id,
+            format: ExportFormat::Markdown,
+            label: Some("mt-069 export".to_string()),
+            requested_by: "mt-069-exporter".to_string(),
+        })
+        .await
+        .expect("request sheet export");
+    // a real, portable artifact ref to pair with rejected pack paths
+    let portable =
+        atelier_pg_support::write_native_media_artifact(format!("{marker}-portable").as_bytes());
+
+    // --- .GOV is rejected in the artifact_ref position ---
+    let gov_ref = store
+        .add_manifest_entry(
+            export.export_id,
+            ManifestItemKind::Media,
+            "artifact://.GOV/artifacts/L1/00000000-0000-0000-0000-000000000000/payload",
+            "images/ok.png",
+        )
+        .await
+        .expect_err(".GOV artifact_ref must be rejected");
+    assert!(
+        gov_ref.to_string().contains("artifact_ref"),
+        "gov artifact_ref rejection names artifact_ref: {gov_ref}"
+    );
+
+    // --- .GOV is rejected in the pack_path position ---
+    let gov_pack = store
+        .add_manifest_entry(
+            export.export_id,
+            ManifestItemKind::Media,
+            &portable.artifact_ref,
+            ".GOV/images/leak.png",
+        )
+        .await
+        .expect_err(".GOV pack_path must be rejected");
+    assert!(
+        gov_pack.to_string().contains("pack_path"),
+        "gov pack_path rejection names pack_path: {gov_pack}"
+    );
+
+    // --- drive-letter machine path is rejected (artifact_ref position) ---
+    let drive_ref = store
+        .add_manifest_entry(
+            export.export_id,
+            ManifestItemKind::Media,
+            "C:/Users/operator/handshake/leak.png",
+            "images/ok.png",
+        )
+        .await
+        .expect_err("drive-letter artifact_ref must be rejected");
+    assert!(
+        drive_ref.to_string().contains("artifact_ref"),
+        "drive-letter artifact_ref rejection names artifact_ref: {drive_ref}"
+    );
+
+    // --- absolute / file: machine paths are rejected (artifact_ref position) ---
+    let file_ref = store
+        .add_manifest_entry(
+            export.export_id,
+            ManifestItemKind::Media,
+            "file:///var/handshake/leak.png",
+            "images/ok.png",
+        )
+        .await
+        .expect_err("file: artifact_ref must be rejected");
+    assert!(
+        file_ref.to_string().contains("artifact_ref"),
+        "file: artifact_ref rejection names artifact_ref: {file_ref}"
+    );
+    let abs_ref = store
+        .add_manifest_entry(
+            export.export_id,
+            ManifestItemKind::Media,
+            "/mnt/data/handshake/leak.png",
+            "images/ok.png",
+        )
+        .await
+        .expect_err("absolute artifact_ref must be rejected");
+    assert!(
+        abs_ref.to_string().contains("artifact_ref"),
+        "absolute artifact_ref rejection names artifact_ref: {abs_ref}"
+    );
+
+    // --- drive-letter / backslash machine path is rejected (pack_path position) ---
+    let drive_pack = store
+        .add_manifest_entry(
+            export.export_id,
+            ManifestItemKind::Media,
+            &portable.artifact_ref,
+            "D:\\handshake\\images\\leak.png",
+        )
+        .await
+        .expect_err("drive-letter pack_path must be rejected");
+    assert!(
+        drive_pack.to_string().contains("pack_path"),
+        "drive-letter pack_path rejection names pack_path: {drive_pack}"
+    );
+
+    // a portable, no-space relative entry still succeeds (guard is not over-broad)
+    let ok = store
+        .add_manifest_entry(
+            export.export_id,
+            ManifestItemKind::Media,
+            &portable.artifact_ref,
+            "images/portable.png",
+        )
+        .await
+        .expect("portable relative manifest entry is accepted");
+    assert_eq!(ok.pack_path, "images/portable.png");
+}
+
+/// MT-070 [Core-Data] AI-tag suggestion lifecycle: the status transition graph is
+/// enforced (a non-proposed suggestion cannot be re-accepted; an applied
+/// suggestion cannot transition back through accept/reject), and provenance
+/// (model/tool receipt refs + suggested_by) is preserved across
+/// record -> accept -> apply. Drives the real `record_ai_tag_suggestion`,
+/// `accept_ai_tag_suggestion`, `apply_ai_tag_suggestion`,
+/// `reject_ai_tag_suggestion` store methods.
+#[tokio::test]
+async fn mt070_ai_tag_suggestion_status_graph_is_enforced() {
+    let Some(url) = database_url() else {
+        eprintln!("SKIP mt070_ai_tag_suggestion_status_graph_is_enforced: DATABASE_URL not set");
+        return;
+    };
+    let store = connected_store(&url).await;
+    let marker = format!("mt070g-{}", Uuid::new_v4().simple());
+
+    let character = store
+        .create_character(&NewCharacter {
+            public_id: format!("char-{marker}"),
+            display_name: "MT-070 Status Graph Subject".to_string(),
+        })
+        .await
+        .expect("create character");
+    let asset_id = fresh_asset(&store).await;
+    let model_ref = format!("receipt://atelier/model/{}", Uuid::new_v4());
+    let tool_ref = format!("receipt://atelier/tool/{}", Uuid::new_v4());
+
+    let proposed = store
+        .record_ai_tag_suggestion(&NewAiTagSuggestion {
+            character_internal_id: character.internal_id,
+            asset_id: Some(asset_id),
+            tag_text: format!("graph tag {marker}"),
+            confidence: Some(0.9),
+            model_receipt_ref: model_ref.clone(),
+            tool_receipt_ref: tool_ref.clone(),
+            suggested_by: "mt-070-model".to_string(),
+        })
+        .await
+        .expect("record AI tag suggestion");
+    assert_eq!(proposed.status, AiTagSuggestionStatus::Proposed);
+
+    let accepted = store
+        .accept_ai_tag_suggestion(&AiTagSuggestionDecision {
+            suggestion_id: proposed.suggestion_id,
+            decided_by: "mt-070-reviewer".to_string(),
+            reason: Some("matches image".to_string()),
+        })
+        .await
+        .expect("accept proposed suggestion");
+    assert_eq!(accepted.status, AiTagSuggestionStatus::Accepted);
+
+    // re-accepting an already-decided (non-proposed) suggestion is rejected
+    let reaccept = store
+        .accept_ai_tag_suggestion(&AiTagSuggestionDecision {
+            suggestion_id: proposed.suggestion_id,
+            decided_by: "mt-070-reviewer".to_string(),
+            reason: Some("double accept".to_string()),
+        })
+        .await
+        .expect_err("re-accepting a non-proposed suggestion must be rejected");
+    assert!(
+        reaccept.to_string().contains("is not proposed"),
+        "re-accept denial names the status-graph guard: {reaccept}"
+    );
+
+    let applied = store
+        .apply_ai_tag_suggestion(accepted.suggestion_id, "mt-070-reviewer")
+        .await
+        .expect("apply accepted suggestion");
+    assert_eq!(applied.status, AiTagSuggestionStatus::Applied);
+
+    // an applied suggestion cannot be walked back to rejected (not proposed)
+    let reject_applied = store
+        .reject_ai_tag_suggestion(&AiTagSuggestionDecision {
+            suggestion_id: applied.suggestion_id,
+            decided_by: "mt-070-reviewer".to_string(),
+            reason: Some("late reject".to_string()),
+        })
+        .await
+        .expect_err("rejecting an applied suggestion must be rejected");
+    assert!(
+        reject_applied.to_string().contains("is not proposed"),
+        "late-reject denial names the status-graph guard: {reject_applied}"
+    );
+
+    // provenance is preserved across the whole record -> accept -> apply chain
+    assert_eq!(applied.model_receipt_ref, model_ref);
+    assert_eq!(applied.tool_receipt_ref, tool_ref);
+    assert_eq!(applied.suggested_by, "mt-070-model");
+    assert_eq!(applied.tag_text, accepted.tag_text);
+    assert_eq!(applied.tag_text, proposed.tag_text);
+}
+
+/// MT-070 [Core-Data] AI-tag suggestion lifecycle: provenance is preserved across
+/// a reject, and an apply path is refused for a rejected suggestion (status graph)
+/// so a rejected proposal can never be silently promoted into a real tag while
+/// still remaining an auditable proposal with its original model/tool provenance.
+#[tokio::test]
+async fn mt070_ai_tag_suggestion_provenance_survives_reject() {
+    let Some(url) = database_url() else {
+        eprintln!("SKIP mt070_ai_tag_suggestion_provenance_survives_reject: DATABASE_URL not set");
+        return;
+    };
+    let store = connected_store(&url).await;
+    let marker = format!("mt070r-{}", Uuid::new_v4().simple());
+
+    let character = store
+        .create_character(&NewCharacter {
+            public_id: format!("char-{marker}"),
+            display_name: "MT-070 Reject Provenance Subject".to_string(),
+        })
+        .await
+        .expect("create character");
+    let asset_id = fresh_asset(&store).await;
+    let model_ref = format!("receipt://atelier/model/{}", Uuid::new_v4());
+    let tool_ref = format!("receipt://atelier/tool/{}", Uuid::new_v4());
+
+    let proposed = store
+        .record_ai_tag_suggestion(&NewAiTagSuggestion {
+            character_internal_id: character.internal_id,
+            asset_id: Some(asset_id),
+            tag_text: format!("reject tag {marker}"),
+            confidence: Some(0.3),
+            model_receipt_ref: model_ref.clone(),
+            tool_receipt_ref: tool_ref.clone(),
+            suggested_by: "mt-070-model".to_string(),
+        })
+        .await
+        .expect("record AI tag suggestion");
+
+    let rejected = store
+        .reject_ai_tag_suggestion(&AiTagSuggestionDecision {
+            suggestion_id: proposed.suggestion_id,
+            decided_by: "mt-070-reviewer".to_string(),
+            reason: Some("not visually present".to_string()),
+        })
+        .await
+        .expect("reject proposed suggestion");
+    assert_eq!(rejected.status, AiTagSuggestionStatus::Rejected);
+
+    // provenance is NOT lost across the reject transition
+    assert_eq!(rejected.model_receipt_ref, model_ref);
+    assert_eq!(rejected.tool_receipt_ref, tool_ref);
+    assert_eq!(rejected.suggested_by, "mt-070-model");
+    assert_eq!(rejected.tag_text, proposed.tag_text);
+
+    // a rejected suggestion cannot be applied (must be accepted first)
+    let apply_rejected = store
+        .apply_ai_tag_suggestion(rejected.suggestion_id, "mt-070-reviewer")
+        .await
+        .expect_err("applying a rejected suggestion must be rejected");
+    assert!(
+        apply_rejected
+            .to_string()
+            .contains("must be accepted before apply"),
+        "apply-rejected denial names the status-graph guard: {apply_rejected}"
+    );
+
+    // it stays an auditable proposal with preserved provenance and no real tag
+    let proposals = store
+        .list_ai_tag_suggestions_for_character(character.internal_id)
+        .await
+        .expect("list AI tag suggestions for character");
+    let mine = proposals
+        .iter()
+        .find(|p| p.suggestion_id == proposed.suggestion_id)
+        .expect("rejected proposal remains listed for this character");
+    assert_eq!(mine.status, AiTagSuggestionStatus::Rejected);
+    assert_eq!(mine.model_receipt_ref, model_ref);
+    assert_eq!(mine.tool_receipt_ref, tool_ref);
 }

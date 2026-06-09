@@ -1,0 +1,37 @@
+{
+  "_comment": "MT-065 portable non-SQLite fixture corpus: retrieval + visual-filter projections. Manual tags vs derived tag rules vs AI suggestions (kept separate from applied tags). Similarity projections use dHash hex seeds. {{NONCE}} markers are made run-unique by the loader. No SQLite FTS anywhere; retrieval is the Postgres-backed projection.",
+  "character": {
+    "public_id_slug": "mt-065-search-subject",
+    "display_name": "Search Subject"
+  },
+  "manual_tags": ["blonde-{{NONCE}}", "studio-{{NONCE}}"],
+  "tag_rules": [
+    {
+      "source_field_id": "hair-{{NONCE}}",
+      "match_type": "contains",
+      "pattern": "blonde",
+      "emit_tag": "derived-blonde-{{NONCE}}",
+      "enabled": true,
+      "field_value": "long blonde hair"
+    }
+  ],
+  "ai_suggestions": [
+    {
+      "tag_text": "  Cinematic Lighting {{NONCE}}  ",
+      "confidence": 0.87,
+      "suggested_by": "mt-065-model"
+    }
+  ],
+  "saved_search": {
+    "name_slug": "mt-065-saved-search",
+    "include_tags": ["blonde-{{NONCE}}"],
+    "exclude_tags": [],
+    "created_by": "mt-065-operator"
+  },
+  "similarity": {
+    "near_payload_seed": "mt-065-near",
+    "far_payload_seed": "mt-065-far",
+    "near_dominant_color": "#000000",
+    "far_dominant_color": "#ffffff"
+  }
+}
