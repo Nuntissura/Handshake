@@ -467,3 +467,162 @@ fn manual_covers_atelier_core_data_surfaces() {
         );
     }
 }
+
+/// Runtime proof for the WP-KERNEL-005 Pose / ComfyUI pipeline microtasks
+/// MT-122..MT-125: each pipeline area must be a real, no-context ModelManual
+/// row — a feature group, its FULL command list (which must each resolve to a
+/// CommandReference entry and be referenced by the group, so a dropped row
+/// fails), and a covering workflow.
+#[test]
+fn manual_covers_pose_comfy_surfaces() {
+    let manual = model_manual();
+
+    let group_ids = manual
+        .feature_groups
+        .iter()
+        .map(|group| group.id)
+        .collect::<BTreeSet<_>>();
+    let command_ids = manual
+        .command_reference
+        .iter()
+        .map(|command| command.id)
+        .collect::<BTreeSet<_>>();
+    let workflow_ids = manual
+        .workflows
+        .iter()
+        .map(|workflow| workflow.id)
+        .collect::<BTreeSet<_>>();
+
+    // (MT id, feature_group_id, FULL command id set, workflow id) for each of
+    // the 4 pose/comfy microtask areas. The command set is complete (not just
+    // representative) so dropping any single manual row fails this test.
+    let coverage: &[(&str, &str, &[&str], &str)] = &[
+        (
+            "MT-122",
+            "atelier_pose_context_and_rig",
+            &[
+                "atelier_set_pose_context_state",
+                "atelier_current_pose_context_state",
+                "atelier_ingest_pose_rig",
+                "atelier_list_pose_rigs",
+                "atelier_get_pose_rig",
+                "atelier_set_pose_calibration",
+                "atelier_get_calibration",
+            ],
+            "atelier_pose_context_and_rig",
+        ),
+        (
+            "MT-123",
+            "atelier_pose_sidecar_and_identity",
+            &[
+                "atelier_record_pose_sidecar",
+                "atelier_list_pose_sidecars",
+                "atelier_pose_sidecar_gallery_projection",
+                "atelier_append_identity_profile",
+                "atelier_update_identity_profile",
+                "atelier_record_identity_crop_artifact",
+                "atelier_latest_identity_profile",
+            ],
+            "atelier_pose_sidecar_and_identity",
+        ),
+        (
+            "MT-124",
+            "atelier_comfy_workflow_receipts",
+            &[
+                "atelier_record_comfy_workflow_receipt",
+                "atelier_get_comfy_workflow_receipt",
+                "atelier_list_comfy_workflow_history",
+                "atelier_produce_intake_receipt",
+                "atelier_mark_saveimage_fallback",
+                "atelier_record_comfy_output_registration_failure",
+                "atelier_retry_comfy_output_registration_failure",
+            ],
+            "atelier_comfy_workflow_receipts",
+        ),
+        (
+            "MT-125",
+            "atelier_pose_comfy_deferred_boundaries",
+            &[
+                "atelier_register_bridge_capability",
+                "atelier_list_capability_rejects",
+                "atelier_record_url_image_import",
+                "atelier_set_calibration_blocked",
+            ],
+            "atelier_pose_comfy_deferred_boundaries",
+        ),
+    ];
+
+    for (mt, group_id, commands, workflow_id) in coverage {
+        assert!(
+            group_ids.contains(group_id),
+            "{mt}: missing pose/comfy feature group {group_id}"
+        );
+
+        let group = manual
+            .feature_groups
+            .iter()
+            .find(|group| group.id == *group_id)
+            .unwrap_or_else(|| panic!("{mt}: feature group {group_id} not found"));
+
+        // The group's command list must be exactly the contract command set
+        // (same length) so neither a dropped nor a snuck-in row passes silently.
+        assert_eq!(
+            group.commands.len(),
+            commands.len(),
+            "{mt}: feature group {group_id} command count drifted from the contract set"
+        );
+
+        for command_id in *commands {
+            // The command must exist as a CommandReference entry...
+            assert!(
+                command_ids.contains(command_id),
+                "{mt}: command {command_id} has no CommandReference entry"
+            );
+            // ...and be referenced by the area's feature group so the
+            // self-consistency invariant (no orphan refs) holds.
+            assert!(
+                group.commands.contains(command_id),
+                "{mt}: feature group {group_id} does not reference command {command_id}"
+            );
+        }
+
+        assert!(
+            workflow_ids.contains(workflow_id),
+            "{mt}: missing pose/comfy workflow {workflow_id}"
+        );
+    }
+
+    // The one wired pose/comfy surface backed by a real Axum route in
+    // src/api/atelier.rs must be marked Wired with its HTTP route as the
+    // ipc_channel and no invented Tauri command. All other pose/comfy commands
+    // are Planned because src/api/atelier.rs::routes() registers no pose or
+    // comfy routes.
+    let url_import = manual
+        .command_reference
+        .iter()
+        .find(|command| command.id == "atelier_record_url_image_import")
+        .expect("wired atelier_record_url_image_import command");
+    assert_eq!(url_import.status, CommandStatus::Wired);
+    assert_eq!(url_import.ipc_channel, Some("/atelier/image-import/url"));
+    assert_eq!(url_import.tauri_command, None);
+
+    for planned_id in [
+        "atelier_ingest_pose_rig",
+        "atelier_record_pose_sidecar",
+        "atelier_record_comfy_workflow_receipt",
+        "atelier_register_bridge_capability",
+        "atelier_set_calibration_blocked",
+    ] {
+        let command = manual
+            .command_reference
+            .iter()
+            .find(|command| command.id == planned_id)
+            .unwrap_or_else(|| panic!("missing planned pose/comfy command {planned_id}"));
+        assert_eq!(
+            command.status,
+            CommandStatus::Planned,
+            "{planned_id} must be Planned (no Axum route exists for it)"
+        );
+        assert_eq!(command.ipc_channel, None, "{planned_id} must not claim a route");
+    }
+}

@@ -97,6 +97,10 @@
   "MT-102",
   "MT-103",
   "MT-105",
+  "MT-122",
+  "MT-123",
+  "MT-124",
+  "MT-125",
   "MT-138",
   "MT-139",
   "MT-157",
@@ -787,6 +791,38 @@
    "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test atelier_core_data_tests mt070_ai_tag_suggestion_status_graph_is_enforced mt070_ai_tag_suggestion_provenance_survives_reject --target-dir ../Handshake_Artifacts/handshake-cargo-target",
    "remediated_by": "KERNEL_BUILDER",
    "remediation_note": "negative/edge test against real production guard"
+  },
+  {
+   "mt_id": "MT-122",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_manual_tests manual_covers_pose_comfy_surfaces --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "pose/comfy ModelManual coverage rows + coverage test"
+  },
+  {
+   "mt_id": "MT-123",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_manual_tests manual_covers_pose_comfy_surfaces --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "pose/comfy ModelManual coverage rows + coverage test"
+  },
+  {
+   "mt_id": "MT-124",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_manual_tests manual_covers_pose_comfy_surfaces --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "pose/comfy ModelManual coverage rows + coverage test"
+  },
+  {
+   "mt_id": "MT-125",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_manual_tests manual_covers_pose_comfy_surfaces --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "pose/comfy ModelManual coverage rows + coverage test"
   }
  ]
 }
