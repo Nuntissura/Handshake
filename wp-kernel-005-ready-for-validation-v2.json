@@ -113,6 +113,9 @@
   "MT-123",
   "MT-124",
   "MT-125",
+  "MT-126",
+  "MT-127",
+  "MT-128",
   "MT-130",
   "MT-138",
   "MT-139",
@@ -940,6 +943,30 @@
    "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test atelier_workflow_spec_tests mt110_version_metadata_pins_pose_image_comfy_versions --target-dir ../Handshake_Artifacts/handshake-cargo-target",
    "remediated_by": "KERNEL_BUILDER",
    "remediation_note": "comfy workflow_spec registry (106) / pose+image+comfy version metadata pins (110), tables+gate+events, live-PG"
+  },
+  {
+   "mt_id": "MT-126",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test atelier_comfy_job_tests mt126_comfy_job_enqueues_with_receipt_and_round_trips --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "comfy job queue (126) / polling status mapping (127) / cancel+timeout+partial-evidence (128), table 0108+gate+events, live-PG"
+  },
+  {
+   "mt_id": "MT-127",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test atelier_comfy_job_tests mt127_comfy_job_polling_maps_status_transitions --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "comfy job queue (126) / polling status mapping (127) / cancel+timeout+partial-evidence (128), table 0108+gate+events, live-PG"
+  },
+  {
+   "mt_id": "MT-128",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test atelier_comfy_job_tests mt128_cancel_and_timeout_preserve_partial_evidence --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "comfy job queue (126) / polling status mapping (127) / cancel+timeout+partial-evidence (128), table 0108+gate+events, live-PG"
   }
  ]
 }

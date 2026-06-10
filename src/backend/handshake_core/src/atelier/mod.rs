@@ -180,6 +180,13 @@ pub mod event_family {
         comfy_event_family::REPLAY_FAILED,
         comfy_event_family::WORKFLOW_SPEC_REGISTERED,
         comfy_event_family::VERSION_METADATA_RECORDED,
+        comfy_event_family::JOB_ENQUEUED,
+        comfy_event_family::JOB_RUNNING,
+        comfy_event_family::JOB_COMPLETED,
+        comfy_event_family::JOB_FAILED,
+        comfy_event_family::JOB_CANCELLED,
+        comfy_event_family::JOB_TIMED_OUT,
+        comfy_event_family::JOB_PARTIAL_EVIDENCE_PRESERVED,
         action_receipt_event_family::ACTION_RECEIPT_RECORDED,
         intake_event_family::INTAKE_BATCH_CREATED,
         intake_event_family::INTAKE_ITEM_ADDED,
@@ -919,6 +926,7 @@ impl AtelierStore {
               )
               AND to_regclass('atelier_comfy_workflow_spec') IS NOT NULL
               AND to_regclass('atelier_comfy_version_metadata') IS NOT NULL
+              AND to_regclass('atelier_comfy_job') IS NOT NULL
               AND to_regclass('atelier_command_corpus_parity_report') IS NOT NULL
               AND to_regclass('atelier_sheet_parse_snapshot') IS NOT NULL
               AND to_regclass('atelier_bulk_operation_receipt') IS NOT NULL
@@ -2029,6 +2037,11 @@ impl AtelierStore {
         .await?;
         sqlx::raw_sql(include_str!(
             "../../migrations/0107_atelier_comfy_version_metadata.sql"
+        ))
+        .execute(&mut *tx)
+        .await?;
+        sqlx::raw_sql(include_str!(
+            "../../migrations/0108_atelier_comfy_job_queue.sql"
         ))
         .execute(&mut *tx)
         .await?;

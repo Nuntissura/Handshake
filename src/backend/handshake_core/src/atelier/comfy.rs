@@ -106,6 +106,21 @@ pub mod comfy_event_family {
     /// Version metadata (pose/image-tool/comfy versions) was pinned for a run
     /// (MT-110).
     pub const VERSION_METADATA_RECORDED: &str = "atelier.comfy.version_metadata.recorded";
+    /// A Comfy-compatible job request was enqueued (QUEUED) (MT-126).
+    pub const JOB_ENQUEUED: &str = "atelier.comfy.job.enqueued";
+    /// A queued job advanced to RUNNING (MT-127).
+    pub const JOB_RUNNING: &str = "atelier.comfy.job.running";
+    /// A running job resolved to COMPLETED (MT-127).
+    pub const JOB_COMPLETED: &str = "atelier.comfy.job.completed";
+    /// A job resolved to FAILED; partial evidence preserved if any (MT-128).
+    pub const JOB_FAILED: &str = "atelier.comfy.job.failed";
+    /// A QUEUED/RUNNING job was cancelled; partial evidence preserved (MT-128).
+    pub const JOB_CANCELLED: &str = "atelier.comfy.job.cancelled";
+    /// A QUEUED/RUNNING job timed out; partial evidence preserved (MT-128).
+    pub const JOB_TIMED_OUT: &str = "atelier.comfy.job.timed_out";
+    /// Partial evidence was attached to a job so no evidence is lost (MT-128).
+    pub const JOB_PARTIAL_EVIDENCE_PRESERVED: &str =
+        "atelier.comfy.job.partial_evidence.preserved";
 
     /// All ComfyUI intake event families (parity/coverage helper).
     pub const ALL: &[&str] = &[
@@ -124,15 +139,24 @@ pub mod comfy_event_family {
         REPLAY_FAILED,
         WORKFLOW_SPEC_REGISTERED,
         VERSION_METADATA_RECORDED,
+        JOB_ENQUEUED,
+        JOB_RUNNING,
+        JOB_COMPLETED,
+        JOB_FAILED,
+        JOB_CANCELLED,
+        JOB_TIMED_OUT,
+        JOB_PARTIAL_EVIDENCE_PRESERVED,
     ];
 }
 
 /// Re-export at module root so callers can write `comfy::PROBE_RECORDED`.
 pub use comfy_event_family::{
-    CAPABILITY_REGISTERED, CAPABILITY_REJECTED, FALLBACK_ENGAGED, OUTPUT_DEDUPLICATED,
-    OUTPUT_MATERIALIZED, OUTPUT_REGISTRATION_FAILURE_RECORDED, OUTPUT_REGISTRATION_FAILURE_RETRIED,
-    PROBE_RECORDED, RECEIPT_PRODUCED, REPLAY_COMPLETED, REPLAY_FAILED, REPLAY_REQUESTED,
-    VERSION_METADATA_RECORDED, WORKFLOW_RECEIPT_RECORDED, WORKFLOW_SPEC_REGISTERED,
+    CAPABILITY_REGISTERED, CAPABILITY_REJECTED, FALLBACK_ENGAGED, JOB_CANCELLED, JOB_COMPLETED,
+    JOB_ENQUEUED, JOB_FAILED, JOB_PARTIAL_EVIDENCE_PRESERVED, JOB_RUNNING, JOB_TIMED_OUT,
+    OUTPUT_DEDUPLICATED, OUTPUT_MATERIALIZED, OUTPUT_REGISTRATION_FAILURE_RECORDED,
+    OUTPUT_REGISTRATION_FAILURE_RETRIED, PROBE_RECORDED, RECEIPT_PRODUCED, REPLAY_COMPLETED,
+    REPLAY_FAILED, REPLAY_REQUESTED, VERSION_METADATA_RECORDED, WORKFLOW_RECEIPT_RECORDED,
+    WORKFLOW_SPEC_REGISTERED,
 };
 
 /// The slot token used for SaveImage-fallback output rows (Section 6.9.6). A
@@ -1101,6 +1125,213 @@ pub struct NewComfyVersionMetadata {
     pub comfy_model_version: String,
     pub preflight_evidence: serde_json::Value,
 }
+
+// ---------------------------------------------------------------------------
+// ComfyUI Job Lifecycle (MT-126 enqueue, MT-127 poll/advance, MT-128
+// timeout/cancel + partial-evidence preservation).
+//
+// A `ComfyJob` is the Handshake-native, Comfy-compatible JOB LIFECYCLE record:
+// a job request is enqueued (QUEUED), advanced to RUNNING, and resolved to a
+// terminal state (COMPLETED, FAILED, CANCELLED, TIMED_OUT). This is the managed
+// Workflow-Engine ownership surface; it never executes ComfyUI, never opens a
+// socket, never spawns a process (LAW-COMFY-INTAKE-001). The queue is
+// Handshake-managed durable state, NOT a live ComfyUI daemon dependency. It is
+// distinct from the workflow *receipt* in `atelier_comfy_workflow_receipt`: the
+// receipt summarizes a completed run's refs/outputs, while this is the
+// request + poll + cancel/timeout state machine that precedes/drives a run.
+// Storage stays PostgreSQL only (LAW-COMFY-INTAKE-004).
+// ---------------------------------------------------------------------------
+
+/// Lifecycle status of a Comfy-compatible job (MT-126/127/128).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum ComfyJobStatus {
+    Queued,
+    Running,
+    Completed,
+    Failed,
+    Cancelled,
+    TimedOut,
+}
+
+impl ComfyJobStatus {
+    /// Stable DB token (the value persisted in the `status` column).
+    pub fn as_token(self) -> &'static str {
+        match self {
+            ComfyJobStatus::Queued => "QUEUED",
+            ComfyJobStatus::Running => "RUNNING",
+            ComfyJobStatus::Completed => "COMPLETED",
+            ComfyJobStatus::Failed => "FAILED",
+            ComfyJobStatus::Cancelled => "CANCELLED",
+            ComfyJobStatus::TimedOut => "TIMED_OUT",
+        }
+    }
+
+    /// Parse a stored token; unknown tokens are a validation error rather than a
+    /// silent default so a corrupt row never masquerades as a live job.
+    pub fn from_token(token: &str) -> AtelierResult<Self> {
+        match token {
+            "QUEUED" => Ok(ComfyJobStatus::Queued),
+            "RUNNING" => Ok(ComfyJobStatus::Running),
+            "COMPLETED" => Ok(ComfyJobStatus::Completed),
+            "FAILED" => Ok(ComfyJobStatus::Failed),
+            "CANCELLED" => Ok(ComfyJobStatus::Cancelled),
+            "TIMED_OUT" => Ok(ComfyJobStatus::TimedOut),
+            other => Err(AtelierError::Validation(format!(
+                "unknown comfy job status token: {other}"
+            ))),
+        }
+    }
+
+    /// Whether this is a terminal status (no further transitions allowed).
+    pub fn is_terminal(self) -> bool {
+        matches!(
+            self,
+            ComfyJobStatus::Completed
+                | ComfyJobStatus::Failed
+                | ComfyJobStatus::Cancelled
+                | ComfyJobStatus::TimedOut
+        )
+    }
+}
+
+/// A queued/active Comfy-compatible job record (MT-126).
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ComfyJob {
+    pub job_id: Uuid,
+    pub workflow_run_id: Uuid,
+    /// Optional registered workflow spec this job executes.
+    pub spec_id: Option<Uuid>,
+    /// The captured (scrubbed) job request.
+    pub request_json: serde_json::Value,
+    pub status: ComfyJobStatus,
+    /// Portable Handshake-native ref to preserved partial evidence (MT-128).
+    pub partial_evidence_ref: Option<String>,
+    /// Terminal failure/cancel/timeout reason, when one applies.
+    pub error_reason: Option<String>,
+    pub queued_at: DateTime<Utc>,
+    pub started_at: Option<DateTime<Utc>>,
+    pub finished_at: Option<DateTime<Utc>>,
+}
+
+/// The Comfy-compatible job request contract (MT-126). Captures exactly what a
+/// no-context engine needs to create + queue a job: the workflow identity, an
+/// optional spec pin, and the request body. No raw bytes, no credentials.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ComfyJobRequest {
+    pub workflow_run_id: Uuid,
+    pub spec_id: Option<Uuid>,
+    /// The request body (graph/prompt parameters, etc). Scrubbed on enqueue.
+    pub request_json: serde_json::Value,
+}
+
+/// Parameters to enqueue a new Comfy-compatible job (MT-126).
+#[derive(Clone, Debug)]
+pub struct NewComfyJobRequest {
+    pub workflow_run_id: Uuid,
+    pub spec_id: Option<Uuid>,
+    pub request_json: serde_json::Value,
+}
+
+impl NewComfyJobRequest {
+    /// Build a queue entry from a typed [`ComfyJobRequest`].
+    pub fn from_request(request: ComfyJobRequest) -> Self {
+        NewComfyJobRequest {
+            workflow_run_id: request.workflow_run_id,
+            spec_id: request.spec_id,
+            request_json: request.request_json,
+        }
+    }
+}
+
+/// The typed poll state a [`ComfyJobStatus`] maps to (MT-127). Distinct from the
+/// raw status token so a poller reasons over a stable, named vocabulary rather
+/// than over storage strings.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ComfyJobPollState {
+    Queued,
+    Running,
+    Done,
+    Failed,
+    Cancelled,
+    TimedOut,
+}
+
+impl ComfyJobPollState {
+    pub fn as_token(self) -> &'static str {
+        match self {
+            ComfyJobPollState::Queued => "queued",
+            ComfyJobPollState::Running => "running",
+            ComfyJobPollState::Done => "done",
+            ComfyJobPollState::Failed => "failed",
+            ComfyJobPollState::Cancelled => "cancelled",
+            ComfyJobPollState::TimedOut => "timed_out",
+        }
+    }
+
+    /// Map a raw lifecycle status to its typed poll state (MT-127). COMPLETED
+    /// maps to `done`; every other status maps one-to-one.
+    pub fn from_status(status: ComfyJobStatus) -> Self {
+        match status {
+            ComfyJobStatus::Queued => ComfyJobPollState::Queued,
+            ComfyJobStatus::Running => ComfyJobPollState::Running,
+            ComfyJobStatus::Completed => ComfyJobPollState::Done,
+            ComfyJobStatus::Failed => ComfyJobPollState::Failed,
+            ComfyJobStatus::Cancelled => ComfyJobPollState::Cancelled,
+            ComfyJobStatus::TimedOut => ComfyJobPollState::TimedOut,
+        }
+    }
+
+    /// Whether this poll state is terminal (the poller can stop polling).
+    pub fn is_terminal(self) -> bool {
+        !matches!(self, ComfyJobPollState::Queued | ComfyJobPollState::Running)
+    }
+}
+
+/// A poll request against a job (MT-127). Identifies the job to poll.
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct PollingRequest {
+    pub job_id: Uuid,
+}
+
+/// The typed poll response for a job (MT-127): the job's current lifecycle
+/// status mapped to a stable poll state, plus the preserved/terminal evidence a
+/// poller needs to decide what to do next.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct PollingResponse {
+    pub job_id: Uuid,
+    pub workflow_run_id: Uuid,
+    /// The raw lifecycle status of the job.
+    pub status: ComfyJobStatus,
+    /// The typed poll state the status maps to (MT-127).
+    pub poll_state: ComfyJobPollState,
+    /// Whether polling can stop (terminal state reached).
+    pub terminal: bool,
+    /// Preserved partial-evidence ref, when one exists (MT-128).
+    pub partial_evidence_ref: Option<String>,
+    /// Terminal failure/cancel/timeout reason, when one applies.
+    pub error_reason: Option<String>,
+}
+
+fn comfy_job_from_row(row: &sqlx::postgres::PgRow) -> AtelierResult<ComfyJob> {
+    let status: String = row.get("status");
+    Ok(ComfyJob {
+        job_id: row.get("job_id"),
+        workflow_run_id: row.get("workflow_run_id"),
+        spec_id: row.get("spec_id"),
+        request_json: row.get("request_json"),
+        status: ComfyJobStatus::from_token(&status)?,
+        partial_evidence_ref: row.get("partial_evidence_ref"),
+        error_reason: row.get("error_reason"),
+        queued_at: row.get("queued_at"),
+        started_at: row.get("started_at"),
+        finished_at: row.get("finished_at"),
+    })
+}
+
+const COMFY_JOB_COLUMNS: &str = "job_id, workflow_run_id, spec_id, request_json, status, \
+     partial_evidence_ref, error_reason, queued_at, started_at, finished_at";
 
 fn workflow_spec_from_row(row: &sqlx::postgres::PgRow) -> WorkflowSpec {
     WorkflowSpec {
@@ -2816,6 +3047,414 @@ impl AtelierStore {
         .fetch_optional(self.pool())
         .await?;
         Ok(row.as_ref().map(version_metadata_from_row))
+    }
+
+    // -----------------------------------------------------------------------
+    // ComfyUI Job Lifecycle (MT-126 / MT-127 / MT-128).
+    // -----------------------------------------------------------------------
+
+    /// Enqueue a Comfy-compatible job (MT-126).
+    ///
+    /// Builds a QUEUED job from the request and persists it (the "queued
+    /// receipt"), then emits `JOB_ENQUEUED`. Idempotent on `workflow_run_id`
+    /// (one job per run): re-enqueue of the same run refreshes the request body
+    /// and resets it to QUEUED rather than creating a duplicate. The request
+    /// body is scrubbed of credential material before storage
+    /// (LAW-COMFY-INTAKE-005); it never persists raw bytes or secrets. The queue
+    /// is Handshake-managed durable state, not a live ComfyUI daemon dependency
+    /// (LAW-COMFY-INTAKE-001).
+    pub async fn enqueue_comfy_job(&self, new: &NewComfyJobRequest) -> AtelierResult<ComfyJob> {
+        if !new.request_json.is_object() {
+            return Err(AtelierError::Validation(
+                "comfy job request_json must be a JSON object".into(),
+            ));
+        }
+        let request_json = scrub_provenance(&new.request_json);
+
+        let row = sqlx::query(&format!(
+            r#"INSERT INTO atelier_comfy_job
+                 (workflow_run_id, spec_id, request_json, status)
+               VALUES ($1, $2, $3, 'QUEUED')
+               ON CONFLICT (workflow_run_id) DO UPDATE
+                 SET spec_id              = EXCLUDED.spec_id,
+                     request_json         = EXCLUDED.request_json,
+                     status               = 'QUEUED',
+                     partial_evidence_ref = NULL,
+                     error_reason         = NULL,
+                     queued_at            = NOW(),
+                     started_at           = NULL,
+                     finished_at          = NULL
+               RETURNING {COMFY_JOB_COLUMNS}"#
+        ))
+        .bind(new.workflow_run_id)
+        .bind(new.spec_id)
+        .bind(&request_json)
+        .fetch_one(self.pool())
+        .await?;
+        let job = comfy_job_from_row(&row)?;
+
+        self.record_event(
+            JOB_ENQUEUED,
+            "atelier_comfy_job",
+            &job.job_id.to_string(),
+            serde_json::json!({
+                "job_id": job.job_id,
+                "workflow_run_id": job.workflow_run_id,
+                "spec_id": job.spec_id,
+                "status": job.status.as_token(),
+            }),
+        )
+        .await?;
+        Ok(job)
+    }
+
+    /// Fetch a job by id.
+    pub async fn get_comfy_job(&self, job_id: Uuid) -> AtelierResult<Option<ComfyJob>> {
+        let row = sqlx::query(&format!(
+            "SELECT {COMFY_JOB_COLUMNS} FROM atelier_comfy_job WHERE job_id = $1"
+        ))
+        .bind(job_id)
+        .fetch_optional(self.pool())
+        .await?;
+        match row {
+            Some(r) => Ok(Some(comfy_job_from_row(&r)?)),
+            None => Ok(None),
+        }
+    }
+
+    /// List all jobs in queue order (oldest queued first). Optionally filter to
+    /// a single status.
+    pub async fn list_comfy_jobs(
+        &self,
+        status: Option<ComfyJobStatus>,
+    ) -> AtelierResult<Vec<ComfyJob>> {
+        let mut builder = QueryBuilder::<sqlx::Postgres>::new(format!(
+            "SELECT {COMFY_JOB_COLUMNS} FROM atelier_comfy_job WHERE TRUE"
+        ));
+        if let Some(status) = status {
+            builder.push(" AND status = ");
+            builder.push_bind(status.as_token());
+        }
+        builder.push(" ORDER BY queued_at ASC, job_id ASC");
+        let rows = builder.build().fetch_all(self.pool()).await?;
+        rows.iter().map(comfy_job_from_row).collect()
+    }
+
+    /// Poll a job's lifecycle status and map it to a typed poll response
+    /// (MT-127). The raw lifecycle status is mapped to a stable
+    /// [`ComfyJobPollState`] (queued/running/done/failed/cancelled/timed_out) so
+    /// a poller reasons over a named vocabulary, not storage strings. Carries
+    /// the preserved partial-evidence ref + terminal reason so a poller can stop
+    /// and recover on a terminal state without a second query.
+    pub async fn poll_comfy_job(&self, job_id: Uuid) -> AtelierResult<PollingResponse> {
+        let job = self
+            .get_comfy_job(job_id)
+            .await?
+            .ok_or_else(|| AtelierError::NotFound(format!("comfy job {job_id}")))?;
+        let poll_state = ComfyJobPollState::from_status(job.status);
+        Ok(PollingResponse {
+            job_id: job.job_id,
+            workflow_run_id: job.workflow_run_id,
+            status: job.status,
+            poll_state,
+            terminal: job.status.is_terminal(),
+            partial_evidence_ref: job.partial_evidence_ref,
+            error_reason: job.error_reason,
+        })
+    }
+
+    /// Advance a QUEUED job to RUNNING (MT-127), stamping `started_at`. Rejects a
+    /// transition from any non-QUEUED status so a terminal or already-running
+    /// job is never silently re-started. Emits `JOB_RUNNING`.
+    pub async fn mark_comfy_job_running(&self, job_id: Uuid) -> AtelierResult<ComfyJob> {
+        let row = sqlx::query(&format!(
+            r#"UPDATE atelier_comfy_job
+               SET status = 'RUNNING', started_at = NOW()
+               WHERE job_id = $1 AND status = 'QUEUED'
+               RETURNING {COMFY_JOB_COLUMNS}"#
+        ))
+        .bind(job_id)
+        .fetch_optional(self.pool())
+        .await?;
+        let job = self
+            .require_job_transition(job_id, row, ComfyJobStatus::Queued, "RUNNING")
+            .await?;
+        self.record_event(
+            JOB_RUNNING,
+            "atelier_comfy_job",
+            &job.job_id.to_string(),
+            serde_json::json!({
+                "job_id": job.job_id,
+                "workflow_run_id": job.workflow_run_id,
+                "status": job.status.as_token(),
+            }),
+        )
+        .await?;
+        Ok(job)
+    }
+
+    /// Resolve a RUNNING job to COMPLETED (MT-127), stamping `finished_at`.
+    /// Rejects completion of a non-RUNNING job. Emits `JOB_COMPLETED`.
+    pub async fn mark_comfy_job_completed(&self, job_id: Uuid) -> AtelierResult<ComfyJob> {
+        let row = sqlx::query(&format!(
+            r#"UPDATE atelier_comfy_job
+               SET status = 'COMPLETED', finished_at = NOW()
+               WHERE job_id = $1 AND status = 'RUNNING'
+               RETURNING {COMFY_JOB_COLUMNS}"#
+        ))
+        .bind(job_id)
+        .fetch_optional(self.pool())
+        .await?;
+        let job = self
+            .require_job_transition(job_id, row, ComfyJobStatus::Running, "COMPLETED")
+            .await?;
+        self.record_event(
+            JOB_COMPLETED,
+            "atelier_comfy_job",
+            &job.job_id.to_string(),
+            serde_json::json!({
+                "job_id": job.job_id,
+                "workflow_run_id": job.workflow_run_id,
+                "status": job.status.as_token(),
+            }),
+        )
+        .await?;
+        Ok(job)
+    }
+
+    /// Fail a QUEUED/RUNNING job (MT-128), preserving partial evidence so no
+    /// evidence is lost. `error_reason` is required; `partial_evidence_ref`, when
+    /// provided, must be a portable Handshake-native ref. Rejects failing a
+    /// terminal job. Emits `JOB_FAILED` (+ `JOB_PARTIAL_EVIDENCE_PRESERVED` when
+    /// evidence was attached).
+    pub async fn fail_comfy_job(
+        &self,
+        job_id: Uuid,
+        error_reason: &str,
+        partial_evidence_ref: Option<&str>,
+    ) -> AtelierResult<ComfyJob> {
+        self.terminate_comfy_job(
+            job_id,
+            ComfyJobStatus::Failed,
+            Some(error_reason),
+            partial_evidence_ref,
+            JOB_FAILED,
+        )
+        .await
+    }
+
+    /// Cancel a QUEUED/RUNNING job (MT-128) -> CANCELLED, preserving any partial
+    /// evidence. Cancel of a terminal job (COMPLETED/FAILED/CANCELLED/TIMED_OUT)
+    /// is rejected. `partial_evidence_ref`, when provided, must be a portable
+    /// Handshake-native ref. Emits `JOB_CANCELLED` (+
+    /// `JOB_PARTIAL_EVIDENCE_PRESERVED` when evidence was attached).
+    pub async fn cancel_comfy_job(
+        &self,
+        job_id: Uuid,
+        reason: Option<&str>,
+        partial_evidence_ref: Option<&str>,
+    ) -> AtelierResult<ComfyJob> {
+        self.terminate_comfy_job(
+            job_id,
+            ComfyJobStatus::Cancelled,
+            reason,
+            partial_evidence_ref,
+            JOB_CANCELLED,
+        )
+        .await
+    }
+
+    /// Time out a QUEUED/RUNNING job (MT-128) -> TIMED_OUT, preserving any partial
+    /// evidence. The `deadline` is recorded in the error reason for audit.
+    /// Timeout of a terminal job is rejected. `partial_evidence_ref`, when
+    /// provided, must be a portable Handshake-native ref. Emits `JOB_TIMED_OUT`
+    /// (+ `JOB_PARTIAL_EVIDENCE_PRESERVED` when evidence was attached).
+    pub async fn timeout_comfy_job(
+        &self,
+        job_id: Uuid,
+        deadline: DateTime<Utc>,
+        partial_evidence_ref: Option<&str>,
+    ) -> AtelierResult<ComfyJob> {
+        let reason = format!("job exceeded deadline {}", deadline.to_rfc3339());
+        self.terminate_comfy_job(
+            job_id,
+            ComfyJobStatus::TimedOut,
+            Some(&reason),
+            partial_evidence_ref,
+            JOB_TIMED_OUT,
+        )
+        .await
+    }
+
+    /// Alias for [`Self::timeout_comfy_job`] without a deadline argument
+    /// (MT-128), for callers that only have a reason.
+    pub async fn mark_comfy_job_timed_out(
+        &self,
+        job_id: Uuid,
+        reason: &str,
+        partial_evidence_ref: Option<&str>,
+    ) -> AtelierResult<ComfyJob> {
+        self.terminate_comfy_job(
+            job_id,
+            ComfyJobStatus::TimedOut,
+            Some(reason),
+            partial_evidence_ref,
+            JOB_TIMED_OUT,
+        )
+        .await
+    }
+
+    /// Attach (preserve) partial evidence to a job without changing its status
+    /// (MT-128). Used to record an artifact/log ref produced before a
+    /// cancel/timeout/fail so no evidence is lost. The ref must be a portable
+    /// Handshake-native handle. Emits `JOB_PARTIAL_EVIDENCE_PRESERVED`.
+    pub async fn attach_comfy_job_partial_evidence(
+        &self,
+        job_id: Uuid,
+        partial_evidence_ref: &str,
+    ) -> AtelierResult<ComfyJob> {
+        reject_legacy_runtime_ref("partial_evidence_ref", partial_evidence_ref)?;
+        let row = sqlx::query(&format!(
+            r#"UPDATE atelier_comfy_job
+               SET partial_evidence_ref = $2
+               WHERE job_id = $1
+               RETURNING {COMFY_JOB_COLUMNS}"#
+        ))
+        .bind(job_id)
+        .bind(partial_evidence_ref)
+        .fetch_optional(self.pool())
+        .await?;
+        let job = row
+            .as_ref()
+            .map(comfy_job_from_row)
+            .transpose()?
+            .ok_or_else(|| AtelierError::NotFound(format!("comfy job {job_id}")))?;
+        self.record_event(
+            JOB_PARTIAL_EVIDENCE_PRESERVED,
+            "atelier_comfy_job",
+            &job.job_id.to_string(),
+            serde_json::json!({
+                "job_id": job.job_id,
+                "workflow_run_id": job.workflow_run_id,
+                "partial_evidence_ref": job.partial_evidence_ref,
+            }),
+        )
+        .await?;
+        Ok(job)
+    }
+
+    /// Shared terminator for cancel/timeout/fail (MT-128). Transitions a
+    /// QUEUED/RUNNING job to the given terminal status, preserving partial
+    /// evidence, stamping `finished_at`, and rejecting any transition from an
+    /// already-terminal status. Emits the given terminal event and, when
+    /// evidence was attached, `JOB_PARTIAL_EVIDENCE_PRESERVED`.
+    async fn terminate_comfy_job(
+        &self,
+        job_id: Uuid,
+        target: ComfyJobStatus,
+        reason: Option<&str>,
+        partial_evidence_ref: Option<&str>,
+        event_family: &str,
+    ) -> AtelierResult<ComfyJob> {
+        if let Some(reason) = reason {
+            if reason.trim().is_empty() {
+                return Err(AtelierError::Validation(
+                    "comfy job terminal reason must not be empty".into(),
+                ));
+            }
+        }
+        if let Some(partial_evidence_ref) = partial_evidence_ref {
+            reject_legacy_runtime_ref("partial_evidence_ref", partial_evidence_ref)?;
+        }
+
+        // Only QUEUED/RUNNING jobs may transition to a terminal state; cancelling
+        // / timing out / failing an already-terminal job is rejected. The WHERE
+        // clause enforces this atomically (no row updated -> rejected).
+        let row = sqlx::query(&format!(
+            r#"UPDATE atelier_comfy_job
+               SET status = $2,
+                   error_reason = $3,
+                   partial_evidence_ref = COALESCE($4, partial_evidence_ref),
+                   finished_at = NOW()
+               WHERE job_id = $1 AND status IN ('QUEUED', 'RUNNING')
+               RETURNING {COMFY_JOB_COLUMNS}"#
+        ))
+        .bind(job_id)
+        .bind(target.as_token())
+        .bind(reason)
+        .bind(partial_evidence_ref)
+        .fetch_optional(self.pool())
+        .await?;
+
+        let job = match row {
+            Some(r) => comfy_job_from_row(&r)?,
+            None => {
+                // Disambiguate not-found vs reject-of-terminal for a clear error.
+                return match self.get_comfy_job(job_id).await? {
+                    Some(existing) => Err(AtelierError::Validation(format!(
+                        "comfy job {job_id} cannot transition to {} from terminal status {}",
+                        target.as_token(),
+                        existing.status.as_token()
+                    ))),
+                    None => Err(AtelierError::NotFound(format!("comfy job {job_id}"))),
+                };
+            }
+        };
+
+        if job.partial_evidence_ref.is_some() {
+            self.record_event(
+                JOB_PARTIAL_EVIDENCE_PRESERVED,
+                "atelier_comfy_job",
+                &job.job_id.to_string(),
+                serde_json::json!({
+                    "job_id": job.job_id,
+                    "workflow_run_id": job.workflow_run_id,
+                    "partial_evidence_ref": job.partial_evidence_ref,
+                    "status": job.status.as_token(),
+                }),
+            )
+            .await?;
+        }
+
+        self.record_event(
+            event_family,
+            "atelier_comfy_job",
+            &job.job_id.to_string(),
+            serde_json::json!({
+                "job_id": job.job_id,
+                "workflow_run_id": job.workflow_run_id,
+                "status": job.status.as_token(),
+                "error_reason": job.error_reason,
+                "partial_evidence_ref": job.partial_evidence_ref,
+            }),
+        )
+        .await?;
+        Ok(job)
+    }
+
+    /// Resolve a single-source-status transition update row into a job, or a
+    /// clear error distinguishing not-found from wrong-source-status (MT-127).
+    /// Used by the QUEUED->RUNNING and RUNNING->COMPLETED transitions which each
+    /// require one specific source status.
+    async fn require_job_transition(
+        &self,
+        job_id: Uuid,
+        row: Option<sqlx::postgres::PgRow>,
+        expected_from: ComfyJobStatus,
+        target_token: &str,
+    ) -> AtelierResult<ComfyJob> {
+        match row {
+            Some(r) => comfy_job_from_row(&r),
+            None => match self.get_comfy_job(job_id).await? {
+                Some(existing) => Err(AtelierError::Validation(format!(
+                    "comfy job {job_id} cannot transition to {target_token} from status {}; \
+                     it must be {}",
+                    existing.status.as_token(),
+                    expected_from.as_token()
+                ))),
+                None => Err(AtelierError::NotFound(format!("comfy job {job_id}"))),
+            },
+        }
     }
 }
 
