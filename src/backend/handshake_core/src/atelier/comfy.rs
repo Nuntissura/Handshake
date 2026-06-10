@@ -101,6 +101,11 @@ pub mod comfy_event_family {
     pub const REPLAY_COMPLETED: &str = "atelier.replay.completed";
     /// A replay request was rejected (unresolved/invalid/legacy ref) (MT-130).
     pub const REPLAY_FAILED: &str = "atelier.replay.failed";
+    /// A versioned workflow spec was registered/upserted (MT-106).
+    pub const WORKFLOW_SPEC_REGISTERED: &str = "atelier.comfy.workflow.spec.registered";
+    /// Version metadata (pose/image-tool/comfy versions) was pinned for a run
+    /// (MT-110).
+    pub const VERSION_METADATA_RECORDED: &str = "atelier.comfy.version_metadata.recorded";
 
     /// All ComfyUI intake event families (parity/coverage helper).
     pub const ALL: &[&str] = &[
@@ -117,6 +122,8 @@ pub mod comfy_event_family {
         REPLAY_REQUESTED,
         REPLAY_COMPLETED,
         REPLAY_FAILED,
+        WORKFLOW_SPEC_REGISTERED,
+        VERSION_METADATA_RECORDED,
     ];
 }
 
@@ -125,7 +132,7 @@ pub use comfy_event_family::{
     CAPABILITY_REGISTERED, CAPABILITY_REJECTED, FALLBACK_ENGAGED, OUTPUT_DEDUPLICATED,
     OUTPUT_MATERIALIZED, OUTPUT_REGISTRATION_FAILURE_RECORDED, OUTPUT_REGISTRATION_FAILURE_RETRIED,
     PROBE_RECORDED, RECEIPT_PRODUCED, REPLAY_COMPLETED, REPLAY_FAILED, REPLAY_REQUESTED,
-    WORKFLOW_RECEIPT_RECORDED,
+    VERSION_METADATA_RECORDED, WORKFLOW_RECEIPT_RECORDED, WORKFLOW_SPEC_REGISTERED,
 };
 
 /// The slot token used for SaveImage-fallback output rows (Section 6.9.6). A
@@ -1014,6 +1021,123 @@ pub struct ResolvedReplayInputs {
     pub graph_hash: Option<String>,
     pub seed: Option<i64>,
     pub resolved_inputs: Vec<ResolvedReplayInput>,
+}
+
+// ---------------------------------------------------------------------------
+// Workflow Spec Registry (MT-106) + External Tool/Model Version Policy (MT-110).
+//
+// A workflow spec is the durable, versioned, replay-stable contract for a
+// ComfyUI/pose workflow graph: the graph/spec JSON, a content hash pin, the
+// handler that routes the workflow, and an optional compatibility pin. Identity
+// is (workflow_kind, spec_version); re-registration is an idempotent upsert.
+// Version metadata pins the three named provenance versions (pose model-asset,
+// image tool, ComfyUI model) per workflow run so provenance is reproducible.
+// Storage stays PostgreSQL only (LAW-COMFY-INTAKE-004). Neither path executes
+// ComfyUI; they only persist durable governed records (LAW-COMFY-INTAKE-001).
+// ---------------------------------------------------------------------------
+
+/// A registered, versioned ComfyUI/pose workflow spec (MT-106).
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct WorkflowSpec {
+    pub spec_id: Uuid,
+    /// Workflow family/kind, e.g. `pose_rig_v1`.
+    pub workflow_kind: String,
+    /// The spec version pin (part of identity).
+    pub spec_version: String,
+    /// Content-addressed pin over the spec graph/contract.
+    pub spec_hash: String,
+    /// Handler that routes this workflow (engine.comfyui adapter handler id).
+    pub handler_id: String,
+    /// Optional compatibility pin (bridge protocol / engine version).
+    pub compatibility_pin: Option<String>,
+    /// The workflow graph / contract JSON.
+    pub spec_json: serde_json::Value,
+    /// Optional portable, read-only source ref the spec was lifted from.
+    pub source_ref: Option<String>,
+    pub created_at_utc: DateTime<Utc>,
+    pub updated_at_utc: DateTime<Utc>,
+}
+
+/// Parameters to register a versioned workflow spec (MT-106). Registration is
+/// idempotent on `(workflow_kind, spec_version)`.
+#[derive(Clone, Debug)]
+pub struct NewWorkflowSpec {
+    pub workflow_kind: String,
+    pub spec_version: String,
+    pub spec_hash: String,
+    pub handler_id: String,
+    pub compatibility_pin: Option<String>,
+    pub spec_json: serde_json::Value,
+    pub source_ref: Option<String>,
+}
+
+/// Pinned external tool and model versions for a workflow run (MT-110).
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ComfyVersionMetadata {
+    pub version_metadata_id: Uuid,
+    pub workflow_run_id: Uuid,
+    /// Optional registered workflow spec this run executed.
+    pub spec_id: Option<Uuid>,
+    /// Pinned pose model-asset version.
+    pub pose_model_asset_version: String,
+    /// Pinned image-tool version (blur/sharpen/etc).
+    pub image_tool_version: String,
+    /// Pinned ComfyUI model version.
+    pub comfy_model_version: String,
+    /// Optional preflight discovery evidence.
+    pub preflight_evidence: serde_json::Value,
+    pub created_at_utc: DateTime<Utc>,
+    pub updated_at_utc: DateTime<Utc>,
+}
+
+/// Parameters to record version metadata for a run (MT-110). Idempotent on
+/// `workflow_run_id`.
+#[derive(Clone, Debug)]
+pub struct NewComfyVersionMetadata {
+    pub workflow_run_id: Uuid,
+    pub spec_id: Option<Uuid>,
+    pub pose_model_asset_version: String,
+    pub image_tool_version: String,
+    pub comfy_model_version: String,
+    pub preflight_evidence: serde_json::Value,
+}
+
+fn workflow_spec_from_row(row: &sqlx::postgres::PgRow) -> WorkflowSpec {
+    WorkflowSpec {
+        spec_id: row.get("spec_id"),
+        workflow_kind: row.get("workflow_kind"),
+        spec_version: row.get("spec_version"),
+        spec_hash: row.get("spec_hash"),
+        handler_id: row.get("handler_id"),
+        compatibility_pin: row.get("compatibility_pin"),
+        spec_json: row.get("spec_json"),
+        source_ref: row.get("source_ref"),
+        created_at_utc: row.get("created_at_utc"),
+        updated_at_utc: row.get("updated_at_utc"),
+    }
+}
+
+fn version_metadata_from_row(row: &sqlx::postgres::PgRow) -> ComfyVersionMetadata {
+    ComfyVersionMetadata {
+        version_metadata_id: row.get("version_metadata_id"),
+        workflow_run_id: row.get("workflow_run_id"),
+        spec_id: row.get("spec_id"),
+        pose_model_asset_version: row.get("pose_model_asset_version"),
+        image_tool_version: row.get("image_tool_version"),
+        comfy_model_version: row.get("comfy_model_version"),
+        preflight_evidence: row.get("preflight_evidence"),
+        created_at_utc: row.get("created_at_utc"),
+        updated_at_utc: row.get("updated_at_utc"),
+    }
+}
+
+fn require_token_field(field: &str, value: &str) -> AtelierResult<()> {
+    if value.trim().is_empty() || value.trim() != value {
+        return Err(AtelierError::Validation(format!(
+            "{field} must not be empty or padded"
+        )));
+    }
+    Ok(())
 }
 
 fn probe_from_row(row: &sqlx::postgres::PgRow) -> AtelierResult<BridgeProbe> {
@@ -2501,6 +2625,197 @@ impl AtelierStore {
                 Err(err)
             }
         }
+    }
+
+    /// Register a versioned ComfyUI/pose workflow spec (MT-106).
+    ///
+    /// Idempotent upsert keyed on `(workflow_kind, spec_version)`: re-registering
+    /// the same kind+version refreshes the spec body/handler/pin in place rather
+    /// than duplicating. `spec_hash` is additionally unique so a graph hash never
+    /// registers under two conflicting identities. Any `source_ref` must be a
+    /// portable Handshake-native handle (legacy/`.GOV`/SQLite/localhost/
+    /// machine-local refs are rejected via [`reject_legacy_runtime_ref`]). Emits
+    /// `WORKFLOW_SPEC_REGISTERED`.
+    pub async fn register_workflow_spec(
+        &self,
+        new: &NewWorkflowSpec,
+    ) -> AtelierResult<WorkflowSpec> {
+        require_token_field("workflow_kind", &new.workflow_kind)?;
+        require_token_field("spec_version", &new.spec_version)?;
+        require_token_field("spec_hash", &new.spec_hash)?;
+        require_token_field("handler_id", &new.handler_id)?;
+        if let Some(compatibility_pin) = &new.compatibility_pin {
+            require_token_field("compatibility_pin", compatibility_pin)?;
+        }
+        if let Some(source_ref) = &new.source_ref {
+            reject_legacy_runtime_ref("workflow spec source_ref", source_ref)?;
+        }
+        if !new.spec_json.is_object() {
+            return Err(AtelierError::Validation(
+                "workflow spec spec_json must be a JSON object".into(),
+            ));
+        }
+
+        let row = sqlx::query(
+            r#"INSERT INTO atelier_comfy_workflow_spec
+                 (workflow_kind, spec_version, spec_hash, handler_id,
+                  compatibility_pin, spec_json, source_ref)
+               VALUES ($1, $2, $3, $4, $5, $6, $7)
+               ON CONFLICT (workflow_kind, spec_version) DO UPDATE
+                 SET spec_hash         = EXCLUDED.spec_hash,
+                     handler_id        = EXCLUDED.handler_id,
+                     compatibility_pin = EXCLUDED.compatibility_pin,
+                     spec_json         = EXCLUDED.spec_json,
+                     source_ref        = EXCLUDED.source_ref,
+                     updated_at_utc    = NOW()
+               RETURNING spec_id, workflow_kind, spec_version, spec_hash,
+                         handler_id, compatibility_pin, spec_json, source_ref,
+                         created_at_utc, updated_at_utc"#,
+        )
+        .bind(&new.workflow_kind)
+        .bind(&new.spec_version)
+        .bind(&new.spec_hash)
+        .bind(&new.handler_id)
+        .bind(&new.compatibility_pin)
+        .bind(&new.spec_json)
+        .bind(&new.source_ref)
+        .fetch_one(self.pool())
+        .await?;
+        let spec = workflow_spec_from_row(&row);
+
+        self.record_event(
+            comfy_event_family::WORKFLOW_SPEC_REGISTERED,
+            "atelier_comfy_workflow_spec",
+            &spec.spec_id.to_string(),
+            serde_json::json!({
+                "spec_id": spec.spec_id,
+                "workflow_kind": spec.workflow_kind,
+                "spec_version": spec.spec_version,
+                "spec_hash": spec.spec_hash,
+                "handler_id": spec.handler_id,
+                "compatibility_pin": spec.compatibility_pin,
+            }),
+        )
+        .await?;
+        Ok(spec)
+    }
+
+    /// Fetch a registered workflow spec by id.
+    pub async fn get_workflow_spec(&self, spec_id: Uuid) -> AtelierResult<Option<WorkflowSpec>> {
+        let row = sqlx::query(
+            r#"SELECT spec_id, workflow_kind, spec_version, spec_hash, handler_id,
+                      compatibility_pin, spec_json, source_ref, created_at_utc,
+                      updated_at_utc
+               FROM atelier_comfy_workflow_spec WHERE spec_id = $1"#,
+        )
+        .bind(spec_id)
+        .fetch_optional(self.pool())
+        .await?;
+        Ok(row.as_ref().map(workflow_spec_from_row))
+    }
+
+    /// List registered workflow specs, newest first, optionally filtered by kind.
+    pub async fn list_workflow_specs(
+        &self,
+        workflow_kind: Option<&str>,
+    ) -> AtelierResult<Vec<WorkflowSpec>> {
+        let mut builder = QueryBuilder::<sqlx::Postgres>::new(
+            r#"SELECT spec_id, workflow_kind, spec_version, spec_hash, handler_id,
+                      compatibility_pin, spec_json, source_ref, created_at_utc,
+                      updated_at_utc
+               FROM atelier_comfy_workflow_spec WHERE TRUE"#,
+        );
+        if let Some(workflow_kind) = workflow_kind {
+            builder.push(" AND workflow_kind = ");
+            builder.push_bind(workflow_kind.to_string());
+        }
+        builder.push(" ORDER BY created_at_utc DESC, spec_id DESC");
+        let rows = builder.build().fetch_all(self.pool()).await?;
+        Ok(rows.iter().map(workflow_spec_from_row).collect())
+    }
+
+    /// Record (pin) external tool/model version metadata for a workflow run
+    /// (MT-110).
+    ///
+    /// Captures the three named provenance versions -- pose model-asset, image
+    /// tool, ComfyUI model -- so a run's provenance is reproducible. Idempotent
+    /// on `workflow_run_id` (one metadata row per run): re-recording refreshes
+    /// the pinned versions in place. When `spec_id` is set it must reference a
+    /// registered workflow spec (FK enforced). Emits `VERSION_METADATA_RECORDED`.
+    pub async fn record_version_metadata(
+        &self,
+        new: &NewComfyVersionMetadata,
+    ) -> AtelierResult<ComfyVersionMetadata> {
+        require_token_field("pose_model_asset_version", &new.pose_model_asset_version)?;
+        require_token_field("image_tool_version", &new.image_tool_version)?;
+        require_token_field("comfy_model_version", &new.comfy_model_version)?;
+        if !new.preflight_evidence.is_object() {
+            return Err(AtelierError::Validation(
+                "version metadata preflight_evidence must be a JSON object".into(),
+            ));
+        }
+        let preflight_evidence = scrub_provenance(&new.preflight_evidence);
+
+        let row = sqlx::query(
+            r#"INSERT INTO atelier_comfy_version_metadata
+                 (workflow_run_id, spec_id, pose_model_asset_version,
+                  image_tool_version, comfy_model_version, preflight_evidence)
+               VALUES ($1, $2, $3, $4, $5, $6)
+               ON CONFLICT (workflow_run_id) DO UPDATE
+                 SET spec_id                  = EXCLUDED.spec_id,
+                     pose_model_asset_version = EXCLUDED.pose_model_asset_version,
+                     image_tool_version       = EXCLUDED.image_tool_version,
+                     comfy_model_version      = EXCLUDED.comfy_model_version,
+                     preflight_evidence       = EXCLUDED.preflight_evidence,
+                     updated_at_utc           = NOW()
+               RETURNING version_metadata_id, workflow_run_id, spec_id,
+                         pose_model_asset_version, image_tool_version,
+                         comfy_model_version, preflight_evidence,
+                         created_at_utc, updated_at_utc"#,
+        )
+        .bind(new.workflow_run_id)
+        .bind(new.spec_id)
+        .bind(&new.pose_model_asset_version)
+        .bind(&new.image_tool_version)
+        .bind(&new.comfy_model_version)
+        .bind(&preflight_evidence)
+        .fetch_one(self.pool())
+        .await?;
+        let metadata = version_metadata_from_row(&row);
+
+        self.record_event(
+            comfy_event_family::VERSION_METADATA_RECORDED,
+            "atelier_comfy_version_metadata",
+            &metadata.workflow_run_id.to_string(),
+            serde_json::json!({
+                "version_metadata_id": metadata.version_metadata_id,
+                "workflow_run_id": metadata.workflow_run_id,
+                "spec_id": metadata.spec_id,
+                "pose_model_asset_version": metadata.pose_model_asset_version,
+                "image_tool_version": metadata.image_tool_version,
+                "comfy_model_version": metadata.comfy_model_version,
+            }),
+        )
+        .await?;
+        Ok(metadata)
+    }
+
+    /// Fetch the pinned version metadata for a workflow run, if recorded.
+    pub async fn get_version_metadata(
+        &self,
+        workflow_run_id: Uuid,
+    ) -> AtelierResult<Option<ComfyVersionMetadata>> {
+        let row = sqlx::query(
+            r#"SELECT version_metadata_id, workflow_run_id, spec_id,
+                      pose_model_asset_version, image_tool_version,
+                      comfy_model_version, preflight_evidence, created_at_utc,
+                      updated_at_utc
+               FROM atelier_comfy_version_metadata WHERE workflow_run_id = $1"#,
+        )
+        .bind(workflow_run_id)
+        .fetch_optional(self.pool())
+        .await?;
+        Ok(row.as_ref().map(version_metadata_from_row))
     }
 }
 

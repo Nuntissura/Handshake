@@ -99,9 +99,11 @@
   "MT-103",
   "MT-104",
   "MT-105",
+  "MT-106",
   "MT-107",
   "MT-108",
   "MT-109",
+  "MT-110",
   "MT-115",
   "MT-116",
   "MT-117",
@@ -922,6 +924,22 @@
    "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test atelier_replay_contract_tests mt130_replay_event_family_emitted_on_request_complete_fail --target-dir ../Handshake_Artifacts/handshake-cargo-target",
    "remediated_by": "KERNEL_BUILDER",
    "remediation_note": "replay input contract + ref resolution (104) / replay event family REQUESTED-COMPLETED-FAILED (130), live-PG"
+  },
+  {
+   "mt_id": "MT-106",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test atelier_workflow_spec_tests mt106_workflow_spec_registers_with_version_and_round_trips --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "comfy workflow_spec registry (106) / pose+image+comfy version metadata pins (110), tables+gate+events, live-PG"
+  },
+  {
+   "mt_id": "MT-110",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test atelier_workflow_spec_tests mt110_version_metadata_pins_pose_image_comfy_versions --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "comfy workflow_spec registry (106) / pose+image+comfy version metadata pins (110), tables+gate+events, live-PG"
   }
  ]
 }
