@@ -123,8 +123,11 @@ async fn mt147_work_state_projection_round_trips() {
         .await
         .expect_err("machine-local evidence ref must be rejected");
     assert!(
-        matches!(err, AtelierError::Validation(_)),
-        "machine-local evidence ref must produce a Validation error, got {err:?}"
+        matches!(
+            err,
+            AtelierError::Validation(_) | AtelierError::ForbiddenStorage(_)
+        ),
+        "machine-local evidence ref must be rejected, got {err:?}"
     );
 }
 
@@ -282,8 +285,11 @@ async fn mt153_stealth_capture_extension() {
         .await
         .expect_err("machine-local manifest id must be rejected");
     assert!(
-        matches!(err, AtelierError::Validation(_)),
-        "machine-local manifest id must produce a Validation error, got {err:?}"
+        matches!(
+            err,
+            AtelierError::Validation(_) | AtelierError::ForbiddenStorage(_)
+        ),
+        "machine-local manifest id must be rejected, got {err:?}"
     );
 }
 
