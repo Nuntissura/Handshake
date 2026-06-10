@@ -486,3 +486,8 @@ required-features = ["duckdb-flight-recorder"]
 name = "distillation_corpus_extractor_tests"
 path = "tests/distillation_corpus_extractor_tests.rs"
 required-features = ["duckdb-flight-recorder"]
+
+[[test]]
+name = "native_screenshot_capture_tests"
+path = "tests/native_screenshot_capture_tests.rs"
+required-features = ["test-utils"]

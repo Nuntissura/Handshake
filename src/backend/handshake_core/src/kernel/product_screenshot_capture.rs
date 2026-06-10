@@ -8,6 +8,13 @@ use std::{
 use chrono::{SecondsFormat, Utc};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+use uuid::Uuid;
+
+use crate::operator_foreground::focus_audit::{assert_no_handshake_foreground, FocusAuditReport};
+use crate::storage::artifacts::{
+    artifact_root_rel, write_file_artifact, ArtifactClassification, ArtifactError, ArtifactLayer,
+    ArtifactManifest, ArtifactPayloadKind,
+};
 
 /// HBR-QUIET: suppress the console window Windows would otherwise pop when the
 /// screenshot adapter shells out to `node`. No-op off Windows.
@@ -187,6 +194,18 @@ pub enum ProductScreenshotExecutionError {
     MissingAdapterOutput(PathBuf),
     Io(std::io::Error),
     Serialize(serde_json::Error),
+    /// The native capture evidence failed governed validation (e.g. not captured
+    /// `fromSurface`, or the focus audit was not clean). This is a Validation
+    /// error: the evidence is rejected before any artifact is written.
+    Validation(&'static str),
+    /// The native PNG could not be persisted as a real ArtifactStore artifact.
+    ArtifactStore(String),
+}
+
+impl From<ArtifactError> for ProductScreenshotExecutionError {
+    fn from(value: ArtifactError) -> Self {
+        Self::ArtifactStore(value.to_string())
+    }
 }
 
 impl From<std::io::Error> for ProductScreenshotExecutionError {
@@ -602,6 +621,188 @@ pub fn capture_product_screenshot_from_browser_adapter(
         },
         artifact_root,
     )
+}
+
+// === Native (Playwright-free) capture path ==================================
+//
+// MT-152 / MT-158: the governed screenshot contract must be satisfiable with NO
+// Playwright present. The native capture now happens inside the Tauri app via
+// WebView2 CDP `Page.captureScreenshot { fromSurface: true }` (see
+// `app/src-tauri/src/commands/visual_debugger.rs::visual_debug_capture`), which
+// is focus-safe (no foreground steal, no Z-order change). This module accepts
+// that native CDP evidence directly: it validates focus-safety, stores the PNG
+// as a real ArtifactStore L1 image artifact, and emits a
+// `ProductScreenshotArtifactV1` referencing the stored artifact — without ever
+// shelling out to node/Playwright.
+
+/// CDP-derived native screenshot evidence handed to the governed kernel from the
+/// Tauri WebView2 capture surface. Carries the focus-safety assertions that the
+/// kernel re-checks before it will record the artifact.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NativeScreenshotEvidence {
+    /// Raw PNG bytes produced by CDP `Page.captureScreenshot` (format=png).
+    pub png_bytes: Vec<u8>,
+    /// Declared pixel width of the capture.
+    pub width: u32,
+    /// Declared pixel height of the capture.
+    pub height: u32,
+    /// Capture scope (full app / panel / module).
+    pub scope: ScreenshotCaptureScope,
+    /// RFC3339 capture timestamp (UTC).
+    pub captured_at_utc: String,
+    /// CDP `fromSurface` flag — true means the bitmap came from the compositor
+    /// surface (no window activation / foreground steal required).
+    pub from_surface: bool,
+    /// Whether the FocusAuditReport for the capture window was clean (no
+    /// Handshake-owned foreground / Z-order / focus change events).
+    pub focus_audit_clean: bool,
+}
+
+/// Result of recording a native (Playwright-free) screenshot as a governed
+/// ArtifactStore artifact.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NativeProductScreenshotResultV1 {
+    /// Governed artifact contract record referencing the stored PNG.
+    pub artifact: ProductScreenshotArtifactV1,
+    /// Stable ArtifactStore artifact id (UUID) for the persisted PNG payload.
+    pub artifact_store_id: Uuid,
+    /// Repo-relative ArtifactStore root for the persisted artifact
+    /// (`.handshake/artifacts/L1/<uuid>`).
+    pub artifact_store_rel: String,
+    /// sha256:<hex> of the stored PNG payload (matches the ArtifactStore
+    /// manifest `content_hash`).
+    pub png_sha256: String,
+    /// The focus-safety report the kernel asserted clean before recording.
+    /// `None` when the caller asserted focus-safety via the evidence flags only
+    /// (still requires `focus_audit_clean == true`).
+    pub focus_audit_run_id: Option<String>,
+}
+
+/// Record a native CDP screenshot as a governed ArtifactStore artifact, with NO
+/// Playwright dependency.
+///
+/// Focus-safety is mandatory: the capture is only accepted when
+/// `from_surface == true` AND `focus_audit_clean == true`. When a
+/// `FocusAuditReport` is supplied, it is additionally asserted to contain zero
+/// Handshake-owned foreground events (`assert_no_handshake_foreground`).
+///
+/// On success the PNG is written to the ArtifactStore as an L1 `File` image
+/// artifact (stable UUID id, content-hash validated) and a
+/// `ProductScreenshotArtifactV1` is returned referencing that stored artifact.
+pub fn record_native_product_screenshot(
+    request: &ProductScreenshotRequestV1,
+    evidence: NativeScreenshotEvidence,
+    focus_audit: Option<&FocusAuditReport>,
+    workspace_root: impl AsRef<Path>,
+) -> Result<NativeProductScreenshotResultV1, ProductScreenshotExecutionError> {
+    // --- Request shape validation (reuse the governed request invariants). ---
+    if request.request_id.trim().is_empty() {
+        return Err(ProductScreenshotExecutionError::Validation(
+            "request_id is required",
+        ));
+    }
+    if request.scope != evidence.scope {
+        return Err(ProductScreenshotExecutionError::Validation(
+            "evidence scope must match request scope",
+        ));
+    }
+    if !target_matches_scope(request.scope, &request.target_ref) {
+        return Err(ProductScreenshotExecutionError::Validation(
+            "target_ref must match screenshot scope",
+        ));
+    }
+
+    // --- Focus-safety gate: reject any evidence that was not focus-safe. ------
+    if !evidence.from_surface {
+        return Err(ProductScreenshotExecutionError::Validation(
+            "native capture must be fromSurface (no foreground steal)",
+        ));
+    }
+    if !evidence.focus_audit_clean {
+        return Err(ProductScreenshotExecutionError::Validation(
+            "native capture rejected: focus audit was not clean",
+        ));
+    }
+    if let Some(report) = focus_audit {
+        // The capture window must show zero Handshake-owned foreground / Z-order
+        // / focus-change events for the run.
+        if assert_no_handshake_foreground(report).is_err() {
+            return Err(ProductScreenshotExecutionError::Validation(
+                "native capture rejected: Handshake-owned foreground event during capture",
+            ));
+        }
+    }
+
+    // --- Decode + dimension-check the PNG (real image, never a stub blob). ----
+    let decoded =
+        image::load_from_memory_with_format(&evidence.png_bytes, image::ImageFormat::Png)
+            .map_err(|err| ProductScreenshotExecutionError::InvalidPng(err.to_string()))?;
+    let width = decoded.width();
+    let height = decoded.height();
+    if width == 0 || height == 0 {
+        return Err(ProductScreenshotExecutionError::InvalidPng(
+            "PNG dimensions must be positive".to_string(),
+        ));
+    }
+
+    // --- Persist the PNG as a real ArtifactStore L1 image artifact. -----------
+    let workspace_root = workspace_root.as_ref();
+    let png_sha256_hex = sha256_hex_raw(&evidence.png_bytes);
+    let artifact_store_id = Uuid::now_v7();
+    let manifest = ArtifactManifest {
+        artifact_id: artifact_store_id,
+        layer: ArtifactLayer::L1,
+        kind: ArtifactPayloadKind::File,
+        mime: "image/png".to_string(),
+        filename_hint: Some(format!(
+            "{}.png",
+            sanitize_artifact_segment(&request.request_id)
+        )),
+        created_at: Utc::now(),
+        created_by_job_id: None,
+        source_entity_refs: Vec::new(),
+        source_artifact_refs: Vec::new(),
+        content_hash: png_sha256_hex.clone(),
+        size_bytes: evidence.png_bytes.len() as u64,
+        classification: ArtifactClassification::Low,
+        exportable: false,
+        retention_ttl_days: None,
+        pinned: None,
+        hash_basis: None,
+        hash_exclude_paths: Vec::new(),
+    };
+    write_file_artifact(workspace_root, &manifest, &evidence.png_bytes)?;
+    let artifact_store_rel = artifact_root_rel(ArtifactLayer::L1, artifact_store_id);
+
+    // --- Build the governed artifact contract referencing the stored PNG. -----
+    let artifact = ProductScreenshotArtifactV1 {
+        artifact_id: format!("artifact.native.{artifact_store_id}"),
+        request_id: request.request_id.clone(),
+        screenshot_ref: format!("artifact-store://L1/{artifact_store_id}/payload"),
+        metadata_ref: format!("artifact-store://L1/{artifact_store_id}/artifact.json"),
+        content_type: "image/png".to_string(),
+        width,
+        height,
+        captured_at_utc: evidence.captured_at_utc.clone(),
+        retention_class: "visual-validation".to_string(),
+        screenshot_path: format!("{artifact_store_rel}/payload"),
+        metadata_path: format!("{artifact_store_rel}/artifact.json"),
+        metadata_schema_id: "hsk.product_screenshot_metadata@1".to_string(),
+    };
+
+    Ok(NativeProductScreenshotResultV1 {
+        artifact,
+        artifact_store_id,
+        artifact_store_rel,
+        png_sha256: format!("sha256:{png_sha256_hex}"),
+        focus_audit_run_id: focus_audit.map(|report| report.run_id.clone()),
+    })
+}
+
+fn sha256_hex_raw(bytes: &[u8]) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(bytes);
+    hex::encode(hasher.finalize())
 }
 
 fn validate_supported_scopes(
