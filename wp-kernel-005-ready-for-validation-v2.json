@@ -126,6 +126,7 @@
   "MT-137",
   "MT-138",
   "MT-139",
+  "MT-141",
   "MT-143",
   "MT-146",
   "MT-149",
@@ -1354,6 +1355,14 @@
    "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test atelier_stealth_window_tests [truncate+single-thread]",
    "remediated_by": "KERNEL_BUILDER",
    "remediation_note": "already implemented; test green on live PG"
+  },
+  {
+   "mt_id": "MT-141",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test atelier_diagnostic_bundle_tests",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "diagnostic bundle (shared with MT-112); test green on live PG"
   }
  ],
  "out_of_scope": [
