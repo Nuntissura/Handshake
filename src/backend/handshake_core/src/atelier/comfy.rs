@@ -95,6 +95,12 @@ pub mod comfy_event_family {
     /// A preserved generated output was retried into a normal intake output.
     pub const OUTPUT_REGISTRATION_FAILURE_RETRIED: &str =
         "atelier.comfy.output.registration_failure.retried";
+    /// A replayable-workflow-inputs resolution was requested (MT-104/MT-130).
+    pub const REPLAY_REQUESTED: &str = "atelier.replay.requested";
+    /// All replay input artifact refs resolved to stored artifacts (MT-130).
+    pub const REPLAY_COMPLETED: &str = "atelier.replay.completed";
+    /// A replay request was rejected (unresolved/invalid/legacy ref) (MT-130).
+    pub const REPLAY_FAILED: &str = "atelier.replay.failed";
 
     /// All ComfyUI intake event families (parity/coverage helper).
     pub const ALL: &[&str] = &[
@@ -108,6 +114,9 @@ pub mod comfy_event_family {
         WORKFLOW_RECEIPT_RECORDED,
         OUTPUT_REGISTRATION_FAILURE_RECORDED,
         OUTPUT_REGISTRATION_FAILURE_RETRIED,
+        REPLAY_REQUESTED,
+        REPLAY_COMPLETED,
+        REPLAY_FAILED,
     ];
 }
 
@@ -115,7 +124,8 @@ pub mod comfy_event_family {
 pub use comfy_event_family::{
     CAPABILITY_REGISTERED, CAPABILITY_REJECTED, FALLBACK_ENGAGED, OUTPUT_DEDUPLICATED,
     OUTPUT_MATERIALIZED, OUTPUT_REGISTRATION_FAILURE_RECORDED, OUTPUT_REGISTRATION_FAILURE_RETRIED,
-    PROBE_RECORDED, RECEIPT_PRODUCED, WORKFLOW_RECEIPT_RECORDED,
+    PROBE_RECORDED, RECEIPT_PRODUCED, REPLAY_COMPLETED, REPLAY_FAILED, REPLAY_REQUESTED,
+    WORKFLOW_RECEIPT_RECORDED,
 };
 
 /// The slot token used for SaveImage-fallback output rows (Section 6.9.6). A
@@ -946,6 +956,64 @@ pub struct ComfyOutputRegistrationFailure {
     pub resolved_intake_output_id: Option<Uuid>,
     pub created_at_utc: DateTime<Utc>,
     pub updated_at_utc: DateTime<Utc>,
+}
+
+// ---------------------------------------------------------------------------
+// Replay Input Contract (MT-104) + Replay Event Family wiring (MT-130).
+//
+// A `ReplayRequest` captures exactly what a no-context engine needs to replay a
+// prior Comfy-compatible workflow run: the workflow identity (run id + spec/json
+// refs) plus the set of input artifact refs the graph consumed. Resolution
+// proves every input ref is (a) a Handshake-native PORTABLE handle (never a
+// legacy/`.GOV`/SQLite/localhost/machine-local ref -- rejected via the canonical
+// `reject_legacy_runtime_ref` boundary) AND (b) resolves to a STORED artifact:
+// an `atelier_comfy_intake_output` row for THIS run carrying that `artifact_ref`.
+// Replay never executes ComfyUI; it only resolves durable inputs, exactly like
+// the rest of this module (LAW-COMFY-INTAKE-001). Storage stays in the existing
+// `atelier_comfy_intake_output` + `atelier_event` tables; no new table.
+// ---------------------------------------------------------------------------
+
+/// A replayable-workflow-inputs request (MT-104). Captures the workflow identity
+/// and the set of input artifact refs required to replay the run.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ReplayRequest {
+    /// The workflow run being replayed; replay inputs are resolved within this
+    /// run's stored outputs (containment, Section 6.9.1).
+    pub workflow_run_id: Uuid,
+    /// Portable ArtifactStore ref to the captured workflow spec.
+    pub workflow_spec_ref: String,
+    /// Portable ArtifactStore ref to the captured workflow/prompt graph JSON.
+    pub workflow_json_ref: String,
+    /// Optional graph hash pin (9.12 determinism) preserved for replay identity.
+    pub graph_hash: Option<String>,
+    /// Optional seed pin (9.12 STOCHASTIC determinism) preserved for replay.
+    pub seed: Option<i64>,
+    /// The set of input artifact refs the graph consumed and that must resolve to
+    /// stored artifacts for the replay to be reproducible.
+    pub input_artifact_refs: Vec<String>,
+}
+
+/// The resolution outcome for one replay input artifact ref (MT-104).
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ResolvedReplayInput {
+    /// The portable ref that was requested.
+    pub artifact_ref: String,
+    /// The stored intake output the ref resolved to (containment evidence).
+    pub intake_output_id: Uuid,
+    /// The stored content hash for the resolved artifact (replay determinism).
+    pub content_hash: String,
+}
+
+/// The successful resolution of a [`ReplayRequest`] (MT-104): every input ref
+/// resolved to a stored artifact for the run.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ResolvedReplayInputs {
+    pub workflow_run_id: Uuid,
+    pub workflow_spec_ref: String,
+    pub workflow_json_ref: String,
+    pub graph_hash: Option<String>,
+    pub seed: Option<i64>,
+    pub resolved_inputs: Vec<ResolvedReplayInput>,
 }
 
 fn probe_from_row(row: &sqlx::postgres::PgRow) -> AtelierResult<BridgeProbe> {
@@ -2311,6 +2379,128 @@ impl AtelierStore {
             failure_count,
             status_counts,
         })
+    }
+
+    /// Resolve every input artifact ref required to replay a workflow run
+    /// (MT-104). For each ref this proves: (a) it is a Handshake-native portable
+    /// handle (legacy/`.GOV`/SQLite/localhost/machine-local refs are rejected via
+    /// [`reject_legacy_runtime_ref`]), and (b) it resolves to a STORED artifact --
+    /// an `atelier_comfy_intake_output` row for THIS run carrying that
+    /// `artifact_ref`. The workflow identity refs are validated as portable too.
+    /// Returns the resolved set; an unresolved or invalid ref is a hard error.
+    /// This method performs NO event emission -- callers that want EventLedger
+    /// evidence use [`Self::request_replay`] (MT-130).
+    pub async fn resolve_replay_inputs(
+        &self,
+        request: &ReplayRequest,
+    ) -> AtelierResult<ResolvedReplayInputs> {
+        // Workflow identity refs must be portable Handshake-native handles.
+        reject_legacy_runtime_ref("workflow_spec_ref", &request.workflow_spec_ref)?;
+        reject_legacy_runtime_ref("workflow_json_ref", &request.workflow_json_ref)?;
+        if request.input_artifact_refs.is_empty() {
+            return Err(AtelierError::Validation(
+                "replay request must declare at least one input artifact ref".into(),
+            ));
+        }
+
+        let mut resolved = Vec::with_capacity(request.input_artifact_refs.len());
+        for artifact_ref in &request.input_artifact_refs {
+            // Reject legacy/.GOV/SQLite/localhost/machine-local refs up front so a
+            // forbidden ref never reaches a lookup.
+            reject_legacy_runtime_ref("replay input artifact_ref", artifact_ref)?;
+
+            // The ref must resolve to a stored artifact for THIS run (containment,
+            // Section 6.9.1). Reuse the existing intake-output store as the
+            // portable-handle resolution surface.
+            let row = sqlx::query(
+                r#"SELECT intake_output_id, content_hash
+                   FROM atelier_comfy_intake_output
+                   WHERE workflow_run_id = $1 AND artifact_ref = $2
+                   ORDER BY materialized_at_utc ASC, intake_output_id ASC
+                   LIMIT 1"#,
+            )
+            .bind(request.workflow_run_id)
+            .bind(artifact_ref)
+            .fetch_optional(self.pool())
+            .await?;
+            let row = row.ok_or_else(|| {
+                AtelierError::Validation(format!(
+                    "replay input artifact_ref {artifact_ref} does not resolve to a stored \
+                     artifact for workflow run {}",
+                    request.workflow_run_id
+                ))
+            })?;
+            resolved.push(ResolvedReplayInput {
+                artifact_ref: artifact_ref.clone(),
+                intake_output_id: row.get("intake_output_id"),
+                content_hash: row.get("content_hash"),
+            });
+        }
+
+        Ok(ResolvedReplayInputs {
+            workflow_run_id: request.workflow_run_id,
+            workflow_spec_ref: request.workflow_spec_ref.clone(),
+            workflow_json_ref: request.workflow_json_ref.clone(),
+            graph_hash: request.graph_hash.clone(),
+            seed: request.seed,
+            resolved_inputs: resolved,
+        })
+    }
+
+    /// Request a replay (MT-130): emit `REPLAY_REQUESTED`, resolve all input
+    /// refs, and emit `REPLAY_COMPLETED` on success or `REPLAY_FAILED` on
+    /// rejection. All events are run-scoped on `workflow_run_id` (the aggregate
+    /// id) so replay history is reconstructable per run. Resolution itself is
+    /// delegated to [`Self::resolve_replay_inputs`]; this wrapper only adds the
+    /// EventLedger evidence seam. Returns the resolved inputs on success and
+    /// propagates the resolution error (after emitting `REPLAY_FAILED`) on
+    /// failure.
+    pub async fn request_replay(
+        &self,
+        request: &ReplayRequest,
+    ) -> AtelierResult<ResolvedReplayInputs> {
+        let aggregate_id = request.workflow_run_id.to_string();
+        self.record_event(
+            comfy_event_family::REPLAY_REQUESTED,
+            "atelier_comfy_intake_output",
+            &aggregate_id,
+            serde_json::json!({
+                "workflow_run_id": request.workflow_run_id,
+                "workflow_spec_ref": request.workflow_spec_ref,
+                "workflow_json_ref": request.workflow_json_ref,
+                "input_artifact_ref_count": request.input_artifact_refs.len(),
+            }),
+        )
+        .await?;
+
+        match self.resolve_replay_inputs(request).await {
+            Ok(resolved) => {
+                self.record_event(
+                    comfy_event_family::REPLAY_COMPLETED,
+                    "atelier_comfy_intake_output",
+                    &aggregate_id,
+                    serde_json::json!({
+                        "workflow_run_id": request.workflow_run_id,
+                        "resolved_input_count": resolved.resolved_inputs.len(),
+                    }),
+                )
+                .await?;
+                Ok(resolved)
+            }
+            Err(err) => {
+                self.record_event(
+                    comfy_event_family::REPLAY_FAILED,
+                    "atelier_comfy_intake_output",
+                    &aggregate_id,
+                    serde_json::json!({
+                        "workflow_run_id": request.workflow_run_id,
+                        "reason": err.to_string(),
+                    }),
+                )
+                .await?;
+                Err(err)
+            }
+        }
     }
 }
 

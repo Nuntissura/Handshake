@@ -97,6 +97,7 @@
   "MT-101",
   "MT-102",
   "MT-103",
+  "MT-104",
   "MT-105",
   "MT-107",
   "MT-108",
@@ -110,6 +111,7 @@
   "MT-123",
   "MT-124",
   "MT-125",
+  "MT-130",
   "MT-138",
   "MT-139",
   "MT-157",
@@ -904,6 +906,22 @@
    "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test atelier_pose_deferred_feature_tests mt117_pose_tab_polish_features_deferred --target-dir ../Handshake_Artifacts/handshake-cargo-target",
    "remediated_by": "KERNEL_BUILDER",
    "remediation_note": "typed pose deferred-feature registry (table+events), live-PG"
+  },
+  {
+   "mt_id": "MT-104",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test atelier_replay_contract_tests mt104_replay_request_resolves_all_input_refs --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "replay input contract + ref resolution (104) / replay event family REQUESTED-COMPLETED-FAILED (130), live-PG"
+  },
+  {
+   "mt_id": "MT-130",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test atelier_replay_contract_tests mt130_replay_event_family_emitted_on_request_complete_fail --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "replay input contract + ref resolution (104) / replay event family REQUESTED-COMPLETED-FAILED (130), live-PG"
   }
  ]
 }
