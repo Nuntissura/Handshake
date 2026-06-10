@@ -130,9 +130,16 @@
   "MT-164",
   "MT-181",
   "MT-183",
+  "MT-184",
   "MT-185",
   "MT-186",
   "MT-187",
+  "MT-190",
+  "MT-191",
+  "MT-192",
+  "MT-193",
+  "MT-194",
+  "MT-195",
   "MT-203"
  ],
  "entries": [
@@ -1084,6 +1091,74 @@
    "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_manual_tests manual_covers_diagnostics_surfaces --target-dir ../Handshake_Artifacts/handshake-cargo-target",
    "remediated_by": "KERNEL_BUILDER",
    "remediation_note": "diagnostics ModelManual coverage rows (real catalog actions) + coverage test"
+  },
+  {
+   "mt_id": "MT-184",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test micro_task_job_tests [truncate-all + --test-threads=1 --include-ignored on live PG]",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "already implemented; proven on live PostgreSQL (truncate+single-thread isolation)"
+  },
+  {
+   "mt_id": "MT-190",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test session_checkpoint_tests [truncate-all + --test-threads=1 --include-ignored on live PG]",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "already implemented; proven on live PostgreSQL (truncate+single-thread isolation)"
+  },
+  {
+   "mt_id": "MT-191",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test session_checkpoint_tests [truncate-all + --test-threads=1 --include-ignored on live PG]",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "already implemented; proven on live PostgreSQL (truncate+single-thread isolation)"
+  },
+  {
+   "mt_id": "MT-192",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test session_checkpoint_tests [truncate-all + --test-threads=1 --include-ignored on live PG]",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "already implemented; proven on live PostgreSQL (truncate+single-thread isolation)"
+  },
+  {
+   "mt_id": "MT-193",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test session_checkpoint_tests [truncate-all + --test-threads=1 --include-ignored on live PG]",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "already implemented; proven on live PostgreSQL (truncate+single-thread isolation)"
+  },
+  {
+   "mt_id": "MT-194",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test session_checkpoint_tests [truncate-all + --test-threads=1 --include-ignored on live PG]",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "already implemented; proven on live PostgreSQL (truncate+single-thread isolation)"
+  },
+  {
+   "mt_id": "MT-195",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test session_checkpoint_tests [truncate-all + --test-threads=1 --include-ignored on live PG]",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "already implemented; proven on live PostgreSQL (truncate+single-thread isolation)"
+  }
+ ],
+ "out_of_scope": [
+  {
+   "mt_id": "MT-131",
+   "state": "OUT_OF_SCOPE_BY_OPERATOR",
+   "reason": "Pose refinement-closure: scope/non-goals/deps/risks/acceptance/MT-plan refinement DOCUMENT — pure governance paperwork, no runtime form. Skipped per operator convert-or-skip rule (governance being abandoned post-WP)."
+  },
+  {
+   "mt_id": "MT-197",
+   "state": "OUT_OF_SCOPE_BY_OPERATOR",
+   "reason": "Diagnostics activation refinement closure: convert stub+suite into activation-ready refinement DOCUMENT — pure governance paperwork, no runtime form. Skipped per operator rule."
   }
  ]
 }
