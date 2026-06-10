@@ -146,6 +146,7 @@
   "MT-193",
   "MT-194",
   "MT-195",
+  "MT-196",
   "MT-203"
  ],
  "entries": [
@@ -1201,6 +1202,14 @@
    "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test role_mailbox_v1_tests [truncate-all + --test-threads=1 --include-ignored]",
    "remediated_by": "KERNEL_BUILDER",
    "remediation_note": "already implemented (role mailbox); proven on live PG (truncate+single-thread)"
+  },
+  {
+   "mt_id": "MT-196",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test flight_recorder_span_tests mt_196 [truncate+single-thread]",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "already implemented (FR span); dedicated mt_196 test green on live PG"
   }
  ],
  "out_of_scope": [
