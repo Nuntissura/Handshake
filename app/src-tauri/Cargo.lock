@@ -177,7 +177,9 @@ dependencies = [
  "ttf-parser",
  "uuid",
  "walkdir",
+ "webview2-com",
  "which",
+ "windows 0.61.3",
 ]
 
 [[package]]

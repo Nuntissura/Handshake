@@ -45,6 +45,19 @@ chrono = { version = "0.4", features = ["serde", "clock"] }
 secrecy = { version = "0.10", features = ["serde"] }
 thiserror = "2.0"
 
+# NATIVE focus-safe visual debugger (Windows/WebView2 only). Pinned to match the
+# versions already pulled transitively via `wry` 0.53 -> `webview2-com` 0.38, which
+# depends on `windows` 0.61 + `windows-core` 0.61 (see Cargo.lock). Matching these
+# means the `ICoreWebView2*` COM types and the `windows_core::Result` returned by the
+# CDP completion/event handlers are the SAME types `PlatformWebview::controller()`
+# hands us; a skew to `windows` 0.62 would yield two incompatible interface types.
+[target.'cfg(windows)'.dependencies]
+webview2-com = "0.38"
+windows = { version = "0.61", features = [
+    "Win32_Foundation",
+    "Win32_UI_WindowsAndMessaging",
+] }
+
 [dev-dependencies]
 async-trait = "0.1"
 tempfile = "3"

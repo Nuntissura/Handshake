@@ -46,6 +46,7 @@ mod commands {
     pub mod swarm_schedule;
     pub mod swarm_schedule_store;
     pub mod terminal;
+    pub mod visual_debugger;
     #[cfg(test)]
     pub mod testing;
 }
@@ -184,6 +185,9 @@ macro_rules! handshake_invoke_handlers {
             visual_debug::kernel_visual_debug_dom_snapshot,
             visual_debug::kernel_visual_debug_console_stream_start,
             visual_debug::kernel_visual_debug_console_stream_stop,
+            commands::visual_debugger::visual_debug_capture,
+            commands::visual_debugger::visual_debug_ax_tree,
+            commands::visual_debugger::visual_debug_console,
             commands::terminal::kernel_terminal_create_session,
             commands::terminal::kernel_terminal_write_stdin,
             commands::terminal::kernel_terminal_resize,
@@ -325,6 +329,9 @@ macro_rules! handshake_invoke_handlers {
             visual_debug::kernel_visual_debug_dom_snapshot,
             visual_debug::kernel_visual_debug_console_stream_start,
             visual_debug::kernel_visual_debug_console_stream_stop,
+            commands::visual_debugger::visual_debug_capture,
+            commands::visual_debugger::visual_debug_ax_tree,
+            commands::visual_debugger::visual_debug_console,
             commands::terminal::kernel_terminal_create_session,
             commands::terminal::kernel_terminal_write_stdin,
             commands::terminal::kernel_terminal_resize,
@@ -965,6 +972,10 @@ pub fn run() {
 
     let builder = tauri::Builder::default()
         .manage(visual_debug_state)
+        // NATIVE focus-safe visual debugger: shared console ring buffer drained by
+        // `commands::visual_debugger::visual_debug_console`; filled by the CDP event
+        // receivers wired in `setup` via `register_visual_debug_event_receivers`.
+        .manage(commands::visual_debugger::VisualDebugConsoleBuffer::default())
         .manage(inspector::InspectorPortState::new(None))
         .manage(inspector_reader)
         .manage(commands::model_runtime::ModelRuntimeState::default())
@@ -1006,6 +1017,27 @@ pub fn run() {
         .setup(|app| {
             let _ = fonts::fonts_bootstrap_pack(app.handle().clone(), None);
             let _ = fonts::fonts_list(app.handle().clone());
+
+            // NATIVE focus-safe visual debugger: enable CDP domains + subscribe the
+            // console/exception/log/network-error event receivers ONCE on the main
+            // window, feeding the managed `VisualDebugConsoleBuffer`. Best-effort:
+            // on a non-Windows host or if the main window is not yet resolvable the
+            // call returns an error that is logged but does not fail app startup.
+            if let Some(main_window) = app.get_webview_window("main") {
+                let console_buffer = (*app
+                    .state::<commands::visual_debugger::VisualDebugConsoleBuffer>())
+                .clone();
+                if let Err(error) = commands::visual_debugger::register_visual_debug_event_receivers(
+                    &main_window,
+                    console_buffer,
+                ) {
+                    eprintln!("visual debugger event receivers not wired: {error}");
+                }
+            } else {
+                eprintln!(
+                    "visual debugger: main window not available at setup; console receivers unwired"
+                );
+            }
 
             let app_data_root = app
                 .path()
