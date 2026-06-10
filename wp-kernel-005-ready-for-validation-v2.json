@@ -124,6 +124,9 @@
   "MT-135",
   "MT-138",
   "MT-139",
+  "MT-149",
+  "MT-150",
+  "MT-151",
   "MT-157",
   "MT-159",
   "MT-162",
@@ -1210,6 +1213,30 @@
    "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test flight_recorder_span_tests mt_196 [truncate+single-thread]",
    "remediated_by": "KERNEL_BUILDER",
    "remediation_note": "already implemented (FR span); dedicated mt_196 test green on live PG"
+  },
+  {
+   "mt_id": "MT-149",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test editable_surface_tests mt_149 [truncate+single-thread]",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "already implemented; dedicated mt-test green on live PG"
+  },
+  {
+   "mt_id": "MT-150",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test corpus_split_tests mt_150 [truncate+single-thread]",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "already implemented; dedicated mt-test green on live PG"
+  },
+  {
+   "mt_id": "MT-151",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test validator_first_pass_evaluator_tests mt_151 [truncate+single-thread]",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "already implemented; dedicated mt-test green on live PG"
   }
  ],
  "out_of_scope": [
