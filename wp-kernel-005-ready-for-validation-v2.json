@@ -128,7 +128,13 @@
   "MT-159",
   "MT-162",
   "MT-164",
+  "MT-176",
+  "MT-177",
+  "MT-178",
+  "MT-179",
+  "MT-180",
   "MT-181",
+  "MT-182",
   "MT-183",
   "MT-184",
   "MT-185",
@@ -1147,6 +1153,54 @@
    "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test session_checkpoint_tests [truncate-all + --test-threads=1 --include-ignored on live PG]",
    "remediated_by": "KERNEL_BUILDER",
    "remediation_note": "already implemented; proven on live PostgreSQL (truncate+single-thread isolation)"
+  },
+  {
+   "mt_id": "MT-176",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test role_mailbox_v1_tests [truncate-all + --test-threads=1 --include-ignored]",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "already implemented (role mailbox); proven on live PG (truncate+single-thread)"
+  },
+  {
+   "mt_id": "MT-177",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test role_mailbox_v1_tests [truncate-all + --test-threads=1 --include-ignored]",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "already implemented (role mailbox); proven on live PG (truncate+single-thread)"
+  },
+  {
+   "mt_id": "MT-178",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test role_mailbox_v1_tests [truncate-all + --test-threads=1 --include-ignored]",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "already implemented (role mailbox); proven on live PG (truncate+single-thread)"
+  },
+  {
+   "mt_id": "MT-179",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test role_mailbox_v1_tests [truncate-all + --test-threads=1 --include-ignored]",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "already implemented (role mailbox); proven on live PG (truncate+single-thread)"
+  },
+  {
+   "mt_id": "MT-180",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test role_mailbox_v1_tests [truncate-all + --test-threads=1 --include-ignored]",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "already implemented (role mailbox); proven on live PG (truncate+single-thread)"
+  },
+  {
+   "mt_id": "MT-182",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test role_mailbox_v1_tests [truncate-all + --test-threads=1 --include-ignored]",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "already implemented (role mailbox); proven on live PG (truncate+single-thread)"
   }
  ],
  "out_of_scope": [
