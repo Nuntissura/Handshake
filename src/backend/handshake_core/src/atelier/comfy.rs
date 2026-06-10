@@ -121,6 +121,10 @@ pub mod comfy_event_family {
     /// Partial evidence was attached to a job so no evidence is lost (MT-128).
     pub const JOB_PARTIAL_EVIDENCE_PRESERVED: &str =
         "atelier.comfy.job.partial_evidence.preserved";
+    /// A structured diagnostic bundle was recorded for a failed pose/ComfyUI
+    /// operation (MT-112; carries request/refs/versions/logs/artifacts +
+    /// error taxonomy).
+    pub const DIAGNOSTIC_BUNDLE_RECORDED: &str = "atelier.comfy.diagnostic_bundle.recorded";
 
     /// All ComfyUI intake event families (parity/coverage helper).
     pub const ALL: &[&str] = &[
@@ -146,17 +150,18 @@ pub mod comfy_event_family {
         JOB_CANCELLED,
         JOB_TIMED_OUT,
         JOB_PARTIAL_EVIDENCE_PRESERVED,
+        DIAGNOSTIC_BUNDLE_RECORDED,
     ];
 }
 
 /// Re-export at module root so callers can write `comfy::PROBE_RECORDED`.
 pub use comfy_event_family::{
-    CAPABILITY_REGISTERED, CAPABILITY_REJECTED, FALLBACK_ENGAGED, JOB_CANCELLED, JOB_COMPLETED,
-    JOB_ENQUEUED, JOB_FAILED, JOB_PARTIAL_EVIDENCE_PRESERVED, JOB_RUNNING, JOB_TIMED_OUT,
-    OUTPUT_DEDUPLICATED, OUTPUT_MATERIALIZED, OUTPUT_REGISTRATION_FAILURE_RECORDED,
-    OUTPUT_REGISTRATION_FAILURE_RETRIED, PROBE_RECORDED, RECEIPT_PRODUCED, REPLAY_COMPLETED,
-    REPLAY_FAILED, REPLAY_REQUESTED, VERSION_METADATA_RECORDED, WORKFLOW_RECEIPT_RECORDED,
-    WORKFLOW_SPEC_REGISTERED,
+    CAPABILITY_REGISTERED, CAPABILITY_REJECTED, DIAGNOSTIC_BUNDLE_RECORDED, FALLBACK_ENGAGED,
+    JOB_CANCELLED, JOB_COMPLETED, JOB_ENQUEUED, JOB_FAILED, JOB_PARTIAL_EVIDENCE_PRESERVED,
+    JOB_RUNNING, JOB_TIMED_OUT, OUTPUT_DEDUPLICATED, OUTPUT_MATERIALIZED,
+    OUTPUT_REGISTRATION_FAILURE_RECORDED, OUTPUT_REGISTRATION_FAILURE_RETRIED, PROBE_RECORDED,
+    RECEIPT_PRODUCED, REPLAY_COMPLETED, REPLAY_FAILED, REPLAY_REQUESTED, VERSION_METADATA_RECORDED,
+    WORKFLOW_RECEIPT_RECORDED, WORKFLOW_SPEC_REGISTERED,
 };
 
 /// The slot token used for SaveImage-fallback output rows (Section 6.9.6). A
@@ -1127,6 +1132,54 @@ pub struct NewComfyVersionMetadata {
 }
 
 // ---------------------------------------------------------------------------
+// Diagnostic Bundle (MT-112).
+//
+// A `DiagnosticBundle` is the structured failure-evidence record for a failed
+// pose/ComfyUI operation: the captured (scrubbed) request, the portable refs
+// involved (workflow/prompt/artifact refs -- never machine-local, never
+// .GOV/SQLite/localhost), the pinned versions, a portable ref to logs, the
+// involved artifacts, and a stable error-taxonomy token. It carries the
+// minimum a no-context model needs to triage a failed run without re-running
+// it. No raw bytes, no credentials, no socket: this is the GOVERNED DATA +
+// RECEIPT model only (LAW-COMFY-INTAKE-001/005). Storage authority is
+// PostgreSQL only (LAW-COMFY-INTAKE-004).
+// ---------------------------------------------------------------------------
+
+/// A structured diagnostic bundle for a failed pose/ComfyUI operation (MT-112).
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct DiagnosticBundle {
+    pub bundle_id: Uuid,
+    pub workflow_run_id: Uuid,
+    /// The captured (scrubbed) request that failed.
+    pub request: serde_json::Value,
+    /// The portable refs involved (object of named refs). Every string value is
+    /// rejected if it is a machine-local / .GOV / SQLite / localhost ref.
+    pub refs: serde_json::Value,
+    /// The pinned versions in effect at failure (pose/image-tool/comfy, etc).
+    pub versions: serde_json::Value,
+    /// Portable Handshake-native ref to the failure logs (never inline bytes).
+    pub logs_ref: String,
+    /// The artifacts involved in the failed operation (array/object of refs).
+    pub artifacts: serde_json::Value,
+    /// Stable error-taxonomy token classifying the failure.
+    pub error_taxonomy: String,
+    pub created_at_utc: DateTime<Utc>,
+}
+
+/// Parameters to record a diagnostic bundle for a failed run (MT-112).
+/// Idempotent on `workflow_run_id` (one bundle per run).
+#[derive(Clone, Debug)]
+pub struct NewDiagnosticBundle {
+    pub workflow_run_id: Uuid,
+    pub request: serde_json::Value,
+    pub refs: serde_json::Value,
+    pub versions: serde_json::Value,
+    pub logs_ref: String,
+    pub artifacts: serde_json::Value,
+    pub error_taxonomy: String,
+}
+
+// ---------------------------------------------------------------------------
 // ComfyUI Job Lifecycle (MT-126 enqueue, MT-127 poll/advance, MT-128
 // timeout/cancel + partial-evidence preservation).
 //
@@ -1359,6 +1412,47 @@ fn version_metadata_from_row(row: &sqlx::postgres::PgRow) -> ComfyVersionMetadat
         preflight_evidence: row.get("preflight_evidence"),
         created_at_utc: row.get("created_at_utc"),
         updated_at_utc: row.get("updated_at_utc"),
+    }
+}
+
+/// Recursively reject any legacy/machine-local ref reachable as a string value
+/// inside a JSON value (MT-112). Reuses the canonical
+/// [`reject_legacy_runtime_ref`] boundary on every string, so a forbidden
+/// .GOV/SQLite/localhost/machine-local ref anywhere in `refs` fails the record.
+/// Non-string scalars pass through (they cannot carry a ref).
+fn reject_legacy_runtime_refs_in_json(
+    field: &str,
+    value: &serde_json::Value,
+) -> AtelierResult<()> {
+    match value {
+        serde_json::Value::String(text) => reject_legacy_runtime_ref(field, text),
+        serde_json::Value::Array(items) => {
+            for item in items {
+                reject_legacy_runtime_refs_in_json(field, item)?;
+            }
+            Ok(())
+        }
+        serde_json::Value::Object(map) => {
+            for item in map.values() {
+                reject_legacy_runtime_refs_in_json(field, item)?;
+            }
+            Ok(())
+        }
+        _ => Ok(()),
+    }
+}
+
+fn diagnostic_bundle_from_row(row: &sqlx::postgres::PgRow) -> DiagnosticBundle {
+    DiagnosticBundle {
+        bundle_id: row.get("bundle_id"),
+        workflow_run_id: row.get("workflow_run_id"),
+        request: row.get("request_json"),
+        refs: row.get("refs_json"),
+        versions: row.get("versions_json"),
+        logs_ref: row.get("logs_ref"),
+        artifacts: row.get("artifacts_json"),
+        error_taxonomy: row.get("error_taxonomy"),
+        created_at_utc: row.get("created_at_utc"),
     }
 }
 
@@ -3047,6 +3141,112 @@ impl AtelierStore {
         .fetch_optional(self.pool())
         .await?;
         Ok(row.as_ref().map(version_metadata_from_row))
+    }
+
+    /// Record a structured diagnostic bundle for a failed pose/ComfyUI
+    /// operation (MT-112).
+    ///
+    /// Captures the failure evidence a no-context model needs to triage without
+    /// re-running: the (scrubbed) request, the portable refs involved, the
+    /// pinned versions, a portable logs ref, the involved artifacts, and a
+    /// stable error-taxonomy token. Idempotent on `workflow_run_id` (one bundle
+    /// per run): re-recording refreshes the bundle in place. The request,
+    /// versions, and artifacts are JSON objects/arrays scrubbed of credential
+    /// material before storage (LAW-COMFY-INTAKE-005). Every ref string -- the
+    /// `logs_ref` and every string value reachable in `refs` -- is rejected via
+    /// the canonical [`reject_legacy_runtime_ref`] boundary, so machine-local,
+    /// .GOV, SQLite, and localhost/loopback refs never persist. Emits
+    /// `DIAGNOSTIC_BUNDLE_RECORDED`.
+    pub async fn record_diagnostic_bundle(
+        &self,
+        new: &NewDiagnosticBundle,
+    ) -> AtelierResult<DiagnosticBundle> {
+        if !new.request.is_object() {
+            return Err(AtelierError::Validation(
+                "diagnostic bundle request must be a JSON object".into(),
+            ));
+        }
+        if !new.refs.is_object() {
+            return Err(AtelierError::Validation(
+                "diagnostic bundle refs must be a JSON object".into(),
+            ));
+        }
+        if !new.versions.is_object() {
+            return Err(AtelierError::Validation(
+                "diagnostic bundle versions must be a JSON object".into(),
+            ));
+        }
+        if !new.artifacts.is_object() {
+            return Err(AtelierError::Validation(
+                "diagnostic bundle artifacts must be a JSON object".into(),
+            ));
+        }
+        require_token_field("error_taxonomy", &new.error_taxonomy)?;
+        reject_legacy_runtime_ref("diagnostic bundle logs_ref", &new.logs_ref)?;
+        reject_legacy_runtime_refs_in_json("diagnostic bundle refs", &new.refs)?;
+
+        let request = scrub_provenance(&new.request);
+        let refs = scrub_provenance(&new.refs);
+        let versions = scrub_provenance(&new.versions);
+        let artifacts = scrub_provenance(&new.artifacts);
+
+        let row = sqlx::query(
+            r#"INSERT INTO atelier_comfy_diagnostic_bundle
+                 (workflow_run_id, request_json, refs_json, versions_json,
+                  logs_ref, artifacts_json, error_taxonomy)
+               VALUES ($1, $2, $3, $4, $5, $6, $7)
+               ON CONFLICT (workflow_run_id) DO UPDATE
+                 SET request_json   = EXCLUDED.request_json,
+                     refs_json      = EXCLUDED.refs_json,
+                     versions_json  = EXCLUDED.versions_json,
+                     logs_ref       = EXCLUDED.logs_ref,
+                     artifacts_json = EXCLUDED.artifacts_json,
+                     error_taxonomy = EXCLUDED.error_taxonomy
+               RETURNING bundle_id, workflow_run_id, request_json, refs_json,
+                         versions_json, logs_ref, artifacts_json, error_taxonomy,
+                         created_at_utc"#,
+        )
+        .bind(new.workflow_run_id)
+        .bind(&request)
+        .bind(&refs)
+        .bind(&versions)
+        .bind(&new.logs_ref)
+        .bind(&artifacts)
+        .bind(&new.error_taxonomy)
+        .fetch_one(self.pool())
+        .await?;
+        let bundle = diagnostic_bundle_from_row(&row);
+
+        self.record_event(
+            comfy_event_family::DIAGNOSTIC_BUNDLE_RECORDED,
+            "atelier_comfy_diagnostic_bundle",
+            &bundle.workflow_run_id.to_string(),
+            serde_json::json!({
+                "bundle_id": bundle.bundle_id,
+                "workflow_run_id": bundle.workflow_run_id,
+                "logs_ref": bundle.logs_ref,
+                "error_taxonomy": bundle.error_taxonomy,
+            }),
+        )
+        .await?;
+        Ok(bundle)
+    }
+
+    /// Fetch the diagnostic bundle for a workflow run, if recorded (MT-112).
+    pub async fn get_diagnostic_bundle(
+        &self,
+        workflow_run_id: Uuid,
+    ) -> AtelierResult<Option<DiagnosticBundle>> {
+        let row = sqlx::query(
+            r#"SELECT bundle_id, workflow_run_id, request_json, refs_json,
+                      versions_json, logs_ref, artifacts_json, error_taxonomy,
+                      created_at_utc
+               FROM atelier_comfy_diagnostic_bundle WHERE workflow_run_id = $1"#,
+        )
+        .bind(workflow_run_id)
+        .fetch_optional(self.pool())
+        .await?;
+        Ok(row.as_ref().map(diagnostic_bundle_from_row))
     }
 
     // -----------------------------------------------------------------------

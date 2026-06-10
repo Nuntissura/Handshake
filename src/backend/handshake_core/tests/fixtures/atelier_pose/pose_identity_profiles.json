@@ -1,0 +1,32 @@
+{
+  "_comment": "MT-113 portable non-SQLite fixture corpus: append-only versioned identity profiles per character. Pure JSON, no SQLite. reference_ref_slug / source_ref_slug / artifact_ref are made run-unique by the loader. provenance may carry a secret-looking line; the store redacts it before persistence, so the loader asserts the redacted form round-trips (raw secrets never stored). seq is computed by the store (1-based, append-only per character).",
+  "profiles": [
+    {
+      "kind": "face",
+      "name": "Primary Face Identity",
+      "description": "Front-facing portrait identity profile for the pose subject.",
+      "reference_ref_slug": "portrait://mt113-face-ref",
+      "source_ref_slug": "source://operator-inbox/mt113-face-source",
+      "provenance_clean": "captured from operator portrait inbox; lineage v1",
+      "provenance_secret_line": "authorization: Bearer mt113-should-be-redacted"
+    },
+    {
+      "kind": "reference",
+      "name": "Wardrobe Reference Identity",
+      "description": "Full-body wardrobe reference for the pose subject.",
+      "reference_ref_slug": "portrait://mt113-reference-ref",
+      "source_ref_slug": "source://operator-inbox/mt113-reference-source",
+      "provenance_clean": "wardrobe reference shoot; lineage v1",
+      "provenance_secret_line": null
+    },
+    {
+      "kind": "face",
+      "name": "Secondary Face Identity",
+      "description": "Three-quarter angle face identity profile (later version).",
+      "reference_ref_slug": "portrait://mt113-face-ref-2",
+      "source_ref_slug": "source://operator-inbox/mt113-face-source-2",
+      "provenance_clean": "second capture session; lineage v2",
+      "provenance_secret_line": null
+    }
+  ]
+}

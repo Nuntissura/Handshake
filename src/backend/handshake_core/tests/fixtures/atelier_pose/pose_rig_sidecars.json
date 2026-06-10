@@ -1,0 +1,35 @@
+{
+  "_comment": "MT-113 portable non-SQLite fixture corpus: Pose rig ingest + typed OpenPose/conditioning sidecars. Pure JSON, no SQLite, no CKC namespace. source_ref_slug / content_hash_slug are made run-unique by the loader. Keypoint cardinalities are body-18/face-70/hand-21 (filled by the loader from BODY/FACE/HAND_KEYPOINT_COUNT). Each sidecar's payload bytes are materialized through the real native ArtifactStore so artifact_ref/manifest_ref/content_hash come out exactly like production.",
+  "rigs": [
+    {
+      "source_ref_slug": "portrait-mt113-rig-a",
+      "content_hash_slug": "sha256-mt113-rig-a",
+      "canvas": { "width": 1024, "height": 1536 },
+      "detector_provider": "mediapipe.tasks-vision.pose",
+      "detector_model": "BlazePose GHUM",
+      "detector_model_version": "mediapipe-tasks-vision-0.10.20",
+      "confidence_available": true,
+      "detector_status": "detected",
+      "error_reason": null,
+      "sidecars": [
+        { "kind": "openpose_json", "mime": "application/json", "payload_seed": "mt113-openpose-json-a", "status": "rendered", "error_message": null },
+        { "kind": "openpose_png", "mime": "image/png", "payload_seed": "mt113-openpose-png-a", "status": "rendered", "error_message": null },
+        { "kind": "conditioning_png", "mime": "image/png", "payload_seed": "mt113-conditioning-png-a", "status": "rendered", "error_message": null }
+      ]
+    },
+    {
+      "source_ref_slug": "portrait-mt113-rig-b-fallback",
+      "content_hash_slug": "sha256-mt113-rig-b",
+      "canvas": { "width": 768, "height": 1024 },
+      "detector_provider": "fallback",
+      "detector_model": "deterministic-body-18",
+      "detector_model_version": "1",
+      "confidence_available": false,
+      "detector_status": "fallback",
+      "error_reason": "deterministic body-18 fallback: face and hand landmarks unavailable",
+      "sidecars": [
+        { "kind": "openpose_json", "mime": "application/json", "payload_seed": "mt113-openpose-json-b", "status": "failed", "error_message": "openpose renderer unavailable" }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "_comment": "MT-113 portable non-SQLite fixture corpus: append-only pose context state switches + multi-rig workspace tab/panel state. Pure JSON, no SQLite. workspace_ref_slug / session_ref_slug made run-unique by the loader. context_modes drive set_pose_context_state in order (blank -> single_image -> character_linked -> collection_linked); each switch is append-only and must preserve prior modes. workspace_tabs drive upsert_pose_workspace_rig_state and assert sort_order / single-active invariants.",
+  "context_modes": ["blank", "single_image", "character_linked", "collection_linked"],
+  "workspace_tabs": [
+    { "rig_index": 0, "open": true, "sort_order": 1, "active": false, "dirty_calibration": false, "panel_state": { "panel": "source", "zoom": 1.0 } },
+    { "rig_index": 1, "open": true, "sort_order": 0, "active": false, "dirty_calibration": true, "panel_state": { "panel": "calibration", "expanded": ["head_pose", "limits"] } },
+    { "rig_index": 2, "open": true, "sort_order": 2, "active": true, "dirty_calibration": false, "panel_state": { "panel": "sidecars" } }
+  ]
+}

@@ -104,9 +104,12 @@
   "MT-108",
   "MT-109",
   "MT-110",
+  "MT-112",
+  "MT-113",
   "MT-115",
   "MT-116",
   "MT-117",
+  "MT-118",
   "MT-119",
   "MT-120",
   "MT-122",
@@ -120,7 +123,8 @@
   "MT-138",
   "MT-139",
   "MT-157",
-  "MT-162"
+  "MT-162",
+  "MT-203"
  ],
  "entries": [
   {
@@ -967,6 +971,38 @@
    "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test atelier_comfy_job_tests mt128_cancel_and_timeout_preserve_partial_evidence --target-dir ../Handshake_Artifacts/handshake-cargo-target",
    "remediated_by": "KERNEL_BUILDER",
    "remediation_note": "comfy job queue (126) / polling status mapping (127) / cancel+timeout+partial-evidence (128), table 0108+gate+events, live-PG"
+  },
+  {
+   "mt_id": "MT-112",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test atelier_diagnostic_bundle_tests mt112_diagnostic_bundle_records_request_refs_versions_logs_artifacts_taxonomy --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "diagnostic bundle (112) / pose fixture corpus (113) / pose-comfy integration chain (118), live-PG"
+  },
+  {
+   "mt_id": "MT-113",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test atelier_pose_fixture_corpus_tests mt113_pose_fixture_corpus_round_trips --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "diagnostic bundle (112) / pose fixture corpus (113) / pose-comfy integration chain (118), live-PG"
+  },
+  {
+   "mt_id": "MT-118",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test atelier_pose_pipeline_integration_tests mt118_pose_comfy_pipeline_integration_chain --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "diagnostic bundle (112) / pose fixture corpus (113) / pose-comfy integration chain (118), live-PG"
+  },
+  {
+   "mt_id": "MT-203",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test atelier_transcript_tests atelier_probe_idempotent_and_transcript_lineage_roundtrip --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "already implemented in transcript.rs (record_media_probe + transcript lineage); proven via existing test"
   }
  ]
 }
