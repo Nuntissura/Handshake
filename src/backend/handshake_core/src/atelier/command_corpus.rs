@@ -2160,3 +2160,439 @@ impl AtelierStore {
         rows.iter().map(diagnostics_session_from_row).collect()
     }
 }
+
+// ===========================================================================
+// MT-206: full builtin CKC command-corpus enumeration (const descriptor
+// bootstrap).
+//
+// LAW-CORPUS-PARITY-002 fixes the mechanical corpus source-of-truth as (a) the
+// preload command registry (the names the renderer is allowed to call) and (b)
+// the backend IPC handler set. In Handshake-native terms that is the
+// `handshake_invoke_handlers!` registration list in `app/src-tauri/src/lib.rs`
+// (every `#[tauri::command]` the webview can invoke). `BUILTIN_COMMAND_CORPUS`
+// below is the typed action-catalog enumeration of that full surface --
+// one row per registered handler -- and
+// [`AtelierStore::bootstrap_builtin_command_corpus`] projects it into the
+// PostgreSQL catalog, cross-checked live against the ModelManual
+// (`crate::model_manual`):
+//   * a command covered by a live ModelManual `CommandReference` is anchored
+//     to that manual id (clearing any stale `no_manual_anchor` block);
+//   * a command with no manual coverage is stored with the `BLOCKED` sentinel
+//     plus a durable `no_manual_anchor` BLOCKED record (10.19.4 BLOCKED-001),
+//     never silently omitted.
+// The cross-check is a deterministic scan over the live manual content
+// (PARITY-MANUAL-004), not a judgement baked into the table, so manual
+// coverage added later flips a command from BLOCKED to covered on the next
+// bootstrap without editing this enumeration.
+// ===========================================================================
+
+/// EventLedger evidence family declared by every mutating / governed builtin
+/// descriptor (`write_box` / `workflow_job` / `ai_job`). Dispatchers record
+/// invocation evidence of this family through
+/// [`AtelierStore::record_command_corpus_invocation`] (10.19.5 EVIDENCE-001).
+/// Pure projections declare no evidence family (read-only).
+pub const CORPUS_GOVERNED_INVOCATION_FAMILY: &str =
+    "atelier.command_corpus.governed_invocation";
+
+/// One row of the builtin CKC command-corpus enumeration table. The manual
+/// anchor is intentionally NOT part of the row: it is derived live from the
+/// ModelManual during [`builtin_command_corpus`] so the table cannot drift
+/// from the manual.
+#[cfg(feature = "runtime-full")]
+#[derive(Clone, Copy, Debug)]
+struct BuiltinCommandSpec {
+    /// Stable action id == the registered Tauri command / preload name.
+    action_id: &'static str,
+    /// Owning backend module (the `app/src-tauri` handler module), never "ui".
+    owner: &'static str,
+    corpus_source: CorpusSource,
+    execution_class: ExecutionClass,
+    /// True ONLY for unavoidably-foreground commands (HBR-QUIET).
+    foreground_flag: bool,
+}
+
+#[cfg(feature = "runtime-full")]
+mod builtin_table {
+    use super::{BuiltinCommandSpec, CorpusSource, ExecutionClass};
+
+    const IPC: CorpusSource = CorpusSource::IpcHandler;
+    const BOTH: CorpusSource = CorpusSource::Both;
+    const PURE: ExecutionClass = ExecutionClass::PureProjection;
+    const WRITE: ExecutionClass = ExecutionClass::WriteBox;
+    const WF: ExecutionClass = ExecutionClass::WorkflowJob;
+    const AI: ExecutionClass = ExecutionClass::AiJob;
+
+    const fn row(
+        action_id: &'static str,
+        owner: &'static str,
+        corpus_source: CorpusSource,
+        execution_class: ExecutionClass,
+        foreground_flag: bool,
+    ) -> BuiltinCommandSpec {
+        BuiltinCommandSpec {
+            action_id,
+            owner,
+            corpus_source,
+            execution_class,
+            foreground_flag,
+        }
+    }
+
+    /// The full builtin corpus: one row per handler registered in
+    /// `handshake_invoke_handlers!` (`app/src-tauri/src/lib.rs`), in
+    /// registration order. `BOTH` marks commands also invoked from the
+    /// renderer (`app/src`); `IPC` marks handler-only registrations.
+    pub(super) const ROWS: &[BuiltinCommandSpec] = &[
+        // -- app shell (lib.rs root handlers) --
+        row("greet", "app_shell", IPC, PURE, false),
+        row("md_output_root_dir_get", "app_shell", BOTH, PURE, false),
+        row("md_output_root_dir_set", "app_shell", BOTH, WRITE, false),
+        row("md_sessions_list", "app_shell", BOTH, PURE, false),
+        row("md_session_create", "app_shell", BOTH, WRITE, false),
+        row("md_session_open", "app_shell", BOTH, WRITE, false),
+        row("md_session_export_cookies", "app_shell", BOTH, WRITE, false),
+        // -- fonts --
+        row("fonts_bootstrap_pack", "fonts", BOTH, WRITE, false),
+        row("fonts_rebuild_manifest", "fonts", IPC, WRITE, false),
+        row("fonts_list", "fonts", BOTH, PURE, false),
+        row("fonts_import", "fonts", BOTH, WRITE, false),
+        row("fonts_remove", "fonts", BOTH, WRITE, false),
+        // -- foreground warning --
+        row("foreground_warning_emit", "foreground_warning", IPC, WRITE, false),
+        // -- kernel inspector --
+        row("kernel_inspector_port", "inspector", IPC, PURE, false),
+        row("kernel_inspector_list_sessions", "inspector", IPC, PURE, false),
+        row("kernel_inspector_session_state", "inspector", IPC, PURE, false),
+        row("kernel_inspector_event_ledger_tail", "inspector", IPC, PURE, false),
+        row("kernel_inspector_process_ledger_active", "inspector", IPC, PURE, false),
+        row("kernel_inspector_trace_projection", "inspector", IPC, PURE, false),
+        row("kernel_inspector_loaded_models", "inspector", IPC, PURE, false),
+        // -- model runtime --
+        row("kernel_model_runtime_capabilities", "model_runtime", BOTH, PURE, false),
+        row("kernel_model_runtime_list_loaded", "model_runtime", BOTH, PURE, false),
+        row("kernel_model_runtime_load", "model_runtime", IPC, WF, false),
+        row("kernel_model_runtime_unload", "model_runtime", IPC, WF, false),
+        // -- swarm runtime --
+        row("kernel_swarm_spawn_session", "swarm_runtime", BOTH, WF, false),
+        row("kernel_swarm_spawn_local_cloud_pair", "swarm_runtime", BOTH, WF, false),
+        row("kernel_swarm_spawn_with_cloud_escalation", "swarm_runtime", BOTH, WF, false),
+        row("kernel_swarm_resume_session", "swarm_runtime", BOTH, WF, false),
+        row("kernel_swarm_get_spawn_template", "swarm_runtime", BOTH, PURE, false),
+        row("kernel_swarm_cancel_session", "swarm_runtime", BOTH, WRITE, false),
+        row("kernel_swarm_list_active_sessions", "swarm_runtime", BOTH, PURE, false),
+        row("kernel_swarm_list_worktrees", "swarm_runtime", BOTH, PURE, false),
+        row("kernel_swarm_resource_snapshot", "swarm_runtime", BOTH, PURE, false),
+        row("kernel_swarm_board_snapshot", "swarm_runtime", BOTH, PURE, false),
+        row("kernel_swarm_chat_generate", "swarm_runtime", BOTH, AI, false),
+        row("kernel_swarm_chat_generate_with_cloud_escalation", "swarm_runtime", BOTH, AI, false),
+        // -- swarm schedule --
+        row("kernel_swarm_schedule_add", "swarm_schedule", BOTH, WRITE, false),
+        row("kernel_swarm_schedule_list", "swarm_schedule", BOTH, PURE, false),
+        row("kernel_swarm_schedule_remove", "swarm_schedule", BOTH, WRITE, false),
+        row("kernel_swarm_schedule_export_ics", "swarm_schedule", BOTH, WRITE, false),
+        // -- LoRA runtime --
+        row("kernel_model_runtime_lora_mount", "lora", BOTH, WF, false),
+        row("kernel_model_runtime_lora_unmount", "lora", BOTH, WF, false),
+        row("kernel_model_runtime_lora_swap", "lora", BOTH, WF, false),
+        row("kernel_model_runtime_lora_list", "lora", BOTH, PURE, false),
+        // -- KV cache --
+        row("kernel_model_runtime_kv_set_quantization", "kv_cache", BOTH, WRITE, false),
+        row("kernel_model_runtime_kv_prefix_commit", "kv_cache", BOTH, WRITE, false),
+        row("kernel_model_runtime_kv_prefix_restore", "kv_cache", BOTH, WRITE, false),
+        row("kernel_model_runtime_kv_evict_all", "kv_cache", BOTH, WRITE, false),
+        row("kernel_model_runtime_kv_occupancy", "kv_cache", BOTH, PURE, false),
+        // -- speculative decoding --
+        row("kernel_model_runtime_spec_set_mode", "speculative", BOTH, WRITE, false),
+        row("kernel_model_runtime_spec_get_mode", "speculative", BOTH, PURE, false),
+        row("kernel_model_runtime_spec_validate", "speculative", BOTH, PURE, false),
+        // -- subquadratic state --
+        row("kernel_model_runtime_subquad_state_commit", "subquadratic", BOTH, WRITE, false),
+        row("kernel_model_runtime_subquad_state_restore", "subquadratic", BOTH, WRITE, false),
+        row("kernel_model_runtime_subquad_state_list", "subquadratic", BOTH, PURE, false),
+        row("kernel_model_runtime_subquad_state_evict_all", "subquadratic", BOTH, WRITE, false),
+        row("kernel_model_runtime_subquad_persist", "subquadratic", BOTH, WRITE, false),
+        row("kernel_model_runtime_subquad_rehydrate", "subquadratic", BOTH, WRITE, false),
+        // -- memory capsule --
+        row("kernel_memory_capsule_list_recent", "memory_capsule", IPC, PURE, false),
+        row("kernel_memory_capsule_get", "memory_capsule", IPC, PURE, false),
+        row("kernel_memory_capsule_suppress_item", "memory_capsule", IPC, WRITE, false),
+        row("kernel_memory_capsule_suppress_capsule", "memory_capsule", IPC, WRITE, false),
+        // -- memory calibration --
+        row("kernel_memory_calibration_snapshot", "memory_calibration", IPC, PURE, false),
+        // -- memory pin --
+        row("kernel_memory_pin_set", "memory_pin", IPC, WRITE, false),
+        row("kernel_memory_pin_unset", "memory_pin", IPC, WRITE, false),
+        row("kernel_memory_pin_list", "memory_pin", IPC, PURE, false),
+        // -- stealth reference windows --
+        row("kernel_stealth_ref_list_windows", "stealth_ref", IPC, PURE, false),
+        row("kernel_stealth_ref_list_refs", "stealth_ref", IPC, PURE, false),
+        row("kernel_stealth_ref_resolve_ref", "stealth_ref", IPC, PURE, false),
+        // -- sandbox adapters --
+        row("kernel_sandbox_list_adapters", "sandbox", BOTH, PURE, false),
+        row("kernel_sandbox_capabilities", "sandbox", IPC, PURE, false),
+        // -- self-improvement loop --
+        row("kernel_self_improve_status", "self_improve", IPC, PURE, false),
+        row("kernel_self_improve_pause", "self_improve", IPC, WRITE, false),
+        row("kernel_self_improve_unpause", "self_improve", IPC, WRITE, false),
+        row("kernel_self_improve_review_pending", "self_improve", IPC, PURE, false),
+        row("kernel_self_improve_approve_promotion", "self_improve", IPC, WRITE, false),
+        row("kernel_self_improve_reject_promotion", "self_improve", IPC, WRITE, false),
+        // -- activation steering --
+        row("kernel_model_runtime_steering_capture", "steering", BOTH, AI, false),
+        row("kernel_model_runtime_steering_register_vector", "steering", BOTH, WRITE, false),
+        row("kernel_model_runtime_steering_set_active", "steering", BOTH, WRITE, false),
+        row("kernel_model_runtime_steering_unregister", "steering", BOTH, WRITE, false),
+        row("kernel_model_runtime_steering_list_vectors", "steering", BOTH, PURE, false),
+        row("kernel_model_runtime_steering_approve", "steering", IPC, WRITE, false),
+        row("kernel_model_runtime_steering_generate_ab", "steering", BOTH, AI, false),
+        // -- foreground focus audit --
+        row("kernel_operator_foreground_focus_audit_start", "focus_audit", IPC, WRITE, false),
+        row("kernel_operator_foreground_focus_audit_stop", "focus_audit", IPC, WRITE, false),
+        // -- foreground exception (unavoidably foreground: opens a window) --
+        row("foreground_exception_window_open", "foreground_exception", IPC, WRITE, true),
+        // -- refusal / CAA extraction --
+        row("kernel_model_runtime_refusal_extract", "refusal", BOTH, AI, false),
+        row("kernel_model_runtime_caa_extract", "caa", BOTH, AI, false),
+        // -- session distillation flags --
+        row("kernel_session_mark_for_distillation", "session_distill", IPC, WRITE, false),
+        row("kernel_session_get_distill_flag", "session_distill", IPC, PURE, false),
+        // -- distillation pipeline --
+        row("list_distill_sessions", "distillation", BOTH, PURE, false),
+        row("list_distill_candidates", "distillation", BOTH, PURE, false),
+        row("list_distill_jobs", "distillation", BOTH, PURE, false),
+        row("extract_distill_corpus", "distillation", BOTH, WF, false),
+        row("promote_distill_candidate", "distillation", BOTH, WRITE, false),
+        row("reject_distill_candidate", "distillation", BOTH, WRITE, false),
+        // -- PEFT training --
+        row("start_peft_training_job", "peft", IPC, AI, false),
+        // -- cloud lanes --
+        row("list_cloud_lanes", "cloud_lane", BOTH, PURE, false),
+        row("register_cloud_lane", "cloud_lane", BOTH, WRITE, false),
+        row("remove_cloud_lane", "cloud_lane", BOTH, WRITE, false),
+        row("toggle_cloud_lane", "cloud_lane", BOTH, WRITE, false),
+        row("store_api_key", "cloud_lane", BOTH, WRITE, false),
+        row("rotate_api_key", "cloud_lane", BOTH, WRITE, false),
+        row("delete_api_key", "cloud_lane", BOTH, WRITE, false),
+        row("list_stored_keys", "cloud_lane", BOTH, PURE, false),
+        row("grant_consent", "cloud_lane", BOTH, WRITE, false),
+        row("deny_consent", "cloud_lane", BOTH, WRITE, false),
+        // -- CLI bridge config --
+        row("kernel_cli_bridge_get_config", "cli_bridge_config", BOTH, PURE, false),
+        row("kernel_cli_bridge_set_config", "cli_bridge_config", BOTH, WRITE, false),
+        row("kernel_cli_bridge_clear_config", "cli_bridge_config", BOTH, WRITE, false),
+        row("kernel_cli_bridge_list_presets", "cli_bridge_config", BOTH, PURE, false),
+        row("kernel_cli_bridge_test_config", "cli_bridge_config", BOTH, WF, false),
+        // -- model manual --
+        row("model_manual_get", "model_manual", IPC, PURE, false),
+        row("model_manual_list_commands", "model_manual", IPC, PURE, false),
+        row("model_manual_search", "model_manual", IPC, PURE, false),
+        // -- session chat log --
+        row("session_chat_get_session_id", "session_chat_log", BOTH, PURE, false),
+        row("session_chat_append", "session_chat_log", BOTH, WRITE, false),
+        row("session_chat_read", "session_chat_log", BOTH, PURE, false),
+        // -- visual debug (kernel-side) --
+        row("kernel_visual_debug_launch_config", "visual_debug", IPC, PURE, false),
+        row("kernel_visual_debug_port", "visual_debug", IPC, PURE, false),
+        row("kernel_visual_debug_screenshot", "visual_debug", BOTH, PURE, false),
+        row("kernel_visual_debug_dom_snapshot", "visual_debug", IPC, PURE, false),
+        row("kernel_visual_debug_console_stream_start", "visual_debug", IPC, WRITE, false),
+        row("kernel_visual_debug_console_stream_stop", "visual_debug", IPC, WRITE, false),
+        // -- visual debugger (window-side) --
+        row("visual_debug_capture", "visual_debugger", BOTH, PURE, false),
+        row("visual_debug_ax_tree", "visual_debugger", BOTH, PURE, false),
+        row("visual_debug_console", "visual_debugger", BOTH, PURE, false),
+        // -- terminal --
+        row("kernel_terminal_create_session", "terminal", BOTH, WF, false),
+        row("kernel_terminal_write_stdin", "terminal", BOTH, WRITE, false),
+        row("kernel_terminal_resize", "terminal", BOTH, WRITE, false),
+        row("kernel_terminal_close_session", "terminal", BOTH, WRITE, false),
+        row("kernel_terminal_list_sessions", "terminal", BOTH, PURE, false),
+        row("kernel_terminal_run_command", "terminal", BOTH, WF, false),
+        row("kernel_terminal_scrollback", "terminal", BOTH, PURE, false),
+        // unavoidably foreground: interactive authorization hand-off
+        row("kernel_terminal_authorize_interactive", "terminal", IPC, WRITE, true),
+        // -- session transcripts --
+        row("kernel_session_list", "session_transcript", BOTH, PURE, false),
+        row("kernel_session_transcript_get", "session_transcript", BOTH, PURE, false),
+        row("kernel_session_search", "session_transcript", BOTH, PURE, false),
+        row("kernel_session_export", "session_transcript", BOTH, WRITE, false),
+    ];
+}
+
+/// Find the live ModelManual `CommandReference` covering a corpus action id:
+/// the manual binds a command either through its `tauri_command` field or by
+/// using the action id itself as the manual command id/name.
+#[cfg(feature = "runtime-full")]
+fn manual_entry_covering(action_id: &str) -> Option<&'static crate::model_manual::CommandReference> {
+    crate::model_manual::model_manual()
+        .command_reference
+        .iter()
+        .find(|cmd| {
+            cmd.tauri_command == Some(action_id) || cmd.id == action_id || cmd.name == action_id
+        })
+}
+
+/// Every action id the live ModelManual advertises as an invocable product
+/// command (its `tauri_command` bindings). This is the mechanical manual-side
+/// scan input for the PARITY-MANUAL-002 orphan check: ids in this list that
+/// are absent from the corpus surface as `orphaned_manual` defects in
+/// [`AtelierStore::build_command_corpus_parity_report`].
+#[cfg(feature = "runtime-full")]
+pub fn model_manual_advertised_action_ids() -> Vec<String> {
+    crate::model_manual::model_manual()
+        .command_reference
+        .iter()
+        .filter_map(|cmd| cmd.tauri_command)
+        .map(str::to_string)
+        .collect()
+}
+
+/// Materialize the FULL builtin CKC command corpus as typed catalog
+/// descriptors (10.19.2), cross-checked live against the ModelManual: covered
+/// commands carry their manual id as `manual_anchor`; uncovered commands carry
+/// [`MANUAL_ANCHOR_BLOCKED`]. Pure projections declare explicitly-empty
+/// capabilities; mutating/governed classes declare a per-owner capability and
+/// the [`CORPUS_GOVERNED_INVOCATION_FAMILY`] evidence family (EVIDENCE-001).
+#[cfg(feature = "runtime-full")]
+pub fn builtin_command_corpus() -> Vec<UpsertCommandCorpusEntry> {
+    builtin_table::ROWS.iter().map(builtin_entry).collect()
+}
+
+#[cfg(feature = "runtime-full")]
+fn builtin_entry(spec: &BuiltinCommandSpec) -> UpsertCommandCorpusEntry {
+    let manual_anchor = manual_entry_covering(spec.action_id)
+        .map(|cmd| cmd.id.to_string())
+        .unwrap_or_else(|| MANUAL_ANCHOR_BLOCKED.to_string());
+
+    let capabilities = match spec.execution_class {
+        // Explicitly no capability (10.19.2: empty set is meaningful).
+        ExecutionClass::PureProjection => Vec::new(),
+        ExecutionClass::WriteBox => vec![format!("{}.write", spec.owner)],
+        ExecutionClass::WorkflowJob | ExecutionClass::AiJob => {
+            vec![format!("{}.execute", spec.owner)]
+        }
+    };
+
+    let evidence_class = if spec.execution_class == ExecutionClass::PureProjection {
+        Vec::new()
+    } else {
+        vec![CORPUS_GOVERNED_INVOCATION_FAMILY.to_string()]
+    };
+
+    let mut errors = vec![CorpusErrorVariant {
+        code: "validation".to_string(),
+        recovery_instruction: "correct the rejected input field to satisfy the typed params \
+                               schema, then resubmit"
+            .to_string(),
+    }];
+    if !capabilities.is_empty() {
+        errors.push(CorpusErrorVariant {
+            code: "capability_denied".to_string(),
+            recovery_instruction: "request the missing capability grant, then retry the command"
+                .to_string(),
+        });
+    }
+    if manual_anchor == MANUAL_ANCHOR_BLOCKED {
+        errors.push(CorpusErrorVariant {
+            code: "command_blocked".to_string(),
+            recovery_instruction: "add ModelManual coverage for this command, then bind it via \
+                                   anchor_command_manual"
+                .to_string(),
+        });
+    }
+
+    UpsertCommandCorpusEntry {
+        action_id: spec.action_id.to_string(),
+        corpus_source: spec.corpus_source,
+        owner: spec.owner.to_string(),
+        actor_eligibility: vec!["operator".to_string(), "model".to_string()],
+        params_schema_ref: format!("schema://handshake/command/{}/params@v1", spec.action_id),
+        input_schema_version: 1,
+        capabilities,
+        execution_class: spec.execution_class,
+        receipt_shape: format!("schema://handshake/command/{}/receipt@v1", spec.action_id),
+        errors,
+        foreground_flag: spec.foreground_flag,
+        manual_anchor,
+        evidence_class,
+    }
+}
+
+/// Receipt returned by [`AtelierStore::bootstrap_builtin_command_corpus`]:
+/// mechanical counts over the enumeration plus the manual-side orphan-scan
+/// input for the parity report.
+#[cfg(feature = "runtime-full")]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct BuiltinCorpusBootstrapReceipt {
+    /// Total builtin commands enumerated (the full corpus).
+    pub total_commands: usize,
+    /// Commands anchored to a live ModelManual entry.
+    pub covered_count: usize,
+    /// Commands stored with the BLOCKED sentinel + a no_manual_anchor record.
+    pub blocked_count: usize,
+    /// Manual-advertised action ids (PARITY-MANUAL-002 orphan-scan input).
+    pub manual_advertised_action_ids: Vec<String>,
+}
+
+#[cfg(feature = "runtime-full")]
+impl AtelierStore {
+    /// Project the FULL builtin command corpus ([`builtin_command_corpus`])
+    /// into the PostgreSQL action catalog. Idempotent: re-running re-projects
+    /// every descriptor in place (stable `entry_id` per `action_id`).
+    ///
+    /// For every command the live ModelManual cross-check decides the anchor:
+    ///   * covered -> upsert + [`AtelierStore::anchor_command_manual`] (which
+    ///     also clears any stale `no_manual_anchor` BLOCKED record and emits
+    ///     `CORPUS_ENTRY_ANCHORED`);
+    ///   * uncovered -> upsert with [`MANUAL_ANCHOR_BLOCKED`] + a durable
+    ///     `no_manual_anchor` BLOCKED record (BLOCKED-001/002, emits
+    ///     `CORPUS_BLOCKED_RECORDED`).
+    ///
+    /// Called at backend startup (after `ensure_schema`) so the Dev Command
+    /// Center `/atelier/command-corpus` projection serves the full corpus from
+    /// boot, and callable from proofs/tools at any time.
+    pub async fn bootstrap_builtin_command_corpus(
+        &self,
+    ) -> AtelierResult<BuiltinCorpusBootstrapReceipt> {
+        let entries = builtin_command_corpus();
+
+        // LAW-CORPUS-PARITY-001: a single catalog, each action id exactly once.
+        let mut seen: std::collections::BTreeSet<&str> = std::collections::BTreeSet::new();
+        for entry in &entries {
+            if !seen.insert(entry.action_id.as_str()) {
+                return Err(AtelierError::Validation(format!(
+                    "duplicate builtin corpus action_id: {}",
+                    entry.action_id
+                )));
+            }
+        }
+
+        let mut covered_count = 0usize;
+        let mut blocked_count = 0usize;
+        for input in &entries {
+            self.upsert_command_corpus_entry(input).await?;
+            if input.manual_anchor == MANUAL_ANCHOR_BLOCKED {
+                blocked_count += 1;
+                self.record_blocked_command(
+                    &input.action_id,
+                    BlockedReason::NoManualAnchor,
+                    input.corpus_source,
+                    "add a ModelManual CommandReference covering this command, then bind it \
+                     via anchor_command_manual",
+                )
+                .await?;
+            } else {
+                covered_count += 1;
+                self.anchor_command_manual(&input.action_id, &input.manual_anchor)
+                    .await?;
+            }
+        }
+
+        Ok(BuiltinCorpusBootstrapReceipt {
+            total_commands: entries.len(),
+            covered_count,
+            blocked_count,
+            manual_advertised_action_ids: model_manual_advertised_action_ids(),
+        })
+    }
+}

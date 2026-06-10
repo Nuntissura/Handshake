@@ -186,6 +186,8 @@ pub enum ExportError {
         artifact_id: String,
         message: String,
     },
+    #[error("trace store access failed: {message}")]
+    Store { message: String },
 }
 
 pub trait TraceSource {

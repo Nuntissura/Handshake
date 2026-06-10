@@ -850,10 +850,6 @@ fn manual_covers_diagnostics_surfaces() {
         "diagnostics_problem_store_query",
         "diagnostics_hbr_handoff_gate_evaluate",
         "diagnostics_debug_bundle_export",
-        "diagnostics_manual_drift_guard",
-        "diagnostics_core_row_merge",
-        "diagnostics_pose_row_merge",
-        "diagnostics_owned_row_merge",
     ] {
         let command = manual
             .command_reference
@@ -871,6 +867,42 @@ fn manual_covers_diagnostics_surfaces() {
         );
     }
 
-    // The manual version moved to the diagnostics increment.
-    assert_eq!(MANUAL_VERSION, "1.3.0");
+    // MT-183/185/186/187 merge and drift-guard surfaces are executable backend
+    // library checks (src/atelier/model_manual_merge.rs) without an IPC route:
+    // Wired like the other library surfaces, but never claiming a route.
+    for wired_library_id in [
+        "diagnostics_manual_drift_guard",
+        "diagnostics_core_row_merge",
+        "diagnostics_pose_row_merge",
+        "diagnostics_owned_row_merge",
+    ] {
+        let command = manual
+            .command_reference
+            .iter()
+            .find(|command| command.id == wired_library_id)
+            .unwrap_or_else(|| panic!("missing diagnostics merge/guard command {wired_library_id}"));
+        assert_eq!(
+            command.status,
+            CommandStatus::Wired,
+            "{wired_library_id} must be Wired (executable library surface)"
+        );
+        assert_eq!(
+            command.ipc_channel, None,
+            "{wired_library_id} must not claim a route"
+        );
+        assert_eq!(
+            command.tauri_command, None,
+            "{wired_library_id} is a library surface, not a Tauri command"
+        );
+        assert!(
+            command
+                .description
+                .contains("src/atelier/model_manual_merge.rs"),
+            "{wired_library_id} must cite its executable implementation"
+        );
+    }
+
+    // The manual version moved to the merge/drift-guard wired increment
+    // (HBR-MAN-001: wired-surface diff bumps MANUAL_VERSION).
+    assert_eq!(MANUAL_VERSION, "1.4.0");
 }

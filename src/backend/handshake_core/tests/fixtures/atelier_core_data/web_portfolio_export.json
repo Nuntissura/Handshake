@@ -1,0 +1,33 @@
+{
+  "_comment": "MT-076 portable non-SQLite fixture corpus: web portfolio export only. payload seeds materialize ArtifactStore-backed collection media; the rendered manifest must be relocatable (artifact:// refs), use no-space pack paths, and never emit .GOV output paths. Invalid probes assert the portability rejections. All slugs are made run-unique at load time.",
+  "media": [
+    {
+      "payload_seed": "mt-076-hero",
+      "source_provenance": "fixture://mt-076/hero",
+      "pack_path_suffix": "hero.png"
+    },
+    {
+      "payload_seed": "mt-076-detail",
+      "source_provenance": "fixture://mt-076/detail",
+      "pack_path_suffix": "detail.png"
+    }
+  ],
+  "collection": {
+    "name_slug": "mt-076-web-portfolio",
+    "notes": "MT-076 web portfolio fixture source collection",
+    "tags": ["web-portfolio", "fixture"]
+  },
+  "export": {
+    "slug_prefix": "mt-076-portfolio",
+    "title": "Web Portfolio Fixture Corpus",
+    "requested_by": "mt-076-exporter"
+  },
+  "manifest_payload_seed": "mt-076-manifest",
+  "invalid_blank_space_slug": "mt-076 bad slug",
+  "invalid_blank_space_pack_path": "images/mt-076 bad path.png",
+  "invalid_machine_local_artifact_ref": "D:\\Projects\\.GOV\\portfolio.json",
+  "portability": {
+    "required_artifact_prefix": "artifact://",
+    "forbidden_substrings": [".GOV", "\\", "file:", "sqlite", "ckc", "castkit"]
+  }
+}

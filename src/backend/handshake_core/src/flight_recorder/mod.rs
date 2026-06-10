@@ -20,6 +20,7 @@ pub mod fr_emitter;
 pub mod fr_event_registry;
 pub mod span_repo;
 pub mod spans;
+pub mod workflow_event_kinds;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]

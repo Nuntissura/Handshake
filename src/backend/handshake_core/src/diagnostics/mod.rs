@@ -1,3 +1,6 @@
+pub mod bundle_manifest;
+pub mod product_anchor_matrix;
+
 use std::cmp::Ordering;
 use std::str::FromStr;
 

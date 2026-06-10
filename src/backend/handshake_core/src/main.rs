@@ -118,6 +118,27 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
             return Err(Box::new(err));
         }
         tracing::info!(target: "handshake_core::atelier", "atelier schema ensured");
+
+        // MT-206: project the FULL builtin CKC command corpus into the action
+        // catalog (cross-checked live against the ModelManual) so the Dev
+        // Command Center `/atelier/command-corpus` projection serves the full
+        // enumeration from boot. Idempotent; the catalog is a rebuildable
+        // projection, so a bootstrap failure is logged loudly but does not
+        // abort startup.
+        match atelier.bootstrap_builtin_command_corpus().await {
+            Ok(receipt) => tracing::info!(
+                target: "handshake_core::atelier",
+                total_commands = receipt.total_commands,
+                covered_count = receipt.covered_count,
+                blocked_count = receipt.blocked_count,
+                "builtin command corpus bootstrapped"
+            ),
+            Err(err) => tracing::error!(
+                target: "handshake_core::atelier",
+                error = %err,
+                "builtin command corpus bootstrap failed at startup"
+            ),
+        }
     }
 
     // [HSK-WF-003] Startup Recovery Loop

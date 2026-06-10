@@ -15,7 +15,7 @@ use super::{reject_legacy_runtime_ref, AtelierError, AtelierResult, AtelierStore
 pub mod state_probe_event_family {
     pub const STATE_PROBE_CATALOG_RECORDED: &str = "atelier.state_probe.catalog_recorded";
     /// Emitted when one diagnostics validation-matrix row is recorded
-    /// (WP-KERNEL-005 MT-171..MT-175).
+    /// (WP-KERNEL-005 MT-171..MT-180, MT-182, MT-195).
     pub const DIAGNOSTICS_VALIDATION_ROW_RECORDED: &str =
         "atelier.state_probe.diagnostics_validation_row_recorded";
 
@@ -768,17 +768,17 @@ fn jsonb_string_array(value: Value) -> AtelierResult<Vec<String>> {
 }
 
 // ---------------------------------------------------------------------------
-// WP-KERNEL-005 MT-171..MT-175: diagnostics "validation matrix".
+// WP-KERNEL-005 MT-171..MT-180, MT-182, MT-195: diagnostics "validation matrix".
 //
 // Each row asserts that one required check on a model-workflow diagnostic
 // surface is REQUIRED, COVERED, or DEFERRED. This is the typed runtime surface
 // that turns "diagnostics are covered" into a real PostgreSQL row + EventLedger
 // event, never governance markdown. The catalog
 // [`diagnostics_validation_matrix_catalog`] carries the real check rows for all
-// five MT areas, grounded in the existing product modules they cite.
+// MT areas, grounded in the existing product modules they cite.
 // ---------------------------------------------------------------------------
 
-/// Matrix kind, one per MT area (171..175). Used to group + filter rows.
+/// Matrix kind, one per MT area (171..180, 182, 195). Used to group + filter rows.
 pub mod diagnostics_validation_matrix_kind {
     /// MT-171: model manual + action catalog.
     pub const MANUAL_ACTION_CATALOG: &str = "MT-171.manual-action-catalog";
@@ -790,6 +790,42 @@ pub mod diagnostics_validation_matrix_kind {
     pub const DCC_FLIGHT_RECORDER: &str = "MT-174.dcc-flight-recorder";
     /// MT-175: visual evidence (capture, diff, ADR, STEER, comparison, retention).
     pub const VISUAL_EVIDENCE: &str = "MT-175.visual-evidence";
+    /// MT-176: diagnostic bundle creation + contents.
+    pub const DIAGNOSTIC_BUNDLE: &str = "MT-176.diagnostic-bundle";
+    /// MT-177: local LLM config + local chat proposal boundaries.
+    pub const LOCAL_LLM_CHAT_PROPOSAL: &str = "MT-177.local-llm-chat-proposal";
+    /// MT-178: AI tagging proposal/apply behavior (no silent media mutation).
+    pub const AI_TAGGING: &str = "MT-178.ai-tagging";
+    /// MT-179: build diagnostics + packaging/release evidence (no repo-local
+    /// output leakage).
+    pub const BUILD_PACKAGE: &str = "MT-179.build-package";
+    /// MT-180: non-intrusive automation, synthetic-input guards, parallel
+    /// coordination.
+    pub const SYNTHETIC_INPUT_PARALLEL_COORDINATION: &str =
+        "MT-180.synthetic-input-parallel-coordination";
+    /// MT-182: red-team automation-authority guards (NEGATIVE checks: hidden UI
+    /// automation, focus steal, direct LLM execution, unbounded synthetic
+    /// input). Rows of this kind MUST state a negative invariant.
+    pub const RED_TEAM_AUTOMATION_AUTHORITY: &str = "MT-182.red-team-automation-authority";
+    /// MT-195: stale README/spec detection + path portability (reject
+    /// drive-letter / user-profile paths).
+    pub const STALE_SOURCE_PATH_PORTABILITY: &str = "MT-195.stale-source-path-portability";
+
+    /// All matrix kinds (parity/coverage helper).
+    pub const ALL: &[&str] = &[
+        MANUAL_ACTION_CATALOG,
+        SESSION_LEASE_HEARTBEAT,
+        COMMAND_LOG_ERROR_STATE_PROBE,
+        DCC_FLIGHT_RECORDER,
+        VISUAL_EVIDENCE,
+        DIAGNOSTIC_BUNDLE,
+        LOCAL_LLM_CHAT_PROPOSAL,
+        AI_TAGGING,
+        BUILD_PACKAGE,
+        SYNTHETIC_INPUT_PARALLEL_COORDINATION,
+        RED_TEAM_AUTOMATION_AUTHORITY,
+        STALE_SOURCE_PATH_PORTABILITY,
+    ];
 }
 
 /// Coverage status of one diagnostics validation-matrix row.
@@ -875,6 +911,51 @@ fn diagnostics_validation_row_from_row(
     })
 }
 
+/// MT-182 probe: a red-team automation-authority row is only valid when its
+/// requirement states a negative invariant (a prohibition), so an
+/// automation-authority risk can never be smuggled in as a positive claim.
+fn is_negative_invariant(requirement: &str) -> bool {
+    let lower = requirement.to_ascii_lowercase();
+    [
+        "must not",
+        "must never",
+        "must deny",
+        "must reject",
+        "must refuse",
+        "must be denied",
+        "must be rejected",
+    ]
+    .iter()
+    .any(|token| lower.contains(token))
+}
+
+/// MT-195 path-portability probe: reject machine-local path shapes.
+///
+/// Layers the user-profile rejection on top of the canonical
+/// [`reject_legacy_runtime_ref`] boundary (which already rejects Windows
+/// drive-letter paths, `file:` URLs, SQLite refs, `.GOV` refs, and
+/// localhost/loopback authorities). A portable product ref must survive a
+/// project move to another folder, disk, or machine.
+pub fn reject_nonportable_path(field: &str, value: &str) -> AtelierResult<()> {
+    reject_legacy_runtime_ref(field, value)?;
+    let normalized = value.trim().to_ascii_lowercase().replace('\\', "/");
+    let is_user_profile = normalized == "~"
+        || normalized.starts_with("~/")
+        || normalized.starts_with("/users/")
+        || normalized.contains("/users/")
+        || normalized.starts_with("/home/")
+        || normalized.contains("/home/")
+        || normalized.contains("%userprofile%")
+        || normalized.contains("%appdata%")
+        || normalized.contains("$home");
+    if is_user_profile {
+        return Err(AtelierError::Validation(format!(
+            "{field} must be a portable product ref, not a user-profile path"
+        )));
+    }
+    Ok(())
+}
+
 fn validate_diagnostics_validation_row(new: &NewDiagnosticsValidationRow) -> AtelierResult<()> {
     for (field, value) in [
         ("row_id", &new.row_id),
@@ -894,9 +975,27 @@ fn validate_diagnostics_validation_row(new: &NewDiagnosticsValidationRow) -> Ate
             "diagnostics validation row requirement must be non-empty and unpadded".into(),
         ));
     }
+    // MT-182 hard gate: red-team automation-authority rows are NEGATIVE checks;
+    // a positively-phrased "guard" row is rejected so a risk is never recorded
+    // as if it were a feature.
+    if new.matrix_kind == diagnostics_validation_matrix_kind::RED_TEAM_AUTOMATION_AUTHORITY
+        && !is_negative_invariant(&new.requirement)
+    {
+        return Err(AtelierError::Validation(
+            "red-team automation-authority rows must state a negative invariant \
+             (e.g. `must not` / `must never` / `must deny`)"
+                .into(),
+        ));
+    }
     if let Some(evidence_ref) = &new.evidence_ref {
-        // Reuse the canonical .GOV/SQLite/localhost/local-path rejection boundary.
-        reject_legacy_runtime_ref("evidence_ref", evidence_ref)?;
+        if new.matrix_kind == diagnostics_validation_matrix_kind::STALE_SOURCE_PATH_PORTABILITY {
+            // MT-195 hard gate: portability rows must themselves cite portable
+            // refs (no drive-letter, no user-profile path).
+            reject_nonportable_path("evidence_ref", evidence_ref)?;
+        } else {
+            // Reuse the canonical .GOV/SQLite/localhost/local-path rejection boundary.
+            reject_legacy_runtime_ref("evidence_ref", evidence_ref)?;
+        }
     }
     Ok(())
 }
@@ -921,7 +1020,8 @@ fn covered_row(
     }
 }
 
-/// The real diagnostics validation-matrix rows for all five MT areas.
+/// The real diagnostics validation-matrix rows for all MT areas
+/// (MT-171..MT-180, MT-182, MT-195).
 ///
 /// Const-style data (mirrors [`source_evidence::core_data_source_evidence_matrix`]
 /// and [`pose::pose_deferred_feature_catalog`]): every row names a real surface +
@@ -1079,11 +1179,280 @@ pub fn diagnostics_validation_matrix_catalog() -> Vec<NewDiagnosticsValidationRo
             "The visual loop must support a before/after comparison view over captured evidence.",
             "src/backend/handshake_core/src/kernel/visual_debugging_loop.rs",
         ),
+        // ---- MT-176: diagnostic bundle creation + contents.
+        covered_row(
+            "mt-176.bundle.export-created",
+            kind::DIAGNOSTIC_BUNDLE,
+            "diagnostic_bundle",
+            "bundle.export_created",
+            "A diagnostic bundle must be creatable on demand through the bundle exporter so a \
+             no-context model can hand off reproducible diagnosis state.",
+            "src/backend/handshake_core/src/bundles/exporter.rs",
+        ),
+        covered_row(
+            "mt-176.bundle.manifest-contents",
+            kind::DIAGNOSTIC_BUNDLE,
+            "diagnostic_bundle",
+            "bundle.manifest_contents",
+            "Every diagnostic bundle must carry a typed manifest enumerating its contents so the \
+             bundle is inspectable without unpacking it blind.",
+            "src/backend/handshake_core/src/bundles/schemas.rs",
+        ),
+        covered_row(
+            "mt-176.bundle.secret-redaction",
+            kind::DIAGNOSTIC_BUNDLE,
+            "diagnostic_bundle",
+            "bundle.secret_redaction",
+            "Diagnostic bundle contents must pass secret redaction before export so credentials \
+             never leave the workspace inside a bundle.",
+            "src/backend/handshake_core/src/bundles/redactor.rs",
+        ),
+        covered_row(
+            "mt-176.bundle.contents-validated",
+            kind::DIAGNOSTIC_BUNDLE,
+            "diagnostic_bundle",
+            "bundle.contents_validated",
+            "Diagnostic bundle contents must be validated against the bundle schema before the \
+             bundle is accepted as diagnosis evidence.",
+            "src/backend/handshake_core/src/bundles/validator.rs",
+        ),
+        // ---- MT-177: local LLM config + local chat proposal boundaries.
+        covered_row(
+            "mt-177.local-llm.config-registry",
+            kind::LOCAL_LLM_CHAT_PROPOSAL,
+            "local_llm",
+            "local_llm.config_registry",
+            "Local LLM model configuration must come from the typed model registry, never from \
+             ad-hoc machine-local settings.",
+            "src/backend/handshake_core/src/llm/registry.rs",
+        ),
+        covered_row(
+            "mt-177.local-llm.local-routing",
+            kind::LOCAL_LLM_CHAT_PROPOSAL,
+            "local_llm",
+            "local_llm.local_routing",
+            "Local-first routing must select the local model tier and record the routing decision \
+             through the Flight Recorder.",
+            "src/backend/handshake_core/src/llm/local_router.rs",
+        ),
+        covered_row(
+            "mt-177.chat-proposal.propose-only",
+            kind::LOCAL_LLM_CHAT_PROPOSAL,
+            "chat_proposal",
+            "chat_proposal.propose_only",
+            "Local chat output is a proposal boundary: applying it to authority surfaces must go \
+             through the direct-edit guard, never direct execution.",
+            "src/backend/handshake_core/src/kernel/direct_edit_guard.rs",
+        ),
+        covered_row(
+            "mt-177.chat-proposal.cloud-escalation-consent",
+            kind::LOCAL_LLM_CHAT_PROPOSAL,
+            "chat_proposal",
+            "chat_proposal.cloud_escalation_consent",
+            "Escalating a local chat proposal to a cloud model must require explicit consent \
+             through the cloud escalation guard.",
+            "src/backend/handshake_core/src/llm/guard.rs",
+        ),
+        // ---- MT-178: AI tagging proposal/apply (no silent media mutation).
+        covered_row(
+            "mt-178.tagging.proposal-recorded",
+            kind::AI_TAGGING,
+            "ai_tagging",
+            "ai_tagging.proposal_recorded",
+            "AI tag suggestions must be recorded as typed proposals against media identity, never \
+             applied silently on generation.",
+            "src/backend/handshake_core/src/atelier/media.rs",
+        ),
+        covered_row(
+            "mt-178.tagging.apply-gated",
+            kind::AI_TAGGING,
+            "ai_tagging",
+            "ai_tagging.apply_gated",
+            "Applying proposed tags must be an explicit governed mutation that validates the full \
+             target set before writing.",
+            "src/backend/handshake_core/src/atelier/bulk.rs",
+        ),
+        covered_row(
+            "mt-178.tagging.no-silent-media-mutation",
+            kind::AI_TAGGING,
+            "ai_tagging",
+            "ai_tagging.no_silent_media_mutation",
+            "Applying tags must never mutate media bytes: bytes live in the ArtifactStore behind \
+             a content hash, and tagging touches metadata rows only.",
+            "src/backend/handshake_core/src/atelier/media.rs",
+        ),
+        covered_row(
+            "mt-178.tagging.apply-evidence",
+            kind::AI_TAGGING,
+            "ai_tagging",
+            "ai_tagging.apply_evidence",
+            "Every tag apply must commit a durable receipt and an EventLedger event in the same \
+             PostgreSQL transaction as the mutation.",
+            "src/backend/handshake_core/src/atelier/bulk.rs",
+        ),
+        // ---- MT-179: build diagnostics + packaging/release evidence.
+        covered_row(
+            "mt-179.build.diagnostics-recorded",
+            kind::BUILD_PACKAGE,
+            "build_diagnostics",
+            "build.diagnostics_recorded",
+            "Build/delivery state claims must resolve to typed runtime-truth records, never to \
+             prose claims about what was built.",
+            "src/backend/handshake_core/src/kernel/software_delivery_runtime_truth.rs",
+        ),
+        covered_row(
+            "mt-179.package.manifest-evidence",
+            kind::BUILD_PACKAGE,
+            "packaging",
+            "package.manifest_evidence",
+            "Packaged outputs must carry a manifest with per-file content hashes so a release \
+             artifact is verifiable after transport.",
+            "src/backend/handshake_core/src/bundles/zip.rs",
+        ),
+        covered_row(
+            "mt-179.package.no-repo-local-leakage",
+            kind::BUILD_PACKAGE,
+            "packaging",
+            "package.no_repo_local_leakage",
+            "Export/release bytes must land in the governed ArtifactStore, never leak onto \
+             repo-local or random filesystem paths.",
+            "src/backend/handshake_core/src/atelier/exports.rs",
+        ),
+        covered_row(
+            "mt-179.package.release-evidence",
+            kind::BUILD_PACKAGE,
+            "packaging",
+            "package.release_evidence",
+            "Each export/release must persist a durable request -> result -> manifest-entry graph \
+             in PostgreSQL as release evidence.",
+            "src/backend/handshake_core/src/atelier/exports.rs",
+        ),
+        // ---- MT-180: no-focus synthetic input + parallel coordination.
+        covered_row(
+            "mt-180.no-focus.stealth-window",
+            kind::SYNTHETIC_INPUT_PARALLEL_COORDINATION,
+            "no_focus_automation",
+            "no_focus.stealth_window",
+            "Model-driven reference windows must run under the stealth-window quiet flags so \
+             automation never pops a foreground window.",
+            "src/backend/handshake_core/src/atelier/stealth_window.rs",
+        ),
+        covered_row(
+            "mt-180.no-focus.focus-audit",
+            kind::SYNTHETIC_INPUT_PARALLEL_COORDINATION,
+            "no_focus_automation",
+            "no_focus.focus_audit",
+            "Foreground/focus transitions caused by automation must be captured in the focus \
+             audit ledger so focus steal is observable.",
+            "src/backend/handshake_core/src/operator_foreground/focus_audit.rs",
+        ),
+        covered_row(
+            "mt-180.synthetic-input.injection-flagged",
+            kind::SYNTHETIC_INPUT_PARALLEL_COORDINATION,
+            "synthetic_input",
+            "synthetic_input.injection_flagged",
+            "Synthetic keyboard input must be injected with the LLKHF_INJECTED flag and counted, \
+             so injected events stay distinguishable from operator input.",
+            "src/backend/handshake_core/src/operator_foreground/keyboard_inject_test.rs",
+        ),
+        covered_row(
+            "mt-180.parallel.lease-coordination",
+            kind::SYNTHETIC_INPUT_PARALLEL_COORDINATION,
+            "parallel_coordination",
+            "parallel.lease_coordination",
+            "Parallel model work on a role must be coordinated through attributable claim leases \
+             so concurrent sessions never collide silently.",
+            "src/backend/handshake_core/src/kernel/role_mailbox_claim_lease.rs",
+        ),
+        covered_row(
+            "mt-180.parallel.session-broker",
+            kind::SYNTHETIC_INPUT_PARALLEL_COORDINATION,
+            "parallel_coordination",
+            "parallel.session_broker",
+            "Parallel model sessions must be brokered so each session's actions stay observable, \
+             attributable, and recoverable.",
+            "src/backend/handshake_core/src/kernel/session_broker.rs",
+        ),
+        // ---- MT-182: red-team automation-authority guards (NEGATIVE checks).
+        covered_row(
+            "mt-182.red-team.hidden-ui-automation",
+            kind::RED_TEAM_AUTOMATION_AUTHORITY,
+            "automation_authority",
+            "red_team.hidden_ui_automation",
+            "Automation must never drive a hidden UI surface outside the governed stealth-window \
+             registry; unregistered hidden automation must be rejected.",
+            "src/backend/handshake_core/src/atelier/stealth_window.rs",
+        ),
+        covered_row(
+            "mt-182.red-team.focus-steal",
+            kind::RED_TEAM_AUTOMATION_AUTHORITY,
+            "automation_authority",
+            "red_team.focus_steal",
+            "Automation must not steal operator focus: foreground exceptions are deny-by-default \
+             and every focus transition must land in the focus audit ledger.",
+            "src/backend/handshake_core/src/operator_foreground/focus_audit.rs",
+        ),
+        covered_row(
+            "mt-182.red-team.direct-llm-execution",
+            kind::RED_TEAM_AUTOMATION_AUTHORITY,
+            "automation_authority",
+            "red_team.direct_llm_execution",
+            "An LLM must not execute direct edits on authority surfaces; direct-edit attempts \
+             must be denied with a typed kernel denial.",
+            "src/backend/handshake_core/src/kernel/direct_edit_guard.rs",
+        ),
+        covered_row(
+            "mt-182.red-team.unbounded-synthetic-input",
+            kind::RED_TEAM_AUTOMATION_AUTHORITY,
+            "automation_authority",
+            "red_team.unbounded_synthetic_input",
+            "Synthetic input must never run unbounded: injected events must be flagged, counted, \
+             and unflagged injection must be rejected.",
+            "src/backend/handshake_core/src/operator_foreground/keyboard_inject_test.rs",
+        ),
+        // ---- MT-195: stale source detection + path portability.
+        covered_row(
+            "mt-195.stale-source.readme-drift",
+            kind::STALE_SOURCE_PATH_PORTABILITY,
+            "stale_source",
+            "stale_source.readme_drift",
+            "Stale README/spec claims must be detectable as typed spec-drift findings tying the \
+             doc claim to the spec/code surface it points at.",
+            "src/backend/handshake_core/src/atelier/state_probe.rs",
+        ),
+        covered_row(
+            "mt-195.stale-source.mirror-sync",
+            kind::STALE_SOURCE_PATH_PORTABILITY,
+            "stale_source",
+            "stale_source.mirror_sync",
+            "Markdown mirrors must be drift-guarded against their machine-readable authority so a \
+             stale projection is detected, not trusted.",
+            "src/backend/handshake_core/src/kernel/markdown_mirror_sync_drift_guard.rs",
+        ),
+        covered_row(
+            "mt-195.path-portability.drive-letter-rejected",
+            kind::STALE_SOURCE_PATH_PORTABILITY,
+            "path_portability",
+            "path_portability.drive_letter_rejected",
+            "Persisted refs must reject Windows drive-letter paths so a project move to another \
+             disk cannot break stored evidence.",
+            "src/backend/handshake_core/src/atelier/mod.rs",
+        ),
+        covered_row(
+            "mt-195.path-portability.user-profile-rejected",
+            kind::STALE_SOURCE_PATH_PORTABILITY,
+            "path_portability",
+            "path_portability.user_profile_rejected",
+            "Persisted refs must reject user-profile paths (home directories, %USERPROFILE%) so \
+             stored evidence stays machine-agnostic.",
+            "src/backend/handshake_core/src/atelier/state_probe.rs",
+        ),
     ]
 }
 
 impl AtelierStore {
-    /// Record one diagnostics validation-matrix row (MT-171..MT-175).
+    /// Record one diagnostics validation-matrix row (MT-171..MT-180, MT-182,
+    /// MT-195).
     ///
     /// Idempotent on `row_id`: re-recording the same row updates the mutable
     /// fields and returns the row instead of erroring, so seeding the catalog

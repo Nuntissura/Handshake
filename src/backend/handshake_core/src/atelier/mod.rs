@@ -32,6 +32,7 @@ pub mod collections;
 pub mod comfy;
 pub mod command_corpus;
 pub mod core;
+pub mod dcc_flight_recorder;
 pub mod documents;
 pub mod downloader;
 pub mod exports;
@@ -40,6 +41,7 @@ pub mod image_import;
 pub mod intake;
 pub mod links;
 pub mod media;
+pub mod model_manual_merge;
 pub mod moodboards;
 pub mod pose;
 pub mod relationships;
@@ -127,6 +129,8 @@ pub mod event_family {
     use super::source_evidence::source_evidence_event_family;
     use super::command_corpus::diagnostics_event_family;
     use super::command_corpus::command_log_event_family;
+    use super::dcc_flight_recorder::dcc_flight_recorder_event_family;
+    use super::model_manual_merge::model_manual_merge_event_family;
     use super::settings::model_workflow_event_family;
     use super::state_probe::diagnostics_projection_event_family;
     use super::state_probe::state_probe_event_family;
@@ -279,6 +283,10 @@ pub mod event_family {
         diagnostics_projection_event_family::DCC_PANEL_PROJECTION_RECORDED,
         diagnostics_projection_event_family::SCREENSHOT_ARTIFACT_STORED,
         diagnostics_projection_event_family::SPEC_DRIFT_FINDING_RECORDED,
+        dcc_flight_recorder_event_family::DCC_WORKFLOW_PANEL_PROJECTION_RECORDED,
+        dcc_flight_recorder_event_family::FR_WORKFLOW_EVENT_RECORDED,
+        model_manual_merge_event_family::MANUAL_ROW_MERGE_RECORDED,
+        model_manual_merge_event_family::MANUAL_DRIFT_GUARD_RECORDED,
         stealth_ref_event_family::STEALTH_REF_WINDOW_CREATED,
         stealth_ref_event_family::STEALTH_REF_ADDED,
         stealth_ref_event_family::STEALTH_REF_REMOVED,
@@ -975,6 +983,8 @@ impl AtelierStore {
               AND to_regclass('atelier_stealth_capture') IS NOT NULL
               AND to_regclass('atelier_source_evidence_record') IS NOT NULL
               AND to_regclass('atelier_anchor_verification_record') IS NOT NULL
+              AND to_regclass('atelier_model_manual_row_merge') IS NOT NULL
+              AND to_regclass('atelier_model_manual_drift_guard') IS NOT NULL
               AND EXISTS (
                   SELECT 1
                   FROM information_schema.table_constraints tc
@@ -2109,6 +2119,11 @@ impl AtelierStore {
         .execute(&mut *tx)
         .await?;
         sqlx::raw_sql(include_str!(
+            "../../migrations/0116_atelier_dcc_flight_recorder.sql"
+        ))
+        .execute(&mut *tx)
+        .await?;
+        sqlx::raw_sql(include_str!(
             "../../migrations/0086_atelier_state_probe_catalog.sql"
         ))
         .execute(&mut *tx)
@@ -2120,6 +2135,11 @@ impl AtelierStore {
         .await?;
         sqlx::raw_sql(include_str!(
             "../../migrations/0087_atelier_action_receipts.sql"
+        ))
+        .execute(&mut *tx)
+        .await?;
+        sqlx::raw_sql(include_str!(
+            "../../migrations/0122_atelier_model_manual_merge_drift.sql"
         ))
         .execute(&mut *tx)
         .await?;

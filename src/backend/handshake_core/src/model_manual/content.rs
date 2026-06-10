@@ -2636,12 +2636,12 @@ pub static COMMAND_REFERENCE: &[CommandReference] = &[
     CommandReference {
         id: "diagnostics_manual_drift_guard",
         name: "DiagnosticsManualDriftGuard",
-        status: CommandStatus::Planned,
+        status: CommandStatus::Wired,
         ipc_channel: None,
         tauri_command: None,
         schema_fields: &["manual_version", "wired_surface_diff", "missing_manual_row", "drift_kind"],
         cli_flag: None,
-        description: "Negative check that turns manual-command drift and visual-loop drift into a focused guard: it cross-checks that every Wired ModelManual command resolves to a registered kernel.action_catalog.view action or IPC route and that MANUAL_VERSION was bumped on a wired-surface diff (HBR-MAN-001). No IPC route is registered; the guard runs as a test-time check, so it is Planned.",
+        description: "Executable negative drift guard (src/atelier/model_manual_merge.rs run_manual_drift_guard + AtelierStore::record_manual_drift_guard_run): cross-checks that every Wired ModelManual command resolves to a registered kernel action-catalog action or registered IPC/Tauri route, flags missing manual rows, orphan manual rows, and id-normalization collisions, and detects a wired-surface diff without a MANUAL_VERSION bump across persisted guard runs (HBR-MAN-001). Runs persist to atelier_model_manual_drift_guard and mirror through the atelier.model_manual.drift_guard_recorded EventLedger family. Backend library surface; no IPC route.",
         expected_input: "The ModelManual command_reference set, the registered action catalog, and the current MANUAL_VERSION.",
         expected_output: "Drift findings: any Wired command with no resolvable surface, any orphan manual row, or a wired-surface diff without a MANUAL_VERSION bump.",
         common_errors: &[
@@ -2657,12 +2657,12 @@ pub static COMMAND_REFERENCE: &[CommandReference] = &[
     CommandReference {
         id: "diagnostics_core_row_merge",
         name: "DiagnosticsCoreRowMerge",
-        status: CommandStatus::Planned,
+        status: CommandStatus::Wired,
         ipc_channel: None,
         tauri_command: None,
         schema_fields: &["source_mt", "normalized_command_id", "merged", "missing_blocker"],
         cli_flag: None,
-        description: "Merge anchor that pulls the atelier Core/Data manual source rows (MT-052..MT-060, MT-073..MT-075 feature groups and commands) into the Diagnostics manual dataset by normalized id. Source rows already live in this same ModelManual; the merge normalizes ids and marks any missing Core/Data source row as a blocker rather than fabricating it. Data-only, so Planned.",
+        description: "Executable merge (src/atelier/model_manual_merge.rs merge_manual_source_rows with ManualMergeSourceKind::CoreData) that pulls the atelier Core/Data manual source rows (MT-052..MT-060, MT-073..MT-075 feature groups and commands) into the Diagnostics manual dataset by normalized id. The merge normalizes ids, detects normalization collisions, and marks any missing Core/Data feature group or source row as a blocker rather than fabricating it. Merge runs persist via AtelierStore::record_manual_row_merge to atelier_model_manual_row_merge and mirror through the atelier.model_manual.row_merge_recorded EventLedger family. Backend library surface; no IPC route.",
         expected_input: "The atelier Core/Data feature groups and command references.",
         expected_output: "Normalized merged rows keyed by command id, with a blocker entry for any expected Core/Data row that is absent.",
         common_errors: &[
@@ -2678,12 +2678,12 @@ pub static COMMAND_REFERENCE: &[CommandReference] = &[
     CommandReference {
         id: "diagnostics_pose_row_merge",
         name: "DiagnosticsPoseRowMerge",
-        status: CommandStatus::Planned,
+        status: CommandStatus::Wired,
         ipc_channel: None,
         tauri_command: None,
         schema_fields: &["source_mt", "normalized_command_id", "merged", "missing_blocker"],
         cli_flag: None,
-        description: "Merge anchor that pulls the Pose/ComfyUI manual source rows (MT-122..MT-125 feature groups and commands) into the Diagnostics manual dataset by normalized id. Source rows already live in this same ModelManual; the merge normalizes ids and marks any missing Pose/ComfyUI source row as a blocker rather than fabricating it. Data-only, so Planned.",
+        description: "Executable merge (src/atelier/model_manual_merge.rs merge_manual_source_rows with ManualMergeSourceKind::PoseComfy) that pulls the Pose/ComfyUI manual source rows (MT-122..MT-125 feature groups and commands) into the Diagnostics manual dataset by normalized id. The merge normalizes ids, detects normalization collisions, and marks any missing Pose/ComfyUI feature group or source row as a blocker rather than fabricating it. Merge runs persist via AtelierStore::record_manual_row_merge to atelier_model_manual_row_merge and mirror through the atelier.model_manual.row_merge_recorded EventLedger family. Backend library surface; no IPC route.",
         expected_input: "The Pose/ComfyUI feature groups and command references.",
         expected_output: "Normalized merged rows keyed by command id, with a blocker entry for any expected Pose/ComfyUI row that is absent.",
         common_errors: &[
@@ -2699,12 +2699,12 @@ pub static COMMAND_REFERENCE: &[CommandReference] = &[
     CommandReference {
         id: "diagnostics_owned_row_merge",
         name: "DiagnosticsOwnedRowMerge",
-        status: CommandStatus::Planned,
+        status: CommandStatus::Wired,
         ipc_channel: None,
         tauri_command: None,
         schema_fields: &["row_kind", "normalized_command_id", "merged", "missing_blocker"],
         cli_flag: None,
-        description: "Merge anchor for the Diagnostics-owned manual/action/state/error/bundle rows (the diagnostics problem store, action-catalog command map, inspector state reads, and debug bundle export) into the manual dataset by normalized id, marking any missing Diagnostics-owned row as a blocker. Data-only, so Planned.",
+        description: "Executable merge (src/atelier/model_manual_merge.rs merge_manual_source_rows with ManualMergeSourceKind::DiagnosticsOwned) for the Diagnostics-owned manual/action/state/error/bundle rows (the manual structure reads, action-catalog command map, inspector state reads, diagnostics problem store, and debug bundle export) into the manual dataset by normalized id, classifying each merged row under a supported row_kind and marking any missing Diagnostics-owned row as a blocker rather than fabricating it. Merge runs persist via AtelierStore::record_manual_row_merge to atelier_model_manual_row_merge and mirror through the atelier.model_manual.row_merge_recorded EventLedger family. Backend library surface; no IPC route.",
         expected_input: "The Diagnostics-owned feature groups and command references (problem store, catalog view, inspector reads, bundle export).",
         expected_output: "Normalized merged rows keyed by command id across manual/action/state/error/bundle kinds, with a blocker entry for any absent expected row.",
         common_errors: &[

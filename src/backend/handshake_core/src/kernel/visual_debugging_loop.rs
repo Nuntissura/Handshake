@@ -14,6 +14,254 @@ pub enum VisualDebuggingTriggerKind {
 pub enum VisualComparisonMode {
     PixelDiff,
     StructuralDom,
+    /// MT-157: operator-adjudicated comparison. The loop cannot compute a
+    /// verdict automatically; a manual review verdict must be recorded
+    /// before the diff request can pass or fail.
+    Manual,
+}
+
+impl VisualComparisonMode {
+    pub fn as_token(self) -> &'static str {
+        match self {
+            VisualComparisonMode::PixelDiff => "pixel_diff",
+            VisualComparisonMode::StructuralDom => "structural_dom",
+            VisualComparisonMode::Manual => "manual",
+        }
+    }
+
+    pub fn from_token(token: &str) -> Option<Self> {
+        match token {
+            "pixel_diff" => Some(VisualComparisonMode::PixelDiff),
+            "structural_dom" => Some(VisualComparisonMode::StructuralDom),
+            "manual" => Some(VisualComparisonMode::Manual),
+            _ => None,
+        }
+    }
+}
+
+/// MT-157: outcome of a computed visual comparison.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum VisualDiffOutcome {
+    Pass,
+    Fail,
+    /// Manual comparisons stay in this state until an operator verdict
+    /// is recorded against the persisted diff request.
+    ManualReviewRequired,
+}
+
+impl VisualDiffOutcome {
+    pub fn as_token(self) -> &'static str {
+        match self {
+            VisualDiffOutcome::Pass => "pass",
+            VisualDiffOutcome::Fail => "fail",
+            VisualDiffOutcome::ManualReviewRequired => "manual_review_required",
+        }
+    }
+}
+
+/// MT-157: computed comparison result fields (not request/config fields).
+///
+/// `units_compared`/`units_differing` are pixels (bytes of decoded payload)
+/// for [`VisualComparisonMode::PixelDiff`] and DOM snapshot nodes for
+/// [`VisualComparisonMode::StructuralDom`].
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct VisualDiffComputationV1 {
+    pub comparison_mode: VisualComparisonMode,
+    pub units_compared: u64,
+    pub units_differing: u64,
+    pub mismatch_basis_points: u32,
+    pub threshold_exceeded: bool,
+    pub outcome: VisualDiffOutcome,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct VisualDiffComputeError {
+    pub message: String,
+}
+
+impl std::fmt::Display for VisualDiffComputeError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(formatter, "visual diff computation failed: {}", self.message)
+    }
+}
+
+impl std::error::Error for VisualDiffComputeError {}
+
+/// MT-157: compute a real comparison result from reference + candidate
+/// payload bytes against the configured thresholds.
+///
+/// - `PixelDiff` compares the decoded payload byte-for-byte and reports the
+///   differing fraction in basis points against `max_pixel_diff_basis_points`.
+/// - `StructuralDom` parses both payloads as JSON DOM snapshots and reports
+///   mismatched nodes against `structural_mismatch_limit`.
+/// - `Manual` performs no automatic computation: the result is
+///   [`VisualDiffOutcome::ManualReviewRequired`] until an operator verdict
+///   is recorded.
+pub fn compute_visual_comparison(
+    mode: VisualComparisonMode,
+    reference_bytes: &[u8],
+    candidate_bytes: &[u8],
+    threshold_config: &VisualDebuggingThresholdConfigV1,
+) -> Result<VisualDiffComputationV1, VisualDiffComputeError> {
+    match mode {
+        VisualComparisonMode::Manual => Ok(VisualDiffComputationV1 {
+            comparison_mode: mode,
+            units_compared: 0,
+            units_differing: 0,
+            mismatch_basis_points: 0,
+            threshold_exceeded: false,
+            outcome: VisualDiffOutcome::ManualReviewRequired,
+        }),
+        VisualComparisonMode::PixelDiff => {
+            if reference_bytes.is_empty() || candidate_bytes.is_empty() {
+                return Err(VisualDiffComputeError {
+                    message: "pixel comparison requires non-empty reference and candidate payloads"
+                        .to_string(),
+                });
+            }
+            let compared = reference_bytes.len().max(candidate_bytes.len()) as u64;
+            let overlap_differing = reference_bytes
+                .iter()
+                .zip(candidate_bytes.iter())
+                .filter(|(reference, candidate)| reference != candidate)
+                .count() as u64;
+            let length_differing =
+                reference_bytes.len().abs_diff(candidate_bytes.len()) as u64;
+            let differing = overlap_differing + length_differing;
+            let mismatch_basis_points = mismatch_basis_points(differing, compared);
+            let threshold_exceeded =
+                mismatch_basis_points > threshold_config.max_pixel_diff_basis_points;
+            Ok(VisualDiffComputationV1 {
+                comparison_mode: mode,
+                units_compared: compared,
+                units_differing: differing,
+                mismatch_basis_points,
+                threshold_exceeded,
+                outcome: if threshold_exceeded {
+                    VisualDiffOutcome::Fail
+                } else {
+                    VisualDiffOutcome::Pass
+                },
+            })
+        }
+        VisualComparisonMode::StructuralDom => {
+            let reference: serde_json::Value = serde_json::from_slice(reference_bytes)
+                .map_err(|err| VisualDiffComputeError {
+                    message: format!("reference DOM snapshot is not valid JSON: {err}"),
+                })?;
+            let candidate: serde_json::Value = serde_json::from_slice(candidate_bytes)
+                .map_err(|err| VisualDiffComputeError {
+                    message: format!("candidate DOM snapshot is not valid JSON: {err}"),
+                })?;
+            let (compared, mismatched) = structural_node_diff(&reference, &candidate);
+            if compared == 0 {
+                return Err(VisualDiffComputeError {
+                    message: "structural comparison requires at least one DOM node".to_string(),
+                });
+            }
+            let mismatch_basis_points = mismatch_basis_points(mismatched, compared);
+            let threshold_exceeded =
+                mismatched > u64::from(threshold_config.structural_mismatch_limit);
+            Ok(VisualDiffComputationV1 {
+                comparison_mode: mode,
+                units_compared: compared,
+                units_differing: mismatched,
+                mismatch_basis_points,
+                threshold_exceeded,
+                outcome: if threshold_exceeded {
+                    VisualDiffOutcome::Fail
+                } else {
+                    VisualDiffOutcome::Pass
+                },
+            })
+        }
+    }
+}
+
+fn mismatch_basis_points(differing: u64, compared: u64) -> u32 {
+    if compared == 0 {
+        return 0;
+    }
+    // Ceiling division so a single differing unit never rounds to zero.
+    (differing.saturating_mul(10_000).div_ceil(compared)).min(10_000) as u32
+}
+
+fn structural_node_diff(
+    reference: &serde_json::Value,
+    candidate: &serde_json::Value,
+) -> (u64, u64) {
+    use serde_json::Value;
+    match (reference, candidate) {
+        (Value::Object(reference_map), Value::Object(candidate_map)) => {
+            let mut compared = 1u64;
+            let mut mismatched = 0u64;
+            let mut keys: Vec<&String> = reference_map.keys().collect();
+            for key in candidate_map.keys() {
+                if !reference_map.contains_key(key) {
+                    keys.push(key);
+                }
+            }
+            for key in keys {
+                match (reference_map.get(key), candidate_map.get(key)) {
+                    (Some(reference_child), Some(candidate_child)) => {
+                        let (child_compared, child_mismatched) =
+                            structural_node_diff(reference_child, candidate_child);
+                        compared += child_compared;
+                        mismatched += child_mismatched;
+                    }
+                    (Some(only), None) | (None, Some(only)) => {
+                        let missing = count_structural_nodes(only);
+                        compared += missing;
+                        mismatched += missing;
+                    }
+                    (None, None) => {}
+                }
+            }
+            (compared, mismatched)
+        }
+        (Value::Array(reference_items), Value::Array(candidate_items)) => {
+            let mut compared = 1u64;
+            let mut mismatched = 0u64;
+            let shared = reference_items.len().min(candidate_items.len());
+            for index in 0..shared {
+                let (child_compared, child_mismatched) =
+                    structural_node_diff(&reference_items[index], &candidate_items[index]);
+                compared += child_compared;
+                mismatched += child_mismatched;
+            }
+            for extra in reference_items
+                .iter()
+                .skip(shared)
+                .chain(candidate_items.iter().skip(shared))
+            {
+                let missing = count_structural_nodes(extra);
+                compared += missing;
+                mismatched += missing;
+            }
+            (compared, mismatched)
+        }
+        (reference_leaf, candidate_leaf)
+            if std::mem::discriminant(reference_leaf)
+                == std::mem::discriminant(candidate_leaf) =>
+        {
+            (1, u64::from(reference_leaf != candidate_leaf))
+        }
+        (reference_node, candidate_node) => {
+            let nodes =
+                count_structural_nodes(reference_node).max(count_structural_nodes(candidate_node));
+            (nodes, nodes)
+        }
+    }
+}
+
+fn count_structural_nodes(value: &serde_json::Value) -> u64 {
+    use serde_json::Value;
+    match value {
+        Value::Object(map) => 1 + map.values().map(count_structural_nodes).sum::<u64>(),
+        Value::Array(items) => 1 + items.iter().map(count_structural_nodes).sum::<u64>(),
+        _ => 1,
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

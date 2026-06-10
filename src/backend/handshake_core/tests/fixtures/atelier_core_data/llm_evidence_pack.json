@@ -1,0 +1,68 @@
+{
+  "_comment": "MT-078 portable non-SQLite fixture corpus: LLM evidence pack export only. Each pack file payload seed is materialized into the real ArtifactStore and persisted to PostgreSQL before the strict manifest is built from the RE-READ rows; every file carries source anchors, the four required files must be present in deterministic order, and SQLite/machine-local paths are rejected. All ids are made run-unique at load time.",
+  "requested_by": "mt-078-evidence-exporter",
+  "files": [
+    {
+      "kind": "readme",
+      "pack_path": "README.md",
+      "payload_seed": "mt-078-readme",
+      "source_provenance": "fixture://mt-078/readme",
+      "redaction_required": false,
+      "redacted": false,
+      "source_anchors": [
+        {
+          "source_id_slug": "mt-078-source-readme",
+          "source_path": "source-index/mt-078-readme.json",
+          "source_range": "lines:1-10"
+        }
+      ]
+    },
+    {
+      "kind": "evidence",
+      "pack_path": "evidence.json",
+      "payload_seed": "mt-078-evidence",
+      "source_provenance": "fixture://mt-078/evidence",
+      "redaction_required": true,
+      "redacted": true,
+      "source_anchors": [
+        {
+          "source_id_slug": "mt-078-source-evidence",
+          "source_path": "source-index/mt-078-evidence.json",
+          "source_range": "lines:4-96"
+        }
+      ]
+    },
+    {
+      "kind": "redaction_report",
+      "pack_path": "redactions.json",
+      "payload_seed": "mt-078-redactions",
+      "source_provenance": "fixture://mt-078/redactions",
+      "redaction_required": false,
+      "redacted": false,
+      "source_anchors": [
+        {
+          "source_id_slug": "mt-078-source-redactions",
+          "source_path": "source-index/mt-078-redactions.json",
+          "source_range": "lines:1-24"
+        }
+      ]
+    },
+    {
+      "kind": "source_index",
+      "pack_path": "source-index.json",
+      "payload_seed": "mt-078-source-index",
+      "source_provenance": "fixture://mt-078/source-index",
+      "redaction_required": false,
+      "redacted": false,
+      "source_anchors": [
+        {
+          "source_id_slug": "mt-078-source-source-index",
+          "source_path": "source-index/mt-078-source-index.json",
+          "source_range": "lines:1-48"
+        }
+      ]
+    }
+  ],
+  "invalid_sqlite_source_id": "sqlite://legacy/evidence.db",
+  "invalid_machine_local_pack_path": ".GOV/evidence.json"
+}

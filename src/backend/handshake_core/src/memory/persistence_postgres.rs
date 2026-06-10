@@ -68,7 +68,10 @@ pub const MEMORY_CAPSULE_SOURCE_COMPONENT: &str = "memory_capsule_kernel_action_
 /// When already inside Tokio, this uses `block_in_place` and therefore requires a
 /// multi-thread runtime. Sync IPC integration tests that call this bridge from async
 /// tests must use `#[tokio::test(flavor = "multi_thread")]`.
-fn block_on<F>(future: F) -> F::Output
+///
+/// `pub(crate)` so the other sync-trait Postgres bindings (MT-165 trace export,
+/// MT-170 promotion gate) reuse the same bridge instead of duplicating it.
+pub(crate) fn block_on<F>(future: F) -> F::Output
 where
     F: Future,
 {

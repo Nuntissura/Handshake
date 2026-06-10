@@ -16,8 +16,9 @@
 mod atelier_pg_support;
 
 use handshake_core::atelier::command_corpus::{
-    command_corpus_event_family, BlockedReason, CorpusErrorVariant, CorpusSource, ExecutionClass,
-    RecordCommandCorpusInvocation, UpsertCommandCorpusEntry, MANUAL_ANCHOR_BLOCKED,
+    builtin_command_corpus, command_corpus_event_family, BlockedReason, CorpusErrorVariant,
+    CorpusSource, ExecutionClass, RecordCommandCorpusInvocation, UpsertCommandCorpusEntry,
+    MANUAL_ANCHOR_BLOCKED,
 };
 use handshake_core::atelier::{AtelierError, AtelierStore};
 use handshake_core::kernel::KernelEventType;
@@ -700,4 +701,311 @@ async fn corpus_parity_report_projection_counts_and_event() {
         report_event_count, 1,
         "building a parity report emits exactly one CORPUS_PARITY_REPORTED event"
     );
+}
+
+/// MT-206 headline proof: the FULL builtin CKC command corpus (~100+ commands,
+/// one descriptor per handler registered in `handshake_invoke_handlers!`) is
+/// enumerated, projected into PostgreSQL, RE-READ from PostgreSQL, and
+/// cross-checked descriptor-by-descriptor against the live ModelManual --
+/// covered commands carry their manual id, uncovered commands are BLOCKED with
+/// a durable `no_manual_anchor` record, and the parity report counts the full
+/// enumeration (never `>= 2` synthetic rows).
+#[tokio::test]
+async fn corpus_full_builtin_enumeration_bootstraps_and_parity_checks_against_manual() {
+    let Some(url) = atelier_pg_support::database_url().await else {
+        eprintln!(
+            "SKIP corpus_full_builtin_enumeration_bootstraps_and_parity_checks_against_manual: PostgreSQL unavailable"
+        );
+        return;
+    };
+    let store = connected_store(&url).await;
+
+    // --- the const enumeration itself: the full ~100+ corpus headline ---
+    let builtin = builtin_command_corpus();
+    assert!(
+        builtin.len() >= 100,
+        "the builtin CKC command corpus must enumerate the full ~100+ command \
+         surface, got only {}",
+        builtin.len()
+    );
+    let builtin_ids: std::collections::BTreeSet<&str> =
+        builtin.iter().map(|e| e.action_id.as_str()).collect();
+    assert_eq!(
+        builtin_ids.len(),
+        builtin.len(),
+        "every builtin action_id is unique (LAW-CORPUS-PARITY-001: one catalog, \
+         each action id exactly once)"
+    );
+    for input in &builtin {
+        assert!(
+            !input.owner.trim().is_empty() && !input.owner.eq_ignore_ascii_case("ui"),
+            "{}: owner must be a real backend module, never 'ui'",
+            input.action_id
+        );
+        assert!(
+            !input.params_schema_ref.trim().is_empty()
+                && !input.receipt_shape.trim().is_empty(),
+            "{}: typed params/receipt schema refs are mandatory (10.19.2)",
+            input.action_id
+        );
+        assert!(
+            !input.errors.is_empty(),
+            "{}: every descriptor enumerates typed error variants",
+            input.action_id
+        );
+        if input.execution_class.requires_governed_execution() {
+            assert!(
+                !input.evidence_class.is_empty(),
+                "{}: governed execution_class {:?} must declare an evidence class \
+                 (EVIDENCE-001)",
+                input.action_id,
+                input.execution_class
+            );
+        }
+    }
+
+    // --- bootstrap: project the FULL corpus into PostgreSQL ---
+    let receipt = store
+        .bootstrap_builtin_command_corpus()
+        .await
+        .expect("bootstrap the full builtin command corpus");
+    assert_eq!(
+        receipt.total_commands,
+        builtin.len(),
+        "the bootstrap receipt counts the full enumeration"
+    );
+    assert_eq!(
+        receipt.covered_count + receipt.blocked_count,
+        receipt.total_commands,
+        "every builtin command is either manual-covered or BLOCKED, never \
+         silently omitted (BLOCKED-001)"
+    );
+
+    // --- RE-READ from PostgreSQL: the whole catalog, then index by action_id ---
+    let listed = store
+        .list_command_corpus_entries(None)
+        .await
+        .expect("list the persisted catalog");
+    let persisted: std::collections::BTreeMap<&str, _> = listed
+        .iter()
+        .map(|e| (e.action_id.as_str(), e))
+        .collect();
+
+    // --- live ModelManual cross-check, descriptor by descriptor ---
+    // The covering rule mirrors the bootstrap contract: a manual
+    // CommandReference covers a corpus command when its tauri_command binding
+    // (or its own id/name) names the action id. This scan runs against the
+    // LIVE manual content, so the expected covered/blocked split is derived,
+    // never hardcoded.
+    let manual = handshake_core::model_manual::model_manual();
+    let mut expected_covered: usize = 0;
+    let mut expected_blocked: usize = 0;
+    let mut blocked_builtin_ids: Vec<String> = Vec::new();
+    for input in &builtin {
+        let entry = persisted.get(input.action_id.as_str()).unwrap_or_else(|| {
+            panic!(
+                "builtin command {} must be persisted in the PostgreSQL catalog",
+                input.action_id
+            )
+        });
+        // Re-read field fidelity: the persisted descriptor matches the
+        // enumerated one.
+        assert_eq!(entry.owner, input.owner, "{}: owner persists", input.action_id);
+        assert_eq!(
+            entry.corpus_source, input.corpus_source,
+            "{}: corpus_source persists",
+            input.action_id
+        );
+        assert_eq!(
+            entry.execution_class, input.execution_class,
+            "{}: execution_class persists",
+            input.action_id
+        );
+        assert_eq!(
+            entry.foreground_flag, input.foreground_flag,
+            "{}: foreground_flag persists (HBR-QUIET)",
+            input.action_id
+        );
+
+        let covering = manual.command_reference.iter().find(|cmd| {
+            cmd.tauri_command == Some(input.action_id.as_str())
+                || cmd.id == input.action_id
+                || cmd.name == input.action_id
+        });
+        let open_blocks = store
+            .list_blocked_commands(Some(&input.action_id))
+            .await
+            .expect("list open BLOCKED records for builtin command");
+        match covering {
+            Some(cmd) => {
+                expected_covered += 1;
+                assert_eq!(
+                    entry.manual_anchor, cmd.id,
+                    "{}: manual-covered command is anchored to the live \
+                     ModelManual id",
+                    input.action_id
+                );
+                assert!(
+                    !open_blocks
+                        .iter()
+                        .any(|b| b.blocked_reason == BlockedReason::NoManualAnchor),
+                    "{}: manual-covered command carries no stale no_manual_anchor \
+                     BLOCKED record",
+                    input.action_id
+                );
+            }
+            None => {
+                expected_blocked += 1;
+                blocked_builtin_ids.push(input.action_id.clone());
+                assert_eq!(
+                    entry.manual_anchor, MANUAL_ANCHOR_BLOCKED,
+                    "{}: command without manual coverage is pinned to the \
+                     BLOCKED sentinel",
+                    input.action_id
+                );
+                assert!(
+                    open_blocks
+                        .iter()
+                        .any(|b| b.blocked_reason == BlockedReason::NoManualAnchor),
+                    "{}: command without manual coverage carries a durable \
+                     no_manual_anchor BLOCKED record (BLOCKED-001)",
+                    input.action_id
+                );
+            }
+        }
+    }
+    assert_eq!(
+        receipt.covered_count, expected_covered,
+        "receipt covered_count matches the independent live-manual scan"
+    );
+    assert_eq!(
+        receipt.blocked_count, expected_blocked,
+        "receipt blocked_count matches the independent live-manual scan"
+    );
+
+    // --- EventLedger evidence for the full set: every builtin projection
+    // emitted CORPUS_ENTRY_UPSERTED, and the anchored/blocked event matching
+    // its manual-coverage outcome. Builtin ids are stable across runs, so the
+    // counts are cumulative (>= 1). ---
+    for input in &builtin {
+        let upserts = store
+            .count_events_for_aggregate(
+                command_corpus_event_family::CORPUS_ENTRY_UPSERTED,
+                "atelier_command_corpus_entry",
+                &input.action_id,
+            )
+            .await
+            .expect("count upsert events for builtin command");
+        assert!(
+            upserts >= 1,
+            "{}: projecting the descriptor emits CORPUS_ENTRY_UPSERTED",
+            input.action_id
+        );
+        let outcome_events = if blocked_builtin_ids.contains(&input.action_id) {
+            store
+                .count_events_for_aggregate(
+                    command_corpus_event_family::CORPUS_BLOCKED_RECORDED,
+                    "atelier_command_corpus_blocked",
+                    &input.action_id,
+                )
+                .await
+                .expect("count blocked-recorded events for builtin command")
+        } else {
+            store
+                .count_events_for_aggregate(
+                    command_corpus_event_family::CORPUS_ENTRY_ANCHORED,
+                    "atelier_command_corpus_entry",
+                    &input.action_id,
+                )
+                .await
+                .expect("count anchored events for builtin command")
+        };
+        assert!(
+            outcome_events >= 1,
+            "{}: the manual cross-check outcome (anchored or blocked) is \
+             EventLedger evidence",
+            input.action_id
+        );
+    }
+
+    // --- the parity report asserts the FULL enumeration ---
+    // The catalog is shared with other tests' run-unique seeds, so the report
+    // covers at least the full builtin corpus.
+    let report = store
+        .build_command_corpus_parity_report(&receipt.manual_advertised_action_ids)
+        .await
+        .expect("build parity report over the bootstrapped corpus");
+    assert!(
+        report.total_corpus >= builtin.len() as i64,
+        "parity report total_corpus ({}) covers the full builtin enumeration ({})",
+        report.total_corpus,
+        builtin.len()
+    );
+    assert!(
+        report.covered_count >= expected_covered as i64,
+        "parity report covered_count ({}) includes every manual-covered builtin \
+         command ({expected_covered})",
+        report.covered_count
+    );
+    assert!(
+        report.blocked_count >= expected_blocked as i64,
+        "parity report blocked_count ({}) includes every BLOCKED builtin \
+         command ({expected_blocked})",
+        report.blocked_count
+    );
+    for blocked_id in &blocked_builtin_ids {
+        assert!(
+            report
+                .defects
+                .iter()
+                .any(|d| &d.action_id == blocked_id && d.defect_kind == "blocked"),
+            "{blocked_id}: every BLOCKED builtin command surfaces a 'blocked' \
+             defect row in the parity report"
+        );
+    }
+    // Manual-advertised ids that ARE in the corpus are not orphans; the manual
+    // binds its tauri_command names to registered handlers, so the builtin
+    // enumeration must leave no manual binding orphaned.
+    assert!(
+        !report.defects.iter().any(|d| {
+            d.defect_kind == "orphaned_manual" && builtin_ids.contains(d.action_id.as_str())
+        }),
+        "no builtin command may simultaneously be an orphaned_manual defect"
+    );
+
+    // --- idempotency: re-bootstrapping re-projects in place ---
+    let receipt2 = store
+        .bootstrap_builtin_command_corpus()
+        .await
+        .expect("re-bootstrap the builtin corpus");
+    assert_eq!(
+        receipt2.total_commands, receipt.total_commands,
+        "re-bootstrap projects the same full enumeration"
+    );
+    assert_eq!(receipt2.covered_count, receipt.covered_count);
+    assert_eq!(receipt2.blocked_count, receipt.blocked_count);
+    let relisted = store
+        .list_command_corpus_entries(None)
+        .await
+        .expect("re-list the persisted catalog");
+    for input in &builtin {
+        let rows: Vec<_> = relisted
+            .iter()
+            .filter(|e| e.action_id == input.action_id)
+            .collect();
+        assert_eq!(
+            rows.len(),
+            1,
+            "{}: exactly one catalog row after re-bootstrap (stable upsert key)",
+            input.action_id
+        );
+        let before = persisted
+            .get(input.action_id.as_str())
+            .expect("entry was persisted in the first bootstrap");
+        assert_eq!(
+            rows[0].entry_id, before.entry_id,
+            "{}: entry_id is stable across re-bootstrap (no duplicate row)",
+            input.action_id
+        );
+    }
 }
