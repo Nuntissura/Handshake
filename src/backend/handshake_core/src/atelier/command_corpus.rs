@@ -47,7 +47,7 @@ use serde::{Deserialize, Serialize};
 use sqlx::Row;
 use uuid::Uuid;
 
-use super::{AtelierError, AtelierResult, AtelierStore};
+use super::{reject_legacy_runtime_ref, AtelierError, AtelierResult, AtelierStore};
 
 /// Command-corpus parity event families (MT-206, MT-005). Defined here so the
 /// parent folds these into [`super::event_family::ALL`] and the MT-005 coverage
@@ -1761,5 +1761,402 @@ impl AtelierStore {
             orphaned_pending_count,
             adopted_count,
         })
+    }
+}
+
+// ===========================================================================
+// MT-145 / MT-144: Command Log + stale-session detection (WP-KERNEL-005).
+//
+// Two more typed Model-Workflow-Diagnostics runtime surfaces, appended after
+// the MT-140/MT-166/MT-207 surfaces above. PostgreSQL only; SQLite forbidden.
+//
+//   * MT-145 -- atelier_command_log: an APPEND-ONLY queryable command log tied
+//     to sessions and receipts. record_command_log_entry validates the session/
+//     receipt/evidence refs through reject_legacy_runtime_ref, persists the row,
+//     and emits COMMAND_LOG_RECORDED. Append-only: re-recording the same
+//     command_log_id is REJECTED (not upserted). list_command_log_for_session
+//     queries the log for one session.
+//   * MT-144 -- atelier_diagnostics_session: heartbeat-bearing session records.
+//     record_session_heartbeat advances last_heartbeat_utc; detect_stale_sessions
+//     flags sessions whose last_heartbeat is older than the timeout as STALE;
+//     list_stale_sessions surfaces them. The KEY INVARIANT is that a stale
+//     session's evidence is PRESERVED -- marking STALE is a status flag, never a
+//     delete of the session row or its atelier_command_log evidence rows.
+// ===========================================================================
+
+use chrono::Duration;
+
+/// Command-log + session-heartbeat event families (MT-145 / MT-144). Defined
+/// here so the parent folds these into [`super::event_family::ALL`] and the
+/// MT-005 coverage check picks up these mutations.
+pub mod command_log_event_family {
+    /// An append-only command-log entry was recorded (MT-145).
+    pub const COMMAND_LOG_RECORDED: &str = "atelier.command_log.recorded";
+    /// A session heartbeat was recorded / refreshed (MT-144).
+    pub const SESSION_HEARTBEAT_RECORDED: &str = "atelier.diagnostics.session_heartbeat_recorded";
+    /// One or more sessions were flagged STALE by heartbeat-timeout detection;
+    /// their evidence is preserved (MT-144).
+    pub const SESSION_FLAGGED_STALE: &str = "atelier.diagnostics.session_flagged_stale";
+
+    /// All command-log / session-heartbeat event families (for parity folding).
+    pub const ALL: &[&str] = &[
+        COMMAND_LOG_RECORDED,
+        SESSION_HEARTBEAT_RECORDED,
+        SESSION_FLAGGED_STALE,
+    ];
+}
+
+pub use command_log_event_family::{
+    COMMAND_LOG_RECORDED, SESSION_FLAGGED_STALE, SESSION_HEARTBEAT_RECORDED,
+};
+
+// ---------------------------------------------------------------------------
+// MT-145: append-only command log tied to sessions + receipts.
+// ---------------------------------------------------------------------------
+
+/// Input to record one append-only command-log entry (MT-145). `receipt_ref`
+/// and `evidence_ref` are optional portable handles; when present they are
+/// validated through [`super::reject_legacy_runtime_ref`] so no SQLite path,
+/// drive letter, localhost authority, or CKC/Electron legacy ref crosses the
+/// persistence boundary.
+#[derive(Clone, Debug)]
+pub struct NewCommandLogEntry {
+    /// Stable, caller-supplied unique id (the PK). Re-recording the same id is
+    /// rejected (append-only).
+    pub command_log_id: String,
+    /// The session this command invocation is tied to.
+    pub session_ref: String,
+    /// The command/action id that was invoked.
+    pub command_id: String,
+    /// Terminal/observed status token, e.g. `ok`, `error`, `denied`.
+    pub status: String,
+    /// Optional typed receipt handle produced by the invocation.
+    pub receipt_ref: Option<String>,
+    /// Optional EventLedger/Flight-Recorder evidence handle.
+    pub evidence_ref: Option<String>,
+}
+
+/// A persisted append-only command-log row (MT-145).
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct CommandLogEntry {
+    pub command_log_id: String,
+    pub session_ref: String,
+    pub command_id: String,
+    pub status: String,
+    pub receipt_ref: Option<String>,
+    pub evidence_ref: Option<String>,
+    pub recorded_at_utc: DateTime<Utc>,
+}
+
+fn command_log_from_row(row: &sqlx::postgres::PgRow) -> CommandLogEntry {
+    CommandLogEntry {
+        command_log_id: row.get("command_log_id"),
+        session_ref: row.get("session_ref"),
+        command_id: row.get("command_id"),
+        status: row.get("status"),
+        receipt_ref: row.get("receipt_ref"),
+        evidence_ref: row.get("evidence_ref"),
+        recorded_at_utc: row.get("recorded_at_utc"),
+    }
+}
+
+// ---------------------------------------------------------------------------
+// MT-144: heartbeat-bearing session records + stale detection.
+// ---------------------------------------------------------------------------
+
+/// Lifecycle status of a heartbeat-bearing diagnostics session (MT-144).
+/// `Stale` is a flag only: it never implies the session row or its evidence was
+/// deleted.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum SessionStatus {
+    Active,
+    Stale,
+}
+
+impl SessionStatus {
+    pub fn as_token(self) -> &'static str {
+        match self {
+            SessionStatus::Active => "ACTIVE",
+            SessionStatus::Stale => "STALE",
+        }
+    }
+
+    pub fn from_token(token: &str) -> AtelierResult<Self> {
+        match token {
+            "ACTIVE" => Ok(SessionStatus::Active),
+            "STALE" => Ok(SessionStatus::Stale),
+            other => Err(AtelierError::Validation(format!(
+                "unknown session status token: {other}"
+            ))),
+        }
+    }
+}
+
+/// A persisted heartbeat-bearing diagnostics session record (MT-144).
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct DiagnosticsSession {
+    pub session_ref: String,
+    pub status: SessionStatus,
+    pub last_heartbeat_utc: DateTime<Utc>,
+    pub created_at_utc: DateTime<Utc>,
+}
+
+fn diagnostics_session_from_row(row: &sqlx::postgres::PgRow) -> AtelierResult<DiagnosticsSession> {
+    let status: String = row.get("status");
+    Ok(DiagnosticsSession {
+        session_ref: row.get("session_ref"),
+        status: SessionStatus::from_token(&status)?,
+        last_heartbeat_utc: row.get("last_heartbeat_utc"),
+        created_at_utc: row.get("created_at_utc"),
+    })
+}
+
+/// Pure stale-session detection over already-loaded session records (MT-144).
+///
+/// A session is STALE when its `last_heartbeat_utc` is strictly older than
+/// `now - timeout`. This is a pure projection (no I/O, no deletion): callers use
+/// it to decide which sessions to FLAG. Marking a session stale never removes
+/// the session or any of its evidence rows.
+pub fn detect_stale_sessions(
+    sessions: &[DiagnosticsSession],
+    now: DateTime<Utc>,
+    timeout: Duration,
+) -> Vec<DiagnosticsSession> {
+    let cutoff = now - timeout;
+    sessions
+        .iter()
+        .filter(|s| s.last_heartbeat_utc < cutoff)
+        .cloned()
+        .collect()
+}
+
+impl AtelierStore {
+    /// MT-145: record one APPEND-ONLY command-log entry tied to a session and an
+    /// optional receipt/evidence ref. Validates refs through
+    /// [`super::reject_legacy_runtime_ref`], persists the row, and emits
+    /// `COMMAND_LOG_RECORDED`. Append-only: re-recording the same
+    /// `command_log_id` is REJECTED with a typed Validation error (the row is
+    /// never upserted, so prior evidence can never be silently overwritten).
+    pub async fn record_command_log_entry(
+        &self,
+        new: &NewCommandLogEntry,
+    ) -> AtelierResult<CommandLogEntry> {
+        if new.command_log_id.trim().is_empty() || new.command_log_id.trim() != new.command_log_id {
+            return Err(AtelierError::Validation(
+                "command_log_id must be non-empty and unpadded".into(),
+            ));
+        }
+        if new.command_id.trim().is_empty() || new.command_id.trim() != new.command_id {
+            return Err(AtelierError::Validation(
+                "command_id must be non-empty and unpadded".into(),
+            ));
+        }
+        if new.status.trim().is_empty() || new.status.trim() != new.status {
+            return Err(AtelierError::Validation(
+                "status must be non-empty and unpadded".into(),
+            ));
+        }
+        // session_ref / receipt_ref / evidence_ref are portable handles that
+        // cross the persistence boundary: reject legacy/local-runtime refs.
+        reject_legacy_runtime_ref("session_ref", &new.session_ref)?;
+        if let Some(receipt_ref) = &new.receipt_ref {
+            reject_legacy_runtime_ref("receipt_ref", receipt_ref)?;
+        }
+        if let Some(evidence_ref) = &new.evidence_ref {
+            reject_legacy_runtime_ref("evidence_ref", evidence_ref)?;
+        }
+
+        // Append-only enforcement: a PK conflict means this command_log_id was
+        // already recorded. We DO NOT upsert; we surface a typed Validation
+        // error so the prior evidence row stays untouched.
+        let already_exists: Option<String> = sqlx::query_scalar(
+            "SELECT command_log_id FROM atelier_command_log WHERE command_log_id = $1",
+        )
+        .bind(&new.command_log_id)
+        .fetch_optional(self.pool())
+        .await?;
+        if already_exists.is_some() {
+            return Err(AtelierError::Validation(format!(
+                "command_log is append-only: command_log_id={} already recorded; \
+                 re-recording is rejected (not upserted)",
+                new.command_log_id
+            )));
+        }
+
+        let mut tx = self.pool().begin().await?;
+        let row = sqlx::query(
+            r#"INSERT INTO atelier_command_log
+                 (command_log_id, session_ref, command_id, status, receipt_ref, evidence_ref)
+               VALUES ($1, $2, $3, $4, $5, $6)
+               RETURNING command_log_id, session_ref, command_id, status,
+                         receipt_ref, evidence_ref, recorded_at_utc"#,
+        )
+        .bind(&new.command_log_id)
+        .bind(&new.session_ref)
+        .bind(&new.command_id)
+        .bind(&new.status)
+        .bind(&new.receipt_ref)
+        .bind(&new.evidence_ref)
+        .fetch_one(&mut *tx)
+        .await?;
+
+        let entry = command_log_from_row(&row);
+        self.record_event_in_tx(
+            &mut tx,
+            COMMAND_LOG_RECORDED,
+            "atelier_command_log",
+            &entry.command_log_id,
+            serde_json::json!({
+                "command_log_id": entry.command_log_id,
+                "session_ref": entry.session_ref,
+                "command_id": entry.command_id,
+                "status": entry.status,
+                "has_receipt_ref": entry.receipt_ref.is_some(),
+                "has_evidence_ref": entry.evidence_ref.is_some(),
+            }),
+        )
+        .await?;
+        tx.commit().await?;
+        Ok(entry)
+    }
+
+    /// MT-145: list the append-only command log for one session, oldest first.
+    pub async fn list_command_log_for_session(
+        &self,
+        session_ref: &str,
+    ) -> AtelierResult<Vec<CommandLogEntry>> {
+        let rows = sqlx::query(
+            r#"SELECT command_log_id, session_ref, command_id, status,
+                      receipt_ref, evidence_ref, recorded_at_utc
+               FROM atelier_command_log
+               WHERE session_ref = $1
+               ORDER BY recorded_at_utc ASC, command_log_id ASC"#,
+        )
+        .bind(session_ref)
+        .fetch_all(self.pool())
+        .await?;
+        Ok(rows.iter().map(command_log_from_row).collect())
+    }
+
+    /// MT-144: record (open or refresh) a session heartbeat. Idempotent on
+    /// `session_ref`: a new session starts ACTIVE; an existing session's
+    /// `last_heartbeat_utc` advances to NOW() and its status is reset to ACTIVE
+    /// (a fresh heartbeat clears a prior STALE flag). Emits
+    /// `SESSION_HEARTBEAT_RECORDED`. Never deletes evidence.
+    pub async fn record_session_heartbeat(
+        &self,
+        session_ref: &str,
+    ) -> AtelierResult<DiagnosticsSession> {
+        reject_legacy_runtime_ref("session_ref", session_ref)?;
+
+        let mut tx = self.pool().begin().await?;
+        let row = sqlx::query(
+            r#"INSERT INTO atelier_diagnostics_session (session_ref, status, last_heartbeat_utc)
+               VALUES ($1, 'ACTIVE', NOW())
+               ON CONFLICT (session_ref) DO UPDATE SET
+                 status = 'ACTIVE',
+                 last_heartbeat_utc = NOW()
+               RETURNING session_ref, status, last_heartbeat_utc, created_at_utc"#,
+        )
+        .bind(session_ref)
+        .fetch_one(&mut *tx)
+        .await?;
+
+        let session = diagnostics_session_from_row(&row)?;
+        self.record_event_in_tx(
+            &mut tx,
+            SESSION_HEARTBEAT_RECORDED,
+            "atelier_diagnostics_session",
+            &session.session_ref,
+            serde_json::json!({
+                "session_ref": session.session_ref,
+                "status": session.status.as_token(),
+            }),
+        )
+        .await?;
+        tx.commit().await?;
+        Ok(session)
+    }
+
+    /// MT-144: list all heartbeat-bearing diagnostics sessions, newest heartbeat
+    /// first.
+    pub async fn list_diagnostics_sessions(&self) -> AtelierResult<Vec<DiagnosticsSession>> {
+        let rows = sqlx::query(
+            r#"SELECT session_ref, status, last_heartbeat_utc, created_at_utc
+               FROM atelier_diagnostics_session
+               ORDER BY last_heartbeat_utc DESC, session_ref ASC"#,
+        )
+        .fetch_all(self.pool())
+        .await?;
+        rows.iter().map(diagnostics_session_from_row).collect()
+    }
+
+    /// MT-144: flag every session whose `last_heartbeat_utc` is older than
+    /// `now - timeout` as STALE and return the now-stale sessions. This is the
+    /// evidence-preserving path: it ONLY flips the `status` column to STALE; it
+    /// never deletes the session row or any tied `atelier_command_log` evidence.
+    /// Emits `SESSION_FLAGGED_STALE` when at least one session is flagged.
+    pub async fn flag_stale_sessions(
+        &self,
+        timeout: Duration,
+    ) -> AtelierResult<Vec<DiagnosticsSession>> {
+        if timeout < Duration::zero() {
+            return Err(AtelierError::Validation(
+                "stale-session timeout must not be negative".into(),
+            ));
+        }
+        // Postgres computes the cutoff against canonical server time so the
+        // detection is consistent with NOW()-stamped heartbeats.
+        let timeout_seconds = timeout.num_seconds();
+
+        let mut tx = self.pool().begin().await?;
+        let rows = sqlx::query(
+            r#"UPDATE atelier_diagnostics_session
+               SET status = 'STALE'
+               WHERE last_heartbeat_utc < (NOW() - make_interval(secs => $1::double precision))
+                 AND status <> 'STALE'
+               RETURNING session_ref, status, last_heartbeat_utc, created_at_utc"#,
+        )
+        .bind(timeout_seconds as f64)
+        .fetch_all(&mut *tx)
+        .await?;
+
+        let flagged: Vec<DiagnosticsSession> = rows
+            .iter()
+            .map(diagnostics_session_from_row)
+            .collect::<AtelierResult<_>>()?;
+
+        if !flagged.is_empty() {
+            self.record_event_in_tx(
+                &mut tx,
+                SESSION_FLAGGED_STALE,
+                "atelier_diagnostics_session",
+                "stale-session-detection",
+                serde_json::json!({
+                    "flagged_count": flagged.len(),
+                    "session_refs": flagged.iter().map(|s| &s.session_ref).collect::<Vec<_>>(),
+                    "evidence_preserved": true,
+                }),
+            )
+            .await?;
+        }
+        tx.commit().await?;
+        Ok(flagged)
+    }
+
+    /// MT-144: list the sessions currently flagged STALE, newest heartbeat first.
+    /// Their evidence rows remain queryable via
+    /// [`AtelierStore::list_command_log_for_session`].
+    pub async fn list_stale_sessions(&self) -> AtelierResult<Vec<DiagnosticsSession>> {
+        let rows = sqlx::query(
+            r#"SELECT session_ref, status, last_heartbeat_utc, created_at_utc
+               FROM atelier_diagnostics_session
+               WHERE status = 'STALE'
+               ORDER BY last_heartbeat_utc DESC, session_ref ASC"#,
+        )
+        .fetch_all(self.pool())
+        .await?;
+        rows.iter().map(diagnostics_session_from_row).collect()
     }
 }

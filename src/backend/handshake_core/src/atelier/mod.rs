@@ -126,6 +126,9 @@ pub mod event_family {
     use super::settings::settings_event_family;
     use super::source_evidence::source_evidence_event_family;
     use super::command_corpus::diagnostics_event_family;
+    use super::command_corpus::command_log_event_family;
+    use super::settings::model_workflow_event_family;
+    use super::state_probe::diagnostics_projection_event_family;
     use super::state_probe::state_probe_event_family;
     use super::stealth_window::stealth_ref_event_family;
 
@@ -265,6 +268,17 @@ pub mod event_family {
         diagnostics_event_family::DIAGNOSTICS_ERROR_TAXONOMY_RECORDED,
         diagnostics_event_family::DIAGNOSTICS_PROMPT_RESPONSE_MATRIX_RECORDED,
         diagnostics_event_family::DIAGNOSTICS_RESET_ORPHAN_PROJECTED,
+        command_log_event_family::COMMAND_LOG_RECORDED,
+        command_log_event_family::SESSION_HEARTBEAT_RECORDED,
+        command_log_event_family::SESSION_FLAGGED_STALE,
+        model_workflow_event_family::MODEL_CONFIG_RECORDED,
+        model_workflow_event_family::MODEL_APPLY_DRAFTED,
+        model_workflow_event_family::MODEL_APPLY_STATE_ADVANCED,
+        model_workflow_event_family::SYNTHETIC_INPUT_RECORDED,
+        diagnostics_projection_event_family::WORK_STATE_PROJECTION_RECORDED,
+        diagnostics_projection_event_family::DCC_PANEL_PROJECTION_RECORDED,
+        diagnostics_projection_event_family::SCREENSHOT_ARTIFACT_STORED,
+        diagnostics_projection_event_family::SPEC_DRIFT_FINDING_RECORDED,
         stealth_ref_event_family::STEALTH_REF_WINDOW_CREATED,
         stealth_ref_event_family::STEALTH_REF_ADDED,
         stealth_ref_event_family::STEALTH_REF_REMOVED,
@@ -937,6 +951,15 @@ impl AtelierStore {
               AND to_regclass('atelier_diagnostics_validation_matrix') IS NOT NULL
               AND to_regclass('atelier_diagnostics_error_taxonomy') IS NOT NULL
               AND to_regclass('atelier_diagnostics_prompt_response_matrix') IS NOT NULL
+              AND to_regclass('atelier_command_log') IS NOT NULL
+              AND to_regclass('atelier_diagnostics_session') IS NOT NULL
+              AND to_regclass('atelier_model_config') IS NOT NULL
+              AND to_regclass('atelier_model_apply') IS NOT NULL
+              AND to_regclass('atelier_synthetic_input_guard') IS NOT NULL
+              AND to_regclass('atelier_work_state_projection') IS NOT NULL
+              AND to_regclass('atelier_dcc_panel_projection') IS NOT NULL
+              AND to_regclass('atelier_screenshot_artifact_storage') IS NOT NULL
+              AND to_regclass('atelier_spec_drift_finding') IS NOT NULL
               AND to_regclass('atelier_command_corpus_parity_report') IS NOT NULL
               AND to_regclass('atelier_sheet_parse_snapshot') IS NOT NULL
               AND to_regclass('atelier_bulk_operation_receipt') IS NOT NULL
@@ -2067,6 +2090,21 @@ impl AtelierStore {
         .await?;
         sqlx::raw_sql(include_str!(
             "../../migrations/0112_atelier_diagnostics_typed_surfaces.sql"
+        ))
+        .execute(&mut *tx)
+        .await?;
+        sqlx::raw_sql(include_str!(
+            "../../migrations/0113_atelier_command_log_session_heartbeat.sql"
+        ))
+        .execute(&mut *tx)
+        .await?;
+        sqlx::raw_sql(include_str!(
+            "../../migrations/0114_atelier_model_config_apply.sql"
+        ))
+        .execute(&mut *tx)
+        .await?;
+        sqlx::raw_sql(include_str!(
+            "../../migrations/0115_atelier_diagnostics_projections.sql"
         ))
         .execute(&mut *tx)
         .await?;

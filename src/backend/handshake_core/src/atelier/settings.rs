@@ -1061,3 +1061,567 @@ impl AtelierStore {
         }
     }
 }
+
+// ---------------------------------------------------------------------------
+// MT-160 / MT-163 / MT-169 (WP-KERNEL-005): typed Model-Workflow-Diagnostics
+// runtime surfaces. These are GOVERNED product/runtime surfaces (PostgreSQL
+// rows + EventLedger events), never governance markdown.
+//
+// They are appended here (the only source file this MT is permitted to edit)
+// but are semantically distinct from the general preferences store above:
+//   * MT-160 -- a governed local/remote OpenAI-compatible model config with the
+//     api key stored ONLY as a redacted ref, never plaintext, and never echoed
+//     into an event payload.
+//   * MT-163 -- the draft/preview/validate/apply/reject/rollback apply state
+//     machine that gates model suggestions becoming product changes. The legal
+//     transition graph is enforced in `advance_apply_state`.
+//   * MT-169 -- the synthetic-input guard: injectKey/injectMouse/clickElement/
+//     typeText preserved as governed, attributed, auditable rows requiring
+//     authorization, so synthetic input is never silent.
+//
+// Storage authority is PostgreSQL only (AtelierStore::pool()); SQLite is
+// forbidden (MT-004). base_url / suggestion_ref / target_ref cross the
+// persistence boundary through `reject_legacy_runtime_ref`, which also rejects
+// localhost / direct-LLM authorities so the config is Handshake-native.
+// ---------------------------------------------------------------------------
+
+use super::{event_ref_for_text, reject_legacy_runtime_ref};
+
+/// Event families for the model-config / apply-state / synthetic-input
+/// surfaces (MT-160/163/169, MT-005). Defined here so the parent folds these
+/// into [`super::event_family::ALL`] and the MT-005 coverage check picks up
+/// these mutations.
+pub mod model_workflow_event_family {
+    /// A governed model config was recorded (api key redacted).
+    pub const MODEL_CONFIG_RECORDED: &str = "atelier.model_config.recorded";
+    /// A model apply record was created in the DRAFT state.
+    pub const MODEL_APPLY_DRAFTED: &str = "atelier.model_apply.drafted";
+    /// A model apply record advanced to a new state (legal transition).
+    pub const MODEL_APPLY_STATE_ADVANCED: &str = "atelier.model_apply.state_advanced";
+    /// A synthetic-input request was recorded as a governed guard row.
+    pub const SYNTHETIC_INPUT_RECORDED: &str = "atelier.synthetic_input.recorded";
+
+    /// All model-workflow event families (for parity/coverage folding).
+    pub const ALL: &[&str] = &[
+        MODEL_CONFIG_RECORDED,
+        MODEL_APPLY_DRAFTED,
+        MODEL_APPLY_STATE_ADVANCED,
+        SYNTHETIC_INPUT_RECORDED,
+    ];
+}
+
+/// Re-export at module root so callers can write `settings::MODEL_CONFIG_RECORDED`.
+pub use model_workflow_event_family::{
+    MODEL_APPLY_DRAFTED, MODEL_APPLY_STATE_ADVANCED, MODEL_CONFIG_RECORDED,
+    SYNTHETIC_INPUT_RECORDED,
+};
+
+// ===== MT-160: governed model config surface ===============================
+
+/// A governed local/remote OpenAI-compatible model config.
+///
+/// The api key is NEVER stored or surfaced in plaintext: only the redacted
+/// `api_key_ref` (a `sha256:` handle) is persisted, and the secret never enters
+/// any event payload. This mirrors the redaction stance of the preferences
+/// store above (secret-bearing values are rejected/redacted before storage).
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ModelConfig {
+    pub config_id: String,
+    pub base_url: String,
+    pub model: String,
+    /// Redacted handle to the api key (`sha256:...`). NEVER the raw secret.
+    pub api_key_ref: String,
+    pub system_prompt: String,
+    pub timeout_ms: i32,
+    pub created_at_utc: DateTime<Utc>,
+}
+
+const MODEL_CONFIG_REDACTED_PLACEHOLDER: &str = "[REDACTED]";
+
+/// Input to record a governed model config. `api_key` is the RAW secret and is
+/// consumed only to derive the stored redacted ref; it is never persisted and
+/// never echoed into an event.
+#[derive(Clone, Debug)]
+pub struct NewModelConfig {
+    pub config_id: String,
+    pub base_url: String,
+    pub model: String,
+    /// Raw api key. Redacted to `api_key_ref` before storage; never persisted.
+    pub api_key: String,
+    pub system_prompt: String,
+    pub timeout_ms: i32,
+}
+
+fn validate_model_config_token(field: &str, value: &str) -> AtelierResult<()> {
+    if value.trim().is_empty() || value.trim() != value {
+        return Err(AtelierError::Validation(format!(
+            "{field} must be non-empty and unpadded"
+        )));
+    }
+    Ok(())
+}
+
+/// Derive the redacted, persistable handle for a raw api key. The raw secret is
+/// hashed into a `sha256:` ref so a later model can correlate without ever
+/// seeing the secret. Empty keys are rejected (no governed config without a key
+/// material reference).
+fn redact_api_key(api_key: &str) -> AtelierResult<String> {
+    if api_key.trim().is_empty() {
+        return Err(AtelierError::Validation(
+            "model config api_key must not be empty".into(),
+        ));
+    }
+    Ok(event_ref_for_text(api_key))
+}
+
+fn validate_new_model_config(new: &NewModelConfig) -> AtelierResult<String> {
+    validate_model_config_token("config_id", &new.config_id)?;
+    validate_model_config_token("model", &new.model)?;
+    // base_url crosses the persistence boundary: reject SQLite/Electron/CKC/
+    // localhost/direct-LLM/machine-local so the config stays Handshake-native.
+    reject_legacy_runtime_ref("base_url", &new.base_url)?;
+    if new.timeout_ms <= 0 {
+        return Err(AtelierError::Validation(
+            "model config timeout_ms must be positive".into(),
+        ));
+    }
+    redact_api_key(&new.api_key)
+}
+
+// ===== MT-163: governed apply state machine ================================
+
+/// The state of a model-suggestion apply record. Model suggestions become
+/// product changes only by advancing through this governed graph.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ModelApplyState {
+    Draft,
+    Preview,
+    Validated,
+    Applied,
+    Rejected,
+    RolledBack,
+}
+
+impl ModelApplyState {
+    /// Stable DB token (matches the migration CHECK set).
+    pub fn as_token(self) -> &'static str {
+        match self {
+            ModelApplyState::Draft => "DRAFT",
+            ModelApplyState::Preview => "PREVIEW",
+            ModelApplyState::Validated => "VALIDATED",
+            ModelApplyState::Applied => "APPLIED",
+            ModelApplyState::Rejected => "REJECTED",
+            ModelApplyState::RolledBack => "ROLLED_BACK",
+        }
+    }
+
+    /// Parse a stored token. Unknown tokens are a validation error so a corrupt
+    /// row never masquerades as a valid state.
+    pub fn from_token(token: &str) -> AtelierResult<Self> {
+        match token {
+            "DRAFT" => Ok(ModelApplyState::Draft),
+            "PREVIEW" => Ok(ModelApplyState::Preview),
+            "VALIDATED" => Ok(ModelApplyState::Validated),
+            "APPLIED" => Ok(ModelApplyState::Applied),
+            "REJECTED" => Ok(ModelApplyState::Rejected),
+            "ROLLED_BACK" => Ok(ModelApplyState::RolledBack),
+            other => Err(AtelierError::Validation(format!(
+                "unknown model apply state token: {other}"
+            ))),
+        }
+    }
+
+    /// Whether `next` is a legal successor of `self`. The legal graph is:
+    ///   DRAFT -> PREVIEW -> VALIDATED -> APPLIED,
+    ///   APPLIED -> ROLLED_BACK,
+    ///   any non-terminal -> REJECTED.
+    /// REJECTED and ROLLED_BACK are terminal.
+    pub fn can_transition_to(self, next: ModelApplyState) -> bool {
+        use ModelApplyState::*;
+        match (self, next) {
+            (Draft, Preview)
+            | (Preview, Validated)
+            | (Validated, Applied)
+            | (Applied, RolledBack) => true,
+            // Any non-terminal state may be rejected.
+            (Draft | Preview | Validated | Applied, Rejected) => true,
+            _ => false,
+        }
+    }
+}
+
+/// A model-suggestion apply record (MT-163).
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ModelApply {
+    pub apply_id: String,
+    pub suggestion_ref: String,
+    pub state: ModelApplyState,
+    pub evidence_ref: Option<String>,
+    pub created_at_utc: DateTime<Utc>,
+    pub updated_at_utc: DateTime<Utc>,
+}
+
+// ===== MT-169: synthetic input guard =======================================
+
+/// A synthetic-input operation kind preserved as a governed record.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SyntheticInputOp {
+    InjectKey,
+    InjectMouse,
+    ClickElement,
+    TypeText,
+}
+
+impl SyntheticInputOp {
+    /// Stable DB token (matches the migration CHECK set).
+    pub fn as_token(self) -> &'static str {
+        match self {
+            SyntheticInputOp::InjectKey => "INJECT_KEY",
+            SyntheticInputOp::InjectMouse => "INJECT_MOUSE",
+            SyntheticInputOp::ClickElement => "CLICK_ELEMENT",
+            SyntheticInputOp::TypeText => "TYPE_TEXT",
+        }
+    }
+
+    pub fn from_token(token: &str) -> AtelierResult<Self> {
+        match token {
+            "INJECT_KEY" => Ok(SyntheticInputOp::InjectKey),
+            "INJECT_MOUSE" => Ok(SyntheticInputOp::InjectMouse),
+            "CLICK_ELEMENT" => Ok(SyntheticInputOp::ClickElement),
+            "TYPE_TEXT" => Ok(SyntheticInputOp::TypeText),
+            other => Err(AtelierError::Validation(format!(
+                "unknown synthetic input op token: {other}"
+            ))),
+        }
+    }
+}
+
+/// A governed synthetic-input guard record (MT-169). Each synthetic-input
+/// request becomes a typed, auditable row carrying its authorization decision,
+/// so synthetic input is attributable, not silent.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct SyntheticInputGuardRecord {
+    pub guard_id: String,
+    pub op: SyntheticInputOp,
+    pub target_ref: String,
+    pub authorized: bool,
+    pub created_at_utc: DateTime<Utc>,
+}
+
+/// Input to record a synthetic-input request.
+#[derive(Clone, Debug)]
+pub struct NewSyntheticInput {
+    pub op: SyntheticInputOp,
+    pub target_ref: String,
+    pub authorized: bool,
+}
+
+impl AtelierStore {
+    // ---- MT-160: model config -------------------------------------------
+
+    /// Record a governed model config. The raw api key is consumed only to
+    /// derive the stored redacted ref (`api_key_ref`); it is never persisted
+    /// and never echoed into the emitted event. Upsert key is `config_id`, so
+    /// re-recording the same id refreshes the config. Emits
+    /// `MODEL_CONFIG_RECORDED`.
+    pub async fn record_model_config(
+        &self,
+        new: &NewModelConfig,
+    ) -> AtelierResult<ModelConfig> {
+        let api_key_ref = validate_new_model_config(new)?;
+
+        let row = sqlx::query(
+            r#"INSERT INTO atelier_model_config
+                 (config_id, base_url, model, api_key_ref, system_prompt, timeout_ms)
+               VALUES ($1, $2, $3, $4, $5, $6)
+               ON CONFLICT (config_id)
+               DO UPDATE SET base_url      = EXCLUDED.base_url,
+                             model         = EXCLUDED.model,
+                             api_key_ref   = EXCLUDED.api_key_ref,
+                             system_prompt = EXCLUDED.system_prompt,
+                             timeout_ms    = EXCLUDED.timeout_ms
+               RETURNING config_id, base_url, model, api_key_ref, system_prompt,
+                         timeout_ms, created_at_utc"#,
+        )
+        .bind(&new.config_id)
+        .bind(&new.base_url)
+        .bind(&new.model)
+        .bind(&api_key_ref)
+        .bind(&new.system_prompt)
+        .bind(new.timeout_ms)
+        .fetch_one(self.pool())
+        .await?;
+
+        let config = model_config_from_row(&row);
+
+        self.record_event(
+            model_workflow_event_family::MODEL_CONFIG_RECORDED,
+            "atelier_model_config",
+            &config.config_id,
+            serde_json::json!({
+                "config_id": config.config_id,
+                "base_url": config.base_url,
+                "model": config.model,
+                // Only the redacted ref is ever emitted; never the raw key.
+                "api_key_ref": config.api_key_ref,
+                "api_key": MODEL_CONFIG_REDACTED_PLACEHOLDER,
+                "timeout_ms": config.timeout_ms,
+            }),
+        )
+        .await?;
+
+        Ok(config)
+    }
+
+    /// Fetch a model config by id.
+    pub async fn get_model_config(
+        &self,
+        config_id: &str,
+    ) -> AtelierResult<Option<ModelConfig>> {
+        let row = sqlx::query(
+            r#"SELECT config_id, base_url, model, api_key_ref, system_prompt,
+                      timeout_ms, created_at_utc
+               FROM atelier_model_config
+               WHERE config_id = $1"#,
+        )
+        .bind(config_id)
+        .fetch_optional(self.pool())
+        .await?;
+        Ok(row.as_ref().map(model_config_from_row))
+    }
+
+    /// List all model configs, ordered by id.
+    pub async fn list_model_configs(&self) -> AtelierResult<Vec<ModelConfig>> {
+        let rows = sqlx::query(
+            r#"SELECT config_id, base_url, model, api_key_ref, system_prompt,
+                      timeout_ms, created_at_utc
+               FROM atelier_model_config
+               ORDER BY config_id ASC"#,
+        )
+        .fetch_all(self.pool())
+        .await?;
+        Ok(rows.iter().map(model_config_from_row).collect())
+    }
+
+    // ---- MT-163: apply state machine ------------------------------------
+
+    /// Create a model-suggestion apply record in the DRAFT state. Emits
+    /// `MODEL_APPLY_DRAFTED`.
+    pub async fn draft_model_apply(
+        &self,
+        apply_id: &str,
+        suggestion_ref: &str,
+    ) -> AtelierResult<ModelApply> {
+        validate_model_config_token("apply_id", apply_id)?;
+        reject_legacy_runtime_ref("suggestion_ref", suggestion_ref)?;
+
+        let row = sqlx::query(
+            r#"INSERT INTO atelier_model_apply
+                 (apply_id, suggestion_ref, state, evidence_ref)
+               VALUES ($1, $2, 'DRAFT', NULL)
+               RETURNING apply_id, suggestion_ref, state, evidence_ref,
+                         created_at_utc, updated_at_utc"#,
+        )
+        .bind(apply_id)
+        .bind(suggestion_ref)
+        .fetch_one(self.pool())
+        .await?;
+
+        let apply = model_apply_from_row(&row)?;
+
+        self.record_event(
+            model_workflow_event_family::MODEL_APPLY_DRAFTED,
+            "atelier_model_apply",
+            &apply.apply_id,
+            serde_json::json!({
+                "apply_id": apply.apply_id,
+                "suggestion_ref": apply.suggestion_ref,
+                "state": apply.state.as_token(),
+            }),
+        )
+        .await?;
+
+        Ok(apply)
+    }
+
+    /// Advance an apply record to `next`, enforcing the legal transition graph
+    /// (DRAFT->PREVIEW->VALIDATED->APPLIED, APPLIED->ROLLED_BACK, any
+    /// non-terminal->REJECTED). Illegal transitions are rejected with a
+    /// Validation error and no row is mutated. `evidence_ref`, when present, is
+    /// recorded on the row. Emits `MODEL_APPLY_STATE_ADVANCED`.
+    pub async fn advance_apply_state(
+        &self,
+        apply_id: &str,
+        next: ModelApplyState,
+        evidence_ref: Option<&str>,
+    ) -> AtelierResult<ModelApply> {
+        if let Some(evidence_ref) = evidence_ref {
+            reject_legacy_runtime_ref("evidence_ref", evidence_ref)?;
+        }
+
+        let current = self.get_model_apply(apply_id).await?.ok_or_else(|| {
+            AtelierError::NotFound(format!("model apply record {apply_id} not found"))
+        })?;
+
+        if !current.state.can_transition_to(next) {
+            return Err(AtelierError::Validation(format!(
+                "illegal model apply transition {} -> {}",
+                current.state.as_token(),
+                next.as_token()
+            )));
+        }
+
+        let row = sqlx::query(
+            r#"UPDATE atelier_model_apply
+               SET state = $2,
+                   evidence_ref = COALESCE($3, evidence_ref),
+                   updated_at_utc = NOW()
+               WHERE apply_id = $1
+               RETURNING apply_id, suggestion_ref, state, evidence_ref,
+                         created_at_utc, updated_at_utc"#,
+        )
+        .bind(apply_id)
+        .bind(next.as_token())
+        .bind(evidence_ref)
+        .fetch_one(self.pool())
+        .await?;
+
+        let apply = model_apply_from_row(&row)?;
+
+        self.record_event(
+            model_workflow_event_family::MODEL_APPLY_STATE_ADVANCED,
+            "atelier_model_apply",
+            &apply.apply_id,
+            serde_json::json!({
+                "apply_id": apply.apply_id,
+                "state_before": current.state.as_token(),
+                "state_after": apply.state.as_token(),
+                "evidence_ref": apply.evidence_ref,
+            }),
+        )
+        .await?;
+
+        Ok(apply)
+    }
+
+    /// Fetch a model apply record by id.
+    pub async fn get_model_apply(
+        &self,
+        apply_id: &str,
+    ) -> AtelierResult<Option<ModelApply>> {
+        let row = sqlx::query(
+            r#"SELECT apply_id, suggestion_ref, state, evidence_ref,
+                      created_at_utc, updated_at_utc
+               FROM atelier_model_apply
+               WHERE apply_id = $1"#,
+        )
+        .bind(apply_id)
+        .fetch_optional(self.pool())
+        .await?;
+        match row {
+            Some(r) => Ok(Some(model_apply_from_row(&r)?)),
+            None => Ok(None),
+        }
+    }
+
+    // ---- MT-169: synthetic input guard ----------------------------------
+
+    /// Record a synthetic-input request as a governed, auditable guard row.
+    /// Every request (authorized or not) is preserved so synthetic input is
+    /// attributable, not silent. Emits `SYNTHETIC_INPUT_RECORDED`.
+    pub async fn record_synthetic_input(
+        &self,
+        new: &NewSyntheticInput,
+    ) -> AtelierResult<SyntheticInputGuardRecord> {
+        reject_legacy_runtime_ref("target_ref", &new.target_ref)?;
+
+        let guard_id = Uuid::now_v7().to_string();
+        let row = sqlx::query(
+            r#"INSERT INTO atelier_synthetic_input_guard
+                 (guard_id, op, target_ref, authorized)
+               VALUES ($1, $2, $3, $4)
+               RETURNING guard_id, op, target_ref, authorized, created_at_utc"#,
+        )
+        .bind(&guard_id)
+        .bind(new.op.as_token())
+        .bind(&new.target_ref)
+        .bind(new.authorized)
+        .fetch_one(self.pool())
+        .await?;
+
+        let record = synthetic_input_from_row(&row)?;
+
+        self.record_event(
+            model_workflow_event_family::SYNTHETIC_INPUT_RECORDED,
+            "atelier_synthetic_input_guard",
+            &record.guard_id,
+            serde_json::json!({
+                "guard_id": record.guard_id,
+                "op": record.op.as_token(),
+                "target_ref": record.target_ref,
+                "authorized": record.authorized,
+            }),
+        )
+        .await?;
+
+        Ok(record)
+    }
+
+    /// Guard a synthetic-input request: record it (always, for audit) and then
+    /// reject unauthorized ops. Authorized ops return the recorded row;
+    /// unauthorized ops still leave a governed row but return a Validation
+    /// error so the synthetic input never proceeds silently.
+    pub async fn guard_synthetic_input(
+        &self,
+        new: &NewSyntheticInput,
+    ) -> AtelierResult<SyntheticInputGuardRecord> {
+        let record = self.record_synthetic_input(new).await?;
+        if !record.authorized {
+            return Err(AtelierError::Validation(format!(
+                "unauthorized synthetic input op {} on {} is rejected",
+                record.op.as_token(),
+                record.target_ref
+            )));
+        }
+        Ok(record)
+    }
+}
+
+fn model_config_from_row(row: &sqlx::postgres::PgRow) -> ModelConfig {
+    ModelConfig {
+        config_id: row.get("config_id"),
+        base_url: row.get("base_url"),
+        model: row.get("model"),
+        api_key_ref: row.get("api_key_ref"),
+        system_prompt: row.get("system_prompt"),
+        timeout_ms: row.get("timeout_ms"),
+        created_at_utc: row.get("created_at_utc"),
+    }
+}
+
+fn model_apply_from_row(row: &sqlx::postgres::PgRow) -> AtelierResult<ModelApply> {
+    let state_raw: String = row.get("state");
+    Ok(ModelApply {
+        apply_id: row.get("apply_id"),
+        suggestion_ref: row.get("suggestion_ref"),
+        state: ModelApplyState::from_token(&state_raw)?,
+        evidence_ref: row.get("evidence_ref"),
+        created_at_utc: row.get("created_at_utc"),
+        updated_at_utc: row.get("updated_at_utc"),
+    })
+}
+
+fn synthetic_input_from_row(
+    row: &sqlx::postgres::PgRow,
+) -> AtelierResult<SyntheticInputGuardRecord> {
+    let op_raw: String = row.get("op");
+    Ok(SyntheticInputGuardRecord {
+        guard_id: row.get("guard_id"),
+        op: SyntheticInputOp::from_token(&op_raw)?,
+        target_ref: row.get("target_ref"),
+        authorized: row.get("authorized"),
+        created_at_utc: row.get("created_at_utc"),
+    })
+}

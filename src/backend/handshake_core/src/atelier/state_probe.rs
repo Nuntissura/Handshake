@@ -1173,3 +1173,691 @@ impl AtelierStore {
         rows.iter().map(diagnostics_validation_row_from_row).collect()
     }
 }
+
+// ===========================================================================
+// WP-KERNEL-005 MT-147 / MT-148 / MT-153 / MT-167: typed diagnostics projection
+// surfaces.
+//
+// These are TYPED RUNTIME surfaces (PostgreSQL rows + EventLedger events), never
+// governance markdown. Tables are created by migration
+// `0115_atelier_diagnostics_projections.sql` (not yet wired into ensure_schema;
+// the orchestrator wires it after this MT lands). Storage authority is
+// PostgreSQL only (AtelierStore::pool()); SQLite is forbidden (MT-004).
+// ===========================================================================
+
+/// Event families for the MT-147/148/153/167 diagnostics projection surfaces.
+///
+/// Defined here so the parent module can fold these into
+/// [`super::event_family::ALL`] (the orchestrator wires the fold-in after this
+/// MT lands).
+pub mod diagnostics_projection_event_family {
+    /// A model work-state projection row was recorded (MT-147).
+    pub const WORK_STATE_PROJECTION_RECORDED: &str =
+        "atelier.state_probe.work_state_projection_recorded";
+    /// A DCC panel projection row was recorded (MT-148).
+    pub const DCC_PANEL_PROJECTION_RECORDED: &str =
+        "atelier.state_probe.dcc_panel_projection_recorded";
+    /// A screenshot artifact-storage row was recorded (MT-153).
+    pub const SCREENSHOT_ARTIFACT_STORED: &str =
+        "atelier.state_probe.screenshot_artifact_stored";
+    /// A spec/README drift finding was recorded (MT-167).
+    pub const SPEC_DRIFT_FINDING_RECORDED: &str =
+        "atelier.state_probe.spec_drift_finding_recorded";
+
+    /// All diagnostics-projection event families (parity/coverage helper).
+    pub const ALL: &[&str] = &[
+        WORK_STATE_PROJECTION_RECORDED,
+        DCC_PANEL_PROJECTION_RECORDED,
+        SCREENSHOT_ARTIFACT_STORED,
+        SPEC_DRIFT_FINDING_RECORDED,
+    ];
+}
+
+// ---------------------------------------------------------------------------
+// MT-147: model work-state projection into Locus/MT surfaces.
+// ---------------------------------------------------------------------------
+
+/// Input to record one model work-state projection row (MT-147).
+///
+/// Projects atelier model work state (active MT, owner, status, plus the
+/// optional blocker / receipts / next-action / evidence pointers) into a typed
+/// diagnostics row a no-context model can read directly.
+#[derive(Clone, Debug)]
+pub struct NewWorkStateProjection {
+    /// Stable projection id (the PK). MUST be non-empty / unpadded.
+    pub projection_id: String,
+    /// The microtask currently being worked (e.g. `MT-147`). Non-empty.
+    pub active_mt: String,
+    /// The owning session/actor of the active work. Non-empty.
+    pub owner: String,
+    /// Work status token (e.g. `READY_FOR_VALIDATION`). Non-empty.
+    pub status: String,
+    /// Optional current blocker description.
+    pub blocker: Option<String>,
+    /// Optional pointer to the receipts surface (governed ref).
+    pub receipts_ref: Option<String>,
+    /// Optional next-action hint for the model.
+    pub next_action: Option<String>,
+    /// Optional pointer to evidence (governed ref; no .GOV / SQLite / local path).
+    pub evidence_ref: Option<String>,
+}
+
+/// Persisted model work-state projection row (MT-147).
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct WorkStateProjection {
+    pub projection_id: String,
+    pub active_mt: String,
+    pub owner: String,
+    pub status: String,
+    pub blocker: Option<String>,
+    pub receipts_ref: Option<String>,
+    pub next_action: Option<String>,
+    pub evidence_ref: Option<String>,
+    pub created_at_utc: DateTime<Utc>,
+}
+
+const WORK_STATE_PROJECTION_COLUMNS: &str = "projection_id, active_mt, owner, status, blocker, \
+                                             receipts_ref, next_action, evidence_ref, created_at_utc";
+
+fn work_state_projection_from_row(row: &sqlx::postgres::PgRow) -> WorkStateProjection {
+    WorkStateProjection {
+        projection_id: row.get("projection_id"),
+        active_mt: row.get("active_mt"),
+        owner: row.get("owner"),
+        status: row.get("status"),
+        blocker: row.get("blocker"),
+        receipts_ref: row.get("receipts_ref"),
+        next_action: row.get("next_action"),
+        evidence_ref: row.get("evidence_ref"),
+        created_at_utc: row.get("created_at_utc"),
+    }
+}
+
+fn validate_work_state_projection(new: &NewWorkStateProjection) -> AtelierResult<()> {
+    for (field, value) in [
+        ("projection_id", &new.projection_id),
+        ("active_mt", &new.active_mt),
+        ("owner", &new.owner),
+        ("status", &new.status),
+    ] {
+        if value.trim().is_empty() || value.trim() != value {
+            return Err(AtelierError::Validation(format!(
+                "work state projection {field} must be non-empty and unpadded"
+            )));
+        }
+    }
+    // Reference-shaped fields, when present, must be governed refs (no .GOV /
+    // SQLite / localhost / machine-local path).
+    if let Some(receipts_ref) = &new.receipts_ref {
+        reject_legacy_runtime_ref("receipts_ref", receipts_ref)?;
+    }
+    if let Some(evidence_ref) = &new.evidence_ref {
+        reject_legacy_runtime_ref("evidence_ref", evidence_ref)?;
+    }
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// MT-148: DCC session/lease/command-log/recovery panel projections.
+// ---------------------------------------------------------------------------
+
+/// Kind of DCC (diagnostics control center) panel a projection row carries
+/// (MT-148). Mirrors the `panel_kind` CHECK in migration 0115.
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum DccPanelKind {
+    Session,
+    Lease,
+    CommandLog,
+    Recovery,
+}
+
+impl DccPanelKind {
+    pub fn as_token(self) -> &'static str {
+        match self {
+            DccPanelKind::Session => "SESSION",
+            DccPanelKind::Lease => "LEASE",
+            DccPanelKind::CommandLog => "COMMAND_LOG",
+            DccPanelKind::Recovery => "RECOVERY",
+        }
+    }
+
+    pub fn from_token(token: &str) -> AtelierResult<Self> {
+        match token {
+            "SESSION" => Ok(DccPanelKind::Session),
+            "LEASE" => Ok(DccPanelKind::Lease),
+            "COMMAND_LOG" => Ok(DccPanelKind::CommandLog),
+            "RECOVERY" => Ok(DccPanelKind::Recovery),
+            other => Err(AtelierError::Validation(format!(
+                "unknown DCC panel kind: {other}"
+            ))),
+        }
+    }
+
+    /// All four panel kinds, for seeding/coverage.
+    pub const ALL: &'static [DccPanelKind] = &[
+        DccPanelKind::Session,
+        DccPanelKind::Lease,
+        DccPanelKind::CommandLog,
+        DccPanelKind::Recovery,
+    ];
+}
+
+/// Input to record one DCC panel projection row (MT-148).
+#[derive(Clone, Debug)]
+pub struct NewDccPanelProjection {
+    /// Stable panel id (the PK). MUST be non-empty / unpadded.
+    pub panel_id: String,
+    pub panel_kind: DccPanelKind,
+    /// Arbitrary typed panel state (session/lease/command-log/recovery payload).
+    pub state_json: Value,
+}
+
+/// Persisted DCC panel projection row (MT-148).
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct DccPanelProjection {
+    pub panel_id: String,
+    pub panel_kind: DccPanelKind,
+    pub state_json: Value,
+    pub created_at_utc: DateTime<Utc>,
+}
+
+const DCC_PANEL_PROJECTION_COLUMNS: &str =
+    "panel_id, panel_kind, state_json, created_at_utc";
+
+fn dcc_panel_projection_from_row(row: &sqlx::postgres::PgRow) -> AtelierResult<DccPanelProjection> {
+    let kind_token: String = row.get("panel_kind");
+    Ok(DccPanelProjection {
+        panel_id: row.get("panel_id"),
+        panel_kind: DccPanelKind::from_token(&kind_token)?,
+        state_json: row.get("state_json"),
+        created_at_utc: row.get("created_at_utc"),
+    })
+}
+
+// ---------------------------------------------------------------------------
+// MT-153: screenshot artifact storage (governed artifact + metadata + retention).
+// ---------------------------------------------------------------------------
+
+/// Input to store a stealth screenshot capture as a governed, retained artifact
+/// with diagnostic metadata (MT-153).
+///
+/// This EXTENDS the existing stealth capture receipt
+/// ([`super::stealth_window::AtelierStore::record_stealth_capture`]): a capture
+/// receipt proves a screenshot was produced, but carries no metadata or
+/// retention policy. This row turns that capture into a described, retained
+/// screenshot artifact (mime, dimensions, byte length, label, ttl, pinned),
+/// referencing the governed ArtifactStore manifest id only (never raw pixels or
+/// machine-local paths).
+#[derive(Clone, Debug)]
+pub struct NewScreenshotArtifactStorage {
+    /// Stable storage id (the PK). MUST be non-empty / unpadded.
+    pub storage_id: String,
+    /// The stealth capture this storage row governs (one row per capture).
+    pub capture_id: uuid::Uuid,
+    /// Governed ArtifactStore manifest id of the screenshot (no path / SQLite / .GOV).
+    pub artifact_manifest_id: String,
+    /// Content hash of the stored screenshot payload. Non-empty.
+    pub content_sha256: String,
+    /// Image mime type (e.g. `image/png`). Non-empty.
+    pub mime: String,
+    pub width_px: Option<i32>,
+    pub height_px: Option<i32>,
+    pub byte_len: Option<i64>,
+    /// Optional diagnostic label.
+    pub label: Option<String>,
+    /// Retention TTL in days; `None` = no automatic prune.
+    pub retention_ttl_days: Option<i32>,
+    /// Whether the artifact is pinned (exempt from retention prune).
+    pub pinned: bool,
+}
+
+/// Persisted screenshot artifact-storage row (MT-153).
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ScreenshotArtifactStorage {
+    pub storage_id: String,
+    pub capture_id: uuid::Uuid,
+    pub artifact_manifest_id: String,
+    pub content_sha256: String,
+    pub mime: String,
+    pub width_px: Option<i32>,
+    pub height_px: Option<i32>,
+    pub byte_len: Option<i64>,
+    pub label: Option<String>,
+    pub retention_ttl_days: Option<i32>,
+    pub pinned: bool,
+    pub created_at_utc: DateTime<Utc>,
+}
+
+const SCREENSHOT_ARTIFACT_STORAGE_COLUMNS: &str =
+    "storage_id, capture_id, artifact_manifest_id, content_sha256, mime, width_px, height_px, \
+     byte_len, label, retention_ttl_days, pinned, created_at_utc";
+
+fn screenshot_artifact_storage_from_row(row: &sqlx::postgres::PgRow) -> ScreenshotArtifactStorage {
+    ScreenshotArtifactStorage {
+        storage_id: row.get("storage_id"),
+        capture_id: row.get("capture_id"),
+        artifact_manifest_id: row.get("artifact_manifest_id"),
+        content_sha256: row.get("content_sha256"),
+        mime: row.get("mime"),
+        width_px: row.get("width_px"),
+        height_px: row.get("height_px"),
+        byte_len: row.get("byte_len"),
+        label: row.get("label"),
+        retention_ttl_days: row.get("retention_ttl_days"),
+        pinned: row.get("pinned"),
+        created_at_utc: row.get("created_at_utc"),
+    }
+}
+
+fn validate_screenshot_artifact_storage(
+    new: &NewScreenshotArtifactStorage,
+) -> AtelierResult<()> {
+    for (field, value) in [
+        ("storage_id", &new.storage_id),
+        ("content_sha256", &new.content_sha256),
+        ("mime", &new.mime),
+    ] {
+        if value.trim().is_empty() || value.trim() != value {
+            return Err(AtelierError::Validation(format!(
+                "screenshot artifact storage {field} must be non-empty and unpadded"
+            )));
+        }
+    }
+    // The artifact manifest id must be a governed, portable id (no .GOV / SQLite
+    // / localhost / machine-local filesystem path).
+    reject_legacy_runtime_ref("artifact_manifest_id", &new.artifact_manifest_id)?;
+    if let Some(ttl) = new.retention_ttl_days {
+        if ttl < 0 {
+            return Err(AtelierError::Validation(
+                "screenshot artifact storage retention_ttl_days must be >= 0".into(),
+            ));
+        }
+    }
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// MT-167: stale README / spec drift detector.
+// ---------------------------------------------------------------------------
+
+/// Input to record one doc/spec drift finding (MT-167).
+///
+/// Generalizes the CKC README-vs-spec drift check: a finding ties a
+/// doc-claimed pointer (`doc_ref`) to the spec/code surface it points at
+/// (`spec_ref`), classifies the drift (`drift_kind`), and explains it
+/// (`detail`).
+#[derive(Clone, Debug)]
+pub struct NewSpecDriftFinding {
+    /// Stable finding id (the PK). MUST be non-empty / unpadded.
+    pub finding_id: String,
+    /// The doc/README surface that makes the claim. Non-empty.
+    pub doc_ref: String,
+    /// The spec/code surface the doc points at. Non-empty.
+    pub spec_ref: String,
+    /// Drift classification (e.g. `surface_mismatch`). Non-empty.
+    pub drift_kind: String,
+    /// Human-readable detail of the drift. Non-empty.
+    pub detail: String,
+}
+
+/// Persisted doc/spec drift finding (MT-167).
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct SpecDriftFinding {
+    pub finding_id: String,
+    pub doc_ref: String,
+    pub spec_ref: String,
+    pub drift_kind: String,
+    pub detail: String,
+    pub created_at_utc: DateTime<Utc>,
+}
+
+const SPEC_DRIFT_FINDING_COLUMNS: &str =
+    "finding_id, doc_ref, spec_ref, drift_kind, detail, created_at_utc";
+
+fn spec_drift_finding_from_row(row: &sqlx::postgres::PgRow) -> SpecDriftFinding {
+    SpecDriftFinding {
+        finding_id: row.get("finding_id"),
+        doc_ref: row.get("doc_ref"),
+        spec_ref: row.get("spec_ref"),
+        drift_kind: row.get("drift_kind"),
+        detail: row.get("detail"),
+        created_at_utc: row.get("created_at_utc"),
+    }
+}
+
+fn validate_spec_drift_finding(new: &NewSpecDriftFinding) -> AtelierResult<()> {
+    for (field, value) in [
+        ("finding_id", &new.finding_id),
+        ("doc_ref", &new.doc_ref),
+        ("spec_ref", &new.spec_ref),
+        ("drift_kind", &new.drift_kind),
+        ("detail", &new.detail),
+    ] {
+        if value.trim().is_empty() || value.trim() != value {
+            return Err(AtelierError::Validation(format!(
+                "spec drift finding {field} must be non-empty and unpadded"
+            )));
+        }
+    }
+    Ok(())
+}
+
+impl AtelierStore {
+    /// Record one model work-state projection row (MT-147).
+    ///
+    /// Idempotent on `projection_id`: re-recording updates the mutable fields
+    /// and returns the row. Emits `WORK_STATE_PROJECTION_RECORDED`.
+    pub async fn record_work_state_projection(
+        &self,
+        new: &NewWorkStateProjection,
+    ) -> AtelierResult<WorkStateProjection> {
+        validate_work_state_projection(new)?;
+
+        let mut tx = self.pool().begin().await?;
+        let row = sqlx::query(&format!(
+            r#"INSERT INTO atelier_work_state_projection
+                 (projection_id, active_mt, owner, status, blocker, receipts_ref,
+                  next_action, evidence_ref)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+               ON CONFLICT (projection_id) DO UPDATE SET
+                 active_mt = EXCLUDED.active_mt,
+                 owner = EXCLUDED.owner,
+                 status = EXCLUDED.status,
+                 blocker = EXCLUDED.blocker,
+                 receipts_ref = EXCLUDED.receipts_ref,
+                 next_action = EXCLUDED.next_action,
+                 evidence_ref = EXCLUDED.evidence_ref
+               RETURNING {WORK_STATE_PROJECTION_COLUMNS}"#
+        ))
+        .bind(&new.projection_id)
+        .bind(&new.active_mt)
+        .bind(&new.owner)
+        .bind(&new.status)
+        .bind(&new.blocker)
+        .bind(&new.receipts_ref)
+        .bind(&new.next_action)
+        .bind(&new.evidence_ref)
+        .fetch_one(&mut *tx)
+        .await?;
+        let recorded = work_state_projection_from_row(&row);
+
+        self.record_event_in_tx(
+            &mut tx,
+            diagnostics_projection_event_family::WORK_STATE_PROJECTION_RECORDED,
+            "atelier_work_state_projection",
+            &recorded.projection_id,
+            json!({
+                "projection_id": recorded.projection_id,
+                "active_mt": recorded.active_mt,
+                "owner": recorded.owner,
+                "status": recorded.status,
+                "has_blocker": recorded.blocker.is_some(),
+                "schema": "hsk.atelier.work_state_projection@1",
+            }),
+        )
+        .await?;
+        tx.commit().await?;
+        Ok(recorded)
+    }
+
+    /// List model work-state projection rows, newest first.
+    pub async fn list_work_state_projections(
+        &self,
+    ) -> AtelierResult<Vec<WorkStateProjection>> {
+        let rows = sqlx::query(&format!(
+            r#"SELECT {WORK_STATE_PROJECTION_COLUMNS}
+               FROM atelier_work_state_projection
+               ORDER BY created_at_utc DESC, projection_id ASC"#
+        ))
+        .fetch_all(self.pool())
+        .await?;
+        Ok(rows.iter().map(work_state_projection_from_row).collect())
+    }
+
+    /// Record one DCC panel projection row (MT-148).
+    ///
+    /// Idempotent on `panel_id`. Emits `DCC_PANEL_PROJECTION_RECORDED`.
+    pub async fn record_dcc_panel_projection(
+        &self,
+        new: &NewDccPanelProjection,
+    ) -> AtelierResult<DccPanelProjection> {
+        if new.panel_id.trim().is_empty() || new.panel_id.trim() != new.panel_id {
+            return Err(AtelierError::Validation(
+                "dcc panel projection panel_id must be non-empty and unpadded".into(),
+            ));
+        }
+
+        let mut tx = self.pool().begin().await?;
+        let row = sqlx::query(&format!(
+            r#"INSERT INTO atelier_dcc_panel_projection
+                 (panel_id, panel_kind, state_json)
+               VALUES ($1, $2, $3::jsonb)
+               ON CONFLICT (panel_id) DO UPDATE SET
+                 panel_kind = EXCLUDED.panel_kind,
+                 state_json = EXCLUDED.state_json
+               RETURNING {DCC_PANEL_PROJECTION_COLUMNS}"#
+        ))
+        .bind(&new.panel_id)
+        .bind(new.panel_kind.as_token())
+        .bind(&new.state_json)
+        .fetch_one(&mut *tx)
+        .await?;
+        let recorded = dcc_panel_projection_from_row(&row)?;
+
+        self.record_event_in_tx(
+            &mut tx,
+            diagnostics_projection_event_family::DCC_PANEL_PROJECTION_RECORDED,
+            "atelier_dcc_panel_projection",
+            &recorded.panel_id,
+            json!({
+                "panel_id": recorded.panel_id,
+                "panel_kind": recorded.panel_kind.as_token(),
+                "schema": "hsk.atelier.dcc_panel_projection@1",
+            }),
+        )
+        .await?;
+        tx.commit().await?;
+        Ok(recorded)
+    }
+
+    /// List DCC panel projection rows for a given panel kind, newest first
+    /// (MT-148).
+    pub async fn list_dcc_panel_projections_by_kind(
+        &self,
+        panel_kind: DccPanelKind,
+    ) -> AtelierResult<Vec<DccPanelProjection>> {
+        let rows = sqlx::query(&format!(
+            r#"SELECT {DCC_PANEL_PROJECTION_COLUMNS}
+               FROM atelier_dcc_panel_projection
+               WHERE panel_kind = $1
+               ORDER BY created_at_utc DESC, panel_id ASC"#
+        ))
+        .bind(panel_kind.as_token())
+        .fetch_all(self.pool())
+        .await?;
+        rows.iter().map(dcc_panel_projection_from_row).collect()
+    }
+
+    /// Store a stealth screenshot capture as a governed, retained artifact with
+    /// metadata (MT-153).
+    ///
+    /// Idempotent on `capture_id` (one storage row per capture): re-recording
+    /// updates the metadata/retention in place. The artifact manifest id is
+    /// validated as a governed ref (no .GOV / SQLite / localhost / machine-local
+    /// path); no raw pixels or paths are stored. Emits
+    /// `SCREENSHOT_ARTIFACT_STORED`.
+    pub async fn record_screenshot_artifact_storage(
+        &self,
+        new: &NewScreenshotArtifactStorage,
+    ) -> AtelierResult<ScreenshotArtifactStorage> {
+        validate_screenshot_artifact_storage(new)?;
+
+        let mut tx = self.pool().begin().await?;
+        let row = sqlx::query(&format!(
+            r#"INSERT INTO atelier_screenshot_artifact_storage
+                 (storage_id, capture_id, artifact_manifest_id, content_sha256, mime,
+                  width_px, height_px, byte_len, label, retention_ttl_days, pinned)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+               ON CONFLICT (capture_id) DO UPDATE SET
+                 artifact_manifest_id = EXCLUDED.artifact_manifest_id,
+                 content_sha256 = EXCLUDED.content_sha256,
+                 mime = EXCLUDED.mime,
+                 width_px = EXCLUDED.width_px,
+                 height_px = EXCLUDED.height_px,
+                 byte_len = EXCLUDED.byte_len,
+                 label = EXCLUDED.label,
+                 retention_ttl_days = EXCLUDED.retention_ttl_days,
+                 pinned = EXCLUDED.pinned
+               RETURNING {SCREENSHOT_ARTIFACT_STORAGE_COLUMNS}"#
+        ))
+        .bind(&new.storage_id)
+        .bind(new.capture_id)
+        .bind(&new.artifact_manifest_id)
+        .bind(&new.content_sha256)
+        .bind(&new.mime)
+        .bind(new.width_px)
+        .bind(new.height_px)
+        .bind(new.byte_len)
+        .bind(&new.label)
+        .bind(new.retention_ttl_days)
+        .bind(new.pinned)
+        .fetch_one(&mut *tx)
+        .await?;
+        let recorded = screenshot_artifact_storage_from_row(&row);
+
+        self.record_event_in_tx(
+            &mut tx,
+            diagnostics_projection_event_family::SCREENSHOT_ARTIFACT_STORED,
+            "atelier_screenshot_artifact_storage",
+            &recorded.storage_id,
+            json!({
+                "storage_id": recorded.storage_id,
+                "capture_id": recorded.capture_id,
+                "artifact_manifest_id": recorded.artifact_manifest_id,
+                "content_sha256": recorded.content_sha256,
+                "mime": recorded.mime,
+                "retention_ttl_days": recorded.retention_ttl_days,
+                "pinned": recorded.pinned,
+                "schema": "hsk.atelier.screenshot_artifact_storage@1",
+            }),
+        )
+        .await?;
+        tx.commit().await?;
+        Ok(recorded)
+    }
+
+    /// List screenshot artifact-storage rows for a window's captures, newest
+    /// first (MT-153). Filtered by `capture_id` set is left to callers; this
+    /// returns all storage rows ordered for deterministic, run-scoped tests.
+    pub async fn list_screenshot_artifact_storage(
+        &self,
+    ) -> AtelierResult<Vec<ScreenshotArtifactStorage>> {
+        let rows = sqlx::query(&format!(
+            r#"SELECT {SCREENSHOT_ARTIFACT_STORAGE_COLUMNS}
+               FROM atelier_screenshot_artifact_storage
+               ORDER BY created_at_utc DESC, storage_id ASC"#
+        ))
+        .fetch_all(self.pool())
+        .await?;
+        Ok(rows
+            .iter()
+            .map(screenshot_artifact_storage_from_row)
+            .collect())
+    }
+
+    /// Record one doc/spec drift finding (MT-167).
+    ///
+    /// Idempotent on `finding_id`. Emits `SPEC_DRIFT_FINDING_RECORDED`.
+    pub async fn record_spec_drift_finding(
+        &self,
+        new: &NewSpecDriftFinding,
+    ) -> AtelierResult<SpecDriftFinding> {
+        validate_spec_drift_finding(new)?;
+
+        let mut tx = self.pool().begin().await?;
+        let row = sqlx::query(&format!(
+            r#"INSERT INTO atelier_spec_drift_finding
+                 (finding_id, doc_ref, spec_ref, drift_kind, detail)
+               VALUES ($1, $2, $3, $4, $5)
+               ON CONFLICT (finding_id) DO UPDATE SET
+                 doc_ref = EXCLUDED.doc_ref,
+                 spec_ref = EXCLUDED.spec_ref,
+                 drift_kind = EXCLUDED.drift_kind,
+                 detail = EXCLUDED.detail
+               RETURNING {SPEC_DRIFT_FINDING_COLUMNS}"#
+        ))
+        .bind(&new.finding_id)
+        .bind(&new.doc_ref)
+        .bind(&new.spec_ref)
+        .bind(&new.drift_kind)
+        .bind(&new.detail)
+        .fetch_one(&mut *tx)
+        .await?;
+        let recorded = spec_drift_finding_from_row(&row);
+
+        self.record_event_in_tx(
+            &mut tx,
+            diagnostics_projection_event_family::SPEC_DRIFT_FINDING_RECORDED,
+            "atelier_spec_drift_finding",
+            &recorded.finding_id,
+            json!({
+                "finding_id": recorded.finding_id,
+                "doc_ref": recorded.doc_ref,
+                "spec_ref": recorded.spec_ref,
+                "drift_kind": recorded.drift_kind,
+                "schema": "hsk.atelier.spec_drift_finding@1",
+            }),
+        )
+        .await?;
+        tx.commit().await?;
+        Ok(recorded)
+    }
+
+    /// List doc/spec drift findings, newest first (MT-167).
+    pub async fn list_spec_drift_findings(&self) -> AtelierResult<Vec<SpecDriftFinding>> {
+        let rows = sqlx::query(&format!(
+            r#"SELECT {SPEC_DRIFT_FINDING_COLUMNS}
+               FROM atelier_spec_drift_finding
+               ORDER BY created_at_utc DESC, finding_id ASC"#
+        ))
+        .fetch_all(self.pool())
+        .await?;
+        Ok(rows.iter().map(spec_drift_finding_from_row).collect())
+    }
+
+    /// Detect doc/spec drift and record a finding ONLY when they differ (MT-167).
+    ///
+    /// Generalizes the CKC README-vs-spec check: compares a doc-claimed surface
+    /// string against the actual spec/code surface string. When they match,
+    /// returns `Ok(None)` and records nothing. When they differ, records a typed
+    /// drift finding (with the supplied `drift_kind` and an auto-built `detail`
+    /// describing the mismatch) and returns `Ok(Some(finding))`.
+    pub async fn detect_and_record_spec_drift(
+        &self,
+        finding_id: &str,
+        doc_ref: &str,
+        spec_ref: &str,
+        doc_surface: &str,
+        code_surface: &str,
+        drift_kind: &str,
+    ) -> AtelierResult<Option<SpecDriftFinding>> {
+        if doc_surface == code_surface {
+            return Ok(None);
+        }
+        let detail = format!(
+            "doc surface {doc_surface:?} (claimed at {doc_ref}) does not match \
+             code/spec surface {code_surface:?} (at {spec_ref})"
+        );
+        let finding = self
+            .record_spec_drift_finding(&NewSpecDriftFinding {
+                finding_id: finding_id.to_string(),
+                doc_ref: doc_ref.to_string(),
+                spec_ref: spec_ref.to_string(),
+                drift_kind: drift_kind.to_string(),
+                detail,
+            })
+            .await?;
+        Ok(Some(finding))
+    }
+}
