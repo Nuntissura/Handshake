@@ -128,6 +128,7 @@
   "MT-139",
   "MT-140",
   "MT-141",
+  "MT-142",
   "MT-143",
   "MT-144",
   "MT-145",
@@ -1516,6 +1517,14 @@
    "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test atelier_model_config_apply_tests mt169_synthetic_input_guard_records_and_rejects_unauthorized [truncate+single-thread]",
    "remediated_by": "KERNEL_BUILDER",
    "remediation_note": "built typed runtime surface; live-PG proven"
+  },
+  {
+   "mt_id": "MT-142",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test model_session_scheduler_tests -- --include-ignored",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "already implemented (ModelSession); fixed test AppState postgres_pool field; 18 passed live PG"
   }
  ],
  "out_of_scope": [
