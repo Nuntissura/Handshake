@@ -70,6 +70,8 @@ pub mod pose_event_family {
     /// A 512x512 identity crop artifact was registered for a profile version.
     pub const IDENTITY_CROP_ARTIFACT_RECORDED: &str =
         "atelier.pose.identity_crop_artifact_recorded";
+    /// A planned/deferred/blocked pose feature was recorded (MT-115/116/117).
+    pub const POSE_DEFERRED_FEATURE_RECORDED: &str = "atelier.pose.deferred_feature_recorded";
 
     /// All pose/identity event families, exported for parity/coverage proofs.
     pub const ALL: &[&str] = &[
@@ -81,14 +83,15 @@ pub mod pose_event_family {
         POSE_WORKSPACE_RIG_STATE_SET,
         IDENTITY_PROFILE_APPENDED,
         IDENTITY_CROP_ARTIFACT_RECORDED,
+        POSE_DEFERRED_FEATURE_RECORDED,
     ];
 }
 
 /// Re-export at module root so callers can write `pose::POSE_RIG_INGESTED`.
 pub use pose_event_family::{
     IDENTITY_CROP_ARTIFACT_RECORDED, IDENTITY_PROFILE_APPENDED, POSE_CALIBRATION_SET,
-    POSE_CONTEXT_STATE_SET, POSE_HEAD_POSE_RECORDED, POSE_RIG_INGESTED, POSE_SIDECAR_RECORDED,
-    POSE_WORKSPACE_RIG_STATE_SET,
+    POSE_CONTEXT_STATE_SET, POSE_DEFERRED_FEATURE_RECORDED, POSE_HEAD_POSE_RECORDED,
+    POSE_RIG_INGESTED, POSE_SIDECAR_RECORDED, POSE_WORKSPACE_RIG_STATE_SET,
 };
 
 pub const IDENTITY_CROP_ARTIFACT_MANIFEST_SCHEMA: &str =
@@ -3123,6 +3126,390 @@ impl AtelierStore {
             Some(r) => Ok(Some(identity_profile_from_row(&r)?)),
             None => Ok(None),
         }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Pose deferred-feature registry (WP-KERNEL-005 MT-115 / MT-116 / MT-117).
+//
+// A typed runtime surface that records pose-workspace and Pose-tab features the
+// CKC WP-0133 parity work intentionally does NOT implement yet. Each deferred or
+// blocked feature is a real Postgres row + EventLedger event with a mandatory
+// machine-readable reason, so "deferred/blocked" can never be a false parity
+// claim hidden in governance prose. Detection/render still happens out of module;
+// this only records the deferral decision.
+// ---------------------------------------------------------------------------
+
+/// Lifecycle of a recorded pose feature that is intentionally not built yet.
+///
+/// * `Planned`  -- design is understood; carried forward for a future WP.
+/// * `Deferred` -- explicitly postponed; carried forward without early build.
+/// * `Blocked`  -- cannot be implemented now (missing capability / spec gate);
+///   preserved as unresolved instead of faked.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum PoseDeferredStatus {
+    Planned,
+    Deferred,
+    Blocked,
+}
+
+impl PoseDeferredStatus {
+    pub fn as_token(self) -> &'static str {
+        match self {
+            PoseDeferredStatus::Planned => "PLANNED",
+            PoseDeferredStatus::Deferred => "DEFERRED",
+            PoseDeferredStatus::Blocked => "BLOCKED",
+        }
+    }
+
+    pub fn from_token(token: &str) -> AtelierResult<Self> {
+        match token {
+            "PLANNED" => Ok(PoseDeferredStatus::Planned),
+            "DEFERRED" => Ok(PoseDeferredStatus::Deferred),
+            "BLOCKED" => Ok(PoseDeferredStatus::Blocked),
+            other => Err(AtelierError::Validation(format!(
+                "unknown pose deferred status token: {other}"
+            ))),
+        }
+    }
+}
+
+/// Input to record one deferred/blocked pose feature.
+#[derive(Clone, Debug)]
+pub struct NewPoseDeferredFeature {
+    /// Stable kebab-case feature id, unique in the registry (the PK).
+    pub feature_id: String,
+    /// Grouping kind (e.g. the originating MT / parity area).
+    pub feature_kind: String,
+    pub status: PoseDeferredStatus,
+    /// Human-readable feature name from the contract.
+    pub feature_label: String,
+    /// Why the feature is deferred/blocked. MUST be non-empty.
+    pub deferral_reason: String,
+    /// Whether this is carried forward to a future work packet.
+    pub carry_forward: bool,
+    /// Optional source/spec anchor (no .GOV / no local path).
+    pub source_ref: Option<String>,
+}
+
+/// Persisted deferred/blocked pose feature record.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct PoseDeferredFeature {
+    pub feature_id: String,
+    pub feature_kind: String,
+    pub status: PoseDeferredStatus,
+    pub feature_label: String,
+    pub deferral_reason: String,
+    pub carry_forward: bool,
+    pub source_ref: Option<String>,
+    pub created_at_utc: DateTime<Utc>,
+}
+
+const POSE_DEFERRED_FEATURE_COLUMNS: &str =
+    "feature_id, feature_kind, status, feature_label, deferral_reason, \
+     carry_forward, source_ref, created_at_utc";
+
+fn pose_deferred_feature_from_row(row: &sqlx::postgres::PgRow) -> AtelierResult<PoseDeferredFeature> {
+    let status: String = row.get("status");
+    Ok(PoseDeferredFeature {
+        feature_id: row.get("feature_id"),
+        feature_kind: row.get("feature_kind"),
+        status: PoseDeferredStatus::from_token(&status)?,
+        feature_label: row.get("feature_label"),
+        deferral_reason: row.get("deferral_reason"),
+        carry_forward: row.get("carry_forward"),
+        source_ref: row.get("source_ref"),
+        created_at_utc: row.get("created_at_utc"),
+    })
+}
+
+fn validate_pose_deferred_feature(new: &NewPoseDeferredFeature) -> AtelierResult<()> {
+    for (field, value) in [
+        ("feature_id", &new.feature_id),
+        ("feature_kind", &new.feature_kind),
+        ("feature_label", &new.feature_label),
+    ] {
+        if value.trim().is_empty() || value.trim() != value {
+            return Err(AtelierError::Validation(format!(
+                "pose deferred feature {field} must be non-empty and unpadded"
+            )));
+        }
+    }
+    // Hard gate: a blank deferral_reason is rejected so a deferral is never silent.
+    if new.deferral_reason.trim().is_empty() || new.deferral_reason.trim() != new.deferral_reason {
+        return Err(AtelierError::Validation(
+            "pose deferred feature deferral_reason must be non-empty and unpadded".into(),
+        ));
+    }
+    if let Some(source_ref) = &new.source_ref {
+        validate_pose_context_ref("source_ref", source_ref)?;
+    }
+    Ok(())
+}
+
+/// Catalog of every deferred/blocked pose feature recorded by MT-115/116/117.
+///
+/// Const-style data (mirrors `source_evidence::core_data_source_evidence_matrix`):
+/// the records carry the real feature names + reasons from the MT contracts. A
+/// test persists this catalog and reloads it to prove the runtime surface.
+pub fn pose_deferred_feature_catalog() -> Vec<NewPoseDeferredFeature> {
+    vec![
+        // ---- MT-115: five non-calibration WP-0133 pose-workspace items, BLOCKED.
+        NewPoseDeferredFeature {
+            feature_id: "mt-115.pose-workspace.draggable-overlay".to_string(),
+            feature_kind: "MT-115.pose-workspace-blocked".to_string(),
+            status: PoseDeferredStatus::Blocked,
+            feature_label: "Draggable keypoint overlay".to_string(),
+            deferral_reason:
+                "CKC WP-0133 draggable overlay editing is not implementable yet; preserved as \
+                 blocked so no false parity claim is made for interactive overlay drag."
+                    .to_string(),
+            carry_forward: true,
+            source_ref: Some("source://legacy/posekit/workspace/draggable-overlay".to_string()),
+        },
+        NewPoseDeferredFeature {
+            feature_id: "mt-115.pose-workspace.missing-marker-placement".to_string(),
+            feature_kind: "MT-115.pose-workspace-blocked".to_string(),
+            status: PoseDeferredStatus::Blocked,
+            feature_label: "Missing-marker placement".to_string(),
+            deferral_reason:
+                "CKC WP-0133 missing-marker placement is not implementable yet; preserved as \
+                 blocked rather than fabricating placed markers."
+                    .to_string(),
+            carry_forward: true,
+            source_ref: Some(
+                "source://legacy/posekit/workspace/missing-marker-placement".to_string(),
+            ),
+        },
+        NewPoseDeferredFeature {
+            feature_id: "mt-115.pose-workspace.3d-live-split".to_string(),
+            feature_kind: "MT-115.pose-workspace-blocked".to_string(),
+            status: PoseDeferredStatus::Blocked,
+            feature_label: "3D / live split view".to_string(),
+            deferral_reason:
+                "CKC WP-0133 3D/live split view is not implementable yet; preserved as blocked \
+                 so the split-view parity gap stays visible."
+                    .to_string(),
+            carry_forward: true,
+            source_ref: Some("source://legacy/posekit/workspace/3d-live-split".to_string()),
+        },
+        NewPoseDeferredFeature {
+            feature_id: "mt-115.pose-workspace.forked-history".to_string(),
+            feature_kind: "MT-115.pose-workspace-blocked".to_string(),
+            status: PoseDeferredStatus::Blocked,
+            feature_label: "Forked history".to_string(),
+            deferral_reason:
+                "CKC WP-0133 forked (branching) history is not implementable yet; preserved as \
+                 blocked so branch/merge history parity is not falsely claimed."
+                    .to_string(),
+            carry_forward: true,
+            source_ref: Some("source://legacy/posekit/workspace/forked-history".to_string()),
+        },
+        NewPoseDeferredFeature {
+            feature_id: "mt-115.pose-workspace.history-tab".to_string(),
+            feature_kind: "MT-115.pose-workspace-blocked".to_string(),
+            status: PoseDeferredStatus::Blocked,
+            feature_label: "History tab".to_string(),
+            deferral_reason:
+                "CKC WP-0133 History tab UI is not implementable yet; preserved as blocked so the \
+                 history-tab parity gap stays explicit."
+                    .to_string(),
+            carry_forward: true,
+            source_ref: Some("source://legacy/posekit/workspace/history-tab".to_string()),
+        },
+        // ---- MT-116: RigData v2 multi-subject, carry-forward DEFERRED.
+        NewPoseDeferredFeature {
+            feature_id: "mt-116.rigdata-v2.multi-subject".to_string(),
+            feature_kind: "MT-116.multi-subject-rig-carry-forward".to_string(),
+            status: PoseDeferredStatus::Deferred,
+            feature_label: "RigData v2 multi-subject (people[], per-subject calibration/head-pose/masks)"
+                .to_string(),
+            deferral_reason:
+                "Planned multi-subject scenes (RigData v2 people[] with per-subject calibration, \
+                 head pose, and masks) are deferred and carried forward; not implemented early to \
+                 avoid premature multi-subject schema commitments."
+                    .to_string(),
+            carry_forward: true,
+            source_ref: Some("source://legacy/posekit/rigdata-v2/multi-subject".to_string()),
+        },
+        // ---- MT-117: Pose tab polish features, PLANNED/RESEARCH deferred.
+        NewPoseDeferredFeature {
+            feature_id: "mt-117.pose-tab-polish.multi-file-dnd".to_string(),
+            feature_kind: "MT-117.pose-tab-polish-carry-forward".to_string(),
+            status: PoseDeferredStatus::Planned,
+            feature_label: "Multi-file drag-and-drop".to_string(),
+            deferral_reason:
+                "Pose tab polish: multi-file drag-and-drop import is PLANNED/RESEARCH deferred; \
+                 carried forward without early build."
+                    .to_string(),
+            carry_forward: true,
+            source_ref: Some("source://legacy/posekit/pose-tab/multi-file-dnd".to_string()),
+        },
+        NewPoseDeferredFeature {
+            feature_id: "mt-117.pose-tab-polish.multi-angle-export".to_string(),
+            feature_kind: "MT-117.pose-tab-polish-carry-forward".to_string(),
+            status: PoseDeferredStatus::Planned,
+            feature_label: "Multi-angle export".to_string(),
+            deferral_reason:
+                "Pose tab polish: multi-angle export is PLANNED/RESEARCH deferred; carried forward \
+                 without early build."
+                    .to_string(),
+            carry_forward: true,
+            source_ref: Some("source://legacy/posekit/pose-tab/multi-angle-export".to_string()),
+        },
+        NewPoseDeferredFeature {
+            feature_id: "mt-117.pose-tab-polish.clear-workspace".to_string(),
+            feature_kind: "MT-117.pose-tab-polish-carry-forward".to_string(),
+            status: PoseDeferredStatus::Planned,
+            feature_label: "Clear workspace".to_string(),
+            deferral_reason:
+                "Pose tab polish: clear-workspace action is PLANNED/RESEARCH deferred; carried \
+                 forward without early build."
+                    .to_string(),
+            carry_forward: true,
+            source_ref: Some("source://legacy/posekit/pose-tab/clear-workspace".to_string()),
+        },
+        NewPoseDeferredFeature {
+            feature_id: "mt-117.pose-tab-polish.sync-zoom".to_string(),
+            feature_kind: "MT-117.pose-tab-polish-carry-forward".to_string(),
+            status: PoseDeferredStatus::Planned,
+            feature_label: "Sync zoom".to_string(),
+            deferral_reason:
+                "Pose tab polish: synchronized zoom across views is PLANNED/RESEARCH deferred; \
+                 carried forward without early build."
+                    .to_string(),
+            carry_forward: true,
+            source_ref: Some("source://legacy/posekit/pose-tab/sync-zoom".to_string()),
+        },
+        NewPoseDeferredFeature {
+            feature_id: "mt-117.pose-tab-polish.import-openpose-json".to_string(),
+            feature_kind: "MT-117.pose-tab-polish-carry-forward".to_string(),
+            status: PoseDeferredStatus::Planned,
+            feature_label: "Import OpenPose JSON".to_string(),
+            deferral_reason:
+                "Pose tab polish: import OpenPose JSON into the workspace is PLANNED/RESEARCH \
+                 deferred; carried forward without early build."
+                    .to_string(),
+            carry_forward: true,
+            source_ref: Some("source://legacy/posekit/pose-tab/import-openpose-json".to_string()),
+        },
+        NewPoseDeferredFeature {
+            feature_id: "mt-117.pose-tab-polish.shortcuts".to_string(),
+            feature_kind: "MT-117.pose-tab-polish-carry-forward".to_string(),
+            status: PoseDeferredStatus::Planned,
+            feature_label: "Keyboard shortcuts".to_string(),
+            deferral_reason:
+                "Pose tab polish: keyboard shortcuts are PLANNED/RESEARCH deferred; carried \
+                 forward without early build."
+                    .to_string(),
+            carry_forward: true,
+            source_ref: Some("source://legacy/posekit/pose-tab/shortcuts".to_string()),
+        },
+        NewPoseDeferredFeature {
+            feature_id: "mt-117.pose-tab-polish.stylized-landmark-router".to_string(),
+            feature_kind: "MT-117.pose-tab-polish-carry-forward".to_string(),
+            status: PoseDeferredStatus::Planned,
+            feature_label: "Stylized-landmark router".to_string(),
+            deferral_reason:
+                "Pose tab polish: stylized-landmark router is PLANNED/RESEARCH deferred; carried \
+                 forward without early build."
+                    .to_string(),
+            carry_forward: true,
+            source_ref: Some(
+                "source://legacy/posekit/pose-tab/stylized-landmark-router".to_string(),
+            ),
+        },
+    ]
+}
+
+impl AtelierStore {
+    /// Record one deferred/blocked pose feature (MT-115/116/117).
+    ///
+    /// Idempotent on `feature_id`: re-recording the same feature updates the
+    /// mutable fields and returns the row instead of erroring, so seeding the
+    /// catalog twice is safe. A blank `deferral_reason` is rejected with a
+    /// `Validation` error so a deferral is never silent. Emits
+    /// `POSE_DEFERRED_FEATURE_RECORDED`.
+    pub async fn record_pose_deferred_feature(
+        &self,
+        new: &NewPoseDeferredFeature,
+    ) -> AtelierResult<PoseDeferredFeature> {
+        validate_pose_deferred_feature(new)?;
+
+        let mut tx = self.pool().begin().await?;
+        let row = sqlx::query(&format!(
+            r#"INSERT INTO atelier_pose_deferred_feature
+                 (feature_id, feature_kind, status, feature_label, deferral_reason,
+                  carry_forward, source_ref)
+               VALUES ($1, $2, $3, $4, $5, $6, $7)
+               ON CONFLICT (feature_id) DO UPDATE SET
+                 feature_kind = EXCLUDED.feature_kind,
+                 status = EXCLUDED.status,
+                 feature_label = EXCLUDED.feature_label,
+                 deferral_reason = EXCLUDED.deferral_reason,
+                 carry_forward = EXCLUDED.carry_forward,
+                 source_ref = EXCLUDED.source_ref
+               RETURNING {POSE_DEFERRED_FEATURE_COLUMNS}"#
+        ))
+        .bind(&new.feature_id)
+        .bind(&new.feature_kind)
+        .bind(new.status.as_token())
+        .bind(&new.feature_label)
+        .bind(&new.deferral_reason)
+        .bind(new.carry_forward)
+        .bind(&new.source_ref)
+        .fetch_one(&mut *tx)
+        .await?;
+
+        let feature = pose_deferred_feature_from_row(&row)?;
+        self.record_event_in_tx(
+            &mut tx,
+            POSE_DEFERRED_FEATURE_RECORDED,
+            "atelier_pose_deferred_feature",
+            &feature.feature_id,
+            serde_json::json!({
+                "feature_id": feature.feature_id,
+                "feature_kind": feature.feature_kind,
+                "status": feature.status.as_token(),
+                "feature_label": feature.feature_label,
+                "deferral_reason": feature.deferral_reason,
+                "carry_forward": feature.carry_forward,
+                "source_ref": feature.source_ref,
+            }),
+        )
+        .await?;
+        tx.commit().await?;
+        Ok(feature)
+    }
+
+    /// List every recorded deferred/blocked pose feature, by `feature_id`.
+    pub async fn list_pose_deferred_features(&self) -> AtelierResult<Vec<PoseDeferredFeature>> {
+        let rows = sqlx::query(&format!(
+            r#"SELECT {POSE_DEFERRED_FEATURE_COLUMNS}
+               FROM atelier_pose_deferred_feature
+               ORDER BY feature_id ASC"#
+        ))
+        .fetch_all(self.pool())
+        .await?;
+        rows.iter().map(pose_deferred_feature_from_row).collect()
+    }
+
+    /// List recorded deferred/blocked pose features for one `feature_kind`.
+    pub async fn list_pose_deferred_features_by_kind(
+        &self,
+        feature_kind: &str,
+    ) -> AtelierResult<Vec<PoseDeferredFeature>> {
+        let rows = sqlx::query(&format!(
+            r#"SELECT {POSE_DEFERRED_FEATURE_COLUMNS}
+               FROM atelier_pose_deferred_feature
+               WHERE feature_kind = $1
+               ORDER BY feature_id ASC"#
+        ))
+        .bind(feature_kind)
+        .fetch_all(self.pool())
+        .await?;
+        rows.iter().map(pose_deferred_feature_from_row).collect()
     }
 }
 

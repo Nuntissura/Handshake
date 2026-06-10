@@ -9,8 +9,9 @@ use atelier_pg_support::database_url;
 use handshake_core::atelier::AtelierStore;
 use handshake_core::atelier::source_evidence::{
     AnchorVerificationStatus, CORE_DATA_SOURCE_EVIDENCE_MATRIX_ID, NewAnchorVerificationRecord,
-    POSE_COMFY_SOURCE_EVIDENCE_MATRIX_ID, SourceMaturityStatus, core_data_source_evidence_matrix,
-    pose_comfy_source_evidence_matrix, source_evidence_event_family,
+    POSE_COMFY_SOURCE_EVIDENCE_MATRIX_ID, POSE_MEDIA_ANCHOR_VERIFICATION_MATRIX_ID,
+    SourceMaturityStatus, core_data_source_evidence_matrix, pose_comfy_source_evidence_matrix,
+    pose_media_anchor_verification_matrix, source_evidence_event_family,
 };
 use handshake_core::kernel::KernelEventType;
 use handshake_core::storage::{Database, postgres::PostgresDatabase};
@@ -375,6 +376,130 @@ async fn pose_comfy_source_evidence_matrix_records_required_adapter_sources() {
                     == serde_json::json!(0)
         }),
         "recording the Pose/ComfyUI matrix must emit canonical EventLedger evidence"
+    );
+}
+
+#[tokio::test]
+async fn mt082_pose_media_anchor_verification_records_required_anchors() {
+    let Some(url) = database_url().await else {
+        eprintln!(
+            "SKIP mt082_pose_media_anchor_verification_records_required_anchors: PostgreSQL unavailable"
+        );
+        return;
+    };
+    let (store, database) = connected_store_with_ledger(&url).await;
+
+    let mut matrix = pose_media_anchor_verification_matrix(format!("test-run-{}", Uuid::new_v4()));
+    matrix.matrix_id = format!(
+        "{POSE_MEDIA_ANCHOR_VERIFICATION_MATRIX_ID}-{}",
+        Uuid::new_v4()
+    );
+    let recorded = store
+        .record_source_evidence_matrix(&matrix)
+        .await
+        .expect("record pose/media anchor verification matrix");
+
+    // Required pose/media product anchors named by the MT-082 contract:
+    // pose, media, artifact, workflow, external tools, diagnostics.
+    let required_anchors = [
+        "ANCHOR-MT-082-pose",
+        "ANCHOR-MT-082-media",
+        "ANCHOR-MT-082-artifact",
+        "ANCHOR-MT-082-workflow",
+        "ANCHOR-MT-082-external-tools",
+        "ANCHOR-MT-082-diagnostics",
+    ];
+    for anchor_id in required_anchors {
+        let anchor = recorded
+            .anchors
+            .iter()
+            .find(|anchor| anchor.anchor_id == anchor_id)
+            .unwrap_or_else(|| panic!("missing required pose/media anchor {anchor_id}"));
+        match anchor.verification_status {
+            AnchorVerificationStatus::Verified => {
+                assert!(
+                    !anchor.verified_product_paths.is_empty(),
+                    "{anchor_id} VERIFIED anchor must cite non-empty verified_product_paths"
+                );
+                assert_source_tree_ref_exists(&anchor.expected_product_path);
+                for ref_path in &anchor.verified_product_paths {
+                    assert_source_tree_ref_exists(ref_path);
+                }
+            }
+            AnchorVerificationStatus::BlockedMissingAnchor => {
+                assert!(
+                    anchor
+                        .blocking_reason
+                        .as_deref()
+                        .map(str::trim)
+                        .map(|reason| !reason.is_empty())
+                        .unwrap_or(false),
+                    "{anchor_id} BLOCKED_MISSING_ANCHOR must carry a blocking_reason"
+                );
+            }
+        }
+    }
+
+    // All MT-082 anchors back existing product surfaces, so all are VERIFIED.
+    assert_eq!(
+        recorded
+            .anchors
+            .iter()
+            .filter(|anchor| anchor.verification_status == AnchorVerificationStatus::Verified)
+            .count(),
+        required_anchors.len(),
+        "every required pose/media product anchor must be VERIFIED"
+    );
+
+    let reloaded = store
+        .get_source_evidence_matrix(&matrix.matrix_id)
+        .await
+        .expect("reload pose/media anchor verification matrix");
+    assert_eq!(reloaded.anchors.len(), required_anchors.len());
+    let reloaded_anchor_ids: HashSet<&str> = reloaded
+        .anchors
+        .iter()
+        .map(|anchor| anchor.anchor_id.as_str())
+        .collect();
+    for anchor_id in required_anchors {
+        assert!(
+            reloaded_anchor_ids.contains(anchor_id),
+            "reloaded matrix must round-trip required anchor {anchor_id}"
+        );
+    }
+    let reloaded_pose = reloaded
+        .anchors
+        .iter()
+        .find(|anchor| anchor.anchor_id == "ANCHOR-MT-082-pose")
+        .expect("pose anchor round-trips");
+    assert_eq!(
+        reloaded_pose.verification_status,
+        AnchorVerificationStatus::Verified,
+        "reloaded pose anchor must remain VERIFIED"
+    );
+    assert!(
+        reloaded_pose
+            .verified_product_paths
+            .iter()
+            .any(|path| path.ends_with("atelier/pose.rs")),
+        "reloaded pose anchor must cite its product module path"
+    );
+
+    let kernel_events = database
+        .list_kernel_events_for_aggregate("atelier_source_evidence_matrix", &matrix.matrix_id)
+        .await
+        .expect("list pose/media anchor verification kernel events");
+    assert!(
+        kernel_events.iter().any(|event| {
+            event.event_type == KernelEventType::AtelierDomainEventRecorded
+                && event.payload["event_family"]
+                    == source_evidence_event_family::SOURCE_EVIDENCE_MATRIX_RECORDED
+                && event.payload["atelier_payload"]["verified_anchor_count"]
+                    == serde_json::json!(required_anchors.len())
+                && event.payload["atelier_payload"]["blocked_missing_anchor_count"]
+                    == serde_json::json!(0)
+        }),
+        "recording the MT-082 anchor matrix must emit canonical EventLedger evidence"
     );
 }
 

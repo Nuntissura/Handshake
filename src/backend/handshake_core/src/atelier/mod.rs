@@ -223,6 +223,7 @@ pub mod event_family {
         pose_event_family::POSE_WORKSPACE_RIG_STATE_SET,
         pose_event_family::IDENTITY_PROFILE_APPENDED,
         pose_event_family::IDENTITY_CROP_ARTIFACT_RECORDED,
+        pose_event_family::POSE_DEFERRED_FEATURE_RECORDED,
         scripts_event_family::CHARACTER_SCRIPT_CREATED,
         scripts_event_family::CHARACTER_SCRIPT_USAGE_RECORDED,
         filesystem_health_event_family::CHECK_RECORDED,
@@ -592,6 +593,7 @@ impl AtelierStore {
               AND to_regclass('atelier_pose_sidecar') IS NOT NULL
               AND to_regclass('atelier_pose_context_state') IS NOT NULL
               AND to_regclass('atelier_pose_workspace_rig_state') IS NOT NULL
+              AND to_regclass('atelier_pose_deferred_feature') IS NOT NULL
               AND EXISTS (
                   SELECT 1
                   FROM information_schema.columns
@@ -2005,6 +2007,11 @@ impl AtelierStore {
         .await?;
         sqlx::raw_sql(include_str!(
             "../../migrations/0104_atelier_comfy_workflow_history_stats.sql"
+        ))
+        .execute(&mut *tx)
+        .await?;
+        sqlx::raw_sql(include_str!(
+            "../../migrations/0105_atelier_pose_deferred_feature.sql"
         ))
         .execute(&mut *tx)
         .await?;

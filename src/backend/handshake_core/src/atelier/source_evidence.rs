@@ -21,6 +21,8 @@ pub use source_evidence_event_family::SOURCE_EVIDENCE_MATRIX_RECORDED;
 
 pub const CORE_DATA_SOURCE_EVIDENCE_MATRIX_ID: &str = "wp-kernel-005.core-data.source-evidence@1";
 pub const POSE_COMFY_SOURCE_EVIDENCE_MATRIX_ID: &str = "wp-kernel-005.pose-comfy.source-evidence@1";
+pub const POSE_MEDIA_ANCHOR_VERIFICATION_MATRIX_ID: &str =
+    "wp-kernel-005.pose-media.anchor-verification@1";
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
@@ -462,6 +464,215 @@ pub fn pose_comfy_source_evidence_matrix(
                 verified_product_paths: vec![
                     "src/backend/handshake_core/src/atelier/sourcing.rs".to_string(),
                     "src/backend/handshake_core/tests/atelier_sourcing_tests.rs".to_string(),
+                ],
+                blocking_reason: None,
+            },
+        ],
+    }
+}
+
+/// MT-082 Product Anchor Verification for the pose + media product surfaces.
+///
+/// Where MT-081's [`pose_comfy_source_evidence_matrix`] records pose/comfy
+/// *source maturity*, MT-082 records an explicit per-domain **anchor
+/// verification** artifact: for each pose/media product anchor the contract
+/// names (pose, media, artifact, workflow, external tools, diagnostics) it
+/// asserts either `VERIFIED` with the real product paths that back the anchor,
+/// or `BLOCKED_MISSING_ANCHOR` with a blocking_reason. All paths cited here
+/// resolve to modules/migrations/tests that exist in the product source tree,
+/// so every anchor in this matrix is `VERIFIED`.
+pub fn pose_media_anchor_verification_matrix(
+    recorded_by: impl Into<String>,
+) -> NewSourceEvidenceMatrix {
+    NewSourceEvidenceMatrix {
+        matrix_id: POSE_MEDIA_ANCHOR_VERIFICATION_MATRIX_ID.to_string(),
+        recorded_by: recorded_by.into(),
+        sources: vec![
+            NewSourceEvidenceRecord {
+                source_id: "MT-082.pose-anchor".to_string(),
+                source_label: "Pose product surface anchor".to_string(),
+                source_ref: "source://legacy/pose-product-anchor".to_string(),
+                product_area: "atelier.pose".to_string(),
+                maturity_status: SourceMaturityStatus::Done,
+                implementation_status: "verified_product_path".to_string(),
+                evidence_refs: vec![
+                    "src/backend/handshake_core/src/atelier/pose.rs".to_string(),
+                    "src/backend/handshake_core/migrations/0090_atelier_pose_sidecars.sql"
+                        .to_string(),
+                ],
+                proof_refs: vec![
+                    "src/backend/handshake_core/tests/atelier_pose_tests.rs".to_string()
+                ],
+                gap_reason: None,
+            },
+            NewSourceEvidenceRecord {
+                source_id: "MT-082.media-anchor".to_string(),
+                source_label: "Media product surface anchor".to_string(),
+                source_ref: "source://legacy/media-product-anchor".to_string(),
+                product_area: "atelier.media".to_string(),
+                maturity_status: SourceMaturityStatus::Done,
+                implementation_status: "verified_product_path".to_string(),
+                evidence_refs: vec![
+                    "src/backend/handshake_core/src/atelier/media.rs".to_string(),
+                    "src/backend/handshake_core/migrations/0043_atelier_media_review_metadata.sql"
+                        .to_string(),
+                ],
+                proof_refs: vec![
+                    "src/backend/handshake_core/tests/atelier_media_artifact_tests.rs".to_string(),
+                ],
+                gap_reason: None,
+            },
+            NewSourceEvidenceRecord {
+                source_id: "MT-082.artifact-anchor".to_string(),
+                source_label: "Media artifact manifest product surface anchor".to_string(),
+                source_ref: "source://legacy/artifact-product-anchor".to_string(),
+                product_area: "atelier.media".to_string(),
+                maturity_status: SourceMaturityStatus::Done,
+                implementation_status: "verified_product_path".to_string(),
+                evidence_refs: vec![
+                    "src/backend/handshake_core/src/atelier/media.rs".to_string(),
+                    "src/backend/handshake_core/migrations/0040_atelier_media_artifact_manifest.sql"
+                        .to_string(),
+                ],
+                proof_refs: vec![
+                    "src/backend/handshake_core/tests/atelier_media_artifact_tests.rs".to_string(),
+                ],
+                gap_reason: None,
+            },
+            NewSourceEvidenceRecord {
+                source_id: "MT-082.workflow-anchor".to_string(),
+                source_label: "Workflow command-corpus product surface anchor".to_string(),
+                source_ref: "source://legacy/workflow-product-anchor".to_string(),
+                product_area: "atelier.command_corpus".to_string(),
+                maturity_status: SourceMaturityStatus::Done,
+                implementation_status: "verified_product_path".to_string(),
+                evidence_refs: vec![
+                    "src/backend/handshake_core/src/atelier/command_corpus.rs".to_string(),
+                ],
+                proof_refs: vec![
+                    "src/backend/handshake_core/tests/atelier_command_corpus_tests.rs".to_string(),
+                ],
+                gap_reason: None,
+            },
+            NewSourceEvidenceRecord {
+                source_id: "MT-082.external-tools-anchor".to_string(),
+                source_label: "External tools (ComfyUI) product surface anchor".to_string(),
+                source_ref: "source://legacy/external-tools-product-anchor".to_string(),
+                product_area: "atelier.comfy".to_string(),
+                maturity_status: SourceMaturityStatus::Done,
+                implementation_status: "verified_product_path".to_string(),
+                evidence_refs: vec![
+                    "src/backend/handshake_core/src/atelier/comfy.rs".to_string()
+                ],
+                proof_refs: vec![
+                    "src/backend/handshake_core/tests/atelier_comfy_tests.rs".to_string()
+                ],
+                gap_reason: None,
+            },
+            NewSourceEvidenceRecord {
+                source_id: "MT-082.diagnostics-anchor".to_string(),
+                source_label: "Pose diagnostics product surface anchor".to_string(),
+                source_ref: "source://legacy/diagnostics-product-anchor".to_string(),
+                product_area: "atelier.pose".to_string(),
+                maturity_status: SourceMaturityStatus::Done,
+                implementation_status: "verified_product_path".to_string(),
+                evidence_refs: vec![
+                    "src/backend/handshake_core/src/atelier/pose.rs".to_string(),
+                    "src/backend/handshake_core/migrations/0032_atelier_pose_diagnostics.sql"
+                        .to_string(),
+                ],
+                proof_refs: vec![
+                    "src/backend/handshake_core/tests/atelier_pose_tests.rs".to_string()
+                ],
+                gap_reason: None,
+            },
+        ],
+        anchors: vec![
+            NewAnchorVerificationRecord {
+                anchor_id: "ANCHOR-MT-082-pose".to_string(),
+                source_id: "MT-082.pose-anchor".to_string(),
+                anchor_label: "Pose product module and pose-sidecar migration".to_string(),
+                expected_product_path: "src/backend/handshake_core/src/atelier/pose.rs".to_string(),
+                verification_status: AnchorVerificationStatus::Verified,
+                verified_product_paths: vec![
+                    "src/backend/handshake_core/src/atelier/pose.rs".to_string(),
+                    "src/backend/handshake_core/migrations/0090_atelier_pose_sidecars.sql"
+                        .to_string(),
+                    "src/backend/handshake_core/tests/atelier_pose_tests.rs".to_string(),
+                ],
+                blocking_reason: None,
+            },
+            NewAnchorVerificationRecord {
+                anchor_id: "ANCHOR-MT-082-media".to_string(),
+                source_id: "MT-082.media-anchor".to_string(),
+                anchor_label: "Media review-metadata product module and migration".to_string(),
+                expected_product_path: "src/backend/handshake_core/src/atelier/media.rs"
+                    .to_string(),
+                verification_status: AnchorVerificationStatus::Verified,
+                verified_product_paths: vec![
+                    "src/backend/handshake_core/src/atelier/media.rs".to_string(),
+                    "src/backend/handshake_core/migrations/0043_atelier_media_review_metadata.sql"
+                        .to_string(),
+                    "src/backend/handshake_core/tests/atelier_media_artifact_tests.rs".to_string(),
+                ],
+                blocking_reason: None,
+            },
+            NewAnchorVerificationRecord {
+                anchor_id: "ANCHOR-MT-082-artifact".to_string(),
+                source_id: "MT-082.artifact-anchor".to_string(),
+                anchor_label: "Media artifact manifest product module and migration".to_string(),
+                expected_product_path:
+                    "src/backend/handshake_core/migrations/0040_atelier_media_artifact_manifest.sql"
+                        .to_string(),
+                verification_status: AnchorVerificationStatus::Verified,
+                verified_product_paths: vec![
+                    "src/backend/handshake_core/src/atelier/media.rs".to_string(),
+                    "src/backend/handshake_core/migrations/0040_atelier_media_artifact_manifest.sql"
+                        .to_string(),
+                    "src/backend/handshake_core/tests/atelier_media_artifact_tests.rs".to_string(),
+                ],
+                blocking_reason: None,
+            },
+            NewAnchorVerificationRecord {
+                anchor_id: "ANCHOR-MT-082-workflow".to_string(),
+                source_id: "MT-082.workflow-anchor".to_string(),
+                anchor_label: "Workflow command-corpus product module".to_string(),
+                expected_product_path: "src/backend/handshake_core/src/atelier/command_corpus.rs"
+                    .to_string(),
+                verification_status: AnchorVerificationStatus::Verified,
+                verified_product_paths: vec![
+                    "src/backend/handshake_core/src/atelier/command_corpus.rs".to_string(),
+                    "src/backend/handshake_core/tests/atelier_command_corpus_tests.rs".to_string(),
+                ],
+                blocking_reason: None,
+            },
+            NewAnchorVerificationRecord {
+                anchor_id: "ANCHOR-MT-082-external-tools".to_string(),
+                source_id: "MT-082.external-tools-anchor".to_string(),
+                anchor_label: "External tools (ComfyUI) governed intake product module"
+                    .to_string(),
+                expected_product_path: "src/backend/handshake_core/src/atelier/comfy.rs"
+                    .to_string(),
+                verification_status: AnchorVerificationStatus::Verified,
+                verified_product_paths: vec![
+                    "src/backend/handshake_core/src/atelier/comfy.rs".to_string(),
+                    "src/backend/handshake_core/tests/atelier_comfy_tests.rs".to_string(),
+                ],
+                blocking_reason: None,
+            },
+            NewAnchorVerificationRecord {
+                anchor_id: "ANCHOR-MT-082-diagnostics".to_string(),
+                source_id: "MT-082.diagnostics-anchor".to_string(),
+                anchor_label: "Pose diagnostics product module and migration".to_string(),
+                expected_product_path:
+                    "src/backend/handshake_core/migrations/0032_atelier_pose_diagnostics.sql"
+                        .to_string(),
+                verification_status: AnchorVerificationStatus::Verified,
+                verified_product_paths: vec![
+                    "src/backend/handshake_core/src/atelier/pose.rs".to_string(),
+                    "src/backend/handshake_core/migrations/0032_atelier_pose_diagnostics.sql"
+                        .to_string(),
+                    "src/backend/handshake_core/tests/atelier_pose_tests.rs".to_string(),
                 ],
                 blocking_reason: None,
             },
