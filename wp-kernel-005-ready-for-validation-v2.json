@@ -127,8 +127,11 @@
   "MT-149",
   "MT-150",
   "MT-151",
+  "MT-154",
+  "MT-156",
   "MT-157",
   "MT-159",
+  "MT-161",
   "MT-162",
   "MT-164",
   "MT-176",
@@ -1235,6 +1238,30 @@
    "state": "READY_FOR_VALIDATION_V2",
    "do_not_remediate_again": true,
    "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test validator_first_pass_evaluator_tests mt_151 [truncate+single-thread]",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "already implemented; dedicated mt-test green on live PG"
+  },
+  {
+   "mt_id": "MT-154",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test loop_promotion_gate_tests mt_154 [truncate+single-thread]",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "already implemented; dedicated mt-test green on live PG"
+  },
+  {
+   "mt_id": "MT-156",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test loop_scheduler_tests mt_156 [truncate+single-thread]",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "already implemented; dedicated mt-test green on live PG"
+  },
+  {
+   "mt_id": "MT-161",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test injection_scoring_tests mt_161 [truncate+single-thread]",
    "remediated_by": "KERNEL_BUILDER",
    "remediation_note": "already implemented; dedicated mt-test green on live PG"
   }
