@@ -626,3 +626,251 @@ fn manual_covers_pose_comfy_surfaces() {
         assert_eq!(command.ipc_channel, None, "{planned_id} must not claim a route");
     }
 }
+
+/// Runtime proof for the WP-KERNEL-005 Model-Workflow-Diagnostics microtasks
+/// MT-132, MT-135, MT-159, MT-164, MT-181, MT-183, MT-185, MT-186, MT-187:
+/// each diagnostics area must be a real, no-context ModelManual row — a feature
+/// group, its FULL command list (each resolving to a CommandReference entry and
+/// referenced by the group, so a dropped row fails), and a covering workflow.
+#[test]
+fn manual_covers_diagnostics_surfaces() {
+    let manual = model_manual();
+
+    let group_ids = manual
+        .feature_groups
+        .iter()
+        .map(|group| group.id)
+        .collect::<BTreeSet<_>>();
+    let command_ids = manual
+        .command_reference
+        .iter()
+        .map(|command| command.id)
+        .collect::<BTreeSet<_>>();
+    let workflow_ids = manual
+        .workflows
+        .iter()
+        .map(|workflow| workflow.id)
+        .collect::<BTreeSet<_>>();
+
+    // (MT id, feature_group_id, FULL command id set, workflow id) for each of
+    // the 9 diagnostics microtask areas. The command set is complete (not just
+    // representative) so dropping any single manual row fails this test.
+    let coverage: &[(&str, &str, &[&str], &str)] = &[
+        (
+            "MT-132",
+            "diagnostics_source_evidence_matrix",
+            &[
+                "diagnostics_source_evidence_matrix",
+                "kernel_action_catalog_view",
+                "kernel_inspector_list_sessions",
+                "kernel_inspector_loaded_models",
+                "diagnostics_problem_store_query",
+            ],
+            "diagnostics_source_evidence_matrix",
+        ),
+        (
+            "MT-135",
+            "diagnostics_no_context_manual_structure",
+            &[
+                "model_manual_get",
+                "model_manual_list_commands",
+                "model_manual_search",
+                "kernel_model_manual_update_section",
+            ],
+            "diagnostics_no_context_manual_structure",
+        ),
+        (
+            "MT-159",
+            "diagnostics_gui_verification_checklist",
+            &[
+                "visual_debug_dom_snapshot",
+                "visual_debug_console_stream_start",
+                "visual_debug_console_stream_stop",
+                "kernel_product_screenshot_capture_execute",
+                "kernel_visual_debugging_loop_project",
+            ],
+            "diagnostics_gui_verification_checklist",
+        ),
+        (
+            "MT-164",
+            "diagnostics_build_rules_read_evidence",
+            &[
+                "diagnostics_hbr_handoff_gate_evaluate",
+                "hbr_matrix_check",
+                "hbr_validator_scan",
+                "hbr_violation_emit",
+            ],
+            "diagnostics_build_rules_read_evidence",
+        ),
+        (
+            "MT-181",
+            "diagnostics_integration_smoke_path",
+            &[
+                "kernel_role_mailbox_claim_lease_project",
+                "kernel_inspector_session_state",
+                "inspector_replay_drive",
+                "kernel_inspector_event_ledger_tail",
+                "diagnostics_debug_bundle_export",
+            ],
+            "diagnostics_integration_smoke_path",
+        ),
+        (
+            "MT-183",
+            "diagnostics_red_team_drift_guards",
+            &[
+                "diagnostics_manual_drift_guard",
+                "kernel_action_catalog_view",
+                "kernel_visual_debugging_loop_project",
+            ],
+            "diagnostics_red_team_drift_guards",
+        ),
+        (
+            "MT-185",
+            "diagnostics_core_row_merge",
+            &[
+                "diagnostics_core_row_merge",
+                "atelier_create_character",
+                "atelier_materialize_media_asset",
+                "atelier_request_web_portfolio_export",
+            ],
+            "diagnostics_core_row_merge",
+        ),
+        (
+            "MT-186",
+            "diagnostics_pose_row_merge",
+            &[
+                "diagnostics_pose_row_merge",
+                "atelier_ingest_pose_rig",
+                "atelier_record_pose_sidecar",
+                "atelier_record_comfy_workflow_receipt",
+            ],
+            "diagnostics_pose_row_merge",
+        ),
+        (
+            "MT-187",
+            "diagnostics_owned_row_merge",
+            &[
+                "diagnostics_owned_row_merge",
+                "diagnostics_problem_store_query",
+                "kernel_action_catalog_view",
+                "kernel_inspector_session_state",
+                "diagnostics_debug_bundle_export",
+            ],
+            "diagnostics_owned_row_merge",
+        ),
+    ];
+
+    for (mt, group_id, commands, workflow_id) in coverage {
+        assert!(
+            group_ids.contains(group_id),
+            "{mt}: missing diagnostics feature group {group_id}"
+        );
+
+        let group = manual
+            .feature_groups
+            .iter()
+            .find(|group| group.id == *group_id)
+            .unwrap_or_else(|| panic!("{mt}: feature group {group_id} not found"));
+
+        // The group's command list must be exactly the contract command set
+        // (same length) so neither a dropped nor a snuck-in row passes silently.
+        assert_eq!(
+            group.commands.len(),
+            commands.len(),
+            "{mt}: feature group {group_id} command count drifted from the contract set"
+        );
+
+        for command_id in *commands {
+            // The command must exist as a CommandReference entry...
+            assert!(
+                command_ids.contains(command_id),
+                "{mt}: command {command_id} has no CommandReference entry"
+            );
+            // ...and be referenced by the area's feature group so the
+            // self-consistency invariant (no orphan refs) holds.
+            assert!(
+                group.commands.contains(command_id),
+                "{mt}: feature group {group_id} does not reference command {command_id}"
+            );
+        }
+
+        assert!(
+            workflow_ids.contains(workflow_id),
+            "{mt}: missing diagnostics workflow {workflow_id}"
+        );
+    }
+
+    // Diagnostics surfaces backed by a real registered KernelActionCatalogV1
+    // action (src/kernel/action_catalog.rs) are Wired with their action_id as
+    // the ipc_channel and no invented Tauri command.
+    for (command_id, action_id) in [
+        ("kernel_action_catalog_view", "kernel.action_catalog.view"),
+        (
+            "kernel_model_manual_update_section",
+            "kernel.model_manual.update_section",
+        ),
+        (
+            "kernel_product_screenshot_capture_execute",
+            "kernel.product_screenshot_capture.execute",
+        ),
+        (
+            "kernel_visual_debugging_loop_project",
+            "kernel.visual_debugging_loop.project",
+        ),
+        (
+            "kernel_role_mailbox_claim_lease_project",
+            "kernel.role_mailbox_claim_lease.project",
+        ),
+    ] {
+        let command = manual
+            .command_reference
+            .iter()
+            .find(|command| command.id == command_id)
+            .unwrap_or_else(|| panic!("missing wired diagnostics command {command_id}"));
+        assert_eq!(
+            command.status,
+            CommandStatus::Wired,
+            "{command_id} must be Wired (registered catalog action)"
+        );
+        assert_eq!(
+            command.ipc_channel,
+            Some(action_id),
+            "{command_id} must carry its registered action_id"
+        );
+        assert_eq!(
+            command.tauri_command, None,
+            "{command_id} is a catalog action, not a Tauri command"
+        );
+    }
+
+    // Diagnostics surfaces that are real backend traits/methods but have no
+    // registered IPC route yet must be Planned and must not claim a route.
+    for planned_id in [
+        "diagnostics_source_evidence_matrix",
+        "diagnostics_problem_store_query",
+        "diagnostics_hbr_handoff_gate_evaluate",
+        "diagnostics_debug_bundle_export",
+        "diagnostics_manual_drift_guard",
+        "diagnostics_core_row_merge",
+        "diagnostics_pose_row_merge",
+        "diagnostics_owned_row_merge",
+    ] {
+        let command = manual
+            .command_reference
+            .iter()
+            .find(|command| command.id == planned_id)
+            .unwrap_or_else(|| panic!("missing planned diagnostics command {planned_id}"));
+        assert_eq!(
+            command.status,
+            CommandStatus::Planned,
+            "{planned_id} must be Planned (no registered IPC route exists for it)"
+        );
+        assert_eq!(
+            command.ipc_channel, None,
+            "{planned_id} must not claim a route"
+        );
+    }
+
+    // The manual version moved to the diagnostics increment.
+    assert_eq!(MANUAL_VERSION, "1.3.0");
+}

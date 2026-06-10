@@ -9,4 +9,4 @@ pub use types::{
     ManualSafetyConstraint, ManualWorkflow,
 };
 
-pub const MANUAL_VERSION: &str = "1.2.0";
+pub const MANUAL_VERSION: &str = "1.3.0";

@@ -120,10 +120,19 @@
   "MT-127",
   "MT-128",
   "MT-130",
+  "MT-132",
+  "MT-135",
   "MT-138",
   "MT-139",
   "MT-157",
+  "MT-159",
   "MT-162",
+  "MT-164",
+  "MT-181",
+  "MT-183",
+  "MT-185",
+  "MT-186",
+  "MT-187",
   "MT-203"
  ],
  "entries": [
@@ -1003,6 +1012,78 @@
    "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test atelier_transcript_tests atelier_probe_idempotent_and_transcript_lineage_roundtrip --target-dir ../Handshake_Artifacts/handshake-cargo-target",
    "remediated_by": "KERNEL_BUILDER",
    "remediation_note": "already implemented in transcript.rs (record_media_probe + transcript lineage); proven via existing test"
+  },
+  {
+   "mt_id": "MT-132",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_manual_tests manual_covers_diagnostics_surfaces --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "diagnostics ModelManual coverage rows (real catalog actions) + coverage test"
+  },
+  {
+   "mt_id": "MT-135",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_manual_tests manual_covers_diagnostics_surfaces --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "diagnostics ModelManual coverage rows (real catalog actions) + coverage test"
+  },
+  {
+   "mt_id": "MT-159",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_manual_tests manual_covers_diagnostics_surfaces --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "diagnostics ModelManual coverage rows (real catalog actions) + coverage test"
+  },
+  {
+   "mt_id": "MT-164",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_manual_tests manual_covers_diagnostics_surfaces --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "diagnostics ModelManual coverage rows (real catalog actions) + coverage test"
+  },
+  {
+   "mt_id": "MT-181",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_manual_tests manual_covers_diagnostics_surfaces --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "diagnostics ModelManual coverage rows (real catalog actions) + coverage test"
+  },
+  {
+   "mt_id": "MT-183",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_manual_tests manual_covers_diagnostics_surfaces --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "diagnostics ModelManual coverage rows (real catalog actions) + coverage test"
+  },
+  {
+   "mt_id": "MT-185",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_manual_tests manual_covers_diagnostics_surfaces --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "diagnostics ModelManual coverage rows (real catalog actions) + coverage test"
+  },
+  {
+   "mt_id": "MT-186",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_manual_tests manual_covers_diagnostics_surfaces --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "diagnostics ModelManual coverage rows (real catalog actions) + coverage test"
+  },
+  {
+   "mt_id": "MT-187",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_manual_tests manual_covers_diagnostics_surfaces --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "diagnostics ModelManual coverage rows (real catalog actions) + coverage test"
   }
  ]
 }
