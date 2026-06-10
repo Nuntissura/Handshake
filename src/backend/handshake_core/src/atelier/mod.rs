@@ -125,6 +125,7 @@ pub mod event_family {
     use super::search::search_event_family;
     use super::settings::settings_event_family;
     use super::source_evidence::source_evidence_event_family;
+    use super::command_corpus::diagnostics_event_family;
     use super::state_probe::state_probe_event_family;
     use super::stealth_window::stealth_ref_event_family;
 
@@ -260,6 +261,10 @@ pub mod event_family {
         settings_event_family::RETENTION_PRUNE_CONFIRMED,
         source_evidence_event_family::SOURCE_EVIDENCE_MATRIX_RECORDED,
         state_probe_event_family::STATE_PROBE_CATALOG_RECORDED,
+        state_probe_event_family::DIAGNOSTICS_VALIDATION_ROW_RECORDED,
+        diagnostics_event_family::DIAGNOSTICS_ERROR_TAXONOMY_RECORDED,
+        diagnostics_event_family::DIAGNOSTICS_PROMPT_RESPONSE_MATRIX_RECORDED,
+        diagnostics_event_family::DIAGNOSTICS_RESET_ORPHAN_PROJECTED,
         stealth_ref_event_family::STEALTH_REF_WINDOW_CREATED,
         stealth_ref_event_family::STEALTH_REF_ADDED,
         stealth_ref_event_family::STEALTH_REF_REMOVED,
@@ -929,6 +934,9 @@ impl AtelierStore {
               AND to_regclass('atelier_comfy_version_metadata') IS NOT NULL
               AND to_regclass('atelier_comfy_job') IS NOT NULL
               AND to_regclass('atelier_comfy_diagnostic_bundle') IS NOT NULL
+              AND to_regclass('atelier_diagnostics_validation_matrix') IS NOT NULL
+              AND to_regclass('atelier_diagnostics_error_taxonomy') IS NOT NULL
+              AND to_regclass('atelier_diagnostics_prompt_response_matrix') IS NOT NULL
               AND to_regclass('atelier_command_corpus_parity_report') IS NOT NULL
               AND to_regclass('atelier_sheet_parse_snapshot') IS NOT NULL
               AND to_regclass('atelier_bulk_operation_receipt') IS NOT NULL
@@ -2049,6 +2057,16 @@ impl AtelierStore {
         .await?;
         sqlx::raw_sql(include_str!(
             "../../migrations/0109_atelier_comfy_diagnostic_bundle.sql"
+        ))
+        .execute(&mut *tx)
+        .await?;
+        sqlx::raw_sql(include_str!(
+            "../../migrations/0111_atelier_diagnostics_validation_matrix.sql"
+        ))
+        .execute(&mut *tx)
+        .await?;
+        sqlx::raw_sql(include_str!(
+            "../../migrations/0112_atelier_diagnostics_typed_surfaces.sql"
         ))
         .execute(&mut *tx)
         .await?;

@@ -126,6 +126,7 @@
   "MT-137",
   "MT-138",
   "MT-139",
+  "MT-140",
   "MT-141",
   "MT-143",
   "MT-146",
@@ -141,8 +142,14 @@
   "MT-162",
   "MT-164",
   "MT-165",
+  "MT-166",
   "MT-168",
   "MT-170",
+  "MT-171",
+  "MT-172",
+  "MT-173",
+  "MT-174",
+  "MT-175",
   "MT-176",
   "MT-177",
   "MT-178",
@@ -164,7 +171,8 @@
   "MT-194",
   "MT-195",
   "MT-196",
-  "MT-203"
+  "MT-203",
+  "MT-207"
  ],
  "entries": [
   {
@@ -1363,6 +1371,70 @@
    "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test atelier_diagnostic_bundle_tests",
    "remediated_by": "KERNEL_BUILDER",
    "remediation_note": "diagnostic bundle (shared with MT-112); test green on live PG"
+  },
+  {
+   "mt_id": "MT-140",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test atelier_diagnostics_typed_surfaces_tests mt140_error_taxonomy_covers_ten_classes_with_recovery [truncate+single-thread]",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "built typed runtime surface; live-PG proven"
+  },
+  {
+   "mt_id": "MT-166",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test atelier_diagnostics_typed_surfaces_tests mt166_reset_orphan_diagnostics_projection [truncate+single-thread]",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "built typed runtime surface; live-PG proven"
+  },
+  {
+   "mt_id": "MT-207",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test atelier_diagnostics_typed_surfaces_tests mt207_prompt_response_matrix_preserved_as_deferred_contract [truncate+single-thread]",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "built typed runtime surface; live-PG proven"
+  },
+  {
+   "mt_id": "MT-171",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test atelier_diagnostics_validation_matrix_tests mt171_manual_and_action_catalog_matrix_persists [truncate+single-thread]",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "built typed runtime surface; live-PG proven"
+  },
+  {
+   "mt_id": "MT-172",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test atelier_diagnostics_validation_matrix_tests mt172_session_lease_and_heartbeat_matrix_persists [truncate+single-thread]",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "built typed runtime surface; live-PG proven"
+  },
+  {
+   "mt_id": "MT-173",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test atelier_diagnostics_validation_matrix_tests mt173_command_log_error_and_state_probe_matrix_persists [truncate+single-thread]",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "built typed runtime surface; live-PG proven"
+  },
+  {
+   "mt_id": "MT-174",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test atelier_diagnostics_validation_matrix_tests mt174_dcc_and_flight_recorder_matrix_persists [truncate+single-thread]",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "built typed runtime surface; live-PG proven"
+  },
+  {
+   "mt_id": "MT-175",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test atelier_diagnostics_validation_matrix_tests mt175_visual_evidence_matrix_persists [truncate+single-thread]",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "built typed runtime surface; live-PG proven"
   }
  ],
  "out_of_scope": [

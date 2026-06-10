@@ -1062,3 +1062,704 @@ impl AtelierStore {
         }
     }
 }
+
+// ===========================================================================
+// Model-Workflow-Diagnostics typed runtime surfaces (WP-KERNEL-005).
+//
+// Appended after the command-corpus parity contract. These are product/runtime
+// surfaces for no-context models, never governance markdown. Storage is
+// PostgreSQL only (AtelierStore::pool()); SQLite is forbidden (MT-004).
+//
+//   * MT-140 -- structured ErrorTaxonomy: 10 canonical diagnostics error classes,
+//     each with a mandatory recovery hint, in atelier_diagnostics_error_taxonomy.
+//   * MT-207 -- CKC WP-0118 model prompt-response matrix preserved as a DEFERRED
+//     contract (prompt set + expected-response shape + scoring schema) with no
+//     live scoring, in atelier_diagnostics_prompt_response_matrix.
+//   * MT-166 -- Installer Reset And Orphan Evidence Projection: a read projection
+//     over the existing atelier_reset_operation / atelier_orphan_manifest_item
+//     tables (migration 0089) that surfaces reset/orphan behavior for model
+//     diagnostics. No new table; emits a projection event over canonical rows.
+//
+// Event families are defined in `diagnostics_event_family` below. The parent
+// (mod.rs event_family::ALL) folds these in; this module re-exports them.
+// ===========================================================================
+
+/// Model-Workflow-Diagnostics event families (MT-140 / MT-166 / MT-207).
+/// Defined here so the parent folds these into [`super::event_family::ALL`] and
+/// the MT-005 coverage check picks up diagnostics mutations.
+pub mod diagnostics_event_family {
+    /// A diagnostics error-taxonomy class was registered or refreshed (MT-140).
+    pub const DIAGNOSTICS_ERROR_TAXONOMY_RECORDED: &str =
+        "atelier.diagnostics.error_taxonomy_recorded";
+    /// A WP-0118 prompt-response matrix entry was preserved as a deferred
+    /// contract (MT-207).
+    pub const DIAGNOSTICS_PROMPT_RESPONSE_MATRIX_RECORDED: &str =
+        "atelier.diagnostics.prompt_response_matrix_recorded";
+    /// A reset/orphan evidence projection was materialized for model
+    /// diagnostics (MT-166).
+    pub const DIAGNOSTICS_RESET_ORPHAN_PROJECTED: &str =
+        "atelier.diagnostics.reset_orphan_projected";
+
+    /// All diagnostics event families (for parity/coverage folding).
+    pub const ALL: &[&str] = &[
+        DIAGNOSTICS_ERROR_TAXONOMY_RECORDED,
+        DIAGNOSTICS_PROMPT_RESPONSE_MATRIX_RECORDED,
+        DIAGNOSTICS_RESET_ORPHAN_PROJECTED,
+    ];
+}
+
+pub use diagnostics_event_family::{
+    DIAGNOSTICS_ERROR_TAXONOMY_RECORDED, DIAGNOSTICS_PROMPT_RESPONSE_MATRIX_RECORDED,
+    DIAGNOSTICS_RESET_ORPHAN_PROJECTED,
+};
+
+// ---------------------------------------------------------------------------
+// MT-140: structured ErrorTaxonomy with 10 error classes + recovery hints.
+// ---------------------------------------------------------------------------
+
+/// The 10 canonical Model-Workflow-Diagnostics error classes. A diagnostics
+/// failure always maps to exactly one of these classes, and every class carries
+/// a recovery hint so a no-context model has an actionable next step.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum DiagnosticsErrorClass {
+    Validation,
+    CapabilityDenied,
+    MissingState,
+    StaleLease,
+    Timeout,
+    ArtifactMissing,
+    Parse,
+    VisualMismatch,
+    PackageGuard,
+    StaleDocs,
+}
+
+impl DiagnosticsErrorClass {
+    /// Every error class, in canonical order. Length is exactly 10.
+    pub const ALL: &'static [DiagnosticsErrorClass] = &[
+        DiagnosticsErrorClass::Validation,
+        DiagnosticsErrorClass::CapabilityDenied,
+        DiagnosticsErrorClass::MissingState,
+        DiagnosticsErrorClass::StaleLease,
+        DiagnosticsErrorClass::Timeout,
+        DiagnosticsErrorClass::ArtifactMissing,
+        DiagnosticsErrorClass::Parse,
+        DiagnosticsErrorClass::VisualMismatch,
+        DiagnosticsErrorClass::PackageGuard,
+        DiagnosticsErrorClass::StaleDocs,
+    ];
+
+    /// Canonical stable database token (the `class` PK).
+    pub fn as_token(self) -> &'static str {
+        match self {
+            DiagnosticsErrorClass::Validation => "validation",
+            DiagnosticsErrorClass::CapabilityDenied => "capability_denied",
+            DiagnosticsErrorClass::MissingState => "missing_state",
+            DiagnosticsErrorClass::StaleLease => "stale_lease",
+            DiagnosticsErrorClass::Timeout => "timeout",
+            DiagnosticsErrorClass::ArtifactMissing => "artifact_missing",
+            DiagnosticsErrorClass::Parse => "parse",
+            DiagnosticsErrorClass::VisualMismatch => "visual_mismatch",
+            DiagnosticsErrorClass::PackageGuard => "package_guard",
+            DiagnosticsErrorClass::StaleDocs => "stale_docs",
+        }
+    }
+
+    pub fn from_token(token: &str) -> AtelierResult<Self> {
+        match token {
+            "validation" => Ok(DiagnosticsErrorClass::Validation),
+            "capability_denied" => Ok(DiagnosticsErrorClass::CapabilityDenied),
+            "missing_state" => Ok(DiagnosticsErrorClass::MissingState),
+            "stale_lease" => Ok(DiagnosticsErrorClass::StaleLease),
+            "timeout" => Ok(DiagnosticsErrorClass::Timeout),
+            "artifact_missing" => Ok(DiagnosticsErrorClass::ArtifactMissing),
+            "parse" => Ok(DiagnosticsErrorClass::Parse),
+            "visual_mismatch" => Ok(DiagnosticsErrorClass::VisualMismatch),
+            "package_guard" => Ok(DiagnosticsErrorClass::PackageGuard),
+            "stale_docs" => Ok(DiagnosticsErrorClass::StaleDocs),
+            other => Err(AtelierError::Validation(format!(
+                "unknown diagnostics error class token: {other}"
+            ))),
+        }
+    }
+
+    /// Human-readable description of what the error class means.
+    pub fn description(self) -> &'static str {
+        match self {
+            DiagnosticsErrorClass::Validation => {
+                "Input failed a typed validation gate (shape, token, or constraint)."
+            }
+            DiagnosticsErrorClass::CapabilityDenied => {
+                "The action was denied because a required capability was not granted."
+            }
+            DiagnosticsErrorClass::MissingState => {
+                "A required prerequisite record or runtime state was absent."
+            }
+            DiagnosticsErrorClass::StaleLease => {
+                "A held lease expired or was superseded before the action committed."
+            }
+            DiagnosticsErrorClass::Timeout => {
+                "The operation exceeded its deadline before producing a result."
+            }
+            DiagnosticsErrorClass::ArtifactMissing => {
+                "A referenced artifact could not be resolved in the ArtifactStore."
+            }
+            DiagnosticsErrorClass::Parse => {
+                "A payload could not be parsed into its expected typed structure."
+            }
+            DiagnosticsErrorClass::VisualMismatch => {
+                "A visual/structural comparison failed against the expected baseline."
+            }
+            DiagnosticsErrorClass::PackageGuard => {
+                "A package/integrity guard rejected the operation to protect the workspace."
+            }
+            DiagnosticsErrorClass::StaleDocs => {
+                "Documentation or a manual anchor drifted from the live product surface."
+            }
+        }
+    }
+
+    /// Actionable recovery hint for a no-context model that hit this class.
+    pub fn recovery_hint(self) -> &'static str {
+        match self {
+            DiagnosticsErrorClass::Validation => {
+                "Inspect the rejected field in the error, correct the value to satisfy the typed \
+                 contract, and resubmit."
+            }
+            DiagnosticsErrorClass::CapabilityDenied => {
+                "Request or register the required capability, then retry the action once the grant \
+                 is recorded."
+            }
+            DiagnosticsErrorClass::MissingState => {
+                "Create or re-run the prerequisite step that produces the missing record, then \
+                 retry."
+            }
+            DiagnosticsErrorClass::StaleLease => {
+                "Re-acquire a fresh lease and retry; do not reuse the expired lease handle."
+            }
+            DiagnosticsErrorClass::Timeout => {
+                "Check the downstream job/queue health, increase the deadline if appropriate, and \
+                 retry idempotently."
+            }
+            DiagnosticsErrorClass::ArtifactMissing => {
+                "Re-materialize or re-import the artifact, confirm its content hash, then retry the \
+                 reference."
+            }
+            DiagnosticsErrorClass::Parse => {
+                "Validate the payload against its schema, fix the malformed input, and resubmit."
+            }
+            DiagnosticsErrorClass::VisualMismatch => {
+                "Open the diff, decide whether to update the baseline or fix the regression, then \
+                 re-run the comparison."
+            }
+            DiagnosticsErrorClass::PackageGuard => {
+                "Resolve the integrity/guard violation (restore or repackage), then retry the \
+                 guarded operation."
+            }
+            DiagnosticsErrorClass::StaleDocs => {
+                "Refresh the manual/docs anchor to match the live surface, then re-run the \
+                 coverage check."
+            }
+        }
+    }
+}
+
+/// A persisted diagnostics error-taxonomy row.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct DiagnosticsErrorTaxonomyEntry {
+    pub class: DiagnosticsErrorClass,
+    pub description: String,
+    pub recovery_hint: String,
+    pub created_at_utc: DateTime<Utc>,
+}
+
+/// The full error-taxonomy catalog: every class + its description + recovery
+/// hint, in canonical order. Always exactly 10 entries.
+pub fn error_taxonomy_catalog() -> Vec<(DiagnosticsErrorClass, &'static str, &'static str)> {
+    DiagnosticsErrorClass::ALL
+        .iter()
+        .map(|class| (*class, class.description(), class.recovery_hint()))
+        .collect()
+}
+
+// ---------------------------------------------------------------------------
+// MT-207: CKC WP-0118 prompt-response matrix preserved as a DEFERRED contract.
+// ---------------------------------------------------------------------------
+
+/// Deferral status of a preserved prompt-response matrix entry. The matrix is
+/// preserved as a contract without live scoring, so entries default to
+/// `Deferred`. `Active` exists only as a forward-compatible token for the future
+/// WP that implements live scoring.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum PromptResponseMatrixStatus {
+    Deferred,
+    Active,
+}
+
+impl PromptResponseMatrixStatus {
+    pub fn as_token(self) -> &'static str {
+        match self {
+            PromptResponseMatrixStatus::Deferred => "DEFERRED",
+            PromptResponseMatrixStatus::Active => "ACTIVE",
+        }
+    }
+
+    pub fn from_token(token: &str) -> AtelierResult<Self> {
+        match token {
+            "DEFERRED" => Ok(PromptResponseMatrixStatus::Deferred),
+            "ACTIVE" => Ok(PromptResponseMatrixStatus::Active),
+            other => Err(AtelierError::Validation(format!(
+                "unknown prompt-response matrix status token: {other}"
+            ))),
+        }
+    }
+}
+
+/// Input to preserve one prompt-response matrix entry.
+#[derive(Clone, Debug)]
+pub struct NewPromptResponseMatrixEntry {
+    /// Stable kebab-case entry id (the PK).
+    pub entry_id: String,
+    /// The prompt text given to the model.
+    pub prompt_text: String,
+    /// The expected-response *shape* (a typed schema descriptor, not a value).
+    pub expected_response_shape: serde_json::Value,
+    /// The scoring schema that a future live-scoring WP would apply.
+    pub scoring_schema: serde_json::Value,
+    /// Preserved status; defaults to DEFERRED (no live scoring yet).
+    pub status: PromptResponseMatrixStatus,
+}
+
+/// A persisted prompt-response matrix entry.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct PromptResponseMatrixEntry {
+    pub entry_id: String,
+    pub prompt_text: String,
+    pub expected_response_shape: serde_json::Value,
+    pub scoring_schema: serde_json::Value,
+    pub status: PromptResponseMatrixStatus,
+    pub created_at_utc: DateTime<Utc>,
+}
+
+/// The preserved CKC WP-0118 model prompt-response matrix. Each entry carries a
+/// real prompt, an expected-response shape, and the scoring schema a future WP
+/// would apply. All entries are DEFERRED: this preserves the contract without
+/// implementing live scoring early.
+pub fn prompt_response_matrix_catalog() -> Vec<NewPromptResponseMatrixEntry> {
+    vec![
+        NewPromptResponseMatrixEntry {
+            entry_id: "wp-0118.action-catalog-lookup".to_string(),
+            prompt_text:
+                "List the available atelier actions you can invoke and, for each, name its required \
+                 capability and execution class."
+                    .to_string(),
+            expected_response_shape: serde_json::json!({
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "required": ["action_id", "capability", "execution_class"],
+                    "properties": {
+                        "action_id": { "type": "string" },
+                        "capability": { "type": "string" },
+                        "execution_class": { "type": "string" }
+                    }
+                }
+            }),
+            scoring_schema: serde_json::json!({
+                "dimensions": [
+                    { "key": "coverage", "weight": 0.5, "scale": "0_to_1" },
+                    { "key": "capability_accuracy", "weight": 0.3, "scale": "0_to_1" },
+                    { "key": "no_hallucinated_actions", "weight": 0.2, "scale": "0_to_1" }
+                ],
+                "pass_threshold": 0.8
+            }),
+            status: PromptResponseMatrixStatus::Deferred,
+        },
+        NewPromptResponseMatrixEntry {
+            entry_id: "wp-0118.error-recovery-routing".to_string(),
+            prompt_text:
+                "An action failed with error class `stale_lease`. Describe the correct recovery \
+                 step before retrying."
+                    .to_string(),
+            expected_response_shape: serde_json::json!({
+                "type": "object",
+                "required": ["error_class", "recovery_step", "should_retry"],
+                "properties": {
+                    "error_class": { "type": "string", "const": "stale_lease" },
+                    "recovery_step": { "type": "string" },
+                    "should_retry": { "type": "boolean" }
+                }
+            }),
+            scoring_schema: serde_json::json!({
+                "dimensions": [
+                    { "key": "recovery_correctness", "weight": 0.7, "scale": "0_to_1" },
+                    { "key": "retry_decision", "weight": 0.3, "scale": "0_to_1" }
+                ],
+                "pass_threshold": 0.85,
+                "reference_recovery": "re-acquire a fresh lease and retry"
+            }),
+            status: PromptResponseMatrixStatus::Deferred,
+        },
+        NewPromptResponseMatrixEntry {
+            entry_id: "wp-0118.diagnostics-state-probe".to_string(),
+            prompt_text:
+                "Report the current atelier diagnostics state: name the reset modes available and \
+                 whether any orphaned media is awaiting adoption."
+                    .to_string(),
+            expected_response_shape: serde_json::json!({
+                "type": "object",
+                "required": ["reset_modes", "orphaned_pending_count"],
+                "properties": {
+                    "reset_modes": { "type": "array", "items": { "type": "string" } },
+                    "orphaned_pending_count": { "type": "integer", "minimum": 0 }
+                }
+            }),
+            scoring_schema: serde_json::json!({
+                "dimensions": [
+                    { "key": "mode_enumeration", "weight": 0.5, "scale": "0_to_1" },
+                    { "key": "orphan_count_accuracy", "weight": 0.5, "scale": "exact_match" }
+                ],
+                "pass_threshold": 0.9
+            }),
+            status: PromptResponseMatrixStatus::Deferred,
+        },
+        NewPromptResponseMatrixEntry {
+            entry_id: "wp-0118.manual-anchor-resolution".to_string(),
+            prompt_text:
+                "Given the command `atelier.intake.classify`, resolve its ModelManual anchor and \
+                 summarize the documented workflow in one sentence."
+                    .to_string(),
+            expected_response_shape: serde_json::json!({
+                "type": "object",
+                "required": ["command", "manual_anchor", "summary"],
+                "properties": {
+                    "command": { "type": "string" },
+                    "manual_anchor": { "type": "string" },
+                    "summary": { "type": "string" }
+                }
+            }),
+            scoring_schema: serde_json::json!({
+                "dimensions": [
+                    { "key": "anchor_resolved", "weight": 0.6, "scale": "0_or_1" },
+                    { "key": "summary_fidelity", "weight": 0.4, "scale": "0_to_1" }
+                ],
+                "pass_threshold": 0.8
+            }),
+            status: PromptResponseMatrixStatus::Deferred,
+        },
+    ]
+}
+
+// ---------------------------------------------------------------------------
+// MT-166: Installer Reset And Orphan Evidence Projection.
+//
+// A read projection over the existing atelier_reset_operation /
+// atelier_orphan_manifest_item tables (migration 0089). It surfaces reset and
+// orphan-adoption behavior for model diagnostics WITHOUT a new table.
+// ---------------------------------------------------------------------------
+
+/// One reset operation, projected for model diagnostics.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ResetDiagnosticsRow {
+    pub reset_id: Uuid,
+    pub mode: String,
+    pub requested_by: String,
+    pub reason: String,
+    pub preferences_deleted_count: i64,
+    pub original_media_preserved_count: i64,
+    pub orphan_manifest_id: Option<Uuid>,
+    pub created_at_utc: DateTime<Utc>,
+}
+
+/// The aggregate reset/orphan evidence projection a model reads to understand
+/// installer reset/orphan behavior at a glance.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ResetOrphanDiagnostics {
+    /// All reset operations (newest first).
+    pub resets: Vec<ResetDiagnosticsRow>,
+    /// Available reset modes, surfaced for diagnostics enumeration.
+    pub reset_modes: Vec<String>,
+    /// Count of orphan-manifest items still awaiting adoption.
+    pub orphaned_pending_count: i64,
+    /// Count of orphan-manifest items already adopted back into intake.
+    pub adopted_count: i64,
+}
+
+impl AtelierStore {
+    /// MT-140: persist the structured error-taxonomy catalog (10 classes, each
+    /// with a recovery hint). Idempotent on `class`; re-recording refreshes the
+    /// description/recovery hint. Emits `DIAGNOSTICS_ERROR_TAXONOMY_RECORDED`
+    /// once per recorded class. Returns the reloaded entry.
+    pub async fn record_diagnostics_error_class(
+        &self,
+        class: DiagnosticsErrorClass,
+        description: &str,
+        recovery_hint: &str,
+    ) -> AtelierResult<DiagnosticsErrorTaxonomyEntry> {
+        if description.trim().is_empty() || description.trim() != description {
+            return Err(AtelierError::Validation(
+                "diagnostics error taxonomy description must be non-empty and unpadded".into(),
+            ));
+        }
+        if recovery_hint.trim().is_empty() || recovery_hint.trim() != recovery_hint {
+            return Err(AtelierError::Validation(
+                "diagnostics error taxonomy recovery_hint must be non-empty and unpadded".into(),
+            ));
+        }
+
+        let mut tx = self.pool().begin().await?;
+        let row = sqlx::query(
+            r#"INSERT INTO atelier_diagnostics_error_taxonomy (class, description, recovery_hint)
+               VALUES ($1, $2, $3)
+               ON CONFLICT (class) DO UPDATE SET
+                 description = EXCLUDED.description,
+                 recovery_hint = EXCLUDED.recovery_hint
+               RETURNING class, description, recovery_hint, created_at_utc"#,
+        )
+        .bind(class.as_token())
+        .bind(description)
+        .bind(recovery_hint)
+        .fetch_one(&mut *tx)
+        .await?;
+
+        let entry = DiagnosticsErrorTaxonomyEntry {
+            class: DiagnosticsErrorClass::from_token(row.get("class"))?,
+            description: row.get("description"),
+            recovery_hint: row.get("recovery_hint"),
+            created_at_utc: row.get("created_at_utc"),
+        };
+        self.record_event_in_tx(
+            &mut tx,
+            DIAGNOSTICS_ERROR_TAXONOMY_RECORDED,
+            "atelier_diagnostics_error_taxonomy",
+            entry.class.as_token(),
+            serde_json::json!({
+                "class": entry.class.as_token(),
+                "description": entry.description,
+                "recovery_hint": entry.recovery_hint,
+            }),
+        )
+        .await?;
+        tx.commit().await?;
+        Ok(entry)
+    }
+
+    /// MT-140: persist the entire error-taxonomy catalog in one call.
+    pub async fn record_error_taxonomy_catalog(
+        &self,
+    ) -> AtelierResult<Vec<DiagnosticsErrorTaxonomyEntry>> {
+        let mut out = Vec::new();
+        for (class, description, recovery_hint) in error_taxonomy_catalog() {
+            out.push(
+                self.record_diagnostics_error_class(class, description, recovery_hint)
+                    .await?,
+            );
+        }
+        Ok(out)
+    }
+
+    /// MT-140: list the recorded error-taxonomy classes, in canonical token order.
+    pub async fn list_diagnostics_error_taxonomy(
+        &self,
+    ) -> AtelierResult<Vec<DiagnosticsErrorTaxonomyEntry>> {
+        let rows = sqlx::query(
+            r#"SELECT class, description, recovery_hint, created_at_utc
+               FROM atelier_diagnostics_error_taxonomy
+               ORDER BY class ASC"#,
+        )
+        .fetch_all(self.pool())
+        .await?;
+        rows.into_iter()
+            .map(|row| {
+                Ok(DiagnosticsErrorTaxonomyEntry {
+                    class: DiagnosticsErrorClass::from_token(row.get("class"))?,
+                    description: row.get("description"),
+                    recovery_hint: row.get("recovery_hint"),
+                    created_at_utc: row.get("created_at_utc"),
+                })
+            })
+            .collect()
+    }
+
+    /// MT-207: preserve one prompt-response matrix entry as a deferred contract.
+    /// Idempotent on `entry_id`. Emits
+    /// `DIAGNOSTICS_PROMPT_RESPONSE_MATRIX_RECORDED`. Does NOT score anything.
+    pub async fn record_prompt_response_matrix_entry(
+        &self,
+        new: &NewPromptResponseMatrixEntry,
+    ) -> AtelierResult<PromptResponseMatrixEntry> {
+        if new.entry_id.trim().is_empty() || new.entry_id.trim() != new.entry_id {
+            return Err(AtelierError::Validation(
+                "prompt-response matrix entry_id must be non-empty and unpadded".into(),
+            ));
+        }
+        if new.prompt_text.trim().is_empty() {
+            return Err(AtelierError::Validation(
+                "prompt-response matrix prompt_text must be non-empty".into(),
+            ));
+        }
+        if !new.expected_response_shape.is_object() && !new.expected_response_shape.is_array() {
+            return Err(AtelierError::Validation(
+                "prompt-response matrix expected_response_shape must be a JSON object or array \
+                 (a shape descriptor)"
+                    .into(),
+            ));
+        }
+        if !new.scoring_schema.is_object() {
+            return Err(AtelierError::Validation(
+                "prompt-response matrix scoring_schema must be a JSON object".into(),
+            ));
+        }
+
+        let mut tx = self.pool().begin().await?;
+        let row = sqlx::query(
+            r#"INSERT INTO atelier_diagnostics_prompt_response_matrix
+                 (entry_id, prompt_text, expected_response_shape, scoring_schema, status)
+               VALUES ($1, $2, $3::jsonb, $4::jsonb, $5)
+               ON CONFLICT (entry_id) DO UPDATE SET
+                 prompt_text = EXCLUDED.prompt_text,
+                 expected_response_shape = EXCLUDED.expected_response_shape,
+                 scoring_schema = EXCLUDED.scoring_schema,
+                 status = EXCLUDED.status
+               RETURNING entry_id, prompt_text, expected_response_shape, scoring_schema,
+                         status, created_at_utc"#,
+        )
+        .bind(&new.entry_id)
+        .bind(&new.prompt_text)
+        .bind(&new.expected_response_shape)
+        .bind(&new.scoring_schema)
+        .bind(new.status.as_token())
+        .fetch_one(&mut *tx)
+        .await?;
+
+        let entry = PromptResponseMatrixEntry {
+            entry_id: row.get("entry_id"),
+            prompt_text: row.get("prompt_text"),
+            expected_response_shape: row.get("expected_response_shape"),
+            scoring_schema: row.get("scoring_schema"),
+            status: PromptResponseMatrixStatus::from_token(row.get("status"))?,
+            created_at_utc: row.get("created_at_utc"),
+        };
+        self.record_event_in_tx(
+            &mut tx,
+            DIAGNOSTICS_PROMPT_RESPONSE_MATRIX_RECORDED,
+            "atelier_diagnostics_prompt_response_matrix",
+            &entry.entry_id,
+            serde_json::json!({
+                "entry_id": entry.entry_id,
+                "status": entry.status.as_token(),
+            }),
+        )
+        .await?;
+        tx.commit().await?;
+        Ok(entry)
+    }
+
+    /// MT-207: preserve the whole WP-0118 catalog in one call.
+    pub async fn record_prompt_response_matrix_catalog(
+        &self,
+    ) -> AtelierResult<Vec<PromptResponseMatrixEntry>> {
+        let mut out = Vec::new();
+        for new in prompt_response_matrix_catalog() {
+            out.push(self.record_prompt_response_matrix_entry(&new).await?);
+        }
+        Ok(out)
+    }
+
+    /// MT-207: list preserved prompt-response matrix entries, by `entry_id`.
+    pub async fn list_prompt_response_matrix(
+        &self,
+    ) -> AtelierResult<Vec<PromptResponseMatrixEntry>> {
+        let rows = sqlx::query(
+            r#"SELECT entry_id, prompt_text, expected_response_shape, scoring_schema,
+                      status, created_at_utc
+               FROM atelier_diagnostics_prompt_response_matrix
+               ORDER BY entry_id ASC"#,
+        )
+        .fetch_all(self.pool())
+        .await?;
+        rows.into_iter()
+            .map(|row| {
+                Ok(PromptResponseMatrixEntry {
+                    entry_id: row.get("entry_id"),
+                    prompt_text: row.get("prompt_text"),
+                    expected_response_shape: row.get("expected_response_shape"),
+                    scoring_schema: row.get("scoring_schema"),
+                    status: PromptResponseMatrixStatus::from_token(row.get("status"))?,
+                    created_at_utc: row.get("created_at_utc"),
+                })
+            })
+            .collect()
+    }
+
+    /// MT-166: build the reset/orphan evidence projection over the existing
+    /// reset + orphan tables and emit `DIAGNOSTICS_RESET_ORPHAN_PROJECTED`.
+    /// Read-only over canonical rows; adds no new table.
+    pub async fn record_reset_orphan_diagnostics_projection(
+        &self,
+    ) -> AtelierResult<ResetOrphanDiagnostics> {
+        let projection = self.list_reset_orphan_diagnostics().await?;
+        self.record_event(
+            DIAGNOSTICS_RESET_ORPHAN_PROJECTED,
+            "atelier_diagnostics_reset_orphan_projection",
+            "reset-orphan-evidence",
+            serde_json::json!({
+                "reset_count": projection.resets.len(),
+                "orphaned_pending_count": projection.orphaned_pending_count,
+                "adopted_count": projection.adopted_count,
+                "reset_modes": projection.reset_modes,
+            }),
+        )
+        .await?;
+        Ok(projection)
+    }
+
+    /// MT-166: read the reset/orphan evidence projection without emitting an event.
+    pub async fn list_reset_orphan_diagnostics(&self) -> AtelierResult<ResetOrphanDiagnostics> {
+        let reset_rows = sqlx::query(
+            r#"SELECT reset_id, mode, requested_by, reason,
+                      preferences_deleted_count, original_media_preserved_count,
+                      orphan_manifest_id, created_at_utc
+               FROM atelier_reset_operation
+               ORDER BY created_at_utc DESC, reset_id DESC"#,
+        )
+        .fetch_all(self.pool())
+        .await?;
+        let resets = reset_rows
+            .into_iter()
+            .map(|row| ResetDiagnosticsRow {
+                reset_id: row.get("reset_id"),
+                mode: row.get("mode"),
+                requested_by: row.get("requested_by"),
+                reason: row.get("reason"),
+                preferences_deleted_count: row.get("preferences_deleted_count"),
+                original_media_preserved_count: row.get("original_media_preserved_count"),
+                orphan_manifest_id: row.get("orphan_manifest_id"),
+                created_at_utc: row.get("created_at_utc"),
+            })
+            .collect::<Vec<_>>();
+
+        let counts = sqlx::query(
+            r#"SELECT
+                 COUNT(*) FILTER (WHERE adoption_status = 'orphaned') AS orphaned_pending,
+                 COUNT(*) FILTER (WHERE adoption_status = 'adopted')  AS adopted
+               FROM atelier_orphan_manifest_item"#,
+        )
+        .fetch_one(self.pool())
+        .await?;
+        let orphaned_pending_count: i64 = counts.get("orphaned_pending");
+        let adopted_count: i64 = counts.get("adopted");
+
+        Ok(ResetOrphanDiagnostics {
+            resets,
+            reset_modes: vec![
+                "preferences_only".to_string(),
+                "full_preserve_original_media".to_string(),
+            ],
+            orphaned_pending_count,
+            adopted_count,
+        })
+    }
+}

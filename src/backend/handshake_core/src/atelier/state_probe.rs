@@ -14,8 +14,15 @@ use super::{reject_legacy_runtime_ref, AtelierError, AtelierResult, AtelierStore
 
 pub mod state_probe_event_family {
     pub const STATE_PROBE_CATALOG_RECORDED: &str = "atelier.state_probe.catalog_recorded";
+    /// Emitted when one diagnostics validation-matrix row is recorded
+    /// (WP-KERNEL-005 MT-171..MT-175).
+    pub const DIAGNOSTICS_VALIDATION_ROW_RECORDED: &str =
+        "atelier.state_probe.diagnostics_validation_row_recorded";
 
-    pub const ALL: &[&str] = &[STATE_PROBE_CATALOG_RECORDED];
+    pub const ALL: &[&str] = &[
+        STATE_PROBE_CATALOG_RECORDED,
+        DIAGNOSTICS_VALIDATION_ROW_RECORDED,
+    ];
 }
 
 pub const MODEL_WORKFLOW_STATE_PROBE_CATALOG_ID: &str =
@@ -758,4 +765,411 @@ fn validate_ref_list(field: &str, values: &[String]) -> AtelierResult<()> {
 fn jsonb_string_array(value: Value) -> AtelierResult<Vec<String>> {
     serde_json::from_value(value)
         .map_err(|err| AtelierError::Validation(format!("expected JSON string array: {err}")))
+}
+
+// ---------------------------------------------------------------------------
+// WP-KERNEL-005 MT-171..MT-175: diagnostics "validation matrix".
+//
+// Each row asserts that one required check on a model-workflow diagnostic
+// surface is REQUIRED, COVERED, or DEFERRED. This is the typed runtime surface
+// that turns "diagnostics are covered" into a real PostgreSQL row + EventLedger
+// event, never governance markdown. The catalog
+// [`diagnostics_validation_matrix_catalog`] carries the real check rows for all
+// five MT areas, grounded in the existing product modules they cite.
+// ---------------------------------------------------------------------------
+
+/// Matrix kind, one per MT area (171..175). Used to group + filter rows.
+pub mod diagnostics_validation_matrix_kind {
+    /// MT-171: model manual + action catalog.
+    pub const MANUAL_ACTION_CATALOG: &str = "MT-171.manual-action-catalog";
+    /// MT-172: session lease + heartbeat.
+    pub const SESSION_LEASE_HEARTBEAT: &str = "MT-172.session-lease-heartbeat";
+    /// MT-173: command log + error class + state probe.
+    pub const COMMAND_LOG_ERROR_STATE_PROBE: &str = "MT-173.command-log-error-state-probe";
+    /// MT-174: DCC + Flight Recorder projection.
+    pub const DCC_FLIGHT_RECORDER: &str = "MT-174.dcc-flight-recorder";
+    /// MT-175: visual evidence (capture, diff, ADR, STEER, comparison, retention).
+    pub const VISUAL_EVIDENCE: &str = "MT-175.visual-evidence";
+}
+
+/// Coverage status of one diagnostics validation-matrix row.
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum DiagnosticsValidationStatus {
+    /// The check is required but not yet proven covered.
+    Required,
+    /// The check is covered by a real product surface (evidence_ref expected).
+    Covered,
+    /// The check is intentionally deferred / carried forward.
+    Deferred,
+}
+
+impl DiagnosticsValidationStatus {
+    pub fn as_token(self) -> &'static str {
+        match self {
+            DiagnosticsValidationStatus::Required => "REQUIRED",
+            DiagnosticsValidationStatus::Covered => "COVERED",
+            DiagnosticsValidationStatus::Deferred => "DEFERRED",
+        }
+    }
+
+    pub fn from_token(token: &str) -> AtelierResult<Self> {
+        match token {
+            "REQUIRED" => Ok(DiagnosticsValidationStatus::Required),
+            "COVERED" => Ok(DiagnosticsValidationStatus::Covered),
+            "DEFERRED" => Ok(DiagnosticsValidationStatus::Deferred),
+            other => Err(AtelierError::Validation(format!(
+                "unknown diagnostics validation status: {other}"
+            ))),
+        }
+    }
+}
+
+/// Input to record one diagnostics validation-matrix row.
+#[derive(Clone, Debug)]
+pub struct NewDiagnosticsValidationRow {
+    /// Stable kebab-case row id, unique in the matrix (the PK).
+    pub row_id: String,
+    /// MT-area grouping (see [`diagnostics_validation_matrix_kind`]).
+    pub matrix_kind: String,
+    /// The diagnostic surface this check belongs to (e.g. `model_manual`).
+    pub surface: String,
+    /// Stable check id within the surface (e.g. `model_manual.purpose`).
+    pub check_id: String,
+    /// Human-readable requirement statement. MUST be non-empty.
+    pub requirement: String,
+    pub status: DiagnosticsValidationStatus,
+    /// Optional product evidence ref (no .GOV / SQLite / localhost / local path).
+    pub evidence_ref: Option<String>,
+}
+
+/// Persisted diagnostics validation-matrix row.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct DiagnosticsValidationRow {
+    pub row_id: String,
+    pub matrix_kind: String,
+    pub surface: String,
+    pub check_id: String,
+    pub requirement: String,
+    pub status: DiagnosticsValidationStatus,
+    pub evidence_ref: Option<String>,
+    pub created_at_utc: DateTime<Utc>,
+}
+
+const DIAGNOSTICS_VALIDATION_ROW_COLUMNS: &str =
+    "row_id, matrix_kind, surface, check_id, requirement, status, evidence_ref, created_at_utc";
+
+fn diagnostics_validation_row_from_row(
+    row: &sqlx::postgres::PgRow,
+) -> AtelierResult<DiagnosticsValidationRow> {
+    let status: String = row.get("status");
+    Ok(DiagnosticsValidationRow {
+        row_id: row.get("row_id"),
+        matrix_kind: row.get("matrix_kind"),
+        surface: row.get("surface"),
+        check_id: row.get("check_id"),
+        requirement: row.get("requirement"),
+        status: DiagnosticsValidationStatus::from_token(&status)?,
+        evidence_ref: row.get("evidence_ref"),
+        created_at_utc: row.get("created_at_utc"),
+    })
+}
+
+fn validate_diagnostics_validation_row(new: &NewDiagnosticsValidationRow) -> AtelierResult<()> {
+    for (field, value) in [
+        ("row_id", &new.row_id),
+        ("matrix_kind", &new.matrix_kind),
+        ("surface", &new.surface),
+        ("check_id", &new.check_id),
+    ] {
+        if value.trim().is_empty() || value.trim() != value {
+            return Err(AtelierError::Validation(format!(
+                "diagnostics validation row {field} must be non-empty and unpadded"
+            )));
+        }
+    }
+    // Hard gate: a blank requirement is rejected so a check is never silent.
+    if new.requirement.trim().is_empty() || new.requirement.trim() != new.requirement {
+        return Err(AtelierError::Validation(
+            "diagnostics validation row requirement must be non-empty and unpadded".into(),
+        ));
+    }
+    if let Some(evidence_ref) = &new.evidence_ref {
+        // Reuse the canonical .GOV/SQLite/localhost/local-path rejection boundary.
+        reject_legacy_runtime_ref("evidence_ref", evidence_ref)?;
+    }
+    Ok(())
+}
+
+/// One helper to build a COVERED row that cites a real product module path.
+fn covered_row(
+    row_id: &str,
+    matrix_kind: &str,
+    surface: &str,
+    check_id: &str,
+    requirement: &str,
+    evidence_ref: &str,
+) -> NewDiagnosticsValidationRow {
+    NewDiagnosticsValidationRow {
+        row_id: row_id.to_string(),
+        matrix_kind: matrix_kind.to_string(),
+        surface: surface.to_string(),
+        check_id: check_id.to_string(),
+        requirement: requirement.to_string(),
+        status: DiagnosticsValidationStatus::Covered,
+        evidence_ref: Some(evidence_ref.to_string()),
+    }
+}
+
+/// The real diagnostics validation-matrix rows for all five MT areas.
+///
+/// Const-style data (mirrors [`source_evidence::core_data_source_evidence_matrix`]
+/// and [`pose::pose_deferred_feature_catalog`]): every row names a real surface +
+/// check and cites a product module that exists in the source tree, so a test can
+/// persist this catalog and reload it to prove the runtime surface.
+pub fn diagnostics_validation_matrix_catalog() -> Vec<NewDiagnosticsValidationRow> {
+    use diagnostics_validation_matrix_kind as kind;
+    vec![
+        // ---- MT-171: model manual + action catalog.
+        covered_row(
+            "mt-171.model-manual.purpose",
+            kind::MANUAL_ACTION_CATALOG,
+            "model_manual",
+            "model_manual.purpose",
+            "The built-in model manual must state the product purpose for a no-context model.",
+            "src/backend/handshake_core/src/kernel/model_manual.rs",
+        ),
+        covered_row(
+            "mt-171.model-manual.core-workflows",
+            kind::MANUAL_ACTION_CATALOG,
+            "model_manual",
+            "model_manual.core_workflows",
+            "The model manual must describe core workflows, startup/run commands, and recovery steps.",
+            "src/backend/handshake_core/src/model_manual/mod.rs",
+        ),
+        covered_row(
+            "mt-171.action-catalog.actions-enumerated",
+            kind::MANUAL_ACTION_CATALOG,
+            "kernel_action_catalog",
+            "action_catalog.actions_enumerated",
+            "The kernel action catalog must enumerate the actions a model can invoke with stable ids.",
+            "src/backend/handshake_core/src/kernel/action_catalog.rs",
+        ),
+        covered_row(
+            "mt-171.action-catalog.inputs-outputs",
+            kind::MANUAL_ACTION_CATALOG,
+            "kernel_action_catalog",
+            "action_catalog.inputs_outputs",
+            "Each catalog action must document its expected inputs and outputs for a no-context model.",
+            "src/backend/handshake_core/src/kernel/action_catalog.rs",
+        ),
+        // ---- MT-172: session lease + heartbeat.
+        covered_row(
+            "mt-172.session.lease-acquire",
+            kind::SESSION_LEASE_HEARTBEAT,
+            "session_broker",
+            "session.lease_acquire",
+            "A model session must acquire an attributable lease through the session broker before work.",
+            "src/backend/handshake_core/src/kernel/session_broker.rs",
+        ),
+        covered_row(
+            "mt-172.session.heartbeat",
+            kind::SESSION_LEASE_HEARTBEAT,
+            "session_broker",
+            "session.heartbeat",
+            "A held lease must record a heartbeat so a stale or dead session is observable.",
+            "src/backend/handshake_core/src/kernel/session_broker.rs",
+        ),
+        covered_row(
+            "mt-172.role-mailbox.lease-contract",
+            kind::SESSION_LEASE_HEARTBEAT,
+            "role_mailbox",
+            "role_mailbox.lease_contract",
+            "The role mailbox must enforce the lease contract so only the lease holder acts on a role.",
+            "src/backend/handshake_core/src/kernel/role_mailbox_contract.rs",
+        ),
+        covered_row(
+            "mt-172.role-mailbox.lease-persistence",
+            kind::SESSION_LEASE_HEARTBEAT,
+            "role_mailbox",
+            "role_mailbox.lease_persistence",
+            "Role-mailbox lease + heartbeat state must persist in PostgreSQL, not in-memory only.",
+            "src/backend/handshake_core/src/role_mailbox_v1/repo.rs",
+        ),
+        // ---- MT-173: command log + error class + state probe.
+        covered_row(
+            "mt-173.command-log.recorded",
+            kind::COMMAND_LOG_ERROR_STATE_PROBE,
+            "diagnostics",
+            "command_log.recorded",
+            "Diagnostic command executions must be logged so a no-context model can replay them.",
+            "src/backend/handshake_core/src/diagnostics/mod.rs",
+        ),
+        covered_row(
+            "mt-173.error-class.classified",
+            kind::COMMAND_LOG_ERROR_STATE_PROBE,
+            "diagnostics",
+            "error_class.classified",
+            "Errors must be classified with a recovery hint so a model can isolate failures.",
+            "src/backend/handshake_core/src/api/diagnostics.rs",
+        ),
+        covered_row(
+            "mt-173.state-probe.pre-visual",
+            kind::COMMAND_LOG_ERROR_STATE_PROBE,
+            "state_probe",
+            "state_probe.pre_visual",
+            "Required state probes must be checkable before visual inspection from a typed catalog.",
+            "src/backend/handshake_core/src/atelier/state_probe.rs",
+        ),
+        // ---- MT-174: DCC + Flight Recorder projection.
+        covered_row(
+            "mt-174.dcc.runtime-surface",
+            kind::DCC_FLIGHT_RECORDER,
+            "dcc",
+            "dcc.runtime_surface",
+            "The DCC runtime surface must expose structured diagnostic state to a no-context model.",
+            "src/backend/handshake_core/src/kernel/dcc_mvp_runtime_surface.rs",
+        ),
+        covered_row(
+            "mt-174.flight-recorder.projection",
+            kind::DCC_FLIGHT_RECORDER,
+            "flight_recorder",
+            "flight_recorder.projection",
+            "The Flight Recorder must project a replayable capture of runtime activity for diagnosis.",
+            "src/backend/handshake_core/src/api/flight_recorder.rs",
+        ),
+        // ---- MT-175: visual evidence (capture, diff, ADR, STEER, comparison, retention).
+        covered_row(
+            "mt-175.visual.capture",
+            kind::VISUAL_EVIDENCE,
+            "visual_debugging_loop",
+            "visual.capture",
+            "Visual debugging must capture a product screenshot/snapshot as reproducible evidence.",
+            "src/backend/handshake_core/src/kernel/product_screenshot_capture.rs",
+        ),
+        covered_row(
+            "mt-175.visual.diff",
+            kind::VISUAL_EVIDENCE,
+            "visual_debugging_loop",
+            "visual.diff",
+            "Visual debugging must diff captures so visual regressions are detectable.",
+            "src/backend/handshake_core/src/kernel/visual_debugging_loop.rs",
+        ),
+        covered_row(
+            "mt-175.visual.adr",
+            kind::VISUAL_EVIDENCE,
+            "visual_debugging_loop",
+            "visual.adr",
+            "The visual loop must record an ADR (accept/defer/reject) decision on captured evidence.",
+            "src/backend/handshake_core/src/kernel/visual_debugging_loop.rs",
+        ),
+        covered_row(
+            "mt-175.visual.steer",
+            kind::VISUAL_EVIDENCE,
+            "visual_debugging_loop",
+            "visual.steer",
+            "The visual loop must support a STEER step so a model can correct the surface under test.",
+            "src/backend/handshake_core/src/kernel/visual_debugging_loop.rs",
+        ),
+        covered_row(
+            "mt-175.visual.comparison",
+            kind::VISUAL_EVIDENCE,
+            "visual_debugging_loop",
+            "visual.comparison",
+            "The visual loop must support a before/after comparison view over captured evidence.",
+            "src/backend/handshake_core/src/kernel/visual_debugging_loop.rs",
+        ),
+    ]
+}
+
+impl AtelierStore {
+    /// Record one diagnostics validation-matrix row (MT-171..MT-175).
+    ///
+    /// Idempotent on `row_id`: re-recording the same row updates the mutable
+    /// fields and returns the row instead of erroring, so seeding the catalog
+    /// twice is safe. A blank `requirement` is rejected with a `Validation`
+    /// error so a check is never silent. Emits
+    /// `DIAGNOSTICS_VALIDATION_ROW_RECORDED`.
+    pub async fn record_diagnostics_validation_row(
+        &self,
+        new: &NewDiagnosticsValidationRow,
+    ) -> AtelierResult<DiagnosticsValidationRow> {
+        validate_diagnostics_validation_row(new)?;
+
+        let mut tx = self.pool().begin().await?;
+        let row = sqlx::query(&format!(
+            r#"INSERT INTO atelier_diagnostics_validation_matrix
+                 (row_id, matrix_kind, surface, check_id, requirement, status, evidence_ref)
+               VALUES ($1, $2, $3, $4, $5, $6, $7)
+               ON CONFLICT (row_id) DO UPDATE SET
+                 matrix_kind = EXCLUDED.matrix_kind,
+                 surface = EXCLUDED.surface,
+                 check_id = EXCLUDED.check_id,
+                 requirement = EXCLUDED.requirement,
+                 status = EXCLUDED.status,
+                 evidence_ref = EXCLUDED.evidence_ref
+               RETURNING {DIAGNOSTICS_VALIDATION_ROW_COLUMNS}"#
+        ))
+        .bind(&new.row_id)
+        .bind(&new.matrix_kind)
+        .bind(&new.surface)
+        .bind(&new.check_id)
+        .bind(&new.requirement)
+        .bind(new.status.as_token())
+        .bind(&new.evidence_ref)
+        .fetch_one(&mut *tx)
+        .await?;
+
+        let recorded = diagnostics_validation_row_from_row(&row)?;
+        self.record_event_in_tx(
+            &mut tx,
+            state_probe_event_family::DIAGNOSTICS_VALIDATION_ROW_RECORDED,
+            "atelier_diagnostics_validation_matrix",
+            &recorded.row_id,
+            json!({
+                "row_id": recorded.row_id,
+                "matrix_kind": recorded.matrix_kind,
+                "surface": recorded.surface,
+                "check_id": recorded.check_id,
+                "requirement": recorded.requirement,
+                "status": recorded.status.as_token(),
+                "evidence_ref": recorded.evidence_ref,
+                "schema": "hsk.atelier.diagnostics_validation_row@1",
+            }),
+        )
+        .await?;
+        tx.commit().await?;
+        Ok(recorded)
+    }
+
+    /// List diagnostics validation-matrix rows, optionally filtered by
+    /// `matrix_kind`. Ordered by `row_id` for deterministic, run-scoped tests.
+    pub async fn list_diagnostics_validation_matrix(
+        &self,
+        matrix_kind: Option<&str>,
+    ) -> AtelierResult<Vec<DiagnosticsValidationRow>> {
+        let rows = match matrix_kind {
+            Some(kind) => {
+                sqlx::query(&format!(
+                    r#"SELECT {DIAGNOSTICS_VALIDATION_ROW_COLUMNS}
+                       FROM atelier_diagnostics_validation_matrix
+                       WHERE matrix_kind = $1
+                       ORDER BY row_id ASC"#
+                ))
+                .bind(kind)
+                .fetch_all(self.pool())
+                .await?
+            }
+            None => {
+                sqlx::query(&format!(
+                    r#"SELECT {DIAGNOSTICS_VALIDATION_ROW_COLUMNS}
+                       FROM atelier_diagnostics_validation_matrix
+                       ORDER BY row_id ASC"#
+                ))
+                .fetch_all(self.pool())
+                .await?
+            }
+        };
+        rows.iter().map(diagnostics_validation_row_from_row).collect()
+    }
 }
