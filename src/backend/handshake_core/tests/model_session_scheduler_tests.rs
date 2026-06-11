@@ -95,7 +95,7 @@ async fn setup_state() -> Result<Option<AppState>, Box<dyn std::error::Error>> {
             .display()
             .to_string(),
     );
-    let Some(storage) = scheduler_postgres_backend_from_env().await? else {
+    let Some((storage, postgres_pool)) = scheduler_postgres_backend_from_env().await? else {
         return Ok(None);
     };
 
@@ -104,6 +104,7 @@ async fn setup_state() -> Result<Option<AppState>, Box<dyn std::error::Error>> {
 
     Ok(Some(AppState {
         storage,
+        postgres_pool,
         flight_recorder: flight_recorder.clone(),
         diagnostics: flight_recorder,
         llm_client,
@@ -113,7 +114,7 @@ async fn setup_state() -> Result<Option<AppState>, Box<dyn std::error::Error>> {
 }
 
 async fn scheduler_postgres_backend_from_env(
-) -> Result<Option<Arc<dyn Database>>, Box<dyn std::error::Error>> {
+) -> Result<Option<(Arc<dyn Database>, sqlx::postgres::PgPool)>, Box<dyn std::error::Error>> {
     let Ok(url) = std::env::var("POSTGRES_TEST_URL") else {
         return Ok(None);
     };
@@ -132,7 +133,11 @@ async fn scheduler_postgres_backend_from_env(
     drop(schema_conn);
 
     let db = PostgresDatabase::connect(&schema_url, 5).await?;
-    Ok(Some(db.into_arc()))
+    let pool = sqlx::postgres::PgPoolOptions::new()
+        .max_connections(5)
+        .connect(&schema_url)
+        .await?;
+    Ok(Some((db.into_arc(), pool)))
 }
 
 async fn install_scheduler_test_schema(
@@ -373,6 +378,8 @@ async fn seed_active_model_session(
             checkpoint_artifact_id: None,
             last_checkpoint_at: None,
             checkpoint_count: 0,
+            agent: None,
+            purpose: None,
         })
         .await?;
     state.session_registry.upsert_session(session.clone()).await;
@@ -2296,6 +2303,8 @@ async fn model_session_memory_policy_is_immutable() -> Result<(), Box<dyn std::e
             checkpoint_artifact_id: None,
             last_checkpoint_at: None,
             checkpoint_count: 0,
+            agent: None,
+            purpose: None,
         })
         .await?;
     assert_eq!(created.memory_policy, "full");
@@ -2323,6 +2332,8 @@ async fn model_session_memory_policy_is_immutable() -> Result<(), Box<dyn std::e
             checkpoint_artifact_id: None,
             last_checkpoint_at: None,
             checkpoint_count: 0,
+            agent: None,
+            purpose: None,
         })
         .await
         .expect_err("expected immutability violation");

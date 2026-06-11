@@ -18,6 +18,8 @@ import { FontManagerView } from "./components/FontManagerView";
 import { MediaDownloaderView } from "./components/MediaDownloaderView";
 import { ModelRuntimePanel } from "./components/model_runtime_panel";
 import { SwarmOperatorSurface } from "./components/swarm";
+import { VisualDebuggerPanel } from "./components/visual_debugger";
+import AtelierPanel from "./components/AtelierPanel";
 import { SettingsMenu } from "./components/SettingsMenu";
 import { loadSwarmBoardDefaultOpen } from "./lib/globalSettings";
 import {
@@ -57,7 +59,9 @@ type PaneTabId =
   | "swarm"
   | "problems"
   | "jobs"
-  | "timeline";
+  | "timeline"
+  | "atelier"
+  | "visual-debugger";
 
 type PaneId = "pane-a" | "pane-b" | "pane-c" | "pane-d";
 
@@ -94,6 +98,8 @@ const TAB_LABEL_BY_ID: Record<PaneTabId, string> = {
   problems: "Problems",
   jobs: "Jobs",
   timeline: "Timeline",
+  atelier: "Atelier",
+  "visual-debugger": "Visual Debugger",
 };
 
 const MODULE_DEFINITIONS: {
@@ -114,21 +120,21 @@ const MODULE_DEFINITIONS: {
     id: "CKC",
     label: "CKC",
     dataId: "module-ckc",
-    tabs: ["kernel-dcc", "problems", "jobs", "timeline"],
-    defaultTab: "kernel-dcc",
+    tabs: ["atelier", "kernel-dcc", "problems", "jobs", "timeline"],
+    defaultTab: "atelier",
   },
   {
     id: "INGEST",
     label: "INGEST",
     dataId: "module-ingest",
-    tabs: ["media-downloader", "fonts", "flight-recorder", "problems"],
+    tabs: ["media-downloader", "fonts", "flight-recorder", "visual-debugger", "problems"],
     defaultTab: "media-downloader",
   },
   {
     id: "STAGE",
     label: "STAGE",
     dataId: "module-stage",
-    tabs: ["fonts", "inference-lab", "flight-recorder", "problems"],
+    tabs: ["fonts", "inference-lab", "visual-debugger", "flight-recorder", "problems"],
     defaultTab: "fonts",
   },
   {
@@ -479,6 +485,10 @@ function App() {
       content = <ProblemsView onSelect={setSelection} />;
     } else if (pane.activeTab === "jobs") {
       content = <JobsView onSelect={setSelection} focusJobId={focusJobId} />;
+    } else if (pane.activeTab === "atelier") {
+      content = <AtelierPanel />;
+    } else if (pane.activeTab === "visual-debugger") {
+      content = <VisualDebuggerPanel />;
     } else {
       content = (
         <TimelineView

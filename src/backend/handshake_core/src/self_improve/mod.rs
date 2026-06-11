@@ -26,6 +26,7 @@ pub mod iteration;
 pub mod loop_core;
 pub mod promotion_floor;
 pub mod promotion_gate_adapter;
+pub mod promotion_gate_postgres;
 pub mod scheduler;
 
 pub use corpus::{
@@ -64,6 +65,10 @@ pub use promotion_floor::{
 pub use promotion_gate_adapter::{
     GateError, LoopPromotionGate, PromotionApproval, PromotionGateSubmitter, PromotionRejection,
     PromotionRequest, PromotionStatus, PromotionTicket,
+};
+pub use promotion_gate_postgres::{
+    PostgresPromotionGate, PROMOTION_GATE_SOURCE_COMPONENT, PROMOTION_TICKET_AGGREGATE_TYPE,
+    PROMOTION_TICKET_PAYLOAD_SCHEMA_ID,
 };
 pub use scheduler::{
     IterationBudget, LoopScheduler, ScheduleDecision, SchedulerHistory, SchedulerHistoryEntry,

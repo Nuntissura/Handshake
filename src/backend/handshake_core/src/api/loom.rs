@@ -1085,7 +1085,7 @@ mod tests {
     use crate::capabilities::CapabilityRegistry;
     use crate::flight_recorder::{duckdb::DuckDbFlightRecorder, EventFilter};
     use crate::llm::ollama::InMemoryLlmClient;
-    use crate::storage::{tests::optional_postgres_backend_from_env, Database, NewWorkspace};
+    use crate::storage::{tests::optional_postgres_backend_with_pool_from_env, Database, NewWorkspace};
     use once_cell::sync::Lazy;
     use std::sync::{Arc, Mutex};
     use tempfile::TempDir;
@@ -1129,14 +1129,15 @@ mod tests {
     }
 
     async fn setup_state() -> Result<Option<AppState>, Box<dyn std::error::Error>> {
-        let Some(storage) = optional_postgres_backend_from_env().await? else {
+        let Some(backend) = optional_postgres_backend_with_pool_from_env().await? else {
             return Ok(None);
         };
 
         let flight_recorder = Arc::new(DuckDbFlightRecorder::new_in_memory(7)?);
 
         Ok(Some(AppState {
-            storage,
+            storage: backend.database,
+            postgres_pool: backend.postgres_pool,
             flight_recorder: flight_recorder.clone(),
             diagnostics: flight_recorder,
             llm_client: Arc::new(InMemoryLlmClient::new("ok".into())),

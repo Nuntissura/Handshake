@@ -1,11 +1,13 @@
 use std::{
     error::Error,
-    process::{Command, Output, Stdio},
-    thread,
+    net::TcpListener,
+    path::PathBuf,
+    process::{Command, Stdio},
     time::{Duration, Instant},
 };
 
 use chrono::{TimeZone, Utc};
+use handshake_core::managed_postgres::{ManagedPostgres, ManagedPostgresConfig};
 use handshake_core::observability::aggregate_queries::{
     ActivityRow, AggregateQueryFixture, Limit, Offset, SessionAggregateQueries, SessionSummary,
     SessionTimelineEntry,
@@ -339,7 +341,7 @@ async fn seed_mt200_postgres_rows(
 #[tokio::test]
 #[ignore = "requires POSTGRES_TEST_URL; run with `cargo test --test observability_aggregate_queries_tests -- --ignored`"]
 async fn mt200_postgres_queries_join_spans_mailbox_checkpoints_and_events() {
-    let fixture = PostgresFixture::start().expect("postgres fixture");
+    let fixture = PostgresFixture::start().await.expect("postgres fixture");
     let pool = postgres_pool(fixture.url()).await;
     apply_mt200_schema(&pool).await;
     let base = base_time();
@@ -437,111 +439,38 @@ async fn mt200_postgres_queries_join_spans_mailbox_checkpoints_and_events() {
 
 struct PostgresFixture {
     url: String,
-    container_name: Option<String>,
+    managed_data_dir: Option<PathBuf>,
 }
 
 impl PostgresFixture {
-    fn start() -> Result<Self, Box<dyn Error>> {
+    async fn start() -> Result<Self, Box<dyn Error>> {
         if let Ok(url) = std::env::var("POSTGRES_TEST_URL") {
             if !url.trim().is_empty() {
                 return Ok(Self {
                     url,
-                    container_name: None,
+                    managed_data_dir: None,
                 });
             }
         }
 
-        let suffix = Uuid::now_v7().to_string().replace('-', "");
-        let container_name = format!("handshake-mt200-pg-{}", &suffix[..12]);
-        let run = Command::new("docker")
-            .args([
-                "run",
-                "--rm",
-                "-d",
-                "--name",
-                &container_name,
-                "-e",
-                "POSTGRES_USER=handshake",
-                "-e",
-                "POSTGRES_PASSWORD=handshake",
-                "-e",
-                "POSTGRES_DB=handshake_test",
-                "-e",
-                "POSTGRES_INITDB_ARGS=--nosync",
-                "--tmpfs",
-                "/var/lib/postgresql/data:rw,noexec,nosuid,size=256m",
-                "-p",
-                "127.0.0.1::5432",
-                "postgres:16-alpine",
-                "postgres",
-                "-c",
-                "fsync=off",
-                "-c",
-                "full_page_writes=off",
-                "-c",
-                "synchronous_commit=off",
-            ])
-            .output()?;
-        assert_success(run, "docker run postgres:16-alpine");
-        let mut guard = PostgresContainerGuard::new(container_name);
-        let container_name = guard.name();
-
-        let port_output = Command::new("docker")
-            .args(["port", container_name, "5432/tcp"])
-            .output()?;
-        assert_success(port_output.clone(), "docker port postgres");
-        let port_line = String::from_utf8(port_output.stdout)?;
-        let port = port_line
-            .trim()
-            .rsplit(':')
-            .next()
-            .filter(|value| !value.is_empty())
-            .ok_or("docker port output did not contain a mapped port")?;
-
-        let deadline = Instant::now() + POSTGRES_READY_TIMEOUT;
-        loop {
-            let ready = Command::new("docker")
-                .args([
-                    "exec",
-                    container_name,
-                    "pg_isready",
-                    "-U",
-                    "handshake",
-                    "-d",
-                    "handshake_test",
-                ])
-                .stdout(Stdio::null())
-                .stderr(Stdio::null())
-                .status()?;
-            if ready.success() {
-                break;
-            }
-            if Instant::now() >= deadline {
-                let logs = Command::new("docker")
-                    .args(["logs", "--tail", "120", container_name])
-                    .output()
-                    .ok()
-                    .map(output_text)
-                    .unwrap_or_else(|| "docker logs unavailable".to_string());
-                let _ = Command::new("docker")
-                    .args(["stop", container_name])
-                    .stdout(Stdio::null())
-                    .stderr(Stdio::null())
-                    .status();
-                return Err(format!(
-                    "timed out waiting {:?} for PostgreSQL test container {container_name}\n{logs}",
-                    POSTGRES_READY_TIMEOUT
-                )
-                .into());
-            }
-            thread::sleep(Duration::from_millis(500));
-        }
+        let data_dir =
+            std::env::temp_dir().join(format!("hsk-managed-pg-mt200-{}", Uuid::now_v7().simple()));
+        let port = free_local_port()?;
+        let managed = ManagedPostgres::ensure_running(ManagedPostgresConfig {
+            enabled: true,
+            data_dir: data_dir.clone(),
+            port,
+            bin_dir: PathBuf::new(),
+            database: "handshake_test".to_string(),
+            superuser: "postgres".to_string(),
+            startup_timeout: POSTGRES_READY_TIMEOUT,
+        })
+        .await?;
+        let url = managed.database_url();
 
         Ok(Self {
-            url: format!(
-                "postgres://handshake:handshake@127.0.0.1:{port}/handshake_test?sslmode=disable"
-            ),
-            container_name: Some(guard.release()),
+            url,
+            managed_data_dir: Some(data_dir),
         })
     }
 
@@ -552,68 +481,38 @@ impl PostgresFixture {
 
 impl Drop for PostgresFixture {
     fn drop(&mut self) {
-        if let Some(container_name) = &self.container_name {
-            let _ = Command::new("docker")
-                .args(["stop", container_name])
+        if let Some(data_dir) = &self.managed_data_dir {
+            let _ = Command::new(pg_ctl_path())
+                .args(["stop", "-D"])
+                .arg(data_dir)
+                .args(["-m", "fast"])
                 .stdout(Stdio::null())
                 .stderr(Stdio::null())
                 .status();
+            let _ = std::fs::remove_dir_all(data_dir);
         }
     }
 }
 
-struct PostgresContainerGuard {
-    container_name: Option<String>,
+fn free_local_port() -> Result<u16, Box<dyn Error>> {
+    let listener = TcpListener::bind("127.0.0.1:0")?;
+    Ok(listener.local_addr()?.port())
 }
 
-impl PostgresContainerGuard {
-    fn new(container_name: String) -> Self {
-        Self {
-            container_name: Some(container_name),
-        }
-    }
-
-    fn name(&self) -> &str {
-        self.container_name
-            .as_deref()
-            .expect("container guard must hold a name")
-    }
-
-    fn release(&mut self) -> String {
-        self.container_name
-            .take()
-            .expect("container guard must hold a name")
-    }
-}
-
-impl Drop for PostgresContainerGuard {
-    fn drop(&mut self) {
-        if let Some(container_name) = &self.container_name {
-            let _ = Command::new("docker")
-                .args(["stop", container_name])
-                .stdout(Stdio::null())
-                .stderr(Stdio::null())
-                .status();
-        }
-    }
-}
-
-fn assert_success(output: Output, label: &str) {
-    assert!(
-        output.status.success(),
-        "{label} failed\nstdout:\n{}\nstderr:\n{}",
-        String::from_utf8_lossy(&output.stdout),
-        String::from_utf8_lossy(&output.stderr)
-    );
-}
-
-fn output_text(output: Output) -> String {
-    format!(
-        "status: {}\nstdout:\n{}\nstderr:\n{}",
-        output.status,
-        String::from_utf8_lossy(&output.stdout),
-        String::from_utf8_lossy(&output.stderr)
-    )
+fn pg_ctl_path() -> PathBuf {
+    std::env::var("HANDSHAKE_MANAGED_PG_BIN")
+        .ok()
+        .or_else(|| std::env::var("PGBIN").ok())
+        .filter(|value| !value.trim().is_empty())
+        .map(|dir| {
+            let exe = if cfg!(windows) {
+                "pg_ctl.exe"
+            } else {
+                "pg_ctl"
+            };
+            PathBuf::from(dir).join(exe)
+        })
+        .unwrap_or_else(|| PathBuf::from("pg_ctl"))
 }
 
 #[tokio::test]

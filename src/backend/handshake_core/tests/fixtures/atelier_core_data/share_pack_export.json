@@ -1,0 +1,24 @@
+{
+  "_comment": "MT-077 portable non-SQLite fixture corpus: share-pack export only. The selector bundles exactly the sheet + selected media + usage README (subset safety + manifest completeness); unselected media must never leak into the manifest, and no pack path or artifact ref may use the CKC/CastKit namespace or .GOV. All slugs are made run-unique at load time.",
+  "character": {
+    "public_id_slug": "mt-077-share-subject",
+    "display_name": "Share Pack Fixture Subject"
+  },
+  "sheet": {
+    "raw_text": "name: Share Pack Fixture Subject\nrole: subset-safety proof",
+    "author": "operator",
+    "tool": null
+  },
+  "export": {
+    "format": "md",
+    "label": "mt-077 safe subset share pack",
+    "requested_by": "mt-077-exporter"
+  },
+  "sheet_payload_seed": "mt-077-sheet",
+  "selected_media_payload_seeds": ["mt-077-selected"],
+  "unselected_media_payload_seeds": ["mt-077-unselected"],
+  "usage_readme_payload_seed": "mt-077-usage-readme",
+  "forbidden_namespace_tokens": ["ckc", "castkit", ".gov"],
+  "invalid_ckc_artifact_ref": "ckc://share-pack/legacy/payload",
+  "invalid_gov_pack_path": ".GOV/images/leak.png"
+}

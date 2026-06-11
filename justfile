@@ -15,10 +15,13 @@ CARGO_TARGET_DIR := "../Handshake_Artifacts/handshake-cargo-target"
 # `handshake command receipt run`. Stable filenames are produced via `--slug`.
 COMMAND_RECEIPT_ROOT := "../Handshake_Artifacts/handshake-product/command-receipts"
 
-dev: preflight-ollama
+dev:
 	node -e "const {execFileSync}=require('child_process'); const path=require('path'); const repo=execFileSync('git',['rev-parse','--show-toplevel'],{encoding:'utf8'}).trim(); const cargoTarget=path.resolve(repo,'{{CARGO_TARGET_DIR}}'); execFileSync('pnpm',['-C','app','run','tauri','dev'],{stdio:'inherit', env:{...process.env, CARGO_TARGET_DIR:cargoTarget}});"
 
-# Fail fast if Ollama is missing/unreachable (Phase 1 requirement; see {{GOV_ROOT}}/roles_shared/docs/START_HERE.md).
+dev-llm: preflight-ollama
+	node -e "const {execFileSync}=require('child_process'); const path=require('path'); const repo=execFileSync('git',['rev-parse','--show-toplevel'],{encoding:'utf8'}).trim(); const cargoTarget=path.resolve(repo,'{{CARGO_TARGET_DIR}}'); execFileSync('pnpm',['-C','app','run','tauri','dev'],{stdio:'inherit', env:{...process.env, CARGO_TARGET_DIR:cargoTarget}});"
+
+# Optional local-LLM preflight. Core app startup must not require Ollama.
 preflight-ollama:
 	node -e "const base=(process.env.OLLAMA_URL||'http://localhost:11434'); const normalized=base.endsWith('/')?base.slice(0,-1):base; const url=normalized + '/api/tags'; const lib=url.startsWith('https://')?require('https'):require('http'); const req=lib.get(url,(res)=>{ const ok=!!res.statusCode && res.statusCode>=200 && res.statusCode<300; if(ok){ process.exit(0); } console.error('Ollama preflight failed: GET ' + url + ' returned ' + res.statusCode + '. Install Ollama using your platform package manager or installer (for example `winget install -e --id Ollama.Ollama` on Windows), then run ollama serve (or ollama run mistral), or set OLLAMA_URL.'); process.exit(1); }); req.on('error',()=>{ console.error('Ollama preflight failed: cannot reach ' + url + '. Install Ollama using your platform package manager or installer (for example `winget install -e --id Ollama.Ollama` on Windows), then run ollama serve (or ollama run mistral), or set OLLAMA_URL.'); process.exit(1); }); req.setTimeout(3000, ()=>req.destroy(new Error('timeout')));"
 

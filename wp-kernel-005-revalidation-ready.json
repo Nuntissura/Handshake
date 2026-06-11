@@ -1,0 +1,416 @@
+{
+  "wp_id": "WP-KERNEL-005",
+  "purpose": "Product-side marker for failed MTs remediated and ready for validator re-run.",
+  "superseded_by": "wp-kernel-005-ready-for-validation-v2.json",
+  "new_session_instruction": "Use wp-kernel-005-ready-for-validation-v2.json as canonical. Entries here are retained for backward compatibility; do not remediate listed MTs again unless a later validator explicitly fails them again.",
+  "entries": [
+    {
+      "mt_id": "MT-004",
+      "status": "ready_for_revalidation",
+      "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib atelier::guard_tests --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+      "proof_result": "4 passed; 0 failed"
+    },
+    {
+      "mt_id": "MT-007",
+      "status": "ready_for_revalidation",
+      "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_event_ledger_tests atelier_event_boundary_sanitizes_identity_source_and_author_payloads --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_event_ledger_tests atelier_character_and_sheet_events_do_not_leak_identity_text --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_media_artifact_tests --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+      "proof_result": "1 passed; 0 failed + 1 passed; 0 failed + 17 passed; 0 failed"
+    },
+    {
+      "mt_id": "MT-008",
+      "status": "ready_for_revalidation",
+      "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_sheet_parser_tests --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+      "proof_result": "12 passed; 0 failed"
+    },
+    {
+      "mt_id": "MT-009",
+      "status": "ready_for_revalidation",
+      "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_sheet_parser_tests --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+      "proof_result": "12 passed; 0 failed"
+    },
+    {
+      "mt_id": "MT-010",
+      "status": "ready_for_revalidation",
+      "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_sheet_parser_tests --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+      "proof_result": "12 passed; 0 failed"
+    },
+    {
+      "mt_id": "MT-011",
+      "status": "ready_for_revalidation",
+      "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_sheet_parser_tests --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+      "proof_result": "12 passed; 0 failed"
+    },
+    {
+      "mt_id": "MT-013",
+      "status": "ready_for_revalidation",
+      "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_sheet_parser_tests --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+      "proof_result": "12 passed; 0 failed"
+    },
+    {
+      "mt_id": "MT-014",
+      "status": "ready_for_revalidation",
+      "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_bulk_operations_tests --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+      "proof_result": "7 passed; 0 failed"
+    },
+    {
+      "mt_id": "MT-016",
+      "status": "ready_for_revalidation",
+      "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_media_artifact_tests --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+      "proof_result": "17 passed; 0 failed"
+    },
+    {
+      "mt_id": "MT-017",
+      "status": "ready_for_revalidation",
+      "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_media_artifact_tests media_derivative --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+      "proof_result": "7 passed; 0 failed"
+    },
+    {
+      "mt_id": "MT-018",
+      "status": "ready_for_revalidation",
+      "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_media_artifact_tests media_review_metadata --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+      "proof_result": "3 passed; 0 failed"
+    },
+    {
+      "mt_id": "MT-020",
+      "status": "ready_for_revalidation",
+      "proof_command": "$env:DATABASE_URL='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_core_data_tests atelier_similarity_computes_projection_and_rebuild_job_from_image_bytes --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+      "proof_result": "1 passed; 0 failed"
+    },
+    {
+      "mt_id": "MT-021",
+      "status": "ready_for_revalidation",
+      "proof_command": "$env:DATABASE_URL='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_core_data_tests atelier_ai_tag_suggestions --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+      "proof_result": "2 passed; 0 failed"
+    },
+    {
+      "mt_id": "MT-022",
+      "status": "ready_for_revalidation",
+      "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_media_artifact_tests media_sidecar_visibility_matrix_hides_sidecars_from_gallery_but_keeps_relation_search --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+      "proof_result": "1 passed; 0 failed"
+    },
+    {
+      "mt_id": "MT-023",
+      "status": "ready_for_revalidation",
+      "proof_command": "$env:DATABASE_URL='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_core_data_tests atelier_filesystem_health --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+      "proof_result": "6 passed; 0 failed"
+    },
+    {
+      "mt_id": "MT-024",
+      "status": "ready_for_revalidation",
+      "proof_command": "$env:DATABASE_URL='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_bulk_operations_tests deletion_ --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+      "proof_result": "2 passed; 0 failed"
+    },
+    {
+      "mt_id": "MT-025",
+      "status": "ready_for_revalidation",
+      "proof_command": "$env:DATABASE_URL='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_image_import_tests --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+      "proof_result": "9 passed; 0 failed"
+    },
+    {
+      "mt_id": "MT-026",
+      "status": "ready_for_revalidation",
+      "proof_command": "$env:DATABASE_URL='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_intake_folder_scan_tests --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+      "proof_result": "6 passed; 0 failed"
+    },
+    {
+      "mt_id": "MT-027",
+      "status": "ready_for_revalidation",
+      "proof_command": "$env:DATABASE_URL='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_core_data_tests atelier_media_source_provenance_refs --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+      "proof_result": "2 passed; 0 failed"
+    },
+    {
+      "mt_id": "MT-028",
+      "status": "ready_for_revalidation",
+      "proof_command": "$env:DATABASE_URL='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_core_data_tests atelier_intake_batch_mode_resume_and_source_ref_survive_reconnect --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+      "proof_result": "1 passed; 0 failed"
+    },
+    {
+      "mt_id": "MT-029",
+      "status": "ready_for_revalidation",
+      "proof_command": "$env:DATABASE_URL='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_core_data_tests atelier_intake_item_lifecycle_skipped_failed_and_rejection_audits --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+      "proof_result": "1 passed; 0 failed"
+    },
+    {
+      "mt_id": "MT-030",
+      "status": "ready_for_revalidation",
+      "proof_command": "$env:DATABASE_URL='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_core_data_tests atelier_intake_loose_and_linked_target_refs_survive_reconnect --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+      "proof_result": "1 passed; 0 failed"
+    },
+    {
+      "mt_id": "MT-032",
+      "status": "ready_for_revalidation",
+      "proof_command": "$env:DATABASE_URL='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_core_data_tests atelier_intake_sheet_collection_links_survive_export --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+      "proof_result": "1 passed; 0 failed"
+    },
+    {
+      "mt_id": "MT-035",
+      "status": "ready_for_revalidation",
+      "proof_command": "$env:DATABASE_URL='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_core_data_tests atelier_collection_batch_metadata_applies_tags_to_members_preserving_photo_tags --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+      "proof_result": "1 passed; 0 failed"
+    },
+    {
+      "mt_id": "MT-036",
+      "status": "ready_for_revalidation",
+      "proof_command": "$env:DATABASE_URL='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_core_data_tests atelier_contact_sheet_svg_artifact_regenerates_from_manifest --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+      "proof_result": "1 passed; 0 failed"
+    },
+    {
+      "mt_id": "MT-037",
+      "status": "ready_for_revalidation",
+      "proof_command": "$env:DATABASE_URL='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_core_data_tests atelier_contact_sheet_raster_export_is_planned_without_fake_output --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+      "proof_result": "1 passed; 0 failed"
+    },
+    {
+      "mt_id": "MT-038",
+      "status": "ready_for_revalidation",
+      "proof_command": "$env:DATABASE_URL='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_core_data_tests atelier_character_documents_preserve_types_versions_and_raw_text --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+      "proof_result": "1 passed; 0 failed"
+    },
+    {
+      "mt_id": "MT-039",
+      "status": "ready_for_revalidation",
+      "proof_command": "$env:DATABASE_URL='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_core_data_tests atelier_story_cards_and_beats --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+      "proof_result": "3 passed; 0 failed"
+    },
+    {
+      "mt_id": "MT-040",
+      "status": "ready_for_revalidation",
+      "proof_command": "$env:DATABASE_URL='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_core_data_tests atelier_character_scripts_preserve_refs_without_executable_authority --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+      "proof_result": "1 passed; 0 failed"
+    },
+    {
+      "mt_id": "MT-041",
+      "status": "ready_for_revalidation",
+      "proof_command": "$env:DATABASE_URL='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_core_data_tests atelier_bracket_links --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+      "proof_result": "1 passed; 0 failed"
+    },
+    {
+      "mt_id": "MT-042",
+      "status": "ready_for_revalidation",
+      "proof_command": "$env:DATABASE_URL='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_core_data_tests atelier_moodboard_schema_layer_model_round_trips_full_structure --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+      "proof_result": "1 passed; 0 failed"
+    },
+    {
+      "mt_id": "MT-043",
+      "status": "ready_for_revalidation",
+      "proof_command": "$env:DATABASE_URL='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_core_data_tests atelier_moodboard_operations_and_export_hooks_produce_receipts_without_gov_outputs --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+      "proof_result": "1 passed; 0 failed"
+    },
+    {
+      "mt_id": "MT-044",
+      "status": "ready_for_revalidation",
+      "proof_command": "$env:DATABASE_URL='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_core_data_tests atelier_character_relationships_crud_endpoint_validation_and_graph_projection --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+      "proof_result": "1 passed; 0 failed"
+    },
+    {
+      "mt_id": "MT-045",
+      "status": "ready_for_revalidation",
+      "proof_command": "$env:DATABASE_URL='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_core_data_tests atelier_global_search_returns_snippets_and_jump_targets_without_sqlite_fts --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+      "proof_result": "1 passed; 0 failed"
+    },
+    {
+      "mt_id": "MT-046",
+      "status": "ready_for_revalidation",
+      "proof_command": "$env:DATABASE_URL='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_core_data_tests atelier_lens_search_filters_default_tier1_and_sfw_hard_drop_without_mutation --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+      "proof_result": "1 passed; 0 failed"
+    },
+    {
+      "mt_id": "MT-047",
+      "status": "ready_for_revalidation",
+      "proof_command": "$env:DATABASE_URL='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_core_data_tests atelier_saved_searches_reproduce_filters_and_retrieval_projection --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+      "proof_result": "1 passed; 0 failed"
+    },
+    {
+      "mt_id": "MT-048",
+      "status": "ready_for_revalidation",
+      "proof_command": "$env:DATABASE_URL='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_core_data_tests atelier_web_portfolio_export_records_portable_manifest_contract --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+      "proof_result": "1 passed; 0 failed"
+    },
+    {
+      "mt_id": "MT-049",
+      "status": "ready_for_revalidation",
+      "proof_command": "$env:DATABASE_URL='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_core_data_tests atelier_backup_manifest_records_versions_checksums_and_restore_preflight_refuses_newer --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+      "proof_result": "1 passed; 0 failed"
+    },
+    {
+      "mt_id": "MT-050",
+      "status": "ready_for_revalidation",
+      "proof_command": "$env:DATABASE_URL='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_core_data_tests atelier_reset_modes_preserve_original_media_and_adopt_orphan_manifest --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+      "proof_result": "1 passed; 0 failed"
+    },
+    {
+      "mt_id": "MT-051",
+      "status": "ready_for_revalidation",
+      "proof_command": "$env:DATABASE_URL='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_core_data_tests atelier_acceptance_constraints_reject_machine_local_roots_and_repo_dist_release --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+      "proof_result": "1 passed; 0 failed"
+    },
+    {
+      "mt_id": "MT-066",
+      "status": "ready_for_revalidation",
+      "proof_command": "$env:DATABASE_URL='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_core_data_tests atelier_reset_modes_preserve_original_media_and_adopt_orphan_manifest --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+      "proof_result": "1 passed; 0 failed"
+    },
+    {
+      "mt_id": "MT-071",
+      "status": "ready_for_revalidation",
+      "proof_command": "$env:DATABASE_URL='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_core_data_tests atelier_share_pack_subset_manifest_includes_usage_readme_and_rejects_gov_paths --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+      "proof_result": "1 passed; 0 failed"
+    },
+    {
+      "mt_id": "MT-072",
+      "status": "ready_for_revalidation",
+      "proof_command": "$env:DATABASE_URL='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_core_data_tests atelier_llm_evidence_pack_contract_is_strict_deterministic_and_redaction_aware --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+      "proof_result": "1 passed; 0 failed"
+    },
+    {
+      "mt_id": "MT-076",
+      "status": "ready_for_revalidation",
+      "proof_command": "$env:DATABASE_URL='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_core_data_tests atelier_web_portfolio_export_records_portable_manifest_contract --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+      "proof_result": "1 passed; 0 failed"
+    },
+    {
+      "mt_id": "MT-077",
+      "status": "ready_for_revalidation",
+      "proof_command": "$env:DATABASE_URL='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_core_data_tests atelier_share_pack_subset_manifest_includes_usage_readme_and_rejects_gov_paths --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+      "proof_result": "1 passed; 0 failed"
+    },
+    {
+      "mt_id": "MT-078",
+      "status": "ready_for_revalidation",
+      "proof_command": "$env:DATABASE_URL='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_core_data_tests atelier_llm_evidence_pack_contract_is_strict_deterministic_and_redaction_aware --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+      "proof_result": "1 passed; 0 failed"
+    },
+    {
+      "mt_id": "MT-079",
+      "status": "ready_for_revalidation",
+      "proof_command": "$env:DATABASE_URL='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_core_data_tests atelier_backup_manifest_records_versions_checksums_and_restore_preflight_refuses_newer --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+      "proof_result": "1 passed; 0 failed"
+    },
+    {
+      "mt_id": "MT-081",
+      "status": "ready_for_revalidation",
+      "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_source_evidence_tests --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+      "proof_result": "4 passed; 0 failed"
+    },
+    {
+      "mt_id": "MT-083",
+      "status": "ready_for_revalidation",
+      "proof_command": "$env:DATABASE_URL='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_pose_tests atelier_pose_rig_ingest_idempotency_and_roundtrip --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+      "proof_result": "1 passed; 0 failed"
+    },
+    {
+      "mt_id": "MT-087",
+      "status": "ready_for_revalidation",
+      "proof_command": "$env:DATABASE_URL='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_pose_tests atelier_pose_rig_ingest_idempotency_and_roundtrip --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+      "proof_result": "1 passed; 0 failed"
+    },
+    {
+      "mt_id": "MT-088",
+      "status": "ready_for_revalidation",
+      "proof_command": "$env:DATABASE_URL='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_pose_tests atelier_pose_rig_ingest_idempotency_and_roundtrip --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+      "proof_result": "1 passed; 0 failed"
+    },
+    {
+      "mt_id": "MT-089",
+      "status": "ready_for_revalidation",
+      "proof_command": "$env:DATABASE_URL='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_pose_tests atelier_pose_head_pose_upsert_and_limits --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+      "proof_result": "1 passed; 0 failed"
+    },
+    {
+      "mt_id": "MT-090",
+      "status": "ready_for_revalidation",
+      "proof_command": "$env:DATABASE_URL='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_pose_tests atelier_pose_calibration_blocked_preservation --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+      "proof_result": "1 passed; 0 failed"
+    },
+    {
+      "mt_id": "MT-091",
+      "status": "ready_for_revalidation",
+      "proof_command": "$env:DATABASE_URL='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_pose_tests atelier_pose_openpose_png_sidecars_are_registered_as_portable_artifacts --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+      "proof_result": "1 passed; 0 failed"
+    },
+    {
+      "mt_id": "MT-092",
+      "status": "ready_for_revalidation",
+      "proof_command": "$env:DATABASE_URL='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_pose_tests atelier_pose_openpose_png_sidecars_are_registered_as_portable_artifacts --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+      "proof_result": "1 passed; 0 failed"
+    },
+    {
+      "mt_id": "MT-093",
+      "status": "ready_for_revalidation",
+      "proof_command": "$env:DATABASE_URL='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_pose_tests atelier_pose_sidecars_lookup_by_source_and_hidden_gallery_projection --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+      "proof_result": "1 passed; 0 failed"
+    },
+    {
+      "mt_id": "MT-094",
+      "status": "ready_for_revalidation",
+      "proof_command": "$env:DATABASE_URL='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_pose_tests atelier_pose_context_state_switches_without_deleting_rigs_media_or_links --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+      "proof_result": "1 passed; 0 failed"
+    },
+    {
+      "mt_id": "MT-095",
+      "status": "ready_for_revalidation",
+      "proof_command": "$env:DATABASE_URL='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_pose_tests atelier_pose_strip_state_projection_exposes_source_and_openpose_sidecars_for_diagnostics --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+      "proof_result": "1 passed; 0 failed"
+    },
+    {
+      "mt_id": "MT-096",
+      "status": "ready_for_revalidation",
+      "proof_command": "$env:DATABASE_URL='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_pose_tests atelier_pose_multi_rig_workspace_state_tracks_tabs_active_order_dirty_panel --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+      "proof_result": "1 passed; 0 failed"
+    },
+    {
+      "mt_id": "MT-097",
+      "status": "ready_for_revalidation",
+      "proof_command": "$env:DATABASE_URL='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_pose_tests atelier_pose_workspace_route_and_keyboard_navigation_are_durable --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+      "proof_result": "1 passed; 0 failed"
+    },
+    {
+      "mt_id": "MT-098",
+      "status": "ready_for_revalidation",
+      "proof_command": "='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_pose_tests atelier_identity_profile_append_only_seq_and_redaction --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+      "proof_result": "1 passed; 0 failed"
+    },
+    {
+      "mt_id": "MT-099",
+      "status": "ready_for_revalidation",
+      "proof_command": "='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_pose_tests atelier_identity_crop_artifact_links_profile_version_and_manifest --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+      "proof_result": "1 passed; 0 failed"
+    },
+    {
+      "mt_id": "MT-100",
+      "status": "ready_for_revalidation",
+      "proof_command": "='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_comfy_tests atelier_comfy_identity_metadata_survives_workflow_receipt_inputs --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+      "proof_result": "1 passed; 0 failed"
+    },
+    {
+      "mt_id": "MT-101",
+      "status": "ready_for_revalidation",
+      "proof_command": "$env:DATABASE_URL='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_comfy_tests atelier_comfy_workflow_receipt_schema_preserves_outputs_status_and_evidence --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+      "proof_result": "1 passed; 0 failed"
+    },
+    {
+      "mt_id": "MT-102",
+      "status": "ready_for_revalidation",
+      "proof_command": "$env:DATABASE_URL='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_comfy_tests atelier_comfy_output_registration_failure_is_retryable_without_losing_saved_image --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+      "proof_result": "1 passed; 0 failed"
+    },
+    {
+      "mt_id": "MT-103",
+      "status": "ready_for_revalidation",
+      "proof_command": "$env:DATABASE_URL='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_comfy_tests atelier_comfy_workflow_history_and_stats_filter_receipts_including_failures --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+      "proof_result": "1 passed; 0 failed"
+    },
+    {
+      "mt_id": "MT-138",
+      "status": "ready_for_revalidation",
+      "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_state_probe_tests --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+      "proof_result": "3 passed; 0 failed"
+    },
+    {
+      "mt_id": "MT-139",
+      "status": "ready_for_revalidation",
+      "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_action_receipt_tests --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+      "proof_result": "2 passed; 0 failed"
+    }
+  ]
+}

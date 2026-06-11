@@ -516,6 +516,8 @@ impl KernelProofRunner {
                 checkpoint_artifact_id: None,
                 last_checkpoint_at: None,
                 checkpoint_count: 0,
+                agent: Some(format!("KERNEL_BUILDER_PROOF:{}", session.adapter_id)),
+                purpose: Some("kernel first-slice proof session".to_string()),
             })
             .await?;
         Ok(())

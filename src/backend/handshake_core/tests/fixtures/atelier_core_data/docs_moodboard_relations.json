@@ -1,0 +1,71 @@
+{
+  "_comment": "MT-064 portable non-SQLite fixture corpus: narrative docs, story cards/beats, moodboards, and relationship rows. body_raw_text and moodboard raw_json_text preserve exact bytes (including whitespace). {{NONCE}} markers are substituted by the loader for run-uniqueness; the substituted bytes are what must round-trip. moodboard_uuid_field markers are replaced with fresh UUIDs at load time.",
+  "characters": [
+    {
+      "public_id_slug": "mt-064-narrator",
+      "display_name": "Narrator Subject",
+      "documents": [
+        {
+          "doc_type": "note",
+          "title": "Daily note",
+          "body_raw_text": "  raw note line one\n\nline two with *markdown* left untouched  ",
+          "tags": ["research", "research"],
+          "author": "mt-064-author",
+          "extra_versions": [
+            {
+              "title": "Daily note revised",
+              "body_raw_text": "second version keeps raw spacing\n  indented line\n",
+              "tags": ["research", "revision"],
+              "author": "mt-064-editor"
+            }
+          ]
+        },
+        {
+          "doc_type": "story",
+          "title": "Opening beat",
+          "body_raw_text": "story body\nwith dialogue",
+          "tags": ["story"],
+          "author": "mt-064-author",
+          "extra_versions": [],
+          "story_cards": [
+            {
+              "title": "Card one",
+              "body_raw_text": "card one raw text\n  indented shot",
+              "tags": ["setup"],
+              "beats": ["Beat one: establish the look."]
+            },
+            {
+              "title": "Card two",
+              "body_raw_text": "card two raw text\nwith exact punctuation!",
+              "tags": ["payoff"],
+              "beats": ["Beat two: hold on the reaction.\nNo normalization."]
+            }
+          ]
+        },
+        {
+          "doc_type": "moodboard",
+          "title": "Palette notes",
+          "body_raw_text": "moodboard doc raw text: #112233 / silk / backlight",
+          "tags": ["moodboard"],
+          "author": "mt-064-author",
+          "extra_versions": [],
+          "moodboard_raw_json_text": "{\"schema_id\":\"hsk.atelier.moodboard@1\",\"schema_version\":1,\"moodboard_id\":\"{{MOODBOARD_UUID}}\",\"name\":\"Fixture board {{NONCE}}\",\"description\":\"Fixture moodboard snapshot {{NONCE}}\",\"canvas\":{\"width\":1024.0,\"height\":768.0,\"background_color\":\"#ffffff\"},\"layers\":[],\"images\":[],\"text\":[],\"shapes\":[],\"connectors\":[],\"folders\":[],\"guides\":[],\"flags\":{\"locked\":false,\"archived\":false,\"operator_reviewed\":true},\"style\":{\"dominant_colors\":[],\"mood_keywords\":[\"fixture\"],\"style_description\":\"Fixture style {{NONCE}}\",\"suggested_presets\":[]},\"history\":[{\"history_id\":\"{{HISTORY_UUID}}\",\"at\":\"2026-06-08T09:00:00Z\",\"actor\":\"mt-064-fixture\",\"operation\":\"create\",\"summary\":\"Created fixture moodboard {{NONCE}}\"}]}"
+        }
+      ]
+    },
+    {
+      "public_id_slug": "mt-064-foil",
+      "display_name": "Foil Subject",
+      "documents": []
+    }
+  ],
+  "relationships": [
+    {
+      "source_character_index": 0,
+      "target_character_index": 1,
+      "relationship_kind": " mentor ",
+      "label": " Mentor ",
+      "notes": " keeps canon aligned "
+    }
+  ]
+}

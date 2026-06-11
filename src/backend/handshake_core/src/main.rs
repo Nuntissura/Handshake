@@ -1,15 +1,15 @@
-use axum::{extract::State, routing::get, Json, Router};
+use axum::{Json, Router, extract::State, routing::get};
 use handshake_core::{
-    api,
+    AppState, api,
     capabilities::CapabilityRegistry,
     diagnostics::DiagnosticsStore,
-    flight_recorder::{duckdb::DuckDbFlightRecorder, FlightRecorder},
+    flight_recorder::{FlightRecorder, duckdb::DuckDbFlightRecorder},
     llm::{
+        DisabledLlmClient, LlmClient, ModelTier,
         guard::CloudEscalationGuard,
         ollama::OllamaAdapter,
         openai_compat::{ApiKey, OpenAiCompatAdapter},
         registry::{ProviderKind, ProviderRegistry, RuntimeRole},
-        DisabledLlmClient, LlmClient, ModelTier,
     },
     logging,
     models::HealthResponse,
@@ -18,7 +18,7 @@ use handshake_core::{
         self,
         retention::{Janitor, JanitorConfig},
     },
-    workflows, AppState,
+    workflows,
 };
 use std::{
     net::SocketAddr,
@@ -46,6 +46,22 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
         .allow_origin(Any)
         .allow_methods(Any)
         .allow_headers(Any);
+
+    // Managed PostgreSQL lifecycle (task #9): start (or adopt) Handshake's own
+    // hidden cluster BEFORE storage init, so no operator has to launch Postgres
+    // manually and no console window pops. Idempotent — an already-running
+    // cluster on the configured port is adopted, never double-started.
+    let managed_pg = handshake_core::managed_postgres::ManagedPostgres::ensure_running(
+        handshake_core::managed_postgres::ManagedPostgresConfig::from_env(),
+    )
+    .await?;
+    if managed_pg.is_enabled() && std::env::var(storage::DATABASE_URL_ENV).is_err() {
+        std::env::set_var(storage::DATABASE_URL_ENV, managed_pg.database_url());
+        tracing::info!(
+            target: "handshake_core::managed_postgres",
+            "DATABASE_URL resolved from the managed cluster"
+        );
+    }
 
     let storage_config = storage::ControlPlaneStorageConfig::from_env()?;
     tracing::info!(
@@ -86,7 +102,44 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
         llm_client,
         capability_registry,
         session_registry,
+        postgres_pool: control_plane.postgres_pool.clone(),
     };
+
+    // Bootstrap the WP-KERNEL-005 atelier schema (idempotent, advisory-locked)
+    // on the shared pool so the atelier HTTP surface is queryable from startup.
+    {
+        let atelier = handshake_core::atelier::AtelierStore::with_observability(
+            control_plane.postgres_pool.clone(),
+            storage.clone(),
+            flight_recorder.clone(),
+        );
+        if let Err(err) = atelier.ensure_schema().await {
+            tracing::error!(target: "handshake_core::atelier", error = %err, "atelier ensure_schema failed at startup");
+            return Err(Box::new(err));
+        }
+        tracing::info!(target: "handshake_core::atelier", "atelier schema ensured");
+
+        // MT-206: project the FULL builtin CKC command corpus into the action
+        // catalog (cross-checked live against the ModelManual) so the Dev
+        // Command Center `/atelier/command-corpus` projection serves the full
+        // enumeration from boot. Idempotent; the catalog is a rebuildable
+        // projection, so a bootstrap failure is logged loudly but does not
+        // abort startup.
+        match atelier.bootstrap_builtin_command_corpus().await {
+            Ok(receipt) => tracing::info!(
+                target: "handshake_core::atelier",
+                total_commands = receipt.total_commands,
+                covered_count = receipt.covered_count,
+                blocked_count = receipt.blocked_count,
+                "builtin command corpus bootstrapped"
+            ),
+            Err(err) => tracing::error!(
+                target: "handshake_core::atelier",
+                error = %err,
+                "builtin command corpus bootstrap failed at startup"
+            ),
+        }
+    }
 
     // [HSK-WF-003] Startup Recovery Loop
     // Scan for and mark 'Running' workflows > 30s old as 'Stalled'.
@@ -133,7 +186,14 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
     tracing::info!(target: "handshake_core", listen_addr = %addr, "handshake_core started");
 
     let listener = TcpListener::bind(addr).await?;
-    axum::serve(listener, app).await?;
+    let serve_result = axum::serve(listener, app).await;
+
+    // Best-effort teardown when the serve loop ends: stop the cluster only if
+    // Handshake started it (adopted/external clusters are left untouched).
+    if let Err(err) = managed_pg.stop().await {
+        tracing::warn!(target: "handshake_core::managed_postgres", error = %err, "managed PostgreSQL stop failed at shutdown");
+    }
+    serve_result?;
     Ok(())
 }
 

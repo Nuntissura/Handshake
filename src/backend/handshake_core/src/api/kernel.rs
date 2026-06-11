@@ -866,6 +866,11 @@ mod tests {
             last_checkpoint_at: None,
             checkpoint_count: 0,
             merge_back_artifact: None,
+            agent: None,
+            purpose: None,
+            close_reason: None,
+            closed_by_actor: None,
+            closed_at: None,
             created_at: chrono::Utc::now(),
             updated_at: chrono::Utc::now(),
         }

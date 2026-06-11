@@ -1,0 +1,1560 @@
+{
+ "schema": "wp_kernel_005_ready_for_validation_v2",
+ "wp_id": "WP-KERNEL-005",
+ "updated_at_utc": "2026-06-09T07:00:43.9879968Z",
+ "canonical": true,
+ "new_session_instruction": "This is the canonical product-side skip set for WP-KERNEL-005. MTs listed here are remediated or already proven in the product worktree and are READY_FOR_VALIDATION_V2. Do not remediate these MTs again unless a later validator verdict explicitly fails them again.",
+ "do_not_redo_ready_mts": true,
+ "replaced_marker": "wp-kernel-005-revalidation-ready.json",
+ "ready_mt_ids": [
+  "MT-001",
+  "MT-002",
+  "MT-004",
+  "MT-007",
+  "MT-008",
+  "MT-009",
+  "MT-010",
+  "MT-011",
+  "MT-013",
+  "MT-014",
+  "MT-016",
+  "MT-017",
+  "MT-018",
+  "MT-020",
+  "MT-021",
+  "MT-022",
+  "MT-023",
+  "MT-024",
+  "MT-025",
+  "MT-026",
+  "MT-027",
+  "MT-028",
+  "MT-029",
+  "MT-030",
+  "MT-032",
+  "MT-035",
+  "MT-036",
+  "MT-037",
+  "MT-038",
+  "MT-039",
+  "MT-040",
+  "MT-041",
+  "MT-042",
+  "MT-043",
+  "MT-044",
+  "MT-045",
+  "MT-046",
+  "MT-047",
+  "MT-048",
+  "MT-049",
+  "MT-050",
+  "MT-051",
+  "MT-052",
+  "MT-053",
+  "MT-054",
+  "MT-055",
+  "MT-056",
+  "MT-057",
+  "MT-058",
+  "MT-059",
+  "MT-060",
+  "MT-061",
+  "MT-062",
+  "MT-063",
+  "MT-064",
+  "MT-065",
+  "MT-066",
+  "MT-067",
+  "MT-068",
+  "MT-069",
+  "MT-070",
+  "MT-071",
+  "MT-072",
+  "MT-073",
+  "MT-074",
+  "MT-075",
+  "MT-076",
+  "MT-077",
+  "MT-078",
+  "MT-079",
+  "MT-081",
+  "MT-082",
+  "MT-083",
+  "MT-087",
+  "MT-088",
+  "MT-089",
+  "MT-090",
+  "MT-091",
+  "MT-092",
+  "MT-093",
+  "MT-094",
+  "MT-095",
+  "MT-096",
+  "MT-097",
+  "MT-098",
+  "MT-099",
+  "MT-100",
+  "MT-101",
+  "MT-102",
+  "MT-103",
+  "MT-104",
+  "MT-105",
+  "MT-106",
+  "MT-107",
+  "MT-108",
+  "MT-109",
+  "MT-110",
+  "MT-112",
+  "MT-113",
+  "MT-115",
+  "MT-116",
+  "MT-117",
+  "MT-118",
+  "MT-119",
+  "MT-120",
+  "MT-122",
+  "MT-123",
+  "MT-124",
+  "MT-125",
+  "MT-126",
+  "MT-127",
+  "MT-128",
+  "MT-130",
+  "MT-132",
+  "MT-133",
+  "MT-135",
+  "MT-137",
+  "MT-138",
+  "MT-139",
+  "MT-140",
+  "MT-141",
+  "MT-142",
+  "MT-143",
+  "MT-144",
+  "MT-145",
+  "MT-146",
+  "MT-147",
+  "MT-148",
+  "MT-149",
+  "MT-150",
+  "MT-151",
+  "MT-152",
+  "MT-153",
+  "MT-154",
+  "MT-155",
+  "MT-156",
+  "MT-157",
+  "MT-158",
+  "MT-159",
+  "MT-160",
+  "MT-161",
+  "MT-162",
+  "MT-163",
+  "MT-164",
+  "MT-165",
+  "MT-166",
+  "MT-167",
+  "MT-168",
+  "MT-169",
+  "MT-170",
+  "MT-171",
+  "MT-172",
+  "MT-173",
+  "MT-174",
+  "MT-175",
+  "MT-176",
+  "MT-177",
+  "MT-178",
+  "MT-179",
+  "MT-180",
+  "MT-181",
+  "MT-182",
+  "MT-183",
+  "MT-184",
+  "MT-185",
+  "MT-186",
+  "MT-187",
+  "MT-188",
+  "MT-189",
+  "MT-190",
+  "MT-191",
+  "MT-192",
+  "MT-193",
+  "MT-194",
+  "MT-195",
+  "MT-196",
+  "MT-203",
+  "MT-207"
+ ],
+ "entries": [
+  {
+   "mt_id": "MT-004",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib atelier::guard_tests --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+   "proof_result": "4 passed; 0 failed"
+  },
+  {
+   "mt_id": "MT-007",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_event_ledger_tests atelier_event_boundary_sanitizes_identity_source_and_author_payloads --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_event_ledger_tests atelier_character_and_sheet_events_do_not_leak_identity_text --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_media_artifact_tests --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+   "proof_result": "1 passed; 0 failed + 1 passed; 0 failed + 17 passed; 0 failed"
+  },
+  {
+   "mt_id": "MT-008",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_sheet_parser_tests --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+   "proof_result": "12 passed; 0 failed"
+  },
+  {
+   "mt_id": "MT-009",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_sheet_parser_tests --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+   "proof_result": "12 passed; 0 failed"
+  },
+  {
+   "mt_id": "MT-010",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_sheet_parser_tests --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+   "proof_result": "12 passed; 0 failed"
+  },
+  {
+   "mt_id": "MT-011",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_sheet_parser_tests --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+   "proof_result": "12 passed; 0 failed"
+  },
+  {
+   "mt_id": "MT-013",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_sheet_parser_tests --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+   "proof_result": "12 passed; 0 failed"
+  },
+  {
+   "mt_id": "MT-014",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_bulk_operations_tests --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+   "proof_result": "7 passed; 0 failed"
+  },
+  {
+   "mt_id": "MT-016",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_media_artifact_tests --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+   "proof_result": "17 passed; 0 failed"
+  },
+  {
+   "mt_id": "MT-017",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_media_artifact_tests media_derivative --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+   "proof_result": "7 passed; 0 failed",
+   "remediation_note": "Tightened retryable-error transition so duplicate failures cannot overwrite retryable_error before explicit retry; added failure EventLedger assertions."
+  },
+  {
+   "mt_id": "MT-018",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_media_artifact_tests media_review_metadata --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+   "proof_result": "3 passed; 0 failed"
+  },
+  {
+   "mt_id": "MT-020",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "$env:DATABASE_URL='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_core_data_tests atelier_similarity_computes_projection_and_rebuild_job_from_image_bytes --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+   "proof_result": "1 passed; 0 failed"
+  },
+  {
+   "mt_id": "MT-021",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "$env:DATABASE_URL='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_core_data_tests atelier_ai_tag_suggestions --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+   "proof_result": "2 passed; 0 failed"
+  },
+  {
+   "mt_id": "MT-022",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_media_artifact_tests media_sidecar_visibility_matrix_hides_sidecars_from_gallery_but_keeps_relation_search --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+   "proof_result": "1 passed; 0 failed"
+  },
+  {
+   "mt_id": "MT-023",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "$env:DATABASE_URL='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_core_data_tests atelier_filesystem_health --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+   "proof_result": "6 passed; 0 failed"
+  },
+  {
+   "mt_id": "MT-024",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "$env:DATABASE_URL='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_bulk_operations_tests deletion_ --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+   "proof_result": "2 passed; 0 failed"
+  },
+  {
+   "mt_id": "MT-025",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "$env:DATABASE_URL='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_image_import_tests --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+   "proof_result": "9 passed; 0 failed"
+  },
+  {
+   "mt_id": "MT-026",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "$env:DATABASE_URL='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_intake_folder_scan_tests --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+   "proof_result": "6 passed; 0 failed"
+  },
+  {
+   "mt_id": "MT-027",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "$env:DATABASE_URL='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_core_data_tests atelier_media_source_provenance_refs --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+   "proof_result": "2 passed; 0 failed"
+  },
+  {
+   "mt_id": "MT-028",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "$env:DATABASE_URL='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_core_data_tests atelier_intake_batch_mode_resume_and_source_ref_survive_reconnect --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+   "proof_result": "1 passed; 0 failed"
+  },
+  {
+   "mt_id": "MT-029",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "$env:DATABASE_URL='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_core_data_tests atelier_intake_item_lifecycle_skipped_failed_and_rejection_audits --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+   "proof_result": "1 passed; 0 failed"
+  },
+  {
+   "mt_id": "MT-030",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "$env:DATABASE_URL='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_core_data_tests atelier_intake_loose_and_linked_target_refs_survive_reconnect --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+   "proof_result": "1 passed; 0 failed"
+  },
+  {
+   "mt_id": "MT-032",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "$env:DATABASE_URL='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_core_data_tests atelier_intake_sheet_collection_links_survive_export --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+   "proof_result": "1 passed; 0 failed"
+  },
+  {
+   "mt_id": "MT-035",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "$env:DATABASE_URL='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_core_data_tests atelier_collection_batch_metadata_applies_tags_to_members_preserving_photo_tags --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+   "proof_result": "1 passed; 0 failed"
+  },
+  {
+   "mt_id": "MT-036",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "$env:DATABASE_URL='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_core_data_tests atelier_contact_sheet_svg_artifact_regenerates_from_manifest --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+   "proof_result": "1 passed; 0 failed"
+  },
+  {
+   "mt_id": "MT-037",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "$env:DATABASE_URL='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_core_data_tests atelier_contact_sheet_raster_export_is_planned_without_fake_output --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+   "proof_result": "1 passed; 0 failed"
+  },
+  {
+   "mt_id": "MT-038",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "$env:DATABASE_URL='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_core_data_tests atelier_character_documents_preserve_types_versions_and_raw_text --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+   "proof_result": "1 passed; 0 failed"
+  },
+  {
+   "mt_id": "MT-039",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "$env:DATABASE_URL='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_core_data_tests atelier_story_cards_and_beats --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+   "proof_result": "3 passed; 0 failed"
+  },
+  {
+   "mt_id": "MT-040",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "$env:DATABASE_URL='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_core_data_tests atelier_character_scripts_preserve_refs_without_executable_authority --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+   "proof_result": "1 passed; 0 failed"
+  },
+  {
+   "mt_id": "MT-041",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "$env:DATABASE_URL='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_core_data_tests atelier_bracket_links --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+   "proof_result": "1 passed; 0 failed"
+  },
+  {
+   "mt_id": "MT-042",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "$env:DATABASE_URL='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_core_data_tests atelier_moodboard_schema_layer_model_round_trips_full_structure --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+   "proof_result": "1 passed; 0 failed"
+  },
+  {
+   "mt_id": "MT-043",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "$env:DATABASE_URL='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_core_data_tests atelier_moodboard_operations_and_export_hooks_produce_receipts_without_gov_outputs --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+   "proof_result": "1 passed; 0 failed"
+  },
+  {
+   "mt_id": "MT-044",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "$env:DATABASE_URL='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_core_data_tests atelier_character_relationships_crud_endpoint_validation_and_graph_projection --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+   "proof_result": "1 passed; 0 failed"
+  },
+  {
+   "mt_id": "MT-045",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "$env:DATABASE_URL='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_core_data_tests atelier_global_search_returns_snippets_and_jump_targets_without_sqlite_fts --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+   "proof_result": "1 passed; 0 failed"
+  },
+  {
+   "mt_id": "MT-046",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "$env:DATABASE_URL='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_core_data_tests atelier_lens_search_filters_default_tier1_and_sfw_hard_drop_without_mutation --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+   "proof_result": "1 passed; 0 failed"
+  },
+  {
+   "mt_id": "MT-047",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "$env:DATABASE_URL='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_core_data_tests atelier_saved_searches_reproduce_filters_and_retrieval_projection --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+   "proof_result": "1 passed; 0 failed"
+  },
+  {
+   "mt_id": "MT-048",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "$env:DATABASE_URL='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_core_data_tests atelier_web_portfolio_export_records_portable_manifest_contract --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+   "proof_result": "1 passed; 0 failed"
+  },
+  {
+   "mt_id": "MT-049",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "$env:DATABASE_URL='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_core_data_tests atelier_backup_manifest_records_versions_checksums_and_restore_preflight_refuses_newer --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+   "proof_result": "1 passed; 0 failed"
+  },
+  {
+   "mt_id": "MT-050",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "$env:DATABASE_URL='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_core_data_tests atelier_reset_modes_preserve_original_media_and_adopt_orphan_manifest --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+   "proof_result": "1 passed; 0 failed"
+  },
+  {
+   "mt_id": "MT-051",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "$env:DATABASE_URL='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_core_data_tests atelier_acceptance_constraints_reject_machine_local_roots_and_repo_dist_release --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+   "proof_result": "1 passed; 0 failed"
+  },
+  {
+   "mt_id": "MT-066",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "$env:DATABASE_URL='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_core_data_tests atelier_reset_modes_preserve_original_media_and_adopt_orphan_manifest --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+   "proof_result": "1 passed; 0 failed"
+  },
+  {
+   "mt_id": "MT-071",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "$env:DATABASE_URL='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_core_data_tests atelier_share_pack_subset_manifest_includes_usage_readme_and_rejects_gov_paths --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+   "proof_result": "1 passed; 0 failed"
+  },
+  {
+   "mt_id": "MT-072",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "$env:DATABASE_URL='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_core_data_tests atelier_llm_evidence_pack_contract_is_strict_deterministic_and_redaction_aware --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+   "proof_result": "1 passed; 0 failed"
+  },
+  {
+   "mt_id": "MT-076",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "$env:DATABASE_URL='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_core_data_tests atelier_web_portfolio_export_records_portable_manifest_contract --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+   "proof_result": "1 passed; 0 failed"
+  },
+  {
+   "mt_id": "MT-077",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "$env:DATABASE_URL='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_core_data_tests atelier_share_pack_subset_manifest_includes_usage_readme_and_rejects_gov_paths --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+   "proof_result": "1 passed; 0 failed"
+  },
+  {
+   "mt_id": "MT-078",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "$env:DATABASE_URL='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_core_data_tests atelier_llm_evidence_pack_contract_is_strict_deterministic_and_redaction_aware --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+   "proof_result": "1 passed; 0 failed"
+  },
+  {
+   "mt_id": "MT-079",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "$env:DATABASE_URL='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_core_data_tests atelier_backup_manifest_records_versions_checksums_and_restore_preflight_refuses_newer --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+   "proof_result": "1 passed; 0 failed"
+  },
+  {
+   "mt_id": "MT-081",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_source_evidence_tests --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+   "proof_result": "4 passed; 0 failed"
+  },
+  {
+   "mt_id": "MT-083",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "$env:DATABASE_URL='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_pose_tests atelier_pose_rig_ingest_idempotency_and_roundtrip --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+   "proof_result": "1 passed; 0 failed"
+  },
+  {
+   "mt_id": "MT-087",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "$env:DATABASE_URL='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_pose_tests atelier_pose_rig_ingest_idempotency_and_roundtrip --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+   "proof_result": "1 passed; 0 failed"
+  },
+  {
+   "mt_id": "MT-088",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "$env:DATABASE_URL='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_pose_tests atelier_pose_rig_ingest_idempotency_and_roundtrip --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+   "proof_result": "1 passed; 0 failed"
+  },
+  {
+   "mt_id": "MT-089",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "$env:DATABASE_URL='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_pose_tests atelier_pose_head_pose_upsert_and_limits --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+   "proof_result": "1 passed; 0 failed"
+  },
+  {
+   "mt_id": "MT-090",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "$env:DATABASE_URL='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_pose_tests atelier_pose_calibration_blocked_preservation --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+   "proof_result": "1 passed; 0 failed"
+  },
+  {
+   "mt_id": "MT-091",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "$env:DATABASE_URL='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_pose_tests atelier_pose_openpose_png_sidecars_are_registered_as_portable_artifacts --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+   "proof_result": "1 passed; 0 failed"
+  },
+  {
+   "mt_id": "MT-092",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "$env:DATABASE_URL='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_pose_tests atelier_pose_openpose_png_sidecars_are_registered_as_portable_artifacts --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+   "proof_result": "1 passed; 0 failed"
+  },
+  {
+   "mt_id": "MT-093",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "$env:DATABASE_URL='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_pose_tests atelier_pose_sidecars_lookup_by_source_and_hidden_gallery_projection --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+   "proof_result": "1 passed; 0 failed"
+  },
+  {
+   "mt_id": "MT-094",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "$env:DATABASE_URL='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_pose_tests atelier_pose_context_state_switches_without_deleting_rigs_media_or_links --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+   "proof_result": "1 passed; 0 failed"
+  },
+  {
+   "mt_id": "MT-095",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "$env:DATABASE_URL='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_pose_tests atelier_pose_strip_state_projection_exposes_source_and_openpose_sidecars_for_diagnostics --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+   "proof_result": "1 passed; 0 failed"
+  },
+  {
+   "mt_id": "MT-096",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "$env:DATABASE_URL='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_pose_tests atelier_pose_multi_rig_workspace_state_tracks_tabs_active_order_dirty_panel --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+   "proof_result": "1 passed; 0 failed"
+  },
+  {
+   "mt_id": "MT-097",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "$env:DATABASE_URL='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_pose_tests atelier_pose_workspace_route_and_keyboard_navigation_are_durable --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+   "proof_result": "1 passed; 0 failed"
+  },
+  {
+   "mt_id": "MT-098",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_pose_tests atelier_identity_profile_append_only_seq_and_redaction --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+   "proof_result": "1 passed; 0 failed"
+  },
+  {
+   "mt_id": "MT-099",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_pose_tests atelier_identity_crop_artifact_links_profile_version_and_manifest --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+   "proof_result": "1 passed; 0 failed"
+  },
+  {
+   "mt_id": "MT-100",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_comfy_tests atelier_comfy_identity_metadata_survives_workflow_receipt_inputs --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+   "proof_result": "1 passed; 0 failed"
+  },
+  {
+   "mt_id": "MT-101",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "$env:DATABASE_URL='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_comfy_tests atelier_comfy_workflow_receipt_schema_preserves_outputs_status_and_evidence --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+   "proof_result": "1 passed; 0 failed"
+  },
+  {
+   "mt_id": "MT-102",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "$env:DATABASE_URL='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_comfy_tests atelier_comfy_output_registration_failure_is_retryable_without_losing_saved_image --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+   "proof_result": "1 passed; 0 failed"
+  },
+  {
+   "mt_id": "MT-103",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "$env:DATABASE_URL='postgres://postgres@127.0.0.1:5544/handshake'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_comfy_tests atelier_comfy_workflow_history_and_stats_filter_receipts_including_failures --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+   "proof_result": "1 passed; 0 failed"
+  },
+  {
+   "mt_id": "MT-138",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_state_probe_tests --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+   "proof_result": "3 passed; 0 failed"
+  },
+  {
+   "mt_id": "MT-139",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_action_receipt_tests --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target -- --nocapture",
+   "proof_result": "2 passed; 0 failed"
+  },
+  {
+   "mt_id": "MT-001",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test atelier_source_evidence_tests source_evidence_matrix_records_maturity_and_anchor_verification --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "already-implemented; confirmed passing on live PostgreSQL"
+  },
+  {
+   "mt_id": "MT-002",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test atelier_source_evidence_tests pose_comfy_source_evidence_matrix_records_required_adapter_sources --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "already-implemented; confirmed passing on live PostgreSQL"
+  },
+  {
+   "mt_id": "MT-105",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test atelier_comfy_tests atelier_comfy_fallback_receipt_and_secret_scrub --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "already-implemented; confirmed passing on live PostgreSQL"
+  },
+  {
+   "mt_id": "MT-157",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test kernel_visual_debugging_loop_tests kernel_visual_debugging_loop_projects_triggers_thresholds_and_evidence --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "already-implemented; confirmed passing on live PostgreSQL"
+  },
+  {
+   "mt_id": "MT-162",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test atelier_core_data_tests atelier_ai_tag_suggestions_are_reviewable_proposals_not_auto_truth --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "already-implemented; confirmed passing on live PostgreSQL"
+  },
+  {
+   "mt_id": "MT-052",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_manual_tests manual_covers_atelier_core_data_surfaces --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "atelier ModelManual coverage rows added + coverage test"
+  },
+  {
+   "mt_id": "MT-053",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_manual_tests manual_covers_atelier_core_data_surfaces --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "atelier ModelManual coverage rows added + coverage test"
+  },
+  {
+   "mt_id": "MT-054",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_manual_tests manual_covers_atelier_core_data_surfaces --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "atelier ModelManual coverage rows added + coverage test"
+  },
+  {
+   "mt_id": "MT-055",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_manual_tests manual_covers_atelier_core_data_surfaces --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "atelier ModelManual coverage rows added + coverage test"
+  },
+  {
+   "mt_id": "MT-056",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_manual_tests manual_covers_atelier_core_data_surfaces --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "atelier ModelManual coverage rows added + coverage test"
+  },
+  {
+   "mt_id": "MT-057",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_manual_tests manual_covers_atelier_core_data_surfaces --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "atelier ModelManual coverage rows added + coverage test"
+  },
+  {
+   "mt_id": "MT-058",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_manual_tests manual_covers_atelier_core_data_surfaces --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "atelier ModelManual coverage rows added + coverage test"
+  },
+  {
+   "mt_id": "MT-059",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_manual_tests manual_covers_atelier_core_data_surfaces --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "atelier ModelManual coverage rows added + coverage test"
+  },
+  {
+   "mt_id": "MT-060",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_manual_tests manual_covers_atelier_core_data_surfaces --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "atelier ModelManual coverage rows added + coverage test"
+  },
+  {
+   "mt_id": "MT-073",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_manual_tests manual_covers_atelier_core_data_surfaces --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "atelier ModelManual coverage rows added + coverage test"
+  },
+  {
+   "mt_id": "MT-074",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_manual_tests manual_covers_atelier_core_data_surfaces --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "atelier ModelManual coverage rows added + coverage test"
+  },
+  {
+   "mt_id": "MT-075",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_manual_tests manual_covers_atelier_core_data_surfaces --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "atelier ModelManual coverage rows added + coverage test"
+  },
+  {
+   "mt_id": "MT-061",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test atelier_fixture_corpus_tests mt061_character_sheet_fixture_corpus_round_trips --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "portable non-SQLite fixture corpus + live-PG round-trip test"
+  },
+  {
+   "mt_id": "MT-062",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test atelier_fixture_corpus_tests mt062_media_intake_fixture_corpus_round_trips --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "portable non-SQLite fixture corpus + live-PG round-trip test"
+  },
+  {
+   "mt_id": "MT-063",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test atelier_fixture_corpus_tests mt063_collection_contact_sheet_fixture_corpus_round_trips --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "portable non-SQLite fixture corpus + live-PG round-trip test"
+  },
+  {
+   "mt_id": "MT-064",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test atelier_fixture_corpus_tests mt064_docs_moodboard_relations_fixture_corpus_round_trips --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "portable non-SQLite fixture corpus + live-PG round-trip test"
+  },
+  {
+   "mt_id": "MT-065",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test atelier_fixture_corpus_tests mt065_search_tags_similarity_fixture_corpus_round_trips --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "portable non-SQLite fixture corpus + live-PG round-trip test"
+  },
+  {
+   "mt_id": "MT-067",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test atelier_core_data_tests mt067_core_data_integration_smoke_path --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "negative/edge test against real production guard"
+  },
+  {
+   "mt_id": "MT-068",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test atelier_core_data_tests mt068_sheet_protected_field_edit_is_rejected mt068_sheet_stale_merge_edit_is_rejected --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "negative/edge test against real production guard"
+  },
+  {
+   "mt_id": "MT-069",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test atelier_core_data_tests mt069_export_manifest_rejects_gov_and_machine_paths --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "negative/edge test against real production guard"
+  },
+  {
+   "mt_id": "MT-070",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test atelier_core_data_tests mt070_ai_tag_suggestion_status_graph_is_enforced mt070_ai_tag_suggestion_provenance_survives_reject --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "negative/edge test against real production guard"
+  },
+  {
+   "mt_id": "MT-122",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_manual_tests manual_covers_pose_comfy_surfaces --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "pose/comfy ModelManual coverage rows + coverage test"
+  },
+  {
+   "mt_id": "MT-123",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_manual_tests manual_covers_pose_comfy_surfaces --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "pose/comfy ModelManual coverage rows + coverage test"
+  },
+  {
+   "mt_id": "MT-124",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_manual_tests manual_covers_pose_comfy_surfaces --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "pose/comfy ModelManual coverage rows + coverage test"
+  },
+  {
+   "mt_id": "MT-125",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_manual_tests manual_covers_pose_comfy_surfaces --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "pose/comfy ModelManual coverage rows + coverage test"
+  },
+  {
+   "mt_id": "MT-107",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test atelier_comfy_intake_routing_tests mt107_mt108_comfy_output_maps_into_accepted_pending_rejected_lanes --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "comfy->intake routing fns + endpoint/localhost guards + ordering test, live-PG proven"
+  },
+  {
+   "mt_id": "MT-108",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test atelier_comfy_intake_routing_tests mt107_mt108_comfy_output_maps_into_accepted_pending_rejected_lanes --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "comfy->intake routing fns + endpoint/localhost guards + ordering test, live-PG proven"
+  },
+  {
+   "mt_id": "MT-109",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test atelier_comfy_intake_routing_tests mt109_endpoint_config_rejects_unauthorized_endpoints --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "comfy->intake routing fns + endpoint/localhost guards + ordering test, live-PG proven"
+  },
+  {
+   "mt_id": "MT-119",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test atelier_comfy_intake_routing_tests mt119_rejects_direct_localhost_comfy_execution --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "comfy->intake routing fns + endpoint/localhost guards + ordering test, live-PG proven"
+  },
+  {
+   "mt_id": "MT-120",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test atelier_comfy_intake_routing_tests mt120_artifact_ref_is_persisted_before_registration_id --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "comfy->intake routing fns + endpoint/localhost guards + ordering test, live-PG proven"
+  },
+  {
+   "mt_id": "MT-082",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test atelier_source_evidence_tests mt082_pose_media_anchor_verification_records_required_anchors --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "pose/media anchor-verification matrix (reuses MT-001/002 primitives), live-PG"
+  },
+  {
+   "mt_id": "MT-115",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test atelier_pose_deferred_feature_tests mt115_pose_workspace_blocked_features_persist_with_reasons --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "typed pose deferred-feature registry (table+events), live-PG"
+  },
+  {
+   "mt_id": "MT-116",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test atelier_pose_deferred_feature_tests mt116_rigdata_v2_multi_subject_carry_forward_deferred --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "typed pose deferred-feature registry (table+events), live-PG"
+  },
+  {
+   "mt_id": "MT-117",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test atelier_pose_deferred_feature_tests mt117_pose_tab_polish_features_deferred --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "typed pose deferred-feature registry (table+events), live-PG"
+  },
+  {
+   "mt_id": "MT-104",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test atelier_replay_contract_tests mt104_replay_request_resolves_all_input_refs --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "replay input contract + ref resolution (104) / replay event family REQUESTED-COMPLETED-FAILED (130), live-PG"
+  },
+  {
+   "mt_id": "MT-130",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test atelier_replay_contract_tests mt130_replay_event_family_emitted_on_request_complete_fail --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "replay input contract + ref resolution (104) / replay event family REQUESTED-COMPLETED-FAILED (130), live-PG"
+  },
+  {
+   "mt_id": "MT-106",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test atelier_workflow_spec_tests mt106_workflow_spec_registers_with_version_and_round_trips --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "comfy workflow_spec registry (106) / pose+image+comfy version metadata pins (110), tables+gate+events, live-PG"
+  },
+  {
+   "mt_id": "MT-110",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test atelier_workflow_spec_tests mt110_version_metadata_pins_pose_image_comfy_versions --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "comfy workflow_spec registry (106) / pose+image+comfy version metadata pins (110), tables+gate+events, live-PG"
+  },
+  {
+   "mt_id": "MT-126",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test atelier_comfy_job_tests mt126_comfy_job_enqueues_with_receipt_and_round_trips --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "comfy job queue (126) / polling status mapping (127) / cancel+timeout+partial-evidence (128), table 0108+gate+events, live-PG"
+  },
+  {
+   "mt_id": "MT-127",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test atelier_comfy_job_tests mt127_comfy_job_polling_maps_status_transitions --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "comfy job queue (126) / polling status mapping (127) / cancel+timeout+partial-evidence (128), table 0108+gate+events, live-PG"
+  },
+  {
+   "mt_id": "MT-128",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test atelier_comfy_job_tests mt128_cancel_and_timeout_preserve_partial_evidence --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "comfy job queue (126) / polling status mapping (127) / cancel+timeout+partial-evidence (128), table 0108+gate+events, live-PG"
+  },
+  {
+   "mt_id": "MT-112",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test atelier_diagnostic_bundle_tests mt112_diagnostic_bundle_records_request_refs_versions_logs_artifacts_taxonomy --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "diagnostic bundle (112) / pose fixture corpus (113) / pose-comfy integration chain (118), live-PG"
+  },
+  {
+   "mt_id": "MT-113",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test atelier_pose_fixture_corpus_tests mt113_pose_fixture_corpus_round_trips --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "diagnostic bundle (112) / pose fixture corpus (113) / pose-comfy integration chain (118), live-PG"
+  },
+  {
+   "mt_id": "MT-118",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test atelier_pose_pipeline_integration_tests mt118_pose_comfy_pipeline_integration_chain --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "diagnostic bundle (112) / pose fixture corpus (113) / pose-comfy integration chain (118), live-PG"
+  },
+  {
+   "mt_id": "MT-203",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test atelier_transcript_tests atelier_probe_idempotent_and_transcript_lineage_roundtrip --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "already implemented in transcript.rs (record_media_probe + transcript lineage); proven via existing test"
+  },
+  {
+   "mt_id": "MT-132",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_manual_tests manual_covers_diagnostics_surfaces --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "diagnostics ModelManual coverage rows (real catalog actions) + coverage test"
+  },
+  {
+   "mt_id": "MT-135",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_manual_tests manual_covers_diagnostics_surfaces --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "diagnostics ModelManual coverage rows (real catalog actions) + coverage test"
+  },
+  {
+   "mt_id": "MT-159",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_manual_tests manual_covers_diagnostics_surfaces --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "diagnostics ModelManual coverage rows (real catalog actions) + coverage test"
+  },
+  {
+   "mt_id": "MT-164",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_manual_tests manual_covers_diagnostics_surfaces --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "diagnostics ModelManual coverage rows (real catalog actions) + coverage test"
+  },
+  {
+   "mt_id": "MT-181",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_manual_tests manual_covers_diagnostics_surfaces --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "diagnostics ModelManual coverage rows (real catalog actions) + coverage test"
+  },
+  {
+   "mt_id": "MT-183",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_manual_tests manual_covers_diagnostics_surfaces --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "diagnostics ModelManual coverage rows (real catalog actions) + coverage test"
+  },
+  {
+   "mt_id": "MT-185",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_manual_tests manual_covers_diagnostics_surfaces --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "diagnostics ModelManual coverage rows (real catalog actions) + coverage test"
+  },
+  {
+   "mt_id": "MT-186",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_manual_tests manual_covers_diagnostics_surfaces --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "diagnostics ModelManual coverage rows (real catalog actions) + coverage test"
+  },
+  {
+   "mt_id": "MT-187",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_manual_tests manual_covers_diagnostics_surfaces --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "diagnostics ModelManual coverage rows (real catalog actions) + coverage test"
+  },
+  {
+   "mt_id": "MT-184",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test micro_task_job_tests [truncate-all + --test-threads=1 --include-ignored on live PG]",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "already implemented; proven on live PostgreSQL (truncate+single-thread isolation)"
+  },
+  {
+   "mt_id": "MT-190",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test session_checkpoint_tests [truncate-all + --test-threads=1 --include-ignored on live PG]",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "already implemented; proven on live PostgreSQL (truncate+single-thread isolation)"
+  },
+  {
+   "mt_id": "MT-191",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test session_checkpoint_tests [truncate-all + --test-threads=1 --include-ignored on live PG]",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "already implemented; proven on live PostgreSQL (truncate+single-thread isolation)"
+  },
+  {
+   "mt_id": "MT-192",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test session_checkpoint_tests [truncate-all + --test-threads=1 --include-ignored on live PG]",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "already implemented; proven on live PostgreSQL (truncate+single-thread isolation)"
+  },
+  {
+   "mt_id": "MT-193",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test session_checkpoint_tests [truncate-all + --test-threads=1 --include-ignored on live PG]",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "already implemented; proven on live PostgreSQL (truncate+single-thread isolation)"
+  },
+  {
+   "mt_id": "MT-194",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test session_checkpoint_tests [truncate-all + --test-threads=1 --include-ignored on live PG]",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "already implemented; proven on live PostgreSQL (truncate+single-thread isolation)"
+  },
+  {
+   "mt_id": "MT-195",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test session_checkpoint_tests [truncate-all + --test-threads=1 --include-ignored on live PG]",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "already implemented; proven on live PostgreSQL (truncate+single-thread isolation)"
+  },
+  {
+   "mt_id": "MT-176",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test role_mailbox_v1_tests [truncate-all + --test-threads=1 --include-ignored]",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "already implemented (role mailbox); proven on live PG (truncate+single-thread)"
+  },
+  {
+   "mt_id": "MT-177",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test role_mailbox_v1_tests [truncate-all + --test-threads=1 --include-ignored]",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "already implemented (role mailbox); proven on live PG (truncate+single-thread)"
+  },
+  {
+   "mt_id": "MT-178",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test role_mailbox_v1_tests [truncate-all + --test-threads=1 --include-ignored]",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "already implemented (role mailbox); proven on live PG (truncate+single-thread)"
+  },
+  {
+   "mt_id": "MT-179",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test role_mailbox_v1_tests [truncate-all + --test-threads=1 --include-ignored]",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "already implemented (role mailbox); proven on live PG (truncate+single-thread)"
+  },
+  {
+   "mt_id": "MT-180",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test role_mailbox_v1_tests [truncate-all + --test-threads=1 --include-ignored]",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "already implemented (role mailbox); proven on live PG (truncate+single-thread)"
+  },
+  {
+   "mt_id": "MT-182",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test role_mailbox_v1_tests [truncate-all + --test-threads=1 --include-ignored]",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "already implemented (role mailbox); proven on live PG (truncate+single-thread)"
+  },
+  {
+   "mt_id": "MT-196",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test flight_recorder_span_tests mt_196 [truncate+single-thread]",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "already implemented (FR span); dedicated mt_196 test green on live PG"
+  },
+  {
+   "mt_id": "MT-149",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test editable_surface_tests mt_149 [truncate+single-thread]",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "already implemented; dedicated mt-test green on live PG"
+  },
+  {
+   "mt_id": "MT-150",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test corpus_split_tests mt_150 [truncate+single-thread]",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "already implemented; dedicated mt-test green on live PG"
+  },
+  {
+   "mt_id": "MT-151",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test validator_first_pass_evaluator_tests mt_151 [truncate+single-thread]",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "already implemented; dedicated mt-test green on live PG"
+  },
+  {
+   "mt_id": "MT-154",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test loop_promotion_gate_tests mt_154 [truncate+single-thread]",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "already implemented; dedicated mt-test green on live PG"
+  },
+  {
+   "mt_id": "MT-156",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test loop_scheduler_tests mt_156 [truncate+single-thread]",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "already implemented; dedicated mt-test green on live PG"
+  },
+  {
+   "mt_id": "MT-161",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test injection_scoring_tests mt_161 [truncate+single-thread]",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "already implemented; dedicated mt-test green on live PG"
+  },
+  {
+   "mt_id": "MT-165",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test trace_export_tests mt_165 [truncate+single-thread]",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "already implemented; dedicated mt-test green on live PG"
+  },
+  {
+   "mt_id": "MT-170",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test promotion_gate_pause_e2e_tests mt_170 [truncate+single-thread]",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "already implemented; dedicated mt-test green on live PG"
+  },
+  {
+   "mt_id": "MT-188",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test fr_event_registry_tests mt_188 [truncate+single-thread]",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "already implemented; dedicated mt-test green on live PG"
+  },
+  {
+   "mt_id": "MT-133",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test atelier_command_corpus_tests corpus_entry_upsert_roundtrip_idempotency_and_event [truncate+single-thread]",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "already implemented; test green on live PG"
+  },
+  {
+   "mt_id": "MT-137",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test atelier_command_corpus_tests corpus_parity_report_projection_counts_and_event [truncate+single-thread]",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "already implemented; test green on live PG"
+  },
+  {
+   "mt_id": "MT-189",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test mt_executor_integration_tests mt_189 [truncate+single-thread]",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "already implemented; test green on live PG"
+  },
+  {
+   "mt_id": "MT-143",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test kernel_role_mailbox_claim_lease_tests claim_lease_controls_validate_claimant_mode_expiry_takeover [truncate+single-thread]",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "already implemented; test green on live PG"
+  },
+  {
+   "mt_id": "MT-146",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test mt_cancellation_tests mt_186 [truncate+single-thread]",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "already implemented; test green on live PG"
+  },
+  {
+   "mt_id": "MT-155",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test kernel_visual_debugging_loop_tests [truncate+single-thread]",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "already implemented; test green on live PG"
+  },
+  {
+   "mt_id": "MT-168",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test atelier_stealth_window_tests [truncate+single-thread]",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "already implemented; test green on live PG"
+  },
+  {
+   "mt_id": "MT-141",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test atelier_diagnostic_bundle_tests",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "diagnostic bundle (shared with MT-112); test green on live PG"
+  },
+  {
+   "mt_id": "MT-140",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test atelier_diagnostics_typed_surfaces_tests mt140_error_taxonomy_covers_ten_classes_with_recovery [truncate+single-thread]",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "built typed runtime surface; live-PG proven"
+  },
+  {
+   "mt_id": "MT-166",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test atelier_diagnostics_typed_surfaces_tests mt166_reset_orphan_diagnostics_projection [truncate+single-thread]",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "built typed runtime surface; live-PG proven"
+  },
+  {
+   "mt_id": "MT-207",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test atelier_diagnostics_typed_surfaces_tests mt207_prompt_response_matrix_preserved_as_deferred_contract [truncate+single-thread]",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "built typed runtime surface; live-PG proven"
+  },
+  {
+   "mt_id": "MT-171",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test atelier_diagnostics_validation_matrix_tests mt171_manual_and_action_catalog_matrix_persists [truncate+single-thread]",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "built typed runtime surface; live-PG proven"
+  },
+  {
+   "mt_id": "MT-172",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test atelier_diagnostics_validation_matrix_tests mt172_session_lease_and_heartbeat_matrix_persists [truncate+single-thread]",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "built typed runtime surface; live-PG proven"
+  },
+  {
+   "mt_id": "MT-173",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test atelier_diagnostics_validation_matrix_tests mt173_command_log_error_and_state_probe_matrix_persists [truncate+single-thread]",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "built typed runtime surface; live-PG proven"
+  },
+  {
+   "mt_id": "MT-174",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test atelier_diagnostics_validation_matrix_tests mt174_dcc_and_flight_recorder_matrix_persists [truncate+single-thread]",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "built typed runtime surface; live-PG proven"
+  },
+  {
+   "mt_id": "MT-175",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test atelier_diagnostics_validation_matrix_tests mt175_visual_evidence_matrix_persists [truncate+single-thread]",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "built typed runtime surface; live-PG proven"
+  },
+  {
+   "mt_id": "MT-144",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test atelier_command_log_session_tests mt144 [truncate+single-thread]",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "built typed runtime surface; live-PG proven"
+  },
+  {
+   "mt_id": "MT-145",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test atelier_command_log_session_tests mt145 [truncate+single-thread]",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "built typed runtime surface; live-PG proven"
+  },
+  {
+   "mt_id": "MT-148",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test atelier_diagnostics_projections_tests mt148_dcc_panel_projection_round_trips_each_kind [truncate+single-thread]",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "built typed runtime surface; live-PG proven"
+  },
+  {
+   "mt_id": "MT-167",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test atelier_diagnostics_projections_tests mt167_spec_drift_detector_records_mismatch_only [truncate+single-thread]",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "built typed runtime surface; live-PG proven"
+  },
+  {
+   "mt_id": "MT-147",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test atelier_diagnostics_projections_tests mt147_work_state_projection_round_trips [truncate+single-thread]",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "built typed runtime surface; live-PG proven"
+  },
+  {
+   "mt_id": "MT-153",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test atelier_diagnostics_projections_tests mt153_stealth_capture_extension [truncate+single-thread]",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "built typed runtime surface; live-PG proven"
+  },
+  {
+   "mt_id": "MT-160",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test atelier_model_config_apply_tests mt160_model_config_round_trips_with_redacted_api_key [truncate+single-thread]",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "built typed runtime surface; live-PG proven"
+  },
+  {
+   "mt_id": "MT-163",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test atelier_model_config_apply_tests mt163_apply_state_machine_enforces_legal_transitions [truncate+single-thread]",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "built typed runtime surface; live-PG proven"
+  },
+  {
+   "mt_id": "MT-169",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test atelier_model_config_apply_tests mt169_synthetic_input_guard_records_and_rejects_unauthorized [truncate+single-thread]",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "built typed runtime surface; live-PG proven"
+  },
+  {
+   "mt_id": "MT-142",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test model_session_scheduler_tests -- --include-ignored",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "already implemented (ModelSession); fixed test AppState postgres_pool field; 18 passed live PG"
+  },
+  {
+   "mt_id": "MT-152",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test native_screenshot_capture_tests mt152_native_screenshot_stored_as_governed_artifact_without_playwright",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "native WebView2 CDP capture (no Playwright), focus-safe; governed ArtifactStore evidence; live proof"
+  },
+  {
+   "mt_id": "MT-158",
+   "state": "READY_FOR_VALIDATION_V2",
+   "do_not_remediate_again": true,
+   "proof_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test native_screenshot_capture_tests mt158_native_capture_rejects_non_focus_safe_evidence",
+   "remediated_by": "KERNEL_BUILDER",
+   "remediation_note": "native WebView2 CDP capture (no Playwright), focus-safe; governed ArtifactStore evidence; live proof"
+  }
+ ],
+ "out_of_scope": [
+  {
+   "mt_id": "MT-131",
+   "state": "OUT_OF_SCOPE_BY_OPERATOR",
+   "reason": "Pose refinement-closure: scope/non-goals/deps/risks/acceptance/MT-plan refinement DOCUMENT — pure governance paperwork, no runtime form. Skipped per operator convert-or-skip rule (governance being abandoned post-WP)."
+  },
+  {
+   "mt_id": "MT-197",
+   "state": "OUT_OF_SCOPE_BY_OPERATOR",
+   "reason": "Diagnostics activation refinement closure: convert stub+suite into activation-ready refinement DOCUMENT — pure governance paperwork, no runtime form. Skipped per operator rule."
+  }
+ ]
+}

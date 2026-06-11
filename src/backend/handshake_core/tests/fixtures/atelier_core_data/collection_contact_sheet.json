@@ -1,0 +1,20 @@
+{
+  "_comment": "MT-063 portable non-SQLite fixture corpus: collections + contact-sheet artifacts only. No raster export, no CKC namespace. Media payload_seeds are materialized into a portable ArtifactStore at load time; the contact sheet snapshots membership by content hash.",
+  "media_seeds": [
+    "mt-063-collection-a",
+    "mt-063-collection-b",
+    "mt-063-collection-c"
+  ],
+  "collection": {
+    "name_slug": "mt-063-collection",
+    "notes": "fixture-seeded collection",
+    "tags": ["fixture", "  fixture  ", "portfolio"],
+    "member_media_indices": [0, 1, 2]
+  },
+  "contact_sheet": {
+    "name_slug": "mt-063-contact-sheet",
+    "source_type": "manual",
+    "member_media_indices": [0, 1, 2],
+    "tags": ["proof"]
+  }
+}

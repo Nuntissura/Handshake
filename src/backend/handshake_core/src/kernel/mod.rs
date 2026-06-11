@@ -137,6 +137,7 @@ pub mod validation;
 pub mod validator_finding_report_contract;
 pub mod validator_verdict_mediation_contract;
 pub mod visual_debugging_loop;
+pub mod visual_diff_baseline;
 pub mod work_packet_full_detail_authority;
 pub mod work_profiles;
 pub mod workflow_transition_registry;
@@ -231,6 +232,7 @@ pub enum KernelEventType {
     InspectorReplayDrive,
     FrEvtLedgerOverflow,
     HbrHandoffGate,
+    AtelierDomainEventRecorded,
 }
 
 impl KernelEventType {
@@ -264,6 +266,7 @@ impl KernelEventType {
             Self::InspectorReplayDrive => "INSPECTOR_REPLAY_DRIVE",
             Self::FrEvtLedgerOverflow => "FR_EVT_LEDGER_OVERFLOW",
             Self::HbrHandoffGate => "HBR_HANDOFF_GATE",
+            Self::AtelierDomainEventRecorded => "ATELIER_DOMAIN_EVENT_RECORDED",
         }
     }
 
@@ -297,6 +300,7 @@ impl KernelEventType {
             KernelEventType::InspectorReplayDrive,
             KernelEventType::FrEvtLedgerOverflow,
             KernelEventType::HbrHandoffGate,
+            KernelEventType::AtelierDomainEventRecorded,
         ]
     }
 }

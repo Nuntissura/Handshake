@@ -1,16 +1,16 @@
 #[allow(unused_imports)]
 use super::{
-    postgres::PostgresDatabase, AccessMode, BlockUpdate, CalendarEventExportMode,
-    CalendarEventStatus, CalendarEventUpsert, CalendarEventVisibility, CalendarEventWindowQuery,
-    CalendarSourceProviderType, CalendarSourceSyncState, CalendarSourceUpsert,
-    CalendarSourceWritePolicy, ControlPlaneStorageConfig, ControlPlaneStorageMode, Database,
-    DefaultStorageGuard, EntityRef, GuardError, JobKind, JobMetrics, JobState, JobStatusUpdate,
-    LoomBlock, LoomBlockContentType, LoomBlockSearchResult, LoomEdgeCreatedBy, LoomEdgeType,
-    LoomSearchFilters, LoomSourceAnchor, LoomViewFilters, LoomViewResponse, LoomViewType, NewAiJob,
-    NewAsset, NewBlock, NewCanvas, NewCanvasEdge, NewCanvasNode, NewDocument, NewLoomBlock,
-    NewLoomEdge, NewNodeExecution, NewWorkspace, OperationType, PlannedOperation, SafetyMode,
-    StorageBackendKind, StorageCapabilityStore, StorageError, StorageGuard, StorageResult,
-    StructuredCollaborationStore, WriteContext,
+    AccessMode, BlockUpdate, CalendarEventExportMode, CalendarEventStatus, CalendarEventUpsert,
+    CalendarEventVisibility, CalendarEventWindowQuery, CalendarSourceProviderType,
+    CalendarSourceSyncState, CalendarSourceUpsert, CalendarSourceWritePolicy,
+    ControlPlaneStorageConfig, ControlPlaneStorageMode, Database, DefaultStorageGuard, EntityRef,
+    GuardError, JobKind, JobMetrics, JobState, JobStatusUpdate, LoomBlock, LoomBlockContentType,
+    LoomBlockSearchResult, LoomEdgeCreatedBy, LoomEdgeType, LoomSearchFilters, LoomSourceAnchor,
+    LoomViewFilters, LoomViewResponse, LoomViewType, NewAiJob, NewAsset, NewBlock, NewCanvas,
+    NewCanvasEdge, NewCanvasNode, NewDocument, NewLoomBlock, NewLoomEdge, NewNodeExecution,
+    NewWorkspace, OperationType, PlannedOperation, SafetyMode, StorageBackendKind,
+    StorageCapabilityStore, StorageError, StorageGuard, StorageResult,
+    StructuredCollaborationStore, WriteContext, postgres::PostgresDatabase,
 };
 use chrono::Duration;
 use chrono::Utc;
@@ -125,9 +125,15 @@ async fn postgres_user_table_names(conn: &mut sqlx::PgConnection) -> StorageResu
         .collect())
 }
 
+#[derive(Clone)]
+pub struct PostgresTestBackend {
+    pub database: Arc<dyn super::Database>,
+    pub postgres_pool: sqlx::postgres::PgPool,
+}
+
 /// Build a PostgreSQL backend from POSTGRES_TEST_URL for test validation.
 #[allow(dead_code)]
-pub async fn postgres_backend_from_env() -> StorageResult<Arc<dyn super::Database>> {
+pub async fn postgres_backend_with_pool_from_env() -> StorageResult<PostgresTestBackend> {
     let url = std::env::var("POSTGRES_TEST_URL")
         .map_err(|_| StorageError::Validation("POSTGRES_TEST_URL not set for postgres tests"))?;
     let mut conn = sqlx::PgConnection::connect(&url).await?;
@@ -135,6 +141,33 @@ pub async fn postgres_backend_from_env() -> StorageResult<Arc<dyn super::Databas
     sqlx::query(&format!("CREATE SCHEMA {schema}"))
         .execute(&mut conn)
         .await?;
+    sqlx::query("CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA public")
+        .execute(&mut conn)
+        .await?;
+    sqlx::query(&format!(
+        r#"
+        CREATE OR REPLACE FUNCTION {schema}.digest(input text, algorithm text)
+        RETURNS bytea
+        LANGUAGE SQL
+        IMMUTABLE
+        PARALLEL SAFE
+        AS $$ SELECT public.digest(input::bytea, algorithm) $$
+        "#
+    ))
+    .execute(&mut conn)
+    .await?;
+    sqlx::query(&format!(
+        r#"
+        CREATE OR REPLACE FUNCTION {schema}.digest(input bytea, algorithm text)
+        RETURNS bytea
+        LANGUAGE SQL
+        IMMUTABLE
+        PARALLEL SAFE
+        AS $$ SELECT public.digest(input, algorithm) $$
+        "#
+    ))
+    .execute(&mut conn)
+    .await?;
     drop(conn);
 
     let sep = if url.contains('?') { "&" } else { "?" };
@@ -142,7 +175,28 @@ pub async fn postgres_backend_from_env() -> StorageResult<Arc<dyn super::Databas
 
     let db = PostgresDatabase::connect(&schema_url, 5).await?;
     db.run_migrations().await?;
-    Ok(db.into_arc())
+    let postgres_pool = db.pool().clone();
+    Ok(PostgresTestBackend {
+        database: db.into_arc(),
+        postgres_pool,
+    })
+}
+
+/// Build a PostgreSQL backend from POSTGRES_TEST_URL for test validation.
+#[allow(dead_code)]
+pub async fn postgres_backend_from_env() -> StorageResult<Arc<dyn super::Database>> {
+    Ok(postgres_backend_with_pool_from_env().await?.database)
+}
+
+/// Build a PostgreSQL backend and pool for tests that may run without local Postgres.
+#[allow(dead_code)]
+pub async fn optional_postgres_backend_with_pool_from_env()
+-> StorageResult<Option<PostgresTestBackend>> {
+    match postgres_backend_with_pool_from_env().await {
+        Ok(backend) => Ok(Some(backend)),
+        Err(StorageError::Validation("POSTGRES_TEST_URL not set for postgres tests")) => Ok(None),
+        Err(err) => Err(err),
+    }
 }
 
 /// Build a PostgreSQL backend for tests that may run without local Postgres.
@@ -2972,19 +3026,22 @@ async fn assert_postgres_structured_collab_artifacts_supported() -> StorageResul
     let db = db.into_arc();
 
     assert!(db.supports_structured_collab_artifacts());
-    assert!(db
-        .structured_collab_work_packet_row("WP-TEST")
-        .await?
-        .is_none());
+    assert!(
+        db.structured_collab_work_packet_row("WP-TEST")
+            .await?
+            .is_none()
+    );
     assert!(db.structured_collab_work_packet_rows().await?.is_empty());
-    assert!(db
-        .structured_collab_micro_task_status_rows("WP-TEST")
-        .await?
-        .is_empty());
-    assert!(db
-        .structured_collab_micro_task_rows("WP-TEST")
-        .await?
-        .is_empty());
+    assert!(
+        db.structured_collab_micro_task_status_rows("WP-TEST")
+            .await?
+            .is_empty()
+    );
+    assert!(
+        db.structured_collab_micro_task_rows("WP-TEST")
+            .await?
+            .is_empty()
+    );
     assert_eq!(
         db.structured_collab_micro_task_metadata("WP-TEST", "MT-TEST")
             .await?,

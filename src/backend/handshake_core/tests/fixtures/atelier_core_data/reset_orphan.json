@@ -1,0 +1,35 @@
+{
+  "_comment": "MT-066 portable non-SQLite fixture corpus: reset + orphan-adoption behavior. payload seeds materialize real ArtifactStore originals before the resets; the orphan manifest must preserve them with checksums and relocatable artifact:// roots (no drive-letter paths, no .GOV), and adoption must rehydrate the preserved handle into intake. All slugs are made run-unique at load time.",
+  "original_media": [
+    {
+      "payload_seed": "mt-066-original-keyframe",
+      "source_provenance": "fixture://mt-066/keyframe"
+    },
+    {
+      "payload_seed": "mt-066-original-altframe",
+      "source_provenance": "fixture://mt-066/altframe"
+    }
+  ],
+  "preference": {
+    "key_slug": "view-defaults.mt-066-grid-density",
+    "value": "dense"
+  },
+  "preferences_only_reset": {
+    "mode": "preferences_only",
+    "requested_by": "mt-066-reset",
+    "reason_slug": "mt-066-preferences-only-reset"
+  },
+  "full_reset": {
+    "mode": "full_preserve_original_media",
+    "requested_by": "mt-066-reset",
+    "reason_slug": "mt-066-full-preserve-original-media"
+  },
+  "adoption": {
+    "requested_by": "mt-066-adopt",
+    "adopt_media_index": 0
+  },
+  "portability": {
+    "required_artifact_prefix": "artifact://",
+    "forbidden_substrings": [".GOV", "\\", "file:", "sqlite", "ckc", "castkit"]
+  }
+}

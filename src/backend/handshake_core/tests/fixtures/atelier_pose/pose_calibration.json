@@ -1,0 +1,16 @@
+{
+  "_comment": "MT-113 portable non-SQLite fixture corpus: typed pose calibration. The Calibration Panel (spec 10.10.4.1.9) is BLOCKED, so the unresolved record carries a block_reason and the typed marker/hand detail is preserved verbatim, never faked. marker_count for each hand row must be the hand-21 keypoint count (filled by the loader). head_pose drives record_head_pose (yaw +-90 / pitch +-75 / roll +-45 limits).",
+  "head_pose": { "yaw_deg": 12.5, "pitch_deg": -8.0, "roll_deg": 3.25 },
+  "calibration": {
+    "state": "unresolved",
+    "block_reason": "Calibration Panel (spec 10.10.4.1.9) not yet implementable; values preserved BLOCKED, never faked",
+    "head_pose_ref": "pose-head://mt113-calibration",
+    "marker_visibility": { "body": true, "face": true, "left_hand": false, "right_hand": true },
+    "marker_colors": { "body": "unresolved", "face": "unresolved", "left_hand": "unresolved", "right_hand": "unresolved" },
+    "hand_rows": [
+      { "hand": "left", "visible": false, "confidence_available": false },
+      { "hand": "right", "visible": true, "confidence_available": true }
+    ],
+    "history_refs": ["pose-calibration-history://mt113/v1"]
+  }
+}

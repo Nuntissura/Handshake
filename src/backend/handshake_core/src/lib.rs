@@ -135,6 +135,11 @@ macro_rules! params {
 pub mod ace;
 #[cfg(feature = "runtime-full")]
 pub mod ai_ready_data;
+/// Atelier/Lens domain (WP-KERNEL-005 legacy source fold-in): PostgreSQL/CRDT only.
+pub mod atelier;
+/// Managed PostgreSQL lifecycle (task #9): auto-start a hidden embedded cluster
+/// on startup (no popup window, no Docker), so Handshake provides its own DB.
+pub mod managed_postgres;
 #[cfg(feature = "runtime-full")]
 pub mod api;
 #[cfg(feature = "runtime-full")]
@@ -238,4 +243,7 @@ pub struct AppState {
     pub llm_client: Arc<dyn LlmClient>,
     pub capability_registry: Arc<capabilities::CapabilityRegistry>,
     pub session_registry: Arc<workflows::SessionRegistry>,
+    /// Shared PostgreSQL pool for domains that own their schema directly
+    /// (e.g. the WP-KERNEL-005 atelier store). Reused, never reconnected.
+    pub postgres_pool: sqlx::PgPool,
 }

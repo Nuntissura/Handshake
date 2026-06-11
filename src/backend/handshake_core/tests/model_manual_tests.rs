@@ -250,3 +250,687 @@ fn safety_constraints_and_workflows_cover_no_context_operation() {
         );
     }
 }
+
+/// Runtime proof for the WP-KERNEL-005 atelier (Core-Data) microtasks
+/// MT-052..MT-060 and MT-073..MT-075: each atelier surface area must be a
+/// real, no-context ModelManual row — a feature group, its referenced commands
+/// (which must resolve to CommandReference entries), and a covering workflow.
+#[test]
+fn manual_covers_atelier_core_data_surfaces() {
+    let manual = model_manual();
+
+    let group_ids = manual
+        .feature_groups
+        .iter()
+        .map(|group| group.id)
+        .collect::<BTreeSet<_>>();
+    let command_ids = manual
+        .command_reference
+        .iter()
+        .map(|command| command.id)
+        .collect::<BTreeSet<_>>();
+    let workflow_ids = manual
+        .workflows
+        .iter()
+        .map(|workflow| workflow.id)
+        .collect::<BTreeSet<_>>();
+
+    // (MT id, feature_group_id, representative command ids, workflow id) for
+    // each of the 12 atelier microtask areas.
+    let coverage: &[(&str, &str, &[&str], &str)] = &[
+        (
+            "MT-052",
+            "atelier_character_core",
+            &[
+                "atelier_create_character",
+                "atelier_get_character_by_public_id",
+                "atelier_append_sheet_version",
+                "atelier_apply_sheet_field_edits",
+                "atelier_sheet_version_history",
+            ],
+            "atelier_character_identity_and_sheet",
+        ),
+        (
+            "MT-053",
+            "atelier_media_intake",
+            &[
+                "atelier_materialize_media_asset",
+                "atelier_open_intake_batch",
+                "atelier_list_intake_batch_items",
+                "atelier_apply_intake_classification",
+                "atelier_bulk_update_media_review_metadata",
+            ],
+            "atelier_media_library_and_intake_review",
+        ),
+        (
+            "MT-054",
+            "atelier_collections_contact_sheets",
+            &[
+                "atelier_create_collection",
+                "atelier_add_images_to_collection",
+                "atelier_create_contact_sheet",
+                "atelier_render_contact_sheet_svg_artifact",
+                "atelier_plan_contact_sheet_raster_export",
+            ],
+            "atelier_collections_and_contact_sheets",
+        ),
+        (
+            "MT-055",
+            "atelier_documents_scripts",
+            &[
+                "atelier_create_character_document",
+                "atelier_append_character_document_version",
+                "atelier_add_story_card",
+                "atelier_add_story_beat",
+                "atelier_create_character_script",
+            ],
+            "atelier_documents_story_scripts",
+        ),
+        (
+            "MT-056",
+            "atelier_moodboards",
+            &[
+                "atelier_record_moodboard_snapshot",
+                "atelier_record_moodboard_operation",
+                "atelier_request_moodboard_export",
+            ],
+            "atelier_moodboard_snapshot_and_export",
+        ),
+        (
+            "MT-057",
+            "atelier_relationships",
+            &[
+                "atelier_create_character_relationship",
+                "atelier_update_character_relationship",
+                "atelier_character_relationship_graph",
+            ],
+            "atelier_relationship_graph",
+        ),
+        (
+            "MT-058",
+            "atelier_search_tags_similarity",
+            &[
+                "atelier_global_search_with_lens_filters",
+                "atelier_ensure_tag",
+                "atelier_create_tag_rule",
+                "atelier_record_ai_tag_suggestion",
+                "atelier_find_similar_assets",
+            ],
+            "atelier_search_palette_and_similarity",
+        ),
+        (
+            "MT-059",
+            "atelier_exports",
+            &["atelier_request_web_portfolio_export"],
+            "atelier_web_portfolio_export",
+        ),
+        (
+            "MT-073",
+            "atelier_exports",
+            &[
+                "atelier_request_sheet_export",
+                "atelier_build_share_pack_manifest",
+            ],
+            "atelier_share_pack_export",
+        ),
+        (
+            "MT-074",
+            "atelier_exports",
+            &["atelier_build_llm_evidence_pack_manifest"],
+            "atelier_llm_evidence_pack_export",
+        ),
+        (
+            "MT-075",
+            "atelier_exports",
+            &[
+                "atelier_record_backup_manifest",
+                "atelier_backup_restore_preflight",
+            ],
+            "atelier_backup_restore_preflight",
+        ),
+        (
+            "MT-060",
+            "atelier_reset_recovery",
+            &[
+                "atelier_record_atelier_reset",
+                "atelier_list_orphan_manifest_items",
+                "atelier_adopt_orphan_manifest_item",
+            ],
+            "atelier_reset_recovery_and_orphan_adoption",
+        ),
+    ];
+
+    for (mt, group_id, commands, workflow_id) in coverage {
+        assert!(
+            group_ids.contains(group_id),
+            "{mt}: missing atelier feature group {group_id}"
+        );
+
+        let group = manual
+            .feature_groups
+            .iter()
+            .find(|group| group.id == *group_id)
+            .unwrap_or_else(|| panic!("{mt}: feature group {group_id} not found"));
+
+        for command_id in *commands {
+            // The command must exist as a CommandReference entry...
+            assert!(
+                command_ids.contains(command_id),
+                "{mt}: command {command_id} has no CommandReference entry"
+            );
+            // ...and be referenced by the area's feature group so the
+            // self-consistency invariant (no orphan refs) holds.
+            assert!(
+                group.commands.contains(command_id),
+                "{mt}: feature group {group_id} does not reference command {command_id}"
+            );
+        }
+
+        assert!(
+            workflow_ids.contains(workflow_id),
+            "{mt}: missing atelier workflow {workflow_id}"
+        );
+    }
+
+    // The wired atelier surfaces backed by real Axum routes in
+    // src/api/atelier.rs must be marked Wired with their HTTP route as the
+    // ipc_channel, never invented Tauri commands.
+    for (command_id, route) in [
+        ("atelier_open_intake_batch", "/atelier/intake/batches"),
+        (
+            "atelier_list_intake_batch_items",
+            "/atelier/intake/batches/:batch_id/items",
+        ),
+        (
+            "atelier_record_ai_tag_suggestion",
+            "/atelier/ai-tag-suggestions",
+        ),
+    ] {
+        let command = manual
+            .command_reference
+            .iter()
+            .find(|command| command.id == command_id)
+            .unwrap_or_else(|| panic!("missing wired atelier command {command_id}"));
+        assert_eq!(
+            command.status,
+            CommandStatus::Wired,
+            "{command_id} must be Wired"
+        );
+        assert_eq!(
+            command.ipc_channel,
+            Some(route),
+            "{command_id} must carry its Axum route"
+        );
+        assert_eq!(
+            command.tauri_command, None,
+            "{command_id} is an HTTP route, not a Tauri command"
+        );
+    }
+}
+
+/// Runtime proof for the WP-KERNEL-005 Pose / ComfyUI pipeline microtasks
+/// MT-122..MT-125: each pipeline area must be a real, no-context ModelManual
+/// row — a feature group, its FULL command list (which must each resolve to a
+/// CommandReference entry and be referenced by the group, so a dropped row
+/// fails), and a covering workflow.
+#[test]
+fn manual_covers_pose_comfy_surfaces() {
+    let manual = model_manual();
+
+    let group_ids = manual
+        .feature_groups
+        .iter()
+        .map(|group| group.id)
+        .collect::<BTreeSet<_>>();
+    let command_ids = manual
+        .command_reference
+        .iter()
+        .map(|command| command.id)
+        .collect::<BTreeSet<_>>();
+    let workflow_ids = manual
+        .workflows
+        .iter()
+        .map(|workflow| workflow.id)
+        .collect::<BTreeSet<_>>();
+
+    // (MT id, feature_group_id, FULL command id set, workflow id) for each of
+    // the 4 pose/comfy microtask areas. The command set is complete (not just
+    // representative) so dropping any single manual row fails this test.
+    let coverage: &[(&str, &str, &[&str], &str)] = &[
+        (
+            "MT-122",
+            "atelier_pose_context_and_rig",
+            &[
+                "atelier_set_pose_context_state",
+                "atelier_current_pose_context_state",
+                "atelier_ingest_pose_rig",
+                "atelier_list_pose_rigs",
+                "atelier_get_pose_rig",
+                "atelier_set_pose_calibration",
+                "atelier_get_calibration",
+            ],
+            "atelier_pose_context_and_rig",
+        ),
+        (
+            "MT-123",
+            "atelier_pose_sidecar_and_identity",
+            &[
+                "atelier_record_pose_sidecar",
+                "atelier_list_pose_sidecars",
+                "atelier_pose_sidecar_gallery_projection",
+                "atelier_append_identity_profile",
+                "atelier_update_identity_profile",
+                "atelier_record_identity_crop_artifact",
+                "atelier_latest_identity_profile",
+            ],
+            "atelier_pose_sidecar_and_identity",
+        ),
+        (
+            "MT-124",
+            "atelier_comfy_workflow_receipts",
+            &[
+                "atelier_record_comfy_workflow_receipt",
+                "atelier_get_comfy_workflow_receipt",
+                "atelier_list_comfy_workflow_history",
+                "atelier_produce_intake_receipt",
+                "atelier_mark_saveimage_fallback",
+                "atelier_record_comfy_output_registration_failure",
+                "atelier_retry_comfy_output_registration_failure",
+            ],
+            "atelier_comfy_workflow_receipts",
+        ),
+        (
+            "MT-125",
+            "atelier_pose_comfy_deferred_boundaries",
+            &[
+                "atelier_register_bridge_capability",
+                "atelier_list_capability_rejects",
+                "atelier_record_url_image_import",
+                "atelier_set_calibration_blocked",
+            ],
+            "atelier_pose_comfy_deferred_boundaries",
+        ),
+    ];
+
+    for (mt, group_id, commands, workflow_id) in coverage {
+        assert!(
+            group_ids.contains(group_id),
+            "{mt}: missing pose/comfy feature group {group_id}"
+        );
+
+        let group = manual
+            .feature_groups
+            .iter()
+            .find(|group| group.id == *group_id)
+            .unwrap_or_else(|| panic!("{mt}: feature group {group_id} not found"));
+
+        // The group's command list must be exactly the contract command set
+        // (same length) so neither a dropped nor a snuck-in row passes silently.
+        assert_eq!(
+            group.commands.len(),
+            commands.len(),
+            "{mt}: feature group {group_id} command count drifted from the contract set"
+        );
+
+        for command_id in *commands {
+            // The command must exist as a CommandReference entry...
+            assert!(
+                command_ids.contains(command_id),
+                "{mt}: command {command_id} has no CommandReference entry"
+            );
+            // ...and be referenced by the area's feature group so the
+            // self-consistency invariant (no orphan refs) holds.
+            assert!(
+                group.commands.contains(command_id),
+                "{mt}: feature group {group_id} does not reference command {command_id}"
+            );
+        }
+
+        assert!(
+            workflow_ids.contains(workflow_id),
+            "{mt}: missing pose/comfy workflow {workflow_id}"
+        );
+    }
+
+    // The one wired pose/comfy surface backed by a real Axum route in
+    // src/api/atelier.rs must be marked Wired with its HTTP route as the
+    // ipc_channel and no invented Tauri command. All other pose/comfy commands
+    // are Planned because src/api/atelier.rs::routes() registers no pose or
+    // comfy routes.
+    let url_import = manual
+        .command_reference
+        .iter()
+        .find(|command| command.id == "atelier_record_url_image_import")
+        .expect("wired atelier_record_url_image_import command");
+    assert_eq!(url_import.status, CommandStatus::Wired);
+    assert_eq!(url_import.ipc_channel, Some("/atelier/image-import/url"));
+    assert_eq!(url_import.tauri_command, None);
+
+    for planned_id in [
+        "atelier_ingest_pose_rig",
+        "atelier_record_pose_sidecar",
+        "atelier_record_comfy_workflow_receipt",
+        "atelier_register_bridge_capability",
+        "atelier_set_calibration_blocked",
+    ] {
+        let command = manual
+            .command_reference
+            .iter()
+            .find(|command| command.id == planned_id)
+            .unwrap_or_else(|| panic!("missing planned pose/comfy command {planned_id}"));
+        assert_eq!(
+            command.status,
+            CommandStatus::Planned,
+            "{planned_id} must be Planned (no Axum route exists for it)"
+        );
+        assert_eq!(command.ipc_channel, None, "{planned_id} must not claim a route");
+    }
+}
+
+/// Runtime proof for the WP-KERNEL-005 Model-Workflow-Diagnostics microtasks
+/// MT-132, MT-135, MT-159, MT-164, MT-181, MT-183, MT-185, MT-186, MT-187:
+/// each diagnostics area must be a real, no-context ModelManual row — a feature
+/// group, its FULL command list (each resolving to a CommandReference entry and
+/// referenced by the group, so a dropped row fails), and a covering workflow.
+#[test]
+fn manual_covers_diagnostics_surfaces() {
+    let manual = model_manual();
+
+    let group_ids = manual
+        .feature_groups
+        .iter()
+        .map(|group| group.id)
+        .collect::<BTreeSet<_>>();
+    let command_ids = manual
+        .command_reference
+        .iter()
+        .map(|command| command.id)
+        .collect::<BTreeSet<_>>();
+    let workflow_ids = manual
+        .workflows
+        .iter()
+        .map(|workflow| workflow.id)
+        .collect::<BTreeSet<_>>();
+
+    // (MT id, feature_group_id, FULL command id set, workflow id) for each of
+    // the 9 diagnostics microtask areas. The command set is complete (not just
+    // representative) so dropping any single manual row fails this test.
+    let coverage: &[(&str, &str, &[&str], &str)] = &[
+        (
+            "MT-132",
+            "diagnostics_source_evidence_matrix",
+            &[
+                "diagnostics_source_evidence_matrix",
+                "kernel_action_catalog_view",
+                "kernel_inspector_list_sessions",
+                "kernel_inspector_loaded_models",
+                "diagnostics_problem_store_query",
+            ],
+            "diagnostics_source_evidence_matrix",
+        ),
+        (
+            "MT-135",
+            "diagnostics_no_context_manual_structure",
+            &[
+                "model_manual_get",
+                "model_manual_list_commands",
+                "model_manual_search",
+                "kernel_model_manual_update_section",
+            ],
+            "diagnostics_no_context_manual_structure",
+        ),
+        (
+            "MT-159",
+            "diagnostics_gui_verification_checklist",
+            &[
+                "visual_debug_dom_snapshot",
+                "visual_debug_console_stream_start",
+                "visual_debug_console_stream_stop",
+                "kernel_product_screenshot_capture_execute",
+                "kernel_visual_debugging_loop_project",
+            ],
+            "diagnostics_gui_verification_checklist",
+        ),
+        (
+            "MT-164",
+            "diagnostics_build_rules_read_evidence",
+            &[
+                "diagnostics_hbr_handoff_gate_evaluate",
+                "hbr_matrix_check",
+                "hbr_validator_scan",
+                "hbr_violation_emit",
+            ],
+            "diagnostics_build_rules_read_evidence",
+        ),
+        (
+            "MT-181",
+            "diagnostics_integration_smoke_path",
+            &[
+                "kernel_role_mailbox_claim_lease_project",
+                "kernel_inspector_session_state",
+                "inspector_replay_drive",
+                "kernel_inspector_event_ledger_tail",
+                "diagnostics_debug_bundle_export",
+            ],
+            "diagnostics_integration_smoke_path",
+        ),
+        (
+            "MT-183",
+            "diagnostics_red_team_drift_guards",
+            &[
+                "diagnostics_manual_drift_guard",
+                "kernel_action_catalog_view",
+                "kernel_visual_debugging_loop_project",
+            ],
+            "diagnostics_red_team_drift_guards",
+        ),
+        (
+            "MT-185",
+            "diagnostics_core_row_merge",
+            &[
+                "diagnostics_core_row_merge",
+                "atelier_create_character",
+                "atelier_materialize_media_asset",
+                "atelier_request_web_portfolio_export",
+            ],
+            "diagnostics_core_row_merge",
+        ),
+        (
+            "MT-186",
+            "diagnostics_pose_row_merge",
+            &[
+                "diagnostics_pose_row_merge",
+                "atelier_ingest_pose_rig",
+                "atelier_record_pose_sidecar",
+                "atelier_record_comfy_workflow_receipt",
+            ],
+            "diagnostics_pose_row_merge",
+        ),
+        (
+            "MT-187",
+            "diagnostics_owned_row_merge",
+            &[
+                "diagnostics_owned_row_merge",
+                "diagnostics_problem_store_query",
+                "kernel_action_catalog_view",
+                "kernel_inspector_session_state",
+                "diagnostics_debug_bundle_export",
+            ],
+            "diagnostics_owned_row_merge",
+        ),
+    ];
+
+    for (mt, group_id, commands, workflow_id) in coverage {
+        assert!(
+            group_ids.contains(group_id),
+            "{mt}: missing diagnostics feature group {group_id}"
+        );
+
+        let group = manual
+            .feature_groups
+            .iter()
+            .find(|group| group.id == *group_id)
+            .unwrap_or_else(|| panic!("{mt}: feature group {group_id} not found"));
+
+        // The group's command list must be exactly the contract command set
+        // (same length) so neither a dropped nor a snuck-in row passes silently.
+        assert_eq!(
+            group.commands.len(),
+            commands.len(),
+            "{mt}: feature group {group_id} command count drifted from the contract set"
+        );
+
+        for command_id in *commands {
+            // The command must exist as a CommandReference entry...
+            assert!(
+                command_ids.contains(command_id),
+                "{mt}: command {command_id} has no CommandReference entry"
+            );
+            // ...and be referenced by the area's feature group so the
+            // self-consistency invariant (no orphan refs) holds.
+            assert!(
+                group.commands.contains(command_id),
+                "{mt}: feature group {group_id} does not reference command {command_id}"
+            );
+        }
+
+        assert!(
+            workflow_ids.contains(workflow_id),
+            "{mt}: missing diagnostics workflow {workflow_id}"
+        );
+    }
+
+    // Diagnostics surfaces backed by a real registered KernelActionCatalogV1
+    // action (src/kernel/action_catalog.rs) are Wired with their action_id as
+    // the ipc_channel and no invented Tauri command.
+    for (command_id, action_id) in [
+        ("kernel_action_catalog_view", "kernel.action_catalog.view"),
+        (
+            "kernel_model_manual_update_section",
+            "kernel.model_manual.update_section",
+        ),
+        (
+            "kernel_product_screenshot_capture_execute",
+            "kernel.product_screenshot_capture.execute",
+        ),
+        (
+            "kernel_visual_debugging_loop_project",
+            "kernel.visual_debugging_loop.project",
+        ),
+        (
+            "kernel_role_mailbox_claim_lease_project",
+            "kernel.role_mailbox_claim_lease.project",
+        ),
+    ] {
+        let command = manual
+            .command_reference
+            .iter()
+            .find(|command| command.id == command_id)
+            .unwrap_or_else(|| panic!("missing wired diagnostics command {command_id}"));
+        assert_eq!(
+            command.status,
+            CommandStatus::Wired,
+            "{command_id} must be Wired (registered catalog action)"
+        );
+        assert_eq!(
+            command.ipc_channel,
+            Some(action_id),
+            "{command_id} must carry its registered action_id"
+        );
+        assert_eq!(
+            command.tauri_command, None,
+            "{command_id} is a catalog action, not a Tauri command"
+        );
+    }
+
+    // Diagnostics surfaces that are real backend traits/methods but have no
+    // registered IPC route yet must be Planned and must not claim a route.
+    for planned_id in [
+        "diagnostics_source_evidence_matrix",
+        "diagnostics_problem_store_query",
+        "diagnostics_hbr_handoff_gate_evaluate",
+    ] {
+        let command = manual
+            .command_reference
+            .iter()
+            .find(|command| command.id == planned_id)
+            .unwrap_or_else(|| panic!("missing planned diagnostics command {planned_id}"));
+        assert_eq!(
+            command.status,
+            CommandStatus::Planned,
+            "{planned_id} must be Planned (no registered IPC route exists for it)"
+        );
+        assert_eq!(
+            command.ipc_channel, None,
+            "{planned_id} must not claim a route"
+        );
+    }
+
+    // MT-183/185/186/187 merge and drift-guard surfaces are executable backend
+    // library checks (src/atelier/model_manual_merge.rs) without an IPC route:
+    // Wired like the other library surfaces, but never claiming a route.
+    for wired_library_id in [
+        "diagnostics_manual_drift_guard",
+        "diagnostics_core_row_merge",
+        "diagnostics_pose_row_merge",
+        "diagnostics_owned_row_merge",
+    ] {
+        let command = manual
+            .command_reference
+            .iter()
+            .find(|command| command.id == wired_library_id)
+            .unwrap_or_else(|| panic!("missing diagnostics merge/guard command {wired_library_id}"));
+        assert_eq!(
+            command.status,
+            CommandStatus::Wired,
+            "{wired_library_id} must be Wired (executable library surface)"
+        );
+        assert_eq!(
+            command.ipc_channel, None,
+            "{wired_library_id} must not claim a route"
+        );
+        assert_eq!(
+            command.tauri_command, None,
+            "{wired_library_id} is a library surface, not a Tauri command"
+        );
+        assert!(
+            command
+                .description
+                .contains("src/atelier/model_manual_merge.rs"),
+            "{wired_library_id} must cite its executable implementation"
+        );
+    }
+
+    // MT-181: the smoke path's terminal step is no longer a Planned scaffold.
+    // The debug-bundle export is the executable kernel diagnostic-bundle
+    // manifest surface (src/diagnostics/bundle_manifest.rs): Wired like the
+    // other library surfaces, but never claiming a route.
+    let bundle_export = manual
+        .command_reference
+        .iter()
+        .find(|command| command.id == "diagnostics_debug_bundle_export")
+        .expect("missing diagnostics_debug_bundle_export command");
+    assert_eq!(
+        bundle_export.status,
+        CommandStatus::Wired,
+        "diagnostics_debug_bundle_export must be Wired (executable library surface)"
+    );
+    assert_eq!(
+        bundle_export.ipc_channel, None,
+        "diagnostics_debug_bundle_export must not claim a route"
+    );
+    assert_eq!(
+        bundle_export.tauri_command, None,
+        "diagnostics_debug_bundle_export is a library surface, not a Tauri command"
+    );
+    assert!(
+        bundle_export
+            .description
+            .contains("src/diagnostics/bundle_manifest.rs"),
+        "diagnostics_debug_bundle_export must cite its executable implementation"
+    );
+
+    // The manual version moved to the smoke-path bundle-export wired increment
+    // (HBR-MAN-001: wired-surface diff bumps MANUAL_VERSION).
+    assert_eq!(MANUAL_VERSION, "1.5.0");
+}

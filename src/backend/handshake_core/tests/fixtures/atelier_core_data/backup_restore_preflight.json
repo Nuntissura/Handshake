@@ -1,0 +1,89 @@
+{
+  "_comment": "MT-079 portable non-SQLite fixture corpus: backup + restore-preflight behavior only. Backups carry app/spec/schema version traceability with checksummed logical files (synthetic seeds only, no real operator data, relocatable artifact:// refs); preflight scenarios pin the version/refusal rules: same-version restores are accepted, newer app/spec/schema backups are refused. All payloads are made run-unique at load time.",
+  "backups": [
+    {
+      "key": "baseline",
+      "app_version": "1.4.0",
+      "spec_version": "2026.06.10",
+      "schema_version": 5,
+      "payload_seed": "mt-079-backup-baseline",
+      "created_by": "mt-079-backup",
+      "extra_files": [
+        {
+          "logical_path": "checksums/media.json",
+          "content_hash": "fedcba9876543210fedcba9876543210",
+          "byte_len": 256
+        }
+      ]
+    },
+    {
+      "key": "newer_app",
+      "app_version": "9.9.9",
+      "spec_version": "2026.06.10",
+      "schema_version": 5,
+      "payload_seed": "mt-079-backup-newer-app",
+      "created_by": "mt-079-backup",
+      "extra_files": []
+    },
+    {
+      "key": "newer_spec",
+      "app_version": "1.4.0",
+      "spec_version": "2027.01.01",
+      "schema_version": 5,
+      "payload_seed": "mt-079-backup-newer-spec",
+      "created_by": "mt-079-backup",
+      "extra_files": []
+    },
+    {
+      "key": "newer_schema",
+      "app_version": "1.4.0",
+      "spec_version": "2026.06.10",
+      "schema_version": 6,
+      "payload_seed": "mt-079-backup-newer-schema",
+      "created_by": "mt-079-backup",
+      "extra_files": []
+    }
+  ],
+  "preflights": [
+    {
+      "backup_key": "baseline",
+      "current_app_version": "1.4.0",
+      "current_spec_version": "2026.06.10",
+      "current_schema_version": 5,
+      "requested_by": "mt-079-restore",
+      "expected_status": "accepted",
+      "refusal_contains": null
+    },
+    {
+      "backup_key": "newer_app",
+      "current_app_version": "1.4.0",
+      "current_spec_version": "2026.06.10",
+      "current_schema_version": 5,
+      "requested_by": "mt-079-restore",
+      "expected_status": "refused",
+      "refusal_contains": "newer app"
+    },
+    {
+      "backup_key": "newer_spec",
+      "current_app_version": "1.4.0",
+      "current_spec_version": "2026.06.10",
+      "current_schema_version": 5,
+      "requested_by": "mt-079-restore",
+      "expected_status": "refused",
+      "refusal_contains": "newer spec"
+    },
+    {
+      "backup_key": "newer_schema",
+      "current_app_version": "1.4.0",
+      "current_spec_version": "2026.06.10",
+      "current_schema_version": 5,
+      "requested_by": "mt-079-restore",
+      "expected_status": "refused",
+      "refusal_contains": "newer schema"
+    }
+  ],
+  "portability": {
+    "required_artifact_prefix": "artifact://",
+    "forbidden_substrings": [".GOV", "\\", "file:", "sqlite", "ckc", "castkit"]
+  }
+}

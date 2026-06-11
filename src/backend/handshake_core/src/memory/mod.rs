@@ -15,6 +15,7 @@ pub mod replay_eval;
 pub mod retrieval_mode;
 pub mod scoring;
 pub mod trace_export;
+pub mod trace_export_postgres;
 
 pub use builder::{
     BuildContext, BuilderError, CapsuleBuilder, FemsError, FemsMtHandoffRetriever, FemsRetriever,
@@ -58,3 +59,8 @@ pub use pinned_core::{
     UNPIN_MEMORY_ACTION_ID,
 };
 pub use policy_table::{CapsulePolicyTable, RETRIEVAL_SCORING_FORMULA_V0};
+pub use trace_export_postgres::{
+    export_persisted_trace, PostgresTraceSource, MEMORY_TRACE_AGGREGATE_TYPE,
+    MEMORY_TRACE_BUNDLE_PAYLOAD_SCHEMA_ID, MEMORY_TRACE_EXPORTED_PAYLOAD_SCHEMA_ID,
+    MEMORY_TRACE_SOURCE_COMPONENT,
+};

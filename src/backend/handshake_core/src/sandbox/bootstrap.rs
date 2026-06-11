@@ -128,17 +128,16 @@ pub fn build_registry_from_adapters_with_ledger(
         .map(|adapter| adapter.capabilities().adapter_id)
         .collect::<Vec<_>>();
 
-    if available_adapter_ids.is_empty() {
-        return Err(SandboxAdapterError::AdapterUnavailable {
-            adapter_id: preferred_default_adapter_id,
-            reason: "no sandbox adapters available during bootstrap".to_string(),
-        });
-    }
-
     let default_adapter_id = if available_adapter_ids
         .iter()
         .any(|adapter_id| adapter_id == &preferred_default_adapter_id)
     {
+        preferred_default_adapter_id
+    } else if available_adapter_ids.is_empty() {
+        warn!(
+            adapter_id = %preferred_default_adapter_id,
+            "no sandbox adapters available during bootstrap; app startup continues and sandbox jobs fail closed when selected"
+        );
         preferred_default_adapter_id
     } else {
         let fallback = available_adapter_ids
@@ -206,4 +205,23 @@ fn docker_explicit_opt_in_from_env() -> bool {
             )
         })
         .unwrap_or(false)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn empty_adapter_registry_bootstraps_without_outside_app_dependency() {
+        let registry =
+            build_registry_from_adapters(AdapterId::new(WSL2_PODMAN_ADAPTER_ID), Vec::new(), false)
+                .expect("empty registry should not block app startup");
+
+        assert!(registry.list().is_empty());
+        assert_eq!(
+            registry.default_adapter_id().as_str(),
+            WSL2_PODMAN_ADAPTER_ID
+        );
+        assert!(registry.get(registry.default_adapter_id()).is_none());
+    }
 }

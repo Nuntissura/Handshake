@@ -126,6 +126,7 @@ test = false
 axum = { version = "0.7", features = ["ws"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+serde_yaml = { package = "yaml_serde", version = "0.10" }
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "process", "sync", "time", "io-util"] }
 tower-http = { version = "0.6", features = ["cors"] }
 sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio-rustls", "postgres", "macros", "migrate", "chrono", "uuid", "json"] }
@@ -191,7 +192,7 @@ tiktoken-rs = { version = "0.5", optional = true }
 tokenizers = { version = "0.23.1", optional = true, default-features = false, features = ["onig", "progressbar"] }
 regex = "1"
 zip = { version = "0.6", default-features = false, features = ["deflate"] }
-jsonschema = "0.17"
+jsonschema = { version = "0.17", features = ["draft202012"] }
 which = "8"
 icalendar = "0.17.10"
 tokio-cron-scheduler = "0.15.1"
@@ -485,3 +486,8 @@ required-features = ["duckdb-flight-recorder"]
 name = "distillation_corpus_extractor_tests"
 path = "tests/distillation_corpus_extractor_tests.rs"
 required-features = ["duckdb-flight-recorder"]
+
+[[test]]
+name = "native_screenshot_capture_tests"
+path = "tests/native_screenshot_capture_tests.rs"
+required-features = ["test-utils"]
