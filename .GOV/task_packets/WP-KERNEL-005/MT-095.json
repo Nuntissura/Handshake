@@ -33,8 +33,8 @@
     "depends_on": [
       "MT-094"
     ],
-    "status": "VALIDATED_V2",
-    "validator_verdict": "PASS",
+    "status": "VALIDATED_V3",
+    "validator_verdict": "PASS_V3",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:14:13.138Z",
     "ready_by": "KB-KERNEL-005-CLOSEOUT",
@@ -49,6 +49,15 @@
       "fail_category": null,
       "gap": null,
       "evidence": "pose.rs:2436-2496 pose_source_image_strip_state (LEFT JOIN atelier_media_asset) and pose_openpose_sidecar_strip_state (structured diagnostics rows, excludes conditioning); test atelier_pose_tests.rs:974-1054 asserts source/openpose strip projections, source-ref-only rig diagnostics-visible-not-gallery, failed-sidecar reason preserved on live PG"
+    },
+    "completed_by": "INTEGRATION_VALIDATOR-20260611-033732",
+    "completed_at_utc": "2026-06-11T05:17:17.690Z",
+    "integration_validation_v3": {
+      "verdict": "PASS_V3",
+      "round": "v3",
+      "at_utc": "2026-06-11T05:17:17.690Z",
+      "validator_session": "INTEGRATION_VALIDATOR-20260611-033732",
+      "basis": "v2 PASS re-affirmed in v3: deliverable unchanged by remediation diff; full-crate test sweep green on Handshake-managed PostgreSQL at 17b2abd4 proves no regression. v2 evidence retained in integration_validation_v2."
     }
   },
   "markdown_projection": {
@@ -87,6 +96,6 @@
     "risk_if_missed": "CKC parity loss for Source And OpenPose Strip State",
     "summary": "MT-095 [Pose-ComfyUI-Pipeline] Source And OpenPose Strip State -- Preserve independent source-image and OpenPose sidecar strip state projections consumable by Diagnostics without screen scraping."
   },
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-06-11T05:17:17.690Z",
   "wp_id": "WP-KERNEL-005"
 }

@@ -33,8 +33,8 @@
     "depends_on": [
       "MT-113"
     ],
-    "status": "VALIDATED_V2",
-    "validator_verdict": "PASS",
+    "status": "VALIDATED_V3",
+    "validator_verdict": "PASS_V3",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:17:25.838Z",
     "ready_by": "KB-KERNEL-005-CLOSEOUT",
@@ -49,6 +49,15 @@
       "fail_category": null,
       "gap": null,
       "evidence": "ComfyBridgeFakeAdapterV1 is a contract-sanctioned deterministic offline INPUT ('without real ComfyUI'); persistence is real: record_comfy_workflow_receipt, record_comfy_output_registration_failure, mark_saveimage_fallback all INSERT into real atelier_comfy_* tables (src/atelier/comfy.rs:2243,2314,2657). Tests assert receipt schema, retryable registration failure, SaveImage fallback + event counts against real PG (tests/atelier_comfy_tests.rs:753-771,928,1200-1322)."
+    },
+    "completed_by": "INTEGRATION_VALIDATOR-20260611-033732",
+    "completed_at_utc": "2026-06-11T05:17:17.690Z",
+    "integration_validation_v3": {
+      "verdict": "PASS_V3",
+      "round": "v3",
+      "at_utc": "2026-06-11T05:17:17.690Z",
+      "validator_session": "INTEGRATION_VALIDATOR-20260611-033732",
+      "basis": "v2 PASS re-affirmed in v3: deliverable unchanged by remediation diff; full-crate test sweep green on Handshake-managed PostgreSQL at 17b2abd4 proves no regression. v2 evidence retained in integration_validation_v2."
     }
   },
   "markdown_projection": {
@@ -90,6 +99,6 @@
     "risk_if_missed": "CKC parity loss for ComfyUI Receipt Fixture Corpus",
     "summary": "MT-114 [Pose-ComfyUI-Pipeline] ComfyUI Receipt Fixture Corpus -- Create fixtures for workflow receipt, failed registration, replay, and SaveImage fallback that prove success/failure paths without real ComfyUI or SQLite."
   },
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-06-11T05:17:17.690Z",
   "wp_id": "WP-KERNEL-005"
 }

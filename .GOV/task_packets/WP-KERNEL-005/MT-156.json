@@ -33,8 +33,8 @@
     "depends_on": [
       "MT-155"
     ],
-    "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "status": "VALIDATED_V3",
+    "validator_verdict": "PASS_V3",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-11T03:05:50.294Z",
     "ready_by": "KB-KERNEL-005-V3-REMEDIATION",
@@ -50,7 +50,23 @@
       "gap": null,
       "evidence": "src/self_improve/scheduler.rs:149-204 real rolling-window cap + deterministic skip-reason priority (operator>goodhart>pending>budget); inline+integration tests prove 25/24h cap and true sliding window. CONCERN: scheduler doc (scheduler.rs:147-148) says it is the 'only caller of LoopCore::run_one_iteration' yet run_one_iteration has zero non-test callers in src/ — the scheduler is orphaned, and FR-EVT-DISTILL-LOOP-CAP is only returned as a struct, never emitted to a real EventLedger."
     },
-    "ready_for_validation_v3": true
+    "ready_for_validation_v3": true,
+    "completed_by": "INTEGRATION_VALIDATOR-20260611-033732",
+    "completed_at_utc": "2026-06-11T05:17:17.690Z",
+    "integration_validation_v3": {
+      "verdict": "PASS_V3",
+      "round": "v3",
+      "at_utc": "2026-06-11T05:17:17.690Z",
+      "validator_session": "INTEGRATION_VALIDATOR-20260611-033732",
+      "impl_reality": "REAL",
+      "proof_validity": "STRONG",
+      "sr1": "PASS",
+      "sr2": "NA",
+      "concern_resolved": true,
+      "evidence": "V3 built the contract's actual surface end-to-end: src/atelier/visual_steer_feedback.rs:85-178 record_visual_steer_feedback validates the MT-046 loop, converts each over-threshold evidence artifact into a durable PG row (migration 0129, upsert keyed loop_id+evidence_id) with concrete numbers+refs next_action, VISUAL_STEER_FEEDBACK_RECORDED in same tx. Proof tests/atelier_visual_steer_feedback_tests.rs: breach -> 1 row with actionable next_action ('300 bps'/'250 bps'/diff refs), PG re-read, ledger 1 then 2 on idempotent re-record; within-threshold records nothing; invalid loop rejected with nothing persisted.",
+      "gap": "Out-of-contract observation: self_improve scheduler LoopCore::run_one_iteration has zero non-test callers and FR_EVT_DISTILL_LOOP_CAP is struct-returned, never ledger-emitted - that module carries colliding self-improve cluster MT numbering, not this WP's MT-156 contract surface. Follow-on item.",
+      "basis": "v3 adversarial per-MT review of remediated deliverable + runtime proof via full-crate managed-PG sweep and kernel-builder fresh-DB proof logs"
+    }
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.326Z",
@@ -89,6 +105,6 @@
     "risk_if_missed": "CKC parity loss for STEER Feedback From Visual Mismatch",
     "summary": "MT-156 [Model-Workflow-Diagnostics] STEER Feedback From Visual Mismatch -- Convert visual threshold breaches into actionable STEER feedback records (not silent failure or generic prose)."
   },
-  "updated_at_utc": "2026-06-11T03:05:50.294Z",
+  "updated_at_utc": "2026-06-11T05:17:17.690Z",
   "wp_id": "WP-KERNEL-005"
 }

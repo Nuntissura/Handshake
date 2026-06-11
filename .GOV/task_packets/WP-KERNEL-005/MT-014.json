@@ -33,8 +33,8 @@
     "depends_on": [
       "MT-013"
     ],
-    "status": "VALIDATED_V2",
-    "validator_verdict": "PASS",
+    "status": "VALIDATED_V3",
+    "validator_verdict": "PASS_V3",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:03:37.895Z",
     "ready_by": "KB-KERNEL-005-CLOSEOUT",
@@ -49,6 +49,15 @@
       "fail_category": null,
       "gap": null,
       "evidence": "bulk.rs:368-449 bulk_tag_characters_with_receipt opens a tx, require_all_characters_exist prevalidates all targets before any INSERT, writes one receipt + one event, commits atomically. Test atelier_bulk_operations_tests.rs:172-255 proves missing target rejects whole batch (no mutation, no receipt) and success writes one linked kernel_event_ledger row (assert_one_bulk_receipt_event joins atelier_event to kernel_event_ledger lines 81-104)."
+    },
+    "completed_by": "INTEGRATION_VALIDATOR-20260611-033732",
+    "completed_at_utc": "2026-06-11T05:17:17.690Z",
+    "integration_validation_v3": {
+      "verdict": "PASS_V3",
+      "round": "v3",
+      "at_utc": "2026-06-11T05:17:17.690Z",
+      "validator_session": "INTEGRATION_VALIDATOR-20260611-033732",
+      "basis": "v2 PASS re-affirmed in v3: deliverable unchanged by remediation diff; full-crate test sweep green on Handshake-managed PostgreSQL at 17b2abd4 proves no regression. v2 evidence retained in integration_validation_v2."
     }
   },
   "markdown_projection": {
@@ -87,6 +96,6 @@
     "risk_if_missed": "CKC parity loss for Bulk Character Operations",
     "summary": "MT-014 [Core-Data-Intake] Bulk Character Operations -- Preserve bulk tag/field/export/trash operations with all-target-validation-before-mutation guardrails and one batch receipt."
   },
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-06-11T05:17:17.690Z",
   "wp_id": "WP-KERNEL-005"
 }

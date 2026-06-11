@@ -33,8 +33,8 @@
     "depends_on": [
       "MT-111"
     ],
-    "status": "VALIDATED_V2",
-    "validator_verdict": "PASS",
+    "status": "VALIDATED_V3",
+    "validator_verdict": "PASS_V3",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:17:03.631Z",
     "ready_by": "KB-KERNEL-005-CLOSEOUT",
@@ -49,6 +49,15 @@
       "fail_category": null,
       "gap": null,
       "evidence": "src/atelier/comfy.rs:3160-3232 record_diagnostic_bundle (real INSERT...ON CONFLICT + EventLedger record_event); migration 0109 IS wired at src/atelier/mod.rs:2082 (test's 'skip until wired' comment is stale); tests/atelier_diagnostic_bundle_tests.rs:47-178 records/reloads on real PG and asserts DIAGNOSTIC_BUNDLE_RECORDED via list_kernel_events_for_aggregate."
+    },
+    "completed_by": "INTEGRATION_VALIDATOR-20260611-033732",
+    "completed_at_utc": "2026-06-11T05:17:17.690Z",
+    "integration_validation_v3": {
+      "verdict": "PASS_V3",
+      "round": "v3",
+      "at_utc": "2026-06-11T05:17:17.690Z",
+      "validator_session": "INTEGRATION_VALIDATOR-20260611-033732",
+      "basis": "v2 PASS re-affirmed in v3: deliverable unchanged by remediation diff; full-crate test sweep green on Handshake-managed PostgreSQL at 17b2abd4 proves no regression. v2 evidence retained in integration_validation_v2."
     }
   },
   "markdown_projection": {
@@ -92,6 +101,6 @@
     "risk_if_missed": "CKC parity loss for Pose Diagnostic Bundle Hook",
     "summary": "MT-112 [Pose-ComfyUI-Pipeline] Pose Diagnostic Bundle Hook -- Provide structured diagnostic bundle inputs (request, refs, versions, logs, artifacts, error taxonomy) for failed pose/ComfyUI operations."
   },
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-06-11T05:17:17.690Z",
   "wp_id": "WP-KERNEL-005"
 }

@@ -33,8 +33,8 @@
     "depends_on": [
       "MT-067"
     ],
-    "status": "VALIDATED_V2",
-    "validator_verdict": "PASS",
+    "status": "VALIDATED_V3",
+    "validator_verdict": "PASS_V3",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:09:50.080Z",
     "ready_by": "KB-KERNEL-005-CLOSEOUT",
@@ -49,6 +49,15 @@
       "fail_category": null,
       "gap": null,
       "evidence": "tests/atelier_core_data_tests.rs:8415-8475 protected-field edit denied (protected_field + field id) and original version unchanged; 8504-8604 stale_selection + missing-base-hash denials prevent unbounded apply, asserts history.len()==1 unchanged, against real apply_sheet_field_edits store guard"
+    },
+    "completed_by": "INTEGRATION_VALIDATOR-20260611-033732",
+    "completed_at_utc": "2026-06-11T05:17:17.690Z",
+    "integration_validation_v3": {
+      "verdict": "PASS_V3",
+      "round": "v3",
+      "at_utc": "2026-06-11T05:17:17.690Z",
+      "validator_session": "INTEGRATION_VALIDATOR-20260611-033732",
+      "basis": "v2 PASS re-affirmed in v3: deliverable unchanged by remediation diff; full-crate test sweep green on Handshake-managed PostgreSQL at 17b2abd4 proves no regression. v2 evidence retained in integration_validation_v2."
     }
   },
   "markdown_projection": {
@@ -91,6 +100,6 @@
     "risk_if_missed": "CKC parity loss for Core Red-Team Data Mutation Guards",
     "summary": "MT-068 [Core-Data-Intake] Core Red-Team Data Mutation Guards -- Turn character/sheet data-loss risks (silent overwrite, source loss, protected-field mutation, version flattening, stale merge) into failing negative checks."
   },
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-06-11T05:17:17.690Z",
   "wp_id": "WP-KERNEL-005"
 }

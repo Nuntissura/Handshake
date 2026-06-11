@@ -33,8 +33,8 @@
     "depends_on": [
       "MT-108"
     ],
-    "status": "VALIDATED_V2",
-    "validator_verdict": "PASS",
+    "status": "VALIDATED_V3",
+    "validator_verdict": "PASS_V3",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:16:25.265Z",
     "ready_by": "KB-KERNEL-005-CLOSEOUT",
@@ -49,6 +49,15 @@
       "fail_category": null,
       "gap": null,
       "evidence": "comfy.rs:279-343 ComfyEndpointConfig/ComfyAdapterKind define the adapter-boundary contract and validate() rejects DirectComfyEndpoint/DirectLlmEndpoint kinds and non-portable/localhost endpoint_refs via reject_legacy_runtime_ref, accepting only HandshakeNativeManaged; tests/atelier_comfy_intake_routing_tests.rs:115-168 rejects direct-LLM/direct-comfy kinds and localhost/127.0.0.1/ollama/machine-local refs, accepts only the managed portable ref. Capability/endpoint gate is config-level (no PG surface), sr2 NA."
+    },
+    "completed_by": "INTEGRATION_VALIDATOR-20260611-033732",
+    "completed_at_utc": "2026-06-11T05:17:17.690Z",
+    "integration_validation_v3": {
+      "verdict": "PASS_V3",
+      "round": "v3",
+      "at_utc": "2026-06-11T05:17:17.690Z",
+      "validator_session": "INTEGRATION_VALIDATOR-20260611-033732",
+      "basis": "v2 PASS re-affirmed in v3: deliverable unchanged by remediation diff; full-crate test sweep green on Handshake-managed PostgreSQL at 17b2abd4 proves no regression. v2 evidence retained in integration_validation_v2."
     }
   },
   "markdown_projection": {
@@ -92,6 +101,6 @@
     "risk_if_missed": "CKC parity loss for ComfyUI Capability And Endpoint Boundary",
     "summary": "MT-109 [Pose-ComfyUI-Pipeline] ComfyUI Capability And Endpoint Boundary -- Define Comfy-compatible workflow execution as a Handshake-native integrated adapter boundary, with capability checks, endpoint/config rejection gates, and no manual ComfyUI app dependency."
   },
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-06-11T05:17:17.690Z",
   "wp_id": "WP-KERNEL-005"
 }

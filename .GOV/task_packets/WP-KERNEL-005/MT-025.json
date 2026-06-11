@@ -33,8 +33,8 @@
     "depends_on": [
       "MT-024"
     ],
-    "status": "VALIDATED_V2",
-    "validator_verdict": "PASS",
+    "status": "VALIDATED_V3",
+    "validator_verdict": "PASS_V3",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:04:05.171Z",
     "ready_by": "KB-KERNEL-005-CLOSEOUT",
@@ -49,6 +49,15 @@
       "fail_category": null,
       "gap": null,
       "evidence": "src/atelier/image_import.rs:481 record_url_image_import does real SSRF preflight (:229 preflight_url blocks loopback/private IP/ambiguous literals/credentials), capability validation, idempotency, and INSERTs into atelier_image_import_request with a sanitized event. tests/atelier_image_import_tests.rs:261/:358 hit store.pool(); SSRF-blocked targets create zero rows (:410). Network fetch deferred to Workflow-Engine is an architectural boundary, not the MT's required behavior (recording) which is fully wired."
+    },
+    "completed_by": "INTEGRATION_VALIDATOR-20260611-033732",
+    "completed_at_utc": "2026-06-11T05:17:17.690Z",
+    "integration_validation_v3": {
+      "verdict": "PASS_V3",
+      "round": "v3",
+      "at_utc": "2026-06-11T05:17:17.690Z",
+      "validator_session": "INTEGRATION_VALIDATOR-20260611-033732",
+      "basis": "v2 PASS re-affirmed in v3: deliverable unchanged by remediation diff; full-crate test sweep green on Handshake-managed PostgreSQL at 17b2abd4 proves no regression. v2 evidence retained in integration_validation_v2."
     }
   },
   "markdown_projection": {
@@ -89,6 +98,6 @@
     "risk_if_missed": "CKC parity loss for Clipboard And URL Image Import",
     "summary": "MT-025 [Core-Data-Intake] Clipboard And URL Image Import -- Preserve clipboard and URL image import with provenance, capability gates, and SSRF protection."
   },
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-06-11T05:17:17.690Z",
   "wp_id": "WP-KERNEL-005"
 }

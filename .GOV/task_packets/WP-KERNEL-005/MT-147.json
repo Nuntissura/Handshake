@@ -33,8 +33,8 @@
     "depends_on": [
       "MT-146"
     ],
-    "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "status": "VALIDATED_V3",
+    "validator_verdict": "PASS_V3",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-11T03:05:50.294Z",
     "ready_by": "KB-KERNEL-005-V3-REMEDIATION",
@@ -50,7 +50,23 @@
       "gap": null,
       "evidence": "state_probe.rs:1556-1602 (record_work_state_projection: real PG upsert + in-tx WORK_STATE_PROJECTION_RECORDED event); migration 0115 wired at mod.rs:2107; event family folded into ALL at mod.rs:278. CONCERN: atelier_diagnostics_projections_tests.rs:57-132 only asserts PG row round-trip + bad-evidence rejection; it never asserts the emitted EventLedger event via count_events_for_aggregate, so the proof_target 'EventLedger' half is implemented-but-unproven by this test (stale 'not yet wired' comment at state_probe.rs:1183 / test line 18 is false; 0115 IS wired)"
     },
-    "ready_for_validation_v3": true
+    "ready_for_validation_v3": true,
+    "completed_by": "INTEGRATION_VALIDATOR-20260611-033732",
+    "completed_at_utc": "2026-06-11T05:17:17.690Z",
+    "integration_validation_v3": {
+      "verdict": "PASS_V3",
+      "round": "v3",
+      "at_utc": "2026-06-11T05:17:17.690Z",
+      "validator_session": "INTEGRATION_VALIDATOR-20260611-033732",
+      "impl_reality": "REAL",
+      "proof_validity": "STRONG",
+      "sr1": "PASS",
+      "sr2": "PASS",
+      "concern_resolved": true,
+      "evidence": "V2 gap was missing EventLedger assertion. tests/atelier_diagnostics_projections_tests.rs:51-167 mt147 now asserts WORK_STATE_PROJECTION_RECORDED==1 after record, ==2 after idempotent re-record, ==0 for rejected machine-local evidence_ref write, on top of existing PG round-trip. Stale 'not yet wired' comment V2 flagged was removed (846e876e); migrations 0115+0129 wired in ensure_schema.",
+      "gap": null,
+      "basis": "v3 adversarial per-MT review of remediated deliverable + runtime proof via full-crate managed-PG sweep and kernel-builder fresh-DB proof logs"
+    }
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.319Z",
@@ -95,6 +111,6 @@
     "risk_if_missed": "CKC parity loss for Locus And MicroTask Projection",
     "summary": "MT-147 [Model-Workflow-Diagnostics] Locus And MicroTask Projection -- Project model work state (active MT, owner, status, blocker, receipts, next action, evidence) into Locus/MT surfaces."
   },
-  "updated_at_utc": "2026-06-11T03:05:50.294Z",
+  "updated_at_utc": "2026-06-11T05:17:17.690Z",
   "wp_id": "WP-KERNEL-005"
 }

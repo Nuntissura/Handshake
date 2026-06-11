@@ -33,8 +33,8 @@
     "depends_on": [
       "MT-040"
     ],
-    "status": "VALIDATED_V2",
-    "validator_verdict": "PASS",
+    "status": "VALIDATED_V3",
+    "validator_verdict": "PASS_V3",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:04:44.613Z",
     "ready_by": "KB-KERNEL-005-CLOSEOUT",
@@ -49,6 +49,15 @@
       "fail_category": null,
       "gap": null,
       "evidence": "links.rs:250,354 rebuild_bracket_links_for_character_document/list_backlinks_to (INSERT projection, no source UPDATE); test atelier_core_data_tests.rs:4603-4802 proves 5 parsed links, source text unchanged (4731), backlinks by public/internal/uppercase id, idempotent rebuild, BRACKET_LINKS_REBUILT count=2"
+    },
+    "completed_by": "INTEGRATION_VALIDATOR-20260611-033732",
+    "completed_at_utc": "2026-06-11T05:17:17.690Z",
+    "integration_validation_v3": {
+      "verdict": "PASS_V3",
+      "round": "v3",
+      "at_utc": "2026-06-11T05:17:17.690Z",
+      "validator_session": "INTEGRATION_VALIDATOR-20260611-033732",
+      "basis": "v2 PASS re-affirmed in v3: deliverable unchanged by remediation diff; full-crate test sweep green on Handshake-managed PostgreSQL at 17b2abd4 proves no regression. v2 evidence retained in integration_validation_v2."
     }
   },
   "markdown_projection": {
@@ -87,6 +96,6 @@
     "risk_if_missed": "CKC parity loss for Bracket Links And Backlinks",
     "summary": "MT-041 [Core-Data-Intake] Bracket Links And Backlinks -- Preserve outbound/inbound links between docs/stories/moodboards/images/characters as rebuildable projections without altering source text."
   },
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-06-11T05:17:17.690Z",
   "wp_id": "WP-KERNEL-005"
 }

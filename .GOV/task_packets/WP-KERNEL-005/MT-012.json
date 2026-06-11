@@ -33,8 +33,8 @@
     "depends_on": [
       "MT-011"
     ],
-    "status": "VALIDATED_V2",
-    "validator_verdict": "PASS",
+    "status": "VALIDATED_V3",
+    "validator_verdict": "PASS_V3",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:03:33.214Z",
     "ready_by": "KB-KERNEL-005-CLOSEOUT",
@@ -49,6 +49,15 @@
       "fail_category": null,
       "gap": null,
       "evidence": "atelier/sheet.rs:1764-1814 append_sheet_version inserts append-only rows with parent_version_id/seq/author/tool + SHEET_VERSION_APPENDED; atelier_foundation_tests.rs:56-93 asserts seq 1/2, v2.parent_version_id==v1, history len 2 (no overwrite), latest seq 2 on real PG."
+    },
+    "completed_by": "INTEGRATION_VALIDATOR-20260611-033732",
+    "completed_at_utc": "2026-06-11T05:17:17.690Z",
+    "integration_validation_v3": {
+      "verdict": "PASS_V3",
+      "round": "v3",
+      "at_utc": "2026-06-11T05:17:17.690Z",
+      "validator_session": "INTEGRATION_VALIDATOR-20260611-033732",
+      "basis": "v2 PASS re-affirmed in v3: deliverable unchanged by remediation diff; full-crate test sweep green on Handshake-managed PostgreSQL at 17b2abd4 proves no regression. v2 evidence retained in integration_validation_v2."
     }
   },
   "markdown_projection": {
@@ -87,6 +96,6 @@
     "risk_if_missed": "CKC parity loss for Append-Only Sheet Version Store",
     "summary": "MT-012 [Core-Data-Intake] Append-Only Sheet Version Store -- Implement sheet versions as append-only records with parent/source/author/tool metadata and current-version projection."
   },
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-06-11T05:17:17.690Z",
   "wp_id": "WP-KERNEL-005"
 }

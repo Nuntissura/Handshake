@@ -33,8 +33,8 @@
     "depends_on": [
       "MT-167"
     ],
-    "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "status": "VALIDATED_V3",
+    "validator_verdict": "PASS_V3",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-11T03:05:50.294Z",
     "ready_by": "KB-KERNEL-005-V3-REMEDIATION",
@@ -50,7 +50,23 @@
       "gap": "FEMS V1 'end-to-end' proof composes every surface through deterministic in-memory adapters; the single e2e test touches no real PG/EventLedger/ArtifactStore despite the WP claiming Handshake-native managed-resource integration.",
       "evidence": "tests/fems_integration_e2e_tests.rs:3-4 header 'deterministic in-memory adapters'; FixtureFems (line 111), StubTier (227), TraceSourceStub (280), SpawnFixtureLedger (345), InMemoryFemsAccessor (25); grep confirms zero PgPool/sqlx/ensure_schema/AtelierStore in the file; only one #[tokio::test]."
     },
-    "ready_for_validation_v3": true
+    "ready_for_validation_v3": true,
+    "completed_by": "INTEGRATION_VALIDATOR-20260611-033732",
+    "completed_at_utc": "2026-06-11T05:17:17.690Z",
+    "integration_validation_v3": {
+      "verdict": "PASS_V3",
+      "round": "v3",
+      "at_utc": "2026-06-11T05:17:17.690Z",
+      "validator_session": "INTEGRATION_VALIDATOR-20260611-033732",
+      "impl_reality": "REAL",
+      "proof_validity": "STRONG",
+      "sr1": "PASS",
+      "sr2": "PASS",
+      "concern_resolved": null,
+      "evidence": "Proof tests/atelier_fems_postgres_e2e_tests.rs mt168_fems_feedback_chain_persists_through_postgres_stores: FEMS V1 chain on managed PG - CapsuleRecorder over production PostgresKernelActionSubmitter with kernel_event_ledger assert; PostgresMemoryCapsuleStore save + FRESH-instance re-read; OutcomeFeedbackLoop ledger assert; PinIpcService pin re-read via FRESH submitter; HygieneJobRunner durable consolidation/prune candidates with pinned-item protection on ledger; trace export leg via PostgresTraceSource with real ArtifactStore secret redaction + receipt event. PG+EventLedger+ArtifactStore all touched through production types.",
+      "gap": "Residual: retrieval input corpus (FixtureFems) and hygiene stats view (InMemoryFemsAccessor) remain in-memory INPUT fixtures; a PG FemsAccessor exists (PostgresBitemporalMemoryIndex, hygiene.rs:711) but is not used for the stats leg. Input-only; every persistence/read surface in the proof path is managed PG.",
+      "basis": "v3 adversarial per-MT review of remediated deliverable + runtime proof via full-crate managed-PG sweep and kernel-builder fresh-DB proof logs"
+    }
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.335Z",
@@ -89,6 +105,6 @@
     "risk_if_missed": "CKC parity loss for Background Automation Guard",
     "summary": "MT-168 [Model-Workflow-Diagnostics] Background Automation Guard -- Preserve background-safe automation startup and single-instance no-focus safeguards routing dialogs/show/focus/shortcuts through policy."
   },
-  "updated_at_utc": "2026-06-11T03:05:50.294Z",
+  "updated_at_utc": "2026-06-11T05:17:17.690Z",
   "wp_id": "WP-KERNEL-005"
 }

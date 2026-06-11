@@ -33,8 +33,8 @@
     "depends_on": [
       "MT-197"
     ],
-    "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "status": "VALIDATED_V3",
+    "validator_verdict": "PASS_V3",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-11T03:05:50.294Z",
     "ready_by": "KB-KERNEL-005-V3-REMEDIATION",
@@ -50,7 +50,23 @@
       "gap": null,
       "evidence": "MediaAnnotation FK to atelier_media_asset (not rig), real PG CRUD with per-asset seq, geometry JSONB, events (src/atelier/annotation.rs:64-79,194-367; migration 0031:133). Test covers add/list/get/update/count/remove + seq + geometry immutability on real PG (tests/atelier_core_data_tests.rs:7560-7645). CONCERN: test does not assert event emission nor directly prove the 'survives export' / decoupled-from-pose-keypoints acceptance criteria; decoupling is only structurally implied by the asset FK."
     },
-    "ready_for_validation_v3": true
+    "ready_for_validation_v3": true,
+    "completed_by": "INTEGRATION_VALIDATOR-20260611-033732",
+    "completed_at_utc": "2026-06-11T05:17:17.690Z",
+    "integration_validation_v3": {
+      "verdict": "PASS_V3",
+      "round": "v3",
+      "at_utc": "2026-06-11T05:17:17.690Z",
+      "validator_session": "INTEGRATION_VALIDATOR-20260611-033732",
+      "impl_reality": "REAL",
+      "proof_validity": "STRONG",
+      "sr1": "PASS",
+      "sr2": "PASS",
+      "concern_resolved": true,
+      "evidence": "NEW tests/atelier_media_annotation_overlay_proof_tests.rs mt198 (:60-285) on managed PG: (1) event emission - ANNOTATION_ADDED==2, ANNOTATION_NOTE_UPDATED==1, ANNOTATION_REMOVED==1 (impl emits at annotation.rs:246,328,355); (2) pose-decoupling - real OpenPose rig ingest leaves overlay bit-identical AND information_schema FK introspection proves only FK targets atelier_media_asset; (3) survives-export - real export request + result + media manifest entry, overlay ids/seq/geometry unchanged. All three V2 concern halves closed.",
+      "gap": null,
+      "basis": "v3 adversarial per-MT review of remediated deliverable + runtime proof via full-crate managed-PG sweep and kernel-builder fresh-DB proof logs"
+    }
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.359Z",
@@ -90,6 +106,6 @@
     "risk_if_missed": "CKC image annotation/overlay (MediaPane annotation layers) unrepresented",
     "summary": "MT-198 [Core-Data-Intake] Per-Image Annotation Overlay Model (GAP-FILL) -- Add DAM-level per-image annotation overlays (typed boxes/points/regions/notes layered over a media asset) as data plus projection, decoupled from pose keypoints, surviving export."
   },
-  "updated_at_utc": "2026-06-11T03:05:50.294Z",
+  "updated_at_utc": "2026-06-11T05:17:17.690Z",
   "wp_id": "WP-KERNEL-005"
 }

@@ -33,8 +33,8 @@
     "depends_on": [
       "MT-120"
     ],
-    "status": "VALIDATED_V2",
-    "validator_verdict": "PASS",
+    "status": "VALIDATED_V3",
+    "validator_verdict": "PASS_V3",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:18:21.136Z",
     "ready_by": "KB-KERNEL-005-CLOSEOUT",
@@ -49,6 +49,15 @@
       "fail_category": null,
       "gap": null,
       "evidence": "Red-team risks converted to enforced checks: explicit keypoint schema (validate_keypoints pose.rs:1005), deferred/blocked persisted as real rows with mandatory non-empty reason (pose.rs:3227-3249, PoseDeferredStatus), versions recorded+asserted (detector_model_version), capability gate not bypassed (validate_engine_comfyui_grant_ref comfy.rs:732-759). Capability denial proven against real kernel EventLedger (tests/atelier_comfy_tests.rs:110-227; tests/atelier_pose_deferred_feature_tests.rs:57-102)."
+    },
+    "completed_by": "INTEGRATION_VALIDATOR-20260611-033732",
+    "completed_at_utc": "2026-06-11T05:17:17.690Z",
+    "integration_validation_v3": {
+      "verdict": "PASS_V3",
+      "round": "v3",
+      "at_utc": "2026-06-11T05:17:17.690Z",
+      "validator_session": "INTEGRATION_VALIDATOR-20260611-033732",
+      "basis": "v2 PASS re-affirmed in v3: deliverable unchanged by remediation diff; full-crate test sweep green on Handshake-managed PostgreSQL at 17b2abd4 proves no regression. v2 evidence retained in integration_validation_v2."
     }
   },
   "markdown_projection": {
@@ -91,6 +100,6 @@
     "risk_if_missed": "CKC parity loss for Pose Red-Team Schema Status And Tool-Version Guards",
     "summary": "MT-121 [Pose-ComfyUI-Pipeline] Pose Red-Team Schema Status And Tool-Version Guards -- Convert schema/status/tool-version risks into checks: explicit keypoint schemas, deferred stays deferred, blocked stays blocked, versions recorded, capability gates not bypassed."
   },
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-06-11T05:17:17.690Z",
   "wp_id": "WP-KERNEL-005"
 }

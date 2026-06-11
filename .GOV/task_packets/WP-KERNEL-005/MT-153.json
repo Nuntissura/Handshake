@@ -33,8 +33,8 @@
     "depends_on": [
       "MT-152"
     ],
-    "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "status": "VALIDATED_V3",
+    "validator_verdict": "PASS_V3",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-11T03:05:50.294Z",
     "ready_by": "KB-KERNEL-005-V3-REMEDIATION",
@@ -50,7 +50,23 @@
       "gap": null,
       "evidence": "state_probe.rs:1690-1748 (record_screenshot_artifact_storage: validate_screenshot_artifact_storage + real PG upsert keyed to capture_id, retention ttl/pinned, in-tx SCREENSHOT_ARTIFACT_STORED event); migration 0115 wired at mod.rs:2107. CONCERN: atelier_diagnostics_projections_tests.rs:185-294 proves real stealth-window+capture base, metadata round-trip, idempotent re-store, machine-local manifest-id rejection -- but no count_events_for_aggregate on SCREENSHOT_ARTIFACT_STORED; EventLedger proof half missing"
     },
-    "ready_for_validation_v3": true
+    "ready_for_validation_v3": true,
+    "completed_by": "INTEGRATION_VALIDATOR-20260611-033732",
+    "completed_at_utc": "2026-06-11T05:17:17.690Z",
+    "integration_validation_v3": {
+      "verdict": "PASS_V3",
+      "round": "v3",
+      "at_utc": "2026-06-11T05:17:17.690Z",
+      "validator_session": "INTEGRATION_VALIDATOR-20260611-033732",
+      "impl_reality": "REAL",
+      "proof_validity": "STRONG",
+      "sr1": "PASS",
+      "sr2": "PASS",
+      "concern_resolved": true,
+      "evidence": "V2 gap was no count assert on SCREENSHOT_ARTIFACT_STORED. atelier_diagnostics_projections_tests.rs:233-395 mt153 now asserts ==1 after store, ==2 after idempotent re-store/pin, ==0 for rejected machine-local manifest-id write, on the real stealth-window+capture base with full metadata/retention round-trip re-read.",
+      "gap": null,
+      "basis": "v3 adversarial per-MT review of remediated deliverable + runtime proof via full-crate managed-PG sweep and kernel-builder fresh-DB proof logs"
+    }
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.324Z",
@@ -89,6 +105,6 @@
     "risk_if_missed": "CKC parity loss for Screenshot Artifact Storage",
     "summary": "MT-153 [Model-Workflow-Diagnostics] Screenshot Artifact Storage -- Store screenshots as governed artifacts with metadata and retention (no .GOV product output)."
   },
-  "updated_at_utc": "2026-06-11T03:05:50.294Z",
+  "updated_at_utc": "2026-06-11T05:17:17.690Z",
   "wp_id": "WP-KERNEL-005"
 }

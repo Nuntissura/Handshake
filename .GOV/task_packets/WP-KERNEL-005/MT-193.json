@@ -33,8 +33,8 @@
     "depends_on": [
       "MT-192"
     ],
-    "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "status": "VALIDATED_V3",
+    "validator_verdict": "PASS_V3",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-11T00:45:46.539Z",
     "ready_by": "KB-KERNEL-005-V3-REMEDIATION",
@@ -50,7 +50,23 @@
       "gap": "MT-193 requires Flight Recorder events for build/package guard and stale-doc detection. No such FR events exist. Cited mt_193_restart_resume_full_path tests session restart/resume (WP-KERNEL-004), unrelated to build/package/stale-doc events.",
       "evidence": "tests/session_checkpoint_tests.rs:204 (mt_193_restart_resume_full_path — restart/resume, not build/package/stale-doc); src/flight_recorder/fr_event_registry.rs:46,84 (no build/package/stale FR events; registry is WP-KERNEL-004)"
     },
-    "ready_for_validation_v3": true
+    "ready_for_validation_v3": true,
+    "completed_by": "INTEGRATION_VALIDATOR-20260611-033732",
+    "completed_at_utc": "2026-06-11T05:17:17.690Z",
+    "integration_validation_v3": {
+      "verdict": "PASS_V3",
+      "round": "v3",
+      "at_utc": "2026-06-11T05:17:17.690Z",
+      "validator_session": "INTEGRATION_VALIDATOR-20260611-033732",
+      "impl_reality": "REAL",
+      "proof_validity": "STRONG",
+      "sr1": "PASS",
+      "sr2": "PASS",
+      "concern_resolved": null,
+      "evidence": "Impl: workflow_event_kinds.rs:58-64,78-80 (BuildGuard/PackageGuard/StaleDocDetected = FR-EVT-BUILD-GUARD/FR-EVT-PACKAGE-GUARD/FR-EVT-STALE-DOC-DETECTED, mt_owner()=MT-193, required fields); persistence + migration 0116:77-81 CHECK pairing. Proof: tests/atelier_dcc_flight_recorder_tests.rs:374 mt193 - persists build-guard pass, package-guard blocked, stale-doc generated_doc_behind_source; re-reads from managed PostgreSQL with EventLedger assertions; FR_WORKFLOW_EVENT_RECORDED folded into event_family::ALL.",
+      "gap": "Legacy WP-004 mt_193_restart_resume_full_path name cosmetic.",
+      "basis": "v3 adversarial per-MT review of remediated deliverable + runtime proof via full-crate managed-PG sweep and kernel-builder fresh-DB proof logs"
+    }
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.355Z",
@@ -89,6 +105,6 @@
     "risk_if_missed": "CKC parity loss for Flight Recorder Build Package And Stale-Doc Events",
     "summary": "MT-193 [Model-Workflow-Diagnostics] Flight Recorder Build Package And Stale-Doc Events -- Define Flight Recorder events for build/package guard and stale-doc detection only."
   },
-  "updated_at_utc": "2026-06-11T00:45:46.539Z",
+  "updated_at_utc": "2026-06-11T05:17:17.690Z",
   "wp_id": "WP-KERNEL-005"
 }

@@ -33,8 +33,8 @@
     "depends_on": [
       "MT-022"
     ],
-    "status": "VALIDATED_V2",
-    "validator_verdict": "PASS",
+    "status": "VALIDATED_V3",
+    "validator_verdict": "PASS_V3",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:04:00.369Z",
     "ready_by": "KB-KERNEL-005-CLOSEOUT",
@@ -49,6 +49,15 @@
       "fail_category": null,
       "gap": null,
       "evidence": "filesystem_health.rs:259-331 run_filesystem_health_check (real SQL over atelier_media_asset/derivative/intake/sidecar + ArtifactStore manifest validation 199-256, never resync/delete); test atelier_core_data_tests.rs:281-455 asserts MissingOriginal/Thumbnail/InboxPending/UntrackedOriginal findings, auto_resync/auto_delete=false, rows untouched, CHECK_RECORDED ledger event"
+    },
+    "completed_by": "INTEGRATION_VALIDATOR-20260611-033732",
+    "completed_at_utc": "2026-06-11T05:17:17.690Z",
+    "integration_validation_v3": {
+      "verdict": "PASS_V3",
+      "round": "v3",
+      "at_utc": "2026-06-11T05:17:17.690Z",
+      "validator_session": "INTEGRATION_VALIDATOR-20260611-033732",
+      "basis": "v2 PASS re-affirmed in v3: deliverable unchanged by remediation diff; full-crate test sweep green on Handshake-managed PostgreSQL at 17b2abd4 proves no regression. v2 evidence retained in integration_validation_v2."
     }
   },
   "markdown_projection": {
@@ -87,6 +96,6 @@
     "risk_if_missed": "CKC parity loss for Filesystem Health Diagnostics",
     "summary": "MT-023 [Core-Data-Intake] Filesystem Health Diagnostics -- Preserve filesystem health checks for missing originals/thumbs/inbox-pending/untracked-originals/sidecars without auto-resync or deletion."
   },
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-06-11T05:17:17.690Z",
   "wp_id": "WP-KERNEL-005"
 }

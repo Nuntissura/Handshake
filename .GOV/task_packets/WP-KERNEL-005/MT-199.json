@@ -33,8 +33,8 @@
     "depends_on": [
       "MT-198"
     ],
-    "status": "VALIDATED_V2",
-    "validator_verdict": "PASS",
+    "status": "VALIDATED_V3",
+    "validator_verdict": "PASS_V3",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:29:51.565Z",
     "ready_by": "KB-KERNEL-005-CLOSEOUT",
@@ -49,6 +49,15 @@
       "fail_category": null,
       "gap": null,
       "evidence": "src/backend/handshake_core/src/atelier/exports.rs:1188 (INSERT INTO atelier_export_request on real pool), :1259 (INSERT atelier_export_result tx), :1343 (manifest entry seq); tests/atelier_core_data_tests.rs:6750-6840 exercises request_sheet_export/record_export_result idempotency/add_manifest_entry on connected_store(real PG). ExportFormat enum (exports.rs:97-104) includes Pdf/PlainText; test only drives Markdown/Json but round-trip path is uniform. Rendering is intentionally an ArtifactStore ref, not a deferred stub."
+    },
+    "completed_by": "INTEGRATION_VALIDATOR-20260611-033732",
+    "completed_at_utc": "2026-06-11T05:17:17.690Z",
+    "integration_validation_v3": {
+      "verdict": "PASS_V3",
+      "round": "v3",
+      "at_utc": "2026-06-11T05:17:17.690Z",
+      "validator_session": "INTEGRATION_VALIDATOR-20260611-033732",
+      "basis": "v2 PASS re-affirmed in v3: deliverable unchanged by remediation diff; full-crate test sweep green on Handshake-managed PostgreSQL at 17b2abd4 proves no regression. v2 evidence retained in integration_validation_v2."
     }
   },
   "markdown_projection": {
@@ -90,6 +99,6 @@
     "risk_if_missed": "CKC exportSheet PDF/txt/json unrepresented",
     "summary": "MT-199 [Core-Data-Intake] Character Sheet PDF/Plain-Text/JSON Export (GAP-FILL) -- Add character-sheet export to PDF, plain text, and JSON via ArtifactStore-backed export request/result/manifest, reusing append-only sheet version source."
   },
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-06-11T05:17:17.690Z",
   "wp_id": "WP-KERNEL-005"
 }

@@ -33,8 +33,8 @@
     "depends_on": [
       "MT-138"
     ],
-    "status": "VALIDATED_V2",
-    "validator_verdict": "PASS",
+    "status": "VALIDATED_V3",
+    "validator_verdict": "PASS_V3",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:20:50.919Z",
     "ready_by": "KB-KERNEL-005-CLOSEOUT",
@@ -49,6 +49,15 @@
       "fail_category": null,
       "gap": null,
       "evidence": "src/atelier/action_receipt.rs:89 record_action_receipt INSERTs action_id, params_sha256 (raw params never stored), actor/session, timing, status, refs, with sanitized EventLedger event. tests/atelier_action_receipt_tests.rs:61 records on PG, asserts params_sha256 starts sha256: and excludes the raw secret (:77-78), reloads via get_action_receipt (:86), verifies EventLedger row and no raw-param leak (:92-115); :119 proves validation rejection."
+    },
+    "completed_by": "INTEGRATION_VALIDATOR-20260611-033732",
+    "completed_at_utc": "2026-06-11T05:17:17.690Z",
+    "integration_validation_v3": {
+      "verdict": "PASS_V3",
+      "round": "v3",
+      "at_utc": "2026-06-11T05:17:17.690Z",
+      "validator_session": "INTEGRATION_VALIDATOR-20260611-033732",
+      "basis": "v2 PASS re-affirmed in v3: deliverable unchanged by remediation diff; full-crate test sweep green on Handshake-managed PostgreSQL at 17b2abd4 proves no regression. v2 evidence retained in integration_validation_v2."
     }
   },
   "markdown_projection": {
@@ -93,6 +102,6 @@
     "risk_if_missed": "CKC parity loss for Action Receipt Schema",
     "summary": "MT-139 [Model-Workflow-Diagnostics] Action Receipt Schema -- Define command/action receipts for every model-visible operation (action id, params hash, actor/session, timing, status, refs)."
   },
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-06-11T05:17:17.690Z",
   "wp_id": "WP-KERNEL-005"
 }

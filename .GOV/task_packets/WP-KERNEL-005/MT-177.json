@@ -33,8 +33,8 @@
     "depends_on": [
       "MT-176"
     ],
-    "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "status": "VALIDATED_V3",
+    "validator_verdict": "PASS_V3",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-11T00:45:46.539Z",
     "ready_by": "KB-KERNEL-005-V3-REMEDIATION",
@@ -50,7 +50,23 @@
       "gap": "Local LLM And Chat Proposal Validation Matrix not implemented: no LOCAL_LLM matrix_kind or rows in the diagnostics validation catalog. role_mailbox_v1_tests::mt_177 is a WP-KERNEL-004 Postgres repo round-trip for role-mailbox threads, #[ignore]-gated, unrelated to the required local-LLM/chat-proposal diagnostic surface.",
       "evidence": "src/backend/handshake_core/src/atelier/state_probe.rs:782-793 (kind module: only MANUAL_ACTION_CATALOG..VISUAL_EVIDENCE); tests/role_mailbox_v1_tests.rs:212-247 (mt_177 role_mailbox repo, #[ignore])"
     },
-    "ready_for_validation_v3": true
+    "ready_for_validation_v3": true,
+    "completed_by": "INTEGRATION_VALIDATOR-20260611-033732",
+    "completed_at_utc": "2026-06-11T05:17:17.690Z",
+    "integration_validation_v3": {
+      "verdict": "PASS_V3",
+      "round": "v3",
+      "at_utc": "2026-06-11T05:17:17.690Z",
+      "validator_session": "INTEGRATION_VALIDATOR-20260611-033732",
+      "impl_reality": "REAL",
+      "proof_validity": "STRONG",
+      "sr1": "PASS",
+      "sr2": "PASS",
+      "concern_resolved": null,
+      "evidence": "Typed kind LOCAL_LLM_CHAT_PROPOSAL='MT-177.local-llm-chat-proposal' at state_probe.rs:796, in ALL :825. 4 rows at state_probe.rs:1223-1259 citing llm/registry.rs, llm/local_router.rs, kernel/direct_edit_guard.rs, llm/guard.rs (all exist). Proof: tests/atelier_diagnostics_validation_matrix_tests.rs:306 mt177_local_llm_and_chat_proposal_matrix_persists - managed-PG round trip + per-row EventLedger assertion. Replaces V2-cited WP-004 ignored role_mailbox collision.",
+      "gap": null,
+      "basis": "v3 adversarial per-MT review of remediated deliverable + runtime proof via full-crate managed-PG sweep and kernel-builder fresh-DB proof logs"
+    }
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.342Z",
@@ -89,6 +105,6 @@
     "risk_if_missed": "CKC parity loss for Local LLM And Chat Proposal Validation Matrix",
     "summary": "MT-177 [Model-Workflow-Diagnostics] Local LLM And Chat Proposal Validation Matrix -- Create validation rows for local LLM config and local chat proposal boundaries only."
   },
-  "updated_at_utc": "2026-06-11T00:45:46.539Z",
+  "updated_at_utc": "2026-06-11T05:17:17.690Z",
   "wp_id": "WP-KERNEL-005"
 }

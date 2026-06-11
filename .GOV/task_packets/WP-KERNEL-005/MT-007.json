@@ -33,8 +33,8 @@
     "depends_on": [
       "MT-006"
     ],
-    "status": "VALIDATED_V2",
-    "validator_verdict": "PASS",
+    "status": "VALIDATED_V3",
+    "validator_verdict": "PASS_V3",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:03:14.609Z",
     "ready_by": "KB-KERNEL-005-CLOSEOUT",
@@ -49,6 +49,15 @@
       "fail_category": null,
       "gap": null,
       "evidence": "src/atelier/mod.rs:506 sanitize_atelier_event_payload recursively maps sensitive keys (mod.rs:465-492) to sha256 content-addressed refs. tests/atelier_event_ledger_tests.rs:199 records an event then reads back atelier_event via store.pool() (:291), kernel_event_ledger (:364) and flight recorder (:373), asserting raw identity strings are absent and projected as sha256: refs (:314-395)."
+    },
+    "completed_by": "INTEGRATION_VALIDATOR-20260611-033732",
+    "completed_at_utc": "2026-06-11T05:17:17.690Z",
+    "integration_validation_v3": {
+      "verdict": "PASS_V3",
+      "round": "v3",
+      "at_utc": "2026-06-11T05:17:17.690Z",
+      "validator_session": "INTEGRATION_VALIDATOR-20260611-033732",
+      "basis": "v2 PASS re-affirmed in v3: deliverable unchanged by remediation diff; full-crate test sweep green on Handshake-managed PostgreSQL at 17b2abd4 proves no regression. v2 evidence retained in integration_validation_v2."
     }
   },
   "markdown_projection": {
@@ -87,6 +96,6 @@
     "risk_if_missed": "CKC parity loss for Identity-Decoupled Artifact Naming",
     "summary": "MT-007 [Core-Data-Intake] Identity-Decoupled Artifact Naming -- Prevent character names and sensitive sheet fields from entering generated file paths/events via content-addressed naming."
   },
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-06-11T05:17:17.690Z",
   "wp_id": "WP-KERNEL-005"
 }

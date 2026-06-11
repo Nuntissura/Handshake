@@ -31,8 +31,8 @@
     "active": true,
     "blocks": [],
     "depends_on": [],
-    "status": "VALIDATED_V2",
-    "validator_verdict": "PASS",
+    "status": "VALIDATED_V3",
+    "validator_verdict": "PASS_V3",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:02:11.676Z",
     "ready_by": "KB-KERNEL-005-CLOSEOUT",
@@ -47,6 +47,15 @@
       "fail_category": null,
       "gap": null,
       "evidence": "src/atelier/source_evidence.rs:684 record_source_evidence_matrix (matrix-scoped INSERT into atelier_source_evidence_record/atelier_anchor_verification_record, migrations 0041/0042 wired at mod.rs:1762/1767); tests/atelier_source_evidence_tests.rs:60 records core-data matrix, reloads, verifies SOURCE_EVIDENCE_MATRIX_RECORDED via list_kernel_events_for_aggregate:186"
+    },
+    "completed_by": "INTEGRATION_VALIDATOR-20260611-033732",
+    "completed_at_utc": "2026-06-11T05:17:17.690Z",
+    "integration_validation_v3": {
+      "verdict": "PASS_V3",
+      "round": "v3",
+      "at_utc": "2026-06-11T05:17:17.690Z",
+      "validator_session": "INTEGRATION_VALIDATOR-20260611-033732",
+      "basis": "v2 PASS re-affirmed in v3: deliverable unchanged by remediation diff; full-crate test sweep green on Handshake-managed PostgreSQL at 17b2abd4 proves no regression. v2 evidence retained in integration_validation_v2."
     }
   },
   "markdown_projection": {
@@ -85,6 +94,6 @@
     "risk_if_missed": "CKC parity loss for Source Evidence And Status Maturity Matrix",
     "summary": "MT-001 [Core-Data-Intake] Source Evidence And Status Maturity Matrix -- Build the activation source matrix mapping each Core/Data source fact to evidence maturity (DONE/REVIEW/BLOCKED/PLANNED/stale/unresolved)."
   },
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-06-11T05:17:17.690Z",
   "wp_id": "WP-KERNEL-005"
 }

@@ -33,8 +33,8 @@
     "depends_on": [
       "MT-036"
     ],
-    "status": "VALIDATED_V2",
-    "validator_verdict": "PASS",
+    "status": "VALIDATED_V3",
+    "validator_verdict": "PASS_V3",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:04:34.812Z",
     "ready_by": "KB-KERNEL-005-CLOSEOUT",
@@ -49,6 +49,15 @@
       "fail_category": null,
       "gap": null,
       "evidence": "exports.rs:2024-2086 plan_contact_sheet_raster_export persists to atelier_contact_sheet_raster_export_plan (ON CONFLICT idempotent) + EventLedger; test atelier_core_data_tests.rs:2904-3009 proves Planned status, reconnect-list, information_schema column check that no fake artifact_ref/content_hash columns exist; migration 0057 applied at mod.rs:1851"
+    },
+    "completed_by": "INTEGRATION_VALIDATOR-20260611-033732",
+    "completed_at_utc": "2026-06-11T05:17:17.690Z",
+    "integration_validation_v3": {
+      "verdict": "PASS_V3",
+      "round": "v3",
+      "at_utc": "2026-06-11T05:17:17.690Z",
+      "validator_session": "INTEGRATION_VALIDATOR-20260611-033732",
+      "basis": "v2 PASS re-affirmed in v3: deliverable unchanged by remediation diff; full-crate test sweep green on Handshake-managed PostgreSQL at 17b2abd4 proves no regression. v2 evidence retained in integration_validation_v2."
     }
   },
   "markdown_projection": {
@@ -87,6 +96,6 @@
     "risk_if_missed": "CKC parity loss for Raster Contact Sheet Export Hook",
     "summary": "MT-037 [Core-Data-Intake] Raster Contact Sheet Export Hook -- Preserve planned PNG/JPG contact sheet export as a deferred/planned capability without faking output."
   },
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-06-11T05:17:17.690Z",
   "wp_id": "WP-KERNEL-005"
 }

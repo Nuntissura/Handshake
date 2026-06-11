@@ -33,8 +33,8 @@
     "depends_on": [
       "MT-174"
     ],
-    "status": "VALIDATED_V2",
-    "validator_verdict": "PASS",
+    "status": "VALIDATED_V3",
+    "validator_verdict": "PASS_V3",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:25:50.795Z",
     "ready_by": "KB-KERNEL-005-CLOSEOUT",
@@ -49,6 +49,15 @@
       "fail_category": null,
       "gap": null,
       "evidence": "state_probe.rs:1042-1081 visual capture/diff/adr/steer/comparison rows cite existing kernel/visual_debugging_loop.rs + product_screenshot_capture.rs; tests/atelier_diagnostics_validation_matrix_tests.rs:183 mt175 asserts 5 COVERED rows with evidence_ref from live PG"
+    },
+    "completed_by": "INTEGRATION_VALIDATOR-20260611-033732",
+    "completed_at_utc": "2026-06-11T05:17:17.690Z",
+    "integration_validation_v3": {
+      "verdict": "PASS_V3",
+      "round": "v3",
+      "at_utc": "2026-06-11T05:17:17.690Z",
+      "validator_session": "INTEGRATION_VALIDATOR-20260611-033732",
+      "basis": "v2 PASS re-affirmed in v3: deliverable unchanged by remediation diff; full-crate test sweep green on Handshake-managed PostgreSQL at 17b2abd4 proves no regression. v2 evidence retained in integration_validation_v2."
     }
   },
   "markdown_projection": {
@@ -93,6 +102,6 @@
     "risk_if_missed": "CKC parity loss for Visual Evidence Validation Matrix",
     "summary": "MT-175 [Model-Workflow-Diagnostics] Visual Evidence Validation Matrix -- Create validation rows for visual capture, diff, ADR, STEER, comparison, retention only."
   },
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-06-11T05:17:17.690Z",
   "wp_id": "WP-KERNEL-005"
 }

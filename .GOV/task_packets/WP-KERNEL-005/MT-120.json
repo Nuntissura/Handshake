@@ -33,8 +33,8 @@
     "depends_on": [
       "MT-119"
     ],
-    "status": "VALIDATED_V2",
-    "validator_verdict": "PASS",
+    "status": "VALIDATED_V3",
+    "validator_verdict": "PASS_V3",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:18:11.677Z",
     "ready_by": "KB-KERNEL-005-CLOSEOUT",
@@ -49,6 +49,15 @@
       "fail_category": null,
       "gap": null,
       "evidence": "comfy.rs:2285-2509 enforces output-saved-before-registration (failure row persists artifact_ref with null registration; retry binds registration later) and source refs (prompt_json_ref/parent_artifact_ref) are required-portable; tests/atelier_comfy_intake_routing_tests.rs:200-316 proves on live PG that artifact_ref is durable before any registration_id, then registration bound on retry. Sidecar/parent-ref invariant enforced in record_intake_output:2081-2096."
+    },
+    "completed_by": "INTEGRATION_VALIDATOR-20260611-033732",
+    "completed_at_utc": "2026-06-11T05:17:17.690Z",
+    "integration_validation_v3": {
+      "verdict": "PASS_V3",
+      "round": "v3",
+      "at_utc": "2026-06-11T05:17:17.690Z",
+      "validator_session": "INTEGRATION_VALIDATOR-20260611-033732",
+      "basis": "v2 PASS re-affirmed in v3: deliverable unchanged by remediation diff; full-crate test sweep green on Handshake-managed PostgreSQL at 17b2abd4 proves no regression. v2 evidence retained in integration_validation_v2."
     }
   },
   "markdown_projection": {
@@ -90,6 +99,6 @@
     "risk_if_missed": "CKC parity loss for Pose Red-Team Artifact And Recovery Guards",
     "summary": "MT-120 [Pose-ComfyUI-Pipeline] Pose Red-Team Artifact And Recovery Guards -- Convert artifact-visibility and output-recovery risks into checks: output saved before registration, recoverable failed registration, sidecars hidden from galleries, source artifact refs present."
   },
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-06-11T05:17:17.690Z",
   "wp_id": "WP-KERNEL-005"
 }

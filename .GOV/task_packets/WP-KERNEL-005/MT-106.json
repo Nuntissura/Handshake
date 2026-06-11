@@ -33,8 +33,8 @@
     "depends_on": [
       "MT-105"
     ],
-    "status": "VALIDATED_V2",
-    "validator_verdict": "PASS",
+    "status": "VALIDATED_V3",
+    "validator_verdict": "PASS_V3",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:15:45.719Z",
     "ready_by": "KB-KERNEL-005-CLOSEOUT",
@@ -49,6 +49,15 @@
       "fail_category": null,
       "gap": null,
       "evidence": "register_workflow_spec comfy.rs:2964-3026 upserts atelier_comfy_workflow_spec on (workflow_kind,spec_version) with handler/compatibility_pin/source_ref validation, rejects legacy source_ref, emits WORKFLOW_SPEC_REGISTERED. Test atelier_workflow_spec_tests.rs:64-158 proves round-trip, idempotent upsert, reject, and the real kernel EventLedger event via database.list_kernel_events_for_aggregate (KernelEventType::AtelierDomainEventRecorded)."
+    },
+    "completed_by": "INTEGRATION_VALIDATOR-20260611-033732",
+    "completed_at_utc": "2026-06-11T05:17:17.690Z",
+    "integration_validation_v3": {
+      "verdict": "PASS_V3",
+      "round": "v3",
+      "at_utc": "2026-06-11T05:17:17.690Z",
+      "validator_session": "INTEGRATION_VALIDATOR-20260611-033732",
+      "basis": "v2 PASS re-affirmed in v3: deliverable unchanged by remediation diff; full-crate test sweep green on Handshake-managed PostgreSQL at 17b2abd4 proves no regression. v2 evidence retained in integration_validation_v2."
     }
   },
   "markdown_projection": {
@@ -91,6 +100,6 @@
     "risk_if_missed": "CKC parity loss for Workflow Spec Registry",
     "summary": "MT-106 [Pose-ComfyUI-Pipeline] Workflow Spec Registry -- Preserve versioned workflow specs and handler routing with spec version, read-only source refs, handler id, compatibility pin, and validation."
   },
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-06-11T05:17:17.690Z",
   "wp_id": "WP-KERNEL-005"
 }

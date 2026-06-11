@@ -33,8 +33,8 @@
     "depends_on": [
       "MT-088"
     ],
-    "status": "VALIDATED_V2",
-    "validator_verdict": "PASS",
+    "status": "VALIDATED_V3",
+    "validator_verdict": "PASS_V3",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:13:26.182Z",
     "ready_by": "KB-KERNEL-005-CLOSEOUT",
@@ -49,6 +49,15 @@
       "fail_category": null,
       "gap": null,
       "evidence": "pose.rs:602-619 quaternion_from_yxz_euler_degrees (real YXZ math), 1643-1675 record_head_pose_from_yxz_euler / import_legacy_yaw_head_pose, 2532-2549 quaternion finite/degeneracy/normalize guards; test atelier_pose_tests.rs:1789-1840 verifies YXZ conversion, legacy yaw import, normalization, range limits, and 4 emitted events on live PG"
+    },
+    "completed_by": "INTEGRATION_VALIDATOR-20260611-033732",
+    "completed_at_utc": "2026-06-11T05:17:17.690Z",
+    "integration_validation_v3": {
+      "verdict": "PASS_V3",
+      "round": "v3",
+      "at_utc": "2026-06-11T05:17:17.690Z",
+      "validator_session": "INTEGRATION_VALIDATOR-20260611-033732",
+      "basis": "v2 PASS re-affirmed in v3: deliverable unchanged by remediation diff; full-crate test sweep green on Handshake-managed PostgreSQL at 17b2abd4 proves no regression. v2 evidence retained in integration_validation_v2."
     }
   },
   "markdown_projection": {
@@ -89,6 +98,6 @@
     "risk_if_missed": "CKC parity loss for Head Pose Quaternion Contract",
     "summary": "MT-089 [Pose-ComfyUI-Pipeline] Head Pose Quaternion Contract -- Preserve yaw/pitch/roll intrinsic YXZ quaternion-backed head pose with validation, conversion, and legacy yaw import."
   },
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-06-11T05:17:17.690Z",
   "wp_id": "WP-KERNEL-005"
 }

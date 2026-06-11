@@ -33,8 +33,8 @@
     "depends_on": [
       "MT-003"
     ],
-    "status": "VALIDATED_V2",
-    "validator_verdict": "PASS",
+    "status": "VALIDATED_V3",
+    "validator_verdict": "PASS_V3",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:02:35.051Z",
     "ready_by": "KB-KERNEL-005-CLOSEOUT",
@@ -49,6 +49,15 @@
       "fail_category": null,
       "gap": null,
       "evidence": "src/atelier/mod.rs:295 assert_postgres_url + :339 reject_legacy_runtime_ref are genuine multi-pattern tripwires (SQLite/Electron/CKC/CastKit/localhost/.GOV/machine-path); used at the real connect path (mod.rs:583). guard_tests mod.rs:2360-2429 exercise the tripwire over a broad reject/accept corpus. Proof is unit-level (no PG) but a pre-persistence rejector's natural proof is unit-level; sr2 NA since the guard fires before the managed-resource touch."
+    },
+    "completed_by": "INTEGRATION_VALIDATOR-20260611-033732",
+    "completed_at_utc": "2026-06-11T05:17:17.690Z",
+    "integration_validation_v3": {
+      "verdict": "PASS_V3",
+      "round": "v3",
+      "at_utc": "2026-06-11T05:17:17.690Z",
+      "validator_session": "INTEGRATION_VALIDATOR-20260611-033732",
+      "basis": "v2 PASS re-affirmed in v3: deliverable unchanged by remediation diff; full-crate test sweep green on Handshake-managed PostgreSQL at 17b2abd4 proves no regression. v2 evidence retained in integration_validation_v2."
     }
   },
   "markdown_projection": {
@@ -92,6 +101,6 @@
     "risk_if_missed": "CKC parity loss for Runtime Rejection Tripwires",
     "summary": "MT-004 [Core-Data-Intake] Runtime Rejection Tripwires -- Add validation/checks rejecting CKC runtime assumptions (SQLite, Electron, CKC/CastKit namespace, localhost intake, .GOV outputs, machine-local paths)."
   },
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-06-11T05:17:17.690Z",
   "wp_id": "WP-KERNEL-005"
 }

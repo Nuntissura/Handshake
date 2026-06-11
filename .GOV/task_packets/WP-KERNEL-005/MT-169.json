@@ -33,8 +33,8 @@
     "depends_on": [
       "MT-168"
     ],
-    "status": "VALIDATED_V2",
-    "validator_verdict": "PASS",
+    "status": "VALIDATED_V3",
+    "validator_verdict": "PASS_V3",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:24:56.159Z",
     "ready_by": "KB-KERNEL-005-CLOSEOUT",
@@ -49,6 +49,15 @@
       "fail_category": null,
       "gap": null,
       "evidence": "guard_synthetic_input settings.rs:1576-1589 records the row first (record_synthetic_input settings.rs:1534) then rejects unauthorized ops, so audit row always persists; emits SYNTHETIC_INPUT_RECORDED. Test atelier_model_config_apply_tests.rs:219-280 asserts event count on real PG and that an unauthorized op still leaves an atelier_synthetic_input_guard audit row."
+    },
+    "completed_by": "INTEGRATION_VALIDATOR-20260611-033732",
+    "completed_at_utc": "2026-06-11T05:17:17.690Z",
+    "integration_validation_v3": {
+      "verdict": "PASS_V3",
+      "round": "v3",
+      "at_utc": "2026-06-11T05:17:17.690Z",
+      "validator_session": "INTEGRATION_VALIDATOR-20260611-033732",
+      "basis": "v2 PASS re-affirmed in v3: deliverable unchanged by remediation diff; full-crate test sweep green on Handshake-managed PostgreSQL at 17b2abd4 proves no regression. v2 evidence retained in integration_validation_v2."
     }
   },
   "markdown_projection": {
@@ -90,6 +99,6 @@
     "risk_if_missed": "CKC parity loss for Synthetic Input Guard",
     "summary": "MT-169 [Model-Workflow-Diagnostics] Synthetic Input Guard -- Preserve synthetic input (injectKey/injectMouse/clickElement/typeText) as governed, attributed, bounded interaction requiring session/target/policy."
   },
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-06-11T05:17:17.690Z",
   "wp_id": "WP-KERNEL-005"
 }

@@ -33,8 +33,8 @@
     "depends_on": [
       "MT-106"
     ],
-    "status": "VALIDATED_V2",
-    "validator_verdict": "PASS",
+    "status": "VALIDATED_V3",
+    "validator_verdict": "PASS_V3",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:15:56.821Z",
     "ready_by": "KB-KERNEL-005-CLOSEOUT",
@@ -49,6 +49,15 @@
       "fail_category": null,
       "gap": null,
       "evidence": "comfy.rs:256-269 map_comfy_output_to_intake_lane / map_comfy_routing_intent_to_intake_lane is the single deterministic image-sourcing->intake-lane routing rule; tests/atelier_comfy_intake_routing_tests.rs:73-109 asserts Artifact/Sidecar->Accepted, Transient->Skipped, and output-level==intent-level agreement (idempotent). Pure-function dispatch rule, no managed-resource surface, so sr2 NA; persisted record path is exercised by MT-100/MT-120 PG tests."
+    },
+    "completed_by": "INTEGRATION_VALIDATOR-20260611-033732",
+    "completed_at_utc": "2026-06-11T05:17:17.690Z",
+    "integration_validation_v3": {
+      "verdict": "PASS_V3",
+      "round": "v3",
+      "at_utc": "2026-06-11T05:17:17.690Z",
+      "validator_session": "INTEGRATION_VALIDATOR-20260611-033732",
+      "basis": "v2 PASS re-affirmed in v3: deliverable unchanged by remediation diff; full-crate test sweep green on Handshake-managed PostgreSQL at 17b2abd4 proves no regression. v2 evidence retained in integration_validation_v2."
     }
   },
   "markdown_projection": {
@@ -87,6 +96,6 @@
     "risk_if_missed": "CKC parity loss for Image-Sourcing Adapter",
     "summary": "MT-107 [Pose-ComfyUI-Pipeline] Image-Sourcing Adapter -- Preserve image-sourcing adapter dispatch and idempotent source-to-output mapping through Workflow Engine with accepted/pending/rejected lanes."
   },
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-06-11T05:17:17.690Z",
   "wp_id": "WP-KERNEL-005"
 }

@@ -33,8 +33,8 @@
     "depends_on": [
       "MT-135"
     ],
-    "status": "VALIDATED_V2",
-    "validator_verdict": "PASS",
+    "status": "VALIDATED_V3",
+    "validator_verdict": "PASS_V3",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:20:16.901Z",
     "ready_by": "KB-KERNEL-005-CLOSEOUT",
@@ -49,6 +49,15 @@
       "fail_category": null,
       "gap": null,
       "evidence": "CommandCorpusEntry implements all required fields incl. foreground_flag, action_id(id), owner, params_schema_ref, capabilities, receipt_shape, errors, plus BlockedReason preconditions (src/atelier/command_corpus.rs:225-276). upsert_command_corpus_entry INSERTs into atelier_command_corpus_entry + emits event (command_corpus.rs:447-552). Test asserts foreground_flag roundtrip + event count vs real PG (tests/atelier_command_corpus_tests.rs:101-187). Note: kernel/action_catalog.rs is a separate kernel-002 catalog, not this MT."
+    },
+    "completed_by": "INTEGRATION_VALIDATOR-20260611-033732",
+    "completed_at_utc": "2026-06-11T05:17:17.690Z",
+    "integration_validation_v3": {
+      "verdict": "PASS_V3",
+      "round": "v3",
+      "at_utc": "2026-06-11T05:17:17.690Z",
+      "validator_session": "INTEGRATION_VALIDATOR-20260611-033732",
+      "basis": "v2 PASS re-affirmed in v3: deliverable unchanged by remediation diff; full-crate test sweep green on Handshake-managed PostgreSQL at 17b2abd4 proves no regression. v2 evidence retained in integration_validation_v2."
     }
   },
   "markdown_projection": {
@@ -97,6 +106,6 @@
     "risk_if_missed": "CKC parity loss for Command Action Catalog Schema",
     "summary": "MT-136 [Model-Workflow-Diagnostics] Command Action Catalog Schema -- Implement typed action catalog entries (id, owner, params, capabilities, preconditions, side effects, receipt, errors, refs, foreground flag)."
   },
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-06-11T05:17:17.690Z",
   "wp_id": "WP-KERNEL-005"
 }

@@ -34,14 +34,18 @@
   },
   "lifecycle": {
     "current_main_compatibility_status": "NOT_RUN",
-    "main_containment_status": "NOT_STARTED",
+    "main_containment_status": "CONTAINED_IN_MAIN",
     "packet_format_version": "2026-04-06",
     "risk_tier": "HIGH",
-    "status": "FAILED_INTEGRATION_VALIDATION_V2_NEEDS_REMEDIATION",
+    "status": "PASSED_INTEGRATION_VALIDATION_V3",
     "user_signature": "ilja040620261643",
-    "integration_validator_verdict": "FAIL",
-    "integration_validation_record": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-005/MT_VERDICTS_INTEGRATION_VALIDATOR_V2.json",
-    "integration_validation_at_utc": "2026-06-10T11:55:00Z"
+    "integration_validator_verdict": "PASS_V3",
+    "integration_validation_record": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-005/MT_VERDICTS_INTEGRATION_VALIDATOR_V3.json",
+    "integration_validation_at_utc": "2026-06-11T05:17:17.690Z",
+    "integration_validator_session": "INTEGRATION_VALIDATOR-20260611-033732",
+    "validated_head_sha": "17b2abd4",
+    "merged_main_commit": "41b610df",
+    "main_containment_verified_at_utc": "2026-06-11T05:20:37.224Z"
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.197Z",
@@ -331,7 +335,7 @@
     "work_branch": "feat/WP-KERNEL-005",
     "worktree_dir": "../wtc-kernel-005"
   },
-  "updated_at_utc": "2026-06-10T11:55:00Z",
+  "updated_at_utc": "2026-06-11T05:20:37.224Z",
   "workflow": {
     "authority": "ORCHESTRATOR",
     "communication_contract": "DIRECT_REVIEW_V1",

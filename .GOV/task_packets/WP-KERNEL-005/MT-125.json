@@ -33,8 +33,8 @@
     "depends_on": [
       "MT-124"
     ],
-    "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "status": "VALIDATED_V3",
+    "validator_verdict": "PASS_V3",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-11T03:05:50.294Z",
     "ready_by": "KB-KERNEL-005-V3-REMEDIATION",
@@ -50,7 +50,23 @@
       "gap": null,
       "evidence": "model_manual_tests.rs:542-552 + :600-627 — atelier_record_url_image_import correctly asserted Wired with real Axum route /atelier/image-import/url (registered api/atelier.rs:75), deferred-boundary rows (register_bridge_capability, set_calibration_blocked) correctly Planned/ipc None. Deferred/blocked boundaries are documented manual rows, not reachable placeholder error paths. Static proof only."
     },
-    "ready_for_validation_v3": true
+    "ready_for_validation_v3": true,
+    "completed_by": "INTEGRATION_VALIDATOR-20260611-033732",
+    "completed_at_utc": "2026-06-11T05:17:17.690Z",
+    "integration_validation_v3": {
+      "verdict": "PASS_V3",
+      "round": "v3",
+      "at_utc": "2026-06-11T05:17:17.690Z",
+      "validator_session": "INTEGRATION_VALIDATOR-20260611-033732",
+      "impl_reality": "REAL",
+      "proof_validity": "STRONG",
+      "sr1": "PASS",
+      "sr2": "NA",
+      "concern_resolved": true,
+      "evidence": "Closed by atelier_pose_comfy_manual_rows_pg_tests.rs:801-1029 mt125 (57449ac7): register_bridge_capability + re-read, typed reject rows via list_capability_rejects, wrong-grant engine.comfyui refusal, wired /atelier/image-import/url lane via record_url_image_import + idempotent replay, BLOCKED WP-0133 carry-forward via set_calibration missing-block_reason rejection + verbatim reason re-read; EventLedger CAPABILITY_REGISTERED/IMAGE_IMPORT_RECORDED/POSE_CALIBRATION_SET. Schema-field assertions vs serialized runtime rows, not manual text.",
+      "gap": null,
+      "basis": "v3 adversarial per-MT review of remediated deliverable + runtime proof via full-crate managed-PG sweep and kernel-builder fresh-DB proof logs"
+    }
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.302Z",
@@ -93,6 +109,6 @@
     "risk_if_missed": "CKC parity loss for Deferred PoseKit And Adapter Manual Source Rows",
     "summary": "MT-125 [Pose-ComfyUI-Pipeline] Deferred PoseKit And Adapter Manual Source Rows -- Provide Diagnostics manual/command rows for deferred PoseKit rows and workflow adapter boundaries (registry, image-sourcing lanes, blocked WP-0133, planned carry-forward, unsupported capability, activation blockers)."
   },
-  "updated_at_utc": "2026-06-11T03:05:50.294Z",
+  "updated_at_utc": "2026-06-11T05:17:17.690Z",
   "wp_id": "WP-KERNEL-005"
 }

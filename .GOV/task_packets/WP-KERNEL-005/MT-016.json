@@ -33,8 +33,8 @@
     "depends_on": [
       "MT-015"
     ],
-    "status": "VALIDATED_V2",
-    "validator_verdict": "PASS",
+    "status": "VALIDATED_V3",
+    "validator_verdict": "PASS_V3",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:03:43.528Z",
     "ready_by": "KB-KERNEL-005-CLOSEOUT",
@@ -49,6 +49,15 @@
       "fail_category": null,
       "gap": null,
       "evidence": "media.rs:929-1021 (materialize_media_asset: validate_artifact_ref + verify_artifact_store_binding + tx insert + in-tx MEDIA_ASSET_MATERIALIZED event); media.rs:805-838 (real ArtifactStore manifest/hash/size/mime binding check); atelier_media_artifact_tests.rs:151-356,1509-1696 (real PG materialize, manifest asserts, count_events_for_aggregate, forbidden .GOV/network/path rejection with assert_rejected_without_row_or_event)"
+    },
+    "completed_by": "INTEGRATION_VALIDATOR-20260611-033732",
+    "completed_at_utc": "2026-06-11T05:17:17.690Z",
+    "integration_validation_v3": {
+      "verdict": "PASS_V3",
+      "round": "v3",
+      "at_utc": "2026-06-11T05:17:17.690Z",
+      "validator_session": "INTEGRATION_VALIDATOR-20260611-033732",
+      "basis": "v2 PASS re-affirmed in v3: deliverable unchanged by remediation diff; full-crate test sweep green on Handshake-managed PostgreSQL at 17b2abd4 proves no regression. v2 evidence retained in integration_validation_v2."
     }
   },
   "markdown_projection": {
@@ -88,6 +97,6 @@
     "risk_if_missed": "CKC parity loss for ArtifactStore Media Materialization",
     "summary": "MT-016 [Core-Data-Intake] ArtifactStore Media Materialization -- Route media files through ArtifactStore and manifests (hash/size/source/retention) instead of random filesystem writes; never land in .GOV."
   },
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-06-11T05:17:17.690Z",
   "wp_id": "WP-KERNEL-005"
 }

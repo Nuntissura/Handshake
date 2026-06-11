@@ -33,8 +33,8 @@
     "depends_on": [
       "MT-122"
     ],
-    "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "status": "VALIDATED_V3",
+    "validator_verdict": "PASS_V3",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-11T03:05:50.294Z",
     "ready_by": "KB-KERNEL-005-V3-REMEDIATION",
@@ -50,7 +50,23 @@
       "gap": null,
       "evidence": "model_manual_tests.rs:514-527 full 7-command set for atelier_pose_sidecar_and_identity with exact-count guard; rows back to real pose.rs methods (record_pose_sidecar, append_identity_profile). Static-data proof only; no AtelierStore::pool()/EventLedger touch despite proof_target."
     },
-    "ready_for_validation_v3": true
+    "ready_for_validation_v3": true,
+    "completed_by": "INTEGRATION_VALIDATOR-20260611-033732",
+    "completed_at_utc": "2026-06-11T05:17:17.690Z",
+    "integration_validation_v3": {
+      "verdict": "PASS_V3",
+      "round": "v3",
+      "at_utc": "2026-06-11T05:17:17.690Z",
+      "validator_session": "INTEGRATION_VALIDATOR-20260611-033732",
+      "impl_reality": "REAL",
+      "proof_validity": "STRONG",
+      "sr1": "PASS",
+      "sr2": "PASS",
+      "concern_resolved": true,
+      "evidence": "Closed by atelier_pose_comfy_manual_rows_pg_tests.rs:314-562 mt123: record_pose_sidecar with real ArtifactStore payload + re-read, mime/kind refusal vs manual common_errors, hidden-from-gallery projection (gallery_visible=false), identity lineage append/update/latest-head with version 1->2 preserved seq, 512x512 crop record + re-read pinned to live profile_version, real non-512 refusal, EventLedger counts sidecar=1/lineage=2/crop=1.",
+      "gap": null,
+      "basis": "v3 adversarial per-MT review of remediated deliverable + runtime proof via full-crate managed-PG sweep and kernel-builder fresh-DB proof logs"
+    }
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.300Z",
@@ -93,6 +109,6 @@
     "risk_if_missed": "CKC parity loss for OpenPose Sidecar And Identity Manual Source Rows",
     "summary": "MT-123 [Pose-ComfyUI-Pipeline] OpenPose Sidecar And Identity Manual Source Rows -- Provide Diagnostics manual/command rows for OpenPose sidecars and identity profiles (export JSON/PNG, sidecar links, hide from gallery, identity CRUD, crop metadata, lineage)."
   },
-  "updated_at_utc": "2026-06-11T03:05:50.294Z",
+  "updated_at_utc": "2026-06-11T05:17:17.690Z",
   "wp_id": "WP-KERNEL-005"
 }

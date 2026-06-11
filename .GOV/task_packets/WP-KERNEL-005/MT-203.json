@@ -33,8 +33,8 @@
     "depends_on": [
       "MT-202"
     ],
-    "status": "VALIDATED_V2",
-    "validator_verdict": "PASS",
+    "status": "VALIDATED_V3",
+    "validator_verdict": "PASS_V3",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:30:23.126Z",
     "ready_by": "KB-KERNEL-005-CLOSEOUT",
@@ -49,6 +49,15 @@
       "fail_category": null,
       "gap": null,
       "evidence": "src/backend/handshake_core/src/atelier/transcript.rs:750-1197 (record_media_probe/record_transcript/record_caption/render_caption/file_pipeline_receipt all persist via self.pool() + emit EventLedger events, lineage LAW enforced l.858-867 plus DB FK in migrations/0032_atelier_pose_diagnostics.sql:246; secret redaction l.378-401); migration 0032 wired in atelier/mod.rs ensure_schema; tests/atelier_transcript_tests.rs:222-369 live-PG lineage round-trip with count_events deltas, idempotency, render determinism (l.486-607), and redaction (l.610-767). NEVER spawns a process (governed-job-only) so no NativeToolchainUnavailable escape is reachable."
+    },
+    "completed_by": "INTEGRATION_VALIDATOR-20260611-033732",
+    "completed_at_utc": "2026-06-11T05:17:17.690Z",
+    "integration_validation_v3": {
+      "verdict": "PASS_V3",
+      "round": "v3",
+      "at_utc": "2026-06-11T05:17:17.690Z",
+      "validator_session": "INTEGRATION_VALIDATOR-20260611-033732",
+      "basis": "v2 PASS re-affirmed in v3: deliverable unchanged by remediation diff; full-crate test sweep green on Handshake-managed PostgreSQL at 17b2abd4 proves no regression. v2 evidence retained in integration_validation_v2."
     }
   },
   "markdown_projection": {
@@ -89,6 +98,6 @@
     "risk_if_missed": "CKC ffmpeg/ffprobe transcript + caption generation unrepresented",
     "summary": "MT-203 [Pose-ComfyUI-Pipeline] ASR/Transcript Depth (ffmpeg/ffprobe/transcript/captions) (GAP-FILL) -- Add Handshake-native media probe/transcript records for Workflow-Engine-managed ffmpeg/ffprobe/ASR-compatible jobs, proven through PostgreSQL/EventLedger receipts and ArtifactStore refs; no manually launched subprocess/service is required as core proof."
   },
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-06-11T05:17:17.690Z",
   "wp_id": "WP-KERNEL-005"
 }

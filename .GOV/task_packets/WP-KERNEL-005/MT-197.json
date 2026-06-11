@@ -34,7 +34,7 @@
       "MT-196"
     ],
     "status": "OUT_OF_SCOPE_BY_OPERATOR",
-    "validator_verdict": "OUT_OF_SCOPE",
+    "validator_verdict": "OUT_OF_SCOPE_BY_OPERATOR_V3",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:29:36.668Z",
     "ready_by": "KB-KERNEL-005-CLOSEOUT",
@@ -49,6 +49,13 @@
       "fail_category": null,
       "gap": null,
       "evidence": null
+    },
+    "integration_validation_v3": {
+      "verdict": "OUT_OF_SCOPE_BY_OPERATOR_V3",
+      "round": "v3",
+      "at_utc": "2026-06-11T05:17:17.690Z",
+      "validator_session": "INTEGRATION_VALIDATOR-20260611-033732",
+      "note": "Pure governance-paperwork MT ruled out of scope by Operator in v2; ruling maintained in v3 (operator: governance paperwork is not a blocker or goal for this WP)."
     }
   },
   "markdown_projection": {
@@ -93,6 +100,6 @@
     "risk_if_missed": "CKC parity loss for Diagnostics Activation Refinement Closure",
     "summary": "MT-197 [Model-Workflow-Diagnostics] Diagnostics Activation Refinement Closure -- Convert repaired stub plus this suite into activation-ready refinement content (scope, non-goals, deps, risks, acceptance, MT plan)."
   },
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-06-11T05:17:17.690Z",
   "wp_id": "WP-KERNEL-005"
 }

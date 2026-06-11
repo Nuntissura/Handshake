@@ -33,8 +33,8 @@
     "depends_on": [
       "MT-183"
     ],
-    "status": "VALIDATED_V2",
-    "validator_verdict": "PASS",
+    "status": "VALIDATED_V3",
+    "validator_verdict": "PASS_V3",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:27:39.567Z",
     "ready_by": "KB-KERNEL-005-CLOSEOUT",
@@ -49,6 +49,15 @@
       "fail_category": null,
       "gap": null,
       "evidence": "src/backend/handshake_core/src/mt_executor/queue.rs:75-83 (SELECT ... FOR UPDATE SKIP LOCKED atomic claim); tests/micro_task_job_tests.rs:403-477 (mt_184_pg_atomic_claim_race_8_workers_one_winner exercises real kernel_micro_task_job table); queue.rs:323 (SCHEMA_SQL include_str! 0023 migration). Contract summary is a generic 'Diagnostics' import mismatched with the implemented MicroTaskJob/queue (WP-KERNEL-004 cluster X.2) but the implemented behavior is real and proven."
+    },
+    "completed_by": "INTEGRATION_VALIDATOR-20260611-033732",
+    "completed_at_utc": "2026-06-11T05:17:17.690Z",
+    "integration_validation_v3": {
+      "verdict": "PASS_V3",
+      "round": "v3",
+      "at_utc": "2026-06-11T05:17:17.690Z",
+      "validator_session": "INTEGRATION_VALIDATOR-20260611-033732",
+      "basis": "v2 PASS re-affirmed in v3: deliverable unchanged by remediation diff; full-crate test sweep green on Handshake-managed PostgreSQL at 17b2abd4 proves no regression. v2 evidence retained in integration_validation_v2."
     }
   },
   "markdown_projection": {
@@ -91,6 +100,6 @@
     "risk_if_missed": "CKC parity loss for Diagnostics Red-Team Local LLM Spec And Path Guards",
     "summary": "MT-184 [Model-Workflow-Diagnostics] Diagnostics Red-Team Local LLM Spec And Path Guards -- Turn local-LLM, stale-source, SQLite, and hardcoded-path risks into focused negative checks."
   },
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-06-11T05:17:17.690Z",
   "wp_id": "WP-KERNEL-005"
 }

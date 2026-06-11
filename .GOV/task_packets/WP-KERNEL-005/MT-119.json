@@ -33,8 +33,8 @@
     "depends_on": [
       "MT-118"
     ],
-    "status": "VALIDATED_V2",
-    "validator_verdict": "PASS",
+    "status": "VALIDATED_V3",
+    "validator_verdict": "PASS_V3",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:18:05.055Z",
     "ready_by": "KB-KERNEL-005-CLOSEOUT",
@@ -49,6 +49,15 @@
       "fail_category": null,
       "gap": null,
       "evidence": "comfy.rs:356-358 reject_direct_localhost_comfy_execution rejects loopback/machine-local execution; comfy.rs:190-232 scrub_provenance recursively redacts authorization/token/cookie/secret keys and is applied on every persisted receipt/evidence path (e.g. record_comfy_workflow_receipt:2642, identity:386-392). Localhost rejection tested at routing_tests.rs:173-192; secret scrub-on-persist proven against real PG at atelier_comfy_tests.rs:813-816 (failure evidence Authorization -> [REDACTED]) and 1238-1250."
+    },
+    "completed_by": "INTEGRATION_VALIDATOR-20260611-033732",
+    "completed_at_utc": "2026-06-11T05:17:17.690Z",
+    "integration_validation_v3": {
+      "verdict": "PASS_V3",
+      "round": "v3",
+      "at_utc": "2026-06-11T05:17:17.690Z",
+      "validator_session": "INTEGRATION_VALIDATOR-20260611-033732",
+      "basis": "v2 PASS re-affirmed in v3: deliverable unchanged by remediation diff; full-crate test sweep green on Handshake-managed PostgreSQL at 17b2abd4 proves no regression. v2 evidence retained in integration_validation_v2."
     }
   },
   "markdown_projection": {
@@ -87,6 +96,6 @@
     "risk_if_missed": "CKC parity loss for Pose Red-Team Runtime Authority And Secret Guards",
     "summary": "MT-119 [Pose-ComfyUI-Pipeline] Pose Red-Team Runtime Authority And Secret Guards -- Convert runtime-authority and secret-handling risks into focused checks: reject direct localhost authority/ComfyUI execution and scrub secrets/cookies/tokens from receipts and logs."
   },
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-06-11T05:17:17.690Z",
   "wp_id": "WP-KERNEL-005"
 }

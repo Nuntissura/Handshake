@@ -33,8 +33,8 @@
     "depends_on": [
       "MT-059"
     ],
-    "status": "VALIDATED_V2",
-    "validator_verdict": "PASS",
+    "status": "VALIDATED_V3",
+    "validator_verdict": "PASS_V3",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:08:04.589Z",
     "ready_by": "KB-KERNEL-005-CLOSEOUT",
@@ -49,6 +49,15 @@
       "fail_category": null,
       "gap": null,
       "evidence": "content.rs:177-186 atelier_reset_recovery group; record_atelier_reset (intake.rs:1602) and adopt_orphan_manifest_item (intake.rs:1780) real; workflow content.rs:2937-2948; model_manual_tests.rs:391-400 coverage"
+    },
+    "completed_by": "INTEGRATION_VALIDATOR-20260611-033732",
+    "completed_at_utc": "2026-06-11T05:17:17.690Z",
+    "integration_validation_v3": {
+      "verdict": "PASS_V3",
+      "round": "v3",
+      "at_utc": "2026-06-11T05:17:17.690Z",
+      "validator_session": "INTEGRATION_VALIDATOR-20260611-033732",
+      "basis": "v2 PASS re-affirmed in v3: deliverable unchanged by remediation diff; full-crate test sweep green on Handshake-managed PostgreSQL at 17b2abd4 proves no regression. v2 evidence retained in integration_validation_v2."
     }
   },
   "markdown_projection": {
@@ -89,6 +98,6 @@
     "risk_if_missed": "CKC parity loss for Reset Recovery And Orphan Adoption Manual Source Rows",
     "summary": "MT-060 [Core-Data-Intake] Reset Recovery And Orphan Adoption Manual Source Rows -- Provide Diagnostics with no-context manual rows for reset, recovery, and orphan-adoption workflows only."
   },
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-06-11T05:17:17.690Z",
   "wp_id": "WP-KERNEL-005"
 }

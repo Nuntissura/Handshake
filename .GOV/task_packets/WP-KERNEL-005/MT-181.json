@@ -33,8 +33,8 @@
     "depends_on": [
       "MT-180"
     ],
-    "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "status": "VALIDATED_V3",
+    "validator_verdict": "PASS_V3",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-11T03:05:50.294Z",
     "ready_by": "KB-KERNEL-005-V3-REMEDIATION",
@@ -50,7 +50,23 @@
       "gap": "Acceptance demands an end-to-end smoke path run (session->lease->state->command->receipt->visual->bundle->release); only a static ModelManual feature-group DESCRIBING the path exists, never executed, and its terminal step diagnostics_debug_bundle_export is status Planned (deferred).",
       "evidence": "src/backend/handshake_core/src/model_manual/content.rs:288-299 (feature group is data only); content.rs:2615-2634 (diagnostics_debug_bundle_export status Planned, ipc_channel None); tests/model_manual_tests.rs:763-801 (proof only asserts group/command/workflow membership in the in-memory struct, no PG/EventLedger touch, no smoke-path run)"
     },
-    "ready_for_validation_v3": true
+    "ready_for_validation_v3": true,
+    "completed_by": "INTEGRATION_VALIDATOR-20260611-033732",
+    "completed_at_utc": "2026-06-11T05:17:17.690Z",
+    "integration_validation_v3": {
+      "verdict": "PASS_V3",
+      "round": "v3",
+      "at_utc": "2026-06-11T05:17:17.690Z",
+      "validator_session": "INTEGRATION_VALIDATOR-20260611-033732",
+      "impl_reality": "REAL",
+      "proof_validity": "STRONG",
+      "sr1": "PASS",
+      "sr2": "PASS",
+      "concern_resolved": null,
+      "evidence": "tests/atelier_kernel_smoke_tests.rs:114 mt181_diagnostics_integration_smoke_path_runs_end_to_end_on_pg EXECUTES all 8 stages at runtime: session heartbeat, lease claim, work-state projection, command vs real KERNEL-002 catalog (unregistered action_ids rejected), receipt-bound command log, stealth window + capture + screenshot artifact storage, kernel diagnostic bundle manifest (real INSERT + ledger via src/diagnostics/bundle_manifest.rs:301-358), lease release. Every stage re-reads from PostgreSQL and asserts its canonical EventLedger family. Terminal step no longer Planned: content.rs:2616-2634 diagnostics_debug_bundle_export now CommandStatus::Wired; regression guard test :481-518 runs MT-183 drift guard over it. MANUAL_VERSION bumped to 1.5.0.",
+      "gap": null,
+      "basis": "v3 adversarial per-MT review of remediated deliverable + runtime proof via full-crate managed-PG sweep and kernel-builder fresh-DB proof logs"
+    }
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.345Z",
@@ -89,6 +105,6 @@
     "risk_if_missed": "CKC parity loss for Diagnostics Integration Smoke Path",
     "summary": "MT-181 [Model-Workflow-Diagnostics] Diagnostics Integration Smoke Path -- Prove one no-context model operation path end to end (session->lease->state->command->receipt->visual->bundle->release)."
   },
-  "updated_at_utc": "2026-06-11T03:05:50.294Z",
+  "updated_at_utc": "2026-06-11T05:17:17.690Z",
   "wp_id": "WP-KERNEL-005"
 }

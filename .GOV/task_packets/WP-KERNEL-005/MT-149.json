@@ -33,8 +33,8 @@
     "depends_on": [
       "MT-148"
     ],
-    "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "status": "VALIDATED_V3",
+    "validator_verdict": "PASS_V3",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-11T03:05:50.294Z",
     "ready_by": "KB-KERNEL-005-V3-REMEDIATION",
@@ -50,7 +50,23 @@
       "gap": "EditableSurface providers have NO production wiring; ModelManualSurface/RetrievalPolicySurface are constructed only with in-memory test closures and the integration test asserts hardcoded action_id/write_box_schema_id constants it supplies itself, never touching the real ModelManual surface or PG policy table.",
       "evidence": "src/self_improve/editable_surface.rs:183-296 (closure-injected read/write); grep shows ModelManualSurface::new/RetrievalPolicySurface::new only at editable_surface.rs:560-639 (tests); tests/editable_surface_tests.rs:53-57 + 192-245 record test-authored MODEL_MANUAL_ACTION_ID/WRITE_BOX constants, comment lines 18-22 say it does not 'drag the entire catalog dispatcher in'."
     },
-    "ready_for_validation_v3": true
+    "ready_for_validation_v3": true,
+    "completed_by": "INTEGRATION_VALIDATOR-20260611-033732",
+    "completed_at_utc": "2026-06-11T05:17:17.690Z",
+    "integration_validation_v3": {
+      "verdict": "PASS_V3",
+      "round": "v3",
+      "at_utc": "2026-06-11T05:17:17.690Z",
+      "validator_session": "INTEGRATION_VALIDATOR-20260611-033732",
+      "impl_reality": "REAL",
+      "proof_validity": "STRONG",
+      "sr1": "PASS",
+      "sr2": "PASS",
+      "concern_resolved": null,
+      "evidence": "Production pg_model_manual_surface (src/atelier/editable_surface_authority.rs:290-319) and pg_retrieval_policy_surface (:329-376) - production EditableSurfaceProvider wiring calling real PG paths get/upsert_model_manual_section (sqlx ON CONFLICT revision bump + EventLedger mirror) and get/upsert_retrieval_policy_value. Proof tests/atelier_editable_surface_authority_tests.rs on managed PG: seed text lifted from REAL built-in ModelManual; snapshot->apply_proposal->promote on production provider; apply_proposal leaves live row untouched; promote re-read from PG bumps revision; 2 MODEL_MANUAL_SECTION_WRITTEN events; noop promote writes nothing; policy surface defaults then promotes to PG; out-of-range proposals clamped before any PG write. V2 gap (test-closure-only providers) closed.",
+      "gap": null,
+      "basis": "v3 adversarial per-MT review of remediated deliverable + runtime proof via full-crate managed-PG sweep and kernel-builder fresh-DB proof logs"
+    }
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.321Z",
@@ -90,6 +106,6 @@
     "summary": "MT-149 [Model-Workflow-Diagnostics] Flight Recorder Session And Command Events -- Define Flight Recorder event families for session lifecycle and command lifecycle only.",
     "v3_correction": "v3 correction: the original scope.summary/acceptance text (\"Flight Recorder Session And Command Events\") is mis-labelled; the validated deliverable per integration_validation_v2 and the v3 remediation playbook is the EditableSurface providers production wiring (src/atelier/editable_surface_authority.rs, pg_model_manual_surface / pg_retrieval_policy_surface, proven by atelier_editable_surface_authority_tests)."
   },
-  "updated_at_utc": "2026-06-11T03:05:50.294Z",
+  "updated_at_utc": "2026-06-11T05:17:17.690Z",
   "wp_id": "WP-KERNEL-005"
 }

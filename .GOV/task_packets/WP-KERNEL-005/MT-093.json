@@ -33,8 +33,8 @@
     "depends_on": [
       "MT-092"
     ],
-    "status": "VALIDATED_V2",
-    "validator_verdict": "PASS",
+    "status": "VALIDATED_V3",
+    "validator_verdict": "PASS_V3",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:13:55.518Z",
     "ready_by": "KB-KERNEL-005-CLOSEOUT",
@@ -49,6 +49,15 @@
       "fail_category": null,
       "gap": null,
       "evidence": "pose.rs:2382-2428 list_pose_sidecars_for_source (by source_ref+rig) and pose_sidecar_gallery_projection (gallery_visible=false, hidden_reason='pose_sidecar'); test atelier_pose_tests.rs:831-865 looks up by source+rig, asserts wrong-source empty, .GOV source rejected, and projection hides all 3 sidecars from galleries on live PG"
+    },
+    "completed_by": "INTEGRATION_VALIDATOR-20260611-033732",
+    "completed_at_utc": "2026-06-11T05:17:17.690Z",
+    "integration_validation_v3": {
+      "verdict": "PASS_V3",
+      "round": "v3",
+      "at_utc": "2026-06-11T05:17:17.690Z",
+      "validator_session": "INTEGRATION_VALIDATOR-20260611-033732",
+      "basis": "v2 PASS re-affirmed in v3: deliverable unchanged by remediation diff; full-crate test sweep green on Handshake-managed PostgreSQL at 17b2abd4 proves no regression. v2 evidence retained in integration_validation_v2."
     }
   },
   "markdown_projection": {
@@ -88,6 +97,6 @@
     "risk_if_missed": "CKC parity loss for Sidecar Relation Query",
     "summary": "MT-093 [Pose-ComfyUI-Pipeline] Sidecar Relation Query -- Preserve lookup of OpenPose sidecars by source image and rig, with a projection contract that hides sidecars from normal galleries."
   },
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-06-11T05:17:17.690Z",
   "wp_id": "WP-KERNEL-005"
 }

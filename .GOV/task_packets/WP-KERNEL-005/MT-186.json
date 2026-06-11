@@ -33,8 +33,8 @@
     "depends_on": [
       "MT-185"
     ],
-    "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "status": "VALIDATED_V3",
+    "validator_verdict": "PASS_V3",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-11T00:45:46.539Z",
     "ready_by": "KB-KERNEL-005-V3-REMEDIATION",
@@ -50,7 +50,23 @@
       "gap": "Acceptance 'merge Pose/ComfyUI rows, normalize ids, mark missing as blockers' has no executable merge: DiagnosticsPoseRowMerge is a string literal in a Planned manual row. No normalization/blocker code; proof is in-memory membership only.",
       "evidence": "src/backend/handshake_core/src/model_manual/content.rs:2678-2697 (diagnostics_pose_row_merge status Planned, 'Data-only'); DiagnosticsPoseRowMerge only in content.rs as literal; tests/model_manual_tests.rs:738-747 (in-memory feature-group assertion, no PG/EventLedger, no merge run)"
     },
-    "ready_for_validation_v3": true
+    "ready_for_validation_v3": true,
+    "completed_by": "INTEGRATION_VALIDATOR-20260611-033732",
+    "completed_at_utc": "2026-06-11T05:17:17.690Z",
+    "integration_validation_v3": {
+      "verdict": "PASS_V3",
+      "round": "v3",
+      "at_utc": "2026-06-11T05:17:17.690Z",
+      "validator_session": "INTEGRATION_VALIDATOR-20260611-033732",
+      "impl_reality": "REAL",
+      "proof_validity": "STRONG",
+      "sr1": "PASS",
+      "sr2": "PASS",
+      "concern_resolved": null,
+      "evidence": "Same executable merge engine with ManualMergeSourceKind::PoseComfy over MT-122..125 groups (model_manual_merge.rs:155-160,236-301). Proof: tests/atelier_model_manual_merge_tests.rs:289-370 (count vs independently derived distinct pose command set + specific rows, persisted to managed PG, pose_comfy ledger event) and :391-411 (3 absent groups become MISSING_FEATURE_GROUP blockers).",
+      "gap": null,
+      "basis": "v3 adversarial per-MT review of remediated deliverable + runtime proof via full-crate managed-PG sweep and kernel-builder fresh-DB proof logs"
+    }
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.350Z",
@@ -95,6 +111,6 @@
     "risk_if_missed": "CKC parity loss for Manual Source Merge For Pose Rows",
     "summary": "MT-186 [Model-Workflow-Diagnostics] Manual Source Merge For Pose Rows -- Merge Pose/ComfyUI manual source rows into Diagnostics manual dataset only; normalize ids; mark missing as blockers."
   },
-  "updated_at_utc": "2026-06-11T00:46:24.349Z",
+  "updated_at_utc": "2026-06-11T05:17:17.690Z",
   "wp_id": "WP-KERNEL-005"
 }

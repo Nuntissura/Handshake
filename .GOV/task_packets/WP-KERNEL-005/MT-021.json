@@ -33,8 +33,8 @@
     "depends_on": [
       "MT-020"
     ],
-    "status": "VALIDATED_V2",
-    "validator_verdict": "PASS",
+    "status": "VALIDATED_V3",
+    "validator_verdict": "PASS_V3",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:03:55.480Z",
     "ready_by": "KB-KERNEL-005-CLOSEOUT",
@@ -49,6 +49,15 @@
       "fail_category": null,
       "gap": null,
       "evidence": "search.rs:1396-1640 (record/accept/reject/apply state machine, validate_ai_tag_receipt_ref at 1407); test atelier_core_data_tests.rs:6495-6643 proves suggestions do not auto-apply, reject guard, applied tag is Manual, AI_TAG_SUGGESTION_APPLIED ledger event via kernel_event_ledger join (6575-6593); 6646-6747 enforces model/tool receipt-ref rejection without persisting rows/events"
+    },
+    "completed_by": "INTEGRATION_VALIDATOR-20260611-033732",
+    "completed_at_utc": "2026-06-11T05:17:17.690Z",
+    "integration_validation_v3": {
+      "verdict": "PASS_V3",
+      "round": "v3",
+      "at_utc": "2026-06-11T05:17:17.690Z",
+      "validator_session": "INTEGRATION_VALIDATOR-20260611-033732",
+      "basis": "v2 PASS re-affirmed in v3: deliverable unchanged by remediation diff; full-crate test sweep green on Handshake-managed PostgreSQL at 17b2abd4 proves no regression. v2 evidence retained in integration_validation_v2."
     }
   },
   "markdown_projection": {
@@ -87,6 +96,6 @@
     "risk_if_missed": "CKC parity loss for AI Tag Suggestion Proposal Boundary",
     "summary": "MT-021 [Core-Data-Intake] AI Tag Suggestion Proposal Boundary -- Preserve AI tag suggestions as proposals (not auto-truth) linked to model/tool receipts with accept/reject/apply flow."
   },
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-06-11T05:17:17.690Z",
   "wp_id": "WP-KERNEL-005"
 }

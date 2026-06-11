@@ -33,8 +33,8 @@
     "depends_on": [
       "MT-126"
     ],
-    "status": "VALIDATED_V2",
-    "validator_verdict": "PASS",
+    "status": "VALIDATED_V3",
+    "validator_verdict": "PASS_V3",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:19:07.578Z",
     "ready_by": "KB-KERNEL-005-CLOSEOUT",
@@ -49,6 +49,15 @@
       "fail_category": null,
       "gap": null,
       "evidence": "comfy.rs:3349-3394 poll_comfy_job + mark_comfy_job_running with SQL transition guard (WHERE status='QUEUED'); atelier_comfy_job_tests.rs:108-190 QUEUED->RUNNING->COMPLETED on real PG, re-run rejection, run-scoped JOB_RUNNING/JOB_COMPLETED event counts"
+    },
+    "completed_by": "INTEGRATION_VALIDATOR-20260611-033732",
+    "completed_at_utc": "2026-06-11T05:17:17.690Z",
+    "integration_validation_v3": {
+      "verdict": "PASS_V3",
+      "round": "v3",
+      "at_utc": "2026-06-11T05:17:17.690Z",
+      "validator_session": "INTEGRATION_VALIDATOR-20260611-033732",
+      "basis": "v2 PASS re-affirmed in v3: deliverable unchanged by remediation diff; full-crate test sweep green on Handshake-managed PostgreSQL at 17b2abd4 proves no regression. v2 evidence retained in integration_validation_v2."
     }
   },
   "markdown_projection": {
@@ -91,6 +100,6 @@
     "risk_if_missed": "CKC parity loss for ComfyUI Polling And Result Capture Adapter",
     "summary": "MT-127 [Pose-ComfyUI-Pipeline] ComfyUI Polling And Result Capture Adapter -- Implement/specify only the Handshake-native adapter result-capture contract: status mapping, artifact capture, and output metadata from managed Workflow-Engine receipts; direct external polling is compatibility-only."
   },
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-06-11T05:17:17.690Z",
   "wp_id": "WP-KERNEL-005"
 }

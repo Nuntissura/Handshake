@@ -33,8 +33,8 @@
     "depends_on": [
       "MT-017"
     ],
-    "status": "VALIDATED_V2",
-    "validator_verdict": "PASS",
+    "status": "VALIDATED_V3",
+    "validator_verdict": "PASS_V3",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:03:48.214Z",
     "ready_by": "KB-KERNEL-005-CLOSEOUT",
@@ -49,6 +49,15 @@
       "fail_category": null,
       "gap": null,
       "evidence": "media.rs:1921 (bulk_update_media_review_metadata, batch-safe with prevalidation); migration 0043 wired at mod.rs:1773; atelier_media_artifact_tests.rs:468-779 (rating clamp 0..5 high/low, all-or-nothing batch on missing/invalid-status target, receipt+canonical_receipt_event_count linkage, note text preserved, no partial write / no receipt / no EventLedger row / no Flight Recorder side-effect on failure)"
+    },
+    "completed_by": "INTEGRATION_VALIDATOR-20260611-033732",
+    "completed_at_utc": "2026-06-11T05:17:17.690Z",
+    "integration_validation_v3": {
+      "verdict": "PASS_V3",
+      "round": "v3",
+      "at_utc": "2026-06-11T05:17:17.690Z",
+      "validator_session": "INTEGRATION_VALIDATOR-20260611-033732",
+      "basis": "v2 PASS re-affirmed in v3: deliverable unchanged by remediation diff; full-crate test sweep green on Handshake-managed PostgreSQL at 17b2abd4 proves no regression. v2 evidence retained in integration_validation_v2."
     }
   },
   "markdown_projection": {
@@ -92,6 +101,6 @@
     "risk_if_missed": "CKC parity loss for Media Review Metadata",
     "summary": "MT-018 [Core-Data-Intake] Media Review Metadata -- Preserve favorites, ratings (0..5 clamp), frontpage, carousel, notes, and review status with batch-safe updates."
   },
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-06-11T05:17:17.690Z",
   "wp_id": "WP-KERNEL-005"
 }

@@ -33,8 +33,8 @@
     "depends_on": [
       "MT-154"
     ],
-    "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "status": "VALIDATED_V3",
+    "validator_verdict": "PASS_V3",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-11T03:05:50.294Z",
     "ready_by": "KB-KERNEL-005-V3-REMEDIATION",
@@ -50,7 +50,23 @@
       "gap": "Proof is an in-memory struct validation only; never touches PG/EventLedger/ArtifactStore despite proof_target 'runtime proof vs PostgreSQL/EventLedger'. No standalone diff-request schema; threshold/metadata only appear as embedded fields of an in-memory loop projection with stringly-typed 'artifact://' refs that are never persisted or read.",
       "evidence": "src/kernel/visual_debugging_loop.rs:28-47 VisualDebuggingThresholdConfigV1 / VisualDebugEvidenceArtifactV1 (plain structs); tests/kernel_visual_debugging_loop_tests.rs:11-72 build literals and assert on validate/project return values; no managed-resource access anywhere in the test."
     },
-    "ready_for_validation_v3": true
+    "ready_for_validation_v3": true,
+    "completed_by": "INTEGRATION_VALIDATOR-20260611-033732",
+    "completed_at_utc": "2026-06-11T05:17:17.690Z",
+    "integration_validation_v3": {
+      "verdict": "PASS_V3",
+      "round": "v3",
+      "at_utc": "2026-06-11T05:17:17.690Z",
+      "validator_session": "INTEGRATION_VALIDATOR-20260611-033732",
+      "impl_reality": "REAL",
+      "proof_validity": "STRONG",
+      "sr1": "PASS",
+      "sr2": "PASS",
+      "concern_resolved": null,
+      "evidence": "Production AtelierStore visual-diff API in src/kernel/visual_diff_baseline.rs - record_visual_diff_baseline (sqlx INSERT + EventLedger mirror), get/latest baseline, record_visual_diff_request (standalone diff-request schema with VisualDiffReference Baseline-or-PreviousScreenshot enum, threshold_config + metadata). Migration 0124. Proof tests/atelier_visual_diff_baseline_tests.rs on managed PG: content hashes computed from real payload bytes, full-fidelity PG re-read, latest-baseline tracking, BASELINE_RECORDED event; threshold+metadata round-trip for both reference kinds, REQUEST_RECORDED event with threshold fields; unknown baseline/zero threshold/non-portable refs fail typed leaving zero rows. V2 gaps (no standalone schema, stringly refs, no PG touch) all closed.",
+      "gap": "artifact:// refs are validated portable tokens persisted/re-read in PG; proof does not materialize payloads through ArtifactStore - contract-compliant (proof_target names PG+EventLedger only).",
+      "basis": "v3 adversarial per-MT review of remediated deliverable + runtime proof via full-crate managed-PG sweep and kernel-builder fresh-DB proof logs"
+    }
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.325Z",
@@ -89,6 +105,6 @@
     "risk_if_missed": "CKC parity loss for Visual Diff Baseline Contract",
     "summary": "MT-155 [Model-Workflow-Diagnostics] Visual Diff Baseline Contract -- Preserve baseline-or-previous screenshot comparison via diff request schema with threshold and metadata."
   },
-  "updated_at_utc": "2026-06-11T03:05:50.294Z",
+  "updated_at_utc": "2026-06-11T05:17:17.690Z",
   "wp_id": "WP-KERNEL-005"
 }

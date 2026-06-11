@@ -33,8 +33,8 @@
     "depends_on": [
       "MT-096"
     ],
-    "status": "VALIDATED_V2",
-    "validator_verdict": "PASS",
+    "status": "VALIDATED_V3",
+    "validator_verdict": "PASS_V3",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:14:27.637Z",
     "ready_by": "KB-KERNEL-005-CLOSEOUT",
@@ -49,6 +49,15 @@
       "fail_category": null,
       "gap": null,
       "evidence": "pose.rs:2179 route_pose_workspace_to_rig + :2241 apply_pose_workspace_keyboard_action compute next/prev over durable sort_order tab list and persist via upsert (real PG); test atelier_pose_tests.rs:1597-1740 asserts route_ref portability, wraparound next/prev nav, durable active-rig state, and panel_id token validation against real PG"
+    },
+    "completed_by": "INTEGRATION_VALIDATOR-20260611-033732",
+    "completed_at_utc": "2026-06-11T05:17:17.690Z",
+    "integration_validation_v3": {
+      "verdict": "PASS_V3",
+      "round": "v3",
+      "at_utc": "2026-06-11T05:17:17.690Z",
+      "validator_session": "INTEGRATION_VALIDATOR-20260611-033732",
+      "basis": "v2 PASS re-affirmed in v3: deliverable unchanged by remediation diff; full-crate test sweep green on Handshake-managed PostgreSQL at 17b2abd4 proves no regression. v2 evidence retained in integration_validation_v2."
     }
   },
   "markdown_projection": {
@@ -87,6 +96,6 @@
     "risk_if_missed": "CKC parity loss for Multi-Rig Keyboard And Route Semantics",
     "summary": "MT-097 [Pose-ComfyUI-Pipeline] Multi-Rig Keyboard And Route Semantics -- Preserve keyboard/navigation/route command-action catalog rows for rig switching/tab nav/close/save without building full UI."
   },
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-06-11T05:17:17.690Z",
   "wp_id": "WP-KERNEL-005"
 }

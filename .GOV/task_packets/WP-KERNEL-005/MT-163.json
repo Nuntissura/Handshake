@@ -33,8 +33,8 @@
     "depends_on": [
       "MT-162"
     ],
-    "status": "VALIDATED_V2",
-    "validator_verdict": "PASS",
+    "status": "VALIDATED_V3",
+    "validator_verdict": "PASS_V3",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:24:09.151Z",
     "ready_by": "KB-KERNEL-005-CLOSEOUT",
@@ -49,6 +49,15 @@
       "fail_category": null,
       "gap": null,
       "evidence": "Transition graph enforced in code: ModelApplyState::can_transition_to settings.rs:1240-1251; advance_apply_state settings.rs:1454-1507 rejects illegal transitions with Validation error and mutates atelier_model_apply via UPDATE...RETURNING. Test atelier_model_config_apply_tests.rs:130-214 drives the full legal chain + illegal skip/terminal rejections against real PG."
+    },
+    "completed_by": "INTEGRATION_VALIDATOR-20260611-033732",
+    "completed_at_utc": "2026-06-11T05:17:17.690Z",
+    "integration_validation_v3": {
+      "verdict": "PASS_V3",
+      "round": "v3",
+      "at_utc": "2026-06-11T05:17:17.690Z",
+      "validator_session": "INTEGRATION_VALIDATOR-20260611-033732",
+      "basis": "v2 PASS re-affirmed in v3: deliverable unchanged by remediation diff; full-crate test sweep green on Handshake-managed PostgreSQL at 17b2abd4 proves no regression. v2 evidence retained in integration_validation_v2."
     }
   },
   "markdown_projection": {
@@ -88,6 +97,6 @@
     "risk_if_missed": "CKC parity loss for Proposal Apply Boundary",
     "summary": "MT-163 [Model-Workflow-Diagnostics] Proposal Apply Boundary -- Ensure model suggestions become product changes only via governed apply state machine (draft/preview/validate/apply/reject/rollback)."
   },
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-06-11T05:17:17.690Z",
   "wp_id": "WP-KERNEL-005"
 }

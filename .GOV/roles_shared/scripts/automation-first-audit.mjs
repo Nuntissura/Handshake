@@ -227,7 +227,17 @@ function discoverCommands(appSrcRoot) {
       });
     }
   }
-  return commands.sort((a, b) => a.handler_ref.localeCompare(b.handler_ref));
+  // A command defined under paired cfg attributes (e.g. #[cfg(windows)] /
+  // #[cfg(not(windows))] implementations of the same fn) matches once per
+  // definition but is ONE IPC command; dedupe by handler_ref so the inventory
+  // counts commands, not cfg-gated definition sites.
+  const uniqueByRef = new Map();
+  for (const command of commands) {
+    if (!uniqueByRef.has(command.handler_ref)) {
+      uniqueByRef.set(command.handler_ref, command);
+    }
+  }
+  return [...uniqueByRef.values()].sort((a, b) => a.handler_ref.localeCompare(b.handler_ref));
 }
 
 function discoverRegisteredHandlers(libSource) {

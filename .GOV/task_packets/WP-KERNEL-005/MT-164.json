@@ -33,8 +33,8 @@
     "depends_on": [
       "MT-163"
     ],
-    "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "status": "VALIDATED_V3",
+    "validator_verdict": "PASS_V3",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-11T03:05:50.294Z",
     "ready_by": "KB-KERNEL-005-V3-REMEDIATION",
@@ -50,7 +50,23 @@
       "gap": null,
       "evidence": "content.rs:277-287 build-rules group + :408,436,462 hbr_violation_emit/hbr_matrix_check/hbr_validator_scan rows (status Wired but ipc_channel None — CLI/recipe surfaces, modeling quirk not blocking); model_manual_tests.rs:694-704 verifies group refs + workflow. No status-vs-route assertion for these HBR rows and no live-resource proof; pure static manual-row coverage."
     },
-    "ready_for_validation_v3": true
+    "ready_for_validation_v3": true,
+    "completed_by": "INTEGRATION_VALIDATOR-20260611-033732",
+    "completed_at_utc": "2026-06-11T05:17:17.690Z",
+    "integration_validation_v3": {
+      "verdict": "PASS_V3",
+      "round": "v3",
+      "at_utc": "2026-06-11T05:17:17.690Z",
+      "validator_session": "INTEGRATION_VALIDATOR-20260611-033732",
+      "impl_reality": "REAL",
+      "proof_validity": "STRONG",
+      "sr1": "PASS",
+      "sr2": "PASS",
+      "concern_resolved": true,
+      "evidence": "NEW tests/hbr_build_rules_read_evidence_pg_tests.rs: production HandoffGate run against managed PG with HBR_HANDOFF_GATE row re-read from kernel_event_ledger (verdict Pass + acknowledged evidence_pointer in payload); unacknowledged build rule blocks gate with durable BLOCK row naming the rule; manual HBR rows Wired with concrete cli_flag routes (content.rs:408/:436/:462). Both V2 concern halves (no status-vs-route check, no live-resource proof) closed.",
+      "gap": null,
+      "basis": "v3 adversarial per-MT review of remediated deliverable + runtime proof via full-crate managed-PG sweep and kernel-builder fresh-DB proof logs"
+    }
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.332Z",
@@ -89,6 +105,6 @@
     "risk_if_missed": "CKC parity loss for Build Rules Read Evidence",
     "summary": "MT-164 [Model-Workflow-Diagnostics] Build Rules Read Evidence -- Preserve CKC build-rule gate as model-visible read/acknowledge evidence before build/test/release WPs."
   },
-  "updated_at_utc": "2026-06-11T03:05:50.294Z",
+  "updated_at_utc": "2026-06-11T05:17:17.690Z",
   "wp_id": "WP-KERNEL-005"
 }

@@ -33,8 +33,8 @@
     "depends_on": [
       "MT-195"
     ],
-    "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "status": "VALIDATED_V3",
+    "validator_verdict": "PASS_V3",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-11T03:05:50.294Z",
     "ready_by": "KB-KERNEL-005-V3-REMEDIATION",
@@ -50,7 +50,23 @@
       "gap": "Both assigned test files prove the MT only in-memory/on-disk and never touch the managed PostgreSQL/EventLedger that the contract's proof_target ('runtime proof vs PostgreSQL/EventLedger') demands.",
       "evidence": "tests/flight_recorder_span_tests.rs:19-33,79-95 all assert against StubFrRecorder.events (in-memory Vec, src/.../spans.rs:184-206); tests/fr_event_registry_tests.rs:39-44,60-100 validate the on-disk FR_EVENT_REGISTRY.json vs the Rust enum (std::fs::read_to_string), no PG. The impl is genuinely real (42-family registry, RAII span guard with 16-attr bounding) and a real EventLedger path exists (spans.rs:657,731 AggregateQueryBackend::Postgres on kernel_event_ledger; span_repo.rs SpanRepo) but is proven only by other non-assigned test files. No deferred-live escape present (sr1 PASS)."
     },
-    "ready_for_validation_v3": true
+    "ready_for_validation_v3": true,
+    "completed_by": "INTEGRATION_VALIDATOR-20260611-033732",
+    "completed_at_utc": "2026-06-11T05:17:17.690Z",
+    "integration_validation_v3": {
+      "verdict": "PASS_V3",
+      "round": "v3",
+      "at_utc": "2026-06-11T05:17:17.690Z",
+      "validator_session": "INTEGRATION_VALIDATOR-20260611-033732",
+      "impl_reality": "REAL",
+      "proof_validity": "STRONG",
+      "sr1": "PASS",
+      "sr2": "PASS",
+      "concern_resolved": true,
+      "evidence": "NEW tests/fr_event_families_pg_validation_tests.rs mt196_all_fr_event_families_persist_to_event_ledger_and_match_validation_rows (:80-237): emits one event per FR family through PRODUCTION PostgresFrRecorder batched pipeline (fr_emitter.rs:632-691), deterministic flush via shutdown, re-reads kernel_event_ledger rows from managed PG asserting set-equality persisted families == FrEventId::all() == FrEventRegistry::from_rust_enum() validation rows (ALL and ONLY), each row aggregated on a span persisted/re-read via production SpanRepo. Exactly the managed proof V2 said was missing.",
+      "gap": null,
+      "basis": "v3 adversarial per-MT review of remediated deliverable + runtime proof via full-crate managed-PG sweep and kernel-builder fresh-DB proof logs"
+    }
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.357Z",
@@ -89,6 +105,6 @@
     "risk_if_missed": "CKC parity loss for Flight Recorder Event Validation Matrix",
     "summary": "MT-196 [Model-Workflow-Diagnostics] Flight Recorder Event Validation Matrix -- Create validation rows for all Flight Recorder event families only."
   },
-  "updated_at_utc": "2026-06-11T03:05:50.294Z",
+  "updated_at_utc": "2026-06-11T05:17:17.690Z",
   "wp_id": "WP-KERNEL-005"
 }

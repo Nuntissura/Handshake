@@ -33,8 +33,8 @@
     "depends_on": [
       "MT-121"
     ],
-    "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "status": "VALIDATED_V3",
+    "validator_verdict": "PASS_V3",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-11T03:05:50.294Z",
     "ready_by": "KB-KERNEL-005-V3-REMEDIATION",
@@ -50,7 +50,23 @@
       "gap": null,
       "evidence": "model_manual_tests.rs:500-513 enforces EXACT 7-command parity for atelier_pose_context_and_rig (manual_covers_pose_comfy_surfaces, len== assert at :569); rows reference real pose.rs methods (set_pose_context_state, ingest_pose_rig). Honest Planned status (no Axum route). Proof is doc-manifest structural assertion, not the contract-advertised live PG/EventLedger runtime proof."
     },
-    "ready_for_validation_v3": true
+    "ready_for_validation_v3": true,
+    "completed_by": "INTEGRATION_VALIDATOR-20260611-033732",
+    "completed_at_utc": "2026-06-11T05:17:17.690Z",
+    "integration_validation_v3": {
+      "verdict": "PASS_V3",
+      "round": "v3",
+      "at_utc": "2026-06-11T05:17:17.690Z",
+      "validator_session": "INTEGRATION_VALIDATOR-20260611-033732",
+      "impl_reality": "REAL",
+      "proof_validity": "STRONG",
+      "sr1": "PASS",
+      "sr2": "PASS",
+      "concern_resolved": true,
+      "evidence": "Closed by tests/atelier_pose_comfy_manual_rows_pg_tests.rs:136-309 mt122 (57449ac7): set_pose_context_state + re-read head, real single_image/source_asset_id refusal matched to manual common_errors, rig CRUD re-read, keypoint-cardinality refusal, calibration block_reason refusal + BLOCKED-preserved re-read, schema-field reality per row, exact EventLedger counts for POSE_CONTEXT_STATE_SET/POSE_RIG_INGESTED/POSE_CALIBRATION_SET. Static 7-command parity guard retained.",
+      "gap": null,
+      "basis": "v3 adversarial per-MT review of remediated deliverable + runtime proof via full-crate managed-PG sweep and kernel-builder fresh-DB proof logs"
+    }
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.299Z",
@@ -91,6 +107,6 @@
     "risk_if_missed": "CKC parity loss for Pose Context And Rig Manual Source Rows",
     "summary": "MT-122 [Pose-ComfyUI-Pipeline] Pose Context And Rig Manual Source Rows -- Provide Diagnostics manual/command rows for pose contexts and rig CRUD (context metadata, rig CRUD, keypoint schema inspect, calibration/capability checks)."
   },
-  "updated_at_utc": "2026-06-11T03:05:50.294Z",
+  "updated_at_utc": "2026-06-11T05:17:17.690Z",
   "wp_id": "WP-KERNEL-005"
 }

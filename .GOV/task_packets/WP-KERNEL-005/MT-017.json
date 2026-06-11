@@ -33,8 +33,8 @@
     "depends_on": [
       "MT-016"
     ],
-    "status": "VALIDATED_V2",
-    "validator_verdict": "PASS",
+    "status": "VALIDATED_V3",
+    "validator_verdict": "PASS_V3",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:03:45.568Z",
     "ready_by": "KB-KERNEL-005-CLOSEOUT",
@@ -49,6 +49,15 @@
       "fail_category": null,
       "gap": null,
       "evidence": "media.rs:1466 (request_media_derivative real tx), media.rs:1646 (record_media_derivative_generated_with_artifact binds real ArtifactStore manifest_ref); migration 0044 wired at mod.rs:1777; atelier_media_artifact_tests.rs:781-1507 (thumbnail/proxy/PhotoStudioSkeleton states, generating/generated/retryable/failed/retry transitions, fake-artifact rejection, count_events_for_aggregate on MEDIA_DERIVATIVE_* families)"
+    },
+    "completed_by": "INTEGRATION_VALIDATOR-20260611-033732",
+    "completed_at_utc": "2026-06-11T05:17:17.690Z",
+    "integration_validation_v3": {
+      "verdict": "PASS_V3",
+      "round": "v3",
+      "at_utc": "2026-06-11T05:17:17.690Z",
+      "validator_session": "INTEGRATION_VALIDATOR-20260611-033732",
+      "basis": "v2 PASS re-affirmed in v3: deliverable unchanged by remediation diff; full-crate test sweep green on Handshake-managed PostgreSQL at 17b2abd4 proves no regression. v2 evidence retained in integration_validation_v2."
     }
   },
   "markdown_projection": {
@@ -91,6 +100,6 @@
     "risk_if_missed": "CKC parity loss for Thumbnail, Proxy, And Photo Skeleton Surface",
     "summary": "MT-017 [Core-Data-Intake] Thumbnail, Proxy, And Photo Skeleton Surface -- Preserve Photo Studio skeleton surface, thumbnails, and preview/proxy responsibilities with generation/retry/error states."
   },
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-06-11T05:17:17.690Z",
   "wp_id": "WP-KERNEL-005"
 }

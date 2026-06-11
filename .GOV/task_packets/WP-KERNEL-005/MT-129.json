@@ -33,8 +33,8 @@
     "depends_on": [
       "MT-128"
     ],
-    "status": "VALIDATED_V2",
-    "validator_verdict": "PASS",
+    "status": "VALIDATED_V3",
+    "validator_verdict": "PASS_V3",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:19:23.244Z",
     "ready_by": "KB-KERNEL-005-CLOSEOUT",
@@ -49,6 +49,15 @@
       "fail_category": null,
       "gap": null,
       "evidence": "POSE_SIDECAR_RECORDED + IDENTITY_PROFILE_APPENDED/IDENTITY_CROP_ARTIFACT_RECORDED emitted from real mutations (src/atelier/pose.rs:2330-2332,2862,3023). Sidecars registered as portable ArtifactStore artifacts; proven by count_events_for_aggregate + direct atelier_event SQL (tests/atelier_pose_tests.rs:589 'registered_as_portable_artifacts', 750-769, 2247-2492)."
+    },
+    "completed_by": "INTEGRATION_VALIDATOR-20260611-033732",
+    "completed_at_utc": "2026-06-11T05:17:17.690Z",
+    "integration_validation_v3": {
+      "verdict": "PASS_V3",
+      "round": "v3",
+      "at_utc": "2026-06-11T05:17:17.690Z",
+      "validator_session": "INTEGRATION_VALIDATOR-20260611-033732",
+      "basis": "v2 PASS re-affirmed in v3: deliverable unchanged by remediation diff; full-crate test sweep green on Handshake-managed PostgreSQL at 17b2abd4 proves no regression. v2 evidence retained in integration_validation_v2."
     }
   },
   "markdown_projection": {
@@ -90,6 +99,6 @@
     "risk_if_missed": "CKC parity loss for Sidecar And Identity Event Families",
     "summary": "MT-129 [Pose-ComfyUI-Pipeline] Sidecar And Identity Event Families -- Emit EventLedger/Flight Recorder events for OpenPose sidecar export/link and identity profile/crop/lineage actions, making them observable, attributable, and source-linked."
   },
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-06-11T05:17:17.690Z",
   "wp_id": "WP-KERNEL-005"
 }

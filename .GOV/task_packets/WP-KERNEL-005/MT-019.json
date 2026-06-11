@@ -33,8 +33,8 @@
     "depends_on": [
       "MT-018"
     ],
-    "status": "VALIDATED_V2",
-    "validator_verdict": "PASS",
+    "status": "VALIDATED_V3",
+    "validator_verdict": "PASS_V3",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:03:50.886Z",
     "ready_by": "KB-KERNEL-005-CLOSEOUT",
@@ -49,6 +49,15 @@
       "fail_category": null,
       "gap": null,
       "evidence": "atelier/search.rs:1662-1814 create_tag_rule/list (ORDER BY rule_id ASC)/recompute_derived_tags with TAG_RULE_UPSERTED+DERIVED_TAGS_RECOMPUTED; atelier_core_data_tests.rs:6409-6443 creates rule, recomputes, asserts derived tag persisted with Derived provenance on real PG. Note: test does not exercise multi-rule rule_id-order determinism explicitly, but source enforces it; non-blocking."
+    },
+    "completed_by": "INTEGRATION_VALIDATOR-20260611-033732",
+    "completed_at_utc": "2026-06-11T05:17:17.690Z",
+    "integration_validation_v3": {
+      "verdict": "PASS_V3",
+      "round": "v3",
+      "at_utc": "2026-06-11T05:17:17.690Z",
+      "validator_session": "INTEGRATION_VALIDATOR-20260611-033732",
+      "basis": "v2 PASS re-affirmed in v3: deliverable unchanged by remediation diff; full-crate test sweep green on Handshake-managed PostgreSQL at 17b2abd4 proves no regression. v2 evidence retained in integration_validation_v2."
     }
   },
   "markdown_projection": {
@@ -91,6 +100,6 @@
     "risk_if_missed": "CKC parity loss for Tags, Tag Rules, And Bulk Tagging",
     "summary": "MT-019 [Core-Data-Intake] Tags, Tag Rules, And Bulk Tagging -- Preserve tag manager, saved tag rules with deterministic rule_id-ordered application, and bulk add/remove with rebuild receipts."
   },
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-06-11T05:17:17.690Z",
   "wp_id": "WP-KERNEL-005"
 }

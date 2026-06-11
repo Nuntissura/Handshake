@@ -33,8 +33,8 @@
     "depends_on": [
       "MT-205"
     ],
-    "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "status": "VALIDATED_V3",
+    "validator_verdict": "PASS_V3",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-11T00:45:46.539Z",
     "ready_by": "KB-KERNEL-005-V3-REMEDIATION",
@@ -50,7 +50,23 @@
       "gap": "MT deliverable is to ENUMERATE the full ~100+ CKC command corpus into the action catalog schema cross-checked against manual coverage; only the storage/parity machinery exists. No migration seed, const descriptor array, fixture, or runtime bootstrap populates the corpus, and the sole non-test caller of upsert_command_corpus_entry is the module itself. The parity-report test seeds only 2 rows and asserts total_corpus>=2; nothing proves the 100+ enumeration or the manual cross-check the MT requires.",
       "evidence": "src/backend/handshake_core/src/atelier/command_corpus.rs:33 claims 'enumeration + parity + projection' but ships no command list; grep found no INSERT INTO atelier_command_corpus_entry in migrations/ and no non-test caller of upsert_command_corpus_entry. tests/atelier_command_corpus_tests.rs:597-702 corpus_parity_report only seeds covered+blocked (2 rows), asserts total_corpus>=2 / blocked_count>=1 -- machinery is real on PG but the headline ~100+ enumeration deliverable is absent and unproven."
     },
-    "ready_for_validation_v3": true
+    "ready_for_validation_v3": true,
+    "completed_by": "INTEGRATION_VALIDATOR-20260611-033732",
+    "completed_at_utc": "2026-06-11T05:17:17.690Z",
+    "integration_validation_v3": {
+      "verdict": "PASS_V3",
+      "round": "v3",
+      "at_utc": "2026-06-11T05:17:17.690Z",
+      "validator_session": "INTEGRATION_VALIDATOR-20260611-033732",
+      "impl_reality": "REAL",
+      "proof_validity": "STRONG",
+      "sr1": "NA",
+      "sr2": "PASS",
+      "concern_resolved": null,
+      "evidence": "Production src/atelier/command_corpus.rs - const builtin_table::ROWS with 140 entries (:2245-2419, one per handshake_invoke_handlers! registration); builtin_command_corpus() derives manual_anchor live from ModelManual; bootstrap_builtin_command_corpus (:2554-2597) projects full corpus into PG (upsert + anchor or BLOCKED sentinel + no_manual_anchor record); runtime bootstrap wired at backend startup (main.rs:128). Proof tests/atelier_command_corpus_tests.rs corpus_full_builtin_enumeration_bootstraps_and_parity_checks_against_manual (:714): >=100 asserted, unique ids, typed params/receipt/errors, PG bootstrap receipt counts, per-descriptor PG re-read fidelity, independent live-ModelManual covered/blocked cross-check, BLOCKED-001 durable records, parity report total>=140, idempotent re-bootstrap with stable entry_id.",
+      "gap": null,
+      "basis": "v3 adversarial per-MT review of remediated deliverable + runtime proof via full-crate managed-PG sweep and kernel-builder fresh-DB proof logs"
+    }
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.365Z",
@@ -90,6 +106,6 @@
     "risk_if_missed": "CKC full command/handler corpus (preload + IPC handlers) unrepresented",
     "summary": "MT-206 [Model-Workflow-Diagnostics] 100+ Command-Corpus Parity Enumeration (GAP-FILL) -- Enumerate the full ~100+ CKC command corpus into the action catalog schema (id/owner/params/capabilities/receipt/errors/foreground), cross-checked against manual coverage and marked BLOCKED where no anchor exists."
   },
-  "updated_at_utc": "2026-06-11T00:46:24.349Z",
+  "updated_at_utc": "2026-06-11T05:17:17.690Z",
   "wp_id": "WP-KERNEL-005"
 }

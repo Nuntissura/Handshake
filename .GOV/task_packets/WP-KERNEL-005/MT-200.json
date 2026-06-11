@@ -33,8 +33,8 @@
     "depends_on": [
       "MT-199"
     ],
-    "status": "VALIDATED_V2",
-    "validator_verdict": "PASS",
+    "status": "VALIDATED_V3",
+    "validator_verdict": "PASS_V3",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:29:59.196Z",
     "ready_by": "KB-KERNEL-005-CLOSEOUT",
@@ -49,6 +49,15 @@
       "fail_category": null,
       "gap": null,
       "evidence": "src/backend/handshake_core/src/atelier/settings.rs (typed preferences, redacted projection settings.rs:230-234); tests/atelier_core_data_tests.rs:7851-8038 atelier_settings_upsert_scope_redaction_and_delete on real PG: scope distinction, defaults, effective-preference, set/reset receipts with revisions, list_preference_projection, retention policy binding, feature toggles."
+    },
+    "completed_by": "INTEGRATION_VALIDATOR-20260611-033732",
+    "completed_at_utc": "2026-06-11T05:17:17.690Z",
+    "integration_validation_v3": {
+      "verdict": "PASS_V3",
+      "round": "v3",
+      "at_utc": "2026-06-11T05:17:17.690Z",
+      "validator_session": "INTEGRATION_VALIDATOR-20260611-033732",
+      "basis": "v2 PASS re-affirmed in v3: deliverable unchanged by remediation diff; full-crate test sweep green on Handshake-managed PostgreSQL at 17b2abd4 proves no regression. v2 evidence retained in integration_validation_v2."
     }
   },
   "markdown_projection": {
@@ -94,6 +103,6 @@
     "risk_if_missed": "CKC Settings panel / preferences store unrepresented",
     "summary": "MT-200 [Core-Data-Intake] General Settings Domain (GAP-FILL) -- Add a governed general-settings domain (typed preference records, defaults, validation, redacted projection) distinct from LLM config, covering data roots, view defaults, retention, and feature toggles."
   },
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-06-11T05:17:17.690Z",
   "wp_id": "WP-KERNEL-005"
 }

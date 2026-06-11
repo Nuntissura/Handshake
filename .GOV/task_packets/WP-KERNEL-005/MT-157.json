@@ -33,8 +33,8 @@
     "depends_on": [
       "MT-156"
     ],
-    "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "status": "VALIDATED_V3",
+    "validator_verdict": "PASS_V3",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-11T03:05:50.294Z",
     "ready_by": "KB-KERNEL-005-V3-REMEDIATION",
@@ -50,7 +50,23 @@
       "gap": "Required 'Manual' comparison strategy variant is MISSING from the enum (only PixelDiff + StructuralDom), and there are no diff 'result fields' (struct is request/config only). Proof is in-memory struct validation, no PG/EventLedger/ArtifactStore touch.",
       "evidence": "src/kernel/visual_debugging_loop.rs:13-17 VisualComparisonMode { PixelDiff, StructuralDom } — no Manual variant; no DiffResult/result-field struct anywhere (grep for Manual/ComparisonStrategy/DiffResult finds none); tests/kernel_visual_debugging_loop_tests.rs only validates in-memory structs."
     },
-    "ready_for_validation_v3": true
+    "ready_for_validation_v3": true,
+    "completed_by": "INTEGRATION_VALIDATOR-20260611-033732",
+    "completed_at_utc": "2026-06-11T05:17:17.690Z",
+    "integration_validation_v3": {
+      "verdict": "PASS_V3",
+      "round": "v3",
+      "at_utc": "2026-06-11T05:17:17.690Z",
+      "validator_session": "INTEGRATION_VALIDATOR-20260611-033732",
+      "impl_reality": "REAL",
+      "proof_validity": "STRONG",
+      "sr1": "PASS",
+      "sr2": "PASS",
+      "concern_resolved": null,
+      "evidence": "Production src/kernel/visual_debugging_loop.rs:14-20 VisualComparisonMode{PixelDiff,StructuralDom,Manual} (required Manual variant added); :45-50 VisualDiffOutcome incl. ManualReviewRequired; :110-189 compute_visual_comparison computes real pixel/DOM diffs. Result fields VisualDiffComputationV1 persist via record_visual_diff_result (visual_diff_baseline.rs:477-542, SQL INSERT + same-tx RESULT_RECORDED event; mode-mismatch guard) + list API; table in migration 0124:91. Proof tests/atelier_visual_diff_result_tests.rs on managed PG: pixel-diff computed 300bp Fail persisted+re-read+EventLedger; structural-DOM within-limit pass; manual mode persists manual_review_required and rejects mode-mismatch/unknown-request writes.",
+      "gap": null,
+      "basis": "v3 adversarial per-MT review of remediated deliverable + runtime proof via full-crate managed-PG sweep and kernel-builder fresh-DB proof logs"
+    }
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.326Z",
@@ -89,6 +105,6 @@
     "risk_if_missed": "CKC parity loss for Pixel Versus Structural Comparison",
     "summary": "MT-157 [Model-Workflow-Diagnostics] Pixel Versus Structural Comparison -- Preserve pixel/structural/manual comparison strategy enum and result fields."
   },
-  "updated_at_utc": "2026-06-11T03:05:50.294Z",
+  "updated_at_utc": "2026-06-11T05:17:17.690Z",
   "wp_id": "WP-KERNEL-005"
 }

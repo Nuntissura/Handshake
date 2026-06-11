@@ -33,8 +33,8 @@
     "depends_on": [
       "MT-021"
     ],
-    "status": "VALIDATED_V2",
-    "validator_verdict": "PASS",
+    "status": "VALIDATED_V3",
+    "validator_verdict": "PASS_V3",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:03:57.886Z",
     "ready_by": "KB-KERNEL-005-CLOSEOUT",
@@ -49,6 +49,15 @@
       "fail_category": null,
       "gap": null,
       "evidence": "media.rs:1336 (record_media_sidecar_relation sets hidden_from_gallery+searchable_by_relation, in-tx MEDIA_SIDECAR_RECORDED event); media.rs:1435-1463 (list_media_gallery_assets uses NOT EXISTS subquery on atelier_media_sidecar.hidden_from_gallery); migration 0047 wired at mod.rs:1792; atelier_media_artifact_tests.rs:358-466 (OpenPose/workflow sidecars searchable by relation, hidden from gallery, event counts)"
+    },
+    "completed_by": "INTEGRATION_VALIDATOR-20260611-033732",
+    "completed_at_utc": "2026-06-11T05:17:17.690Z",
+    "integration_validation_v3": {
+      "verdict": "PASS_V3",
+      "round": "v3",
+      "at_utc": "2026-06-11T05:17:17.690Z",
+      "validator_session": "INTEGRATION_VALIDATOR-20260611-033732",
+      "basis": "v2 PASS re-affirmed in v3: deliverable unchanged by remediation diff; full-crate test sweep green on Handshake-managed PostgreSQL at 17b2abd4 proves no regression. v2 evidence retained in integration_validation_v2."
     }
   },
   "markdown_projection": {
@@ -87,6 +96,6 @@
     "risk_if_missed": "CKC parity loss for Sidecar Visibility Matrix",
     "summary": "MT-022 [Core-Data-Intake] Sidecar Visibility Matrix -- Preserve OpenPose/workflow sidecars as artifacts searchable by relation but hidden from normal galleries."
   },
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-06-11T05:17:17.690Z",
   "wp_id": "WP-KERNEL-005"
 }

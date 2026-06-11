@@ -33,8 +33,8 @@
     "depends_on": [
       "MT-100"
     ],
-    "status": "VALIDATED_V2",
-    "validator_verdict": "PASS",
+    "status": "VALIDATED_V3",
+    "validator_verdict": "PASS_V3",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:15:00.966Z",
     "ready_by": "KB-KERNEL-005-CLOSEOUT",
@@ -49,6 +49,15 @@
       "fail_category": null,
       "gap": null,
       "evidence": "comfy.rs:2594-2712 record_comfy_workflow_receipt does a real INSERT...ON CONFLICT into atelier_comfy_workflow_receipt (migration 0102 wired in mod.rs:2047), aggregates output rows, scrubs evidence, emits WORKFLOW_RECEIPT_RECORDED; tests/atelier_comfy_tests.rs:990-1076 records receipt with 2 outputs, reloads via get_comfy_workflow_receipt, asserts schema/refs/outputs/status/evidence and rejects failed-without-error_ref and machine-local refs."
+    },
+    "completed_by": "INTEGRATION_VALIDATOR-20260611-033732",
+    "completed_at_utc": "2026-06-11T05:17:17.690Z",
+    "integration_validation_v3": {
+      "verdict": "PASS_V3",
+      "round": "v3",
+      "at_utc": "2026-06-11T05:17:17.690Z",
+      "validator_session": "INTEGRATION_VALIDATOR-20260611-033732",
+      "basis": "v2 PASS re-affirmed in v3: deliverable unchanged by remediation diff; full-crate test sweep green on Handshake-managed PostgreSQL at 17b2abd4 proves no regression. v2 evidence retained in integration_validation_v2."
     }
   },
   "markdown_projection": {
@@ -96,6 +105,6 @@
     "risk_if_missed": "CKC parity loss for Workflow Receipt Schema",
     "summary": "MT-101 [Pose-ComfyUI-Pipeline] Workflow Receipt Schema -- Implement durable ComfyUI workflow receipt schema (system/run id, spec, workflow JSON, prompt, all refs, outputs, status, error, timestamps, evidence) so no output is lost silently."
   },
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-06-11T05:17:17.690Z",
   "wp_id": "WP-KERNEL-005"
 }

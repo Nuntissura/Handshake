@@ -33,8 +33,8 @@
     "depends_on": [
       "MT-150"
     ],
-    "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "status": "VALIDATED_V3",
+    "validator_verdict": "PASS_V3",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-11T03:05:50.294Z",
     "ready_by": "KB-KERNEL-005-V3-REMEDIATION",
@@ -50,7 +50,23 @@
       "gap": "Evaluator metric math (pass-rate, p95) is real, but the core 'run validator first-pass in sandbox' is stubbed: LoopSandbox+ValidatorRunner have no production impl and the sandbox 'run' just returns a fresh UUID; integration test header states 'real adapter lives in cluster B' and injects stubs. No PG/validator execution.",
       "evidence": "src/self_improve/evaluator.rs:58 sandbox.run returns SandboxRunResult{uuid} only; impl LoopSandbox exists only as StubSandbox at evaluator.rs:209; tests/validator_first_pass_evaluator_tests.rs:60-91 CountingSandbox/FailingSandbox + RecordingRunner mocks; no production LoopSandbox impl anywhere in src/."
     },
-    "ready_for_validation_v3": true
+    "ready_for_validation_v3": true,
+    "completed_by": "INTEGRATION_VALIDATOR-20260611-033732",
+    "completed_at_utc": "2026-06-11T05:17:17.690Z",
+    "integration_validation_v3": {
+      "verdict": "PASS_V3",
+      "round": "v3",
+      "at_utc": "2026-06-11T05:17:17.690Z",
+      "validator_session": "INTEGRATION_VALIDATOR-20260611-033732",
+      "impl_reality": "REAL",
+      "proof_validity": "STRONG",
+      "sr1": "PASS",
+      "sr2": "PASS",
+      "concern_resolved": null,
+      "evidence": "Production PgSelfImproveSandbox impl LoopSandbox (src/atelier/validator_first_pass.rs:393-474 - real per-run workspace dir, candidate materialized to disk, persisted via sqlx, migration 0118, EventLedger mirror) and HbrFirstPassRunner impl ValidatorRunner (:572-673 - executes REAL HandoffGate::evaluate appending canonical HBR_HANDOFF_GATE ledger row, persists every execution linked by sandbox_run_id FK). Proof tests/atelier_validator_first_pass_pg_tests.rs: real ValidatorFirstPassEvaluator through both production impls against managed PG - sandbox run re-read with matching snapshot_sha256, candidate file on disk, 6 first-pass rows with verdicts from the real gate, metrics cross-checked vs PG rows, HbrHandoffGate + VALIDATOR_FIRST_PASS_RECORDED events; fixtureless items rejected without persisting. Old StubSandbox now cfg(test)-gated. V2 gap (fresh-UUID stub sandbox) closed.",
+      "gap": "Stale comment 'real adapter lives in cluster B' remains at tests/validator_first_pass_evaluator_tests.rs:61 in legacy mock-based unit test - factually wrong now, cleanup-worthy, non-blocking.",
+      "basis": "v3 adversarial per-MT review of remediated deliverable + runtime proof via full-crate managed-PG sweep and kernel-builder fresh-DB proof logs"
+    }
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.322Z",
@@ -96,6 +112,6 @@
     "summary": "MT-151 [Model-Workflow-Diagnostics] Pose And Workflow Structured State Probes -- Implement state probes for Pose/ComfyUI surfaces (context, rig, strip counts, identity, job status, replay, last error).",
     "v3_correction": "v3 correction: the original scope.summary/acceptance text (\"Pose And Workflow Structured State Probes\") is mis-labelled; the validated deliverable per integration_validation_v2 and the v3 remediation playbook is the validator-first-pass-in-sandbox path (src/atelier/validator_first_pass.rs, PgSelfImproveSandbox + HbrFirstPassRunner, proven by atelier_validator_first_pass_pg_tests)."
   },
-  "updated_at_utc": "2026-06-11T03:05:50.294Z",
+  "updated_at_utc": "2026-06-11T05:17:17.690Z",
   "wp_id": "WP-KERNEL-005"
 }

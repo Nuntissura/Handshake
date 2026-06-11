@@ -33,8 +33,8 @@
     "depends_on": [
       "MT-001"
     ],
-    "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "status": "VALIDATED_V3",
+    "validator_verdict": "PASS_V3",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-11T03:05:50.294Z",
     "ready_by": "KB-KERNEL-005-V3-REMEDIATION",
@@ -50,7 +50,23 @@
       "gap": null,
       "evidence": "source_evidence.rs:233-276 anchor rows + validate_matrix:962 rejects VERIFIED anchors with empty verified_product_paths and BLOCKED without reason; tests/atelier_source_evidence_tests.rs:121 asserts MT-018 anchor VERIFIED+round-trips, :565 negative tests reject candidate/empty-verified/missing-reason. Non-blocking: 'VERIFIED' only proves cited file exists (assert_source_tree_ref_exists), not that the module implements the claimed Core/Data behavior"
     },
-    "ready_for_validation_v3": true
+    "ready_for_validation_v3": true,
+    "completed_by": "INTEGRATION_VALIDATOR-20260611-033732",
+    "completed_at_utc": "2026-06-11T05:17:17.690Z",
+    "integration_validation_v3": {
+      "verdict": "PASS_V3",
+      "round": "v3",
+      "at_utc": "2026-06-11T05:17:17.690Z",
+      "validator_session": "INTEGRATION_VALIDATOR-20260611-033732",
+      "impl_reality": "REAL",
+      "proof_validity": "STRONG",
+      "sr1": "PASS",
+      "sr2": "PASS",
+      "concern_resolved": true,
+      "evidence": "V2 concern (VERIFIED = file-exists only) closed by new V3 test tests/atelier_source_evidence_tests.rs:634-767 mt002_core_data_verified_anchor_migrations_are_applied_in_live_postgres (57449ac7): records core-data matrix to live managed PG, re-reads, asserts every cited *.sql ref applied in _sqlx_migrations (success=TRUE), representative anchor migrations shape the live schema (information_schema checks), EventLedger SOURCE_EVIDENCE_MATRIX_RECORDED with blocked_missing_anchor_count=0.",
+      "gap": null,
+      "basis": "v3 adversarial per-MT review of remediated deliverable + runtime proof via full-crate managed-PG sweep and kernel-builder fresh-DB proof logs"
+    }
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.205Z",
@@ -89,6 +105,6 @@
     "risk_if_missed": "CKC parity loss for Product Anchor Verification",
     "summary": "MT-002 [Core-Data-Intake] Product Anchor Verification -- Verify actual Handshake product files/modules that will receive Core/Data behavior, replacing candidate names with verified paths or BLOCKED_MISSING_ANCHOR."
   },
-  "updated_at_utc": "2026-06-11T03:05:50.294Z",
+  "updated_at_utc": "2026-06-11T05:17:17.690Z",
   "wp_id": "WP-KERNEL-005"
 }
