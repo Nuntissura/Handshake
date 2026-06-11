@@ -373,3 +373,284 @@ mod mt_053_entities {
         assert!(err.to_string().contains("foreign key"), "got {err}");
     }
 }
+
+// ---------------------------------------------------------------------------
+// MT-054 KnowledgeEdgeTables
+// ---------------------------------------------------------------------------
+
+mod mt_054_edges {
+    use super::*;
+    use handshake_core::storage::knowledge::{
+        derive_knowledge_relationship_id, KnowledgeEdgeLifecycle, KnowledgeEdgeType,
+        KnowledgeEntityKind, NewKnowledgeEdge, NewKnowledgeEntity,
+    };
+    use handshake_core::storage::StorageError;
+    use knowledge_pg_support::KnowledgePg;
+
+    struct GraphFixture {
+        workspace_id: String,
+        source_entity_id: String,
+        target_entity_id: String,
+        span_id: String,
+        span2_id: String,
+    }
+
+    async fn graph_fixture(pg: &KnowledgePg) -> GraphFixture {
+        let (workspace_id, source_id) = source_fixture(pg).await;
+        let span = pg
+            .db
+            .create_knowledge_span(byte_span(&source_id, 0, 100))
+            .await
+            .expect("span");
+        let span2 = pg
+            .db
+            .create_knowledge_span(byte_span(&source_id, 100, 200))
+            .await
+            .expect("span2");
+        let mk_entity = |kind: KnowledgeEntityKind, key: &str, span: &str| NewKnowledgeEntity {
+            workspace_id: workspace_id.clone(),
+            entity_kind: kind,
+            entity_key: key.to_string(),
+            display_name: key.to_string(),
+            detection_provenance: json!({"extractor": "edge_test"}),
+            primary_source_id: None,
+            detected_in_run: None,
+            evidence_span_ids: vec![span.to_string()],
+        };
+        let source_entity = pg
+            .db
+            .upsert_knowledge_entity(mk_entity(
+                KnowledgeEntityKind::Symbol,
+                "kernel::KernelEventType",
+                &span.span_id,
+            ))
+            .await
+            .expect("source entity");
+        let target_entity = pg
+            .db
+            .upsert_knowledge_entity(mk_entity(
+                KnowledgeEntityKind::File,
+                "src/kernel/mod.rs",
+                &span2.span_id,
+            ))
+            .await
+            .expect("target entity");
+        GraphFixture {
+            workspace_id,
+            source_entity_id: source_entity.entity_id,
+            target_entity_id: target_entity.entity_id,
+            span_id: span.span_id,
+            span2_id: span2.span_id,
+        }
+    }
+
+    fn defined_in_edge(fx: &GraphFixture, confidence: f64, spans: Vec<String>) -> NewKnowledgeEdge {
+        NewKnowledgeEdge {
+            workspace_id: fx.workspace_id.clone(),
+            edge_type: KnowledgeEdgeType::Defines,
+            source_entity_id: fx.target_entity_id.clone(),
+            target_entity_id: fx.source_entity_id.clone(),
+            extractor_version: "rust_ast_v1".to_string(),
+            confidence,
+            detected_in_run: None,
+            evidence_span_ids: spans,
+        }
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn relationship_id_is_deterministic_across_reindex_runs() {
+        let Some(pg) = knowledge_pg().await else {
+            eprintln!("SKIP relationship_id_is_deterministic_across_reindex_runs: no PostgreSQL");
+            return;
+        };
+        let fx = graph_fixture(&pg).await;
+
+        // Pure derivation is stable and matches the documented format.
+        let expected = derive_knowledge_relationship_id(
+            KnowledgeEdgeType::Defines,
+            KnowledgeEntityKind::File,
+            "src/kernel/mod.rs",
+            KnowledgeEntityKind::Symbol,
+            "kernel::KernelEventType",
+        );
+        assert_eq!(
+            expected,
+            derive_knowledge_relationship_id(
+                KnowledgeEdgeType::Defines,
+                KnowledgeEntityKind::File,
+                "src/kernel/mod.rs",
+                KnowledgeEntityKind::Symbol,
+                "kernel::KernelEventType",
+            ),
+            "derivation must be deterministic"
+        );
+        assert!(expected.starts_with("KREL-") && expected.len() == 5 + 64);
+
+        // First extraction run.
+        let first = pg
+            .db
+            .upsert_knowledge_edge(defined_in_edge(&fx, 0.8, vec![fx.span_id.clone()]))
+            .await
+            .expect("first extraction");
+        assert_eq!(first.relationship_id, expected);
+
+        // Re-extraction (simulated second index run, higher confidence, new
+        // evidence): same relationship_id, same row, no duplicate.
+        let second = pg
+            .db
+            .upsert_knowledge_edge(defined_in_edge(
+                &fx,
+                0.95,
+                vec![fx.span_id.clone(), fx.span2_id.clone()],
+            ))
+            .await
+            .expect("re-extraction");
+        assert_eq!(second.edge_id, first.edge_id, "edge row must be stable");
+        assert_eq!(second.relationship_id, expected);
+        assert!((second.confidence - 0.95).abs() < f64::EPSILON);
+
+        let by_rel = pg
+            .db
+            .get_knowledge_edge_by_relationship_id(&fx.workspace_id, &expected)
+            .await
+            .expect("get by relationship id")
+            .expect("edge by relationship id");
+        assert_eq!(by_rel.edge_id, first.edge_id);
+
+        let evidence = pg
+            .db
+            .list_knowledge_edge_span_ids(&first.edge_id)
+            .await
+            .expect("list edge evidence");
+        assert_eq!(evidence.len(), 2, "evidence must merge across runs");
+
+        let touching = pg
+            .db
+            .list_knowledge_edges_for_entity(&fx.source_entity_id)
+            .await
+            .expect("edges for entity");
+        assert_eq!(touching.len(), 1);
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn edges_require_span_evidence_at_every_layer() {
+        let Some(pg) = knowledge_pg().await else {
+            eprintln!("SKIP edges_require_span_evidence_at_every_layer: no PostgreSQL");
+            return;
+        };
+        let fx = graph_fixture(&pg).await;
+
+        // Rust layer: empty evidence is a typed Validation error.
+        let err = pg
+            .db
+            .upsert_knowledge_edge(defined_in_edge(&fx, 0.9, vec![]))
+            .await
+            .expect_err("edge without span refs must be rejected");
+        assert!(matches!(err, StorageError::Validation(_)), "got {err:?}");
+
+        // DB layer: a direct INSERT without spans fails at COMMIT through the
+        // deferred constraint trigger, even when application code is bypassed.
+        let mut conn = pg.raw_connection().await;
+        let rel = derive_knowledge_relationship_id(
+            KnowledgeEdgeType::Mentions,
+            KnowledgeEntityKind::File,
+            "src/kernel/mod.rs",
+            KnowledgeEntityKind::Symbol,
+            "kernel::KernelEventType",
+        );
+        sqlx::query("BEGIN").execute(&mut conn).await.expect("begin");
+        sqlx::query(
+            "INSERT INTO knowledge_edges
+                 (edge_id, workspace_id, relationship_id, edge_type,
+                  source_entity_id, target_entity_id, extractor_version, confidence)
+             VALUES ('KED-00000000000000000000000000000001', $1, $2, 'mentions', $3, $4, 'v1', 0.5)",
+        )
+        .bind(&fx.workspace_id)
+        .bind(&rel)
+        .bind(&fx.target_entity_id)
+        .bind(&fx.source_entity_id)
+        .execute(&mut conn)
+        .await
+        .expect("insert inside transaction succeeds before commit");
+        let err = sqlx::query("COMMIT")
+            .execute(&mut conn)
+            .await
+            .expect_err("commit must fail: edge has no evidence spans");
+        assert!(
+            err.to_string().contains("MUST carry source span refs"),
+            "unexpected commit error: {err}"
+        );
+
+        // Delete guard: stripping the last evidence span from a live edge fails.
+        let edge = pg
+            .db
+            .upsert_knowledge_edge(defined_in_edge(&fx, 0.9, vec![fx.span_id.clone()]))
+            .await
+            .expect("edge with evidence");
+        let err = sqlx::query("DELETE FROM knowledge_edge_spans WHERE edge_id = $1")
+            .bind(&edge.edge_id)
+            .execute(&mut conn)
+            .await
+            .expect_err("removing the last evidence span must be rejected");
+        assert!(
+            err.to_string().contains("last evidence span"),
+            "unexpected delete-guard error: {err}"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn edge_lifecycle_and_conflict_markers() {
+        let Some(pg) = knowledge_pg().await else {
+            eprintln!("SKIP edge_lifecycle_and_conflict_markers: no PostgreSQL");
+            return;
+        };
+        let fx = graph_fixture(&pg).await;
+        let edge = pg
+            .db
+            .upsert_knowledge_edge(defined_in_edge(&fx, 0.7, vec![fx.span_id.clone()]))
+            .await
+            .expect("edge");
+
+        // Conflicted without a marker: typed Validation (Rust) ...
+        let err = pg
+            .db
+            .set_knowledge_edge_lifecycle(&edge.edge_id, KnowledgeEdgeLifecycle::Conflicted, None)
+            .await
+            .expect_err("conflicted edge requires a conflict marker");
+        assert!(matches!(err, StorageError::Validation(_)));
+
+        // ... and CHECK-enforced in the DB when bypassing the app layer.
+        let mut conn = pg.raw_connection().await;
+        let err = sqlx::query(
+            "UPDATE knowledge_edges SET lifecycle_state = 'conflicted', conflict_marker = NULL
+             WHERE edge_id = $1",
+        )
+        .bind(&edge.edge_id)
+        .execute(&mut conn)
+        .await
+        .expect_err("DB must reject conflicted edges without a marker");
+        assert!(
+            err.to_string().contains("chk_knowledge_edges_conflict_shape"),
+            "unexpected: {err}"
+        );
+
+        let conflicted = pg
+            .db
+            .set_knowledge_edge_lifecycle(
+                &edge.edge_id,
+                KnowledgeEdgeLifecycle::Conflicted,
+                Some(json!({"reason": "duplicate definition", "with": ["KREL-x"]})),
+            )
+            .await
+            .expect("mark conflicted with marker");
+        assert_eq!(conflicted.lifecycle_state, KnowledgeEdgeLifecycle::Conflicted);
+
+        let retired = pg
+            .db
+            .set_knowledge_edge_lifecycle(&edge.edge_id, KnowledgeEdgeLifecycle::Retired, None)
+            .await
+            .expect("retire edge");
+        assert_eq!(retired.lifecycle_state, KnowledgeEdgeLifecycle::Retired);
+        assert!(retired.conflict_marker.is_none(), "leaving conflicted clears the marker");
+    }
+}

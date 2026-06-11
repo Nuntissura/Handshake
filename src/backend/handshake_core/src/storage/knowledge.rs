@@ -999,6 +999,425 @@ fn entity_from_pg(row: &sqlx::postgres::PgRow) -> StorageResult<KnowledgeEntity>
 }
 
 // ---------------------------------------------------------------------------
+// MT-054 KnowledgeEdgeTables: typed relationships with stable relationship_id.
+// ---------------------------------------------------------------------------
+
+/// Typed relationship kinds between knowledge entities.
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum KnowledgeEdgeType {
+    Defines,
+    References,
+    Contains,
+    DependsOn,
+    Implements,
+    Documents,
+    Validates,
+    DerivedFrom,
+    Mentions,
+    LinksTo,
+    Supersedes,
+    RelatesTo,
+}
+
+impl KnowledgeEdgeType {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Defines => "defines",
+            Self::References => "references",
+            Self::Contains => "contains",
+            Self::DependsOn => "depends_on",
+            Self::Implements => "implements",
+            Self::Documents => "documents",
+            Self::Validates => "validates",
+            Self::DerivedFrom => "derived_from",
+            Self::Mentions => "mentions",
+            Self::LinksTo => "links_to",
+            Self::Supersedes => "supersedes",
+            Self::RelatesTo => "relates_to",
+        }
+    }
+}
+
+impl FromStr for KnowledgeEdgeType {
+    type Err = StorageError;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        match value {
+            "defines" => Ok(Self::Defines),
+            "references" => Ok(Self::References),
+            "contains" => Ok(Self::Contains),
+            "depends_on" => Ok(Self::DependsOn),
+            "implements" => Ok(Self::Implements),
+            "documents" => Ok(Self::Documents),
+            "validates" => Ok(Self::Validates),
+            "derived_from" => Ok(Self::DerivedFrom),
+            "mentions" => Ok(Self::Mentions),
+            "links_to" => Ok(Self::LinksTo),
+            "supersedes" => Ok(Self::Supersedes),
+            "relates_to" => Ok(Self::RelatesTo),
+            _ => Err(StorageError::Validation("invalid knowledge edge_type")),
+        }
+    }
+}
+
+/// Lifecycle of a knowledge edge.
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum KnowledgeEdgeLifecycle {
+    Proposed,
+    Active,
+    Conflicted,
+    Retired,
+}
+
+impl KnowledgeEdgeLifecycle {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Proposed => "proposed",
+            Self::Active => "active",
+            Self::Conflicted => "conflicted",
+            Self::Retired => "retired",
+        }
+    }
+}
+
+impl FromStr for KnowledgeEdgeLifecycle {
+    type Err = StorageError;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        match value {
+            "proposed" => Ok(Self::Proposed),
+            "active" => Ok(Self::Active),
+            "conflicted" => Ok(Self::Conflicted),
+            "retired" => Ok(Self::Retired),
+            _ => Err(StorageError::Validation(
+                "invalid knowledge edge lifecycle_state",
+            )),
+        }
+    }
+}
+
+/// Derives the stable, deterministic `relationship_id` for a knowledge edge.
+///
+/// Derivation (documented in migrations/0136_knowledge_edges.sql and stable
+/// across re-index runs because it hashes the entities' natural identities,
+/// never row ids or timestamps):
+///
+/// ```text
+/// relationship_id = "KREL-" + sha256_hex(
+///     "knowledge_edge_relationship_v1|{edge_type}|{source_kind}:{source_key}|{target_kind}:{target_key}")
+/// ```
+pub fn derive_knowledge_relationship_id(
+    edge_type: KnowledgeEdgeType,
+    source_kind: KnowledgeEntityKind,
+    source_key: &str,
+    target_kind: KnowledgeEntityKind,
+    target_key: &str,
+) -> String {
+    use sha2::{Digest, Sha256};
+    let canonical = format!(
+        "knowledge_edge_relationship_v1|{}|{}:{}|{}:{}",
+        edge_type.as_str(),
+        source_kind.as_str(),
+        source_key,
+        target_kind.as_str(),
+        target_key
+    );
+    let mut hasher = Sha256::new();
+    hasher.update(canonical.as_bytes());
+    format!("KREL-{}", hex::encode(hasher.finalize()))
+}
+
+/// A typed knowledge edge with REQUIRED span evidence.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct KnowledgeEdge {
+    pub edge_id: String,
+    pub workspace_id: String,
+    pub relationship_id: String,
+    pub edge_type: KnowledgeEdgeType,
+    pub source_entity_id: String,
+    pub target_entity_id: String,
+    pub extractor_version: String,
+    pub lifecycle_state: KnowledgeEdgeLifecycle,
+    pub confidence: f64,
+    pub conflict_marker: Option<Value>,
+    pub created_in_run: Option<String>,
+    pub last_seen_in_run: Option<String>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+/// Upsert payload for [`KnowledgeEdge`]. The relationship_id is derived, not
+/// supplied: callers cannot break determinism.
+#[derive(Clone, Debug)]
+pub struct NewKnowledgeEdge {
+    pub workspace_id: String,
+    pub edge_type: KnowledgeEdgeType,
+    pub source_entity_id: String,
+    pub target_entity_id: String,
+    pub extractor_version: String,
+    pub confidence: f64,
+    pub detected_in_run: Option<String>,
+    /// REQUIRED evidence: at least one span id (spec 2.3.13.11).
+    pub evidence_span_ids: Vec<String>,
+}
+
+const KNOWLEDGE_EDGE_COLUMNS: &str = r#"
+    edge_id, workspace_id, relationship_id, edge_type, source_entity_id,
+    target_entity_id, extractor_version, lifecycle_state, confidence,
+    conflict_marker, created_in_run, last_seen_in_run, created_at, updated_at
+"#;
+
+fn edge_from_pg(row: &sqlx::postgres::PgRow) -> StorageResult<KnowledgeEdge> {
+    Ok(KnowledgeEdge {
+        edge_id: row.get("edge_id"),
+        workspace_id: row.get("workspace_id"),
+        relationship_id: row.get("relationship_id"),
+        edge_type: row.get::<String, _>("edge_type").parse()?,
+        source_entity_id: row.get("source_entity_id"),
+        target_entity_id: row.get("target_entity_id"),
+        extractor_version: row.get("extractor_version"),
+        lifecycle_state: row.get::<String, _>("lifecycle_state").parse()?,
+        confidence: row.get("confidence"),
+        conflict_marker: row.get("conflict_marker"),
+        created_in_run: row.get("created_in_run"),
+        last_seen_in_run: row.get("last_seen_in_run"),
+        created_at: row.get("created_at"),
+        updated_at: row.get("updated_at"),
+    })
+}
+
+// ---------------------------------------------------------------------------
+// MT-056 KnowledgeClaimTables: claims with lifecycle + evidence lineage.
+// ---------------------------------------------------------------------------
+
+/// Claim subject kind (spec: "an assertion about a source, product behavior,
+/// task, or operator workflow").
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum KnowledgeClaimKind {
+    SourceFact,
+    ProductBehavior,
+    TaskState,
+    OperatorWorkflow,
+}
+
+impl KnowledgeClaimKind {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::SourceFact => "source_fact",
+            Self::ProductBehavior => "product_behavior",
+            Self::TaskState => "task_state",
+            Self::OperatorWorkflow => "operator_workflow",
+        }
+    }
+}
+
+impl FromStr for KnowledgeClaimKind {
+    type Err = StorageError;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        match value {
+            "source_fact" => Ok(Self::SourceFact),
+            "product_behavior" => Ok(Self::ProductBehavior),
+            "task_state" => Ok(Self::TaskState),
+            "operator_workflow" => Ok(Self::OperatorWorkflow),
+            _ => Err(StorageError::Validation("invalid knowledge claim_kind")),
+        }
+    }
+}
+
+/// Spec-canonical claim lifecycle (2.3.13.11).
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum KnowledgeClaimState {
+    Proposed,
+    Accepted,
+    Conflicted,
+    Retired,
+}
+
+impl KnowledgeClaimState {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Proposed => "proposed",
+            Self::Accepted => "accepted",
+            Self::Conflicted => "conflicted",
+            Self::Retired => "retired",
+        }
+    }
+
+    /// Allowed lifecycle transitions (documented in 0137 migration header):
+    /// proposed -> accepted|conflicted|retired; accepted -> conflicted|retired;
+    /// conflicted -> accepted|retired; retired -> terminal.
+    pub fn can_transition_to(&self, to: KnowledgeClaimState) -> bool {
+        matches!(
+            (self, to),
+            (Self::Proposed, Self::Accepted)
+                | (Self::Proposed, Self::Conflicted)
+                | (Self::Proposed, Self::Retired)
+                | (Self::Accepted, Self::Conflicted)
+                | (Self::Accepted, Self::Retired)
+                | (Self::Conflicted, Self::Accepted)
+                | (Self::Conflicted, Self::Retired)
+        )
+    }
+}
+
+impl FromStr for KnowledgeClaimState {
+    type Err = StorageError;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        match value {
+            "proposed" => Ok(Self::Proposed),
+            "accepted" => Ok(Self::Accepted),
+            "conflicted" => Ok(Self::Conflicted),
+            "retired" => Ok(Self::Retired),
+            _ => Err(StorageError::Validation(
+                "invalid knowledge claim lifecycle_state",
+            )),
+        }
+    }
+}
+
+/// Why a claim was retired (MT-056 contract: rejected/superseded qualifiers).
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum KnowledgeClaimRetirementReason {
+    Rejected,
+    Superseded,
+    Stale,
+    OperatorRetired,
+}
+
+impl KnowledgeClaimRetirementReason {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Rejected => "rejected",
+            Self::Superseded => "superseded",
+            Self::Stale => "stale",
+            Self::OperatorRetired => "operator_retired",
+        }
+    }
+}
+
+impl FromStr for KnowledgeClaimRetirementReason {
+    type Err = StorageError;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        match value {
+            "rejected" => Ok(Self::Rejected),
+            "superseded" => Ok(Self::Superseded),
+            "stale" => Ok(Self::Stale),
+            "operator_retired" => Ok(Self::OperatorRetired),
+            _ => Err(StorageError::Validation(
+                "invalid knowledge claim retirement_reason",
+            )),
+        }
+    }
+}
+
+/// A knowledge claim with evidence lineage.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct KnowledgeClaim {
+    pub claim_id: String,
+    pub workspace_id: String,
+    pub claim_kind: KnowledgeClaimKind,
+    pub claim_text: String,
+    pub subject_entity_id: Option<String>,
+    pub lifecycle_state: KnowledgeClaimState,
+    pub temporal_qualifier: Option<Value>,
+    pub granularity_qualifier: Option<String>,
+    pub confidence: f64,
+    pub retirement_reason: Option<KnowledgeClaimRetirementReason>,
+    pub superseded_by_claim_id: Option<String>,
+    pub proposed_in_run: Option<String>,
+    pub resolution_receipt_event_id: Option<String>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+/// Insert payload for [`KnowledgeClaim`] (born `proposed`).
+#[derive(Clone, Debug)]
+pub struct NewKnowledgeClaim {
+    pub workspace_id: String,
+    pub claim_kind: KnowledgeClaimKind,
+    pub claim_text: String,
+    pub subject_entity_id: Option<String>,
+    pub temporal_qualifier: Option<Value>,
+    pub granularity_qualifier: Option<String>,
+    pub confidence: f64,
+    pub proposed_in_run: Option<String>,
+    /// REQUIRED evidence: at least one span id (spec 2.3.13.11).
+    pub evidence_span_ids: Vec<String>,
+}
+
+/// Terminal transition payload for claims entering `retired`.
+#[derive(Clone, Debug)]
+pub struct KnowledgeClaimRetirement {
+    pub reason: KnowledgeClaimRetirementReason,
+    /// Required when reason is `Superseded`.
+    pub superseded_by_claim_id: Option<String>,
+}
+
+/// A recorded conflict between two claims.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct KnowledgeClaimConflict {
+    pub conflict_id: String,
+    pub claim_id: String,
+    pub conflicting_claim_id: String,
+    pub detected_in_run: Option<String>,
+    pub conflict_reason: String,
+    pub resolution_receipt_event_id: Option<String>,
+    pub detected_at: DateTime<Utc>,
+    pub resolved_at: Option<DateTime<Utc>>,
+}
+
+const KNOWLEDGE_CLAIM_COLUMNS: &str = r#"
+    claim_id, workspace_id, claim_kind, claim_text, subject_entity_id,
+    lifecycle_state, temporal_qualifier, granularity_qualifier, confidence,
+    retirement_reason, superseded_by_claim_id, proposed_in_run,
+    resolution_receipt_event_id, created_at, updated_at
+"#;
+
+fn claim_from_pg(row: &sqlx::postgres::PgRow) -> StorageResult<KnowledgeClaim> {
+    Ok(KnowledgeClaim {
+        claim_id: row.get("claim_id"),
+        workspace_id: row.get("workspace_id"),
+        claim_kind: row.get::<String, _>("claim_kind").parse()?,
+        claim_text: row.get("claim_text"),
+        subject_entity_id: row.get("subject_entity_id"),
+        lifecycle_state: row.get::<String, _>("lifecycle_state").parse()?,
+        temporal_qualifier: row.get("temporal_qualifier"),
+        granularity_qualifier: row.get("granularity_qualifier"),
+        confidence: row.get("confidence"),
+        retirement_reason: row
+            .get::<Option<String>, _>("retirement_reason")
+            .map(|value| value.parse())
+            .transpose()?,
+        superseded_by_claim_id: row.get("superseded_by_claim_id"),
+        proposed_in_run: row.get("proposed_in_run"),
+        resolution_receipt_event_id: row.get("resolution_receipt_event_id"),
+        created_at: row.get("created_at"),
+        updated_at: row.get("updated_at"),
+    })
+}
+
+fn claim_conflict_from_pg(row: &sqlx::postgres::PgRow) -> KnowledgeClaimConflict {
+    KnowledgeClaimConflict {
+        conflict_id: row.get("conflict_id"),
+        claim_id: row.get("claim_id"),
+        conflicting_claim_id: row.get("conflicting_claim_id"),
+        detected_in_run: row.get("detected_in_run"),
+        conflict_reason: row.get("conflict_reason"),
+        resolution_receipt_event_id: row.get("resolution_receipt_event_id"),
+        detected_at: row.get("detected_at"),
+        resolved_at: row.get("resolved_at"),
+    }
+}
+
+// ---------------------------------------------------------------------------
 // KnowledgeStore trait: the WP-009 storage surface on PostgresDatabase.
 // ---------------------------------------------------------------------------
 
@@ -1149,6 +1568,95 @@ pub trait KnowledgeStore: Send + Sync {
 
     /// Marks an entity retired (it stops participating in new detection).
     async fn retire_knowledge_entity(&self, entity_id: &str) -> StorageResult<KnowledgeEntity>;
+
+    // -- MT-054 edges -----------------------------------------------------------
+    /// Upserts a typed edge with its REQUIRED span evidence in one
+    /// transaction. The stable `relationship_id` is derived from
+    /// (edge_type, source identity, target identity) — see
+    /// [`derive_knowledge_relationship_id`] — so a re-extracted relationship
+    /// updates the same row (confidence, extractor_version, last_seen_in_run)
+    /// instead of duplicating it. Fails closed with a typed Validation error
+    /// when `evidence_span_ids` is empty.
+    async fn upsert_knowledge_edge(
+        &self,
+        new_edge: NewKnowledgeEdge,
+    ) -> StorageResult<KnowledgeEdge>;
+
+    async fn get_knowledge_edge(&self, edge_id: &str) -> StorageResult<Option<KnowledgeEdge>>;
+
+    async fn get_knowledge_edge_by_relationship_id(
+        &self,
+        workspace_id: &str,
+        relationship_id: &str,
+    ) -> StorageResult<Option<KnowledgeEdge>>;
+
+    /// Lists edges touching an entity (as source or target).
+    async fn list_knowledge_edges_for_entity(
+        &self,
+        entity_id: &str,
+    ) -> StorageResult<Vec<KnowledgeEdge>>;
+
+    /// Lists the evidence span ids attached to an edge.
+    async fn list_knowledge_edge_span_ids(&self, edge_id: &str) -> StorageResult<Vec<String>>;
+
+    /// Updates edge lifecycle; entering `conflicted` requires a conflict
+    /// marker, leaving it clears the marker.
+    async fn set_knowledge_edge_lifecycle(
+        &self,
+        edge_id: &str,
+        lifecycle: KnowledgeEdgeLifecycle,
+        conflict_marker: Option<Value>,
+    ) -> StorageResult<KnowledgeEdge>;
+
+    // -- MT-056 claims ------------------------------------------------------------
+    /// Creates a claim (born `proposed`) with its REQUIRED evidence spans in
+    /// one transaction. Fails closed with a typed Validation error when
+    /// `evidence_span_ids` is empty.
+    async fn create_knowledge_claim(
+        &self,
+        new_claim: NewKnowledgeClaim,
+    ) -> StorageResult<KnowledgeClaim>;
+
+    async fn get_knowledge_claim(&self, claim_id: &str) -> StorageResult<Option<KnowledgeClaim>>;
+
+    /// Lists the evidence span ids attached to a claim.
+    async fn list_knowledge_claim_span_ids(&self, claim_id: &str) -> StorageResult<Vec<String>>;
+
+    /// Guarded lifecycle transition (proposed -> accepted|conflicted|retired,
+    /// accepted -> conflicted|retired, conflicted -> accepted|retired,
+    /// retired terminal). Invalid transitions are typed `Conflict` errors.
+    /// `retirement` is required when entering `retired`;
+    /// `resolution_receipt_event_id` records the EventLedger receipt that
+    /// authorized the transition.
+    async fn transition_knowledge_claim(
+        &self,
+        claim_id: &str,
+        to_state: KnowledgeClaimState,
+        retirement: Option<KnowledgeClaimRetirement>,
+        resolution_receipt_event_id: Option<&str>,
+    ) -> StorageResult<KnowledgeClaim>;
+
+    /// Records a conflict between two claims and moves both into the
+    /// `conflicted` lifecycle state transactionally.
+    async fn record_knowledge_claim_conflict(
+        &self,
+        claim_id: &str,
+        conflicting_claim_id: &str,
+        conflict_reason: &str,
+        detected_in_run: Option<&str>,
+    ) -> StorageResult<KnowledgeClaimConflict>;
+
+    /// Resolves a recorded conflict with an EventLedger receipt ref.
+    async fn resolve_knowledge_claim_conflict(
+        &self,
+        conflict_id: &str,
+        resolution_receipt_event_id: &str,
+    ) -> StorageResult<KnowledgeClaimConflict>;
+
+    async fn list_knowledge_claim_conflicts(
+        &self,
+        claim_id: &str,
+    ) -> StorageResult<Vec<KnowledgeClaimConflict>>;
 }
 
 fn registry_row_from_pg(row: &sqlx::postgres::PgRow) -> StorageResult<KnowledgeSchemaRegistryRow> {
@@ -1806,5 +2314,467 @@ impl KnowledgeStore for PostgresDatabase {
             .await?
             .ok_or(StorageError::NotFound("knowledge entity"))?;
         entity_from_pg(&row)
+    }
+
+    async fn upsert_knowledge_edge(
+        &self,
+        new_edge: NewKnowledgeEdge,
+    ) -> StorageResult<KnowledgeEdge> {
+        if new_edge.evidence_span_ids.is_empty() {
+            return Err(StorageError::Validation(
+                "knowledge edge MUST carry at least one source span ref (spec 2.3.13.11)",
+            ));
+        }
+        if !(0.0..=1.0).contains(&new_edge.confidence) {
+            return Err(StorageError::Validation(
+                "knowledge edge confidence must be within [0.0, 1.0]",
+            ));
+        }
+        if new_edge.extractor_version.trim().is_empty() {
+            return Err(StorageError::Validation(
+                "knowledge edge extractor_version is required",
+            ));
+        }
+
+        // Resolve both entities' stable natural identities for the
+        // deterministic relationship_id derivation.
+        let source = self
+            .get_knowledge_entity(&new_edge.source_entity_id)
+            .await?
+            .ok_or(StorageError::NotFound("knowledge edge source entity"))?;
+        let target = self
+            .get_knowledge_entity(&new_edge.target_entity_id)
+            .await?
+            .ok_or(StorageError::NotFound("knowledge edge target entity"))?;
+        if source.workspace_id != new_edge.workspace_id
+            || target.workspace_id != new_edge.workspace_id
+        {
+            return Err(StorageError::Validation(
+                "knowledge edge entities must belong to the edge workspace",
+            ));
+        }
+        let relationship_id = derive_knowledge_relationship_id(
+            new_edge.edge_type,
+            source.entity_kind,
+            &source.entity_key,
+            target.entity_kind,
+            &target.entity_key,
+        );
+        let edge_id = new_knowledge_id("KED");
+
+        let mut tx = self.pool().begin().await?;
+        let sql = format!(
+            r#"
+            INSERT INTO knowledge_edges
+                (edge_id, workspace_id, relationship_id, edge_type,
+                 source_entity_id, target_entity_id, extractor_version,
+                 confidence, created_in_run, last_seen_in_run)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $9)
+            ON CONFLICT (workspace_id, relationship_id)
+            DO UPDATE SET
+                confidence = EXCLUDED.confidence,
+                extractor_version = EXCLUDED.extractor_version,
+                last_seen_in_run = COALESCE(EXCLUDED.last_seen_in_run,
+                                            knowledge_edges.last_seen_in_run),
+                updated_at = NOW()
+            RETURNING {KNOWLEDGE_EDGE_COLUMNS}
+            "#
+        );
+        let row = sqlx::query(&sql)
+            .bind(&edge_id)
+            .bind(&new_edge.workspace_id)
+            .bind(&relationship_id)
+            .bind(new_edge.edge_type.as_str())
+            .bind(&new_edge.source_entity_id)
+            .bind(&new_edge.target_entity_id)
+            .bind(&new_edge.extractor_version)
+            .bind(new_edge.confidence)
+            .bind(&new_edge.detected_in_run)
+            .fetch_one(&mut *tx)
+            .await?;
+        let edge = edge_from_pg(&row)?;
+
+        for span_id in &new_edge.evidence_span_ids {
+            sqlx::query(
+                r#"
+                INSERT INTO knowledge_edge_spans (edge_id, span_id, recorded_in_run)
+                VALUES ($1, $2, $3)
+                ON CONFLICT (edge_id, span_id) DO NOTHING
+                "#,
+            )
+            .bind(&edge.edge_id)
+            .bind(span_id)
+            .bind(&new_edge.detected_in_run)
+            .execute(&mut *tx)
+            .await?;
+        }
+        tx.commit().await?;
+        Ok(edge)
+    }
+
+    async fn get_knowledge_edge(&self, edge_id: &str) -> StorageResult<Option<KnowledgeEdge>> {
+        let sql =
+            format!("SELECT {KNOWLEDGE_EDGE_COLUMNS} FROM knowledge_edges WHERE edge_id = $1");
+        let row = sqlx::query(&sql)
+            .bind(edge_id)
+            .fetch_optional(self.pool())
+            .await?;
+        row.as_ref().map(edge_from_pg).transpose()
+    }
+
+    async fn get_knowledge_edge_by_relationship_id(
+        &self,
+        workspace_id: &str,
+        relationship_id: &str,
+    ) -> StorageResult<Option<KnowledgeEdge>> {
+        let sql = format!(
+            "SELECT {KNOWLEDGE_EDGE_COLUMNS} FROM knowledge_edges
+             WHERE workspace_id = $1 AND relationship_id = $2"
+        );
+        let row = sqlx::query(&sql)
+            .bind(workspace_id)
+            .bind(relationship_id)
+            .fetch_optional(self.pool())
+            .await?;
+        row.as_ref().map(edge_from_pg).transpose()
+    }
+
+    async fn list_knowledge_edges_for_entity(
+        &self,
+        entity_id: &str,
+    ) -> StorageResult<Vec<KnowledgeEdge>> {
+        let sql = format!(
+            "SELECT {KNOWLEDGE_EDGE_COLUMNS} FROM knowledge_edges
+             WHERE source_entity_id = $1 OR target_entity_id = $1
+             ORDER BY relationship_id"
+        );
+        let rows = sqlx::query(&sql)
+            .bind(entity_id)
+            .fetch_all(self.pool())
+            .await?;
+        rows.iter().map(edge_from_pg).collect()
+    }
+
+    async fn list_knowledge_edge_span_ids(&self, edge_id: &str) -> StorageResult<Vec<String>> {
+        let rows = sqlx::query(
+            "SELECT span_id FROM knowledge_edge_spans WHERE edge_id = $1 ORDER BY span_id",
+        )
+        .bind(edge_id)
+        .fetch_all(self.pool())
+        .await?;
+        Ok(rows
+            .into_iter()
+            .map(|row| row.get::<String, _>("span_id"))
+            .collect())
+    }
+
+    async fn set_knowledge_edge_lifecycle(
+        &self,
+        edge_id: &str,
+        lifecycle: KnowledgeEdgeLifecycle,
+        conflict_marker: Option<Value>,
+    ) -> StorageResult<KnowledgeEdge> {
+        if matches!(lifecycle, KnowledgeEdgeLifecycle::Conflicted) && conflict_marker.is_none() {
+            return Err(StorageError::Validation(
+                "conflicted knowledge edges must carry a conflict marker",
+            ));
+        }
+        let sql = format!(
+            r#"
+            UPDATE knowledge_edges
+            SET lifecycle_state = $2,
+                conflict_marker = $3,
+                updated_at = NOW()
+            WHERE edge_id = $1
+            RETURNING {KNOWLEDGE_EDGE_COLUMNS}
+            "#
+        );
+        let row = sqlx::query(&sql)
+            .bind(edge_id)
+            .bind(lifecycle.as_str())
+            .bind(&conflict_marker)
+            .fetch_optional(self.pool())
+            .await?
+            .ok_or(StorageError::NotFound("knowledge edge"))?;
+        edge_from_pg(&row)
+    }
+
+    async fn create_knowledge_claim(
+        &self,
+        new_claim: NewKnowledgeClaim,
+    ) -> StorageResult<KnowledgeClaim> {
+        if new_claim.evidence_span_ids.is_empty() {
+            return Err(StorageError::Validation(
+                "knowledge claim MUST carry evidence spans (spec 2.3.13.11)",
+            ));
+        }
+        if new_claim.claim_text.trim().is_empty() {
+            return Err(StorageError::Validation(
+                "knowledge claim_text is required",
+            ));
+        }
+        if !(0.0..=1.0).contains(&new_claim.confidence) {
+            return Err(StorageError::Validation(
+                "knowledge claim confidence must be within [0.0, 1.0]",
+            ));
+        }
+        let claim_id = new_knowledge_id("KCL");
+
+        let mut tx = self.pool().begin().await?;
+        let sql = format!(
+            r#"
+            INSERT INTO knowledge_claims
+                (claim_id, workspace_id, claim_kind, claim_text,
+                 subject_entity_id, temporal_qualifier, granularity_qualifier,
+                 confidence, proposed_in_run)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+            RETURNING {KNOWLEDGE_CLAIM_COLUMNS}
+            "#
+        );
+        let row = sqlx::query(&sql)
+            .bind(&claim_id)
+            .bind(&new_claim.workspace_id)
+            .bind(new_claim.claim_kind.as_str())
+            .bind(&new_claim.claim_text)
+            .bind(&new_claim.subject_entity_id)
+            .bind(&new_claim.temporal_qualifier)
+            .bind(&new_claim.granularity_qualifier)
+            .bind(new_claim.confidence)
+            .bind(&new_claim.proposed_in_run)
+            .fetch_one(&mut *tx)
+            .await?;
+        let claim = claim_from_pg(&row)?;
+
+        for span_id in &new_claim.evidence_span_ids {
+            sqlx::query(
+                "INSERT INTO knowledge_claim_spans (claim_id, span_id)
+                 VALUES ($1, $2) ON CONFLICT (claim_id, span_id) DO NOTHING",
+            )
+            .bind(&claim.claim_id)
+            .bind(span_id)
+            .execute(&mut *tx)
+            .await?;
+        }
+        tx.commit().await?;
+        Ok(claim)
+    }
+
+    async fn get_knowledge_claim(&self, claim_id: &str) -> StorageResult<Option<KnowledgeClaim>> {
+        let sql =
+            format!("SELECT {KNOWLEDGE_CLAIM_COLUMNS} FROM knowledge_claims WHERE claim_id = $1");
+        let row = sqlx::query(&sql)
+            .bind(claim_id)
+            .fetch_optional(self.pool())
+            .await?;
+        row.as_ref().map(claim_from_pg).transpose()
+    }
+
+    async fn list_knowledge_claim_span_ids(&self, claim_id: &str) -> StorageResult<Vec<String>> {
+        let rows = sqlx::query(
+            "SELECT span_id FROM knowledge_claim_spans WHERE claim_id = $1 ORDER BY span_id",
+        )
+        .bind(claim_id)
+        .fetch_all(self.pool())
+        .await?;
+        Ok(rows
+            .into_iter()
+            .map(|row| row.get::<String, _>("span_id"))
+            .collect())
+    }
+
+    async fn transition_knowledge_claim(
+        &self,
+        claim_id: &str,
+        to_state: KnowledgeClaimState,
+        retirement: Option<KnowledgeClaimRetirement>,
+        resolution_receipt_event_id: Option<&str>,
+    ) -> StorageResult<KnowledgeClaim> {
+        let current = self
+            .get_knowledge_claim(claim_id)
+            .await?
+            .ok_or(StorageError::NotFound("knowledge claim"))?;
+        if !current.lifecycle_state.can_transition_to(to_state) {
+            return Err(StorageError::Conflict(
+                "knowledge claim lifecycle violation: transition not allowed",
+            ));
+        }
+        let (retirement_reason, superseded_by) = match (to_state, retirement) {
+            (KnowledgeClaimState::Retired, Some(retirement)) => {
+                if matches!(
+                    retirement.reason,
+                    KnowledgeClaimRetirementReason::Superseded
+                ) && retirement.superseded_by_claim_id.is_none()
+                {
+                    return Err(StorageError::Validation(
+                        "superseded claims must name superseded_by_claim_id",
+                    ));
+                }
+                if !matches!(
+                    retirement.reason,
+                    KnowledgeClaimRetirementReason::Superseded
+                ) && retirement.superseded_by_claim_id.is_some()
+                {
+                    return Err(StorageError::Validation(
+                        "superseded_by_claim_id requires retirement reason 'superseded'",
+                    ));
+                }
+                (
+                    Some(retirement.reason.as_str()),
+                    retirement.superseded_by_claim_id,
+                )
+            }
+            (KnowledgeClaimState::Retired, None) => {
+                return Err(StorageError::Validation(
+                    "retiring a knowledge claim requires a retirement reason",
+                ));
+            }
+            (_, Some(_)) => {
+                return Err(StorageError::Validation(
+                    "retirement payload only applies when entering 'retired'",
+                ));
+            }
+            (_, None) => (None, None),
+        };
+
+        // Optimistic transition: WHERE pins the observed source state so a
+        // concurrent transition cannot be silently overwritten.
+        let sql = format!(
+            r#"
+            UPDATE knowledge_claims
+            SET lifecycle_state = $3,
+                retirement_reason = $4,
+                superseded_by_claim_id = $5,
+                resolution_receipt_event_id = COALESCE($6, resolution_receipt_event_id),
+                updated_at = NOW()
+            WHERE claim_id = $1 AND lifecycle_state = $2
+            RETURNING {KNOWLEDGE_CLAIM_COLUMNS}
+            "#
+        );
+        let row = sqlx::query(&sql)
+            .bind(claim_id)
+            .bind(current.lifecycle_state.as_str())
+            .bind(to_state.as_str())
+            .bind(retirement_reason)
+            .bind(&superseded_by)
+            .bind(resolution_receipt_event_id)
+            .fetch_optional(self.pool())
+            .await?
+            .ok_or(StorageError::Conflict(
+                "knowledge claim lifecycle violation: state changed concurrently",
+            ))?;
+        claim_from_pg(&row)
+    }
+
+    async fn record_knowledge_claim_conflict(
+        &self,
+        claim_id: &str,
+        conflicting_claim_id: &str,
+        conflict_reason: &str,
+        detected_in_run: Option<&str>,
+    ) -> StorageResult<KnowledgeClaimConflict> {
+        if claim_id == conflicting_claim_id {
+            return Err(StorageError::Validation(
+                "a knowledge claim cannot conflict with itself",
+            ));
+        }
+        if conflict_reason.trim().is_empty() {
+            return Err(StorageError::Validation(
+                "knowledge claim conflict_reason is required",
+            ));
+        }
+        let conflict_id = new_knowledge_id("KCC");
+        let mut tx = self.pool().begin().await?;
+        let row = sqlx::query(
+            r#"
+            INSERT INTO knowledge_claim_conflicts
+                (conflict_id, claim_id, conflicting_claim_id, conflict_reason,
+                 detected_in_run)
+            VALUES ($1, $2, $3, $4, $5)
+            RETURNING conflict_id, claim_id, conflicting_claim_id,
+                      detected_in_run, conflict_reason,
+                      resolution_receipt_event_id, detected_at, resolved_at
+            "#,
+        )
+        .bind(&conflict_id)
+        .bind(claim_id)
+        .bind(conflicting_claim_id)
+        .bind(conflict_reason)
+        .bind(detected_in_run)
+        .fetch_one(&mut *tx)
+        .await?;
+        let conflict = claim_conflict_from_pg(&row);
+
+        // Both claims move to 'conflicted' unless already retired.
+        for id in [claim_id, conflicting_claim_id] {
+            sqlx::query(
+                "UPDATE knowledge_claims
+                 SET lifecycle_state = 'conflicted', updated_at = NOW()
+                 WHERE claim_id = $1 AND lifecycle_state IN ('proposed', 'accepted')",
+            )
+            .bind(id)
+            .execute(&mut *tx)
+            .await?;
+        }
+        tx.commit().await?;
+        Ok(conflict)
+    }
+
+    async fn resolve_knowledge_claim_conflict(
+        &self,
+        conflict_id: &str,
+        resolution_receipt_event_id: &str,
+    ) -> StorageResult<KnowledgeClaimConflict> {
+        let row = sqlx::query(
+            r#"
+            UPDATE knowledge_claim_conflicts
+            SET resolution_receipt_event_id = $2, resolved_at = NOW()
+            WHERE conflict_id = $1 AND resolved_at IS NULL
+            RETURNING conflict_id, claim_id, conflicting_claim_id,
+                      detected_in_run, conflict_reason,
+                      resolution_receipt_event_id, detected_at, resolved_at
+            "#,
+        )
+        .bind(conflict_id)
+        .bind(resolution_receipt_event_id)
+        .fetch_optional(self.pool())
+        .await?;
+        match row {
+            Some(row) => Ok(claim_conflict_from_pg(&row)),
+            None => {
+                let exists: bool = sqlx::query_scalar(
+                    "SELECT EXISTS (SELECT 1 FROM knowledge_claim_conflicts WHERE conflict_id = $1)",
+                )
+                .bind(conflict_id)
+                .fetch_one(self.pool())
+                .await?;
+                if exists {
+                    Err(StorageError::Conflict(
+                        "knowledge claim conflict is already resolved",
+                    ))
+                } else {
+                    Err(StorageError::NotFound("knowledge claim conflict"))
+                }
+            }
+        }
+    }
+
+    async fn list_knowledge_claim_conflicts(
+        &self,
+        claim_id: &str,
+    ) -> StorageResult<Vec<KnowledgeClaimConflict>> {
+        let rows = sqlx::query(
+            r#"
+            SELECT conflict_id, claim_id, conflicting_claim_id, detected_in_run,
+                   conflict_reason, resolution_receipt_event_id, detected_at,
+                   resolved_at
+            FROM knowledge_claim_conflicts
+            WHERE claim_id = $1 OR conflicting_claim_id = $1
+            ORDER BY detected_at
+            "#,
+        )
+        .bind(claim_id)
+        .fetch_all(self.pool())
+        .await?;
+        Ok(rows.iter().map(claim_conflict_from_pg).collect())
     }
 }
