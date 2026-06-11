@@ -50,7 +50,7 @@ use crate::storage::postgres::PostgresDatabase;
 use crate::storage::Database;
 
 use super::config_schema::{detect_config_format, extract_config_facts, ConfigFactKind};
-use super::docs_todo::{extract_doc_passages, DocPassageKind};
+use super::docs_todo::{extract_doc_passages, extract_operator_strings, DocPassageKind};
 use super::parser::{CodeLanguage, CodeParserAdapter};
 use super::relationships::{extract_relationships, RelationshipKind};
 use super::symbols::{extract_symbols, ExtractedSymbol, SymbolKind};
@@ -282,7 +282,14 @@ impl CodeIndexEngine {
         };
 
         let symbols = extract_symbols(&tree, text);
-        let doc_passages = extract_doc_passages(text);
+        // Doc/TODO/safety passages (line scanner) + operator-facing strings (AST
+        // walk of output sinks). MT-103: operator strings are a DISTINCT passage
+        // kind (`operator_string`) written as their own concept entity, never
+        // merged with doc-comment or marker passages.
+        let mut doc_passages = extract_doc_passages(text);
+        let operator_strings = extract_operator_strings(&tree, text);
+        let operator_string_count = operator_strings.len();
+        doc_passages.extend(operator_strings);
         let relationships = extract_relationships(&tree, text, &symbols);
         let test_mappings = extract_test_mappings(&tree, text, &symbols);
 
@@ -310,6 +317,7 @@ impl CodeIndexEngine {
                     "parse_status": parse_status.as_str(),
                     "symbols": symbols.len(),
                     "doc_passages": doc_passages.len(),
+                    "operator_strings": operator_string_count,
                     "relationships": relationships.len(),
                     "content_hash": content_hash,
                     "extractor_version": CODE_EXTRACTOR_VERSION,

@@ -6,20 +6,28 @@
 //! labeled, searchable passages with source spans.
 //!
 //! Pure data; no DB. The engine maps each [`DocPassage`] to a `text`-kind span
-//! and (for markers) a `KnowledgeClaim`, so an agent can search "what TODOs
-//! touch this file" or "what does the doc comment on this symbol say".
+//! and (for markers/strings) a `KnowledgeClaim`, so an agent can search "what
+//! TODOs touch this file", "what does the doc comment on this symbol say", or
+//! "where is this user-visible message printed".
 //!
-//! Strategy: a line scanner over the raw source (language-agnostic for the
-//! comment syntaxes Rust/TS/JS share). It recognises:
-//! * Rust doc comments: `///` (outer) and `//!` (inner), plus `/** ... */`.
-//! * Line comments `//` and block comments `/* ... */` that contain a marker
-//!   keyword.
-//!
-//! Markers are case-sensitive keywords at a word boundary: TODO, FIXME, HACK,
-//! XXX, SAFETY, NOTE, BUG, OPTIMIZE. Consecutive doc-comment lines are merged
-//! into one passage.
+//! Two extractors:
+//! * [`extract_doc_passages`] — a LINE scanner over the raw source
+//!   (language-agnostic for the comment syntaxes Rust/TS/JS share): Rust doc
+//!   comments `///`/`//!` and `/** ... */`, line `//` and block `/* ... */`
+//!   comments that carry a marker keyword. Markers are case-sensitive keywords
+//!   at a word boundary: TODO, FIXME, HACK, XXX, SAFETY, NOTE, BUG, OPTIMIZE.
+//!   Consecutive doc-comment lines are merged into one passage.
+//! * [`extract_operator_strings`] (MT-103 string coverage) — an AST walk over
+//!   the parsed tree that pulls USER-VISIBLE string literals out of output
+//!   sinks (Rust `println!`/`eprintln!`/`panic!`/log macros; JS/TS
+//!   `console.log`/`alert`/...). These are indexed as a DISTINCT
+//!   [`DocPassageKind::OperatorString`] passage — a separate span kind/claim
+//!   from doc comments and TODO markers — so an operator-facing message is
+//!   searchable as its own thing and never conflated with a code comment.
 
 use serde::{Deserialize, Serialize};
+
+use super::parser::{AstNode, CodeLanguage, ParsedTree};
 
 /// The kind of an extracted passage.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -31,6 +39,10 @@ pub enum DocPassageKind {
     Todo,
     /// A SAFETY/NOTE annotation.
     Safety,
+    /// A user-visible string literal pulled from an output sink (a
+    /// println!/log/console.log/UI message). Indexed separately from comment
+    /// and marker passages so operator-facing text is its own searchable kind.
+    OperatorString,
 }
 
 impl DocPassageKind {
@@ -39,6 +51,7 @@ impl DocPassageKind {
             Self::DocComment => "doc_comment",
             Self::Todo => "todo",
             Self::Safety => "safety",
+            Self::OperatorString => "operator_string",
         }
     }
 }
@@ -173,6 +186,226 @@ pub fn extract_doc_passages(text: &str) -> Vec<DocPassage> {
         i += 1;
     }
 
+    out
+}
+
+// ---------------------------------------------------------------------------
+// MT-103 operator-facing string extraction (AST-based, distinct from comments).
+// ---------------------------------------------------------------------------
+
+/// Rust output-sink macros whose first string literal is user-visible.
+const RUST_STRING_SINKS: &[&str] = &[
+    "println",
+    "eprintln",
+    "print",
+    "eprint",
+    "panic",
+    "unreachable",
+    "todo",
+    "unimplemented",
+    "assert",
+    "assert_eq",
+    "assert_ne",
+    "format",
+    "write",
+    "writeln",
+    "info",
+    "warn",
+    "error",
+    "debug",
+    "trace",
+];
+
+/// JS/TS member-call output sinks (object.method) whose string arguments are
+/// user-visible.
+const JS_STRING_SINK_OBJECTS: &[&str] = &["console"];
+const JS_STRING_SINK_FUNCS: &[&str] = &["alert", "prompt", "confirm"];
+
+/// Extract operator-facing string literals from the parsed tree as
+/// [`DocPassageKind::OperatorString`] passages. These are the user-visible
+/// messages a program prints/logs/shows — indexed SEPARATELY from doc comments
+/// and TODO markers so "where is this message shown" is its own searchable
+/// passage kind. Pure data; deterministic, document order by byte offset.
+///
+/// Heuristic (no false-positive comment capture — strings only, from output
+/// sinks): a string literal node that is an argument to a recognised sink call.
+/// Rust: `macro_invocation` named in [`RUST_STRING_SINKS`]. JS/TS:
+/// `call_expression` whose callee is `console.*` or a bare `alert`/`prompt`/
+/// `confirm`.
+pub fn extract_operator_strings(tree: &ParsedTree, source: &str) -> Vec<DocPassage> {
+    let mut out: Vec<DocPassage> = Vec::new();
+    let offsets = line_offsets(source);
+    match tree.language {
+        CodeLanguage::Rust => extract_rust_operator_strings(tree, source, &offsets, &mut out),
+        CodeLanguage::JavaScript | CodeLanguage::TypeScript | CodeLanguage::Tsx => {
+            extract_js_operator_strings(tree, source, &offsets, &mut out)
+        }
+    }
+    out.sort_by(|a, b| a.byte_start.cmp(&b.byte_start).then(a.text.cmp(&b.text)));
+    out.dedup_by(|a, b| a.byte_start == b.byte_start && a.byte_end == b.byte_end);
+    out
+}
+
+/// Push an OperatorString passage for a string-literal node (the literal text
+/// is stored with its surrounding quotes stripped; empty strings are skipped).
+fn push_operator_string(
+    out: &mut Vec<DocPassage>,
+    offsets: &[usize],
+    source: &str,
+    literal: &AstNode,
+) {
+    let Some(raw) = source.get(literal.start_byte..literal.end_byte) else {
+        return;
+    };
+    let text = strip_string_quotes(raw);
+    if text.trim().is_empty() {
+        return;
+    }
+    // Byte span is the literal itself (precise citation), not the whole line.
+    let _ = offsets; // line numbers come from the node's own 1-based lines.
+    out.push(DocPassage {
+        kind: DocPassageKind::OperatorString,
+        marker: None,
+        text: text.trim().to_string(),
+        start_line: literal.start_line,
+        end_line: literal.end_line,
+        byte_start: literal.start_byte,
+        byte_end: literal.end_byte,
+    });
+}
+
+/// Strip the surrounding quotes (and a Rust raw-string `r#"..."#` shell) from a
+/// string-literal slice. Best-effort: returns the inner text.
+fn strip_string_quotes(raw: &str) -> String {
+    let t = raw.trim();
+    // Rust raw string: r"...", r#"..."#, r##"..."## etc.
+    if let Some(rest) = t.strip_prefix('r') {
+        let hashes: String = rest.chars().take_while(|c| *c == '#').collect();
+        let inner = &rest[hashes.len()..];
+        if let Some(inner) = inner.strip_prefix('"') {
+            let close = format!("\"{hashes}");
+            if let Some(inner) = inner.strip_suffix(&close) {
+                return inner.to_string();
+            }
+        }
+    }
+    // Ordinary single/double/back quoted string.
+    for q in ['"', '\'', '`'] {
+        if t.starts_with(q) && t.ends_with(q) && t.len() >= 2 {
+            return t[1..t.len() - 1].to_string();
+        }
+    }
+    t.to_string()
+}
+
+fn extract_rust_operator_strings(
+    tree: &ParsedTree,
+    source: &str,
+    offsets: &[usize],
+    out: &mut Vec<DocPassage>,
+) {
+    for node in &tree.nodes {
+        if node.kind != "macro_invocation" {
+            continue;
+        }
+        // The macro name is the `macro` field / first identifier child.
+        let macro_name = tree
+            .child_field_text(node.index, "macro", source)
+            .or_else(|| {
+                tree.children_of(node.index)
+                    .find(|c| matches!(c.kind.as_str(), "identifier" | "scoped_identifier"))
+                    .and_then(|c| tree.node_text(c, source))
+            });
+        let Some(macro_name) = macro_name else {
+            continue;
+        };
+        // `log::info` / `tracing::warn` -> take the last path segment.
+        let simple = macro_name.rsplit("::").next().unwrap_or(macro_name);
+        if !RUST_STRING_SINKS.contains(&simple) {
+            continue;
+        }
+        // Pull every string_literal anywhere under this macro invocation.
+        for lit in descendants_of_kind(tree, node.index, &["string_literal", "raw_string_literal"])
+        {
+            push_operator_string(out, offsets, source, lit);
+        }
+    }
+}
+
+fn extract_js_operator_strings(
+    tree: &ParsedTree,
+    source: &str,
+    offsets: &[usize],
+    out: &mut Vec<DocPassage>,
+) {
+    for node in &tree.nodes {
+        if node.kind != "call_expression" {
+            continue;
+        }
+        let Some(callee) = tree
+            .children_of(node.index)
+            .find(|c| c.field_name.as_deref() == Some("function"))
+        else {
+            continue;
+        };
+        let is_sink = match callee.kind.as_str() {
+            // `console.log(...)` etc.
+            "member_expression" => {
+                let object = tree
+                    .child_field_text(callee.index, "object", source)
+                    .unwrap_or("");
+                JS_STRING_SINK_OBJECTS.contains(&object)
+            }
+            // bare `alert("...")`.
+            "identifier" => tree
+                .node_text(callee, source)
+                .map(|name| JS_STRING_SINK_FUNCS.contains(&name))
+                .unwrap_or(false),
+            _ => false,
+        };
+        if !is_sink {
+            continue;
+        }
+        // The argument list's string literals (string / template_string).
+        for lit in descendants_of_kind(
+            tree,
+            node.index,
+            &["string", "template_string", "string_fragment"],
+        ) {
+            // For a `string` node we want the node itself (quoted); for a
+            // template_string the whole backtick span. A string_fragment is the
+            // inner text of a template; skip it if its parent template_string is
+            // already captured to avoid double counting.
+            if lit.kind == "string_fragment" {
+                continue;
+            }
+            push_operator_string(out, offsets, source, lit);
+        }
+    }
+}
+
+/// All descendant nodes (any depth) of `ancestor_index` whose kind is in
+/// `kinds`. Walks the flattened node stream following the `parent` chain.
+fn descendants_of_kind<'a>(
+    tree: &'a ParsedTree,
+    ancestor_index: usize,
+    kinds: &'a [&'a str],
+) -> Vec<&'a AstNode> {
+    let mut out = Vec::new();
+    for node in &tree.nodes {
+        if !kinds.contains(&node.kind.as_str()) {
+            continue;
+        }
+        // Is `node` a descendant of `ancestor_index`?
+        let mut cur = node.parent;
+        while let Some(idx) = cur {
+            if idx == ancestor_index {
+                out.push(node);
+                break;
+            }
+            cur = tree.nodes[idx].parent;
+        }
+    }
     out
 }
 
@@ -381,5 +614,130 @@ mod tests {
         // "TODOLIST" is not a TODO marker.
         let src = "// TODOLIST is a variable name\nfn x() {}\n";
         assert!(extract_doc_passages(src).is_empty());
+    }
+
+    // -- MT-103 operator-facing string extraction (separate from markers) ------
+
+    use super::super::parser::CodeParserAdapter;
+
+    fn parse(lang: CodeLanguage, src: &str) -> ParsedTree {
+        CodeParserAdapter::new(lang).parse(src).expect("parse")
+    }
+
+    #[test]
+    fn rust_operator_strings_extracted_from_output_sinks() {
+        let src = r#"
+/// Doc comment, not an operator string.
+pub fn run() {
+    // TODO: not an operator string either
+    println!("Starting the export now");
+    let x = "plain binding not in a sink";
+    eprintln!("export failed for {}", path);
+    log::warn!("low disk space");
+}
+"#;
+        let tree = parse(CodeLanguage::Rust, src);
+        let strings = extract_operator_strings(&tree, src);
+        let texts: Vec<&str> = strings.iter().map(|p| p.text.as_str()).collect();
+        assert!(
+            texts.contains(&"Starting the export now"),
+            "println! string must be captured: {texts:?}"
+        );
+        assert!(
+            texts.iter().any(|t| t.contains("export failed for")),
+            "eprintln! string must be captured: {texts:?}"
+        );
+        assert!(
+            texts.contains(&"low disk space"),
+            "log::warn! string must be captured: {texts:?}"
+        );
+        // The plain binding string is NOT in an output sink -> not captured.
+        assert!(
+            !texts.contains(&"plain binding not in a sink"),
+            "a non-sink string must not be captured: {texts:?}"
+        );
+        // Every captured passage is the operator_string kind.
+        assert!(strings
+            .iter()
+            .all(|p| p.kind == DocPassageKind::OperatorString));
+    }
+
+    #[test]
+    fn operator_strings_are_separate_from_doc_and_todo_passages() {
+        // The CRUX of the MT-103 remediation: the SAME file's doc comment, TODO
+        // marker, and println! string land in THREE different passage streams /
+        // kinds, never conflated.
+        let src = r#"
+/// This is documentation.
+pub fn go() {
+    // TODO: wire the retry
+    println!("user sees this message");
+}
+"#;
+        let tree = parse(CodeLanguage::Rust, src);
+        let doc_passages = extract_doc_passages(src);
+        let operator_strings = extract_operator_strings(&tree, src);
+
+        // Doc passages contain the doc comment + the TODO, but NO operator string.
+        assert!(doc_passages
+            .iter()
+            .any(|p| p.kind == DocPassageKind::DocComment && p.text.contains("documentation")));
+        assert!(doc_passages
+            .iter()
+            .any(|p| p.kind == DocPassageKind::Todo && p.text.contains("wire the retry")));
+        assert!(
+            !doc_passages
+                .iter()
+                .any(|p| p.kind == DocPassageKind::OperatorString),
+            "the comment scanner must NOT emit operator strings"
+        );
+        assert!(
+            !doc_passages
+                .iter()
+                .any(|p| p.text.contains("user sees this message")),
+            "the println! string must not appear among doc/TODO passages"
+        );
+
+        // Operator strings contain ONLY the println! message, no doc/TODO text.
+        assert_eq!(operator_strings.len(), 1, "{operator_strings:?}");
+        assert_eq!(operator_strings[0].kind, DocPassageKind::OperatorString);
+        assert_eq!(operator_strings[0].text, "user sees this message");
+
+        // Their entity keys are distinct kinds, so the upsert never merges them.
+        let todo = doc_passages
+            .iter()
+            .find(|p| p.kind == DocPassageKind::Todo)
+            .unwrap();
+        assert_ne!(
+            todo.entity_key("src/lib.rs"),
+            operator_strings[0].entity_key("src/lib.rs"),
+            "operator-string and TODO passages must have distinct entity keys"
+        );
+        assert!(operator_strings[0]
+            .entity_key("src/lib.rs")
+            .contains("operator_string"));
+    }
+
+    #[test]
+    fn js_console_strings_extracted_as_operator_strings() {
+        let src = r#"
+// a comment
+function go() {
+  console.log("hello from the app");
+  console.error("something broke");
+  const unused = "not a sink string";
+  alert("popup message");
+}
+"#;
+        let tree = parse(CodeLanguage::JavaScript, src);
+        let strings = extract_operator_strings(&tree, src);
+        let texts: Vec<&str> = strings.iter().map(|p| p.text.as_str()).collect();
+        assert!(texts.contains(&"hello from the app"), "{texts:?}");
+        assert!(texts.contains(&"something broke"), "{texts:?}");
+        assert!(texts.contains(&"popup message"), "{texts:?}");
+        assert!(!texts.contains(&"not a sink string"), "{texts:?}");
+        assert!(strings
+            .iter()
+            .all(|p| p.kind == DocPassageKind::OperatorString));
     }
 }

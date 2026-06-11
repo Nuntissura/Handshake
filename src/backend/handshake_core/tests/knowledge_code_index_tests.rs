@@ -416,6 +416,116 @@ async fn mt103_doc_comment_indexed_as_documents_edge() {
     );
 }
 
+/// MT-103 V1 remediation: operator-facing string literals are indexed as their
+/// OWN concept entities (passage_kind `operator_string`), end-to-end in real
+/// PostgreSQL, SEPARATE from doc-comment and TODO concept entities. This is the
+/// "missing operator-facing string extraction coverage" the WP validator FAILed
+/// MT-103 on.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn mt103_operator_strings_indexed_separately_from_markers() {
+    let Some(pg) = knowledge_pg().await else {
+        eprintln!("SKIP mt103_operator_strings_indexed_separately_from_markers: no PostgreSQL");
+        return;
+    };
+    let workspace_id = pg.create_workspace().await;
+    let eng = engine(&pg).await;
+    let context = ctx();
+    let root = make_root(&pg, &workspace_id).await;
+
+    // One file carrying all three: a doc comment, a TODO marker, and a
+    // user-visible println! string.
+    let src = r#"
+/// Runs the export.
+pub fn run() {
+    // TODO: add a retry
+    println!("Export complete, files written");
+}
+"#;
+    let source_id = eng
+        .register_code_source(&workspace_id, Some(&root), "src/exp.rs", src)
+        .await
+        .expect("register");
+    eng.index_code_source(&context, &workspace_id, &source_id, "src/exp.rs", src, None)
+        .await
+        .expect("index");
+
+    // Concept entities of this workspace, partitioned by passage kind.
+    let concepts = pg
+        .db
+        .list_knowledge_entities_by_kind(&workspace_id, KnowledgeEntityKind::Concept)
+        .await
+        .expect("concepts");
+    let kind_of = |c: &handshake_core::storage::knowledge::KnowledgeEntity| -> Option<String> {
+        c.detection_provenance
+            .get("passage_kind")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string())
+    };
+
+    // The operator string is its OWN concept entity, keyed `...:operator_string`.
+    let op_string = concepts
+        .iter()
+        .find(|c| kind_of(c).as_deref() == Some("operator_string"))
+        .unwrap_or_else(|| {
+            panic!(
+                "an operator_string concept must be indexed; concepts: {:?}",
+                concepts
+                    .iter()
+                    .map(|c| (&c.entity_key, kind_of(c)))
+                    .collect::<Vec<_>>()
+            )
+        });
+    assert!(
+        op_string.entity_key.contains("operator_string"),
+        "operator-string concept key must carry its kind: {}",
+        op_string.entity_key
+    );
+    assert!(
+        op_string.display_name.contains("Export complete"),
+        "operator-string display must be the message: {}",
+        op_string.display_name
+    );
+
+    // It is DISTINCT from the doc-comment and TODO concept entities (separate
+    // rows, separate keys) — never merged into a marker/comment passage.
+    assert!(
+        concepts
+            .iter()
+            .any(|c| kind_of(c).as_deref() == Some("doc_comment")),
+        "the doc comment must still be its own concept"
+    );
+    assert!(
+        concepts
+            .iter()
+            .any(|c| kind_of(c).as_deref() == Some("todo")),
+        "the TODO must still be its own concept"
+    );
+    let op_keys: Vec<&String> = concepts
+        .iter()
+        .filter(|c| kind_of(c).as_deref() == Some("operator_string"))
+        .map(|c| &c.entity_key)
+        .collect();
+    let marker_keys: Vec<&String> = concepts
+        .iter()
+        .filter(|c| matches!(kind_of(c).as_deref(), Some("doc_comment") | Some("todo")))
+        .map(|c| &c.entity_key)
+        .collect();
+    for ok in &op_keys {
+        assert!(
+            !marker_keys.contains(ok),
+            "operator-string key {ok} must not collide with any marker/comment key"
+        );
+    }
+
+    // The operator string is anchored to a `text` span (citeable evidence).
+    let op_span_ids = pg
+        .db
+        .list_knowledge_entity_span_ids(&op_string.entity_id)
+        .await
+        .expect("op span ids");
+    assert!(!op_span_ids.is_empty(), "operator string must cite a span");
+}
+
 // ---------------------------------------------------------------------------
 // MT-108: a single unparseable file does NOT fail the run.
 // ---------------------------------------------------------------------------
