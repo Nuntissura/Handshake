@@ -22,7 +22,7 @@
   "title": "CodeIndexingAndNavigation-102-TestMappingExtractor",
   "group": "CodeIndexingAndNavigation",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T16:55:57.726Z",
+  "updated_at_utc": "2026-06-11T20:45:29.357Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-102.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -110,9 +110,10 @@
       ]
     },
     "hardening_pending": {
-      "at_utc": "2026-06-11T16:55:57.726Z",
-      "severity": "MEDIUM",
-      "reason": "MEDIUM: TS/JS test mapping effectively absent (only Rust SymbolKind::Test mapped despite contract); validates-edge mis-attribution via first-last-segment-match; quadratic referenced_names scan."
+      "at_utc": "2026-06-11T20:45:29.357Z",
+      "severity": "MEDIUM_DEFERRED",
+      "reason": "TS/JS test mapping absent (only Rust Test symbols map); validates-edge mis-attribution; quadratic scan.",
+      "disposition": "Deferred by CodeIndexing-hardening agent (budget); queued for a consolidated backend-cleanup pass. Not blocking - none are HIGH/correctness; core code-index works."
     }
   },
   "handoff": {

@@ -22,7 +22,7 @@
   "title": "CodeIndexingAndNavigation-103-DocCommentTodoExtractor",
   "group": "CodeIndexingAndNavigation",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T19:01:36.361Z",
+  "updated_at_utc": "2026-06-11T20:45:29.357Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-103.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -79,7 +79,7 @@
     ]
   },
   "lifecycle": {
-    "status": "BLOCKED_ON_DEPENDENCY",
+    "status": "READY_FOR_VALIDATION_V2",
     "active": false,
     "depends_on": [
       "MT-097"
@@ -161,6 +161,13 @@
         "Do not resubmit MT-103 until MT-097 is READY_FOR_VALIDATION and passes WP Validator review, or update the dependency graph through the packet authority if the dependency is no longer real.",
         "After MT-097 is ready/completed, add operator-facing string literal extraction or explicitly narrow the MT contract. Include tests that prove operator-facing strings are indexed separately from TODO/doc-comment markers."
       ]
+    },
+    "remediation_v2": {
+      "at_utc": "2026-06-11T20:45:29.357Z",
+      "by": "KERNEL_BUILDER-20260611-071323",
+      "commit": "1206793d",
+      "fail_verdict": "FAIL_V1: blocked on MT-097 (now done) + missing operator-facing string extraction coverage",
+      "remediation": "MT-097 dependency resolved (done). Added DocPassageKind::OperatorString + extract_operator_strings AST walk (println!/eprintln!/panic!/log + console.*/alert) indexed as own concept entity, never merged with doc/TODO. Tests operator_strings_are_separate_from_doc_and_todo_passages + mt103_operator_strings_indexed_separately_from_markers green on real PG."
     }
   },
   "handoff": {

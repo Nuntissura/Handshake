@@ -22,7 +22,7 @@
   "title": "CodeIndexingAndNavigation-105-ScipLspImportBoundary",
   "group": "CodeIndexingAndNavigation",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T16:55:57.726Z",
+  "updated_at_utc": "2026-06-11T20:45:29.357Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-105.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -79,7 +79,7 @@
     ]
   },
   "lifecycle": {
-    "status": "CLAIMED",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-097"
@@ -111,11 +111,16 @@
         "src/backend/handshake_core/src/knowledge_code_index/engine.rs:1091-1115 read_and_index (fs_anchor.join sink for relative_path)"
       ]
     },
-    "hardening_pending": {
-      "at_utc": "2026-06-11T16:55:57.726Z",
-      "severity": "HIGH_ISH",
-      "reason": "HIGH-ish: SCIP path traversal NOT blocked (../ and ./.. segments pass validate); unbounded memory (no size/count cap on artifact); documented occurrence->declared-symbol invariant not enforced."
-    }
+    "ready_by": "KERNEL_BUILDER-20260611-071323",
+    "ready_for_validation_at_utc": "2026-06-11T20:45:29.357Z",
+    "hardening_closed": {
+      "at_utc": "2026-06-11T20:45:29.357Z",
+      "commit": "575fcffd",
+      "note": "Adversarial finding fixed + real-PG/unit test green (knowledge_code_index_tests 13 + nav_api 2 + 59 unit, 0 fail)."
+    },
+    "evidence": [
+      "Hardened 575fcffd: SCIP validate rejects ../ and . segments; 64MiB byte cap + doc/symbol/occurrence count caps; occurrence->declared-symbol invariant enforced."
+    ]
   },
   "handoff": {
     "coder_session": null,

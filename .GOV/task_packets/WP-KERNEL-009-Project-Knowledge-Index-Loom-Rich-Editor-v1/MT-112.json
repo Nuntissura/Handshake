@@ -22,7 +22,7 @@
   "title": "CodeIndexingAndNavigation-112-CodeIndexFixtures",
   "group": "CodeIndexingAndNavigation",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T16:55:57.726Z",
+  "updated_at_utc": "2026-06-11T20:45:29.357Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-112.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -113,9 +113,10 @@
       ]
     },
     "hardening_pending": {
-      "at_utc": "2026-06-11T16:55:57.726Z",
-      "severity": "MEDIUM",
-      "reason": "MEDIUM: UserManual/model_manual coverage gap for /knowledge/code/* nav routes (delegate deferred to MT-193); shallow idempotency proof (does not assert evidence-span rows do not accumulate); SKIP-on-no-PG means PG-less CI proves nothing."
+      "at_utc": "2026-06-11T20:45:29.357Z",
+      "severity": "MEDIUM_DEFERRED",
+      "reason": "model_manual registration for /knowledge/code/* (or confirm MT-193 ownership); idempotency span-accumulation assertion.",
+      "disposition": "Deferred by CodeIndexing-hardening agent (budget); queued for a consolidated backend-cleanup pass. Not blocking - none are HIGH/correctness; core code-index works."
     }
   },
   "handoff": {

@@ -22,7 +22,7 @@
   "title": "CodeIndexingAndNavigation-108-CodeIndexPartialFailureHandling",
   "group": "CodeIndexingAndNavigation",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T16:55:57.726Z",
+  "updated_at_utc": "2026-06-11T20:45:29.357Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-108.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -79,7 +79,7 @@
     ]
   },
   "lifecycle": {
-    "status": "CLAIMED",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-097"
@@ -111,11 +111,16 @@
         "grep repair_queue across knowledge_code_index/** -> only docstrings, zero implementation"
       ]
     },
-    "hardening_pending": {
-      "at_utc": "2026-06-11T16:55:57.726Z",
-      "severity": "HIGH",
-      "reason": "HIGH: repair-queue NOT IMPLEMENTED but presented as delivered (record_parse_failure has no queue integration - overclaim/scaffold violation); only CodeParseError caught not Io (binary/non-UTF8 bypass); no catch_unwind around tree-sitter FFI."
-    }
+    "ready_by": "KERNEL_BUILDER-20260611-071323",
+    "ready_for_validation_at_utc": "2026-06-11T20:45:29.357Z",
+    "hardening_closed": {
+      "at_utc": "2026-06-11T20:45:29.357Z",
+      "commit": "cf1b690d",
+      "note": "Adversarial finding fixed + real-PG/unit test green (knowledge_code_index_tests 13 + nav_api 2 + 59 unit, 0 fail)."
+    },
+    "evidence": [
+      "Hardened cf1b690d: Real durable knowledge_code_repair_queue (migration 0230) with enqueue/refresh/reopen/resolve; Io/non-UTF-8 + tree-sitter panic recorded not aborting; false repair-queue claim now true."
+    ]
   },
   "handoff": {
     "coder_session": null,
