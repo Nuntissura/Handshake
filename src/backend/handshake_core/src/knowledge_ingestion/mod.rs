@@ -57,6 +57,7 @@
 //!   external OCR, import the produced transcript artifact instead.
 
 pub mod allowlist;
+pub mod kinds;
 
 use crate::storage::StorageError;
 use thiserror::Error;
