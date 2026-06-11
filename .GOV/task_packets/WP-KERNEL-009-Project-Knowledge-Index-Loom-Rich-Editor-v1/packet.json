@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
   "base_wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T17:29:19.644Z",
+  "updated_at_utc": "2026-06-11T17:34:39.272Z",
   "authority_files": {
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json",
     "refinement_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/refinement.json",
@@ -203,7 +203,29 @@
         "MEDIUM MT-112: register /knowledge/code/* in model_manual (or confirm MT-193 ownership); strengthen idempotency test to assert no evidence-span accumulation; flag the PG-less-CI SKIP gap."
       ],
       "note": "MT-104 relationship_id collision auto-fixed by storage MT-054 _v2 derivation."
-    }
+    },
+    "crdt_hardening_status": {
+      "at_utc": "2026-06-11T17:34:39.272Z",
+      "state": "AUTHORED_UNCOMMITTED_UNVERIFIED",
+      "detail": "CRDT-hardening agent authored the 7-item fix (uncommitted WIP: kernel/crdt/{claim_promotion,recovery_receipt,agent_lease(see save_semantics/graph_proposal/ai_edit_proposal),save_semantics}.rs, storage/knowledge_crdt.rs, migrations 0190/0191/0192 + 0152/0153 comment fixes, crdt tests) but ran out of budget waiting on slow test-compiles without committing or verifying. A CRDT-hardening-RESUME must adopt this WIP, verify (compile + run the negative tests), and commit per-MT. Authoring is done; only verify+commit remains.",
+      "affected_mts": [
+        "MT-068",
+        "MT-069",
+        "MT-074",
+        "MT-076",
+        "MT-077",
+        "MT-079",
+        "MT-080"
+      ]
+    },
+    "systemic_findings": [
+      {
+        "id": "SYS-001",
+        "at_utc": "2026-06-11T17:34:39.272Z",
+        "finding": "This crate's test-compiles take 10-20+ min each; concurrent sub-agents sharing one Cargo target-dir thrash the incremental cache so every compile is near-full, burning agent budget before verify+commit completes. Three agents (CRDT-hardening, ingestion-hardening, CodeIndexing-review) hit limits/529 mid-verify.",
+        "mitigation": "Reduce concurrency to 2-3 agents max going forward (warmer cache = faster incremental compiles). Have agents compile once (cargo test --no-run for all their targets together) then run. For authored-but-stuck WIP, the main loop can verify+commit via background tasks (not budget-bound the way sub-agents are)."
+      }
+    ]
   },
   "scope": {
     "summary": "Build the Handshake Project Knowledge Index, native memory/claims system, retrieval+context bundles, Tiptap/ProseMirror rich document editor with embedded Monaco code editing, Loom/Obsidian-replacement navigation (backlinks, graphs, tags, folders, pins, wiki projections), UserManual migration, parallel-swarm backend navigation/state recovery, and security/portability validation fixtures as one integrated PostgreSQL/EventLedger-backed product foundation that replaces VS Code and Obsidian for operator knowledge/editing workflows.",
