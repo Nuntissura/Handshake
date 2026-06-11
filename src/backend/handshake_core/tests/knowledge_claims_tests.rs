@@ -209,6 +209,148 @@ mod mt_056_claims {
         assert!(matches!(err, StorageError::Conflict(_)), "got {err:?}");
     }
 
+    /// HARDENING (MT-056): the four-state lifecycle MUST hold at the DB layer,
+    /// not only inside transition_knowledge_claim. A raw
+    /// `UPDATE ... SET lifecycle_state='accepted', retirement_reason=NULL
+    ///  WHERE lifecycle_state='retired'` is a legal SHAPE (the 0137 CHECKs pass)
+    /// and previously resurrected a terminal-retired claim by bypassing the app
+    /// method. The 0200 BEFORE UPDATE trigger must refuse it. This test drives
+    /// raw SQL (NOT the app method) to prove the DB itself is the guard.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn db_blocks_retired_to_accepted_resurrection_via_raw_sql() {
+        let Some(pg) = knowledge_pg().await else {
+            eprintln!("SKIP db_blocks_retired_to_accepted_resurrection_via_raw_sql: no PostgreSQL");
+            return;
+        };
+        let (workspace_id, _source_id, span_id) = span_fixture(&pg).await;
+
+        // Create + retire a claim through the normal app path.
+        let created = pg
+            .db
+            .create_knowledge_claim(claim(
+                &workspace_id,
+                "a retired claim that must stay retired",
+                vec![span_id.clone()],
+            ))
+            .await
+            .expect("create claim");
+        let retired = pg
+            .db
+            .transition_knowledge_claim(
+                &created.claim_id,
+                KnowledgeClaimState::Retired,
+                Some(KnowledgeClaimRetirement {
+                    reason: KnowledgeClaimRetirementReason::OperatorRetired,
+                    superseded_by_claim_id: None,
+                }),
+                None,
+            )
+            .await
+            .expect("retire claim");
+        assert_eq!(retired.lifecycle_state, KnowledgeClaimState::Retired);
+
+        let mut conn = pg.raw_connection().await;
+
+        // THE ATTACK: raw resurrection that satisfies every CHECK
+        // (accepted + NULL reason is a valid shape). The DB must refuse it via
+        // the transition-guard trigger, not just the app method.
+        let err = sqlx::query(
+            "UPDATE knowledge_claims
+                 SET lifecycle_state = 'accepted', retirement_reason = NULL
+             WHERE claim_id = $1",
+        )
+        .bind(&retired.claim_id)
+        .execute(&mut conn)
+        .await
+        .expect_err("DB must block retired -> accepted (terminal retired)");
+        assert!(
+            err.to_string().contains("retired is terminal"),
+            "unexpected error (expected transition-guard refusal): {err}"
+        );
+
+        // The row is unchanged on disk: still retired, reason intact.
+        let still = pg
+            .db
+            .get_knowledge_claim(&retired.claim_id)
+            .await
+            .expect("get claim")
+            .expect("claim exists");
+        assert_eq!(
+            still.lifecycle_state,
+            KnowledgeClaimState::Retired,
+            "blocked update must not have mutated the row"
+        );
+        assert_eq!(
+            still.retirement_reason,
+            Some(KnowledgeClaimRetirementReason::OperatorRetired)
+        );
+
+        // The guard blocks lifecycle MOVEMENT, not metadata updates: a raw
+        // metadata-only UPDATE on the same retired row (no lifecycle change)
+        // still succeeds, so the trigger is not over-broad.
+        sqlx::query("UPDATE knowledge_claims SET confidence = 0.123 WHERE claim_id = $1")
+            .bind(&retired.claim_id)
+            .execute(&mut conn)
+            .await
+            .expect("metadata-only update on a retired row must still succeed");
+
+        // And an ILLEGAL non-terminal jump (proposed -> retired is legal, but
+        // e.g. a fabricated proposed -> stale is not a state at all; test a real
+        // illegal pair: accepted -> proposed) is also refused by the guard.
+        let live = pg
+            .db
+            .create_knowledge_claim(claim(
+                &workspace_id,
+                "a live claim for the backward-transition probe",
+                vec![span_id.clone()],
+            ))
+            .await
+            .expect("create live claim");
+        let suffix = Uuid::now_v7();
+        let receipt = pg
+            .db
+            .append_kernel_event(
+                NewKernelEvent::builder(
+                    format!("KTR-GUARD-{suffix}"),
+                    format!("SR-GUARD-{suffix}"),
+                    KernelEventType::ValidationRecorded,
+                    KernelActor::ValidationRunner("guard-test".to_string()),
+                )
+                .aggregate("knowledge_claim", live.claim_id.clone())
+                .idempotency_key(format!("idem-guard-accept-{suffix}"))
+                .payload(json!({"verdict": "accepted"}))
+                .build()
+                .expect("event"),
+            )
+            .await
+            .expect("append receipt");
+        let accepted = pg
+            .db
+            .transition_knowledge_claim(
+                &live.claim_id,
+                KnowledgeClaimState::Accepted,
+                None,
+                Some(&receipt.event_id),
+            )
+            .await
+            .expect("accept live claim");
+        assert_eq!(accepted.lifecycle_state, KnowledgeClaimState::Accepted);
+
+        // Raw backward jump accepted -> proposed: not in the legal table.
+        let err = sqlx::query(
+            "UPDATE knowledge_claims SET lifecycle_state = 'proposed'
+             WHERE claim_id = $1",
+        )
+        .bind(&accepted.claim_id)
+        .execute(&mut conn)
+        .await
+        .expect_err("DB must block accepted -> proposed (illegal transition)");
+        assert!(
+            err.to_string().contains("illegal lifecycle transition"),
+            "unexpected error (expected illegal-transition refusal): {err}"
+        );
+    }
+
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn claims_require_evidence_at_every_layer() {
         let Some(pg) = knowledge_pg().await else {
