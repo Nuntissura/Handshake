@@ -807,6 +807,9 @@ pub mod diagnostics_validation_matrix_kind {
     /// automation, focus steal, direct LLM execution, unbounded synthetic
     /// input). Rows of this kind MUST state a negative invariant.
     pub const RED_TEAM_AUTOMATION_AUTHORITY: &str = "MT-182.red-team-automation-authority";
+    /// MT-194: reset/orphan validation matrix (rows persisted by the
+    /// DCC/Flight-Recorder lane in `super::dcc_flight_recorder`).
+    pub const RESET_ORPHAN: &str = "MT-194.reset-orphan";
     /// MT-195: stale README/spec detection + path portability (reject
     /// drive-letter / user-profile paths).
     pub const STALE_SOURCE_PATH_PORTABILITY: &str = "MT-195.stale-source-path-portability";
@@ -824,6 +827,7 @@ pub mod diagnostics_validation_matrix_kind {
         BUILD_PACKAGE,
         SYNTHETIC_INPUT_PARALLEL_COORDINATION,
         RED_TEAM_AUTOMATION_AUTHORITY,
+        RESET_ORPHAN,
         STALE_SOURCE_PATH_PORTABILITY,
     ];
 }
@@ -1549,8 +1553,8 @@ impl AtelierStore {
 //
 // These are TYPED RUNTIME surfaces (PostgreSQL rows + EventLedger events), never
 // governance markdown. Tables are created by migration
-// `0115_atelier_diagnostics_projections.sql` (not yet wired into ensure_schema;
-// the orchestrator wires it after this MT lands). Storage authority is
+// `0115_atelier_diagnostics_projections.sql` (wired into
+// `AtelierStore::ensure_schema`). Storage authority is
 // PostgreSQL only (AtelierStore::pool()); SQLite is forbidden (MT-004).
 // ===========================================================================
 

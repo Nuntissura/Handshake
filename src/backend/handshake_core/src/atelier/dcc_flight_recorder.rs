@@ -234,12 +234,12 @@ fn validate_fr_workflow_event(new: &NewFrWorkflowEvent) -> AtelierResult<()> {
 
 /// Matrix kind for the MT-194 reset/orphan diagnostics validation rows.
 ///
-/// Extends the MT-171..175 [`super::state_probe::diagnostics_validation_matrix_kind`]
-/// vocabulary; declared here because `state_probe.rs` is owned by another
-/// microtask lane.
+/// Re-exports the canonical constant from
+/// [`super::state_probe::diagnostics_validation_matrix_kind`] so the two
+/// lanes can never drift apart on the kind string.
 pub mod reset_orphan_validation_matrix_kind {
     /// MT-194: reset and orphan diagnostics.
-    pub const RESET_ORPHAN: &str = "MT-194.reset-orphan";
+    pub use super::super::state_probe::diagnostics_validation_matrix_kind::RESET_ORPHAN;
 }
 
 /// One helper to build a COVERED MT-194 row that cites a real product module.
