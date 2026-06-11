@@ -183,6 +183,11 @@ pub mod knowledge_code_index;
 /// receipts, ingestion spans, and a durable repair queue.
 #[cfg(feature = "runtime-full")]
 pub mod knowledge_ingestion;
+/// WP-KERNEL-009 MemoryGraphAndClaims (MT-113..MT-128): the Handshake-native
+/// memory ontology / fact / passage / claim-graph layer of the
+/// ProjectKnowledgeIndex, built on the committed knowledge substrate.
+#[cfg(feature = "runtime-full")]
+pub mod knowledge_memory;
 #[cfg(feature = "runtime-full")]
 pub mod llm;
 #[cfg(feature = "runtime-full")]

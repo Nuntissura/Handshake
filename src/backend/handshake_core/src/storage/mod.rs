@@ -22,6 +22,7 @@ pub mod calendar;
 pub mod kb003_storage;
 pub mod knowledge;
 pub mod knowledge_crdt;
+pub mod knowledge_memory;
 pub mod loom;
 pub mod postgres;
 pub mod retention;
