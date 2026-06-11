@@ -72,6 +72,15 @@ vi.mock("./lib/api", () => ({
     edges: [],
   })),
   getEvents: vi.fn(async () => []),
+  // WP-KERNEL-005: AtelierPanel is wired into the CKC module pane and fetches
+  // on mount; the explicit mock factory must cover its api surface or the
+  // unmocked call throws inside the mount effect.
+  getAtelierOverview: vi.fn(async () => ({ tables: [], event_families: [] })),
+  getAtelierIntakeItems: vi.fn(async () => ({ batch: null, items: [] })),
+  listAtelierCommandCorpus: vi.fn(async () => []),
+  listAtelierIntakeBatches: vi.fn(async () => []),
+  listAtelierStealthWindows: vi.fn(async () => []),
+  openAtelierIntakeBatch: vi.fn(async () => ({})),
   getKernelDccProjection: vi.fn(async () => ({
     schema_id: "hsk.kernel.dcc_mvp_runtime_surface@1",
     surface_id: "dcc-app-backend-test",
@@ -343,6 +352,11 @@ it("switches module context and keeps pane context wired", async () => {
   fireEvent.click(screen.getByTestId("module-ckc"));
   expect(mainWindow).toHaveAttribute("data-active-module", "CKC");
 
+  // WP-KERNEL-005: the CKC module pane defaults to the Handshake-native
+  // Atelier surface; the Kernel DCC projection stays reachable as a pane tab.
+  expect(screen.getByTestId("pane-pane-a").getAttribute("data-pane-type")).toBe("atelier");
+
+  fireEvent.click(await screen.findByTestId("pane-pane-a.tab.kernel-dcc"));
   expect(screen.getByTestId("pane-pane-a").getAttribute("data-pane-type")).toBe("kernel-dcc");
 });
 
@@ -411,6 +425,9 @@ it("loads the backend Kernel DCC projection when module pane is set to CKC", asy
   fireEvent.click(screen.getByTestId("module-ckc"));
 
   expect(screen.getByTestId("main-window")).toHaveAttribute("data-active-module", "CKC");
+  // WP-KERNEL-005: CKC defaults to the Atelier tab; select the Kernel DCC tab
+  // explicitly before asserting the projection loads.
+  fireEvent.click(await screen.findByTestId("pane-pane-a.tab.kernel-dcc"));
   expect((await screen.findAllByText("work-app-backend-123")).length).toBeGreaterThan(0);
   expect(screen.getByText("panel-app-backend-test")).toBeInTheDocument();
   expect(screen.getAllByText("wb-app-backend").length).toBeGreaterThan(0);

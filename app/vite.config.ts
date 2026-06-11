@@ -11,6 +11,9 @@ export default defineConfig(async () => ({
     environment: "jsdom",
     globals: true,
     setupFiles: "./src/setupTests.ts",
+    // tests/ holds Playwright specs (run via `pnpm test:visual` with
+    // playwright.atelier.config.ts); vitest must not collect them.
+    exclude: ["**/node_modules/**", "**/dist/**", "tests/**"],
   },
 
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
