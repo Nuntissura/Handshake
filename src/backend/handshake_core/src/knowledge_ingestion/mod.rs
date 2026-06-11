@@ -58,6 +58,7 @@
 
 pub mod allowlist;
 pub mod kinds;
+pub mod paths;
 
 use crate::storage::StorageError;
 use thiserror::Error;
