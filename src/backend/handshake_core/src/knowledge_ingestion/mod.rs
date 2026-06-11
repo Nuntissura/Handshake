@@ -65,6 +65,7 @@ pub mod notes;
 pub mod paths;
 pub mod pdf;
 pub mod receipts;
+pub mod repair;
 pub mod secrets;
 pub mod spans;
 pub mod transcripts;
