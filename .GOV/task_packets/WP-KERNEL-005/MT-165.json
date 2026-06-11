@@ -33,11 +33,11 @@
     "depends_on": [
       "MT-164"
     ],
-    "status": "NEEDS_MANAGED_RESOURCE_PROOF",
-    "validator_verdict": "FAIL",
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "PENDING",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
-    "ready_for_validation_at_utc": "2026-06-05T05:24:25.192Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "ready_for_validation_at_utc": "2026-06-11T03:05:50.294Z",
+    "ready_by": "KB-KERNEL-005-V3-REMEDIATION",
     "integration_validation_v2": {
       "verdict": "FAIL",
       "round": "v2",
@@ -49,7 +49,8 @@
       "fail_category": "PROOF_IN_MEMORY_ONLY",
       "gap": "Redaction/tarball logic is real (regex secret scan, per-artifact redaction before embedding), but TraceSource has NO production impl and RetrievalTraceExporter has ZERO non-test callers; proof loads traces/artifacts from in-memory stubs only — never the real ArtifactStore.",
       "evidence": "src/memory/trace_export.rs:233-303 real export + artifact redaction; redact via regex secret_re() line 390-392; grep: impl TraceSource only at trace_export.rs:594/744/792/815 (all #[cfg(test)] stubs); RetrievalTraceExporter::new appears only inside trace_export.rs test module (664-759), no src/ or app/ production caller; tests/trace_export_tests.rs:53-86 FixedSource mock."
-    }
+    },
+    "ready_for_validation_v3": true
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.333Z",
@@ -86,11 +87,11 @@
     ],
     "forbidden_paths": [],
     "proof_targets": [
-      "cargo test + runtime proof vs PostgreSQL/EventLedger"
+      "cargo test --test atelier_trace_export_postgres_tests (managed PostgreSQL + EventLedger; TraceSource persistence + redaction interplay)"
     ],
     "risk_if_missed": "CKC parity loss for Package And Release Diagnostics",
     "summary": "MT-165 [Model-Workflow-Diagnostics] Package And Release Diagnostics -- Preserve package/release evidence (stage/artifacts root, build id, version/tag, clean-repo and asset-path guards) without hardcoding machine-local paths."
   },
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-06-11T03:05:50.294Z",
   "wp_id": "WP-KERNEL-005"
 }

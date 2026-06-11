@@ -33,11 +33,11 @@
     "depends_on": [
       "MT-001"
     ],
-    "status": "VALIDATED_V2_WITH_CONCERN",
-    "validator_verdict": "PASS_WITH_CONCERN",
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "PENDING",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
-    "ready_for_validation_at_utc": "2026-06-05T05:02:18.919Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "ready_for_validation_at_utc": "2026-06-11T03:05:50.294Z",
+    "ready_by": "KB-KERNEL-005-V3-REMEDIATION",
     "integration_validation_v2": {
       "verdict": "PASS_WITH_CONCERN",
       "round": "v2",
@@ -49,7 +49,8 @@
       "fail_category": null,
       "gap": null,
       "evidence": "source_evidence.rs:233-276 anchor rows + validate_matrix:962 rejects VERIFIED anchors with empty verified_product_paths and BLOCKED without reason; tests/atelier_source_evidence_tests.rs:121 asserts MT-018 anchor VERIFIED+round-trips, :565 negative tests reject candidate/empty-verified/missing-reason. Non-blocking: 'VERIFIED' only proves cited file exists (assert_source_tree_ref_exists), not that the module implements the claimed Core/Data behavior"
-    }
+    },
+    "ready_for_validation_v3": true
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.205Z",
@@ -88,6 +89,6 @@
     "risk_if_missed": "CKC parity loss for Product Anchor Verification",
     "summary": "MT-002 [Core-Data-Intake] Product Anchor Verification -- Verify actual Handshake product files/modules that will receive Core/Data behavior, replacing candidate names with verified paths or BLOCKED_MISSING_ANCHOR."
   },
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-06-11T03:05:50.294Z",
   "wp_id": "WP-KERNEL-005"
 }

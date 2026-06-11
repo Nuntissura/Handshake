@@ -33,11 +33,11 @@
     "depends_on": [
       "MT-148"
     ],
-    "status": "NEEDS_MANAGED_RESOURCE_PROOF",
-    "validator_verdict": "FAIL",
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "PENDING",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
-    "ready_for_validation_at_utc": "2026-06-05T05:22:09.369Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "ready_for_validation_at_utc": "2026-06-11T03:05:50.294Z",
+    "ready_by": "KB-KERNEL-005-V3-REMEDIATION",
     "integration_validation_v2": {
       "verdict": "FAIL",
       "round": "v2",
@@ -49,7 +49,8 @@
       "fail_category": "PROOF_IN_MEMORY_ONLY",
       "gap": "EditableSurface providers have NO production wiring; ModelManualSurface/RetrievalPolicySurface are constructed only with in-memory test closures and the integration test asserts hardcoded action_id/write_box_schema_id constants it supplies itself, never touching the real ModelManual surface or PG policy table.",
       "evidence": "src/self_improve/editable_surface.rs:183-296 (closure-injected read/write); grep shows ModelManualSurface::new/RetrievalPolicySurface::new only at editable_surface.rs:560-639 (tests); tests/editable_surface_tests.rs:53-57 + 192-245 record test-authored MODEL_MANUAL_ACTION_ID/WRITE_BOX constants, comment lines 18-22 say it does not 'drag the entire catalog dispatcher in'."
-    }
+    },
+    "ready_for_validation_v3": true
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.321Z",
@@ -86,8 +87,9 @@
       "cargo test + runtime proof vs PostgreSQL/EventLedger"
     ],
     "risk_if_missed": "CKC parity loss for Flight Recorder Session And Command Events",
-    "summary": "MT-149 [Model-Workflow-Diagnostics] Flight Recorder Session And Command Events -- Define Flight Recorder event families for session lifecycle and command lifecycle only."
+    "summary": "MT-149 [Model-Workflow-Diagnostics] Flight Recorder Session And Command Events -- Define Flight Recorder event families for session lifecycle and command lifecycle only.",
+    "v3_correction": "v3 correction: the original scope.summary/acceptance text (\"Flight Recorder Session And Command Events\") is mis-labelled; the validated deliverable per integration_validation_v2 and the v3 remediation playbook is the EditableSurface providers production wiring (src/atelier/editable_surface_authority.rs, pg_model_manual_surface / pg_retrieval_policy_surface, proven by atelier_editable_surface_authority_tests)."
   },
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-06-11T03:05:50.294Z",
   "wp_id": "WP-KERNEL-005"
 }

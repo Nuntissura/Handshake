@@ -33,11 +33,11 @@
     "depends_on": [
       "MT-122"
     ],
-    "status": "VALIDATED_V2_WITH_CONCERN",
-    "validator_verdict": "PASS_WITH_CONCERN",
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "PENDING",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
-    "ready_for_validation_at_utc": "2026-06-05T05:18:36.431Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "ready_for_validation_at_utc": "2026-06-11T03:05:50.294Z",
+    "ready_by": "KB-KERNEL-005-V3-REMEDIATION",
     "integration_validation_v2": {
       "verdict": "PASS_WITH_CONCERN",
       "round": "v2",
@@ -49,7 +49,8 @@
       "fail_category": null,
       "gap": null,
       "evidence": "model_manual_tests.rs:514-527 full 7-command set for atelier_pose_sidecar_and_identity with exact-count guard; rows back to real pose.rs methods (record_pose_sidecar, append_identity_profile). Static-data proof only; no AtelierStore::pool()/EventLedger touch despite proof_target."
-    }
+    },
+    "ready_for_validation_v3": true
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.300Z",
@@ -92,6 +93,6 @@
     "risk_if_missed": "CKC parity loss for OpenPose Sidecar And Identity Manual Source Rows",
     "summary": "MT-123 [Pose-ComfyUI-Pipeline] OpenPose Sidecar And Identity Manual Source Rows -- Provide Diagnostics manual/command rows for OpenPose sidecars and identity profiles (export JSON/PNG, sidecar links, hide from gallery, identity CRUD, crop metadata, lineage)."
   },
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-06-11T03:05:50.294Z",
   "wp_id": "WP-KERNEL-005"
 }

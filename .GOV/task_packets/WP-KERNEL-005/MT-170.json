@@ -33,11 +33,11 @@
     "depends_on": [
       "MT-169"
     ],
-    "status": "NEEDS_MANAGED_RESOURCE_PROOF",
-    "validator_verdict": "FAIL",
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "PENDING",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
-    "ready_for_validation_at_utc": "2026-06-05T05:25:09.775Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "ready_for_validation_at_utc": "2026-06-11T03:05:50.294Z",
+    "ready_by": "KB-KERNEL-005-V3-REMEDIATION",
     "integration_validation_v2": {
       "verdict": "FAIL",
       "round": "v2",
@@ -49,7 +49,8 @@
       "fail_category": "PROOF_IN_MEMORY_ONLY",
       "gap": "The operator-review pause invariant (apply_proposal must not run while ticket Pending/Rejected) is real and well-asserted, but the whole e2e runs against a mock gate and an in-memory EditableSurfaceProvider; no real PromotionGate/PG is exercised, so the 'managed resource' claim is unproven.",
       "evidence": "tests/promotion_gate_pause_e2e_tests.rs:292-308 mock promote writes to a RefCell value; 454 + 723 assert apply_count==0 invariant; sample_request/eval_result fixtures lines 315-369 are synthetic; grep confirms zero PgPool/sqlx/AtelierStore in the file; PromotionGateSubmitter still has no production impl (see MT-154)."
-    }
+    },
+    "ready_for_validation_v3": true
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.337Z",
@@ -83,11 +84,11 @@
     ],
     "forbidden_paths": [],
     "proof_targets": [
-      "cargo test + runtime proof vs PostgreSQL/EventLedger"
+      "cargo test --test atelier_promotion_pause_postgres_tests (managed PostgreSQL + EventLedger; persisted operator-review pause blocks progression)"
     ],
     "risk_if_missed": "CKC parity loss for Parallel Model Coordination View",
     "summary": "MT-170 [Model-Workflow-Diagnostics] Parallel Model Coordination View -- Make parallel model actions observable/attributable/recoverable/conflict-aware via coordination projection."
   },
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-06-11T03:05:50.294Z",
   "wp_id": "WP-KERNEL-005"
 }

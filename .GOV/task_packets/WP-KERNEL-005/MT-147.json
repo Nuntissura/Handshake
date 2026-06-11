@@ -33,11 +33,11 @@
     "depends_on": [
       "MT-146"
     ],
-    "status": "VALIDATED_V2_WITH_CONCERN",
-    "validator_verdict": "PASS_WITH_CONCERN",
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "PENDING",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
-    "ready_for_validation_at_utc": "2026-06-05T05:21:51.688Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "ready_for_validation_at_utc": "2026-06-11T03:05:50.294Z",
+    "ready_by": "KB-KERNEL-005-V3-REMEDIATION",
     "integration_validation_v2": {
       "verdict": "PASS_WITH_CONCERN",
       "round": "v2",
@@ -49,7 +49,8 @@
       "fail_category": null,
       "gap": null,
       "evidence": "state_probe.rs:1556-1602 (record_work_state_projection: real PG upsert + in-tx WORK_STATE_PROJECTION_RECORDED event); migration 0115 wired at mod.rs:2107; event family folded into ALL at mod.rs:278. CONCERN: atelier_diagnostics_projections_tests.rs:57-132 only asserts PG row round-trip + bad-evidence rejection; it never asserts the emitted EventLedger event via count_events_for_aggregate, so the proof_target 'EventLedger' half is implemented-but-unproven by this test (stale 'not yet wired' comment at state_probe.rs:1183 / test line 18 is false; 0115 IS wired)"
-    }
+    },
+    "ready_for_validation_v3": true
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.319Z",
@@ -94,6 +95,6 @@
     "risk_if_missed": "CKC parity loss for Locus And MicroTask Projection",
     "summary": "MT-147 [Model-Workflow-Diagnostics] Locus And MicroTask Projection -- Project model work state (active MT, owner, status, blocker, receipts, next action, evidence) into Locus/MT surfaces."
   },
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-06-11T03:05:50.294Z",
   "wp_id": "WP-KERNEL-005"
 }

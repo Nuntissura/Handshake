@@ -33,11 +33,11 @@
     "depends_on": [
       "MT-166"
     ],
-    "status": "VALIDATED_V2_WITH_CONCERN",
-    "validator_verdict": "PASS_WITH_CONCERN",
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "PENDING",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
-    "ready_for_validation_at_utc": "2026-06-05T05:24:40.473Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "ready_for_validation_at_utc": "2026-06-11T03:05:50.294Z",
+    "ready_by": "KB-KERNEL-005-V3-REMEDIATION",
     "integration_validation_v2": {
       "verdict": "PASS_WITH_CONCERN",
       "round": "v2",
@@ -49,7 +49,8 @@
       "fail_category": null,
       "gap": null,
       "evidence": "state_probe.rs:1772-1815 (record_spec_drift_finding real PG upsert + SPEC_DRIFT_FINDING_RECORDED event) + detect_and_record_spec_drift at ~1829 (records only on doc/code mismatch); migration 0115 wired at mod.rs:2107. CONCERN: atelier_diagnostics_projections_tests.rs:299-358 proves match=>None / mismatch=>finding listed on real PG, but does not assert the EventLedger event via count_events_for_aggregate; EventLedger proof half missing"
-    }
+    },
+    "ready_for_validation_v3": true
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.335Z",
@@ -88,6 +89,6 @@
     "risk_if_missed": "CKC parity loss for Stale README Spec Drift Detector",
     "summary": "MT-167 [Model-Workflow-Diagnostics] Stale README Spec Drift Detector -- Preserve and generalize CKC README vs spec drift finding via doc/spec pointer drift check."
   },
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-06-11T03:05:50.294Z",
   "wp_id": "WP-KERNEL-005"
 }

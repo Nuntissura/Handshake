@@ -33,11 +33,11 @@
     "depends_on": [
       "MT-153"
     ],
-    "status": "NEEDS_MANAGED_RESOURCE_PROOF",
-    "validator_verdict": "FAIL",
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "PENDING",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
-    "ready_for_validation_at_utc": "2026-06-05T05:22:53.577Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "ready_for_validation_at_utc": "2026-06-11T03:05:50.294Z",
+    "ready_by": "KB-KERNEL-005-V3-REMEDIATION",
     "integration_validation_v2": {
       "verdict": "FAIL",
       "round": "v2",
@@ -49,7 +49,8 @@
       "fail_category": "PROOF_IN_MEMORY_ONLY",
       "gap": "LoopPromotionGate iteration-id binding check is real logic, but PromotionGateSubmitter (the KERNEL-001 PromotionGate boundary) has NO production implementation; all proof runs against MockGate/MisbindingGate/StubGate. The gate is never wired to the real PromotionGate or PG.",
       "evidence": "src/self_improve/promotion_gate_adapter.rs:73-77 trait + comment 'Production wires this to the KERNEL-001 PromotionGate; tests use an in-memory mock'; grep: impl PromotionGateSubmitter only at promotion_gate_adapter.rs:193 (MockGate), :315 (MisbindingGate), ipc.rs:382 (StubGate) — all test-only."
-    }
+    },
+    "ready_for_validation_v3": true
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.324Z",
@@ -86,11 +87,12 @@
     ],
     "forbidden_paths": [],
     "proof_targets": [
-      "cargo test + runtime proof vs PostgreSQL/EventLedger"
+      "cargo test --test atelier_self_improve_promotion_gate_tests (managed PostgreSQL + EventLedger; real PromotionGateSubmitter exercised)"
     ],
     "risk_if_missed": "CKC parity loss for Native Webview DOM Capture Decision Record",
-    "summary": "MT-154 [Model-Workflow-Diagnostics] Native Webview DOM Capture Decision Record -- Preserve capture API uncertainty via ADR comparing native, webview, DOM/html2canvas, headless capture paths."
+    "summary": "MT-154 [Model-Workflow-Diagnostics] Native Webview DOM Capture Decision Record -- Preserve capture API uncertainty via ADR comparing native, webview, DOM/html2canvas, headless capture paths.",
+    "v3_correction": "v3 correction: the original scope.summary/acceptance text (\"Native Webview DOM Capture Decision Record ADR\") is mis-labelled; the validated deliverable per integration_validation_v2 and the v3 remediation playbook is the self-improve PromotionGateSubmitter boundary exercised on PostgreSQL/EventLedger (proven by atelier_self_improve_promotion_gate_tests)."
   },
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-06-11T03:05:50.294Z",
   "wp_id": "WP-KERNEL-005"
 }

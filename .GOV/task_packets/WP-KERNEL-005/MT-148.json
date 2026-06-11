@@ -33,11 +33,11 @@
     "depends_on": [
       "MT-147"
     ],
-    "status": "VALIDATED_V2_WITH_CONCERN",
-    "validator_verdict": "PASS_WITH_CONCERN",
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "PENDING",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
-    "ready_for_validation_at_utc": "2026-06-05T05:21:59.686Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "ready_for_validation_at_utc": "2026-06-11T03:05:50.294Z",
+    "ready_by": "KB-KERNEL-005-V3-REMEDIATION",
     "integration_validation_v2": {
       "verdict": "PASS_WITH_CONCERN",
       "round": "v2",
@@ -49,7 +49,8 @@
       "fail_category": null,
       "gap": null,
       "evidence": "state_probe.rs:1621-1662 (record_dcc_panel_projection: real PG upsert per panel_kind + in-tx DCC_PANEL_PROJECTION_RECORDED event); migration 0115 wired at mod.rs:2107. CONCERN: atelier_diagnostics_projections_tests.rs:136-175 proves PG row round-trip + list_by_kind isolation across all DccPanelKind, but does not assert the EventLedger event; EventLedger proof half missing"
-    }
+    },
+    "ready_for_validation_v3": true
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.320Z",
@@ -92,6 +93,6 @@
     "risk_if_missed": "CKC parity loss for DCC Session Lease And Command Panels",
     "summary": "MT-148 [Model-Workflow-Diagnostics] DCC Session Lease And Command Panels -- Define DCC visibility for sessions, leases, command logs, command recovery (projection only, GUI later)."
   },
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-06-11T03:05:50.294Z",
   "wp_id": "WP-KERNEL-005"
 }

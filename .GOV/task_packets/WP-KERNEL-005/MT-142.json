@@ -33,11 +33,11 @@
     "depends_on": [
       "MT-141"
     ],
-    "status": "VALIDATED_V2_WITH_CONCERN",
-    "validator_verdict": "PASS_WITH_CONCERN",
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "PENDING",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
-    "ready_for_validation_at_utc": "2026-06-05T05:21:12.844Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "ready_for_validation_at_utc": "2026-06-11T03:05:50.294Z",
+    "ready_by": "KB-KERNEL-005-V3-REMEDIATION",
     "integration_validation_v2": {
       "verdict": "PASS_WITH_CONCERN",
       "round": "v2",
@@ -49,7 +49,8 @@
       "fail_category": null,
       "gap": null,
       "evidence": "ModelSession is a pre-existing Handshake primitive in src/storage/mod.rs:1450 / postgres.rs:1287 (model_sessions table), with NO MT-142 marker and lacking the contract-named fields agent/purpose/close_reason/actor (ModelSessionState enum has no Closed/close-reason, struct has no purpose/agent). tests/model_session_scheduler_tests.rs:571 proves durable PG session persist+reload across a job (get_model_session :611), which is real managed-resource behavior, but it exercises the pre-existing scheduler, not an MT-142-specific durable-session schema. Real PG, but proof does not map to the contract's required field set."
-    }
+    },
+    "ready_for_validation_v3": true
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.315Z",
@@ -95,6 +96,6 @@
     "risk_if_missed": "CKC parity loss for ModelSession Record",
     "summary": "MT-142 [Model-Workflow-Diagnostics] ModelSession Record -- Implement durable model sessions (id, agent, purpose, metadata, timestamps, state, actor, close reason) surviving restart."
   },
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-06-11T03:05:50.294Z",
   "wp_id": "WP-KERNEL-005"
 }

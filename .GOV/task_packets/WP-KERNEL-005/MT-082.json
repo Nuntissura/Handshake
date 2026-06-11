@@ -33,11 +33,11 @@
     "depends_on": [
       "MT-081"
     ],
-    "status": "VALIDATED_V2_WITH_CONCERN",
-    "validator_verdict": "PASS_WITH_CONCERN",
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "PENDING",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
-    "ready_for_validation_at_utc": "2026-06-05T05:12:24.413Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "ready_for_validation_at_utc": "2026-06-11T03:05:50.294Z",
+    "ready_by": "KB-KERNEL-005-V3-REMEDIATION",
     "integration_validation_v2": {
       "verdict": "PASS_WITH_CONCERN",
       "round": "v2",
@@ -49,7 +49,8 @@
       "fail_category": null,
       "gap": null,
       "evidence": "source_evidence.rs:484-681 pose_media_anchor_verification_matrix (6 anchors pose/media/artifact/workflow/external-tools/diagnostics, all cited paths exist incl 0090_atelier_pose_sidecars.sql/0040_atelier_media_artifact_manifest.sql); tests/atelier_source_evidence_tests.rs:383 records+reloads via live PG, asserts every anchor VERIFIED with existing paths + EventLedger verified_anchor_count (:488). Non-blocking: anchor 'VERIFIED' asserts file existence only, not behavior of the cited module"
-    }
+    },
+    "ready_for_validation_v3": true
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.269Z",
@@ -87,11 +88,11 @@
     ],
     "forbidden_paths": [],
     "proof_targets": [
-      "cargo test + runtime proof vs PostgreSQL/EventLedger"
+      "cargo test (atelier_source_evidence_tests::mt082_pose_media_anchor_verification_records_required_anchors) + runtime proof vs PostgreSQL/EventLedger: the 6 required pose/media/artifact/workflow/external-tools/diagnostics anchors persist and round-trip through live PostgreSQL with EventLedger verified_anchor_count; anchor VERIFIED status asserts the cited product/migration paths exist in the source tree - behavioral proof of each cited module is carried by that module's own MT proof refs, not by this anchor matrix"
     ],
     "risk_if_missed": "CKC parity loss for Pose Product Anchor Verification",
     "summary": "MT-082 [Pose-ComfyUI-Pipeline] Pose Product Anchor Verification -- Verify Handshake product anchors for pose, media, artifact, workflow, external tools, and diagnostics or mark BLOCKED_MISSING_ANCHOR."
   },
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-06-11T03:05:50.294Z",
   "wp_id": "WP-KERNEL-005"
 }

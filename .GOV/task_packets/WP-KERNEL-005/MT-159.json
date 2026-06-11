@@ -33,11 +33,11 @@
     "depends_on": [
       "MT-158"
     ],
-    "status": "VALIDATED_V2_WITH_CONCERN",
-    "validator_verdict": "PASS_WITH_CONCERN",
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "PENDING",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
-    "ready_for_validation_at_utc": "2026-06-05T05:23:34.901Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "ready_for_validation_at_utc": "2026-06-11T03:05:50.294Z",
+    "ready_by": "KB-KERNEL-005-V3-REMEDIATION",
     "integration_validation_v2": {
       "verdict": "PASS_WITH_CONCERN",
       "round": "v2",
@@ -49,7 +49,8 @@
       "fail_category": null,
       "gap": null,
       "evidence": "content.rs:265-275 GUI verification group + :620-621 visual_debug_dom_snapshot (real tauri_command, CDP client exists operator_foreground/cdp_client.rs); model_manual_tests.rs:682-693 + :806-824 wires kernel_product_screenshot_capture_execute / visual_debugging_loop to registered actions (action_catalog.rs:2379,2430). Checklist is a manual/workflow row; proof is static, no managed-resource surface."
-    }
+    },
+    "ready_for_validation_v3": true
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.328Z",
@@ -89,11 +90,11 @@
     ],
     "forbidden_paths": [],
     "proof_targets": [
-      "cargo test + runtime proof vs PostgreSQL/EventLedger"
+      "cargo test --test model_manual_tests -- asserts the GUI verification checklist rows (readability, discoverability, navigation coherence, no text overlap, responsive layout, important-state visibility, stable element IDs) are present in ModelManual content and bound to registered kernel actions (kernel_product_screenshot_capture_execute, visual_debugging_loop in action_catalog); static manual/workflow authority surface - no PostgreSQL/EventLedger runtime proof applicable"
     ],
     "risk_if_missed": "CKC parity loss for GUI Verification Checklist",
     "summary": "MT-159 [Model-Workflow-Diagnostics] GUI Verification Checklist -- Preserve UI verification checklist (readability, discoverability, navigation, no overlap, responsive, state visible, stable IDs)."
   },
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-06-11T03:05:50.294Z",
   "wp_id": "WP-KERNEL-005"
 }

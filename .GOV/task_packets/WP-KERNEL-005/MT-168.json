@@ -33,11 +33,11 @@
     "depends_on": [
       "MT-167"
     ],
-    "status": "NEEDS_MANAGED_RESOURCE_PROOF",
-    "validator_verdict": "FAIL",
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "PENDING",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
-    "ready_for_validation_at_utc": "2026-06-05T05:24:49.700Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "ready_for_validation_at_utc": "2026-06-11T03:05:50.294Z",
+    "ready_by": "KB-KERNEL-005-V3-REMEDIATION",
     "integration_validation_v2": {
       "verdict": "FAIL",
       "round": "v2",
@@ -49,7 +49,8 @@
       "fail_category": "PROOF_IN_MEMORY_ONLY",
       "gap": "FEMS V1 'end-to-end' proof composes every surface through deterministic in-memory adapters; the single e2e test touches no real PG/EventLedger/ArtifactStore despite the WP claiming Handshake-native managed-resource integration.",
       "evidence": "tests/fems_integration_e2e_tests.rs:3-4 header 'deterministic in-memory adapters'; FixtureFems (line 111), StubTier (227), TraceSourceStub (280), SpawnFixtureLedger (345), InMemoryFemsAccessor (25); grep confirms zero PgPool/sqlx/ensure_schema/AtelierStore in the file; only one #[tokio::test]."
-    }
+    },
+    "ready_for_validation_v3": true
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.335Z",
@@ -83,11 +84,11 @@
     ],
     "forbidden_paths": [],
     "proof_targets": [
-      "cargo test + runtime proof vs PostgreSQL/EventLedger"
+      "cargo test --test atelier_fems_postgres_e2e_tests (managed PostgreSQL + EventLedger; FEMS end-to-end on real stores, no in-memory adapters)"
     ],
     "risk_if_missed": "CKC parity loss for Background Automation Guard",
     "summary": "MT-168 [Model-Workflow-Diagnostics] Background Automation Guard -- Preserve background-safe automation startup and single-instance no-focus safeguards routing dialogs/show/focus/shortcuts through policy."
   },
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-06-11T03:05:50.294Z",
   "wp_id": "WP-KERNEL-005"
 }

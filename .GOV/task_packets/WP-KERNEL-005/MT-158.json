@@ -33,11 +33,11 @@
     "depends_on": [
       "MT-157"
     ],
-    "status": "VALIDATED_V2_WITH_CONCERN",
-    "validator_verdict": "PASS_WITH_CONCERN",
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "PENDING",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
-    "ready_for_validation_at_utc": "2026-06-05T05:23:26.018Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "ready_for_validation_at_utc": "2026-06-11T03:05:50.294Z",
+    "ready_by": "KB-KERNEL-005-V3-REMEDIATION",
     "integration_validation_v2": {
       "verdict": "PASS_WITH_CONCERN",
       "round": "v2",
@@ -49,7 +49,8 @@
       "fail_category": null,
       "gap": null,
       "evidence": "src/kernel/product_screenshot_capture.rs:767-769 sets classification=Low, exportable=false, retention_class='visual-validation'; tests/native_screenshot_capture_tests.rs:119-208 proves focus-unsafe rejection and no-artifact-on-reject. Contract also names redaction + cleanup; those aspects are not exercised by any test (retention TTL is None, no redaction/cleanup path proven). Non-blocking: real ArtifactStore touch present, but proof partial."
-    }
+    },
+    "ready_for_validation_v3": true
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.327Z",
@@ -91,6 +92,6 @@
     "risk_if_missed": "CKC parity loss for Visual Evidence Retention And Redaction",
     "summary": "MT-158 [Model-Workflow-Diagnostics] Visual Evidence Retention And Redaction -- Bound visual artifacts and protect sensitive captures (retention class, exportable, redaction, cleanup)."
   },
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-06-11T03:05:50.294Z",
   "wp_id": "WP-KERNEL-005"
 }

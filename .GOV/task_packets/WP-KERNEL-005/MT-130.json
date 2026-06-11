@@ -33,11 +33,11 @@
     "depends_on": [
       "MT-129"
     ],
-    "status": "VALIDATED_V2_WITH_CONCERN",
-    "validator_verdict": "PASS_WITH_CONCERN",
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "PENDING",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
-    "ready_for_validation_at_utc": "2026-06-05T05:19:31.947Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "ready_for_validation_at_utc": "2026-06-11T03:05:50.294Z",
+    "ready_by": "KB-KERNEL-005-V3-REMEDIATION",
     "integration_validation_v2": {
       "verdict": "PASS_WITH_CONCERN",
       "round": "v2",
@@ -49,7 +49,8 @@
       "fail_category": null,
       "gap": null,
       "evidence": "request_replay comfy.rs:2907-2953 emits run-scoped REPLAY_REQUESTED/COMPLETED/FAILED, proven by atelier_replay_contract_tests.rs:162-249. Contract also requires queue/run/result + registration success/failure-recovery families: JOB_* (comfy.rs:110-120, enqueue at ~3259) and record_comfy_output_registration_failure/retry (comfy.rs:2285,2442) are REAL code but NOT exercised by U20's cited test, so this unit only proves the replay subset -- partial proof, non-blocking."
-    }
+    },
+    "ready_for_validation_v3": true
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.306Z",
@@ -89,6 +90,6 @@
     "risk_if_missed": "CKC parity loss for ComfyUI Replay And Registration Event Families",
     "summary": "MT-130 [Pose-ComfyUI-Pipeline] ComfyUI Replay And Registration Event Families -- Emit EventLedger/Flight Recorder events for ComfyUI queue/run/result, replay requested/completed/failed, and output registration success/failure recovery."
   },
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-06-11T03:05:50.294Z",
   "wp_id": "WP-KERNEL-005"
 }

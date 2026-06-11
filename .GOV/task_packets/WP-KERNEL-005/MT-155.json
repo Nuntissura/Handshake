@@ -33,11 +33,11 @@
     "depends_on": [
       "MT-154"
     ],
-    "status": "NEEDS_MANAGED_RESOURCE_PROOF",
-    "validator_verdict": "FAIL",
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "PENDING",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
-    "ready_for_validation_at_utc": "2026-06-05T05:23:03.409Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "ready_for_validation_at_utc": "2026-06-11T03:05:50.294Z",
+    "ready_by": "KB-KERNEL-005-V3-REMEDIATION",
     "integration_validation_v2": {
       "verdict": "FAIL",
       "round": "v2",
@@ -49,7 +49,8 @@
       "fail_category": "PROOF_IN_MEMORY_ONLY",
       "gap": "Proof is an in-memory struct validation only; never touches PG/EventLedger/ArtifactStore despite proof_target 'runtime proof vs PostgreSQL/EventLedger'. No standalone diff-request schema; threshold/metadata only appear as embedded fields of an in-memory loop projection with stringly-typed 'artifact://' refs that are never persisted or read.",
       "evidence": "src/kernel/visual_debugging_loop.rs:28-47 VisualDebuggingThresholdConfigV1 / VisualDebugEvidenceArtifactV1 (plain structs); tests/kernel_visual_debugging_loop_tests.rs:11-72 build literals and assert on validate/project return values; no managed-resource access anywhere in the test."
-    }
+    },
+    "ready_for_validation_v3": true
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.325Z",
@@ -83,11 +84,11 @@
     ],
     "forbidden_paths": [],
     "proof_targets": [
-      "cargo test + runtime proof vs PostgreSQL/EventLedger"
+      "cargo test --test atelier_visual_diff_baseline_tests (managed PostgreSQL + EventLedger; persisted visual-diff baselines re-read)"
     ],
     "risk_if_missed": "CKC parity loss for Visual Diff Baseline Contract",
     "summary": "MT-155 [Model-Workflow-Diagnostics] Visual Diff Baseline Contract -- Preserve baseline-or-previous screenshot comparison via diff request schema with threshold and metadata."
   },
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-06-11T03:05:50.294Z",
   "wp_id": "WP-KERNEL-005"
 }

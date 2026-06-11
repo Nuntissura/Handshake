@@ -33,11 +33,11 @@
     "depends_on": [
       "MT-121"
     ],
-    "status": "VALIDATED_V2_WITH_CONCERN",
-    "validator_verdict": "PASS_WITH_CONCERN",
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "PENDING",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
-    "ready_for_validation_at_utc": "2026-06-05T05:18:28.758Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "ready_for_validation_at_utc": "2026-06-11T03:05:50.294Z",
+    "ready_by": "KB-KERNEL-005-V3-REMEDIATION",
     "integration_validation_v2": {
       "verdict": "PASS_WITH_CONCERN",
       "round": "v2",
@@ -49,7 +49,8 @@
       "fail_category": null,
       "gap": null,
       "evidence": "model_manual_tests.rs:500-513 enforces EXACT 7-command parity for atelier_pose_context_and_rig (manual_covers_pose_comfy_surfaces, len== assert at :569); rows reference real pose.rs methods (set_pose_context_state, ingest_pose_rig). Honest Planned status (no Axum route). Proof is doc-manifest structural assertion, not the contract-advertised live PG/EventLedger runtime proof."
-    }
+    },
+    "ready_for_validation_v3": true
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.299Z",
@@ -90,6 +91,6 @@
     "risk_if_missed": "CKC parity loss for Pose Context And Rig Manual Source Rows",
     "summary": "MT-122 [Pose-ComfyUI-Pipeline] Pose Context And Rig Manual Source Rows -- Provide Diagnostics manual/command rows for pose contexts and rig CRUD (context metadata, rig CRUD, keypoint schema inspect, calibration/capability checks)."
   },
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-06-11T03:05:50.294Z",
   "wp_id": "WP-KERNEL-005"
 }

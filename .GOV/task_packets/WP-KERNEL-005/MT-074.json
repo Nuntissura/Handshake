@@ -33,11 +33,11 @@
     "depends_on": [
       "MT-073"
     ],
-    "status": "VALIDATED_V2_WITH_CONCERN",
-    "validator_verdict": "PASS_WITH_CONCERN",
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "PENDING",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
-    "ready_for_validation_at_utc": "2026-06-05T05:11:09.365Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "ready_for_validation_at_utc": "2026-06-11T03:05:50.294Z",
+    "ready_by": "KB-KERNEL-005-V3-REMEDIATION",
     "integration_validation_v2": {
       "verdict": "PASS_WITH_CONCERN",
       "round": "v2",
@@ -49,7 +49,8 @@
       "fail_category": null,
       "gap": null,
       "evidence": "content.rs:1899-1919 (atelier_build_llm_evidence_pack_manifest row, real exports.rs method, schema hsk.atelier.llm_evidence_pack_manifest@1, correctly Planned/ipc_channel None); model_manual_tests.rs:377-381 coverage entry; backend method exists in atelier/exports.rs. Proof is a static-constant manual-row assertion, NOT the contract's advertised 'runtime proof vs PostgreSQL/EventLedger'."
-    }
+    },
+    "ready_for_validation_v3": true
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.263Z",
@@ -87,6 +88,6 @@
     "risk_if_missed": "CKC parity loss for LLM Evidence Pack Manual Source Rows",
     "summary": "MT-074 [Core-Data-Intake] LLM Evidence Pack Manual Source Rows -- Provide Diagnostics with no-context manual rows for LLM evidence pack export only."
   },
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-06-11T03:05:50.294Z",
   "wp_id": "WP-KERNEL-005"
 }

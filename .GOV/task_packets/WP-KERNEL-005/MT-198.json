@@ -33,11 +33,11 @@
     "depends_on": [
       "MT-197"
     ],
-    "status": "VALIDATED_V2_WITH_CONCERN",
-    "validator_verdict": "PASS_WITH_CONCERN",
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "PENDING",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
-    "ready_for_validation_at_utc": "2026-06-05T05:29:42.642Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "ready_for_validation_at_utc": "2026-06-11T03:05:50.294Z",
+    "ready_by": "KB-KERNEL-005-V3-REMEDIATION",
     "integration_validation_v2": {
       "verdict": "PASS_WITH_CONCERN",
       "round": "v2",
@@ -49,7 +49,8 @@
       "fail_category": null,
       "gap": null,
       "evidence": "MediaAnnotation FK to atelier_media_asset (not rig), real PG CRUD with per-asset seq, geometry JSONB, events (src/atelier/annotation.rs:64-79,194-367; migration 0031:133). Test covers add/list/get/update/count/remove + seq + geometry immutability on real PG (tests/atelier_core_data_tests.rs:7560-7645). CONCERN: test does not assert event emission nor directly prove the 'survives export' / decoupled-from-pose-keypoints acceptance criteria; decoupling is only structurally implied by the asset FK."
-    }
+    },
+    "ready_for_validation_v3": true
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.359Z",
@@ -89,6 +90,6 @@
     "risk_if_missed": "CKC image annotation/overlay (MediaPane annotation layers) unrepresented",
     "summary": "MT-198 [Core-Data-Intake] Per-Image Annotation Overlay Model (GAP-FILL) -- Add DAM-level per-image annotation overlays (typed boxes/points/regions/notes layered over a media asset) as data plus projection, decoupled from pose keypoints, surviving export."
   },
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-06-11T03:05:50.294Z",
   "wp_id": "WP-KERNEL-005"
 }

@@ -33,11 +33,11 @@
     "depends_on": [
       "MT-142"
     ],
-    "status": "NEEDS_MANAGED_RESOURCE_PROOF",
-    "validator_verdict": "FAIL",
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "PENDING",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
-    "ready_for_validation_at_utc": "2026-06-05T05:21:23.161Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "ready_for_validation_at_utc": "2026-06-11T03:05:50.294Z",
+    "ready_by": "KB-KERNEL-005-V3-REMEDIATION",
     "integration_validation_v2": {
       "verdict": "FAIL",
       "round": "v2",
@@ -49,7 +49,8 @@
       "fail_category": "PROOF_IN_MEMORY_ONLY",
       "gap": "MT-143 artifact (kernel/role_mailbox_claim_lease.rs) is an in-memory struct/projection validator with NO clock or PG: no Utc::now, no sqlx, no INSERT/SELECT; lease_expired/lease_age_seconds/lease_state are caller-supplied fields. The cited test asserts hardcoded constants (lease_expired:true, lease_age_seconds:3900) it itself set — TTL/stale/conflict are never enforced against a managed resource.",
       "evidence": "src/kernel/role_mailbox_claim_lease.rs (838 lines) has no Utc::now/sqlx/INSERT (grep empty); fields carried, not computed (:151,:334). tests/kernel_role_mailbox_claim_lease_tests.rs:16-30 assert constants from sample_controls() (:184 lease_expired:true hardcoded) with no DATABASE_URL/.pool(). The real PG TTL/conflict lease (LeaseManager, src/role_mailbox_v1/lease.rs, postgres_* conflict tests in role_mailbox_lease_tests.rs) is WP-KERNEL-004 MT-180, a different WP/MT, not this MT's cited surface."
-    }
+    },
+    "ready_for_validation_v3": true
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.316Z",
@@ -90,6 +91,6 @@
     "risk_if_missed": "CKC parity loss for Lease And Claim Contract",
     "summary": "MT-143 [Model-Workflow-Diagnostics] Lease And Claim Contract -- Implement leases/claims for parallel model coordination with TTL, stale state, conflict errors."
   },
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-06-11T03:05:50.294Z",
   "wp_id": "WP-KERNEL-005"
 }

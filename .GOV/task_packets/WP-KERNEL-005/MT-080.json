@@ -33,11 +33,11 @@
     "depends_on": [
       "MT-079"
     ],
-    "status": "VALIDATED_V2_WITH_CONCERN",
-    "validator_verdict": "PASS_WITH_CONCERN",
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "PENDING",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
-    "ready_for_validation_at_utc": "2026-06-05T05:12:09.242Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "ready_for_validation_at_utc": "2026-06-11T03:05:50.294Z",
+    "ready_by": "KB-KERNEL-005-V3-REMEDIATION",
     "integration_validation_v2": {
       "verdict": "PASS_WITH_CONCERN",
       "round": "v2",
@@ -49,7 +49,8 @@
       "fail_category": null,
       "gap": null,
       "evidence": "Refinement-closure deliverable: 158KB refinement.md + refinement.json exist at .GOV/task_packets/WP-KERNEL-005/. No product-code/test surface maps to MT-080 (its 'cargo test' proof_target is boilerplate from contract import); the actual deliverable is the activation-ready refinement, which is present. Governance/paperwork deliverable, non-blocking."
-    }
+    },
+    "ready_for_validation_v3": true
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.267Z",
@@ -87,11 +88,11 @@
     ],
     "forbidden_paths": [],
     "proof_targets": [
-      "cargo test + runtime proof vs PostgreSQL/EventLedger"
+      "Governance artifact check: activation-ready refinement present at .GOV/task_packets/WP-KERNEL-005/refinement.json (with refinement.md projection) covering scope, non-goals, dependencies, risks, acceptance criteria, and MT plan; this is a governance deliverable - no product-code, PostgreSQL, or EventLedger proof applies"
     ],
     "risk_if_missed": "CKC parity loss for Core Activation Refinement Closure",
     "summary": "MT-080 [Core-Data-Intake] Core Activation Refinement Closure -- Convert the repaired stub plus this MT suite into official activation-ready refinement content (scope, non-goals, deps, risks, acceptance, MT plan)."
   },
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-06-11T03:05:50.294Z",
   "wp_id": "WP-KERNEL-005"
 }

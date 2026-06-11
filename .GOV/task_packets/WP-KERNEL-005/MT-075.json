@@ -33,11 +33,11 @@
     "depends_on": [
       "MT-074"
     ],
-    "status": "VALIDATED_V2_WITH_CONCERN",
-    "validator_verdict": "PASS_WITH_CONCERN",
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "PENDING",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
-    "ready_for_validation_at_utc": "2026-06-05T05:11:19.690Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "ready_for_validation_at_utc": "2026-06-11T03:05:50.294Z",
+    "ready_by": "KB-KERNEL-005-V3-REMEDIATION",
     "integration_validation_v2": {
       "verdict": "PASS_WITH_CONCERN",
       "round": "v2",
@@ -49,7 +49,8 @@
       "fail_category": null,
       "gap": null,
       "evidence": "content.rs:1920-1960 (record_backup_manifest + backup_restore_preflight rows reference real AtelierStore methods, schemas hsk.atelier.backup_manifest@1 / preflight, typed refusal_reason); model_manual_tests.rs:382-390. Backend methods exist in atelier/exports.rs. Test asserts static manual rows only; no PG/EventLedger touch despite proof_target claim."
-    }
+    },
+    "ready_for_validation_v3": true
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.263Z",
@@ -87,6 +88,6 @@
     "risk_if_missed": "CKC parity loss for Backup Manual Source Rows",
     "summary": "MT-075 [Core-Data-Intake] Backup Manual Source Rows -- Provide Diagnostics with no-context manual rows for backup and restore preflight only."
   },
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-06-11T03:05:50.294Z",
   "wp_id": "WP-KERNEL-005"
 }
