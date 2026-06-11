@@ -28,11 +28,11 @@
   "markdown_projection": {
     "path": ".GOV/task_packets/stubs/WP-1-ContextPack-Recorder-Visibility-v1.md",
     "status": "LEGACY_PROJECTION_IN_SYNC",
-    "projection_sha256": "903ebd4ac5ddcf2dddd9df1c8ee152e07baa42ae8c5c7ef4bda38012fdcf6582",
+    "projection_sha256": "ab2ac2a1d3183d13073e6f36eba60426d8a28a49038cd65ec8660e5d149b2433",
     "generated_by": "task-packet-stub-contracts.mjs"
   },
   "lifecycle": {
-    "status": "STUB (NOT READY FOR DEV)",
+    "status": "SUPERSEDED (FOLDED INTO WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1; replacement=.GOV/task_packets/stubs/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1.contract.json)",
     "format_version": "",
     "activation_required": true,
     "user_signature_required": false,

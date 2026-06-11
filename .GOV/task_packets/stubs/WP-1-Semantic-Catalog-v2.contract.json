@@ -28,11 +28,11 @@
   "markdown_projection": {
     "path": ".GOV/task_packets/stubs/WP-1-Semantic-Catalog-v2.md",
     "status": "LEGACY_PROJECTION_IN_SYNC",
-    "projection_sha256": "b0c9d09e68531b18c9f6105a9532f204c0e5e3f0907ef0f7988d62824893a221",
+    "projection_sha256": "69fae4c73735e307879dea5df1d938087dc68246ec622f862048b3ace2067e14",
     "generated_by": "task-packet-stub-contracts.mjs"
   },
   "lifecycle": {
-    "status": "STUB (NOT READY FOR DEV)",
+    "status": "SUPERSEDED (FOLDED INTO WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1; replacement=.GOV/task_packets/stubs/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1.contract.json)",
     "format_version": "",
     "activation_required": true,
     "user_signature_required": false,

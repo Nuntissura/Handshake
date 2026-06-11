@@ -1,8 +1,9 @@
 ﻿# Task Packet Stub: WP-1-Semantic-Catalog-v2
 
-**Status:** STUB (Not Activated)
+**Status:** SUPERSEDED (FOLDED INTO WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1; replacement=.GOV/task_packets/stubs/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1.contract.json)
 
 ## Identity
+- STUB_STATUS: SUPERSEDED (FOLDED INTO WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1; replacement=.GOV/task_packets/stubs/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1.contract.json)
 - WP_ID: WP-1-Semantic-Catalog-v2
 - BASE_WP_ID: WP-1-Semantic-Catalog
 - Created: 2026-01-11
@@ -27,4 +28,9 @@ It is created because the prior packet failed revalidation and/or has audit gaps
 4. Create official task packet via `just create-task-packet WP-1-Semantic-Catalog-v2`.
 5. Update `.GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md` to point `WP-1-Semantic-Catalog` -> `WP-1-Semantic-Catalog-v2`.
 6. Update `.GOV/roles_shared/TASK_BOARD.md` to move `WP-1-Semantic-Catalog-v2` out of STUB when activated.
+## SUPERSEDED / DEPRECATED
+- SUPERSEDED_BY: WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1
+- SUPERSEDED_BY_CONTRACT: .GOV/task_packets/stubs/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1.contract.json
+- FOLD_DISPOSITION: folded_into_wp_kernel_009_as_backend_routing_catalog_contract
+- FOLD_NOTE: This stub is deprecated and must not be activated directly. Its detail and intent are preserved in .GOV/task_packets/stubs/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1.contract.json under folded_legacy_stub_preservation.
 
