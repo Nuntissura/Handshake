@@ -148,6 +148,11 @@ pub mod bundles;
 pub mod capabilities;
 #[cfg(feature = "runtime-full")]
 pub mod capability_registry_workflow;
+/// WP-KERNEL-009 NativeDependencyAndPackaging (MT-017..MT-032): runtime
+/// dependency allowlist, operator gates for external runtime inputs, and
+/// forbidden-dependency tripwires. Unconditional: the dependency policy
+/// applies to every feature configuration of the product.
+pub mod dependency_policy;
 #[cfg(feature = "runtime-full")]
 pub mod diagnostics;
 #[cfg(feature = "runtime-full")]

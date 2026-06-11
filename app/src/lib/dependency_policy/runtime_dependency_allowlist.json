@@ -1,0 +1,151 @@
+{
+  "schema": "handshake.runtime_dependency_allowlist@1",
+  "version": "1.0.0",
+  "wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
+  "mt_id": "MT-017",
+  "description": "Machine-readable runtime dependency allowlist for Handshake product code. Declares the only allowed classes of external runtime inputs (operator-provided model/tensor/CUI-portable artifacts, all operator-gated) and the forbidden runtime dependency classes (outside apps, external daemons, Docker-default paths, SQLite, Redis/Valkey, CDN-loaded runtime assets). Consumed by: app/src/lib/dependency_policy/allowlist.ts (typed accessor), app/scripts/lib/dependency_policy_scans.mjs (tripwire scanners), app/scripts/check-dependency-policy.mjs (validator hook, MT-032), app/scripts/generate-third-party-notices.mjs (MT-029), and src/backend/handshake_core/src/dependency_policy/mod.rs (Rust counterpart parity test). This file is product code, not governance: it gates what the shipped product may depend on at runtime.",
+  "allowed_external_runtime_inputs": [
+    {
+      "kind": "model_gguf",
+      "description": "Operator-provided GGUF model files loaded by the model runtime. Data artifacts only: never runtime authority, storage authority, or proof shortcuts (MT-023).",
+      "operator_gated": true,
+      "default_enabled": false,
+      "allowed_extensions": [".gguf"],
+      "owning_surface": "model_runtime"
+    },
+    {
+      "kind": "model_safetensors",
+      "description": "Operator-provided safetensors model weights loaded by the model runtime. Data artifacts only (MT-023).",
+      "operator_gated": true,
+      "default_enabled": false,
+      "allowed_extensions": [".safetensors"],
+      "owning_surface": "model_runtime"
+    },
+    {
+      "kind": "tensor_artifact",
+      "description": "Operator-provided tensor data artifacts (steering vectors, embeddings, adapters). Data artifacts only (MT-023).",
+      "operator_gated": true,
+      "default_enabled": false,
+      "allowed_extensions": [".npy", ".npz", ".pt"],
+      "owning_surface": "model_runtime"
+    },
+    {
+      "kind": "cui_portable_artifact",
+      "description": "CUI portable artifacts (operator-provided portable tool bundles). Allowed only where a separate owning WP explicitly gates them; the gate defaults closed (MT-022). WP-009 core editor/index/memory behavior must never depend on this class.",
+      "operator_gated": true,
+      "default_enabled": false,
+      "allowed_extensions": [".zip", ".7z"],
+      "owning_surface": "OWNING_WP_GATE_REQUIRED"
+    }
+  ],
+  "forbidden_runtime_dependency_classes": [
+    {
+      "id": "outside_app",
+      "description": "External desktop applications required for core product behavior. Core Handshake behavior must be Handshake-native.",
+      "npm_package_names": [],
+      "cargo_crate_name_substrings": [],
+      "source_scan_patterns": []
+    },
+    {
+      "id": "outside_server_daemon",
+      "description": "Externally managed servers or daemons (Redis, Valkey, Memcached, external brokers) as runtime or cache authority. PostgreSQL+EventLedger managed by Handshake is the only durable-state authority.",
+      "npm_package_names": ["redis", "ioredis", "memcached", "valkey", "memjs"],
+      "cargo_crate_name_substrings": ["redis", "valkey", "memcache"],
+      "source_scan_patterns": ["redis://", "valkey://", "memcached://"]
+    },
+    {
+      "id": "docker_default",
+      "description": "Docker or containers required by default (non-opt-in) product paths. Container tooling is allowed only behind the explicitly opt-in sandbox isolation adapters listed in docker_opt_in_exceptions.",
+      "npm_package_names": ["testcontainers"],
+      "cargo_crate_name_substrings": ["testcontainers"],
+      "source_scan_patterns": ["docker-compose", "docker compose", "docker run", "/var/run/docker.sock"]
+    },
+    {
+      "id": "sqlite",
+      "description": "SQLite in any form (direct, transitive, wasm, node:sqlite) is forbidden in product code. PostgreSQL+EventLedger is canonical for durable state.",
+      "npm_package_names": ["better-sqlite3", "sql.js", "sqlite3", "sqlite", "@sqlite.org/sqlite-wasm"],
+      "cargo_crate_name_substrings": ["sqlite"],
+      "source_scan_patterns": ["node:sqlite"]
+    },
+    {
+      "id": "cdn_runtime_asset",
+      "description": "Runtime-loaded assets from CDNs. All editor/UI assets (Monaco, Tiptap, fonts, workers) must be bundled, lockfile-governed, and offline-capable. @monaco-editor/loader and @monaco-editor/react are forbidden because their default loader fetches Monaco from a CDN.",
+      "npm_package_names": ["@monaco-editor/loader", "@monaco-editor/react"],
+      "cargo_crate_name_substrings": [],
+      "source_scan_patterns": [
+        "cdn.jsdelivr.net",
+        "fastly.jsdelivr.net",
+        "unpkg.com",
+        "cdnjs.cloudflare.com",
+        "esm.sh",
+        "esm.run",
+        "cdn.skypack.dev",
+        "jspm.dev"
+      ]
+    }
+  ],
+  "bundled_libraries": [
+    {
+      "family": "tiptap",
+      "ecosystem": "npm",
+      "package_patterns": ["@tiptap/*"],
+      "allowed_licenses": ["MIT"],
+      "reason": "Rich-text editor core and extensions for Loom documents (WP-009). Bundled, lockfile-governed product library."
+    },
+    {
+      "family": "prosemirror",
+      "ecosystem": "npm",
+      "package_patterns": ["prosemirror-*", "@remirror/core-constants", "crelt", "orderedmap", "rope-sequence", "w3c-keyname", "linkifyjs"],
+      "allowed_licenses": ["MIT"],
+      "reason": "Tiptap's underlying editor model and its small MIT helper packages."
+    },
+    {
+      "family": "monaco",
+      "ecosystem": "npm",
+      "package_patterns": ["monaco-editor"],
+      "allowed_licenses": ["MIT"],
+      "reason": "Code editor surface. Bundled via the monaco-editor npm package with locally bundled Vite workers; the CDN-based @monaco-editor/loader is forbidden."
+    },
+    {
+      "family": "yjs",
+      "ecosystem": "npm",
+      "package_patterns": ["yjs", "lib0", "y-protocols", "y-prosemirror", "isomorphic.js"],
+      "allowed_licenses": ["MIT"],
+      "reason": "CRDT collaboration model and its MIT runtime helpers."
+    },
+    {
+      "family": "xterm",
+      "ecosystem": "npm",
+      "package_patterns": ["@xterm/*"],
+      "allowed_licenses": ["MIT"],
+      "reason": "Terminal UI surface."
+    },
+    {
+      "family": "excalidraw",
+      "ecosystem": "npm",
+      "package_patterns": ["@excalidraw/*"],
+      "allowed_licenses": ["MIT"],
+      "reason": "Canvas drawing surface."
+    },
+    {
+      "family": "tree-sitter",
+      "ecosystem": "cargo",
+      "package_patterns": ["tree-sitter", "tree-sitter-rust", "tree-sitter-javascript", "tree-sitter-typescript"],
+      "allowed_licenses": ["MIT"],
+      "reason": "Statically compiled source parsers for AI-ready-data chunking. Grammars are compiled into the binary; no runtime .so/.wasm grammar downloads (MT-028)."
+    }
+  ],
+  "docker_opt_in_exceptions": [
+    {
+      "path_prefix": "src/backend/handshake_core/src/sandbox/docker/",
+      "reason": "Opt-in HardIsolation sandbox adapter. The default sandbox adapter is WSL2 podman (sandbox/bootstrap.rs); DockerAdapter::try_new is failure-tolerant, so every core product path works without Docker installed."
+    }
+  ],
+  "product_scan_roots": ["app/src", "src/backend/handshake_core/src", "app/src-tauri/src"],
+  "product_manifests": {
+    "npm": ["app/package.json"],
+    "npm_lockfiles": ["app/pnpm-lock.yaml"],
+    "cargo": ["src/backend/handshake_core/Cargo.toml", "app/src-tauri/Cargo.toml"],
+    "cargo_lockfiles": ["src/backend/handshake_core/Cargo.lock", "app/src-tauri/Cargo.lock"]
+  }
+}
