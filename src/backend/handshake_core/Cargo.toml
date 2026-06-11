@@ -585,6 +585,11 @@ path = "tests/knowledge_crdt_lease_recovery_tests.rs"
 required-features = ["test-utils"]
 
 [[test]]
+name = "knowledge_crdt_proof_tests"
+path = "tests/knowledge_crdt_proof_tests.rs"
+required-features = ["test-utils"]
+
+[[test]]
 name = "knowledge_crdt_proposal_tests"
 path = "tests/knowledge_crdt_proposal_tests.rs"
 required-features = ["test-utils"]
