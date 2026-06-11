@@ -440,21 +440,66 @@ mod tests {
 
     #[test]
     fn every_span_extracting_text_kind_enables_secret_scan() {
-        // MT-082 #9 invariant: any kind that produces span content from
+        // MT-082 #9 invariant: any source kind that produces span content from
         // text-decodable bytes MUST run the MT-091 secret preflight, or raw
-        // secret bytes could reach knowledge_ingestion_spans.content. Every
-        // span-extracting kind in the registry is text-decodable (PDF text,
-        // transcript cues, JSON, markdown, code, rich-doc JSON), so the
-        // invariant is simply span_extraction => secret_scan.
+        // secret bytes could reach knowledge_ingestion_spans.content.
+        //
+        // The invariant has two factors -- span_extraction AND text-decodable.
+        // We pin the text-decodable dimension EXPLICITLY per kind (rather than
+        // assuming it) so a future kind that extracts spans from text but
+        // forgets secret_scan is caught, and a genuinely-binary span kind
+        // (none today) would not be forced to scan bytes that are not text.
+        //
+        // Every span-extracting kind shipped today decodes text before it can
+        // emit span content: code/markdown/notes are UTF-8 source; PDF spans
+        // are extracted page TEXT; transcript spans are cue TEXT; governance
+        // spans are JSON/JSONL TEXT; rich-document spans are ProseMirror JSON
+        // text. So each is asserted text-decodable below.
+        fn is_text_decodable(kind: IngestionSourceKind) -> bool {
+            match kind {
+                IngestionSourceKind::CodeFile
+                | IngestionSourceKind::MarkdownText
+                | IngestionSourceKind::RichDocument
+                | IngestionSourceKind::Pdf
+                | IngestionSourceKind::MediaTranscript
+                | IngestionSourceKind::GovernanceArtifact
+                | IngestionSourceKind::OperatorResearchNote => true,
+                // External imports register hash+provenance only (no span
+                // extraction); the bytes are treated as opaque.
+                IngestionSourceKind::ExternalImport => false,
+            }
+        }
+
+        let mut checked_span_kinds = 0usize;
         for spec in registry() {
+            // Cross-check: the only non-text-decodable kind is also the only
+            // non-span-extracting kind (external_import). No kind may be
+            // span-extracting yet non-text-decodable.
             if spec.capabilities.span_extraction {
                 assert!(
+                    is_text_decodable(spec.kind),
+                    "{} extracts spans but is marked non-text-decodable",
+                    spec.kind_key
+                );
+            }
+
+            // The invariant under test: span_extraction && text-decodable
+            // => secret_scan.
+            if spec.capabilities.span_extraction && is_text_decodable(spec.kind) {
+                checked_span_kinds += 1;
+                assert!(
                     spec.capabilities.secret_scan,
-                    "{} extracts spans but skips the secret preflight",
+                    "{} extracts text-decodable spans but skips the MT-091 secret preflight",
                     spec.kind_key
                 );
             }
         }
+        // Guard against a registry that silently lost its span kinds (a vacuous
+        // pass): there are seven text-decodable span-extracting kinds today.
+        assert_eq!(
+            checked_span_kinds, 7,
+            "expected 7 text-decodable span-extracting kinds to be invariant-checked"
+        );
     }
 
     #[test]

@@ -408,12 +408,27 @@ impl KnowledgeIngestionStore {
 
     // -- MT-094 repair queue --------------------------------------------------
 
-    /// Enqueue (or refresh) the OPEN repair entry for a source. If an open
-    /// entry exists it is updated in place (reason, detail, receipt) instead
-    /// of multiplying rows; terminal entries stay untouched and a new entry
-    /// is created.
+    /// Enqueue (or refresh) the repair entry for a source. Three-step, in
+    /// strict order, so the queue never accumulates duplicate rows for the
+    /// same failure mode (MT-094 hardening #7):
+    ///
+    /// 1. Refresh an existing OPEN (`queued`/`retrying`) entry in place
+    ///    (reason, detail, receipt) -- the partial unique index already
+    ///    guarantees at most one such row per source.
+    /// 2. Otherwise REOPEN a `dead_letter` entry for the SAME source AND SAME
+    ///    reason_class: reset it to `queued` with a fresh attempt budget. A
+    ///    source that re-fails identically after exhausting its retries reuses
+    ///    its terminal row instead of inserting a brand-new one each pass (the
+    ///    partial unique index does NOT cover `dead_letter`, so without this
+    ///    those rows would multiply unboundedly).
+    /// 3. Otherwise INSERT a fresh entry (first failure, or a new reason class
+    ///    distinct from any existing dead-letter row).
+    ///
+    /// Reopen is scoped to the matching reason_class so a dead-letter for one
+    /// failure mode is never silently overwritten by a different one; a new
+    /// reason class for the same source falls through to a fresh row.
     pub async fn enqueue_repair(&self, entry: NewRepairEntry) -> IngestionResult<RepairEntry> {
-        // Refresh an existing open entry first.
+        // (1) Refresh an existing open entry first.
         let updated = {
             let sql = format!(
                 "UPDATE knowledge_ingestion_repair_queue
@@ -437,6 +452,42 @@ impl KnowledgeIngestionStore {
             return repair_from_pg(&row);
         }
 
+        // (2) Reopen a dead-letter entry for the same source+reason instead of
+        // inserting a new row. Resetting attempts to 0 grants a fresh retry
+        // budget; the existing partial unique index cannot be violated because
+        // step (1) already proved no open entry exists for this source.
+        let reopened = {
+            let sql = format!(
+                "UPDATE knowledge_ingestion_repair_queue
+                 SET state = 'queued', attempts = 0, reason_detail = $3,
+                     receipt_id = $4,
+                     enqueue_event_id = COALESCE($5, enqueue_event_id),
+                     resolved_receipt_id = NULL,
+                     updated_at = NOW()
+                 WHERE source_id = $1 AND reason_class = $2 AND state = 'dead_letter'
+                   AND repair_id = (
+                       SELECT repair_id FROM knowledge_ingestion_repair_queue
+                       WHERE source_id = $1 AND reason_class = $2 AND state = 'dead_letter'
+                       ORDER BY updated_at DESC, repair_id DESC
+                       LIMIT 1
+                   )
+                 RETURNING {REPAIR_COLUMNS}"
+            );
+            sqlx::query(&sql)
+                .bind(&entry.source_id)
+                .bind(entry.reason_class.as_str())
+                .bind(&entry.reason_detail)
+                .bind(&entry.receipt_id)
+                .bind(&entry.enqueue_event_id)
+                .fetch_optional(&self.pool)
+                .await
+                .map_err(crate::storage::StorageError::from)?
+        };
+        if let Some(row) = reopened {
+            return repair_from_pg(&row);
+        }
+
+        // (3) Fresh entry: first failure, or a new reason class for this source.
         let repair_id = new_ingestion_id("KIRQ");
         let sql = format!(
             "INSERT INTO knowledge_ingestion_repair_queue
