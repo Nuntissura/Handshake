@@ -4991,6 +4991,118 @@ fn scip_import_from_pg(row: &sqlx::postgres::PgRow) -> StorageResult<KnowledgeSc
     })
 }
 
+// ===========================================================================
+// MT-108 code-index repair queue (`knowledge_code_repair_queue`, 0230).
+//
+// The CODE-INDEX equivalent of the ingestion repair queue
+// (`knowledge_ingestion_repair_queue`, owned by `knowledge_ingestion`): a
+// durable, backend-visible surface for files whose code-index PARSE failed
+// (grammar init / no tree / FFI panic) or whose READ failed (binary / non-UTF8
+// / unreadable / config-parse). This is what makes MT-108 a real recovery
+// surface rather than a status flag: a no-context model can list open
+// code-index repair work and re-run the parse pass after the cause is fixed.
+//
+// Lifecycle mirrors the ingestion queue (enqueue refreshes an open entry,
+// reopens a dead-letter for the same source, else inserts fresh).
+// ===========================================================================
+
+/// Why a file sits in the code-index repair queue.
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum KnowledgeCodeRepairReason {
+    /// Tree-sitter could not produce a tree (grammar init / no tree).
+    ParseError,
+    /// The file could not be read as UTF-8 text (binary / wrong encoding / OS
+    /// read error).
+    ReadError,
+    /// The tree-sitter FFI itself panicked on this input.
+    Panic,
+    /// A config/schema file failed typed parsing (TOML/JSON/YAML).
+    ConfigParseError,
+}
+
+impl KnowledgeCodeRepairReason {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::ParseError => "PARSE_ERROR",
+            Self::ReadError => "READ_ERROR",
+            Self::Panic => "PANIC",
+            Self::ConfigParseError => "CONFIG_PARSE_ERROR",
+        }
+    }
+}
+
+impl FromStr for KnowledgeCodeRepairReason {
+    type Err = StorageError;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        match value {
+            "PARSE_ERROR" => Ok(Self::ParseError),
+            "READ_ERROR" => Ok(Self::ReadError),
+            "PANIC" => Ok(Self::Panic),
+            "CONFIG_PARSE_ERROR" => Ok(Self::ConfigParseError),
+            _ => Err(StorageError::Validation(
+                "invalid knowledge code repair reason_class",
+            )),
+        }
+    }
+}
+
+/// One row of `knowledge_code_repair_queue`.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct KnowledgeCodeRepairEntry {
+    pub code_repair_id: String,
+    pub workspace_id: String,
+    pub source_id: String,
+    pub relative_path: String,
+    pub reason_class: KnowledgeCodeRepairReason,
+    pub reason_detail: Value,
+    pub state: String,
+    pub attempts: i32,
+    pub max_attempts: i32,
+    pub last_attempt_at: Option<DateTime<Utc>>,
+    pub enqueue_event_id: Option<String>,
+    pub resolved_receipt_event_id: Option<String>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+/// Enqueue payload for a code-index repair entry.
+#[derive(Clone, Debug)]
+pub struct NewKnowledgeCodeRepairEntry {
+    pub workspace_id: String,
+    pub source_id: String,
+    pub relative_path: String,
+    pub reason_class: KnowledgeCodeRepairReason,
+    pub reason_detail: Value,
+    pub enqueue_event_id: Option<String>,
+}
+
+const KNOWLEDGE_CODE_REPAIR_COLUMNS: &str = r#"
+    code_repair_id, workspace_id, source_id, relative_path, reason_class,
+    reason_detail, state, attempts, max_attempts, last_attempt_at,
+    enqueue_event_id, resolved_receipt_event_id, created_at, updated_at
+"#;
+
+fn code_repair_from_pg(row: &sqlx::postgres::PgRow) -> StorageResult<KnowledgeCodeRepairEntry> {
+    Ok(KnowledgeCodeRepairEntry {
+        code_repair_id: row.get("code_repair_id"),
+        workspace_id: row.get("workspace_id"),
+        source_id: row.get("source_id"),
+        relative_path: row.get("relative_path"),
+        reason_class: row.get::<String, _>("reason_class").parse()?,
+        reason_detail: row.get("reason_detail"),
+        state: row.get("state"),
+        attempts: row.get("attempts"),
+        max_attempts: row.get("max_attempts"),
+        last_attempt_at: row.get("last_attempt_at"),
+        enqueue_event_id: row.get("enqueue_event_id"),
+        resolved_receipt_event_id: row.get("resolved_receipt_event_id"),
+        created_at: row.get("created_at"),
+        updated_at: row.get("updated_at"),
+    })
+}
+
 impl PostgresDatabase {
     /// Upsert the per-code-file index state on `(source_id)`. A re-index with a
     /// new content hash / parser version replaces the indexed_* fields and
@@ -5165,5 +5277,148 @@ impl PostgresDatabase {
             .fetch_all(self.pool())
             .await?;
         rows.iter().map(scip_import_from_pg).collect()
+    }
+
+    /// MT-108: enqueue (or refresh) a code-index repair entry for a file whose
+    /// parse/read failed. Mirrors the ingestion queue's enqueue semantics so a
+    /// re-failing file updates its open entry instead of multiplying rows, and a
+    /// previously dead-lettered file is reopened with a fresh retry budget. This
+    /// is the durable recovery surface MT-108 requires (not just a status flag):
+    /// the entry stays visible until the cause is fixed and the file re-indexes.
+    pub async fn enqueue_knowledge_code_repair(
+        &self,
+        entry: NewKnowledgeCodeRepairEntry,
+    ) -> StorageResult<KnowledgeCodeRepairEntry> {
+        // (1) Refresh an existing OPEN entry first (one open entry per source by
+        // the partial unique index).
+        let refresh_sql = format!(
+            "UPDATE knowledge_code_repair_queue
+             SET reason_class = $2, reason_detail = $3, relative_path = $4,
+                 enqueue_event_id = COALESCE($5, enqueue_event_id),
+                 updated_at = NOW()
+             WHERE source_id = $1 AND state IN ('queued', 'retrying')
+             RETURNING {KNOWLEDGE_CODE_REPAIR_COLUMNS}"
+        );
+        if let Some(row) = sqlx::query(&refresh_sql)
+            .bind(&entry.source_id)
+            .bind(entry.reason_class.as_str())
+            .bind(&entry.reason_detail)
+            .bind(&entry.relative_path)
+            .bind(&entry.enqueue_event_id)
+            .fetch_optional(self.pool())
+            .await?
+        {
+            return code_repair_from_pg(&row);
+        }
+
+        // (2) Reopen the most recent dead-letter entry for the same source
+        // instead of inserting a new row (resets the retry budget). Step (1)
+        // proved no open entry exists, so the partial unique index is safe.
+        let reopen_sql = format!(
+            "UPDATE knowledge_code_repair_queue
+             SET state = 'queued', attempts = 0, reason_class = $2,
+                 reason_detail = $3, relative_path = $4,
+                 enqueue_event_id = COALESCE($5, enqueue_event_id),
+                 resolved_receipt_event_id = NULL, updated_at = NOW()
+             WHERE source_id = $1 AND state = 'dead_letter'
+               AND code_repair_id = (
+                   SELECT code_repair_id FROM knowledge_code_repair_queue
+                   WHERE source_id = $1 AND state = 'dead_letter'
+                   ORDER BY updated_at DESC, code_repair_id DESC
+                   LIMIT 1
+               )
+             RETURNING {KNOWLEDGE_CODE_REPAIR_COLUMNS}"
+        );
+        if let Some(row) = sqlx::query(&reopen_sql)
+            .bind(&entry.source_id)
+            .bind(entry.reason_class.as_str())
+            .bind(&entry.reason_detail)
+            .bind(&entry.relative_path)
+            .bind(&entry.enqueue_event_id)
+            .fetch_optional(self.pool())
+            .await?
+        {
+            return code_repair_from_pg(&row);
+        }
+
+        // (3) Fresh entry: first failure for this source.
+        let code_repair_id = new_knowledge_id("KCRQ");
+        let insert_sql = format!(
+            "INSERT INTO knowledge_code_repair_queue
+                 (code_repair_id, workspace_id, source_id, relative_path,
+                  reason_class, reason_detail, enqueue_event_id)
+             VALUES ($1, $2, $3, $4, $5, $6, $7)
+             RETURNING {KNOWLEDGE_CODE_REPAIR_COLUMNS}"
+        );
+        let row = sqlx::query(&insert_sql)
+            .bind(&code_repair_id)
+            .bind(&entry.workspace_id)
+            .bind(&entry.source_id)
+            .bind(&entry.relative_path)
+            .bind(entry.reason_class.as_str())
+            .bind(&entry.reason_detail)
+            .bind(&entry.enqueue_event_id)
+            .fetch_one(self.pool())
+            .await?;
+        code_repair_from_pg(&row)
+    }
+
+    /// MT-108: the open (queued/retrying) code-index repair entry for a source,
+    /// if any. Lets the engine and a no-context model confirm a failed file is
+    /// actually held for repair.
+    pub async fn get_open_knowledge_code_repair(
+        &self,
+        source_id: &str,
+    ) -> StorageResult<Option<KnowledgeCodeRepairEntry>> {
+        let sql = format!(
+            "SELECT {KNOWLEDGE_CODE_REPAIR_COLUMNS} FROM knowledge_code_repair_queue
+             WHERE source_id = $1 AND state IN ('queued', 'retrying')
+             ORDER BY updated_at DESC LIMIT 1"
+        );
+        let row = sqlx::query(&sql)
+            .bind(source_id)
+            .fetch_optional(self.pool())
+            .await?;
+        row.as_ref().map(code_repair_from_pg).transpose()
+    }
+
+    /// MT-108: list code-index repair entries for a workspace (operator-visible
+    /// queue), newest first.
+    pub async fn list_knowledge_code_repairs(
+        &self,
+        workspace_id: &str,
+    ) -> StorageResult<Vec<KnowledgeCodeRepairEntry>> {
+        let sql = format!(
+            "SELECT {KNOWLEDGE_CODE_REPAIR_COLUMNS} FROM knowledge_code_repair_queue
+             WHERE workspace_id = $1 ORDER BY created_at DESC"
+        );
+        let rows = sqlx::query(&sql)
+            .bind(workspace_id)
+            .fetch_all(self.pool())
+            .await?;
+        rows.iter().map(code_repair_from_pg).collect()
+    }
+
+    /// MT-108: resolve a code-index repair entry after a successful re-index.
+    /// The resolving receipt is required by the table's CHECK; terminal states
+    /// never transition again.
+    pub async fn resolve_knowledge_code_repair(
+        &self,
+        code_repair_id: &str,
+        resolved_receipt_event_id: &str,
+    ) -> StorageResult<KnowledgeCodeRepairEntry> {
+        let sql = format!(
+            "UPDATE knowledge_code_repair_queue
+             SET state = 'resolved', resolved_receipt_event_id = $2, updated_at = NOW()
+             WHERE code_repair_id = $1 AND state IN ('queued', 'retrying')
+             RETURNING {KNOWLEDGE_CODE_REPAIR_COLUMNS}"
+        );
+        let row = sqlx::query(&sql)
+            .bind(code_repair_id)
+            .bind(resolved_receipt_event_id)
+            .fetch_optional(self.pool())
+            .await?
+            .ok_or(StorageError::NotFound("open knowledge code repair entry"))?;
+        code_repair_from_pg(&row)
     }
 }

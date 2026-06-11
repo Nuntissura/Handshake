@@ -228,23 +228,58 @@ impl CodeParserAdapter {
 
     /// Parse source into the flattened typed node stream. Fails closed with a
     /// typed [`CodeParseError`] (never a panic) when the grammar cannot be
-    /// initialised or the parse returns no tree. A tree WITH syntax errors is
-    /// returned (with `root_has_error = true`) rather than rejected: the
-    /// symbol extractors still recover whatever well-formed nodes exist
-    /// (MT-108 partial indexing), and the caller decides how to record it.
+    /// initialised, the parse returns no tree, or the Tree-sitter FFI itself
+    /// panics. A tree WITH syntax errors is returned (with
+    /// `root_has_error = true`) rather than rejected: the symbol extractors
+    /// still recover whatever well-formed nodes exist (MT-108 partial
+    /// indexing), and the caller decides how to record it.
+    ///
+    /// MT-108 panic safety: the Tree-sitter C grammar is foreign code reached
+    /// through FFI. A grammar bug (or a pathological input) that aborts via a
+    /// Rust panic at the FFI boundary would otherwise kill the whole index run.
+    /// The parse + node walk are therefore wrapped in
+    /// [`std::panic::catch_unwind`] and a caught unwind is converted to a typed
+    /// [`CodeParseError`] so one hostile file degrades to a single failed file,
+    /// never a dead run. `tree_sitter::Node` holds raw pointers and is not
+    /// `UnwindSafe`; the closure owns the whole parse so [`AssertUnwindSafe`] is
+    /// sound here (no borrowed state escapes a partial unwind).
     pub fn parse(&self, source: &str) -> CodeIndexResult<ParsedTree> {
+        let language = self.language;
+        let parser_version = self.parser_version();
+        let parsed = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            Self::parse_inner(language, &parser_version, source)
+        }))
+        .map_err(|panic_payload| {
+            CodeIndexError::Parse(CodeParseError {
+                language,
+                reason: format!(
+                    "tree-sitter parse panicked: {}",
+                    panic_message(&panic_payload)
+                ),
+            })
+        })?;
+        parsed
+    }
+
+    /// The actual parse body, separated so [`Self::parse`] can wrap it in
+    /// [`std::panic::catch_unwind`].
+    fn parse_inner(
+        language: CodeLanguage,
+        parser_version: &str,
+        source: &str,
+    ) -> CodeIndexResult<ParsedTree> {
         let mut parser = tree_sitter::Parser::new();
-        let ts_language = self.language.tree_sitter_language();
+        let ts_language = language.tree_sitter_language();
         parser.set_language(&ts_language).map_err(|err| {
             CodeIndexError::Parse(CodeParseError {
-                language: self.language,
+                language,
                 reason: format!("tree-sitter language init failed: {err}"),
             })
         })?;
 
         let tree = parser.parse(source, None).ok_or_else(|| {
             CodeIndexError::Parse(CodeParseError {
-                language: self.language,
+                language,
                 reason: "tree-sitter parse returned no tree".to_string(),
             })
         })?;
@@ -303,12 +338,23 @@ impl CodeParserAdapter {
         let sorted = reorder_preorder(nodes);
 
         Ok(ParsedTree {
-            language: self.language,
-            parser_version: self.parser_version(),
+            language,
+            parser_version: parser_version.to_string(),
             root_has_error,
             nodes: sorted,
             source_len: source.len(),
         })
+    }
+}
+
+/// Extract a human-readable message from a `catch_unwind` panic payload.
+fn panic_message(payload: &(dyn std::any::Any + Send)) -> String {
+    if let Some(s) = payload.downcast_ref::<&str>() {
+        (*s).to_string()
+    } else if let Some(s) = payload.downcast_ref::<String>() {
+        s.clone()
+    } else {
+        "unknown panic".to_string()
     }
 }
 

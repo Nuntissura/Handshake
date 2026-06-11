@@ -28,15 +28,18 @@ use handshake_core::kernel::KernelActor;
 use handshake_core::knowledge_code_index::context_bridge::{
     build_code_context_bundle, DEFAULT_CODE_CONTEXT_TOKEN_BUDGET,
 };
-use handshake_core::knowledge_code_index::engine::{CodeIndexContext, CodeIndexEngine};
+use handshake_core::knowledge_code_index::engine::{
+    read_and_index, CodeIndexContext, CodeIndexEngine,
+};
 use handshake_core::knowledge_code_index::monaco_bridge::build_monaco_payload;
 use handshake_core::knowledge_code_index::parser::{CodeLanguage, CodeParserAdapter};
 use handshake_core::knowledge_code_index::scip::{artifact_hash, parse_scip_artifact};
 use handshake_core::knowledge_code_index::staleness::StalenessVerdict;
 use handshake_core::storage::knowledge::{
-    KnowledgeCodeParseStatus, KnowledgeEdgeType, KnowledgeEntityKind, KnowledgeIndexingEligibility,
-    KnowledgeRootKind, KnowledgeScipFormat, KnowledgeScipImportStatus, KnowledgeSpanKind,
-    KnowledgeStore, NewKnowledgeScipImport, NewKnowledgeSourceRoot,
+    KnowledgeCodeParseStatus, KnowledgeCodeRepairReason, KnowledgeEdgeType, KnowledgeEntityKind,
+    KnowledgeIndexingEligibility, KnowledgeRootKind, KnowledgeScipFormat,
+    KnowledgeScipImportStatus, KnowledgeSpanKind, KnowledgeStore, NewKnowledgeScipImport,
+    NewKnowledgeSourceRoot,
 };
 use handshake_core::storage::postgres::PostgresDatabase;
 use knowledge_pg_support::{knowledge_pg, KnowledgePg};
@@ -484,6 +487,151 @@ async fn mt108_partial_failure_keeps_run_useful() {
     assert!(symbols
         .iter()
         .any(|s| s.entity_key == "rust:src/good.rs#ok"));
+}
+
+// ---------------------------------------------------------------------------
+// MT-108 (hardening): a BINARY / non-UTF-8 file on disk does NOT abort the
+// directory run, is recorded `failed`, and is ENQUEUED on the durable
+// code-index repair queue with reason READ_ERROR (real recovery surface, not a
+// flag). A good sibling in the same directory still indexes. This is the exact
+// gap the adversarial review flagged: the read path used to propagate
+// CodeIndexError::Io and abort a `?`-propagating batch caller.
+// ---------------------------------------------------------------------------
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn mt108_binary_read_failure_enqueues_repair_and_keeps_run_useful() {
+    let Some(pg) = knowledge_pg().await else {
+        eprintln!(
+            "SKIP mt108_binary_read_failure_enqueues_repair_and_keeps_run_useful: no PostgreSQL"
+        );
+        return;
+    };
+    let workspace_id = pg.create_workspace().await;
+    let eng = engine(&pg).await;
+    let context = ctx();
+    let root = make_root(&pg, &workspace_id).await;
+    let run_id = eng
+        .start_run(&context, &workspace_id, None)
+        .await
+        .expect("run");
+
+    // A real on-disk directory anchor (machine-local runtime config, never
+    // stored) with one binary file (invalid UTF-8 with a .rs extension) and one
+    // good Rust file.
+    let dir = tempfile::tempdir().expect("tempdir");
+    // 0xFF 0xFE is not valid UTF-8; the .rs extension forces the code path.
+    std::fs::write(dir.path().join("blob.rs"), [0xFFu8, 0xFE, 0x00, 0x80, 0x81])
+        .expect("write binary file");
+    std::fs::write(dir.path().join("ok.rs"), "pub fn ok() {}").expect("write good file");
+
+    let binary_id = eng
+        .register_code_source(&workspace_id, Some(&root), "blob.rs", "binary-placeholder")
+        .await
+        .expect("register binary source");
+    // The whole point: reading a binary file returns an outcome, never an Err
+    // that would abort the directory run.
+    let binary_outcome = read_and_index(
+        &eng,
+        &context,
+        &workspace_id,
+        &binary_id,
+        "blob.rs",
+        dir.path(),
+        Some(&run_id),
+    )
+    .await
+    .expect("a binary file must NOT abort the run (returns a failed outcome)");
+    assert!(
+        binary_outcome.failed,
+        "binary file must be recorded failed, got {:?}",
+        binary_outcome.parse_status
+    );
+    assert_eq!(
+        binary_outcome.parse_status,
+        KnowledgeCodeParseStatus::Failed
+    );
+    // No misleading code language is asserted for a binary file.
+    assert!(
+        binary_outcome.language.is_none(),
+        "a binary/unreadable file must not claim a code language"
+    );
+
+    // The good sibling still indexes after the binary failure.
+    let good_id = eng
+        .register_code_source(&workspace_id, Some(&root), "ok.rs", "ok-placeholder")
+        .await
+        .expect("register good source");
+    let good_outcome = read_and_index(
+        &eng,
+        &context,
+        &workspace_id,
+        &good_id,
+        "ok.rs",
+        dir.path(),
+        Some(&run_id),
+    )
+    .await
+    .expect("good file indexes");
+    assert!(!good_outcome.failed);
+
+    // The durable repair surface holds the binary file for re-processing with a
+    // typed READ_ERROR class (this is what makes MT-108 a recovery surface).
+    let open = pg
+        .db
+        .get_open_knowledge_code_repair(&binary_id)
+        .await
+        .expect("query repair queue")
+        .expect("a READ_ERROR repair entry must be enqueued for the binary file");
+    assert_eq!(open.reason_class, KnowledgeCodeRepairReason::ReadError);
+    assert_eq!(open.source_id, binary_id);
+    assert_eq!(open.relative_path, "blob.rs");
+    assert_eq!(open.attempts, 0);
+
+    // Re-indexing the same binary file REFRESHES the open entry (does not
+    // multiply rows): exactly one repair entry exists for the workspace.
+    read_and_index(
+        &eng,
+        &context,
+        &workspace_id,
+        &binary_id,
+        "blob.rs",
+        dir.path(),
+        Some(&run_id),
+    )
+    .await
+    .expect("re-read binary");
+    let all = pg
+        .db
+        .list_knowledge_code_repairs(&workspace_id)
+        .await
+        .expect("list repairs");
+    assert_eq!(
+        all.len(),
+        1,
+        "re-failing must refresh the open entry, not multiply rows: {all:?}"
+    );
+
+    // The good symbol is present despite the binary sibling.
+    let symbols = pg
+        .db
+        .list_knowledge_entities_by_kind(&workspace_id, KnowledgeEntityKind::Symbol)
+        .await
+        .expect("symbols");
+    assert!(symbols.iter().any(|s| s.entity_key == "rust:ok.rs#ok"));
+
+    // Resolving the entry after a (hypothetical) fixed re-index is terminal.
+    let resolved = pg
+        .db
+        .resolve_knowledge_code_repair(&open.code_repair_id, &good_outcome.receipt_event_id)
+        .await
+        .expect("resolve repair");
+    assert_eq!(resolved.state, "resolved");
+    assert!(pg
+        .db
+        .get_open_knowledge_code_repair(&binary_id)
+        .await
+        .expect("query")
+        .is_none());
 }
 
 // ---------------------------------------------------------------------------

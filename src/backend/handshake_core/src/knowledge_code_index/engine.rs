@@ -19,9 +19,12 @@
 //! carrying actor/session/correlation identity (backend-navigation receipt law).
 //!
 //! MT-108 partial-failure: indexing a directory NEVER fails because one file
-//! cannot be parsed. A file whose grammar init/parse fails (typed
-//! `CodeParseError`) is recorded with `parse_status = failed`, a receipt, and a
-//! repair-queue entry (through the ingestion store); a file that parses with
+//! cannot be parsed OR cannot be read. A file whose grammar init/parse fails
+//! (typed `CodeParseError`), whose tree-sitter FFI panics (caught via
+//! `catch_unwind` in the parser and surfaced as a typed error), or whose bytes
+//! are not valid UTF-8 / unreadable, is recorded with `parse_status = failed`, a
+//! typed receipt, AND a durable `knowledge_code_repair_queue` entry (0230) that
+//! holds it for re-parse with a typed reason class. A file that parses with
 //! syntax errors but still yields symbols is `partial`. The run continues and
 //! returns a per-file summary.
 //!
@@ -37,11 +40,11 @@ use sha2::{Digest, Sha256};
 
 use crate::kernel::{KernelActor, KernelEventType, NewKernelEvent};
 use crate::storage::knowledge::{
-    KnowledgeCodeLanguage, KnowledgeCodeParseStatus, KnowledgeEdgeType, KnowledgeEntityKind,
-    KnowledgeExtractionStatus, KnowledgeParserStatus, KnowledgePermissionScope,
-    KnowledgeRedactionState, KnowledgeSourceKind, KnowledgeSpanKind, KnowledgeStore,
-    NewKnowledgeEdge, NewKnowledgeEntity, NewKnowledgeIndexRun, NewKnowledgeSource,
-    NewKnowledgeSpan, UpsertKnowledgeCodeFile,
+    KnowledgeCodeLanguage, KnowledgeCodeParseStatus, KnowledgeCodeRepairReason, KnowledgeEdgeType,
+    KnowledgeEntityKind, KnowledgeExtractionStatus, KnowledgeParserStatus,
+    KnowledgePermissionScope, KnowledgeRedactionState, KnowledgeSourceKind, KnowledgeSpanKind,
+    KnowledgeStore, NewKnowledgeCodeRepairEntry, NewKnowledgeEdge, NewKnowledgeEntity,
+    NewKnowledgeIndexRun, NewKnowledgeSource, NewKnowledgeSpan, UpsertKnowledgeCodeFile,
 };
 use crate::storage::postgres::PostgresDatabase;
 use crate::storage::Database;
@@ -247,21 +250,32 @@ impl CodeIndexEngine {
         let adapter = CodeParserAdapter::new(language);
         let parser_version = adapter.parser_version();
 
-        // MT-108: a genuine parse failure (grammar init / no tree) is captured.
+        // MT-108: a genuine parse failure (grammar init / no tree) OR a caught
+        // tree-sitter FFI panic is captured here. `adapter.parse` wraps the FFI
+        // in `catch_unwind` and returns a typed `Parse` error for a panic, so a
+        // hostile file degrades to one failed file, never a dead run. A panic is
+        // classified PANIC; any other parse failure is PARSE_ERROR.
         let tree = match adapter.parse(text) {
             Ok(tree) => tree,
             Err(err) => {
+                let reason = err.to_string();
+                let reason_class = if reason.contains("panicked") {
+                    KnowledgeCodeRepairReason::Panic
+                } else {
+                    KnowledgeCodeRepairReason::ParseError
+                };
                 return self
                     .record_parse_failure(
                         ctx,
                         workspace_id,
                         source_id,
                         relative_path,
-                        language,
+                        Some(language),
                         &content_hash,
                         &parser_version,
                         index_run_id,
-                        &err.to_string(),
+                        &reason,
+                        reason_class,
                     )
                     .await;
             }
@@ -750,9 +764,15 @@ impl CodeIndexEngine {
         Ok(written)
     }
 
-    /// MT-108: record a parse FAILURE without aborting the run. Writes a
-    /// `failed` source receipt + `failed` code-file state, and (when a repair
-    /// hook is wired) the ingestion repair queue. Returns a failed outcome.
+    /// MT-108: record a parse/read FAILURE without aborting the run. Writes a
+    /// `failed` source receipt + `failed` code-file state, ENQUEUES a durable
+    /// code-index repair-queue entry (so the failed file is held for re-parse,
+    /// not just flagged), and returns a failed outcome.
+    ///
+    /// `language` is the real [`CodeLanguage`] for a code-file failure, or
+    /// `None` for a config/read failure that has no code language (the receipt
+    /// then carries no misleading language tag — closing the config-receipt
+    /// "says javascript for a failed .toml" accuracy bug).
     #[allow(clippy::too_many_arguments)]
     async fn record_parse_failure(
         &self,
@@ -760,11 +780,12 @@ impl CodeIndexEngine {
         workspace_id: &str,
         source_id: &str,
         relative_path: &str,
-        language: CodeLanguage,
+        language: Option<CodeLanguage>,
         content_hash: &str,
         parser_version: &str,
         index_run_id: Option<&str>,
         reason: &str,
+        reason_class: KnowledgeCodeRepairReason,
     ) -> CodeIndexResult<CodeFileIndexOutcome> {
         let receipt_event_id = self
             .append_receipt_event(
@@ -777,9 +798,10 @@ impl CodeIndexEngine {
                     "workspace_id": workspace_id,
                     "source_id": source_id,
                     "relative_path": relative_path,
-                    "language": language.as_str(),
+                    "language": language.map(|l| l.as_str()),
                     "parser_version": parser_version,
                     "reason": reason,
+                    "reason_class": reason_class.as_str(),
                     "extractor_version": CODE_EXTRACTOR_VERSION,
                 }),
             )
@@ -794,27 +816,55 @@ impl CodeIndexEngine {
             )
             .await?;
 
+        // The code-file state row needs a non-null language column; a failure
+        // with no code language (config/read) is tagged with the storage
+        // neutral default but the FAILURE RECEIPT + repair entry carry the real
+        // cause, so no consumer is misled about a config/binary file's language.
+        let storage_language = language
+            .map(code_language_to_storage)
+            .unwrap_or(KnowledgeCodeLanguage::Javascript);
         self.db
             .upsert_knowledge_code_file(UpsertKnowledgeCodeFile {
                 workspace_id: workspace_id.to_string(),
                 source_id: source_id.to_string(),
                 file_entity_id: None,
-                language: code_language_to_storage(language),
+                language: storage_language,
                 indexed_content_hash: content_hash.to_string(),
                 parser_version: parser_version.to_string(),
                 parse_status: KnowledgeCodeParseStatus::Failed,
                 symbols_indexed: 0,
                 edges_indexed: 0,
-                failure_detail: Some(json!({"reason": reason})),
+                failure_detail: Some(json!({
+                    "reason": reason,
+                    "reason_class": reason_class.as_str(),
+                })),
                 last_indexed_in_run: index_run_id.map(|s| s.to_string()),
                 last_index_receipt_event_id: Some(receipt_event_id.clone()),
+            })
+            .await?;
+
+        // The durable repair surface: a re-failing file refreshes its open entry
+        // (one per source); a previously dead-lettered file is reopened. This is
+        // what holds the file for re-processing after the cause is fixed.
+        self.db
+            .enqueue_knowledge_code_repair(NewKnowledgeCodeRepairEntry {
+                workspace_id: workspace_id.to_string(),
+                source_id: source_id.to_string(),
+                relative_path: relative_path.to_string(),
+                reason_class,
+                reason_detail: json!({
+                    "reason": reason,
+                    "language": language.map(|l| l.as_str()),
+                    "parser_version": parser_version,
+                }),
+                enqueue_event_id: Some(receipt_event_id.clone()),
             })
             .await?;
 
         Ok(CodeFileIndexOutcome {
             source_id: source_id.to_string(),
             relative_path: relative_path.to_string(),
-            language: Some(language),
+            language,
             parse_status: KnowledgeCodeParseStatus::Failed,
             symbols_indexed: 0,
             edges_indexed: 0,
@@ -844,21 +894,21 @@ impl CodeIndexEngine {
         let facts = match extract_config_facts(format, relative_path, text) {
             Ok(facts) => facts,
             Err(reason) => {
+                // A config file has NO CodeLanguage; pass `None` so the failure
+                // receipt does not claim a (wrong) code language for a .toml/.json
+                // /.yaml. The repair entry is classed CONFIG_PARSE_ERROR.
                 return self
                     .record_parse_failure(
                         ctx,
                         workspace_id,
                         source_id,
                         relative_path,
-                        // Config files are not a CodeLanguage; report rust-less
-                        // failure via a neutral placeholder language tag in the
-                        // receipt by reusing the storage failure with a config
-                        // marker. We map to the JSON case for code_file state.
-                        CodeLanguage::JavaScript, // unused in receipt text below
+                        None,
                         &sha256_hex(text.as_bytes()),
                         &parser_version,
                         index_run_id,
                         &format!("config parse failed: {reason}"),
+                        KnowledgeCodeRepairReason::ConfigParseError,
                     )
                     .await;
             }
@@ -982,6 +1032,42 @@ impl CodeIndexEngine {
         })
     }
 
+    /// MT-108: record a READ failure (binary / non-UTF8 / unreadable file)
+    /// without aborting a directory run. `read_and_index` calls this when
+    /// `std::fs::read` rejects a file (OS error such as a permission denial) or
+    /// the bytes are not valid UTF-8 (a binary file that happens to carry a code
+    /// extension). Such a file would otherwise abort the whole pass; instead it
+    /// is recorded with `parse_status = failed`, a typed receipt, and a durable
+    /// READ_ERROR repair-queue entry, and the run continues.
+    ///
+    /// No code language is asserted: a binary/unreadable file's true language is
+    /// unknown, so the failure receipt carries `language: null` and the real
+    /// cause, rather than guessing javascript.
+    pub async fn record_read_failure(
+        &self,
+        ctx: &CodeIndexContext,
+        workspace_id: &str,
+        source_id: &str,
+        relative_path: &str,
+        content_hash: &str,
+        reason: &str,
+    ) -> CodeIndexResult<CodeFileIndexOutcome> {
+        ctx.validate()?;
+        self.record_parse_failure(
+            ctx,
+            workspace_id,
+            source_id,
+            relative_path,
+            None,
+            content_hash,
+            "read_failed",
+            None,
+            reason,
+            KnowledgeCodeRepairReason::ReadError,
+        )
+        .await
+    }
+
     /// Register a code/config source row for content (mirrors the ingestion
     /// engine's source upsert) so the fixtures + nav tests have a `source_id`
     /// to index against without running the full ingestion pass. The source is
@@ -1088,6 +1174,14 @@ fn sha256_hex(bytes: &[u8]) -> String {
 
 /// Read a file under a runtime anchor and index it (convenience for a
 /// directory run; the anchor is machine-local runtime config, never stored).
+///
+/// MT-108: a file that cannot be read as UTF-8 text (a binary file that carries
+/// a code extension, or an OS read error such as a permission denial) does NOT
+/// abort the run. We read raw bytes first so the content hash is always
+/// available for the failure receipt, then attempt a UTF-8 decode; a decode or
+/// IO failure is recorded as a `failed` file (typed receipt + repair-queue
+/// entry) through [`CodeIndexEngine::record_read_failure`] and the run
+/// continues with the remaining files.
 pub async fn read_and_index(
     engine: &CodeIndexEngine,
     ctx: &CodeIndexContext,
@@ -1098,10 +1192,42 @@ pub async fn read_and_index(
     index_run_id: Option<&str>,
 ) -> CodeIndexResult<CodeFileIndexOutcome> {
     let abs = fs_anchor.join(relative_path);
-    let text = std::fs::read_to_string(&abs).map_err(|err| CodeIndexError::Io {
-        path: abs.display().to_string(),
-        detail: err.to_string(),
-    })?;
+    // Read raw bytes so a non-UTF8 (binary) file still yields a content hash for
+    // the failure receipt instead of aborting the whole directory run.
+    let bytes = match std::fs::read(&abs) {
+        Ok(bytes) => bytes,
+        Err(err) => {
+            let content_hash = sha256_hex(abs.display().to_string().as_bytes());
+            return engine
+                .record_read_failure(
+                    ctx,
+                    workspace_id,
+                    source_id,
+                    relative_path,
+                    &content_hash,
+                    &format!("file read failed at {}: {err}", abs.display()),
+                )
+                .await;
+        }
+    };
+    let content_hash = sha256_hex(&bytes);
+    let text = match String::from_utf8(bytes) {
+        Ok(text) => text,
+        Err(err) => {
+            return engine
+                .record_read_failure(
+                    ctx,
+                    workspace_id,
+                    source_id,
+                    relative_path,
+                    &content_hash,
+                    &format!(
+                        "file '{relative_path}' is not valid UTF-8 (binary or wrong encoding): {err}"
+                    ),
+                )
+                .await;
+        }
+    };
     engine
         .index_code_source(
             ctx,

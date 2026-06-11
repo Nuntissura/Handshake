@@ -35,14 +35,18 @@
 //!    confidence.
 //! 5. [`staleness`] (MT-107) marks code entities stale when the source hash or
 //!    parser version changes; [`engine`] (MT-108) keeps a run useful when one
-//!    file fails to parse (partial receipts + repair-queue integration).
+//!    file fails to parse OR fails to read (partial receipts + a durable
+//!    `knowledge_code_repair_queue` entry, 0230, that holds the file for
+//!    re-parse — real enqueue, not a flag).
 //! 6. HTTP surface: `src/api/knowledge_code_nav.rs` (MT-106,
 //!    `/knowledge/code/*`). [`monaco_bridge`] (MT-109) and [`context_bridge`]
 //!    (MT-110) project the same graph into Monaco code-lens payloads and bounded
 //!    context bundles.
 //!
 //! Durable state: this module OWNS migrations 0170-0179 (its own support
-//! tables: code-file index state for staleness, and the SCIP import ledger).
+//! tables: code-file index state for staleness, and the SCIP import ledger)
+//! plus the MT-108 code-index repair queue (`knowledge_code_repair_queue`,
+//! 0230, in the operator-assigned hardening band).
 //! Symbols/spans/edges themselves live in the shared `knowledge_entities`
 //! /`knowledge_spans`/`knowledge_edges` tables (0134-0136) and are written ONLY
 //! through `storage::knowledge::KnowledgeStore` — this module never issues raw
@@ -55,9 +59,11 @@
 //! silent partial indexing.
 //!
 //! Common failure modes + recovery:
-//! * File fails to parse -> the run continues; the file's source row carries a
-//!   `failed` parser status + receipt, and a repair-queue entry holds it
-//!   (MT-108). Fix the syntax, re-run the pass.
+//! * File fails to parse OR fails to read (binary / non-UTF-8 / unreadable) ->
+//!   the run continues; the file's source row carries a `failed` parser status +
+//!   receipt, and a `knowledge_code_repair_queue` entry (MT-108) holds it with a
+//!   typed reason class (PARSE_ERROR / READ_ERROR / PANIC / CONFIG_PARSE_ERROR).
+//!   Fix the cause, re-run the pass; a successful re-index resolves the entry.
 //! * Stale symbols -> the source hash or parser version changed; MT-107 marks
 //!   the file's entities stale and the nav API refuses to serve stale results
 //!   silently (it flags them). Re-index to refresh.
