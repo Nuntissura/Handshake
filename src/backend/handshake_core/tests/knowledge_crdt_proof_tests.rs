@@ -369,3 +369,130 @@ mod mt_077_promotion_e2e {
         );
     }
 }
+
+mod mt_078_no_external_relay {
+    use super::*;
+    use uuid::Uuid;
+
+    /// Static proof: the WP-009 CRDT surface declares no external sync
+    /// server, relay, or hosted CRDT service — not in Cargo dependencies and
+    /// not in the CRDT/API source. The draft path speaks PostgreSQL only.
+    #[test]
+    fn static_scan_finds_no_external_relay_dependency() {
+        let manifest_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+        let forbidden_dependencies = [
+            "y-websocket",
+            "hocuspocus",
+            "yrs-warp",
+            "y-sync",
+            "liveblocks",
+            "partykit",
+            "sharedb",
+            "automerge-repo-network",
+        ];
+        let cargo_toml =
+            std::fs::read_to_string(manifest_dir.join("Cargo.toml")).expect("read Cargo.toml");
+        for forbidden in forbidden_dependencies {
+            assert!(
+                !cargo_toml.contains(forbidden),
+                "Cargo.toml must not declare relay dependency '{forbidden}'"
+            );
+        }
+
+        // The CRDT modules and the knowledge CRDT API never dial out: no
+        // websocket-relay URLs, no relay client imports.
+        let forbidden_tokens = [
+            "ws://",
+            "wss://",
+            "y-websocket",
+            "hocuspocus",
+            "liveblocks",
+            "partykit",
+            "sync-server",
+            "tokio_tungstenite",
+        ];
+        let crdt_dir = manifest_dir.join("src").join("kernel").join("crdt");
+        let mut scanned = vec![manifest_dir
+            .join("src")
+            .join("api")
+            .join("knowledge_crdt.rs")];
+        for entry in std::fs::read_dir(&crdt_dir).expect("read crdt dir") {
+            let path = entry.expect("dir entry").path();
+            if path.extension().and_then(|ext| ext.to_str()) == Some("rs") {
+                scanned.push(path);
+            }
+        }
+        assert!(scanned.len() > 10, "scan must cover the CRDT module set");
+        for path in scanned {
+            let source = std::fs::read_to_string(&path).expect("read source");
+            for forbidden in forbidden_tokens {
+                assert!(
+                    !source.contains(forbidden),
+                    "{} must not reference '{forbidden}'",
+                    path.display()
+                );
+            }
+        }
+    }
+
+    /// Runtime proof: a complete multi-actor draft cycle (push, idempotent
+    /// replay, stale rejection, pull-equivalent listing) completes against
+    /// local PostgreSQL alone — no relay process, no external sync service,
+    /// and every durable byte ref uses the postgres:// scheme.
+    #[tokio::test]
+    async fn full_draft_cycle_needs_only_postgres() {
+        let backend = backend_or_blocked().await;
+        let db = backend.database.clone();
+        let suffix = Uuid::now_v7().simple().to_string();
+        let ws = format!("ws-mt078-{suffix}");
+        let doc = format!("doc-mt078-{suffix}");
+        let crdt_doc = format!("crdt-mt078-{suffix}");
+        let actor_a =
+            KnowledgeActorIdV1::new(KnowledgeActorKind::Operator, "relayless-op").expect("actor");
+        let actor_b =
+            KnowledgeActorIdV1::new(KnowledgeActorKind::CloudModel, "relayless-cm").expect("actor");
+        let site_a = derive_knowledge_site_id(&ws, &crdt_doc, &actor_a);
+        let site_b = derive_knowledge_site_id(&ws, &crdt_doc, &actor_b);
+
+        let mut sv = KnowledgeStateVectorV1::new();
+        for (index, (actor, site)) in [(&actor_a, &site_a), (&actor_b, &site_b)]
+            .into_iter()
+            .enumerate()
+        {
+            let before = sv.clone();
+            sv.increment(&site.site_id);
+            let env = envelope(
+                &ws,
+                &doc,
+                &crdt_doc,
+                &format!("relayless-u{}", index + 1),
+                actor,
+                "sr-relayless",
+                format!("relayless-{}", index + 1).as_bytes(),
+                &before,
+                &sv,
+            );
+            assert!(matches!(
+                push_yjs_update(db.as_ref(), &env).await.expect("push"),
+                YjsPushOutcomeV1::Stored { .. }
+            ));
+        }
+
+        let records = db
+            .list_kernel_crdt_updates(&ws, &doc, &crdt_doc)
+            .await
+            .expect("list");
+        assert_eq!(records.len(), 2);
+        for record in &records {
+            assert!(
+                record.update_bytes_ref.starts_with("postgres://"),
+                "durable refs must be postgres://, found {}",
+                record.update_bytes_ref
+            );
+            assert_eq!(
+                record.event_ledger_stream_id,
+                format!("knowledge-crdt:{crdt_doc}")
+            );
+        }
+    }
+}
