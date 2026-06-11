@@ -172,6 +172,12 @@ pub mod inspector_read;
 #[cfg(feature = "runtime-full")]
 pub mod jobs;
 pub mod kernel;
+/// WP-KERNEL-009 CodeIndexingAndNavigation (MT-097..MT-112): Tree-sitter code
+/// symbol/structure indexing over registered KnowledgeSource files, with
+/// ast-anchored spans, deterministic call/import edges, staleness detection,
+/// partial-failure handling, and a backend code-navigation API.
+#[cfg(feature = "runtime-full")]
+pub mod knowledge_code_index;
 /// WP-KERNEL-009 SourceIngestionAndEvidence (MT-081..MT-096): allowlisted,
 /// hash-based, secret-aware project source ingestion with extraction
 /// receipts, ingestion spans, and a durable repair queue.

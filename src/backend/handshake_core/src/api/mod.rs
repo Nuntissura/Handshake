@@ -10,6 +10,7 @@ pub mod flight_recorder;
 pub mod governance_pack;
 pub mod jobs;
 pub mod kernel;
+pub mod knowledge_code_nav;
 pub mod knowledge_crdt;
 pub mod knowledge_ingestion;
 pub mod logs;
@@ -29,6 +30,7 @@ pub fn routes(state: AppState) -> Router {
     let governance_pack_routes = governance_pack::routes(state.clone());
     let role_mailbox_routes = role_mailbox::routes(state.clone());
     let kernel_routes = kernel::routes(state.clone());
+    let knowledge_code_nav_routes = knowledge_code_nav::routes(state.clone());
     let knowledge_crdt_routes = knowledge_crdt::routes(state.clone());
     let knowledge_ingestion_routes = knowledge_ingestion::routes(state.clone());
     let atelier_routes = atelier::routes(state.clone());
@@ -47,6 +49,7 @@ pub fn routes(state: AppState) -> Router {
         .merge(governance_pack_routes)
         .merge(role_mailbox_routes)
         .merge(kernel_routes)
+        .merge(knowledge_code_nav_routes)
         .merge(knowledge_crdt_routes)
         .merge(knowledge_ingestion_routes)
         .merge(atelier_routes)

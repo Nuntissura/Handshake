@@ -1,0 +1,690 @@
+//! WP-KERNEL-009 MT-106 CodeNavigationApi: the backend HTTP surface for the
+//! CodeIndexingAndNavigation group (MT-097..MT-112).
+//!
+//! Purpose: let a no-context agent navigate indexed code WITHOUT an external LSP
+//! server and without reading product source — look up a symbol by name, jump to
+//! its definition span, list its references and callers, find the tests that
+//! exercise it, and read the source spans (citations) behind every answer. The
+//! Monaco code-lens payload (MT-109) and the bounded context bundle (MT-110) are
+//! served here too.
+//!
+//! Conventions mirror `api/knowledge_ingestion.rs`: a `routes(state)` builder,
+//! handlers over the shared `AppState`, JSON errors with typed `error` codes,
+//! reads bounded by `LIST_CAP`. All graph reads go through
+//! `storage::knowledge::KnowledgeStore` over the shared `postgres_pool` —
+//! PostgreSQL + EventLedger authority only, no SQLite, no re-parsing.
+//!
+//! Backend-navigation receipt law (spec 2.3.13.11): a navigation query is a
+//! retrieval action and MUST be attributable. Every nav endpoint therefore
+//! REQUIRES the identity headers (400 otherwise) and appends a
+//! `KNOWLEDGE_RETRIEVAL_TRACE_RECORDED` EventLedger receipt carrying the
+//! actor/session/correlation identity and the resolved query, so who-navigated-
+//! to-what is auditable:
+//! * `x-hsk-actor-id` — who navigates
+//! * `x-hsk-kernel-task-run-id` — the kernel task run this nav belongs to
+//! * `x-hsk-session-run-id` — the session run within that task
+//!
+//! and accepts optionally:
+//!
+//! * `x-hsk-actor-kind` — operator | system | session_broker | model_adapter |
+//!   toolgate | validation_runner | promotion_gate (default `system`)
+//! * `x-hsk-correlation-id` — correlation chain id
+//!
+//! Routes (all read-only graph queries; each leaves a retrieval receipt):
+//! * `GET /knowledge/code/symbols?workspace_id=&name=&path=&limit=` — symbol
+//!   lookup by simple name and/or file path
+//! * `GET /knowledge/code/symbols/:entity_id` — one symbol with definition span,
+//!   doc, owning file, and staleness
+//! * `GET /knowledge/code/symbols/:entity_id/references` — outgoing references
+//!   (callees) + incoming references (callers), with evidence spans
+//! * `GET /knowledge/code/symbols/:entity_id/tests` — tests that `validate` this
+//!   symbol
+//! * `GET /knowledge/code/symbols/:entity_id/spans` — the source spans
+//!   (citations) the symbol was detected from
+//! * `GET /knowledge/code/files/:path/lens?workspace_id=&content_hash=&parser_version=`
+//!   — the Monaco code-lens payload (MT-109) for a file
+//!
+//! The `:path` segment is a repo-relative POSIX path; `/` is URL-encoded by the
+//! caller and decoded here. `owning_wp` is surfaced when the symbol carries a
+//! `wp`/`work_packet` provenance hint (the index records what it knows; the WP
+//! linkage graph is populated by other groups).
+
+use axum::{
+    extract::{Path, Query, State},
+    http::{HeaderMap, StatusCode},
+    routing::get,
+    Json, Router,
+};
+use serde::Deserialize;
+use serde_json::{json, Value};
+
+use crate::kernel::{KernelActor, KernelEventType, NewKernelEvent};
+use crate::knowledge_code_index::monaco_bridge::build_monaco_payload;
+use crate::storage::knowledge::{
+    KnowledgeEdgeType, KnowledgeEntity, KnowledgeEntityKind, KnowledgeSpanKind, KnowledgeStore,
+};
+use crate::storage::postgres::PostgresDatabase;
+use crate::storage::{Database, StorageError};
+use crate::AppState;
+
+const HSK_HEADER_ACTOR_KIND: &str = "x-hsk-actor-kind";
+const HSK_HEADER_ACTOR_ID: &str = "x-hsk-actor-id";
+const HSK_HEADER_KERNEL_TASK_RUN_ID: &str = "x-hsk-kernel-task-run-id";
+const HSK_HEADER_SESSION_RUN_ID: &str = "x-hsk-session-run-id";
+const HSK_HEADER_CORRELATION_ID: &str = "x-hsk-correlation-id";
+
+/// Cap for list endpoints (matches the ingestion API convention).
+const LIST_CAP: i64 = 500;
+
+pub fn routes(state: AppState) -> Router {
+    Router::new()
+        .route("/knowledge/code/symbols", get(lookup_symbols))
+        .route("/knowledge/code/symbols/:entity_id", get(get_symbol))
+        .route(
+            "/knowledge/code/symbols/:entity_id/references",
+            get(symbol_references),
+        )
+        .route(
+            "/knowledge/code/symbols/:entity_id/tests",
+            get(symbol_tests),
+        )
+        .route(
+            "/knowledge/code/symbols/:entity_id/spans",
+            get(symbol_spans),
+        )
+        .route("/knowledge/code/files/:path/lens", get(file_lens))
+        .with_state(state)
+}
+
+// ---------------------------------------------------------------------------
+// Shared plumbing.
+// ---------------------------------------------------------------------------
+
+type ApiError = (StatusCode, Json<Value>);
+
+fn db_for(state: &AppState) -> PostgresDatabase {
+    PostgresDatabase::new(state.postgres_pool.clone())
+}
+
+fn header_str<'a>(headers: &'a HeaderMap, name: &str) -> Option<&'a str> {
+    headers
+        .get(name)
+        .and_then(|value| value.to_str().ok())
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+}
+
+fn bad_request(detail: impl Into<String>) -> ApiError {
+    (
+        StatusCode::BAD_REQUEST,
+        Json(json!({"error": "bad_request", "detail": detail.into()})),
+    )
+}
+
+fn not_found(detail: impl Into<String>) -> ApiError {
+    (
+        StatusCode::NOT_FOUND,
+        Json(json!({"error": "not_found", "detail": detail.into()})),
+    )
+}
+
+fn storage_error(err: StorageError) -> ApiError {
+    match err {
+        StorageError::NotFound(what) => not_found(what),
+        StorageError::Validation(detail) => bad_request(detail),
+        other => {
+            tracing::error!(
+                target: "handshake_core::knowledge_code_nav",
+                error = %other,
+                "code_nav_api_internal_error"
+            );
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({"error": "internal_error"})),
+            )
+        }
+    }
+}
+
+/// The backend-navigation identity required on every nav query.
+struct NavContext {
+    actor: KernelActor,
+    kernel_task_run_id: String,
+    session_run_id: String,
+    correlation_id: Option<String>,
+}
+
+/// Build the nav identity from the required headers (400 if any is missing).
+fn nav_context(headers: &HeaderMap) -> Result<NavContext, ApiError> {
+    let actor_id = header_str(headers, HSK_HEADER_ACTOR_ID)
+        .ok_or_else(|| bad_request(format!("{HSK_HEADER_ACTOR_ID} header is required")))?
+        .to_string();
+    let kernel_task_run_id = header_str(headers, HSK_HEADER_KERNEL_TASK_RUN_ID)
+        .ok_or_else(|| {
+            bad_request(format!(
+                "{HSK_HEADER_KERNEL_TASK_RUN_ID} header is required"
+            ))
+        })?
+        .to_string();
+    let session_run_id = header_str(headers, HSK_HEADER_SESSION_RUN_ID)
+        .ok_or_else(|| bad_request(format!("{HSK_HEADER_SESSION_RUN_ID} header is required")))?
+        .to_string();
+    let actor = match header_str(headers, HSK_HEADER_ACTOR_KIND).unwrap_or("system") {
+        "operator" => KernelActor::Operator(actor_id),
+        "system" => KernelActor::System(actor_id),
+        "session_broker" => KernelActor::SessionBroker(actor_id),
+        "model_adapter" => KernelActor::ModelAdapter(actor_id),
+        "toolgate" => KernelActor::ToolGate(actor_id),
+        "validation_runner" => KernelActor::ValidationRunner(actor_id),
+        "promotion_gate" => KernelActor::PromotionGate(actor_id),
+        other => {
+            return Err(bad_request(format!(
+                "unknown {HSK_HEADER_ACTOR_KIND} '{other}'"
+            )))
+        }
+    };
+    Ok(NavContext {
+        actor,
+        kernel_task_run_id,
+        session_run_id,
+        correlation_id: header_str(headers, HSK_HEADER_CORRELATION_ID).map(ToOwned::to_owned),
+    })
+}
+
+/// Append the navigation retrieval-trace receipt (spec 2.3.13.11). The receipt
+/// carries the actor/session/correlation identity and the resolved query so the
+/// navigation is auditable. A receipt failure is surfaced (the nav is not served
+/// silently without its trace).
+async fn record_nav_receipt(
+    db: &PostgresDatabase,
+    ctx: &NavContext,
+    query_kind: &str,
+    query: Value,
+) -> Result<String, ApiError> {
+    let mut builder = NewKernelEvent::builder(
+        ctx.kernel_task_run_id.clone(),
+        ctx.session_run_id.clone(),
+        KernelEventType::KnowledgeRetrievalTraceRecorded,
+        ctx.actor.clone(),
+    )
+    .aggregate("knowledge_code_nav", query_kind)
+    .source_component("knowledge_code_nav")
+    .payload(json!({
+        "kind": "code_nav_query",
+        "query_kind": query_kind,
+        "query": query,
+    }));
+    if let Some(correlation_id) = &ctx.correlation_id {
+        builder = builder.correlation_id(correlation_id.clone());
+    }
+    let event = builder.build().map_err(|err| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({"error": "receipt_build_failed", "detail": err.to_string()})),
+        )
+    })?;
+    let stored = db.append_kernel_event(event).await.map_err(storage_error)?;
+    Ok(stored.event_id)
+}
+
+// ---------------------------------------------------------------------------
+// Query params.
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Deserialize)]
+struct LookupParams {
+    workspace_id: String,
+    #[serde(default)]
+    name: Option<String>,
+    #[serde(default)]
+    path: Option<String>,
+    #[serde(default)]
+    limit: Option<i64>,
+}
+
+#[derive(Debug, Deserialize)]
+struct LensParams {
+    workspace_id: String,
+    content_hash: String,
+    parser_version: String,
+}
+
+// ---------------------------------------------------------------------------
+// Handlers.
+// ---------------------------------------------------------------------------
+
+/// The JSON projection of a symbol entity + its definition span.
+async fn symbol_to_json(db: &PostgresDatabase, symbol: &KnowledgeEntity) -> Value {
+    let symbol_kind = symbol
+        .detection_provenance
+        .get("symbol_kind")
+        .and_then(|v| v.as_str())
+        .unwrap_or("symbol");
+    let owning_wp = symbol
+        .detection_provenance
+        .get("wp")
+        .or_else(|| symbol.detection_provenance.get("work_packet"))
+        .and_then(|v| v.as_str());
+    // Definition = the first `ast` span.
+    let mut definition = Value::Null;
+    if let Ok(span_ids) = db.list_knowledge_entity_span_ids(&symbol.entity_id).await {
+        for span_id in span_ids {
+            if let Ok(Some(span)) = db.get_knowledge_span(&span_id).await {
+                if matches!(span.span_kind, KnowledgeSpanKind::Ast) {
+                    definition = json!({
+                        "span_id": span.span_id,
+                        "source_id": span.source_id,
+                        "line_start": span.line_start,
+                        "line_end": span.line_end,
+                        "range_start": span.range_start,
+                        "range_end": span.range_end,
+                        "section_path": span.section_path,
+                    });
+                    break;
+                }
+            }
+        }
+    }
+    json!({
+        "symbol_entity_id": symbol.entity_id,
+        "symbol_key": symbol.entity_key,
+        "display_name": symbol.display_name,
+        "symbol_kind": symbol_kind,
+        "owning_wp": owning_wp,
+        "primary_source_id": symbol.primary_source_id,
+        "lifecycle_state": symbol.lifecycle_state.as_str(),
+        "definition": definition,
+    })
+}
+
+/// `GET /knowledge/code/symbols` — symbol lookup by name and/or path.
+async fn lookup_symbols(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Query(params): Query<LookupParams>,
+) -> Result<Json<Value>, ApiError> {
+    let db = db_for(&state);
+    let ctx = nav_context(&headers)?;
+    if params.name.is_none() && params.path.is_none() {
+        return Err(bad_request("at least one of name or path is required"));
+    }
+    let limit = params.limit.unwrap_or(LIST_CAP).clamp(1, LIST_CAP) as usize;
+
+    let all = db
+        .list_knowledge_entities_by_kind(&params.workspace_id, KnowledgeEntityKind::Symbol)
+        .await
+        .map_err(storage_error)?;
+
+    let name = params.name.as_deref();
+    let path = params.path.as_deref();
+    let mut matched: Vec<&KnowledgeEntity> = all
+        .iter()
+        .filter(|s| {
+            let name_ok = match name {
+                Some(n) => symbol_simple_name(&s.entity_key) == n || s.display_name == n,
+                None => true,
+            };
+            let path_ok = match path {
+                Some(p) => symbol_path_segment(&s.entity_key) == p,
+                None => true,
+            };
+            name_ok && path_ok
+        })
+        .collect();
+    matched.sort_by(|a, b| a.entity_key.cmp(&b.entity_key));
+    matched.truncate(limit);
+
+    let mut results = Vec::with_capacity(matched.len());
+    for symbol in &matched {
+        results.push(symbol_to_json(&db, symbol).await);
+    }
+
+    let receipt = record_nav_receipt(
+        &db,
+        &ctx,
+        "symbol_lookup",
+        json!({"workspace_id": params.workspace_id, "name": name, "path": path, "matches": results.len()}),
+    )
+    .await?;
+
+    Ok(Json(json!({
+        "workspace_id": params.workspace_id,
+        "matches": results,
+        "nav_receipt_event_id": receipt,
+    })))
+}
+
+/// `GET /knowledge/code/symbols/:entity_id` — one symbol with its definition.
+async fn get_symbol(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Path(entity_id): Path<String>,
+) -> Result<Json<Value>, ApiError> {
+    let db = db_for(&state);
+    let ctx = nav_context(&headers)?;
+    let symbol = require_symbol(&db, &entity_id).await?;
+    let body = symbol_to_json(&db, &symbol).await;
+    let receipt =
+        record_nav_receipt(&db, &ctx, "symbol_get", json!({"entity_id": entity_id})).await?;
+    Ok(Json(
+        json!({"symbol": body, "nav_receipt_event_id": receipt}),
+    ))
+}
+
+/// `GET /knowledge/code/symbols/:entity_id/references` — callers + callees.
+async fn symbol_references(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Path(entity_id): Path<String>,
+) -> Result<Json<Value>, ApiError> {
+    let db = db_for(&state);
+    let ctx = nav_context(&headers)?;
+    let symbol = require_symbol(&db, &entity_id).await?;
+    let edges = db
+        .list_knowledge_edges_for_entity(&symbol.entity_id)
+        .await
+        .map_err(storage_error)?;
+
+    let mut callers = Vec::new();
+    let mut callees = Vec::new();
+    for edge in &edges {
+        if edge.edge_type != KnowledgeEdgeType::References {
+            continue;
+        }
+        let spans = edge_span_refs(&db, &edge.edge_id).await;
+        if edge.target_entity_id == symbol.entity_id {
+            // Incoming reference: source calls this symbol.
+            if let Ok(Some(src)) = db.get_knowledge_entity(&edge.source_entity_id).await {
+                callers.push(json!({
+                    "symbol_entity_id": src.entity_id,
+                    "symbol_key": src.entity_key,
+                    "display_name": src.display_name,
+                    "confidence": edge.confidence,
+                    "evidence_spans": spans,
+                }));
+            }
+        } else if edge.source_entity_id == symbol.entity_id {
+            // Outgoing reference: this symbol calls target.
+            if let Ok(Some(tgt)) = db.get_knowledge_entity(&edge.target_entity_id).await {
+                callees.push(json!({
+                    "symbol_entity_id": tgt.entity_id,
+                    "symbol_key": tgt.entity_key,
+                    "display_name": tgt.display_name,
+                    "confidence": edge.confidence,
+                    "evidence_spans": spans,
+                }));
+            }
+        }
+    }
+
+    let receipt = record_nav_receipt(
+        &db,
+        &ctx,
+        "symbol_references",
+        json!({"entity_id": entity_id, "callers": callers.len(), "callees": callees.len()}),
+    )
+    .await?;
+
+    Ok(Json(json!({
+        "symbol_entity_id": symbol.entity_id,
+        "callers": callers,
+        "callees": callees,
+        "nav_receipt_event_id": receipt,
+    })))
+}
+
+/// `GET /knowledge/code/symbols/:entity_id/tests` — tests validating a symbol.
+async fn symbol_tests(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Path(entity_id): Path<String>,
+) -> Result<Json<Value>, ApiError> {
+    let db = db_for(&state);
+    let ctx = nav_context(&headers)?;
+    let symbol = require_symbol(&db, &entity_id).await?;
+    let edges = db
+        .list_knowledge_edges_for_entity(&symbol.entity_id)
+        .await
+        .map_err(storage_error)?;
+
+    let mut tests = Vec::new();
+    for edge in &edges {
+        // A `validates` edge points test -> tested symbol; we want edges whose
+        // TARGET is this symbol (the tests that exercise it).
+        if edge.edge_type == KnowledgeEdgeType::Validates
+            && edge.target_entity_id == symbol.entity_id
+        {
+            let spans = edge_span_refs(&db, &edge.edge_id).await;
+            if let Ok(Some(test)) = db.get_knowledge_entity(&edge.source_entity_id).await {
+                tests.push(json!({
+                    "test_entity_id": test.entity_id,
+                    "test_symbol_key": test.entity_key,
+                    "display_name": test.display_name,
+                    "confidence": edge.confidence,
+                    "evidence_spans": spans,
+                }));
+            }
+        }
+    }
+
+    let receipt = record_nav_receipt(
+        &db,
+        &ctx,
+        "symbol_tests",
+        json!({"entity_id": entity_id, "tests": tests.len()}),
+    )
+    .await?;
+
+    Ok(Json(json!({
+        "symbol_entity_id": symbol.entity_id,
+        "tests": tests,
+        "nav_receipt_event_id": receipt,
+    })))
+}
+
+/// `GET /knowledge/code/symbols/:entity_id/spans` — citation spans of a symbol.
+async fn symbol_spans(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Path(entity_id): Path<String>,
+) -> Result<Json<Value>, ApiError> {
+    let db = db_for(&state);
+    let ctx = nav_context(&headers)?;
+    let symbol = require_symbol(&db, &entity_id).await?;
+    let span_ids = db
+        .list_knowledge_entity_span_ids(&symbol.entity_id)
+        .await
+        .map_err(storage_error)?;
+    let mut spans = Vec::new();
+    for span_id in span_ids {
+        if let Some(span) = db
+            .get_knowledge_span(&span_id)
+            .await
+            .map_err(storage_error)?
+        {
+            spans.push(json!({
+                "span_id": span.span_id,
+                "source_id": span.source_id,
+                "span_kind": span.span_kind.as_str(),
+                "line_start": span.line_start,
+                "line_end": span.line_end,
+                "range_start": span.range_start,
+                "range_end": span.range_end,
+                "section_path": span.section_path,
+                "content_sha256": span.content_sha256,
+                "parser_version": span.parser_version,
+            }));
+        }
+    }
+
+    let receipt = record_nav_receipt(
+        &db,
+        &ctx,
+        "symbol_spans",
+        json!({"entity_id": entity_id, "spans": spans.len()}),
+    )
+    .await?;
+
+    Ok(Json(json!({
+        "symbol_entity_id": symbol.entity_id,
+        "spans": spans,
+        "nav_receipt_event_id": receipt,
+    })))
+}
+
+/// `GET /knowledge/code/files/:path/lens` — Monaco code-lens payload (MT-109).
+async fn file_lens(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Path(path): Path<String>,
+    Query(params): Query<LensParams>,
+) -> Result<Json<Value>, ApiError> {
+    let db = db_for(&state);
+    let ctx = nav_context(&headers)?;
+    let relative_path = decode_path(&path);
+    let payload = build_monaco_payload(
+        &db,
+        &params.workspace_id,
+        &relative_path,
+        &params.content_hash,
+        &params.parser_version,
+    )
+    .await
+    .map_err(code_index_error)?;
+
+    let receipt = record_nav_receipt(
+        &db,
+        &ctx,
+        "file_lens",
+        json!({"workspace_id": params.workspace_id, "relative_path": relative_path, "entries": payload.entries.len()}),
+    )
+    .await?;
+
+    let mut body = serde_json::to_value(&payload).map_err(|err| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({"error": "serialize_failed", "detail": err.to_string()})),
+        )
+    })?;
+    if let Value::Object(map) = &mut body {
+        map.insert("nav_receipt_event_id".to_string(), json!(receipt));
+    }
+    Ok(Json(body))
+}
+
+// ---------------------------------------------------------------------------
+// Helpers.
+// ---------------------------------------------------------------------------
+
+/// Resolve an entity id, 404 if missing, 400 if it is not a code symbol.
+async fn require_symbol(
+    db: &PostgresDatabase,
+    entity_id: &str,
+) -> Result<KnowledgeEntity, ApiError> {
+    let entity = db
+        .get_knowledge_entity(entity_id)
+        .await
+        .map_err(storage_error)?
+        .ok_or_else(|| not_found(format!("symbol '{entity_id}' not found")))?;
+    if entity.entity_kind != KnowledgeEntityKind::Symbol {
+        return Err(bad_request(format!(
+            "entity '{entity_id}' is not a code symbol (kind {})",
+            entity.entity_kind.as_str()
+        )));
+    }
+    Ok(entity)
+}
+
+/// The evidence span refs of an edge as JSON (id + line range), best-effort.
+async fn edge_span_refs(db: &PostgresDatabase, edge_id: &str) -> Vec<Value> {
+    let mut out = Vec::new();
+    if let Ok(span_ids) = db.list_knowledge_edge_span_ids(edge_id).await {
+        for span_id in span_ids {
+            if let Ok(Some(span)) = db.get_knowledge_span(&span_id).await {
+                out.push(json!({
+                    "span_id": span.span_id,
+                    "line_start": span.line_start,
+                    "line_end": span.line_end,
+                }));
+            }
+        }
+    }
+    out
+}
+
+/// The simple name of a symbol key `{lang}:{path}#{symbol_path}` (last segment
+/// of the symbol_path after the final `.`/`::`).
+fn symbol_simple_name(entity_key: &str) -> &str {
+    let after_hash = entity_key.rsplit('#').next().unwrap_or(entity_key);
+    after_hash
+        .rsplit("::")
+        .next()
+        .unwrap_or(after_hash)
+        .rsplit('.')
+        .next()
+        .unwrap_or(after_hash)
+}
+
+/// The file path segment of a symbol key `{lang}:{path}#{symbol_path}`.
+fn symbol_path_segment(entity_key: &str) -> &str {
+    let before_hash = entity_key.split('#').next().unwrap_or(entity_key);
+    before_hash
+        .split_once(':')
+        .map(|x| x.1)
+        .unwrap_or(before_hash)
+}
+
+/// Decode a URL-encoded repo-relative path segment.
+fn decode_path(raw: &str) -> String {
+    // Axum already percent-decodes a single path segment; this also accepts a
+    // caller that encoded `/` as `%2F` by replacing the literal back.
+    raw.replace("%2F", "/").replace("%2f", "/")
+}
+
+/// Map a code-index error to HTTP.
+fn code_index_error(err: crate::knowledge_code_index::CodeIndexError) -> ApiError {
+    use crate::knowledge_code_index::CodeIndexError;
+    match err {
+        CodeIndexError::Validation(detail) => bad_request(detail),
+        CodeIndexError::Storage(storage) => storage_error(storage),
+        other => {
+            tracing::error!(
+                target: "handshake_core::knowledge_code_nav",
+                error = %other,
+                "code_nav_api_code_index_error"
+            );
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({"error": "internal_error"})),
+            )
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn simple_name_extraction() {
+        assert_eq!(symbol_simple_name("rust:src/lib.rs#Foo::bar"), "bar");
+        assert_eq!(
+            symbol_simple_name("typescript:app/x.ts#useThing"),
+            "useThing"
+        );
+        assert_eq!(symbol_simple_name("rust:src/lib.rs#alpha"), "alpha");
+        assert_eq!(symbol_simple_name("rust:a.rs#A.b.c"), "c");
+    }
+
+    #[test]
+    fn path_segment_extraction() {
+        assert_eq!(symbol_path_segment("rust:src/lib.rs#Foo"), "src/lib.rs");
+        assert_eq!(symbol_path_segment("typescript:app/x.ts#y"), "app/x.ts");
+    }
+
+    #[test]
+    fn decode_path_handles_encoded_slash() {
+        assert_eq!(decode_path("src%2Flib.rs"), "src/lib.rs");
+        assert_eq!(decode_path("src/lib.rs"), "src/lib.rs");
+    }
+}

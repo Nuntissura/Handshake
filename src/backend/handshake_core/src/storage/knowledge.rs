@@ -4674,3 +4674,450 @@ impl KnowledgeStore for PostgresDatabase {
         }
     }
 }
+
+// ===========================================================================
+// WP-KERNEL-009 CodeIndexingAndNavigation (MT-097..MT-112) SHARED-FILE
+// ADDITION.
+//
+// Added by the CodeIndexingAndNavigation group: row types + a dedicated
+// `impl PostgresDatabase` block for the two code-index SUPPORT tables
+// (knowledge_code_files = 0170, knowledge_code_scip_imports = 0171). These are
+// the only durable tables this group owns; symbols/spans/edges use the shared
+// authority tables above through the existing KnowledgeStore trait. This block
+// is intentionally self-contained (separate `impl`, not new trait methods) so
+// the addition is auditable and does not perturb the KnowledgeStore trait
+// surface consumed elsewhere.
+// ===========================================================================
+
+/// Code language of an indexed code file (mirror of
+/// `knowledge_code_index::parser::CodeLanguage`, kept as a plain string here so
+/// the storage layer does not depend on the code-index module).
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum KnowledgeCodeLanguage {
+    Rust,
+    Javascript,
+    Typescript,
+    Tsx,
+}
+
+impl KnowledgeCodeLanguage {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Rust => "rust",
+            Self::Javascript => "javascript",
+            Self::Typescript => "typescript",
+            Self::Tsx => "tsx",
+        }
+    }
+}
+
+impl FromStr for KnowledgeCodeLanguage {
+    type Err = StorageError;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        match value {
+            "rust" => Ok(Self::Rust),
+            "javascript" => Ok(Self::Javascript),
+            "typescript" => Ok(Self::Typescript),
+            "tsx" => Ok(Self::Tsx),
+            _ => Err(StorageError::Validation("invalid knowledge code language")),
+        }
+    }
+}
+
+/// Per-file parse outcome (MT-108 partial-failure handling).
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum KnowledgeCodeParseStatus {
+    Parsed,
+    Partial,
+    Failed,
+}
+
+impl KnowledgeCodeParseStatus {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Parsed => "parsed",
+            Self::Partial => "partial",
+            Self::Failed => "failed",
+        }
+    }
+}
+
+impl FromStr for KnowledgeCodeParseStatus {
+    type Err = StorageError;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        match value {
+            "parsed" => Ok(Self::Parsed),
+            "partial" => Ok(Self::Partial),
+            "failed" => Ok(Self::Failed),
+            _ => Err(StorageError::Validation(
+                "invalid knowledge code parse_status",
+            )),
+        }
+    }
+}
+
+/// One row of `knowledge_code_files` (per-code-file index state).
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct KnowledgeCodeFile {
+    pub code_file_id: String,
+    pub workspace_id: String,
+    pub source_id: String,
+    pub file_entity_id: Option<String>,
+    pub language: KnowledgeCodeLanguage,
+    pub indexed_content_hash: String,
+    pub parser_version: String,
+    pub parse_status: KnowledgeCodeParseStatus,
+    pub stale: bool,
+    pub symbols_indexed: i32,
+    pub edges_indexed: i32,
+    pub failure_detail: Option<Value>,
+    pub last_indexed_in_run: Option<String>,
+    pub last_index_receipt_event_id: Option<String>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+/// Upsert payload for [`KnowledgeCodeFile`].
+#[derive(Clone, Debug)]
+pub struct UpsertKnowledgeCodeFile {
+    pub workspace_id: String,
+    pub source_id: String,
+    pub file_entity_id: Option<String>,
+    pub language: KnowledgeCodeLanguage,
+    /// Raw sha256 hex of the file content the index reflects.
+    pub indexed_content_hash: String,
+    pub parser_version: String,
+    pub parse_status: KnowledgeCodeParseStatus,
+    pub symbols_indexed: i32,
+    pub edges_indexed: i32,
+    pub failure_detail: Option<Value>,
+    pub last_indexed_in_run: Option<String>,
+    pub last_index_receipt_event_id: Option<String>,
+}
+
+const KNOWLEDGE_CODE_FILE_COLUMNS: &str = r#"
+    code_file_id, workspace_id, source_id, file_entity_id, language,
+    indexed_content_hash, parser_version, parse_status, stale,
+    symbols_indexed, edges_indexed, failure_detail, last_indexed_in_run,
+    last_index_receipt_event_id, created_at, updated_at
+"#;
+
+fn code_file_from_pg(row: &sqlx::postgres::PgRow) -> StorageResult<KnowledgeCodeFile> {
+    Ok(KnowledgeCodeFile {
+        code_file_id: row.get("code_file_id"),
+        workspace_id: row.get("workspace_id"),
+        source_id: row.get("source_id"),
+        file_entity_id: row.get("file_entity_id"),
+        language: row.get::<String, _>("language").parse()?,
+        indexed_content_hash: row.get("indexed_content_hash"),
+        parser_version: row.get("parser_version"),
+        parse_status: row.get::<String, _>("parse_status").parse()?,
+        stale: row.get("stale"),
+        symbols_indexed: row.get("symbols_indexed"),
+        edges_indexed: row.get("edges_indexed"),
+        failure_detail: row.get("failure_detail"),
+        last_indexed_in_run: row.get("last_indexed_in_run"),
+        last_index_receipt_event_id: row.get("last_index_receipt_event_id"),
+        created_at: row.get("created_at"),
+        updated_at: row.get("updated_at"),
+    })
+}
+
+/// SCIP/LSIF import format (MT-105).
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum KnowledgeScipFormat {
+    Scip,
+    Lsif,
+}
+
+impl KnowledgeScipFormat {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Scip => "scip",
+            Self::Lsif => "lsif",
+        }
+    }
+}
+
+/// Outcome of a SCIP/LSIF import attempt.
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum KnowledgeScipImportStatus {
+    Imported,
+    Partial,
+    Rejected,
+}
+
+impl KnowledgeScipImportStatus {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Imported => "imported",
+            Self::Partial => "partial",
+            Self::Rejected => "rejected",
+        }
+    }
+}
+
+impl FromStr for KnowledgeScipImportStatus {
+    type Err = StorageError;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        match value {
+            "imported" => Ok(Self::Imported),
+            "partial" => Ok(Self::Partial),
+            "rejected" => Ok(Self::Rejected),
+            _ => Err(StorageError::Validation("invalid scip import_status")),
+        }
+    }
+}
+
+/// One row of `knowledge_code_scip_imports`.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct KnowledgeScipImport {
+    pub scip_import_id: String,
+    pub workspace_id: String,
+    pub artifact_format: KnowledgeScipFormat,
+    pub tool_name: Option<String>,
+    pub tool_version: Option<String>,
+    pub artifact_hash: String,
+    pub status: KnowledgeScipImportStatus,
+    pub reason: Option<String>,
+    pub symbols_imported: i32,
+    pub occurrences_imported: i32,
+    pub edges_imported: i32,
+    pub import_detail: Option<Value>,
+    pub imported_in_run: Option<String>,
+    pub import_receipt_event_id: Option<String>,
+    pub created_at: DateTime<Utc>,
+}
+
+/// Insert payload for [`KnowledgeScipImport`].
+#[derive(Clone, Debug)]
+pub struct NewKnowledgeScipImport {
+    pub workspace_id: String,
+    pub artifact_format: KnowledgeScipFormat,
+    pub tool_name: Option<String>,
+    pub tool_version: Option<String>,
+    pub artifact_hash: String,
+    pub status: KnowledgeScipImportStatus,
+    pub reason: Option<String>,
+    pub symbols_imported: i32,
+    pub occurrences_imported: i32,
+    pub edges_imported: i32,
+    pub import_detail: Option<Value>,
+    pub imported_in_run: Option<String>,
+    pub import_receipt_event_id: Option<String>,
+}
+
+const KNOWLEDGE_SCIP_IMPORT_COLUMNS: &str = r#"
+    scip_import_id, workspace_id, artifact_format, tool_name, tool_version,
+    artifact_hash, status, reason, symbols_imported, occurrences_imported,
+    edges_imported, import_detail, imported_in_run, import_receipt_event_id,
+    created_at
+"#;
+
+fn scip_import_from_pg(row: &sqlx::postgres::PgRow) -> StorageResult<KnowledgeScipImport> {
+    Ok(KnowledgeScipImport {
+        scip_import_id: row.get("scip_import_id"),
+        workspace_id: row.get("workspace_id"),
+        artifact_format: match row.get::<String, _>("artifact_format").as_str() {
+            "scip" => KnowledgeScipFormat::Scip,
+            "lsif" => KnowledgeScipFormat::Lsif,
+            _ => return Err(StorageError::Validation("invalid scip artifact_format")),
+        },
+        tool_name: row.get("tool_name"),
+        tool_version: row.get("tool_version"),
+        artifact_hash: row.get("artifact_hash"),
+        status: row.get::<String, _>("status").parse()?,
+        reason: row.get("reason"),
+        symbols_imported: row.get("symbols_imported"),
+        occurrences_imported: row.get("occurrences_imported"),
+        edges_imported: row.get("edges_imported"),
+        import_detail: row.get("import_detail"),
+        imported_in_run: row.get("imported_in_run"),
+        import_receipt_event_id: row.get("import_receipt_event_id"),
+        created_at: row.get("created_at"),
+    })
+}
+
+impl PostgresDatabase {
+    /// Upsert the per-code-file index state on `(source_id)`. A re-index with a
+    /// new content hash / parser version replaces the indexed_* fields and
+    /// CLEARS the stale marker (the file is now freshly indexed).
+    pub async fn upsert_knowledge_code_file(
+        &self,
+        upsert: UpsertKnowledgeCodeFile,
+    ) -> StorageResult<KnowledgeCodeFile> {
+        if !is_sha256_hex(&upsert.indexed_content_hash) {
+            return Err(StorageError::Validation(
+                "knowledge code file indexed_content_hash must be a lowercase sha256 hex digest",
+            ));
+        }
+        if upsert.parser_version.trim().is_empty() {
+            return Err(StorageError::Validation(
+                "knowledge code file parser_version is required",
+            ));
+        }
+        let code_file_id = new_knowledge_id("KCF");
+        let sql = format!(
+            r#"
+            INSERT INTO knowledge_code_files
+                (code_file_id, workspace_id, source_id, file_entity_id, language,
+                 indexed_content_hash, parser_version, parse_status, stale,
+                 symbols_indexed, edges_indexed, failure_detail,
+                 last_indexed_in_run, last_index_receipt_event_id)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, FALSE, $9, $10, $11, $12, $13)
+            ON CONFLICT (source_id) DO UPDATE SET
+                file_entity_id = COALESCE(EXCLUDED.file_entity_id,
+                                          knowledge_code_files.file_entity_id),
+                language = EXCLUDED.language,
+                indexed_content_hash = EXCLUDED.indexed_content_hash,
+                parser_version = EXCLUDED.parser_version,
+                parse_status = EXCLUDED.parse_status,
+                stale = FALSE,
+                symbols_indexed = EXCLUDED.symbols_indexed,
+                edges_indexed = EXCLUDED.edges_indexed,
+                failure_detail = EXCLUDED.failure_detail,
+                last_indexed_in_run = COALESCE(EXCLUDED.last_indexed_in_run,
+                                               knowledge_code_files.last_indexed_in_run),
+                last_index_receipt_event_id = COALESCE(
+                    EXCLUDED.last_index_receipt_event_id,
+                    knowledge_code_files.last_index_receipt_event_id),
+                updated_at = NOW()
+            RETURNING {KNOWLEDGE_CODE_FILE_COLUMNS}
+            "#
+        );
+        let row = sqlx::query(&sql)
+            .bind(&code_file_id)
+            .bind(&upsert.workspace_id)
+            .bind(&upsert.source_id)
+            .bind(&upsert.file_entity_id)
+            .bind(upsert.language.as_str())
+            .bind(&upsert.indexed_content_hash)
+            .bind(&upsert.parser_version)
+            .bind(upsert.parse_status.as_str())
+            .bind(upsert.symbols_indexed)
+            .bind(upsert.edges_indexed)
+            .bind(&upsert.failure_detail)
+            .bind(&upsert.last_indexed_in_run)
+            .bind(&upsert.last_index_receipt_event_id)
+            .fetch_one(self.pool())
+            .await?;
+        code_file_from_pg(&row)
+    }
+
+    pub async fn get_knowledge_code_file_by_source(
+        &self,
+        source_id: &str,
+    ) -> StorageResult<Option<KnowledgeCodeFile>> {
+        let sql = format!(
+            "SELECT {KNOWLEDGE_CODE_FILE_COLUMNS} FROM knowledge_code_files WHERE source_id = $1"
+        );
+        let row = sqlx::query(&sql)
+            .bind(source_id)
+            .fetch_optional(self.pool())
+            .await?;
+        row.as_ref().map(code_file_from_pg).transpose()
+    }
+
+    pub async fn list_knowledge_code_files(
+        &self,
+        workspace_id: &str,
+    ) -> StorageResult<Vec<KnowledgeCodeFile>> {
+        let sql = format!(
+            "SELECT {KNOWLEDGE_CODE_FILE_COLUMNS} FROM knowledge_code_files
+             WHERE workspace_id = $1 ORDER BY source_id"
+        );
+        let rows = sqlx::query(&sql)
+            .bind(workspace_id)
+            .fetch_all(self.pool())
+            .await?;
+        rows.iter().map(code_file_from_pg).collect()
+    }
+
+    /// Mark a code file stale (MT-107). Idempotent.
+    pub async fn mark_knowledge_code_file_stale(
+        &self,
+        code_file_id: &str,
+    ) -> StorageResult<KnowledgeCodeFile> {
+        let sql = format!(
+            "UPDATE knowledge_code_files SET stale = TRUE, updated_at = NOW()
+             WHERE code_file_id = $1 RETURNING {KNOWLEDGE_CODE_FILE_COLUMNS}"
+        );
+        let row = sqlx::query(&sql)
+            .bind(code_file_id)
+            .fetch_optional(self.pool())
+            .await?
+            .ok_or(StorageError::NotFound("knowledge code file"))?;
+        code_file_from_pg(&row)
+    }
+
+    /// Record a SCIP/LSIF import attempt (MT-105). Never executes the artifact.
+    pub async fn record_knowledge_scip_import(
+        &self,
+        new_import: NewKnowledgeScipImport,
+    ) -> StorageResult<KnowledgeScipImport> {
+        if !is_sha256_hex(&new_import.artifact_hash) {
+            return Err(StorageError::Validation(
+                "scip import artifact_hash must be a lowercase sha256 hex digest",
+            ));
+        }
+        if new_import.status != KnowledgeScipImportStatus::Imported
+            && new_import.reason.as_deref().unwrap_or("").trim().is_empty()
+        {
+            return Err(StorageError::Validation(
+                "non-imported scip import must carry a reason",
+            ));
+        }
+        let scip_import_id = new_knowledge_id("KSCIP");
+        let sql = format!(
+            r#"
+            INSERT INTO knowledge_code_scip_imports
+                (scip_import_id, workspace_id, artifact_format, tool_name,
+                 tool_version, artifact_hash, status, reason, symbols_imported,
+                 occurrences_imported, edges_imported, import_detail,
+                 imported_in_run, import_receipt_event_id)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+            RETURNING {KNOWLEDGE_SCIP_IMPORT_COLUMNS}
+            "#
+        );
+        let row = sqlx::query(&sql)
+            .bind(&scip_import_id)
+            .bind(&new_import.workspace_id)
+            .bind(new_import.artifact_format.as_str())
+            .bind(&new_import.tool_name)
+            .bind(&new_import.tool_version)
+            .bind(&new_import.artifact_hash)
+            .bind(new_import.status.as_str())
+            .bind(&new_import.reason)
+            .bind(new_import.symbols_imported)
+            .bind(new_import.occurrences_imported)
+            .bind(new_import.edges_imported)
+            .bind(&new_import.import_detail)
+            .bind(&new_import.imported_in_run)
+            .bind(&new_import.import_receipt_event_id)
+            .fetch_one(self.pool())
+            .await?;
+        scip_import_from_pg(&row)
+    }
+
+    pub async fn list_knowledge_scip_imports(
+        &self,
+        workspace_id: &str,
+    ) -> StorageResult<Vec<KnowledgeScipImport>> {
+        let sql = format!(
+            "SELECT {KNOWLEDGE_SCIP_IMPORT_COLUMNS} FROM knowledge_code_scip_imports
+             WHERE workspace_id = $1 ORDER BY created_at DESC"
+        );
+        let rows = sqlx::query(&sql)
+            .bind(workspace_id)
+            .fetch_all(self.pool())
+            .await?;
+        rows.iter().map(scip_import_from_pg).collect()
+    }
+}
