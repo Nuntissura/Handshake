@@ -233,6 +233,25 @@ pub enum KernelEventType {
     FrEvtLedgerOverflow,
     HbrHandoffGate,
     AtelierDomainEventRecorded,
+    // WP-KERNEL-009 CRDTAndConcurrencyCore (MT-065..MT-080) event families.
+    // Spec 2.3.13.11: CRDT draft state, graph mutation proposals, AI edit
+    // proposals, leases, and recovery receipts MUST leave EventLedger
+    // receipts; these variants are the typed event names for that surface.
+    KnowledgeCrdtUpdateRecorded,
+    KnowledgeCrdtSnapshotRecorded,
+    KnowledgeCrdtConflictDetected,
+    KnowledgeCrdtLeaseClaimed,
+    KnowledgeCrdtLeaseRenewed,
+    KnowledgeCrdtLeaseReleased,
+    KnowledgeCrdtLeaseExpired,
+    KnowledgeCrdtLeaseTakenOver,
+    KnowledgeCrdtLeaseWriteDenied,
+    KnowledgeCrdtCheckpointRecorded,
+    KnowledgeCrdtRecoveryReceiptRecorded,
+    GraphMutationProposalRecorded,
+    GraphMutationProposalDecided,
+    AiEditProposalRecorded,
+    AiEditProposalDecided,
 }
 
 impl KernelEventType {
@@ -267,6 +286,23 @@ impl KernelEventType {
             Self::FrEvtLedgerOverflow => "FR_EVT_LEDGER_OVERFLOW",
             Self::HbrHandoffGate => "HBR_HANDOFF_GATE",
             Self::AtelierDomainEventRecorded => "ATELIER_DOMAIN_EVENT_RECORDED",
+            Self::KnowledgeCrdtUpdateRecorded => "KNOWLEDGE_CRDT_UPDATE_RECORDED",
+            Self::KnowledgeCrdtSnapshotRecorded => "KNOWLEDGE_CRDT_SNAPSHOT_RECORDED",
+            Self::KnowledgeCrdtConflictDetected => "KNOWLEDGE_CRDT_CONFLICT_DETECTED",
+            Self::KnowledgeCrdtLeaseClaimed => "KNOWLEDGE_CRDT_LEASE_CLAIMED",
+            Self::KnowledgeCrdtLeaseRenewed => "KNOWLEDGE_CRDT_LEASE_RENEWED",
+            Self::KnowledgeCrdtLeaseReleased => "KNOWLEDGE_CRDT_LEASE_RELEASED",
+            Self::KnowledgeCrdtLeaseExpired => "KNOWLEDGE_CRDT_LEASE_EXPIRED",
+            Self::KnowledgeCrdtLeaseTakenOver => "KNOWLEDGE_CRDT_LEASE_TAKEN_OVER",
+            Self::KnowledgeCrdtLeaseWriteDenied => "KNOWLEDGE_CRDT_LEASE_WRITE_DENIED",
+            Self::KnowledgeCrdtCheckpointRecorded => "KNOWLEDGE_CRDT_CHECKPOINT_RECORDED",
+            Self::KnowledgeCrdtRecoveryReceiptRecorded => {
+                "KNOWLEDGE_CRDT_RECOVERY_RECEIPT_RECORDED"
+            }
+            Self::GraphMutationProposalRecorded => "GRAPH_MUTATION_PROPOSAL_RECORDED",
+            Self::GraphMutationProposalDecided => "GRAPH_MUTATION_PROPOSAL_DECIDED",
+            Self::AiEditProposalRecorded => "AI_EDIT_PROPOSAL_RECORDED",
+            Self::AiEditProposalDecided => "AI_EDIT_PROPOSAL_DECIDED",
         }
     }
 
@@ -301,6 +337,21 @@ impl KernelEventType {
             KernelEventType::FrEvtLedgerOverflow,
             KernelEventType::HbrHandoffGate,
             KernelEventType::AtelierDomainEventRecorded,
+            KernelEventType::KnowledgeCrdtUpdateRecorded,
+            KernelEventType::KnowledgeCrdtSnapshotRecorded,
+            KernelEventType::KnowledgeCrdtConflictDetected,
+            KernelEventType::KnowledgeCrdtLeaseClaimed,
+            KernelEventType::KnowledgeCrdtLeaseRenewed,
+            KernelEventType::KnowledgeCrdtLeaseReleased,
+            KernelEventType::KnowledgeCrdtLeaseExpired,
+            KernelEventType::KnowledgeCrdtLeaseTakenOver,
+            KernelEventType::KnowledgeCrdtLeaseWriteDenied,
+            KernelEventType::KnowledgeCrdtCheckpointRecorded,
+            KernelEventType::KnowledgeCrdtRecoveryReceiptRecorded,
+            KernelEventType::GraphMutationProposalRecorded,
+            KernelEventType::GraphMutationProposalDecided,
+            KernelEventType::AiEditProposalRecorded,
+            KernelEventType::AiEditProposalDecided,
         ]
     }
 }

@@ -503,3 +503,10 @@ required-features = ["test-utils"]
 name = "knowledge_graph_tests"
 path = "tests/knowledge_graph_tests.rs"
 required-features = ["test-utils"]
+
+# WP-KERNEL-009 CRDTAndConcurrencyCore (MT-065..MT-080): typed actor/site ids,
+# state vectors, rich-document CRDT drafts, proposals, leases, recovery.
+[[test]]
+name = "knowledge_crdt_model_tests"
+path = "tests/knowledge_crdt_model_tests.rs"
+required-features = ["test-utils"]
