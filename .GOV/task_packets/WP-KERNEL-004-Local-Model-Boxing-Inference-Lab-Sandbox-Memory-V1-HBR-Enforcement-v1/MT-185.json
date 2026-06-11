@@ -1,0 +1,298 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-185",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "X",
+  "cluster_subscope": "X.2",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:09:00Z",
+  "updated_at_utc": "2026-05-28T00:01:44.973Z",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-185.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "MT loop-control checkpoint contract (bounded retries + verifier feedback)",
+  "goal": "Implement the bounded mailbox-loop-control checkpoint contract that lets Role Mailbox coordinate Micro-Task retries, verifier feedback, verification-needed waits, escalation, and completion reports through structured checkpoints instead of transcript replay. Folds WP-1-Role-Mailbox-Micro-Task-Loop-Control-v1 stub intent: small local models, cloud models, reviewers, and operators can resume or inspect MT loops from compact state.",
+  "expected_diff_shape": "New Rust module src/backend/handshake_core/src/process_ledger/mt_loop_control.rs with `MtLoopCheckpoint`, `MtLoopState`, `MtLoopControlBudget` types + `MtLoopControl` orchestration helper; integration tests under src/backend/handshake_core/tests/mt_loop_control_tests.rs.",
+  "owned_files": [
+    "src/backend/handshake_core/src/process_ledger/mt_loop_control.rs",
+    "src/backend/handshake_core/tests/mt_loop_control_tests.rs"
+  ],
+  "depends_on_mts": [
+    "MT-179",
+    "MT-184"
+  ],
+  "unblock_conditions": "MT-179 micro_task_* message families provide the typed feedback payloads; MT-184 MicroTaskJob provides the state container.",
+  "implementation_notes": "Per spec line 6147 + folded stub WP-1-Role-Mailbox-Micro-Task-Loop-Control-v1 intent (refinement.json line 987): 'durable loop-control contract so small local models, cloud models, reviewers, and operators can resume or inspect Micro-Task loops from compact state rather than chat chronology.' Define `MtLoopCheckpoint { checkpoint_id: Uuid v7, job_id: Uuid v7 (FK MicroTaskJob), iteration_n: u32, state_at_checkpoint: MtLoopState, retry_budget_remaining: u32, verifier_feedback_history: Vec<VerifierFeedbackRef>, compact_summary: String (<= 2048 bytes — what next executor needs to continue), evidence_pointers: Vec<EvidencePointer>, created_at_utc, created_by_session: Uuid v7 }`. `MtLoopState` enum: `WaitingForVerifier`, `IteratingOnFeedback { feedback_id }`, `VerificationNeeded { reason }`, `EscalationProposed { target_tier }`, `Completed { signal: CompletionSignal }`. `MtLoopControlBudget { max_iterations: u32, max_consecutive_failures: u32, max_hardgate_pause_secs: u32, max_verifier_feedback_loops: u32 }` loaded from MT contract or default. `MtLoopControl::record_checkpoint(job, state, summary, evidence) -> MtLoopCheckpoint` writes to Postgres with FK to MicroTaskJob, enforces budget (returns LoopBudgetExceeded if violated). `MtLoopControl::resume_from(checkpoint_id) -> ResumeContext` produces the compact context a fresh executor needs (no transcript replay required). Spec line 6147 invariant enforced: must NOT authorize open-ended 'keep trying' loops; budget exhaustion returns LoopBudgetExceeded which forces escalation (handed to MT-188). Tests: (a) record sequential checkpoints, resume from last — get exact compact context; (b) exceed max_iterations, expect LoopBudgetExceeded; (c) resume across executor handoff (session_id change), checkpoint chain queryable; (d) verifier_feedback_history append-only (no rewrites).",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target mt_loop_control_tests -- --test-threads=1"
+  ],
+  "risk_if_missed": "Without compact checkpoints, MT loops require transcript replay to resume — silently violating the folded stub's 'compact state rather than chat chronology' invariant. Open-ended 'keep trying' loops become possible because the bounded-retry contract has no enforcement point.",
+  "validator_focus": "Budget enforcement returns typed error (not silent continuation); compact_summary size bounded (CHECK constraint or runtime assertion); resume_from produces same context regardless of which executor calls it (determinism).",
+  "hbr_obligations": [
+    "HBR-SWARM-002"
+  ],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/02-system-architecture.md#role-mailbox-message-contract"
+  ],
+  "acceptance_criteria_refs": [
+    "PRESERVED_INTENT:WP-1-Role-Mailbox-Micro-Task-Loop-Control-v1 (bounded loop control via checkpoints)"
+  ],
+  "lifecycle": {
+    "active": true,
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "PENDING",
+    "depends_on": [
+      "MT-179",
+      "MT-184"
+    ],
+    "blocks": [
+      "MT-188",
+      "MT-189"
+    ],
+    "postgres_test_url_live_evidence_20260525_continuation": {
+      "authoritative_integration_validator_pass": false,
+      "classification": "KERNEL_BUILDER_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+      "not_run_or_not_claimed": [],
+      "artifact_log_root": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs",
+      "implementation_or_hardening_notes": [],
+      "postgres_test_url_redacted": "postgres://postgres:***@127.0.0.1:65432/handshake_test",
+      "proof": [
+        {
+          "log": "postgres-live-micro_task_job_tests-20260525-070454.log",
+          "scope": "micro_task_job_tests",
+          "note": [
+            "Queue primitive and schema tests passed.",
+            "Proof"
+          ],
+          "result": "9 passed"
+        }
+      ],
+      "recorded_by": "KERNEL_BUILDER-POSTGRES-TEST-URL-20260525-CONTINUATION",
+      "mt_ids": [
+        "MT-184",
+        "MT-185",
+        "MT-186",
+        "MT-187",
+        "MT-188",
+        "MT-189"
+      ],
+      "summary": "MT executor/job/loop/cancel/scheduler/outcome/orchestrator live Postgres checks passed for the continuation slice.",
+      "integration_validator_status": "PENDING",
+      "residual_risks": [
+        "Supporting evidence only; Integration Validator verdict remains PENDING.",
+        "Focused Postgres/live-kernel commands were run, not a full workspace cargo test."
+      ],
+      "recorded_at_utc": "2026-05-25T10:56:03.5601331Z",
+      "cargo_target_dir": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target"
+    },
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "READY_FOR_VALIDATION",
+        "validator_verdict": "PENDING"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z"
+  },
+  "handoff": {
+    "coder_session": "KERNEL_BUILDER-20260524-185",
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": "019e6be3-160d-7fec-a6c2-06b9eac5c2df",
+    "review_response_receipt_actor_role": "INTEGRATION_VALIDATOR",
+    "review_response_receipt_track": "JUDGMENT_OOB_IV_PHASE1_PRE_REMEDIATION"
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Budget exhaustion test asserts LoopBudgetExceeded forces escalation (no silent continuation).",
+      "Compact summary CHECK constraint enforces <= 2048 bytes at the database level.",
+      "Resume determinism proven by cross-executor test: two different session_ids resuming from same checkpoint produce byte-identical ResumeContext."
+    ]
+  },
+  "proof": {
+    "focused_default": {
+      "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mt_loop_control_tests -- --test-threads=1 --nocapture",
+      "exit_code": 0,
+      "tests_passed": 12,
+      "tests_ignored_postgres_gated": 7,
+      "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt185-run-001.log",
+      "compile_log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt185-compile-001.log",
+      "note": "12 always-on pure-Rust tests pass; 7 Postgres-gated tests registered as #[ignore] until POSTGRES_TEST_URL is set. Cold compile finished in 8m 46s (library + test binary link); test execution wall time <1ms."
+    },
+    "owned_files": [
+      "src/backend/handshake_core/src/process_ledger/mt_loop_control.rs",
+      "src/backend/handshake_core/tests/mt_loop_control_tests.rs"
+    ],
+    "supporting_edits": [
+      "src/backend/handshake_core/src/process_ledger/mod.rs (registered new pub mod mt_loop_control)",
+      "src/backend/handshake_core/src/mt_executor/loop_control.rs (replaced inline skeleton with re-export of canonical process_ledger::mt_loop_control surface; preserves source compatibility for mt_executor::executor (MT-189) without forking the contract authority)",
+      "src/backend/handshake_core/Cargo.toml ([[test]] mt_loop_control_tests registration)"
+    ],
+    "red_team_minimum_controls_evidence": {
+      "control_1_budget_exhaustion_forces_escalation": "mt_185_bounded_retries_typed_error_at_ceiling asserts LoopBudgetExceeded at iteration=max_iterations and iteration=max_iterations+1; mt_185_budget_exhausted_matches_record_ceiling cross-checks the budget_exhausted predicate flips at the same boundary.",
+      "control_2_compact_summary_check_db_level": "mt_185_pg_check_constraint_rejects_oversized_summary_via_raw_sql attempts an INSERT bypassing the in-Rust gate; the CHECK constraint compact_summary_bound in migrations/0023_micro_task_job_queue.sql rejects oversized summaries at the database. Companion mt_185_compact_summary_size_bound_in_rust enforces the same bound at record time, including exactly-at-limit success.",
+      "control_3_cross_executor_resume_determinism": "mt_185_resume_byte_identical_across_session_ids (pure-Rust) and mt_185_pg_cross_executor_resume_byte_identical (Postgres-gated) prove ResumeContext is byte-identical when two distinct session_ids read the same checkpoint."
+    },
+    "adversarial_test_inventory": {
+      "pure_rust_always_on": [
+        "mt_185_serde_round_trip_all_state_variants",
+        "mt_185_bounded_retries_typed_error_at_ceiling",
+        "mt_185_state_machine_progression_each_state_round_trips",
+        "mt_185_compact_summary_size_bound_in_rust",
+        "mt_185_verifier_feedback_history_append_only_helper",
+        "mt_185_verifier_feedback_loop_budget_returns_typed_error",
+        "mt_185_resume_byte_identical_across_session_ids",
+        "mt_185_evidence_pointer_jsonb_projection_round_trip",
+        "mt_185_loop_control_error_variants_have_distinct_display",
+        "mt_185_budget_exhausted_matches_record_ceiling",
+        "mt_185_retry_budget_remaining_decrements_per_iteration",
+        "mt_185_checkpoint_repo_error_carries_loop_control_variant"
+      ],
+      "postgres_gated_ignored_until_url_set": [
+        "mt_185_pg_persisted_checkpoint_survives_repo_handle_churn",
+        "mt_185_pg_latest_for_job_returns_most_recent",
+        "mt_185_pg_chain_for_job_returns_ascending_order",
+        "mt_185_pg_cascade_delete_removes_all_checkpoints",
+        "mt_185_pg_check_constraint_rejects_oversized_summary_via_raw_sql",
+        "mt_185_pg_concurrent_checkpoints_do_not_double_count_retries",
+        "mt_185_pg_cross_executor_resume_byte_identical"
+      ]
+    },
+    "postgres_test_url_checkpoint_precision_20260525": {
+      "classification": "IMPLEMENTATION_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+      "authoritative_integration_validator_pass": false,
+      "integration_validator_status": "PENDING",
+      "recorded_at_utc": "2026-05-25T04:42:53.818Z",
+      "recorded_by": "KERNEL_BUILDER-POSTGRES-TEST-URL-20260525",
+      "postgres_test_url": "postgres://postgres:postgres@127.0.0.1:65432/handshake_test",
+      "summary": "Live POSTGRES_TEST_URL pass implemented/fixed the residual Postgres paths: MT-189 durable executor smoke, Locus GetMtProgress parity on Postgres, atomic scheduler claim to prevent duplicate SKIP LOCKED claims, checkpoint timestamp precision normalization, and raw_sql schema application for multi-statement Postgres migrations.",
+      "product_changes": [
+        "src/backend/handshake_core/src/storage/postgres.rs implements LocusOperation::GetMtProgress with the same structured progress metadata projection as SQLite.",
+        "src/backend/handshake_core/src/mt_executor/scheduler.rs now claims with one atomic UPDATE ... FROM candidate ... RETURNING job_id statement guarded by FOR UPDATE SKIP LOCKED and state=queued.",
+        "src/backend/handshake_core/src/process_ledger/mt_loop_control.rs normalizes checkpoint created_at_utc to Postgres microsecond precision at creation time.",
+        "src/backend/handshake_core/src/role_mailbox_v1/repo.rs and src/backend/handshake_core/src/mt_executor/scheduler.rs use sqlx::raw_sql for multi-statement schema setup.",
+        "src/backend/handshake_core/tests/observability_span_repo_tests.rs uses sqlx::raw_sql for multi-statement migration setup."
+      ],
+      "proof": [
+        {
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test mt_executor_integration_tests -- --ignored --test-threads=1 --nocapture",
+          "exit_code": 0,
+          "result": "1 passed; 0 failed"
+        },
+        {
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test micro_task_executor_tests locus_mt_progress_workflow_parity_with_emitted_packet_and_mailbox_wait -- --exact --test-threads=1 --nocapture",
+          "exit_code": 0,
+          "result": "1 passed; 0 failed"
+        },
+        {
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test micro_task_executor_tests micro_task_executor_rejects_legacy_workflow_run_job_kind_contract -- --exact --test-threads=1 --nocapture",
+          "exit_code": 0,
+          "result": "1 passed; 0 failed"
+        },
+        {
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test mt_scheduler_tests -- --ignored --test-threads=1 --nocapture",
+          "exit_code": 0,
+          "result": "5 passed; 0 failed"
+        },
+        {
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test mt_scheduler_tests -- --test-threads=1 --nocapture",
+          "exit_code": 0,
+          "result": "16 passed; 0 failed; 5 ignored"
+        },
+        {
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test mt_loop_control_tests -- --ignored --test-threads=1 --nocapture",
+          "exit_code": 0,
+          "result": "7 passed; 0 failed"
+        },
+        {
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test mt_cancellation_tests -- --ignored --test-threads=1 --nocapture",
+          "exit_code": 0,
+          "result": "3 passed; 0 failed"
+        },
+        {
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test observability_span_repo_tests -- --ignored --test-threads=1 --nocapture",
+          "exit_code": 0,
+          "result": "11 passed; 0 failed"
+        },
+        {
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test observability_aggregate_queries_tests -- --ignored --test-threads=1 --nocapture",
+          "exit_code": 0,
+          "result": "1 passed; 0 failed"
+        },
+        {
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --lib process_ledger::mt_loop_control::tests -- --test-threads=1 --nocapture",
+          "exit_code": 0,
+          "result": "7 passed; 0 failed; 1142 filtered out"
+        }
+      ],
+      "verification_caveats": [
+        "A broad cargo test command filtered by process_ledger::mt_loop_control::tests but not scoped with --lib attempted to compile unrelated integration tests and failed on Windows paging-file exhaustion; the corrected --lib command passed.",
+        "Pre-existing warnings remain in unrelated code paths and were not addressed in this session.",
+        "Several modified backend files are untracked in this worktree; tracked-file git diff --check was clean for the tracked subset."
+      ]
+    }
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_X_GAPS",
+    "reviewed_at_utc": "2026-05-27T17:48:00Z",
+    "aggregator_run_at_utc": "2026-05-28T00:01:31.342Z",
+    "verdict": "PASS_WITH_NOTES",
+    "verdict_reason": "MtLoopCheckpoint + MtLoopState + MtLoopControlBudget + MtLoopControl::record_checkpoint/resume_from primitives landed at src/process_ledger/mt_loop_control.rs (correct contract path). LoopBudgetExceeded typed error at ceiling (matches RGF-100 escalate-after-3-fix-cycles via max_consecutive_failures=3 default). DB-level CHECK on compact_summary <= 2048 bytes (postgres-gated test bypasses Rust to verify). Cross-executor resume byte-identical determinism proven. 12 always-on + 7 Postgres-gated green; live Postgres timestamp-precision normalization regression added 2026-05-25.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "OK",
+    "runtime_safety_status": "OK",
+    "agent_swarm_safety_status": "OK",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "STRONG",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 1,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-185.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-185.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_X_GAPS",
+    "reviewed_at_utc": "2026-05-27T17:48:00Z",
+    "aggregator_run_at_utc": "2026-05-27T23:48:44.444Z",
+    "verdict": "PASS_WITH_NOTES",
+    "verdict_reason": "MtLoopCheckpoint + MtLoopState + MtLoopControlBudget + MtLoopControl::record_checkpoint/resume_from primitives landed at src/process_ledger/mt_loop_control.rs (correct contract path). LoopBudgetExceeded typed error at ceiling (matches RGF-100 escalate-after-3-fix-cycles via max_consecutive_failures=3 default). DB-level CHECK on compact_summary <= 2048 bytes (postgres-gated test bypasses Rust to verify). Cross-executor resume byte-identical determinism proven. 12 always-on + 7 Postgres-gated green; live Postgres timestamp-precision normalization regression added 2026-05-25.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "OK",
+    "runtime_safety_status": "OK",
+    "agent_swarm_safety_status": "OK",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "STRONG",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 1,
+    "review_artifact_ref": "validator_reports_phase1/MT-185.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1\\validator_reports_phase1\\MT-185.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  }
+}

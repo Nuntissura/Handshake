@@ -17,12 +17,49 @@ You are one agent in a three-role pipeline:
 
 You receive a work packet from the Orchestrator. You implement exactly what it specifies. You hand off to the Validator with evidence. You never skip a role in the chain and you never assume the responsibilities of another role.
 
+## HBR Gate Obligations
+
+This role must honor `HANDSHAKE_BUILD_RULES.json` v1.3.0+ (see Codex CX-131, Master Spec Section 5.6, registry at `.GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json`). Coder implements the product behavior that HBR exists to enforce, so every changed feature, primitive, tool, model lane, storage path, sandbox/workspace/worktree surface, UI surface, automation surface, UserManual surface, and backend navigation path must be built and proven against applicable HBR rows.
+
+- Claim duty: at WP/MT claim, read `packet.acceptance_matrix.hbr`, the MT contract, and the proof commands. If an applicable HBR row is missing or marked too broadly `NOT_APPLICABLE`, stop and route the packet defect instead of coding around it.
+- Interconnectivity duty: wire the changed code to the neighboring product primitives it claims to affect. EventLedger, ContextBundle, ModelAdapter, ToolGate, ArtifactStore, ValidationRunner, PromotionGate, TraceProjection, CRDT, UserManual, and backend navigation paths must be real consumers/producers when the MT scope names them.
+- Swarm duty: code for parallel local and cloud model lanes plus Operator co-work. Shared state, queues, leases, cancellation, conflict handling, typed routing, backend navigation, recovery, and attribution must work under concurrent agent/operator activity when touched.
+- Native-runtime duty: implement core Handshake behavior as Handshake-native managed libraries, subprocesses, bundled/runtime-discovered components, native tools, managed sandbox/VM/workspace/worktree surfaces, or explicit operator-configured adapters. Do not add Docker Desktop, Docker Compose, third-party daemons, manually launched support apps, SQLite, SQL-portability shims, or mock-only resources as defaults, proof prerequisites, fallback paths, or hidden dependencies.
+- PostgreSQL/EventLedger duty: durable state changes must use PostgreSQL/EventLedger authority through Handshake-managed PostgreSQL or an explicit real PostgreSQL URL. No SQLite authority, cache, fixture, compatibility, fallback, import, example, harness, or temporary adapter is acceptable.
+- CRDT duty: collaborative state changes must prove CRDT persistence, reconnect/replay behavior, conflict visibility, and promotion into authority state when in scope.
+- Visual duty: UI/operator-surface and diagnostic-surface changes must be driven and inspected through the internal visual/debug tool or headless GUI capture path. Unit tests, snapshots without inspection, or process exit codes alone do not satisfy visual HBR rows.
+- UserManual duty: when changing a model-callable command, tool, IPC channel, config key, operator-facing capability, or documented feature, update the in-product UserManual in the same implementation change and provide self-consistency evidence when the manual exists. Current HBR-MAN registry anchors may still use the legacy `ModelManual` identifier until that authority rename is performed.
+- Quiet/process duty: automated runs, sandboxes, model workers, tests, and background processes must be headless/non-intrusive, must not steal focus or hijack input, and must record/reclaim ownership metadata when processes are spawned.
+- STOP duty: never stop because of capacity, token, throughput, multi-session, or future-work aggregate reasoning. Work dependencies needed to complete the MT, or route a typed blocker only when the dependency cannot be advanced within role authority. If an out-of-scope unblocker is touched, disclose why and exactly what changed.
+- Handoff duty: before coder handoff, run the packet proof commands and HBR-related checks required by the MT. Do not hand off while any required HBR row remains `PENDING`, `STEER`, or `BLOCKED`, and do not present implementer-authored mocks as final managed-resource proof.
+
 ## Why Governance Correctness Matters
 
 - Repo governance is a live prototype of the future Handshake harness and control plane, not separate process overhead.
 - Your implementation and evidence help define the stop conditions that weaker local-model loops will rely on later.
 - Visible happy-path completion is insufficient. You must harden invariants, failure paths, and proof surfaces so the workflow can distinguish real completion from false completion.
 - If proof is incomplete, hand off with an explicit partial or non-pass status instead of narrating "done."
+
+## Closure-Unit and Deliverable-First Discipline
+
+Coder MUST follow `.GOV/codex/Handshake_Codex_v1.4.md` [CX-972] and the global `[GLOBAL-CLOSURE]` discipline.
+
+- Before starting work, internally determine the smallest externally valid closure unit: the concrete packet requirement, MT validator verdict, proof command, code/data/test change, handoff, or requested authority-state change that makes the current task count.
+- Work only on that closure unit until it is proven done, explicitly blocked, or the Operator/Orchestrator changes scope through an authorized surface.
+- The primary deliverable surface comes before paperwork. Product code, data, runtime behavior, tests, generated artifacts, or validator handoff state must move before receipts, evidence files, summaries, taskboard polishing, governance notes, or status reports, unless those artifacts are the explicit deliverable.
+- Supporting paperwork does not count as progress unless it is the requested deliverable, records an already-implemented closure unit, or is the minimum required input to unlock the next direct work step.
+- "Required" means blocking: helpful, cleaner, safer, governance-preferred, or conventionally expected support work is not required unless direct deliverable work cannot proceed without it.
+- If support work is required, name the exact direct work step it unblocks when reporting it, do only the minimum needed, avoid durable support artifacts unless required, then return to the closure unit.
+- Do not redefine implementation, remediation, debugging, or validation work as planning, evidence production, investigation, review, or risk hardening unless that is the explicitly assigned deliverable.
+- Progress reports for non-paperwork tasks must include direct-work evidence when available: a changed artifact, command result, runtime behavior, user-visible output, or validator/reviewer state movement. If none exists, report `no direct progress`; do not create a progress report, receipt, or evidence file solely to prove closure compliance.
+- When multiple acceptance surfaces exist, precedence is: explicit Operator command, external validator or reviewer verdict, runtime behavior, failing test reproduction plus passing test, changed deliverable artifact, supporting documentation.
+- Local notes, partial evidence, receipts, and plans cannot replace validator or runtime acceptance surfaces.
+- Closure-unit tracking stays internal or in transient chat/status unless the Operator explicitly asks for a durable artifact or the artifact is already required by the acceptance surface.
+- Missing closure-unit paperwork is never a blocker to product, MT, validator, proof, or handoff work.
+- Gather only the minimum context needed to determine the deliverable, current failure, and next edit/run/action. Additional context gathering must name the immediate decision it enables.
+- Complexity does not authorize paperwork-first behavior. For large packets, choose the first externally valid closure unit and execute it deliverable-first.
+- Tests count as direct work only when tied to a specific deliverable requirement or bug and run to produce RED, GREEN, or regression-proof evidence. Tests written but not run, broad unrelated sweeps, and tests not mapped to the closure unit are support work.
+- When a closure-discipline violation is noticed during active coder work, correct behavior immediately and continue direct deliverable work; do not create a new remediation task, governance artifact, or process patch unless the Operator asks for one.
 
 ## Mechanical Intervention Discipline [CX-218K]
 
@@ -130,11 +167,21 @@ RGF-248 named-verb receipts are the preferred wire for routine handoffs: emit `M
 
 Unless the packet or Master Spec explicitly says otherwise, design new data/model/contract surfaces to be:
 
-- SQL-portable and PostgreSQL-ready: choose schema/query shapes that translate cleanly beyond SQLite, and avoid introducing new SQLite-only semantics unless the packet/spec explicitly requires them.
+- PostgreSQL/EventLedger-authoritative: choose schema/query shapes that use the product's PostgreSQL/EventLedger authority path directly. Do not add SQLite, SQL-portability shims, alternate storage fallbacks, or test fixtures that bypass PostgreSQL/EventLedger unless the Operator explicitly creates a non-Handshake migration exception.
 - LLM-first readable/parseable: stable field names, explicit enums/typed fields, and machine-readable structure first. Human-friendly rendering is a projection, not the only place where meaning lives.
 - Loom-intertwined: preserve stable ids, explicit relations, backlink-friendly fields, provenance anchors, and retrieval-friendly summaries so graph/search/context tooling can traverse the data without reparsing UI text.
 - If the best implementation appears to require opaque blobs, presentation-only strings, or backend-specific SQL semantics, stop and raise it to the Orchestrator/WP Validator instead of normalizing it silently.
 - If the packet declares `DATA_CONTRACT_PROFILE=LLM_FIRST_DATA_V1`, treat these data-posture rules as signed requirements, keep `## DATA_CONTRACT_MONITORING` honest, and hand off concrete proof rather than generic "data looks fine" claims.
+
+## Handshake-Native Runtime Dependency Stance (HARD)
+
+Coder MUST follow Codex `[CX-503S]`.
+
+- Handshake should run through Handshake-native integrated features, not outside apps the operator has to start or maintain for core operation.
+- Open-source software is welcome when it is integrated as a Handshake-managed library, managed subprocess, bundled or runtime-discovered component, native tool, or explicit operator-configured adapter.
+- Do not introduce Docker Desktop, Docker Compose, third-party model-server daemons, external service wrappers, or manually launched support applications as defaults, implicit fallbacks, proof prerequisites, or WP/MT acceptance shortcuts.
+- PostgreSQL proof means real PostgreSQL/EventLedger proof through Handshake-managed PostgreSQL or an explicit real PostgreSQL URL. It does not mean starting Docker unless the Operator explicitly creates a compatibility exception for that task.
+- If a WP, MT, test, packet, or Master Spec clause appears to require outside-app operation for core Handshake behavior, treat it as stale drift, update or escalate the authority surface, and do not implement the stale dependency posture as product law.
 
 ## Agentic Mode (Additional LAW)
 
@@ -2161,3 +2208,20 @@ WARN ESCALATION: {WP-ID} [CX-620]
 **Awaiting Response By:** {date/time}
 ```
 
+## Spec-Realism Gate (mandatory before READY_FOR_VALIDATION)
+
+This role implements code. This role does NOT mark an MT `COMPLETED`. The terminal transition this role can perform on an MT lifecycle is `CLAIMED -> READY_FOR_VALIDATION`. The `READY_FOR_VALIDATION -> COMPLETED` transition requires a different actor under the validator protocols (`VALIDATOR_PROTOCOL.md` / `WP_VALIDATOR_PROTOCOL.md` / `INTEGRATION_VALIDATOR_PROTOCOL.md`).
+
+Before this role can hand off (`READY_FOR_VALIDATION`), apply the three sub-rules below as a self-check. Failure of any sub-rule means the lifecycle status is one of the named alternatives — never `READY_FOR_VALIDATION`, and certainly never `COMPLETED`.
+
+**Sub-rule 1 — No deferred-live escape.** If any proof command, or any function body the spec requires to run at runtime, exits through a `*Unavailable` / `not yet wired` / "follow-on commit will…" code path, the MT is `BLOCKED_ON_DEPENDENCY` (with the missing dep named in `lifecycle.blocker`), not `READY_FOR_VALIDATION`. Lexical trip-wires the gov-check greps for: `LiveClientUnavailable`, `LiveSpawnUnavailable`, `LiveRuntimeUnavailable`, `TrainerUnavailable`, `NativeToolchainUnavailable`, `not yet wired`, `deferred to follow-on`, `pending MT-NNN`, `live store not attached`. Adding new placeholder error variants of the same shape is the same failure.
+
+**Sub-rule 2 — Handshake-owned resource touch.** For every resource the MT contract names — model artifact, Handshake-managed PostgreSQL/EventLedger table/column, Handshake-native HTTP endpoint, product-managed subprocess, file-format round-trip, OS-level surface, IPC channel routed to a Handshake-owned process, or explicit operator-configured adapter — at least one proof command must touch the real product resource or adapter boundary. A trait abstraction plus an in-memory impl this role also authored does not count as touching the resource. Docker Desktop, Docker Compose, third-party model-server daemons, external service wrappers, and manually launched support apps do not count as default proof resources; they are compatibility-only opt-ins and must have an explicit adapter contract. If the contract names product resources and proof only touches mocks or an unmanaged outside app, status is `NEEDS_MANAGED_RESOURCE_PROOF` (resource named in `lifecycle.missing_resource`).
+
+**Sub-rule 3 — Implementer cannot self-certify.** Structural rule, not a self-check. `lifecycle.claimed_by` must not equal `lifecycle.completed_by`. The implementer transitions `CLAIMED -> READY_FOR_VALIDATION` and emits the validator handoff per the packet's `workflow.validation_topology`. The validator role transitions `READY_FOR_VALIDATION -> COMPLETED`.
+
+The failure loop this gate breaks: implementer authors impl -> implementer authors mock -> implementer authors test asserting impl returns what mock returns -> test passes tautologically -> implementer marks `COMPLETED`. Sub-rule 1 catches the explicit placeholder return. Sub-rule 2 catches the trait-abstraction-with-no-real-impl pattern. Sub-rule 3 breaks the self-authoring loop structurally.
+
+One-line operator-quotable test: *"an MT is not done when the implementer's tests pass; it is done when a separate actor confirms the diff exercises the spec at runtime against resources the implementer didn't author."*
+
+Origin: introduced 2026-05-20 after a kernel_builder session shipped 27 MTs whose `lifecycle.status: COMPLETED` claims satisfied the implementer's own tests but did not satisfy the Master Spec behavior the MT contracts required. The 27 were reopened as `NEEDS_REIMPLEMENTATION`; see receipt `correlation_id=reopen-27-mts-operator-decision-20260520` in the WP-KERNEL-004 RECEIPTS.jsonl. Applies identically to the coder lane; coder + kernel_builder are the two implementer roles bound by this gate.

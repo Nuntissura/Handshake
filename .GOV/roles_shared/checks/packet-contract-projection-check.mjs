@@ -40,8 +40,34 @@ function scanContractFiles(rootAbs) {
   return out.sort((left, right) => relFromAbs(left).localeCompare(relFromAbs(right)));
 }
 
+function isJsonFirstProjectionOptOut(contract) {
+  const policy = contract?.artifact_policy || {};
+  const projection = contract?.markdown_projection || {};
+  const authoritySurface = String(policy.authority_surface || "").trim().toUpperCase();
+  const creation = String(policy.projection_creation || "").trim().toUpperCase();
+  const projectionStatus = String(projection.status || "").trim().toUpperCase();
+  const sourceHash = String(projection.source_hash || "").trim().toUpperCase();
+  const projectionHash = String(projection.projection_hash || "").trim().toUpperCase();
+  const generator = String(projection.generator || "").trim().toUpperCase();
+
+  const machineContract = authoritySurface === "MACHINE_CONTRACT";
+  const modelMarkdownDenied = policy.model_created_markdown_authority_allowed === false;
+  const operatorFacingDenied = policy.operator_facing_authority === false;
+  const onDemandOnly = creation === "ON_OPERATOR_REQUEST_ONLY";
+  const notGeneratedByDefault = projectionStatus === "NOT_GENERATED_BY_DEFAULT"
+    || sourceHash === "NOT_GENERATED_BY_DEFAULT"
+    || projectionHash === "NOT_GENERATED_BY_DEFAULT"
+    || generator === "PENDING_DEMAND";
+
+  return machineContract
+    && modelMarkdownDenied
+    && operatorFacingDenied
+    && (onDemandOnly || notGeneratedByDefault);
+}
+
 const violations = [];
 const contracts = scanContractFiles(repoPathAbs(TASK_PACKETS_DIR));
+let skippedJsonFirst = 0;
 
 for (const contractAbs of contracts) {
   const contractRel = relFromAbs(contractAbs);
@@ -50,6 +76,11 @@ for (const contractAbs of contracts) {
     contract = readJson(contractAbs);
   } catch (error) {
     violations.push(error.message);
+    continue;
+  }
+
+  if (isJsonFirstProjectionOptOut(contract)) {
+    skippedJsonFirst += 1;
     continue;
   }
 
@@ -81,4 +112,5 @@ if (violations.length > 0) {
   });
 }
 
-console.log(`packet-contract-projection-check ok (${contracts.length} contract(s))`);
+const suffix = skippedJsonFirst > 0 ? `, ${skippedJsonFirst} json-first projection opt-out(s)` : "";
+console.log(`packet-contract-projection-check ok (${contracts.length} contract(s)${suffix})`);

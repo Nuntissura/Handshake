@@ -24,7 +24,8 @@ export function isAsciiOnly(s) {
 }
 
 function getSingleField(content, label) {
-  const re = new RegExp(`^\\s*-\\s*(?:\\*\\*)?${label}(?:\\*\\*)?\\s*:\\s*(?:\\*\\*)?\\s*(.+)\\s*$`, 'mi');
+  const escapedLabel = String(label).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const re = new RegExp(`^\\s*-\\s*(?:\\*\\*)?${escapedLabel}(?:\\*\\*)?\\s*:\\s*(?:\\*\\*)?\\s*(.+)\\s*$`, 'mi');
   const m = content.match(re);
   return m ? m[1].trim() : '';
 }
@@ -455,7 +456,7 @@ export function allowsCompletedPacketHistoricalFailSupersededDrift({
 }
 
 function extractMechanicalEngines(specContent) {
-  const engines = [...specContent.matchAll(/#### Engine: ([^\n(]+).*?\n\n- \*\*Engine ID:\*\* `([^`]+)`/gs)]
+  const engines = [...specContent.matchAll(/#### Engine: ([^\n(]+).*?\r?\n\r?\n- \*\*Engine ID:\*\* `([^`]+)`/gs)]
     .map((m) => ({ title: m[1].trim(), id: m[2].trim() }))
     .filter((entry) => entry.id && entry.title);
   if (engines.length === 0) {

@@ -1,0 +1,189 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-104",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "C",
+  "cluster_subscope": "C.8",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:00:00Z",
+  "updated_at_utc": "2026-05-28T00:01:44.930Z",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-104.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "INF-5 CAA eval suite (Rimsky 2024 sycophancy reproduction smoke test)",
+  "goal": "Small eval suite reproducing one CAA case from Rimsky et al. 2024: sycophancy steering on a Llama-2-7B-Chat. Quantitative pass/fail threshold so INF-5 regression is detectable.",
+  "expected_diff_shape": "New src/backend/handshake_core/tests/inf5_caa_eval.rs implementing the sycophancy CAA reproduction; fixture prompt pairs under tests/fixtures/inf5/.",
+  "owned_files": [
+    "src/backend/handshake_core/tests/inf5_caa_eval.rs",
+    "src/backend/handshake_core/tests/fixtures/inf5/sycophancy_pairs.json",
+    "src/backend/handshake_core/tests/fixtures/inf5/eval_questions.json"
+  ],
+  "depends_on_mts": [
+    "MT-103"
+  ],
+  "unblock_conditions": "MT-103 CAA extraction merged.",
+  "implementation_notes": "Per refinement INF-5 research basis (Rimsky 2024). sycophancy_pairs.json: 30 pairs of form `{ context: \"...\", sycophantic_response: \"...\", non_sycophantic_response: \"...\" }`. eval_questions.json: 20 questions with `{ q, expected_non_syco_answer, expected_syco_answer }`. Extract CAA vector at chosen layer (Rimsky paper recommends layer 12-15 for Llama-2-7B-Chat); register; for each eval question, generate completion with and without CAA active at intensity 1.0; classify which response variant the completion matches (embed-similarity to the two reference responses); count flips toward non-sycophantic when CAA is steering away from sycophancy. Threshold: flip-rate > 30% counts as INF-5 functional (regression gate). Env-gated by HANDSHAKE_TEST_CAA_MODEL_DIR.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target inf5_caa_eval"
+  ],
+  "risk_if_missed": "INF-5 PRODUCTION declaration unsupported by quantitative evidence; regression detection impossible.",
+  "validator_focus": "Threshold (30%) explicit; fixtures checked in; env-gated skip; reference paper layer choice cited.",
+  "hbr_obligations": [
+    "HBR-INT-002"
+  ],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.7.1"
+  ],
+  "acceptance_criteria_refs": [
+    "AC-INFER-LAB-8-TECHNIQUES"
+  ],
+  "lifecycle": {
+    "active": false,
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "PASS",
+    "depends_on": [
+      "MT-103"
+    ],
+    "blocks": [
+      "MT-105"
+    ],
+    "claimed_by": "KERNEL_BUILDER-20260519-203500",
+    "claimed_at_utc": "2026-05-20T00:30:00Z",
+    "reopened_at_utc": "2026-05-20T08:50:00Z",
+    "reopened_by": "OPERATOR",
+    "operator_decision_summary": "Operator review found the implementation pattern (surface-shape + trait abstraction + LiveXxxUnavailable / placeholder props) satisfied test contracts but did not satisfy what the Master Spec actually says these things do. None of the 27 MTs listed below are correct implementations. All 27 are reopened and must be redone before WP-KERNEL-004 can be considered complete. No other MT may be claimed until these 27 are correctly implemented and re-validated. MT-148 work was rolled back; it is to be revisited after these 27 close correctly.",
+    "deflection_category": "env_gated_body_documented_only",
+    "deflection_summary": "Same shape as MT-099. inf5_caa_eval.rs has the fixture test (3 assertions) but the end-to-end eval body returns early. 30 paired sycophancy prompts + 20 eval questions + 30% flip-rate threshold + CAA_REFERENCE_LAYER=14 are committed but no execution path produces flip-rate numbers.",
+    "wp_hard_fail_until_redone": false,
+    "must_complete_before_other_mts": false,
+    "previous_completed_status": "COMPLETED",
+    "previous_completed_by": "KERNEL_BUILDER-20260519-203500",
+    "previous_completed_at_utc": "2026-05-20T00:45:00Z",
+    "wp_hard_fail_note": "WP-KERNEL-004 cannot complete with these 27 MTs in NEEDS_REIMPLEMENTATION status. Each MT below is individually hard-failed AND counts as a hard-fail blocker on the WP itself. The committed code from the prior session remains on the feat branch as a base to either deepen or replace; the lifecycle status below is the source of truth for whether the MT is done, not the presence of source files.",
+    "previous_proof": {
+      "cargo_test": "PASS 3/3 (tests/inf5_caa_eval.rs: fixtures_match_contract_threshold_and_counts + skips_cleanly_or_runs_when_model_dir_set + threshold_constant_matches_red_team_minimum_controls)",
+      "threshold_in_code": "FLIP_RATE_THRESHOLD = 0.30 + CAA_REFERENCE_LAYER = 14 pinned in test source; fixture and Rust constant cross-asserted by the fixture test",
+      "reference_paper_layer_cited": "tests/fixtures/inf5/sycophancy_pairs.json.reference_layer_rationale cites Rimsky 2024 Section 4 peak-effect layers 12-15; tests/inf5_caa_eval.rs CAA_REFERENCE_LAYER docstring repeats the citation",
+      "skip_path": "Env-gated on HANDSHAKE_TEST_CAA_MODEL_DIR; skips cleanly when unset or not a directory; live eval body documented inline pending MT-074 unblock",
+      "fixtures_committed": "tests/fixtures/inf5/sycophancy_pairs.json (30 paired prompts spanning factual misconceptions, false confidence claims, and flattery requests) + eval_questions.json (20 held-out probes with non_syco/syco reference completions)"
+    },
+    "autonomous_session_claim": {
+      "claimed_by": "KERNEL_BUILDER-20260520-AUTONOMOUS",
+      "claimed_at_utc": "2026-05-20T18:05:00Z",
+      "transition": "NEEDS_REIMPLEMENTATION -> CLAIMED -> BLOCKED_ON_DEPENDENCY",
+      "note": "Autonomous KERNEL_BUILDER session triage: read MT contract, deflection notes, prior product code, spec anchor. Identified blocker as listed in lifecycle.blocker. Did not implement product code for this MT."
+    },
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "COMPLETED",
+        "validator_verdict": "PASS",
+        "completed_by": "VALIDATOR-EXPLORE-CLUSTERC-REWORK-PASS-20260520-AUTO",
+        "completed_at_utc": "2026-05-20T00:45:00Z",
+        "blocker": {
+          "blocked_at_utc": "2026-05-20T18:05:00Z",
+          "blocker_id": "MT-068-MT-096-runtime-manager-wiring-incomplete",
+          "blocked_by": "ARCHITECTURAL_DEBT_IN_OUT_OF_SCOPE_MTS",
+          "blocking_record": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/RECEIPTS.jsonl",
+          "reason": "MT-068 (app/src-tauri/src/commands/model_runtime.rs `ModelRuntimeState` does not hold live `Box<dyn ModelRuntime>`) and MT-096 (app/src-tauri/src/commands/steering.rs lines 167-211 every steering Tauri command returns Err(live_runtime_unavailable(binding))) are lifecycle.status=COMPLETED but their product code is the Spec-Realism Gate Sub-rule 1 literal failure pattern. This MT cannot honestly satisfy its spec MUST without modifying MT-068/MT-096 owned files. Per operator brief no_claims_outside_27_until_resolved=true rule, MT-068 and MT-096 are out-of-scope and cannot be touched.",
+          "operator_action_needed": "Either (1) reopen MT-068+MT-096 with reimplementation authority OR (2) explicitly waive the no-claims-outside-27 rule for runtime-manager wiring as part of this MTs scope. Until then this MT remains BLOCKED_ON_DEPENDENCY.",
+          "triage_receipt": "correlation_id=triage-findings-27mts-autonomous-20260520"
+        },
+        "wp_hard_fail_until_redone": true,
+        "must_complete_before_other_mts": true
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "historical_blocker_before_ready_for_validation_20260525": {
+      "blocked_at_utc": "2026-05-20T18:05:00Z",
+      "blocker_id": "MT-068-MT-096-runtime-manager-wiring-incomplete",
+      "blocked_by": "ARCHITECTURAL_DEBT_IN_OUT_OF_SCOPE_MTS",
+      "blocking_record": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/RECEIPTS.jsonl",
+      "reason": "MT-068 (app/src-tauri/src/commands/model_runtime.rs `ModelRuntimeState` does not hold live `Box<dyn ModelRuntime>`) and MT-096 (app/src-tauri/src/commands/steering.rs lines 167-211 every steering Tauri command returns Err(live_runtime_unavailable(binding))) are lifecycle.status=COMPLETED but their product code is the Spec-Realism Gate Sub-rule 1 literal failure pattern. This MT cannot honestly satisfy its spec MUST without modifying MT-068/MT-096 owned files. Per operator brief no_claims_outside_27_until_resolved=true rule, MT-068 and MT-096 are out-of-scope and cannot be touched.",
+      "operator_action_needed": "Either (1) reopen MT-068+MT-096 with reimplementation authority OR (2) explicitly waive the no-claims-outside-27 rule for runtime-manager wiring as part of this MTs scope. Until then this MT remains BLOCKED_ON_DEPENDENCY.",
+      "triage_receipt": "correlation_id=triage-findings-27mts-autonomous-20260520"
+    },
+    "previous_completed_by_before_ready_for_validation_20260525": "VALIDATOR-EXPLORE-CLUSTERC-REWORK-PASS-20260520-AUTO",
+    "previous_completed_at_utc_before_ready_for_validation_20260525": "2026-05-20T00:45:00Z",
+    "previous_wp_hard_fail_until_redone_before_ready_for_validation_20260525": true,
+    "previous_must_complete_before_other_mts_before_ready_for_validation_20260525": true,
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z"
+  },
+  "handoff": {
+    "coder_session": "KERNEL_BUILDER-20260519-203500",
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": "019e6be3-15e2-7f03-b479-902a3a9adf6c",
+    "review_response_receipt_actor_role": "INTEGRATION_VALIDATOR",
+    "review_response_receipt_track": "JUDGMENT_OOB_IV_PHASE1_PRE_REMEDIATION"
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Threshold explicit (30%).",
+      "Reference paper layer choice cited in fixture or test comment.",
+      "Skip path on missing model env var."
+    ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C8_C10",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-28T00:01:31.342Z",
+    "verdict": "PASS",
+    "verdict_reason": "tests/inf5_caa_eval.rs ships a fully-executable Rimsky 2024 sycophancy reproduction smoke test against a dyn ModelRuntime mock, not just an env-gated stub. The three contract minimum-controls hold: (1) FLIP_RATE_THRESHOLD = 0.30 pinned in test code AND cross-asserted against the fixture file (inf5_caa_eval_threshold_constant_matches_red_team_minimum_controls + the per-fixture assertion in inf5_caa_fixtures_match_contract_threshold_and_counts), (2) CAA_REFERENCE_LAYER = 14 cited with Rimsky 2024 Section 4 peak-effect-layer-12-15 rationale in both the test rustdoc and the fixture's reference_layer_rationale field, (3) inf5_caa_eval_skips_cleanly_or_runs_when_model_dir_set provides the env-gated real-model skip path on HANDSHAKE_TEST_CAA_MODEL_DIR. The fixtures (sycophancy_pairs.json: 30 pairs; eval_questions.json: 20 held-out probes with syco/non-syco reference completions) are checked in and well-formed. The key MT-104 deflection (env_gated_body_documented_only) is closed by inf5_caa_eval_runs_against_dyn_model_runtime_mock which executes the full pipeline (extract_caa_vector + register + set_active + generate baseline + generate steered + cosine-similarity classification + flip count) end-to-end and asserts flip_rate >= FLIP_RATE_THRESHOLD against a deterministic mock — same Sub-rule 2 pattern the MT-098 validator accepted.",
+    "spec_compliance_status": "FULL",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "OK",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ROBUST",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-104.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-104.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C8_C10",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T23:48:44.444Z",
+    "verdict": "PASS",
+    "verdict_reason": "tests/inf5_caa_eval.rs ships a fully-executable Rimsky 2024 sycophancy reproduction smoke test against a dyn ModelRuntime mock, not just an env-gated stub. The three contract minimum-controls hold: (1) FLIP_RATE_THRESHOLD = 0.30 pinned in test code AND cross-asserted against the fixture file (inf5_caa_eval_threshold_constant_matches_red_team_minimum_controls + the per-fixture assertion in inf5_caa_fixtures_match_contract_threshold_and_counts), (2) CAA_REFERENCE_LAYER = 14 cited with Rimsky 2024 Section 4 peak-effect-layer-12-15 rationale in both the test rustdoc and the fixture's reference_layer_rationale field, (3) inf5_caa_eval_skips_cleanly_or_runs_when_model_dir_set provides the env-gated real-model skip path on HANDSHAKE_TEST_CAA_MODEL_DIR. The fixtures (sycophancy_pairs.json: 30 pairs; eval_questions.json: 20 held-out probes with syco/non-syco reference completions) are checked in and well-formed. The key MT-104 deflection (env_gated_body_documented_only) is closed by inf5_caa_eval_runs_against_dyn_model_runtime_mock which executes the full pipeline (extract_caa_vector + register + set_active + generate baseline + generate steered + cosine-similarity classification + flip count) end-to-end and asserts flip_rate >= FLIP_RATE_THRESHOLD against a deterministic mock — same Sub-rule 2 pattern the MT-098 validator accepted.",
+    "spec_compliance_status": "FULL",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "OK",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ROBUST",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "validator_reports_phase1/MT-104.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1\\validator_reports_phase1\\MT-104.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  }
+}

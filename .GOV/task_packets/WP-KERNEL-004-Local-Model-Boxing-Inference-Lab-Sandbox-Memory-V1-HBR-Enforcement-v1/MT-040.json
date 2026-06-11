@@ -1,0 +1,149 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-040",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "A",
+  "cluster_subscope": "A.7",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T02:30:00Z",
+  "updated_at_utc": "2026-05-28T00:01:44.893Z",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-040.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "Discovery-surface updates: START_HERE / ROLE_SESSION_ORCHESTRATION / ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK",
+  "goal": "Update the three operator-facing discovery surfaces so any incoming model or operator finds the HBR system on first read. START_HERE adds a top-section pointer to HANDSHAKE_BUILD_RULES.json + CX-131. ROLE_SESSION_ORCHESTRATION documents the HandoffGate (MT-004) as a mandatory transition. ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK adds the HBR matrix-check sequence to its run-through.",
+  "expected_diff_shape": "Edit existing discovery files after path confirmation; .GOV/discovery/ is absent in this repo, so the real canonical surfaces are .GOV/roles_shared/docs/*. Additive edits preserving all existing content; new HBR-pointer subsections.",
+  "owned_files": [
+    ".GOV/roles_shared/docs/START_HERE.md",
+    ".GOV/roles_shared/docs/ROLE_SESSION_ORCHESTRATION.md",
+    ".GOV/roles_shared/docs/ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK.md"
+  ],
+  "depends_on_mts": [
+    "MT-038",
+    "MT-039",
+    "MT-037"
+  ],
+  "unblock_conditions": "Role protocols updated (MT-038), templates updated (MT-039), swarm invariants test passing (MT-037 — proves the whole A.5 chain is live so the playbook can reference it confidently).",
+  "implementation_notes": "Confirm file locations via Glob before editing. Likely paths: `.GOV/discovery/`, `.GOV/operator/discovery/`, or `.GOV/operator/`. START_HERE.md: add a top-of-file section `## Build Rules (HBR)` pointing to HANDSHAKE_BUILD_RULES.json + spec §5.6 + CX-131; mention that every WP touching product code must satisfy the applicable HBR rows per CX-503B1. ROLE_SESSION_ORCHESTRATION.md: add a section `## HBR Handoff Gate` documenting that every governed inter-role transition (refinement->coder, coder->WP_VALIDATOR, WP_VALIDATOR->INTEGRATION_VALIDATOR, INTEGRATION_VALIDATOR->ORCHESTRATOR) fires the HandoffGate (MT-004) and blocks on failure; cite the role-protocol links from MT-038. ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK.md: add a step to the standard run-through `Step <N>: Run \\`just hbr-matrix-check\\` before any coder handoff` and `Step <N+1>: Run \\`just hbr-visual-smoke\\` + \\`just hbr-swarm-n8\\` + \\`just hbr-inspector-smoke\\` before INTEGRATION_VALIDATOR closeout`. All three are *additive* — preserve every existing section and ordering. If the playbook does not have a numbered steps section, document the discovery and propose the additions as a new section instead of forcing them into a non-existent structure. Tests: a Node check `.GOV/roles_shared/checks/discovery-hbr-pointers.mjs` greps each of the three discovery files for the required HBR pointers; gov-check sub-check. This is the FINAL MT for cluster A; on completion, every operator + model entry point surfaces the HBR system within the first scroll. NOTE: This MT depends on MT-037 (the swarm invariants test) because the playbook references the recipe by name and the recipe must work.",
+  "proof_commands": [
+    "node .GOV/roles_shared/checks/discovery-hbr-pointers.mjs",
+    "just gov-check",
+    "just hbr-matrix-check && just hbr-visual-smoke && just hbr-swarm-n8 && just hbr-inspector-smoke"
+  ],
+  "risk_if_missed": "Without discovery-surface updates, operators and no-context models still bypass HBR on first read; the system's value is invisible.",
+  "validator_focus": "All three discovery surfaces include the HBR pointers; additive edits preserve existing content; recipe names cited in the playbook exist in the justfile.",
+  "hbr_obligations": [
+    "HBR-INT-001",
+    "HBR-MAN-001",
+    "HBR-MAN-002"
+  ],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/05-security-and-observability.md#5.6",
+    ".GOV/codex/Handshake_Codex_v1.4.md#CX-131"
+  ],
+  "acceptance_criteria_refs": [
+    "AC-HBR-AUTHORITY",
+    "AC-HBR-HANDOFF-GATE",
+    "AC-MODEL-MANUAL-AUTHORITY"
+  ],
+  "lifecycle": {
+    "active": false,
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "PASS",
+    "depends_on": [
+      "MT-038",
+      "MT-039",
+      "MT-037"
+    ],
+    "blocks": [],
+    "claimed_by": "KERNEL_BUILDER-20260518-073535",
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "COMPLETED",
+        "validator_verdict": "PENDING",
+        "completed_at_utc": "2026-05-18T16:58:06.974Z"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "previous_completed_at_utc_before_ready_for_validation_20260525": "2026-05-18T16:58:06.974Z",
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z"
+  },
+  "handoff": {
+    "coder_session": "KERNEL_BUILDER-20260518-073535",
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": "019e6be3-15bd-7dbc-a87a-54c664975455",
+    "review_response_receipt_actor_role": "INTEGRATION_VALIDATOR",
+    "review_response_receipt_track": "JUDGMENT_OOB_IV_PHASE1_PRE_REMEDIATION"
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Discovery edits are additive (no removed content).",
+      "Recipe names cited in the playbook are validated to exist in the justfile.",
+      "If discovery files do not exist at expected paths, MT documents the discovery and proposes alternates rather than fabricating."
+    ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_A3_A5_A7",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-28T00:01:31.342Z",
+    "verdict": "PASS",
+    "verdict_reason": "All three discovery surfaces (START_HERE.md, ROLE_SESSION_ORCHESTRATION.md, ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK.md) carry the required HBR pointers (## Build Rules (HBR) section, ## HBR Handoff Gate section, just hbr-* recipe sequence) and the four cited recipes are present in the root justfile; discovery-hbr-pointers.mjs enforces every pointer and recipe mechanically.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-040.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-040.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_A3_A5_A7",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T23:48:44.444Z",
+    "verdict": "PASS",
+    "verdict_reason": "All three discovery surfaces (START_HERE.md, ROLE_SESSION_ORCHESTRATION.md, ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK.md) carry the required HBR pointers (## Build Rules (HBR) section, ## HBR Handoff Gate section, just hbr-* recipe sequence) and the four cited recipes are present in the root justfile; discovery-hbr-pointers.mjs enforces every pointer and recipe mechanically.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "validator_reports_phase1/MT-040.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1\\validator_reports_phase1\\MT-040.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  }
+}

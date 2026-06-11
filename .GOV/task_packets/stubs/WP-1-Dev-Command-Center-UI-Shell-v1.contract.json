@@ -1,0 +1,99 @@
+{
+  "schema_id": "hsk.work_packet_stub_contract@1",
+  "schema_version": "work_packet_stub_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "execution_authority": "NON_EXECUTION_STUB",
+  "wp_id": "WP-1-Dev-Command-Center-UI-Shell-v1",
+  "base_wp_id": "WP-1-Dev-Command-Center-UI-Shell",
+  "created_at_utc": "2026-05-27T00:00:00Z",
+  "source_files": {
+    "stub_contract": ".GOV/task_packets/stubs/WP-1-Dev-Command-Center-UI-Shell-v1.contract.json",
+    "markdown_projection": ""
+  },
+  "markdown_projection": {
+    "path": "",
+    "status": "NOT_GENERATED",
+    "projection_sha256": "",
+    "generated_by": "operator-directed-minimal-stub-under-kernel-reset-stance"
+  },
+  "lifecycle": {
+    "status": "ACTIVE_MINIMAL_STUB",
+    "format_version": "",
+    "activation_required": false,
+    "user_signature_required": false,
+    "refinement_required_before_execution": false
+  },
+  "build_order": {
+    "domain": "FRONTEND",
+    "tech_blocker": "NO",
+    "value_tier": "HIGH",
+    "risk_tier": "MEDIUM",
+    "depends_on": [
+      "WP-1-Dev-Command-Center-Control-Plane-Backend-v1"
+    ],
+    "blocks": []
+  },
+  "spec_trace": {
+    "spec_target": ".GOV/spec/SPEC_CURRENT.md",
+    "roadmap_pointer": "Handshake_Master_Spec v02.127 Dev Command Center (DCC) MVP, frontend shell slice",
+    "roadmap_add_coverage": ""
+  },
+  "session_policy": {
+    "session_start_authority": "",
+    "session_host_preference": "",
+    "session_launch_policy": "",
+    "role_model_profile_policy": "",
+    "planned_execution_owner_range": ""
+  },
+  "folded_predecessor": {
+    "stub_id": "WP-1-Dev-Command-Center-MVP-v1",
+    "stub_status": "SUPERSEDED (FOLDED INTO WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1)",
+    "stub_contract_ref": ".GOV/task_packets/stubs/WP-1-Dev-Command-Center-MVP-v1.contract.json",
+    "relationship": "predecessor_stub_for_the_DCC_UI_surface_was_folded_into_kernel_002_for_backend_substrate_this_stub_re-opens_the_UI_shell_slice_alone"
+  },
+  "companion_intent_doc": {
+    "branch": "feat/WP-1-Dev-Command-Center-UI-Shell-v1",
+    "path": "WP-1-Dev-Command-Center-UI-Shell-v1.INTENT.md",
+    "role": "Operator/no-context-model handoff anchor; survives .GOV abandonment because it lives in the product tree."
+  },
+  "draft_scope": {
+    "intent": "- What: Deliver the Dev Command Center (DCC) UI shell - the canonical control surface that binds Locus work (WP/MT) <-> workspaces (worktrees) <-> sessions <-> approvals/logs/diffs, without bypassing Workflow Engine, gates, or Flight Recorder.\n- Why: Make governed development usable (approvals as inbox, VCS as panel, predictable traceable operations) while enabling safe parallel work and deterministic recovery/handoffs.\n- Backend-first rule: this UI WP projects over the DCC control-plane backend (WP-1-Dev-Command-Center-Control-Plane-Backend-v1). DCC is not authority; it is a projection and steering surface over backend artifacts.",
+    "scope_sketch": "- IN_SCOPE (already committed on feat/WP-1-Dev-Command-Center-UI-Shell-v1 @ 585e42ad):\n  - app/src/App.tsx module-tab + project-tab + pane/splitter shell\n  - app/src/App.css pane/splitter/lab grid styles\n  - app/src/App.test.tsx frontend shell tests\n  - app/scripts/handshake-screenshot-capture.mjs --backend-fixture mode, renderer-error trap, capture dimensions, quiet automation metadata\n  - app/scripts/handshake-screenshot-capture.test.mjs fixture mode tests\n- UI surfaces introduced:\n  - Module tabs: MAIN, CKC, INGEST, STAGE, LAB, STUDIO\n  - Project tabs: HANDSHAKE, FAST-FOCUS, BUURTMAN, CASTKIT\n  - Pane primitives with stable-id taxonomy main-window.pane.{id}.*\n  - Splitter primitives with stable-id taxonomy main-window.splitter.{id}\n  - Activity-bar items with stable-id taxonomy main-window.activity.{id}\n  - Capture backend fixture endpoints under http://127.0.0.1:37501/*\n- OUT_OF_SCOPE:\n  - Anything under src/backend/handshake_core/** (route to a backend WP)\n  - Calendar sync logic, calendar storage, calendar capability routing (see WP-1-Calendar-Sync-Engine-v2)\n  - Software-delivery projection-discipline runtime contracts (see WP-1-Software-Delivery-Projection-Surface-Discipline-v1)\n  - DCC control-plane backend (see WP-1-Dev-Command-Center-Control-Plane-Backend-v1)\n  - Repo-governance protocol changes; this WP is intentionally outside the heavy .GOV/ packet ceremony\n  - GitHub PR/comment sync, multi-user shared approvals, full external conversation ingestion",
+    "acceptance_criteria": "- Operator can launch the new app shell, see module + project tabs, switch panes and split ratios with keyboard and pointer, and capture a visual-debug screenshot via the fixture-backed playwright path without a running Rust backend.\n- Frontend tests for App and handshake-screenshot-capture pass locally.\n- Branch merges cleanly to main with no Rust backend, .GOV/, or other-WP scope contamination.",
+    "risks_unknowns": "- Risk: stable-id taxonomy may drift before a layout-projection registry exists, breaking later DCC pane wiring. Mitigation: keep the main-window.* prefix stable and document any rename in the intent doc.\n- Risk: backend fixture diverges from real /api/kernel/dcc_projection contract once the backend WP lands. Mitigation: fixture is auto-disabled when a real backend responds on http://127.0.0.1:37501/health.\n- Risk: under kernel-reset stance there is no signed scope, so scope creep is not deterministically blocked. Mitigation: this stub + the companion intent doc are the soft scope record; any out-of-scope edit should produce a separate WP or stub.",
+    "governance_artifact_stance": "Authored under operator-declared kernel-reset stance (2026-05-27) that retires the heavy .GOV/ packet/refinement/MT chain in favor of product-tree intent docs plus minimal stubs. No refinement, no signature, no packet. Stub + intent doc are the soft scope record until the new product-based governance lands."
+  },
+  "activation_contract": {
+    "may_start_coder": true,
+    "may_start_validator": false,
+    "required_activation_steps": []
+  },
+  "red_team": {
+    "required": false,
+    "profile": "NOT_REQUIRED_UNDER_KERNEL_RESET_STANCE",
+    "assumptions_to_attack": [
+      "A stub is planning metadata, not execution authority.",
+      "Under the kernel-reset stance there is no signed scope; the intent doc + stub are the soft scope record only."
+    ],
+    "minimum_controls": [
+      "Keep execution_authority=NON_EXECUTION_STUB.",
+      "Do not treat absence of red-team or signature as license for scope creep; out-of-scope edits go in a new WP or stub.",
+      "Keep stable-id main-window.* taxonomy stable for downstream DCC pane wiring."
+    ]
+  }
+}

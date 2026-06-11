@@ -1,0 +1,143 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-031",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "A",
+  "cluster_subscope": "A.3",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T02:30:00Z",
+  "updated_at_utc": "2026-05-28T00:01:44.887Z",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-031.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "TraceProjection API (HBR-VIS-004 non-UI visual verification)",
+  "goal": "Per spec §6.5 + HBR-VIS-004, implement the TraceProjection read API: a single GET endpoint `/inspector/v1/trace/{session_id}` returning a structured reconstruction of `what task / what context / what return / what tool calls / what artifact / what validation / what promotion` for a session, derived purely from durable state (no chat history, no terminal scrollback, no provider memory).",
+  "expected_diff_shape": "Implementation of TraceProjection in src/backend/handshake_core/src/inspector_read/trace_projection.rs; wired into MT-028 trait + MT-029 server; tests verify reconstruction from a synthetic session's EventLedger.",
+  "owned_files": [
+    "src/backend/handshake_core/src/inspector_read/trace_projection.rs",
+    "src/backend/handshake_core/tests/trace_projection_tests.rs"
+  ],
+  "depends_on_mts": [
+    "MT-028",
+    "MT-029"
+  ],
+  "unblock_conditions": "MT-028 trait + MT-029 server scaffold ship; EventLedger primitive available from KERNEL-001.",
+  "implementation_notes": "Per HBR-VIS-004 evidence_kind=trace_projection_inspection. TraceProjection schema: `{ session_id, opened_at, closed_at: Option, what_task: { wp_id, mt_id, task_summary }, what_context: { context_bundle_id, context_summary, hash }, what_returns: Vec<{ event_id, content_summary, hash }>, what_tool_calls: Vec<{ tool_name, args_hash, result_summary, gate_pass: bool }>, what_artifacts: Vec<{ artifact_id, kind, path, sha256 }>, what_validation: Vec<{ check_id, verdict, evidence_pointer }>, what_promotion: Option<{ promotion_event_id, gate_id, verdict }> }`. The projection is reconstructed from EventLedger rows for the session — no provider memory, no chat scrollback. Implementation: scan EventLedger for rows with parent_session_id == session_id, classify each event by kind (TASK_OPEN, CONTEXT_BUNDLE_DISPATCH, MODEL_RESPONSE, TOOL_CALL_REQUEST, ARTIFACT_WRITTEN, VALIDATION_RESULT, PROMOTION_EVENT), fold into the structured projection. Hashes: content_summary carries first 200 chars; hash field is sha256 of full content (so summary can be trusted to identify uniquely). Tests: spawn a synthetic session via KERNEL-001 EventLedger fixtures, fire one of each event kind, query the projection, assert all seven fields are populated correctly. Negative: session_id with no events returns 404 (not empty projection — that would be misleading).",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target --features inspector trace_projection_tests"
+  ],
+  "risk_if_missed": "Without TraceProjection, HBR-VIS-004 has no surface; non-UI work like sandbox/runtime/memory cannot be visually verified.",
+  "validator_focus": "Projection is reconstructed purely from EventLedger (no chat-history or scrollback leakage); 404 on empty rather than empty-projection; content_summary hashes are sha256 of full content not truncated.",
+  "hbr_obligations": [
+    "HBR-INT-007",
+    "HBR-VIS-001",
+    "HBR-VIS-004"
+  ],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/06-mechanical-integrations.md#6.5"
+  ],
+  "acceptance_criteria_refs": [
+    "AC-INSPECTOR-PLANE-READONLY"
+  ],
+  "lifecycle": {
+    "active": false,
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "PASS",
+    "depends_on": [
+      "MT-028",
+      "MT-029"
+    ],
+    "blocks": [
+      "MT-033"
+    ],
+    "claimed_by": "KERNEL_BUILDER-20260518-073535",
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "COMPLETED",
+        "validator_verdict": "PENDING",
+        "completed_at_utc": "2026-05-18T11:44:35.972Z"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "previous_completed_at_utc_before_ready_for_validation_20260525": "2026-05-18T11:44:35.972Z",
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z"
+  },
+  "handoff": {
+    "coder_session": "KERNEL_BUILDER-20260518-073535",
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": "019e6be3-15b7-78b0-a46c-b7d88e08c5d1",
+    "review_response_receipt_actor_role": "INTEGRATION_VALIDATOR",
+    "review_response_receipt_track": "JUDGMENT_OOB_IV_PHASE1_PRE_REMEDIATION"
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Reconstruction sourced exclusively from EventLedger (no chat-history input).",
+      "Empty session returns 404 (not a misleading empty projection).",
+      "Hashes are full-content sha256 (not summary hash, which would be ambiguous)."
+    ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_A3_A5_A7",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-28T00:01:31.342Z",
+    "verdict": "PASS",
+    "verdict_reason": "TraceProjection reconstructs all seven HBR-VIS-004 fields purely from EventLedger rows (or KernelEvent), returns None for empty sessions (mapped to 404 by the server), and hashes full content rather than truncated summaries — the spec invariant 'reconstructable from durable state alone' holds.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 2
+    },
+    "paperwork_notes_count": 1,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-031.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-031.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_A3_A5_A7",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T23:48:44.444Z",
+    "verdict": "PASS",
+    "verdict_reason": "TraceProjection reconstructs all seven HBR-VIS-004 fields purely from EventLedger rows (or KernelEvent), returns None for empty sessions (mapped to 404 by the server), and hashes full content rather than truncated summaries — the spec invariant 'reconstructable from durable state alone' holds.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 2
+    },
+    "paperwork_notes_count": 1,
+    "review_artifact_ref": "validator_reports_phase1/MT-031.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1\\validator_reports_phase1\\MT-031.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  }
+}

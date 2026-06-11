@@ -1,0 +1,207 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-094",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "C",
+  "cluster_subscope": "C.5",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:00:00Z",
+  "updated_at_utc": "2026-05-28T00:01:44.924Z",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-094.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "INF-2 KV cache UI knob (quant + prefix TTL + occupancy display)",
+  "goal": "KV cache UI in Inference Lab per AC-INFER-LAB-UI-TOGGLES: quant-level picker (none/q4/q8/q4_q8_mix), prefix-cache TTL slider, live occupancy bar (bytes used / capacity + hit rate), evict-all button. Hidden when capabilities.supportsKvQuantization == None.",
+  "expected_diff_shape": "New Svelte component app/src/components/inference_lab/KvCachePanel.svelte + store; integration into InferenceLab parent view.",
+  "owned_files": [
+    "app/src/components/inference_lab/KvCachePanel.svelte",
+    "app/src/lib/stores/kv_cache.ts",
+    "app/src/components/inference_lab/InferenceLab.svelte"
+  ],
+  "depends_on_mts": [
+    "MT-068",
+    "MT-093"
+  ],
+  "unblock_conditions": "MT-068 IPC + MT-093 technique merged.",
+  "implementation_notes": "Per AC-INFER-LAB-UI-TOGGLES + AC-MODEL-RUNTIME-CONTROL-PANEL field set: KV occupancy displayed live in panel; quant picker writes through to settings.exec_policy.kv_cache.quantization. KvCachePanel.svelte: select dropdown for KvQuantSupport (None|Q4|Q8|Q4Q8Mix; mapped from capability set); slider for prefix_cache_ttl_seconds (30..3600); live occupancy bar (polls kernel_model_runtime_kv_occupancy every 2s); hit-rate badge; [Evict all] button calls kernel_model_runtime_kv_evict_all. Per AC-INFER-LAB-UI-TOGGLES \"hidden, not greyed\": when supportsKvQuantization == None, hide the quant picker (kept prefix TTL slider as long as supportsKvPrefixCache == true). A/B compare per AC-INFER-LAB-UI-AB-COMPARE: pick a generation prompt, render side-by-side gen output at current quant vs proposed quant.",
+  "proof_commands": [
+    "cd app && pnpm run typecheck",
+    "cd app && pnpm exec playwright test --grep kv_cache_panel"
+  ],
+  "risk_if_missed": "INF-2 UI knob missing; operator cannot tune KV cache through Inference Lab.",
+  "validator_focus": "Hidden-not-greyed when unsupported; live occupancy actually updates; A/B compare flow present.",
+  "hbr_obligations": [
+    "HBR-INT-002"
+  ],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/10-product-surfaces.md#10.14"
+  ],
+  "acceptance_criteria_refs": [
+    "AC-INFER-LAB-UI-TOGGLES",
+    "AC-INFER-LAB-UI-AB-COMPARE",
+    "AC-MODEL-RUNTIME-CONTROL-PANEL"
+  ],
+  "lifecycle": {
+    "active": false,
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "CONCERN",
+    "integration_validator_verdict": "PENDING",
+    "depends_on": [
+      "MT-068",
+      "MT-093"
+    ],
+    "blocks": [
+      "MT-095"
+    ],
+    "claimed_by": "KERNEL_BUILDER-20260522-171100",
+    "claimed_at_utc": "2026-05-22T21:50:00Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260522-171100",
+    "ready_for_validation_at_utc": "2026-05-22T22:05:00Z",
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "READY_FOR_VALIDATION",
+        "validator_verdict": "PENDING"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z"
+  },
+  "handoff": {
+    "coder_session": "KERNEL_BUILDER-20260522-171100",
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": "019e6be3-15dc-7d49-99c2-accb29e7b4c4",
+    "review_response_receipt_actor_role": "INTEGRATION_VALIDATOR",
+    "review_response_receipt_track": "JUDGMENT_OOB_IV_PHASE1_PRE_REMEDIATION"
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Hidden quant picker when None (display:none).",
+      "Live occupancy polling does not flood IPC (every 2s cap).",
+      "Evict-all button confirmation dialog (prevent accidental cache wipe under load)."
+    ]
+  },
+  "implementation_record": {
+    "recorded_at_utc": "2026-05-22T22:05:00Z",
+    "recorded_by": "KERNEL_BUILDER-20260522-171100",
+    "classification": "IMPLEMENTATION_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+    "authoritative_integration_validator_pass": false,
+    "integration_validator_status": "PENDING",
+    "summary": "MT-094 implemented the KV cache UI knob as a React TSX panel (same Svelte->TSX defect class as MT-091/098/102/105/124). Quant picker driven by quantOptionsFor() capability cascade (none/q4/q8/q4_q8_mix), prefix-cache TTL slider (30-3600s), live occupancy bar polling every 2s, evict-all button with confirmation dialog. Hidden (display:none) when neither supportsKvQuantization nor supportsKvPrefixCache is declared. All mutations dispatch through kernel_model_runtime_kv_* Tauri commands (MT-093) which preflight via KernelActionCatalogV1.",
+    "contract_drift": [
+      "Owned files declared Svelte components and a Svelte-style store; app stack is React/TSX. Implemented as KvCachePanel.tsx + kv_cache.ts IPC binding (React hooks subsume the Svelte store role). Same defect class as MT-091.",
+      "Proof command listed `pnpm run typecheck` (no such script); substituted `pnpm exec tsc --noEmit`.",
+      "Proof command listed `pnpm exec playwright test --grep kv_cache_panel`; existing inference_lab pattern uses Vitest + @testing-library/react. Implemented as Vitest tests."
+    ],
+    "design_notes": [
+      "Hidden-not-greyed cascade: panel hides when supportsKvQuantization='none' AND supportsKvPrefixCache=false; quant picker hides separately when supportsKvQuantization='none' (prefix slider remains); prefix controls hide separately when supportsKvPrefixCache=false (quant picker remains).",
+      "quantOptionsFor() exported from kv_cache.ts and unit-tested: 'none' → []; 'q4' → ['none','q4']; 'q8' → ['none','q8']; 'q4_q8_mix' → all four.",
+      "Live occupancy polling capped at OCCUPANCY_POLL_MS = 2000ms via window.setInterval with cancelRef cleanup on unmount.",
+      "Evict-all uses a two-step confirm dialog to satisfy red_team minimum control 'prevent accidental cache wipe under load'.",
+      "A/B compare (AC-INFER-LAB-UI-AB-COMPARE) deferred to a follow-up MT; no generation IPC exposed (same residual_risk as MT-091)."
+    ],
+    "owned_file_changes": [
+      "ADDED app/src/lib/ipc/kv_cache.ts (160 lines): IPC binding + quantOptionsFor helper.",
+      "ADDED app/src/components/inference_lab/KvCachePanel.tsx (~300 lines).",
+      "ADDED app/src/components/inference_lab/KvCachePanel.test.tsx (~250 lines, 10 tests).",
+      "MODIFIED app/src/components/inference_lab/index.ts: export KvCachePanel.",
+      "MODIFIED app/src/components/inference_lab/InferenceLab.tsx: mount KvCachePanel behind caps.capabilities."
+    ],
+    "proof": {
+      "frontend_typecheck": {
+        "command": "pnpm exec tsc --noEmit",
+        "exit_code": 0,
+        "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt094-tsc-noemit-20260522-001.log"
+      },
+      "focused_vitest": {
+        "command": "pnpm exec vitest run KvCachePanel --reporter=verbose",
+        "exit_code": 0,
+        "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt094-vitest-kv-cache-panel-20260522-003.log",
+        "note": "10/10 passed: hidden-not-greyed cascade (both caps absent / capabilities=null); panel renders with live occupancy + hit-rate math; quant picker hides when None; prefix controls hide when no prefix-cache; quant picker dispatches kvSetQuantization with Work Profile settings; evict-all opens confirm dialog and only dispatches on confirm; cancel skips IPC; occupancy fetch error surfaces inline; quantOptionsFor cascade."
+      },
+      "full_vitest": {
+        "command": "pnpm test",
+        "exit_code": 0,
+        "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt094-vitest-full-suite-20260522-001.log",
+        "note": "73/73 across 16 files. No regression from new panel + InferenceLab wiring."
+      }
+    },
+    "residual_risks": [
+      "No Integration Validator has reviewed MT-094.",
+      "A/B compare (AC-INFER-LAB-UI-AB-COMPARE) not implemented — same deferred follow-up as MT-091.",
+      "Live polling cadence enforcement is verified by source-inspection (OCCUPANCY_POLL_MS=2000) — vitest cannot easily assert real-time interval behavior without flaky fake-timer tests.",
+      "Umbrella gov-check failures inherited from prior MTs remain."
+    ],
+    "out_of_scope_self_evaluation": {
+      "why": "MT-094 owned files declared Svelte components; the React/TSX equivalents land as KvCachePanel.tsx + KvCachePanel.test.tsx + InferenceLab.tsx + index.ts (export). Same Svelte->TSX defect class as MT-091. The new app/src/lib/ipc/kv_cache.ts is outside the owned-file list.",
+      "touched_outside_mt_owned_files": [
+        "app/src/lib/ipc/kv_cache.ts (ADDED) — IPC binding wrapping the MT-093 kv_cache Tauri commands; required for the panel to dispatch."
+      ],
+      "risk_reduced": "Same as MT-091: prevents the panel from being a paper UI and centralizes the camelCase DTO + quantOptionsFor helper in one binding module.",
+      "waiver_status": "OPERATOR_WAIVER_REQUIRED_FOR_THIS_MT_OUT_OF_SCOPE_FILE"
+    }
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C4_C7",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-28T00:01:31.342Z",
+    "verdict": "CONCERN",
+    "verdict_reason": "KV cache panel implements hidden-not-greyed cascade, quant picker, prefix TTL slider, occupancy polling, evict-all with confirm dialog; A/B compare (AC-INFER-LAB-UI-AB-COMPARE) deferred and same poll-flood concern as MT-091 (covered by 2s cap constant).",
+    "spec_compliance_status": "PARTIAL",
+    "code_hygiene_status": "MINOR",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 1,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 1,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-094.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-094.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C4_C7",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T23:48:44.444Z",
+    "verdict": "CONCERN",
+    "verdict_reason": "KV cache panel implements hidden-not-greyed cascade, quant picker, prefix TTL slider, occupancy polling, evict-all with confirm dialog; A/B compare (AC-INFER-LAB-UI-AB-COMPARE) deferred and same poll-flood concern as MT-091 (covered by 2s cap constant).",
+    "spec_compliance_status": "PARTIAL",
+    "code_hygiene_status": "MINOR",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 1,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 1,
+    "review_artifact_ref": "validator_reports_phase1/MT-094.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1\\validator_reports_phase1\\MT-094.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  }
+}

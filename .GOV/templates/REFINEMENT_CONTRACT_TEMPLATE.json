@@ -47,7 +47,32 @@
     "non_goals": [],
     "spec_anchors": [],
     "acceptance_criteria": [],
-    "microtask_plan": []
+    "hbr_pillar_review": {
+      "INT": {
+        "applicable": null,
+        "evidence_path": null
+      },
+      "SWARM": {
+        "applicable": null,
+        "evidence_path": null
+      },
+      "VIS": {
+        "applicable": null,
+        "evidence_path": null
+      },
+      "QUIET": {
+        "applicable": null,
+        "evidence_path": null
+      },
+      "MAN": {
+        "applicable": null,
+        "evidence_path": null
+      }
+    },
+    "microtask_plan": [],
+    "microtask_plan_item_defaults": {
+      "hbr_obligations": []
+    }
   },
   "red_team": {
     "required": true,

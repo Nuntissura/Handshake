@@ -1,0 +1,113 @@
+{
+  "artifact_policy": {
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ],
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "model_created_markdown_authority_allowed": false,
+    "operator_facing_authority": false,
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND"
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-005/MT-158.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-005/MT-158.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-005/packet.json"
+  },
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": null,
+  "handoff": {
+    "coder_session": "KB-KERNEL-005-CLOSEOUT",
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": null
+  },
+  "lifecycle": {
+    "active": true,
+    "blocks": [],
+    "depends_on": [
+      "MT-157"
+    ],
+    "status": "VALIDATED_V3",
+    "validator_verdict": "PASS_V3",
+    "claimed_by": "KB-KERNEL-005-CLOSEOUT",
+    "ready_for_validation_at_utc": "2026-06-11T03:05:50.294Z",
+    "ready_by": "KB-KERNEL-005-V3-REMEDIATION",
+    "integration_validation_v2": {
+      "verdict": "PASS_WITH_CONCERN",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "THIN",
+      "proof_validity": "WEAK",
+      "sr1": "PASS",
+      "sr2": "PASS",
+      "fail_category": null,
+      "gap": null,
+      "evidence": "src/kernel/product_screenshot_capture.rs:767-769 sets classification=Low, exportable=false, retention_class='visual-validation'; tests/native_screenshot_capture_tests.rs:119-208 proves focus-unsafe rejection and no-artifact-on-reject. Contract also names redaction + cleanup; those aspects are not exercised by any test (retention TTL is None, no redaction/cleanup path proven). Non-blocking: real ArtifactStore touch present, but proof partial."
+    },
+    "ready_for_validation_v3": true,
+    "completed_by": "INTEGRATION_VALIDATOR-20260611-033732",
+    "completed_at_utc": "2026-06-11T05:17:17.690Z",
+    "integration_validation_v3": {
+      "verdict": "PASS_V3",
+      "round": "v3",
+      "at_utc": "2026-06-11T05:17:17.690Z",
+      "validator_session": "INTEGRATION_VALIDATOR-20260611-033732",
+      "impl_reality": "REAL",
+      "proof_validity": "STRONG",
+      "sr1": "PASS",
+      "sr2": "PASS",
+      "concern_resolved": true,
+      "evidence": "NEW tests/atelier_visual_retention_redaction_tests.rs: redaction applied BEFORE hash/store with High classification + TTL 7 + exportable-with-redaction manifest; unredacted export and out-of-bounds regions rejected (no artifact on reject); retention cleanup prunes expired-unpinned only on managed PG with retention_class/exportable/redaction_applied round-trip and SCREENSHOT_ARTIFACT_RETENTION_CLEANED ==1 pruned / ==0 survivors. Impl: src/kernel/product_screenshot_capture.rs:675-904 (VisualEvidenceProtectionV1), state_probe.rs:2096-2213, migration 0129. V2 gap (redaction/cleanup/TTL never exercised) fully closed.",
+      "gap": null,
+      "basis": "v3 adversarial per-MT review of remediated deliverable + runtime proof via full-crate managed-PG sweep and kernel-builder fresh-DB proof logs"
+    }
+  },
+  "markdown_projection": {
+    "generated_at_utc": "2026-06-04T17:06:21.327Z",
+    "generator": "wp-contract-import.mjs",
+    "path": ".GOV/task_packets/WP-KERNEL-005/MT-158.md",
+    "projection_hash": "130b84e5c7f21095",
+    "source_file": ".GOV/task_packets/WP-KERNEL-005/packet.json",
+    "source_hash": "002181b501ba1471",
+    "status": "GENERATED_IN_SYNC"
+  },
+  "mt_id": "MT-158",
+  "red_team": {
+    "minimum_controls": [
+      "Use contract-first identity and preserve projection hash."
+    ],
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "required": true,
+    "risks": [
+      "Imported MT contract may under-capture prose-only review or proof instructions."
+    ]
+  },
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "scope": {
+    "acceptance_criteria": [
+      "MT-158 [Model-Workflow-Diagnostics] Visual Evidence Retention And Redaction -- Bound visual artifacts and protect sensitive captures (retention class",
+      "exportable",
+      "redaction",
+      "cleanup)."
+    ],
+    "allowed_paths": [
+      "src/backend/handshake_core/src/kernel (action_catalog",
+      "diagnostics) + app DCC projections + ModelManual"
+    ],
+    "forbidden_paths": [],
+    "proof_targets": [
+      "cargo test + runtime proof vs PostgreSQL/EventLedger"
+    ],
+    "risk_if_missed": "CKC parity loss for Visual Evidence Retention And Redaction",
+    "summary": "MT-158 [Model-Workflow-Diagnostics] Visual Evidence Retention And Redaction -- Bound visual artifacts and protect sensitive captures (retention class, exportable, redaction, cleanup)."
+  },
+  "updated_at_utc": "2026-06-11T05:17:17.690Z",
+  "wp_id": "WP-KERNEL-005"
+}

@@ -2,6 +2,9 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+  buildDefaultHbrAcceptanceMatrix,
+  buildDefaultHbrContext,
+  buildDefaultHbrObligations,
   formatPacketAcceptanceMatrixSection,
   normalizeActiveClauseClosureMatrix,
   validatePacketAcceptanceMatrix,
@@ -104,6 +107,30 @@ test('packet acceptance matrix formatter emits stable executable rows from claus
   assert.deepEqual(result.errors, []);
   assert.equal(result.parsed.explicit, true);
   assert.equal(result.parsed.rows[0].id, 'AC-001');
+});
+
+test('packet acceptance matrix formatter emits empty HBR defaults for generated packets', () => {
+  const section = formatPacketAcceptanceMatrixSection([]);
+
+  assert.match(section, /hbr\.tags_declared: \[\]/);
+  assert.match(section, /hbr\.not_applicable_overrides: \[\]/);
+  assert.match(section, /acceptance_matrix\.schema_version: 1/);
+  assert.match(section, /acceptance_matrix\.hbr: \[\]/);
+  assert.match(section, /acceptance_matrix\.hbr_not_applicable: \[\]/);
+});
+
+test('HBR generator defaults are empty and do not share mutable array instances', () => {
+  const firstContext = buildDefaultHbrContext();
+  const secondContext = buildDefaultHbrContext();
+  firstContext.tags_declared.push('HBR-INT-001');
+
+  assert.deepEqual(secondContext.tags_declared, []);
+  assert.deepEqual(buildDefaultHbrAcceptanceMatrix(), {
+    schema_version: 1,
+    hbr: [],
+    hbr_not_applicable: [],
+  });
+  assert.deepEqual(buildDefaultHbrObligations(), []);
 });
 
 test('explicit packet acceptance matrix requires evidence for proved rows and reason for not applicable rows', () => {

@@ -23,6 +23,9 @@ import {
   formatValidatorHandoffBriefSection,
 } from '../../../roles_shared/scripts/lib/refinement-brief-lib.mjs';
 import {
+  buildDefaultHbrAcceptanceMatrix,
+  buildDefaultHbrContext,
+  buildDefaultHbrObligations,
   buildClauseClosureRows,
   deriveSharedSurfaceMonitoring,
   formatClauseClosureMatrixSection,
@@ -1452,6 +1455,8 @@ const packetContract = {
     broad_tool_allowlist: broadToolAllowlist,
     data_contract_profile: dataContractProfile,
   },
+  hbr: buildDefaultHbrContext(),
+  acceptance_matrix: buildDefaultHbrAcceptanceMatrix(),
   refinement: {
     contract_file: `${wpDir.replace(/\\/g, '/')}/refinement.json`,
     source_refinement_file: refinementPath.replace(/\\/g, '/'),
@@ -1653,6 +1658,7 @@ if (clauseClosureRows && clauseClosureRows.length > 0) {
         proof_targets: splitContractList(tests),
         risk_if_missed: riskIfMissed,
       },
+      hbr_obligations: buildDefaultHbrObligations(),
       handoff: {
         coder_session: null,
         wp_validator_session: null,

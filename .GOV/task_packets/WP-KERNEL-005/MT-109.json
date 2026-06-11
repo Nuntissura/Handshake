@@ -1,0 +1,106 @@
+{
+  "artifact_policy": {
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ],
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "model_created_markdown_authority_allowed": false,
+    "operator_facing_authority": false,
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND"
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-005/MT-109.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-005/MT-109.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-005/packet.json"
+  },
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": null,
+  "handoff": {
+    "coder_session": "KB-KERNEL-005-CLOSEOUT",
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": null
+  },
+  "lifecycle": {
+    "active": true,
+    "blocks": [],
+    "depends_on": [
+      "MT-108"
+    ],
+    "status": "VALIDATED_V3",
+    "validator_verdict": "PASS_V3",
+    "claimed_by": "KB-KERNEL-005-CLOSEOUT",
+    "ready_for_validation_at_utc": "2026-06-05T05:16:25.265Z",
+    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "integration_validation_v2": {
+      "verdict": "PASS",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "REAL",
+      "proof_validity": "STRONG",
+      "sr1": "PASS",
+      "sr2": "NA",
+      "fail_category": null,
+      "gap": null,
+      "evidence": "comfy.rs:279-343 ComfyEndpointConfig/ComfyAdapterKind define the adapter-boundary contract and validate() rejects DirectComfyEndpoint/DirectLlmEndpoint kinds and non-portable/localhost endpoint_refs via reject_legacy_runtime_ref, accepting only HandshakeNativeManaged; tests/atelier_comfy_intake_routing_tests.rs:115-168 rejects direct-LLM/direct-comfy kinds and localhost/127.0.0.1/ollama/machine-local refs, accepts only the managed portable ref. Capability/endpoint gate is config-level (no PG surface), sr2 NA."
+    },
+    "completed_by": "INTEGRATION_VALIDATOR-20260611-033732",
+    "completed_at_utc": "2026-06-11T05:17:17.690Z",
+    "integration_validation_v3": {
+      "verdict": "PASS_V3",
+      "round": "v3",
+      "at_utc": "2026-06-11T05:17:17.690Z",
+      "validator_session": "INTEGRATION_VALIDATOR-20260611-033732",
+      "basis": "v2 PASS re-affirmed in v3: deliverable unchanged by remediation diff; full-crate test sweep green on Handshake-managed PostgreSQL at 17b2abd4 proves no regression. v2 evidence retained in integration_validation_v2."
+    }
+  },
+  "markdown_projection": {
+    "generated_at_utc": "2026-06-04T17:06:21.289Z",
+    "generator": "wp-contract-import.mjs",
+    "path": ".GOV/task_packets/WP-KERNEL-005/MT-109.md",
+    "projection_hash": "4cd69611b0ce3f75",
+    "source_file": ".GOV/task_packets/WP-KERNEL-005/packet.json",
+    "source_hash": "1ab69bb002a9876d",
+    "status": "GENERATED_IN_SYNC"
+  },
+  "mt_id": "MT-109",
+  "red_team": {
+    "minimum_controls": [
+      "Use contract-first identity and preserve projection hash."
+    ],
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "required": true,
+    "risks": [
+      "Imported MT contract may under-capture prose-only review or proof instructions."
+    ]
+  },
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "scope": {
+    "acceptance_criteria": [
+      "MT-109 [Pose-ComfyUI-Pipeline] ComfyUI Capability And Endpoint Boundary -- Define Comfy-compatible workflow execution as a Handshake-native integrated adapter boundary",
+      "adapter boundary contract",
+      "capability check",
+      "endpoint config validation",
+      "endpoint/config rejection gates",
+      "and no manual ComfyUI app dependency."
+    ],
+    "allowed_paths": [
+      "src/backend/handshake_core/src/atelier/pose + engine.comfyui adapters + ArtifactStore sidecars"
+    ],
+    "forbidden_paths": [],
+    "proof_targets": [
+      "cargo test + runtime proof vs PostgreSQL/EventLedger"
+    ],
+    "risk_if_missed": "CKC parity loss for ComfyUI Capability And Endpoint Boundary",
+    "summary": "MT-109 [Pose-ComfyUI-Pipeline] ComfyUI Capability And Endpoint Boundary -- Define Comfy-compatible workflow execution as a Handshake-native integrated adapter boundary, with capability checks, endpoint/config rejection gates, and no manual ComfyUI app dependency."
+  },
+  "updated_at_utc": "2026-06-11T05:17:17.690Z",
+  "wp_id": "WP-KERNEL-005"
+}

@@ -1,0 +1,161 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-004",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "A",
+  "cluster_subscope": "A.1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T02:30:00Z",
+  "updated_at_utc": "2026-05-28T23:34:54.519Z",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-004.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "Handoff-gate evaluator with HBR_HANDOFF_GATE event emission (Rust runtime)",
+  "goal": "Implement the runtime handoff-gate evaluator that fires on every governed inter-role transition (refinement->coder, coder->WP_VALIDATOR, WP_VALIDATOR->INTEGRATION_VALIDATOR, INTEGRATION_VALIDATOR->ORCHESTRATOR). The evaluator re-checks the packet's HBR matrix for the rules whose evidence_kind is satisfiable at handoff time, emits a typed `HBR_HANDOFF_GATE` EventLedger row, and blocks the transition on any failure.",
+  "expected_diff_shape": "New src/backend/handshake_core/src/hbr/handoff_gate.rs; HandoffGate struct + evaluate() impl; new event types in EventLedger; tests proving gate fires on each role transition.",
+  "owned_files": [
+    "src/backend/handshake_core/src/hbr/handoff_gate.rs",
+    "src/backend/handshake_core/tests/hbr_handoff_gate_tests.rs"
+  ],
+  "depends_on_mts": [
+    "MT-001",
+    "MT-003"
+  ],
+  "unblock_conditions": "MT-001 loader available; MT-003 matrix-check semantics defined so handoff-gate reuses identical row-status interpretation.",
+  "implementation_notes": "Per spec §5.6.2 (AC-HBR-HANDOFF-GATE) handoff-time enforcement complements build-time enforcement. The HandoffGate primitive: `HandoffGate::evaluate(packet: &Packet, transition: HandoffTransition) -> Result<HandoffEvidence, HandoffBlock>` where `HandoffTransition` is the enum `{ RefinementToCoder, CoderToWpValidator, WpValidatorToIntegrationValidator, IntegrationValidatorToOrchestrator }`. The evaluator loads the packet's `acceptance_matrix.hbr` (via MT-001/MT-002 contracts), filters to rules whose evidence_kind is checkable at this transition point (e.g., `test_run_with_ledger_replay` is checkable post-coder; `concurrent_session_test_run` is checkable post-WP_VALIDATOR), and verifies each filtered row's status. On success, emit an EventLedger row `HBR_HANDOFF_GATE { wp_id, transition, gate_uuid: Uuid::now_v7(), evaluated_rules: Vec<{hbr_id, status, evidence_pointer}>, verdict: Pass, timestamp_utc }`. On failure, emit `HBR_HANDOFF_GATE { ..., verdict: Block { failing_rules: Vec<{hbr_id, reason}> } }` and return `Err(HandoffBlock)` which the caller (SessionBroker, see KERNEL-001) must honor — the transition does not happen. Per HBR-INT-008 the gate_uuid uses Uuid::now_v7(). Tests: spawn an in-memory EventLedger (KERNEL-001 primitive), construct a packet with mixed PROVED/PENDING rows, call evaluate() for each transition, assert pass when all relevant rules PROVED, assert Block + correct failing_rules list when any relevant rule PENDING. Add a test asserting that two consecutive `Uuid::now_v7()` mints satisfy `a <= b` (per HBR-INT-008 wire-test obligation).",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target hbr_handoff_gate_tests"
+  ],
+  "risk_if_missed": "Without runtime gate, role-to-role handoffs proceed even when HBR evidence is missing — defeats §5.6.2 hard gate intent.",
+  "validator_focus": "Every HandoffTransition variant has a dedicated test; the EventLedger row is emitted on BOTH pass and block paths (block must still be observable post-hoc); gate_uuid is v7 per HBR-INT-008.",
+  "hbr_obligations": [
+    "HBR-INT-001",
+    "HBR-INT-007",
+    "HBR-INT-008"
+  ],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/05-security-and-observability.md#5.6"
+  ],
+  "acceptance_criteria_refs": [
+    "AC-HBR-HANDOFF-GATE"
+  ],
+  "lifecycle": {
+    "active": false,
+    "status": "READY_FOR_VALIDATION_PHASE2",
+    "validator_verdict": "CONCERN",
+    "depends_on": [
+      "MT-001",
+      "MT-003"
+    ],
+    "blocks": [
+      "MT-006",
+      "MT-007"
+    ],
+    "claimed_by": "KERNEL_BUILDER-20260518-012310",
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "COMPLETED",
+        "validator_verdict": "PENDING",
+        "completed_at_utc": "2026-05-18T03:12:41.647Z"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "previous_completed_at_utc_before_ready_for_validation_20260525": "2026-05-18T03:12:41.647Z",
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z",
+    "updated_at_utc": "2026-05-28T23:34:54.519Z",
+    "phase2_remediation": {
+      "remediated_by": "KERNEL_BUILDER-20260528-211023",
+      "remediated_at_utc": "2026-05-28T23:34:54.519Z",
+      "lane": "Theme-12 A-cluster HBR handoff-gate STOP + infra-failure",
+      "commit_sha": "5d545a8d",
+      "remediated_findings": [
+        "finding #1 (HIGH/SPEC->CODE): 5 STOP-pillar evidence_kinds added to the CoderToWpValidator transition so a PENDING/BLOCKED STOP row blocks the gate instead of being skipped by omission.",
+        "finding #2 (MEDIUM/CODE): EventLedger append-failure sentinel renamed HBR-HANDOFF-GATE-EVENT-LEDGER -> INFRA-HANDOFF-GATE-EVENT-LEDGER so downstream registry joins do not record a phantom HBR rule.",
+        "finding #3 (LOW/RUNTIME): on ledger-append failure the matrix failing_rules are merged with the infra sentinel instead of dropped."
+      ],
+      "deferred_or_residual": "none",
+      "partial": false,
+      "ack_for": "019e6be3-15a6-72e1-a5e1-e4743e053f43",
+      "proof": "cargo test hbr_handoff_gate_tests 8/8 (incl 3 new: STOP pending blocks, STOP proved passes, ledger-failure merge)",
+      "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1 - no per-MT validator; awaiting Phase-2 IV re-judgment"
+    }
+  },
+  "handoff": {
+    "coder_session": "KERNEL_BUILDER-20260518-012310",
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": "019e6be3-15a6-72e1-a5e1-e4743e053f43",
+    "review_response_receipt_actor_role": "INTEGRATION_VALIDATOR",
+    "review_response_receipt_track": "JUDGMENT_OOB_IV_PHASE1_PRE_REMEDIATION"
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Block path MUST also emit an HBR_HANDOFF_GATE event so post-hoc audit sees why the transition failed.",
+      "Per-transition mapping of which evidence_kinds are checkable at that point must live in a single table referenced from the test, preventing drift.",
+      "gate_uuid is Uuid::now_v7() and a time-order test asserts monotonicity per HBR-INT-008."
+    ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_A1_A2",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-28T00:01:31.342Z",
+    "verdict": "CONCERN",
+    "verdict_reason": "HandoffGate cleanly evaluates the matrix, mints Uuid::now_v7() for gate_uuid, emits an HBR_HANDOFF_GATE event with idempotency key, and returns HandoffBlock with the event present (per red-team control). However the checkable_evidence_kinds() table omits ALL HBR-STOP-* evidence_kinds (the 5 STOP rules added 2026-05-20) — STOP rules can never be evaluated at any transition so they will silently pass the handoff gate even when a packet matrix has them PENDING/BLOCKED.",
+    "spec_compliance_status": "PARTIAL",
+    "code_hygiene_status": "MINOR",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 1,
+      "MEDIUM": 1,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-004.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-004.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_A1_A2",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T23:48:44.444Z",
+    "verdict": "CONCERN",
+    "verdict_reason": "HandoffGate cleanly evaluates the matrix, mints Uuid::now_v7() for gate_uuid, emits an HBR_HANDOFF_GATE event with idempotency key, and returns HandoffBlock with the event present (per red-team control). However the checkable_evidence_kinds() table omits ALL HBR-STOP-* evidence_kinds (the 5 STOP rules added 2026-05-20) — STOP rules can never be evaluated at any transition so they will silently pass the handoff gate even when a packet matrix has them PENDING/BLOCKED.",
+    "spec_compliance_status": "PARTIAL",
+    "code_hygiene_status": "MINOR",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 1,
+      "MEDIUM": 1,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "validator_reports_phase1/MT-004.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1\\validator_reports_phase1\\MT-004.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  }
+}

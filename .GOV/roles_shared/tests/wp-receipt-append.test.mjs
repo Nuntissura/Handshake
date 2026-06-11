@@ -97,6 +97,58 @@ function writeIntentCheckpointPacket(packetDir, wpId, commDir, status = "In Prog
   );
 }
 
+function writeJsonOnlyIntentCheckpointPacket(packetDir, wpId, commDir, status = "In Progress") {
+  fs.mkdirSync(packetDir, { recursive: true });
+  const normalizedCommDir = commDir.replace(/\\/g, "/");
+  fs.writeFileSync(
+    path.join(packetDir, "packet.json"),
+    `${JSON.stringify({
+      schema_id: "hsk.work_packet_contract@1",
+      schema_version: "work_packet_contract_v1",
+      contract_authority: "PRIMARY_MACHINE_READABLE",
+      wp_id: wpId,
+      base_wp_id: wpId.replace(/-v\d+$/, ""),
+      source_control: {
+        work_branch: "feat/test-json-only-receipt",
+        worktree_dir: `${normalizedCommDir}/worktree`,
+      },
+      workflow: {
+        lane: "ORCHESTRATOR_MANAGED",
+        authority: "ORCHESTRATOR",
+        execution_owner: "KERNEL_BUILDER-A",
+        coder_compatible_execution_lane: "CODER_A",
+        technical_advisor: "WP_VALIDATOR",
+        technical_authority: "INTEGRATION_VALIDATOR",
+        merge_authority: "INTEGRATION_VALIDATOR",
+        communication_dir: normalizedCommDir,
+        thread_file: `${normalizedCommDir}/THREAD.md`,
+        runtime_status_file: `${normalizedCommDir}/RUNTIME_STATUS.json`,
+        receipts_file: `${normalizedCommDir}/RECEIPTS.jsonl`,
+        notifications_file: `${normalizedCommDir}/NOTIFICATIONS.jsonl`,
+        communication_contract: "DIRECT_REVIEW_V1",
+        communication_health_gate: "HANDOFF_VERDICT_BLOCKING",
+        agentic_mode: "NO",
+      },
+      lifecycle: {
+        status,
+        main_containment_status: "NOT_STARTED",
+        current_main_compatibility_status: "NOT_RUN",
+        packet_format_version: "2026-03-29",
+      },
+      authority_files: {
+        packet_contract: `.GOV/task_packets/${wpId}/packet.json`,
+      },
+      scope: {
+        allowed_paths: ["src/demo.rs"],
+        forbidden_paths: [],
+        spec_anchors: ["TEST-SPEC"],
+        acceptance_criteria: ["JSON-only packet receipts keep runtime status valid."],
+      },
+    }, null, 2)}\n`,
+    "utf8",
+  );
+}
+
 function writeMicrotaskCheckpointPacket(packetDir, wpId, commDir, microtasks = []) {
   writeIntentCheckpointPacket(packetDir, wpId, commDir);
   for (const microtask of microtasks) {
@@ -575,6 +627,53 @@ test("receipt append validates and persists named inter-role verb bodies", () =>
     const persisted = fs.readFileSync(context.receiptsAbsPath, "utf8").trim().split(/\r?\n/).map((line) => JSON.parse(line));
     assert.equal(persisted.at(-1).verb, "MT_VERDICT");
     assert.equal(persisted.at(-1).verb_body.verdict, "FAIL");
+  } finally {
+    fs.writeFileSync(taskBoardPath, originalTaskBoard, "utf8");
+    fs.writeFileSync(buildOrderPath, originalBuildOrder, "utf8");
+    fs.rmSync(packetDir, { recursive: true, force: true });
+    fs.rmSync(commDirAbs, { recursive: true, force: true });
+  }
+});
+
+test("review receipt append preserves JSON-only packet runtime declarations", () => {
+  const wpId = "WP-TEST-JSON-ONLY-RECEIPT-v1";
+  const packetDir = path.join(repoRoot, ".GOV", "task_packets", wpId);
+  const commDir = `../gov_runtime/roles_shared/WP_COMMUNICATIONS/${wpId}`;
+  const taskBoardPath = path.join(repoRoot, ".GOV", "roles_shared", "records", "TASK_BOARD.md");
+  const buildOrderPath = path.join(repoRoot, ".GOV", "roles_shared", "records", "BUILD_ORDER.md");
+  const originalTaskBoard = fs.readFileSync(taskBoardPath, "utf8");
+  const originalBuildOrder = fs.readFileSync(buildOrderPath, "utf8");
+
+  writeJsonOnlyIntentCheckpointPacket(packetDir, wpId, commDir);
+  const commPaths = ensureWpCommunications({ wpId });
+  const commDirAbs = path.resolve(repoRoot, commPaths.dir);
+
+  try {
+    const { context, entry } = appendWpReceipt({
+      wpId,
+      actorRole: "CODER",
+      actorSession: "coder-json-only",
+      receiptKind: "CODER_INTENT",
+      summary: "JSON-only packet intent remains contract-derived during receipt sync.",
+      targetRole: "WP_VALIDATOR",
+      targetSession: "wpv-json-only",
+      correlationId: "json-only-intent-1",
+      ackFor: "json-only-intent-1",
+      specAnchor: "TEST-SPEC",
+    }, { autoRelay: false, skipPreflight: true });
+
+    assert.equal(entry.receipt_kind, "CODER_INTENT");
+    const runtimeStatus = JSON.parse(fs.readFileSync(context.runtimeStatusAbsPath, "utf8"));
+    assert.equal(runtimeStatus.task_packet, `.GOV/task_packets/${wpId}/packet.json`);
+    assert.equal(runtimeStatus.communication_dir, commPaths.dir);
+    assert.equal(runtimeStatus.workflow_lane, "ORCHESTRATOR_MANAGED");
+    assert.equal(runtimeStatus.execution_owner, "CODER_A");
+    assert.equal(runtimeStatus.workflow_authority, "ORCHESTRATOR");
+    assert.equal(runtimeStatus.technical_advisor, "WP_VALIDATOR");
+
+    const packetContract = JSON.parse(fs.readFileSync(path.join(packetDir, "packet.json"), "utf8"));
+    assert.equal(packetContract.wp_id, wpId);
+    assert.equal(packetContract.lifecycle.status, "In Progress");
   } finally {
     fs.writeFileSync(taskBoardPath, originalTaskBoard, "utf8");
     fs.writeFileSync(buildOrderPath, originalBuildOrder, "utf8");

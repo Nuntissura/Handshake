@@ -12,13 +12,19 @@ Rules:
 
 ---
 
+## SUPERSEDED / DEPRECATED
+- SUPERSEDED_BY: WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1
+- SUPERSEDED_BY_CONTRACT: .GOV/task_packets/stubs/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1.contract.json
+- FOLD_DISPOSITION: folded_into_wp_kernel_009_with_cross_pillar_policy_preserved
+- FOLD_NOTE: This stub is deprecated and must not be activated directly. Its detail and intent are preserved in .GOV/task_packets/stubs/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1.contract.json under folded_legacy_stub_preservation.
+
 # Work Packet Stub: WP-1-RAG-Retrieval-Mode-Policy-v1
 
 ## STUB_METADATA
 - WP_ID: WP-1-RAG-Retrieval-Mode-Policy-v1
 - BASE_WP_ID: WP-1-RAG-Retrieval-Mode-Policy
 - CREATED_AT: 2026-03-11T12:30:00.000Z
-- STUB_STATUS: STUB (NOT READY FOR DEV)
+- STUB_STATUS: SUPERSEDED (FOLDED INTO WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1; replacement=.GOV/task_packets/stubs/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1.contract.json)
 - BUILD_ORDER_DOMAIN: CROSS_BOUNDARY
 - BUILD_ORDER_TECH_BLOCKER: NO
 - BUILD_ORDER_VALUE_TIER: HIGH

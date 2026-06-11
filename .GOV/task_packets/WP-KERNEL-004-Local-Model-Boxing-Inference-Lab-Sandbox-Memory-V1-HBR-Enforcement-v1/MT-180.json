@@ -1,0 +1,249 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-180",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "X",
+  "cluster_subscope": "X.1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:04:00Z",
+  "updated_at_utc": "2026-05-28T00:01:44.970Z",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-180.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "RoleMailboxClaimLeaseV1 record + lease acquisition primitive",
+  "goal": "Implement the durable RoleMailboxClaimLeaseV1 record (Postgres) and the lease acquisition + extension + release primitive that keeps exactly one active executor on any exclusive or handoff-style mailbox thread. Closes the folded WP-1-Role-Mailbox-Executor-Routing-Claim-Lease-v1 stub's 'one lawful ownership layer' requirement.",
+  "expected_diff_shape": "New Postgres migration src/backend/handshake_core/migrations/NNN_role_mailbox_claim_lease.sql; new Rust module src/backend/handshake_core/src/role_mailbox/lease.rs with `LeaseManager::acquire / extend / release / takeover` methods + `LeaseError` enum; integration tests under src/backend/handshake_core/tests/role_mailbox_lease_tests.rs.",
+  "owned_files": [
+    "src/backend/handshake_core/src/role_mailbox/lease.rs",
+    "src/backend/handshake_core/migrations/0022_role_mailbox_threads_messages.sql",
+    "src/backend/handshake_core/migrations/0022_role_mailbox_threads_messages.down.sql",
+    "src/backend/handshake_core/tests/role_mailbox_lease_tests.rs"
+  ],
+  "owned_files_note": "MT-180's role_mailbox_claim_lease schema was folded into the 0022_role_mailbox_threads_messages.sql migration (see SQL line 51 'MT-180 RoleMailboxClaimLeaseV1 schema...') rather than landing as a separate NNN_role_mailbox_claim_lease.sql migration. MT-180 therefore co-owns the 0022 migration with MT-176. The Rust LeaseManager primitive remains owned solely by MT-180 at src/backend/handshake_core/src/role_mailbox/lease.rs.",
+  "depends_on_mts": [
+    "MT-177"
+  ],
+  "unblock_conditions": "MT-177 repo + Postgres infrastructure available so the lease table can FK to role_mailbox_thread.",
+  "implementation_notes": "Per spec v02.186 §02-system-architecture.md role mailbox subsection [ADD v02.176] lines 6151-6156: define `RoleMailboxClaimLeaseV1 { lease_id: Uuid v7, thread_id: Uuid v7 (FK), holder_executor_kind: ExecutorKind, holder_role_id: RoleId, holder_session_id: Uuid v7, acquired_at_utc, expires_at_utc, released_at_utc: Option, takeover_of: Option<Uuid v7> (FK to predecessor lease), takeover_reason: Option<String> }`. Postgres migration creates the table with a partial unique index `WHERE released_at_utc IS NULL AND expires_at_utc > now()` keyed by thread_id — this enforces 'one active unexpired lease per thread' at the database level per spec line 6156. `LeaseManager::acquire(thread_id, requesting: LeaseRequest) -> Result<RoleMailboxClaimLeaseV1, LeaseError>` runs inside a transaction: (1) SELECT thread FOR UPDATE; (2) check thread.claim_mode allows requesting.executor_kind via executor_kind_allowlist; (3) check no active lease (or, if claim_mode=Handoff, allow takeover per takeover_policy); (4) INSERT lease row. LeaseError variants: `LeaseHeldByOther { current_holder }`, `ExecutorKindNotAllowed`, `ThreadInTerminalState`, `Conflict`. `extend(lease_id, extra_secs)` is idempotent and only succeeds if lease is still unexpired and unreleased. `release(lease_id)` sets released_at_utc and is a no-op if already released. `takeover(thread_id, requesting, predecessor_lease_id, reason)` permitted only when thread.takeover_policy allows (TakeoverPolicy enum: Never|OnLeaseExpiry|AlwaysWithReason|OperatorOnly); writes new lease row with takeover_of and takeover_reason set, and force-releases the predecessor with reason recorded. Tests (use Postgres test container): (a) acquire on fresh thread succeeds; (b) second acquire returns LeaseHeldByOther; (c) acquire after lease expiry succeeds; (d) takeover with Never policy returns error; (e) parallel acquire from 8 tasks — exactly one wins; (f) extend after expiry returns error; (g) audit row chain is queryable via lease_id ancestry.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target role_mailbox_lease_tests -- --test-threads=1"
+  ],
+  "risk_if_missed": "Without a lease primitive, the cluster X preservation slice's central invariant (one active executor per exclusive thread, no races between local + cloud models + reviewers + validators + operators + automation) is silently violated. The folded WP-1-Role-Mailbox-Executor-Routing-Claim-Lease-v1 intent is lost.",
+  "validator_focus": "Partial unique index prevents two active leases on the same thread at the database level (not application level); parallel-acquire test asserts exactly-one-winner; takeover policy enforced atomically with predecessor release.",
+  "hbr_obligations": [
+    "HBR-INT-008",
+    "HBR-SWARM-001",
+    "HBR-SWARM-002",
+    "HBR-SWARM-003"
+  ],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/02-system-architecture.md#role-mailbox-claim-lease",
+    ".GOV/spec/master-spec-v02.186/spec-modules/06-mechanical-integrations.md#6.7"
+  ],
+  "acceptance_criteria_refs": [
+    "PRESERVED_INTENT:WP-1-Role-Mailbox-Executor-Routing-Claim-Lease-v1 (one lawful ownership layer)"
+  ],
+  "lifecycle": {
+    "active": true,
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "PENDING",
+    "depends_on": [
+      "MT-177"
+    ],
+    "blocks": [
+      "MT-181",
+      "MT-182",
+      "MT-184",
+      "MT-189"
+    ],
+    "claimed_by": "KERNEL_BUILDER-20260523-031814-AGT-MT180",
+    "claimed_at_utc": "2026-05-23T18:30:00Z",
+    "ready_for_validation_at_utc": "2026-05-23T18:55:00Z",
+    "integration_validator_verdict": "PENDING",
+    "postgres_test_url_live_evidence_20260525_continuation": {
+      "authoritative_integration_validator_pass": false,
+      "classification": "KERNEL_BUILDER_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+      "not_run_or_not_claimed": [],
+      "artifact_log_root": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs",
+      "implementation_or_hardening_notes": [
+        "Normalized handoff expires_at_utc to Postgres microsecond precision before bundle hashing."
+      ],
+      "postgres_test_url_redacted": "postgres://postgres:***@127.0.0.1:65432/handshake_test",
+      "proof": [
+        {
+          "log": "postgres-live-role_mailbox_v1_tests-mt_177-20260525-resume.log",
+          "scope": "role_mailbox_v1_tests MT-177",
+          "note": [
+            "MT-177 targeted repository lifecycle round trip passed.",
+            "Proof"
+          ],
+          "result": "passed"
+        }
+      ],
+      "recorded_by": "KERNEL_BUILDER-POSTGRES-TEST-URL-20260525-CONTINUATION",
+      "mt_ids": [
+        "MT-176",
+        "MT-177",
+        "MT-178",
+        "MT-179",
+        "MT-180",
+        "MT-181",
+        "MT-182",
+        "MT-183"
+      ],
+      "summary": "Role Mailbox V1 live Postgres suites passed, including repository lifecycle, lease, backpressure, handoff, and exporter coverage.",
+      "integration_validator_status": "PENDING",
+      "residual_risks": [
+        "Supporting evidence only; Integration Validator verdict remains PENDING.",
+        "Focused Postgres/live-kernel commands were run, not a full workspace cargo test."
+      ],
+      "recorded_at_utc": "2026-05-25T10:56:03.5601331Z",
+      "cargo_target_dir": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target"
+    },
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "READY_FOR_VALIDATION",
+        "validator_verdict": "PENDING"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z"
+  },
+  "handoff": {
+    "coder_session": "KERNEL_BUILDER-20260523-031814-AGT-MT180",
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": "019e6be3-1609-737e-a0b8-4f0d784b0eab",
+    "review_response_receipt_actor_role": "INTEGRATION_VALIDATOR",
+    "review_response_receipt_track": "JUDGMENT_OOB_IV_PHASE1_PRE_REMEDIATION"
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Database-level partial unique index proven by an INSERT-conflict test bypassing the LeaseManager — must fail with a Postgres unique-violation error.",
+      "Takeover audit chain queryable via recursive CTE so an auditor can reconstruct the full ownership history of any thread.",
+      "Lease extension cannot bypass expiry (extend after expires_at_utc returns LeaseExpired)."
+    ]
+  },
+  "implementation_supporting_evidence_20260523_mt180": {
+    "schema_id": "hsk.mt_implementation_supporting_evidence@1",
+    "recorded_at_utc": "2026-05-23T18:55:00Z",
+    "recorded_by": "KERNEL_BUILDER-20260523-031814-AGT-MT180",
+    "classification": "IMPLEMENTATION_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+    "authoritative_integration_validator_pass": false,
+    "integration_validator_status": "PENDING",
+    "summary": "MT-180 RoleMailboxClaimLeaseV1 record + lease acquisition primitive transitioned PENDING -> CLAIMED -> READY_FOR_VALIDATION. The record type RoleMailboxClaimLeaseV1 (Rust struct + serde, full field set including takeover_of/takeover_reason) and the in-process LeaseManager (acquire/extend/release/takeover) already existed at src/backend/handshake_core/src/role_mailbox_v1/lease.rs from prior cluster X.1 work. The MT-180 implementation added the Postgres-backed primitive on src/backend/handshake_core/src/role_mailbox_v1/repo.rs: acquire_lease (FOR UPDATE on thread + sweep expired-but-unreleased leases + 23505 unique_violation handling), extend_lease (FOR UPDATE on lease + expiry guard + AlreadyReleased guard), release_lease (idempotent), takeover_lease (atomic predecessor force-release + new lease INSERT with takeover_of/takeover_reason provenance + policy gates Never/OnLeaseExpiry/AlwaysWithReason/OperatorOnly), get_active_lease_for_thread (router surface), and list_lease_chain_for_thread (recursive CTE that satisfies red_team.minimum_controls #2 takeover audit chain queryable). A dedicated MT-180 adversarial test file was added at tests/role_mailbox_lease_tests.rs (the owned-files path) covering pure-Rust adversarial: serde round-trip full field set, serde round-trip with None provenance fields preserving the explicit-null wire shape, wrong-format executor_kind reject, oversize takeover_reason shape stability, missing-required-field reject, Uuid v7 mint-site enforcement (HBR-INT-008), LeaseError variant Display distinctness, in-process extend-after-expiry reject, CX-503R compile-time PgPool-only constructor guard, TakeoverPolicy snake_case wire-shape snapshot, active-predicate composition snapshot. Postgres-gated adversarial: acquire on fresh thread succeeds, second acquire returns LeaseHeldByOther, acquire after expiry succeeds via sweep, acquire rejects disallowed executor kind, acquire rejects terminal thread, acquire on missing thread NotFound, eight-parallel-caller race exactly-one-winner, direct-INSERT-bypass blocked by partial unique index with 23505 unique_violation (red_team #1), extend after expiry rejects (red_team #3), extend extends expiry, release frees thread + reacquire + idempotent re-release, release on unknown lease NotFound, takeover Never policy rejects, takeover atomically releases predecessor + new active lease verifies (validator_focus), takeover chain queryable via recursive CTE 3-deep (red_team #2), takeover OperatorOnly rejects non-operator, takeover OnLeaseExpiry rejects unexpired predecessor, concurrent acquire+release safe, get_active_lease returns None when released, repo-only acquire/extend/takeover/release/list round-trip.",
+    "product_surfaces_verified": [
+      "src/backend/handshake_core/src/role_mailbox_v1/lease.rs",
+      "src/backend/handshake_core/src/role_mailbox_v1/repo.rs",
+      "src/backend/handshake_core/migrations/0022_role_mailbox_threads_messages.sql"
+    ],
+    "files_added": [
+      "src/backend/handshake_core/tests/role_mailbox_lease_tests.rs"
+    ],
+    "files_edited": [
+      "src/backend/handshake_core/src/role_mailbox_v1/repo.rs"
+    ],
+    "out_of_scope_edits": [
+      {
+        "path": "src/backend/handshake_core/Cargo.toml",
+        "change": "Added [[test]] block declaring role_mailbox_lease_tests with required-features=['test-utils'] mirroring the role_mailbox_repo_tests pattern. Necessary because the test binary cannot enforce required-features without a declared [[test]] entry; Cargo auto-discovery falls back to defaults which omits explicit test-utils gating. Same waiver class as MT-177r2.",
+        "waiver_requested": true
+      }
+    ],
+    "contract_deviation_notes": [
+      "PATH_SHAPE_DRIFT: MT-180 expected_diff_shape and owned_files name `src/backend/handshake_core/src/role_mailbox/lease.rs` and `migrations/NNN_role_mailbox_claim_lease.sql`. The existing folded implementation lives under `role_mailbox_v1/lease.rs` and the lease table was already in migration `0022_role_mailbox_threads_messages.sql` (rows 53-71) from prior cluster X.1 work (same PATH_SHAPE_DRIFT class flagged in MT-176/MT-177). No new product code under role_mailbox/ was created — that would duplicate the authoritative implementation. No new migration was created — the lease table already exists with the spec-required partial unique index `idx_role_mailbox_claim_lease_active` keyed on `thread_id WHERE released_at_utc IS NULL`. Operator/Integration Validator decision needed on path-shape drift vs. the actual role_mailbox_v1/ tree + the migration's location.",
+      "PARTIAL_UNIQUE_INDEX_PREDICATE_DIVERGENCE: The contract implementation_notes specify the partial unique index `WHERE released_at_utc IS NULL AND expires_at_utc > now()`. Postgres partial unique indexes cannot use mutable functions like NOW() — only IMMUTABLE expressions are allowed. The existing migration 0022 uses `WHERE released_at_utc IS NULL` only. The application layer compensates by sweeping expired-but-unreleased leases inside acquire_lease before the INSERT (mark them released so the index admits the new row). This is functionally equivalent to the spec intent (exactly-one-active-lease-per-thread) but achieves it through application-layer sweep + DB-level partial index, rather than the unimplementable NOW()-based index. The sweep is covered by the postgres_acquire_after_expiry_succeeds test."
+    ],
+    "proof_commands": [
+      {
+        "command": "cargo test --features test-utils --manifest-path src/backend/handshake_core/Cargo.toml --test role_mailbox_lease_tests -- --nocapture --test-threads=1",
+        "exit_code": 0,
+        "tests_passed": 11,
+        "tests_ignored": 20,
+        "tests_failed": 0,
+        "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt180-test-default-001.log",
+        "note": "11/11 default tests pass; 20 Postgres-gated tests #[ignore]-ed pending POSTGRES_TEST_URL."
+      },
+      {
+        "command": "cargo test --features test-utils --manifest-path src/backend/handshake_core/Cargo.toml --test role_mailbox_lease_tests --test role_mailbox_repo_tests --test role_mailbox_v1_tests -- --nocapture --test-threads=1",
+        "exit_code": 0,
+        "tests_passed": 27,
+        "tests_ignored": 33,
+        "tests_failed": 0,
+        "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt180-adjacent-002.log",
+        "note": "Adjacent role_mailbox_repo_tests (7 passed, 11 ignored) and role_mailbox_v1_tests (9 passed, 2 ignored) still pass alongside the new MT-180 test binary; no regression from the repo.rs lease-method additions or the Cargo.toml [[test]] addition."
+      }
+    ],
+    "residual_risks": [
+      "20 Postgres-gated adversarial tests (8-parallel-caller race, direct-INSERT-bypass 23505 proof, after-expiry sweep, takeover chain recursive CTE, OperatorOnly/OnLeaseExpiry policy gates, concurrent acquire+release race, etc.) require POSTGRES_TEST_URL to actually validate in-database FOR UPDATE semantics + the partial unique index. Without the live-Postgres run the contract's red_team.minimum_controls #1 and #2 are structurally satisfied but not executionally verified — same Postgres-gating class as MT-190 / MT-197 / MT-177.",
+      "PATH_SHAPE_DRIFT: owned_files name role_mailbox/lease.rs but the implementation is under role_mailbox_v1/lease.rs (folded preservation slice). Integration Validator decision needed.",
+      "PARTIAL_UNIQUE_INDEX_PREDICATE_DIVERGENCE: contract's NOW()-based partial index predicate cannot be expressed in Postgres; the application-layer sweep + simpler partial index achieves the same invariant. Integration Validator decision needed on whether the spec text should be tightened to match Postgres reality.",
+      "Cargo.toml [[test]] addition is out-of-owned-files; operator waiver requested. Alternative (Cargo auto-discovery) would silently default to feature set [] and bypass the test-utils requirement.",
+      "ANTI-COORDINATION: 2 other agents running in parallel were declared in the dispatch envelope. The cargo check + cargo test runs reported only pre-existing 55 warnings; no unrelated-module compile errors observed during this session.",
+      "extend_lease applies its time check using server-side `Utc::now()` rather than reading the DB's NOW(). For the typical case clock skew is bounded; for hostile-clock test scenarios a Postgres-side `WHERE expires_at_utc > NOW()` could be added to the UPDATE — out of MT-180 scope, flagged for MT-181/MT-184."
+    ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_X_GAPS",
+    "reviewed_at_utc": "2026-05-27T17:32:00Z",
+    "aggregator_run_at_utc": "2026-05-28T00:01:31.342Z",
+    "verdict": "PASS_WITH_NOTES",
+    "verdict_reason": "Lease primitive (acquire/extend/release/takeover) lands with FOR UPDATE serialisation + 23505 unique_violation handling + recursive-CTE takeover chain + idempotent extend/release. Partial unique index `idx_role_mailbox_claim_lease_active WHERE released_at_utc IS NULL` enforces 'one active lease per thread' at DB layer. Pure-Rust adversarial tests 11/11 green; 20 Postgres-gated tests proven against live Postgres in the 2026-05-25 continuation. Acceptable predicate divergence vs. contract NOW()-based index (Postgres immutability constraint).",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "OK",
+    "runtime_safety_status": "OK",
+    "agent_swarm_safety_status": "OK",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 1,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 2,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-180.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-180.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_X_GAPS",
+    "reviewed_at_utc": "2026-05-27T17:32:00Z",
+    "aggregator_run_at_utc": "2026-05-27T23:48:44.444Z",
+    "verdict": "PASS_WITH_NOTES",
+    "verdict_reason": "Lease primitive (acquire/extend/release/takeover) lands with FOR UPDATE serialisation + 23505 unique_violation handling + recursive-CTE takeover chain + idempotent extend/release. Partial unique index `idx_role_mailbox_claim_lease_active WHERE released_at_utc IS NULL` enforces 'one active lease per thread' at DB layer. Pure-Rust adversarial tests 11/11 green; 20 Postgres-gated tests proven against live Postgres in the 2026-05-25 continuation. Acceptable predicate divergence vs. contract NOW()-based index (Postgres immutability constraint).",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "OK",
+    "runtime_safety_status": "OK",
+    "agent_swarm_safety_status": "OK",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 1,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 2,
+    "review_artifact_ref": "validator_reports_phase1/MT-180.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1\\validator_reports_phase1\\MT-180.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  }
+}

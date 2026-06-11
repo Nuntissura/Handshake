@@ -1,0 +1,111 @@
+{
+  "artifact_policy": {
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ],
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "model_created_markdown_authority_allowed": false,
+    "operator_facing_authority": false,
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND"
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-005/MT-130.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-005/MT-130.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-005/packet.json"
+  },
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": null,
+  "handoff": {
+    "coder_session": "KB-KERNEL-005-CLOSEOUT",
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": null
+  },
+  "lifecycle": {
+    "active": true,
+    "blocks": [],
+    "depends_on": [
+      "MT-129"
+    ],
+    "status": "VALIDATED_V3",
+    "validator_verdict": "PASS_V3",
+    "claimed_by": "KB-KERNEL-005-CLOSEOUT",
+    "ready_for_validation_at_utc": "2026-06-11T03:05:50.294Z",
+    "ready_by": "KB-KERNEL-005-V3-REMEDIATION",
+    "integration_validation_v2": {
+      "verdict": "PASS_WITH_CONCERN",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "REAL",
+      "proof_validity": "WEAK",
+      "sr1": "PASS",
+      "sr2": "PASS",
+      "fail_category": null,
+      "gap": null,
+      "evidence": "request_replay comfy.rs:2907-2953 emits run-scoped REPLAY_REQUESTED/COMPLETED/FAILED, proven by atelier_replay_contract_tests.rs:162-249. Contract also requires queue/run/result + registration success/failure-recovery families: JOB_* (comfy.rs:110-120, enqueue at ~3259) and record_comfy_output_registration_failure/retry (comfy.rs:2285,2442) are REAL code but NOT exercised by U20's cited test, so this unit only proves the replay subset -- partial proof, non-blocking."
+    },
+    "ready_for_validation_v3": true,
+    "completed_by": "INTEGRATION_VALIDATOR-20260611-033732",
+    "completed_at_utc": "2026-06-11T05:17:17.690Z",
+    "integration_validation_v3": {
+      "verdict": "PASS_V3",
+      "round": "v3",
+      "at_utc": "2026-06-11T05:17:17.690Z",
+      "validator_session": "INTEGRATION_VALIDATOR-20260611-033732",
+      "impl_reality": "REAL",
+      "proof_validity": "STRONG",
+      "sr1": "PASS",
+      "sr2": "PASS",
+      "concern_resolved": true,
+      "evidence": "V2 gap was unexercised JOB_* + registration-recovery families. New tests/atelier_comfy_job_registration_event_families_pg_tests.rs:40-191 mt130 (57449ac7): enqueue_comfy_job -> mark_running -> mark_completed with PG re-read of status/timestamps, per-aggregate event counts ==1 for JOB_ENQUEUED/JOB_RUNNING/JOB_COMPLETED, registration-failure record -> retry with re-read of Registered/resolved_intake_output_id/retry_count, OUTPUT_REGISTRATION_FAILURE_RECORDED/RETRIED counts. All 8 contract families asserted in event_family::ALL. Replay subset already proven run-scoped in atelier_replay_contract_tests.rs:162-249.",
+      "gap": null,
+      "basis": "v3 adversarial per-MT review of remediated deliverable + runtime proof via full-crate managed-PG sweep and kernel-builder fresh-DB proof logs"
+    }
+  },
+  "markdown_projection": {
+    "generated_at_utc": "2026-06-04T17:06:21.306Z",
+    "generator": "wp-contract-import.mjs",
+    "path": ".GOV/task_packets/WP-KERNEL-005/MT-130.md",
+    "projection_hash": "33a25adf74fa3df5",
+    "source_file": ".GOV/task_packets/WP-KERNEL-005/packet.json",
+    "source_hash": "86d0299664ba3605",
+    "status": "GENERATED_IN_SYNC"
+  },
+  "mt_id": "MT-130",
+  "red_team": {
+    "minimum_controls": [
+      "Use contract-first identity and preserve projection hash."
+    ],
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "required": true,
+    "risks": [
+      "Imported MT contract may under-capture prose-only review or proof instructions."
+    ]
+  },
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "scope": {
+    "acceptance_criteria": [
+      "MT-130 [Pose-ComfyUI-Pipeline] ComfyUI Replay And Registration Event Families -- Emit EventLedger/Flight Recorder events for ComfyUI queue/run/result",
+      "replay requested/completed/failed",
+      "and output registration success/failure recovery."
+    ],
+    "allowed_paths": [
+      "src/backend/handshake_core/src/atelier/pose + engine.comfyui adapters + ArtifactStore sidecars"
+    ],
+    "forbidden_paths": [],
+    "proof_targets": [
+      "cargo test + runtime proof vs PostgreSQL/EventLedger"
+    ],
+    "risk_if_missed": "CKC parity loss for ComfyUI Replay And Registration Event Families",
+    "summary": "MT-130 [Pose-ComfyUI-Pipeline] ComfyUI Replay And Registration Event Families -- Emit EventLedger/Flight Recorder events for ComfyUI queue/run/result, replay requested/completed/failed, and output registration success/failure recovery."
+  },
+  "updated_at_utc": "2026-06-11T05:17:17.690Z",
+  "wp_id": "WP-KERNEL-005"
+}

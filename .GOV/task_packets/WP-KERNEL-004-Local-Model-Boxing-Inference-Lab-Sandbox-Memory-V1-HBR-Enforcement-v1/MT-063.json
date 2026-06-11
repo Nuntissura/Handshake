@@ -1,0 +1,151 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-063",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "C",
+  "cluster_subscope": "C.1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:00:00Z",
+  "updated_at_utc": "2026-05-28T00:01:44.906Z",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-063.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "KvCacheHandle sub-trait + KvCachePolicy types",
+  "goal": "Define the KvCacheOps sub-trait reachable through KvCacheHandle: quantization level get/set, prefix-share commit/restore/evict, occupancy stats (bytes used/cap, prefix-cache hit rate), explicit eviction. Trait MUST be engine-agnostic so LlamaCppRuntime and CandleRuntime can implement against the same surface.",
+  "expected_diff_shape": "New src/backend/handshake_core/src/model_runtime/kv_cache.rs defining KvCacheHandle + KvCacheOps trait + KvCachePolicy enum + KvCacheStats struct + KvPrefixHandle (opaque). mod.rs re-exports.",
+  "owned_files": [
+    "src/backend/handshake_core/src/model_runtime/kv_cache.rs",
+    "src/backend/handshake_core/src/model_runtime/mod.rs"
+  ],
+  "depends_on_mts": [
+    "MT-062"
+  ],
+  "unblock_conditions": "MT-062 trait surface merged.",
+  "implementation_notes": "Per spec §4.6.2 (AC-LLAMACPP-ADAPTER, AC-CANDLE-ADAPTER) and §4.7.1b (KV caching) the KvCacheHandle is the operator-controllable surface for KV cache behaviour. KvCacheOps trait methods: `fn quantization(&self) -> KvQuantSupport`; `fn set_quantization(&self, level: KvQuantSupport) -> Result<(), ModelRuntimeError>` (errors with CapabilityNotSupported if adapter does not support that level); `fn occupancy(&self) -> KvCacheStats`; `fn prefix_commit(&self, prefix_tokens: &[u32]) -> Result<KvPrefixHandle, ModelRuntimeError>` — commits a prefix and returns a handle that can be reused via GenerateRequest.kv_prefix_handle; `fn prefix_restore(&self, handle: &KvPrefixHandle) -> Result<(), ModelRuntimeError>`; `fn prefix_evict(&self, handle: KvPrefixHandle) -> Result<(), ModelRuntimeError>`; `fn evict_all(&self) -> Result<(), ModelRuntimeError>`. KvPrefixHandle wraps `(prefix_id: Uuid (v7 per HBR-INT-008), content_hash: [u8;32], token_count: u32)` — content_hash is a replay-resistant key derivation so a malicious caller cannot blind-replay another model's prefix; the adapter MUST validate handle.content_hash matches the on-cache stored hash before restore. KvCacheStats struct: `bytes_used: u64, bytes_capacity: u64, prefix_cache_entries: u32, prefix_cache_hit_count: u64, prefix_cache_miss_count: u64, quant_level_current: KvQuantSupport`. KvCachePolicy enum (consumed in LoadSpec): `Default { quant: KvQuantSupport, prefix_cache_ttl_seconds: u64, max_bytes: Option<u64> }`, `Disabled`, `Custom(Box<dyn KvCacheOps + Send + Sync>)`. The trait must be object-safe so `Box<dyn KvCacheOps>` is constructible. Subquadratic adapters in MT-114 will implement KvCacheOps with prefix-share semantics translated to SSM state-vector caching (the trait surface is preserved; semantics for SSMs use state vectors not KV pairs).",
+  "proof_commands": [
+    "cargo build -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target model_runtime::kv_cache::"
+  ],
+  "risk_if_missed": "KV cache control (AC-INFER-LAB-8-TECHNIQUES technique b) has no operator-controllable trait; LlamaCppRuntime and CandleRuntime end up with bespoke surfaces.",
+  "validator_focus": "Replay-resistant key derivation invariant: a tampered KvPrefixHandle (different content_hash) fails restore with a typed error; KvCacheOps is object-safe; engine-specific types do not appear in the trait surface.",
+  "hbr_obligations": [
+    "HBR-INT-002",
+    "HBR-INT-008"
+  ],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.6.2",
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.7.1"
+  ],
+  "acceptance_criteria_refs": [
+    "AC-MODEL-RUNTIME-TRAIT",
+    "AC-MODEL-CAP-DECL",
+    "AC-INFER-LAB-8-TECHNIQUES"
+  ],
+  "lifecycle": {
+    "active": false,
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "PASS",
+    "depends_on": [
+      "MT-062"
+    ],
+    "blocks": [
+      "MT-064",
+      "MT-072",
+      "MT-081",
+      "MT-093",
+      "MT-094",
+      "MT-095",
+      "MT-114"
+    ],
+    "claimed_by": "KERNEL_BUILDER-20260518-235451",
+    "claimed_at_utc": "2026-05-19T02:39:30Z",
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "COMPLETED",
+        "validator_verdict": "PENDING",
+        "completed_at_utc": "2026-05-19T02:48:40.428Z"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "previous_completed_at_utc_before_ready_for_validation_20260525": "2026-05-19T02:48:40.428Z",
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z"
+  },
+  "handoff": {
+    "coder_session": "KERNEL_BUILDER-20260518-235451",
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": "019e6be3-15c9-7be7-b89a-222eed688952",
+    "review_response_receipt_actor_role": "INTEGRATION_VALIDATOR",
+    "review_response_receipt_track": "JUDGMENT_OOB_IV_PHASE1_PRE_REMEDIATION"
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Replay-resistant key derivation negative test (tampered hash rejected).",
+      "Object-safe verification (Box<dyn KvCacheOps> compile test).",
+      "All KvPrefixHandle Uuids minted via now_v7() per HBR-INT-008."
+    ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C1_FRESH",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-28T00:01:31.342Z",
+    "verdict": "PASS",
+    "verdict_reason": "KvCacheOps is engine-agnostic, object-safe (Send+Sync), all methods Result-returning where fallible, prefix/quantization/eviction semantics covered. UnsupportedKvCacheOps fail-closed shim correctly returns KvCacheError on every mutating op. KvPrefixHandle BLAKE3 derivation, content_hash domain separation, and replay-resistance binding (MT-095) integrate cleanly with the MT-063 surface.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 0
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-063.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-063.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C1_FRESH",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T23:48:44.444Z",
+    "verdict": "PASS",
+    "verdict_reason": "KvCacheOps is engine-agnostic, object-safe (Send+Sync), all methods Result-returning where fallible, prefix/quantization/eviction semantics covered. UnsupportedKvCacheOps fail-closed shim correctly returns KvCacheError on every mutating op. KvPrefixHandle BLAKE3 derivation, content_hash domain separation, and replay-resistance binding (MT-095) integrate cleanly with the MT-063 surface.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 0
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "validator_reports_phase1/MT-063.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1\\validator_reports_phase1\\MT-063.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  }
+}

@@ -1,0 +1,211 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-098",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "C",
+  "cluster_subscope": "C.6",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:00:00Z",
+  "updated_at_utc": "2026-05-28T00:01:44.926Z",
+  "contract_repair_log": [
+    {
+      "at_utc": "2026-05-19T20:35:00Z",
+      "actor": "KERNEL_BUILDER",
+      "kind": "FRAMEWORK_CORRECTION",
+      "summary": "Owned-file extensions repaired Svelte -> React/TSX. App stack is React 19 + Vite + TypeScript per app/package.json; no Svelte dependency present. Refinement.json and spec module 10.14 are framework-agnostic, so this is a contract drafting error confined to file extensions and naming. Behavior, acceptance criteria, validator focus, and red-team controls are unchanged. Added explicit app/src/lib/ipc/steering.ts binding to owned_files (the parallel of app/src/lib/ipc/model_runtime.ts established by MT-068); the prior 'stores/steering.ts' was a Svelte-store convention that does not map to this codebase, replaced with the typed IPC binding and a colocated state pub/sub module if needed."
+    }
+  ],
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-098.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "INF-3 Activation Steering UI (vector editor + intensity slider + layer picker)",
+  "goal": "Steering vector editor in Inference Lab per AC-INFER-LAB-UI-TOGGLES: list of registered vectors with active-toggle, intensity slider, layer-index picker; capture-from-contrastive-prompts wizard; hidden when capabilities.supportsActivationSteering == false.",
+  "expected_diff_shape": "New React/TSX components app/src/components/inference_lab/SteeringVectorEditor.tsx + ContrastiveCaptureWizard.tsx + InferenceLab.tsx parent + barrel index.ts; new IPC binding app/src/lib/ipc/steering.ts; matching vitest specs; visual playwright spec tests/visual/steering_vector_editor.spec.ts; App.tsx wired with inference-lab activeView union member + nav button + body branch; App.css styling for the new panel.",
+  "owned_files": [
+    "app/src/components/inference_lab/InferenceLab.tsx",
+    "app/src/components/inference_lab/SteeringVectorEditor.tsx",
+    "app/src/components/inference_lab/ContrastiveCaptureWizard.tsx",
+    "app/src/components/inference_lab/index.ts",
+    "app/src/components/inference_lab/SteeringVectorEditor.test.tsx",
+    "app/src/lib/ipc/steering.ts",
+    "app/src/lib/ipc/steering.test.ts",
+    "app/src/App.tsx",
+    "app/src/App.css",
+    "tests/visual/steering_vector_editor.spec.ts"
+  ],
+  "depends_on_mts": [
+    "MT-068",
+    "MT-097"
+  ],
+  "unblock_conditions": "MT-068 IPC + MT-097 vector store merged.",
+  "implementation_notes": "Per AC-INFER-LAB-UI-TOGGLES + AC-INFER-LAB-UI-AB-COMPARE. React/TSX components (see contract_repair_log). SteeringVectorEditor.tsx: list of registered vectors (name, layer, intensity, technique badge) loaded via kernel_model_runtime_steering_list_vectors; toggle to set active via kernel_model_runtime_steering_set_active; intensity slider -10..10 (per MT-065 SteeringVector clamp); layer-index picker (dropdown of 0..n_layers from model config); unregister button per vector. ContrastiveCaptureWizard.tsx: two text areas (positive prompts, negative prompts) accepting one prompt per line; [Capture activations] button calls kernel_model_runtime_steering_capture for both sets (positive then negative); computes difference vector (positive_mean - negative_mean) at chosen layer; [Save vector] persists via kernel_model_runtime_steering_register_vector with provenance.technique='RepE' and positivePrompts/negativePrompts populated; A/B compare preview is documented as 'requires live runtime' until MT-074 unblocks (steering_capture backend currently returns runtime-unavailable; UI surfaces the error string verbatim and disables the A/B compare path with a clear note). Hidden via capabilities.supportsActivationSteering==false (rendered as null in the panel; the Inference Lab parent still mounts so other technique panels can light up when their own capability gates pass). GLOBAL-PRODUCTION-005..009: wizard accepts raw explicit prompt text verbatim (no sanitisation, censoring, or moralizing in the UI); license tag picker (Permissive / SourceModelLicenseOnly / Restricted) mandatory at save time. Tauri IPC channels: kernel_model_runtime_capabilities, kernel_model_runtime_steering_list_vectors, kernel_model_runtime_steering_set_active, kernel_model_runtime_steering_unregister, kernel_model_runtime_steering_capture, kernel_model_runtime_steering_register_vector (all camelCase payloads per Tauri 2 convention).",
+  "proof_commands": [
+    "cd app && pnpm run typecheck",
+    "cd app && pnpm exec playwright test --grep steering_vector_editor"
+  ],
+  "risk_if_missed": "INF-3 UI knob missing; operator cannot create or apply steering vectors interactively.",
+  "validator_focus": "Hidden when unsupported; A/B compare flow present; no UI-level sanitisation of operator-provided prompt text; license picker present.",
+  "hbr_obligations": [
+    "HBR-INT-002"
+  ],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/10-product-surfaces.md#10.14"
+  ],
+  "acceptance_criteria_refs": [
+    "AC-INFER-LAB-UI-TOGGLES",
+    "AC-INFER-LAB-UI-AB-COMPARE"
+  ],
+  "lifecycle": {
+    "active": false,
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "CONCERN",
+    "depends_on": [
+      "MT-068",
+      "MT-097"
+    ],
+    "blocks": [
+      "MT-099"
+    ],
+    "claimed_by": "KERNEL_BUILDER-20260519-203500",
+    "claimed_at_utc": "2026-05-19T20:35:00Z",
+    "reopened_at_utc": "2026-05-20T08:50:00Z",
+    "reopened_by": "OPERATOR",
+    "operator_decision_summary": "Operator review found the implementation pattern (surface-shape + trait abstraction + LiveXxxUnavailable / placeholder props) satisfied test contracts but did not satisfy what the Master Spec actually says these things do. None of the 27 MTs listed below are correct implementations. All 27 are reopened and must be redone before WP-KERNEL-004 can be considered complete. No other MT may be claimed until these 27 are correctly implemented and re-validated. MT-148 work was rolled back; it is to be revisited after these 27 close correctly.",
+    "deflection_category": "ui_no_live_ipc_wiring",
+    "deflection_summary": "SteeringVectorEditor + ContrastiveCaptureWizard TSX components typecheck and pass Playwright structural fixtures (3 viewports x 3 tests), but every IPC call routes through the MT-100 / MT-096 backend which itself returns live_runtime_unavailable. The 'A/B compare' surface is a <details> tag with a 'requires MT-074' note; live generation never happens. Spec 10.14.2 calls for before/after comparison output from real model generations.",
+    "wp_hard_fail_until_redone": false,
+    "must_complete_before_other_mts": false,
+    "previous_completed_status": "COMPLETED",
+    "previous_completed_by": "KERNEL_BUILDER-20260519-203500",
+    "previous_completed_at_utc": "2026-05-19T21:25:00Z",
+    "wp_hard_fail_note": "WP-KERNEL-004 cannot complete with these 27 MTs in NEEDS_REIMPLEMENTATION status. Each MT below is individually hard-failed AND counts as a hard-fail blocker on the WP itself. The committed code from the prior session remains on the feat branch as a base to either deepen or replace; the lifecycle status below is the source of truth for whether the MT is done, not the presence of source files.",
+    "previous_proof": {
+      "typecheck": "PASS (cd app && pnpm run typecheck => exit 0)",
+      "vitest": "PASS 10/10 (steering.test.ts 5/5 + SteeringVectorEditor.test.tsx 5/5)",
+      "playwright": "PASS 9/9 (cd app && pnpm exec playwright test --grep steering_vector_editor; 3 specs x 3 viewport projects)",
+      "cargo_test_handshake_core": "PENDING (running in background at completion-receipt time; results appended in follow-on STATUS receipt)"
+    },
+    "autonomous_session_claim": {
+      "claimed_by": "KERNEL_BUILDER-20260520-AUTONOMOUS",
+      "claimed_at_utc": "2026-05-20T18:05:00Z",
+      "transition": "NEEDS_REIMPLEMENTATION -> CLAIMED -> BLOCKED_ON_DEPENDENCY",
+      "note": "Autonomous KERNEL_BUILDER session triage: read MT contract, deflection notes, prior product code, spec anchor. Identified blocker as listed in lifecycle.blocker. Did not implement product code for this MT."
+    },
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "COMPLETED",
+        "validator_verdict": "PASS",
+        "completed_by": "VALIDATOR-EXPLORE-MT098-REWORK-PASS-20260520-AUTO",
+        "completed_at_utc": "2026-05-19T21:25:00Z",
+        "blocker": {
+          "blocked_at_utc": "2026-05-20T18:05:00Z",
+          "blocker_id": "MT-068-MT-096-runtime-manager-wiring-incomplete",
+          "blocked_by": "ARCHITECTURAL_DEBT_IN_OUT_OF_SCOPE_MTS",
+          "blocking_record": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/RECEIPTS.jsonl",
+          "reason": "MT-068 (app/src-tauri/src/commands/model_runtime.rs `ModelRuntimeState` does not hold live `Box<dyn ModelRuntime>`) and MT-096 (app/src-tauri/src/commands/steering.rs lines 167-211 every steering Tauri command returns Err(live_runtime_unavailable(binding))) are lifecycle.status=COMPLETED but their product code is the Spec-Realism Gate Sub-rule 1 literal failure pattern. This MT cannot honestly satisfy its spec MUST without modifying MT-068/MT-096 owned files. Per operator brief no_claims_outside_27_until_resolved=true rule, MT-068 and MT-096 are out-of-scope and cannot be touched.",
+          "operator_action_needed": "Either (1) reopen MT-068+MT-096 with reimplementation authority OR (2) explicitly waive the no-claims-outside-27 rule for runtime-manager wiring as part of this MTs scope. Until then this MT remains BLOCKED_ON_DEPENDENCY.",
+          "triage_receipt": "correlation_id=triage-findings-27mts-autonomous-20260520"
+        },
+        "wp_hard_fail_until_redone": true,
+        "must_complete_before_other_mts": true
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "historical_blocker_before_ready_for_validation_20260525": {
+      "blocked_at_utc": "2026-05-20T18:05:00Z",
+      "blocker_id": "MT-068-MT-096-runtime-manager-wiring-incomplete",
+      "blocked_by": "ARCHITECTURAL_DEBT_IN_OUT_OF_SCOPE_MTS",
+      "blocking_record": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/RECEIPTS.jsonl",
+      "reason": "MT-068 (app/src-tauri/src/commands/model_runtime.rs `ModelRuntimeState` does not hold live `Box<dyn ModelRuntime>`) and MT-096 (app/src-tauri/src/commands/steering.rs lines 167-211 every steering Tauri command returns Err(live_runtime_unavailable(binding))) are lifecycle.status=COMPLETED but their product code is the Spec-Realism Gate Sub-rule 1 literal failure pattern. This MT cannot honestly satisfy its spec MUST without modifying MT-068/MT-096 owned files. Per operator brief no_claims_outside_27_until_resolved=true rule, MT-068 and MT-096 are out-of-scope and cannot be touched.",
+      "operator_action_needed": "Either (1) reopen MT-068+MT-096 with reimplementation authority OR (2) explicitly waive the no-claims-outside-27 rule for runtime-manager wiring as part of this MTs scope. Until then this MT remains BLOCKED_ON_DEPENDENCY.",
+      "triage_receipt": "correlation_id=triage-findings-27mts-autonomous-20260520"
+    },
+    "previous_completed_by_before_ready_for_validation_20260525": "VALIDATOR-EXPLORE-MT098-REWORK-PASS-20260520-AUTO",
+    "previous_completed_at_utc_before_ready_for_validation_20260525": "2026-05-19T21:25:00Z",
+    "previous_wp_hard_fail_until_redone_before_ready_for_validation_20260525": true,
+    "previous_must_complete_before_other_mts_before_ready_for_validation_20260525": true,
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z"
+  },
+  "handoff": {
+    "coder_session": "KERNEL_BUILDER-20260519-203500",
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": "019e6be3-15de-724f-951e-6082c077356f",
+    "review_response_receipt_actor_role": "INTEGRATION_VALIDATOR",
+    "review_response_receipt_track": "JUDGMENT_OOB_IV_PHASE1_PRE_REMEDIATION"
+  },
+  "red_team": {
+    "minimum_controls": [
+      "No UI-level text sanitisation (operator prompts go through verbatim per GLOBAL-PRODUCTION-005).",
+      "Hidden when unsupported.",
+      "License tag picker mandatory at save."
+    ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C6_C7",
+    "reviewed_at_utc": "2026-05-27T19:35:00Z",
+    "aggregator_run_at_utc": "2026-05-28T00:01:31.342Z",
+    "verdict": "CONCERN",
+    "verdict_reason": "SteeringVectorEditor and ContrastiveCaptureWizard TSX components exist with correct capability-hide gate (returns null when !supportsActivationSteering, satisfying spec 10.14.1), license tag picker (Permissive | SourceModelLicenseOnly | Restricted, mandatory per red_team #3), and verbatim prompt forwarding (no UI-level sanitisation, satisfying red_team #1 and GLOBAL-PRODUCTION-005..009). HOWEVER: the spec-required 'before/after comparison view' (AC-INFER-LAB-UI-AB-COMPARE, spec 10.14.2) is NOT implemented — the wizard renders a static <details><summary>A/B compare (live generation)</summary> with an explanatory paragraph but performs zero generation. There is no side-by-side output panel, no 'current vs proposed knob' generation pair, no apply/revert flow. Additionally, downstream of the IPC layer the same MT-096 production-wiring blocker applies: the wizard's extract/save buttons will return `capture_not_available` in the deployed app because no live CandleRuntime adapter is attached.",
+    "spec_compliance_status": "PARTIAL",
+    "code_hygiene_status": "MINOR",
+    "runtime_safety_status": "CONCERN",
+    "agent_swarm_safety_status": "CONCERN",
+    "hbr_unsatisfied": [
+      "HBR-INT-002"
+    ],
+    "test_coverage_status": "THIN",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 1,
+      "MEDIUM": 1,
+      "LOW": 0
+    },
+    "paperwork_notes_count": 2,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-098.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-098.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C6_C7",
+    "reviewed_at_utc": "2026-05-27T19:35:00Z",
+    "aggregator_run_at_utc": "2026-05-27T23:48:44.444Z",
+    "verdict": "CONCERN",
+    "verdict_reason": "SteeringVectorEditor and ContrastiveCaptureWizard TSX components exist with correct capability-hide gate (returns null when !supportsActivationSteering, satisfying spec 10.14.1), license tag picker (Permissive | SourceModelLicenseOnly | Restricted, mandatory per red_team #3), and verbatim prompt forwarding (no UI-level sanitisation, satisfying red_team #1 and GLOBAL-PRODUCTION-005..009). HOWEVER: the spec-required 'before/after comparison view' (AC-INFER-LAB-UI-AB-COMPARE, spec 10.14.2) is NOT implemented — the wizard renders a static <details><summary>A/B compare (live generation)</summary> with an explanatory paragraph but performs zero generation. There is no side-by-side output panel, no 'current vs proposed knob' generation pair, no apply/revert flow. Additionally, downstream of the IPC layer the same MT-096 production-wiring blocker applies: the wizard's extract/save buttons will return `capture_not_available` in the deployed app because no live CandleRuntime adapter is attached.",
+    "spec_compliance_status": "PARTIAL",
+    "code_hygiene_status": "MINOR",
+    "runtime_safety_status": "CONCERN",
+    "agent_swarm_safety_status": "CONCERN",
+    "hbr_unsatisfied": [
+      "HBR-INT-002"
+    ],
+    "test_coverage_status": "THIN",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 1,
+      "MEDIUM": 1,
+      "LOW": 0
+    },
+    "paperwork_notes_count": 2,
+    "review_artifact_ref": "validator_reports_phase1/MT-098.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1\\validator_reports_phase1\\MT-098.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  }
+}

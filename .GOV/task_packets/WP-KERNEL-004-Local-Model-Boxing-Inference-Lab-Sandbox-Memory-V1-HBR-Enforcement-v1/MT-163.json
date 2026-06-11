@@ -1,0 +1,280 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-163",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "D",
+  "cluster_subscope": "D.3",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:22:00Z",
+  "updated_at_utc": "2026-05-28T00:01:44.962Z",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-163.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "FEMS acceptance replay eval (FEMS-EVAL-001.4) (folded WP-1-FEMS-Acceptance-Replay-Eval)",
+  "goal": "Define and enforce deterministic acceptance/validation replay for FEMS so a past MemoryPack composition can be reconstructed exactly and re-evaluated. Folded from WP-1-FEMS-Acceptance-Replay-Eval. Critical for the self-improvement loop's reproducibility story and the integration validator's audit path.",
+  "expected_diff_shape": "New module src/backend/handshake_core/src/memory/replay_eval.rs (ReplayEvaluator + ReplayRequest + ReplayResult + ReplayDifference types). Tests src/backend/handshake_core/tests/replay_eval_tests.rs.",
+  "owned_files": [
+    "src/backend/handshake_core/src/memory/replay_eval.rs",
+    "src/backend/handshake_core/tests/replay_eval_tests.rs"
+  ],
+  "depends_on_mts": [
+    "MT-141",
+    "MT-145",
+    "MT-157"
+  ],
+  "unblock_conditions": "MT-141 (MemoryCapsule), MT-145 (CapsuleRecord persistence), MT-157 (bitemporal indexing - replay needs both temporal axes).",
+  "implementation_notes": "Per WP-1-FEMS-Acceptance-Replay-Eval preserved_intent: 'Define and enforce deterministic acceptance/validation for FEMS Phase 1 delivery'. Per refinement D.3 'acceptance replay eval'. ReplayRequest: `{ capsule_id: Uuid, replay_as_of: AsOfQuery (from MT-157), expected_source_hash: String }`. ReplayResult: `{ replayed_capsule: MemoryCapsule, replay_difference: ReplayDifference, replay_succeeded: bool }`. ReplayDifference: `{ items_present_now_absent_then: Vec<Uuid>, items_absent_now_present_then: Vec<Uuid>, items_with_different_scores: Vec<(Uuid, f64, f64)> }`. ReplayEvaluator: `pub fn replay(req: ReplayRequest, recorder: &dyn CapsuleRecordReader, bitemporal: &dyn BitemporalAccessor, builder: &CapsuleBuilder) -> Result<ReplayResult, ReplayError>`. Flow: (1) load original CapsuleRecord via recorder, (2) use bitemporal.items_visible_at(replay_as_of) to recover the world state at original build time, (3) re-run CapsuleBuilder against that frozen world state with the original RetrievalPolicy, (4) compare resulting capsule to original by source_hash (exact match) and diff item-level if mismatch. replay_succeeded = (source_hash matches). Use this to validate (a) bitemporal indexing is correct, (b) CapsuleBuilder is deterministic given fixed inputs, (c) self-improvement-loop iterations can be exactly reproduced from EventLedger. Tests: replay of just-built capsule succeeds with empty ReplayDifference; replay after a hygiene invalidation detects the diff (item absent now present then); replay with wrong expected_source_hash returns ReplayError::HashMismatch; replay is deterministic across multiple invocations.",
+  "proof_commands": [
+    "$env:CARGO_TARGET_DIR='D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test replay_eval_tests",
+    "$env:CARGO_TARGET_DIR='D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test fems_v1_integration_tests replay_eval -- --nocapture",
+    "rustfmt --edition 2021 --config skip_children=true --check src/backend/handshake_core/src/memory/replay_eval.rs src/backend/handshake_core/tests/replay_eval_tests.rs src/backend/handshake_core/tests/fems_v1_integration_tests.rs",
+    "git diff --check -- src/backend/handshake_core/src/memory/replay_eval.rs src/backend/handshake_core/tests/replay_eval_tests.rs src/backend/handshake_core/tests/fems_v1_integration_tests.rs src/backend/handshake_core/Cargo.toml",
+    "rg -n -i \"sqlite|rusqlite|libsqlite|Sqlite\" <MT-163 touched files>",
+    "rg -n \"CompletionRequest|llm_client|openai|model_runtime\" <MT-163 touched files>"
+  ],
+  "risk_if_missed": "Without replay eval the self-improvement loop cannot prove reproducibility and the integration validator cannot audit past loop iterations.",
+  "validator_focus": "Replay is deterministic; ReplayDifference surfaces every divergence; bitemporal accessor is the source of truth for as-of state.",
+  "hbr_obligations": [
+    "HBR-INT-006"
+  ],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.8.3"
+  ],
+  "acceptance_criteria_refs": [
+    "AC-DISTILL-LOOP-SAFEGUARDS",
+    "AC-DISTILL-CONTENT-REVIEW"
+  ],
+  "lifecycle": {
+    "active": false,
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "PENDING",
+    "depends_on": [
+      "MT-141",
+      "MT-145",
+      "MT-157"
+    ],
+    "blocks": [
+      "MT-168",
+      "MT-169"
+    ],
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "READY_FOR_VALIDATION",
+        "validator_verdict": "PENDING"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z"
+  },
+  "handoff": {
+    "coder_session": "KERNEL_BUILDER-20260524-MT163",
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": "019e6be3-1601-7fc5-830a-eee2a1ff0493",
+    "review_response_receipt_actor_role": "INTEGRATION_VALIDATOR",
+    "review_response_receipt_track": "JUDGMENT_OOB_IV_PHASE1_PRE_REMEDIATION"
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Replay is deterministic given fixed AsOfQuery; non-determinism is a test failure.",
+      "ReplayDifference enumerates every divergence so diffs can be inspected.",
+      "Bitemporal accessor is the sole source of as-of state; replay cannot accidentally consume current FEMS state."
+    ]
+  },
+  "implementation_evidence": {
+    "classification": "IMPLEMENTATION_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+    "authoritative_integration_validator_pass": false,
+    "integration_validator_status": "PENDING",
+    "recorded_at_utc": "2026-05-24T19:31:22.625Z",
+    "recorded_by": "KERNEL_BUILDER-20260524-190701",
+    "mt_ids": [
+      "MT-163"
+    ],
+    "summary": "MT-163 implemented deterministic FEMS acceptance replay evaluation. Replay loads the original CapsuleRecord, verifies expected_source_hash, reconstructs replay inputs from bitemporal as-of items, rebuilds a MemoryCapsule through CapsuleBuilder over a frozen retriever, and returns item membership/score diffs plus typed errors.",
+    "research_basis": {
+      "sources_checked": [
+        "Temporal Workflow Definition determinism and replay constraints: https://docs.temporal.io/workflow-definition#deterministic-constraints",
+        "LangSmith dataset versioning and as_of evaluation docs: https://docs.langchain.com/langsmith/manage-datasets",
+        "Kurrent/EventStoreDB system projections over event streams: https://docs.kurrent.io/server/v24.10/features/projections/system",
+        "DBOS durable execution / replay-oriented durable workflows docs: https://docs.dbos.dev/"
+      ],
+      "relevant_patterns_found": [
+        "Replayable systems isolate non-deterministic external access from the replay path and compare rebuilt commands/results against recorded history.",
+        "Evaluation systems version datasets and run evaluations against explicit as-of versions rather than mutable latest state.",
+        "Event-sourced projections rebuild state from durable event streams and make replay drift inspectable."
+      ],
+      "reuse_opportunities": [
+        "Reused CapsuleRecord audit/source_hash from MT-145 as the original replay record.",
+        "Reused BitemporalIndex/AsOfQuery from MT-157 as the frozen world-state source.",
+        "Reused CapsuleBuilder/RetrievalPolicy from MT-141 so replay exercises the same pack composition logic."
+      ],
+      "rejected_options": [
+        "Rejected snapshot-only replay because it bypasses CapsuleRecord, BitemporalItem payloads, and CapsuleBuilder determinism.",
+        "Rejected using a caller-provided live CapsuleBuilder retriever because it can leak current FEMS state into replay.",
+        "Rejected adding a new persistence shape for original MemoryPack contents because MT-145 already defines CapsuleRecord as the durable record."
+      ],
+      "selected_approach": "Accept the contract builder handle but rebuild through a scoped CapsuleBuilder bound to ReplayFrozenFemsRetriever populated only from bitemporal.items_visible_at(replay_as_of). Compare original audit snapshot against replayed capsule audit and source_hash.",
+      "risks": [
+        "ReplayDifference uses Vec<Uuid> per MT-163 contract; non-UUID audit item IDs fail closed.",
+        "PostgresBitemporalMemoryIndex is async while the MT-163 BitemporalAccessor trait is sync; this pass covers the in-memory production BitemporalIndex adapter and leaves async adapter wiring to a later integration layer if needed.",
+        "Score-only drift may not change MemoryCapsule.source_hash because source_hash is based on pack items, so replay_succeeded must check both source_hash and ReplayDifference."
+      ],
+      "mitigations": [
+        "InvalidRecordItemId is a typed fail-closed ReplayError for non-UUID audit IDs.",
+        "BitemporalAccessor is a narrow trait so a blocking/async bridge can be added without changing ReplayEvaluator semantics.",
+        "Tests assert score drift returns replay_succeeded=false even if the pack hash can remain unchanged."
+      ],
+      "validation_plan": [
+        "Run the dedicated replay_eval_tests integration binary.",
+        "Run the FEMS V1 integration replay smoke against the new contract.",
+        "Run rustfmt --check, git diff --check, and forbidden SQLite/model-runtime scans on touched files."
+      ]
+    },
+    "tdd_evidence": {
+      "red": {
+        "command": "$env:CARGO_TARGET_DIR='D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test replay_eval_tests",
+        "exit_code": 1,
+        "note": "Initial red run failed against the snapshot-only replay_eval stub: CapsuleRecordReader lacked read_record, BitemporalAccessor lacked items_visible_at, ReplayResult.replayed_capsule was ReplaySnapshot instead of MemoryCapsule, and ReplayEvaluator::replay lacked the contract builder parameter."
+      },
+      "green": {
+        "command": "$env:CARGO_TARGET_DIR='D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test replay_eval_tests",
+        "exit_code": 0,
+        "note": "5 passed: just-built capsule replay, invalidation diff, wrong expected hash typed error, deterministic repeated replay, score drift detection."
+      }
+    },
+    "implementation_evidence": {
+      "files_touched": [
+        "src/backend/handshake_core/src/memory/replay_eval.rs",
+        "src/backend/handshake_core/tests/replay_eval_tests.rs",
+        "src/backend/handshake_core/tests/fems_v1_integration_tests.rs",
+        "src/backend/handshake_core/Cargo.toml"
+      ],
+      "owned_files": [
+        "src/backend/handshake_core/src/memory/replay_eval.rs",
+        "src/backend/handshake_core/tests/replay_eval_tests.rs"
+      ],
+      "out_of_owned_files_pending_operator_review": [
+        "src/backend/handshake_core/Cargo.toml (registered replay_eval_tests integration binary)",
+        "src/backend/handshake_core/tests/fems_v1_integration_tests.rs (updated legacy replay smoke from snapshot stub API to CapsuleRecord + bitemporal replay API)"
+      ],
+      "product_entry_points": [
+        "ReplayRequest / ReplayResult / ReplayDifference / ReplayError",
+        "CapsuleRecordReader::read_record",
+        "BitemporalAccessor::items_visible_at",
+        "ReplayEvaluator::replay(req, recorder, bitemporal, builder)"
+      ],
+      "high_roi_additions": [
+        "Blanket CapsuleRecordReader impl for MemoryCapsuleIpcStore so existing capsule stores can serve replay records.",
+        "BitemporalAccessor impl for in-memory BitemporalIndex so the production as-of filter is tested directly.",
+        "Typed InvalidBitemporalPayload and InvalidRecordItemId errors to fail closed on malformed replay inputs.",
+        "Score-drift test and success hardening so non-empty ReplayDifference cannot be reported as successful."
+      ]
+    },
+    "proof": [
+      {
+        "command": "$env:CARGO_TARGET_DIR='D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test replay_eval_tests",
+        "exit_code": 0,
+        "note": "5 passed; includes real in-memory BitemporalIndex adapter coverage."
+      },
+      {
+        "command": "$env:CARGO_TARGET_DIR='D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test fems_v1_integration_tests replay_eval -- --nocapture",
+        "exit_code": 0,
+        "note": "1 passed; legacy FEMS V1 replay smoke now uses CapsuleRecord plus bitemporal item payload."
+      },
+      {
+        "command": "rustfmt --edition 2021 --config skip_children=true --check src/backend/handshake_core/src/memory/replay_eval.rs src/backend/handshake_core/tests/replay_eval_tests.rs src/backend/handshake_core/tests/fems_v1_integration_tests.rs",
+        "exit_code": 0,
+        "note": "Formatting check passed."
+      },
+      {
+        "command": "git diff --check -- src/backend/handshake_core/src/memory/replay_eval.rs src/backend/handshake_core/tests/replay_eval_tests.rs src/backend/handshake_core/tests/fems_v1_integration_tests.rs src/backend/handshake_core/Cargo.toml",
+        "exit_code": 0,
+        "note": "Whitespace diff check passed; only Git LF->CRLF warning for Cargo.toml."
+      },
+      {
+        "command": "rg -n -i \"sqlite|rusqlite|libsqlite|Sqlite\" <MT-163 touched files>",
+        "exit_code": 1,
+        "note": "No matches; exit 1 is ripgrep no-match."
+      },
+      {
+        "command": "rg -n \"CompletionRequest|llm_client|openai|model_runtime\" <MT-163 touched files>",
+        "exit_code": 1,
+        "note": "No matches; exit 1 is ripgrep no-match."
+      }
+    ],
+    "repomem_receipts": {
+      "pre": 2243,
+      "concern": 2244,
+      "decision": 2245,
+      "research_close": 2246
+    },
+    "residual_risks": [
+      "No Integration Validator has reviewed MT-163; READY_FOR_VALIDATION is implementer handoff only.",
+      "The async PostgresBitemporalMemoryIndex path remains outside this microtask proof because the contract trait is sync; validation may request an adapter or ignored Postgres integration in a follow-up.",
+      "UUID-only diff vectors are contract-compliant but require replayable capsule audit IDs to be UUID strings."
+    ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_D_GAPS",
+    "reviewed_at_utc": "2026-05-27T18:30:00Z",
+    "aggregator_run_at_utc": "2026-05-28T00:01:31.342Z",
+    "verdict": "PASS_WITH_NOTES",
+    "verdict_reason": "ReplayEvaluator implements the contracted shape: loads CapsuleRecord via CapsuleRecordReader, validates expected_source_hash with typed ReplayError::HashMismatch, recovers as-of state via BitemporalAccessor.items_visible_at, rebuilds capsule via CapsuleBuilder over a frozen retriever, and returns ReplayResult with item-level diff plus replay_succeeded boolean (true iff source_hash matches AND ReplayDifference empty). 5 + 1 integration tests pass per builder. Two notes: BitemporalAccessor trait is sync while production PostgresBitemporalMemoryIndex is async (builder flagged this as residual risk — adapter wiring deferred); ReplayDifference uses Vec<Uuid> per contract, requiring UUID audit-ids — non-UUID ids hard-fail-closed via InvalidRecordItemId.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "OK",
+    "runtime_safety_status": "OK",
+    "agent_swarm_safety_status": "OK",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "STRONG",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 1,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 3,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-163.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-163.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_D_GAPS",
+    "reviewed_at_utc": "2026-05-27T18:30:00Z",
+    "aggregator_run_at_utc": "2026-05-27T23:48:44.444Z",
+    "verdict": "PASS_WITH_NOTES",
+    "verdict_reason": "ReplayEvaluator implements the contracted shape: loads CapsuleRecord via CapsuleRecordReader, validates expected_source_hash with typed ReplayError::HashMismatch, recovers as-of state via BitemporalAccessor.items_visible_at, rebuilds capsule via CapsuleBuilder over a frozen retriever, and returns ReplayResult with item-level diff plus replay_succeeded boolean (true iff source_hash matches AND ReplayDifference empty). 5 + 1 integration tests pass per builder. Two notes: BitemporalAccessor trait is sync while production PostgresBitemporalMemoryIndex is async (builder flagged this as residual risk — adapter wiring deferred); ReplayDifference uses Vec<Uuid> per contract, requiring UUID audit-ids — non-UUID ids hard-fail-closed via InvalidRecordItemId.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "OK",
+    "runtime_safety_status": "OK",
+    "agent_swarm_safety_status": "OK",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "STRONG",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 1,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 3,
+    "review_artifact_ref": "validator_reports_phase1/MT-163.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1\\validator_reports_phase1\\MT-163.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  }
+}

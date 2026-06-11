@@ -1,0 +1,154 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-035",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "A",
+  "cluster_subscope": "A.5",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T02:30:00Z",
+  "updated_at_utc": "2026-05-28T00:01:44.890Z",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-035.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "N=8 swarm perf validation + HBR-SWARM-001/002/003/004 evidence run",
+  "goal": "Per spec §6.7.3 (AC-SWARM-HARNESS-N8) validate perf scaling to N=8 minimum. Configure the swarm harness with N=8 concurrent governed sessions running KernelActionCatalogV1 mutations against a shared workspace; assert no silent last-writer-wins, no lease starvation, no deadlock, all conflicts surface as deterministic conflict reports or revision rejections.",
+  "expected_diff_shape": "New test src/backend/handshake_core/tests/swarm_n8_perf_tests.rs with N=8 scenario; perf metric collection; gov-check sub-check that runs the N=8 perf as the canonical HBR-SWARM-001..004 evidence.",
+  "owned_files": [
+    "src/backend/handshake_core/tests/swarm_n8_perf_tests.rs",
+    ".GOV/roles_shared/checks/hbr-swarm-n8.mjs",
+    "justfile"
+  ],
+  "depends_on_mts": [
+    "MT-034"
+  ],
+  "unblock_conditions": "MT-034 harness primitive ships.",
+  "implementation_notes": "Per spec §6.7.3. N=8 scenario: each session runs 100 KernelActionCatalogV1 mutations against a shared CRDT workspace (KERNEL-002 primitive). Mix of mutation kinds: 60% additions (CRDT merge-safe), 20% updates on contested fields (must surface as conflict reports per HBR-SWARM-001), 10% lease-acquisition attempts on a single shared resource (must show lease starvation absence — every session eventually gets the lease per HBR-SWARM-002), 10% cancellation mid-mutation (must show bounded cancellation propagation per HBR-SWARM-002). Assertions: (a) ZERO silent overwrites (verified by hashing pre/post state and confirming every conflict produced a deterministic ConflictReport row); (b) max lease wait time across sessions < 5s (no starvation); (c) no deadlock (all sessions complete in bounded time); (d) all conflicts surface in EventLedger as `CRDT_CONFLICT_REPORT` rows or `REVISION_REJECTION` rows. Perf metrics: per-session p50/p95/p99 step duration; total run wall-clock; ledger overflow count (should be 0 with default capacity 1024 for N=8 * 100 steps). The Node helper `hbr-swarm-n8.mjs` is the gov-check sub-check that spawns the cargo test and parses the result. Justfile recipe `hbr-swarm-n8` wired into gov-check umbrella. Per HBR-SWARM-001/002/003/004 evidence_kind this is THE wire test producing the swarm evidence.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target --test swarm_n8_perf_tests -- --test-threads=1",
+    "just hbr-swarm-n8"
+  ],
+  "risk_if_missed": "Without N=8 evidence, HBR-SWARM-001/002/003/004 are unverified at the acceptance perf floor; concurrency regressions ship invisibly.",
+  "validator_focus": "Conflict rows are deterministic (re-run produces same conflict signature); lease starvation test asserts max wait time; cancellation test asserts bounded propagation; ledger overflow count is 0 at this load.",
+  "hbr_obligations": [
+    "HBR-SWARM-001",
+    "HBR-SWARM-002",
+    "HBR-SWARM-003",
+    "HBR-SWARM-004"
+  ],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/06-mechanical-integrations.md#6.7"
+  ],
+  "acceptance_criteria_refs": [
+    "AC-SWARM-HARNESS-N8"
+  ],
+  "lifecycle": {
+    "active": false,
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "CONCERN",
+    "depends_on": [
+      "MT-034"
+    ],
+    "blocks": [
+      "MT-037"
+    ],
+    "claimed_by": "KERNEL_BUILDER-20260518-073535",
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "COMPLETED",
+        "validator_verdict": "PENDING",
+        "completed_at_utc": "2026-05-18T13:52:22.965Z"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "previous_completed_at_utc_before_ready_for_validation_20260525": "2026-05-18T13:52:22.965Z",
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z"
+  },
+  "handoff": {
+    "coder_session": "KERNEL_BUILDER-20260518-073535",
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": "019e6be3-15ba-7936-b57c-c9d67b5d0478",
+    "review_response_receipt_actor_role": "INTEGRATION_VALIDATOR",
+    "review_response_receipt_track": "JUDGMENT_OOB_IV_PHASE1_PRE_REMEDIATION"
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Conflicts are deterministic (re-run with same seed produces same conflict signature).",
+      "Lease starvation test asserts a MAX wait time, not a sum or average.",
+      "Ledger overflow count asserted == 0 at N=8 * 100 load."
+    ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_A3_A5_A7",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-28T00:01:31.342Z",
+    "verdict": "CONCERN",
+    "verdict_reason": "N=8 perf row asserts the spec-required counters (zero silent overwrites, deterministic conflict signature, max_lease_wait_ms < 5s, ledger_overflow=0, both CRDT_CONFLICT_REPORT and REVISION_REJECTION present) — but the workspace, conflicts, leases, and cancellations are SYNTHETIC: the test generates MutationAttempts in a separate tokio JoinSet then applies them SEQUENTIALLY to an in-test WorkspaceEvidence struct, never running real concurrent CRDT mutations against KERNEL-002 KernelActionCatalogV1. The HBR-SWARM-001..004 evidence floor is asserted against a simulator, not against the platform under test.",
+    "spec_compliance_status": "PARTIAL",
+    "code_hygiene_status": "MINOR",
+    "runtime_safety_status": "CONCERN",
+    "agent_swarm_safety_status": "CONCERN",
+    "hbr_unsatisfied": [
+      "HBR-SWARM-001",
+      "HBR-SWARM-002",
+      "HBR-SWARM-003",
+      "HBR-SWARM-004"
+    ],
+    "test_coverage_status": "THIN",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 1,
+      "MEDIUM": 1,
+      "LOW": 0
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-035.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-035.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_A3_A5_A7",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T23:48:44.444Z",
+    "verdict": "CONCERN",
+    "verdict_reason": "N=8 perf row asserts the spec-required counters (zero silent overwrites, deterministic conflict signature, max_lease_wait_ms < 5s, ledger_overflow=0, both CRDT_CONFLICT_REPORT and REVISION_REJECTION present) — but the workspace, conflicts, leases, and cancellations are SYNTHETIC: the test generates MutationAttempts in a separate tokio JoinSet then applies them SEQUENTIALLY to an in-test WorkspaceEvidence struct, never running real concurrent CRDT mutations against KERNEL-002 KernelActionCatalogV1. The HBR-SWARM-001..004 evidence floor is asserted against a simulator, not against the platform under test.",
+    "spec_compliance_status": "PARTIAL",
+    "code_hygiene_status": "MINOR",
+    "runtime_safety_status": "CONCERN",
+    "agent_swarm_safety_status": "CONCERN",
+    "hbr_unsatisfied": [
+      "HBR-SWARM-001",
+      "HBR-SWARM-002",
+      "HBR-SWARM-003",
+      "HBR-SWARM-004"
+    ],
+    "test_coverage_status": "THIN",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 1,
+      "MEDIUM": 1,
+      "LOW": 0
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "validator_reports_phase1/MT-035.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1\\validator_reports_phase1\\MT-035.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  }
+}

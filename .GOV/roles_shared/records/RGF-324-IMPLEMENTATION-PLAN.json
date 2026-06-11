@@ -1,0 +1,368 @@
+{
+  "schema_id": "hsk.rgf_implementation_plan@1",
+  "rgf_id": "RGF-324",
+  "title": "Legacy md-prerequisite governance gate retirement",
+  "status": "READY_FOR_IMPLEMENTATION",
+  "author_role": "ARCHITECT_OPUS_PLAN_AGENT",
+  "author_session_date_utc": "2026-05-18",
+  "planning_only": true,
+  "audit_completed": true,
+  "implementation_session": "DEFERRED_TO_NEXT_MODEL",
+  "estimated_effort_hours_sequential": 40,
+  "estimated_effort_hours_parallel": 28,
+  "phase_count": 5,
+  "subagent_track_count": 6,
+  "open_questions_for_operator_count": 8,
+  "rgf_board_anchor": ".GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md#RGF-324",
+  "smoke_test_target_wp": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+
+  "executive_summary": [
+    "Root cause is two functions, not 80 errors. validateRefinementFile() in refinement-check.mjs:717 requires a 700+ line md schema, and resolveRefinementPath() / resolveWorkPacketPath() in runtime-paths.mjs:254,379 literally only look for .md files. Make those JSON-aware and the cascade collapses.",
+    "JSON-first plumbing already exists. readWorkPacketContract() and readWorkPacketRefinementContract() in work-packet-contract-read-lib.mjs already prefer packet.json/refinement.json when present. The gates just don't use them.",
+    "Only 5 call sites import validateRefinementFile for blocking gate enforcement: orchestrator_gates.mjs, orchestrator-next.mjs, create-task-packet.mjs, coder/checks/pre-work-check.mjs, activation_manager.mjs. A new validateRefinementContract(wpId, opts) that dispatches JSON-first and falls back to md is the surgical fix.",
+    "Schemas exist but are loose. hsk.refinement_contract@1 declares refinement: { type: object }. Either tighten the JSON Schema OR add a separate validateRefinementContractSemantics() that enforces the same business rules the md regex enforced today. The latter is faster and lower-risk.",
+    "--projection-md opt-in is trivial. wp-contract-import.mjs already takes flags; the work is removing the implicit md write in writeImportedContractPair() and routing it through an opt-in path. The fallback md write at wp-contract-import lib lines 858-888 (fallback_projection_written branch) is the main offender that auto-creates md."
+  ],
+
+  "top_3_risks": [
+    {
+      "id": "TOP_RISK_1",
+      "name": "Schema looseness drift",
+      "description": "The existing hsk.refinement_contract@1 schema accepts almost any object shape under refinement. If gates trust the schema alone, signed packets with empty/missing semantic fields pass.",
+      "control": "Implement validateRefinementContractSemantics() BEFORE swapping the gate, and run it against ~20 existing legacy md refinements (post-import to JSON) as a regression corpus."
+    },
+    {
+      "id": "TOP_RISK_2",
+      "name": "Backward compat for in-flight WPs",
+      "description": "~150 existing legacy WPs in .GOV/refinements/*.md and .GOV/task_packets/*.md (flat + folder) have md as authority. If the gate flips to JSON-required, every legacy WP breaks.",
+      "control": "Dispatch logic must be: JSON wins if present; md still accepted if no JSON; emit deprecation warning on md branch."
+    },
+    {
+      "id": "TOP_RISK_3",
+      "name": "Path resolver assumptions in 35+ downstream scripts",
+      "description": "resolveWorkPacketPath() returning packetAbsPath ending in .md is assumed by many consumers (e.g., wp-traceability-set.mjs:60-72, build-order-sync.mjs:138). If we change it to point to packet.json when only JSON exists, callers doing readFileSync().split('\\n') md parsing will silently produce garbage.",
+      "control": "Keep packetAbsPath semantics unchanged for legacy md packets, add a NEW field packetContractAbsPath for the JSON contract, and migrate consumers explicitly (don't auto-rewire)."
+    }
+  ],
+
+  "recommended_phase_1_starting_point": "Open .GOV/roles_shared/scripts/lib/runtime-paths.mjs first. Add JSON-aware sibling functions: resolveWorkPacketContractPath(wpId), resolveRefinementContractPath(wpId), resolveMicrotaskContractGlob(wpId), resolveAnyPacketAuthority(wpId). These should return {contractPath, contractAbsPath, projectionPath, projectionAbsPath, packetDir, hasContract, hasProjection}. Do NOT modify resolveWorkPacketPath() or resolveRefinementPath() in this step (additive only). Then build validateRefinementContract(wpId, opts) in a new file .GOV/roles_shared/checks/refinement-contract-check.mjs that uses the new resolvers and the existing readWorkPacketRefinementContract(). This is ~150 lines of code, fully testable in isolation, and unblocks Phase 2.",
+
+  "section_a_audit_findings": {
+    "per_helper_categorization": [
+      {"helper": "record-refinement", "path": ".GOV/roles/orchestrator/checks/orchestrator_gates.mjs:208-281 (action === 'refine')", "category": "MD_CONSUMER_STRICT", "notes": "Calls defaultRefinementPath(wpId) + validateRefinementFile(). Also reads md content with regex for ENRICHMENT_NEEDED, CLEARLY_COVERS_VERDICT, USER_APPROVAL_EVIDENCE."},
+      {"helper": "record-signature", "path": ".GOV/roles/orchestrator/checks/orchestrator_gates.mjs:283-507 (action === 'sign')", "category": "MD_CONSUMER_STRICT", "notes": "Re-validates refinement md, mutates md (fs.writeFileSync(refinementPath, updated) at line 411). Writes USER_SIGNATURE INTO the md file."},
+      {"helper": "record-prepare", "path": ".GOV/roles/orchestrator/checks/orchestrator_gates.mjs:579-756 (action === 'prepare')", "category": "MIXED", "notes": "Does NOT directly call validateRefinementFile, but calls preparePacketTruthState(wpId,...) which goes through resolveWorkPacketPath (md-only resolver). Blocks if no packet.md exists."},
+      {"helper": "record-role-model-profiles", "path": ".GOV/roles/orchestrator/checks/orchestrator_gates.mjs:509-577 (action === 'profiles')", "category": "JSON_FIRST_ALREADY", "notes": "State-file only; no md touch."},
+      {"helper": "create-task-packet", "path": ".GOV/roles/orchestrator/scripts/create-task-packet.mjs:196-252,1501", "category": "MD_GENERATOR + MD_CONSUMER_STRICT", "notes": "Auto-creates refinement md from template if missing. Requires validateRefinementFile(..., requireSignature: true) to pass. Also generates packet md."},
+      {"helper": "task-board-set", "path": ".GOV/roles/orchestrator/scripts/task-board-set.mjs:28,178,311", "category": "MD_CONSUMER_STRICT", "notes": "Reads + mutates TASK_BOARD.md. Reads receipts file (already JSONL). Errors if md row pattern not found."},
+      {"helper": "wp-traceability-set", "path": ".GOV/roles/orchestrator/scripts/wp-traceability-set.mjs:59-73", "category": "MIXED", "notes": "Already uses migrateRegistryFromMarkdownIfNeeded() -> JSON-primary. BUT resolvePacketPath() only looks for .md (line 62) or stub .contract.json (line 64-66). Won't find JSON-only packets."},
+      {"helper": "build-order-sync", "path": ".GOV/roles_shared/scripts/build-order-sync.mjs:29-32,138", "category": "MD_CONSUMER_STRICT + MD_GENERATOR", "notes": "Reads BUILD_ORDER.md, TASK_BOARD.md, WP_TRACEABILITY_REGISTRY.md, packet md/stubs. Regenerates AUTOGEN block inside BUILD_ORDER.md."},
+      {"helper": "wp-contract-import", "path": ".GOV/roles_shared/scripts/wp/wp-contract-import.mjs + work-packet-contract-read-lib.mjs:707-800", "category": "MD_GENERATOR (auto-runs md fallback)", "notes": "Reads legacy md, builds JSON contract, writes BOTH json+md. The fallback_projection_written branch (line 858-888) is the auto-md offender. Must become opt-in via --projection-md."},
+      {"helper": "orchestrator-next", "path": ".GOV/roles/orchestrator/scripts/orchestrator-next.mjs:588-839", "category": "MD_CONSUMER_STRICT", "notes": "Drives the entire orchestrator state machine off validateRefinementFile() + defaultRefinementPath(). Resume logic stages depend on md existence + validity."},
+      {"helper": "activation-manager", "path": ".GOV/roles/activation_manager/scripts/activation-manager.mjs:290-308", "category": "MIXED", "notes": "Already calls readWorkPacketRefinementContract() (JSON-aware), THEN falls back to validateRefinementFile() on the md. The fallback dominates because schemas are loose."},
+      {"helper": "coder/pre-work-check", "path": ".GOV/roles/coder/checks/pre-work-check.mjs:1004,1472", "category": "MD_CONSUMER_STRICT", "notes": "Validates signed refinement md before coder can claim."},
+      {"helper": "orchestrator-prepare-and-packet", "path": ".GOV/roles/orchestrator/scripts/orchestrator-prepare-and-packet.mjs", "category": "MIXED_LIKELY", "notes": "Composite wrapper around prepare + create-task-packet; inherits both md dependencies."},
+      {"helper": "closeout-repair", "path": ".GOV/roles/orchestrator/scripts/closeout-repair.mjs", "category": "MIXED", "notes": "Uses md path conventions; effect on JSON-only WPs unknown until tested."},
+      {"helper": "gov-check sub-checks", "path": "packet-truth-check.mjs:181, wp-activation-traceability-check.mjs:39, wp-communications-check.mjs:69, task-packet-claim-check.mjs:240", "category": "MIXED", "notes": "All iterate packet folders by globbing for packet.md. JSON-only packets are invisible to them today."}
+    ],
+    "schema_inventory": {
+      "schemas_location": ".GOV/roles_shared/schemas/",
+      "existing_schemas": [
+        {"file": "REFINEMENT_CONTRACT.schema.json", "id": "hsk.refinement_contract@1", "tightness": "LOOSE", "notes": "refinement: { type: object }, no required semantic fields. Has markdown_projection.status enum including LEGACY_AUTHORITY."},
+        {"file": "WORK_PACKET_CONTRACT.schema.json", "id": "hsk.work_packet_contract@1", "tightness": "SLIGHTLY_TIGHT", "notes": "lifecycle.status, lifecycle.risk_tier required, but scope, refinement, microtasks are loose objects."},
+        {"file": "MICRO_TASK_CONTRACT.schema.json", "id": "hsk.microtask_contract@1", "tightness": "LOOSE", "notes": "Only lifecycle.status required."},
+        {"file": "WORKFLOW_CONTRACT, WP_RECEIPT, WP_RUNTIME_STATUS, SESSION_CONTROL_REQUEST/RESULT, SESSION_LAUNCH_REQUEST, NUDGE_PAYLOAD, COMPUTED_POLICY_GATE, POLICY_WAIVER_LEDGER, ROLE_SESSION_REGISTRY, inter_role_verbs/*"}
+      ],
+      "schema_gap": "No schema captures the business rules in validateRefinementFile(): required sections per enforcement profile, SPEC_TARGET_SHA1 cross-check, ENRICHMENT_NEEDED/CLEARLY_COVERS_VERDICT enums, USER_APPROVAL_EVIDENCE format, signature format, stub WP IDs validation. These rules MUST be re-expressed somewhere before the gate can be flipped (either as JSON Schema constraints, or as imperative validateRefinementContractSemantics() checks).",
+      "missing_schema_file": "hsk.work_packet_stub_contract@1 - referenced in spec but no schema file found at .GOV/roles_shared/schemas/. Phase 1 must verify whether the stub schema lives inline in .contract.json files (de facto schema) or whether it needs a dedicated file."
+    },
+    "role_protocol_grep_results": [
+      {"protocol": "KERNEL_BUILDER_PROTOCOL.md", "md_prerequisite_lines": [111, 372], "severity": "LIGHT", "notes": "Line 111 (just record-refinement), 372 (Markdown projections as safety-net). Mostly already JSON-first in language; minor cleanup."},
+      {"protocol": "ORCHESTRATOR_PROTOCOL.md", "md_prerequisite_lines": [403, 658, 659, 660, 661, 662, 663, 756], "severity": "HEAVY", "notes": "Special rule for record-refinement; packet.md/refinement.md path enumerations through 1700+ lines; needs systematic pass."},
+      {"protocol": "CODER_PROTOCOL.md", "md_prerequisite_lines": [358, 680, 690, 817, 824, 953, 1017, 1757, 1762], "severity": "MEDIUM", "notes": "Many 'current physical / legacy compatibility' path triples; needs added JSON variant."},
+      {"protocol": "VALIDATOR_PROTOCOL.md", "md_prerequisite_lines": [300, 410, 566, 999, 1117, 1204], "severity": "HEAVY", "notes": "APPEND-ONLY rule for validation verdicts to packet.md is the load-bearing constraint - must clarify whether verdicts move to packet.json lifecycle or stay as md append."},
+      {"protocol": "ACTIVATION_MANAGER_PROTOCOL.md", "md_prerequisite_lines": [272], "severity": "LIGHT", "notes": "Line 272 (record-refinement). Light."},
+      {"protocol": "WP_VALIDATOR_PROTOCOL.md", "md_prerequisite_lines": "NOT_GREPPED", "severity": "UNKNOWN", "notes": "Phase 3 must sweep."},
+      {"protocol": "INTEGRATION_VALIDATOR_PROTOCOL.md", "md_prerequisite_lines": "NOT_GREPPED", "severity": "UNKNOWN", "notes": "Phase 3 must sweep."},
+      {"protocol": "CLASSIC_ORCHESTRATOR_PROTOCOL.md", "md_prerequisite_lines": "NOT_GREPPED", "severity": "UNKNOWN", "notes": "Phase 3 must sweep."},
+      {"protocol": "MEMORY_MANAGER_PROTOCOL.md", "md_prerequisite_lines": "NOT_GREPPED", "severity": "UNKNOWN", "notes": "Phase 3 must sweep."}
+    ]
+  },
+
+  "section_b_refactor_strategy": {
+    "backward_compatibility": {
+      "decision": "DUAL_ACCEPTANCE_WITH_JSON_PRECEDENCE",
+      "rules": [
+        "Every gate that currently reads md must first call the JSON-aware resolver. If JSON contract exists -> validate with JSON semantics, ignore md entirely (md becomes silent projection, not authority).",
+        "If JSON contract is absent -> fall back to legacy md flow, emit a one-line deprecation warning: [RGF-324] legacy md authority for <wpId>; consider running 'just wp-contract-import <wpId>' to migrate.",
+        "Never auto-migrate during a gate run (read-only fallback). Migration is an explicit operator command.",
+        "Existing legacy md files stay readable, unmodified. No archive move in RGF-324 itself (deferred to RGF-325-Cleanup per non-goals)."
+      ]
+    },
+    "validation_strategy": {
+      "decision": "IMPERATIVE_SEMANTIC_VALIDATOR_IN_JS_NOT_JSON_SCHEMA",
+      "rationale": [
+        "JSON Schema cannot express 'if refinement_enforcement_profile === HYDRATED_RESEARCH_V1 then these 12 sub-fields are required' without ugly anyOf/if-then-else hacks.",
+        "Cross-validation (SPEC_TARGET_SHA1 must equal currently resolved spec sha1) is impossible in pure JSON Schema.",
+        "Same shape lets gates swap implementations with one import line change."
+      ],
+      "new_file": ".GOV/roles_shared/checks/refinement-contract-check.mjs",
+      "exported_function": "validateRefinementContract(refinementContract, {expectedWpId, requireSignature})",
+      "return_shape": "{ok, errors, parsed}",
+      "json_schema_role": "Cheap first-pass guard (schema_id, wp_id pattern, required top-level keys); called from inside validateRefinementContract before semantic checks."
+    },
+    "projection_md_opt_in_flag_pattern": {
+      "decision": "STANDARD_CLI_FLAG_ACROSS_ALL_GENERATORS_DEFAULT_OFF",
+      "flag_name": "--projection-md",
+      "behavior_when_off": "Only JSON written. Contract's markdown_projection.status set to NOT_GENERATED_BY_DEFAULT (matching KERNEL-004 refinement.json pattern at line 41).",
+      "behavior_when_on": "Generator writes the md projection alongside JSON.",
+      "per_generator_changes": [
+        "wp-contract-import.mjs: add --projection-md parsing. Wrap fs.writeFileSync at line 701 in if (opts.writeProjection). Rename fallback_projection_written branch at lib lines 858-888 to fallback_json_written, skip md.",
+        "create-task-packet.mjs: scaffold step at lines 199-221 currently writes REFINEMENT_TEMPLATE.md. Replace with REFINEMENT_TEMPLATE.json (must create the template) when scaffolding. Add --projection-md flag to also drop md scaffold.",
+        "task-board-set.mjs / wp-traceability-set.mjs / build-order-sync.mjs: md-projection writers for shared records. Their JSON-primary counterparts (wp_traceability_registry.json exists; TASK_BOARD.json + BUILD_ORDER.json need design) become authority. The md write becomes opt-in --projection-md. Phase 4 work."
+      ]
+    },
+    "operator_demand_path": {
+      "primary_interface": "just <generator> <args> --projection-md",
+      "no_interactive_prompt": "Codex/Claude can pass the flag from operator's chat instruction.",
+      "trigger_phrase_documentation": "Document in KERNEL_BUILDER_PROTOCOL.md: 'If operator says give me a readable refinement or equivalent, append --projection-md to the relevant just recipe.'",
+      "optional_convenience_recipe": "just project-md <wpId> that runs all relevant projection generators against one WP packet."
+    }
+  },
+
+  "section_c_per_helper_implementation_sketches": [
+    {
+      "helper": "orchestrator_gates.mjs refine action (lines 208-281)",
+      "sketch": "Add import: validateRefinementContract from new refinement-contract-check.mjs and readWorkPacketRefinementContract from work-packet-contract-read-lib.mjs. Replace defaultRefinementPath(wpId) + validateRefinementFile(...) block with: call readWorkPacketRefinementContract(wpId); if source === 'PRIMARY_MACHINE_READABLE', call validateRefinementContract(refinementState.contract, {expectedWpId: wpId}) and use that result; if source === 'LEGACY_AUTHORITY' or source === 'MISSING', keep current md flow but emit deprecation warning. The enrichmentNeeded and clearlyCoversVerdict extraction at lines 235-236 reads md content - replace with refinementState.contract.refinement.enrichment_needed and refinementState.contract.refinement.clearly_covers_verdict for JSON branch. Update gate output text to reference refinement.json (or md path if legacy branch)."
+    },
+    {
+      "helper": "orchestrator_gates.mjs sign action (lines 283-507)",
+      "sketch": "Same dual-branch dispatch as refine action for validation. Critical mutation at line 411 (fs.writeFileSync(refinementPath, updated) injects USER_SIGNATURE into md). On JSON branch: mutate the JSON contract instead - read refinement.json, set refinement.user_review_status = 'APPROVED' and refinement.user_signature = signature, write back via stable JSON formatter. USER_APPROVAL_EVIDENCE check at lines 369-385: same swap - refinementContract.refinement.user_approval_evidence instead of md regex. SIGNATURE_AUDIT.md append at line 437 stays as-is (operator audit log, separate concern from RGF-324 scope)."
+    },
+    {
+      "helper": "orchestrator_gates.mjs prepare action (lines 579-756)",
+      "sketch": "The preparePacketTruthState(wpId, candidatePrepare, REPO_ROOT) call at line 678 needs JSON-aware packet existence detection. Either: extend preparePacketTruthState in role-resume-utils.mjs to accept packetContractPath, or precompute packetExists from new resolveWorkPacketContractPath(wpId) and pass it in."
+    },
+    {
+      "helper": "create-task-packet.mjs",
+      "sketch": "Line 196-250 scaffold creation: Add a new REFINEMENT_TEMPLATE.json template under .GOV/templates/. Default scaffolding emits refinement.json at the JSON-first path (.GOV/task_packets/<wpId>/refinement.json). With --projection-md, also write the md scaffold. Line 252: validateRefinementFile(... requireSignature: true) -> validateRefinementContract(contract, {expectedWpId: WP_ID, requireSignature: true}). Line 1501: defaultRefinementPath reference is informational (path in error message); use the JSON contract path if JSON-first, else md path."
+    },
+    {
+      "helper": "task-board-set.mjs",
+      "sketch": "Define TASK_BOARD.schema.json for hsk.task_board@1 (rows: wp_id, status, context, reason, timestamp, signer). Implement task-board-lib.mjs with readTaskBoard(): TaskBoard, upsertEntry(wpId, fields), persistTaskBoard(). Mirror the migrateRegistryFromMarkdownIfNeeded() pattern from traceability-registry-lib.mjs: parse legacy TASK_BOARD.md once into task_board.json, then JSON wins. task-board-set.mjs becomes a thin wrapper that calls upsert + persist. The md regeneration becomes opt-in via --projection-md."
+    },
+    {
+      "helper": "wp-traceability-set.mjs",
+      "sketch": "Already JSON-primary. The blocker is resolvePacketPath() at lines 59-73: only checks packet.md and stub.contract.json. Add JSON check: path.join(OFFICIAL_DIR, activeWpId, 'packet.json') and path.join(OFFICIAL_DIR, activeWpId + '.json') for flat layout. Prefer JSON if present."
+    },
+    {
+      "helper": "build-order-sync.mjs",
+      "sketch": "Replace readText(BUILD_ORDER_PATH)-then-regex flow with a build_order.json-primary state file. Migrate legacy parse on first run. AUTOGEN block in md stays but only writes when --projection-md is on; otherwise the JSON file IS the authority. parseRegistryRows() reads WP_TRACEABILITY_REGISTRY.md (lines 73-98) - switch to reading wp_traceability_registry.json directly. The json registry already exists and is the authority per RGF-321/322 era. Packet path enumeration via inferWpIdFromPacketPath() (md-only) needs JSON sibling."
+    },
+    {
+      "helper": "wp-contract-import.mjs + work-packet-contract-read-lib.mjs",
+      "sketch": "Add --projection-md flag parsing to wp-contract-import.mjs. Pass through to importWorkPacketContracts(wpId, {dryRun, repair, writeProjection}). writeImportedContractPair() (line 681 in lib): wrap line 701 (fs.writeFileSync(projectionAbsPath, ...)) in if (opts.writeProjection). Also short-circuit stripGeneratedProjectionHeader(readTextIfExists(projectionAbsPath)) to skip md round-tripping when projection writing is off. The fallback_projection_written branch (lines 858-888) needs renaming and JSON-only fallback: write a synthetic JSON contract from inferred fields instead of an md projection. listWorkPacketIdsForContractImport() (line 133): iterate by packet.json OR packet.md to discover JSON-only packets."
+    },
+    {
+      "helper": "orchestrator-next.mjs (lines 583-660, 800-845)",
+      "sketch": "summarizeResumeState() drives the orchestrator's auto-recommended next stage. Replace defaultRefinementPath + validateRefinementFile pair with the JSON-aware resolver + validateRefinementContract semantic check. Same change at lines 812-839 (second usage in different code path). resolveWorkPacketPath(wpId)?.packetPath at line 589 must also try JSON contract path; recommend a new helper resolveAnyPacketAuthority(wpId) that returns {kind: 'json'|'md'|'missing', path, absPath}."
+    },
+    {
+      "helper": "coder/pre-work-check.mjs (lines 1004, 1472)",
+      "sketch": "Line 1004-1006: same JSON-first dispatch. requireSignature: true -> must check JSON contract has refinement.user_signature non-empty + approval evidence present. Line 1472: path is used in error message; choose JSON or md based on which exists."
+    },
+    {
+      "helper": "activation-manager.mjs (lines 290-308)",
+      "sketch": "Already nearly correct - uses readWorkPacketRefinementContract. Just needs to prefer refinementContract semantic check when source === 'PRIMARY_MACHINE_READABLE' and skip validateRefinementFile entirely in that branch."
+    },
+    {
+      "helper": "runtime-paths.mjs (additive)",
+      "sketch": "Add resolveWorkPacketContractPath(wpId), resolveRefinementContractPath(wpId), resolveMicrotaskContractGlob(wpId), resolveAnyPacketAuthority(wpId) (returns kind tag). These do NOT replace existing functions - they sit alongside. Update inferWpIdFromPacketPath() to also recognize .json and packet.json."
+    },
+    {
+      "helper": "gov-check sub-checks (packet-truth, wp-activation-traceability, wp-communications, task-packet-claim)",
+      "sketch": "All four iterate folders looking for packet.md. Update the discovery regex to packet\\.(md|json) and prefer the JSON when both exist. None of these mutate md; they're consumers - risk is low."
+    }
+  ],
+
+  "section_d_ordering_dependencies": {
+    "phase_1_foundation": {
+      "parallelizable": false,
+      "estimated_hours": 8,
+      "steps": [
+        {"step": 1, "task": "runtime-paths.mjs JSON-aware resolvers (additive, no mutation of existing functions)", "hours": 2},
+        {"step": 2, "task": "refinement-contract-check.mjs new file implementing validateRefinementContract(contract, opts) semantic validator. Includes JSON Schema first-pass + business rules port from validateRefinementFile.", "hours": 4},
+        {"step": 3, "task": "Unit tests for both above against KERNEL-004 refinement.json (positive case) and ~5 legacy md WPs imported to JSON via wp-contract-import --dry-run (regression corpus).", "hours": 2}
+      ]
+    },
+    "phase_2_gate_consumer_refactor": {
+      "parallelizable": true,
+      "estimated_hours_total": 13,
+      "tracks": [
+        {"id": "Track 2A", "name": "Orchestrator gates", "hours": 6, "scope": ["orchestrator_gates.mjs refine + sign + prepare actions", "orchestrator-next.mjs resume state machine", "create-task-packet.mjs scaffold + signature gate", "orchestrator-prepare-and-packet.mjs composite wrapper"]},
+        {"id": "Track 2B", "name": "Coder + validator + activation", "hours": 3, "scope": ["coder/pre-work-check.mjs", "activation_manager.mjs (mostly cleanup ~30 min)", "Validator scripts: pass-through audit, light fixes only"]},
+        {"id": "Track 2C", "name": "Generator opt-in flags", "hours": 4, "scope": ["wp-contract-import.mjs --projection-md flag + lib refactor", "create-task-packet.mjs --projection-md for scaffolding", "REFINEMENT_TEMPLATE.json new template file (must design schema-compliant skeleton)"]}
+      ]
+    },
+    "phase_3_shared_record_json_primary": {
+      "parallelizable": true,
+      "estimated_hours_total": 9,
+      "depends_on_phase": 2,
+      "tracks": [
+        {"id": "Track 3A", "name": "Task board JSON-primary", "hours": 4, "scope": ["task_board.json + task-board-lib.mjs + task-board-set.mjs rewrite"]},
+        {"id": "Track 3B", "name": "Build order JSON-primary", "hours": 4, "scope": ["build_order.json + build-order-sync.mjs rewrite"]},
+        {"id": "Track 3C", "name": "Traceability resolver fix", "hours": 1, "scope": ["wp-traceability-set.mjs JSON-packet detection"], "fold_suggestion": "Can fold into 3A or 3B"}
+      ]
+    },
+    "phase_4_role_protocols_govcheck": {
+      "parallelizable": true,
+      "estimated_hours": 8,
+      "depends_on_phase": 2,
+      "can_overlap_phase": 3,
+      "tasks": [
+        {"task": "Update 9 role protocol md files with JSON-first language", "hours": 3, "subagent_suggestion": "Single tracked sweep"},
+        {"task": "Update 4 gov-check sub-checks to discover JSON packets", "hours": 2},
+        {"task": "Add new legacy-md-prerequisite-check.mjs that asserts no helper requires md by scanning helper sources for forbidden patterns", "hours": 3}
+      ]
+    },
+    "phase_5_smoke_test_closeout": {
+      "parallelizable": false,
+      "estimated_hours": 2.5,
+      "final": true,
+      "tasks": [
+        {"task": "Run full chain record-refinement -> record-signature -> record-prepare -> task-board-set -> wp-traceability-set -> build-order-sync on KERNEL-004 with JSON only", "hours": 1},
+        {"task": "Verify zero md files created under .GOV/refinements/ or .GOV/task_packets/<KERNEL-004>/", "hours": 0.5},
+        {"task": "Add deprecation banner script that walks existing legacy md and prepends one-line banner pointing at JSON-first authority", "hours": 1}
+      ]
+    },
+    "critical_path_dependency_graph": "Phase 1.1 (resolvers) -> Phase 1.2 (semantic validator) -> Phase 1.3 (tests) -> Phase 2A + 2B + 2C (parallel) -> Phase 3A + 3B + 3C (parallel) + Phase 4 (parallel) -> Phase 5 (smoke test)"
+  },
+
+  "section_e_verification_plan": {
+    "per_helper_verification": [
+      "Unit test JSON-only path: synthetic WP with only refinement.json + packet.json + MT-001.json. Helper completes without referencing md path.",
+      "Unit test legacy md path: existing WP with only md. Helper completes with deprecation warning. No behavior change.",
+      "Unit test dual path: WP with both. JSON wins, md ignored, no warning.",
+      "Integration test: helper invoked via its just recipe end-to-end against KERNEL-004 (JSON-only) and against WP-1-Calendar-Storage-v2 (md-only, randomly chosen legacy regression target)."
+    ],
+    "test_fixtures_needed": [
+      ".GOV/roles_shared/fixtures/rgf-324/json-only-wp/ - synthetic complete WP fixture: packet.json, refinement.json, MT-001.json, all schema-compliant, signed",
+      ".GOV/roles_shared/fixtures/rgf-324/md-only-wp/ - legacy md fixture: packet.md, refinement.md with all required sections",
+      ".GOV/roles_shared/fixtures/rgf-324/dual-wp/ - both present, JSON authoritative",
+      ".GOV/roles_shared/fixtures/rgf-324/json-malformed-wp/ - JSON missing required semantic fields; semantic validator should reject",
+      "Refinement regression corpus: 5-10 existing md refinements run through wp-contract-import --dry-run then validated by validateRefinementContract. All must pass."
+    ],
+    "new_govcheck_subcheck": {
+      "file": ".GOV/roles_shared/checks/legacy-md-prerequisite-check.mjs",
+      "scans": [".GOV/roles*/**/*.mjs"],
+      "forbidden_patterns": [
+        "validateRefinementFile( without a sibling validateRefinementContract( import or call in the same file",
+        "fs.existsSync(...refinement.md) as a hard gate (followed by process.exit, fail(, or throw)",
+        "Auto-md writes: fs.writeFileSync(...\\.md.*, ...) outside an opts.writeProjection guard"
+      ],
+      "registration": "Register the check in gov-check.mjs checkSteps array. Fail on any hit."
+    },
+    "kernel004_end_to_end_smoke": [
+      "just record-refinement WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+      "just record-signature WP-KERNEL-004-... ilja180520260209 MANUAL_RELAY CODER_1",
+      "just record-prepare WP-KERNEL-004-... MANUAL_RELAY CODER_1",
+      "just task-board-set WP-KERNEL-004-... READY_FOR_DEV 'RGF-324 smoke'",
+      "just wp-traceability-set WP-KERNEL-004-... WP-KERNEL-004-... 'RGF-324 smoke'",
+      "just build-order-sync",
+      "just gov-check"
+    ],
+    "regression_guard": "After all phases, run just gov-check and just protocol-ack against a snapshot of 5 active legacy WPs. All must still pass."
+  },
+
+  "section_f_risks_controls": [
+    {"id": "F.1", "risk": "Schema looseness drift", "description": "hsk.refinement_contract@1 accepts any refinement: {}. Signed packets with empty semantic fields pass validation.", "control": "Implement validateRefinementContractSemantics() BEFORE flipping gates. Run against regression corpus (5-10 imported legacy refinements). If any pass that should fail, tighten rules."},
+    {"id": "F.2", "risk": "Backward compat for in-flight WPs", "description": "~150 legacy WPs would break if JSON becomes required.", "control": "Dual-acceptance dispatch - JSON wins if present, md still works if no JSON, deprecation warning on md path. Never force migration during a gate run."},
+    {"id": "F.3", "risk": "Path resolver assumptions in downstream scripts", "description": "Changing resolveWorkPacketPath() to return packet.json for JSON-only WPs breaks 35+ md-parsing consumers.", "control": "Keep resolveWorkPacketPath() semantics unchanged for md-only packets. Add NEW sibling functions (resolveWorkPacketContractPath, resolveAnyPacketAuthority). Migrate consumers explicitly, one at a time, with tests."},
+    {"id": "F.4", "risk": "USER_SIGNATURE one-time-use guard via git-grep", "description": "record-signature at line 400 calls v2GitGrepOrEmpty(signature) to enforce one-time signature use across the entire repo. If signatures move from md to JSON, grep still works (it searches all tracked text), but if the JSON write is malformed or the file is in .gitignore, the guard fails open.", "control": "Explicitly add JSON file glob to the grep target. Add unit test asserting a signature already in refinement.json is detected."},
+    {"id": "F.5", "risk": "SIGNATURE_AUDIT.md table mutation", "description": "record-signature at line 437 appends a markdown table row to SIGNATURE_AUDIT.md. This is operator audit log, not a refinement gate. Out of RGF-324 scope but worth noting.", "control": "Explicitly mark SIGNATURE_AUDIT.md as operator-readable journal, not a JSON-first target. Document in Section H non-goals."},
+    {"id": "F.6", "risk": "TASK_BOARD.md / BUILD_ORDER.md ecosystem creep", "description": "Making task board and build order JSON-primary spreads RGF-324 scope into wider records-management territory. Many downstream consumers (orchestrator, validator, kernel-builder protocols) reference TASK_BOARD.md directly by path.", "control": "Keep md projection writes ENABLED by default for task-board-set and build-order-sync (treat as record/projection generators, not gates). The JSON becomes additional authority, md keeps generating. The --projection-md opt-out comes in a follow-on RGF if operator wants md-off for shared records too."},
+    {"id": "F.7", "risk": "Stub contract schema undefined", "description": "hsk.work_packet_stub_contract@1 referenced in spec but no schema file found.", "control": "Phase 1 must verify whether the schema lives inline in stub .contract.json files (de facto schema) or whether it needs creation. If creation needed, add to Phase 1 scope (+2h)."},
+    {"id": "F.8", "risk": "Rollback path", "description": "A phase ships and breaks production gates.", "control": "Every gate keeps its legacy md branch behind a RGF_324_LEGACY_MODE env var (default off). Flipping the env var to on restores legacy-only behavior, instantly. Remove the env-var fallback in a Phase 6 cleanup RGF only after 14 days of clean production."},
+    {"id": "F.9", "risk": "Subagent context-loss risk", "description": "Handing 4+ parallel tracks to subagents may lose the dual-acceptance invariant.", "control": "Write an rgf-324-invariants.md (single-page brief) at the start of Phase 2 listing 5 hard rules every implementer must follow. Pin it as the first read of every subagent prompt."}
+  ],
+
+  "section_g_effort_estimate": {
+    "total_sequential_hours": 40,
+    "total_parallel_wall_clock_hours": 28,
+    "phase_breakdown": [
+      {"phase": 1, "name": "Foundation (resolvers, validator, tests)", "hours": 8, "parallelizable": false, "subagent": "Single Opus session"},
+      {"phase": "2A", "name": "Orchestrator gates", "hours": 6, "parallelizable": true, "subagent": "Subagent A"},
+      {"phase": "2B", "name": "Coder + validator + activation", "hours": 3, "parallelizable": true, "subagent": "Subagent B"},
+      {"phase": "2C", "name": "Generator opt-in flags", "hours": 4, "parallelizable": true, "subagent": "Subagent C"},
+      {"phase": "3A", "name": "Task board JSON-primary", "hours": 4, "parallelizable": true, "subagent": "Subagent D"},
+      {"phase": "3B", "name": "Build order JSON-primary", "hours": 4, "parallelizable": true, "subagent": "Subagent E"},
+      {"phase": "3C", "name": "Traceability resolver fix", "hours": 1, "parallelizable": true, "subagent": "Fold into 3A or 3B"},
+      {"phase": 4, "name": "Role protocols + gov-check coverage", "hours": 8, "parallelizable": true, "subagent": "Subagent F (protocols), Subagent G (gov-check)"},
+      {"phase": 5, "name": "KERNEL-004 smoke + deprecation banner", "hours": 2.5, "parallelizable": false, "subagent": "Main orchestrator"}
+    ],
+    "subagent_delegation_suggestions": {
+      "phase_1": "Single Opus session - too foundational to split",
+      "phase_2": "Spawn 3 Sonnet/Opus subagents on tracks 2A/2B/2C. Each gets rgf-324-invariants.md + Phase 1 outputs + one track's helper list",
+      "phase_3": "Spawn 2 subagents on 3A/3B (each owns a new shared record JSON design + helper rewrite)",
+      "phase_4": "Spawn 1 subagent on protocol sweep (mechanical), 1 on gov-check sub-check JSON discovery, 1 on new legacy-md-prerequisite-check.mjs",
+      "phase_5": "Main orchestrator runs smoke test directly to maintain context for closeout report"
+    }
+  },
+
+  "section_h_non_goals": [
+    "Rewriting all existing legacy md refinement files. ~150 WPs have legacy md authority. Migration is per-WP-on-demand via just wp-contract-import <wpId>, not bulk.",
+    "Deleting or archiving legacy md files. Banner annotation only. A future RGF-325-Cleanup can move them to .GOV/reference/legacy/deprecated/refinements/ once 30+ days of clean JSON-first production prove no consumer regressions.",
+    "Spec/SPEC_CURRENT JSON-first migration. Out of scope - already partially done via indexed-spec-manifest.json (per RGF-318). The resolveSpecCurrent() integration into refinement-contract-check.mjs reuses existing behavior unchanged.",
+    "SIGNATURE_AUDIT.md table -> JSON. Operator audit journal; not a gate. Separate concern.",
+    "WP_TRACEABILITY_REGISTRY.md / BUILD_ORDER.md / TASK_BOARD.md md-OFF by default. Per Section F.6, these stay as md-projection-generators with md ON by default. RGF-324 only adds JSON as additional authority and removes the implicit md requirement from CONSUMING helpers.",
+    "Communication runtime files (THREAD.md, RECEIPTS.jsonl, RUNTIME_STATUS.json, NOTIFICATIONS.jsonl). Already JSON-mostly. No RGF-324 changes.",
+    "Microtask scaffold templates. No MT template currently auto-creates md; KERNEL-004 proves MT-NNN.json works as-is. Skip.",
+    "Orchestrator chat-visible refinement proof requirement (RGF-01 from RGF board). The 'paste the full Technical Refinement Block in chat' requirement at orchestrator_gates.mjs:271-274 is a separate operator-policy concern. Keep enforcing it but emit the JSON contract as the paste-target instead of md file content. Touch only the format reference, not the policy.",
+    "Removing validateRefinementFile() from refinement-check.mjs. Deprecate, do not delete. It still works for pure-md legacy WPs and serves as the reference for validateRefinementContract() business rules.",
+    "Coder/validator product code surfaces. Scope is governance helpers only."
+  ],
+
+  "section_i_acceptance_criteria": [
+    "KERNEL-004 can run just record-refinement -> record-signature -> record-prepare -> task-board-set -> wp-traceability-set -> build-order-sync -> gov-check end-to-end on JSON-only artifacts with zero md files created under .GOV/refinements/ or .GOV/task_packets/WP-KERNEL-004-.../",
+    "Any legacy md-only WP (e.g., WP-1-Calendar-Storage-v2) still passes the same chain unchanged, with a one-line deprecation warning emitted per gate.",
+    "New file .GOV/roles_shared/checks/refinement-contract-check.mjs exists with validateRefinementContract(contract, {expectedWpId, requireSignature}) exported and unit-tested.",
+    "runtime-paths.mjs exposes resolveWorkPacketContractPath, resolveRefinementContractPath, resolveMicrotaskContractGlob, resolveAnyPacketAuthority - all additive, no breaking changes to existing exports.",
+    "wp-contract-import.mjs defaults to JSON-only output. --projection-md flag is required to write any md projection. The fallback_projection_written branch is gone or renamed.",
+    "create-task-packet.mjs scaffolds refinement.json (not md) by default. New template .GOV/templates/REFINEMENT_TEMPLATE.json exists.",
+    "legacy-md-prerequisite-check.mjs is registered in gov-check and passes - no helper has a hard md gate without a JSON branch.",
+    "All 9 role protocol md files have JSON-first language alongside legacy md path references. Operator can read any protocol and understand JSON is authority.",
+    "Existing legacy refinement md files have a one-line deprecation banner prepended (<!-- RGF-324 LEGACY MD AUTHORITY: This file is no longer the source of truth if refinement.json exists for this WP. -->).",
+    "No regressions in existing gov-check, protocol-ack, or test-suite runs. RGF_324_LEGACY_MODE=1 env var can flip every refactored gate back to md-only for emergency rollback."
+  ],
+
+  "section_j_open_questions_for_operator": [
+    {"id": "Q1", "topic": "Schema strictness", "question": "Should hsk.refinement_contract@1 schema be tightened to require all the semantic fields that validateRefinementContractSemantics() will check (preferred for catching JSON-authoring bugs at write time), or kept loose with semantic validation only at gate time (preferred for backward compat with already-signed contracts)?"},
+    {"id": "Q2", "topic": "TASK_BOARD/BUILD_ORDER md default", "question": "The plan keeps md projection ON by default for shared records. Is that correct, or should they go md-off-by-default too (consistent with refinement/packet)? If md-off, downstream operator habits of 'cat TASK_BOARD.md' break."},
+    {"id": "Q3", "topic": "REFINEMENT_TEMPLATE.json design", "question": "Should the JSON scaffolding template be an empty schema-compliant skeleton (operator/Kernel Builder fills it), or pre-populated with sensible HYDRATED_RESEARCH_V1 defaults? KERNEL-004's refinement.json is a reasonable seed."},
+    {"id": "Q4", "topic": "Migration tooling", "question": "Should RGF-324 ship a just migrate-legacy-md <wpId> recipe that automates per-WP md->json migration with operator approval? Or strictly leave that to wp-contract-import as-is?"},
+    {"id": "Q5", "topic": "Deprecation banner scope", "question": "Add banner to legacy md only when JSON contract exists for the same WP, or banner all legacy md universally? The former is safer (avoids banner pollution on WPs with no JSON yet); the latter is more discoverable."},
+    {"id": "Q6", "topic": "Stub contract schema", "question": "I did not find a JSON Schema file for hsk.work_packet_stub_contract@1. Should Phase 1 author one, or is the de facto inline structure acceptable as authority?"},
+    {"id": "Q7", "topic": "Validator append-only", "question": "VALIDATOR_PROTOCOL.md lines 999, 1204 enforce 'MANDATORY APPEND every validation verdict to packet.md'. For JSON-first packets, should verdicts go into packet.json.lifecycle.validation_verdicts array (mutates JSON), into a sibling validation_verdicts.jsonl, or stay md-append even on JSON-first packets? This is a meaningful semantic choice."},
+    {"id": "Q8", "topic": "Subagent model selection", "question": "Are Sonnet subagents acceptable for Phase 2 tracks (mechanical refactor with clear test boundaries), or should Opus run all tracks? The mechanical nature of dual-branch dispatch insertion suggests Sonnet is fine, but the schema/semantic validator (Phase 1.2) deserves Opus."}
+  ],
+
+  "critical_files_tier_1": [
+    ".GOV/roles_shared/scripts/lib/runtime-paths.mjs",
+    ".GOV/roles_shared/checks/refinement-check.mjs",
+    ".GOV/roles/orchestrator/checks/orchestrator_gates.mjs",
+    ".GOV/roles_shared/scripts/lib/work-packet-contract-read-lib.mjs",
+    ".GOV/roles_shared/scripts/wp/wp-contract-import.mjs"
+  ],
+
+  "critical_files_tier_2": [
+    ".GOV/roles/orchestrator/scripts/orchestrator-next.mjs",
+    ".GOV/roles/orchestrator/scripts/create-task-packet.mjs",
+    ".GOV/roles/orchestrator/scripts/task-board-set.mjs",
+    ".GOV/roles/orchestrator/scripts/wp-traceability-set.mjs",
+    ".GOV/roles_shared/scripts/build-order-sync.mjs",
+    ".GOV/roles/coder/checks/pre-work-check.mjs",
+    ".GOV/roles/activation_manager/scripts/activation-manager.mjs",
+    ".GOV/roles_shared/schemas/REFINEMENT_CONTRACT.schema.json",
+    ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/refinement.json"
+  ]
+}

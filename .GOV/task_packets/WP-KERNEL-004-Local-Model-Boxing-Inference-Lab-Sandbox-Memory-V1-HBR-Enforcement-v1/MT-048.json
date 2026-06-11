@@ -1,0 +1,162 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-048",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "B",
+  "cluster_subscope": "B.1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:10:00Z",
+  "updated_at_utc": "2026-05-28T00:01:44.898Z",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-048.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "Sandbox Tauri IPC: kernel.sandbox.list_adapters + capabilities(adapter_id) + bootstrap registry wiring",
+  "goal": "Expose the registered SandboxAdapter set + their AdapterCapabilities to the frontend via Tauri IPC per spec §3.5.4 ('the frontend reads via Tauri IPC'). Also lands the application bootstrap that constructs the registry, registers WSL2PodmanAdapter (default) + WindowsNativeJailAdapter (if MT-046 unblocked) + DockerAdapter (registered but not opt-in), and stores the registry in Tauri app state for the IPC handlers.",
+  "expected_diff_shape": "New Tauri command module app/src-tauri/src/commands/sandbox.rs exposing `kernel_sandbox_list_adapters` and `kernel_sandbox_capabilities`; bootstrap addition in app/src-tauri/src/main.rs (or lib.rs) constructing SandboxAdapterRegistry and managing it via `tauri::Manager::manage`; new src/backend/handshake_core/src/sandbox/bootstrap.rs that builds the canonical registry for both Tauri runtime and integration tests. Frontend type stubs under app/src/components/diagnostics/sandbox/types.ts (TS interface mirroring AdapterCapabilities).",
+  "owned_files": [
+    "src/backend/handshake_core/src/sandbox/bootstrap.rs",
+    "src/backend/handshake_core/src/sandbox/mod.rs",
+    "app/src-tauri/src/commands/sandbox.rs",
+    "app/src-tauri/src/main.rs",
+    "app/src/components/diagnostics/sandbox/types.ts"
+  ],
+  "depends_on_mts": [
+    "MT-042",
+    "MT-043",
+    "MT-044",
+    "MT-046",
+    "MT-047"
+  ],
+  "unblock_conditions": "Trait, registry, and all three adapter implementations merged. If MT-046 is BLOCKED (license escalation), MT-048 may proceed with WindowsNativeJailAdapter registration commented out + a TODO referencing the MT-045 decision record.",
+  "implementation_notes": "bootstrap.rs: `pub fn build_default_registry() -> Result<SandboxAdapterRegistry, SandboxAdapterError>` that (1) constructs WSL2PodmanAdapter (best-effort; if WSL2 not present, log warning + skip registration but continue), (2) constructs WindowsNativeJailAdapter on Windows (cfg target_os; on non-Windows, skip), (3) constructs DockerAdapter (best-effort; if docker CLI missing, skip), (4) calls SandboxAdapterRegistry::new(default_adapter_id=\"wsl2_podman\") and registers each constructed adapter, (5) reads `settings.sandbox.docker_explicit_opt_in` and calls set_docker_explicit_opt_in. If WSL2PodmanAdapter cannot be constructed AND no fallback adapter is available, log loud and return SandboxAdapterError::AdapterUnavailable (Handshake refuses to start without a default sandbox per spec §3.6.2). Tauri commands (app/src-tauri/src/commands/sandbox.rs): `#[tauri::command] async fn kernel_sandbox_list_adapters(registry: tauri::State<'_, Arc<SandboxAdapterRegistry>>) -> Result<Vec<AdapterCapabilities>, String>` returns `registry.list()` serialized; `#[tauri::command] async fn kernel_sandbox_capabilities(adapter_id: String, registry: tauri::State<'_, Arc<SandboxAdapterRegistry>>) -> Result<AdapterCapabilities, String>` returns `registry.get(&AdapterId(adapter_id)).map(|a| a.capabilities())`. Wire both into the Tauri builder's invoke_handler in main.rs. Frontend TS types in app/src/components/diagnostics/sandbox/types.ts mirror the AdapterCapabilities struct exactly (IsolationStrength, GpuPassthrough, ThroughputClass enums as TS union types). Add a tiny app/src/components/diagnostics/sandbox/SandboxAdapterList.tsx (or .vue per app stack — check existing app/src layout) that calls `invoke('kernel_sandbox_list_adapters')` and renders a read-only list — this is the Diagnostics-panel hook used later by cluster X. Tests: integration test that boots a fake Tauri context (per Tauri 2.x test-utils pattern) and invokes both commands; assertion that at least one adapter is registered AND default exists; assertion that capabilities(unknown_id) returns a typed error (mapped to a String per Tauri command convention but the error variant is structured).",
+  "proof_commands": [
+    "cargo build -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+    "cd app/src-tauri && cargo build --target-dir ../../../Handshake_Artifacts/tauri-cargo-target",
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target sandbox_bootstrap_tests"
+  ],
+  "risk_if_missed": "Without IPC, the frontend (Diagnostics Panel + ModelRuntime Control Panel cluster X surfaces) cannot read AdapterCapabilities, breaking AC-SANDBOX-CAP-DECL and downstream cluster X work; without bootstrap, the registry exists in code but is never instantiated at runtime.",
+  "validator_focus": "(a) Bootstrap survives missing WSL2 (skips registration, logs loud) but refuses to start with zero adapters; (b) Tauri commands serialize AdapterCapabilities to JSON; (c) Frontend TS types compile against the JSON shape (`tsc --noEmit` on the types file); (d) Docker is registered but selection.select() still refuses Docker without explicit opt-in.",
+  "hbr_obligations": [
+    "HBR-INT-001",
+    "HBR-QUIET-003"
+  ],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/03-local-first-infrastructure.md#3.5.4"
+  ],
+  "acceptance_criteria_refs": [
+    "AC-SANDBOX-CAP-DECL",
+    "AC-SANDBOX-ADAPTER-IMPLS"
+  ],
+  "lifecycle": {
+    "active": false,
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "CONCERN",
+    "depends_on": [
+      "MT-042",
+      "MT-043",
+      "MT-044",
+      "MT-046",
+      "MT-047"
+    ],
+    "blocks": [
+      "MT-049",
+      "MT-053",
+      "MT-057"
+    ],
+    "claimed_by": "KERNEL_BUILDER-20260518-211025",
+    "claimed_at_utc": "2026-05-18T21:00:00Z",
+    "dependency_override": {
+      "dependency": "MT-046",
+      "override_basis": "MT-048 unblock_conditions allow work to proceed when MT-046 is BLOCKED by license/escalation, with WindowsNativeJailAdapter registration skipped and a TODO/reference to the MT-045 decision record.",
+      "blocking_record": ".GOV/roles_shared/records/sandbox/WP-KERNEL-004-windows-native-jail-crate-license-audit.json"
+    },
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "COMPLETED",
+        "validator_verdict": "PENDING",
+        "completed_at_utc": "2026-05-18T22:03:24.160Z"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "previous_completed_at_utc_before_ready_for_validation_20260525": "2026-05-18T22:03:24.160Z",
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z"
+  },
+  "handoff": {
+    "coder_session": "KERNEL_BUILDER-20260518-211025",
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": "019e6be3-15c2-7f1c-8334-11be5a2d2bd3",
+    "review_response_receipt_actor_role": "INTEGRATION_VALIDATOR",
+    "review_response_receipt_track": "JUDGMENT_OOB_IV_PHASE1_PRE_REMEDIATION"
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Refuse-to-start test: bootstrap with zero adapters registered MUST return AdapterUnavailable, not a partially-functional registry.",
+      "TS types compile check (`tsc --noEmit` on types.ts) so frontend cannot drift from backend AdapterCapabilities shape.",
+      "Tauri-command unknown-adapter test returns a typed error rather than panicking inside the command handler."
+    ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_B_GAPS_REDO_WTC",
+    "reviewed_at_utc": "2026-05-27T22:30:00Z",
+    "aggregator_run_at_utc": "2026-05-28T00:01:31.342Z",
+    "verdict": "CONCERN",
+    "verdict_reason": "Bootstrap, Tauri IPC commands, and frontend TS types are landed and wired into the Tauri builder; refuse-to-start is tested; LoopbackOnly silently mapped to --network=none in the registered podman/docker adapters carries over here because bootstrap is the user of those adapters.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 1,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-048.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-048.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_B_GAPS_REDO_WTC",
+    "reviewed_at_utc": "2026-05-27T22:30:00Z",
+    "aggregator_run_at_utc": "2026-05-27T23:48:44.444Z",
+    "verdict": "CONCERN",
+    "verdict_reason": "Bootstrap, Tauri IPC commands, and frontend TS types are landed and wired into the Tauri builder; refuse-to-start is tested; LoopbackOnly silently mapped to --network=none in the registered podman/docker adapters carries over here because bootstrap is the user of those adapters.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 1,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "validator_reports_phase1/MT-048.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1\\validator_reports_phase1\\MT-048.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  }
+}

@@ -32,6 +32,19 @@ The Classic Orchestrator is the workflow authority for the manual relay workflow
 
 For approved spec enrichment, Classic Orchestrator resolves current spec authority through `.GOV/spec/SPEC_CURRENT.md` (`handshake.spec_current@1` JSON) to the active indexed bundle manifest, resolver `INDEX.json`, and ordered `spec-modules/`. Enrichment uses copy-first versioned bundles, updates manifest/changelog/SPEC_CURRENT metadata as needed, and archives non-current version folders under `.GOV/spec/spec_archive/`; `Handshake_Master_Spec_v*.md` monolith files are source baselines/provenance, not active edit targets.
 
+## HBR Gate Obligations
+
+This role must honor `HANDSHAKE_BUILD_RULES.json` v1.3.0+ (see Codex CX-131, Master Spec Section 5.6, registry at `.GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json`). Manual relay does not weaken HBR. It only changes who carries messages between governed roles.
+
+- Planning duty: before signature, packet hydration, microtask creation, or worktree preparation, map every touched feature, primitive, tool, model lane, storage path, sandbox/workspace/worktree surface, UI surface, automation surface, UserManual surface, and backend navigation path to applicable HBR acceptance rows.
+- Swarm duty: plan manual-relay work as if future local and cloud model swarms will execute the same packet without chat history. Typed routing, packet state, runtime state, worktree assignment, backend navigation, leases, cancellation, and recovery must be explicit enough for parallel agents.
+- Native-runtime duty: packet/refinement text must reject Docker Desktop, Docker Compose, third-party daemons, manually launched support apps, SQLite, SQL-portability shims, and mock-only storage as default proof for core Handshake behavior.
+- PostgreSQL/EventLedger duty: durable authority work must plan real PostgreSQL/EventLedger proof through Handshake-managed resources or an explicit real PostgreSQL URL, not legacy SQLite, in-memory storage, or prose assertions.
+- CRDT duty: collaborative workspace/operator-model co-work must carry CRDT persistence, reconnect/replay, conflict visibility, and promotion-gate proof requirements.
+- Visual duty: GUI/operator-surface work must require the internal visual/debug inspection path or headless GUI capture evidence; manual "looked OK" relay text is not a substitute unless the packet explicitly defines a bounded manual proof step.
+- UserManual duty: model-callable and operator-facing surface changes must require same-change UserManual updates, `MANUAL_VERSION` handling when applicable, and code-truth self-consistency evidence. Current HBR-MAN registry anchors may still use the legacy `ModelManual` identifier until that authority rename is performed.
+- Handoff duty: require HandoffGate (MT-004), `hbr-matrix-check`, and packet HBR matrix closure before manual relay closeout. Do not relay a PASS-shaped handoff while any required HBR row is `PENDING`, `STEER`, or `BLOCKED`.
+
 ## Current Indexed Master Spec Write Surface [CX-SPEC-IDX] (HARD)
 
 Classic Orchestrator is one of the only roles allowed to patch current Master Spec content. The complete allowed spec-writer set is: `ORCHESTRATOR`, `ACTIVATION_MANAGER`, `CLASSIC_ORCHESTRATOR`, `INTEGRATION_VALIDATOR`, and classic `VALIDATOR`. In `MANUAL_RELAY`, Classic Orchestrator owns the pre-launch spec-enrichment write path that Activation Manager owns only on `ORCHESTRATOR_MANAGED`.

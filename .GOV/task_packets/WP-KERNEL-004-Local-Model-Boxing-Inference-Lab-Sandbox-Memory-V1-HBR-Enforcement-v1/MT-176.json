@@ -1,0 +1,232 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-176",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "X",
+  "cluster_subscope": "X.1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:00:00Z",
+  "updated_at_utc": "2026-05-28T00:01:44.967Z",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-176.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "RoleMailboxThread + Message typed primitives (Rust + Postgres schema)",
+  "goal": "Land the foundational durable RoleMailboxThread and RoleMailboxMessage Rust types and Postgres migration for the cluster X mailbox preservation slice. Implements the thread lifecycle state machine (open / awaiting_response / waiting_on_linked_authority / escalated / resolved / expired / archived) and the message delivery state machine (queued / delivered / acknowledged / replied / ignored / failed / dead_lettered) per spec v02.186 §02-system-architecture.md role mailbox subsection [ADD v02.173]. This MT extends the KERNEL-002 role_mailbox surfaces (which seeded the export folder) with the typed thread + message authority types required by every downstream X.1 MT.",
+  "expected_diff_shape": "New Rust module src/backend/handshake_core/src/role_mailbox/mod.rs + src/backend/handshake_core/src/role_mailbox/thread.rs + src/backend/handshake_core/src/role_mailbox/message.rs + src/backend/handshake_core/src/role_mailbox/lifecycle.rs; new Postgres migration src/backend/handshake_core/migrations/0022_role_mailbox_threads_messages.sql; unit tests under src/backend/handshake_core/tests/role_mailbox_types_tests.rs.",
+  "owned_files": [
+    "src/backend/handshake_core/src/role_mailbox/mod.rs",
+    "src/backend/handshake_core/src/role_mailbox/thread.rs",
+    "src/backend/handshake_core/src/role_mailbox/message.rs",
+    "src/backend/handshake_core/src/role_mailbox/lifecycle.rs",
+    "src/backend/handshake_core/migrations/0022_role_mailbox_threads_messages.sql",
+    "src/backend/handshake_core/migrations/0022_role_mailbox_threads_messages.down.sql",
+    "src/backend/handshake_core/tests/role_mailbox_types_tests.rs",
+    "src/backend/handshake_core/Cargo.toml"
+  ],
+  "depends_on_mts": [],
+  "unblock_conditions": "KERNEL-002 role_mailbox export folder already exists in main (.GOV/roles_shared/exports/role_mailbox/); this MT layers the typed Rust + Postgres primitives on top. No KERNEL-004 prerequisite MTs.",
+  "implementation_notes": "Per spec v02.186 §02-system-architecture.md role mailbox subsections [ADD v02.173] and [ADD v02.176]: define `RoleMailboxThread { thread_id: Uuid (v7 per HBR-INT-008), title: String, linked_record_kind: LinkedRecordKind (WP|MT|RGF|FREEFORM), linked_record_id: Option<String>, lifecycle_state: ThreadLifecycleState, executor_kind_allowlist: Vec<ExecutorKind>, claim_mode: ClaimMode (Exclusive|Handoff|Open), lease_duration_secs: Option<u32>, takeover_policy: TakeoverPolicy, response_authority_scope: ResponseAuthorityScope, created_at_utc, updated_at_utc, expires_at_utc: Option, archived_at_utc: Option }`. Define `RoleMailboxMessage { message_id: Uuid v7, thread_id: Uuid v7, message_type: MessageType (placeholder enum here — populated by MT-179), from_role: RoleId, to_roles: Vec<RoleId>, expected_response: Option<ExpectedResponse>, expires_at_utc: Option, delivery_state: MessageDeliveryState, body: serde_json::Value, parent_message_id: Option<Uuid v7>, created_at_utc }`. ThreadLifecycleState transitions enforced by `lifecycle::transition(current, requested) -> Result<ThreadLifecycleState, InvalidTransition>` — must reject illegal transitions (e.g., `archived -> open`); allowed transitions follow spec lifecycle subsection. Same pattern for MessageDeliveryState. Postgres migration creates tables `role_mailbox_thread` and `role_mailbox_message` with FKs and indexes on (lifecycle_state, expires_at_utc) and (thread_id, created_at_utc). All Uuid mint sites MUST use uuid::Uuid::now_v7() per HBR-INT-008. Add serde + sqlx (postgres) + uuid (with v7 feature) + thiserror to Cargo.toml. Tests: (a) round-trip serde for Thread + Message; (b) lifecycle state machine exhaustive transition matrix; (c) Postgres migration runs cleanly against a fresh template (use sqlx::migrate! and a test container — see KERNEL-003 conftest pattern).",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target role_mailbox_types_tests",
+    "cargo check -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target"
+  ],
+  "risk_if_missed": "Without typed thread + message primitives, every X.1 MT reinvents the lifecycle state machine and the Postgres schema, causing silent semantic drift between mailbox tools and validators. The folded WP-1-Role-Mailbox-v1 stub intent (LLM role-to-role coordination without operator copy-paste, chat-is-not-state preservation) cannot land without this foundation.",
+  "validator_focus": "Lifecycle and delivery state machines reject every illegal transition with a typed error; Uuid v7 used at every mint site (no Uuid::new_v4 anywhere); Postgres migration is replay-safe (re-running on an already-migrated db is a no-op or rejects cleanly per spec §2.3.13.4.1).",
+  "hbr_obligations": [
+    "HBR-INT-008",
+    "HBR-SWARM-001"
+  ],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/02-system-architecture.md#role-mailbox-message-contract",
+    ".GOV/spec/master-spec-v02.186/spec-modules/05-security-and-observability.md#5.7"
+  ],
+  "acceptance_criteria_refs": [
+    "PRESERVED_INTENT:WP-1-Role-Mailbox-v1 (thread/message types with deterministic repo export)"
+  ],
+  "lifecycle": {
+    "active": false,
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "CONCERN",
+    "depends_on": [],
+    "blocks": [
+      "MT-177",
+      "MT-178",
+      "MT-179",
+      "MT-180",
+      "MT-181",
+      "MT-182",
+      "MT-183",
+      "MT-184",
+      "MT-189"
+    ],
+    "claimed_by": "KERNEL_BUILDER-20260521-091504",
+    "claimed_at_utc": "2026-05-21T09:48:14.22Z",
+    "integration_validator_verdict": "PENDING",
+    "postgres_test_url_live_evidence_20260525_continuation": {
+      "authoritative_integration_validator_pass": false,
+      "classification": "KERNEL_BUILDER_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+      "not_run_or_not_claimed": [],
+      "artifact_log_root": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs",
+      "implementation_or_hardening_notes": [
+        "Normalized handoff expires_at_utc to Postgres microsecond precision before bundle hashing."
+      ],
+      "postgres_test_url_redacted": "postgres://postgres:***@127.0.0.1:65432/handshake_test",
+      "proof": [
+        {
+          "log": "postgres-live-role_mailbox_v1_tests-mt_177-20260525-resume.log",
+          "scope": "role_mailbox_v1_tests MT-177",
+          "note": [
+            "MT-177 targeted repository lifecycle round trip passed.",
+            "Proof"
+          ],
+          "result": "passed"
+        }
+      ],
+      "recorded_by": "KERNEL_BUILDER-POSTGRES-TEST-URL-20260525-CONTINUATION",
+      "mt_ids": [
+        "MT-176",
+        "MT-177",
+        "MT-178",
+        "MT-179",
+        "MT-180",
+        "MT-181",
+        "MT-182",
+        "MT-183"
+      ],
+      "summary": "Role Mailbox V1 live Postgres suites passed, including repository lifecycle, lease, backpressure, handoff, and exporter coverage.",
+      "integration_validator_status": "PENDING",
+      "residual_risks": [
+        "Supporting evidence only; Integration Validator verdict remains PENDING.",
+        "Focused Postgres/live-kernel commands were run, not a full workspace cargo test."
+      ],
+      "recorded_at_utc": "2026-05-25T10:56:03.5601331Z",
+      "cargo_target_dir": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target"
+    },
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "COMPLETED",
+        "validator_verdict": "PENDING",
+        "completed_by": "KERNEL_BUILDER-20260521-091504",
+        "completed_at_utc": "2026-05-21T09:48:14.22Z"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "previous_completed_by_before_ready_for_validation_20260525": "KERNEL_BUILDER-20260521-091504",
+    "previous_completed_at_utc_before_ready_for_validation_20260525": "2026-05-21T09:48:14.22Z",
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z"
+  },
+  "handoff": {
+    "coder_session": "KERNEL_BUILDER-20260521-091504",
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": "019e6be3-1607-7283-b02a-2100dbb3f3d9",
+    "review_response_receipt_actor_role": "INTEGRATION_VALIDATOR",
+    "review_response_receipt_track": "JUDGMENT_OOB_IV_PHASE1_PRE_REMEDIATION"
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Lifecycle state machine has an exhaustive transition matrix test covering every (from, to) pair including rejections.",
+      "Postgres migration is idempotent and reversible per spec §2.3.13.4 migration framework.",
+      "Uuid v7 enforced via a compile-time wrapper or a runtime assertion in mint helpers per HBR-INT-008."
+    ]
+  },
+  "implementation_supporting_evidence_20260521": {
+    "schema_id": "hsk.mt_implementation_supporting_evidence@1",
+    "recorded_at_utc": "2026-05-21T09:48:14.22Z",
+    "recorded_by": "KERNEL_BUILDER-20260521-091504",
+    "classification": "IMPLEMENTATION_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+    "authoritative_integration_validator_pass": false,
+    "integration_validator_status": "PENDING",
+    "summary": "Subagent Noether verified existing RoleMailboxThread/RoleMailboxMessage typed primitives and migration surfaces; no product edits were needed. Backend testutils pass also reran role_mailbox_v1_tests with MT-176 tests green.",
+    "subagent": {
+      "agent_id": "019e49d3-e337-7961-97f6-9d619505591e",
+      "nickname": "Noether",
+      "result": "EXISTING_IMPLEMENTATION_VERIFIED_NO_EDITS"
+    },
+    "product_surfaces_verified": [
+      "src/backend/handshake_core/src/role_mailbox_v1/thread.rs",
+      "src/backend/handshake_core/src/role_mailbox_v1/message.rs",
+      "src/backend/handshake_core/src/role_mailbox_v1/lifecycle.rs",
+      "src/backend/handshake_core/src/role_mailbox_v1/repo.rs",
+      "src/backend/handshake_core/migrations/0022_role_mailbox_threads_messages.sql",
+      "src/backend/handshake_core/tests/role_mailbox_v1_tests.rs"
+    ],
+    "contract_deviation_note": "MT-176 expected_diff_shape names role_mailbox/* placeholder paths, but the existing folded implementation lives under role_mailbox_v1/* plus migration 0022. This should be reviewed later by the operator/Integration Validator as path-shape drift, not treated as WP-level pass authority.",
+    "proof_commands": [
+      {
+        "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --jobs 2",
+        "exit_code": 0,
+        "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/cargo-test-backend-testutils-after-mt196-20260521-0945.log",
+        "exitcode_file": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/cargo-test-backend-testutils-after-mt196-20260521-0945.exitcode",
+        "note": "Full backend testutils run includes role_mailbox_v1_tests: MT-176 thread id and illegal transition tests passed; Postgres role_mailbox_v1 ignored tests remain gated on POSTGRES_TEST_URL."
+      }
+    ],
+    "residual_risks": [
+      "Live Postgres role_mailbox_v1 ignored tests were not run because POSTGRES_TEST_URL was unset in the subagent run and ignored in the full backend run.",
+      "Path-shape drift exists between MT-176 owned_files and the actual role_mailbox_v1 implementation surfaces."
+    ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_X1_X2",
+    "reviewed_at_utc": "2026-05-27T15:05:00Z",
+    "aggregator_run_at_utc": "2026-05-28T00:01:31.342Z",
+    "verdict": "CONCERN",
+    "verdict_reason": "Typed primitives, lifecycle state machine, and Postgres migration 0022 (with partial unique lease index) are well-formed in wtc-kernel-004-fold-v1, but the merge target main lacks both the role_mailbox_v1/ module and the 0022 migration entirely, so MT-176 is not yet on main.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "MINOR",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 2,
+      "LOW": 0
+    },
+    "paperwork_notes_count": 1,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-176.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-176.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_X1_X2",
+    "reviewed_at_utc": "2026-05-27T15:05:00Z",
+    "aggregator_run_at_utc": "2026-05-27T23:48:44.444Z",
+    "verdict": "CONCERN",
+    "verdict_reason": "Typed primitives, lifecycle state machine, and Postgres migration 0022 (with partial unique lease index) are well-formed in wtc-kernel-004-fold-v1, but the merge target main lacks both the role_mailbox_v1/ module and the 0022 migration entirely, so MT-176 is not yet on main.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "MINOR",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 2,
+      "LOW": 0
+    },
+    "paperwork_notes_count": 1,
+    "review_artifact_ref": "validator_reports_phase1/MT-176.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1\\validator_reports_phase1\\MT-176.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  }
+}

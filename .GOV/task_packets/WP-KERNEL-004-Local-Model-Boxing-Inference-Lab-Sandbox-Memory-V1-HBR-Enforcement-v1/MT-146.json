@@ -1,0 +1,225 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-146",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "D",
+  "cluster_subscope": "D.1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:05:00Z",
+  "updated_at_utc": "2026-05-28T00:01:44.950Z",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-146.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "Capsule inspection + suppression IPC (Tauri commands) for operator panel",
+  "goal": "Expose Tauri IPC commands so the operator panel (cluster X UI surfaces) can list recent capsules, inspect a capsule by id, and suppress an individual capsule or item per HBR-INT-006 ('source-linked, inspectable, suppressible'). Commands are read+suppress only on this surface; rebuilds happen through the canonical CapsuleBuilder path.",
+  "expected_diff_shape": "New module src/backend/handshake_core/src/memory/ipc.rs registering Tauri commands `kernel.memory_capsule.list_recent`, `kernel.memory_capsule.get`, `kernel.memory_capsule.suppress_item`, `kernel.memory_capsule.suppress_capsule`. Wiring into app/src-tauri/src/main.rs (command registration only). Tests under src/backend/handshake_core/tests/memory_ipc_tests.rs.",
+  "owned_files": [
+    "src/backend/handshake_core/src/memory/ipc.rs",
+    "src/backend/handshake_core/tests/memory_ipc_tests.rs",
+    "app/src-tauri/src/main.rs"
+  ],
+  "depends_on_mts": [
+    "MT-144",
+    "MT-145"
+  ],
+  "unblock_conditions": "MT-144 (injection + handle), MT-145 (persistence via KernelActionCatalogV1).",
+  "implementation_notes": "Per HBR-INT-006 retrieval policy + audit log must be inspectable; per AC-DISTILL-CONTENT-REVIEW any capsule entering the loop must support content review. Tauri command signatures: `list_recent(limit: u32) -> Vec<CapsuleSummary>`, `get(capsule_id: Uuid) -> CapsuleRecord`, `suppress_item(capsule_id: Uuid, item_id: Uuid, reason: String) -> SuppressionReceipt`, `suppress_capsule(capsule_id: Uuid, reason: String) -> SuppressionReceipt`. CapsuleSummary: `{ capsule_id, task_type, built_at_utc, included_count, suppressed_count, has_outcome }`. Suppression flows through KernelActionCatalogV1 (CapsuleSuppression action variant) so the operator suppression is durable + audit-trail-bearing. Suppression emits `FR-EVT-CAPSULE-SUPPRESSED` via FEMS flight recorder. Tests: list_recent returns ordered by built_at_utc desc and respects limit; get returns full record with audit_log; suppress_item updates ONLY that entry's included flag + reason; suppress_capsule marks all entries suppressed; commands fail cleanly on unknown capsule_id; commands DO NOT bypass the catalog (mock catalog records every suppression).",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target memory_ipc_tests"
+  ],
+  "risk_if_missed": "Without inspect+suppress IPC the operator cannot honor HBR-INT-006 inspectability requirement; a poisoning capsule has no operator escape hatch.",
+  "validator_focus": "All IPC suppressions flow through KernelActionCatalogV1; commands are pure projections (list/get) or audit-bearing mutations (suppress).",
+  "hbr_obligations": [
+    "HBR-INT-006"
+  ],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.8.5",
+    ".GOV/spec/master-spec-v02.186/spec-modules/06-mechanical-integrations.md#6.5"
+  ],
+  "acceptance_criteria_refs": [
+    "AC-DISTILL-CONTENT-REVIEW",
+    "AC-DISTILL-EDITABLE-SURFACE"
+  ],
+  "lifecycle": {
+    "active": false,
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "PASS",
+    "depends_on": [
+      "MT-144",
+      "MT-145"
+    ],
+    "blocks": [
+      "MT-147"
+    ],
+    "reopened_at_utc": "2026-05-20T08:50:00Z",
+    "reopened_by": "OPERATOR",
+    "operator_decision_summary": "Operator review found the implementation pattern (surface-shape + trait abstraction + LiveXxxUnavailable / placeholder props) satisfied test contracts but did not satisfy what the Master Spec actually says these things do. None of the 27 MTs listed below are correct implementations. All 27 are reopened and must be redone before WP-KERNEL-004 can be considered complete. No other MT may be claimed until these 27 are correctly implemented and re-validated. MT-148 work was rolled back; it is to be revisited after these 27 close correctly.",
+    "deflection_category": "prior_session_uncommitted",
+    "deflection_summary": "Same as MT-141. Tauri IPC commands for capsule inspection + suppression committed (8 tests pass). The Tauri command surface itself is wired but consumer-side UI + operator review of the suppression UX was not verified.",
+    "wp_hard_fail_until_redone": false,
+    "must_complete_before_other_mts": false,
+    "previous_completed_status": "COMPLETED",
+    "previous_completed_by": null,
+    "previous_completed_at_utc": "2026-05-19T09:11:12.746Z",
+    "wp_hard_fail_note": "WP-KERNEL-004 cannot complete with these 27 MTs in NEEDS_REIMPLEMENTATION status. Each MT below is individually hard-failed AND counts as a hard-fail blocker on the WP itself. The committed code from the prior session remains on the feat branch as a base to either deepen or replace; the lifecycle status below is the source of truth for whether the MT is done, not the presence of source files.",
+    "autonomous_session_claim": {
+      "claimed_by": "KERNEL_BUILDER-20260520-AUTONOMOUS",
+      "claimed_at_utc": "2026-05-20T18:35:00Z",
+      "transition": "NEEDS_REIMPLEMENTATION -> CLAIMED -> BLOCKED_ON_DEPENDENCY",
+      "note": "Autonomous KERNEL_BUILDER session triage following the catastrophic-build-broken finding: this MT cannot be honestly implemented in the current product-code state because model_runtime cannot compile. Implementation deferred to a future session running against a restored build."
+    },
+    "adversarial_review": {
+      "adversarial_session": "ADVERSARIAL-EXPLORE-MT-146-20260520-AUTO",
+      "adversarial_at_utc": "2026-05-20T20:35:00Z",
+      "adversarial_verdict": "FAIL_NEEDS_REWORK",
+      "adversarial_defect": "Adversarial caught Sub-rule 2 violation: MemoryIpcService accepts `&dyn MemoryCapsuleIpcStore`, and `MemoryCapsuleIpcState` (in app/src-tauri/src/commands/memory_capsule.rs) is an in-memory `Mutex<BTreeMap<Uuid, CapsuleRecord>>` authored in the same diff. The Tauri commands ARE properly registered via `generate_handler![]` (no tripwire there), but the backing store is the in-memory stub, identical pattern to InMemoryCapsuleStore in the test suite. REWORK REQUIRED: replace MemoryCapsuleIpcState's in-memory store with a real persistent store binding (likely backed by the same KernelActionCatalogV1 that MT-145 needs to wire) so IPC list/get/suppress operations are durable across process restarts.",
+      "triggers_brief_rework_loop": "Per brief Phase 2 step 'If verdict is FAIL_NEEDS_REWORK: fix the defects, rerun proof, spawn a fresh adversarial sub-agent.' Implementation must change before next adversarial round."
+    },
+    "postgres_test_url_live_evidence_20260525_continuation": {
+      "authoritative_integration_validator_pass": false,
+      "classification": "KERNEL_BUILDER_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+      "not_run_or_not_claimed": [],
+      "artifact_log_root": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs",
+      "implementation_or_hardening_notes": [
+        "Changed memory_ipc_postgres_tests to #[tokio::test(flavor = \"multi_thread\")].",
+        "Updated persistence_postgres block_on documentation to match the multi-thread runtime requirement."
+      ],
+      "postgres_test_url_redacted": "postgres://postgres:***@127.0.0.1:65432/handshake_test",
+      "proof": [
+        {
+          "log": "unit-memory-postgres-block_on-multithread-20260525.log",
+          "scope": "block_on regression",
+          "note": [
+            "Pins the supported bridge behavior inside a multi-thread Tokio runtime.",
+            "ProofPair"
+          ],
+          "result": "1 passed"
+        }
+      ],
+      "recorded_by": "KERNEL_BUILDER-POSTGRES-TEST-URL-20260525-CONTINUATION",
+      "mt_ids": [
+        "MT-146"
+      ],
+      "summary": "Capsule inspection/suppression IPC passed after switching the async test runtime to multi_thread so the synchronous Postgres bridge can use block_in_place without starving SQLx pool acquisition.",
+      "integration_validator_status": "PENDING",
+      "residual_risks": [
+        "Supporting evidence only; Integration Validator verdict remains PENDING.",
+        "Focused Postgres/live-kernel commands were run, not a full workspace cargo test."
+      ],
+      "recorded_at_utc": "2026-05-25T10:56:03.5601331Z",
+      "cargo_target_dir": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target"
+    },
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "COMPLETED",
+        "validator_verdict": "PASS",
+        "completed_by": "VALIDATOR-EXPLORE-MEMORY-POSTGRES-CHAIN-PASS-20260520-AUTO",
+        "completed_at_utc": "2026-05-19T09:11:12.746Z",
+        "blocker": {
+          "blocked_at_utc": "2026-05-20T18:35:00Z",
+          "blocker_id": "WP-KERNEL-004-BUILD-BROKEN-AT-LIB-LEVEL",
+          "blocked_by": "STRUCTURAL_DEBT_PRE_EXISTING_IN_FEAT_BRANCH",
+          "blocking_record": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/RECEIPTS.jsonl",
+          "reason": "Same root cause.",
+          "operator_action_needed": "Restore the WP-KERNEL-004 product-code build (lib.rs pub mod declarations + sandbox API reconciliation) before this MT can be re-claimed. See correlation_id=catastrophic-build-broken-finding-20260520.",
+          "triage_receipt": "correlation_id=catastrophic-build-broken-finding-20260520"
+        },
+        "wp_hard_fail_until_redone": true,
+        "must_complete_before_other_mts": true
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "historical_blocker_before_ready_for_validation_20260525": {
+      "blocked_at_utc": "2026-05-20T18:35:00Z",
+      "blocker_id": "WP-KERNEL-004-BUILD-BROKEN-AT-LIB-LEVEL",
+      "blocked_by": "STRUCTURAL_DEBT_PRE_EXISTING_IN_FEAT_BRANCH",
+      "blocking_record": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/RECEIPTS.jsonl",
+      "reason": "Same root cause.",
+      "operator_action_needed": "Restore the WP-KERNEL-004 product-code build (lib.rs pub mod declarations + sandbox API reconciliation) before this MT can be re-claimed. See correlation_id=catastrophic-build-broken-finding-20260520.",
+      "triage_receipt": "correlation_id=catastrophic-build-broken-finding-20260520"
+    },
+    "previous_completed_by_before_ready_for_validation_20260525": "VALIDATOR-EXPLORE-MEMORY-POSTGRES-CHAIN-PASS-20260520-AUTO",
+    "previous_completed_at_utc_before_ready_for_validation_20260525": "2026-05-19T09:11:12.746Z",
+    "previous_wp_hard_fail_until_redone_before_ready_for_validation_20260525": true,
+    "previous_must_complete_before_other_mts_before_ready_for_validation_20260525": true,
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z"
+  },
+  "handoff": {
+    "coder_session": "KERNEL_BUILDER-20260519-084653",
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": "019e6be3-15f6-76b1-aa5e-649b588ce8e6",
+    "review_response_receipt_actor_role": "INTEGRATION_VALIDATOR",
+    "review_response_receipt_track": "JUDGMENT_OOB_IV_PHASE1_PRE_REMEDIATION"
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Suppression always flows through KernelActionCatalogV1; no direct DB writes.",
+      "list_recent + get are read-only projections; cannot mutate state.",
+      "Every suppression emits an FR-EVT-CAPSULE-SUPPRESSED flight recorder event so audit trail is complete."
+    ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_D1_D2",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-28T00:01:31.342Z",
+    "verdict": "PASS",
+    "verdict_reason": "MemoryIpcService exposes list_recent / get / suppress_item / suppress_capsule routes that flow through KernelActionCatalogV1 with schema-validated payloads and FemsFlightRecorder events — operator panel can inspect + suppress per HBR-INT-006.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-146.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-146.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_D1_D2",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T23:48:44.444Z",
+    "verdict": "PASS",
+    "verdict_reason": "MemoryIpcService exposes list_recent / get / suppress_item / suppress_capsule routes that flow through KernelActionCatalogV1 with schema-validated payloads and FemsFlightRecorder events — operator panel can inspect + suppress per HBR-INT-006.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "validator_reports_phase1/MT-146.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1\\validator_reports_phase1\\MT-146.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  }
+}

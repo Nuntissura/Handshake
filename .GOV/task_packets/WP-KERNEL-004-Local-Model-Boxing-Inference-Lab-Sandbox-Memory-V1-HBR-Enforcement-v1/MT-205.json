@@ -1,0 +1,234 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-205",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "SWARM",
+  "cluster_subscope": "SWARM.2",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-06-01T00:00:00Z",
+  "updated_at_utc": "2026-06-02T13:22:44Z",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-205.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json",
+    "research_basis": [
+      ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/VM_WORKTREE_SWARM_RESEARCH_BASIS.json"
+    ]
+  },
+  "title": "Operator orchestration surface for production model swarms",
+  "origin": "Authored as a missing MT-203 follow-on contract. MT-203 preserves: 'MT-205 Tauri swarm commands + SwarmControlRoom UI + operator chat box + model spin-up (local+cloud)'. Operator-selected scope confirms production factory/app wiring/operator orchestration as an in-scope follow-on.",
+  "goal": "Expose the production SwarmCoordinator and MT-204 factory through quiet Tauri commands, a durable live board, and an operator orchestration/chat box that can spawn, inspect, cancel, and coordinate local and cloud model sessions without relying on hidden chat context or fragile screen reading.",
+  "base_scope": {
+    "summary": "Build the operator-facing orchestration path over the production coordinator: command API, live board read-model, operator chat box, model spin-up controls, and deterministic receipts.",
+    "included": [
+      "Add production Tauri commands for swarm spawn, cancel, snapshot, session detail, board snapshot, board event subscription, and operator instruction submission.",
+      "Wire SwarmControlRoom to the live board read-model using typed SwarmEvent deltas plus full-snapshot reconcile fallback.",
+      "Add or complete OperatorChat as an orchestration input surface that submits bounded, attributable operator directives to the coordinator instead of free-floating prompt text.",
+      "Support local and cloud model spin-up from one form/control path with visible runtime_binding, provider, isolation_tier, worktree_id, budget, and ForceLocal/escalation policy.",
+      "Create receipts for operator actions: spawn requested, admitted, rejected, canceled, escalated, completed, failed, and reclaimed.",
+      "Keep all automation quiet: no foreground windows, no keyboard focus steal, bounded background tasks."
+    ],
+    "non_goals": [
+      "No new backend factory implementation beyond invoking MT-204 surfaces.",
+      "No local->cloud routing policy changes beyond exposing MT-206 policy choices and statuses.",
+      "No persistent warm VM implementation; MT-207 owns that.",
+      "No generic marketing/landing page; the first surface is the actual control room."
+    ]
+  },
+  "expected_diff_shape": "Product implementation should touch app/src-tauri swarm commands/state, app/src/components/swarm controls, board/read-model hooks, operator chat components, IPC bindings, CSS/layout tests, and focused Rust/TS tests. The governance repair only authors this contract.",
+  "owned_files": [
+    "app/src-tauri/src/commands/swarm_runtime.rs",
+    "app/src-tauri/src/lib.rs",
+    "app/src/lib/ipc/swarm_runtime.ts",
+    "app/src/components/swarm/SwarmControlRoom.tsx",
+    "app/src/components/swarm/SwarmBoard.tsx",
+    "app/src/components/swarm/OperatorChat.tsx",
+    "app/src/components/swarm/useSwarmBoard.ts",
+    "app/src/App.tsx",
+    "app/src/App.css",
+    "app/src/App.test.tsx",
+    "app/src/components/swarm/SwarmControlRoom.test.tsx",
+    "app/src/components/swarm/SwarmOperatorSurface.test.tsx",
+    "app/src/components/swarm/OperatorChat.test.tsx",
+    "tests/visual/swarm-spawn-assignment.spec.ts",
+    "tests/visual/swarm-board.spec.ts",
+    "tests/visual/session-workbench.spec.ts"
+  ],
+  "depends_on_mts": [
+    "MT-203",
+    "MT-204"
+  ],
+  "blocks": [
+    "MT-206",
+    "MT-207"
+  ],
+  "reuse": [
+    "MT-203 SwarmCoordinator lifecycle and SwarmEvent stream.",
+    "MT-204 ProductionModelSessionFactory and app-state coordinator wiring.",
+    "VM_WORKTREE_SWARM_RESEARCH_BASIS board research: Vibe Kanban snapshot+live-delta pattern, typed Tauri app.emit events, seq/epoch reconcile, hand-rolled CSS grid.",
+    "Existing SwarmControlRoom, OperatorChat, BroadcastSwarmSink, FanoutSwarmSink, DurableSwarmFrBridge, and kernel_swarm_board_snapshot surfaces recorded in the research basis.",
+    "Existing Flight Recorder, process ledger, session checkpoint, and grouping keys for observable operator actions."
+  ],
+  "gaps_closed": [
+    "Closes the gap between backend swarm capability and an operator-usable orchestration surface.",
+    "Closes UI polling drift by using push events with snapshot reconciliation.",
+    "Closes hidden prompt/control ambiguity by turning operator chat actions into typed commands with receipts.",
+    "Closes parallel model workflow confusion by showing grouping, ownership, provider, state, budget, and teardown status on one board.",
+    "Makes later local->cloud escalation review cheaper by showing route decisions in the same session timeline."
+  ],
+  "planning_roi": {
+    "high_roi_additions": [
+      {
+        "item": "Board drill-down panel with session timeline, ledger rows, FR events, and latest error fingerprint",
+        "why_high_roi": "The board already has session cards; a drill-down reuses existing query surfaces and prevents context loss during debugging.",
+        "addresses": "Operator/LLM confusion when a card moves to Failed or Escalated without enough evidence.",
+        "reuse": "SessionAggregateQueries, Flight Recorder, process ledger, SwarmEvent metadata.",
+        "validation": "Component test opens a card and sees ordered lifecycle rows without overlapping text."
+      },
+      {
+        "item": "Command receipts copied into session detail and FR",
+        "why_high_roi": "Cheap when adding commands, and it makes multi-agent handoff recoverable.",
+        "addresses": "Lost attribution for who spawned/canceled/escalated a model.",
+        "reuse": "Existing receipt and FR event patterns.",
+        "validation": "Spawn/cancel tests assert receipt_id appears in Tauri response, board card, and FR payload."
+      },
+      {
+        "item": "Route preview before spawn",
+        "why_high_roi": "Reuses MT-206 routing policy in dry-run mode and prevents wrong provider/isolation choices.",
+        "addresses": "Unexpected cloud spend or data egress when the operator intended local-only.",
+        "reuse": "RoutingPolicy::route and provider capability snapshot.",
+        "validation": "UI test toggles ForceLocal and verifies cloud options become disabled and explained by typed state, not prose."
+      },
+      {
+        "item": "Visual debug snapshot command for the board",
+        "why_high_roi": "The GUI is already being touched and global rules require model-usable visual diagnostics.",
+        "addresses": "Future LLMs cannot judge board usability or state without screenshots/state dumps.",
+        "reuse": "Existing visual debug and inspector patterns.",
+        "validation": "Playwright or available browser smoke captures desktop/mobile board states and checks no text overlap."
+      }
+    ]
+  },
+  "risks_and_concerns": [
+    {
+      "risk": "UI commands bypass coordinator admission controls.",
+      "plausible_failure_scenario": "A button directly creates a model runtime or cloud process without the MT-203/MT-204 budget, lease, and breaker path.",
+      "hardening": "All UI commands call a single Tauri command layer that delegates to the coordinator; direct runtime/factory calls are banned outside that layer.",
+      "verification": "Static scan and tests assert commands invoke coordinator methods and admission rejections surface as typed UI states."
+    },
+    {
+      "risk": "Live board drifts from backend truth.",
+      "plausible_failure_scenario": "Broadcast lag drops events and a session remains visually Ready after backend cancellation.",
+      "hardening": "Use seq/epoch deltas, resync-on-gap, periodic full-snapshot safety net, and visible stale/resync indicator.",
+      "verification": "Injected dropped-event test asserts board requests snapshot and corrects card state."
+    },
+    {
+      "risk": "Operator chat becomes an unbounded prompt pipe.",
+      "plausible_failure_scenario": "Free text causes hidden, unattributed model actions or embeds secrets into logs.",
+      "hardening": "Parse chat into typed operator intents with bounded payload, redaction, receipt_id, and explicit target swarm/session.",
+      "verification": "Tests reject oversized/directive-ambiguous input and assert redaction in logs/FR."
+    },
+    {
+      "risk": "GUI work steals focus or opens foreground windows during model operation.",
+      "plausible_failure_scenario": "Starting a local/cloud model opens a terminal or provider CLI window.",
+      "hardening": "Use quiet background process rules, hidden child process creation, and in-app terminal/output capture only when explicitly requested.",
+      "verification": "Process-spawn tests assert CREATE_NO_WINDOW/quiet flags where applicable and no shell open calls in swarm commands."
+    },
+    {
+      "risk": "Control room is unreadable under many parallel sessions.",
+      "plausible_failure_scenario": "N=8 sessions with long IDs overlap columns or hide important state.",
+      "hardening": "Stable grid dimensions, truncation with tooltips, responsive columns, grouped swimlanes, and no nested cards.",
+      "verification": "Desktop/mobile visual smoke with N=8 fixture checks readability, navigation, controls, and no overlap."
+    }
+  ],
+  "implementation_notes": [
+    "Use typed IPC DTOs; avoid raw serde_json::Value at the Tauri/frontend boundary except for explicitly versioned metadata bags.",
+    "Board actions must be commands, not direct state mutations; the board is a read-model over coordinator truth.",
+    "OperatorChat must write explicit intent records with target swarm/session and receipt correlation.",
+    "Expose ForceLocal/escalation policy controls but leave policy semantics to MT-206.",
+    "Do not create marketing/hero UI; the control room is the primary first screen for this feature."
+  ],
+  "proof_commands": [
+    "cargo test --manifest-path app/src-tauri/Cargo.toml swarm_runtime -- --nocapture",
+    "pnpm --dir app exec vitest run src/App.test.tsx src/components/swarm/SwarmControlRoom.test.tsx src/components/swarm/SwarmOperatorSurface.test.tsx src/components/swarm/OperatorChat.test.tsx",
+    "pnpm --dir app exec tsc --noEmit",
+    "pnpm --dir app exec playwright test ../tests/visual/swarm-spawn-assignment.spec.ts ../tests/visual/swarm-board.spec.ts ../tests/visual/session-workbench.spec.ts"
+  ],
+  "validator_focus": [
+    "All spawn/cancel/escalate actions route through the coordinator and produce receipts.",
+    "Board push+deltas reconcile correctly after dropped events.",
+    "OperatorChat creates typed, attributable instructions and rejects ambiguous/oversized inputs.",
+    "UI remains readable at N=8 with desktop and mobile viewport evidence.",
+    "No foreground process/window behavior is introduced."
+  ],
+  "hbr_obligations": [
+    "HBR-SWARM-001",
+    "HBR-SWARM-002",
+    "HBR-VIS-001",
+    "HBR-INT-002"
+  ],
+  "spec_anchors": [
+    ".GOV/spec/SPEC_CURRENT.md#04-llm-infrastructure",
+    "04-llm-infrastructure.md#4.3.9",
+    "10-product-surfaces.md#operator-control-room"
+  ],
+  "acceptance_criteria_refs": [
+    "AC-MULTI-MODEL-PARALLEL",
+    "AC-SWARM-HARNESS-N8",
+    "AC-SWARM-HARNESS-INVARIANTS"
+  ],
+  "lifecycle": {
+    "active": false,
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "PENDING",
+    "integration_validator_verdict": "PENDING",
+    "depends_on": [
+      "MT-203",
+      "MT-204"
+    ],
+    "blocks": [
+      "MT-206",
+      "MT-207"
+    ],
+    "claimed_by": "KERNEL_BUILDER-20260602-072224",
+    "claimed_at_utc": "2026-06-02T07:22:24Z",
+    "completed_by": null,
+    "ready_for_validation_by": "KERNEL_BUILDER-20260602-072224",
+    "ready_for_validation_at_utc": "2026-06-02T09:28:01.909Z",
+    "ready_for_validation_reason": "Operator orchestration surface has current Rust, Vitest, TypeScript, and display-dependent Playwright proof; KB_READY_CHECKLIST receipt and handoff receipt are emitted during this 2026-06-02 remediation. Validator review remains pending.",
+    "kb_ready_checklist_receipt_ref": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl#MT-205@2026-06-02T09:28:01.909Z",
+    "handoff_receipt_ref": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/RECEIPTS.jsonl#KERNEL004-MT205-RFV-HANDOFF-20260602",
+    "implementation_evidence": {
+      "implemented_by": "KERNEL_BUILDER-20260602-072224 over committed product branch wtc-kernel-004-fold-v1",
+      "latest_product_commits": [
+        "92db9cb3 feat(WP-KERNEL-004): persist swarm grouping in lifecycle events",
+        "174428c4 feat(WP-KERNEL-004): close GUI runtime blockers"
+      ],
+      "proof": "cargo test --manifest-path app/src-tauri/Cargo.toml swarm_runtime -- --nocapture (33 passed); pnpm --dir app exec vitest run src/App.test.tsx (10 passed); pnpm --dir app exec vitest run src/components/swarm/SwarmControlRoom.test.tsx src/components/swarm/SwarmOperatorSurface.test.tsx src/components/swarm/OperatorChat.test.tsx (33 passed); pnpm --dir app exec tsc --noEmit (exit 0); pnpm --dir app exec playwright test ../tests/visual/swarm-spawn-assignment.spec.ts ../tests/visual/swarm-board.spec.ts ../tests/visual/session-workbench.spec.ts (15 passed).",
+      "adversarial_review": "Ptolemy reviewed the committed swarm grouping event patch and returned PASS. Visual Playwright proof covers normal, constrained, and edge board/workbench harnesses.",
+      "readiness_note": "This is Kernel Builder READY_FOR_VALIDATION handoff only. Integration Validator must still review UI usability, dropped-event reconciliation, and no-foreground guarantees."
+    }
+  },
+  "governance_notes": [
+    "Governance repair 2026-06-02 reconciled packet.json so MT-205 is declared as a current follow-on contract blocked by MT-204.",
+    "packet.json now keeps MT-207 as the active/claimable next follow-on; MT-205 is READY_FOR_VALIDATION and awaits Integration Validator review.",
+    "The visible governance worktree has only a small app source subset; implementation must be verified against the product worktree.",
+    "Remediation 2026-06-02 corrected stale proof_commands that referenced missing app/tests paths and a non-existent typecheck script; current proof uses package-local Vitest, TypeScript, and tests/visual Playwright harnesses."
+  ],
+  "red_team": {
+    "required": true,
+    "profile": "OPERATOR_SWARM_CONTROL_ROOM_V1",
+    "minimum_controls": [
+      "No UI path bypasses coordinator admission.",
+      "Dropped event/resync behavior is tested.",
+      "Operator directives are typed, attributable, and bounded.",
+      "Visual smoke evidence covers high-card-count board states."
+    ]
+  }
+}

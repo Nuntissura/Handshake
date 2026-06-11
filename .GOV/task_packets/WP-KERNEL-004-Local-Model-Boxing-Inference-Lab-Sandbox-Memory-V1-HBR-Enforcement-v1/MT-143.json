@@ -1,0 +1,254 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-143",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "D",
+  "cluster_subscope": "D.1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:02:00Z",
+  "updated_at_utc": "2026-05-28T00:01:44.949Z",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-143.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "CapsuleBuilder over FEMS V1 retrieval + ACE MemoryPack budgets",
+  "goal": "Land CapsuleBuilder under src/backend/handshake_core/src/memory/builder.rs that consumes (a) a TaskType, (b) a query context (free-text query + role/session metadata), (c) a RetrievalPolicy, and produces a fully-populated MemoryCapsule. The builder MUST drive retrieval through the FEMS V1 retrieval surface (src/backend/handshake_core/src/kernel/fems_mt_handoff_memory_context.rs already in main) and MUST honor the ACE MemoryPackBudgets caps (src/backend/handshake_core/src/ace/mod.rs already in main), extending FEMS V1's bounded-injection pattern with capsule-level audit + provenance.",
+  "expected_diff_shape": "New module src/backend/handshake_core/src/memory/builder.rs (CapsuleBuilder + BuilderError + BuildContext types). Tests in src/backend/handshake_core/tests/memory_builder_tests.rs using a TestFemsAdapter that injects fixture items so the build path is exercised without a live FEMS instance.",
+  "owned_files": [
+    "src/backend/handshake_core/src/memory/builder.rs",
+    "src/backend/handshake_core/tests/memory_builder_tests.rs"
+  ],
+  "depends_on_mts": [
+    "MT-141",
+    "MT-142"
+  ],
+  "unblock_conditions": "MT-141 (MemoryCapsule), MT-142 (TaskType + CapsulePolicyTable), and FEMS V1 surfaces in main (fems_mt_handoff_memory_context.rs + ace/mod.rs::MemoryPack).",
+  "implementation_notes": "Per refinement D.1: 'bounded MemoryCapsule artifact injected per microtask; typed; capsule generation policy per task type; capsule audit log per HBR-INT-006'. The builder is the only authorized constructor of populated MemoryCapsules (raw MemoryCapsule::new is for tests and policy tables only). Surface: `pub struct CapsuleBuilder<'a> { fems: &'a dyn FemsRetriever, policy_table: &'a CapsulePolicyTable }` with `pub fn build(ctx: BuildContext) -> Result<MemoryCapsule, BuilderError>`. BuildContext: `{ task_type, query: String, role_id, session_id, override_policy: Option<RetrievalPolicy> }`. Trait `pub trait FemsRetriever { fn retrieve(query: &str, top_k: u32) -> Result<Vec<RetrievedItem>, FemsError>; }` lets tests inject a fake; production impl wraps the FEMS V1 handoff context call. Build flow: (1) pick policy (override or default-for-task-type from MT-142 table); (2) call fems.retrieve(query, policy.top_k); (3) construct MemoryPackBudgets from policy.capsule_budget_bytes; (4) score+pack items into MemoryPack using existing ACE primitives, respecting budget; (5) build CapsuleAuditLog with one entry per retrieved item (included=true for packed items, included=false with suppression_reason=\"budget\" for dropped items); (6) build MemoryCapsule via MemoryCapsule::new. The builder MUST NOT call the LLM. The builder MUST mark `pinned: true` items per FEMS V1 semantics (pinned items always include before budget scoring runs on the rest; this anticipates MT-159 pinned-core-memory extension). Tests: builder with empty retrieval returns capsule with empty pack but populated policy + audit; builder honors override_policy; builder records budget-dropped items in audit log; builder fails gracefully on FemsError with typed BuilderError; builder produces deterministic source_hash for identical inputs.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target memory_builder_tests"
+  ],
+  "risk_if_missed": "Without a builder, ad-hoc capsule construction proliferates across call sites, the FEMS V1 bounded-injection invariant is violated, and HBR-INT-006 audit obligations leak.",
+  "validator_focus": "CapsuleBuilder uses FemsRetriever trait (testable). Pure build function. Audit log records both included and excluded items. No LLM dependency.",
+  "hbr_obligations": [
+    "HBR-INT-006",
+    "HBR-INT-008"
+  ],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.8.5",
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.8.3"
+  ],
+  "acceptance_criteria_refs": [
+    "AC-DISTILL-EDITABLE-SURFACE"
+  ],
+  "lifecycle": {
+    "active": false,
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "PASS",
+    "depends_on": [
+      "MT-141",
+      "MT-142"
+    ],
+    "blocks": [
+      "MT-144",
+      "MT-145",
+      "MT-146",
+      "MT-147",
+      "MT-148"
+    ],
+    "claimed_by": "KERNEL_BUILDER-20260518-235451",
+    "claimed_at_utc": "2026-05-19T07:14:51Z",
+    "reopened_at_utc": "2026-05-20T08:50:00Z",
+    "reopened_by": "OPERATOR",
+    "operator_decision_summary": "Operator review found the implementation pattern (surface-shape + trait abstraction + LiveXxxUnavailable / placeholder props) satisfied test contracts but did not satisfy what the Master Spec actually says these things do. None of the 27 MTs listed below are correct implementations. All 27 are reopened and must be redone before WP-KERNEL-004 can be considered complete. No other MT may be claimed until these 27 are correctly implemented and re-validated. MT-148 work was rolled back; it is to be revisited after these 27 close correctly.",
+    "deflection_category": "prior_session_uncommitted",
+    "deflection_summary": "Same as MT-141: prior session work, committed without spec validation. CapsuleBuilder over FEMS V1 retrieval depends on a FEMS V1 retrieval surface that may or may not exist at the depth the spec requires (FEMS V1 itself has its own MT chain).",
+    "wp_hard_fail_until_redone": false,
+    "must_complete_before_other_mts": false,
+    "previous_completed_status": "COMPLETED",
+    "previous_completed_by": "KERNEL_BUILDER-20260518-235451",
+    "previous_completed_at_utc": "2026-05-19T07:35:43Z",
+    "wp_hard_fail_note": "WP-KERNEL-004 cannot complete with these 27 MTs in NEEDS_REIMPLEMENTATION status. Each MT below is individually hard-failed AND counts as a hard-fail blocker on the WP itself. The committed code from the prior session remains on the feat branch as a base to either deepen or replace; the lifecycle status below is the source of truth for whether the MT is done, not the presence of source files.",
+    "autonomous_session_claim": {
+      "claimed_by": "KERNEL_BUILDER-20260520-AUTONOMOUS",
+      "claimed_at_utc": "2026-05-20T18:35:00Z",
+      "transition": "NEEDS_REIMPLEMENTATION -> CLAIMED -> BLOCKED_ON_DEPENDENCY",
+      "note": "Autonomous KERNEL_BUILDER session triage following the catastrophic-build-broken finding: this MT cannot be honestly implemented in the current product-code state because model_runtime cannot compile. Implementation deferred to a future session running against a restored build."
+    },
+    "adversarial_review": {
+      "adversarial_session": "ADVERSARIAL-EXPLORE-MT-143-20260520-AUTO",
+      "adversarial_at_utc": "2026-05-20T20:35:00Z",
+      "adversarial_verdict": "FAIL_NEEDS_REWORK",
+      "adversarial_defect": "Adversarial caught Sub-rule 2 violation: CapsuleBuilder accepts a `&dyn FemsRetriever` trait, and 7 of 8 tests use TestFemsRetriever (a test-only mock authored in the same diff). Only the test `fems_mt_handoff_retriever_maps_projection_items_to_retrieved_items` exercises the real `FemsMtHandoffRetriever` from FEMS V1 in main, BUT in isolation — never composed with CapsuleBuilder.build(). The 'trait + in-memory impl this role also authored' anti-pattern matches the brief's Sub-rule 2 explicit forbidden pattern. REWORK REQUIRED: add an integration test in memory_builder_tests.rs that composes `CapsuleBuilder::new(&FemsMtHandoffRetriever::new(real_fixture_context), &policy_table)` and exercises .build() against the real FEMS V1 retriever output. The fixture itself can be hand-authored; what matters is the real production FemsMtHandoffRetriever code path running.",
+      "triggers_brief_rework_loop": "Per brief Phase 2 step 'If verdict is FAIL_NEEDS_REWORK: fix the defects, rerun proof, spawn a fresh adversarial sub-agent.' Implementation must change before next adversarial round."
+    },
+    "autonomous_session_rework": {
+      "claimed_by": "KERNEL_BUILDER-20260520-AUTONOMOUS",
+      "claimed_at_utc": "2026-05-20T21:05:00Z",
+      "transition": "FAIL_NEEDS_REWORK -> RECLAIMED -> RE-IMPLEMENTED -> READY_FOR_VALIDATION",
+      "fix_for_adversarial_defect": "Adversarial caught that 7 of 8 tests used TestFemsRetriever (mock authored in same diff) and only fems_mt_handoff_retriever_maps_projection_items_to_retrieved_items exercised real FemsMtHandoffRetriever (but in isolation, never composed with CapsuleBuilder.build). REWORK: added new test capsule_builder_composes_with_real_fems_mt_handoff_retriever in memory_builder_tests.rs that composes CapsuleBuilder::new(&FemsMtHandoffRetriever::new(real_handoff_context), &CapsulePolicyTable) and exercises .build() against the real FEMS V1 retriever output. Asserts: (a) audit entries are non-empty (real retrieval projected items); (b) the FEMS V1 recommended_item_id surfaces as pinned in the capsule (real FEMS V1 -> capsule semantics); (c) capsule policy task type matches the build context (real policy lookup driven by FEMS-projected items).",
+      "proof_quoted": "running 9 tests; test capsule_builder_composes_with_real_fems_mt_handoff_retriever ... ok; (8 other tests pass); test result: ok. 9 passed; 0 failed",
+      "sub_rule_2_now_satisfied": "Real FEMS V1 production code (FemsMtHandoffRetriever) is exercised end-to-end through the CapsuleBuilder.build pipeline. Not a trait+in-memory escape: the retriever is the real production type from src/kernel/fems_mt_handoff_memory_context.rs, the builder is the real production type from src/memory/builder.rs, they are composed without test stubs at the interface boundary.",
+      "files_touched_this_rework": [
+        "src/backend/handshake_core/tests/memory_builder_tests.rs (added 35-line test)"
+      ]
+    },
+    "validator_pass_gate_after_rework": {
+      "authored_by": "VALIDATOR-EXPLORE-MT143-REWORK-PASS-20260520-AUTO",
+      "authored_at_utc": "2026-05-20T21:20:00Z",
+      "verdict": "COMPLETED",
+      "rework_history": "Round 1: prior adversarial FAIL on trait+TestFemsRetriever mock. Implementer added capsule_builder_composes_with_real_fems_mt_handoff_retriever test. Round 2: fresh adversarial PASS_MT_CANDIDATE. This validator: PASS, COMPLETED.",
+      "proof_quoted": "running 9 tests; (8 prior tests pass); test capsule_builder_composes_with_real_fems_mt_handoff_retriever ... ok; test result: ok. 9 passed; 0 failed",
+      "sub_rule_compliance": {
+        "sub_rule_1": "PASS",
+        "sub_rule_2": "PASS (real production FemsMtHandoffRetriever from FEMS V1 composed via CapsuleBuilder.build end-to-end)",
+        "sub_rule_3": "PASS (validator != implementer)"
+      }
+    },
+    "postgres_test_url_live_evidence_20260525_continuation": {
+      "authoritative_integration_validator_pass": false,
+      "classification": "KERNEL_BUILDER_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+      "not_run_or_not_claimed": [],
+      "artifact_log_root": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs",
+      "implementation_or_hardening_notes": [],
+      "postgres_test_url_redacted": "postgres://postgres:***@127.0.0.1:65432/handshake_test",
+      "proof": [
+        {
+          "log": "postgres-live-memory_persistence_postgres_tests-20260525-resume.log",
+          "scope": "memory_persistence_postgres_tests",
+          "note": [
+            "Postgres-backed memory persistence checks passed.",
+            "Proof"
+          ],
+          "result": "2 passed"
+        }
+      ],
+      "recorded_by": "KERNEL_BUILDER-POSTGRES-TEST-URL-20260525-CONTINUATION",
+      "mt_ids": [
+        "MT-141",
+        "MT-142",
+        "MT-143",
+        "MT-144",
+        "MT-145"
+      ],
+      "summary": "MemoryCapsule typed/policy/builder/injection/persistence surfaces have fresh supporting live Postgres evidence through memory_persistence_postgres_tests and memory_capsule_e2e_postgres_tests.",
+      "integration_validator_status": "PENDING",
+      "residual_risks": [
+        "Supporting evidence only; Integration Validator verdict remains PENDING.",
+        "Focused Postgres/live-kernel commands were run, not a full workspace cargo test."
+      ],
+      "recorded_at_utc": "2026-05-25T10:56:03.5601331Z",
+      "cargo_target_dir": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target"
+    },
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "COMPLETED",
+        "validator_verdict": "PASS",
+        "completed_by": "VALIDATOR-EXPLORE-MT143-REWORK-PASS-20260520-AUTO",
+        "completed_at_utc": "2026-05-20T21:20:00Z",
+        "blocker": {
+          "blocked_at_utc": "2026-05-20T18:35:00Z",
+          "blocker_id": "WP-KERNEL-004-BUILD-BROKEN-AT-LIB-LEVEL",
+          "blocked_by": "STRUCTURAL_DEBT_PRE_EXISTING_IN_FEAT_BRANCH",
+          "blocking_record": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/RECEIPTS.jsonl",
+          "reason": "Same root cause.",
+          "operator_action_needed": "Restore the WP-KERNEL-004 product-code build (lib.rs pub mod declarations + sandbox API reconciliation) before this MT can be re-claimed. See correlation_id=catastrophic-build-broken-finding-20260520.",
+          "triage_receipt": "correlation_id=catastrophic-build-broken-finding-20260520"
+        },
+        "wp_hard_fail_until_redone": true,
+        "must_complete_before_other_mts": true
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "historical_blocker_before_ready_for_validation_20260525": {
+      "blocked_at_utc": "2026-05-20T18:35:00Z",
+      "blocker_id": "WP-KERNEL-004-BUILD-BROKEN-AT-LIB-LEVEL",
+      "blocked_by": "STRUCTURAL_DEBT_PRE_EXISTING_IN_FEAT_BRANCH",
+      "blocking_record": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/RECEIPTS.jsonl",
+      "reason": "Same root cause.",
+      "operator_action_needed": "Restore the WP-KERNEL-004 product-code build (lib.rs pub mod declarations + sandbox API reconciliation) before this MT can be re-claimed. See correlation_id=catastrophic-build-broken-finding-20260520.",
+      "triage_receipt": "correlation_id=catastrophic-build-broken-finding-20260520"
+    },
+    "previous_completed_by_before_ready_for_validation_20260525": "VALIDATOR-EXPLORE-MT143-REWORK-PASS-20260520-AUTO",
+    "previous_completed_at_utc_before_ready_for_validation_20260525": "2026-05-20T21:20:00Z",
+    "previous_wp_hard_fail_until_redone_before_ready_for_validation_20260525": true,
+    "previous_must_complete_before_other_mts_before_ready_for_validation_20260525": true,
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z"
+  },
+  "handoff": {
+    "coder_session": "KERNEL_BUILDER-20260518-235451",
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": "019e6be3-15f4-7961-983d-321d9a885a2b",
+    "review_response_receipt_actor_role": "INTEGRATION_VALIDATOR",
+    "review_response_receipt_track": "JUDGMENT_OOB_IV_PHASE1_PRE_REMEDIATION"
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Builder takes a FemsRetriever trait so tests are deterministic and do not require a live FEMS instance.",
+      "Builder enforces MemoryPackBudgets caps via the existing ACE primitives; no new budget bypass.",
+      "Audit log records every retrieval candidate so suppression decisions are forensically reconstructible."
+    ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_D1_D2",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-28T00:01:31.342Z",
+    "verdict": "PASS",
+    "verdict_reason": "CapsuleBuilder wires FemsRetriever -> PinnedCoreSelector -> MemoryPack -> MemoryCapsule with strict policy validation, pinned-aware top_k headroom, deterministic ordering, and full audit log including suppressed items.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 1,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-143.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-143.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_D1_D2",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T23:48:44.444Z",
+    "verdict": "PASS",
+    "verdict_reason": "CapsuleBuilder wires FemsRetriever -> PinnedCoreSelector -> MemoryPack -> MemoryCapsule with strict policy validation, pinned-aware top_k headroom, deterministic ordering, and full audit log including suppressed items.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 1,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "validator_reports_phase1/MT-143.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1\\validator_reports_phase1\\MT-143.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  }
+}

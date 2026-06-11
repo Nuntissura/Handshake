@@ -116,13 +116,20 @@ function runtimeStatusFixture(taskPacket) {
 test("WP runtime schema accepts both task_packets and work_packets packet paths", () => {
   assert.equal(schemaTaskPacketMatches(".GOV/task_packets/WP-TEST-RUNTIME-v1.md"), true);
   assert.equal(schemaTaskPacketMatches(".GOV/task_packets/WP-TEST-RUNTIME-v1/packet.md"), true);
+  assert.equal(schemaTaskPacketMatches(".GOV/task_packets/WP-TEST-RUNTIME-v1/packet.json"), true);
   assert.equal(schemaTaskPacketMatches(".GOV/work_packets/WP-TEST-RUNTIME-v1.md"), true);
   assert.equal(schemaTaskPacketMatches(".GOV/work_packets/WP-TEST-RUNTIME-v1/packet.md"), true);
+  assert.equal(schemaTaskPacketMatches(".GOV/work_packets/WP-TEST-RUNTIME-v1/packet.json"), true);
   assert.equal(schemaTaskPacketMatches(".GOV/task_packets/README.md"), false);
 });
 
 test("validateRuntimeStatus accepts folder packet paths used by live v3 packets", () => {
   const errors = validateRuntimeStatus(runtimeStatusFixture(".GOV/task_packets/WP-TEST-RUNTIME-v1/packet.md"));
+  assert.deepEqual(errors, []);
+});
+
+test("validateRuntimeStatus accepts JSON-only folder packet paths", () => {
+  const errors = validateRuntimeStatus(runtimeStatusFixture(".GOV/task_packets/WP-TEST-RUNTIME-v1/packet.json"));
   assert.deepEqual(errors, []);
 });
 
@@ -258,6 +265,38 @@ function memoryManagerReceiptFixture(overrides = {}) {
   };
 }
 
+function legacyLifecycleReceiptFixture(overrides = {}) {
+  return {
+    schema_version: "wp_receipt@1",
+    timestamp_utc: "2026-05-20T17:00:00Z",
+    wp_id: "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+    actor_role: "VALIDATOR",
+    actor_session: "VALIDATOR-EXPLORE-MT127-20260520-AUTO",
+    actor_authority_kind: "VALIDATOR_AUTHORED_PASS_GATE",
+    validator_role_kind: "MT_PASS_GATE",
+    receipt_kind: "COMPLETED",
+    summary: "MT-127 validator-authored COMPLETED by independent validator actor",
+    branch: "feat/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+    worktree_dir: "../wtc-kernel-004-fold-v1",
+    state_before: "READY_FOR_VALIDATION",
+    state_after: "COMPLETED",
+    target_role: "INTEGRATION_VALIDATOR",
+    target_session: null,
+    correlation_id: "legacy-mt127-completed",
+    requires_ack: false,
+    ack_for: null,
+    spec_anchor: null,
+    packet_row_ref: "MT-127",
+    microtask_contract: ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-127.json",
+    mechanical_result: null,
+    workflow_invalidity_code: null,
+    refs: [
+      ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-127.json",
+    ],
+    ...overrides,
+  };
+}
+
 test("validateReceipt requires target_session for direct-review receipts", () => {
   const errors = validateReceipt(reviewResolutionReceiptFixture({
     target_session: null,
@@ -307,6 +346,59 @@ test("validateReceipt rejects malformed microtask handoff commit fields", () => 
 test("validateReceipt accepts Memory Manager proposal receipts", () => {
   const errors = validateReceipt(memoryManagerReceiptFixture());
   assert.deepEqual(errors, []);
+});
+
+test("validateReceipt accepts legacy lifecycle receipt entries already present in live ledgers", () => {
+  const errors = validateReceipt(legacyLifecycleReceiptFixture());
+  assert.deepEqual(errors, []);
+});
+
+test("validateReceipt accepts operator waiver receipts addressed to Kernel Builder", () => {
+  const errors = validateReceipt(legacyLifecycleReceiptFixture({
+    actor_role: "OPERATOR",
+    actor_session: "operator",
+    actor_authority_kind: "PRIMARY_OPERATOR",
+    receipt_kind: "OPERATOR_WAIVER",
+    summary: "Operator approved a bounded scope waiver for Kernel Builder",
+    state_before: "WP_BLOCKED",
+    state_after: "WAIVER_GRANTED",
+    target_role: "KERNEL_BUILDER",
+    correlation_id: "operator-waiver",
+    packet_row_ref: null,
+    microtask_contract: null,
+  }));
+  assert.deepEqual(errors, []);
+});
+
+test("validateReceipt accepts STATUS metadata in legacy verb_body when no verb is set", () => {
+  const errors = validateReceipt(legacyLifecycleReceiptFixture({
+    actor_role: "CODER",
+    actor_session: "KERNEL_BUILDER-20260521-091504",
+    actor_authority_kind: "PRIMARY_CODER",
+    receipt_kind: "STATUS",
+    summary: "Implementation supporting evidence recorded",
+    state_before: "In Progress",
+    state_after: "In Progress with supporting evidence",
+    target_role: null,
+    correlation_id: "supporting-evidence",
+    packet_row_ref: "MT-176,MT-196",
+    microtask_contract: null,
+    verb: null,
+    verb_body: {
+      mt_ids: ["MT-176", "MT-196"],
+      classification: "IMPLEMENTATION_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+    },
+  }));
+  assert.deepEqual(errors, []);
+});
+
+test("validateReceipt still rejects non-STATUS verb bodies without a verb", () => {
+  const errors = validateReceipt(legacyLifecycleReceiptFixture({
+    receipt_kind: "ASSIGNMENT",
+    verb: null,
+    verb_body: { unexpected: true },
+  }));
+  assert.match(errors.join("\n"), /verb_body is only allowed when verb is set/);
 });
 
 test("ensurePacketlessWpCommunicationScaffold creates synthetic communication files without a packet", () => {

@@ -28,11 +28,11 @@
   "markdown_projection": {
     "path": ".GOV/task_packets/stubs/WP-1-RAG-Retrieval-Mode-Policy-v1.md",
     "status": "LEGACY_PROJECTION_IN_SYNC",
-    "projection_sha256": "70e278f48613f6f75a7ef20e2849ea5d4a2cbbd8ed825c0db67e11cc687b7ce2",
+    "projection_sha256": "916cd2a39419263193ef22c704038c5cdac36a0f60f7fc956fd13874127804fa",
     "generated_by": "task-packet-stub-contracts.mjs"
   },
   "lifecycle": {
-    "status": "STUB (NOT READY FOR DEV)",
+    "status": "SUPERSEDED (FOLDED INTO WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1; replacement=.GOV/task_packets/stubs/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1.contract.json)",
     "format_version": "",
     "activation_required": true,
     "user_signature_required": false,

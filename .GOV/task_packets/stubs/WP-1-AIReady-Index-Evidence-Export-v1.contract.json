@@ -28,11 +28,11 @@
   "markdown_projection": {
     "path": ".GOV/task_packets/stubs/WP-1-AIReady-Index-Evidence-Export-v1.md",
     "status": "LEGACY_PROJECTION_IN_SYNC",
-    "projection_sha256": "04cf79b2378c2c7ebabf73209956bf6d080918085684b1457f59c419d3c0ca6d",
+    "projection_sha256": "234063e9780ea7bf3242b7f2c08ead78bac6db7e9466c8dff39560e3f4a41c90",
     "generated_by": "task-packet-stub-contracts.mjs"
   },
   "lifecycle": {
-    "status": "STUB (NOT READY FOR DEV)",
+    "status": "SUPERSEDED (FOLDED INTO WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1; replacement=.GOV/task_packets/stubs/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1.contract.json)",
     "format_version": "",
     "activation_required": true,
     "user_signature_required": false,

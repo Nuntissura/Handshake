@@ -1,0 +1,246 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-093",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "C",
+  "cluster_subscope": "C.5",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:00:00Z",
+  "updated_at_utc": "2026-05-28T00:01:44.923Z",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-093.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "INF-2 KV cache technique public API + Work Profile knob + observability",
+  "goal": "Lift the per-adapter KvCacheOps into the public ModelRuntime-level KV cache technique surface per AC-INFER-LAB-8-TECHNIQUES.b: kernel.model_runtime.kv_set_quantization, kv_prefix_commit, kv_prefix_restore, kv_evict, kv_occupancy. Wire Work Profile knob settings.exec_policy.kv_cache + FR-EVT-LLM-INFER-KV-* events.",
+  "expected_diff_shape": "New src/backend/handshake_core/src/model_runtime/techniques/kv_cache_technique.rs; Tauri commands in app/src-tauri/src/commands/kv_cache.rs; Work Profile schema extension; tests.",
+  "owned_files": [
+    "src/backend/handshake_core/src/model_runtime/techniques/kv_cache_technique.rs",
+    "app/src-tauri/src/commands/kv_cache.rs",
+    "app/src-tauri/src/main.rs",
+    "src/backend/handshake_core/tests/kv_cache_technique_tests.rs"
+  ],
+  "depends_on_mts": [
+    "MT-063",
+    "MT-075",
+    "MT-090"
+  ],
+  "unblock_conditions": "MT-075 LlamaCpp KV cache impl merged; Candle transformer KV cache lands implicitly via candle internals.",
+  "implementation_notes": "Per AC-INFER-LAB-8-TECHNIQUES.b + refinement INF-2: KV caching PRODUCTION. Work Profile knob: settings.exec_policy.kv_cache: `{ quantization: KvQuantSupport, prefix_cache_ttl_seconds: u64, max_bytes: Option<u64> }` applied at session start. Tauri commands: kernel_model_runtime_kv_set_quantization, kernel_model_runtime_kv_prefix_commit, kernel_model_runtime_kv_prefix_restore, kernel_model_runtime_kv_evict_all, kernel_model_runtime_kv_occupancy. FR events: FR-EVT-LLM-INFER-KV-QUANT-CHANGE { model_id, prev, next }, FR-EVT-LLM-INFER-KV-PREFIX-COMMIT { model_id, handle_id, token_count }, FR-EVT-LLM-INFER-KV-PREFIX-RESTORE { model_id, handle_id, hit: bool }, FR-EVT-LLM-INFER-KV-EVICT { model_id, evicted_entries, reason }. Conservative defaults: quantization=q8 (lower memory; production sane); prefix_cache_ttl=300s; max_bytes=None (operator-driven). Capability gate: technique surface returns CapabilityNotSupported when supports_kv_quantization=None (e.g., SSM models) — UI hides the knob per MT-068 IPC. Replay-resistance: prefix_restore validates the handle's content_hash against the cached state's hash (already enforced in MT-063/MT-075). Tests: technique surface dispatches to LlamaCpp KvCacheOps correctly; quant change emits FR event; restore hit/miss counter increments.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target kv_cache_technique_tests"
+  ],
+  "risk_if_missed": "INF-2 PRODUCTION partial (per-adapter only); UI knob has no backend.",
+  "validator_focus": "Capability gate hides knob for SSMs; FR event field shape stable; conservative defaults documented.",
+  "hbr_obligations": [
+    "HBR-INT-002",
+    "HBR-INT-008"
+  ],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.7.1",
+    ".GOV/spec/master-spec-v02.186/spec-modules/10-product-surfaces.md#10.14"
+  ],
+  "acceptance_criteria_refs": [
+    "AC-INFER-LAB-8-TECHNIQUES",
+    "AC-INFER-LAB-UI-TOGGLES"
+  ],
+  "lifecycle": {
+    "active": false,
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "PASS",
+    "integration_validator_verdict": "PENDING",
+    "depends_on": [
+      "MT-063",
+      "MT-075",
+      "MT-090"
+    ],
+    "blocks": [
+      "MT-094",
+      "MT-095"
+    ],
+    "claimed_by": "KERNEL_BUILDER-20260522-171100",
+    "claimed_at_utc": "2026-05-22T20:50:00Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260522-171100",
+    "ready_for_validation_at_utc": "2026-05-22T21:35:00Z",
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "READY_FOR_VALIDATION",
+        "validator_verdict": "PENDING"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z"
+  },
+  "handoff": {
+    "coder_session": "KERNEL_BUILDER-20260522-171100",
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": "019e6be3-15db-7d31-ba46-69b4d9741c75",
+    "review_response_receipt_actor_role": "INTEGRATION_VALIDATOR",
+    "review_response_receipt_track": "JUDGMENT_OOB_IV_PHASE1_PRE_REMEDIATION"
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Capability gate hides UI when SSM (test verifies).",
+      "Conservative default = q8 (operator-sane).",
+      "FR field stability (snake_case JSON contract for tooling)."
+    ]
+  },
+  "implementation_record": {
+    "recorded_at_utc": "2026-05-22T21:35:00Z",
+    "recorded_by": "KERNEL_BUILDER-20260522-171100",
+    "classification": "IMPLEMENTATION_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+    "authoritative_integration_validator_pass": false,
+    "integration_validator_status": "PENDING",
+    "summary": "MT-093 lifts the per-adapter KvCacheOps into the public ModelRuntime-level kv_cache_technique surface (set_quantization, prefix_commit, prefix_restore, evict_all, occupancy), plus Tauri IPC commands kernel_model_runtime_kv_* with the Work Profile knob bridge at settings.execPolicy.kvCache.quantization. Three new FR-EVT-LLM-INFER-KV-* constants + matching FrEventId variants register the canonical event taxonomy; the existing KV-EVICT entry is reused for evict_all. Capability gates: set_quantization requires supports_kv_quantization != None; prefix_commit/restore/evict_all require supports_kv_prefix_cache; occupancy (read-only telemetry) accepts either capability and rejects only when both are absent. Supporting evidence only; Integration Validator review remains pending.",
+    "design_notes": [
+      "Foundational dependency: KvCacheHandle was a thin String wrapper before this MT (unlike LoraStackHandle which already carries Arc<dyn LoraStackOps>). To match the MT-090 pattern cleanly, KvCacheHandle was extended with an Arc<dyn KvCacheOps> field + UnsupportedKvCacheOps default + with_ops constructor + forwarding methods (quantization, set_quantization, occupancy, prefix_commit, prefix_restore, prefix_evict, evict_all). Cloud BYOK adapters keep using KvCacheHandle::new(...) which fails closed on every mutation; only LlamaCpp + Candle wire the real ops via with_ops.",
+      "LlamaCpp adapter (LlamaCppRuntime::kv_cache) now returns KvCacheHandle::with_ops('llama_cpp:{id}:kv_cache', handle.kv_cache.clone()) — the existing Arc<LlamaCppKvCache> directly impls KvCacheOps and is reused without state-sharing changes.",
+      "Candle adapter (StateVectorHandle::as_kv_cache_handle) now wraps a cloned StateVectorHandle (which derives Clone + impls KvCacheOps) inside Arc::new(...) for the with_ops surface.",
+      "Work Profile knob (settings.execPolicy.kvCache.quantization) takes precedence over the bare request.level when both are supplied — the operator's saved policy outranks ad-hoc IPC values, mirroring the MT-090 effective_stack_items pattern.",
+      "Capability gate cascade in kv_cache_command_binding (KvCacheCommandGate::{Quantization, PrefixCache, Telemetry}) lives next to the existing lora_command_binding/activation_steering_command_binding pattern in ModelRuntimeState — preflight runs before the live runtime is touched.",
+      "Prefix handle round-trip via IPC carries prefix_id (UUID string) + content_hash_hex (64 hex chars) + token_count. KvPrefixHandle::from_parts enforces v7 UUID; tampered hashes are caught by the adapter at restore time (existing MT-063/MT-075 invariant)."
+    ],
+    "contract_drift": [
+      "Owned file 'app/src-tauri/src/main.rs' updated to register handlers — this app's invoke handler list lives in app/src-tauri/src/lib.rs (lib.rs holds the handshake_invoke_handlers! macro with BOTH arms; main.rs delegates). Same path-naming defect class as MT-090's lib.rs vs main.rs note. Both no-extra and extra-args arms updated.",
+      "Implementation_notes referenced a typed RUST struct for the IPC LoraStackItemIpc-style Work Profile field; implemented as KvCacheExecPolicyIpc { quantization, prefix_cache_ttl_seconds, max_bytes } with Optional fields so the operator can carry just the quantization knob without the other policy fields. prefix_cache_ttl_seconds + max_bytes are surfaced in the IPC but consumed only by the session-start policy application (MT-094/MT-095 scope)."
+    ],
+    "owned_file_changes": [
+      "ADDED src/backend/handshake_core/src/model_runtime/techniques/kv_cache_technique.rs (200 lines after fmt).",
+      "ADDED app/src-tauri/src/commands/kv_cache.rs (760 lines after fmt) with #[cfg(test)] DTO + integration tests against a recording runtime.",
+      "ADDED src/backend/handshake_core/tests/kv_cache_technique_tests.rs (450 lines after fmt) — 9 adversarial tests.",
+      "MODIFIED app/src-tauri/src/lib.rs (handshake_invoke_handlers! macro both arms + commands::kv_cache module declaration).",
+      "MODIFIED src/backend/handshake_core/src/model_runtime/techniques/mod.rs (added pub mod kv_cache_technique)."
+    ],
+    "proof": {
+      "core_focused": {
+        "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test kv_cache_technique_tests -- --nocapture",
+        "exit_code": 0,
+        "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt093-cargo-kv-cache-technique-tests-20260522-001.log",
+        "note": "9/9 passed: set_quantization dispatch + canonical event_type; quantization fails-closed when None; prefix_commit/restore round-trip with hit counter; commit fails-closed when prefix_cache=false; evict_all clears state with canonical event_type; occupancy fails-closed when neither capability declared; occupancy allowed when only quantization declared; prefix_restore rejects tampered handle; FR event_type round-trip through fr_event_registry."
+      },
+      "tauri_focused": {
+        "command": "cargo test --manifest-path app/src-tauri/Cargo.toml kv_cache::tests -- --nocapture",
+        "exit_code": 0,
+        "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt093-cargo-tauri-kv-cache-tests-20260522-001.log",
+        "note": "6/6 passed: camelCase DTOs + settings.execPolicy.kvCache.quantization Work Profile knob; effective_quantization precedence over request.level; full mount/prefix_commit/restore/evict_all/occupancy dispatch through live runtime emitting canonical event_types; fail-closed when supports_kv_quantization=None; typed kv_not_available when no live runtime is attached."
+      },
+      "core_regression": {
+        "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test model_runtime_kv_cache_tests --test lora_hotswap_techniques_tests --test inf1_lora_parity_tests",
+        "exit_code": 0,
+        "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt093-cargo-final-kv-tests-20260522-002.log",
+        "note": "model_runtime_kv_cache 5/5 + lora_hotswap_techniques 2/2 + inf1_lora_parity 5/5 — KvCacheHandle extension is fully backward-compatible; MT-090 + MT-092 unaffected."
+      },
+      "tauri_regression_lora": {
+        "command": "cargo test --manifest-path app/src-tauri/Cargo.toml lora_commands -- --nocapture",
+        "exit_code": 0,
+        "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt093-cargo-regression-tauri-lora-commands-20260522-001.log",
+        "note": "5/5 passed — ModelRuntimeState additions did not regress MT-090's IPC layer."
+      },
+      "fr_registry_regression": {
+        "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib flight_recorder::fr_event_registry::tests -- --nocapture",
+        "exit_code": 0,
+        "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt093-cargo-check-after-fr-events-20260522-001.log",
+        "note": "3/3 passed: enum_to_string_round_trip + unknown_id_returns_error + registry_has_one_entry_per_variant — all three new KV variants accepted."
+      },
+      "format_checks": {
+        "core": {
+          "command": "cargo fmt --manifest-path src/backend/handshake_core/Cargo.toml --check",
+          "exit_code": 0
+        },
+        "tauri": {
+          "command": "cargo fmt --manifest-path app/src-tauri/Cargo.toml --check",
+          "exit_code": 0
+        }
+      }
+    },
+    "minimum_controls_evidence": {
+      "capability_gate_hides_ui_when_ssm": "Verified by kv_cache_occupancy_fails_closed_when_neither_capability_is_declared — a 'kvless' adapter (supports_kv_prefix_cache=false AND supports_kv_quantization=None, the shape an SSM-only adapter would expose) gets CapabilityNotSupported{kv_cache} on every channel. Frontend reads this through capabilities() and hides (not greys) the knob per AC-INFER-LAB-UI-TOGGLES.",
+      "conservative_default_q8": "kv_cache_technique::set_quantization does not impose a default; the operator's Work Profile decides. The MT-093 contract recommended Q8 as the operator-sane default; the IPC layer surfaces the policy as `KvCacheExecPolicyIpc.quantization: Option<KvQuantSupport>` so the Inference Lab UI MT (deferred — owned by MT-094/095 cluster) can default to Q8 on creation. This MT lands the surface; the default value seeding is a UI-layer concern.",
+      "fr_field_stability_snake_case": "FR string constants use SCREAMING-KEBAB-CASE (FR-EVT-LLM-INFER-KV-SET-QUANTIZATION etc.) consistent with the rest of the FR taxonomy. IPC DTO fields use camelCase via #[serde(rename_all = 'camelCase')] (frontend-facing); the FrEventId variant names follow Rust UpperCamelCase. JSON payload from the Tauri receipts uses camelCase; FR ledger event_id strings use the canonical kebab form."
+    },
+    "residual_risks": [
+      "No Integration Validator has reviewed MT-093.",
+      "Real-runtime end-to-end smoke (LlamaCpp + Candle KV cache through the new technique surface against real fixtures) is not exercised here — the env-gated MT-075 llama_cpp_kv_cache_tests still cover the LlamaCpp KvCacheOps surface directly. A cross-adapter parity test mirroring MT-092 could be added in a follow-up MT.",
+      "settings.execPolicy.kvCache.prefix_cache_ttl_seconds and .max_bytes are surfaced in the IPC DTO but the session-start application of those policy values is owned by a downstream MT — currently they're read-through telemetry only.",
+      "MT-094 (UI knob) / MT-095 (operator A/B compare) downstream MTs depend on this surface; their Inference Lab Svelte->TSX contract drift will surface again.",
+      "Umbrella gov-check failures inherited from MT-090/091/092 remain (six broad HBR/template/manual checks — out of scope for MT-093)."
+    ],
+    "out_of_scope_self_evaluation": {
+      "why": "MT-093 declared four owned files: kv_cache_technique.rs, kv_cache.rs (Tauri), app/src-tauri/src/main.rs, and kv_cache_technique_tests.rs. The first three are in scope (lib.rs is the modern equivalent of the declared main.rs entry — same Svelte->TSX defect class). However the foundational KvCacheHandle was a thin string wrapper without an ops field, while LoraStackHandle had carried Arc<dyn LoraStackOps> since MT-090. To implement the technique surface cleanly without per-adapter downcasts, KvCacheHandle had to be extended (with_ops + UnsupportedKvCacheOps + forwarding methods); both adapter accessors had to be wired; three new FR registry variants had to be added; ModelRuntimeState needed a new kv_cache_command_binding helper.",
+      "touched_outside_mt_owned_files": [
+        "src/backend/handshake_core/src/model_runtime/kv_cache.rs (KvCacheHandle extension + UnsupportedKvCacheOps default)",
+        "src/backend/handshake_core/src/model_runtime/llama_cpp/adapter.rs (kv_cache returns with_ops handle)",
+        "src/backend/handshake_core/src/model_runtime/candle/state_vector.rs (as_kv_cache_handle returns with_ops handle)",
+        "src/backend/handshake_core/src/model_runtime/techniques/mod.rs (declare kv_cache_technique module)",
+        "src/backend/handshake_core/src/flight_recorder/events_llm_infer.rs (3 new FR string constants)",
+        "src/backend/handshake_core/src/flight_recorder/fr_event_registry.rs (3 new FrEventId variants + subsystem_for arm)",
+        "app/src-tauri/src/commands/model_runtime.rs (kv_cache_command_binding + KvCacheCommandGate enum)"
+      ],
+      "risk_reduced": "Prevents per-adapter downcast logic in the technique surface, keeps the existing UnsupportedKvCacheOps default safe for cloud adapters that don't own a real KV cache (they fail closed automatically), and gives the FR registry full coverage of the four KV technique events so observability tooling can subscribe without ad-hoc strings.",
+      "waiver_status": "OPERATOR_WAIVER_REQUIRED_FOR_THIS_MT_OUT_OF_SCOPE_FILES"
+    }
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C4_C7",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-28T00:01:31.342Z",
+    "verdict": "PASS",
+    "verdict_reason": "KV cache technique surface cleanly lifts KvCacheOps to public set_quantization/prefix_commit/prefix_restore/evict_all/occupancy with capability-cascade gating (quantization vs prefix_cache vs telemetry), Work Profile knob bridge with effective_quantization precedence, and FR-EVT-LLM-INFER-KV-* stamping.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "CONCERN",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 1,
+      "LOW": 0
+    },
+    "paperwork_notes_count": 1,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-093.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-093.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C4_C7",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T23:48:44.444Z",
+    "verdict": "PASS",
+    "verdict_reason": "KV cache technique surface cleanly lifts KvCacheOps to public set_quantization/prefix_commit/prefix_restore/evict_all/occupancy with capability-cascade gating (quantization vs prefix_cache vs telemetry), Work Profile knob bridge with effective_quantization precedence, and FR-EVT-LLM-INFER-KV-* stamping.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "CONCERN",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 1,
+      "LOW": 0
+    },
+    "paperwork_notes_count": 1,
+    "review_artifact_ref": "validator_reports_phase1/MT-093.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1\\validator_reports_phase1\\MT-093.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  }
+}

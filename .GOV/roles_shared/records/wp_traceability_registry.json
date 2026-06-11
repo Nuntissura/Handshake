@@ -4,7 +4,7 @@
   "authority_surface": "MACHINE_CONTRACT",
   "rendered_md_projection_path": ".GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md",
   "rendered_md_projection_policy": "GENERATED_FROM_JSON_DO_NOT_HAND_EDIT",
-  "updated_at_utc": "2026-05-17T17:03:39.635Z",
+  "updated_at_utc": "2026-06-11T03:13:56.005Z",
   "entries": [
     {
       "base_wp_id": "WP-1-ACE-Auditability",
@@ -47,18 +47,6 @@
       "active_packet_path": ".GOV/task_packets/stubs/WP-1-AIReady-CoreMetadata-v1.md",
       "task_board_projection": "Stub Backlog (Not Activated): WP-1-AIReady-CoreMetadata-v1",
       "notes": "stub (audit remediation); align CoreMetadata required fields"
-    },
-    {
-      "base_wp_id": "WP-1-AIReady-Index-Evidence-Export",
-      "active_packet_path": ".GOV/task_packets/stubs/WP-1-AIReady-Index-Evidence-Export-v1.md",
-      "task_board_projection": "Stub Backlog (Not Activated): WP-1-AIReady-Index-Evidence-Export-v1",
-      "notes": "stub (spec v02.151); backend export/evidence/portability pass for AI-ready index artifacts, rebuild events, and bounded evidence export"
-    },
-    {
-      "base_wp_id": "WP-1-AIReady-RelationshipIds-GraphRetrieval",
-      "active_packet_path": ".GOV/task_packets/stubs/WP-1-AIReady-RelationshipIds-GraphRetrieval-v1.md",
-      "task_board_projection": "Stub Backlog (Not Activated): WP-1-AIReady-RelationshipIds-GraphRetrieval-v1",
-      "notes": "stub (audit remediation); relationship_id + graph candidates in hybrid retrieval"
     },
     {
       "base_wp_id": "WP-1-Locus-Debug-Bundle-Bridge",
@@ -215,12 +203,6 @@
       "active_packet_path": ".GOV/task_packets/WP-1-Distillation-v2/packet.md",
       "task_board_projection": "Stub Backlog (Not Activated): WP-1-Distillation-v2",
       "notes": "stub (spec v02.157); late-stage distillation/adapter lineage, eval gating, and LoRA/QLoRA/DoRA promotion discipline; supersedes: WP-1-Distillation"
-    },
-    {
-      "base_wp_id": "WP-1-ContextPack-Recorder-Visibility",
-      "active_packet_path": ".GOV/task_packets/stubs/WP-1-ContextPack-Recorder-Visibility-v1.md",
-      "task_board_projection": "Stub Backlog (Not Activated): WP-1-ContextPack-Recorder-Visibility-v1",
-      "notes": "stub (spec v02.157); bounded Flight Recorder visibility for Context Pack build/select/refresh/freshness decisions and pack-hash lineage"
     },
     {
       "base_wp_id": "WP-1-Dual-Backend-Tests",
@@ -439,12 +421,6 @@
       "notes": "active=WP-1-Security-Gates-v3; supersedes: WP-1-Security-Gates, WP-1-Security-Gates-v2"
     },
     {
-      "base_wp_id": "WP-1-Semantic-Catalog",
-      "active_packet_path": ".GOV/task_packets/stubs/WP-1-Semantic-Catalog-v2.md",
-      "task_board_projection": "Stub Backlog (Not Activated): WP-1-Semantic-Catalog-v2",
-      "notes": "stub (remediation); supersedes: WP-1-Semantic-Catalog"
-    },
-    {
       "base_wp_id": "WP-1-Spec-Enrichment-LLM-Core",
       "active_packet_path": ".GOV/task_packets/WP-1-Spec-Enrichment-LLM-Core-v1.md",
       "task_board_projection": "Done: WP-1-Spec-Enrichment-LLM-Core-v1",
@@ -543,14 +519,20 @@
     {
       "base_wp_id": "WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening",
       "active_packet_path": ".GOV/task_packets/WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1/packet.md",
-      "task_board_projection": "In Progress: WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1",
-      "notes": "Kernel002 pre-use hardening stub; folds complete kernel-adjacent backlog into CRDT workspace, write-box/action catalog, direct-edit denial, mirror drift guard, runtime truth, DCC, Role Mailbox, FEMS checkpoint, and visual-debugging scope."
+      "task_board_projection": "Blocked: WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1",
+      "notes": "Kernel002 pre-use hardening stub is blocked after integration rerun 7 failed and the declared worktree is missing; folds complete kernel-adjacent backlog into CRDT workspace, write-box/action catalog, direct-edit denial, mirror drift guard, runtime truth, DCC, Role Mailbox, FEMS checkpoint, and visual-debugging scope."
     },
     {
       "base_wp_id": "WP-KERNEL-003-Sandbox-Validation-Promotion",
       "active_packet_path": ".GOV/task_packets/WP-KERNEL-003-Sandbox-Validation-Promotion-v1/packet.md",
       "task_board_projection": "Validated (PASS): WP-KERNEL-003-Sandbox-Validation-Promotion-v1",
       "notes": "Kernel003 sandbox/validation/promotion packet; 80/80 MT PASS + adversarial review 22/22 closed; merged to main at a813b7615f4e29d77ed8ee0b3ea8845ad5fd406f on 2026-05-17."
+    },
+    {
+      "base_wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement",
+      "active_packet_path": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json",
+      "task_board_projection": "In Progress: WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+      "notes": "Kernel004 four-cluster max-fold (HBR enforcement + tooling | sandbox 3-adapter | local-model boxing + 8 PRODUCTION inference techniques | Memory V0+ on FEMS V1); 30 historical WP-1-* stubs folded with preservation map; spec v02.186 enrichment applied; Codex CX-131 added; user_signature ilja180520260209 captured 2026-05-18T02:09Z; JSON-first contract authority (packet.json + refinement.json); legacy md projection skipped per operator decision (feedback_no_default_md_files + governance gate modernization debt). 2026-05-21 supporting evidence refresh: backend cargo test --jobs 2 exit 0, app cargo test --jobs 2 exit 0, focused real-Postgres memory capsule + HBR fixture + CLI timeout + model manual + swarm CLI + foreground warning + steering persistence regressions exit 0; IV PASS remains pending."
     },
     {
       "base_wp_id": "WP-1-Storage-Capability-Boundary-Refactor",
@@ -787,12 +769,6 @@
       "notes": "stub (inventory sync); Task Board backlog stub carried into traceability registry for Build Order coverage"
     },
     {
-      "base_wp_id": "WP-1-RAG-Retrieval-Mode-Policy",
-      "active_packet_path": ".GOV/task_packets/stubs/WP-1-RAG-Retrieval-Mode-Policy-v1.md",
-      "task_board_projection": "Stub Backlog (Not Activated): WP-1-RAG-Retrieval-Mode-Policy-v1",
-      "notes": "stub (inventory sync); Task Board backlog stub carried into traceability registry for Build Order coverage"
-    },
-    {
       "base_wp_id": "WP-1-Studio-Runtime-Visibility",
       "active_packet_path": ".GOV/task_packets/stubs/WP-1-Studio-Runtime-Visibility-v1.md",
       "task_board_projection": "Stub Backlog (Not Activated): WP-1-Studio-Runtime-Visibility-v1",
@@ -907,12 +883,6 @@
       "notes": "stub (inventory sync); Task Board backlog stub carried into traceability registry for Build Order coverage"
     },
     {
-      "base_wp_id": "WP-1-Project-Brain-Runtime-Backfill",
-      "active_packet_path": ".GOV/task_packets/stubs/WP-1-Project-Brain-Runtime-Backfill-v1.md",
-      "task_board_projection": "Stub Backlog (Not Activated): WP-1-Project-Brain-Runtime-Backfill-v1",
-      "notes": "stub (inventory sync); Task Board backlog stub carried into traceability registry for Build Order coverage"
-    },
-    {
       "base_wp_id": "WP-1-LLM-Provider-Registry",
       "active_packet_path": ".GOV/task_packets/WP-1-LLM-Provider-Registry-v1.md",
       "task_board_projection": "Done: WP-1-LLM-Provider-Registry-v1",
@@ -983,6 +953,18 @@
       "active_packet_path": ".GOV/task_packets/stubs/WP-KERNEL-008-Principal-Profile-CRM-Layer-v1.contract.json",
       "task_board_projection": "Stub Backlog (Not Activated): WP-KERNEL-008-Principal-Profile-CRM-Layer-v1",
       "notes": "PRIMARY_MACHINE_READABLE_STUB; no .md sibling (contract is authority surface)"
+    },
+    {
+      "base_wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor",
+      "active_packet_path": ".GOV/task_packets/stubs/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1.contract.json",
+      "task_board_projection": "Stub Backlog (Not Activated): WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
+      "notes": "PRIMARY_MACHINE_READABLE_STUB; no .md sibling; preserves operator-requested kernel build 0007 intent without colliding with existing WP-KERNEL-007; folds Project Brain, Semantic Catalog, RAG retrieval-mode policy, AIReady evidence/export, relationship_id graph retrieval, and ContextPack recorder-visibility legacy stubs"
+    },
+    {
+      "base_wp_id": "WP-KERNEL-005",
+      "active_packet_path": ".GOV/task_packets/WP-KERNEL-005/packet.md",
+      "task_board_projection": "TBD",
+      "notes": ""
     }
   ],
   "superseded_activation_history": [
@@ -1303,6 +1285,42 @@
       "superseded_packet_or_stub": "Task Board inventory only: WP-1-Receipt-Driven-Lane-Wake-Settlement-v1",
       "task_board": "Superseded (Archive): WP-1-Receipt-Driven-Lane-Wake-Settlement-v1",
       "replacement_notes": "folded board-only intent into WP-KERNEL-003-Sandbox-Validation-Promotion-v1; no physical stub file found during fold"
+    },
+    {
+      "base_wp_id": "WP-1-Project-Brain-Runtime-Backfill",
+      "superseded_packet_or_stub": ".GOV/task_packets/stubs/WP-1-Project-Brain-Runtime-Backfill-v1.md",
+      "task_board": "Superseded (Archive): WP-1-Project-Brain-Runtime-Backfill-v1",
+      "replacement_notes": "folded into WP-KERNEL-009 Project Knowledge Index runtime bridge; Project Brain query/citation/context-compaction visibility preserved; source stub retained as superseded evidence; replacement=.GOV/task_packets/stubs/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1.contract.json"
+    },
+    {
+      "base_wp_id": "WP-1-Semantic-Catalog",
+      "superseded_packet_or_stub": ".GOV/task_packets/stubs/WP-1-Semantic-Catalog-v2.md",
+      "task_board": "Superseded (Archive): WP-1-Semantic-Catalog-v2",
+      "replacement_notes": "folded into WP-KERNEL-009 Semantic Catalog backend index; remediation intent from failed prior Semantic Catalog packet preserved; source stub retained as superseded evidence; replacement=.GOV/task_packets/stubs/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1.contract.json"
+    },
+    {
+      "base_wp_id": "WP-1-AIReady-Index-Evidence-Export",
+      "superseded_packet_or_stub": ".GOV/task_packets/stubs/WP-1-AIReady-Index-Evidence-Export-v1.md",
+      "task_board": "Superseded (Archive): WP-1-AIReady-Index-Evidence-Export-v1",
+      "replacement_notes": "folded into WP-KERNEL-009 AI-ready evidence/export anchors; bounded export, retention, provenance, portability, and rebuild/update evidence preserved; source stub retained as superseded evidence; replacement=.GOV/task_packets/stubs/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1.contract.json"
+    },
+    {
+      "base_wp_id": "WP-1-AIReady-RelationshipIds-GraphRetrieval",
+      "superseded_packet_or_stub": ".GOV/task_packets/stubs/WP-1-AIReady-RelationshipIds-GraphRetrieval-v1.md",
+      "task_board": "Superseded (Archive): WP-1-AIReady-RelationshipIds-GraphRetrieval-v1",
+      "replacement_notes": "fully folded into WP-KERNEL-009 graph schema/retrieval; deterministic relationship_id and non-empty graph candidate tests preserved; source stub retained as superseded evidence; replacement=.GOV/task_packets/stubs/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1.contract.json"
+    },
+    {
+      "base_wp_id": "WP-1-RAG-Retrieval-Mode-Policy",
+      "superseded_packet_or_stub": ".GOV/task_packets/stubs/WP-1-RAG-Retrieval-Mode-Policy-v1.md",
+      "task_board": "Superseded (Archive): WP-1-RAG-Retrieval-Mode-Policy-v1",
+      "replacement_notes": "folded into WP-KERNEL-009 retrieval-mode policy; none/direct_load/exact_lookup/graph_traversal/hybrid_rag and non_hybrid_reason behavior preserved; source stub retained as superseded evidence; replacement=.GOV/task_packets/stubs/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1.contract.json"
+    },
+    {
+      "base_wp_id": "WP-1-ContextPack-Recorder-Visibility",
+      "superseded_packet_or_stub": ".GOV/task_packets/stubs/WP-1-ContextPack-Recorder-Visibility-v1.md",
+      "task_board": "Superseded (Archive): WP-1-ContextPack-Recorder-Visibility-v1",
+      "replacement_notes": "folded into WP-KERNEL-009 ContextPack recorder visibility; build/reuse/refresh/freshness events and pack/source hash linkage preserved; source stub retained as superseded evidence; replacement=.GOV/task_packets/stubs/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1.contract.json"
     }
   ],
   "historical_lineage": [

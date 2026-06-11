@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "handshake.fr_event_registry@1",
+  "title": "Handshake FR-EVT-* Event Registry",
+  "description": "Authoritative manifest of every Flight Recorder FR-EVT-* event id used by cluster X subsystems. Generated and verified against the Rust enum `FrEventId` in `src/backend/handshake_core/src/flight_recorder/fr_event_registry.rs`; CI alignment test fails if either side drifts. Landed by WP-KERNEL-004 MT-198.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "version", "events"],
+  "properties": {
+    "schema": {
+      "type": "string",
+      "const": "handshake.fr_event_registry@1"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    },
+    "events": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "kind", "subsystem", "added_in_wp"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^FR-EVT-[A-Z0-9][A-Z0-9-]*$",
+            "description": "Canonical UPPER-KEBAB-CASE id. Exact-match wire format; case-mismatch is rejected by the Rust registry."
+          },
+          "kind": {
+            "type": "string",
+            "enum": ["emission", "span_lifecycle"]
+          },
+          "subsystem": {
+            "type": "string",
+            "enum": [
+              "role_mailbox",
+              "mt_executor",
+              "session_checkpoint",
+              "flight_recorder",
+              "model_runtime"
+            ]
+          },
+          "added_in_wp": {
+            "type": "string",
+            "pattern": "^WP-[A-Z0-9][A-Z0-9-]*$"
+          },
+          "schema_fields": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["name", "kind"],
+              "properties": {
+                "name": { "type": "string", "minLength": 1 },
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "string",
+                    "i64",
+                    "u64",
+                    "f64",
+                    "bool",
+                    "uuid",
+                    "uuid?",
+                    "string?",
+                    "object",
+                    "rfc3339"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

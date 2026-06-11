@@ -34,6 +34,21 @@
 - The Orchestrator prepares all mechanical truth (SHAs, artifacts, clause sync) before the Integration Validator launches. The Integration Validator should NOT need to fix mechanical closeout issues.
 - WP Validator handles per-MT review. The Integration Validator does NOT review individual MTs â€” it judges the whole.
 
+## HBR Gate Obligations
+
+This role must honor `HANDSHAKE_BUILD_RULES.json` v1.3.0+ (see Codex CX-131, Master Spec Section 5.6, registry at `.GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json`). Integration Validator owns whole-WP HBR closure and must not merge or final-PASS product work while any applicable HBR obligation is missing or weakly proven.
+
+- Applicability duty: inspect the final packet, MT set, touched paths, acceptance matrix, and validator-scan output. Every touched feature, primitive, tool, model lane, storage path, sandbox/workspace/worktree surface, UI surface, automation surface, UserManual surface, and backend navigation path must have correct HBR applicability.
+- Interconnectivity duty: require runtime evidence that changed behavior wires into the actual product graph. EventLedger, ContextBundle, ModelAdapter, ToolGate, ArtifactStore, ValidationRunner, PromotionGate, TraceProjection, CRDT, UserManual, and backend navigation claims must have executable consumers/producers, not declarations only.
+- Swarm duty: whole-WP review must account for parallel local and cloud model lanes plus Operator co-work. Shared state, queues, leases, cancellation, typed routing, backend navigation, conflict handling, workspaces/worktrees, and recovery must be safe under concurrent agent/operator activity when touched.
+- Native-runtime duty: reject Docker Desktop, Docker Compose, third-party daemons, manually launched support apps, SQLite, SQL-portability shims, and mock-only resources as default core-operation proof. Built-in sandbox/VM/workspace/worktree behavior must be product-managed or explicitly operator-configured.
+- PostgreSQL/EventLedger duty: durable authority behavior requires real PostgreSQL/EventLedger proof through Handshake-managed PostgreSQL or an explicit real PostgreSQL URL. SQLite authority, caches, fixtures, compatibility paths, imports, examples, harnesses, or temporary adapters are merge blockers unless the Operator created an explicit non-Handshake exception.
+- CRDT duty: collaborative state behavior requires CRDT persistence, reconnect/replay, conflict visibility, and promotion into authority state when in scope.
+- Visual duty: UI/operator-surface and diagnostic-surface changes require internal visual/debug inspection or headless GUI capture evidence. If the visual tool path is missing for an in-scope surface, record a blocking HBR-VIS gap rather than issuing PASS.
+- UserManual duty: model-callable commands, tools, IPC channels, config keys, operator-facing capabilities, and documented features must have same-change UserManual updates and code-truth self-consistency evidence when applicable. Current HBR-MAN registry anchors may still use the legacy `ModelManual` identifier until that authority rename is performed.
+- Quiet/process duty: final evidence must show tests, agent activity, sandboxes, and background processes are non-intrusive, attributable, and reclaimed.
+- Final-verdict duty: before PASS/merge readiness, run or review `hbr-matrix-check`, HandoffGate evidence, validator-scan HBR evidence, and packet acceptance closure. Any required HBR row left `PENDING`, `STEER`, or `BLOCKED` is a hard blocker.
+
 ## Current Indexed Master Spec Write Surface [CX-SPEC-IDX] (HARD)
 
 Integration Validator is one of the only roles allowed to patch current Master Spec content. The complete allowed spec-writer set is: `ORCHESTRATOR`, `ACTIVATION_MANAGER`, `CLASSIC_ORCHESTRATOR`, `INTEGRATION_VALIDATOR`, and classic `VALIDATOR`.
@@ -303,3 +318,19 @@ Cross-session conversational memory captures what was validated, decided, and fl
 ## Phase bundle and leaf-surface rule [CX-913]
 
 Use `just gov-check` or `just phase-check` as the canonical checkpoint bundle surfaces before adding a new public governance recipe, public leaf script, or standalone diagnostic. If a new public surface is unavoidable, update `.GOV/roles_shared/records/GOVERNANCE_TOPOLOGY.json` in the same governance change or emit a typed topology-ledger proposal if this role cannot write `.GOV`. Diagnose compact bundle failures through the structured failure dossier under the external governance runtime root.
+
+## Spec-Realism Gate (mandatory enforcement before COMPLETED)
+
+This role enforces the Spec-Realism Gate. The `READY_FOR_VALIDATION -> COMPLETED` transition for any MT must pass three sub-rules. If any sub-rule fails, this role records the failure as the new lifecycle status (one of the named alternatives below) and writes a verdict receipt with the failed sub-rule named. The gate sits at the same authority level as the existing PASS/FAIL discipline; a `COMPLETED` verdict in violation of any sub-rule is a higher-severity governance defect than a single bad MT — escalate to operator immediately.
+
+For the default `INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1` topology this role applies the gate to every MT in the batch BEFORE the WP-scoped Master Spec verdict; an MT that fails the gate sends the batch back to the implementer per the existing per-MT mitigation flow.
+
+**Sub-rule 1 — No deferred-live escape.** Grep the committed proof block, the linked test files, and the diff for `LiveClientUnavailable`, `LiveSpawnUnavailable`, `LiveRuntimeUnavailable`, `TrainerUnavailable`, `NativeToolchainUnavailable`, `not yet wired`, `deferred to follow-on`, `pending MT-NNN`, `live store not attached`, or any new placeholder error variant of the same shape. Any hit reachable from the proof path or from the function bodies the MT spec requires to run -> status `BLOCKED_ON_DEPENDENCY`, verdict `HARD_FAIL`. Name the missing dep in the verdict receipt.
+
+**Sub-rule 2 — Handshake-owned resource touch.** Read the MT contract's `owned_files` + `spec_anchors` + `implementation_notes`. For every Handshake-owned managed resource or explicitly required integration surface named — model artifact, PostgreSQL/EventLedger table/column, adapter boundary, receipt, ArtifactStore manifest, file-format round-trip, OS-level surface, or IPC channel actually routed through Handshake-managed lifecycle — confirm at least one proof command touches the real Handshake-native implementation, managed integration record, rejection gate, or adapter contract. Do not require Docker, outside apps, manually launched services, or external model-server daemons as core proof unless the MT explicitly marks them as opt-in compatibility. If proof only touches mocks the implementer authored alongside the impl and does not exercise the Handshake-owned contract, status `NEEDS_MANAGED_RESOURCE_PROOF`, verdict `HARD_FAIL`. Name the resource in the verdict receipt.
+
+**Sub-rule 3 — Implementer did not self-certify.** Read `lifecycle.claimed_by` and the proposed `completed_by`. If they are the same actor, the handoff is malformed; reject and emit `INVALID_HANDOFF_SELF_CERTIFICATION` in the verdict receipt with the request that the implementer transition to `READY_FOR_VALIDATION` instead. This role then performs the `READY_FOR_VALIDATION -> COMPLETED` transition itself.
+
+The question this gate answers in one breath: *"does the diff exercise the spec's required behavior at runtime, or does it satisfy a contract the implementer also authored?"* A passing answer is the first form. Anything in the second form is a sub-rule-1 or sub-rule-2 failure.
+
+Origin: introduced 2026-05-20 after a kernel_builder session shipped 27 MTs whose `lifecycle.status: COMPLETED` claims satisfied the implementer's own tests but did not satisfy the Master Spec behavior the MT contracts required. The 27 were reopened as `NEEDS_REIMPLEMENTATION`; see receipt `correlation_id=reopen-27-mts-operator-decision-20260520` in the WP-KERNEL-004 RECEIPTS.jsonl. Validator, WP Validator, and Integration Validator all enforce this gate identically; the role that signs the `COMPLETED` transition is the role responsible for the verdict.

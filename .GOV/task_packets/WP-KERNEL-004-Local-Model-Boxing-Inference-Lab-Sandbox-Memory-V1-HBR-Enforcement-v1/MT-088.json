@@ -1,0 +1,155 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-088",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "C",
+  "cluster_subscope": "C.3",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:00:00Z",
+  "updated_at_utc": "2026-05-28T00:01:44.920Z",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-088.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "CandleRuntime State-Vector handle abstraction (SSM/RWKV parity for KV cache surface)",
+  "goal": "Define StateVectorHandle + StateVectorOps as the SSM/RWKV equivalent of KvCacheHandle: capture/restore/evict per-model SSM or RWKV state vectors. Returned from kv_cache() for SSM variants as the prefix-reuse-equivalent surface (per refinement INF-9 feature_parity_detail: 'prefix-reuse-equivalent for SSMs').",
+  "expected_diff_shape": "New src/backend/handshake_core/src/model_runtime/candle/state_vector.rs with StateVectorHandle, StateVectorOps, SSMStateSnapshot serde impls; adapter.rs kv_cache() variant routing.",
+  "owned_files": [
+    "src/backend/handshake_core/src/model_runtime/candle/state_vector.rs",
+    "src/backend/handshake_core/src/model_runtime/candle/adapter.rs",
+    "src/backend/handshake_core/tests/candle_state_vector_tests.rs"
+  ],
+  "depends_on_mts": [
+    "MT-063",
+    "MT-085",
+    "MT-086",
+    "MT-087"
+  ],
+  "unblock_conditions": "MT-063 KvCacheOps trait + MT-085/086/087 SSM/RWKV base merged.",
+  "implementation_notes": "Per refinement INF-9 feature_parity_detail: SSMs need prefix-reuse-equivalent. The KvCacheOps trait surface in MT-063 is intentionally generic so SSMs can implement it with SSM-state semantics: prefix_commit captures the current SSM/RWKV state into a serialisable buffer + content_hash of the prefix tokens; prefix_restore writes the buffer back into the model's mutable state; prefix_evict + evict_all manage the in-memory LRU. SSMStateSnapshot enum: `Mamba2 { conv_states: Vec<Tensor>, ssm_states: Vec<Tensor> }`, `RwkvV5 { token_shift: Vec<Tensor>, ssm: Vec<Tensor> }`, `RwkvV6 { ... }`, `RwkvV7 { ... }` — serde Serialize as raw bytes (Tensor to_vec + dtype + shape) so snapshots persist to disk via cross-session state restore (MT-117). On restore: validate snapshot variant matches model variant; restore tensors; cross-session restore additionally validates ModelId artifact_sha256 matches the snapshot's recorded sha256 (rejects restoring into a different model). For Transformer variant: kv_cache() returns the candle-native KV-cache wrapper (MT-093 implements actual transformer KV ops); SSM/RWKV variants return StateVectorHandle. KvCacheStats for SSMs reports state_vector_bytes + entries (not token KV pairs). Tests: commit state on Mamba2, generate, restore, generate same continuation -> deterministic; tamper hash -> Err; restore across mismatched variants -> Err. UUID v7 for StateVectorId per HBR-INT-008.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target candle_state_vector_tests"
+  ],
+  "risk_if_missed": "SSM prefix-reuse-equivalent missing; INF-9 feature parity incomplete; cross-session state restore (MT-117) has no primitive to build on.",
+  "validator_focus": "Variant-mismatch restore returns explicit Err; tamper detection; deterministic continuation after commit/restore on Mamba2.",
+  "hbr_obligations": [
+    "HBR-INT-002",
+    "HBR-INT-008"
+  ],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.6.2",
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.7.1"
+  ],
+  "acceptance_criteria_refs": [
+    "AC-CANDLE-ADAPTER",
+    "AC-INFER-LAB-8-TECHNIQUES"
+  ],
+  "lifecycle": {
+    "active": false,
+    "status": "READY_FOR_VALIDATION_PHASE2",
+    "validator_verdict": "FAIL",
+    "depends_on": [
+      "MT-063",
+      "MT-085",
+      "MT-086",
+      "MT-087"
+    ],
+    "blocks": [
+      "MT-114",
+      "MT-117"
+    ],
+    "claimed_by": "KERNEL_BUILDER-20260519-143049",
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "COMPLETED",
+        "validator_verdict": "PENDING",
+        "completed_at_utc": "2026-05-19T16:15:33.783Z"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "previous_completed_at_utc_before_ready_for_validation_20260525": "2026-05-19T16:15:33.783Z",
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z",
+    "updated_at_utc": "2026-05-28T02:56:30.000Z"
+  },
+  "handoff": {
+    "coder_session": "KERNEL_BUILDER-20260519-143049",
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": "019e6be3-15d8-7abf-b57f-79719e96c6cf",
+    "review_response_receipt_actor_role": "INTEGRATION_VALIDATOR",
+    "review_response_receipt_track": "JUDGMENT_OOB_IV_PHASE1_PRE_REMEDIATION"
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Variant-mismatch restore rejected with explicit Err.",
+      "Tamper hash detection on restore.",
+      "Cross-session state restore artifact_sha256 binding enforced."
+    ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C3_FRESH",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-28T00:01:31.342Z",
+    "verdict": "FAIL",
+    "verdict_reason": "The StateVectorHandle / SSMStateSnapshot / SSMTensorSnapshot / StateVectorSnapshotRecord types are well-designed; serde round-trip works; snapshot_hash with domain-separated SHA256 covers all fields; variant-mismatch + artifact_sha256-mismatch + content_hash-tamper + snapshot-bytes-tamper are all rejected with explicit errors; UUID v7 enforced on StateVectorId. PERSIST-TO-DISK path via write_file_artifact + ArtifactStore is wired. HOWEVER — and this is the disqualifying defect — the StateVectorHandle is COMPLETELY DECOUPLED from the live SSM model state. (1) At load time (adapter.rs:204-208, 232-236, 260-264, 288-292), every SSM model is initialised with an EMPTY SSMStateSnapshot (empty_mamba2_snapshot() / empty_rwkv_*_snapshot() — Vec::new() for all tensor lists). (2) prefix_commit captures `self.current_snapshot` from InMemoryStateVectorOps — which started empty and is NEVER updated from the live CandleMamba2Model.state or RWKV State; there is no path that reads the model's mutable SSM state and writes it into current_snapshot. (3) prefix_restore writes a snapshot into `self.current_snapshot` (InMemoryStateVectorOps) but has NO PATH to inject that snapshot back into the CandleMamba2Model.state / RWKV State held inside the Arc<Mutex<Box<dyn TransformerModel>>>. The e2e smoke test (candle_e2e_smoke.rs:403-441) only passes because every generate call invokes `locked.reset_generation_state()` (generate.rs:123) which wipes the state to a fresh State::new — so two generate calls with the same prompt produce the same output regardless of whether prefix_commit/prefix_restore were called. The test ASSERTS determinism that is guaranteed by reset, not by state restore. Net: MT-088's substantive contract — 'commit state on Mamba2, generate, restore, generate same continuation' — is NOT proven; the substrate it builds for MT-117 cross-session restore restores empty snapshots into a sidecar struct that never touches the model. Contract validator_focus item 'deterministic continuation after commit/restore on Mamba2' is structurally unverifiable with the current wiring.",
+    "spec_compliance_status": "PARTIAL",
+    "code_hygiene_status": "MAJOR",
+    "runtime_safety_status": "UNSAFE",
+    "agent_swarm_safety_status": "UNSAFE",
+    "hbr_unsatisfied": [
+      "HBR-INT-002 — persist path emits an artifact via write_file_artifact (good evidence of ArtifactStore wiring) but the restore path does not exercise the live model, so the wire test for SSM state restore is not satisfied."
+    ],
+    "test_coverage_status": "THIN",
+    "findings_count_by_severity": {
+      "CRITICAL": 1,
+      "HIGH": 1,
+      "MEDIUM": 1,
+      "LOW": 0
+    },
+    "paperwork_notes_count": 1,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-088.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-088.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C3_FRESH",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T23:48:44.444Z",
+    "verdict": "FAIL",
+    "verdict_reason": "The StateVectorHandle / SSMStateSnapshot / SSMTensorSnapshot / StateVectorSnapshotRecord types are well-designed; serde round-trip works; snapshot_hash with domain-separated SHA256 covers all fields; variant-mismatch + artifact_sha256-mismatch + content_hash-tamper + snapshot-bytes-tamper are all rejected with explicit errors; UUID v7 enforced on StateVectorId. PERSIST-TO-DISK path via write_file_artifact + ArtifactStore is wired. HOWEVER — and this is the disqualifying defect — the StateVectorHandle is COMPLETELY DECOUPLED from the live SSM model state. (1) At load time (adapter.rs:204-208, 232-236, 260-264, 288-292), every SSM model is initialised with an EMPTY SSMStateSnapshot (empty_mamba2_snapshot() / empty_rwkv_*_snapshot() — Vec::new() for all tensor lists). (2) prefix_commit captures `self.current_snapshot` from InMemoryStateVectorOps — which started empty and is NEVER updated from the live CandleMamba2Model.state or RWKV State; there is no path that reads the model's mutable SSM state and writes it into current_snapshot. (3) prefix_restore writes a snapshot into `self.current_snapshot` (InMemoryStateVectorOps) but has NO PATH to inject that snapshot back into the CandleMamba2Model.state / RWKV State held inside the Arc<Mutex<Box<dyn TransformerModel>>>. The e2e smoke test (candle_e2e_smoke.rs:403-441) only passes because every generate call invokes `locked.reset_generation_state()` (generate.rs:123) which wipes the state to a fresh State::new — so two generate calls with the same prompt produce the same output regardless of whether prefix_commit/prefix_restore were called. The test ASSERTS determinism that is guaranteed by reset, not by state restore. Net: MT-088's substantive contract — 'commit state on Mamba2, generate, restore, generate same continuation' — is NOT proven; the substrate it builds for MT-117 cross-session restore restores empty snapshots into a sidecar struct that never touches the model. Contract validator_focus item 'deterministic continuation after commit/restore on Mamba2' is structurally unverifiable with the current wiring.",
+    "spec_compliance_status": "PARTIAL",
+    "code_hygiene_status": "MAJOR",
+    "runtime_safety_status": "UNSAFE",
+    "agent_swarm_safety_status": "UNSAFE",
+    "hbr_unsatisfied": [
+      "HBR-INT-002 — persist path emits an artifact via write_file_artifact (good evidence of ArtifactStore wiring) but the restore path does not exercise the live model, so the wire test for SSM state restore is not satisfied."
+    ],
+    "test_coverage_status": "THIN",
+    "findings_count_by_severity": {
+      "CRITICAL": 1,
+      "HIGH": 1,
+      "MEDIUM": 1,
+      "LOW": 0
+    },
+    "paperwork_notes_count": 1,
+    "review_artifact_ref": "validator_reports_phase1/MT-088.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1\\validator_reports_phase1\\MT-088.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  }
+}

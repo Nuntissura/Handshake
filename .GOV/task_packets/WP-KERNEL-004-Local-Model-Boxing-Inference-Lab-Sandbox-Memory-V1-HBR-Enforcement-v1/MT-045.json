@@ -1,0 +1,136 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-045",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "B",
+  "cluster_subscope": "B.1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:10:00Z",
+  "updated_at_utc": "2026-05-28T00:01:44.896Z",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-045.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "WindowsNativeJail crate LICENSE AUDIT + adoption decision (codex-windows-sandbox vs rappct)",
+  "goal": "Perform the mandatory license + maturity audit of the two candidate Rust crates flagged by RW-1 (`codex-windows-sandbox` and `rappct`) BEFORE WindowsNativeJailAdapter (MT-046) adopts either one. Per refinement R-10 ('WindowsNativeJailAdapter-crate-license') a license audit MT is required prior to crate adoption. This MT produces a decision-record artifact under .GOV that captures license terms, repository activity, security posture, dependency footprint, and the chosen crate; MT-046 reads the decision and depends on it.",
+  "expected_diff_shape": "New decision-record artifact at .GOV/roles_shared/records/sandbox/WP-KERNEL-004-windows-native-jail-crate-license-audit.json (machine-readable per RGF-324, NO md sibling). New audit script .GOV/roles_shared/scripts/sandbox-crate-license-audit.mjs that fetches each candidate's Cargo.toml + LICENSE + repo metadata and emits the decision record. No Rust src changes in this MT (MT-046 consumes the decision record).",
+  "owned_files": [
+    ".GOV/roles_shared/records/sandbox/WP-KERNEL-004-windows-native-jail-crate-license-audit.json",
+    ".GOV/roles_shared/scripts/sandbox-crate-license-audit.mjs"
+  ],
+  "depends_on_mts": [],
+  "unblock_conditions": "None; runs concurrent with MT-041/MT-042/MT-043/MT-044 since it only produces a decision record.",
+  "implementation_notes": "Audit criteria (each candidate gets a row): (1) license SPDX identifier (MIT/Apache-2.0/MPL-2.0/GPL-3.0/Proprietary/Unclear) read from the crate's LICENSE-* files AND crates.io metadata AND the Cargo.toml [package] license field — any disagreement is itself a finding; (2) repository activity: last commit date, open-issue count, maintainer count, presence of CI; (3) security posture: cargo-audit clean / advisories from rustsec.org against the crate's declared version; (4) dependency footprint: transitive dep count, presence of unmaintained-or-deprecated deps (yanked crates, deprecated bindings); (5) Win32 API surface coverage: does the crate wrap Job Objects + AppContainer + Restricted Tokens (spec §3.5.2 trinity) or only a subset?; (6) async surface: tokio-compatible vs blocking-only; (7) test coverage: presence of integration tests against actual Win32 isolation; (8) HARD blockers: GPL-3.0 (incompatible with Handshake's licensing posture per CX-503 family — TBD; flag for operator), unmaintained > 18 months (rejection criterion), open CVE in current version (rejection). Audit script: `node .GOV/roles_shared/scripts/sandbox-crate-license-audit.mjs --candidates codex-windows-sandbox,rappct --emit .GOV/roles_shared/records/sandbox/WP-KERNEL-004-windows-native-jail-crate-license-audit.json`. The script fetches crates.io API metadata (https://crates.io/api/v1/crates/<name>), parses the readme/license, walks the latest version's Cargo.toml, and runs `cargo tree` if a local checkout is present (optional). Decision record schema: `{ schema: \"hsk.sandbox_crate_audit@1\", audited_at_utc, audited_by: \"KERNEL_BUILDER-MT-045\", candidates: [{ crate_name, version_audited, license_spdx, license_findings: [...], last_commit_utc, open_issues, maintainer_count, ci_present, cargo_audit_clean, transitive_dep_count, unmaintained_deps: [...], win32_surface_coverage: { job_objects: bool, app_container: bool, restricted_tokens: bool }, async_compatible: bool, integration_tests_present: bool, hard_blockers: [...], score: 0..100 }], decision: { chosen_crate, chosen_version, rationale, alternative_rejected, alternative_rejected_reason, license_acceptance_path, operator_escalation_required: bool } }`. If BOTH candidates hit a hard blocker, decision.chosen_crate = null, decision.operator_escalation_required = true, and MT-046 is BLOCKED until operator resolves. If neither is GPL and both are MIT/Apache, prefer the higher-scoring one; tie-break by maintenance recency. The decision record is the authority — MT-046 reads only this file and never re-runs the audit.",
+  "proof_commands": [
+    "node .GOV/roles_shared/scripts/sandbox-crate-license-audit.mjs --candidates codex-windows-sandbox,rappct --emit .GOV/roles_shared/records/sandbox/WP-KERNEL-004-windows-native-jail-crate-license-audit.json",
+    "node -e \"const r=require('./.GOV/roles_shared/records/sandbox/WP-KERNEL-004-windows-native-jail-crate-license-audit.json'); if(!r.decision||r.decision.chosen_crate===undefined) process.exit(1)\""
+  ],
+  "risk_if_missed": "Without the audit, MT-046 adopts a crate that may carry GPL-3.0 (forcing Handshake's product code into copyleft) or be unmaintained (silent supply-chain risk).",
+  "validator_focus": "Decision record schema validates; both candidates were actually audited (not just one); hard_blockers field is populated explicitly (a `[]` is acceptable, missing field is not); decision.chosen_crate is either a candidate name OR null with operator_escalation_required==true.",
+  "hbr_obligations": [
+    "HBR-INT-001"
+  ],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/03-local-first-infrastructure.md#3.5.2"
+  ],
+  "acceptance_criteria_refs": [
+    "AC-SANDBOX-ADAPTER-IMPLS"
+  ],
+  "lifecycle": {
+    "active": false,
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "PASS",
+    "depends_on": [],
+    "blocks": [
+      "MT-046"
+    ],
+    "claimed_by": "KERNEL_BUILDER-20260518-073535",
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "COMPLETED",
+        "validator_verdict": "PENDING",
+        "completed_at_utc": "2026-05-18T20:04:55.091Z"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "previous_completed_at_utc_before_ready_for_validation_20260525": "2026-05-18T20:04:55.091Z",
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z"
+  },
+  "handoff": {
+    "coder_session": "KERNEL_BUILDER-20260518-073535",
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": "019e6be3-15c0-7452-a373-5bea13b214a8",
+    "review_response_receipt_actor_role": "INTEGRATION_VALIDATOR",
+    "review_response_receipt_track": "JUDGMENT_OOB_IV_PHASE1_PRE_REMEDIATION"
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Decision record schema validation rejects a record with missing hard_blockers field (forces explicit empty array if no blockers).",
+      "GPL-3.0 license MUST appear in hard_blockers for any candidate carrying it; this is a kernel_builder discipline gate.",
+      "If decision.chosen_crate==null, MT-046 lifecycle.depends_on remains blocking until operator resolves (orchestrator surface, not silent skip)."
+    ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_B1_B2",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-28T00:01:31.342Z",
+    "verdict": "PASS",
+    "verdict_reason": "License audit script and decision record are present, both candidates audited with explicit hard_blockers, decision originally surfaced operator_escalation_required=true (correct fail-loud per red-team), and the 2026-05-26 supplemental validation documents the operator-instructed override and selection of rappct 0.13.3.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 2
+    },
+    "paperwork_notes_count": 1,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-045.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-045.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_B1_B2",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T23:48:44.444Z",
+    "verdict": "PASS",
+    "verdict_reason": "License audit script and decision record are present, both candidates audited with explicit hard_blockers, decision originally surfaced operator_escalation_required=true (correct fail-loud per red-team), and the 2026-05-26 supplemental validation documents the operator-instructed override and selection of rappct 0.13.3.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 2
+    },
+    "paperwork_notes_count": 1,
+    "review_artifact_ref": "validator_reports_phase1/MT-045.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1\\validator_reports_phase1\\MT-045.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  }
+}

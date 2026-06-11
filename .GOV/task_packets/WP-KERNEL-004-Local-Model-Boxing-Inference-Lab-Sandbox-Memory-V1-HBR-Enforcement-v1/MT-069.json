@@ -1,0 +1,152 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-069",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "C",
+  "cluster_subscope": "C.1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:00:00Z",
+  "updated_at_utc": "2026-05-28T00:01:44.909Z",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-069.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "ProcessOwnershipLedger integration for model-process spawn",
+  "goal": "Every ModelRuntime adapter that spawns a child process (llama.cpp server, candle worker thread pool, abliteration tool) MUST register with ProcessOwnershipLedger (spec §5.7.2; cluster A HBR-QUIET-003) before the spawn returns. This MT lands the integration shim so MT-072 (LlamaCppRuntime spawn) and MT-082 (CandleRuntime), MT-106 (abliteration tool) can call a single helper.",
+  "expected_diff_shape": "New src/backend/handshake_core/src/model_runtime/process_ledger_integration.rs with register_model_process helper; updates to process_ledger module exposing `record_spawn(meta: SpawnMeta) -> Result<ProcessOwnershipRecordId, ...>`; integration test.",
+  "owned_files": [
+    "src/backend/handshake_core/src/model_runtime/process_ledger_integration.rs",
+    "src/backend/handshake_core/src/process_ledger/mod.rs",
+    "src/backend/handshake_core/tests/model_runtime_process_ledger_tests.rs"
+  ],
+  "depends_on_mts": [
+    "MT-062",
+    "MT-067"
+  ],
+  "unblock_conditions": "MT-062 trait + MT-067 registry merged. Note: ProcessOwnershipLedger module itself is owned by cluster A.4 (HBR-QUIET-003); this MT consumes its API. If the cluster A ledger MT is not yet merged at coder-execution time, this MT may stub the integration with a feature flag and surface a depends_on_mts edge at sequencing.",
+  "implementation_notes": "Per spec §5.7.2 (kernel_process_lifecycle Postgres table): every Handshake-spawned process registers a row in kernel_process_lifecycle within N ms of spawn (operator-set; default 100ms). For ModelRuntime spawns the SpawnMeta carries: `{ pid: u32, engine_kind: EngineKind (enum LlamaCppServer|CandleWorker|AbliterationTool|DistillationJob|CloudByokTransport|OfficialCliBridge), model_id: ModelId, runtime_binding: RuntimeBinding, parent_session_id: SessionId, started_at_utc: DateTime<Utc>, sandbox_adapter: SandboxAdapterKind, metadata_blob: serde_json::Value (capped per Q-PROCESS-LEDGER-SCOPE perf_mitigation per_process_metadata_cap) }`. register_model_process(spec: &LoadSpec, pid: u32, engine_kind: EngineKind) -> Result<ProcessOwnershipRecordId, ModelRuntimeError> calls process_ledger::record_spawn with a constructed SpawnMeta. On spawn failure: a NOT_REGISTERED state is unacceptable; helper must roll back the child process (kill) if the ledger write fails. Per Q-PROCESS-LEDGER-SCOPE perf_mitigation: write is batched (channel-fed background writer with N=100 or 50ms flush window) and async (does not block the spawn-return path); per-process metadata blob capped at 4 KiB (truncate + log warn). FR-EVT-LEDGER-OVERFLOW degraded mode (per spec §5.7.3): if the writer channel backlog exceeds threshold, switch to drop-with-counter mode and emit a structured warn event. ExternalEngineImport endpoints (MT-066) are NOT registered as Handshake-owned (helper short-circuits when provider=ExternalCompat). UUID v7 per HBR-INT-008 for ProcessOwnershipRecordId. Tests: register_model_process from a fake spawn returns a non-null id; double-register same pid returns Err; ExternalCompat short-circuit returns None gracefully; oversized metadata blob is truncated with warn.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target model_runtime_process_ledger_tests"
+  ],
+  "risk_if_missed": "Model processes spawn outside ledger authority; violates spec §5.7.2 and HBR-QUIET-003; feedback_terminal_hygiene 'no blank/stale terminal windows' intent breaks.",
+  "validator_focus": "Spawn-then-fail-to-register kills the child; ExternalCompat short-circuit; metadata cap; batched async writer does not block spawn; ProcessOwnershipRecordId uses now_v7().",
+  "hbr_obligations": [
+    "HBR-INT-002",
+    "HBR-INT-008"
+  ],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/05-security-and-observability.md#5.7"
+  ],
+  "acceptance_criteria_refs": [
+    "AC-MODEL-RUNTIME-TRAIT",
+    "AC-LLAMACPP-ADAPTER",
+    "AC-CANDLE-ADAPTER",
+    "AC-ABLITERATION-OFFLINE"
+  ],
+  "lifecycle": {
+    "active": false,
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "PASS",
+    "depends_on": [
+      "MT-062",
+      "MT-067"
+    ],
+    "blocks": [
+      "MT-072",
+      "MT-081",
+      "MT-106",
+      "MT-119",
+      "MT-125",
+      "MT-127"
+    ],
+    "claimed_by": "KERNEL_BUILDER-20260518-235451",
+    "claimed_at_utc": "2026-05-19T04:20:59Z",
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "COMPLETED",
+        "validator_verdict": "PENDING",
+        "completed_at_utc": "2026-05-19T04:29:09Z"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "previous_completed_at_utc_before_ready_for_validation_20260525": "2026-05-19T04:29:09Z",
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z"
+  },
+  "handoff": {
+    "coder_session": "KERNEL_BUILDER-20260518-235451",
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": "019e6be3-15cd-74ce-b700-5b140df8ed14",
+    "review_response_receipt_actor_role": "INTEGRATION_VALIDATOR",
+    "review_response_receipt_track": "JUDGMENT_OOB_IV_PHASE1_PRE_REMEDIATION"
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Spawn-then-fail-to-register must kill the child process (no orphan).",
+      "Metadata blob cap enforced (oversized truncated + warn emitted).",
+      "Batched writer cannot deadlock the spawn-return path under backpressure (test under FR-EVT-LEDGER-OVERFLOW degraded mode)."
+    ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C1_FRESH",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-28T00:01:31.342Z",
+    "verdict": "PASS",
+    "verdict_reason": "ModelProcessLedgerRegistrar correctly enforces (a) ExternalCompat short-circuits without registry pollution, (b) ProcessEngineKind cross-check against RuntimeBinding (LlamaCpp engine must match LlamaCpp binding, etc.), (c) AbliterationTool explicitly rejected as a ModelRuntime process (offline-only invariant), (d) duplicate-pid registration rejected with rollback, (e) ledger write failure triggers pid-deregister + rollback kill_spawned_process. Metadata blob is capped at 4KiB with overflow event signaling. SandboxRoutedModelAdapter routes through SandboxAdapterRegistry::select with DenyAll net policy and read-only binds for GGUF/tokenizer cache.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-069.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-069.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C1_FRESH",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T23:48:44.444Z",
+    "verdict": "PASS",
+    "verdict_reason": "ModelProcessLedgerRegistrar correctly enforces (a) ExternalCompat short-circuits without registry pollution, (b) ProcessEngineKind cross-check against RuntimeBinding (LlamaCpp engine must match LlamaCpp binding, etc.), (c) AbliterationTool explicitly rejected as a ModelRuntime process (offline-only invariant), (d) duplicate-pid registration rejected with rollback, (e) ledger write failure triggers pid-deregister + rollback kill_spawned_process. Metadata blob is capped at 4KiB with overflow event signaling. SandboxRoutedModelAdapter routes through SandboxAdapterRegistry::select with DenyAll net policy and read-only binds for GGUF/tokenizer cache.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "validator_reports_phase1/MT-069.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1\\validator_reports_phase1\\MT-069.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  }
+}

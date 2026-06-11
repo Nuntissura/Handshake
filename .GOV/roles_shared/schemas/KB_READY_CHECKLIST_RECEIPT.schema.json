@@ -1,0 +1,182 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://handshake.local/gov/schemas/KB_READY_CHECKLIST_RECEIPT.schema.json",
+  "title": "Kernel Builder Ready-for-Validation Checklist Receipt",
+  "description": "Typed receipt emitted by Kernel Builder before transitioning an MT to READY_FOR_VALIDATION. Captures the answer the implementer gave to each rubric item in `kb-ready-checklist.mjs`, plus the supporting explanation and evidence references. The receipt is the structural proof that the Spec-Realism Gate self-check was performed; absence of an attached receipt blocks the READY_FOR_VALIDATION transition.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_id",
+    "schema_version",
+    "receipt_kind",
+    "wp_id",
+    "mt_id",
+    "actor_role",
+    "actor_session",
+    "generated_at_utc",
+    "rubric_items",
+    "summary"
+  ],
+  "properties": {
+    "schema_id": {
+      "const": "hsk.kb_ready_checklist_receipt@1"
+    },
+    "schema_version": {
+      "const": "kb_ready_checklist_receipt_v1"
+    },
+    "receipt_kind": {
+      "const": "KB_READY_CHECKLIST_RECEIPT"
+    },
+    "wp_id": {
+      "type": "string",
+      "pattern": "^WP-"
+    },
+    "mt_id": {
+      "type": "string",
+      "pattern": "^MT-"
+    },
+    "actor_role": {
+      "const": "KERNEL_BUILDER"
+    },
+    "actor_session": {
+      "type": "string",
+      "minLength": 1
+    },
+    "generated_at_utc": {
+      "type": "string",
+      "minLength": 1
+    },
+    "mt_contract_path": {
+      "type": "string"
+    },
+    "product_worktree_root_resolution": {
+      "description": "Resolution record for the cross-worktree product root used by owned-file auto-findings (RC-002/RC-003/RC-005). Populated by `kb-ready-checklist.mjs::resolveProductWorktreeRoot`. Source values: `env` (HANDSHAKE_PRODUCT_WORKTREE_ROOT was set and existed), `git-worktree-list` (auto-discovered via `git worktree list --porcelain` by WP-ID stem), or `fallback-repo-root` (no match; using the gov_kernel repo root and degrading auto-findings).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["root", "source"],
+      "properties": {
+        "root": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source": {
+          "enum": ["env", "git-worktree-list", "fallback-repo-root", "unknown"]
+        },
+        "env_var": {
+          "type": "string"
+        },
+        "matched_basename": {
+          "type": "string"
+        },
+        "matched_stem": {
+          "type": "string"
+        },
+        "other_candidates": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "note": {
+          "type": "string"
+        }
+      }
+    },
+    "summary": {
+      "type": "string",
+      "minLength": 1
+    },
+    "overall_verdict": {
+      "enum": ["PASS", "BLOCKED"]
+    },
+    "blockers": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "rubric_items": {
+      "type": "array",
+      "minItems": 6,
+      "items": {
+        "$ref": "#/$defs/rubric_item"
+      }
+    }
+  },
+  "$defs": {
+    "rubric_item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rubric_item_id",
+        "question",
+        "answer",
+        "checked_at_utc"
+      ],
+      "properties": {
+        "rubric_item_id": {
+          "type": "string",
+          "enum": [
+            "RC-001-NO-STALE-REASONS",
+            "RC-002-NO-DEAD-CODE",
+            "RC-003-CFG-GATED-TESTS",
+            "RC-004-CROSS-PLATFORM-CI",
+            "RC-005-PROOF-COMMANDS",
+            "RC-006-IMPLEMENTER-NOT-SELF-CERTIFYING"
+          ]
+        },
+        "question": {
+          "type": "string",
+          "minLength": 1
+        },
+        "answer": {
+          "enum": ["yes", "no", "n/a"]
+        },
+        "explanation": {
+          "type": "string"
+        },
+        "checked_at_utc": {
+          "type": "string",
+          "minLength": 1
+        },
+        "evidence_refs": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "auto_findings": {
+          "description": "Machine-derived findings provided by `kb-ready-checklist.mjs` for this item (e.g. list of declared pub items with zero external references). Advisory; implementer must still answer.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "answer": {
+                "not": {
+                  "const": "yes"
+                }
+              }
+            }
+          },
+          "then": {
+            "required": ["explanation"],
+            "properties": {
+              "explanation": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,105 @@
+{
+  "artifact_policy": {
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ],
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "model_created_markdown_authority_allowed": false,
+    "operator_facing_authority": false,
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND"
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-005/MT-197.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-005/MT-197.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-005/packet.json"
+  },
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": null,
+  "handoff": {
+    "coder_session": "KB-KERNEL-005-CLOSEOUT",
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": null
+  },
+  "lifecycle": {
+    "active": true,
+    "blocks": [],
+    "depends_on": [
+      "MT-196"
+    ],
+    "status": "OUT_OF_SCOPE_BY_OPERATOR",
+    "validator_verdict": "OUT_OF_SCOPE_BY_OPERATOR_V3",
+    "claimed_by": "KB-KERNEL-005-CLOSEOUT",
+    "ready_for_validation_at_utc": "2026-06-05T05:29:36.668Z",
+    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "integration_validation_v2": {
+      "verdict": "OUT_OF_SCOPE",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": null,
+      "proof_validity": null,
+      "sr1": null,
+      "sr2": null,
+      "fail_category": null,
+      "gap": null,
+      "evidence": null
+    },
+    "integration_validation_v3": {
+      "verdict": "OUT_OF_SCOPE_BY_OPERATOR_V3",
+      "round": "v3",
+      "at_utc": "2026-06-11T05:17:17.690Z",
+      "validator_session": "INTEGRATION_VALIDATOR-20260611-033732",
+      "note": "Pure governance-paperwork MT ruled out of scope by Operator in v2; ruling maintained in v3 (operator: governance paperwork is not a blocker or goal for this WP)."
+    }
+  },
+  "markdown_projection": {
+    "generated_at_utc": "2026-06-04T17:06:21.358Z",
+    "generator": "wp-contract-import.mjs",
+    "path": ".GOV/task_packets/WP-KERNEL-005/MT-197.md",
+    "projection_hash": "a4bd87415bdbb964",
+    "source_file": ".GOV/task_packets/WP-KERNEL-005/packet.json",
+    "source_hash": "8486eeb72fa82a68",
+    "status": "GENERATED_IN_SYNC"
+  },
+  "mt_id": "MT-197",
+  "red_team": {
+    "minimum_controls": [
+      "Use contract-first identity and preserve projection hash."
+    ],
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "required": true,
+    "risks": [
+      "Imported MT contract may under-capture prose-only review or proof instructions."
+    ]
+  },
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "scope": {
+    "acceptance_criteria": [
+      "MT-197 [Model-Workflow-Diagnostics] Diagnostics Activation Refinement Closure -- Convert repaired stub plus this suite into activation-ready refinement content (scope",
+      "non-goals",
+      "deps",
+      "risks",
+      "acceptance",
+      "MT plan)."
+    ],
+    "allowed_paths": [
+      "src/backend/handshake_core/src/kernel (action_catalog",
+      "diagnostics) + app DCC projections + ModelManual"
+    ],
+    "forbidden_paths": [],
+    "proof_targets": [
+      "cargo test + runtime proof vs PostgreSQL/EventLedger"
+    ],
+    "risk_if_missed": "CKC parity loss for Diagnostics Activation Refinement Closure",
+    "summary": "MT-197 [Model-Workflow-Diagnostics] Diagnostics Activation Refinement Closure -- Convert repaired stub plus this suite into activation-ready refinement content (scope, non-goals, deps, risks, acceptance, MT plan)."
+  },
+  "updated_at_utc": "2026-06-11T05:17:17.690Z",
+  "wp_id": "WP-KERNEL-005"
+}

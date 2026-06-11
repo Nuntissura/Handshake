@@ -1,0 +1,164 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-001",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "A",
+  "cluster_subscope": "A.1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T02:30:00Z",
+  "updated_at_utc": "2026-05-28T23:34:54.519Z",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-001.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "HBR registry loader + applicability evaluator (Rust + Node)",
+  "goal": "Land the canonical HANDSHAKE_BUILD_RULES.json loader and applicability predicate evaluator in both Rust (for runtime handoff-gate use) and Node (for build-time gov-check use). This is the foundational primitive every subsequent A.1 MT depends on: a single, schema-validated, version-checked reader of the 23 active HBR rules with a deterministic applicability evaluator over packet metadata + touched-path globs.",
+  "expected_diff_shape": "New Rust module src/backend/handshake_core/src/hbr/registry.rs + src/backend/handshake_core/src/hbr/applicability.rs + mod.rs entry; new Node module .GOV/roles_shared/scripts/hbr-registry-loader.mjs; unit tests under src/backend/handshake_core/tests/hbr_registry_tests.rs.",
+  "owned_files": [
+    "src/backend/handshake_core/src/hbr/mod.rs",
+    "src/backend/handshake_core/src/hbr/registry.rs",
+    "src/backend/handshake_core/src/hbr/applicability.rs",
+    "src/backend/handshake_core/tests/hbr_registry_tests.rs",
+    ".GOV/roles_shared/scripts/hbr-registry-loader.mjs",
+    "src/backend/handshake_core/Cargo.toml"
+  ],
+  "depends_on_mts": [],
+  "unblock_conditions": "No prerequisites; this is the foundation MT for A.1.",
+  "implementation_notes": "Per spec §5.6.1 (HANDSHAKE_BUILD_RULES authority) the file at .GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json is the single source-of-truth (AC-HBR-AUTHORITY). The Rust side: create a public `HbrRegistry` struct with `load_from_path(p: &Path) -> Result<HbrRegistry, HbrError>` that parses the JSON via serde_json, validates `schema == \"handshake.build_rules@1\"`, `name == \"HANDSHAKE_BUILD_RULES\"`, and `version` matches a SemVer pattern. Each rule must deserialize into an `HbrRule { id, pillar (enum INT|SWARM|VIS|QUIET|MAN), status, novelty, trigger: String, applicability: HbrApplicability { predicate_text, tags: Vec<String> }, required_action, evidence_kind, citations: Vec<HbrCitation>, not_applicable_when: Vec<String>, deferred_until: Option<String> }`. Expose `registry.active_rules() -> impl Iterator<Item=&HbrRule>` filtering on status==\"ACTIVE\". The applicability evaluator: `HbrApplicability::evaluate(rule: &HbrRule, ctx: &PacketContext) -> Applicability { Applicable, NotApplicable { reason: String } }` where `PacketContext` holds `wp_id`, `touched_paths: Vec<PathBuf>`, `tags_declared: Vec<String>`, and `not_applicable_overrides: Vec<HbrNaOverride { hbr_id, reason }>`. Predicate semantics: a rule is Applicable if any of its `applicability.tags` matches a tag declared by the packet OR any touched path matches a glob known to that tag (define a starter tag->glob mapping table inline: e.g., `model_invocation` matches `**/model_runtime/**`, `crdt` matches `**/kernel/crdt/**`, `process_lifecycle` matches `**/process_ledger/**`, `automation_surface` matches `app/src-tauri/**` and `tests/visual/**`). The Node side: hbr-registry-loader.mjs exports `loadRegistry(path)` and `evaluateApplicability(rule, ctx)` mirroring the Rust semantics so gov-check sub-checks (MT-003) and validator-scan integration (MT-005) can reuse identical logic. Cargo.toml additions: serde, serde_json, thiserror, glob (or globset). Tests: parse the live HANDSHAKE_BUILD_RULES.json, assert 23 active rules, assert pillar distribution (INT:8, SWARM:4, VIS:5, QUIET:4, MAN:3), assert that HBR-INT-001 is Applicable for a context with `tags_declared=[\"observable_behavior\"]`, and assert that NotApplicable reasons are non-empty when `not_applicable_overrides` matches.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target hbr_registry_tests",
+    "node .GOV/roles_shared/scripts/hbr-registry-loader.mjs --self-test"
+  ],
+  "risk_if_missed": "Without a canonical registry loader every downstream A.1 MT reinvents parsing and applicability semantics inconsistently; PACKET_ACCEPTANCE_MATRIX hydration becomes silently wrong.",
+  "validator_focus": "Rust and Node implementations agree byte-for-byte on (rule_id, applicability) pairs for a fixture context; schema validation rejects a tampered registry; iteration is deterministic.",
+  "hbr_obligations": [
+    "HBR-INT-001",
+    "HBR-INT-008"
+  ],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/05-security-and-observability.md#5.6"
+  ],
+  "acceptance_criteria_refs": [
+    "AC-HBR-AUTHORITY"
+  ],
+  "lifecycle": {
+    "active": false,
+    "status": "READY_FOR_VALIDATION_PHASE2",
+    "validator_verdict": "CONCERN",
+    "depends_on": [],
+    "blocks": [
+      "MT-002",
+      "MT-003",
+      "MT-004",
+      "MT-005",
+      "MT-006",
+      "MT-007",
+      "MT-008",
+      "MT-009"
+    ],
+    "claimed_by": "KERNEL_BUILDER-20260518-012310",
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "COMPLETED",
+        "validator_verdict": "PENDING",
+        "completed_at_utc": "2026-05-18T02:13:44.549Z"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "previous_completed_at_utc_before_ready_for_validation_20260525": "2026-05-18T02:13:44.549Z",
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z",
+    "updated_at_utc": "2026-05-28T23:34:54.519Z",
+    "phase2_remediation": {
+      "remediated_by": "KERNEL_BUILDER-20260528-211023",
+      "remediated_at_utc": "2026-05-28T23:34:54.519Z",
+      "lane": "Theme-12 A-cluster HBR registry version drift (loader self-test + tag-glob doc)",
+      "commit_sha": "5f3dc5df + 5d545a8d (feat applicability)",
+      "remediated_findings": [
+        "finding #1 (HIGH/TEST): hbr-registry-loader.mjs --self-test updated from 24 rules / pre-STOP pillar distribution (v1.1.0) to 29 + STOP:5 (v1.3.0), fixing the failing proof_command.",
+        "finding #3 (LOW/CODE): applicability.rs TAG_GLOBS documents the intentional path-derivable-tag coverage gap (non-path tags become Applicable via declared tags, not globs)."
+      ],
+      "deferred_or_residual": "finding #2 (MEDIUM/SPEC) DEFERRED as spec-debt: the Master Spec narrative at spec-modules/05-security-and-observability.md#5.6.1 still omits the STOP pillar. KERNEL_BUILDER is read-only on .GOV/spec/** per CX-105A, so a spec-writing role (ORCHESTRATOR/INTEGRATION_VALIDATOR/VALIDATOR/ACTIVATION_MANAGER/CLASSIC_ORCHESTRATOR) must apply the spec-narrative edit.",
+      "partial": true,
+      "ack_for": "019e6be3-1540-7d43-925e-072a3e8b9c2a",
+      "proof": "node hbr-registry-loader.mjs --self-test ok (29 active rules); cargo test hbr_registry_tests 5/5",
+      "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1 - no per-MT validator; awaiting Phase-2 IV re-judgment"
+    }
+  },
+  "handoff": {
+    "coder_session": "KERNEL_BUILDER-20260518-012310",
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": "019e6be3-1540-7d43-925e-072a3e8b9c2a",
+    "review_response_receipt_actor_role": "INTEGRATION_VALIDATOR",
+    "review_response_receipt_track": "JUDGMENT_OOB_IV_PHASE1_PRE_REMEDIATION"
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Schema validation rejects any registry file whose schema/name/version fields do not match the v1.1.0 contract.",
+      "Applicability evaluator is pure (no I/O) so unit tests deterministically cover all 23 rules.",
+      "Rust and Node loaders share a golden-fixture cross-check test to prevent semantic drift between build-time and runtime evaluation."
+    ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_A1_A2",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-28T00:01:31.342Z",
+    "verdict": "CONCERN",
+    "verdict_reason": "Rust + Node loaders implement schema/applicability correctly and a tampering-rejection test exists, but the Node self-test asserts 24 active rules and a pillar distribution that excludes STOP entirely — it will fail against the live v1.3.0 registry (29 active rules across INT/SWARM/VIS/QUIET/MAN/STOP).",
+    "spec_compliance_status": "PARTIAL",
+    "code_hygiene_status": "MINOR",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 1,
+      "MEDIUM": 1,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 2,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-001.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-001.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_A1_A2",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T23:48:44.444Z",
+    "verdict": "CONCERN",
+    "verdict_reason": "Rust + Node loaders implement schema/applicability correctly and a tampering-rejection test exists, but the Node self-test asserts 24 active rules and a pillar distribution that excludes STOP entirely — it will fail against the live v1.3.0 registry (29 active rules across INT/SWARM/VIS/QUIET/MAN/STOP).",
+    "spec_compliance_status": "PARTIAL",
+    "code_hygiene_status": "MINOR",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 1,
+      "MEDIUM": 1,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 2,
+    "review_artifact_ref": "validator_reports_phase1/MT-001.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1\\validator_reports_phase1\\MT-001.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  }
+}

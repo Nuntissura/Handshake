@@ -1,0 +1,147 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-005",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "A",
+  "cluster_subscope": "A.1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T02:30:00Z",
+  "updated_at_utc": "2026-05-28T00:01:44.871Z",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-005.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "validator-scan integration: per-row evidence verification",
+  "goal": "Extend the existing validator-scan tooling so that for each PROVED PACKET_ACCEPTANCE_MATRIX HBR row it verifies the evidence_pointer actually resolves to a runnable proof artifact matching the rule's evidence_kind. A claimed-PROVED row whose evidence does not resolve must be flagged STEER with reason, blocking PASS closure per CX-503B1.",
+  "expected_diff_shape": "New Node module .GOV/roles_shared/checks/hbr-validator-scan.mjs; integration hooks into existing validator-scan umbrella (a small shim or directly added sub-call); golden fixture exercising the four evidence_kind families.",
+  "owned_files": [
+    ".GOV/roles_shared/checks/hbr-validator-scan.mjs",
+    ".GOV/roles_shared/checks/hbr-validator-scan.test.mjs"
+  ],
+  "depends_on_mts": [
+    "MT-001",
+    "MT-002",
+    "MT-003"
+  ],
+  "unblock_conditions": "MT-003 matrix-check is wired; validator-scan baseline exists in repo (confirm path before implementation; if absent, this MT also creates a minimal validator-scan entrypoint and documents the gap).",
+  "implementation_notes": "Per the enforcement.policy of HANDSHAKE_BUILD_RULES.json: 'Validators must mark each row PROVED, NOT_APPLICABLE (with reason), or BLOCKED (with cause). PASS closure is illegal while any required HBR row is PENDING, STEER, or BLOCKED, per CX-503B1.' This MT adds the verification step. For each PROVED row, the scanner: (1) parses the evidence_pointer (supported formats: `test://<test_name>` resolves to a cargo test that must exist and have passed in the recorded run; `receipt://<receipt_id>` resolves to a RECEIPTS.jsonl row in the WP communication dir; `artifact://<path>` resolves to a file the validator can re-open and inspect; `event://<event_id>` resolves to an EventLedger row), (2) calls the kind-specific verifier (e.g., for `test_run_with_ledger_replay` the verifier asserts the test exists in the cargo test inventory and that its most recent recorded result is PASS; for `concurrent_session_test_run` the verifier additionally checks that the test name matches a pattern `*_concurrent_*` or carries a `#[concurrent]` attribute marker), (3) on mismatch downgrades the row to STEER with a typed reason. The downgrade is written back into the packet's matrix (with idempotent merge per MT-002 semantics). The CLI: `node .GOV/roles_shared/checks/hbr-validator-scan.mjs --packet <path>` exits 0 on success, 2 on any STEER/BLOCKED downgrade. Tests: fixture packet with a PROVED row pointing to a non-existent test must downgrade and exit 2; fixture pointing to an existing-passing test must pass.",
+  "proof_commands": [
+    "node .GOV/roles_shared/checks/hbr-validator-scan.test.mjs",
+    "node .GOV/roles_shared/checks/hbr-validator-scan.mjs --packet .GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  ],
+  "risk_if_missed": "Without per-row evidence verification, validators can mark rows PROVED based on prose; the matrix becomes a trust-me signal rather than a verifiable gate.",
+  "validator_focus": "STEER downgrades are written back into the packet's matrix (not just logged); CLI exit codes match the documented contract; resolver supports all four pointer schemes in the test fixture.",
+  "hbr_obligations": [
+    "HBR-INT-001",
+    "HBR-INT-007"
+  ],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/05-security-and-observability.md#5.6"
+  ],
+  "acceptance_criteria_refs": [
+    "AC-HBR-HANDOFF-GATE",
+    "AC-HBR-TYPED-RECEIPT"
+  ],
+  "lifecycle": {
+    "active": false,
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "PASS",
+    "depends_on": [
+      "MT-001",
+      "MT-002",
+      "MT-003"
+    ],
+    "blocks": [
+      "MT-006",
+      "MT-009"
+    ],
+    "claimed_by": "KERNEL_BUILDER-20260518-012310",
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "COMPLETED",
+        "validator_verdict": "PENDING",
+        "completed_at_utc": "2026-05-18T03:37:12.034Z"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "previous_completed_at_utc_before_ready_for_validation_20260525": "2026-05-18T03:37:12.034Z",
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z"
+  },
+  "handoff": {
+    "coder_session": "KERNEL_BUILDER-20260518-012310",
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": "019e6be3-15a6-7413-a7c9-5d733a69922e",
+    "review_response_receipt_actor_role": "INTEGRATION_VALIDATOR",
+    "review_response_receipt_track": "JUDGMENT_OOB_IV_PHASE1_PRE_REMEDIATION"
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Resolver must reject unknown URI schemes with an explicit error (no silent skip).",
+      "Downgrade writes back to packet.json atomically (temp file + rename) to avoid partial-write corruption.",
+      "Fixture coverage exercises all four pointer schemes: test://, receipt://, artifact://, event://."
+    ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_A1_A2",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-28T00:01:31.342Z",
+    "verdict": "PASS",
+    "verdict_reason": "hbr-validator-scan.mjs supports the four required schemes (test://, receipt://, artifact://, event://), rejects unknown schemes with explicit reason, downgrades PROVED→STEER atomically via temp-file+rename per the red-team control, and walks active source files to verify test:// pointers. The repo-bound path check prevents artifact:// escape.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "MINOR",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "CONCERN",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 1,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-005.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-005.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_A1_A2",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T23:48:44.444Z",
+    "verdict": "PASS",
+    "verdict_reason": "hbr-validator-scan.mjs supports the four required schemes (test://, receipt://, artifact://, event://), rejects unknown schemes with explicit reason, downgrades PROVED→STEER atomically via temp-file+rename per the red-team control, and walks active source files to verify test:// pointers. The repo-bound path check prevents artifact:// escape.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "MINOR",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "CONCERN",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 1,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "validator_reports_phase1/MT-005.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1\\validator_reports_phase1\\MT-005.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  }
+}

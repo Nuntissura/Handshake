@@ -3,7 +3,6 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { spawn, spawnSync } from "node:child_process";
-import { DatabaseSync } from "node:sqlite";
 import {
   CLI_SESSION_TOOL,
   ROLE_SESSION_FALLBACK_MODEL,
@@ -797,6 +796,10 @@ const STARTUP_MEMORY_PROMPT_MAX_LINES = 8;
 const STARTUP_CONVERSATION_PROMPT_TOKEN_BUDGET = 120;
 const STARTUP_CONVERSATION_PROMPT_MAX_LINES = 4;
 
+function openGovernanceMemoryDb() {
+  return null;
+}
+
 function estimateTokens(text) {
   return Math.ceil(String(text || "").length / 4);
 }
@@ -827,7 +830,8 @@ function loadSessionMemoryLines(wpId, { role = "", fileTargets = [], tokenBudget
   try {
     const dbPath = path.join(GOVERNANCE_RUNTIME_ROOT_ABS, "roles_shared", "GOVERNANCE_MEMORY.db");
     if (!fs.existsSync(dbPath)) return [];
-    const db = new DatabaseSync(dbPath);
+    const db = openGovernanceMemoryDb(dbPath);
+    if (!db) return [];
     try {
       const now = Date.now();
       const allowedTypes = ROLE_MEMORY_TYPE_FILTER[role] || null; // null = all types
@@ -1163,7 +1167,8 @@ function loadOrchestratorMemoryLines() {
   try {
     const dbPath = path.join(GOVERNANCE_RUNTIME_ROOT_ABS, "roles_shared", "GOVERNANCE_MEMORY.db");
     if (!fs.existsSync(dbPath)) return [];
-    const db = new DatabaseSync(dbPath);
+    const db = openGovernanceMemoryDb(dbPath);
+    if (!db) return [];
     try {
       const now = Date.now();
       // Cross-WP: no wp_id filter — orchestrator needs governance-wide context
@@ -1279,7 +1284,8 @@ function loadConversationContext() {
   try {
     const dbPath = path.join(GOVERNANCE_RUNTIME_ROOT_ABS, "roles_shared", "GOVERNANCE_MEMORY.db");
     if (!fs.existsSync(dbPath)) return [];
-    const db = new DatabaseSync(dbPath);
+    const db = openGovernanceMemoryDb(dbPath);
+    if (!db) return [];
     try {
       // Check if conversation_log table exists
       const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='conversation_log'").get();

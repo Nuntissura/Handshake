@@ -5,38 +5,39 @@
  *   A) Explicit: call failWithMemory() as a drop-in replacement for fail()
  *   B) Hook: import registerFailCaptureHook() at script top to auto-capture on exit(1)
  *
- * Both write procedural memories to the governance DB (best-effort, never blocks).
- * These memories are surfaced automatically via memory-recall before future actions.
+ * Both write JSONL failure receipts to the governance runtime root (best-effort, never blocks).
+ * SQLite-backed memory capture is intentionally not used in this path.
  */
 
-import { openGovernanceMemoryDb, addMemory, closeDb } from "../memory/governance-memory-lib.mjs";
+import fs from "node:fs";
+import path from "node:path";
+
+import { GOVERNANCE_RUNTIME_ROOT_ABS } from "./runtime-paths.mjs";
 
 /**
- * Best-effort write a procedural memory for a script failure.
- * Never throws, never blocks - if memory write fails, the original error still propagates.
+ * Best-effort write a JSONL receipt for a script failure.
+ * Never throws, never blocks - if capture fails, the original error still propagates.
  */
 function captureFailure(scriptName, message, { wpId = "", role = "", details = [] } = {}) {
   try {
-    const { db } = openGovernanceMemoryDb();
-    try {
-      const detailStr = details.length > 0 ? ` Details: ${details.join("; ")}` : "";
-      const content = `Script ${scriptName} failed: ${message}${detailStr}`.slice(0, 500);
-      addMemory(db, {
-        memoryType: "procedural",
-        topic: `Script failure: ${scriptName} - ${message.slice(0, 60)}`,
-        summary: content,
-        wpId,
-        importance: 0.7,
-        content,
-        sourceArtifact: "fail-capture",
-        sourceRole: role,
-        metadata: { script: scriptName, captured_at: new Date().toISOString() },
-      });
-    } finally {
-      closeDb(db);
-    }
+    const captureDir = path.join(GOVERNANCE_RUNTIME_ROOT_ABS, "roles_shared");
+    fs.mkdirSync(captureDir, { recursive: true });
+    fs.appendFileSync(
+      path.join(captureDir, "fail_capture.jsonl"),
+      `${JSON.stringify({
+        schema_id: "hsk.fail_capture@1",
+        schema_version: "fail_capture_v1",
+        captured_at_utc: new Date().toISOString(),
+        script: String(scriptName || ""),
+        message: String(message || "").slice(0, 500),
+        wp_id: String(wpId || ""),
+        role: String(role || ""),
+        details: Array.isArray(details) ? details.map((entry) => String(entry)).slice(0, 20) : [],
+      })}\n`,
+      "utf8",
+    );
   } catch {
-    // best-effort - never block the script on memory failure
+    // best-effort - never block the script on failure capture
   }
 }
 

@@ -461,7 +461,13 @@ function ensureWpCommunicationsCore({
       WP_ID.replace(/-v\d+$/, "")
   ).trim();
   const WORKFLOW_LANE = String(workflowLane || packetContext.workflowLane || parseSingleField(packetText, "WORKFLOW_LANE") || "").trim();
-  const EXECUTION_OWNER = String(executionOwner || packetContext.executionOwner || parseSingleField(packetText, "EXECUTION_OWNER") || "").trim();
+  const RAW_EXECUTION_OWNER = String(executionOwner || packetContext.executionOwner || parseSingleField(packetText, "EXECUTION_OWNER") || "").trim();
+  const CODER_COMPATIBLE_EXECUTION_OWNER = String(packetContext.coderCompatibleExecutionLane || "").trim();
+  const EXECUTION_OWNER = EXECUTION_OWNER_VALUES.includes(RAW_EXECUTION_OWNER)
+    ? RAW_EXECUTION_OWNER
+    : (EXECUTION_OWNER_VALUES.includes(CODER_COMPATIBLE_EXECUTION_OWNER)
+        ? CODER_COMPATIBLE_EXECUTION_OWNER
+        : RAW_EXECUTION_OWNER);
   const LOCAL_BRANCH = String(localBranch || packetContext.localBranch || parseSingleField(packetText, "LOCAL_BRANCH") || "<pending>").trim();
   const LOCAL_WORKTREE_DIR = String(localWorktreeDir || packetContext.localWorktreeDir || parseSingleField(packetText, "LOCAL_WORKTREE_DIR") || "<pending>").trim();
   const AGENTIC_MODE = String(agenticMode || packetContext.agenticMode || parseSingleField(packetText, "AGENTIC_MODE") || "NO").trim();
@@ -668,12 +674,21 @@ function ensureWpCommunicationsCore({
     throw new Error(`Reconciled runtime status failed validation for ${WP_ID}: ${reconciledRuntimeErrors.join("; ")}`);
   }
   if (reconciliation.nextPacketText !== packetText) {
-    writeWorkPacketProjectionWithLifecycleSync({
-      wpId,
-      projectionText: reconciliation.nextPacketText,
-      generator: "ensure-wp-communications.mjs",
-      fallbackAbsPath: packetAbsPath,
-    });
+    if (packetContext.packetProjectionWritable) {
+      writeWorkPacketProjectionWithLifecycleSync({
+        wpId,
+        projectionText: reconciliation.nextPacketText,
+        generator: "ensure-wp-communications.mjs",
+        fallbackAbsPath: packetAbsPath,
+      });
+    } else {
+      writeWorkPacketProjectionWithLifecycleSync({
+        wpId,
+        projectionText: reconciliation.nextPacketText,
+        generator: "ensure-wp-communications.mjs",
+        fallbackAbsPath: "",
+      });
+    }
   }
   if (JSON.stringify(reconciliation.nextRuntimeStatus) !== JSON.stringify(runtimeStatus)) {
     fs.writeFileSync(repoPathAbs(runtimeStatusPath), `${JSON.stringify(reconciliation.nextRuntimeStatus, null, 2)}\n`, "utf8");

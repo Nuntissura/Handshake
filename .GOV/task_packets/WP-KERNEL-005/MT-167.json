@@ -1,0 +1,110 @@
+{
+  "artifact_policy": {
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ],
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "model_created_markdown_authority_allowed": false,
+    "operator_facing_authority": false,
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND"
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-005/MT-167.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-005/MT-167.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-005/packet.json"
+  },
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": null,
+  "handoff": {
+    "coder_session": "KB-KERNEL-005-CLOSEOUT",
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": null
+  },
+  "lifecycle": {
+    "active": true,
+    "blocks": [],
+    "depends_on": [
+      "MT-166"
+    ],
+    "status": "VALIDATED_V3",
+    "validator_verdict": "PASS_V3",
+    "claimed_by": "KB-KERNEL-005-CLOSEOUT",
+    "ready_for_validation_at_utc": "2026-06-11T03:05:50.294Z",
+    "ready_by": "KB-KERNEL-005-V3-REMEDIATION",
+    "integration_validation_v2": {
+      "verdict": "PASS_WITH_CONCERN",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "REAL",
+      "proof_validity": "WEAK",
+      "sr1": "PASS",
+      "sr2": "PASS",
+      "fail_category": null,
+      "gap": null,
+      "evidence": "state_probe.rs:1772-1815 (record_spec_drift_finding real PG upsert + SPEC_DRIFT_FINDING_RECORDED event) + detect_and_record_spec_drift at ~1829 (records only on doc/code mismatch); migration 0115 wired at mod.rs:2107. CONCERN: atelier_diagnostics_projections_tests.rs:299-358 proves match=>None / mismatch=>finding listed on real PG, but does not assert the EventLedger event via count_events_for_aggregate; EventLedger proof half missing"
+    },
+    "ready_for_validation_v3": true,
+    "completed_by": "INTEGRATION_VALIDATOR-20260611-033732",
+    "completed_at_utc": "2026-06-11T05:17:17.690Z",
+    "integration_validation_v3": {
+      "verdict": "PASS_V3",
+      "round": "v3",
+      "at_utc": "2026-06-11T05:17:17.690Z",
+      "validator_session": "INTEGRATION_VALIDATOR-20260611-033732",
+      "impl_reality": "REAL",
+      "proof_validity": "STRONG",
+      "sr1": "PASS",
+      "sr2": "PASS",
+      "concern_resolved": true,
+      "evidence": "mt167_spec_drift_detector_records_mismatch_only extended in atelier_diagnostics_projections_tests.rs:400-489: SPEC_DRIFT_FINDING_RECORDED ==1 for recorded mismatch finding, ==0 for matching doc/code surface, on managed PG. Impl unchanged-real (record_spec_drift_finding PG upsert + event, migration 0115 wired in ensure_schema).",
+      "gap": null,
+      "basis": "v3 adversarial per-MT review of remediated deliverable + runtime proof via full-crate managed-PG sweep and kernel-builder fresh-DB proof logs"
+    }
+  },
+  "markdown_projection": {
+    "generated_at_utc": "2026-06-04T17:06:21.335Z",
+    "generator": "wp-contract-import.mjs",
+    "path": ".GOV/task_packets/WP-KERNEL-005/MT-167.md",
+    "projection_hash": "85a5156dbc55f2c2",
+    "source_file": ".GOV/task_packets/WP-KERNEL-005/packet.json",
+    "source_hash": "a5aa5bfc8471db9b",
+    "status": "GENERATED_IN_SYNC"
+  },
+  "mt_id": "MT-167",
+  "red_team": {
+    "minimum_controls": [
+      "Use contract-first identity and preserve projection hash."
+    ],
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "required": true,
+    "risks": [
+      "Imported MT contract may under-capture prose-only review or proof instructions."
+    ]
+  },
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "scope": {
+    "acceptance_criteria": [
+      "MT-167 [Model-Workflow-Diagnostics] Stale README Spec Drift Detector -- Preserve and generalize CKC README vs spec drift finding via doc/spec pointer drift check."
+    ],
+    "allowed_paths": [
+      "src/backend/handshake_core/src/kernel (action_catalog",
+      "diagnostics) + app DCC projections + ModelManual"
+    ],
+    "forbidden_paths": [],
+    "proof_targets": [
+      "cargo test + runtime proof vs PostgreSQL/EventLedger"
+    ],
+    "risk_if_missed": "CKC parity loss for Stale README Spec Drift Detector",
+    "summary": "MT-167 [Model-Workflow-Diagnostics] Stale README Spec Drift Detector -- Preserve and generalize CKC README vs spec drift finding via doc/spec pointer drift check."
+  },
+  "updated_at_utc": "2026-06-11T05:17:17.690Z",
+  "wp_id": "WP-KERNEL-005"
+}

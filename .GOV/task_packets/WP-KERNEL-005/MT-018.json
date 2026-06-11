@@ -1,0 +1,106 @@
+{
+  "artifact_policy": {
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ],
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "model_created_markdown_authority_allowed": false,
+    "operator_facing_authority": false,
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND"
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-005/MT-018.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-005/MT-018.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-005/packet.json"
+  },
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": null,
+  "handoff": {
+    "coder_session": "KB-KERNEL-005-CLOSEOUT",
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": null
+  },
+  "lifecycle": {
+    "active": true,
+    "blocks": [],
+    "depends_on": [
+      "MT-017"
+    ],
+    "status": "VALIDATED_V3",
+    "validator_verdict": "PASS_V3",
+    "claimed_by": "KB-KERNEL-005-CLOSEOUT",
+    "ready_for_validation_at_utc": "2026-06-05T05:03:48.214Z",
+    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "integration_validation_v2": {
+      "verdict": "PASS",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "REAL",
+      "proof_validity": "STRONG",
+      "sr1": "PASS",
+      "sr2": "PASS",
+      "fail_category": null,
+      "gap": null,
+      "evidence": "media.rs:1921 (bulk_update_media_review_metadata, batch-safe with prevalidation); migration 0043 wired at mod.rs:1773; atelier_media_artifact_tests.rs:468-779 (rating clamp 0..5 high/low, all-or-nothing batch on missing/invalid-status target, receipt+canonical_receipt_event_count linkage, note text preserved, no partial write / no receipt / no EventLedger row / no Flight Recorder side-effect on failure)"
+    },
+    "completed_by": "INTEGRATION_VALIDATOR-20260611-033732",
+    "completed_at_utc": "2026-06-11T05:17:17.690Z",
+    "integration_validation_v3": {
+      "verdict": "PASS_V3",
+      "round": "v3",
+      "at_utc": "2026-06-11T05:17:17.690Z",
+      "validator_session": "INTEGRATION_VALIDATOR-20260611-033732",
+      "basis": "v2 PASS re-affirmed in v3: deliverable unchanged by remediation diff; full-crate test sweep green on Handshake-managed PostgreSQL at 17b2abd4 proves no regression. v2 evidence retained in integration_validation_v2."
+    }
+  },
+  "markdown_projection": {
+    "generated_at_utc": "2026-06-04T17:06:21.219Z",
+    "generator": "wp-contract-import.mjs",
+    "path": ".GOV/task_packets/WP-KERNEL-005/MT-018.md",
+    "projection_hash": "fb26f45fd5334f41",
+    "source_file": ".GOV/task_packets/WP-KERNEL-005/packet.json",
+    "source_hash": "0154c07423c49d37",
+    "status": "GENERATED_IN_SYNC"
+  },
+  "mt_id": "MT-018",
+  "red_team": {
+    "minimum_controls": [
+      "Use contract-first identity and preserve projection hash."
+    ],
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "required": true,
+    "risks": [
+      "Imported MT contract may under-capture prose-only review or proof instructions."
+    ]
+  },
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "scope": {
+    "acceptance_criteria": [
+      "MT-018 [Core-Data-Intake] Media Review Metadata -- Preserve favorites",
+      "ratings (0..5 clamp)",
+      "frontpage",
+      "carousel",
+      "notes",
+      "and review status with batch-safe updates."
+    ],
+    "allowed_paths": [
+      "src/backend/handshake_core/src/atelier (core/sheet/media/intake/collections/search/exports) + kernel event bridge"
+    ],
+    "forbidden_paths": [],
+    "proof_targets": [
+      "cargo test + runtime proof vs PostgreSQL/EventLedger"
+    ],
+    "risk_if_missed": "CKC parity loss for Media Review Metadata",
+    "summary": "MT-018 [Core-Data-Intake] Media Review Metadata -- Preserve favorites, ratings (0..5 clamp), frontpage, carousel, notes, and review status with batch-safe updates."
+  },
+  "updated_at_utc": "2026-06-11T05:17:17.690Z",
+  "wp_id": "WP-KERNEL-005"
+}

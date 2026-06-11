@@ -1,0 +1,143 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-032",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "A",
+  "cluster_subscope": "A.3",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T02:30:00Z",
+  "updated_at_utc": "2026-05-28T00:01:44.888Z",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-032.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "kernel.inspector.* Tauri IPC bridge for Diagnostics-panel access",
+  "goal": "Bridge the inspector_read trait to Tauri IPC so the Diagnostics panel (cluster X) reads inspector state without binding to the local HTTP server (the panel runs in-process and skips the network hop). IPC channels: `kernel.inspector.port`, `kernel.inspector.list_sessions`, `kernel.inspector.session_state`, `kernel.inspector.event_ledger_tail`, `kernel.inspector.process_ledger_active`, `kernel.inspector.trace_projection`, `kernel.inspector.loaded_models`.",
+  "expected_diff_shape": "New Tauri command file app/src-tauri/src/inspector.rs with seven commands; each delegates to InspectorReadV1 trait impl; tests confirm IPC payload shapes round-trip cleanly.",
+  "owned_files": [
+    "app/src-tauri/src/inspector.rs",
+    "src/backend/handshake_core/tests/inspector_ipc_tests.rs"
+  ],
+  "depends_on_mts": [
+    "MT-028"
+  ],
+  "unblock_conditions": "MT-028 InspectorReadV1 trait ships.",
+  "implementation_notes": "Per spec §6.5.2 the Diagnostics panel (cluster X) needs read access without going through the HTTP server (network hop unnecessary in-process). The Tauri commands wrap the InspectorReadV1 trait methods one-to-one. Each command serializes the returned struct to JSON via serde. The handlers take a `State<Arc<dyn InspectorReadV1>>` parameter populated at Tauri::Builder setup. Channel ids per spec §6.5 + MT-010 manual convention: `kernel.inspector.port` (returns the random port from MT-029 server if running, else None), `kernel.inspector.list_sessions`, `kernel.inspector.session_state(session_id: SessionId)`, `kernel.inspector.event_ledger_tail(n: usize)`, `kernel.inspector.process_ledger_active`, `kernel.inspector.trace_projection(session_id: SessionId)`, `kernel.inspector.loaded_models`. Each command must appear in the ModelManual (per HBR-MAN-001 paired-diff — the commit adding these commands must update content.rs). Tests: instantiate a Tauri test harness, invoke each command via IPC mock, assert response payload deserializes back to the same struct type returned by the trait method.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target inspector_ipc_tests",
+    "just hbr-man-001"
+  ],
+  "risk_if_missed": "Without IPC bridge, Diagnostics panel must hit HTTP for in-process reads — adds latency and an unnecessary network surface.",
+  "validator_focus": "All seven IPC channels are added to ModelManual content in the same commit (HBR-MAN-001 paired-diff gate will block otherwise); IPC payload shapes round-trip cleanly; State<Arc<dyn InspectorReadV1>> is the single source of read truth.",
+  "hbr_obligations": [
+    "HBR-INT-007",
+    "HBR-VIS-001",
+    "HBR-VIS-004",
+    "HBR-MAN-001"
+  ],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/06-mechanical-integrations.md#6.5"
+  ],
+  "acceptance_criteria_refs": [
+    "AC-INSPECTOR-PLANE-READONLY"
+  ],
+  "lifecycle": {
+    "active": false,
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "CONCERN",
+    "depends_on": [
+      "MT-028"
+    ],
+    "blocks": [
+      "MT-033"
+    ],
+    "claimed_by": "KERNEL_BUILDER-20260518-073535",
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "COMPLETED",
+        "validator_verdict": "PENDING",
+        "completed_at_utc": "2026-05-18T12:10:42.921Z"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "previous_completed_at_utc_before_ready_for_validation_20260525": "2026-05-18T12:10:42.921Z",
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z"
+  },
+  "handoff": {
+    "coder_session": "KERNEL_BUILDER-20260518-073535",
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": "019e6be3-15b8-7750-935e-e578c89675bf",
+    "review_response_receipt_actor_role": "INTEGRATION_VALIDATOR",
+    "review_response_receipt_track": "JUDGMENT_OOB_IV_PHASE1_PRE_REMEDIATION"
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Seven commands added to ModelManual in same commit (HBR-MAN-001 gate).",
+      "State<Arc<dyn InspectorReadV1>> is the single read source (no duplicate impls).",
+      "IPC round-trip tested for every command."
+    ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_A3_A5_A7",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-28T00:01:31.342Z",
+    "verdict": "CONCERN",
+    "verdict_reason": "All seven Tauri inspector IPC commands are wired one-to-one against InspectorReadV1 and the ModelManual lists them as Wired, but the contract requires a `kernel.inspector.workspace_state_read` channel and the implementation omits the workspace_state_read command from the IPC bridge — six of seven trait methods are exposed.",
+    "spec_compliance_status": "PARTIAL",
+    "code_hygiene_status": "MINOR",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 1,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-032.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-032.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_A3_A5_A7",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T23:48:44.444Z",
+    "verdict": "CONCERN",
+    "verdict_reason": "All seven Tauri inspector IPC commands are wired one-to-one against InspectorReadV1 and the ModelManual lists them as Wired, but the contract requires a `kernel.inspector.workspace_state_read` channel and the implementation omits the workspace_state_read command from the IPC bridge — six of seven trait methods are exposed.",
+    "spec_compliance_status": "PARTIAL",
+    "code_hygiene_status": "MINOR",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 1,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "validator_reports_phase1/MT-032.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1\\validator_reports_phase1\\MT-032.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  }
+}

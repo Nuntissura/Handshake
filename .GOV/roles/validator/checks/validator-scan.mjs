@@ -3,11 +3,12 @@
  * Validator scan: forbidden patterns and placeholder text in backend and frontend sources.
  * Exits non-zero if any finding is detected.
  */
-import { execSync } from "node:child_process";
+import { execSync, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { requireValidatorProductTargets } from "../scripts/lib/validator-product-targets-lib.mjs";
-import { captureCheckFindings } from "../../../roles_shared/scripts/memory/memory-capture-from-check.mjs";
+import { captureFailure } from "../../../roles_shared/scripts/lib/fail-capture-lib.mjs";
 
 const rustTargets = ["src/backend/handshake_core/src"];
 const frontendTargets = ["app/src"];
@@ -33,6 +34,58 @@ const placeholderRust = ["Mock", "Stub", "hollow"];
 const forbiddenFrontend = ["debugger", "console\\\\.log", "(it|describe)\\\\.only"];
 const placeholderFrontend = [];
 const placeholderPathExcludes = ["governance_pack.rs:"];
+const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
+
+function parseCliArgs(argv) {
+  const hbrArgs = [];
+  let hbrRequested = false;
+  const valueArgs = new Set(["--packet", "--repo-root", "--event-ledger", "--registry"]);
+  const flagArgs = new Set(["--dry-run"]);
+
+  for (let index = 0; index < argv.length; index += 1) {
+    const arg = argv[index];
+    if (valueArgs.has(arg)) {
+      const value = argv[index + 1] || "";
+      if (!value) {
+        throw new Error(`${arg} requires a value`);
+      }
+      if (arg === "--packet") hbrRequested = true;
+      hbrArgs.push(arg, value);
+      index += 1;
+    } else if (flagArgs.has(arg)) {
+      hbrArgs.push(arg);
+    } else {
+      throw new Error(`unknown argument: ${arg}`);
+    }
+  }
+
+  if (!hbrRequested && hbrArgs.length > 0) {
+    throw new Error("HBR validator-scan options require --packet");
+  }
+
+  return { hbrArgs, hbrRequested };
+}
+
+function runHbrValidatorScan({ hbrArgs, hbrRequested }) {
+  if (!hbrRequested) return 0;
+  const hbrScanPath = path.resolve(SCRIPT_DIR, "../../../roles_shared/checks/hbr-validator-scan.mjs");
+  const result = spawnSync(process.execPath, [hbrScanPath, ...hbrArgs], {
+    cwd: process.cwd(),
+    encoding: "utf8",
+  });
+  if (result.stdout) process.stdout.write(result.stdout);
+  if (result.stderr) process.stderr.write(result.stderr);
+  if (result.error) throw result.error;
+  return Number.isInteger(result.status) ? result.status : 1;
+}
+
+let cliArgs;
+try {
+  cliArgs = parseCliArgs(process.argv.slice(2));
+} catch (error) {
+  console.error(`validator-scan: ARGUMENT_ERROR - ${error instanceof Error ? error.message : String(error)}`);
+  process.exit(3);
+}
 
 function runRg(pattern, paths, globArgs = [], extraArgs = "") {
   const cmd = `rg --hidden --no-heading --line-number "${pattern}" ${paths.join(
@@ -148,13 +201,21 @@ for (const pat of placeholderFrontend) {
 }
 
 if (findings.length > 0) {
-  captureCheckFindings({ check: "validator-scan", findings });
+  captureFailure("validator-scan", "findings detected", {
+    role: "VALIDATOR",
+    details: findings,
+  });
   console.error("validator-scan: FAIL - findings detected");
   findings.forEach((f) => {
     console.error("----");
     console.error(f);
   });
   process.exit(1);
+}
+
+const hbrStatus = runHbrValidatorScan(cliArgs);
+if (hbrStatus !== 0) {
+  process.exit(hbrStatus);
 }
 
 console.log("validator-scan: PASS - no forbidden patterns detected in backend/frontend sources.");

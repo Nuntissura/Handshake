@@ -50,6 +50,8 @@ test("evaluateArtifactHygiene detects repo-local target dirs and stale noncanoni
   const repoRoot = path.join(workspaceRoot, "repo");
   const mainRoot = path.join(workspaceRoot, "handshake_main");
   fs.mkdirSync(path.join(repoRoot, "src", "backend", "handshake_core", "target"), { recursive: true });
+  fs.mkdirSync(path.join(repoRoot, "src", "backend", "Handshake_Artifacts", "handshake-cargo-target"), { recursive: true });
+  fs.mkdirSync(path.join(repoRoot, "app", "handshake-cargo-target"), { recursive: true });
   fs.mkdirSync(mainRoot, { recursive: true });
 
   try {
@@ -67,8 +69,19 @@ test("evaluateArtifactHygiene detects repo-local target dirs and stale noncanoni
       staleThresholdMs: 60 * 1000,
     });
 
-    assert.equal(evaluation.repoLocalForbiddenDirs.length, 1);
-    assert.match(evaluation.repoLocalForbiddenDirs[0].repoRelativePath, /src\/backend\/handshake_core\/target/i);
+    assert.equal(evaluation.repoLocalForbiddenDirs.length, 3);
+    assert.equal(
+      evaluation.repoLocalForbiddenDirs.some((entry) => entry.repoRelativePath === "src/backend/Handshake_Artifacts"),
+      true,
+    );
+    assert.equal(
+      evaluation.repoLocalForbiddenDirs.some((entry) => entry.repoRelativePath === "app/handshake-cargo-target"),
+      true,
+    );
+    assert.equal(
+      evaluation.repoLocalForbiddenDirs.some((entry) => entry.repoRelativePath === "src/backend/handshake_core/target"),
+      true,
+    );
     assert.equal(evaluation.reclaimableExternalDirs.some((entry) => entry.dirName === "validator_wp1_target"), true);
     assert.equal(evaluation.blockingExternalDirs.some((entry) => entry.dirName === "handshake-cargo-target-release"), true);
   } finally {

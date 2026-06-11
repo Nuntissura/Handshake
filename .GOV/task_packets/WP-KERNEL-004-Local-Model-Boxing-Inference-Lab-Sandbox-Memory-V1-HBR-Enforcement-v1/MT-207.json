@@ -1,0 +1,218 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-207",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "SWARM",
+  "cluster_subscope": "SWARM.4",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-06-01T00:00:00Z",
+  "updated_at_utc": "2026-06-02T13:22:44Z",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-207.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json",
+    "research_basis": [
+      ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/VM_WORKTREE_SWARM_RESEARCH_BASIS.json",
+      ".GOV/roles_shared/records/WP-KERNEL-004-sandbox-vm-execution-research-basis.md"
+    ]
+  },
+  "title": "Persistent VM warm streaming, restored-snapshot warm-start, and distillation trace capture",
+  "origin": "Authored as a missing MT-203 follow-on contract. MT-203 explicitly preserves 'MT-207 teacher/student distillation parallel (spec 9) on the coordinator'. The operator-selected repair scope also includes persistent VM warm streaming + warm-start from restored snapshot. This contract preserves both by making warm VM streaming the base runtime scope and limiting distillation/trace work to the MT-203-preserved teacher/student follow-on.",
+  "goal": "Upgrade the VM-local model path from wave-1 ephemeral capture-then-chunk inference to a persistent, snapshot-restorable warm VM session that can stream tokens from a restored model-loaded guest, while capturing teacher/student traces needed for the MT-203-preserved distillation follow-on without making training claims prematurely.",
+  "base_scope": {
+    "summary": "Implement persistent VM warm streaming and warm-start from restored snapshots for swarm model sessions, then capture trace bundles suitable for later teacher/student distillation review.",
+    "included": [
+      "Design and implement a persistent in-VM command channel for warm model sessions, preferably vsock guest-agent or a deliberately bounded serial daemon, with explicit protocol versioning and health checks.",
+      "Load a local model once inside a persistent Tier3Microvm, snapshot the model-loaded VM, and restore it as a warm session for later generate calls without full model reload.",
+      "Stream tokens or token-like chunks from the running guest to the host through the persistent channel with cancellation, timeout, terminal status, and backpressure.",
+      "Wire warm VM sessions into SwarmCoordinator/ProductionModelSessionFactory as a distinct runtime mode so ephemeral sandbox inference remains available and honest.",
+      "Expose snapshot lifecycle operations: create warm snapshot, restore warm session, invalidate snapshot, reclaim warm VM, and report warm-start latency.",
+      "Capture route/session/generation traces needed for the MT-203-preserved teacher/student distillation parallel follow-on: prompt, local output, cloud/escalated output, route reason, confidence/outcome, model ids, and validation labels where available.",
+      "Keep distillation as trace capture and queue preparation unless existing spec 9 surfaces already provide a training/evaluation pipeline to call safely."
+    ],
+    "non_goals": [
+      "No fake claim that ephemeral exec provides true live per-token streaming.",
+      "No distillation model training unless an existing distillation pipeline and proof gates from MT-119..MT-124 are explicitly available and invoked through their public API.",
+      "No unsafe GPU passthrough for untrusted agents; GPU warm VMs require reviewed/trusted pinned artifacts per research risk.",
+      "No cloud escalation policy changes; MT-206 owns route semantics."
+    ]
+  },
+  "expected_diff_shape": "Product implementation should touch sandbox/cloud_hypervisor guest-channel support, SandboxModelRuntime warm mode, WorktreeVmRegistry/snapshot registry, swarm production factory runtime modes, event/trace capture, distillation trace queue adapters, and focused fake + live ignored tests. The governance repair only authors this contract.",
+  "owned_files": [
+    "src/backend/handshake_core/src/sandbox/cloud_hypervisor/adapter.rs",
+    "src/backend/handshake_core/src/sandbox/cloud_hypervisor/guest_agent.rs",
+    "src/backend/handshake_core/src/model_runtime/sandbox_runtime.rs",
+    "src/backend/handshake_core/src/model_runtime/warm_vm_runtime.rs",
+    "src/backend/handshake_core/src/swarm_orchestration/production_factory.rs",
+    "src/backend/handshake_core/src/swarm_orchestration/events.rs",
+    "src/backend/handshake_core/src/swarm_orchestration/ids.rs",
+    "src/backend/handshake_core/src/session_checkpoint/mod.rs",
+    "src/backend/handshake_core/src/distillation/mod.rs",
+    "src/backend/handshake_core/src/distillation/swarm_trace.rs",
+    "src/backend/handshake_core/tests/warm_vm_runtime_tests.rs",
+    "src/backend/handshake_core/tests/swarm_distillation_trace_tests.rs"
+  ],
+  "depends_on_mts": [
+    "MT-203",
+    "MT-204",
+    "MT-206"
+  ],
+  "blocks": [],
+  "reuse": [
+    "WP-KERNEL-004-sandbox-vm-execution-research-basis CloudHypervisorAdapter snapshot/restore, clone-safety, and explicit warning that persistent exec currently fails closed pending guest-agent work.",
+    "Cloud Hypervisor snapshot/restore and vsock research cited in the sandbox VM research basis.",
+    "MT-203 SwarmCoordinator lifecycle, leases, cancellation, budget, and event sink.",
+    "MT-204 ProductionModelSessionFactory and ModelRuntimeState ownership/teardown.",
+    "MT-206 route/correlation/idempotency records for local/cloud comparison traces.",
+    "Existing distillation/spec 9 modules and MT-119..MT-124 outputs where present.",
+    "Flight Recorder and session_checkpoint for durable trace bundles."
+  ],
+  "gaps_closed": [
+    "Closes the honest performance gap where VM-local generate reloads the model every call.",
+    "Closes the streaming honesty gap by creating a real persistent guest channel instead of post-hoc chunking a completed stdout buffer.",
+    "Closes warm-start recovery gap by making restored snapshots usable as live inference sessions, not only snapshot artifacts.",
+    "Closes distillation-data gap by capturing aligned local/cloud teacher/student traces from real coordinator runs.",
+    "Makes future distillation work cheaper by storing trace bundles with route and validation context instead of raw transcripts only."
+  ],
+  "planning_roi": {
+    "high_roi_additions": [
+      {
+        "item": "Warm-start latency metrics and cold-vs-warm comparison event",
+        "why_high_roi": "The warm path is being built; measuring restore/load latency proves whether it is worth keeping.",
+        "addresses": "Hidden performance regressions and unjustified complexity.",
+        "reuse": "Flight Recorder, SwarmEvent, session timeline.",
+        "validation": "Test emits cold_start_ms, restore_ms, first_token_ms, and warm_speedup_ratio fields."
+      },
+      {
+        "item": "Warm snapshot validity manifest",
+        "why_high_roi": "Snapshot handling is already in scope and a manifest prevents stale model/config mismatch.",
+        "addresses": "Restoring a snapshot for the wrong model hash, runner version, or prompt protocol.",
+        "reuse": "ModelRegistration sha256, SnapshotRef, worktree_id, runtime_binding metadata.",
+        "validation": "Mismatch test rejects restore before booting guest."
+      },
+      {
+        "item": "Guest-channel protocol transcript redaction",
+        "why_high_roi": "The stream parser is being built; redaction there prevents leaking secrets into traces.",
+        "addresses": "Trace capture containing provider keys or operator secrets.",
+        "reuse": "Existing FR redaction and terminal capture patterns.",
+        "validation": "Trace test injects secret-like values and asserts redacted FR/distillation bundle."
+      },
+      {
+        "item": "Teacher/student trace quality gates before queueing",
+        "why_high_roi": "Trace capture is cheap to validate before storage and prevents bad training data from accumulating.",
+        "addresses": "Distillation queue pollution from failed, truncated, or policy-blocked sessions.",
+        "reuse": "Distillation review modules, route outcome, session checkpoint terminal state.",
+        "validation": "Only successful or explicitly labeled failure traces enter the distillation candidate queue."
+      }
+    ]
+  },
+  "risks_and_concerns": [
+    {
+      "risk": "Persistent warm streaming is faked by chunking completed stdout.",
+      "plausible_failure_scenario": "Implementation keeps ephemeral exec, splits stdout into chunks, and labels it warm streaming.",
+      "hardening": "Warm mode must use a persistent guest channel with observable first-token/stream events from a running restored VM. Ephemeral capture-then-chunk stays named as ephemeral mode.",
+      "verification": "Test proves the same restored guest handles multiple generate calls without full reload and emits stream frames before terminal completion."
+    },
+    {
+      "risk": "Restored snapshots reuse cloned guest identity or stale secrets.",
+      "plausible_failure_scenario": "A model-loaded snapshot is restored into parallel sessions without clone-safety or reseed controls.",
+      "hardening": "Reuse the CH adapter clone-safety gate; require warm snapshot manifest; deny multiple live restores where identity cannot be reseeded; emit typed SnapshotCloneDenied.",
+      "verification": "Two concurrent restores of one snapshot produce one admitted and one typed refusal unless guest identity reseed is proven."
+    },
+    {
+      "risk": "Guest agent becomes an unbounded command execution backdoor.",
+      "plausible_failure_scenario": "The persistent channel accepts arbitrary argv or shell commands from the host/app.",
+      "hardening": "Protocol supports only model-load/generate/cancel/health/shutdown verbs with schema validation, no shell, no arbitrary file paths outside declared binds, no network by default.",
+      "verification": "Protocol fuzz/negative tests reject unknown verbs, shell metacharacters, path traversal, and oversized payloads."
+    },
+    {
+      "risk": "Warm VM leaks memory or survives cancellation.",
+      "plausible_failure_scenario": "A canceled stream leaves a restored VM and loaded model alive but invisible to the coordinator.",
+      "hardening": "Coordinator teardown owns guest shutdown, adapter kill, snapshot lease release, and ModelRuntimeState detach; lease reaper must reclaim warm sessions.",
+      "verification": "Cancel, timeout, app shutdown, and lease expiry tests assert kill/release/drop and ledger STOP parity."
+    },
+    {
+      "risk": "Distillation trace capture stores bad or unsafe data as training candidates.",
+      "plausible_failure_scenario": "Failed local attempts, prompt echoes, or secret-bearing traces are queued as teacher/student examples.",
+      "hardening": "Trace bundle has status labels, redaction, route outcome, validation label, and queue eligibility gates. Training remains separate unless existing distillation gates are green.",
+      "verification": "Trace matrix tests assert failed/blocked/secret-bearing traces are either redacted and labeled or excluded from candidate queue."
+    },
+    {
+      "risk": "Warm-start optimization fights portability.",
+      "plausible_failure_scenario": "Snapshot paths hardcode a drive letter, user profile, or WSL local path.",
+      "hardening": "Use configured runtime roots and relative metadata; absolute paths only in ignored machine-local config with documented relocation steps.",
+      "verification": "Portability test constructs snapshot manifests under a temporary runtime root with no hardcoded user path."
+    }
+  ],
+  "implementation_notes": [
+    "The sandbox VM research basis explicitly says persistent VM exec is not available without guest-agent work. This MT is where that dependency becomes base scope, not a hidden assumption.",
+    "Warm VM mode must remain separate from the wave-1 ephemeral SandboxModelRuntime mode so validators can tell which path ran.",
+    "Every stream frame should carry sequence number, generation id, session id, and terminal reason; dropped frames require resync/error, not silent continuation.",
+    "Distillation/trace work is preserved only because MT-203 explicitly named MT-207 teacher/student distillation parallel. Keep it to trace capture and queue prep unless the existing distillation pipeline is proven ready.",
+    "Live CH tests may be ignored/env-gated, but headless fake adapter tests must prove protocol, lifecycle, redaction, and snapshot manifest behavior."
+  ],
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target --test warm_vm_runtime_tests -- --test-threads=1",
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target --test swarm_distillation_trace_tests -- --test-threads=1",
+    "HANDSHAKE_CH_LIVE=1 cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target warm_vm_runtime_live -- --ignored --test-threads=1"
+  ],
+  "validator_focus": [
+    "Warm mode is a real persistent restored-VM stream, not ephemeral stdout chunking.",
+    "Snapshot manifest prevents model/config/runner mismatch and hardcoded path drift.",
+    "Concurrent restore clone-safety is enforced.",
+    "Cancel/timeout/app-shutdown release every warm VM resource and ledger row.",
+    "Distillation trace capture is labeled, redacted, and eligibility-gated; no training claim is made without existing distillation proof."
+  ],
+  "hbr_obligations": [
+    "HBR-SWARM-001",
+    "HBR-SWARM-002",
+    "HBR-INT-002"
+  ],
+  "spec_anchors": [
+    ".GOV/spec/SPEC_CURRENT.md#04-llm-infrastructure",
+    "04-llm-infrastructure.md#4.3.9",
+    "09-continuous-local-skill-distillation.md"
+  ],
+  "acceptance_criteria_refs": [
+    "AC-MULTI-MODEL-PARALLEL",
+    "AC-SANDBOX-SNAPSHOT-RESTORE",
+    "AC-DISTILLATION-TRACE-CAPTURE"
+  ],
+  "lifecycle": {
+    "active": true,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": [
+      "MT-203",
+      "MT-204",
+      "MT-206"
+    ],
+    "blocks": [],
+    "claimed_by": null,
+    "claimed_at_utc": null,
+    "completed_by": null,
+    "readiness_note": "Do not mark READY_FOR_VALIDATION without headless warm-protocol tests, snapshot manifest tests, trace redaction tests, and an explicit statement about whether the live CH ignored test was run."
+  },
+  "governance_notes": [
+    "Governance repair 2026-06-02 reconciled packet.json so MT-207 is declared as a current follow-on contract.",
+    "packet.json keeps MT-207 as the active/claimable next follow-on; MT-207 remains PENDING until warm protocol, restored-snapshot, streaming, and trace gates pass.",
+    "Distillation/trace scope is included only because MT-203 explicitly preserved teacher/student distillation parallel as MT-207. This contract does not broaden distillation beyond trace capture and queue preparation unless existing distillation proof gates are available."
+  ],
+  "red_team": {
+    "required": true,
+    "profile": "WARM_VM_STREAMING_AND_DISTILLATION_TRACE_V1",
+    "minimum_controls": [
+      "Warm streaming cannot be satisfied by post-hoc stdout chunking.",
+      "Snapshot restore clone-safety is tested under concurrency.",
+      "Guest protocol rejects arbitrary command execution.",
+      "Trace capture is redacted and queue-eligibility gated."
+    ]
+  }
+}

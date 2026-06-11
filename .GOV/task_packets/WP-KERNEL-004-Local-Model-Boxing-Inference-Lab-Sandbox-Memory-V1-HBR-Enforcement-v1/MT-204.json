@@ -1,0 +1,227 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-204",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "SWARM",
+  "cluster_subscope": "SWARM.1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-06-01T00:00:00Z",
+  "updated_at_utc": "2026-06-02T09:23:32Z",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-204.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json",
+    "research_basis": [
+      ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/VM_WORKTREE_SWARM_RESEARCH_BASIS.json",
+      ".GOV/roles_shared/records/WP-KERNEL-004-sandbox-vm-execution-research-basis.md"
+    ]
+  },
+  "title": "Production swarm ModelSessionFactory and app-state wiring",
+  "origin": "Authored as a missing MT-203 follow-on contract. MT-203 preserves the explicit follow-on intent: 'MT-204 ModelRuntimeState multi-instance + production ModelSessionFactory (real CandleRuntime load + record_spawn + teardown=detach/drop)'. The operator narrowed this repair scope to production factory/app wiring/operator orchestration, VM-local->cloud escalation, persistent VM warm streaming + restored-snapshot warm-start, and distillation/trace follow-on only where MT-203 explicitly preserved it.",
+  "goal": "Turn the MT-203 SwarmCoordinator from a hardened backend primitive into a production-loadable local model session runtime by wiring a real ProductionModelSessionFactory to ModelRuntimeState, local runtime loaders, process-ledger START/STOP metadata, Flight Recorder swarm events, and Tauri app state. This MT owns the backend/app-state factory seam only; operator-facing controls are MT-205.",
+  "base_scope": {
+    "summary": "Implement the production factory and app-state wiring needed for local model swarm sessions to create, attach, observe, and tear down real local model runtimes through the MT-203 coordinator.",
+    "included": [
+      "Add or complete ProductionModelSessionFactory wiring for local CandleRuntime, llama.cpp runtime, and sandboxed Tier3 microVM runtime where the selected SpawnRequest requires it.",
+      "Connect ModelRuntimeState multi-instance attach/detach to the SwarmCoordinator session lifecycle so every spawned model instance has exactly one live runtime owner and teardown frees it.",
+      "Thread the factory into app/Tauri runtime state so production commands can use the same coordinator/factory path as tests.",
+      "Persist process-ledger START/STOP rows with model_id, instance_id, swarm_id, worktree_id, runtime_binding, provider, sandbox_adapter_id, sandbox_internal_id where available.",
+      "Emit durable swarm lifecycle events through the existing SwarmEventSink and Flight Recorder bridge instead of stderr-only reporting.",
+      "Keep local production load/unload behavior from MT-202 intact and reuse its command/runtime registration decisions rather than creating a parallel loader."
+    ],
+    "non_goals": [
+      "No product feature worktree edits from this governance repair session.",
+      "No operator board, chat, or UI controls in this MT; those belong to MT-205.",
+      "No routing policy semantics beyond exposing factory errors and overload signals for MT-206.",
+      "No persistent warm VM streaming implementation; MT-207 owns that selected follow-on."
+    ]
+  },
+  "expected_diff_shape": "Product implementation should touch swarm_orchestration production factory/state modules, model_runtime production loader seams, process-ledger metadata wiring, app/src-tauri state construction, and focused tests. The governance repair only authors this contract.",
+  "owned_files": [
+    "src/backend/handshake_core/src/swarm_orchestration/production_factory.rs",
+    "src/backend/handshake_core/src/swarm_orchestration/factory.rs",
+    "src/backend/handshake_core/src/swarm_orchestration/coordinator.rs",
+    "src/backend/handshake_core/src/swarm_orchestration/events.rs",
+    "src/backend/handshake_core/src/swarm_orchestration/ids.rs",
+    "src/backend/handshake_core/src/model_runtime/state.rs",
+    "src/backend/handshake_core/src/model_runtime/registry.rs",
+    "src/backend/handshake_core/src/model_runtime/sandbox_runtime.rs",
+    "src/backend/handshake_core/src/process_ledger/table.rs",
+    "app/src-tauri/src/commands/swarm_runtime.rs",
+    "app/src-tauri/src/lib.rs"
+  ],
+  "depends_on_mts": [
+    "MT-202",
+    "MT-203"
+  ],
+  "blocks": [
+    "MT-205",
+    "MT-206",
+    "MT-207"
+  ],
+  "reuse": [
+    "MT-202 production model-load/unload flow and ModelRuntimeState attach_live_runtime/detach_live_runtime.",
+    "MT-203 SwarmCoordinator, ModelSessionFactory, LiveSession, SessionTeardown, ClaimLease, breaker, budget, and SwarmEventSink.",
+    "VM_WORKTREE_SWARM_RESEARCH_BASIS existing swarm_orchestration, process_ledger, session_checkpoint, flight_recorder, app swarm_runtime, SwarmControlRoom, and OperatorChat surfaces.",
+    "WP-KERNEL-004-sandbox-vm-execution-research-basis SandboxAdapter, CloudHypervisorAdapter, SandboxModelRuntime, SpawnRequest isolation_tier/worktree_id, and SpawnMeta sandbox fields.",
+    "DurableSwarmFrBridge / FanoutSwarmSink / BroadcastSwarmSink pattern already identified for swarm events."
+  ],
+  "gaps_closed": [
+    "Closes the gap between a tested SwarmCoordinator and production model sessions that actually load and attach runtimes.",
+    "Closes the ledger gap where local/sandbox model spawns can run without sandbox adapter attribution.",
+    "Closes the teardown gap where canceling or lease-expiring a swarm session might stop coordination but leave a runtime/model allocation alive.",
+    "Closes the observability gap where production swarm events are not durably queryable.",
+    "Makes later operator UI work cheaper by giving MT-205 one production command/state seam instead of several ad hoc loaders."
+  ],
+  "planning_roi": {
+    "high_roi_additions": [
+      {
+        "item": "Factory construction receipt in app startup diagnostics",
+        "why_high_roi": "Cheap while app state is being wired and gives operators/models an immediate proof of which runtime providers were actually available.",
+        "addresses": "Silent fallback to a fake or missing local runtime.",
+        "reuse": "Existing app diagnostics and Flight Recorder event emission.",
+        "validation": "Startup test asserts a typed provider-capability snapshot is emitted without opening foreground windows."
+      },
+      {
+        "item": "No-orphan teardown invariant test across lease expiry, explicit cancel, and duplicate spawn rejection",
+        "why_high_roi": "Touches the same factory/coordinator path and prevents expensive later memory leaks.",
+        "addresses": "ModelRuntimeState live_runtimes leak and process-ledger START without STOP.",
+        "reuse": "MT-203 teardown seam and process-ledger START/STOP symmetry tests.",
+        "validation": "Focused tests assert attached runtime count, teardown-call count, and ledger START/STOP parity."
+      },
+      {
+        "item": "Provider capability snapshot stored on SpawnRequest/session metadata",
+        "why_high_roi": "Makes MT-206 routing and MT-205 UI decisions deterministic without extra probing.",
+        "addresses": "UI confusion and routing rework from unknown runtime capabilities.",
+        "reuse": "ModelRegistration declared_capabilities and SpawnRequest metadata_jsonb.",
+        "validation": "Spawned session exposes runtime_binding, isolation_tier, capabilities, and provider in session snapshot."
+      },
+      {
+        "item": "Sandbox attribution wired even for fake-adapter tests",
+        "why_high_roi": "The test seam is already needed and catches the exact metadata gap before live CH runs.",
+        "addresses": "Loss of audit trail for VM-local model execution.",
+        "reuse": "SpawnMeta.with_sandbox_adapter_id and with_sandbox_internal_id.",
+        "validation": "Fake adapter test asserts both fields are non-null when Tier3Microvm is selected."
+      }
+    ]
+  },
+  "risks_and_concerns": [
+    {
+      "risk": "Factory creates a session but fails before registry insert, leaving an orphan model process or Arc.",
+      "plausible_failure_scenario": "CandleRuntime load succeeds, process-ledger START succeeds, then attach_live_runtime fails or duplicate instance rejection happens after the load.",
+      "hardening": "Use one spawn path with reserve/rollback discipline: reserve instance, construct runtime, attach, record START, and register teardown compensations for every failure edge. Duplicate instance rejection must occur before paying model load cost where possible.",
+      "verification": "Inject failures at each create step and assert teardown/drop count, live_runtimes count, and ledger STOP/FAILED records."
+    },
+    {
+      "risk": "App startup wires a test or null factory into production state.",
+      "plausible_failure_scenario": "A default constructor compiles by using fake workers from MT-203 tests because product dependencies are unavailable in the governance worktree.",
+      "hardening": "Make production factory constructors explicit and typed; test factories must live behind test cfg or named test constructors.",
+      "verification": "Static grep/compile test rejects Fake/Test factory symbols in non-test production construction."
+    },
+    {
+      "risk": "Sandbox model metadata is omitted from ledger rows.",
+      "plausible_failure_scenario": "Tier3Microvm local sessions run through CH but START rows do not record sandbox_adapter_id or sandbox_internal_id, breaking audit and cleanup.",
+      "hardening": "Require sandbox metadata in the sandbox branch before returning Ready; missing metadata is a typed factory error.",
+      "verification": "Fake CH adapter test inspects START metadata and teardown STOP metadata."
+    },
+    {
+      "risk": "Long local model loads block the async runtime.",
+      "plausible_failure_scenario": "Large safetensors/GGUF load happens directly on a Tokio worker and stalls IPC, board updates, and reaper tasks.",
+      "hardening": "Use the existing CLI-bridge discipline or spawn_blocking/OS-thread boundary for blocking load work; reaper remains responsive.",
+      "verification": "Concurrency test starts a slow fake load while the coordinator processes cancel/reaper events."
+    }
+  ],
+  "implementation_notes": [
+    "Preserve MT-202 as the local model-load authority. Do not fork a second load registry.",
+    "ProductionModelSessionFactory should be dependency-injected with ModelRuntimeState, runtime provider registry, ProcessOwnershipLedger, FlightRecorder/SwarmEventSink, and optional SandboxAdapterRegistry.",
+    "Local+LlamaCpp+Tier3Microvm should route to SandboxModelRuntime only when isolation_tier == Tier3Microvm; ordinary local llama.cpp remains unchanged.",
+    "Teardown must detach/drop the runtime and record STOP even when coordinator cancellation, lease expiry, duplicate spawn, or breaker suppression occurs.",
+    "Every production constructor must be quiet: no foreground windows, no focus capture, no unbounded background process."
+  ],
+  "proof_commands": [
+    "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib swarm_orchestration::production_factory::tests -- --nocapture",
+    "cargo test --manifest-path app/src-tauri/Cargo.toml swarm_runtime_state -- --nocapture",
+    "cargo test --manifest-path app/src-tauri/Cargo.toml swarm_runtime -- --nocapture",
+    "cargo check --manifest-path app/src-tauri/Cargo.toml"
+  ],
+  "validator_focus": [
+    "No fake/test runtime is reachable from production app state.",
+    "Every successful spawn has exactly one live runtime and every terminal path detaches/drops it.",
+    "START/STOP ledger symmetry holds under success, cancel, lease expiry, duplicate spawn, load failure, and app shutdown.",
+    "Sandbox local sessions record sandbox_adapter_id and sandbox_internal_id.",
+    "Production factory emits durable, queryable swarm lifecycle events."
+  ],
+  "hbr_obligations": [
+    "HBR-SWARM-001",
+    "HBR-SWARM-002",
+    "HBR-INT-002"
+  ],
+  "spec_anchors": [
+    ".GOV/spec/SPEC_CURRENT.md#04-llm-infrastructure",
+    "04-llm-infrastructure.md#4.3.9",
+    "05-security-and-observability.md#5.2.6"
+  ],
+  "acceptance_criteria_refs": [
+    "AC-MULTI-MODEL-PARALLEL",
+    "AC-SWARM-HARNESS-INVARIANTS",
+    "AC-SANDBOX-SNAPSHOT-RESTORE"
+  ],
+  "lifecycle": {
+    "active": false,
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "PENDING",
+    "integration_validator_verdict": "PENDING",
+    "depends_on": [
+      "MT-202",
+      "MT-203"
+    ],
+    "blocks": [
+      "MT-205",
+      "MT-206",
+      "MT-207"
+    ],
+    "claimed_by": "KERNEL_BUILDER-20260602-072224",
+    "claimed_at_utc": "2026-06-02T07:22:24Z",
+    "completed_by": null,
+    "ready_for_validation_by": "KERNEL_BUILDER-20260602-072224",
+    "ready_for_validation_at_utc": "2026-06-02T09:27:52.366Z",
+    "ready_for_validation_reason": "Production swarm factory/app-state wiring has current focused proof; KB_READY_CHECKLIST receipt and handoff receipt are emitted during this 2026-06-02 remediation. Validator review remains pending.",
+    "kb_ready_checklist_receipt_ref": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl#MT-204@2026-06-02T09:27:52.366Z",
+    "handoff_receipt_ref": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/RECEIPTS.jsonl#KERNEL004-MT204-RFV-HANDOFF-20260602",
+    "implementation_evidence": {
+      "implemented_by": "KERNEL_BUILDER-20260602-072224 over committed product branch wtc-kernel-004-fold-v1",
+      "latest_product_commits": [
+        "92db9cb3 feat(WP-KERNEL-004): persist swarm grouping in lifecycle events",
+        "2d79eab6 feat(WP-KERNEL-004): enforce committed memory admission",
+        "174428c4 feat(WP-KERNEL-004): close GUI runtime blockers",
+        "53011d52 feat(WP-KERNEL-004): add persistent VM serial exec channel"
+      ],
+      "proof": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib swarm_orchestration::production_factory::tests -- --nocapture (19 passed; env-gated real cloud smoke skipped without credentials); cargo test --manifest-path app/src-tauri/Cargo.toml swarm_runtime_state -- --nocapture (1 passed); cargo test --manifest-path app/src-tauri/Cargo.toml swarm_runtime -- --nocapture (33 passed); cargo check --manifest-path app/src-tauri/Cargo.toml (exit 0).",
+      "adversarial_review": "Ptolemy reviewed the four-file swarm lifecycle event diff and returned PASS; Poincare separately identified the LedgerDecorator copy boundary as a product hole, which is fixed in a separate reviewed patch path.",
+      "readiness_note": "This is Kernel Builder READY_FOR_VALIDATION handoff only. Integration Validator must still review production factory wiring and no-orphan invariants."
+    }
+  },
+  "governance_notes": [
+    "Governance repair 2026-06-02 reconciled packet.json so MT-204..MT-207 are declared contracts, not missing follow-ons.",
+    "packet.json now records MT-204 as the active/claimable next follow-on while preserving MT-202 and MT-203 as READY_FOR_VALIDATION pending Integration Validator review.",
+    "The visible governance worktree does not include the full product source topology referenced by the research basis; validators must verify against the product worktree before implementation.",
+    "Remediation 2026-06-02 corrected stale proof_commands that referenced non-existent integration-test targets; current proof uses module-path production_factory tests and app swarm_runtime command tests in the product worktree."
+  ],
+  "red_team": {
+    "required": true,
+    "profile": "PRODUCTION_SWARM_FACTORY_WIRING_V1",
+    "minimum_controls": [
+      "Negative tests prove no runtime survives failed spawn paths.",
+      "Production app-state wiring cannot compile with test-only factories.",
+      "Ledger START/STOP parity is proven under forced failure scenarios.",
+      "Sandbox metadata is mandatory for Tier3Microvm local sessions."
+    ]
+  }
+}

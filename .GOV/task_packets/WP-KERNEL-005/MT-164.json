@@ -1,0 +1,110 @@
+{
+  "artifact_policy": {
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ],
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "model_created_markdown_authority_allowed": false,
+    "operator_facing_authority": false,
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND"
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-005/MT-164.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-005/MT-164.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-005/packet.json"
+  },
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": null,
+  "handoff": {
+    "coder_session": "KB-KERNEL-005-CLOSEOUT",
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": null
+  },
+  "lifecycle": {
+    "active": true,
+    "blocks": [],
+    "depends_on": [
+      "MT-163"
+    ],
+    "status": "VALIDATED_V3",
+    "validator_verdict": "PASS_V3",
+    "claimed_by": "KB-KERNEL-005-CLOSEOUT",
+    "ready_for_validation_at_utc": "2026-06-11T03:05:50.294Z",
+    "ready_by": "KB-KERNEL-005-V3-REMEDIATION",
+    "integration_validation_v2": {
+      "verdict": "PASS_WITH_CONCERN",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "REAL",
+      "proof_validity": "WEAK",
+      "sr1": "PASS",
+      "sr2": "NA",
+      "fail_category": null,
+      "gap": null,
+      "evidence": "content.rs:277-287 build-rules group + :408,436,462 hbr_violation_emit/hbr_matrix_check/hbr_validator_scan rows (status Wired but ipc_channel None — CLI/recipe surfaces, modeling quirk not blocking); model_manual_tests.rs:694-704 verifies group refs + workflow. No status-vs-route assertion for these HBR rows and no live-resource proof; pure static manual-row coverage."
+    },
+    "ready_for_validation_v3": true,
+    "completed_by": "INTEGRATION_VALIDATOR-20260611-033732",
+    "completed_at_utc": "2026-06-11T05:17:17.690Z",
+    "integration_validation_v3": {
+      "verdict": "PASS_V3",
+      "round": "v3",
+      "at_utc": "2026-06-11T05:17:17.690Z",
+      "validator_session": "INTEGRATION_VALIDATOR-20260611-033732",
+      "impl_reality": "REAL",
+      "proof_validity": "STRONG",
+      "sr1": "PASS",
+      "sr2": "PASS",
+      "concern_resolved": true,
+      "evidence": "NEW tests/hbr_build_rules_read_evidence_pg_tests.rs: production HandoffGate run against managed PG with HBR_HANDOFF_GATE row re-read from kernel_event_ledger (verdict Pass + acknowledged evidence_pointer in payload); unacknowledged build rule blocks gate with durable BLOCK row naming the rule; manual HBR rows Wired with concrete cli_flag routes (content.rs:408/:436/:462). Both V2 concern halves (no status-vs-route check, no live-resource proof) closed.",
+      "gap": null,
+      "basis": "v3 adversarial per-MT review of remediated deliverable + runtime proof via full-crate managed-PG sweep and kernel-builder fresh-DB proof logs"
+    }
+  },
+  "markdown_projection": {
+    "generated_at_utc": "2026-06-04T17:06:21.332Z",
+    "generator": "wp-contract-import.mjs",
+    "path": ".GOV/task_packets/WP-KERNEL-005/MT-164.md",
+    "projection_hash": "7a4fd411faa1eb20",
+    "source_file": ".GOV/task_packets/WP-KERNEL-005/packet.json",
+    "source_hash": "369ee5e59eef86a0",
+    "status": "GENERATED_IN_SYNC"
+  },
+  "mt_id": "MT-164",
+  "red_team": {
+    "minimum_controls": [
+      "Use contract-first identity and preserve projection hash."
+    ],
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "required": true,
+    "risks": [
+      "Imported MT contract may under-capture prose-only review or proof instructions."
+    ]
+  },
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "scope": {
+    "acceptance_criteria": [
+      "MT-164 [Model-Workflow-Diagnostics] Build Rules Read Evidence -- Preserve CKC build-rule gate as model-visible read/acknowledge evidence before build/test/release WPs."
+    ],
+    "allowed_paths": [
+      "src/backend/handshake_core/src/kernel (action_catalog",
+      "diagnostics) + app DCC projections + ModelManual"
+    ],
+    "forbidden_paths": [],
+    "proof_targets": [
+      "cargo test + runtime proof vs PostgreSQL/EventLedger"
+    ],
+    "risk_if_missed": "CKC parity loss for Build Rules Read Evidence",
+    "summary": "MT-164 [Model-Workflow-Diagnostics] Build Rules Read Evidence -- Preserve CKC build-rule gate as model-visible read/acknowledge evidence before build/test/release WPs."
+  },
+  "updated_at_utc": "2026-06-11T05:17:17.690Z",
+  "wp_id": "WP-KERNEL-005"
+}

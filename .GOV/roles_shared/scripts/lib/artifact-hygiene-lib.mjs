@@ -4,6 +4,7 @@ import { discoverGitCheckouts } from "../topology/git-topology-lib.mjs";
 import { REPO_ROOT, normalizePath } from "./runtime-paths.mjs";
 
 export const HANDSHAKE_ARTIFACT_ROOT_ENV_VAR = "HANDSHAKE_ARTIFACT_ROOT";
+export const HANDSHAKE_ARTIFACTS_ROOT_ENV_VAR = "HANDSHAKE_ARTIFACTS_ROOT";
 export const DEFAULT_ARTIFACT_ROOT_DIRNAME = "Handshake_Artifacts";
 export const CANONICAL_CARGO_TARGET_DIRNAME = "handshake-cargo-target";
 export const PRODUCT_CARGO_MANIFEST_REPO_REL = normalizePath(path.join("src", "backend", "handshake_core", "Cargo.toml"));
@@ -29,9 +30,12 @@ const REPO_SCAN_SKIP_DIRS = new Set([
   "build",
   "out",
   "gov_runtime",
-  DEFAULT_ARTIFACT_ROOT_DIRNAME,
 ]);
-const FORBIDDEN_REPO_LOCAL_DIR_NAMES = new Set(["target"]);
+const FORBIDDEN_REPO_LOCAL_DIR_NAMES = new Set([
+  "target",
+  DEFAULT_ARTIFACT_ROOT_DIRNAME,
+  CANONICAL_CARGO_TARGET_DIRNAME,
+]);
 const NONCANONICAL_EPHEMERAL_DIR_RE =
   /(?:^|[-_])(validator|wpval|intval|orchestrator|coder|probe|scratch|tmp)(?:[-_]|$)|(?:^|[-_])wp\d+(?:[-_]|$)|(?:^|[-_])target(?:[-_]|$)|(?:^|[-_]).*target$/i;
 const ARTIFACT_CARGO_TARGET_RE = /^\s*target-dir\s*=\s*"([^"]+)"\s*$/mi;
@@ -224,7 +228,12 @@ function removeDirSafe(absPath, allowedRootAbs) {
 }
 
 export function resolveArtifactRoot(repoRoot = REPO_ROOT, overrideValue = "") {
-  const directValue = String(overrideValue || process.env[HANDSHAKE_ARTIFACT_ROOT_ENV_VAR] || "").trim();
+  const directValue = String(
+    overrideValue
+    || process.env[HANDSHAKE_ARTIFACTS_ROOT_ENV_VAR]
+    || process.env[HANDSHAKE_ARTIFACT_ROOT_ENV_VAR]
+    || ""
+  ).trim();
   if (directValue) return path.resolve(directValue);
   return path.resolve(repoRoot, "..", DEFAULT_ARTIFACT_ROOT_DIRNAME);
 }

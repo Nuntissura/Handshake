@@ -1,0 +1,230 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-206",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "SWARM",
+  "cluster_subscope": "SWARM.3",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-06-01T00:00:00Z",
+  "updated_at_utc": "2026-06-02T13:22:44Z",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-206.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json",
+    "research_basis": [
+      ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/VM_WORKTREE_SWARM_RESEARCH_BASIS.json"
+    ]
+  },
+  "title": "VM-local to cloud escalation routing policy",
+  "origin": "Authored as a missing MT-203 follow-on contract. MT-203 preserves: 'MT-206 local-vs-cloud routing policy (classifier->tier->escalation + per-provider breaker)'. Operator-selected scope explicitly includes VM-local->cloud escalation.",
+  "goal": "Implement a deterministic routing and escalation policy that starts eligible work on VM-local or local model sessions, escalates to cloud only on typed policy outcomes, preserves idempotency across reruns, and makes every escalation decision visible to the operator, Flight Recorder, and session timeline.",
+  "base_scope": {
+    "summary": "Route work between local VM/local runtimes and cloud providers using typed task tiers, confidence/failure/overload signals, ForceLocal controls, per-provider breakers, and idempotent handoff.",
+    "included": [
+      "Define or complete RoutingPolicy::route over task tier, runtime capabilities, isolation tier, provider availability, budget, ForceLocal, and egress policy.",
+      "Add VM-local outcomes: Succeeded, Failed, LowConfidence, Overloaded, TimedOut, CapabilityMissing, PolicyDenied, and CrashLoop.",
+      "Escalate from VM-local/local to cloud only for allowed outcomes and only when ForceLocal/data-egress controls permit it.",
+      "Carry session_checkpoint idempotency keys and trace/correlation ids across local and cloud attempts so reruns do not duplicate side effects.",
+      "Add per-provider failure-fingerprint breakers and cooldowns so one failing provider does not burn fleet budget.",
+      "Surface route decisions to MT-205 board/chat as typed statuses: LocalSelected, CloudSelected, Escalated, EscalationBlocked, ProviderSuppressed, BudgetDenied.",
+      "Emit FR-EVT-SWARM-ROUTE-* events and ledger metadata for every decision."
+    ],
+    "non_goals": [
+      "No UI implementation beyond DTOs/statuses consumed by MT-205.",
+      "No new cloud provider engine beyond adapters already present in product code.",
+      "No distillation/training behavior; MT-207 owns the preserved distillation/trace follow-on.",
+      "No legal/compliance policy engine; operator-owned business decisions stay outside this technical route contract."
+    ]
+  },
+  "expected_diff_shape": "Product implementation should touch swarm_orchestration/routing.rs, coordinator admission paths, provider breaker state, session_checkpoint/idempotency propagation, cloud provider factory paths, FR event ids/sinks, DTOs for Tauri board status, and tests.",
+  "owned_files": [
+    "src/backend/handshake_core/src/swarm_orchestration/routing.rs",
+    "src/backend/handshake_core/src/swarm_orchestration/coordinator.rs",
+    "src/backend/handshake_core/src/swarm_orchestration/breaker.rs",
+    "src/backend/handshake_core/src/swarm_orchestration/events.rs",
+    "src/backend/handshake_core/src/swarm_orchestration/ids.rs",
+    "src/backend/handshake_core/src/swarm_orchestration/production_factory.rs",
+    "src/backend/handshake_core/src/session_checkpoint/mod.rs",
+    "src/backend/handshake_core/src/model_runtime/cloud/mod.rs",
+    "app/src-tauri/src/commands/swarm_runtime.rs",
+    "app/src/lib/ipc/swarm_runtime.ts",
+    "app/src/components/swarm/SwarmControlRoom.tsx",
+    "app/src/components/swarm/OperatorChat.tsx"
+  ],
+  "depends_on_mts": [
+    "MT-203",
+    "MT-204",
+    "MT-205"
+  ],
+  "blocks": [
+    "MT-207"
+  ],
+  "reuse": [
+    "MT-203 FailureFingerprintBreaker, RunBudget, ClaimLease, budget-as-data, SwarmEventSink, and lifecycle state machine.",
+    "VM_WORKTREE_SWARM_RESEARCH_BASIS routing.rs pattern: TaskTier{Local,Cloud}, LocalOutcome{Failed,LowConfidence}->cloud escalation, per-provider breaker fallback.",
+    "Research-basis rank 5: LocalOutcome::Overloaded from coordinator saturation, in-VM OOM/memory-pressure, and latency-SLO breach.",
+    "Existing session_checkpoint event-sourced replay/checkpoint and idempotency ledger.",
+    "Existing cloud CLI bridge/provider paths and quiet process rules.",
+    "MT-205 board/read-model statuses and receipts."
+  ],
+  "gaps_closed": [
+    "Closes the gap where local model failure does not have a controlled path to cloud continuation.",
+    "Closes the overload gap where saturated local/VM capacity is treated as generic failure or silent stall.",
+    "Closes the egress-control gap by making ForceLocal an enforced route gate, not a UI hint.",
+    "Closes duplicate-side-effect risk by carrying checkpoint/idempotency keys across local->cloud reruns.",
+    "Closes provider storm risk with per-provider breaker suppression before expensive cloud startup."
+  ],
+  "planning_roi": {
+    "high_roi_additions": [
+      {
+        "item": "Dry-run route explanation API",
+        "why_high_roi": "Routing policy is being authored; exposing a dry-run lets MT-205 preview choices without duplicating policy logic.",
+        "addresses": "Operator confusion and accidental cloud escalation.",
+        "reuse": "RoutingPolicy::route, provider capability snapshot, MT-205 route preview.",
+        "validation": "Dry-run command returns same selected route as real spawn without creating a session."
+      },
+      {
+        "item": "Escalation replay bundle",
+        "why_high_roi": "The idempotency key and trace are already in scope; bundling them makes validator reproduction cheap.",
+        "addresses": "Hard-to-debug escalations where the local attempt context is lost.",
+        "reuse": "SessionCheckpoint, Flight Recorder, SessionAggregateQueries.",
+        "validation": "Test asserts local failure, escalation decision, cloud attempt, and final result share correlation ids."
+      },
+      {
+        "item": "Provider breaker dashboard fields",
+        "why_high_roi": "Breaker state exists; exposing it prevents the UI from showing unavailable providers as viable.",
+        "addresses": "Repeated failed operator clicks and provider cost burn.",
+        "reuse": "MT-203 breaker state and MT-205 board/status DTOs.",
+        "validation": "Open breaker suppresses factory before cloud create-call counter increments."
+      },
+      {
+        "item": "Escalation-rate budget counter",
+        "why_high_roi": "Adds a small counter to the existing budget object and limits runaway mixed local/cloud loops.",
+        "addresses": "Cost/egress storm from repeated local failures.",
+        "reuse": "RunBudget and lifetime spawn ceiling.",
+        "validation": "Test exceeds escalation-rate cap and gets typed BudgetDenied without cloud factory call."
+      }
+    ]
+  },
+  "risks_and_concerns": [
+    {
+      "risk": "ForceLocal is treated as advisory.",
+      "plausible_failure_scenario": "A local VM failure escalates to a cloud provider despite ForceLocal or data-egress-denied route constraints.",
+      "hardening": "ForceLocal and egress-denied constraints must be admission gates before cloud provider selection; blocked escalation returns typed EscalationBlocked.",
+      "verification": "Tests cover Failed, LowConfidence, Overloaded, and Timeout with ForceLocal true and assert no cloud factory call."
+    },
+    {
+      "risk": "Escalation duplicates side effects.",
+      "plausible_failure_scenario": "Local attempt writes artifacts or tool output, then cloud rerun repeats the same side effect with a new idempotency key.",
+      "hardening": "Propagate session_checkpoint idempotency key and make cloud attempt inherit the same effect ledger identity unless the operator explicitly forks.",
+      "verification": "Replay test asserts one effect record across local failure + cloud success."
+    },
+    {
+      "risk": "Provider breaker opens after cost has already been paid.",
+      "plausible_failure_scenario": "Breaker check occurs after launching a provider CLI process or cloud session.",
+      "hardening": "Admission gate checks provider breaker before permit acquisition and before factory.create.",
+      "verification": "Open breaker test asserts cloud create-call counter remains zero."
+    },
+    {
+      "risk": "Overload signal is too broad and hides real bugs.",
+      "plausible_failure_scenario": "Panics and capability errors are labeled Overloaded, causing cloud fallback instead of fixing local runtime.",
+      "hardening": "Classify overload only from explicit semaphore saturation, memory-pressure/OOM, or latency-SLO signals; capability and policy errors stay non-escalating unless policy allows.",
+      "verification": "Error-class matrix tests route each LocalOutcome deterministically."
+    },
+    {
+      "risk": "Escalation events are visible in UI but not durable.",
+      "plausible_failure_scenario": "The board shows Escalated during the live session, but after restart no FR/session timeline explains why.",
+      "hardening": "Every route decision writes FR and checkpoint records before attempting the next provider.",
+      "verification": "Restart/replay test reconstructs escalation timeline from durable records."
+    }
+  ],
+  "implementation_notes": [
+    "Routing must be deterministic and pure enough to test as a matrix before invoking factories.",
+    "Route decisions should be explainable by typed fields, not prose-only reason strings.",
+    "Capacity refusals must not poison the provider failure breaker unless the provider actually failed.",
+    "Escalation should preserve the original operator receipt_id and create a child receipt for the cloud attempt.",
+    "Cloud factory invocation remains quiet and bounded by existing process rules."
+  ],
+  "proof_commands": [
+    "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib swarm_orchestration::routing -- --nocapture",
+    "cargo test --manifest-path app/src-tauri/Cargo.toml swarm_runtime -- --nocapture",
+    "pnpm --dir app exec vitest run src/components/swarm/SwarmControlRoom.test.tsx src/components/swarm/OperatorChat.test.tsx"
+  ],
+  "validator_focus": [
+    "ForceLocal and data-egress blocks prevent cloud factory invocation for every local failure class.",
+    "Overloaded escalates when policy allows and does not trip the local failure breaker.",
+    "Provider breaker suppresses before cloud factory create.",
+    "Idempotency/checkpoint ids survive local->cloud rerun.",
+    "FR/session timeline can reconstruct route decision, local outcome, cloud attempt, and final outcome."
+  ],
+  "hbr_obligations": [
+    "HBR-SWARM-001",
+    "HBR-SWARM-002",
+    "HBR-INT-002"
+  ],
+  "spec_anchors": [
+    ".GOV/spec/SPEC_CURRENT.md#04-llm-infrastructure",
+    "04-llm-infrastructure.md#4.3.9",
+    "05-security-and-observability.md#5.2.6"
+  ],
+  "acceptance_criteria_refs": [
+    "AC-MULTI-MODEL-PARALLEL",
+    "AC-SWARM-HARNESS-INVARIANTS",
+    "AC-CLOUD-ESCALATION-CONSENT"
+  ],
+  "lifecycle": {
+    "active": false,
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "PENDING",
+    "integration_validator_verdict": "PENDING",
+    "depends_on": [
+      "MT-203",
+      "MT-204",
+      "MT-205"
+    ],
+    "blocks": [
+      "MT-207"
+    ],
+    "claimed_by": "KERNEL_BUILDER-20260602-072224",
+    "claimed_at_utc": "2026-06-02T07:22:24Z",
+    "completed_by": null,
+    "ready_for_validation_by": "KERNEL_BUILDER-20260602-072224",
+    "ready_for_validation_at_utc": "2026-06-02T09:28:26.370Z",
+    "ready_for_validation_reason": "VM-local/local to cloud routing policy has route-matrix and app command proof, including ForceLocal blocks and chat-generation cloud escalation. KB_READY_CHECKLIST receipt and handoff receipt are emitted during this 2026-06-02 remediation. Validator review remains pending.",
+    "kb_ready_checklist_receipt_ref": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl#MT-206@2026-06-02T09:28:26.370Z",
+    "handoff_receipt_ref": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/RECEIPTS.jsonl#KERNEL004-MT206-RFV-HANDOFF-20260602",
+    "implementation_evidence": {
+      "implemented_by": "KERNEL_BUILDER-20260602-072224 over committed product branch wtc-kernel-004-fold-v1",
+      "latest_product_commits": [
+        "92db9cb3 feat(WP-KERNEL-004): persist swarm grouping in lifecycle events",
+        "174428c4 feat(WP-KERNEL-004): close GUI runtime blockers"
+      ],
+      "proof": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib swarm_orchestration::routing -- --nocapture (20 passed); cargo test --manifest-path app/src-tauri/Cargo.toml swarm_runtime -- --nocapture (33 passed, including mixed_local_and_cloud_spawn_route_through_one_coordinator, chat_generate_escalation_force_local_blocks_cloud_when_local_missing, chat_generate_escalates_after_live_local_generate_failure, and chat_generate_force_cloud_skips_a_live_local_candidate); pnpm --dir app exec vitest run src/components/swarm/SwarmControlRoom.test.tsx src/components/swarm/OperatorChat.test.tsx (25 passed).",
+      "adversarial_review": "Ptolemy reviewed the swarm routing/event diff and returned PASS; false-completion risk remains that this is route/control proof, not MT-207 warm model-streaming.",
+      "readiness_note": "This is Kernel Builder READY_FOR_VALIDATION handoff only. Integration Validator must still review route idempotency, durable route timeline, and cloud-factory negative paths."
+    }
+  },
+  "governance_notes": [
+    "Governance repair 2026-06-02 reconciled packet.json so MT-206 is declared as a current follow-on contract.",
+    "packet.json now keeps MT-207 as the active/claimable next follow-on; MT-206 is READY_FOR_VALIDATION and awaits Integration Validator review.",
+    "The contract intentionally treats VM-local->cloud escalation as a technical route policy. It does not add legal/compliance paperwork gates.",
+    "Remediation 2026-06-02 corrected stale proof_commands that referenced a non-existent swarm_routing_escalation_tests target and absent swarm_route_preview filter; current proof uses routing module tests plus app swarm_runtime escalation tests."
+  ],
+  "red_team": {
+    "required": true,
+    "profile": "VM_LOCAL_CLOUD_ESCALATION_POLICY_V1",
+    "minimum_controls": [
+      "ForceLocal blocks every cloud escalation path.",
+      "Open provider breaker prevents factory.create.",
+      "Escalation preserves idempotency and trace ids.",
+      "Route matrix covers every LocalOutcome and provider state."
+    ]
+  }
+}

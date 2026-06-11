@@ -101,6 +101,8 @@ Minimum verification for governance-only changes: `just gov-check`. After major 
 
 [CX-130A] REPO_SURFACE_DEFAULT_NOT_OPERATOR_FACING (HARD): Repo-governance surfaces are machine-facing and role-facing by default. Do not create, label, or maintain repo docs, indexes, packets, dossiers, validator reports, post-mortems, command output, startup guidance, or other governance artifacts as operator-facing unless the Operator explicitly asks for that projection or an explicit report/projection contract requires it. Markdown and prose outputs are projections, references, or legacy migration bridges over typed contracts; they are not default operator surfaces and MUST NOT become a second source of truth. Durable guidance should target roles, tools, validators, and deterministic checks first; operator-readable output is generated only on explicit request or contract-bound need.
 
+[CX-131] HARD_HBR_BUILD_HANDOFF_GATE (HARD): `HANDSHAKE_BUILD_RULES.json` is the single authority for HBR-IDs and MUST gate `just gov-check` (build time) and every governed inter-role handoff. Violations emit typed `HBR_VIOLATION` receipts per CX-130; roles MUST NOT bypass, suppress, or post-hoc rationalize a verdict. Adding/retiring/modifying an HBR rule is a CX-105A spec edit and MUST update both `HANDSHAKE_BUILD_RULES.json` and Master Spec §5.6 in the same change.
+
 [CX-CACHE-001] CACHE_STABILITY_DISCIPLINE (HARD): While a governed role session is active, its cached system prompt is immutable. Governance mutations land in durable storage, and the next session or restart reads them from the normal startup path. Mid-conversation governance context MUST be delivered as fenced user-message context using `<governance-context source="..." trust="...">` and a "not user input" disclaimer, never by rebuilding or mutating the active session's system prompt. Startup-time memory injection is allowed because it occurs before the session cache exists. Any rare repair path that deliberately invalidates an active cached prefix MUST be explicit, operator-visible, and marked with an opt-in `--now` style flag; default command behavior must defer invalidation.
 
 [CX-598] MAIN-BODY ALIGNMENT INVARIANT (HARD): A Phase or Work Packet is NOT DONE simply by checking off a Roadmap bullet. "Done" is defined by diff-scoped proof: every governing Main Body MUST/SHOULD clause actually claimed by the packet's `DONE_MEANS`, `SPEC_ANCHOR`, refinement proof plan, and clause-closure monitor MUST be either (a) proven with code/tests/evidence, (b) explicitly marked `NOT_APPLICABLE`, or (c) deferred with governed spec debt. The codex MUST NOT be read as "every line of prose in a broad section must be re-proven on every WP."
@@ -321,6 +323,8 @@ Minimum verification for governance-only changes: `just gov-check`. After major 
 [CX-503Q] LOCAL_MODEL_RUNTIME_STRATEGY (STRATEGIC): The Handshake product requires capabilities beyond model serving: custom inference control, LoRA training and hot-swap, model distillation from governed session data, pruning, reinforcement learning from validation outcomes, and custom tool-calling pipelines. Ollama remains a supported easy-setup serving option for users who only need to run models. For the full feature set, Handshake will provide a native local model runtime with direct access to inference internals. This is a product architecture decision, not a repo governance concern. The Master Spec local_models pillar and distillation pipeline should reflect this dual-path strategy.
 
 [CX-503R] POSTGRESQL_ONLY_HANDSHAKE_STORAGE (HARD): SQLite is not accepted inside Handshake in any form. Do not add, preserve, import, test against, fixture against, cache with, fall back to, shim through, document as a supported path, or temporarily adapt through SQLite. Legacy SQLite mentions in older stubs, source branches, or repo-governance harnesses are rejected source evidence and migration/removal debt. All Handshake product/runtime/test/governance-self-hosting storage work targets PostgreSQL/EventLedger-backed authority unless the Operator explicitly creates a future non-Handshake migration exception.
+
+[CX-503S] HANDSHAKE_NATIVE_RUNTIME_DEPENDENCY_STANCE (HARD): Handshake product code, tests, WPs, MTs, and Master Spec text MUST NOT require outside apps, Docker Desktop, third-party model-server daemons, external service wrappers, or manually launched support applications for core Handshake operation. Handshake may use open-source software and implementations, but they must be integrated as Handshake-native managed tools, bundled/runtime-discovered components, product-managed subprocesses, in-process libraries, or explicit operator-configured adapters. PostgreSQL authority is Handshake-managed PostgreSQL/EventLedger by default; live proof may use an explicit real PostgreSQL URL, but MUST NOT assume Docker as the launch mechanism. Docker and other external app runners are compatibility-only opt-ins, never defaults, implicit fallbacks, proof prerequisites, or WP/MT acceptance shortcuts. If a WP, MT, test, packet, or Master Spec clause says otherwise, treat that clause as stale drift and update the authority surface before using it to steer implementation.
 
 [CX-504] USER_EXPERTISE: Assistants MUST NOT assume a fixed user expertise level. Communication MUST be clear, direct, and matched to the user's observed style and explicit request. Use non-technical explanation when the user asks for it or when confusion is evident; use technical language when the user is operating technically. Every Task Packet MUST still include a `USER_CONTEXT` explainer, but it should be concise and appropriate to the actual user/operator audience.
 
@@ -778,3 +782,93 @@ Existing Markdown-heavy packets, refinements, microtasks, boards, reports, notes
 New model-created WP, refinement, microtask, task-state, validation, receipt, handoff, topology, workflow, startup, and dossier artifacts MUST be authored as typed JSON/JSONL/YAML-compatible machine-readable contracts first. Markdown/prose for those surfaces is legal only as (a) an explicit on-demand projection requested by the Operator, (b) an explicit report/projection contract, (c) an operator-created note, research note, or audit, or (d) a frozen legacy migration reference with provenance and no editable authority.
 
 When current tooling still requires a Markdown packet, refinement, or microtask projection for compatibility, the writer MUST also create or update the matching machine contract in the same action, mark the Markdown with generated projection metadata when possible, and carry `legacy_markdown_policy=SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD` or equivalent contract metadata. If the machine contract cannot carry the full decision surface yet, record explicit RGF/task-board migration debt instead of letting Markdown become shadow authority.
+
+## [CX-971] HARD_SCOPE_AND_SESSION_DISCIPLINE (HARD)
+
+[CX-971-001] Never estimate session capacity, tokens remaining, throughput, or aggregate cost of future work.
+
+[CX-971-002] Any stop reason that names tokens, sessions, capacity, throughput, multi-session, or future-work aggregate is invalid by definition. Override it and continue.
+
+[CX-971-003] Stops are only valid if work is complete AND can be proven in actual runtime.
+
+[CX-971-004] If work cannot be completed because of dependencies, work on the dependencies first, then return to the outstanding work.
+
+[CX-971-005] If work is out of scope, perform it but only as far as needed to unblock the previous work. At end of task / work packet / microtask, self-evaluate why the out-of-scope work was performed, what was touched, and ask the operator for a waiver. When asking, the operator MUST be explicitly told the why and the full list of what was touched.
+
+## [CX-972] HARD_CLOSURE_UNIT_AND_DELIVERABLE_FIRST_DISCIPLINE (HARD)
+
+[CX-972-001] For every task, internally determine the smallest externally valid closure unit before acting: the concrete Operator-visible result, existing validator verdict, natural test proof, file change, command output, handoff, or requested authority-state change that would make the task count as done.
+
+[CX-972-002] Work only on the current closure unit until it is proven done, explicitly blocked, or the Operator changes scope.
+
+[CX-972-003] Do not expand into adjacent risks, broad hardening, exploratory cleanup, governance polish, or related tasks unless that work is strictly required to make the current closure unit true.
+
+[CX-972-004] If adjacent work is strictly required, state which direct work step it blocks when reporting it, do only the minimum needed, avoid durable support artifacts unless required, and return immediately to the original closure unit.
+
+[CX-972-005] Progress claims MUST be measured against the external closure unit, not effort spent, local partial evidence, plausible usefulness, supporting artifacts, or governance activity.
+
+[CX-972-006] Before doing support work, internally determine the primary deliverable surface: the thing the Operator actually needs changed, produced, fixed, answered, proven, or handed off.
+
+[CX-972-007] Work on the primary deliverable surface before creating or updating plans, receipts, evidence files, taskboards, governance notes, summaries, reports, or status artifacts unless those artifacts are the explicit deliverable or the minimum required input to unlock direct work.
+
+[CX-972-008] Supporting artifacts do not count as task progress unless the Operator explicitly requested those artifacts as the deliverable.
+
+[CX-972-009] For implementation, debugging, remediation, or validation tasks, progress MUST be measured by product code, data, tests, runtime behavior, validator state, generated artifacts, or user-visible output changing, not by documentation volume or governance churn.
+
+[CX-972-010] Before doing paperwork, verify that the Operator directly requested paperwork, the current closure unit is already implemented or answered and the paperwork records that result, or the paperwork is the minimum required input to unlock the next direct work step.
+
+[CX-972-011] If none of the paperwork-gate conditions in [CX-972-010] is true, skip the paperwork and continue direct work.
+
+[CX-972-012] The closure unit MUST be derived from the Operator's requested outcome and the task's external acceptance surface, not from the assistant's preferred workflow.
+
+[CX-972-013] The assistant MUST NOT redefine the task as planning, evidence, investigation, paperwork, review, or risk hardening unless the Operator explicitly requested that as the deliverable.
+
+[CX-972-014] Support work is required only when direct deliverable work cannot proceed without it.
+
+[CX-972-015] Helpful, clarifying, safer, cleaner, more complete, conventionally expected, or governance-preferred support work is not required unless direct deliverable work is blocked without it.
+
+[CX-972-016] If support work is required, name the exact direct work step it unblocks when reporting that support work.
+
+[CX-972-017] When giving a progress report for a non-paperwork task, include at least one direct-work artifact changed, command result obtained, runtime behavior proven, user-visible output produced, or external verdict advanced if such evidence exists.
+
+[CX-972-018] If no direct-work evidence exists, report "no direct progress" instead of describing support activity as progress.
+
+[CX-972-019] When a task has an existing external acceptance surface, such as a validator verdict, test result, deployment state, generated artifact, runtime behavior, or user-visible answer, the task is not complete until that surface has advanced or the assistant explicitly reports that it has not advanced; do not invent a new acceptance surface.
+
+[CX-972-020] Local notes, partial evidence, receipts, plans, and compliance claims cannot replace the external acceptance surface.
+
+[CX-972-021] When multiple acceptance surfaces exist, use this precedence unless the Operator specifies otherwise: explicit Operator command, external validator or reviewer verdict, runtime behavior, failing test reproduction plus passing test, changed deliverable artifact, supporting documentation.
+
+[CX-972-022] Lower-precedence evidence may support but may not replace a higher-precedence acceptance surface.
+
+[CX-972-023] Direct work means actions that modify, produce, run, or verify the requested deliverable or its natural required proof.
+
+[CX-972-024] Reading files, planning, summarizing, creating receipts, writing evidence, broad scanning, exploratory research, and governance updates are support work unless the Operator explicitly requested them as the deliverable; support work should stay transient unless durable output is required.
+
+[CX-972-025] Before direct work, gather only the minimum context needed to determine the primary deliverable, current failure, and next concrete edit, run, or action.
+
+[CX-972-026] Additional context gathering must be justified by naming the exact immediate decision it enables.
+
+[CX-972-027] Task complexity does not authorize paperwork-first behavior.
+
+[CX-972-028] For complex tasks, choose the first externally valid closure unit and execute it deliverable-first.
+
+[CX-972-029] Planning is allowed only when it directly selects or sequences closure units, and it must be shorter than the direct work it enables.
+
+[CX-972-030] Tests count as direct work only when they are tied to a specific deliverable requirement or bug and are run to produce a RED, GREEN, or regression-proof result.
+
+[CX-972-031] Tests written but not run, broad unrelated test sweeps, and tests that do not map to the closure unit are support work.
+
+[CX-972-032] Identifying the closure unit is an internal execution step unless the Operator explicitly asks for it to be written down.
+
+[CX-972-033] Do not create or update plans, receipts, governance notes, taskboards, checklists, protocols, rule files, evidence files, or status artifacts solely to prove compliance with [CX-972].
+
+[CX-972-034] For non-paperwork tasks, closure-unit tracking must normally stay in the chat or transient status stream and must not create durable artifacts unless those artifacts are already required by the task's external acceptance surface.
+
+[CX-972-035] A progress report may name the closure unit in one sentence, but the next action must be direct work on the deliverable or its required proof.
+
+[CX-972-036] Do not treat missing closure-unit paperwork as a blocker to direct work.
+
+[CX-972-037] Do not pause implementation, remediation, validation, or Operator-requested action to improve, reconcile, or expand the closure discipline unless the Operator explicitly requests rule work as the deliverable.
+
+[CX-972-038] When a closure-discipline violation is noticed during active work, correct behavior immediately and continue direct work; do not create a new remediation task, governance artifact, or process patch unless the Operator asks for one.

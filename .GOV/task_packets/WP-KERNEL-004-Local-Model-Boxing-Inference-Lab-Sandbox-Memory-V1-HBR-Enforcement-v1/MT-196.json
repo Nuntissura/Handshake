@@ -1,0 +1,373 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-196",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "X",
+  "cluster_subscope": "X.4",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:20:00Z",
+  "updated_at_utc": "2026-05-28T00:01:44.982Z",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-196.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "ModelSessionSpan + ActivitySpan primitive types",
+  "goal": "Land the typed observability span primitives required by spec v02.186 and folded WP-1-Session-Observability-Spans-FR-v1 stub intent: ModelSessionSpan binds session-wide observability via model_session_id; ActivitySpan binds bounded activity scopes (MT iteration, mailbox lease, model swap, checkpoint write) inside a session. Span bindings let session-wide queries work across multi-session swarm execution.",
+  "expected_diff_shape": "New Rust module src/backend/handshake_core/src/observability/mod.rs + src/backend/handshake_core/src/observability/spans.rs with `ModelSessionSpan`, `ActivitySpan`, `SpanContext`, `SpanGuard`; unit tests under src/backend/handshake_core/tests/observability_spans_tests.rs.",
+  "owned_files": [
+    "src/backend/handshake_core/src/observability/mod.rs",
+    "src/backend/handshake_core/src/observability/spans.rs",
+    "src/backend/handshake_core/tests/observability_spans_tests.rs",
+    "src/backend/handshake_core/Cargo.toml"
+  ],
+  "depends_on_mts": [],
+  "unblock_conditions": "KERNEL-001 TraceProjection + KERNEL-002 traces already in main; this MT layers cluster X session-observability spans on top.",
+  "implementation_notes": "Per folded WP-1-Session-Observability-Spans-FR-v1 intent (refinement.json line 1011): 'session-scoped observability for multi-session execution: new FR event families, base schema correlation via model_session_id, and span bindings (ModelSessionSpan + ActivitySpan).' Define `ModelSessionSpan { span_id: Uuid v7, model_session_id: Uuid v7, session_id: Uuid v7, started_at_utc, ended_at_utc: Option, attributes: BTreeMap<String, AttributeValue>, status: SpanStatus (Active|Completed|Failed { reason })}`. `ActivitySpan { span_id: Uuid v7, parent_span_id: Uuid v7 (FK to ModelSessionSpan.span_id), activity_kind: ActivityKind (MtIteration|MailboxLease|ModelSwap|CheckpointWrite|StateReplay|ToolInvocation|Other(String)), started_at_utc, ended_at_utc: Option, attributes, status }`. Use `tracing` crate (already in handshake_core dep tree) for OpenTelemetry-compatible API. `SpanGuard` is an RAII wrapper that records ended_at_utc on Drop and emits FR-EVT-SPAN-ENDED (event id resolved via MT-198 registry). `SpanContext` is the thread-local + task-local handle that nested ActivitySpans use to discover their parent. ModelSessionSpan::start(model_session_id, session_id, attributes) -> SpanGuard; ActivitySpan::start(activity_kind, attributes) -> SpanGuard (looks up parent from SpanContext). Attributes are typed via `AttributeValue { String(String), Int(i64), Float(f64), Bool(bool) }` (no nested objects — keeps wire format simple, matches OpenTelemetry attribute model). Cargo additions: tracing, tracing-opentelemetry (optional behind a feature flag for downstream wiring), uuid (already added). Tests: (a) ModelSessionSpan + 3 nested ActivitySpans, Drop order asserts FR-EVT-SPAN-ENDED in correct order; (b) attribute round-trip; (c) status transitions Active->Failed{reason} preserved across Drop; (d) span without parent ActivitySpan -> standalone ModelSessionSpan recorded.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target observability_spans_tests"
+  ],
+  "risk_if_missed": "Without typed spans, session-wide queries cannot correlate across multi-session swarms (folded stub's central pain point); multi-session orchestration becomes un-debuggable per the stub's risk statement.",
+  "validator_focus": "SpanGuard Drop semantics correct (always records end time, even on panic via unwind); attribute model simple enough to serialize cleanly; parent-discovery via SpanContext task-local (not thread-local since tokio tasks migrate threads).",
+  "hbr_obligations": [
+    "HBR-INT-001",
+    "HBR-INT-008"
+  ],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/05-security-and-observability.md#5"
+  ],
+  "acceptance_criteria_refs": [
+    "PRESERVED_INTENT:WP-1-Session-Observability-Spans-FR-v1 (ModelSessionSpan + ActivitySpan primitives)"
+  ],
+  "lifecycle": {
+    "active": false,
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "PASS",
+    "depends_on": [],
+    "blocks": [
+      "MT-197",
+      "MT-198",
+      "MT-199",
+      "MT-200"
+    ],
+    "claimed_by": "KERNEL_BUILDER-20260521-091504",
+    "claimed_at_utc": "2026-05-21T09:48:14.220Z",
+    "integration_validator_verdict": "PENDING",
+    "postgres_test_url_live_evidence_20260525_continuation2": {
+      "authoritative_integration_validator_pass": false,
+      "classification": "KERNEL_BUILDER_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+      "integration_validator_status": "PENDING",
+      "recorded_by": "KERNEL_BUILDER-POSTGRES-TEST-URL-20260525-CONTINUATION2",
+      "recorded_at_utc": "2026-05-25T13:14:18.3831123Z",
+      "postgres_test_url_redacted": "postgres://postgres:***@127.0.0.1:65432/handshake_test",
+      "cargo_target_dir": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target",
+      "artifact_log_root": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs",
+      "mt_ids": [
+        "MT-189",
+        "MT-190",
+        "MT-196",
+        "MT-200"
+      ],
+      "summary": "Cross-MT live POSTGRES_TEST_URL continuation evidence relevant to model-session scheduling, crash-recovery/session terminal behavior, observability spans, and MT-189 orchestrator state. Supporting evidence only; Integration Validator status remains PENDING.",
+      "implementation_or_hardening_notes": [
+        "Postgres session_messages.token_count now decodes nullable INT8 or INT4, closing the model_session_scheduler token_count ColumnDecode failure exposed by live Postgres.",
+        "model_run cloud-consent terminal paths persist the ModelSession state before emitting terminal session events, closing the Completed-job/Active-session split seen on the valid-bundle path.",
+        "Spawned workflow finalization errors are no longer discarded silently; if the job is still non-terminal, the node, job, and workflow run are marked failed best-effort with workflow_finalization_failed evidence.",
+        "Postgres workflow_node_executions now set finished_at for completed_with_issues and poisoned terminal statuses, with a live Postgres regression."
+      ],
+      "proof": [
+        {
+          "scope": "MT-189 exact orchestrator rerun",
+          "command": "POSTGRES_TEST_URL=postgres://postgres:***@127.0.0.1:65432/handshake_test?sslmode=disable cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mt_executor_integration_tests mt_189_postgres_orchestrator_persists_completion_and_releases_claim -- --ignored --exact --test-threads=1 --nocapture",
+          "exit_code": 0,
+          "result": "1 passed",
+          "log": "postgres-live-mt_executor_integration_tests-mt_189-continuation-20260525-130143.out.log"
+        },
+        {
+          "scope": "process_ledger_tests live Postgres",
+          "command": "POSTGRES_TEST_URL=postgres://postgres:***@127.0.0.1:65432/handshake_test?sslmode=disable cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test process_ledger_tests process_ledger_persists_start_and_stop_in_postgres -- --ignored --exact --test-threads=1 --nocapture",
+          "exit_code": 0,
+          "result": "1 passed",
+          "log": "postgres-live-process_ledger_tests-continuation-20260525-130404.out.log"
+        },
+        {
+          "scope": "AI-ready data + calendar storage live Postgres",
+          "command": "POSTGRES_TEST_URL=postgres://postgres:***@127.0.0.1:65432/handshake_test?sslmode=disable cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test ai_ready_data_arch_tests --test calendar_storage_tests -- --test-threads=1 --nocapture",
+          "exit_code": 0,
+          "result": "ai_ready_data_arch_tests 7 passed; calendar_storage_tests 1 passed",
+          "log": "postgres-live-ai-ready-calendar-duckdb-fr-continuation-20260525-130516.out.log"
+        },
+        {
+          "scope": "MCP E2E live Postgres",
+          "command": "POSTGRES_TEST_URL=postgres://postgres:***@127.0.0.1:65432/handshake_test?sslmode=disable cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test mcp_e2e_tests -- --test-threads=1 --nocapture",
+          "exit_code": 0,
+          "result": "1 passed",
+          "log": "postgres-live-mcp_e2e_tests-continuation-20260525-131922.out.log"
+        },
+        {
+          "scope": "MEX live Postgres",
+          "command": "POSTGRES_TEST_URL=postgres://postgres:***@127.0.0.1:65432/handshake_test?sslmode=disable cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test mex_tests -- --test-threads=1 --nocapture",
+          "exit_code": 0,
+          "result": "11 passed; 4 ignored",
+          "log": "postgres-live-mex_tests-continuation-20260525-140022.out.log"
+        },
+        {
+          "scope": "model_session_scheduler cloud consent valid bundle live Postgres",
+          "command": "POSTGRES_TEST_URL=postgres://postgres:***@127.0.0.1:65432/handshake_test?sslmode=disable cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features duckdb-flight-recorder --test model_session_scheduler_tests model_run_cloud_consent_allows_with_valid_bundle -- --exact --test-threads=1 --nocapture",
+          "exit_code": 0,
+          "result": "1 passed",
+          "log": "postgres-live-model_session_scheduler-model_run_cloud_consent_allows_with_valid_bundle-after-finalizer-hardening-20260525-145653.out.log"
+        },
+        {
+          "scope": "model_session_scheduler cloud consent missing bundle live Postgres",
+          "command": "POSTGRES_TEST_URL=postgres://postgres:***@127.0.0.1:65432/handshake_test?sslmode=disable cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features duckdb-flight-recorder --test model_session_scheduler_tests model_run_cloud_consent_blocks_without_bundle -- --exact --test-threads=1 --nocapture",
+          "exit_code": 0,
+          "result": "1 passed",
+          "log": "postgres-live-model_session_scheduler-model_run_cloud_consent_blocks_without_bundle-after-finalizer-hardening-20260525-145833.out.log"
+        },
+        {
+          "scope": "model_session_scheduler trust provenance live Postgres",
+          "command": "POSTGRES_TEST_URL=postgres://postgres:***@127.0.0.1:65432/handshake_test?sslmode=disable cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features duckdb-flight-recorder --test model_session_scheduler_tests trust001_external_system_role_is_downgraded_to_user_with_attribution -- --exact --test-threads=1 --nocapture",
+          "exit_code": 0,
+          "result": "1 passed",
+          "log": "postgres-live-model_session_scheduler-trust001_external_system_role_is_downgraded_to_user_with_attribution-after-finalizer-hardening-20260525-144825.out.log"
+        },
+        {
+          "scope": "model_session_scheduler cross-session provenance live Postgres",
+          "command": "POSTGRES_TEST_URL=postgres://postgres:***@127.0.0.1:65432/handshake_test?sslmode=disable cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features duckdb-flight-recorder --test model_session_scheduler_tests trust002_cross_session_provenance_fields_are_persisted -- --exact --test-threads=1 --nocapture",
+          "exit_code": 0,
+          "result": "1 passed",
+          "log": "postgres-live-model_session_scheduler-trust002_cross_session_provenance_fields_are_persisted-after-finalizer-hardening-20260525-145136.out.log"
+        },
+        {
+          "scope": "model_session_scheduler observability spans live Postgres",
+          "command": "POSTGRES_TEST_URL=postgres://postgres:***@127.0.0.1:65432/handshake_test?sslmode=disable cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features duckdb-flight-recorder --test model_session_scheduler_tests session_observability_spans_bind_model_runs_and_tool_calls -- --exact --test-threads=1 --nocapture",
+          "exit_code": 0,
+          "result": "1 passed",
+          "log": "postgres-live-model_session_scheduler-session_observability_spans_bind_model_runs_and_tool_calls-after-finalizer-hardening-20260525-145401.out.log"
+        },
+        {
+          "scope": "model_session_scheduler parented completion live Postgres",
+          "command": "POSTGRES_TEST_URL=postgres://postgres:***@127.0.0.1:65432/handshake_test?sslmode=disable cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features duckdb-flight-recorder --test model_session_scheduler_tests model_run_spawn_announce_back_event_is_emitted_for_parented_completion -- --exact --test-threads=1 --nocapture",
+          "exit_code": 0,
+          "result": "1 passed",
+          "log": "postgres-live-model_session_scheduler-model_run_spawn_announce_back_event_is_emitted_for_parented_completion-after-finalizer-hardening-20260525-150310.out.log"
+        },
+        {
+          "scope": "storage workflow node terminal timestamp regression live Postgres",
+          "command": "POSTGRES_TEST_URL=postgres://postgres:***@127.0.0.1:65432/handshake_test?sslmode=disable cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --lib workflow_node_execution_sets_finished_at_for_terminal_statuses -- --exact --test-threads=1 --nocapture",
+          "exit_code": 0,
+          "result": "1 passed",
+          "log": "postgres-live-storage-workflow_node_execution_sets_finished_at_for_terminal_statuses-20260525-150726.out.log"
+        }
+      ],
+      "stale_or_superseded_failures": [
+        {
+          "log": "postgres-live-model_session_scheduler-trust001_external_system_role_is_downgraded_to_user_with_attribution-exact-20260525-143219.out.log",
+          "disposition": "Superseded by rerun and post-hardening exact passes; failure represented a stale/contended background finalization symptom, not a current trust001 data failure."
+        },
+        {
+          "log": "postgres-live-model_session_scheduler_tests-full-after-fixes-20260525-140706.out.log",
+          "disposition": "Still residual: full default-parallel model_session_scheduler target hit the 20-minute bound; exact focused live Postgres tests listed above pass."
+        }
+      ],
+      "residual_risks": [
+        "Supporting evidence only; Integration Validator verdict remains PENDING and must independently rerun authoritative closeout checks.",
+        "Full model_session_scheduler_tests default-parallel target timed out under the 20-minute bound; focused exact tests cover the failures observed in this continuation but do not prove the full target.",
+        "Full workspace cargo test was not run.",
+        "Some older red/timeout logs remain in the artifact directory and are superseded by the proof entries listed here only where explicitly stated.",
+        "The product and governance worktrees remain dirty with unrelated pre-existing changes outside this continuation slice."
+      ]
+    },
+    "postgres_test_url_live_evidence_20260525_continuation3": {
+      "authoritative_integration_validator_pass": false,
+      "classification": "KERNEL_BUILDER_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+      "integration_validator_status": "PENDING",
+      "recorded_by": "KERNEL_BUILDER-20260525-184011",
+      "recorded_at_utc": "2026-05-25T18:59:56.8313224Z",
+      "postgres_test_url_redacted": "postgres://postgres:***@127.0.0.1:65432/handshake_test",
+      "cargo_target_dir": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target-continuation3-main",
+      "artifact_log_root": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs",
+      "mt_ids": [
+        "MT-189",
+        "MT-190",
+        "MT-196",
+        "MT-200"
+      ],
+      "summary": "Post-kbstart live POSTGRES_TEST_URL model_session_scheduler_tests proof. The exact scheduler queue path and full default-threaded test binary both pass inside 20-minute command bounds after Postgres-only harness/schema fixes and session registry/worktree hardening. Supporting evidence only; Integration Validator status remains PENDING.",
+      "implementation_or_hardening_notes": [
+        "model_session_scheduler_tests now use a live Postgres-only harness with isolated schemas and focused schema installation; no SQLite harness path is used.",
+        "Focused schema includes ai_job_mcp_fields so session observability spans can persist MCP/tool-call correlation rows.",
+        "SessionRegistry keeps worktree allocations through terminal finalization so persisted ModelSession state does not regress to Blocked after completion.",
+        "Model-run dispatch locking is per SessionRegistry rather than a process-global async lock, reducing cross-test contention while preserving deterministic dispatch within a registry.",
+        "Session worktree add/remove operations are serialized around git worktree metadata."
+      ],
+      "proof": [
+        {
+          "scope": "model_session_scheduler queue exact live Postgres",
+          "command": "POSTGRES_TEST_URL=postgres://postgres:***@127.0.0.1:65432/handshake_test?sslmode=disable CARGO_TARGET_DIR=D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target-continuation3-main cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test model_session_scheduler_tests model_run_scheduler_queues_not_drop_and_dispatch_is_deterministic -- --exact --nocapture",
+          "exit_code": 0,
+          "result": "1 passed; 0 failed; finished in 112.81s",
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/postgres-live-model_session_scheduler-queue-exact-post-kbstart-continuation3-20260525T204111/cargo-test.log"
+        },
+        {
+          "scope": "model_session_scheduler full default-threaded live Postgres",
+          "command": "POSTGRES_TEST_URL=postgres://postgres:***@127.0.0.1:65432/handshake_test?sslmode=disable CARGO_TARGET_DIR=D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target-continuation3-main cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test model_session_scheduler_tests -- --nocapture",
+          "exit_code": 0,
+          "result": "18 passed; 0 failed; finished in 710.27s",
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/postgres-live-model_session_scheduler_tests-full-default-post-kbstart-continuation3-20260525T204534/cargo-test.log"
+        },
+        {
+          "scope": "rustfmt check for touched Rust files",
+          "command": "rustfmt --edition 2021 --check src/backend/handshake_core/src/workflows.rs src/backend/handshake_core/src/workspace_safety.rs src/backend/handshake_core/tests/model_session_scheduler_tests.rs",
+          "exit_code": 0,
+          "result": "format check passed"
+        }
+      ],
+      "supersedes": [
+        "Continuation2 residual stating the full default-parallel model_session_scheduler_tests target timed out is superseded for this file by the continuation3 full default-threaded live Postgres pass.",
+        "Post-format timeout logs remain historical artifacts and are superseded only by the exact/full proof entries listed here."
+      ],
+      "residual_risks": [
+        "Supporting evidence only; Integration Validator verdict remains PENDING and must independently rerun authoritative closeout checks.",
+        "Full workspace cargo test was not run.",
+        "Future killed/timeout scheduler runs can recreate temp session worktrees; maintenance follow-up at 2026-05-25T19:42:17.5603623Z cleared the 166 registered temp worktrees and 62 temp parent directories from the continuation3 residual set.",
+        "Cleanup attempts used verified temp-root filters; git worktree remove and direct temp parent deletion both exceeded their 20-minute bounds.",
+        "The product and governance worktrees remain dirty with unrelated pre-existing changes outside this continuation slice."
+      ]
+    },
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "COMPLETED",
+        "validator_verdict": "PENDING",
+        "completed_by": "KERNEL_BUILDER-20260521-091504",
+        "completed_at_utc": "2026-05-21T09:48:14.220Z"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "previous_completed_by_before_ready_for_validation_20260525": "KERNEL_BUILDER-20260521-091504",
+    "previous_completed_at_utc_before_ready_for_validation_20260525": "2026-05-21T09:48:14.220Z",
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z"
+  },
+  "handoff": {
+    "coder_session": "KERNEL_BUILDER-20260521-091504",
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": "019e6be3-1616-7993-9048-64d11ba8b4de",
+    "review_response_receipt_actor_role": "INTEGRATION_VALIDATOR",
+    "review_response_receipt_track": "JUDGMENT_OOB_IV_PHASE1_PRE_REMEDIATION"
+  },
+  "red_team": {
+    "minimum_controls": [
+      "SpanGuard Drop records ended_at_utc EVEN ON PANIC (tested via std::panic::catch_unwind + scopeguard).",
+      "SpanContext uses tokio task_local! not thread_local! so async migration does not break parent discovery.",
+      "Attribute size cap (per-attribute 1024 bytes; per-span 16 attributes) enforced to prevent runaway memory."
+    ]
+  },
+  "implementation_supporting_evidence_20260521": {
+    "schema_id": "hsk.mt_implementation_supporting_evidence@1",
+    "recorded_at_utc": "2026-05-21T09:48:14.220Z",
+    "recorded_by": "KERNEL_BUILDER-20260521-091504",
+    "classification": "IMPLEMENTATION_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+    "authoritative_integration_validator_pass": false,
+    "integration_validator_status": "PENDING",
+    "summary": "Implemented missing MT-196 task-local SpanContext activity-parent discovery and span attribute caps in the existing flight_recorder::spans fold; focused and full backend testutils proof passed.",
+    "product_surfaces_changed": [
+      "src/backend/handshake_core/src/flight_recorder/spans.rs",
+      "src/backend/handshake_core/tests/flight_recorder_span_tests.rs"
+    ],
+    "contract_deviation_note": "MT-196 expected_diff_shape names src/backend/handshake_core/src/observability/*, but product code had already folded MT-196 under flight_recorder::spans. This update reused that existing surface instead of adding a parallel observability module.",
+    "red_green_evidence": {
+      "red_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test flight_recorder_span_tests mt_196_activity_span_uses_task_local_parent_context -- --nocapture",
+      "red_exit_code": 101,
+      "red_log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/red-mt196-span-context-20260521-0919.log",
+      "red_expected_failure": "Missing SpanContext, ActivitySpan::start, and SpanGuard::try_start_session surfaces.",
+      "green_focused_log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/focused-mt196-flight-recorder-spans-20260521-0932.log"
+    },
+    "proof_commands": [
+      {
+        "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test flight_recorder_span_tests -- --nocapture",
+        "exit_code": 0,
+        "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/focused-mt196-flight-recorder-spans-20260521-0932.log",
+        "exitcode_file": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/focused-mt196-flight-recorder-spans-20260521-0932.exitcode",
+        "note": "10 passed; 0 failed. New MT-196 tests cover task-local parent discovery and attribute count cap."
+      },
+      {
+        "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --jobs 2",
+        "exit_code": 0,
+        "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/cargo-test-backend-testutils-after-mt196-20260521-0945.log",
+        "exitcode_file": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/cargo-test-backend-testutils-after-mt196-20260521-0945.exitcode"
+      },
+      {
+        "command": "cargo fmt --manifest-path src/backend/handshake_core/Cargo.toml --check",
+        "exit_code": 0,
+        "note": "Ran after rustfmt mechanical cleanup."
+      }
+    ],
+    "residual_risks": [
+      "No Integration Validator has reviewed the MT-196 contract path-shape deviation.",
+      "SpanContext lifecycle is API-level only; downstream MT-197..MT-200 still own persistence/aggregate wiring."
+    ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_X3_X4",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-28T00:01:31.342Z",
+    "verdict": "PASS",
+    "verdict_reason": "ModelSessionSpan + ActivitySpan + SpanGuard + SpanContext (tokio task_local) land cleanly; SpanGuard Drop unconditionally records SpanEnded or SpanFailed via FrSpanRecorder (covered on panic via catch_unwind in MT-199 tests); attribute caps (16 attrs, 1024 bytes/attr) enforced.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "MINOR",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 1,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-196.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-196.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_X3_X4",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T23:48:44.444Z",
+    "verdict": "PASS",
+    "verdict_reason": "ModelSessionSpan + ActivitySpan + SpanGuard + SpanContext (tokio task_local) land cleanly; SpanGuard Drop unconditionally records SpanEnded or SpanFailed via FrSpanRecorder (covered on panic via catch_unwind in MT-199 tests); attribute caps (16 attrs, 1024 bytes/attr) enforced.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "MINOR",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 1,
+    "review_artifact_ref": "validator_reports_phase1/MT-196.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1\\validator_reports_phase1\\MT-196.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  }
+}

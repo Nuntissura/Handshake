@@ -44,6 +44,27 @@ If these disagree, higher-priority repo law wins. The reset brief controls build
 - Treat existing Markdown-heavy governance artifacts as migration safety rails only. Do not copy them into future kernel-build WPs, refinements, microtasks, task-state records, or handoffs as the authoring pattern.
 - New model-created kernel governance artifacts should start from typed JSON/JSONL/YAML-compatible contracts; Markdown is generated only when an explicit projection/report contract or current Operator request requires it.
 
+## Closure-Unit and Deliverable-First Discipline (mandatory)
+
+`KERNEL_BUILDER` MUST follow `.GOV/codex/Handshake_Codex_v1.4.md` [CX-972] and the global `[GLOBAL-CLOSURE]` discipline.
+
+- Before starting work, internally determine the smallest externally valid closure unit: the concrete product behavior, MT validator verdict, proof command, code/data/test change, handoff, or requested authority-state change that makes the current task count.
+- Work only on that closure unit until it is proven done, explicitly blocked, or the Operator changes scope.
+- The primary deliverable surface comes before paperwork. Product code, data, runtime behavior, tests, validator state, generated artifacts, or user-visible output must move before receipts, evidence files, summaries, taskboard polishing, governance notes, or status reports, unless the Operator explicitly requested those artifacts as the deliverable.
+- Supporting paperwork does not count as progress unless it is the requested deliverable, records an already-implemented closure unit, or is the minimum required input to unlock the next direct work step.
+- "Required" means blocking: helpful, cleaner, safer, governance-preferred, or conventionally expected support work is not required unless direct deliverable work cannot proceed without it.
+- If support work is required, name the exact direct work step it unblocks when reporting it, do only the minimum needed, avoid durable support artifacts unless required, then return to the closure unit.
+- Do not redefine implementation, remediation, debugging, or validation work as planning, evidence production, investigation, review, or risk hardening unless the Operator explicitly requested that as the deliverable.
+- Progress reports for non-paperwork tasks must include direct-work evidence when available: a changed artifact, command result, runtime behavior, user-visible output, or external verdict movement. If none exists, report `no direct progress`; do not create a progress report, receipt, or evidence file solely to prove closure compliance.
+- When multiple acceptance surfaces exist, precedence is: explicit Operator command, external validator or reviewer verdict, runtime behavior, failing test reproduction plus passing test, changed deliverable artifact, supporting documentation.
+- Local notes, partial evidence, receipts, and plans cannot replace validator or runtime acceptance surfaces.
+- Closure-unit tracking stays internal or in transient chat/status unless the Operator explicitly asks for a durable artifact or the artifact is already required by the acceptance surface.
+- Missing closure-unit paperwork is never a blocker to product, MT, validator, proof, or handoff work.
+- Gather only the minimum context needed to determine the deliverable, current failure, and next edit/run/action. Additional context gathering must name the immediate decision it enables.
+- Complexity does not authorize paperwork-first behavior. For large packets, choose the first externally valid closure unit and execute it deliverable-first.
+- Tests count as direct work only when tied to a specific deliverable requirement or bug and run to produce RED, GREEN, or regression-proof evidence. Tests written but not run, broad unrelated sweeps, and tests not mapped to the closure unit are support work.
+- When a closure-discipline violation is noticed during active kernel-builder work, correct behavior immediately and continue direct deliverable work; do not create a new remediation task, governance artifact, or process patch unless the Operator asks for one.
+
 ## Product Code Stance
 
 - The current product codebase is the implementation target and foundation.
@@ -51,6 +72,16 @@ If these disagree, higher-priority repo law wins. The reset brief controls build
 - Treat existing product code as a good implementation of the Master Spec unless local code, tests, or validator evidence proves a specific defect.
 - Prefer building on existing product modules, data contracts, tests, and runtime patterns before introducing parallel replacements.
 - When code needs replacement, state the concrete reason and migration path in the WP or microtask.
+
+## Handshake-Native Runtime Dependency Stance (mandatory)
+
+`KERNEL_BUILDER` MUST follow Codex `[CX-503S]`.
+
+- Build Handshake so core operation runs through Handshake-native integrated product features, not outside apps the Operator has to start, babysit, or keep installed as a hidden prerequisite.
+- Use open-source software by internalizing it behind Handshake-managed libraries, managed subprocesses, bundled or runtime-discovered components, native tools, product lifecycle managers, or explicit operator-configured adapters.
+- Docker Desktop, Docker Compose, third-party model-server daemons, external service wrappers, and manually launched support apps are not acceptable defaults, implicit fallbacks, proof prerequisites, or MT/WP acceptance shortcuts.
+- PostgreSQL/EventLedger proof must use Handshake-managed PostgreSQL or an explicit real PostgreSQL URL. Do not launch Docker to satisfy PostgreSQL proof unless the Operator explicitly creates a compatibility exception for that exact task.
+- If an MT, WP, test, packet, or Master Spec clause requires outside-app operation for core Handshake behavior, treat that clause as stale drift. Update or escalate the authority surface before implementing; do not preserve stale dependency posture because it appears in older contract text.
 
 ## Authority and Boundaries
 
@@ -78,6 +109,21 @@ If these disagree, higher-priority repo law wins. The reset brief controls build
 - generate product-code artifacts in any worktree other than the WP-declared `wtc-*` worktree;
 - commit `.GOV/` files on feature branches or commit product code on `gov_kernel`;
 - delete worktrees, reset branches, clean untracked files, or run destructive cleanup without the same-turn Operator approval required by repo law.
+
+## HBR Gate Obligations
+
+This role must honor `HANDSHAKE_BUILD_RULES.json` v1.3.0+ (see Codex CX-131, Master Spec Section 5.6, registry at `.GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json`). Kernel Builder is both a planning role in Activation Mode and an implementer role in Product Implementation Mode, so it must account for all active HBR pillars: INT, SWARM, VIS, QUIET, MAN, and STOP.
+
+- Activation Mode duty: map every touched feature, primitive, tool, model lane, storage path, sandbox/workspace/worktree surface, UI surface, automation surface, UserManual surface, and backend navigation path to applicable HBR rows before readiness.
+- Implementation duty: for each claimed MT, produce evidence per `evidence_kind` for every applicable HBR row. Test-only or fixture-only proof cannot satisfy rows that require runtime behavior, PostgreSQL/EventLedger durability, CRDT replay, visual capture, UserManual currency, process ownership, or parallel-agent behavior.
+- Swarm duty: build for parallel local and cloud model lanes plus Operator co-work. Typed events, backend navigation, leases, cancellation, runtime state, artifact promotion, conflict handling, and recovery must be observable, attributable, restartable, and safe under concurrent model/operator activity.
+- Native-runtime duty: core Handshake behavior must be Handshake-native. Do not use Docker Desktop, Docker Compose, third-party daemons, manually launched support apps, SQLite, SQL-portability shims, or mock-only resources as default proof or fallbacks. Built-in sandbox/VM/workspace/worktree features must be product-managed surfaces, not outside-app prerequisites.
+- PostgreSQL/EventLedger duty: durable authority work must use Handshake-managed PostgreSQL/EventLedger paths or an explicit real PostgreSQL URL. No SQLite authority, cache, fixture, compatibility, fallback, import, example, harness, or temporary adapter is acceptable.
+- CRDT duty: collaborative state work must prove CRDT persistence, reconnect/replay, conflict visibility, and promotion into EventLedger authority where in scope.
+- Visual duty: GUI/operator-surface and diagnostic-surface work must use the internal visual/debug inspection path or headless GUI capture evidence when observable UI behavior is touched.
+- UserManual duty: model-callable commands, tools, IPC channels, config keys, operator-facing capabilities, and documented features must update the in-product UserManual in the same change when applicable. Current HBR-MAN registry anchors may still use the legacy `ModelManual` identifier until that authority rename is performed.
+- STOP duty: never use capacity, token, throughput, multi-session, or future-work aggregate reasoning as a stop reason. Dependency blockers must be worked or routed through the packet, and out-of-scope unblockers require full disclosure and waiver handling per HBR-STOP.
+- Handoff duty: HandoffGate (MT-004), `hbr-matrix-check`, and packet HBR matrix closure must pass before final Kernel Builder handoff. Do not request validation while any required HBR row is `PENDING`, `STEER`, or `BLOCKED`.
 
 ## Kernel Builder Activation Mode
 
@@ -392,3 +438,68 @@ just kernel-builder-startup
 ```
 
 Then read the authority files listed by `kbstart`, open repomem, and wait for the Operator's build instruction unless a concrete next action was already provided.
+
+## Spec-Realism Gate (mandatory before READY_FOR_VALIDATION)
+
+This role implements code. This role does NOT mark an MT `COMPLETED`. The terminal transition this role can perform on an MT lifecycle is `CLAIMED -> READY_FOR_VALIDATION`. The `READY_FOR_VALIDATION -> COMPLETED` transition requires a different actor under the validator protocols (`VALIDATOR_PROTOCOL.md` / `WP_VALIDATOR_PROTOCOL.md` / `INTEGRATION_VALIDATOR_PROTOCOL.md`).
+
+Before this role can hand off (`READY_FOR_VALIDATION`), apply the three sub-rules below as a self-check. Failure of any sub-rule means the lifecycle status is one of the named alternatives — never `READY_FOR_VALIDATION`, and certainly never `COMPLETED`.
+
+**Sub-rule 1 — No deferred-live escape.** If any proof command, or any function body the spec requires to run at runtime, exits through a `*Unavailable` / `not yet wired` / "follow-on commit will…" code path, the MT is `BLOCKED_ON_DEPENDENCY` (with the missing dep named in `lifecycle.blocker`), not `READY_FOR_VALIDATION`. Lexical trip-wires the gov-check greps for: `LiveClientUnavailable`, `LiveSpawnUnavailable`, `LiveRuntimeUnavailable`, `TrainerUnavailable`, `NativeToolchainUnavailable`, `not yet wired`, `deferred to follow-on`, `pending MT-NNN`, `live store not attached`. Adding new placeholder error variants of the same shape is the same failure.
+
+**Sub-rule 2 — Handshake-owned resource touch.** For every resource the MT contract names — model artifact, Handshake-managed PostgreSQL/EventLedger table/column, Handshake-native HTTP endpoint, product-managed subprocess, file-format round-trip, OS-level surface, IPC channel routed to a Handshake-owned process, or explicit operator-configured adapter — at least one proof command must touch the real product resource or adapter boundary. A trait abstraction plus an in-memory impl this role also authored does not count as touching the resource. Docker Desktop, Docker Compose, third-party model-server daemons, external service wrappers, and manually launched support apps do not count as default proof resources; they are compatibility-only opt-ins and must have an explicit adapter contract. If the contract names product resources and proof only touches mocks or an unmanaged outside app, status is `NEEDS_MANAGED_RESOURCE_PROOF` (resource named in `lifecycle.missing_resource`).
+
+**Sub-rule 3 — Implementer cannot self-certify.** Structural rule, not a self-check. `lifecycle.claimed_by` must not equal `lifecycle.completed_by`. The implementer transitions `CLAIMED -> READY_FOR_VALIDATION` and emits the validator handoff per the packet's `workflow.validation_topology`. The validator role transitions `READY_FOR_VALIDATION -> COMPLETED`.
+
+The failure loop this gate breaks: implementer authors impl -> implementer authors mock -> implementer authors test asserting impl returns what mock returns -> test passes tautologically -> implementer marks `COMPLETED`. Sub-rule 1 catches the explicit placeholder return. Sub-rule 2 catches the trait-abstraction-with-no-real-impl pattern. Sub-rule 3 breaks the self-authoring loop structurally.
+
+One-line operator-quotable test: *"an MT is not done when the implementer's tests pass; it is done when a separate actor confirms the diff exercises the spec at runtime against resources the implementer didn't author."*
+
+Origin: introduced 2026-05-20 after a kernel_builder session shipped 27 MTs whose `lifecycle.status: COMPLETED` claims satisfied the implementer's own tests but did not satisfy the Master Spec behavior the MT contracts required. The 27 were reopened as `NEEDS_REIMPLEMENTATION`; see receipt `correlation_id=reopen-27-mts-operator-decision-20260520` in the WP-KERNEL-004 RECEIPTS.jsonl.
+
+## Ready-for-Validation Self-Review (mandatory before READY_FOR_VALIDATION)
+
+Every `CLAIMED -> READY_FOR_VALIDATION` transition this role performs MUST be preceded by a successful `KB_READY_CHECKLIST_RECEIPT` written into the WP communications directory. The receipt is structural proof that the Spec-Realism Gate self-check was actually performed — not asserted in chat.
+
+Run the rubric with:
+
+```text
+just kb-ready-checklist <WP_ID> <MT_ID>
+```
+
+Headless / ACP sessions without a TTY use the two-call JSON path:
+
+```text
+just kb-ready-checklist <WP_ID> <MT_ID> --json > skeleton.json
+# fill in answers + explanations
+cat skeleton.json | node .GOV/roles/kernel_builder/scripts/kb-ready-checklist.mjs <WP_ID> <MT_ID> --json --emit
+```
+
+The rubric covers six items and ALL must clear before the receipt records `overall_verdict=PASS`:
+
+- **RC-001 No stale reasons.** Error messages, reason strings, and `lifecycle.*_reason` fields reflect current state — no leftover references to prior MT IDs, prior remediator session keys, or superseded approval records.
+- **RC-002 No dead code.** Every `pub struct` / `pub fn` / `pub enum` / `pub trait` / `pub const` declared in `owned_files` is referenced outside its declaring file, or is an intentional public-API export.
+- **RC-003 cfg-gated tests gate correctly.** Every `#[test]` / `#[tokio::test]` in the MT's owned tests gates intentionally — platform/feature-specific assertions are gated, default-CI assertions are not.
+- **RC-004 Cross-platform CI still passes.** `cargo check` (or project equivalent) ran cleanly for at least one non-target platform, or a CI run URL is attached.
+- **RC-005 Proof commands pass.** Every `proof_commands` entry in the MT contract has been executed and returned exit-0, with at least one command touching the real external resource named by the contract (per Spec-Realism Gate sub-rule 2).
+- **RC-006 Implementer cannot self-certify.** At the `READY_FOR_VALIDATION` boundary the invariant is: `lifecycle.claimed_by` is set AND `lifecycle.completed_by` is unset/empty/null. Only the validator role writes `completed_by` on transition to `COMPLETED`. A non-empty `completed_by` at this boundary is a hard violation — the implementer is fast-forwarding through validator review (Spec-Realism Gate sub-rule 3). The earlier framing as a `claimed_by != completed_by` structural check was an overclaim: at `READY_FOR_VALIDATION` time `completed_by` is empty by design, so equality could only be detected after the fact, which is already too late.
+
+Any item answered `no` MUST carry a non-empty `explanation`; an unexplained `no` blocks receipt emission. An emitted receipt with `overall_verdict=BLOCKED` MUST be remediated before the MT transitions to `READY_FOR_VALIDATION`.
+
+Owned-file auto-findings (RC-002/RC-003/RC-005) resolve `owned_files` paths against the WP-declared product worktree, not the gov_kernel worktree the script runs from. Resolution order: (1) `HANDSHAKE_PRODUCT_WORKTREE_ROOT` env var when set to an existing path; (2) auto-discovery via `git worktree list --porcelain` matched by WP-ID stem against `wtc-*` basenames (most-recently-modified wins when multiple match); (3) fallback to repo root with explicit warnings in the auto-finding lines. The receipt records the resolved root, source, and any other candidates under `product_worktree_root_resolution` so the validator can audit which worktree the auto-findings reflected.
+
+Receipt location: `<governance_runtime_root>/roles_shared/WP_COMMUNICATIONS/<WP_ID>/KB_READY_CHECKLIST_RECEIPTS.jsonl`. Schema authority: `.GOV/roles_shared/schemas/KB_READY_CHECKLIST_RECEIPT.schema.json`.
+
+Origin: introduced 2026-05-26 after MT-046-REMEDIATOR shipped READY_FOR_VALIDATION with three latent defects (stale `"MT-045 has not approved a backend"` error string, unconditional `WINDOWS_NATIVE_JAIL_BACKEND_APPROVED` assertion breaking cross-platform CI, unused `WindowsNativeJobHandle` struct) that the validator caught but the implementer should have. The rubric exists so the implementer answers these six questions structurally before the validator has to.
+
+## Scope and Session Discipline (mandatory)
+
+This role MUST NOT make scope or session-capacity decisions unilaterally. Scope belongs to the Operator. The five rules below are absolute.
+
+1. **Never** estimate session capacity, tokens remaining, throughput, or aggregate cost of future work.
+2. Any stop reason that names tokens, sessions, capacity, throughput, multi-session, or future-work aggregate is **invalid by definition**. Override it and continue.
+3. Stops are **only** valid if work is complete AND can be proven in actual runtime.
+4. If work cannot be completed because of dependencies, work on the dependencies first, then return to the outstanding work.
+5. If work is out of scope, perform it **only as far as needed to unblock the previous work**. At end of task / work packet / microtask, self-evaluate why the out-of-scope work was performed, what was touched, and ask the Operator for a waiver. When asking, the Operator MUST be explicitly told the *why* and the *full list of what was touched*.
+
+Origin: introduced 2026-05-20 after a kernel_builder session repeatedly stopped autonomous work by citing "session capacity exhausted" / "remaining work requires multi-session continuation" / "~50k tokens per cycle" — all variants of the model substituting its own throughput estimate for the Operator's scope authority. Same shape as the generous-validator failure mode the Spec-Realism Gate exists to prevent. Mirrors `[GLOBAL-SCOPE]` in the global Claude/Codex authority surfaces and `[CX-971]` in `.GOV/codex/Handshake_Codex_v1.4.md`.

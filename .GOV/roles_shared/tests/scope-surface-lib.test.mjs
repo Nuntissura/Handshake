@@ -4,6 +4,8 @@ import {
   collectBudgetCountedFiles,
   classifyWpChangedPath,
   deriveWpScopeContract,
+  matchesAnyScopeEntry,
+  matchesScopeEntry,
   parsePacketScopeDiscipline,
   scopeDisciplineRequiresEnforcement,
 } from "../scripts/lib/scope-surface-lib.mjs";
@@ -87,4 +89,85 @@ test("classifyWpChangedPath accepts handshake_main-prefixed packet scope against
 test("scopeDisciplineRequiresEnforcement gates only new packet versions", () => {
   assert.equal(scopeDisciplineRequiresEnforcement("2026-03-22"), false);
   assert.equal(scopeDisciplineRequiresEnforcement("2026-03-23"), true);
+});
+
+test("matchesScopeEntry strips trailing /** glob from scope entries", () => {
+  assert.equal(
+    matchesScopeEntry(
+      "app/src/components/inference_lab/InferenceLab.tsx",
+      "app/src/components/inference_lab/**",
+    ),
+    true,
+  );
+  assert.equal(
+    matchesScopeEntry(
+      "app/src/components/inference_lab/sub/Nested.tsx",
+      "app/src/components/inference_lab/**",
+    ),
+    true,
+  );
+  assert.equal(
+    matchesScopeEntry(
+      "app/src/components/other/File.tsx",
+      "app/src/components/inference_lab/**",
+    ),
+    false,
+  );
+});
+
+test("matchesScopeEntry strips trailing /**/* and /* glob suffixes", () => {
+  assert.equal(
+    matchesScopeEntry(
+      "src/backend/handshake_core/tests/lora.rs",
+      "src/backend/handshake_core/tests/**/*",
+    ),
+    true,
+  );
+  assert.equal(
+    matchesScopeEntry(
+      "src/backend/handshake_core/tests/lora.rs",
+      "src/backend/handshake_core/tests/*",
+    ),
+    true,
+  );
+});
+
+test("matchesScopeEntry treats unstripped scope as a plain prefix", () => {
+  assert.equal(
+    matchesScopeEntry(
+      "src/backend/feature/a.rs",
+      "src/backend/feature",
+    ),
+    true,
+  );
+  assert.equal(
+    matchesScopeEntry(
+      "src/backend/feature_other/a.rs",
+      "src/backend/feature",
+    ),
+    false,
+  );
+});
+
+test("matchesAnyScopeEntry honours the /** glob across multiple entries", () => {
+  const scope = [
+    "app/src/components/inference_lab/**",
+    "app/src/lib/ipc/lora.ts",
+  ];
+  assert.equal(
+    matchesAnyScopeEntry(
+      "app/src/components/inference_lab/LoraStackComposer.tsx",
+      scope,
+    ),
+    true,
+  );
+  assert.equal(matchesAnyScopeEntry("app/src/lib/ipc/lora.ts", scope), true);
+  assert.equal(matchesAnyScopeEntry("app/src/lib/ipc/other.ts", scope), false);
+});
+
+test("matchesScopeEntry refuses bare \"**\" / \"*\" wildcards to keep misconfig visible", () => {
+  // Bare ** would otherwise match every file; we treat this as a packet
+  // misconfiguration rather than silently accepting all changes.
+  assert.equal(matchesScopeEntry("any/file.rs", "**"), false);
+  assert.equal(matchesScopeEntry("any/file.rs", "*"), false);
 });

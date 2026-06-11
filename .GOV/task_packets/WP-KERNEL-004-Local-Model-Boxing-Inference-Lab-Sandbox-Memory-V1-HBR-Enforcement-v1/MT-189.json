@@ -1,0 +1,547 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-189",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "X",
+  "cluster_subscope": "X.2",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:13:00Z",
+  "updated_at_utc": "2026-05-28T00:01:44.976Z",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-189.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "MT Executor orchestrator integrating job queue + mailbox + loop control + backpressure",
+  "goal": "Land the top-level `MicroTaskExecutor` orchestrator that ties X.1 mailbox primitives + X.2 job queue + loop control + cancellation + scheduler + outcome recording into a single executor loop. This is the entrypoint a worker session calls to execute MTs end-to-end with all preservation-slice invariants enforced.",
+  "expected_diff_shape": "New Rust module src/backend/handshake_core/src/process_ledger/mt_executor.rs with `MicroTaskExecutor::run(executor_identity, config) -> impl Future`; integration tests under src/backend/handshake_core/tests/mt_executor_integration_tests.rs.",
+  "owned_files": [
+    "src/backend/handshake_core/src/process_ledger/mt_executor.rs",
+    "src/backend/handshake_core/tests/mt_executor_integration_tests.rs"
+  ],
+  "depends_on_mts": [
+    "MT-176",
+    "MT-177",
+    "MT-179",
+    "MT-180",
+    "MT-181",
+    "MT-182",
+    "MT-183",
+    "MT-184",
+    "MT-185",
+    "MT-186",
+    "MT-187",
+    "MT-188"
+  ],
+  "unblock_conditions": "All X.1 and X.2 primitives merged so the executor orchestrator has every dependency available.",
+  "implementation_notes": "Top-level loop: `loop { (1) check cancellation token; (2) call FairScheduler::next_for_executor (MT-187); (3) if Some(job) -> claim via MicroTaskQueue (MT-184); (4) acquire mailbox lease for job.mailbox_thread_id via LeaseManager (MT-180) with router permission check (MT-181); (5) load MT contract from job.mt_contract_path; (6) for each iteration up to MtLoopControlBudget (MT-185): (a) record_checkpoint; (b) check backpressure for outgoing mailbox messages (MT-182); (c) execute the MT body (delegates to a Coder trait — coder impl is out of scope here, MT executor receives a `MtCoderHandle: trait` provided by caller); (d) parse completion_signal; (e) if Verification needed -> post micro_task_verification_needed message to mailbox (MT-179) and await; (f) if iteration succeeds -> record outcome (MT-188) Success branch; (g) if iteration fails -> record outcome (MT-188) Failure branch which routes escalation; (h) check cancellation token between every iteration boundary (MT-186); }`. After completion, post `micro_task_completion_report` mailbox message (MT-179) and release lease (MT-180). Errors at any step: emit FR-EVT-MT-EXEC-ERROR with structured cause, record outcome=Failure, do NOT panic. The MtCoderHandle trait surface: `trait MtCoderHandle { async fn execute(&self, ctx: MtExecutionContext) -> Result<MtIterationResult, MtCoderError>; }` — keeps the coder impl pluggable so cluster C can wire LlamaCppRuntime/CandleRuntime adapters and tests can use a stub. Integration tests: (a) end-to-end Happy Path — stub coder returns Success on iteration 1, verify outcome + mailbox completion message + lease released; (b) Failure path — stub returns Failure twice, verify escalation tier moves T7B->T7BAlt, mailbox escalation message posted; (c) Cancellation path — request cancellation mid-iteration, verify Cancelled state + cleanup; (d) Backpressure path — flood mailbox to saturate, verify Deny propagated as a soft retry not a hard failure; (e) Lease lost mid-iteration (simulated expiry) — verify graceful re-acquire or Abandon outcome.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target mt_executor_integration_tests -- --test-threads=1"
+  ],
+  "risk_if_missed": "Without the orchestrator, all X.1/X.2 primitives are unwired libraries; no executor session can actually run an MT through the preservation-slice contracts; the cluster X fold delivers zero end-to-end behavior.",
+  "validator_focus": "Orchestrator never panics — every error path records outcome=Failure with structured cause; cancellation observed within bounded latency; lease re-acquire path proven (does not silently double-claim).",
+  "hbr_obligations": [
+    "HBR-INT-008",
+    "HBR-SWARM-001",
+    "HBR-SWARM-002",
+    "HBR-SWARM-003",
+    "HBR-SWARM-004"
+  ],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/02-system-architecture.md#role-mailbox-message-contract",
+    ".GOV/spec/master-spec-v02.186/spec-modules/05-security-and-observability.md#5.7",
+    ".GOV/spec/master-spec-v02.186/spec-modules/06-mechanical-integrations.md#6.7"
+  ],
+  "acceptance_criteria_refs": [
+    "PRESERVED_INTENT:WP-1-Micro-Task-Executor-v1 (top-level executor orchestrator)",
+    "PRESERVED_INTENT:WP-1-Role-Mailbox-Micro-Task-Loop-Control-v1 (executor integrates loop control)"
+  ],
+  "lifecycle": {
+    "active": false,
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "PENDING",
+    "depends_on": [
+      "MT-176",
+      "MT-177",
+      "MT-179",
+      "MT-180",
+      "MT-181",
+      "MT-182",
+      "MT-183",
+      "MT-184",
+      "MT-185",
+      "MT-186",
+      "MT-187",
+      "MT-188"
+    ],
+    "blocks": [
+      "MT-200"
+    ],
+    "claimed_by_session": "KERNEL_BUILDER-20260524-040413",
+    "claimed_by": "KERNEL_BUILDER-20260524-040413",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260524-040413",
+    "ready_for_validation_at_utc": "2026-05-24T04:54:27.5323888Z",
+    "postgres_test_url_live_evidence_20260525_continuation": {
+      "authoritative_integration_validator_pass": false,
+      "classification": "KERNEL_BUILDER_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+      "not_run_or_not_claimed": [],
+      "artifact_log_root": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs",
+      "implementation_or_hardening_notes": [],
+      "postgres_test_url_redacted": "postgres://postgres:***@127.0.0.1:65432/handshake_test",
+      "proof": [
+        {
+          "log": "postgres-live-micro_task_job_tests-20260525-070454.log",
+          "scope": "micro_task_job_tests",
+          "note": [
+            "Queue primitive and schema tests passed.",
+            "Proof"
+          ],
+          "result": "9 passed"
+        }
+      ],
+      "recorded_by": "KERNEL_BUILDER-POSTGRES-TEST-URL-20260525-CONTINUATION",
+      "mt_ids": [
+        "MT-184",
+        "MT-185",
+        "MT-186",
+        "MT-187",
+        "MT-188",
+        "MT-189"
+      ],
+      "summary": "MT executor/job/loop/cancel/scheduler/outcome/orchestrator live Postgres checks passed for the continuation slice.",
+      "integration_validator_status": "PENDING",
+      "residual_risks": [
+        "Supporting evidence only; Integration Validator verdict remains PENDING.",
+        "Focused Postgres/live-kernel commands were run, not a full workspace cargo test."
+      ],
+      "recorded_at_utc": "2026-05-25T10:56:03.5601331Z",
+      "cargo_target_dir": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target"
+    },
+    "postgres_test_url_live_evidence_20260525_continuation2": {
+      "authoritative_integration_validator_pass": false,
+      "classification": "KERNEL_BUILDER_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+      "integration_validator_status": "PENDING",
+      "recorded_by": "KERNEL_BUILDER-POSTGRES-TEST-URL-20260525-CONTINUATION2",
+      "recorded_at_utc": "2026-05-25T13:14:18.3831123Z",
+      "postgres_test_url_redacted": "postgres://postgres:***@127.0.0.1:65432/handshake_test",
+      "cargo_target_dir": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target",
+      "artifact_log_root": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs",
+      "mt_ids": [
+        "MT-189",
+        "MT-190",
+        "MT-196",
+        "MT-200"
+      ],
+      "summary": "Cross-MT live POSTGRES_TEST_URL continuation evidence relevant to model-session scheduling, crash-recovery/session terminal behavior, observability spans, and MT-189 orchestrator state. Supporting evidence only; Integration Validator status remains PENDING.",
+      "implementation_or_hardening_notes": [
+        "Postgres session_messages.token_count now decodes nullable INT8 or INT4, closing the model_session_scheduler token_count ColumnDecode failure exposed by live Postgres.",
+        "model_run cloud-consent terminal paths persist the ModelSession state before emitting terminal session events, closing the Completed-job/Active-session split seen on the valid-bundle path.",
+        "Spawned workflow finalization errors are no longer discarded silently; if the job is still non-terminal, the node, job, and workflow run are marked failed best-effort with workflow_finalization_failed evidence.",
+        "Postgres workflow_node_executions now set finished_at for completed_with_issues and poisoned terminal statuses, with a live Postgres regression."
+      ],
+      "proof": [
+        {
+          "scope": "MT-189 exact orchestrator rerun",
+          "command": "POSTGRES_TEST_URL=postgres://postgres:***@127.0.0.1:65432/handshake_test?sslmode=disable cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mt_executor_integration_tests mt_189_postgres_orchestrator_persists_completion_and_releases_claim -- --ignored --exact --test-threads=1 --nocapture",
+          "exit_code": 0,
+          "result": "1 passed",
+          "log": "postgres-live-mt_executor_integration_tests-mt_189-continuation-20260525-130143.out.log"
+        },
+        {
+          "scope": "process_ledger_tests live Postgres",
+          "command": "POSTGRES_TEST_URL=postgres://postgres:***@127.0.0.1:65432/handshake_test?sslmode=disable cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test process_ledger_tests process_ledger_persists_start_and_stop_in_postgres -- --ignored --exact --test-threads=1 --nocapture",
+          "exit_code": 0,
+          "result": "1 passed",
+          "log": "postgres-live-process_ledger_tests-continuation-20260525-130404.out.log"
+        },
+        {
+          "scope": "AI-ready data + calendar storage live Postgres",
+          "command": "POSTGRES_TEST_URL=postgres://postgres:***@127.0.0.1:65432/handshake_test?sslmode=disable cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test ai_ready_data_arch_tests --test calendar_storage_tests -- --test-threads=1 --nocapture",
+          "exit_code": 0,
+          "result": "ai_ready_data_arch_tests 7 passed; calendar_storage_tests 1 passed",
+          "log": "postgres-live-ai-ready-calendar-duckdb-fr-continuation-20260525-130516.out.log"
+        },
+        {
+          "scope": "MCP E2E live Postgres",
+          "command": "POSTGRES_TEST_URL=postgres://postgres:***@127.0.0.1:65432/handshake_test?sslmode=disable cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test mcp_e2e_tests -- --test-threads=1 --nocapture",
+          "exit_code": 0,
+          "result": "1 passed",
+          "log": "postgres-live-mcp_e2e_tests-continuation-20260525-131922.out.log"
+        },
+        {
+          "scope": "MEX live Postgres",
+          "command": "POSTGRES_TEST_URL=postgres://postgres:***@127.0.0.1:65432/handshake_test?sslmode=disable cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test mex_tests -- --test-threads=1 --nocapture",
+          "exit_code": 0,
+          "result": "11 passed; 4 ignored",
+          "log": "postgres-live-mex_tests-continuation-20260525-140022.out.log"
+        },
+        {
+          "scope": "model_session_scheduler cloud consent valid bundle live Postgres",
+          "command": "POSTGRES_TEST_URL=postgres://postgres:***@127.0.0.1:65432/handshake_test?sslmode=disable cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features duckdb-flight-recorder --test model_session_scheduler_tests model_run_cloud_consent_allows_with_valid_bundle -- --exact --test-threads=1 --nocapture",
+          "exit_code": 0,
+          "result": "1 passed",
+          "log": "postgres-live-model_session_scheduler-model_run_cloud_consent_allows_with_valid_bundle-after-finalizer-hardening-20260525-145653.out.log"
+        },
+        {
+          "scope": "model_session_scheduler cloud consent missing bundle live Postgres",
+          "command": "POSTGRES_TEST_URL=postgres://postgres:***@127.0.0.1:65432/handshake_test?sslmode=disable cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features duckdb-flight-recorder --test model_session_scheduler_tests model_run_cloud_consent_blocks_without_bundle -- --exact --test-threads=1 --nocapture",
+          "exit_code": 0,
+          "result": "1 passed",
+          "log": "postgres-live-model_session_scheduler-model_run_cloud_consent_blocks_without_bundle-after-finalizer-hardening-20260525-145833.out.log"
+        },
+        {
+          "scope": "model_session_scheduler trust provenance live Postgres",
+          "command": "POSTGRES_TEST_URL=postgres://postgres:***@127.0.0.1:65432/handshake_test?sslmode=disable cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features duckdb-flight-recorder --test model_session_scheduler_tests trust001_external_system_role_is_downgraded_to_user_with_attribution -- --exact --test-threads=1 --nocapture",
+          "exit_code": 0,
+          "result": "1 passed",
+          "log": "postgres-live-model_session_scheduler-trust001_external_system_role_is_downgraded_to_user_with_attribution-after-finalizer-hardening-20260525-144825.out.log"
+        },
+        {
+          "scope": "model_session_scheduler cross-session provenance live Postgres",
+          "command": "POSTGRES_TEST_URL=postgres://postgres:***@127.0.0.1:65432/handshake_test?sslmode=disable cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features duckdb-flight-recorder --test model_session_scheduler_tests trust002_cross_session_provenance_fields_are_persisted -- --exact --test-threads=1 --nocapture",
+          "exit_code": 0,
+          "result": "1 passed",
+          "log": "postgres-live-model_session_scheduler-trust002_cross_session_provenance_fields_are_persisted-after-finalizer-hardening-20260525-145136.out.log"
+        },
+        {
+          "scope": "model_session_scheduler observability spans live Postgres",
+          "command": "POSTGRES_TEST_URL=postgres://postgres:***@127.0.0.1:65432/handshake_test?sslmode=disable cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features duckdb-flight-recorder --test model_session_scheduler_tests session_observability_spans_bind_model_runs_and_tool_calls -- --exact --test-threads=1 --nocapture",
+          "exit_code": 0,
+          "result": "1 passed",
+          "log": "postgres-live-model_session_scheduler-session_observability_spans_bind_model_runs_and_tool_calls-after-finalizer-hardening-20260525-145401.out.log"
+        },
+        {
+          "scope": "model_session_scheduler parented completion live Postgres",
+          "command": "POSTGRES_TEST_URL=postgres://postgres:***@127.0.0.1:65432/handshake_test?sslmode=disable cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features duckdb-flight-recorder --test model_session_scheduler_tests model_run_spawn_announce_back_event_is_emitted_for_parented_completion -- --exact --test-threads=1 --nocapture",
+          "exit_code": 0,
+          "result": "1 passed",
+          "log": "postgres-live-model_session_scheduler-model_run_spawn_announce_back_event_is_emitted_for_parented_completion-after-finalizer-hardening-20260525-150310.out.log"
+        },
+        {
+          "scope": "storage workflow node terminal timestamp regression live Postgres",
+          "command": "POSTGRES_TEST_URL=postgres://postgres:***@127.0.0.1:65432/handshake_test?sslmode=disable cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --lib workflow_node_execution_sets_finished_at_for_terminal_statuses -- --exact --test-threads=1 --nocapture",
+          "exit_code": 0,
+          "result": "1 passed",
+          "log": "postgres-live-storage-workflow_node_execution_sets_finished_at_for_terminal_statuses-20260525-150726.out.log"
+        }
+      ],
+      "stale_or_superseded_failures": [
+        {
+          "log": "postgres-live-model_session_scheduler-trust001_external_system_role_is_downgraded_to_user_with_attribution-exact-20260525-143219.out.log",
+          "disposition": "Superseded by rerun and post-hardening exact passes; failure represented a stale/contended background finalization symptom, not a current trust001 data failure."
+        },
+        {
+          "log": "postgres-live-model_session_scheduler_tests-full-after-fixes-20260525-140706.out.log",
+          "disposition": "Still residual: full default-parallel model_session_scheduler target hit the 20-minute bound; exact focused live Postgres tests listed above pass."
+        }
+      ],
+      "residual_risks": [
+        "Supporting evidence only; Integration Validator verdict remains PENDING and must independently rerun authoritative closeout checks.",
+        "Full model_session_scheduler_tests default-parallel target timed out under the 20-minute bound; focused exact tests cover the failures observed in this continuation but do not prove the full target.",
+        "Full workspace cargo test was not run.",
+        "Some older red/timeout logs remain in the artifact directory and are superseded by the proof entries listed here only where explicitly stated.",
+        "The product and governance worktrees remain dirty with unrelated pre-existing changes outside this continuation slice."
+      ]
+    },
+    "postgres_test_url_live_evidence_20260525_continuation3": {
+      "authoritative_integration_validator_pass": false,
+      "classification": "KERNEL_BUILDER_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+      "integration_validator_status": "PENDING",
+      "recorded_by": "KERNEL_BUILDER-20260525-184011",
+      "recorded_at_utc": "2026-05-25T18:59:56.8313224Z",
+      "postgres_test_url_redacted": "postgres://postgres:***@127.0.0.1:65432/handshake_test",
+      "cargo_target_dir": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target-continuation3-main",
+      "artifact_log_root": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs",
+      "mt_ids": [
+        "MT-189",
+        "MT-190",
+        "MT-196",
+        "MT-200"
+      ],
+      "summary": "Post-kbstart live POSTGRES_TEST_URL model_session_scheduler_tests proof. The exact scheduler queue path and full default-threaded test binary both pass inside 20-minute command bounds after Postgres-only harness/schema fixes and session registry/worktree hardening. Supporting evidence only; Integration Validator status remains PENDING.",
+      "implementation_or_hardening_notes": [
+        "model_session_scheduler_tests now use a live Postgres-only harness with isolated schemas and focused schema installation; no SQLite harness path is used.",
+        "Focused schema includes ai_job_mcp_fields so session observability spans can persist MCP/tool-call correlation rows.",
+        "SessionRegistry keeps worktree allocations through terminal finalization so persisted ModelSession state does not regress to Blocked after completion.",
+        "Model-run dispatch locking is per SessionRegistry rather than a process-global async lock, reducing cross-test contention while preserving deterministic dispatch within a registry.",
+        "Session worktree add/remove operations are serialized around git worktree metadata."
+      ],
+      "proof": [
+        {
+          "scope": "model_session_scheduler queue exact live Postgres",
+          "command": "POSTGRES_TEST_URL=postgres://postgres:***@127.0.0.1:65432/handshake_test?sslmode=disable CARGO_TARGET_DIR=D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target-continuation3-main cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test model_session_scheduler_tests model_run_scheduler_queues_not_drop_and_dispatch_is_deterministic -- --exact --nocapture",
+          "exit_code": 0,
+          "result": "1 passed; 0 failed; finished in 112.81s",
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/postgres-live-model_session_scheduler-queue-exact-post-kbstart-continuation3-20260525T204111/cargo-test.log"
+        },
+        {
+          "scope": "model_session_scheduler full default-threaded live Postgres",
+          "command": "POSTGRES_TEST_URL=postgres://postgres:***@127.0.0.1:65432/handshake_test?sslmode=disable CARGO_TARGET_DIR=D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target-continuation3-main cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test model_session_scheduler_tests -- --nocapture",
+          "exit_code": 0,
+          "result": "18 passed; 0 failed; finished in 710.27s",
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/postgres-live-model_session_scheduler_tests-full-default-post-kbstart-continuation3-20260525T204534/cargo-test.log"
+        },
+        {
+          "scope": "rustfmt check for touched Rust files",
+          "command": "rustfmt --edition 2021 --check src/backend/handshake_core/src/workflows.rs src/backend/handshake_core/src/workspace_safety.rs src/backend/handshake_core/tests/model_session_scheduler_tests.rs",
+          "exit_code": 0,
+          "result": "format check passed"
+        }
+      ],
+      "supersedes": [
+        "Continuation2 residual stating the full default-parallel model_session_scheduler_tests target timed out is superseded for this file by the continuation3 full default-threaded live Postgres pass.",
+        "Post-format timeout logs remain historical artifacts and are superseded only by the exact/full proof entries listed here."
+      ],
+      "residual_risks": [
+        "Supporting evidence only; Integration Validator verdict remains PENDING and must independently rerun authoritative closeout checks.",
+        "Full workspace cargo test was not run.",
+        "Future killed/timeout scheduler runs can recreate temp session worktrees; maintenance follow-up at 2026-05-25T19:42:17.5603623Z cleared the 166 registered temp worktrees and 62 temp parent directories from the continuation3 residual set.",
+        "Cleanup attempts used verified temp-root filters; git worktree remove and direct temp parent deletion both exceeded their 20-minute bounds.",
+        "The product and governance worktrees remain dirty with unrelated pre-existing changes outside this continuation slice."
+      ]
+    },
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "READY_FOR_VALIDATION",
+        "validator_verdict": "PENDING"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z"
+  },
+  "handoff": {
+    "coder_session": "KERNEL_BUILDER-20260524-040413",
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": "019e6be3-1610-78b6-b1e5-9d3dc2d255e7",
+    "review_response_receipt_actor_role": "INTEGRATION_VALIDATOR",
+    "review_response_receipt_track": "JUDGMENT_OOB_IV_PHASE1_PRE_REMEDIATION"
+  },
+  "red_team": {
+    "minimum_controls": [
+      "End-to-end test asserts zero panics across 5 happy/failure/cancellation paths.",
+      "Lease re-acquire after simulated expiry asserts router permission re-check (not stale token reuse).",
+      "MtCoderHandle trait is sealed or marker-trait-protected so unauthorized coders cannot be substituted at runtime."
+    ]
+  },
+  "kernel_builder_evidence": {
+    "recorded_at_utc": "2026-05-24T04:54:27.5323888Z",
+    "recorded_by": "KERNEL_BUILDER-20260524-040413",
+    "status_transition": "CLAIMED -> READY_FOR_VALIDATION",
+    "implementation_summary": [
+      "Added contract-path process_ledger::mt_executor orchestrator with MicroTaskExecutor::run(executor_identity, MtExecutorRunConfig).",
+      "Wired scheduler claim, queue state transitions, mailbox lease/router acquisition, backpressure-checked typed mailbox posts, loop checkpoints, outcome persistence, cancellation re-check after awaited coder work, FR-EVT-MT-EXEC-ERROR emission hook, and marker-protected AuthorizedMtCoder.",
+      "Retained the legacy mt_executor::executor::run_job surface for existing tests while making the durable orchestration path explicit."
+    ],
+    "touched_files": [
+      "src/backend/handshake_core/src/process_ledger/mt_executor.rs",
+      "src/backend/handshake_core/src/process_ledger/mod.rs",
+      "src/backend/handshake_core/tests/mt_executor_integration_tests.rs"
+    ],
+    "out_of_contract_touch_requires_operator_waiver": [
+      {
+        "path": "src/backend/handshake_core/src/process_ledger/mod.rs",
+        "why": "MT-189 owned a new process_ledger/mt_executor.rs module; Rust compilation required registering the module in the parent mod.rs."
+      }
+    ],
+    "research_basis": {
+      "sources_checked": [
+        "LangGraph durable execution / checkpoints documentation: checkpoints persist state within and across interactions, with Postgres checkpointer support.",
+        "Temporal durable execution documentation: crash-proof workflows resume where they left off after process or infrastructure failure.",
+        "Google ADK sessions documentation: sessions carry id, history/events, state, and append_event lifecycle for continuity.",
+        "Agent2Agent task documentation: tasks are stateful entities with lifecycle states, optional history, and artifacts."
+      ],
+      "selected_patterns": [
+        "Checkpoint before/around execution boundaries instead of relying on chat chronology.",
+        "Treat task/job state, history, artifacts, cancellation, and failure as durable first-class data.",
+        "Use explicit executor identity and routing/lease decisions before side-effecting mailbox writes.",
+        "Return structured deferred/failed/cancelled outcomes instead of panicking on infrastructure failures."
+      ],
+      "rejected_options": [
+        "Extending only the legacy run_job single-job loop; rejected because it cannot claim from the queue or coordinate mailbox leases.",
+        "Replacing the public MtCoderHandle trait with a sealed trait; rejected because it would break existing integration-test stubs and downstream adapters. Selected marker-protected AuthorizedMtCoder for the durable run path instead.",
+        "Running the literal packet cargo command as final proof; rejected as too broad for this crate layout after it compiled unrelated test binaries until the 20-minute timeout."
+      ],
+      "validation_plan": [
+        "Focused MT-189 integration test binary.",
+        "Adjacent MT executor, queue, scheduler, outcome, mailbox lease/router/backpressure test binaries.",
+        "Direct rustfmt check on touched files.",
+        "Postgres end-to-end test remains ignored until POSTGRES_TEST_URL is available."
+      ]
+    },
+    "proof": {
+      "focused_mt189": {
+        "command": "cargo test --test mt_executor_integration_tests --features test-utils --target-dir D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target -- --test-threads=1",
+        "exit_code": 0,
+        "result": "9 passed; 0 failed; 1 ignored",
+        "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/mt189-final-cargo-test-20260524-0512.log"
+      },
+      "adjacent_primitives": {
+        "command": "cargo test --features test-utils --target-dir D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target --test mt_executor_tests --test micro_task_job_tests --test mt_loop_control_tests --test mt_scheduler_tests --test mt_outcome_tests --test role_mailbox_backpressure_tests --test role_mailbox_router_tests --test role_mailbox_lease_tests -- --test-threads=1",
+        "exit_code": 0,
+        "result": "126 passed; 0 failed; 56 ignored across selected adjacent binaries",
+        "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/mt189-final-adjacent-cargo-tests-20260524-0513.log"
+      },
+      "format_check": {
+        "command": "rustfmt --edition 2021 --check src/backend/handshake_core/src/process_ledger/mod.rs src/backend/handshake_core/src/process_ledger/mt_executor.rs src/backend/handshake_core/tests/mt_executor_integration_tests.rs",
+        "exit_code": 0
+      },
+      "packet_literal_command": {
+        "command": "cargo test -p handshake_core --target-dir D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target mt_executor_integration_tests -- --test-threads=1",
+        "exit_code": 124,
+        "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/mt189-packet-proof-command-20260524-0433.log",
+        "note": "Timed out after 20 minutes because this crate layout treated the argument as a broad test-name filter and compiled unrelated integration targets; leftover cargo/rustc child processes tied to that target dir were stopped."
+      },
+      "handoff_phase_check": {
+        "command": "just phase-check HANDOFF WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1 CODER KERNEL_BUILDER-20260524-040413",
+        "exit_code": 1,
+        "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/mt189-final-phase-check-handoff-20260524-0515.log",
+        "failure": "Pre-existing generated receipts ledger validation failures block phase-check; role-mailbox-export-check passed, but gate-check and post-work-check failed."
+      }
+    },
+    "residual_risks": [
+      "The Postgres end-to-end durable smoke remains ignored without POSTGRES_TEST_URL, so validator should run it in a live Postgres environment.",
+      "Queue iteration_n is still not advanced through a dedicated queue API on retry; the orchestrator uses local iteration advancement and durable checkpoints until a queue increment API lands.",
+      "ResponseAuthorityScope::MicroTaskCompletionScope remains a router-level gap identified by the explorer; MT-189 avoids relying on it by using explicit executor identity and lease routing."
+    ],
+    "validator_notes": [
+      "No SQLite product/test fixture/fallback was introduced.",
+      "Build outputs and logs were written under D:/Projects/LLM projects/Handshake/Handshake_Artifacts.",
+      "The product worktree had pre-existing untracked/dirty files; only the listed MT-189 product files were intentionally touched."
+    ],
+    "postgres_test_url_orchestrator_smoke_20260525": {
+      "classification": "IMPLEMENTATION_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+      "authoritative_integration_validator_pass": false,
+      "integration_validator_status": "PENDING",
+      "recorded_at_utc": "2026-05-25T04:42:53.818Z",
+      "recorded_by": "KERNEL_BUILDER-POSTGRES-TEST-URL-20260525",
+      "postgres_test_url": "postgres://postgres:postgres@127.0.0.1:65432/handshake_test",
+      "summary": "Live POSTGRES_TEST_URL pass implemented/fixed the residual Postgres paths: MT-189 durable executor smoke, Locus GetMtProgress parity on Postgres, atomic scheduler claim to prevent duplicate SKIP LOCKED claims, checkpoint timestamp precision normalization, and raw_sql schema application for multi-statement Postgres migrations.",
+      "product_changes": [
+        "src/backend/handshake_core/src/storage/postgres.rs implements LocusOperation::GetMtProgress with the same structured progress metadata projection as SQLite.",
+        "src/backend/handshake_core/src/mt_executor/scheduler.rs now claims with one atomic UPDATE ... FROM candidate ... RETURNING job_id statement guarded by FOR UPDATE SKIP LOCKED and state=queued.",
+        "src/backend/handshake_core/src/process_ledger/mt_loop_control.rs normalizes checkpoint created_at_utc to Postgres microsecond precision at creation time.",
+        "src/backend/handshake_core/src/role_mailbox_v1/repo.rs and src/backend/handshake_core/src/mt_executor/scheduler.rs use sqlx::raw_sql for multi-statement schema setup.",
+        "src/backend/handshake_core/tests/observability_span_repo_tests.rs uses sqlx::raw_sql for multi-statement migration setup."
+      ],
+      "proof": [
+        {
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test mt_executor_integration_tests -- --ignored --test-threads=1 --nocapture",
+          "exit_code": 0,
+          "result": "1 passed; 0 failed"
+        },
+        {
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test micro_task_executor_tests locus_mt_progress_workflow_parity_with_emitted_packet_and_mailbox_wait -- --exact --test-threads=1 --nocapture",
+          "exit_code": 0,
+          "result": "1 passed; 0 failed"
+        },
+        {
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test micro_task_executor_tests micro_task_executor_rejects_legacy_workflow_run_job_kind_contract -- --exact --test-threads=1 --nocapture",
+          "exit_code": 0,
+          "result": "1 passed; 0 failed"
+        },
+        {
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test mt_scheduler_tests -- --ignored --test-threads=1 --nocapture",
+          "exit_code": 0,
+          "result": "5 passed; 0 failed"
+        },
+        {
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test mt_scheduler_tests -- --test-threads=1 --nocapture",
+          "exit_code": 0,
+          "result": "16 passed; 0 failed; 5 ignored"
+        },
+        {
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test mt_loop_control_tests -- --ignored --test-threads=1 --nocapture",
+          "exit_code": 0,
+          "result": "7 passed; 0 failed"
+        },
+        {
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test mt_cancellation_tests -- --ignored --test-threads=1 --nocapture",
+          "exit_code": 0,
+          "result": "3 passed; 0 failed"
+        },
+        {
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test observability_span_repo_tests -- --ignored --test-threads=1 --nocapture",
+          "exit_code": 0,
+          "result": "11 passed; 0 failed"
+        },
+        {
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --test observability_aggregate_queries_tests -- --ignored --test-threads=1 --nocapture",
+          "exit_code": 0,
+          "result": "1 passed; 0 failed"
+        },
+        {
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,duckdb-flight-recorder --lib process_ledger::mt_loop_control::tests -- --test-threads=1 --nocapture",
+          "exit_code": 0,
+          "result": "7 passed; 0 failed; 1142 filtered out"
+        }
+      ],
+      "verification_caveats": [
+        "A broad cargo test command filtered by process_ledger::mt_loop_control::tests but not scoped with --lib attempted to compile unrelated integration tests and failed on Windows paging-file exhaustion; the corrected --lib command passed.",
+        "Pre-existing warnings remain in unrelated code paths and were not addressed in this session.",
+        "Several modified backend files are untracked in this worktree; tracked-file git diff --check was clean for the tracked subset."
+      ]
+    }
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_X_GAPS",
+    "reviewed_at_utc": "2026-05-27T18:05:00Z",
+    "aggregator_run_at_utc": "2026-05-28T00:01:31.342Z",
+    "verdict": "PASS_WITH_NOTES",
+    "verdict_reason": "MicroTaskExecutor orchestrator at src/process_ledger/mt_executor.rs (correct contract path) wires scheduler claim + queue state transitions + mailbox lease + router permission check + backpressure-checked typed mailbox posts + loop checkpoints + outcome persistence + cancellation re-check + FR-EVT-MT-EXEC-ERROR + marker-protected AuthorizedMtCoder. 9/9 focused integration + 126/126 adjacent primitive tests green. Live Postgres orchestrator persists completion and releases claim (2026-05-25 continuation). Three residual gaps acknowledged: (a) queue iteration_n advancement uses local rather than queue API on retry; (b) ResponseAuthorityScope::MicroTaskCompletionScope router gap (MT-181 forward-declared); (c) MtCoderHandle remained pub trait not sealed (marker AuthorizedMtCoder used as compromise — red_team #3 partially met).",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "OK",
+    "runtime_safety_status": "OK",
+    "agent_swarm_safety_status": "OK",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "STRONG",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 1,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 3,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-189.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-189.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_X_GAPS",
+    "reviewed_at_utc": "2026-05-27T18:05:00Z",
+    "aggregator_run_at_utc": "2026-05-27T23:48:44.444Z",
+    "verdict": "PASS_WITH_NOTES",
+    "verdict_reason": "MicroTaskExecutor orchestrator at src/process_ledger/mt_executor.rs (correct contract path) wires scheduler claim + queue state transitions + mailbox lease + router permission check + backpressure-checked typed mailbox posts + loop checkpoints + outcome persistence + cancellation re-check + FR-EVT-MT-EXEC-ERROR + marker-protected AuthorizedMtCoder. 9/9 focused integration + 126/126 adjacent primitive tests green. Live Postgres orchestrator persists completion and releases claim (2026-05-25 continuation). Three residual gaps acknowledged: (a) queue iteration_n advancement uses local rather than queue API on retry; (b) ResponseAuthorityScope::MicroTaskCompletionScope router gap (MT-181 forward-declared); (c) MtCoderHandle remained pub trait not sealed (marker AuthorizedMtCoder used as compromise — red_team #3 partially met).",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "OK",
+    "runtime_safety_status": "OK",
+    "agent_swarm_safety_status": "OK",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "STRONG",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 1,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 3,
+    "review_artifact_ref": "validator_reports_phase1/MT-189.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1\\validator_reports_phase1\\MT-189.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  }
+}

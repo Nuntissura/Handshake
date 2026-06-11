@@ -1,0 +1,150 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-064",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "C",
+  "cluster_subscope": "C.1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:00:00Z",
+  "updated_at_utc": "2026-05-28T00:01:44.906Z",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-064.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "LoraStackHandle sub-trait + LoRA mount/unmount API",
+  "goal": "Define the LoraStackOps sub-trait reachable through LoraStackHandle: mount, unmount, list_active, set_strength, swap (atomic replace of the active stack). LoRA hot-swap is a PRODUCTION technique (INF-1) and must be supported by both LlamaCppRuntime (via per-request --lora flag) and CandleRuntime (via PEFT-style mount).",
+  "expected_diff_shape": "New src/backend/handshake_core/src/model_runtime/lora.rs with LoraStackHandle, LoraStackOps, LoraId, LoraDescriptor, LoraStrength, LoraStackSnapshot. mod.rs re-exports.",
+  "owned_files": [
+    "src/backend/handshake_core/src/model_runtime/lora.rs",
+    "src/backend/handshake_core/src/model_runtime/mod.rs"
+  ],
+  "depends_on_mts": [
+    "MT-062"
+  ],
+  "unblock_conditions": "MT-062 trait surface merged.",
+  "implementation_notes": "Per spec §4.7.1a (LoRA hot-swap PRODUCTION) and AC-INFER-LAB-8-TECHNIQUES the LoRA stack is operator-controllable. LoraId is `Uuid` (v7 per HBR-INT-008). LoraDescriptor: `{ id: LoraId, artifact_path: PathBuf, sha256: [u8;32], rank: u32, target_modules: Vec<String>, base_model_compat: BaseModelTag, license_tag: LicenseTag }`. LoraStackOps trait methods: `async fn mount(&self, desc: LoraDescriptor, strength: LoraStrength) -> Result<(), ModelRuntimeError>`; `async fn unmount(&self, id: LoraId) -> Result<(), ModelRuntimeError>`; `fn list_active(&self) -> Vec<LoraStackEntry>` where LoraStackEntry = `{ id: LoraId, strength: LoraStrength, mounted_at_utc: DateTime<Utc> }`; `async fn set_strength(&self, id: LoraId, strength: LoraStrength) -> Result<(), ModelRuntimeError>`; `async fn swap(&self, new_stack: Vec<(LoraDescriptor, LoraStrength)>) -> Result<LoraStackSnapshot, ModelRuntimeError>` — atomic replace returning the previous stack snapshot for rollback. LoraStrength wraps `f32` clamped 0.0..=2.0 with `try_new` constructor. BaseModelTag opaque string (e.g., \"llama-3.1-8b-instruct\") so mount errors out when a LoRA targets a different base. License tagging mandatory for downstream Skill Bank reference (per AC-DISTILL-CONTENT-REVIEW). mount/unmount/swap MUST NOT require process restart per AC-INFER-LAB-8-TECHNIQUES.a (hot-swap invariant). LoraStackSnapshot for rollback after a failed multi-LoRA swap.",
+  "proof_commands": [
+    "cargo build -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target model_runtime::lora::"
+  ],
+  "risk_if_missed": "LoRA hot-swap (INF-1 PRODUCTION) has no trait surface; mount/unmount semantics drift between adapters.",
+  "validator_focus": "LoraId minted via now_v7(); base-model-tag mismatch returns typed error; swap is atomic (failure leaves the previous stack intact); strength clamping rejected with try_new error.",
+  "hbr_obligations": [
+    "HBR-INT-002",
+    "HBR-INT-008"
+  ],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.6.2",
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.7.1"
+  ],
+  "acceptance_criteria_refs": [
+    "AC-MODEL-RUNTIME-TRAIT",
+    "AC-MODEL-CAP-DECL",
+    "AC-INFER-LAB-8-TECHNIQUES"
+  ],
+  "lifecycle": {
+    "active": false,
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "PASS",
+    "depends_on": [
+      "MT-062"
+    ],
+    "blocks": [
+      "MT-072",
+      "MT-081",
+      "MT-090",
+      "MT-091",
+      "MT-092",
+      "MT-115"
+    ],
+    "claimed_by": "KERNEL_BUILDER-20260518-235451",
+    "claimed_at_utc": "2026-05-19T02:49:30Z",
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "COMPLETED",
+        "validator_verdict": "PENDING",
+        "completed_at_utc": "2026-05-19T03:09:36.566Z"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "previous_completed_at_utc_before_ready_for_validation_20260525": "2026-05-19T03:09:36.566Z",
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z"
+  },
+  "handoff": {
+    "coder_session": "KERNEL_BUILDER-20260518-235451",
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": "019e6be3-15ca-7c6b-b1ba-07921596fc8d",
+    "review_response_receipt_actor_role": "INTEGRATION_VALIDATOR",
+    "review_response_receipt_track": "JUDGMENT_OOB_IV_PHASE1_PRE_REMEDIATION"
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Atomic-swap invariant test: failed swap leaves previous stack intact.",
+      "Base-model-tag mismatch rejected with typed error before mount.",
+      "Strength clamping enforced at try_new; out-of-range returns Err."
+    ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C1_FRESH",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-28T00:01:31.342Z",
+    "verdict": "PASS",
+    "verdict_reason": "LoraStackOps is async_trait, Send+Sync, object-safe, all fallible methods Result-returning. LoRA hot-swap mount/unmount/list_active/set_strength/swap surface matches INF-1 requirements. Validation: LoraStrength bounds 0.0..=2.0 with finite-check; BaseModelTag/LicenseTag/LoraId UUID-v7 enforced; UnsupportedLoraStackOps fail-closed with CapabilityNotSupported.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "MINOR",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-064.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-064.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C1_FRESH",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T23:48:44.444Z",
+    "verdict": "PASS",
+    "verdict_reason": "LoraStackOps is async_trait, Send+Sync, object-safe, all fallible methods Result-returning. LoRA hot-swap mount/unmount/list_active/set_strength/swap surface matches INF-1 requirements. Validation: LoraStrength bounds 0.0..=2.0 with finite-check; BaseModelTag/LicenseTag/LoraId UUID-v7 enforced; UnsupportedLoraStackOps fail-closed with CapabilityNotSupported.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "MINOR",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "validator_reports_phase1/MT-064.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1\\validator_reports_phase1\\MT-064.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  }
+}

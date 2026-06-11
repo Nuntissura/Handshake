@@ -1,0 +1,143 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-024",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "A",
+  "cluster_subscope": "A.2",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T02:30:00Z",
+  "updated_at_utc": "2026-05-28T00:01:44.883Z",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-024.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "kernel.visual_debug.dom_snapshot IPC (DOM JSON via CDP)",
+  "goal": "Per spec §6.4.3 (AC-VISUAL-DEBUGGER-IPC) implement `kernel.visual_debug.dom_snapshot(scope)` returning a DOM JSON snapshot via CDP DOM.getDocument / DOM.describeNode. Used by the Diagnostics panel (cluster X) to render collapsible DOM trees with stable-element-id highlighting.",
+  "expected_diff_shape": "New Tauri command in app/src-tauri/src/visual_debug.rs (MT-018); cdp_client.rs extension for DOM endpoints; test asserting the returned JSON has expected schema.",
+  "owned_files": [
+    "app/src-tauri/src/visual_debug.rs",
+    "src/backend/handshake_core/src/operator_foreground/cdp_client.rs",
+    "src/backend/handshake_core/tests/cdp_dom_snapshot_tests.rs"
+  ],
+  "depends_on_mts": [
+    "MT-018",
+    "MT-021"
+  ],
+  "unblock_conditions": "MT-018 CDP wiring + MT-021 driver scaffold so CDP endpoints can be tested via Playwright connect.",
+  "implementation_notes": "Per spec §6.4.3. Extend cdp_client.rs with `dom_snapshot(scope: DomScope) -> DomTree` calling CDP `DOM.getDocument { depth: -1, pierce: true }` (full traversal incl. shadow roots). DomTree schema: `{ root: DomNode }` where `DomNode { node_id: i64, node_name: String, node_type: u8, attributes: BTreeMap<String,String>, children: Vec<DomNode>, stable_element_id: Option<String> (extracted from data-testid attribute if present) }`. The stable_element_id extraction supports HBR-VIS-001's stable-element-id selector pattern. scope = { Full, Selector(String) } where Selector calls `DOM.querySelector` first to scope the snapshot to a subtree. Tauri command: `#[tauri::command] async fn visual_debug_dom_snapshot(scope: DomScope) -> Result<DomTree, String>`. The Tauri command is added to the manual via MT-013 paired-diff enforcement (HBR-MAN-001 will block the commit if missing). Tests: connect via MT-021 driver, call dom_snapshot(Full), assert returned tree has root.node_name == \"#document\" and at least one descendant with non-empty stable_element_id (assumes the app's main page has at least one data-testid). Negative: dom_snapshot(Selector(\"#nonexistent\")) returns Err.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target cdp_dom_snapshot_tests"
+  ],
+  "risk_if_missed": "Without DOM snapshot IPC, the Diagnostics panel cannot render DOM trees; HBR-VIS-001 stable-element-id selector pattern has no surface.",
+  "validator_focus": "DOM tree serializes cleanly to JSON; stable_element_id extraction is from data-testid attribute (not heuristic); ManualEntry exists for the new IPC channel per HBR-MAN-001 paired-diff.",
+  "hbr_obligations": [
+    "HBR-VIS-001",
+    "HBR-MAN-001"
+  ],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/06-mechanical-integrations.md#6.4"
+  ],
+  "acceptance_criteria_refs": [
+    "AC-VISUAL-DEBUGGER-IPC"
+  ],
+  "lifecycle": {
+    "active": false,
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "PASS",
+    "depends_on": [
+      "MT-018",
+      "MT-021"
+    ],
+    "blocks": [
+      "MT-027"
+    ],
+    "claimed_by": "KERNEL_BUILDER-20260518-073535",
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "COMPLETED",
+        "validator_verdict": "PENDING",
+        "completed_at_utc": "2026-05-18T09:34:52.999Z"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "previous_completed_at_utc_before_ready_for_validation_20260525": "2026-05-18T09:34:52.999Z",
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z"
+  },
+  "handoff": {
+    "coder_session": "KERNEL_BUILDER-20260518-073535",
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": "019e6be3-15b3-78a8-9d12-4b5512762606",
+    "review_response_receipt_actor_role": "INTEGRATION_VALIDATOR",
+    "review_response_receipt_track": "JUDGMENT_OOB_IV_PHASE1_PRE_REMEDIATION"
+  },
+  "red_team": {
+    "minimum_controls": [
+      "stable_element_id sources only from data-testid attribute (no heuristic fallback that could be wrong).",
+      "Tauri command landing triggers HBR-MAN-001 paired-diff (manual must update in same commit).",
+      "Selector-scoped snapshot returns Err on missing element (not silent empty tree)."
+    ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_A4_A2_REDO_WTC",
+    "reviewed_at_utc": "2026-05-27T20:00:00Z",
+    "aggregator_run_at_utc": "2026-05-28T00:01:31.342Z",
+    "verdict": "PASS",
+    "verdict_reason": "kernel_visual_debug_dom_snapshot Tauri command + DomScope::{Full,Selector} + DomTree/DomNode types registered in lib.rs; cdp_client.rs implements dom_snapshot via DOM.getDocument(depth:-1, pierce:true) + DOM.querySelector + DOM.describeNode chain; stable_element_id extracted only from data-testid attribute (not heuristic); DomSelectorNotFound is a hard error (not silent empty tree).",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 0
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-024.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-024.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_A4_A2_REDO_WTC",
+    "reviewed_at_utc": "2026-05-27T20:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T23:48:44.444Z",
+    "verdict": "PASS",
+    "verdict_reason": "kernel_visual_debug_dom_snapshot Tauri command + DomScope::{Full,Selector} + DomTree/DomNode types registered in lib.rs; cdp_client.rs implements dom_snapshot via DOM.getDocument(depth:-1, pierce:true) + DOM.querySelector + DOM.describeNode chain; stable_element_id extracted only from data-testid attribute (not heuristic); DomSelectorNotFound is a hard error (not silent empty tree).",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 0
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "validator_reports_phase1/MT-024.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1\\validator_reports_phase1\\MT-024.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  }
+}

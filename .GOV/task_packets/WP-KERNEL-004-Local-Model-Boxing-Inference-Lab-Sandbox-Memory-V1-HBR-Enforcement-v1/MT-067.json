@@ -1,0 +1,153 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-067",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "C",
+  "cluster_subscope": "C.1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:00:00Z",
+  "updated_at_utc": "2026-05-28T00:01:44.908Z",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-067.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "Per-model adapter assignment registry + register-time binding",
+  "goal": "Implement the per-model adapter registry: at model registration time the operator picks WHICH runtime (LlamaCppRuntime or CandleRuntime) hosts a given model; re-binding requires unload + re-register (per AC-CANDLE-ADAPTER). The registry is durable authority via KERNEL-002 WriteBoxV1.",
+  "expected_diff_shape": "New src/backend/handshake_core/src/model_runtime/registry.rs with ModelRegistry, ModelRegistration, RuntimeBinding; KERNEL-002 KernelActionCatalogV1 action `kernel.model_runtime.register_model`; WriteBoxV1 persistence path.",
+  "owned_files": [
+    "src/backend/handshake_core/src/model_runtime/registry.rs",
+    "src/backend/handshake_core/src/model_runtime/mod.rs",
+    "src/backend/handshake_core/tests/model_registry_tests.rs"
+  ],
+  "depends_on_mts": [
+    "MT-062",
+    "MT-066"
+  ],
+  "unblock_conditions": "MT-062 trait + MT-066 invariant enforcement merged.",
+  "implementation_notes": "Per operator decision E-3 (refinement.json) and AC-LLAMACPP-ADAPTER + AC-CANDLE-ADAPTER: a model is bound to exactly one adapter at register time; re-binding requires unload + re-register. ModelRegistration: `{ model_id: ModelId, artifact_path: PathBuf, sha256: [u8;32], runtime_binding: RuntimeBinding (enum LlamaCpp|Candle), declared_capabilities: ModelCapabilities, base_model_tag: BaseModelTag, registered_at_utc: DateTime<Utc>, registered_by: OperatorId, provider: ProviderKind }`. ModelRegistry: `register(reg: ModelRegistration) -> Result<(), ModelRuntimeError>`; `lookup(id: ModelId) -> Option<&ModelRegistration>`; `list() -> Vec<&ModelRegistration>`; `rebind(id: ModelId, new_binding: RuntimeBinding) -> Result<(), ModelRuntimeError>` returns Err if the model is currently loaded (caller must unload first). Persistence: ModelRegistry is materialized through KERNEL-002 KernelActionCatalogV1 via a new action `kernel.model_runtime.register_model { reg: ModelRegistration }`; the action lands in WriteBoxV1 and is the only mutation path. Reads go through `kernel.model_runtime.list_registrations()` query action. CapabilityEnforcement: ModelRegistration.declared_capabilities MUST be consistent with runtime_binding — e.g., a Candle binding may declare supports_activation_steering=true; a LlamaCpp binding must declare supports_activation_steering=false (enforced at register). registered_by field threads operator identity for audit (HBR-INT-006 obligations on writes). Tests: register a LlamaCpp model; lookup returns it; rebind while loaded returns Err; rebind after unload succeeds; register with capability/binding mismatch returns Err. ModelId minted via now_v7() (HBR-INT-008).",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target model_registry_tests"
+  ],
+  "risk_if_missed": "Adapter-per-model assignment becomes implicit; operator cannot pin a model to its hook-bearing runtime; LoraCompat across adapters drifts.",
+  "validator_focus": "Capability/binding consistency enforced at register; rebind requires unload; KernelActionCatalogV1 is the only mutation path; reads are query-only.",
+  "hbr_obligations": [
+    "HBR-INT-002",
+    "HBR-INT-006",
+    "HBR-INT-008"
+  ],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.6.2",
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.6.3"
+  ],
+  "acceptance_criteria_refs": [
+    "AC-MODEL-RUNTIME-TRAIT",
+    "AC-LLAMACPP-ADAPTER",
+    "AC-CANDLE-ADAPTER",
+    "AC-MODEL-CAP-DECL"
+  ],
+  "lifecycle": {
+    "active": false,
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "PASS",
+    "depends_on": [
+      "MT-062",
+      "MT-066"
+    ],
+    "blocks": [
+      "MT-068",
+      "MT-069",
+      "MT-070",
+      "MT-072",
+      "MT-081"
+    ],
+    "claimed_by": "KERNEL_BUILDER-20260518-235451",
+    "claimed_at_utc": "2026-05-19T03:50:48Z",
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "COMPLETED",
+        "validator_verdict": "PENDING",
+        "completed_at_utc": "2026-05-19T04:02:13Z"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "previous_completed_at_utc_before_ready_for_validation_20260525": "2026-05-19T04:02:13Z",
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z"
+  },
+  "handoff": {
+    "coder_session": "KERNEL_BUILDER-20260518-235451",
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": "019e6be3-15cc-7d4c-b272-9072d2aed368",
+    "review_response_receipt_actor_role": "INTEGRATION_VALIDATOR",
+    "review_response_receipt_track": "JUDGMENT_OOB_IV_PHASE1_PRE_REMEDIATION"
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Register-time capability/binding mismatch rejected (LlamaCpp + supports_activation_steering=true fails).",
+      "Rebind-while-loaded returns Err with explicit reason.",
+      "All mutations route through KernelActionCatalogV1 (grep test asserts no direct writes)."
+    ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C1_FRESH",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-28T00:01:31.342Z",
+    "verdict": "PASS",
+    "verdict_reason": "ModelRegistry correctly enforces per-model adapter binding: register-time RuntimeBinding stored, rebind requires unload (validate_binding rejects activation_steering on LlamaCpp), ProviderKind::Local-only, UUID-v7 model_id required, non-zero sha256 required. mark_loaded/mark_unloaded gate the loaded projection. Sorted list() output is deterministic for governance projection.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "MINOR",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 1,
+      "LOW": 0
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-067.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-067.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C1_FRESH",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T23:48:44.444Z",
+    "verdict": "PASS",
+    "verdict_reason": "ModelRegistry correctly enforces per-model adapter binding: register-time RuntimeBinding stored, rebind requires unload (validate_binding rejects activation_steering on LlamaCpp), ProviderKind::Local-only, UUID-v7 model_id required, non-zero sha256 required. mark_loaded/mark_unloaded gate the loaded projection. Sorted list() output is deterministic for governance projection.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "MINOR",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 1,
+      "LOW": 0
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "validator_reports_phase1/MT-067.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1\\validator_reports_phase1\\MT-067.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  }
+}

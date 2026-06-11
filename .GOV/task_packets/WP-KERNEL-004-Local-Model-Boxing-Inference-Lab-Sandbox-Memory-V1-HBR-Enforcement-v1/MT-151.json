@@ -1,0 +1,206 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-151",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "D",
+  "cluster_subscope": "D.2",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:10:00Z",
+  "updated_at_utc": "2026-05-28T00:01:44.954Z",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-151.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "ValidatorFirstPassEvaluator wiring the loop eval to the HBR test-packet corpus",
+  "goal": "Implement the Evaluator that the loop core (MT-148) consumes per Q-SELF-IMPROVE-TARGET: validator first-pass PASS rate on the fixed ~30-item HBR test-packet corpus. The evaluator runs the validator against each corpus item under a frozen sandbox (cluster B SandboxAdapter) and returns per-split PASS rates plus auxiliary metrics needed for the multi-metric promotion floor (latency p95, capsule bytes).",
+  "expected_diff_shape": "New module src/backend/handshake_core/src/self_improve/evaluator.rs (ValidatorFirstPassEvaluator + EvalResult + SplitMetrics + ValidatorVerdict types). Tests src/backend/handshake_core/tests/validator_first_pass_evaluator_tests.rs.",
+  "owned_files": [
+    "src/backend/handshake_core/src/self_improve/evaluator.rs",
+    "src/backend/handshake_core/tests/validator_first_pass_evaluator_tests.rs"
+  ],
+  "depends_on_mts": [
+    "MT-148",
+    "MT-150"
+  ],
+  "unblock_conditions": "MT-148 (loop core) + MT-150 (corpus + split). Cluster B SandboxAdapter is consumed by trait (cross-cluster integration boundary).",
+  "implementation_notes": "Per Q-SELF-IMPROVE-TARGET operator decision: 'validator first-pass PASS rate on fixed ~30-item HBR test-packet corpus'. Per AC-DISTILL-LOOP-SAFEGUARDS: 'multi-metric promotion floor (dev PASS up AND latency p95 not regressed AND capsule bytes not regressed AND holdout PASS rate not regressed)'. Surface: `pub struct ValidatorFirstPassEvaluator<'a> { sandbox: &'a dyn LoopSandbox, validator_runner: &'a dyn ValidatorRunner }` with `pub fn evaluate(split: &CorpusSplit, key_provider: &dyn KeyProvider, snapshot: &EditableSurfaceSnapshot) -> Result<EvalResult, EvalError>`. EvalResult: `{ train: SplitMetrics, dev: SplitMetrics, holdout: SplitMetrics, evaluated_at_utc, snapshot_hash: String }`. SplitMetrics: `{ pass_rate: f64 (0.0..=1.0), pass_count: u32, total_count: u32, latency_p95_ms: u64, capsule_bytes_p95: u64, per_item_results: Vec<PerItemResult> }`. PerItemResult: `{ item_id, verdict: ValidatorVerdict, latency_ms, capsule_bytes, error: Option<String> }`. Evaluation runs each corpus item through ValidatorRunner inside a sandboxed instance (so the editable surface snapshot is the ONLY change between baseline and trial runs); seed isolation per RW-6. Holdout evaluation decrypts via KeyProvider, runs items, re-encrypts holdout records before returning (holdout never leaves memory in plaintext form persistently). Tests: evaluator computes pass_rate correctly from per-item PASS/FAIL; latency p95 computed via standard order-statistic; capsule bytes p95 from injection records; holdout decryption fails cleanly without key; evaluator records snapshot_hash so EvalResult is traceable to its surface snapshot.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target validator_first_pass_evaluator_tests"
+  ],
+  "risk_if_missed": "Without a typed evaluator the multi-metric promotion floor (MT-152) has nothing to gate against; the loop cannot measure improvement.",
+  "validator_focus": "Evaluator is pure relative to sandbox + validator (both trait-injected). Per-split metrics computed independently. Holdout decryption is scoped to the eval call.",
+  "hbr_obligations": [
+    "HBR-INT-006",
+    "HBR-INT-008"
+  ],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.8.3"
+  ],
+  "acceptance_criteria_refs": [
+    "AC-DISTILL-LOOP-SAFEGUARDS"
+  ],
+  "lifecycle": {
+    "active": false,
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "PASS",
+    "integration_validator_verdict": "PENDING",
+    "depends_on": [
+      "MT-148",
+      "MT-150"
+    ],
+    "blocks": [
+      "MT-152",
+      "MT-153",
+      "MT-167"
+    ],
+    "claimed_by": "KERNEL_BUILDER-20260523-031814-AGT-MT151",
+    "claimed_at_utc": "2026-05-23T07:30:00Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260523-031814-AGT-MT151",
+    "ready_for_validation_at_utc": "2026-05-23T07:45:00Z",
+    "implementation_record": {
+      "classification": "IMPLEMENTATION_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+      "authoritative_integration_validator_pass": false,
+      "summary": "MT-151 ValidatorFirstPassEvaluator implementation is on disk (src/self_improve/evaluator.rs, prior session, 311 lines: ValidatorFirstPassEvaluator + ValidatorRunner trait + EvalResult + SplitMetrics + PerItemResult + EvalError + 3 inline tests covering pass_rate/p95 computation, holdout decryption failure without key, p95 helper on small input). This session added the integration test file tests/validator_first_pass_evaluator_tests.rs (17 tests) that the contract owned_files names, covering: sandbox-invoked-exactly-once-per-evaluate, sandbox-failure-propagates-and-skips-runner, all-pass produces unit pass_rate, all-fail produces zero pass_rate, Skip verdict counts as not-pass, latency p95 lands on the correct nearest-rank order statistic, capsule_bytes p95 independent of latency, snapshot_hash deterministic + collision-sensitive + variant-kind-distinguishing, runner-observes-every-item-exactly-once-per-split (proves no double-evaluation + no missing item), wrong-key-yields-Corpus-error, validator runner failure propagates typed error, EvalResult round-trip via serde JSON, repeated-evaluate-deterministic-in-metrics, evaluated_at_utc non-decreasing across calls, KeyProvider::UnknownKey distinct from AEAD AuthFailure, split sizes match MT-150 60/20/20 + pairwise disjoint across train/dev/holdout.",
+      "spec_realism_gate_self_check": {
+        "sub_rule_1_no_deferred_live_escape": "PASS — evaluator.rs is a complete impl with no '*Unavailable' / 'pending MT-NNN' / 'deferred to follow-on' patterns. Eval pipeline is end-to-end exercised through public Evaluator trait.",
+        "sub_rule_2_external_resource_touch": "PASS — integration tests exercise the public ValidatorFirstPassEvaluator + Evaluator trait via real ChaCha20-Poly1305 holdout decryption from MT-150 corpus.rs, real LoopSandbox trait (stubbed but typed), real ValidatorRunner trait (stubbed but typed). p95 computation tested against a known distribution and against the nearest-rank formula derived from the actual split member latencies.",
+        "sub_rule_3_implementer_cannot_self_certify": "PASS — evaluator.rs authored in prior session; integration tests authored in this session; both differ from any validator role. Implementation_record explicitly marked as supporting evidence only."
+      },
+      "files_touched": [
+        "src/backend/handshake_core/tests/validator_first_pass_evaluator_tests.rs (NEW; 17 tests)"
+      ],
+      "implementation_files_verified_unchanged": [
+        "src/backend/handshake_core/src/self_improve/evaluator.rs (prior session, 311 lines, 3 inline tests; verified unchanged + 3/3 pass via cargo test --lib self_improve::evaluator)"
+      ],
+      "test_results": {
+        "validator_first_pass_evaluator_tests": {
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test validator_first_pass_evaluator_tests -- --nocapture",
+          "exit_code": 0,
+          "tests_passed": 17,
+          "tests_failed": 0,
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt151-validate-20260523-001.log"
+        },
+        "inline_lib_tests": {
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib self_improve::evaluator",
+          "exit_code": 0,
+          "tests_passed": 3,
+          "tests_failed": 0,
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt151-inline-lib-20260523-001.log"
+        }
+      },
+      "red_team_coverage": {
+        "sandbox_adapter_isolates_editable_surface_changes": "covered — mt151_sandbox_runs_exactly_once_per_evaluate asserts sandbox.run() fires exactly once via CountingSandbox; mt151_sandbox_failure_propagates_and_skips_validator_runs asserts that when sandbox.run returns LoopSandboxError, evaluate returns EvalError::Sandbox and the validator runner records zero observed items (proving the sandbox short-circuit precedes any per-item evaluation).",
+        "holdout_decryption_scoped_to_single_eval_call_plaintext_dropped": "covered — evaluator.rs source code shows holdout_items goes out of scope at the end of evaluate(); mt151_wrong_key_for_holdout_yields_corpus_error + mt151_unknown_key_id_distinguishes_from_auth_failure prove the decryption only happens inside evaluate() with the caller-supplied KeyProvider. Plaintext leaves only as Vec<CorpusItem> consumed by evaluate_split and the resulting PerItemResult records contain item_id + verdict + latency_ms + capsule_bytes — no plaintext packet body bleeds into EvalResult.",
+        "latency_and_capsule_bytes_p95_computed_from_raw_per_item_observations_not_running_averages": "covered — mt151_latency_p95_is_correct_order_statistic feeds 12 train-split items with latencies derived from item ordinals, sorts them, and asserts latency_p95_ms matches sorted[ceil(0.95*n)-1]. mt151_capsule_bytes_p95_is_independent_of_latency varies capsule_bytes while holding latency constant and asserts both p95 metrics are derived independently. Together they refute any running-average implementation."
+      },
+      "adversarial_coverage_beyond_minimum": {
+        "snapshot_hash_collision_sensitivity": "mt151_snapshot_hash_distinguishes_variant_kinds — RetrievalPolicy vs ModelManual variants produce distinct SHA-256 hashes even for canonically-similar contents; guards against any flatten-to-string serialization bug.",
+        "split_disjointness_invariant": "mt151_split_sizes_match_60_20_20_contract — asserts pairwise BTreeSet::is_disjoint across train/dev/holdout per_item_results, proving no item appears in two splits at once.",
+        "runner_observes_every_item_exactly_once": "mt151_runner_observes_every_item_exactly_once_per_split — RecordingRunner records every observed item id; asserts the multiset equals train + dev + decrypted-holdout ids, with no duplicates or omissions.",
+        "serde_audit_round_trip": "mt151_eval_result_round_trips_via_serde_json — full EvalResult round-trips, proving auditors can persist + replay.",
+        "key_provider_error_taxonomy": "mt151_unknown_key_id_distinguishes_from_auth_failure — UnknownKey vs AuthFailure are distinct error variants; callers can route differently.",
+        "skip_verdict_semantics": "mt151_skip_verdict_counts_as_not_pass — Skip is explicitly excluded from pass_count, defending against any future change that conflates Skip with Pass."
+      },
+      "residual_risks": [
+        "ValidatorRunner is the cross-cluster integration boundary; real production wiring (B-cluster SandboxAdapter + the actual validator first-pass runner) is not exercised by this MT and is a separate downstream MT.",
+        "Sandbox isolation is verified at the trait level (LoopSandbox trait + sandbox_run_id propagation) but the actual Cluster B SandboxAdapter implementation is consumed via trait, not the concrete impl; a wrong concrete adapter could silently fail to isolate without tripping these tests.",
+        "Holdout plaintext drop is verified by inspecting the source-code scope of holdout_items; there is no runtime memory-zeroization assertion. A future hardening MT could add explicit drop + zeroize() semantics.",
+        "The MT-148 LoopCore.execute_eval pathway is not exercised by this MT (it would require a LoopIteration in stage ExecuteEval); proven only at trait-implementation level.",
+        "No Integration Validator has reviewed MT-151."
+      ],
+      "out_of_scope_edits": [
+        {
+          "path": "src/backend/handshake_core/tests/validator_first_pass_evaluator_tests.rs",
+          "scope_relation": "IN_SCOPE",
+          "waiver_status": "NOT_REQUIRED",
+          "rationale": "Owned file per contract owned_files."
+        }
+      ]
+    },
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "READY_FOR_VALIDATION",
+        "validator_verdict": "PENDING"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z"
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": "019e6be3-15fa-7f50-abc0-1ede41601ac1",
+    "review_response_receipt_actor_role": "INTEGRATION_VALIDATOR",
+    "review_response_receipt_track": "JUDGMENT_OOB_IV_PHASE1_PRE_REMEDIATION"
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Evaluator runs every item through the SandboxAdapter so editable surface changes are isolated from the host process.",
+      "Holdout decryption is scoped to a single eval call; plaintext is dropped after metrics are computed.",
+      "Latency and capsule-bytes p95 are computed from raw per-item observations, not from running averages."
+    ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_D1_D2",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-28T00:01:31.342Z",
+    "verdict": "PASS",
+    "verdict_reason": "ValidatorFirstPassEvaluator runs train + dev + holdout (decrypted in-process and dropped) through a sandboxed ValidatorRunner, computes proper p95 latency / capsule_bytes, returns SplitMetrics; snapshot_hash binds the eval to its candidate snapshot.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 2
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-151.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-151.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_D1_D2",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T23:48:44.444Z",
+    "verdict": "PASS",
+    "verdict_reason": "ValidatorFirstPassEvaluator runs train + dev + holdout (decrypted in-process and dropped) through a sandboxed ValidatorRunner, computes proper p95 latency / capsule_bytes, returns SplitMetrics; snapshot_hash binds the eval to its candidate snapshot.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 2
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "validator_reports_phase1/MT-151.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1\\validator_reports_phase1\\MT-151.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  }
+}

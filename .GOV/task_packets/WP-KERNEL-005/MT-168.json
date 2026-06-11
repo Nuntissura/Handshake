@@ -1,0 +1,110 @@
+{
+  "artifact_policy": {
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ],
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "model_created_markdown_authority_allowed": false,
+    "operator_facing_authority": false,
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND"
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-005/MT-168.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-005/MT-168.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-005/packet.json"
+  },
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": null,
+  "handoff": {
+    "coder_session": "KB-KERNEL-005-CLOSEOUT",
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": null
+  },
+  "lifecycle": {
+    "active": true,
+    "blocks": [],
+    "depends_on": [
+      "MT-167"
+    ],
+    "status": "VALIDATED_V3",
+    "validator_verdict": "PASS_V3",
+    "claimed_by": "KB-KERNEL-005-CLOSEOUT",
+    "ready_for_validation_at_utc": "2026-06-11T03:05:50.294Z",
+    "ready_by": "KB-KERNEL-005-V3-REMEDIATION",
+    "integration_validation_v2": {
+      "verdict": "FAIL",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "THIN",
+      "proof_validity": "TRIVIAL",
+      "sr1": "PASS",
+      "sr2": "FAIL",
+      "fail_category": "PROOF_IN_MEMORY_ONLY",
+      "gap": "FEMS V1 'end-to-end' proof composes every surface through deterministic in-memory adapters; the single e2e test touches no real PG/EventLedger/ArtifactStore despite the WP claiming Handshake-native managed-resource integration.",
+      "evidence": "tests/fems_integration_e2e_tests.rs:3-4 header 'deterministic in-memory adapters'; FixtureFems (line 111), StubTier (227), TraceSourceStub (280), SpawnFixtureLedger (345), InMemoryFemsAccessor (25); grep confirms zero PgPool/sqlx/ensure_schema/AtelierStore in the file; only one #[tokio::test]."
+    },
+    "ready_for_validation_v3": true,
+    "completed_by": "INTEGRATION_VALIDATOR-20260611-033732",
+    "completed_at_utc": "2026-06-11T05:17:17.690Z",
+    "integration_validation_v3": {
+      "verdict": "PASS_V3",
+      "round": "v3",
+      "at_utc": "2026-06-11T05:17:17.690Z",
+      "validator_session": "INTEGRATION_VALIDATOR-20260611-033732",
+      "impl_reality": "REAL",
+      "proof_validity": "STRONG",
+      "sr1": "PASS",
+      "sr2": "PASS",
+      "concern_resolved": null,
+      "evidence": "Proof tests/atelier_fems_postgres_e2e_tests.rs mt168_fems_feedback_chain_persists_through_postgres_stores: FEMS V1 chain on managed PG - CapsuleRecorder over production PostgresKernelActionSubmitter with kernel_event_ledger assert; PostgresMemoryCapsuleStore save + FRESH-instance re-read; OutcomeFeedbackLoop ledger assert; PinIpcService pin re-read via FRESH submitter; HygieneJobRunner durable consolidation/prune candidates with pinned-item protection on ledger; trace export leg via PostgresTraceSource with real ArtifactStore secret redaction + receipt event. PG+EventLedger+ArtifactStore all touched through production types.",
+      "gap": "Residual: retrieval input corpus (FixtureFems) and hygiene stats view (InMemoryFemsAccessor) remain in-memory INPUT fixtures; a PG FemsAccessor exists (PostgresBitemporalMemoryIndex, hygiene.rs:711) but is not used for the stats leg. Input-only; every persistence/read surface in the proof path is managed PG.",
+      "basis": "v3 adversarial per-MT review of remediated deliverable + runtime proof via full-crate managed-PG sweep and kernel-builder fresh-DB proof logs"
+    }
+  },
+  "markdown_projection": {
+    "generated_at_utc": "2026-06-04T17:06:21.335Z",
+    "generator": "wp-contract-import.mjs",
+    "path": ".GOV/task_packets/WP-KERNEL-005/MT-168.md",
+    "projection_hash": "be3388cf522aa6a3",
+    "source_file": ".GOV/task_packets/WP-KERNEL-005/packet.json",
+    "source_hash": "09da8363c83f74a4",
+    "status": "GENERATED_IN_SYNC"
+  },
+  "mt_id": "MT-168",
+  "red_team": {
+    "minimum_controls": [
+      "Use contract-first identity and preserve projection hash."
+    ],
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "required": true,
+    "risks": [
+      "Imported MT contract may under-capture prose-only review or proof instructions."
+    ]
+  },
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "scope": {
+    "acceptance_criteria": [
+      "MT-168 [Model-Workflow-Diagnostics] Background Automation Guard -- Preserve background-safe automation startup and single-instance no-focus safeguards routing dialogs/show/focus/shortcuts through policy."
+    ],
+    "allowed_paths": [
+      "src/backend/handshake_core/src/kernel (action_catalog",
+      "diagnostics) + app DCC projections + ModelManual"
+    ],
+    "forbidden_paths": [],
+    "proof_targets": [
+      "cargo test --test atelier_fems_postgres_e2e_tests (managed PostgreSQL + EventLedger; FEMS end-to-end on real stores, no in-memory adapters)"
+    ],
+    "risk_if_missed": "CKC parity loss for Background Automation Guard",
+    "summary": "MT-168 [Model-Workflow-Diagnostics] Background Automation Guard -- Preserve background-safe automation startup and single-instance no-focus safeguards routing dialogs/show/focus/shortcuts through policy."
+  },
+  "updated_at_utc": "2026-06-11T05:17:17.690Z",
+  "wp_id": "WP-KERNEL-005"
+}

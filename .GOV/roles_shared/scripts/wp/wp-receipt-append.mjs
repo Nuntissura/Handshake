@@ -1283,7 +1283,10 @@ function syncReviewGovernanceTruth({
     return { ...(runtimeStatus || {}) };
   }
 
-  const originalPacketText = fs.readFileSync(context.packetAbsPath, "utf8");
+  const originalPacketFileText = context.packetAbsPath && fs.existsSync(context.packetAbsPath)
+    ? fs.readFileSync(context.packetAbsPath, "utf8")
+    : null;
+  const originalPacketText = context.packetText || originalPacketFileText || "";
   const originalTaskBoardText = readOptionalText(TASK_BOARD_ABS_PATH);
   const originalBuildOrderText = readOptionalText(BUILD_ORDER_ABS_PATH);
   const originalRuntimeText = context.runtimeStatusAbsPath && fs.existsSync(context.runtimeStatusAbsPath)
@@ -1317,7 +1320,9 @@ function syncReviewGovernanceTruth({
     syncProjectedTaskBoardTruth(wpId, reconciliation.packetProjection);
     return reconciliation.nextRuntimeStatus;
   } catch (error) {
-    restoreOptionalText(context.packetAbsPath, originalPacketText);
+    if (context.packetAbsPath) {
+      restoreOptionalText(context.packetAbsPath, originalPacketFileText);
+    }
     restoreOptionalText(TASK_BOARD_ABS_PATH, originalTaskBoardText);
     restoreOptionalText(BUILD_ORDER_ABS_PATH, originalBuildOrderText);
     if (context.runtimeStatusAbsPath) {

@@ -1,0 +1,306 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-090",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "C",
+  "cluster_subscope": "C.4",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:00:00Z",
+  "updated_at_utc": "2026-05-28T00:01:44.922Z",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-090.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "INF-1 LoRA hot-swap public API + Work Profile knob + observability events",
+  "goal": "Lift the per-adapter LoraStackOps (MT-076 LlamaCpp + MT-084 Candle) to a public ModelRuntime-level LoRA hot-swap surface: kernel.model_runtime.lora_mount, lora_unmount, lora_swap, lora_list. Wire the technique into the Work Profile knob (settings.exec_policy.lora_stack) and FR-EVT-LLM-INFER-LORA-* events per AC-INFER-LAB-8-TECHNIQUES.a.",
+  "expected_diff_shape": "New src/backend/handshake_core/src/model_runtime/techniques/lora_hotswap.rs orchestrating mount/unmount across both adapters; Tauri commands in app/src-tauri/src/commands/lora.rs; Work Profile schema extension in settings.",
+  "owned_files": [
+    "src/backend/handshake_core/src/model_runtime/techniques/lora_hotswap.rs",
+    "src/backend/handshake_core/src/model_runtime/techniques/mod.rs",
+    "app/src-tauri/src/commands/lora.rs",
+    "app/src-tauri/src/main.rs",
+    "src/backend/handshake_core/tests/lora_hotswap_techniques_tests.rs"
+  ],
+  "depends_on_mts": [
+    "MT-064",
+    "MT-072",
+    "MT-076",
+    "MT-081",
+    "MT-084"
+  ],
+  "unblock_conditions": "Per-adapter LoRA impls (MT-076 LlamaCpp + MT-084 Candle) merged.",
+  "implementation_notes": "Per AC-INFER-LAB-8-TECHNIQUES.a + refinement INF-1: LoRA hot-swap is PRODUCTION on BOTH adapters; this MT lifts the per-adapter LoraStackOps into a public ModelRuntime-level technique API consumed by Inference Lab UI (MT-068 IPC sibling). The technique module: `pub async fn lora_mount(rt: &dyn ModelRuntime, model_id: ModelId, desc: LoraDescriptor, strength: LoraStrength) -> Result<(), ModelRuntimeError>` dispatches to the per-model lora_stack handle. Work Profile knob extension: settings.exec_policy adds `lora_stack: Vec<{ lora_id, strength }>`; on session start, the lora_stack policy is applied via lora_swap to set the runtime to the policy-declared stack. Per-request override path: GenerateRequest.lora_overrides Vec<LoraId> already plumbed in MT-062 trait; this MT verifies end-to-end (UI override -> request -> backend mount-if-needed -> generate). FR events: FR-EVT-LLM-INFER-LORA-MOUNT { model_id, lora_id, strength, source: WorkProfile|PerRequest|AdHoc }, FR-EVT-LLM-INFER-LORA-UNMOUNT, FR-EVT-LLM-INFER-LORA-SWAP { model_id, prev_stack_len, new_stack_len, rolled_back: bool }. Tauri commands: kernel_model_runtime_lora_mount(model_id, lora_descriptor_json, strength), kernel_model_runtime_lora_unmount(model_id, lora_id), kernel_model_runtime_lora_swap(model_id, new_stack), kernel_model_runtime_lora_list(model_id). Conservative-default opt-in: lora_stack on Work Profile defaults to empty; per-request overrides require explicit consent (frontend prompt). Tests: dispatch from technique surface reaches the right adapter (LlamaCpp vs Candle) based on registry binding; Work Profile knob application; FR event emit verified.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target lora_hotswap_techniques_tests",
+    "cargo test --manifest-path app/src-tauri/Cargo.toml --target-dir ../Handshake_Artifacts/tauri-cargo-target lora_commands"
+  ],
+  "risk_if_missed": "INF-1 PRODUCTION ships partial (per-adapter only); UI cannot drive LoRA stack uniformly; Work Profile knob not honoured.",
+  "validator_focus": "Dispatch reaches correct adapter; Work Profile knob applied at session start; FR event source field distinguishes WorkProfile vs PerRequest vs AdHoc; conservative-default opt-in honoured.",
+  "hbr_obligations": [
+    "HBR-INT-002",
+    "HBR-INT-008"
+  ],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.7.1",
+    ".GOV/spec/master-spec-v02.186/spec-modules/10-product-surfaces.md#10.14"
+  ],
+  "acceptance_criteria_refs": [
+    "AC-INFER-LAB-8-TECHNIQUES",
+    "AC-INFER-LAB-UI-TOGGLES"
+  ],
+  "lifecycle": {
+    "active": false,
+    "status": "READY_FOR_VALIDATION",
+    "claimed_by": "KERNEL_BUILDER-20260522-080601",
+    "claimed_at_utc": "2026-05-22T09:17:36.7350969Z",
+    "validator_verdict": "PASS",
+    "depends_on": [
+      "MT-064",
+      "MT-072",
+      "MT-076",
+      "MT-081",
+      "MT-084"
+    ],
+    "blocks": [
+      "MT-091",
+      "MT-092"
+    ],
+    "ready_for_validation_by": "KERNEL_BUILDER-20260522-080601",
+    "ready_for_validation_at_utc": "2026-05-22T10:14:26.5053688Z",
+    "integration_validator_verdict": "PENDING",
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "READY_FOR_VALIDATION",
+        "validator_verdict": "PENDING"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z"
+  },
+  "handoff": {
+    "coder_session": "KERNEL_BUILDER-20260522-080601",
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": "019e6be3-15d9-700f-a423-bc41b63ff5aa",
+    "review_response_receipt_actor_role": "INTEGRATION_VALIDATOR",
+    "review_response_receipt_track": "JUDGMENT_OOB_IV_PHASE1_PRE_REMEDIATION"
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Conservative-default opt-in (lora_stack empty by default).",
+      "FR source field present and correct in events.",
+      "Adapter dispatch tested for both Llama and Candle bindings."
+    ]
+  },
+  "implementation_record": {
+    "recorded_at_utc": "2026-05-22T10:14:26.5053688Z",
+    "recorded_by": "KERNEL_BUILDER-20260522-080601",
+    "classification": "IMPLEMENTATION_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+    "authoritative_integration_validator_pass": false,
+    "integration_validator_status": "PENDING",
+    "summary": "Implemented the public ModelRuntime-level LoRA hot-swap technique surface over existing LoraStackOps, added Tauri commands for mount/unmount/swap/list, wired settings.execPolicy.loraStack as the Work Profile/IPC stack bridge, and registered FR-EVT-LLM-INFER-LORA-SWAP alongside existing mount/unmount event IDs. Supporting evidence only; Integration Validator remains pending.",
+    "research_basis": {
+      "sources_checked": [
+        "llama.cpp C API/server LoRA docs and discussions",
+        "Hugging Face PEFT hotswap and Transformers PEFT adapter APIs",
+        "Candle/candle-lora/mistral.rs LoRA surfaces",
+        "Tauri v2 state/command docs",
+        "vLLM metrics design"
+      ],
+      "selected_approach": "Thin backend-neutral transaction layer over existing ModelRuntime::lora_stack handles, with Rust/Tauri state owning policy validation and frontend requests passing explicit stack intent.",
+      "rejected_options": [
+        "Expose backend-native handles to Tauri/frontend",
+        "Implicitly hot-swap on every prompt",
+        "Default to merge/unmerge for Work Profile changes",
+        "Put policy validation in frontend-only code"
+      ]
+    },
+    "proof": {
+      "red_core": {
+        "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test lora_hotswap_techniques_tests -- --nocapture",
+        "exit_code": 101,
+        "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt090-red-core-lora-hotswap-techniques-20260522-001.log",
+        "note": "Initial red proof failed at the intended missing API boundary: model_runtime::techniques::lora_hotswap was absent."
+      },
+      "red_tauri_compile_attempt": {
+        "command": "cargo test --manifest-path app/src-tauri/Cargo.toml --target-dir D:/Projects/LLM projects/Handshake/Handshake_Artifacts/tauri-cargo-target lora_commands -- --nocapture",
+        "exit_code": 124,
+        "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt090-red-tauri-lora-commands-20260522-001.log",
+        "note": "Initial Tauri red compile attempt exceeded the local 5-minute command timeout before returning a compiler result; lingering cargo/rustc children were stopped before implementation continued."
+      },
+      "focused_core": {
+        "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test lora_hotswap_techniques_tests -- --nocapture",
+        "exit_code": 0,
+        "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt090-core-lora-hotswap-techniques-20260522-002.log",
+        "note": "2 passed: public technique dispatch, fail-closed supports_lora gating, and FR swap registry round-trip."
+      },
+      "focused_tauri": {
+        "command": "cargo test --manifest-path app/src-tauri/Cargo.toml --target-dir D:/Projects/LLM projects/Handshake/Handshake_Artifacts/tauri-cargo-target lora_commands -- --nocapture",
+        "exit_code": 0,
+        "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt090-tauri-lora-commands-20260522-003.log",
+        "note": "5 passed: camelCase DTOs, settings.execPolicy.loraStack bridge, mount/list/swap/unmount dispatch, no-live-runtime typed error, invalid strength pre-mutation, declared supports_lora fail-closed."
+      },
+      "adjacent_core": [
+        {
+          "test": "model_runtime_lora_tests",
+          "exit_code": 0,
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt090-model-runtime-lora-tests-20260522-001.log",
+          "note": "6 passed, 0 failed."
+        },
+        {
+          "test": "llama_cpp_lora_tests",
+          "exit_code": 0,
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt090-llama-cpp-lora-tests-20260522-001.log",
+          "note": "6 passed, 0 failed in default/native-disabled path; env-gated live fixture steps returned early where no fixture env was set."
+        },
+        {
+          "test": "candle_lora_tests default features",
+          "exit_code": 0,
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt090-candle-lora-tests-20260522-001.log",
+          "note": "0 tests executed because the test file is cfg(feature = candle-runtime-engine); followed by feature-enabled run."
+        },
+        {
+          "test": "candle_lora_tests --features candle-runtime-engine",
+          "exit_code": 0,
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt090-candle-lora-tests-feature-20260522-001.log",
+          "note": "6 passed, 0 failed."
+        },
+        {
+          "test": "fr_event_registry lib filter",
+          "exit_code": 0,
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt090-fr-event-registry-lib-20260522-001.log",
+          "note": "3 passed, 0 failed; FR-EVT-LLM-INFER-LORA-SWAP included in enum/registry round-trip."
+        }
+      ],
+      "format_and_static_checks": {
+        "core_rustfmt": {
+          "command": "cargo fmt --manifest-path src/backend/handshake_core/Cargo.toml --check",
+          "exit_code": 0,
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt090-core-rustfmt-check-20260522-001.log"
+        },
+        "tauri_rustfmt": {
+          "command": "cargo fmt --manifest-path app/src-tauri/Cargo.toml --check",
+          "exit_code": 0,
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt090-tauri-rustfmt-check-20260522-001.log"
+        },
+        "diff_check": {
+          "command": "git diff --check",
+          "exit_code": 0,
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt090-product-diff-check-20260522-001.log"
+        }
+      },
+      "governance_checks": {
+        "json_validation": {
+          "command": "node -e JSON.parse(...) for MT-090.json, packet.json, RUNTIME_STATUS.json",
+          "exit_code": 0,
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt090-json-parse-after-ready-20260522-001.log"
+        },
+        "build_order_sync": {
+          "command": "just build-order-sync",
+          "exit_code": 0,
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt090-build-order-sync-20260522-001.log"
+        },
+        "build_order_check": {
+          "command": "node .GOV/roles_shared/checks/build-order-check.mjs",
+          "exit_code": 0,
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt090-build-order-check-20260522-001.log"
+        },
+        "topology_sync": {
+          "command": "just gov-check --sync-topology",
+          "exit_code": 1,
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt090-gov-check-sync-topology-20260522-001.log",
+          "note": "Generated public-surface and governance-topology sync ran; build-order-check and topology-bundle-check are green. Umbrella gov-check remains red on six known broad HBR/template/manual checks outside MT-090 LoRA API scope.",
+          "failing_checks": [
+            "hbr-visual-smoke",
+            "hbr-inspector-smoke",
+            "hbr-swarm-n8",
+            "hbr-swarm-invariants",
+            "template-hbr-fields",
+            "hbr-man-003-scan"
+          ]
+        }
+      }
+    },
+    "contract_alignment_notes": [
+      "Tauri command registration lives in app/src-tauri/src/lib.rs in this app, not app/src-tauri/src/main.rs as the older MT owned-file list stated; lib.rs was updated as the actual invoke-handler authority.",
+      "settings.execPolicy.loraStack is implemented as the command/IPC bridge for Work Profile stack application. The visual LoRA stack composer and save-as-Work-Profile UI remain MT-091 scope; cross-adapter parity and FR event emission validation remain MT-092 scope.",
+      "This MT returns event_type receipts and registers the swap event ID. It does not persist Flight Recorder event rows because there is no recorder dependency in the existing technique or Tauri command pattern to reuse without widening the runtime state contract.",
+      "Cargo output still includes pre-existing crate warnings outside MT-090 touched files.",
+      "Governance sync/check after ready: JSON parse, build-order-sync, and build-order-check pass. Umbrella gov-check --sync-topology still fails on the same six broad HBR/template/manual checks observed before MT-090; topology-bundle-check is green."
+    ],
+    "out_of_scope_self_evaluation": {
+      "why": "The MT owned files listed only the new technique, command, registration main.rs placeholder, and tests, but the requested public API needed existing shared surfaces to parse caller-provided LoRA IDs, preflight registry capability state, register the new FR swap event ID, and wire commands into the actual Tauri invoke-handler file.",
+      "touched_outside_mt_owned_files": [
+        "src/backend/handshake_core/src/model_runtime/lora.rs",
+        "src/backend/handshake_core/src/flight_recorder/events_llm_infer.rs",
+        "src/backend/handshake_core/src/flight_recorder/fr_event_registry.rs",
+        "app/src-tauri/src/commands/model_runtime.rs",
+        "app/src-tauri/src/lib.rs"
+      ],
+      "risk_reduced": "Prevents stringly/unchecked LoRA IDs, prevents runtime mutation when registry-declared supports_lora is false, keeps FR event registry authoritative for swap, and makes the new commands callable by the app.",
+      "waiver_status": "OPERATOR_WAIVER_REQUIRED_FOR_THIS_MT_OUT_OF_SCOPE_FILES"
+    }
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C4_C7",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-28T00:01:31.342Z",
+    "verdict": "PASS",
+    "verdict_reason": "Public ModelRuntime LoRA hot-swap surface dispatches cleanly through per-adapter LoraStackOps with capability gate, FR-EVT-LLM-INFER-LORA-{MOUNT,UNMOUNT,SWAP} event_type stamping, and Work Profile knob bridge; cross-adapter parity proven by MT-092.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "CONCERN",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 1,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-090.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-090.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C4_C7",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T23:48:44.444Z",
+    "verdict": "PASS",
+    "verdict_reason": "Public ModelRuntime LoRA hot-swap surface dispatches cleanly through per-adapter LoraStackOps with capability gate, FR-EVT-LLM-INFER-LORA-{MOUNT,UNMOUNT,SWAP} event_type stamping, and Work Profile knob bridge; cross-adapter parity proven by MT-092.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "CONCERN",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 1,
+    "review_artifact_ref": "validator_reports_phase1/MT-090.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1\\validator_reports_phase1\\MT-090.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  }
+}

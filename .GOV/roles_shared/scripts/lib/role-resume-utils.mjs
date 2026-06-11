@@ -24,6 +24,7 @@ import {
   parseTaskBoardStatus,
   TERMINAL_TASK_BOARD_STATUS_VALUES,
 } from "./wp-authority-projection-lib.mjs";
+import { buildContractDerivedPacketProjectionText } from "./work-packet-contract-read-lib.mjs";
 
 export { buildPhaseCheckCommand };
 
@@ -132,7 +133,19 @@ export function loadPacket(wpId) {
 
 export function loadPacketAtRepo(wpId, referenceRepoRoot = "") {
   const filePath = packetPathAtRepo(wpId, referenceRepoRoot);
-  return exists(filePath) ? readUtf8(filePath) : "";
+  if (!exists(filePath)) return "";
+  const packetText = readUtf8(filePath);
+  if (!/\.json$/i.test(String(filePath || ""))) return packetText;
+  try {
+    const contract = JSON.parse(packetText);
+    return buildContractDerivedPacketProjectionText({
+      contract,
+      packetText: "",
+      source: "PRIMARY_MACHINE_READABLE",
+    });
+  } catch {
+    return packetText;
+  }
 }
 
 export function parseStatus(packetContent) {

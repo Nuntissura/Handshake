@@ -15,7 +15,9 @@ import {
   evaluateSupersedingPrepareRollover,
   inferWpIdFromPrepare,
   isTerminalTaskBoardStatus,
+  loadPacketAtRepo,
   normalizeVerdict,
+  parseClaimField,
   parseExplicitCoderHandoffRange,
   preparedWorktreeSyncState,
   resolveCommittedCoderHandoffRange,
@@ -277,6 +279,42 @@ test("repo-local resume helpers ignore foreign HANDSHAKE_GOV_ROOT when evaluatin
   }
 });
 
+test("loadPacketAtRepo returns legacy-compatible claim fields for JSON-only packet contracts", () => {
+  const repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), "hsk-role-resume-json-packet-"));
+  const wpId = "WP-1-Json-Packet-v1";
+  try {
+    const packetDir = path.join(repoRoot, ".GOV", "task_packets", wpId);
+    fs.mkdirSync(packetDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(packetDir, "packet.json"),
+      JSON.stringify({
+        schema_id: "hsk.work_packet_contract@1",
+        wp_id: wpId,
+        lifecycle: {
+          status: "In Progress",
+        },
+        workflow: {
+          lane: "ORCHESTRATOR_MANAGED",
+          execution_owner: "CODER_A",
+        },
+        source_control: {
+          work_branch: `feat/${wpId}`,
+          worktree_dir: "../wtc-json-packet-v1",
+        },
+      }, null, 2),
+      "utf8",
+    );
+
+    const packet = loadPacketAtRepo(wpId, repoRoot);
+
+    assert.equal(parseClaimField(packet, "WORKFLOW_LANE"), "ORCHESTRATOR_MANAGED");
+    assert.equal(parseClaimField(packet, "LOCAL_BRANCH"), `feat/${wpId}`);
+    assert.equal(parseClaimField(packet, "LOCAL_WORKTREE_DIR"), "../wtc-json-packet-v1");
+  } finally {
+    fs.rmSync(repoRoot, { recursive: true, force: true });
+  }
+});
+
 test("activeOrchestratorCandidates and inferWpIdFromPrepare honor the evaluated repo root task board", () => {
   const repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), "hsk-role-resume-board-"));
   try {
@@ -379,6 +417,7 @@ test("workflowStartReadinessState loads gate logs from the evaluated repo runtim
         current_spec: {
           entrypoint_type: "indexed_manifest",
           entrypoint_path: ".GOV/spec/indexed_spec/indexed-spec-manifest.json",
+          resolver_index_path: ".GOV/spec/indexed_spec/resolver-index.json",
           version: "v02.179",
           source_baseline_path: ".GOV/spec/Handshake_Master_Spec_v02.179.md",
         },

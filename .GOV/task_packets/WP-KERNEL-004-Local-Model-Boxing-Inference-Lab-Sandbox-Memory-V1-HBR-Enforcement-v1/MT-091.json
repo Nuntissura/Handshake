@@ -1,0 +1,226 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-091",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "C",
+  "cluster_subscope": "C.4",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:00:00Z",
+  "updated_at_utc": "2026-05-28T00:01:44.922Z",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-091.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "INF-1 LoRA stack composer UI (Inference Lab knob)",
+  "goal": "Implement the LoRA stack composer view in the Inference Lab UI per AC-INFER-LAB-UI-TOGGLES: ordered list of mounted LoRAs with per-LoRA strength slider, mount-from-disk dialog, unmount, drag-to-reorder, save-as-Work-Profile.",
+  "expected_diff_shape": "New Svelte component app/src/components/inference_lab/LoraStackComposer.svelte + supporting store app/src/lib/stores/lora_stack.ts; integration into the InferenceLab parent view.",
+  "owned_files": [
+    "app/src/components/inference_lab/LoraStackComposer.svelte",
+    "app/src/lib/stores/lora_stack.ts",
+    "app/src/components/inference_lab/InferenceLab.svelte"
+  ],
+  "depends_on_mts": [
+    "MT-068",
+    "MT-090"
+  ],
+  "unblock_conditions": "MT-068 capability IPC + MT-090 LoRA technique surface merged.",
+  "implementation_notes": "Per AC-INFER-LAB-UI-TOGGLES + AC-INFER-LAB-UI-AB-COMPARE. LoraStackComposer.svelte: shows the current active stack as an ordered list (drag-to-reorder via svelte-dnd-action or HTML5 drag); each row has [LoRA name, strength slider 0..2, unmount button, license tag badge]; bottom of view has [Mount from disk... button] opening a file picker; [Save as Work Profile] button writes settings.exec_policy.lora_stack. Backed by lora_stack.ts store: subscribes to kernel_model_runtime_lora_list updates (polls every 2s or subscribes to FR events when the SSE bridge is available); commits via kernel_model_runtime_lora_mount/_swap/_unmount. Hidden when capabilities.supportsLora==false (per MT-068 IPC; aligns with AC-INFER-LAB-UI-TOGGLES \"toggles for techniques the model's adapter does not support are hidden, not greyed\"). A/B compare per AC-INFER-LAB-UI-AB-COMPARE: clicking a strength slider opens an A/B side-panel showing generation with current strength vs proposed strength on the same prompt; operator commits or discards. License tag badge prominent for adult-production licensing discipline (per GLOBAL-PRODUCTION operator concerns). Backend mutation routes through KernelActionCatalogV1 (no debug-only paths). UI tests via Playwright/CDP (per cluster A.2 RW-4 decision): mount mock LoRA, assert list updates; change strength, assert IPC call fires.",
+  "proof_commands": [
+    "cd app && pnpm run typecheck",
+    "cd app && pnpm exec playwright test --grep lora_stack_composer"
+  ],
+  "risk_if_missed": "LoRA UI knob missing; INF-1 not operator-controllable through Inference Lab; AC-INFER-LAB-UI-TOGGLES partial.",
+  "validator_focus": "Hidden-not-greyed for unsupported adapters; A/B compare flow lands in same Work Profile path; license badge present; KernelActionCatalogV1 routing.",
+  "hbr_obligations": [
+    "HBR-INT-002"
+  ],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/10-product-surfaces.md#10.14"
+  ],
+  "acceptance_criteria_refs": [
+    "AC-INFER-LAB-UI-TOGGLES",
+    "AC-INFER-LAB-UI-AB-COMPARE"
+  ],
+  "lifecycle": {
+    "active": false,
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "CONCERN",
+    "integration_validator_verdict": "PENDING",
+    "depends_on": [
+      "MT-068",
+      "MT-090"
+    ],
+    "blocks": [
+      "MT-092"
+    ],
+    "claimed_by": "KERNEL_BUILDER-20260522-171100",
+    "claimed_at_utc": "2026-05-22T17:11:00Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260522-171100",
+    "ready_for_validation_at_utc": "2026-05-22T19:35:00Z",
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "READY_FOR_VALIDATION",
+        "validator_verdict": "PENDING"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z"
+  },
+  "handoff": {
+    "coder_session": "KERNEL_BUILDER-20260522-171100",
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": "019e6be3-15da-7a6e-acb3-25589a0cb717",
+    "review_response_receipt_actor_role": "INTEGRATION_VALIDATOR",
+    "review_response_receipt_track": "JUDGMENT_OOB_IV_PHASE1_PRE_REMEDIATION"
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Hidden (display:none) when supportsLora=false — NOT just disabled.",
+      "License badge rendered for every entry.",
+      "All mutations route through KernelActionCatalogV1 (verify via network tab assertion)."
+    ]
+  },
+  "implementation_record": {
+    "recorded_at_utc": "2026-05-22T19:35:00Z",
+    "recorded_by": "KERNEL_BUILDER-20260522-171100",
+    "classification": "IMPLEMENTATION_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+    "authoritative_integration_validator_pass": false,
+    "integration_validator_status": "PENDING",
+    "summary": "MT-091 implemented the LoRA stack composer surface as a React TSX component (contract said Svelte; same Svelte->TSX defect class as MT-098/102/105/124). Backed by a new app/src/lib/ipc/lora.ts IPC binding that wraps kernel_model_runtime_lora_{mount,unmount,swap,list} with camelCase DTOs and client-side strength range validation. Composer renders only when capabilities.supportsLora === true (hidden, not greyed), shows an ordered list of mounted LoRAs with per-row license badge, strength slider 0..2 step 0.05, unmount button, drag-to-reorder via HTML5 native drag events, a mount-from-disk dialog (Tauri plugin-dialog file picker + descriptor metadata form), and a Save-as-Work-Profile button. Every mutation dispatches through the kernel_model_runtime_lora_* Tauri commands (MT-090), which preflight ModelRuntimeState.lora_command_binding through KernelActionCatalogV1 before touching the live runtime. Supporting evidence only; Integration Validator review remains pending.",
+    "contract_drift": [
+      "Owned files listed Svelte components (LoraStackComposer.svelte + lora_stack.ts store + InferenceLab.svelte). App stack is React/TSX; implemented as LoraStackComposer.tsx + lora.ts IPC binding (React hooks subsume the Svelte store role) + InferenceLab.tsx integration. Same defect class as MT-098/102/105/124.",
+      "Proof command listed `pnpm run typecheck`; no `typecheck` script exists in app/package.json. Substituted with `pnpm exec tsc --noEmit`.",
+      "Proof command listed `pnpm exec playwright test --grep lora_stack_composer`. The codebase pattern for inference_lab component tests is Vitest + @testing-library/react (see SteeringVectorEditor.test.tsx); Playwright is a devDependency but no inference_lab Playwright spec exists. Implemented as Vitest unit tests in LoraStackComposer.test.tsx covering the same minimum_controls and adversarial scenarios."
+    ],
+    "design_notes": [
+      "Descriptor cache: loraList IPC returns light entries only ({loraId, strength, mountedAtUtc}). Full descriptors are required for swap-based reorder and Save-as-Work-Profile (settings.execPolicy.loraStack must carry the descriptor). The composer keeps a client-side descriptor cache populated from mount calls. Rows without a cached descriptor (e.g., LoRAs persisted across app sessions) render an explicit 'Descriptor unavailable — re-mount from disk' warning, disable the strength slider, and disable Save-as-Work-Profile / reorder until the operator re-mounts.",
+      "LoRA ID generation: backend uses LoraId::new_v7() (UUID v7). Browser crypto.randomUUID() emits UUID v4 which the backend rejects. Hand-rolled a UUID v7 generator inside LoraStackComposer.tsx (~15 lines) because the app has no UUID v7 npm dependency and adding one for this MT is out of scope.",
+      "A/B compare slider (AC-INFER-LAB-UI-AB-COMPARE) is deferred to a follow-up MT. The MT contract called for an A/B side-panel showing generation with current strength vs proposed strength on the same prompt, but no generation IPC is exposed yet. The strength slider UI surface lands here; the A/B side-panel + generation IPC wiring remain open.",
+      "License badge is always rendered. When the descriptor is not cached client-side, the badge text falls back to 'license unknown' so the operator still gets a visible licensing indicator (matching the operator-licensing-discipline minimum control)."
+    ],
+    "owned_file_changes": [
+      "ADDED app/src/lib/ipc/lora.ts (170 lines): IPC binding with camelCase DTOs, LORA_STRENGTH_MIN/MAX constants, assertValidStrength helper, loraMount/Unmount/Swap/List wrappers.",
+      "ADDED app/src/components/inference_lab/LoraStackComposer.tsx (~520 lines): composer component implementing all MT-091 owned-file behavior.",
+      "ADDED app/src/components/inference_lab/LoraStackComposer.test.tsx (~430 lines, 19 tests): adversarial Vitest unit tests.",
+      "MODIFIED app/src/components/inference_lab/index.ts: export the new composer.",
+      "MODIFIED app/src/components/inference_lab/InferenceLab.tsx: mount LoraStackComposer behind caps.capabilities.supportsLora."
+    ],
+    "proof": {
+      "frontend_typecheck": {
+        "command": "pnpm exec tsc --noEmit",
+        "exit_code": 0,
+        "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt091-tsc-noemit-20260522-003.log",
+        "note": "Clean tsc against the entire app workspace (no MT-091-introduced TS errors; unused-import errors from initial test scaffold cleared in round 3)."
+      },
+      "focused_vitest": {
+        "command": "pnpm exec vitest run LoraStackComposer --reporter=verbose",
+        "exit_code": 0,
+        "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt091-vitest-lora-stack-composer-20260522-002.log",
+        "note": "19/19 passed: hidden-not-greyed when supportsLora=false; hidden when capabilities=null; loading + empty + backend-error states; license badge always rendered (incl. 'license unknown' fallback); mount-from-disk happy path with v7 LoRA ID; mount rejected when sha256 malformed; mount rejected when license tag empty (operator licensing discipline); mount rejected when strength out of [0,2]; cancel dialog; dismissed file dialog; strength slider triggers loraSwap with settings.execPolicy.loraStack; strength slider disabled when descriptor uncached; Unmount triggers loraUnmount; Unmount backend error surfaced; Save-as-Work-Profile disabled when descriptor missing; Save-as-Work-Profile dispatches swap with settings.execPolicy.loraStack; drag-to-reorder triggers swap with reordered stack; drag-to-reorder blocked when any LoRA lacks cached descriptor."
+      },
+      "full_vitest": {
+        "command": "pnpm test",
+        "exit_code": 0,
+        "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt091-vitest-full-suite-20260522-001.log",
+        "note": "63/63 across 15 files passed. No regression from LoraStackComposer / InferenceLab integration."
+      },
+      "cargo_core_regression": {
+        "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test lora_hotswap_techniques_tests -- --nocapture",
+        "exit_code": 0,
+        "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt091-cargo-core-lora-techniques-20260522-001.log",
+        "note": "2/2 passed: technique dispatch + fail-closed when supports_lora is absent. Confirms MT-090 backend still healthy after MT-091 frontend integration."
+      },
+      "cargo_tauri_regression": {
+        "command": "cargo test --manifest-path app/src-tauri/Cargo.toml lora_commands -- --nocapture",
+        "exit_code": 0,
+        "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt091-cargo-tauri-lora-commands-20260522-001.log",
+        "note": "5/5 passed: camelCase DTO + settings.execPolicy.loraStack bridge; mount/list/swap/unmount dispatch; supports_lora=false fail-closed; no-live-runtime typed unavailable; invalid strength pre-mutation rejection."
+      }
+    },
+    "minimum_controls_evidence": {
+      "hidden_not_greyed_supports_lora_false": "Verified by vitest 'renders nothing when the model adapter does not support LoRA' — component returns null; container.firstChild is null; loraList is not called.",
+      "license_badge_per_entry": "Verified by vitest 'renders the mounted stack with license badge per row' — lora-stack-composer.row.{loraId}.license testid present for every row.",
+      "mutations_via_kernel_action_catalog": "Composer mutations all route through kernel_model_runtime_lora_{mount,unmount,swap,list} Tauri commands. Backend (app/src-tauri/src/commands/lora.rs) preflights ModelRuntimeState.lora_command_binding via KernelActionCatalogV1 before any runtime mutation. cargo_tauri_regression covers the fail-closed path. No mutation bypasses this surface in the composer code."
+    },
+    "residual_risks": [
+      "No Integration Validator has reviewed MT-091; this record is supporting evidence only.",
+      "A/B compare slider (AC-INFER-LAB-UI-AB-COMPARE) is not implemented — needs a separate MT that introduces a generation IPC and the A/B side-panel UI; logged as follow-up scope.",
+      "Mount-from-disk requires the operator to paste sha256 by hand. No backend IPC exposes 'compute sha256 of file at path'; logged as follow-up for a hashing helper command.",
+      "Mount-from-disk generates a fresh LoRA ID client-side instead of looking it up in a LoRA catalog. There is no LoRA catalog IPC yet; logged as follow-up.",
+      "Descriptor cache lives in the React component state; persisted LoRAs that survive an app restart will render with 'Descriptor unavailable' until the operator re-mounts. A future MT could add a backend lora_list IPC that returns full descriptors, eliminating this UX.",
+      "Drag-to-reorder uses HTML5 native drag events. Vitest exercises the JS event path; real DOM behavior (touch devices, accessibility) is not covered by these unit tests. Playwright coverage is a deferred follow-up.",
+      "Umbrella `just gov-check --sync-topology` still red on six known broad HBR/template/manual checks observed in MT-090; not touched by this MT."
+    ],
+    "out_of_scope_self_evaluation": {
+      "why": "MT-091 owned files were: LoraStackComposer.svelte, lora_stack.ts (Svelte store), InferenceLab.svelte. Real codebase has no Svelte; React/TSX equivalents (LoraStackComposer.tsx + InferenceLab.tsx + a new IPC binding file) were required to make the MT testable in actual runtime. The new app/src/lib/ipc/lora.ts is outside the owned-file list (the contract did not list any IPC binding file).",
+      "touched_outside_mt_owned_files": [
+        "app/src/lib/ipc/lora.ts (ADDED) — new IPC binding wrapping the MT-090 Tauri commands; required for the composer to dispatch mount/unmount/swap/list."
+      ],
+      "risk_reduced": "Prevents the composer from being a paper UI (no backend dispatch) and prevents string-typed invoke calls scattered through the component (centralizes camelCase DTO + strength validation in one binding module, matching the pattern of model_runtime.ts / steering.ts / refusal.ts).",
+      "waiver_status": "OPERATOR_WAIVER_REQUIRED_FOR_THIS_MT_OUT_OF_SCOPE_FILE"
+    }
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C4_C7",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-28T00:01:31.342Z",
+    "verdict": "CONCERN",
+    "verdict_reason": "LoRA composer UI lands hidden-not-greyed, license badge per row, mutations through KernelActionCatalogV1; A/B compare (AC-INFER-LAB-UI-AB-COMPARE) is deferred — partial spec satisfaction is a real product gap, not paperwork.",
+    "spec_compliance_status": "PARTIAL",
+    "code_hygiene_status": "MINOR",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 1,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 1,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-091.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-091.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C4_C7",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T23:48:44.444Z",
+    "verdict": "CONCERN",
+    "verdict_reason": "LoRA composer UI lands hidden-not-greyed, license badge per row, mutations through KernelActionCatalogV1; A/B compare (AC-INFER-LAB-UI-AB-COMPARE) is deferred — partial spec satisfaction is a real product gap, not paperwork.",
+    "spec_compliance_status": "PARTIAL",
+    "code_hygiene_status": "MINOR",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 1,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 1,
+    "review_artifact_ref": "validator_reports_phase1/MT-091.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1\\validator_reports_phase1\\MT-091.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  }
+}

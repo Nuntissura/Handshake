@@ -12,6 +12,12 @@ Default external repo-governance runtime root from a repo worktree: `../gov_runt
 - Only the active lane owner may run fresh-start, close, cancel, or broker-stop control commands for governed role sessions. Coder and Validator sessions request repair, pause, or cancel actions through packet thread/receipt surfaces; they do not mutate the governed control ledgers directly.
 - The Activation Manager is the mandatory governed pre-launch authoring lane for `WORKFLOW_LANE=ORCHESTRATOR_MANAGED`. For `WORKFLOW_LANE=MANUAL_RELAY`, pre-launch belongs to `CLASSIC_ORCHESTRATOR`.
 
+## HBR Handoff Gate
+- `HandoffGate (MT-004) MUST PASS` on every governed inter-role transition that can advance product implementation, validation, or closeout.
+- Mandatory transition coverage: `refinement->coder`, `coder->WP_VALIDATOR`, `WP_VALIDATOR->INTEGRATION_VALIDATOR`, and `INTEGRATION_VALIDATOR->ORCHESTRATOR`.
+- HandoffGate evaluates applicable HBR rows from `.GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json` against `packet.acceptance_matrix.hbr`; `PENDING`, `STEER`, or `BLOCKED` rows stop the transition.
+- MT-038 role-protocol linkage makes this obligation visible in `.GOV/roles/coder/CODER_PROTOCOL.md`, `.GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md`, `.GOV/roles/integration_validator/INTEGRATION_VALIDATOR_PROTOCOL.md`, `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`, `.GOV/roles/classic_orchestrator/CLASSIC_ORCHESTRATOR_PROTOCOL.md`, `.GOV/roles/validator/VALIDATOR_PROTOCOL.md`, and `.GOV/roles/kernel_builder/KERNEL_BUILDER_PROTOCOL.md`.
+
 ## Primary launch path
 - Preferred host: `HANDSHAKE_ACP_BROKER`
 - Legacy launch queue, readable for old records only: `../gov_runtime/roles_shared/SESSION_LAUNCH_REQUESTS.jsonl`

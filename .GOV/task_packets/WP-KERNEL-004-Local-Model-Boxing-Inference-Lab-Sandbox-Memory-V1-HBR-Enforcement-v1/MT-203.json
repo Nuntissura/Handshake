@@ -1,0 +1,88 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-203",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "SWARM",
+  "cluster_subscope": "SWARM.0",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-30T22:00:00Z",
+  "updated_at_utc": "2026-06-02T08:50:00Z",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-203.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "Runtime model-swarm orchestration backend core (durable SwarmCoordinator)",
+  "origin": "Authored 2026-05-30 under the operator's standing directive (repomem #2395) to build the 'big missing ticket': a RUNTIME local+cloud model swarm/parallel orchestration capability (Master Spec 4.3.9 MULTI_MODEL_PARALLEL + 9 teacher/student distillation + reset-brief 6.3/6.6 run-local-models + operator control room). Research basis: repomem #2396 (Hermes Agent/NousResearch, Claude Code+Agent SDK, PydanticAI, Goose/Block, OpenAI Agents SDK, AutoGen, LangGraph, Dapr Agents) -> 13 Rust/Tokio durable-controller patterns. This MT is the load-bearing BACKEND CORE; wiring/UI/routing/distillation are follow-on MTs (MT-204..).",
+  "goal": "Build a durable, hardened SwarmCoordinator in handshake_core that spins up and manages MANY independent model sessions (local + cloud) in parallel without weakening governance and without intra-model distributed inference (spec 4.3.9). The coordinator owns the plan, leases, routing bounds, budget, and observability; model creation is injected via a ModelSessionFactory so the same coordinator runs real CandleRuntime/llama.cpp/cloud sessions in production and a real controllable worker in tests.",
+  "expected_diff_shape": "New module src/backend/handshake_core/src/swarm_orchestration/ (mod, error, ids, state, breaker, events, factory, coordinator, tests) registered in lib.rs under runtime-full. No app/frontend changes (later waves).",
+  "owned_files": [
+    "src/backend/handshake_core/src/swarm_orchestration/mod.rs",
+    "src/backend/handshake_core/src/swarm_orchestration/error.rs",
+    "src/backend/handshake_core/src/swarm_orchestration/ids.rs",
+    "src/backend/handshake_core/src/swarm_orchestration/state.rs",
+    "src/backend/handshake_core/src/swarm_orchestration/breaker.rs",
+    "src/backend/handshake_core/src/swarm_orchestration/events.rs",
+    "src/backend/handshake_core/src/swarm_orchestration/factory.rs",
+    "src/backend/handshake_core/src/swarm_orchestration/coordinator.rs",
+    "src/backend/handshake_core/src/swarm_orchestration/tests.rs",
+    "src/backend/handshake_core/src/lib.rs"
+  ],
+  "depends_on_mts": ["MT-202"],
+  "unblock_conditions": "MT-202 production model-load flow + ModelRuntime trait exist; ProcessOwnershipLedger, SessionBroker, HbrSwarmLoopCounter, flight_recorder exist.",
+  "implementation_notes": "HARDENING INVARIANTS (all implemented, no TODOs) from the researched patterns: (A) two-level fan-out bound = tokio::sync::Semaphore concurrency cap + monotonic AtomicU64 lifetime spawn ceiling (default HBR_SWARM_002_LOOP_CAP) with fetch_add reserve + rollback on every rejection path; over-bound returns a typed error, never silent. (B) claim-lease+TTL + single background reaper task that cancels+TEARS DOWN (frees the model via ModelSessionFactory teardown seam, NOT just cancel) + records ledger STOP, with a per-instance bounded respawn counter (no storms). (C) failure-fingerprint circuit breaker keyed on ERROR IDENTITY (sha256 of error class + char-boundary-truncated detail), with an ADMISSION GATE before permit+factory (per-instance last-signature tracked) so an Open signature is suppressed BEFORE paying the load; capacity refusals excluded; record_success heals; cooldown/half-open; settled signatures pruned. (D) atomic check-and-insert (try_insert_ready holds the registry lock across check+insert) so concurrent same-instance spawns yield exactly one Ready + DuplicateInstance with NO orphan ledger START. (E) budget-as-data RunBudget (max_concurrent, max_lifetime_spawns, optional token/cost ceilings) with record_usage decrement seam. (F) ONE spawn path + session registry (one session per ModelInstanceId, idle/terminal eviction, permit released on handle drop); coordinator owns ledger START/STOP symmetry. (G) no std Mutex guard held across .await (clippy await_holding_lock clean); no lock-ordering deadlock. (H) observable lifecycle via SwarmEventSink trait -> FlightRecorder; FR-EVT-SWARM-* kept as a self-contained SwarmFrEventId table because the canonical FrEventId enum is .GOV-locked with a CI alignment test. Non-contract governance follow-on: fold SWARM ids into the .GOV FR registry when registry ownership is opened; do not treat this note as an undeclared MT. FOLLOW-ON WIRING (separate MTs): MT-204 ModelRuntimeState multi-instance + production ModelSessionFactory (real CandleRuntime load + record_spawn + teardown=detach/drop); MT-205 Tauri swarm commands + SwarmControlRoom UI + operator chat box + model spin-up (local+cloud); MT-206 local-vs-cloud routing policy (classifier->tier->escalation + per-provider breaker); MT-207 teacher/student distillation parallel (spec 9) on the coordinator.",
+  "proof_commands": [
+    "cargo test -p handshake_core --lib --target-dir ../Handshake_Artifacts/handshake-cargo-target swarm_orchestration",
+    "cargo check -p handshake_core --lib --features candle-runtime-engine --target-dir ../Handshake_Artifacts/handshake-cargo-target"
+  ],
+  "risk_if_missed": "Without a durable hardened coordinator, the product cannot run local models for smaller tasks nor swarm local+cloud models in parallel (the WP's core intent + spec 4.3.9 + distillation), and any ad-hoc parallelism risks orphan processes, runaway loops, model leaks, and fleet-wide retry budget burn.",
+  "validator_focus": "Spec-Realism: the coordinator does REAL orchestration; tests use a real ModelRuntime-implementing controllable worker (not a result-faking mock). Verify the 8 adversarial-review defects (D1 unload/teardown actually frees the model; D2 atomic dedup no-orphan; D3 breaker gates the factory; C4 breaker heals; C5 budget+map pruning; C6 cancel event ordering; C7 START/STOP symmetry) are each closed with a test that fails without the fix. No mocks/placeholders. .GOV FR registry untouched.",
+  "hbr_obligations": ["HBR-SWARM-001", "HBR-SWARM-002", "HBR-INT-002"],
+  "spec_anchors": [
+    ".GOV/spec/SPEC_CURRENT.md#04-llm-infrastructure",
+    "04-llm-infrastructure.md#4.3.9",
+    "05-security-and-observability.md#5.2.6",
+    "09-continuous-local-skill-distillation.md"
+  ],
+  "acceptance_criteria_refs": ["AC-SWARM-HARNESS-N8", "AC-SWARM-HARNESS-INVARIANTS", "AC-MULTI-MODEL-PARALLEL"],
+  "lifecycle": {
+    "active": false,
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "PENDING",
+    "integration_validator_verdict": "PENDING",
+    "depends_on": ["MT-202"],
+    "blocks": ["MT-204", "MT-205", "MT-206", "MT-207"],
+    "claimed_by": "KERNEL_BUILDER-20260530-054956",
+    "claimed_at_utc": "2026-05-30T22:00:00Z",
+    "completed_by": null,
+    "ready_for_validation_by": "GOVERNANCE-REPAIR-WP-KERNEL-004-20260601",
+    "ready_for_validation_at_utc": "2026-06-01T22:28:00Z",
+    "ready_for_validation_reason": "Existing committed implementation evidence is present and a KB_READY_CHECKLIST_RECEIPT PASS was emitted during governance repair; validator review remains pending.",
+    "kb_ready_checklist_receipt_ref": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl#MT-203@2026-06-01T22:27:05.694Z",
+    "handoff_receipt_ref": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/RECEIPTS.jsonl#KERNEL004-MT203-RFV-HANDOFF-20260601",
+    "implementation_evidence": {
+      "implemented_by": "KERNEL_BUILDER-20260530-054956 (delegated build sub-agent af1a4aa80edf5a4db + fix sub-agent aa8ef56e9acce8283, KB-reviewed)",
+      "adversarial_review": "sub-agent a38aa3fb8e0febeae found 3 confirmed defects (D1 unload-leak, D2 dedup-orphan, D3 breaker-not-gating) + concerns; all fixed and re-proven (each fix negative-checked: fails without fix, passes with it).",
+      "proof": "cargo test -p handshake_core --lib swarm_orchestration: 25 passed/0 failed (incl 7 orchestration-invariant proofs + 6 defect-fix proofs). cargo check --lib default + --features candle-runtime-engine: clean. fr_event_registry_tests: 17 passed (.GOV registry intact).",
+      "commit_sha": "2a4b1a66",
+      "readiness_note": "Governance repair transitioned MT-203 from CLAIMED to READY_FOR_VALIDATION on 2026-06-01 after emitting KB_READY_CHECKLIST_RECEIPT PASS. This is Kernel Builder handoff readiness only; Integration Validator verdict remains PENDING. Follow-on MTs 204-207 carry the production factory + wiring + UI + routing + distillation."
+    }
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Coordinator uses a REAL ModelRuntime-implementing worker in tests (no result-faking mock); peak concurrency measured under real multi-thread JoinSet.",
+      "terminate AND lease-expiry actually invoke teardown that frees the model (D1) -- proven a model id is unloaded, not just cancelled.",
+      "Concurrent same-instance spawn yields no orphan ledger START (D2) -- START count == STOP count under race.",
+      "Open breaker suppresses BEFORE factory.create (D3) -- factory create-call counter does not increment while suppressed.",
+      "No std Mutex guard across .await; no unbounded map growth (breaker + respawn maps pruned).",
+      ".GOV/ FR_EVENT_REGISTRY untouched; alignment test green."
+    ]
+  }
+}

@@ -1,0 +1,117 @@
+{
+  "artifact_policy": {
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ],
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "model_created_markdown_authority_allowed": false,
+    "operator_facing_authority": false,
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND"
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-005/MT-133.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-005/MT-133.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-005/packet.json"
+  },
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": null,
+  "handoff": {
+    "coder_session": "KB-KERNEL-005-CLOSEOUT",
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": null
+  },
+  "lifecycle": {
+    "active": true,
+    "blocks": [],
+    "depends_on": [
+      "MT-132"
+    ],
+    "status": "VALIDATED_V3",
+    "validator_verdict": "PASS_V3",
+    "claimed_by": "KB-KERNEL-005-CLOSEOUT",
+    "ready_for_validation_at_utc": "2026-06-11T00:45:46.539Z",
+    "ready_by": "KB-KERNEL-005-V3-REMEDIATION",
+    "integration_validation_v2": {
+      "verdict": "FAIL",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "MISSING",
+      "proof_validity": "MISSING",
+      "sr1": "NA",
+      "sr2": "NA",
+      "fail_category": "MISSING_KERNEL_DIAGNOSTICS",
+      "gap": "No diagnostics product-anchor matrix verifying the surfaces MT-133 names (sessions, command catalog, Workflow Engine, DCC, Locus, Flight Recorder, visual capture, build diagnostics); only pose/media/comfy MT-082 anchors exist. No test in unit covers it.",
+      "evidence": "src/atelier/source_evidence.rs:24,484 only POSE_MEDIA_ANCHOR_VERIFICATION_MATRIX (MT-082 scope, pose/media/comfy anchors); no diagnostics matrix builder; tests/atelier_source_evidence_tests.rs covers MT-001/002 core-data matrix only; MT-133.md CODER STATUS: PENDING."
+    },
+    "ready_for_validation_v3": true,
+    "completed_by": "INTEGRATION_VALIDATOR-20260611-033732",
+    "completed_at_utc": "2026-06-11T05:17:17.690Z",
+    "integration_validation_v3": {
+      "verdict": "PASS_V3",
+      "round": "v3",
+      "at_utc": "2026-06-11T05:17:17.690Z",
+      "validator_session": "INTEGRATION_VALIDATOR-20260611-033732",
+      "impl_reality": "REAL",
+      "proof_validity": "STRONG",
+      "sr1": "PASS",
+      "sr2": "PASS",
+      "concern_resolved": null,
+      "evidence": "New kernel-diagnostics surface src/diagnostics/product_anchor_matrix.rs, matrix_id 'wp-kernel-005.kernel-diagnostics.anchor-verification@1', distinct from MT-082 pose/media/comfy matrix. Covers all 8 contract surfaces (sessions, command-catalog, workflow-engine, dcc, locus, flight-recorder, visual-capture, build-diagnostics). verify_kernel_diagnostics_anchor_matrix (202-292) re-checks every declared product path AND proof ref against the filesystem, downgrades missing anchors to BLOCKED_MISSING_ANCHOR. All 32 cited anchor+proof paths independently confirmed to exist. Proof: tests/atelier_kernel_diagnostics_anchor_tests.rs - verifies against real repo root, all 8 anchors Verified, persists via record_source_evidence_matrix into live PostgreSQL, re-reads, EventLedger verified_anchor_count=8/blocked=0; negative test: empty tempdir root downgrades all 8 to BLOCKED_MISSING_ANCHOR persisted with ledger evidence.",
+      "gap": "Anchor verification asserts path existence, not symbol-level checks - consistent with MT-082 precedent.",
+      "basis": "v3 adversarial per-MT review of remediated deliverable + runtime proof via full-crate managed-PG sweep and kernel-builder fresh-DB proof logs"
+    }
+  },
+  "markdown_projection": {
+    "generated_at_utc": "2026-06-04T17:06:21.308Z",
+    "generator": "wp-contract-import.mjs",
+    "path": ".GOV/task_packets/WP-KERNEL-005/MT-133.md",
+    "projection_hash": "3e8a0f446d873253",
+    "source_file": ".GOV/task_packets/WP-KERNEL-005/packet.json",
+    "source_hash": "fb03104353b64ff3",
+    "status": "GENERATED_IN_SYNC"
+  },
+  "mt_id": "MT-133",
+  "red_team": {
+    "minimum_controls": [
+      "Use contract-first identity and preserve projection hash."
+    ],
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "required": true,
+    "risks": [
+      "Imported MT contract may under-capture prose-only review or proof instructions."
+    ]
+  },
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "scope": {
+    "acceptance_criteria": [
+      "MT-133 [Model-Workflow-Diagnostics] Diagnostics Product Anchor Verification -- Verify Handshake product anchors for sessions",
+      "command catalog",
+      "Workflow Engine",
+      "DCC",
+      "Locus",
+      "Flight Recorder",
+      "visual capture",
+      "build diagnostics."
+    ],
+    "allowed_paths": [
+      "src/backend/handshake_core/src/kernel (action_catalog",
+      "diagnostics) + app DCC projections + ModelManual"
+    ],
+    "forbidden_paths": [],
+    "proof_targets": [
+      "cargo test + runtime proof vs PostgreSQL/EventLedger"
+    ],
+    "risk_if_missed": "CKC parity loss for Diagnostics Product Anchor Verification",
+    "summary": "MT-133 [Model-Workflow-Diagnostics] Diagnostics Product Anchor Verification -- Verify Handshake product anchors for sessions, command catalog, Workflow Engine, DCC, Locus, Flight Recorder, visual capture, build diagnostics."
+  },
+  "updated_at_utc": "2026-06-11T05:17:17.690Z",
+  "wp_id": "WP-KERNEL-005"
+}

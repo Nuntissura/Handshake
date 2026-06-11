@@ -1,0 +1,1711 @@
+{
+  "acceptance_matrix": {
+    "hbr": [],
+    "hbr_not_applicable": [],
+    "schema_version": 1
+  },
+  "artifact_policy": {
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ],
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "model_created_markdown_authority_allowed": false,
+    "operator_facing_authority": false,
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND"
+  },
+  "authority_files": {
+    "microtask_contract_glob": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-*.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json",
+    "packet_projection": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.md",
+    "refinement_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/refinement.json"
+  },
+  "base_wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T02:09:00Z",
+  "hbr": {
+    "not_applicable_overrides": [],
+    "tags_declared": []
+  },
+  "kernel004_extension_ref": "refinement.json kernel004_extension carries cluster_map, inference_technique_matrix (8 PRODUCTION + 1 SPEC_DEFERRED MoD), stub_fold_preservation_map (30 stubs), operator_decisions_locked (10 decisions), key_open_questions (9 RESOLVED), blockers (4 RESOLVED + 1 STILL_BLOCKING B-FEMS-V1-INTEGRATION-SURFACE non-signature-blocking), research_basis_plan (6 COMPLETED workstreams), foundation_in_main (KERNEL-001/002/003 + FEMS V1), hbr_enforcement_status. Packet.json does not duplicate; refinement.json is the deep contract authority surface.",
+  "lifecycle": {
+    "current_main_compatibility_baseline_sha": "82a7c9670e11b6c43072593d59e0886d8c163a03",
+    "current_main_compatibility_status": "COMPATIBLE",
+    "current_main_compatibility_verified_at_utc": "2026-06-11T02:13:15Z",
+    "integration_validator_of_record": "INTEGRATION_VALIDATOR [IV-20260604 main integration closeout]",
+    "integration_validator_phase2_record": {
+      "blocked_mts": 24,
+      "candidate_sha": "f0c6faf0d5bdb9600bed999a98b9bd2f06eb998d",
+      "classification": "INTEGRATION_VALIDATOR_PHASE2_POST_REMEDIATION_VERDICT",
+      "confirmed_blockers": 30,
+      "decisive_root_cause": "Features implemented at library/test/UI layer but NOT wired into the deployed production runtime/IPC path; unit tests pass via fake adapters the production load flow never calls. Same failure class as the original 27-MT reopen.",
+      "machine_record": "PHASE2_VERDICT.json",
+      "preserves_phase1": "hardening_report.json, REMEDIATION_INSTRUCTIONS.md, and per-MT integration_validator_review blocks UNCHANGED",
+      "remediation_brief": "PHASE2_REMEDIATION_INSTRUCTIONS.md",
+      "schema": "hsk.iv_phase2_verdict_pointer@1",
+      "topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1",
+      "validated_at_utc": "2026-05-30T00:00:00Z",
+      "validated_by": "INTEGRATION_VALIDATOR (Opus 4.8, 1M ctx) no-governance product-quality pass",
+      "verdict": "FAIL"
+    },
+    "integration_validator_verdict": "PASS",
+    "last_validator_signed_mt": {
+      "completed_at_utc": "2026-05-20T19:05:00Z",
+      "completed_by": "VALIDATOR-EXPLORE-MT127-20260520-AUTO",
+      "mt_id": "MT-127",
+      "note": "First MT in the 27-MT reopen set to reach validator-signed COMPLETED. WP-level hard_fail_open_blockers list still has 26 MTs in BLOCKED_ON_DEPENDENCY state; WP itself remains in hard-fail per operator decision until all 27 close."
+    },
+    "latest_mt079_supporting_evidence": {
+      "adjacent_green_checks": [
+        "kernel_flight_recorder_tests exit 0",
+        "llama_cpp_generate_tests native exit 0",
+        "llama_cpp_score_embed_tests native exit 0",
+        "llama_cpp_lora_tests native exit 0",
+        "fr_event_registry lib filter exit 0"
+      ],
+      "authoritative_integration_validator_pass": false,
+      "classification": "IMPLEMENTATION_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+      "contract_scoped_proof": {
+        "command": "cargo test -p handshake_core --target-dir D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target --test llama_cpp_perf_stats_tests -- --nocapture",
+        "exit_code": 0,
+        "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt079-post-hardening-contract-proof-scoped-20260522-001.log",
+        "note": "3 passed, 0 failed. The literal packet command without --test hit a rustc ICE while compiling unrelated integration tests."
+      },
+      "focused_native_perf_stats": {
+        "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features llama-cpp-runtime-engine --test llama_cpp_perf_stats_tests -- --nocapture",
+        "exit_code": 0,
+        "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt079-post-hardening-perf-stats-native-20260522-001.log",
+        "note": "4 passed, 0 failed."
+      },
+      "integration_validator_status": "PENDING",
+      "mt_ids": [
+        "MT-079"
+      ],
+      "recorded_at_utc": "2026-05-22T06:54:10.3080687Z",
+      "recorded_by": "KERNEL_BUILDER-20260522-055512",
+      "residual_risks": [
+        "No Integration Validator has reviewed MT-079.",
+        "Only START/TOKEN/END generation emission is wired; LORA/KV/CANCEL/CAPS IDs are registered but broader emission hooks remain follow-up work.",
+        "llama_cpp_speculative_tests native has an adjacent env-gated residual failure with zero/missing draft rounds under the configured GGUF/prompt.",
+        "Umbrella gov-check remains red on broad HBR product/template/manual checks after MT-079 build-order/topology sync; build-order-check and topology-bundle-check are green."
+      ],
+      "summary": "MT-079 is locally implementation-ready for validation. LlamaCppRuntime now exposes per-model perf stats, generation updates stats from llama-cpp-2 timing APIs, and Flight Recorder emits START/TOKEN/END LLM inference events with v7 request IDs and sampled TOKEN telemetry. Raw prompt/token text is not persisted in MT-079 telemetry."
+    },
+    "latest_mt080_supporting_evidence": {
+      "adjacent_green_checks": [
+        "focused lib regressions exit 0: stale epoch stats guard + repeated-suffix ngram fixture",
+        "llama_cpp_speculative_tests exit 0: 12 passed",
+        "llama_cpp_kv_cache_tests exit 0: 5 passed",
+        "llama_cpp_perf_stats_tests exit 0: 4 passed",
+        "llama_cpp_generate_tests exit 0: 8 passed",
+        "llama_cpp_score_embed_tests exit 0: 6 passed",
+        "llama_cpp_lora_tests exit 0: 6 passed",
+        "llama_cpp_adapter_tests exit 0: 5 passed",
+        "llama_cpp_loader_tests exit 0: 6 passed",
+        "model_runtime_process_ledger_tests exit 0: 8 passed",
+        "rustfmt touched files exit 0; git diff --check touched files exit 0; README.json parse exit 0"
+      ],
+      "authoritative_integration_validator_pass": false,
+      "classification": "IMPLEMENTATION_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+      "contract_alignment_notes": [
+        "READY_FOR_VALIDATION is implementer handoff only; no Integration Validator has reviewed MT-080.",
+        "The old ledger-row unload phrase is not asserted as a fake row because current LlamaCppRuntime is in-process. The model-process ledger registrar remains covered by model_runtime_process_ledger_tests.",
+        "No real LoRA fixture was configured in this session; output-difference assertion is opt-in via HANDSHAKE_TEST_LORA_EXPECT_DIFFERENT for curated fixtures.",
+        "A broad filtered cargo command hit MSVC LNK1102 out-of-memory before --lib scoping; focused lib/test-binary commands are the recorded passing evidence."
+      ],
+      "focused_live_smoke": {
+        "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features llama-cpp-runtime-engine --test llama_cpp_e2e_smoke -- --ignored --nocapture",
+        "exit_code": 0,
+        "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt080-live-gguf-e2e-smoke-final-after-epoch-20260522-001.log",
+        "note": "1 passed, 0 failed. HANDSHAKE_TEST_LORA_PATH was absent, so the documented LoRA substep skipped."
+      },
+      "governance_checks": [
+        "ready receipt appended at 2026-05-22T08:57:52.580Z",
+        "build-order sync/check exit 0",
+        "gov-check --sync-topology exit 1 with build-order-check and topology-bundle-check green; remaining red checks are hbr-visual-smoke, hbr-inspector-smoke, hbr-swarm-n8, hbr-swarm-invariants, template-hbr-fields, hbr-man-003-scan"
+      ],
+      "guard_paths": [
+        "no env skip exit 0: D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt080-no-env-skip-after-epoch-20260522-001.log",
+        "native-disabled guard exit 0: D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt080-native-disabled-after-epoch-20260522-001.log"
+      ],
+      "integration_validator_status": "PENDING",
+      "mt_ids": [
+        "MT-080"
+      ],
+      "recorded_at_utc": "2026-05-22T08:46:21.1109751Z",
+      "recorded_by": "KERNEL_BUILDER-20260522-080601",
+      "summary": "MT-080 is READY_FOR_VALIDATION with supporting implementation evidence: env-gated live llama.cpp E2E smoke now covers load/capabilities/generate, optional LoRA skip, KV quantization and prefix replay, ngram speculative decoding with nonzero stats, score, embed, FR event leak checks, and unload fail-closed behavior. Runtime hardening fixed live ngram draft-limit collapse and protected last_speculative_stats from stale generation workers via generation epochs."
+    },
+    "latest_product_evidence_20260521": {
+      "artifact_root_policy_drift": [
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-004-fold-v1/Handshake_Artifacts",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-004-fold-v1/src/backend/Handshake_Artifacts"
+      ],
+      "authoritative_integration_validator_pass": false,
+      "classification": "IMPLEMENTATION_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+      "commands": [
+        {
+          "cargo_target_dir": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/cargo-target/wtc-kernel-004-fold-v1-lowmem",
+          "classification": "IMPLEMENTATION_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --jobs 2",
+          "exit_code": 0,
+          "exitcode_file": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/cargo-test-full-lowmem-20260521-0752.exitcode",
+          "finished_at_utc": "2026-05-21T08:01:41.2825726Z",
+          "id": "backend_full_cargo_test_lowmem",
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/cargo-test-full-lowmem-20260521-0752.log"
+        },
+        {
+          "cargo_target_dir": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/cargo-target/wtc-kernel-004-fold-v1-app-lowmem",
+          "classification": "IMPLEMENTATION_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+          "command": "cargo test --manifest-path app/src-tauri/Cargo.toml --jobs 2",
+          "exit_code": 0,
+          "exitcode_file": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/cargo-test-app-full-lowmem-20260521-0810.exitcode",
+          "finished_at_utc": "2026-05-21T08:04:10.0409632Z",
+          "id": "app_full_cargo_test_lowmem",
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/cargo-test-app-full-lowmem-20260521-0810.log"
+        },
+        {
+          "cargo_target_dir": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/cargo-target/wtc-kernel-004-fold-v1-lowmem",
+          "classification": "IMPLEMENTATION_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --jobs 2 --features test-utils --test memory_capsule_e2e_postgres_tests capsule_builder_injector_recorder_and_ipc_compose_over_real_postgres -- --ignored --exact",
+          "exit_code": 0,
+          "finished_at_utc": "2026-05-21T07:22:54.7052438Z",
+          "id": "memory_capsule_real_postgres_ignored",
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/focused-memory-capsule-postgres-20260521-0728.log"
+        },
+        {
+          "classification": "IMPLEMENTATION_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --jobs 2 --lib model_runtime::cloud::official_cli_bridge::tests::live_spawner_timeout_is_bounded_after_kill -- --exact",
+          "exit_code": 0,
+          "id": "focused_official_cli_timeout",
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/focused-official-cli-timeout-lib-20260521-0655.log"
+        },
+        {
+          "classification": "IMPLEMENTATION_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --jobs 2 --test model_manual_tests model_runtime_registration_manual_matches_catalog_action_and_marks_catalog_only -- --exact",
+          "exit_code": 0,
+          "id": "focused_model_manual_register",
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/focused-model-manual-register-20260521-0715.log"
+        },
+        {
+          "classification": "IMPLEMENTATION_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --jobs 2 --test swarm_cli_tests handshake_swarm_binary_executes_builtin_scenario_and_writes_report -- --exact",
+          "exit_code": 0,
+          "id": "focused_swarm_cli_binary",
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/focused-swarm-cli-binary-20260521-0719.log"
+        },
+        {
+          "classification": "IMPLEMENTATION_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --jobs 2 --test hbr_e2e_smoke_test",
+          "exit_code": 0,
+          "id": "focused_hbr_e2e_smoke",
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/focused-hbr-e2e-smoke-20260521-0720.log"
+        },
+        {
+          "classification": "IMPLEMENTATION_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+          "command": "cargo test --manifest-path app/src-tauri/Cargo.toml --jobs 2 foreground_warning_",
+          "exit_code": 0,
+          "id": "focused_app_foreground_warning",
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/focused-app-foreground-warning-20260521-0747.log"
+        },
+        {
+          "classification": "IMPLEMENTATION_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+          "command": "cargo test --manifest-path app/src-tauri/Cargo.toml --jobs 2 steering_register_vector_does_not_mutate_runtime_when_persistence_fails",
+          "exit_code": 0,
+          "id": "focused_app_steering_persist_before_runtime",
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/focused-app-steering-persist-before-runtime-20260521-0750.log"
+        },
+        {
+          "classification": "IMPLEMENTATION_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+          "command": "cargo fmt --manifest-path src/backend/handshake_core/Cargo.toml -- --check",
+          "exit_code": 0,
+          "id": "backend_fmt_check"
+        },
+        {
+          "classification": "IMPLEMENTATION_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+          "command": "cargo fmt --manifest-path app/src-tauri/Cargo.toml -- --check",
+          "exit_code": 0,
+          "id": "app_fmt_check"
+        },
+        {
+          "classification": "IMPLEMENTATION_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+          "command": "git diff --check",
+          "exit_code": 0,
+          "id": "product_git_diff_check",
+          "note": "Only line-ending conversion warnings were emitted; no whitespace errors."
+        },
+        {
+          "classification": "IMPLEMENTATION_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+          "command": "docker ps -a --format \"{{.Names}} {{.Status}}\" | Select-String -Pattern \"handshake|hbr|memory_capsule|kernel\"",
+          "exit_code": 0,
+          "id": "docker_residue_check",
+          "note": "No leaked WP test containers found; only existing handshake_main-postgres-1 was listed."
+        },
+        {
+          "classification": "GOVERNANCE_VERIFICATION_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+          "command": "HANDSHAKE_ACTIVE_REPO_ROOT=D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-004-fold-v1 just gov-check",
+          "exit_code": 0,
+          "finished_at_utc": "2026-05-21T08:45:00Z",
+          "id": "gov_check_product_worktree",
+          "note": "Final non-sync gov-check passed after generated inventory/build-order/topology sync and HBR registry version assertion update; product checks used the WP product worktree, not handshake_main."
+        },
+        {
+          "classification": "IMPLEMENTATION_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test flight_recorder_span_tests -- --nocapture",
+          "exit_code": 0,
+          "exitcode_file": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/focused-mt196-flight-recorder-spans-20260521-0932.exitcode",
+          "id": "focused_mt196_flight_recorder_spans",
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/focused-mt196-flight-recorder-spans-20260521-0932.log"
+        },
+        {
+          "cargo_target_dir": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/cargo-target/wtc-kernel-004-fold-v1-lowmem",
+          "classification": "IMPLEMENTATION_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --jobs 2",
+          "exit_code": 0,
+          "exitcode_file": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/cargo-test-backend-testutils-after-mt196-20260521-0945.exitcode",
+          "finished_at_utc": "2026-05-21T09:48:14.22Z",
+          "id": "backend_testutils_after_mt196",
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/cargo-test-backend-testutils-after-mt196-20260521-0945.log"
+        },
+        {
+          "classification": "IMPLEMENTATION_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+          "command": "cargo fmt --manifest-path src/backend/handshake_core/Cargo.toml --check",
+          "exit_code": 0,
+          "id": "backend_fmt_check_after_mt196"
+        },
+        {
+          "classification": "IMPLEMENTATION_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test abliteration_offline_invariant_tests -- --nocapture",
+          "exit_code": 0,
+          "exitcode_file": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/focused-mt108-abliteration-offline-invariant-final-20260521-141926.log.exitcode",
+          "id": "focused_mt108_offline_invariant_final",
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/focused-mt108-abliteration-offline-invariant-final-20260521-141926.log"
+        },
+        {
+          "classification": "IMPLEMENTATION_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_runtime_process_ledger_tests -- --nocapture",
+          "exit_code": 0,
+          "exitcode_file": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/focused-mt108-process-ledger-engine-kind-20260521-141618.log.exitcode",
+          "id": "focused_mt108_process_ledger_engine_kind",
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/focused-mt108-process-ledger-engine-kind-20260521-141618.log"
+        },
+        {
+          "classification": "IMPLEMENTATION_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test abliterate_review_tests --test abliterate_tool_tests --test abliteration_offline_invariant_tests --test model_registry_tests --test model_runtime_invariant_tests --test model_runtime_process_ledger_tests -- --nocapture",
+          "exit_code": 0,
+          "exitcode_file": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/targeted-mt108-adjacent-regression-refresh-20260521-143132.log.exitcode",
+          "id": "targeted_mt108_adjacent_regression_refresh",
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/targeted-mt108-adjacent-regression-refresh-20260521-143132.log",
+          "note": "36 passed; 0 failed."
+        },
+        {
+          "classification": "IMPLEMENTATION_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+          "command": "cargo fmt --manifest-path src/backend/handshake_core/Cargo.toml --check",
+          "exit_code": 0,
+          "exitcode_file": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/fmt-check-after-mt108-refresh-20260521-143653.log.exitcode",
+          "id": "backend_fmt_check_after_mt108_refresh",
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/fmt-check-after-mt108-refresh-20260521-143653.log"
+        }
+      ],
+      "dirty_worktree": true,
+      "dirty_worktree_porcelain_count": 313,
+      "integration_validator_status": "PENDING",
+      "latest_mt074_supporting_evidence": {
+        "cargo_target_dir": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/t",
+        "classification": "IMPLEMENTATION_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+        "focused_native_suite_exit_code": 0,
+        "focused_native_suite_log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt074-focused-native-suite-after-live-test-20260521-162405.log",
+        "live_generate_exit_code": 0,
+        "live_generate_log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt074-generate-tests-native-live-fixture-20260521-162238.log",
+        "native_compile_exit_code": 0,
+        "native_compile_log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt074-native-check-short-target-20260521-155706.log"
+      },
+      "latest_mt107_supporting_evidence": {
+        "fmt_check_exit_code": 0,
+        "fmt_check_log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/fmt-check-after-mt107-20260521-104357.log",
+        "focused_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test abliterate_review_tests -- --nocapture",
+        "focused_exit_code": 0,
+        "focused_log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/focused-mt107-abliterate-review-after-fmt-20260521-104425.log",
+        "full_backend_testutils_after_mt107": {
+          "classification": "INCONCLUSIVE_TIMEOUT_NOT_A_PASS",
+          "exit_code": null,
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/cargo-test-backend-testutils-after-mt107-20260521-104613.log"
+        },
+        "lib_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --lib distillation::abliterate_review -- --nocapture",
+        "lib_exit_code": 0,
+        "lib_log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/lib-mt107-abliterate-review-20260521-111247.log",
+        "targeted_command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test abliterate_review_tests --test distillation_content_review_tests --test abliterate_tool_tests -- --nocapture",
+        "targeted_exit_code": 0,
+        "targeted_log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/targeted-mt107-adjacent-regression-20260521-110808.log"
+      },
+      "latest_mt108_supporting_evidence": {
+        "classification": "IMPLEMENTATION_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+        "fmt_check_exit_code": 0,
+        "fmt_check_log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/fmt-check-after-mt108-refresh-20260521-143653.log",
+        "focused_invariant_exit_code": 0,
+        "focused_invariant_log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/focused-mt108-abliteration-offline-invariant-final-20260521-141926.log",
+        "focused_process_ledger_exit_code": 0,
+        "focused_process_ledger_log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/focused-mt108-process-ledger-engine-kind-20260521-141618.log",
+        "targeted_refresh_exit_code": 0,
+        "targeted_refresh_log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/targeted-mt108-adjacent-regression-refresh-20260521-143132.log",
+        "targeted_refresh_note": "36 passed across MT-106/107/108 adjacent runtime and review surfaces."
+      },
+      "note": "MT-074 native llama.cpp blocker clearance and MT-108 focused proofs are supporting implementation evidence only. They do not constitute authoritative Integration Validator PASS.",
+      "operator_mt_review_status": "DEFERRED_NOT_CURRENT_SESSION_FOCUS",
+      "operator_product_vs_master_spec_review_status": "DEFERRED_NOT_CURRENT_SESSION_FOCUS",
+      "product_branch": "feat/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+      "product_head_sha": "deda70e6c31799b298afc562a57f04adcc160967",
+      "recorded_at_utc": "2026-05-21T14:26:06.604Z",
+      "resource_notes": [
+        {
+          "classification": "ENVIRONMENT_RESOURCE_FAILURE_NOT_PRODUCT_TEST_FAILURE",
+          "failed_log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/focused-official-cli-timeout-20260521-0649.log",
+          "observed_at_utc": "2026-05-21T06:52:25Z",
+          "summary": "A first focused cargo attempt using default integration-test fan-out failed with Windows paging-file exhaustion (os error 1455); rerun used --lib/--jobs 2 and a fresh lowmem target dir successfully."
+        }
+      ]
+    },
+    "main_containment_status": "CONTAINED_IN_MAIN",
+    "main_containment_verified_at_utc": "2026-06-11T02:13:15Z",
+    "merged_main_commit": "82a7c9670e11b6c43072593d59e0886d8c163a03",
+    "mt074_native_toolchain_blocker_cleared_20260521": {
+      "authoritative_integration_validator_pass": false,
+      "blocker_cleared": "HOST_NATIVE_LLAMA_CPP_TOOLCHAIN",
+      "classification": "IMPLEMENTATION_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+      "next_dependency_targets_for_mt109": [
+        "MT-075",
+        "MT-076",
+        "MT-077",
+        "MT-090",
+        "MT-093"
+      ],
+      "recorded_at_utc": "2026-05-21T14:26:06.604Z",
+      "recorded_by": "KERNEL_BUILDER-20260521-132803",
+      "remaining_wp_status": "In Progress",
+      "summary": "LLVM/libclang and CMake are installed/configured; native llama.cpp compile and focused native tests pass when CARGO_TARGET_DIR is kept short under Handshake_Artifacts."
+    },
+    "next_id": "MT-207",
+    "next_id_note": "Remediation 2026-06-02: MT-204, MT-205, and MT-206 are READY_FOR_VALIDATION with current focused proof and KB_READY_CHECKLIST/handoff receipts; MT-207 remains the next claimable follow-on for persistent VM warm streaming, restored-snapshot warm-start, and distillation trace capture. This is Kernel Builder handoff state only, not an Integration Validator pass.",
+    "operator_clarification_20260521": {
+      "artifact_root_cleanup_20260522": {
+        "operator_authorized": "surgical delete authorized by operator after MT-091 post-commit hook surfaced artifact-hygiene warning",
+        "rationale": "Both paths were build-artifact leakage from prior sessions running cargo without CARGO_TARGET_DIR set to the external sibling root. Both were git-ignored (.gitignore:51) and held zero tracked files. Cargo will rebuild into CARGO_TARGET_DIR (../Handshake_Artifacts/handshake-cargo-target) on the next test run.",
+        "recorded_at_utc": "2026-05-22T20:00:00Z",
+        "recorded_by": "KERNEL_BUILDER-20260522-171100",
+        "removed_paths": [
+          "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-004-fold-v1/src/backend/Handshake_Artifacts",
+          "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-004-fold-v1/Handshake_Artifacts"
+        ],
+        "size_freed_mb": 52677.82,
+        "tracked_files_removed": 0,
+        "verification": "Post-delete: both paths absent; gov_kernel worktree was already clean; no git status delta."
+      },
+      "current_focus": "Keep product proof and governance state current. Full operator MT review and product-code versus master-spec review are deferred and not current-session focus.",
+      "latest_app_cargo_proof": {
+        "classification": "PRODUCT_TEST_PROOF_SUPPORTING_EVIDENCE_ONLY_NOT_IV_PASS",
+        "command": "cargo test --manifest-path app/src-tauri/Cargo.toml --jobs 2",
+        "exit_code": 0,
+        "exitcode_file": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/cargo-test-app-full-lowmem-20260521-0810.exitcode",
+        "finished_at_utc": "2026-05-21T08:04:10.0409632Z",
+        "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/cargo-test-app-full-lowmem-20260521-0810.log"
+      },
+      "latest_microtask_supporting_evidence": {
+        "authoritative_integration_validator_pass": false,
+        "classification": "IMPLEMENTATION_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+        "integration_validator_status": "PENDING",
+        "mt_ids": [
+          "MT-090"
+        ],
+        "proof": {
+          "adjacent_core": [
+            {
+              "exit_code": 0,
+              "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt090-model-runtime-lora-tests-20260522-001.log",
+              "note": "6 passed, 0 failed.",
+              "test": "model_runtime_lora_tests"
+            },
+            {
+              "exit_code": 0,
+              "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt090-llama-cpp-lora-tests-20260522-001.log",
+              "note": "6 passed, 0 failed in default/native-disabled path; env-gated live fixture steps returned early where no fixture env was set.",
+              "test": "llama_cpp_lora_tests"
+            },
+            {
+              "exit_code": 0,
+              "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt090-candle-lora-tests-20260522-001.log",
+              "note": "0 tests executed because the test file is cfg(feature = candle-runtime-engine); followed by feature-enabled run.",
+              "test": "candle_lora_tests default features"
+            },
+            {
+              "exit_code": 0,
+              "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt090-candle-lora-tests-feature-20260522-001.log",
+              "note": "6 passed, 0 failed.",
+              "test": "candle_lora_tests --features candle-runtime-engine"
+            },
+            {
+              "exit_code": 0,
+              "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt090-fr-event-registry-lib-20260522-001.log",
+              "note": "3 passed, 0 failed; FR-EVT-LLM-INFER-LORA-SWAP included in enum/registry round-trip.",
+              "test": "fr_event_registry lib filter"
+            }
+          ],
+          "focused_core": {
+            "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test lora_hotswap_techniques_tests -- --nocapture",
+            "exit_code": 0,
+            "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt090-core-lora-hotswap-techniques-20260522-002.log",
+            "note": "2 passed: public technique dispatch, fail-closed supports_lora gating, and FR swap registry round-trip."
+          },
+          "focused_tauri": {
+            "command": "cargo test --manifest-path app/src-tauri/Cargo.toml --target-dir D:/Projects/LLM projects/Handshake/Handshake_Artifacts/tauri-cargo-target lora_commands -- --nocapture",
+            "exit_code": 0,
+            "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt090-tauri-lora-commands-20260522-003.log",
+            "note": "5 passed: camelCase DTOs, settings.execPolicy.loraStack bridge, mount/list/swap/unmount dispatch, no-live-runtime typed error, invalid strength pre-mutation, declared supports_lora fail-closed."
+          },
+          "format_and_static_checks": {
+            "core_rustfmt": {
+              "command": "cargo fmt --manifest-path src/backend/handshake_core/Cargo.toml --check",
+              "exit_code": 0,
+              "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt090-core-rustfmt-check-20260522-001.log"
+            },
+            "diff_check": {
+              "command": "git diff --check",
+              "exit_code": 0,
+              "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt090-product-diff-check-20260522-001.log"
+            },
+            "tauri_rustfmt": {
+              "command": "cargo fmt --manifest-path app/src-tauri/Cargo.toml --check",
+              "exit_code": 0,
+              "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt090-tauri-rustfmt-check-20260522-001.log"
+            }
+          },
+          "governance_checks": {
+            "build_order_check": {
+              "command": "node .GOV/roles_shared/checks/build-order-check.mjs",
+              "exit_code": 0,
+              "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt090-build-order-check-20260522-001.log"
+            },
+            "build_order_sync": {
+              "command": "just build-order-sync",
+              "exit_code": 0,
+              "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt090-build-order-sync-20260522-001.log"
+            },
+            "json_validation": {
+              "command": "node -e JSON.parse(...) for MT-090.json, packet.json, RUNTIME_STATUS.json",
+              "exit_code": 0,
+              "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt090-json-parse-after-ready-20260522-001.log"
+            },
+            "topology_sync": {
+              "command": "just gov-check --sync-topology",
+              "exit_code": 1,
+              "failing_checks": [
+                "hbr-visual-smoke",
+                "hbr-inspector-smoke",
+                "hbr-swarm-n8",
+                "hbr-swarm-invariants",
+                "template-hbr-fields",
+                "hbr-man-003-scan"
+              ],
+              "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt090-gov-check-sync-topology-20260522-001.log",
+              "note": "Generated public-surface and governance-topology sync ran; build-order-check and topology-bundle-check are green. Umbrella gov-check remains red on six known broad HBR/template/manual checks outside MT-090 LoRA API scope."
+            }
+          },
+          "red_core": {
+            "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test lora_hotswap_techniques_tests -- --nocapture",
+            "exit_code": 101,
+            "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt090-red-core-lora-hotswap-techniques-20260522-001.log",
+            "note": "Initial red proof failed at the intended missing API boundary: model_runtime::techniques::lora_hotswap was absent."
+          },
+          "red_tauri_compile_attempt": {
+            "command": "cargo test --manifest-path app/src-tauri/Cargo.toml --target-dir D:/Projects/LLM projects/Handshake/Handshake_Artifacts/tauri-cargo-target lora_commands -- --nocapture",
+            "exit_code": 124,
+            "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt090-red-tauri-lora-commands-20260522-001.log",
+            "note": "Initial Tauri red compile attempt exceeded the local 5-minute command timeout before returning a compiler result; lingering cargo/rustc children were stopped before implementation continued."
+          }
+        },
+        "recorded_at_utc": "2026-05-22T10:14:26.5053688Z",
+        "recorded_by": "KERNEL_BUILDER-20260522-080601",
+        "residual_risks": [
+          "No Integration Validator has reviewed MT-090; this record is supporting evidence only.",
+          "Visual LoRA stack composer/save-as-Work-Profile UX remains MT-091 scope.",
+          "Cross-adapter parity and durable FR event-row emission validation remains MT-092 scope.",
+          "Out-of-MT-owned-file edits require operator waiver for this MT; prior build_rules waiver does not cover these files.",
+          "Umbrella gov-check --sync-topology remains red on six known broad HBR/template/manual checks outside MT-090; build-order and topology bundle checks are green."
+        ],
+        "summary": "MT-090 implemented public LoRA hot-swap technique wrappers, Tauri mount/unmount/swap/list commands, settings.execPolicy.loraStack IPC bridge, and FR-EVT-LLM-INFER-LORA-SWAP registry support. Focused core/Tauri tests and adjacent LoRA/FR checks pass."
+      },
+      "latest_mt075_supporting_evidence": {
+        "authoritative_integration_validator_pass": false,
+        "caveat": "Supporting implementation/test evidence only. Operator MT review and product-code versus master-spec review are deferred and not current-session focus.",
+        "classification": "IMPLEMENTATION_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+        "default_feature_compile": {
+          "command": "cargo check --manifest-path src/backend/handshake_core/Cargo.toml",
+          "exit_code": 0,
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt075-default-feature-check-disabled-llama-after-cancellation-import-20260521-184500.log",
+          "note": "Default disabled-native compile exits 0; remaining warnings are pre-existing crate noise outside MT-075 llama.cpp files.",
+          "phase": "DEFAULT_FEATURE_COMPILE"
+        },
+        "focused_native_suite": {
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features llama-cpp-runtime-engine --test llama_cpp_kv_cache_tests; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features llama-cpp-runtime-engine --test llama_cpp_generate_tests; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features llama-cpp-runtime-engine --test llama_cpp_loader_tests; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features llama-cpp-runtime-engine --test model_runtime_kv_cache_tests; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features llama-cpp-runtime-engine --test model_runtime_contract_tests",
+          "env": {
+            "CARGO_TARGET_DIR": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/t",
+            "HANDSHAKE_TEST_GGUF_PATH": "D:/Local Models/Novaciano/Nanopenis-68M_NSFW_RP-GGUF/Nanopenis-68M_NSFW_RP.gguf",
+            "LIBCLANG_PATH": "C:/Program Files/LLVM/bin"
+          },
+          "exit_code": 0,
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt075-focused-native-suite-after-cfg-cleanup-20260521-185500.summary.log",
+          "note": "kv_cache_exit_code=0, generate_exit_code=0, loader_exit_code=0, model_runtime_kv_cache_exit_code=0, model_runtime_contract_exit_code=0, overall_exit_code=0.",
+          "phase": "FOCUSED_NATIVE_SUITE"
+        },
+        "integration_validator_status": "PENDING",
+        "mt_ids": [
+          "MT-075"
+        ],
+        "recorded_at_utc": "2026-05-21T15:49:22.274Z",
+        "recorded_by": "KERNEL_BUILDER-20260521-132803",
+        "summary": "Implemented LlamaCppRuntime KV cache control with declared capability gating, q4/q8 context-param mapping for newly-created native contexts, quant-switch prefix invalidation, bounded prefix snapshot store with TTL/max-bytes LRU behavior, tamper/mismatched-prefix rejection, and env-gated native GGUF proof. This is supporting implementation/test evidence only; WP remains In Progress and Integration Validator PASS remains pending."
+      },
+      "latest_mt076_supporting_evidence": {
+        "authoritative_integration_validator_pass": false,
+        "caveat": "Supporting implementation/test/review evidence only. Operator MT review and product-code versus master-spec review are deferred and not current-session focus.",
+        "classification": "IMPLEMENTATION_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+        "final_default_feature_test": {
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test llama_cpp_lora_tests -- --nocapture",
+          "exit_code": 0,
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt076-default-feature-after-lifetime-fix-20260521.log",
+          "note": "6 passed, 0 failed. Confirms disabled-native/default feature path compiles and returns typed native-disabled behavior for load attempts.",
+          "phase": "FINAL_DEFAULT_FEATURE_TEST"
+        },
+        "final_focused_native_regression_suite": {
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features llama-cpp-runtime-engine --test llama_cpp_lora_tests --test llama_cpp_generate_tests --test llama_cpp_kv_cache_tests --test llama_cpp_adapter_tests --test llama_cpp_loader_tests -- --nocapture",
+          "env": {
+            "CARGO_TARGET_DIR": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/t",
+            "HANDSHAKE_TEST_GGUF_PATH": "D:/Local Models/Novaciano/Nanopenis-68M_NSFW_RP-GGUF/Nanopenis-68M_NSFW_RP.gguf",
+            "HANDSHAKE_TEST_LORA_PATH": "not set in this session; real LoRA mount/generate/drop negative tests are env-gated and returned early without a fixture",
+            "LIBCLANG_PATH": "C:/Program Files/LLVM/bin"
+          },
+          "exit_code": 0,
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt076-focused-llama-cpp-regression-after-lifetime-fix-20260521.log",
+          "note": "Focused llama.cpp LoRA/generate/KV-cache/adapter/loader regression command exits 0.",
+          "phase": "FINAL_FOCUSED_NATIVE_REGRESSION_SUITE"
+        },
+        "final_native_lora_test": {
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features llama-cpp-runtime-engine --test llama_cpp_lora_tests -- --nocapture",
+          "env": {
+            "CARGO_TARGET_DIR": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/t",
+            "HANDSHAKE_TEST_GGUF_PATH": "D:/Local Models/Novaciano/Nanopenis-68M_NSFW_RP-GGUF/Nanopenis-68M_NSFW_RP.gguf",
+            "HANDSHAKE_TEST_LORA_PATH": "not set in this session; real LoRA mount/generate/drop negative tests are env-gated and returned early without a fixture",
+            "LIBCLANG_PATH": "C:/Program Files/LLVM/bin"
+          },
+          "exit_code": 0,
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt076-native-lora-after-lifetime-fix-20260521.log",
+          "note": "6 passed, 0 failed. Real LoRA fixture-specific tests are env-gated and returned early because HANDSHAKE_TEST_LORA_PATH was not set in this session.",
+          "phase": "FINAL_NATIVE_LLAMA_CPP_LORA_TEST"
+        },
+        "integration_validator_status": "PENDING",
+        "mt_ids": [
+          "MT-076"
+        ],
+        "recorded_at_utc": "2026-05-21T17:36:38.583Z",
+        "recorded_by": "KERNEL_BUILDER-20260521-162633",
+        "residual_risks": [
+          "No Integration Validator has reviewed MT-076; this record must not be treated as an authoritative WP pass.",
+          "True multi-LoRA on llama.cpp is not implemented under the locked safe Rust wrapper. Supporting it later requires a wrapper patch/fork or a safe upstream API for llama_set_adapters_lora with multiple handles.",
+          "No real LoRA fixture was configured in this session. Native load/generate tests exercised a real GGUF model, but real LoRA mount/application/unload negative paths remain env-gated on HANDSHAKE_TEST_LORA_PATH.",
+          "FR-EVT-LLM-INFER-LORA-MOUNT / UNMOUNT emission is not wired in the current ModelRuntime LoRA surface; no existing model-runtime event hook was present to reuse during this MT. Validator should decide whether this belongs in a later event-ledger MT or requires reopening this scope.",
+          "Native adapter free relies on locked llama-cpp-2 0.1.146 layout knowledge. If the crate later adds Drop for LlamaLoraAdapter or changes representation, this manual free path must be revisited."
+        ],
+        "summary": "Implemented LlamaCppRuntime LoRA stack support for the current llama-cpp-2 0.1.146 safe wrapper: loaded llama.cpp models expose LoraStackOps, descriptor/base/sha/license validation runs before adapter activation, generation honors mounted lora_overrides on the per-request native context, unmounted overrides fail before decoding, KV-prefix plus LoRA is rejected because prefix handles are not LoRA-scoped, single active LoRA is enforced honestly, adapter lifetime is pinned to the owning native backend, and mount/unmount/swap do not restart the process. This is supporting implementation/test evidence only; WP remains In Progress and Integration Validator PASS remains pending.",
+        "supporting_reviews": [
+          {
+            "classification": "SUPPORTING_RESEARCH_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+            "reviewer_name": "Poincare",
+            "reviewer_session": "019e4b5c-7feb-7162-8ad9-6b56ec3d88ee",
+            "summary": "Confirmed locked llama-cpp-2 0.1.146 exposes only one safe LoRA adapter per context while upstream C supports multi-adapter arrays."
+          },
+          {
+            "classification": "SUPPORTING_REVIEW_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+            "reviewer_name": "Avicenna",
+            "reviewer_session": "019e4b74-1374-7812-9865-df6ff9a89873",
+            "summary": "Found KV-prefix/LoRA race, missing stack mutation single-LoRA enforcement, native adapter lifetime leak/free risk, and negative-test gaps. Final implementation added apply-time KV-prefix rejection, mount/swap single-LoRA enforcement, explicit adapter free, and expanded tests."
+          },
+          {
+            "classification": "SUPPORTING_REVIEW_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+            "reviewer_name": "Lagrange",
+            "reviewer_session": "019e4b8b-c423-78f2-a408-6313007a32bb",
+            "summary": "Found post-fix native adapter/model drop-order risk and mount precheck ordering issue. Final implementation makes NativeLoraAdapter retain the owning NativeLlamaCppBackend and rejects second active mounts before adapter load."
+          },
+          {
+            "classification": "SUPPORTING_GOVERNANCE_PATTERN_REVIEW_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+            "reviewer_name": "Leibniz",
+            "reviewer_session": "019e4b85-f41c-7141-8e87-0362cefa95e6",
+            "summary": "Confirmed the correct governance state for MT-076 is completed implementation evidence with validator_verdict and integration_validator_verdict still PENDING, and WP ready_for_validation remains false."
+          }
+        ]
+      },
+      "latest_mt077_supporting_evidence": {
+        "authoritative_integration_validator_pass": false,
+        "caveat": "Supporting implementation/test/contract-repair evidence only. MT-077 is locally completed for Kernel Builder with Integration Validator verdict still PENDING; no authoritative WP pass is implied.",
+        "classification": "IMPLEMENTATION_HARDENING_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+        "focused_hardening_suite": {
+          "exit_code": 0,
+          "logs": [
+            "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt077-red-draft-error-stats-20260522-002.log",
+            "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt077-green-draft-error-stats-20260522-001.log",
+            "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt077-live-speculative-after-hardening-20260522-001.log",
+            "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt077-live-generate-after-hardening-20260522-001.log",
+            "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt077-default-speculative-after-hardening-20260522-001.log",
+            "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt077-default-generate-after-hardening-20260522-001.log",
+            "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt077-fmt-check-after-hardening-20260522-001.log",
+            "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt077-model-runtime-process-ledger-after-hardening-20260522-001.log",
+            "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt077-active-placeholder-search-after-hardening-20260522-001.log",
+            "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt077-fr-spec-shape-green-20260522-001.log",
+            "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt077-fr-spec-native-emission-20260522-002.log",
+            "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt077-kernel-flight-recorder-tests-20260522-001.log",
+            "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt077-llama-cpp-speculative-native-full-20260522-001.log",
+            "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt077-llama-cpp-speculative-default-full-20260522-001.log",
+            "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt077-cargo-fmt-check-fr-spec-20260522-001.log",
+            "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt077-contract-repair-static-search-20260522-001.log",
+            "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt077-contract-repair-process-ledger-20260522-001.log",
+            "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt077-contract-repair-native-speculative-20260522-001.log",
+            "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt077-contract-repair-default-speculative-20260522-001.log",
+            "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt077-contract-repair-flight-recorder-20260522-001.log",
+            "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt077-contract-repair-fmt-check-20260522-001.log"
+          ],
+          "note": "MT-077 now has contract-repair evidence plus process-ledger, native/default speculative, FR schema, static-search, and fmt proofs. Earlier hardening logs remain recorded."
+        },
+        "integration_validator_status": "PENDING",
+        "mt_ids": [
+          "MT-077"
+        ],
+        "recorded_at_utc": "2026-05-22T03:50:03.115Z",
+        "recorded_by": "KERNEL_BUILDER-20260521-203846",
+        "residual_risks": [
+          "No Integration Validator has reviewed MT-077; this record must not be treated as an authoritative pass.",
+          "A real llama-server subprocess backend is not implemented in MT-077. Official llama.cpp docs expose speculative decoding through llama-server CLI/env/preset configuration; if Handshake wants that server-owned process architecture, it needs a separate dependency MT with SandboxAdapter spawn, START/STOP ledger rows, health checks, metrics/log capture, and request routing.",
+          "LlamaCppRuntime emits FR-EVT-LLM-INFER-SPEC-ACCEPT/REJECT only when a FlightRecorder is injected and a Tokio runtime handle is available. Mitigation: product call sites that require persistent observability must construct the runtime with a recorder.",
+          "GenerateRequest has no caller-supplied trace/correlation id, so speculative FR events currently use a runtime-minted generation trace_id. Mitigation: add a request trace field in a future observability MT if cross-surface correlation is required.",
+          "Separate-draft live proof remains env-gated on HANDSHAKE_TEST_DRAFT_GGUF_PATH; this host only proved same-GGUF draft-model and ngram paths with the configured local GGUF. Mitigation: configure a compatible distinct draft GGUF and rerun the native suite when available.",
+          "Draft tokenizer compatibility is checked per generation and may become expensive for large vocabularies. Mitigation: later cache a tokenizer compatibility fingerprint per loaded target/draft pair if profiling shows request-start overhead."
+        ],
+        "summary": "MT-077 is locally implementation-complete as supporting evidence, not Integration Validator PASS. The erroneous red-team LlamaCppServer ledger clause was repaired to match the current master/refinement architecture: LlamaCppRuntime wraps llama-cpp-2 in-process, draft-model speculation uses already-loaded in-process LlamaCppRuntime handles, and no fake ProcessOwnershipLedger rows are emitted. Fresh process-ledger, native/default speculative, FR schema, static search, and fmt evidence all exit 0."
+      },
+      "latest_mt078_supporting_evidence": {
+        "authoritative_integration_validator_pass": false,
+        "caveat": "Supporting implementation/test evidence only. MT-078 is ready for a fresh validator actor; no authoritative WP pass is implied.",
+        "classification": "IMPLEMENTATION_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+        "contract_drift": "The MT contract prose says total_logprob/model_id/dim, while live product types expose mean_logprob and vector-only embedding. Implementation follows live shared trait/types; this is recorded as contract drift for validator review.",
+        "default_feature_test": {
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test llama_cpp_score_embed_tests -- --nocapture",
+          "exit_code": 0,
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt078-green-score-embed-default-20260522-001.log",
+          "note": "1 passed, 0 failed; disabled-native compile path and missing-model errors remain typed/non-placeholder."
+        },
+        "focused_native_suite": {
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features llama-cpp-runtime-engine --test llama_cpp_score_embed_tests -- --nocapture",
+          "exit_code": 0,
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt078-green-score-embed-native-20260522-002.log",
+          "note": "6 passed, 0 failed against the configured local GGUF."
+        },
+        "integration_validator_status": "PENDING",
+        "mt_ids": [
+          "MT-078"
+        ],
+        "recorded_at_utc": "2026-05-22T05:05:03.578Z",
+        "recorded_by": "KERNEL_BUILDER-20260522-042856",
+        "regressions": [
+          {
+            "command": "cargo fmt --manifest-path src/backend/handshake_core/Cargo.toml --check",
+            "exit_code": 0,
+            "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt078-cargo-fmt-check-20260522-001.log"
+          },
+          {
+            "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features llama-cpp-runtime-engine --test llama_cpp_generate_tests -- --nocapture",
+            "exit_code": 0,
+            "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt078-regression-generate-native-20260522-001.log",
+            "note": "8 passed, 0 failed."
+          },
+          {
+            "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test llama_cpp_adapter_tests -- --nocapture",
+            "exit_code": 0,
+            "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt078-regression-adapter-default-20260522-001.log",
+            "note": "6 passed, 0 failed."
+          },
+          {
+            "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features llama-cpp-runtime-engine --test llama_cpp_adapter_tests -- --nocapture",
+            "exit_code": 0,
+            "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt078-regression-adapter-native-20260522-001.log",
+            "note": "5 passed, 0 failed."
+          }
+        ],
+        "residual_risks": [
+          "No Integration Validator has reviewed MT-078; READY_FOR_VALIDATION is an implementer handoff only.",
+          "Embedding proof uses the configured generative GGUF, so vector output is last output token hidden-state embedding when sequence pooling is unavailable. A dedicated embedding-model fixture remains a useful validator or later-MT hardening path.",
+          "Encoder-only embedding models were not live-validated in this session."
+        ],
+        "summary": "MT-078 LlamaCppRuntime score/embed implementation is READY_FOR_VALIDATION, not COMPLETED. score() now validates token ids, decodes source tokens, computes next-token log probabilities, and returns the live Score mean_logprob shape. embed() now decodes embedding-enabled contexts, returns deterministic finite vectors, and fails closed with CapabilityNotSupported when embeddings are disabled. Native crash hardening records that forcing Mean pooling and encode-first produced STATUS_ACCESS_VIOLATION on the configured generative GGUF; final implementation uses llama.cpp model-default pooling and last-token embedding fallback for generative models."
+      },
+      "latest_mt090_supporting_evidence": {
+        "authoritative_integration_validator_pass": false,
+        "classification": "IMPLEMENTATION_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+        "integration_validator_status": "PENDING",
+        "mt_ids": [
+          "MT-090"
+        ],
+        "proof": {
+          "adjacent_core": [
+            {
+              "exit_code": 0,
+              "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt090-model-runtime-lora-tests-20260522-001.log",
+              "note": "6 passed, 0 failed.",
+              "test": "model_runtime_lora_tests"
+            },
+            {
+              "exit_code": 0,
+              "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt090-llama-cpp-lora-tests-20260522-001.log",
+              "note": "6 passed, 0 failed in default/native-disabled path; env-gated live fixture steps returned early where no fixture env was set.",
+              "test": "llama_cpp_lora_tests"
+            },
+            {
+              "exit_code": 0,
+              "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt090-candle-lora-tests-20260522-001.log",
+              "note": "0 tests executed because the test file is cfg(feature = candle-runtime-engine); followed by feature-enabled run.",
+              "test": "candle_lora_tests default features"
+            },
+            {
+              "exit_code": 0,
+              "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt090-candle-lora-tests-feature-20260522-001.log",
+              "note": "6 passed, 0 failed.",
+              "test": "candle_lora_tests --features candle-runtime-engine"
+            },
+            {
+              "exit_code": 0,
+              "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt090-fr-event-registry-lib-20260522-001.log",
+              "note": "3 passed, 0 failed; FR-EVT-LLM-INFER-LORA-SWAP included in enum/registry round-trip.",
+              "test": "fr_event_registry lib filter"
+            }
+          ],
+          "focused_core": {
+            "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test lora_hotswap_techniques_tests -- --nocapture",
+            "exit_code": 0,
+            "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt090-core-lora-hotswap-techniques-20260522-002.log",
+            "note": "2 passed: public technique dispatch, fail-closed supports_lora gating, and FR swap registry round-trip."
+          },
+          "focused_tauri": {
+            "command": "cargo test --manifest-path app/src-tauri/Cargo.toml --target-dir D:/Projects/LLM projects/Handshake/Handshake_Artifacts/tauri-cargo-target lora_commands -- --nocapture",
+            "exit_code": 0,
+            "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt090-tauri-lora-commands-20260522-003.log",
+            "note": "5 passed: camelCase DTOs, settings.execPolicy.loraStack bridge, mount/list/swap/unmount dispatch, no-live-runtime typed error, invalid strength pre-mutation, declared supports_lora fail-closed."
+          },
+          "format_and_static_checks": {
+            "core_rustfmt": {
+              "command": "cargo fmt --manifest-path src/backend/handshake_core/Cargo.toml --check",
+              "exit_code": 0,
+              "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt090-core-rustfmt-check-20260522-001.log"
+            },
+            "diff_check": {
+              "command": "git diff --check",
+              "exit_code": 0,
+              "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt090-product-diff-check-20260522-001.log"
+            },
+            "tauri_rustfmt": {
+              "command": "cargo fmt --manifest-path app/src-tauri/Cargo.toml --check",
+              "exit_code": 0,
+              "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt090-tauri-rustfmt-check-20260522-001.log"
+            }
+          },
+          "governance_checks": {
+            "build_order_check": {
+              "command": "node .GOV/roles_shared/checks/build-order-check.mjs",
+              "exit_code": 0,
+              "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt090-build-order-check-20260522-001.log"
+            },
+            "build_order_sync": {
+              "command": "just build-order-sync",
+              "exit_code": 0,
+              "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt090-build-order-sync-20260522-001.log"
+            },
+            "json_validation": {
+              "command": "node -e JSON.parse(...) for MT-090.json, packet.json, RUNTIME_STATUS.json",
+              "exit_code": 0,
+              "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt090-json-parse-after-ready-20260522-001.log"
+            },
+            "topology_sync": {
+              "command": "just gov-check --sync-topology",
+              "exit_code": 1,
+              "failing_checks": [
+                "hbr-visual-smoke",
+                "hbr-inspector-smoke",
+                "hbr-swarm-n8",
+                "hbr-swarm-invariants",
+                "template-hbr-fields",
+                "hbr-man-003-scan"
+              ],
+              "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt090-gov-check-sync-topology-20260522-001.log",
+              "note": "Generated public-surface and governance-topology sync ran; build-order-check and topology-bundle-check are green. Umbrella gov-check remains red on six known broad HBR/template/manual checks outside MT-090 LoRA API scope."
+            }
+          },
+          "red_core": {
+            "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test lora_hotswap_techniques_tests -- --nocapture",
+            "exit_code": 101,
+            "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt090-red-core-lora-hotswap-techniques-20260522-001.log",
+            "note": "Initial red proof failed at the intended missing API boundary: model_runtime::techniques::lora_hotswap was absent."
+          },
+          "red_tauri_compile_attempt": {
+            "command": "cargo test --manifest-path app/src-tauri/Cargo.toml --target-dir D:/Projects/LLM projects/Handshake/Handshake_Artifacts/tauri-cargo-target lora_commands -- --nocapture",
+            "exit_code": 124,
+            "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt090-red-tauri-lora-commands-20260522-001.log",
+            "note": "Initial Tauri red compile attempt exceeded the local 5-minute command timeout before returning a compiler result; lingering cargo/rustc children were stopped before implementation continued."
+          }
+        },
+        "recorded_at_utc": "2026-05-22T10:14:26.5053688Z",
+        "recorded_by": "KERNEL_BUILDER-20260522-080601",
+        "residual_risks": [
+          "No Integration Validator has reviewed MT-090; this record is supporting evidence only.",
+          "Visual LoRA stack composer/save-as-Work-Profile UX remains MT-091 scope.",
+          "Cross-adapter parity and durable FR event-row emission validation remains MT-092 scope.",
+          "Out-of-MT-owned-file edits require operator waiver for this MT; prior build_rules waiver does not cover these files.",
+          "Umbrella gov-check --sync-topology remains red on six known broad HBR/template/manual checks outside MT-090; build-order and topology bundle checks are green."
+        ],
+        "summary": "MT-090 implemented public LoRA hot-swap technique wrappers, Tauri mount/unmount/swap/list commands, settings.execPolicy.loraStack IPC bridge, and FR-EVT-LLM-INFER-LORA-SWAP registry support. Focused core/Tauri tests and adjacent LoRA/FR checks pass."
+      },
+      "latest_mt091_supporting_evidence": {
+        "authoritative_integration_validator_pass": false,
+        "classification": "IMPLEMENTATION_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+        "contract_drift": [
+          "Owned files listed Svelte components; app stack is React/TSX. Implemented as TSX + a new IPC binding (React hooks subsume the Svelte store role).",
+          "Proof command listed `pnpm run typecheck` which does not exist in app/package.json; substituted with `pnpm exec tsc --noEmit`.",
+          "Proof command listed Playwright; inference_lab test pattern is Vitest + @testing-library/react. Implemented as Vitest unit tests covering the minimum_controls and adversarial scenarios."
+        ],
+        "integration_validator_status": "PENDING",
+        "mt_ids": [
+          "MT-091"
+        ],
+        "proof": {
+          "cargo_core_regression": {
+            "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test lora_hotswap_techniques_tests -- --nocapture",
+            "exit_code": 0,
+            "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt091-cargo-core-lora-techniques-20260522-001.log",
+            "note": "2/2 passed."
+          },
+          "cargo_tauri_regression": {
+            "command": "cargo test --manifest-path app/src-tauri/Cargo.toml lora_commands -- --nocapture",
+            "exit_code": 0,
+            "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt091-cargo-tauri-lora-commands-20260522-001.log",
+            "note": "5/5 passed."
+          },
+          "focused_vitest": {
+            "command": "pnpm exec vitest run LoraStackComposer --reporter=verbose",
+            "exit_code": 0,
+            "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt091-vitest-lora-stack-composer-20260522-002.log",
+            "note": "19/19 passed."
+          },
+          "frontend_typecheck": {
+            "command": "pnpm exec tsc --noEmit",
+            "exit_code": 0,
+            "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt091-tsc-noemit-20260522-003.log"
+          },
+          "full_vitest": {
+            "command": "pnpm test",
+            "exit_code": 0,
+            "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt091-vitest-full-suite-20260522-001.log",
+            "note": "63/63 across 15 files. No regression from LoraStackComposer / InferenceLab integration."
+          }
+        },
+        "recorded_at_utc": "2026-05-22T19:35:00Z",
+        "recorded_by": "KERNEL_BUILDER-20260522-171100",
+        "residual_risks": [
+          "No Integration Validator has reviewed MT-091; this record is supporting evidence only.",
+          "AC-INFER-LAB-UI-AB-COMPARE not implemented — requires a generation IPC + A/B side-panel UI in a follow-up MT.",
+          "Mount-from-disk requires the operator to paste sha256 by hand. Backend hashing helper IPC is a deferred follow-up.",
+          "Mount-from-disk generates a fresh LoRA ID client-side; LoRA-catalog IPC is a deferred follow-up.",
+          "Descriptor cache lives in component state; LoRAs persisted across app restart render with 'Descriptor unavailable' until re-mounted. Could be eliminated by a backend lora_list IPC that returns full descriptors.",
+          "Drag-to-reorder uses HTML5 native drag events; Vitest exercises the JS event path. Real DOM (touch, a11y) coverage via Playwright remains deferred.",
+          "Umbrella gov-check --sync-topology remains red on six known broad HBR/template/manual checks (inherited from MT-090); not touched by MT-091.",
+          "Out-of-MT-owned-file edit: app/src/lib/ipc/lora.ts. Operator waiver requested for this MT (see MT-091.json implementation_record.out_of_scope_self_evaluation)."
+        ],
+        "summary": "MT-091 implemented the LoRA stack composer surface as a React TSX component (contract said Svelte; same Svelte->TSX defect class as MT-098/102/105/124). Backed by a new app/src/lib/ipc/lora.ts IPC binding wrapping kernel_model_runtime_lora_{mount,unmount,swap,list} with camelCase DTOs and client-side strength range validation. Composer renders only when capabilities.supportsLora === true (hidden, not greyed), shows an ordered list with per-row license badge, strength slider 0..2 step 0.05, unmount button, drag-to-reorder via HTML5 native drag events, a mount-from-disk dialog (Tauri plugin-dialog file picker + descriptor form), and a Save-as-Work-Profile button. All mutations dispatch through the MT-090 Tauri commands, which preflight ModelRuntimeState.lora_command_binding via KernelActionCatalogV1."
+      },
+      "latest_mt092_supporting_evidence": {
+        "authoritative_integration_validator_pass": false,
+        "classification": "IMPLEMENTATION_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+        "integration_validator_status": "PENDING",
+        "mt_ids": [
+          "MT-092"
+        ],
+        "proof": {
+          "fmt_check": {
+            "command": "cargo fmt --manifest-path src/backend/handshake_core/Cargo.toml --check",
+            "exit_code": 0,
+            "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt092-cargo-fmt-check-20260522-003.log"
+          },
+          "focused_cargo": {
+            "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test inf1_lora_parity_tests -- --nocapture",
+            "exit_code": 0,
+            "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt092-cargo-inf1-lora-parity-final-20260522-001.log",
+            "note": "5/5 passed."
+          },
+          "regression_lora_hotswap": {
+            "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test lora_hotswap_techniques_tests -- --nocapture",
+            "exit_code": 0,
+            "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt092-regression-lora-hotswap-techniques-20260522-001.log",
+            "note": "2/2 passed."
+          }
+        },
+        "recorded_at_utc": "2026-05-22T20:35:00Z",
+        "recorded_by": "KERNEL_BUILDER-20260522-171100",
+        "residual_risks": [
+          "No Integration Validator has reviewed MT-092.",
+          "Real-runtime qualitative output divergence (output differs from base) requires operator-supplied LoRA fixtures; env-gated branches currently only verify the public surface dispatches without panic.",
+          "Umbrella gov-check failures inherited from MT-090/091 remain (not touched)."
+        ],
+        "summary": "MT-092 added inf1_lora_parity_tests.rs (5/5 tests passing) covering FR-EVT-LLM-INFER-LORA-* event_type parity across LlamaCpp+Candle, byte-for-byte LoraDescriptor (license_tag included) round-trip, CapabilityNotSupported fail-closed on both adapters, base_model_compat mismatch rejected uniformly, plus env-gated real-runtime smoke paths for both adapters. Always-on portion runs without external fixtures via two adapter-tagged ParityRuntime fakes (mirrors the production RuntimeBinding enum)."
+      },
+      "latest_mt093_supporting_evidence": {
+        "authoritative_integration_validator_pass": false,
+        "classification": "IMPLEMENTATION_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+        "integration_validator_status": "PENDING",
+        "mt_ids": [
+          "MT-093"
+        ],
+        "out_of_scope_files_for_waiver": [
+          "src/backend/handshake_core/src/model_runtime/kv_cache.rs",
+          "src/backend/handshake_core/src/model_runtime/llama_cpp/adapter.rs",
+          "src/backend/handshake_core/src/model_runtime/candle/state_vector.rs",
+          "src/backend/handshake_core/src/model_runtime/techniques/mod.rs",
+          "src/backend/handshake_core/src/flight_recorder/events_llm_infer.rs",
+          "src/backend/handshake_core/src/flight_recorder/fr_event_registry.rs",
+          "app/src-tauri/src/commands/model_runtime.rs"
+        ],
+        "proof": {
+          "core_focused": {
+            "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test kv_cache_technique_tests -- --nocapture",
+            "exit_code": 0,
+            "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt093-cargo-kv-cache-technique-tests-20260522-001.log",
+            "note": "9/9 passed."
+          },
+          "regression_final_sweep": {
+            "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test kv_cache_technique_tests --test model_runtime_kv_cache_tests --test inf1_lora_parity_tests --test lora_hotswap_techniques_tests",
+            "exit_code": 0,
+            "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt093-cargo-final-kv-tests-20260522-002.log",
+            "note": "9+5+5+2 passed."
+          },
+          "tauri_focused": {
+            "command": "cargo test --manifest-path app/src-tauri/Cargo.toml kv_cache::tests -- --nocapture",
+            "exit_code": 0,
+            "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt093-cargo-tauri-kv-cache-tests-20260522-001.log",
+            "note": "6/6 passed."
+          }
+        },
+        "recorded_at_utc": "2026-05-22T21:35:00Z",
+        "recorded_by": "KERNEL_BUILDER-20260522-171100",
+        "residual_risks": [
+          "No Integration Validator has reviewed MT-093.",
+          "Real-runtime KV smoke through the new technique surface (LlamaCpp + Candle) is not exercised — MT-075 covers the LlamaCpp KvCacheOps surface directly via env-gated tests.",
+          "settings.execPolicy.kvCache.prefix_cache_ttl_seconds + max_bytes are surfaced in the IPC DTO; session-start policy application is owned by MT-094/095.",
+          "Umbrella gov-check failures inherited from MT-090/091/092 remain."
+        ],
+        "summary": "MT-093 lifts per-adapter KvCacheOps into the public ModelRuntime-level kv_cache_technique surface (5 ops + 4 FR events). Required foundational out-of-scope: KvCacheHandle::with_ops + UnsupportedKvCacheOps default + forwarding methods; LlamaCpp + Candle adapter wiring; 3 new FR registry variants; ModelRuntimeState::kv_cache_command_binding helper. Operator waiver requested. 9 core + 6 Tauri + 5+2+5+3 regression tests passing; cargo fmt clean on both manifests."
+      },
+      "latest_product_cargo_proof": {
+        "classification": "PRODUCT_TEST_PROOF_SUPPORTING_EVIDENCE_ONLY_NOT_IV_PASS",
+        "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --jobs 2",
+        "exit_code": 0,
+        "exitcode_file": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/cargo-test-full-lowmem-20260521-0752.exitcode",
+        "finished_at_utc": "2026-05-21T08:01:41.2825726Z",
+        "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/cargo-test-full-lowmem-20260521-0752.log"
+      },
+      "recorded_at_utc": "2026-05-21T06:01:37Z",
+      "summary": "Per operator clarification, previous kernel-builder subagent and per-MT PASS reports are supporting review/test evidence only. They are not an authoritative integration-validator pass for the WP."
+    },
+    "operator_waiver": {
+      "next_session_action_menu": "Future kernel_builder sessions may now reopen MT-068+MT-096 work for MT-098-105, install Python+implement MT-122, Candle-safetensors or LLVM for MT-106, modify MT-070/MT-069 for MT-144/145/146, full impl for MT-124-129+147. Each closure still honors Spec-Realism Gate + adversarial+validator authorship.",
+      "operator_authority": "OPERATOR (interactive chat directive)",
+      "recorded_at_utc": "2026-05-20T22:30:00Z",
+      "recorded_by": "KERNEL_BUILDER-20260520-AUTONOMOUS (acknowledging operator approvals delivered mid-session)",
+      "scope_at_waiver_time": "7 of 27 MTs COMPLETED (MT-127, MT-141, MT-142, MT-143, MT-120, MT-123, MT-121).",
+      "waived_constraints": [
+        "no_claims_outside_27_until_resolved=true is WAIVED for MT-068, MT-096, MT-069, MT-070 product-code modifications. Operator quote: scope expansion is approved and gets operator waiver.",
+        "Python host install AUTHORIZED for pip install peft transformers torch to unblock MT-122 PEFT pipeline.",
+        "Host install AUTHORIZED for either LLVM/libclang OR Candle-safetensors implementation path for MT-106 abliteration.",
+        "Substantial implementation work AUTHORIZED for MT-119, MT-121, MT-124, MT-125, MT-126, MT-128, MT-129, MT-147."
+      ],
+      "waiver_does_NOT_authorize": [
+        "Implementer self-certifying COMPLETED (Sub-rule 3 stands)",
+        "Skipping adversarial review (Phase 2 mandatory)",
+        "Asking for vendor API keys",
+        "Mock+impl+test self-certification anti-pattern"
+      ],
+      "waiver_kind": "SCOPE_EXPANSION_PLUS_INSTALL_AUTHORIZATIONS",
+      "wp_pass_path": "WP can WP_PASS only when all 27 are validator-signed COMPLETED. Waiver enables that path; does not declare WP_PASS itself."
+    },
+    "packet_format_version": "2026-04-06",
+    "packet_widening_decision": "NOT_REQUIRED",
+    "packet_widening_evidence": "N/A",
+    "ready_for_validation": false,
+    "ready_for_validation_reason": "Closed: product payload validated and integrated into handshake_main/main.",
+    "risk_tier": "HIGH",
+    "status": "Validated (PASS)",
+    "user_signature": "ilja180520260209",
+    "user_signature_evidence": "Operator provided signature in chat on 2026-05-18 after reviewing the REFINEMENT_HANDOFF_SUMMARY for KERNEL-004 (post-spec-v02.186 bump, all 9 KOQs resolved, 4 of 5 blockers resolved, B-FEMS-V1-INTEGRATION-SURFACE non-signature-blocking): ilja180520260209. Globally unique per CX-585C verification via Grep across .GOV and full repo (no prior matches).",
+    "validator_audit_summary": {
+      "audit_kind": "INTEGRATION_VALIDATOR_PHASE1_PRE_REMEDIATION",
+      "audited_at_utc": "2026-05-28T00:01:31.342Z",
+      "audited_by": "INTEGRATION_VALIDATOR (Opus 4.7) per operator goal 2026-05-27",
+      "by_verdict": {
+        "CONCERN": 52,
+        "FAIL": 19,
+        "PASS": 79,
+        "PENDING": 0
+      },
+      "findings_by_severity": {
+        "CRITICAL": 4,
+        "HIGH": 64,
+        "LOW": 181,
+        "MEDIUM": 114
+      },
+      "hardening_report_path": "hardening_report.json",
+      "mts_reviewed": 183,
+      "note": "Per operator stance, governance paperwork issues did NOT drive verdicts. Hardening report drives remediation. Phase 2 whole-product vs Master Spec pass is a separate follow-on session after remediation.",
+      "schema": "hsk.wp_validator_audit_summary@1"
+    },
+    "validator_verdict": "PASS",
+    "wp_hard_fail_cleared": {
+      "claim_reclassified_at_utc": "2026-05-21T06:01:37Z",
+      "claimed_cleared_at_utc": "2026-05-21T03:00:00Z",
+      "classification": "SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+      "closed_mt_count": 27,
+      "operator_actions_required_before_integration_validator_review": [
+        "Confirm scope deviations recorded by KERNEL_BUILDER per [GLOBAL-SCOPE-005]: (a) MT-128 Cargo.toml keyring features expanded to ['apple-native','windows-native','linux-native-sync-persistent','crypto-rust']; (b) MT-068+MT-096 backend modifications (operator pre-authorized via 2026-05-20T22:30Z waiver); (c) MT-070 LocalRouter modifications for MT-144 (operator pre-authorized via same waiver); (d) Python 3.11 + peft/transformers/torch install for MT-122 (operator pre-authorized).",
+        "Packet lifecycle status was reset to In Progress on 2026-05-21 per operator clarification. Integration Validator batch review is still required before any WP_PASS."
+      ],
+      "reported_by": "KERNEL_BUILDER-20260520-115519 (autonomous closure session)",
+      "summary": "The 27 reopened MT files currently record COMPLETED/PASS, and that is useful implementation review/test evidence. This does not close WP-KERNEL-004 and does not represent an authoritative integration-validator pass.",
+      "validator_sessions_recorded": {
+        "MT-098": "VALIDATOR-EXPLORE-MT098-REWORK-PASS-20260520-AUTO",
+        "MT-099": "VALIDATOR-EXPLORE-CLUSTERC-REWORK-PASS-20260520-AUTO",
+        "MT-100": "VALIDATOR-EXPLORE-CLUSTERC-REWORK-PASS-20260520-AUTO",
+        "MT-101": "VALIDATOR-EXPLORE-CLUSTERC-REWORK-PASS-20260520-AUTO",
+        "MT-102": "VALIDATOR-EXPLORE-CLUSTERC-REWORK-PASS-20260520-AUTO",
+        "MT-103": "VALIDATOR-EXPLORE-CLUSTERC-REWORK-PASS-20260520-AUTO",
+        "MT-104": "VALIDATOR-EXPLORE-CLUSTERC-REWORK-PASS-20260520-AUTO",
+        "MT-105": "VALIDATOR-EXPLORE-CLUSTERC-REWORK-PASS-20260520-AUTO",
+        "MT-106": "VALIDATOR-EXPLORE-MT106-REWORK-PASS-20260520-AUTO",
+        "MT-119": "VALIDATOR-EXPLORE-MT119-REWORK-V2-PASS-20260520-AUTO",
+        "MT-120": "(prior session validator)",
+        "MT-121": "(prior session validator)",
+        "MT-122": "VALIDATOR-EXPLORE-MT122-REWORK-PASS-20260520-AUTO",
+        "MT-123": "(prior session validator)",
+        "MT-124": "VALIDATOR-EXPLORE-MT124-REWORK-PASS-20260520-AUTO-RETRY2",
+        "MT-125": "VALIDATOR-EXPLORE-MT125-REWORK-PASS-20260520-AUTO",
+        "MT-126": "VALIDATOR-EXPLORE-MT126-REWORK-PASS-20260520-AUTO",
+        "MT-127": "VALIDATOR-EXPLORE-MT127-20260520-AUTO",
+        "MT-128": "VALIDATOR-EXPLORE-MT128-REWORK-PASS-20260520-AUTO",
+        "MT-129": "VALIDATOR-EXPLORE-MT129-REWORK-PASS-20260520-AUTO-RETRY2",
+        "MT-141": "(prior session validator)",
+        "MT-142": "(prior session validator)",
+        "MT-143": "VALIDATOR-EXPLORE-MT143-REWORK-PASS-20260520-AUTO",
+        "MT-144": "VALIDATOR-EXPLORE-MT144-REWORK-PASS-20260520-AUTO",
+        "MT-145": "VALIDATOR-EXPLORE-MEMORY-POSTGRES-CHAIN-PASS-20260520-AUTO",
+        "MT-146": "VALIDATOR-EXPLORE-MEMORY-POSTGRES-CHAIN-PASS-20260520-AUTO",
+        "MT-147": "VALIDATOR-EXPLORE-MEMORY-POSTGRES-CHAIN-PASS-20260520-AUTO"
+      }
+    },
+    "wp_hard_fail_open_blockers": {
+      "claim_order": "Start at MT-098 (the lowest of the 27); each MT's deflection_category + deflection_summary in its MT-NNN.json describes what was missing. The committed code on feat/WP-KERNEL-004-* remains as a base; the lifecycle.status field below is the source of truth, NOT the presence of source files.",
+      "cleared_at_utc": null,
+      "decision_at_utc": "2026-05-20T08:50:00Z",
+      "decision_by": "OPERATOR",
+      "no_claims_outside_27_until_resolved": true,
+      "prior_claimed_cleared_at_utc": "2026-05-21T03:00:00Z",
+      "reopened_mt_ids": [
+        "MT-098",
+        "MT-099",
+        "MT-100",
+        "MT-101",
+        "MT-102",
+        "MT-103",
+        "MT-104",
+        "MT-105",
+        "MT-106",
+        "MT-119",
+        "MT-120",
+        "MT-121",
+        "MT-122",
+        "MT-123",
+        "MT-124",
+        "MT-125",
+        "MT-126",
+        "MT-127",
+        "MT-128",
+        "MT-129",
+        "MT-141",
+        "MT-142",
+        "MT-143",
+        "MT-144",
+        "MT-145",
+        "MT-146",
+        "MT-147"
+      ],
+      "summary": "27 MTs reopened with status=NEEDS_REIMPLEMENTATION and validator_verdict=HARD_FAIL. Prior session shipped surface-shape implementations (trait abstractions + LiveXxxUnavailable / placeholder props) that satisfied test contracts but did not satisfy the Master Spec's runtime behavior. WP-KERNEL-004 cannot close until the 27 are correctly redone and authoritative integration-validator review accepts the WP-level result. The 27 MT files now record COMPLETED/PASS as supporting evidence, but that evidence is not an authoritative WP pass."
+    },
+    "wp_validator_final_disposition": {
+      "authored_at_utc": "2026-05-20T19:35:00Z",
+      "authored_by": "VALIDATOR-EXPLORE-WP-KERNEL-004-FINAL-20260520-AUTO",
+      "blocker_quality_assessment": {
+        "architectural_mt068_mt096": "HONEST BLOCKER. The 8 cluster C UI/steering/config MTs (MT-098-105) genuinely cannot satisfy spec requirements without runtime-manager wiring through Tauri commands owned by MT-068 + MT-096. MT-068 and MT-096 are lifecycle.status=COMPLETED but their product code returns live_runtime_unavailable from every dispatch. Per operator-imposed scope constraint (no_claims_outside_27_until_resolved=true), implementer cannot modify those files. Operator must reopen MT-068+MT-096 or explicitly waive the no-claims-outside-27 rule.",
+        "build_broken_17_mts": "FALSE BLOCKER — RETRACTED. The autonomous session prematurely BLOCKED 17 MTs after misdiagnosing the build failure as catastrophic. The MT-127 validator (VALIDATOR-EXPLORE-MT127-20260520-AUTO) explicitly retracted this diagnosis: the actual fix was 5 pub mod declarations in lib.rs (model_manual, model_runtime, models, process_ledger, sandbox, test_harness) plus reverting sandbox_binding.rs to crate::sandbox. After the fix, cargo check exits clean (50 warnings, 0 errors). MT-127 closure proved the build is fixable in-scope. These 17 BLOCKED dispositions are valid lifecycle records of the implementer's session-time blocker state, but they should be re-evaluated by a future session against the now-buildable feat branch (which is committed in 991683da).",
+        "llvm_libclang_mt106": "OVERSTATED BLOCKER. MT-106 abliteration requires weight-orthogonalisation producing GGUF/safetensors artifacts. The current blocker names llama-cpp-sys-2 (requires LLVM/libclang) as the only path. However, Candle's safetensors I/O is a real alternative documented in abliterate.rs's own module docstring ('safetensors-compatible candle build') and aligned with spec §3.6.4 ExternalEngineImport precedent. Candle deps require no host LLVM. A future implementer session should reattempt MT-106 via Candle path before requiring LLVM install."
+      },
+      "hard_fail_blockers_cleared": false,
+      "hard_fail_open_blockers_remain": true,
+      "next_kernel_builder_session_should": "Claim the 17 MTs in option_d first against the now-working build. They have the highest chance of producing real COMPLETED outcomes with minimal additional operator decisions. Then attempt option_c for MT-106. The remaining MT-098-105 cluster requires operator scope decision and is genuinely blocked until then.",
+      "operator_action_menu": {
+        "option_a_reopen_mt_068_mt_096": "Reopen MT-068 + MT-096 with full reimplementation authority. Cost: extends reopened set from 27 to 29 MTs. Effect: unblocks MT-098-105 cluster C UI/steering chain.",
+        "option_b_waive_no_claims_outside_27_for_runtime_manager_wiring": "Explicitly waive no_claims_outside_27_until_resolved=true for the narrow scope of runtime-manager wiring in MT-068/MT-096 owned files. Record waiver in packet.json.lifecycle.operator_waiver + RECEIPTS.jsonl per brief. Cost: scope authority change. Effect: unblocks MT-098-105 via in-flight session work, no formal reopen.",
+        "option_c_evaluate_candle_safetensors_path_for_mt106": "Before requiring LLVM install, direct future session to implement MT-106 abliteration via Candle's safetensors I/O path (already documented in abliterate.rs and aligned with spec §3.6.4). Cost: no operator action. Effect: potentially unblocks MT-106 without host LLVM install.",
+        "option_d_re_evaluate_17_build_broken_mts_against_now_working_build": "Direct future session to re-claim the 17 MTs that were prematurely BLOCKED on the misdiagnosed build break. The build is now confirmed clean (cargo check exits 0; MT-127 live test passes; see commit 991683da on feat branch). Cost: future session capacity. Effect: likely closures for memory_capsule chain (MT-141-147 — prior session reported PASS counts against the working build) and BYOK cloud lanes (MT-125-126-128 via Wiremock per operator clarification block). Distillation chain (MT-119-124) additionally needs Python peft/transformers/torch install.",
+        "option_e_authorize_python_peft_install_for_mt122": "Authorize `pip install peft transformers torch` for MT-122 distillation chain. Lower-risk than LLVM install (application deps not toolchain). Future session can run distillation eval.",
+        "option_f_authorize_llvm_install_for_mt106_if_option_c_fails": "Authorize LLVM/libclang install for MT-074 chain. Heaviest path. Only do this after Option C (Candle safetensors) is evaluated and rejected."
+      },
+      "per_mt_outcome": {
+        "blocked_architectural_mt_068_mt_096": [
+          "MT-098",
+          "MT-099",
+          "MT-100",
+          "MT-101",
+          "MT-102",
+          "MT-103",
+          "MT-104",
+          "MT-105"
+        ],
+        "blocked_build_broken_NOW_RETRACTED": [
+          "MT-119",
+          "MT-120",
+          "MT-121",
+          "MT-122",
+          "MT-123",
+          "MT-124",
+          "MT-125",
+          "MT-126",
+          "MT-128",
+          "MT-129",
+          "MT-141",
+          "MT-142",
+          "MT-143",
+          "MT-144",
+          "MT-145",
+          "MT-146",
+          "MT-147"
+        ],
+        "blocked_llvm_libclang": [
+          "MT-106"
+        ],
+        "completed": [
+          "MT-127"
+        ]
+      },
+      "rationale": "Per brief WP-Level Final Gate: 'WP may pass only if all 27 MTs are COMPLETED.' Current state: 1 validator-signed COMPLETED (MT-127), 26 BLOCKED_ON_DEPENDENCY. WP cannot pass. All 27 MTs in terminal states; validator-level WP review completed per brief Step 4 BLOCKED procedure.",
+      "recommended_order": [
+        "option_d",
+        "option_c",
+        "option_a OR option_b",
+        "option_e",
+        "option_f if option_c fails"
+      ],
+      "state_after": "WP_BLOCKED_PENDING_OPERATOR_ACTION",
+      "state_before": "WP_HARD_FAIL",
+      "verdict": "WP_BLOCKED",
+      "wp_final_pass_authorship_complete": true
+    },
+    "wp_validator_of_record": "NONE",
+    "integration_validator_final_record": {
+      "schema": "hsk.iv_main_integration_closeout@1",
+      "classification": "MAIN_INTEGRATION_VALIDATED_PRODUCT_ONLY_RECONCILIATION",
+      "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+      "base_wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement",
+      "feature_worktree": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-004-fold-v1",
+      "feature_branch": "feat/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+      "feature_head_sha": "f1c128cff150100e836aa678f4bd6e89651c21cd",
+      "main_worktree": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/handshake_main",
+      "main_branch": "main",
+      "main_commit_sha": "82a7c9670e11b6c43072593d59e0886d8c163a03",
+      "main_commit_subject": "feat(WP-KERNEL-004): integrate validated kernel-reset product into main",
+      "product_tree_check": {
+        "checked_at_utc": "2026-06-11T02:13:15Z",
+        "result": "MATCHES_FEATURE_TIP_EXCEPT_REPO_AUTHORITY_FILES_AND_GOV_EXCLUDED",
+        "command_basis": [
+          "git diff --stat main HEAD -- . :!.GOV in wtc-kernel-004-fold-v1 showed only .github workflow, AGENTS.md, CLAUDE.md, and justfile differences",
+          "git show -s --format=fuller 82a7c967 in handshake_main records product-only integration of feature tip f1c128cf with .GOV excluded"
+        ]
+      },
+      "verdict": "PASS",
+      "verdict_source": "main commit body [IV-20260604]",
+      "summary": "Product payload from wtc-kernel-004-fold-v1 feature tip f1c128cf was integrated product-only into handshake_main/main at 82a7c967 on 2026-06-04. Main commit records IV verdict: 0 FAIL after remediation, build exit 0, 97 affected tests pass. .GOV was intentionally excluded from that product-only integration and is reconciled here.",
+      "supersedes_runtime_states": [
+        "PHASE2_VERDICT.json remains historical FAIL at candidate f0c6faf0 and does not represent final main integration state",
+        "BUILDER_PHASE2_REMEDIATION_STATUS.json remains historical builder remediation status before main integration",
+        "Prior runtime_status main_containment_status=NOT_STARTED was stale after 2026-06-04 main integration"
+      ]
+    }
+  },
+  "markdown_projection": {
+    "generated_at_utc": null,
+    "generator": "PENDING_DEMAND",
+    "note": "Per feedback_no_default_md_files + CX-908 + CX-914, on-demand md projection only; not auto-generated.",
+    "path": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.md",
+    "projection_hash": "NOT_GENERATED_BY_DEFAULT",
+    "source_file": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json",
+    "source_hash": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT"
+  },
+  "microtasks": {
+    "active_id": "MT-207",
+    "blocked_count": 0,
+    "claimable_id": "MT-207",
+    "completed_count": 0,
+    "contract_glob": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-*.json",
+    "declared_count": 190,
+    "declared_ids": [
+      "MT-001",
+      "MT-002",
+      "MT-003",
+      "MT-004",
+      "MT-005",
+      "MT-006",
+      "MT-007",
+      "MT-008",
+      "MT-009",
+      "MT-010",
+      "MT-011",
+      "MT-012",
+      "MT-013",
+      "MT-014",
+      "MT-015",
+      "MT-016",
+      "MT-017",
+      "MT-018",
+      "MT-019",
+      "MT-020",
+      "MT-021",
+      "MT-022",
+      "MT-023",
+      "MT-024",
+      "MT-025",
+      "MT-026",
+      "MT-027",
+      "MT-028",
+      "MT-029",
+      "MT-030",
+      "MT-031",
+      "MT-032",
+      "MT-033",
+      "MT-034",
+      "MT-035",
+      "MT-036",
+      "MT-037",
+      "MT-038",
+      "MT-039",
+      "MT-040",
+      "MT-041",
+      "MT-042",
+      "MT-043",
+      "MT-044",
+      "MT-045",
+      "MT-046",
+      "MT-047",
+      "MT-048",
+      "MT-049",
+      "MT-050",
+      "MT-051",
+      "MT-052",
+      "MT-053",
+      "MT-054",
+      "MT-055",
+      "MT-056",
+      "MT-057",
+      "MT-058",
+      "MT-061",
+      "MT-062",
+      "MT-063",
+      "MT-064",
+      "MT-065",
+      "MT-066",
+      "MT-067",
+      "MT-068",
+      "MT-069",
+      "MT-070",
+      "MT-071",
+      "MT-072",
+      "MT-073",
+      "MT-074",
+      "MT-075",
+      "MT-076",
+      "MT-077",
+      "MT-078",
+      "MT-079",
+      "MT-080",
+      "MT-081",
+      "MT-082",
+      "MT-083",
+      "MT-084",
+      "MT-085",
+      "MT-086",
+      "MT-087",
+      "MT-088",
+      "MT-089",
+      "MT-090",
+      "MT-091",
+      "MT-092",
+      "MT-093",
+      "MT-094",
+      "MT-095",
+      "MT-096",
+      "MT-097",
+      "MT-098",
+      "MT-099",
+      "MT-100",
+      "MT-101",
+      "MT-102",
+      "MT-103",
+      "MT-104",
+      "MT-105",
+      "MT-106",
+      "MT-107",
+      "MT-108",
+      "MT-109",
+      "MT-110",
+      "MT-111",
+      "MT-112",
+      "MT-113",
+      "MT-114",
+      "MT-115",
+      "MT-116",
+      "MT-117",
+      "MT-118",
+      "MT-119",
+      "MT-120",
+      "MT-121",
+      "MT-122",
+      "MT-123",
+      "MT-124",
+      "MT-125",
+      "MT-126",
+      "MT-127",
+      "MT-128",
+      "MT-129",
+      "MT-130",
+      "MT-141",
+      "MT-142",
+      "MT-143",
+      "MT-144",
+      "MT-145",
+      "MT-146",
+      "MT-147",
+      "MT-148",
+      "MT-149",
+      "MT-150",
+      "MT-151",
+      "MT-152",
+      "MT-153",
+      "MT-154",
+      "MT-155",
+      "MT-156",
+      "MT-157",
+      "MT-158",
+      "MT-159",
+      "MT-160",
+      "MT-161",
+      "MT-162",
+      "MT-163",
+      "MT-164",
+      "MT-165",
+      "MT-166",
+      "MT-167",
+      "MT-168",
+      "MT-169",
+      "MT-170",
+      "MT-176",
+      "MT-177",
+      "MT-178",
+      "MT-179",
+      "MT-180",
+      "MT-181",
+      "MT-182",
+      "MT-183",
+      "MT-184",
+      "MT-185",
+      "MT-186",
+      "MT-187",
+      "MT-188",
+      "MT-189",
+      "MT-190",
+      "MT-191",
+      "MT-192",
+      "MT-193",
+      "MT-194",
+      "MT-195",
+      "MT-196",
+      "MT-197",
+      "MT-198",
+      "MT-199",
+      "MT-200",
+      "MT-201",
+      "MT-202",
+      "MT-203",
+      "MT-204",
+      "MT-205",
+      "MT-206",
+      "MT-207"
+    ],
+    "id_gaps_note": "ID ranges with intentional gaps reflect cluster mid-range count choices: MT-059..060 (cluster B reserved unused, used 041..058), MT-131..140 (cluster C reserved unused, used 061..130), and MT-171..175 (cluster D reserved unused, used 141..170). MT-201..MT-207 are now declared contracts and are not missing follow-ons.",
+    "next_id": "MT-207",
+    "next_id_note": "Remediation 2026-06-02: MT-204, MT-205, and MT-206 are READY_FOR_VALIDATION with current focused proof and KB_READY_CHECKLIST/handoff receipts; MT-207 remains the next claimable follow-on for persistent VM warm streaming, restored-snapshot warm-start, and distillation trace capture. This is Kernel Builder handoff state only, not an Integration Validator pass.",
+    "pending_count": 1,
+    "sequencing_note": "KERNEL_BUILDER implements MTs back to back with no per-MT WP Validator gate per validation_topology = INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1. Cluster ordering: A then B then C then D then X, subject to dependency relationships in each MT.depends_on_mts field. Authored 2026-05-18T03:00Z by 5 parallel Opus cluster subagents per operator decision to launch in parallel.",
+    "status_counts_note": "Remediation 2026-06-02: filesystem scan found 190 MT contracts. Current lifecycle counts after MT-204/MT-205/MT-206 handoff are READY_FOR_VALIDATION_PHASE2=31, READY_FOR_VALIDATION=156, RETIRED_UNDER_E5_NO_CURATED_ABLITERATED_REGISTRY=2, PENDING=1 (MT-207), CLAIMED=0. This is Kernel Builder handoff state only, not an Integration Validator pass.",
+    "status_counts_recorded_at_utc": "2026-06-02T09:23:32Z"
+  },
+  "next_id": "MT-207",
+  "next_id_note": "Remediation 2026-06-02: MT-204, MT-205, and MT-206 are READY_FOR_VALIDATION with current focused proof and KB_READY_CHECKLIST/handoff receipts; MT-207 remains the next claimable follow-on for persistent VM warm streaming, restored-snapshot warm-start, and distillation trace capture. This is Kernel Builder handoff state only, not an Integration Validator pass.",
+  "red_team": {
+    "minimum_controls": [
+      "Packet contract must reference refinement contract before any MT authoring or coder work.",
+      "Refinement projection must carry source hash once generator enforcement is active.",
+      "Unsupported prose-only refinement claims become explicit migration debt.",
+      "All MT contracts must be authored in Stage 4E and pass contract/projection check before any product implementation starts.",
+      "Per-cluster MT batches must be reviewable; cluster ordering A then B then C then D then X with explicit dependency edges.",
+      "Integration Validator batch review at end of MT implementation; no WP Validator per-MT gate.",
+      "B-FEMS-V1-INTEGRATION-SURFACE blocker must be resolved (FEMS V1 API surface verification) before cluster D MT authoring.",
+      "Subquadratic full-feature-parity timeline must be disclosed in MT scoping; operator may revise scope if timeline extends beyond expected window.",
+      "All UUID mint sites in product code MUST use UUID v7 per HBR-INT-008.",
+      "All process spawns MUST register in kernel_process_lifecycle Postgres table per spec Â§5.7.2.",
+      "All model invocations MUST flow through ModelRuntime + LocalModelAdapter per spec Â§4.6.",
+      "All sandbox boxing MUST flow through SandboxAdapter trait per spec Â§3.5."
+    ],
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "required": true,
+    "risks": [
+      "R-1 Scope-consuming-product: This is the largest WP in project history. A WP this large risks the same failure mode the reset brief escaped, where the harness consumes the product.",
+      "R-2 PRODUCTION-tier research-frontier risk: Subquadratic full feature parity is research-frontier work; per RW-3 the implementation is sized by feature_parity_detail items rather than calendar time.",
+      "R-3 Sandbox-architecture-flip-orphans-KERNEL-003: 3-adapter pattern preserves DockerAdapter; migration MTs map existing KERNEL-003 sandbox consumers.",
+      "R-4 Spec-enrichment-becomes-its-own-project: Resolved by single coherent v02.186 bundle bump (no incremental drift).",
+      "R-5 LM-Studio/Ollama-lockout: Mitigated by ExternalEngineImport lane (spec Â§3.6.4) that lets operator point Handshake at a model file path or local OpenAI-compatible endpoint without depending on those apps as runtime authority.",
+      "R-6 Visual-debugger-parallel-mutation-path: Mitigated by 3-layer parallel-mutation controls (compile-time trait separation + runtime localhost+secret+feature-flag + audit log per spec Â§6.5).",
+      "R-7 Self-improvement-overfit: Mitigated by 60/20/20 train/dev/holdout split + multi-metric promotion floor + Goodhart sentinel + HBR-SWARM-002 loop counter + PromotionGate operator review (spec Â§4.8.3).",
+      "R-8 MoD-Subquad-feasibility: MoD resolved by spec-deferring to Phase 3 roadmap (Â§6.8); Subquadratic locked at full feature parity per operator E-2.",
+      "R-9 FEMS-V1-API-drift: B-FEMS-V1-INTEGRATION-SURFACE blocker; verification pass in Stage 4D before cluster D MT authoring.",
+      "R-10 WindowsNativeJailAdapter-crate-license: License audit MT required before adopting codex-windows-sandbox or rappct crate.",
+      "R-11 Process-ledger-perf-under-swarm: Mitigated by batched async writes + per-process metadata cap + async write path + FR-EVT-LEDGER-OVERFLOW degraded mode (spec Â§5.7.3).",
+      "R-12 mojibake-in-spec-module-04: Pre-existing UTF-8 double-encoding in legacy Â§4.2 content; Stage 2 subagent worked around it; cleanup is non-blocking governance debt.",
+      "R-13 AC-cross-reference-drift: 52 AC-* IDs in spec cross-referenced from refinement.json; renames or splits must update both surfaces in same change."
+    ]
+  },
+  "refinement": {
+    "activation_manager_note": "KERNEL_BUILDER acted as Activation Manager for this WP per kernel-builder protocol Activation Mode; activation work completed pre-signature.",
+    "activation_manager_required": true,
+    "contract_file": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/refinement.json",
+    "enforcement_profile": "HYDRATED_RESEARCH_V1",
+    "hydration_profile": "HYDRATED_RESEARCH_V1",
+    "source_refinement_file": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/refinement.json",
+    "status": "SIGNED"
+  },
+  "role_profiles": {
+    "activation_manager": "OPENAI_GPT_5_5_XHIGH",
+    "coder": "OPENAI_GPT_5_5_XHIGH",
+    "implementation_role": "KERNEL_BUILDER",
+    "integration_validator": "OPENAI_GPT_5_5_XHIGH",
+    "kernel_builder": "OPENAI_GPT_5_5_XHIGH",
+    "orchestrator": "OPENAI_GPT_5_5_XHIGH",
+    "wp_validator": "N/A"
+  },
+  "schema_id": "hsk.work_packet_contract@1",
+  "schema_version": "work_packet_contract_v1",
+  "scope": {
+    "acceptance_criteria_ref": "REFERENCE: refinement.json kernel004_extension.acceptance_criteria carries the 52 structured AC-* entries (cluster A:21, B:3, C:12, D:4, X:12) cross-referenced to v02.186 spec subsections. refinement.json refinement.summary_criteria carries the 16 operator-readable high-level criteria. Both are authoritative; this packet does not duplicate them.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/sandbox/**",
+      "src/backend/handshake_core/src/model_runtime/**",
+      "src/backend/handshake_core/src/process_ledger/**",
+      "src/backend/handshake_core/src/hbr/**",
+      "src/backend/handshake_core/src/distillation/**",
+      "src/backend/handshake_core/src/memory/**",
+      "src/backend/handshake_core/src/self_improve/**",
+      "src/backend/handshake_core/src/test_harness/**",
+      "src/backend/handshake_core/src/model_manual/**",
+      "src/backend/handshake_core/src/inspector_read/**",
+      "src/backend/handshake_core/src/operator_foreground/**",
+      "src/backend/handshake_core/src/bin/**",
+      "src/backend/handshake_core/src/kernel/**",
+      "src/backend/handshake_core/src/llm_client/**",
+      "src/backend/handshake_core/src/flight_recorder/**",
+      "src/backend/handshake_core/src/role_mailbox/**",
+      "src/backend/handshake_core/src/observability/**",
+      "src/backend/handshake_core/src/lib.rs",
+      "src/backend/handshake_core/tests/**",
+      "src/backend/handshake_core/migrations/**",
+      "src/backend/handshake_core/Cargo.toml",
+      "src/backend/handshake_core/Cargo.lock",
+      "app/src/components/diagnostics/**",
+      "app/src/components/inference_lab/**",
+      "app/src/components/model_runtime_panel/**",
+      "app/src/lib/**",
+      "app/src/App.tsx",
+      "app/src/App.css",
+      "app/src-tauri/src/**",
+      "app/src-tauri/Cargo.toml",
+      "app/src-tauri/tauri.conf.json",
+      "app/package.json",
+      "app/pnpm-lock.yaml",
+      "app/playwright.config.ts",
+      "tests/**",
+      "scripts/distill/**",
+      "clippy.toml",
+      ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json",
+      ".GOV/roles_shared/records/FR_EVENT_REGISTRY.json",
+      ".GOV/roles_shared/records/sandbox/**",
+      ".GOV/roles_shared/scripts/**",
+      ".GOV/roles_shared/checks/**",
+      ".GOV/roles_shared/schemas/**",
+      ".GOV/roles_shared/docs/START_HERE.md",
+      ".GOV/roles_shared/docs/ROLE_SESSION_ORCHESTRATION.md",
+      ".GOV/roles_shared/docs/ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK.md",
+      ".GOV/roles/**",
+      ".GOV/templates/**",
+      ".GOV/visual_baselines/**",
+      "justfile"
+    ],
+    "allowed_paths_matcher_note": "The .GOV/roles_shared/{scripts,checks,schemas}/** and .GOV/roles/** entries are broader than the actual HBR-specific files this WP touches. The narrower forms (.GOV/roles_shared/scripts/hbr-*, .GOV/roles/**/PROTOCOL.md, etc.) are not supported by scope-surface-lib's matchesScopeEntry which strips only /**, /**/*, /* suffixes — file-prefix and **/file.ext patterns silently fail to match. Follow-up RGF could enhance the shared matcher to handle file-prefix globs and brace expansion; until then, the directory-broad form is the accurate scope representation for this WP. Pre-commit and post-commit checks use the same matcher (per F-004) so this is consistent across the gate boundary.",
+    "broad_tool_allowlist": "NONE",
+    "data_contract_profile": "LLM_FIRST_DATA_V1",
+    "forbidden_paths": [
+      "No SQLite authority, cache, offline, fallback, compatibility, or test fixture anywhere per CX-503R.",
+      "No condensing, merging, dropping, or renumbering MTs after Stage 4E authoring.",
+      "No WP Validator gate or session (validation_topology = INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1).",
+      "No Integration Validator launch / verdict / merge / pass-fail claim by KERNEL_BUILDER in this packet.",
+      "No operator-facing default Markdown projections; md is on-demand only per CX-908 + CX-914 + feedback_no_default_md_files.",
+      "No LM Studio or Ollama runtime authority (operator-locked invariant; spec Â§3.6).",
+      "No model-process spawn outside SandboxAdapter (spec Â§3.6.2).",
+      "No model-process spawn without ProcessOwnershipLedger registration (spec Â§5.7.2).",
+      "No edits outside the 30-stub fold boundary (refinement.kernel004_extension.stub_fold_preservation_map).",
+      "No Master Spec edits inside this packet â€” Master Spec v02.186 enrichment was applied during pre-signature Activation Mode (Stage 3); further spec changes require a separate CX-105A spec-writing role packet.",
+      "No Codex edits inside this packet â€” CX-131 was added during Stage 3; further Codex changes require explicit operator authorization.",
+      "No mutations through the backend inspector plane (spec Â§6.5; KernelActionCatalogV1 + WriteBoxV1 are the only mutation paths).",
+      "No OS-level keyboard injection, cursor movement, focus stealing, or foregrounding from automation surfaces (spec Â§6.6; HBR-QUIET-001/002).",
+      "No abliteration in a generation hot path (spec Â§4.7.4; abliteration is offline tool only).",
+      "No MoD implementation; MoD is spec-deferred to Phase 3 roadmap per operator decision E-1 and spec Â§6.8.",
+      "No worktree creation or switching by sub-agents (kernel-builder protocol Â§SUBAGENTS).",
+      "No commits on `feat/WP-KERNEL-004-*` branch that include `/.GOV/` files (CX-212F)."
+    ],
+    "implementation_reality_notes": [
+      "src/backend/handshake_core/src/kernel/** exists from KERNEL-002 with KernelActionCatalogV1, WriteBoxV1, and CRDT workspace; SandboxAdapter, ModelRuntime, ProcessOwnershipLedger, HBR, Memory V0+, SelfImprovementLoop, InspectorRead, OperatorForeground, ModelManual, and TestHarness modules are NEW under sibling paths and must be created.",
+      "FEMS V1 runtime shipped via WP-1-Front-End-Memory-System-v1 (VALIDATED in main); cluster D MemoryCapsule + SelfImprovementLoop builds on FEMS V1 retrieval + injection scoring + bounded memory pack injection + review-gated writes. B-FEMS-V1-INTEGRATION-SURFACE requires API surface verification before cluster D MT authoring (Stage 4D).",
+      "KERNEL-003 shipped Docker as the first sandbox integration; KERNEL-004 cluster B reopens the architecture with SandboxAdapter trait and 3 adapters. DockerAdapter preserves the KERNEL-003 work as one of 3 adapters; explicit migration MTs in cluster B map existing KERNEL-003 sandbox consumers to the new SandboxAdapter trait.",
+      "HANDSHAKE_BUILD_RULES.json v1.1.0 exists at .GOV/roles_shared/records/ with 23 active rules across INT/SWARM/VIS/QUIET/MAN pillars (status DESIGN_ONLY_WIRING_PENDING pre-KERNEL-004). Cluster A wires enforcement via PACKET_ACCEPTANCE_MATRIX hydration + hbr-matrix-check.mjs gov-check sub-check + validator-scan integration.",
+      "Spec Â§5.6 + Codex CX-131 establish HBR as build-time + handoff-time gate authority (new in v02.186 + Codex update; did not exist pre-Stage-3).",
+      "llama-cpp-2 Rust crate + candle-core + candle-transformers must be added to src/backend/handshake_core/Cargo.toml workspace dependencies (cluster C engine adapters).",
+      "WindowsNativeJailAdapter wraps an existing Rust crate (codex-windows-sandbox or rappct per RW-1 research); license audit MT required before crate adoption.",
+      "Existing storage code (src/backend/storage/) has Postgres-primary posture but still includes SQLite cache/offline/test paths; KERNEL-004 must NOT add new SQLite consumers; per CX-503R, kernel_process_lifecycle table goes to Postgres only.",
+      "App frontend uses Tauri 2.x + WebView2 on Windows; Tauri quiet-mode config + WebView2 CDP `Page.captureScreenshot` are the canonical paths for cluster A.4 non-hijacking GUI work per RW-5 research.",
+      "Playwright is the recommended GUI driver per RW-4 (CDP against WebView2 via WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=--remote-debugging-port). app/package.json gets new dev dependencies."
+    ],
+    "lanes": {
+      "governance_lane": {
+        "description": "HBR rule registry + gate scripts + checks + schemas + visual baselines + role protocol linkage + governance templates + sandbox audit records + FR event registry. These are the deterministic enforcement layer that makes HBR rules meaningful for this WP and every subsequent Handshake build. They live in .GOV/ today; per [CX-503P] they migrate into product code when Handshake self-governs.",
+        "primary_roots": [
+          ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json",
+          ".GOV/roles_shared/scripts/hbr-*",
+          ".GOV/roles_shared/scripts/sandbox-crate-license-audit.mjs",
+          ".GOV/roles_shared/scripts/automation-first-audit.mjs",
+          ".GOV/roles_shared/checks/hbr-*",
+          ".GOV/roles_shared/checks/docker-not-default-adapter-check.mjs",
+          ".GOV/roles_shared/schemas/hbr-*.schema.json",
+          ".GOV/roles_shared/records/sandbox/**",
+          ".GOV/roles_shared/records/FR_EVENT_REGISTRY.json",
+          ".GOV/roles_shared/docs/{START_HERE,ROLE_SESSION_ORCHESTRATION,ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK}.md",
+          ".GOV/roles/**/{KERNEL_BUILDER,INTEGRATION_VALIDATOR,WP_VALIDATOR,CODER,VALIDATOR,ORCHESTRATOR,CLASSIC_ORCHESTRATOR}_PROTOCOL.md",
+          ".GOV/templates/{TASK_PACKET,REFINEMENT_TEMPLATE,REFINEMENT_CONTRACT_TEMPLATE}.json",
+          ".GOV/visual_baselines/**"
+        ]
+      },
+      "product_lane": {
+        "description": "Handshake Kernel V1 product code: sandbox + adapters, model runtime + adapters, process ledger, HBR-gated product features (visual debug, focus-quiet runtime, swarm harness, model manual, operator foreground/inspector surfaces), distillation, memory, self-improve, kernel call sites, role mailbox, observability, llm_client, flight_recorder. Tests under tests/ and src/.../tests/. App-side: Tauri command surface, Svelte/TS IPC + stores + diagnostic/inference-lab/model-runtime components, root app config (App.tsx/App.css/playwright.config.ts), root tooling config (clippy.toml), helper scripts (scripts/distill/**).",
+        "primary_roots": [
+          "src/backend/handshake_core/**",
+          "app/**",
+          "scripts/distill/**",
+          "tests/**",
+          "clippy.toml"
+        ]
+      },
+      "rationale": "WP-KERNEL-004 is a two-lane deliverable: the HBR-Enforcement suffix in the WP name requires authoring both the HBR governance gates AND the product features those gates validate. The gate scripts and rule registry live in .GOV/ (governance lane) and the gated features live in src/ + app/ (product lane). Both lanes are intentionally in this packet's scope because each is unbuildable without the other: gates have nothing to validate without the features, and the features have no enforceable contract without the gates. Per [CX-503P] self-hosting convergence, the .GOV/ HBR gates will eventually migrate into product code; at that point the .GOV/ allow_paths entries become dead globs that mt-packet-scope-alignment-check will surface as INFO so the operator can prune them."
+    },
+    "spec_anchors": [
+      ".GOV/spec/master-spec-v02.186/spec-modules/03-local-first-infrastructure.md#3.5",
+      ".GOV/spec/master-spec-v02.186/spec-modules/03-local-first-infrastructure.md#3.6",
+      ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.2.4",
+      ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.6",
+      ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.7",
+      ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.8",
+      ".GOV/spec/master-spec-v02.186/spec-modules/05-security-and-observability.md#5.6",
+      ".GOV/spec/master-spec-v02.186/spec-modules/05-security-and-observability.md#5.7",
+      ".GOV/spec/master-spec-v02.186/spec-modules/06-mechanical-integrations.md#6.4",
+      ".GOV/spec/master-spec-v02.186/spec-modules/06-mechanical-integrations.md#6.5",
+      ".GOV/spec/master-spec-v02.186/spec-modules/06-mechanical-integrations.md#6.6",
+      ".GOV/spec/master-spec-v02.186/spec-modules/06-mechanical-integrations.md#6.7",
+      ".GOV/spec/master-spec-v02.186/spec-modules/06-mechanical-integrations.md#6.8",
+      ".GOV/spec/master-spec-v02.186/spec-modules/07-6-development-roadmap.md",
+      ".GOV/spec/master-spec-v02.186/spec-modules/10-product-surfaces.md#10.12",
+      ".GOV/spec/master-spec-v02.186/spec-modules/10-product-surfaces.md#10.13",
+      ".GOV/spec/master-spec-v02.186/spec-modules/10-product-surfaces.md#10.14",
+      ".GOV/spec/master-spec-v02.186/spec-modules/10-product-surfaces.md#10.15",
+      ".GOV/spec/master-spec-v02.186/spec-modules/12-end-of-file-appendices.md",
+      ".GOV/codex/Handshake_Codex_v1.4.md#CX-131"
+    ],
+    "summary": "KERNEL-004 lands the Kernel-V0-Substrate four-cluster max-fold: (A) HBR enforcement at build+handoff gate + visual debugger + backend inspector plane + non-hijacking GUI invariants + swarm-agent harness + ModelManual currency + Codex CX-131 linkage; (B) SandboxAdapter trait with 3 adapters (WSL2+Podman default, WindowsNativeJailAdapter strict, Docker compat); (C) ModelRuntime + LocalModelAdapter (LlamaCppRuntime default + CandleRuntime for hook-requiring techniques + subquadratic) + 8 PRODUCTION inference techniques + Distillation pipeline + MoD spec-deferred per Phase 3 roadmap; (D) Memory V0+ MemoryCapsule retrieval + Karpathy-style self-improvement loop on fixed ~30-item HBR test-packet corpus on top of FEMS V1.",
+    "touched_file_budget": "80-120",
+    "why": "Each cluster on its own would touch the same kernel, sandbox, model, memory, and HBR surfaces. Splitting them into separate WPs would force three or more sequential migrations of the same product code, each one redoing the spec enrichment, the activation review, and the sandbox/runtime choice. The max-fold is operator-locked (2026-05-18) because the architecture decisions in clusters B and C and the enforcement decisions in cluster A are mutually entangled. KERNEL-001 (EventLedger/SessionBroker/dummy ModelAdapter/ToolGate/ArtifactStore/PromotionGate/TraceProjection), KERNEL-002 (KernelActionCatalogV1/WriteBoxV1/CRDT workspace), KERNEL-003 (Sandbox/ValidationRunner/PromotionGate), and FEMS V1 (typed memory + session integration + operator panel + flight-recorder events + bounded memory pack injection + review-gated writes) are the stable foundation; KERNEL-004 builds on them."
+  },
+  "source_control": {
+    "artifact_hygiene_preflight": "PASS_2026-05-18 (D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/ clean for this WP)",
+    "backup_push_status": "PUSHED_2026-05-18T02:09Z (new branch on origin; local tracks origin/feat/WP-KERNEL-004-*)",
+    "canonical_branch": "main",
+    "merge_base_sha": "51b1d500",
+    "merge_base_sha_note": "Local main fast-forwarded 5b02198b -> 51b1d500 by worktree-add helper before branch creation; feat/WP-KERNEL-004-* branched from 51b1d500.",
+    "remote_backup_branch": "feat/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+    "remote_backup_url": "https://github.com/Nuntissura/Handshake/tree/feat/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+    "work_branch": "feat/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+    "worktree_absolute_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-004-fold-v1",
+    "worktree_dir": "../wtc-kernel-004-fold-v1",
+    "worktree_gov_junction": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-004-fold-v1/.GOV -> D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV"
+  },
+  "updated_at_utc": "2026-06-11T02:13:15Z",
+  "workflow": {
+    "authority": "ORCHESTRATOR",
+    "coder_compatible_execution_lane": "CODER_A",
+    "communication_contract": "DIRECT_REVIEW_V1",
+    "communication_dir": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+    "communication_health_gate": "INTEGRATION_BATCH_REVIEW_BLOCKING",
+    "execution_owner": "KERNEL_BUILDER-A",
+    "host_preference": "HANDSHAKE_ACP_BROKER",
+    "implementation_role": "KERNEL_BUILDER",
+    "integration_validator_batch_review": true,
+    "kernel_builder_consolidation": true,
+    "lane": "ORCHESTRATOR_MANAGED",
+    "merge_authority": "INTEGRATION_VALIDATOR",
+    "notifications_file": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/NOTIFICATIONS.jsonl",
+    "receipts_file": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/RECEIPTS.jsonl",
+    "runtime_status_file": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/RUNTIME_STATUS.json",
+    "session_start_authority": "ORCHESTRATOR_ONLY",
+    "technical_advisor": "NONE",
+    "technical_authority": "INTEGRATION_VALIDATOR",
+    "thread_file": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/THREAD.md",
+    "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1",
+    "wp_validator_gate": "DISABLED"
+  },
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1"
+}

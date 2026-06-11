@@ -1,0 +1,110 @@
+{
+  "artifact_policy": {
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ],
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "model_created_markdown_authority_allowed": false,
+    "operator_facing_authority": false,
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND"
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-005/MT-170.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-005/MT-170.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-005/packet.json"
+  },
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": null,
+  "handoff": {
+    "coder_session": "KB-KERNEL-005-CLOSEOUT",
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": null
+  },
+  "lifecycle": {
+    "active": true,
+    "blocks": [],
+    "depends_on": [
+      "MT-169"
+    ],
+    "status": "VALIDATED_V3",
+    "validator_verdict": "PASS_V3",
+    "claimed_by": "KB-KERNEL-005-CLOSEOUT",
+    "ready_for_validation_at_utc": "2026-06-11T03:05:50.294Z",
+    "ready_by": "KB-KERNEL-005-V3-REMEDIATION",
+    "integration_validation_v2": {
+      "verdict": "FAIL",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "REAL",
+      "proof_validity": "WEAK",
+      "sr1": "PASS",
+      "sr2": "FAIL",
+      "fail_category": "PROOF_IN_MEMORY_ONLY",
+      "gap": "The operator-review pause invariant (apply_proposal must not run while ticket Pending/Rejected) is real and well-asserted, but the whole e2e runs against a mock gate and an in-memory EditableSurfaceProvider; no real PromotionGate/PG is exercised, so the 'managed resource' claim is unproven.",
+      "evidence": "tests/promotion_gate_pause_e2e_tests.rs:292-308 mock promote writes to a RefCell value; 454 + 723 assert apply_count==0 invariant; sample_request/eval_result fixtures lines 315-369 are synthetic; grep confirms zero PgPool/sqlx/AtelierStore in the file; PromotionGateSubmitter still has no production impl (see MT-154)."
+    },
+    "ready_for_validation_v3": true,
+    "completed_by": "INTEGRATION_VALIDATOR-20260611-033732",
+    "completed_at_utc": "2026-06-11T05:17:17.690Z",
+    "integration_validation_v3": {
+      "verdict": "PASS_V3",
+      "round": "v3",
+      "at_utc": "2026-06-11T05:17:17.690Z",
+      "validator_session": "INTEGRATION_VALIDATOR-20260611-033732",
+      "impl_reality": "REAL",
+      "proof_validity": "STRONG",
+      "sr1": "PASS",
+      "sr2": "PASS",
+      "concern_resolved": null,
+      "evidence": "Production PostgresPromotionGate (promotion_gate_postgres.rs) with durable ticket/decision ledger rows and double-decision guard. Proof tests/atelier_promotion_pause_postgres_tests.rs: pending review persisted in PostgreSQL blocks promotion across 3 FRESH gate instances (promote_count==0, live value unchanged, PROMOTION_REQUESTED ledger); persisted rejection keeps promotion blocked across instances (rationale round-trips, PROMOTION_REJECTED); persisted approval unblocks exactly one promotion (exactly-one authority write, PROMOTION_ACCEPTED). Pause invariant production-shaped via LoopPromotionGate::require_approved before promote; apply_proposal proven non-mutating.",
+      "gap": null,
+      "basis": "v3 adversarial per-MT review of remediated deliverable + runtime proof via full-crate managed-PG sweep and kernel-builder fresh-DB proof logs"
+    }
+  },
+  "markdown_projection": {
+    "generated_at_utc": "2026-06-04T17:06:21.337Z",
+    "generator": "wp-contract-import.mjs",
+    "path": ".GOV/task_packets/WP-KERNEL-005/MT-170.md",
+    "projection_hash": "104239206cbd1bc5",
+    "source_file": ".GOV/task_packets/WP-KERNEL-005/packet.json",
+    "source_hash": "5c1edc7b393eec13",
+    "status": "GENERATED_IN_SYNC"
+  },
+  "mt_id": "MT-170",
+  "red_team": {
+    "minimum_controls": [
+      "Use contract-first identity and preserve projection hash."
+    ],
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "required": true,
+    "risks": [
+      "Imported MT contract may under-capture prose-only review or proof instructions."
+    ]
+  },
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "scope": {
+    "acceptance_criteria": [
+      "MT-170 [Model-Workflow-Diagnostics] Parallel Model Coordination View -- Make parallel model actions observable/attributable/recoverable/conflict-aware via coordination projection."
+    ],
+    "allowed_paths": [
+      "src/backend/handshake_core/src/kernel (action_catalog",
+      "diagnostics) + app DCC projections + ModelManual"
+    ],
+    "forbidden_paths": [],
+    "proof_targets": [
+      "cargo test --test atelier_promotion_pause_postgres_tests (managed PostgreSQL + EventLedger; persisted operator-review pause blocks progression)"
+    ],
+    "risk_if_missed": "CKC parity loss for Parallel Model Coordination View",
+    "summary": "MT-170 [Model-Workflow-Diagnostics] Parallel Model Coordination View -- Make parallel model actions observable/attributable/recoverable/conflict-aware via coordination projection."
+  },
+  "updated_at_utc": "2026-06-11T05:17:17.690Z",
+  "wp_id": "WP-KERNEL-005"
+}

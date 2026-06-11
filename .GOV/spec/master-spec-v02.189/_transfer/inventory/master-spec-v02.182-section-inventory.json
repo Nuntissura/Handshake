@@ -1,0 +1,1810 @@
+{
+  "artifact_type": "master-spec-section-inventory",
+  "generated_at": "2026-05-13T03:55:50.736Z",
+  "source_file": ".GOV/spec/Handshake_Master_Spec_v02.182.md",
+  "source_sha256": "1e6324f798174890d38909c8530791f7b8006fce7bddd24483a6cb0da1fcb681",
+  "total_lines": 84130,
+  "headings_outside_fences": 1393,
+  "declared_top_level_sections": [
+    {
+      "section_id": "1",
+      "title": "1. Vision & Context",
+      "line_start": 290,
+      "line_end": 995,
+      "line_count": 706,
+      "h2_count": 8,
+      "h3_count": 18,
+      "h4plus_count": 8,
+      "h2_headings": [
+        {
+          "line": 292,
+          "text": "1.1 Executive Summary"
+        },
+        {
+          "line": 396,
+          "text": "1.2 The Diary Origin Story"
+        },
+        {
+          "line": 482,
+          "text": "1.3 The Four-Layer Architecture"
+        },
+        {
+          "line": 554,
+          "text": "1.4 LLM Reliability Hierarchy"
+        },
+        {
+          "line": 623,
+          "text": "1.5 What Gets Ported from the Diary"
+        },
+        {
+          "line": 696,
+          "text": "1.6 Design Philosophy: Self-Enforcing Governance"
+        },
+        {
+          "line": 822,
+          "text": "1.7 Success Criteria"
+        },
+        {
+          "line": 853,
+          "text": "1.8 Introduction"
+        }
+      ],
+      "structural_note_count": 0,
+      "review_status": "operator-review-required",
+      "observed_notes": []
+    },
+    {
+      "section_id": "2",
+      "title": "2. System Architecture",
+      "line_start": 996,
+      "line_end": 19141,
+      "line_count": 18146,
+      "h2_count": 15,
+      "h3_count": 73,
+      "h4plus_count": 324,
+      "h2_headings": [
+        {
+          "line": 998,
+          "text": "2.1 High-Level Architecture"
+        },
+        {
+          "line": 1199,
+          "text": "2.2 Data & Content Model"
+        },
+        {
+          "line": 1932,
+          "text": "2.3 Content Integrity (Diary Part 5: COR-700)"
+        },
+        {
+          "line": 5761,
+          "text": "2.4 Extraction Pipeline (The Product)"
+        },
+        {
+          "line": 7925,
+          "text": "2.5 AI Interaction Patterns"
+        },
+        {
+          "line": 9210,
+          "text": "2.6 Workflow & Automation Engine"
+        },
+        {
+          "line": 13701,
+          "text": "SYSTEM RULES"
+        },
+        {
+          "line": 13704,
+          "text": "MICRO-TASK CONTEXT"
+        },
+        {
+          "line": 13707,
+          "text": "YOUR TASK"
+        },
+        {
+          "line": 13710,
+          "text": "FILES"
+        },
+        {
+          "line": 13713,
+          "text": "PREVIOUS ITERATION (if retry)"
+        },
+        {
+          "line": 13716,
+          "text": "COMPLETION PROTOCOL"
+        },
+        {
+          "line": 14924,
+          "text": "SYSTEM RULES"
+        },
+        {
+          "line": 14976,
+          "text": "MICRO-TASK LOOP STATUS"
+        },
+        {
+          "line": 14998,
+          "text": "YOUR TASK"
+        }
+      ],
+      "structural_note_count": 9,
+      "review_status": "operator-review-required",
+      "observed_notes": [
+        "H2 outside declared section numbering at line 13701: SYSTEM RULES",
+        "H2 outside declared section numbering at line 13704: MICRO-TASK CONTEXT",
+        "H2 outside declared section numbering at line 13707: YOUR TASK",
+        "H2 outside declared section numbering at line 13710: FILES",
+        "H2 outside declared section numbering at line 13713: PREVIOUS ITERATION (if retry)",
+        "H2 outside declared section numbering at line 13716: COMPLETION PROTOCOL",
+        "H2 outside declared section numbering at line 14924: SYSTEM RULES",
+        "H2 outside declared section numbering at line 14976: MICRO-TASK LOOP STATUS",
+        "H2 outside declared section numbering at line 14998: YOUR TASK"
+      ]
+    },
+    {
+      "section_id": "3",
+      "title": "3. Local-First Infrastructure",
+      "line_start": 19142,
+      "line_end": 19908,
+      "line_count": 767,
+      "h2_count": 0,
+      "h3_count": 0,
+      "h4plus_count": 0,
+      "h2_headings": [],
+      "structural_note_count": 0,
+      "review_status": "operator-review-required",
+      "observed_notes": []
+    },
+    {
+      "section_id": "4",
+      "title": "4. LLM Infrastructure",
+      "line_start": 19909,
+      "line_end": 22175,
+      "line_count": 2267,
+      "h2_count": 0,
+      "h3_count": 1,
+      "h4plus_count": 8,
+      "h2_headings": [],
+      "structural_note_count": 0,
+      "review_status": "operator-review-required",
+      "observed_notes": []
+    },
+    {
+      "section_id": "5",
+      "title": "5. Security & Observability",
+      "line_start": 22176,
+      "line_end": 23902,
+      "line_count": 1727,
+      "h2_count": 1,
+      "h3_count": 10,
+      "h4plus_count": 18,
+      "h2_headings": [
+        {
+          "line": 23626,
+          "text": "5.5 Benchmark Harness"
+        }
+      ],
+      "structural_note_count": 0,
+      "review_status": "operator-review-required",
+      "observed_notes": []
+    },
+    {
+      "section_id": "6",
+      "title": "6. Mechanical Integrations",
+      "line_start": 23903,
+      "line_end": 30488,
+      "line_count": 6586,
+      "h2_count": 0,
+      "h3_count": 0,
+      "h4plus_count": 0,
+      "h2_headings": [],
+      "structural_note_count": 0,
+      "review_status": "operator-review-required",
+      "observed_notes": []
+    },
+    {
+      "section_id": "7",
+      "title": "7. User Experience & Development",
+      "line_start": 30489,
+      "line_end": 49311,
+      "line_count": 18823,
+      "h2_count": 243,
+      "h3_count": 277,
+      "h4plus_count": 71,
+      "h2_headings": [
+        {
+          "line": 32145,
+          "text": "{{PROJECT_DISPLAY_NAME}} Repo Guardrails (HARD RULES)"
+        },
+        {
+          "line": 32171,
+          "text": "0. Meta"
+        },
+        {
+          "line": 32179,
+          "text": "1. LAW Stack and Precedence"
+        },
+        {
+          "line": 32195,
+          "text": "2. Hard Invariants (Core Rules)"
+        },
+        {
+          "line": 32217,
+          "text": "3. Repository Layout (Guiding Structure)"
+        },
+        {
+          "line": 32262,
+          "text": "4. Architectural Invariants (Detailed)"
+        },
+        {
+          "line": 32962,
+          "text": "5. Spec Usage Protocol"
+        },
+        {
+          "line": 32988,
+          "text": "6. Assistant Behaviour (General)"
+        },
+        {
+          "line": 33220,
+          "text": "7. Bootloader Integration (Optional)"
+        },
+        {
+          "line": 33239,
+          "text": "8. Drift and Known Deviations"
+        },
+        {
+          "line": 33250,
+          "text": "9. Automated Enforcement (AI Autonomy Requirements)"
+        },
+        {
+          "line": 33289,
+          "text": "10. Versioning"
+        },
+        {
+          "line": 33314,
+          "text": "SUMMARY FOR AI AGENTS"
+        },
+        {
+          "line": 33809,
+          "text": "Identity"
+        },
+        {
+          "line": 33814,
+          "text": "Naming Policy (Repo Root)"
+        },
+        {
+          "line": 33821,
+          "text": "Issue / Ticketing"
+        },
+        {
+          "line": 33824,
+          "text": "Language/Layout Guardrails (ALWAYS PRESENT)"
+        },
+        {
+          "line": 33844,
+          "text": "CI/Test Defaults (Optional)"
+        },
+        {
+          "line": 33847,
+          "text": "External Tool Paths (Optional but Explicit)"
+        },
+        {
+          "line": 33882,
+          "text": "Canonical sources"
+        },
+        {
+          "line": 33888,
+          "text": "AI Agent Workflow (Mandatory for AI-Autonomous Operation)"
+        },
+        {
+          "line": 33924,
+          "text": "Repo map (open in an editor and `rg`)"
+        },
+        {
+          "line": 33939,
+          "text": "How to run"
+        },
+        {
+          "line": 33975,
+          "text": "Bug triage map (jump into RUNBOOK_DEBUG)"
+        },
+        {
+          "line": 33981,
+          "text": "More context"
+        },
+        {
+          "line": 33989,
+          "text": "Past work"
+        },
+        {
+          "line": 34012,
+          "text": "Raw / Derived / Display (RDD)"
+        },
+        {
+          "line": 34024,
+          "text": "First 5 minutes"
+        },
+        {
+          "line": 34032,
+          "text": "Logs and verbosity"
+        },
+        {
+          "line": 34037,
+          "text": "Common symptom -> where to look"
+        },
+        {
+          "line": 34047,
+          "text": "If you only remember one thing"
+        },
+        {
+          "line": 34051,
+          "text": "Debugging a failed CI check"
+        },
+        {
+          "line": 34065,
+          "text": "Root-level specs and logs (canonical history)"
+        },
+        {
+          "line": 34070,
+          "text": ".GOV/operator/docs_local/ (staging, non-canonical)"
+        },
+        {
+          "line": 34073,
+          "text": "log_archive/"
+        },
+        {
+          "line": 34101,
+          "text": "Spec Authority Rule [CX-598] (HARD INVARIANT)"
+        },
+        {
+          "line": 34129,
+          "text": "Active (Cross-Branch Status)"
+        },
+        {
+          "line": 34144,
+          "text": "Ready for Dev"
+        },
+        {
+          "line": 34149,
+          "text": "Stub Backlog (Not Activated)"
+        },
+        {
+          "line": 34154,
+          "text": "In Progress"
+        },
+        {
+          "line": 34159,
+          "text": "Done"
+        },
+        {
+          "line": 34165,
+          "text": "Blocked"
+        },
+        {
+          "line": 34169,
+          "text": "Superseded (Archive)"
+        },
+        {
+          "line": 34249,
+          "text": "Definitions"
+        },
+        {
+          "line": 34265,
+          "text": "Workflow (Deterministic)"
+        },
+        {
+          "line": 34285,
+          "text": "Registry (Phase 1)"
+        },
+        {
+          "line": 34312,
+          "text": "Signature Rules (MANDATORY)"
+        },
+        {
+          "line": 34323,
+          "text": "Consumed Signatures"
+        },
+        {
+          "line": 34331,
+          "text": "How to Use This Log"
+        },
+        {
+          "line": 34357,
+          "text": "Signature History (For Reference)"
+        },
+        {
+          "line": 34376,
+          "text": "Verification Commands"
+        },
+        {
+          "line": 34407,
+          "text": "Gate 0: Pre-Work Validation (AI Autonomy - Mandatory)"
+        },
+        {
+          "line": 34426,
+          "text": "Risk tiers"
+        },
+        {
+          "line": 34435,
+          "text": "Task packet fields (required)"
+        },
+        {
+          "line": 34441,
+          "text": "Definition of done (minimum)"
+        },
+        {
+          "line": 34450,
+          "text": "Gate 1: Post-Work Validation (AI Autonomy - Mandatory)"
+        },
+        {
+          "line": 34469,
+          "text": "Self-review checklist (required)"
+        },
+        {
+          "line": 34492,
+          "text": "Backend Direct â€” `{{BACKEND_CARGO_TOML}}`"
+        },
+        {
+          "line": 34498,
+          "text": "Backend Transitive â€” (lockfile)"
+        },
+        {
+          "line": 34504,
+          "text": "Frontend Direct â€” (manifest)"
+        },
+        {
+          "line": 34510,
+          "text": "Frontend Transitive â€” (lockfile)"
+        },
+        {
+          "line": 34516,
+          "text": "Policy Notes (HARD)"
+        },
+        {
+          "line": 34537,
+          "text": "Role Worktrees (Operator machine)"
+        },
+        {
+          "line": 34551,
+          "text": "Verification Commands (run at session start)"
+        },
+        {
+          "line": 34558,
+          "text": "Creation Commands (only if explicitly authorized in the same turn)"
+        },
+        {
+          "line": 34608,
+          "text": "Safety: Data-Loss Prevention (HARD RULE)"
+        },
+        {
+          "line": 34618,
+          "text": "Part 1: Strategic Priorities (Phase 1 Focus) [CX-600A]"
+        },
+        {
+          "line": 34668,
+          "text": "Deterministic Manifest & Gate (current workflow, COR-701 discipline)"
+        },
+        {
+          "line": 34673,
+          "text": "Branching & Concurrency (preferred; low-friction)"
+        },
+        {
+          "line": 34680,
+          "text": "Worktree + Branch Gate [CX-WT-001] (BLOCKING)"
+        },
+        {
+          "line": 34701,
+          "text": "Stop-Work Gate: Worktree + Assignment Before Packet Creation (HARD RULE)"
+        },
+        {
+          "line": 34708,
+          "text": "Safety Commit Gate (HARD RULE; prevents untracked WP loss)"
+        },
+        {
+          "line": 34714,
+          "text": "Part 2: Pre-Orchestration Checklist [CX-600]"
+        },
+        {
+          "line": 34761,
+          "text": "Part 2.5: Strategic Pause & Signature Gate [CX-585A/B/C]"
+        },
+        {
+          "line": 35049,
+          "text": "Part 3: Role & Critical Rules"
+        },
+        {
+          "line": 35068,
+          "text": "Part 3-Error-Recovery: How to Recover from Orchestrator Mistakes [CX-611]"
+        },
+        {
+          "line": 35243,
+          "text": "Part 3.5: What Orchestrator MUST Provide to Coder [CX-608]"
+        },
+        {
+          "line": 35708,
+          "text": "Part 4: Task Packet Creation Workflow [CX-601-607]"
+        },
+        {
+          "line": 35712,
+          "text": "Pre-Delegation Checklist (BLOCKING âœ‹)"
+        },
+        {
+          "line": 35972,
+          "text": "Task State Management (Shared Responsibility)"
+        },
+        {
+          "line": 36000,
+          "text": "BLOCKING RULES (Non-Negotiable)"
+        },
+        {
+          "line": 36016,
+          "text": "If Blocked"
+        },
+        {
+          "line": 36066,
+          "text": "Common Mistakes (Avoid These)"
+        },
+        {
+          "line": 36134,
+          "text": "Success Criteria"
+        },
+        {
+          "line": 36151,
+          "text": "Quick Reference"
+        },
+        {
+          "line": 36177,
+          "text": "Part 5: Work Packet Lifecycle in Detail [CX-620-625]"
+        },
+        {
+          "line": 36451,
+          "text": "Part 6: Task Board Maintenance [CX-625-630]"
+        },
+        {
+          "line": 36638,
+          "text": "Part 7: Dependency Management [CX-630-635]"
+        },
+        {
+          "line": 36805,
+          "text": "Part 8: Pre-Delegation Validation Checklist [CX-640]"
+        },
+        {
+          "line": 36829,
+          "text": "Part 9: Orchestrator Non-Negotiables [CX-640-650]"
+        },
+        {
+          "line": 36859,
+          "text": "Part 10: Real Examples (Templates)"
+        },
+        {
+          "line": 36895,
+          "text": "Safety: Data-Loss Prevention (HARD RULE)"
+        },
+        {
+          "line": 36905,
+          "text": "Worktree + Branch Gate [CX-WT-001] (BLOCKING)"
+        },
+        {
+          "line": 36929,
+          "text": "Spec Authority Rule [CX-598] (HARD INVARIANT)"
+        },
+        {
+          "line": 36952,
+          "text": "WP Traceability Registry (Base WP vs Packet Revisions)"
+        },
+        {
+          "line": 36961,
+          "text": "Variant Packet Lineage Audit [CX-580E] (BLOCKING)"
+        },
+        {
+          "line": 36974,
+          "text": "Deterministic Validation (COR-701 carryover, current workflow)"
+        },
+        {
+          "line": 36981,
+          "text": "Active Workflow Adjustment [2025-12-28]"
+        },
+        {
+          "line": 36990,
+          "text": "Role"
+        },
+        {
+          "line": 37033,
+          "text": "Pre-Implementation Checklist (BLOCKING âœ‹)"
+        },
+        {
+          "line": 37424,
+          "text": "Hard Invariant Enforcement Guide [CX-100-106]"
+        },
+        {
+          "line": 37591,
+          "text": "Validation Priority (CRITICAL ORDER) [CX-623-SEQUENCE]"
+        },
+        {
+          "line": 37611,
+          "text": "Post-Implementation Checklist (BLOCKING âœ‹)"
+        },
+        {
+          "line": 37821,
+          "text": "BLOCKING RULES (Non-Negotiable)"
+        },
+        {
+          "line": 37843,
+          "text": "If Blocked"
+        },
+        {
+          "line": 37895,
+          "text": "Common Mistakes (Avoid These)"
+        },
+        {
+          "line": 37966,
+          "text": "Success Criteria"
+        },
+        {
+          "line": 37987,
+          "text": "Quick Reference"
+        },
+        {
+          "line": 38029,
+          "text": "Section 0: Your Role"
+        },
+        {
+          "line": 38047,
+          "text": "Section 1: Five Core Responsibilities"
+        },
+        {
+          "line": 38129,
+          "text": "Section 2: 13/13 Quality Standards Checklist"
+        },
+        {
+          "line": 38149,
+          "text": "Section 3: STOP Enforcement Gates (13 Gates)"
+        },
+        {
+          "line": 38171,
+          "text": "Section 4: Never Forget (10 Memory Items + 10 Gotchas)"
+        },
+        {
+          "line": 38201,
+          "text": "Section 5: Behavioral Expectations (Decision Trees)"
+        },
+        {
+          "line": 38266,
+          "text": "Section 6: Success Metrics"
+        },
+        {
+          "line": 38289,
+          "text": "Section 7: Failure Modes + Recovery"
+        },
+        {
+          "line": 38341,
+          "text": "Section 8: Escalation Protocol"
+        },
+        {
+          "line": 38377,
+          "text": "Current Grade: B+ (82/100) â†’ Target: A+ (99/100)"
+        },
+        {
+          "line": 38405,
+          "text": "Implementation Timeline"
+        },
+        {
+          "line": 38442,
+          "text": "Global Safety: Data-Loss Prevention (HARD RULE)"
+        },
+        {
+          "line": 38456,
+          "text": "Pre-Flight (Blocking)"
+        },
+        {
+          "line": 38485,
+          "text": "Status Sync Commits (Operator Visibility, Multi-Branch)"
+        },
+        {
+          "line": 38503,
+          "text": "Deterministic Manifest Gate (current workflow, COR-701 discipline)"
+        },
+        {
+          "line": 38508,
+          "text": "Core Process (Follow in Order)"
+        },
+        {
+          "line": 38597,
+          "text": "Waiver Protocol [CX-573F]"
+        },
+        {
+          "line": 38604,
+          "text": "Escalation Protocol (Blocking paths)"
+        },
+        {
+          "line": 38610,
+          "text": "Standard Command Set (run when applicable)"
+        },
+        {
+          "line": 38624,
+          "text": "Verdict (Binary)"
+        },
+        {
+          "line": 38628,
+          "text": "Validation Gate Sequence [CX-VAL-GATE] (MECHANICAL PAUSES REQUIRED)"
+        },
+        {
+          "line": 38699,
+          "text": "Merge/Commit Authority (per Codex [CX-505])"
+        },
+        {
+          "line": 38702,
+          "text": "Post-Merge Cleanup (reduces branch confusion)"
+        },
+        {
+          "line": 38708,
+          "text": "Report Template"
+        },
+        {
+          "line": 38747,
+          "text": "Non-Negotiables"
+        },
+        {
+          "line": 38791,
+          "text": "Files (normative)"
+        },
+        {
+          "line": 38799,
+          "text": "Files (non-normative)"
+        },
+        {
+          "line": 38802,
+          "text": "Conformance model"
+        },
+        {
+          "line": 38817,
+          "text": "1. Authority stack (precedence is not implicit)"
+        },
+        {
+          "line": 38841,
+          "text": "2. Roles (mechanical separation of duties)"
+        },
+        {
+          "line": 38887,
+          "text": "3. Branching, worktrees, and concurrency (portable rule set)"
+        },
+        {
+          "line": 38900,
+          "text": "4. Safety: destructive operations and sync gates"
+        },
+        {
+          "line": 38920,
+          "text": "5. Session â€œenvironment hard gateâ€ (recommended)"
+        },
+        {
+          "line": 38947,
+          "text": "A. Global invariants (apply to every artifact unless stated otherwise)"
+        },
+        {
+          "line": 38966,
+          "text": "B. Canonical repo layout (kernel default)"
+        },
+        {
+          "line": 38989,
+          "text": "C. Artifact contracts (required files)"
+        },
+        {
+          "line": 39150,
+          "text": "1. Single command surface (recommended)"
+        },
+        {
+          "line": 39168,
+          "text": "2. Orchestrator gates (REFINEMENT â†’ SIGNATURE â†’ PREPARE)"
+        },
+        {
+          "line": 39238,
+          "text": "3. Packet creation gate (`create-task-packet`)"
+        },
+        {
+          "line": 39256,
+          "text": "4. Coder phase gate (`gate-check`)"
+        },
+        {
+          "line": 39269,
+          "text": "5. Pre-work gate (`pre-work`)"
+        },
+        {
+          "line": 39283,
+          "text": "6. Post-work gate (`post-work`)"
+        },
+        {
+          "line": 39299,
+          "text": "7. Validator gates (REPORT_PRESENTED â†’ USER_ACKNOWLEDGED â†’ WP_APPENDED â†’ COMMITTED)"
+        },
+        {
+          "line": 39314,
+          "text": "8. Auxiliary governance checks (kernel-recommended)"
+        },
+        {
+          "line": 39338,
+          "text": "1. Principle: chat is not state"
+        },
+        {
+          "line": 39347,
+          "text": "2. Deterministic â€œminimum context bundleâ€ per role"
+        },
+        {
+          "line": 39357,
+          "text": "3. Packetization as context compression"
+        },
+        {
+          "line": 39370,
+          "text": "4. Refinement anchors as â€œspec shardingâ€"
+        },
+        {
+          "line": 39382,
+          "text": "5. Decomposing large work into internal sub-tasks (recommended method)"
+        },
+        {
+          "line": 39402,
+          "text": "6. Context continuity across model swaps (mechanical)"
+        },
+        {
+          "line": 39418,
+          "text": "7. Why â€œheavy thinkingâ€ is not the primary control surface"
+        },
+        {
+          "line": 39444,
+          "text": "1. CI parity (normative)"
+        },
+        {
+          "line": 39461,
+          "text": "2. Pre-commit hooks (recommended)"
+        },
+        {
+          "line": 39475,
+          "text": "3. Determinism configuration surface (kernel-required categories)"
+        },
+        {
+          "line": 39505,
+          "text": "4. Governance-command allowlists (optional hardening)"
+        },
+        {
+          "line": 39515,
+          "text": "5. Drift hazards and required mitigations"
+        },
+        {
+          "line": 39548,
+          "text": "1. Versioned specs + a single pointer"
+        },
+        {
+          "line": 39559,
+          "text": "2. One-time approvals and auditability"
+        },
+        {
+          "line": 39570,
+          "text": "3. Compatibility shims (allowed, but must be explicit)"
+        },
+        {
+          "line": 39580,
+          "text": "4. Drift detection checklist (kernel-recommended)"
+        },
+        {
+          "line": 39596,
+          "text": "5. Drift handling policy (what to do when drift is found)"
+        },
+        {
+          "line": 39605,
+          "text": "6. Why this matters for small-context models"
+        },
+        {
+          "line": 39637,
+          "text": "1) Authority Stack (LAW) and Precedence"
+        },
+        {
+          "line": 39659,
+          "text": "2) Roles (Mechanical Separation of Duties)"
+        },
+        {
+          "line": 39690,
+          "text": "3) Canonical Governance Artifacts (What exists, and why)"
+        },
+        {
+          "line": 39773,
+          "text": "4) End-to-End Mechanical Workflow (How the gates interlock)"
+        },
+        {
+          "line": 39864,
+          "text": "5) Deterministic Manifest (COR-701 discipline)"
+        },
+        {
+          "line": 39886,
+          "text": "6) Concurrency and Worktrees"
+        },
+        {
+          "line": 39901,
+          "text": "7) Context Management for Small-Context Models (Project-agnostic kernel)"
+        },
+        {
+          "line": 39946,
+          "text": "8) Known Drift / Inconsistencies (Current repo state)"
+        },
+        {
+          "line": 39965,
+          "text": "9) Full Inventory (Snapshot)"
+        },
+        {
+          "line": 40287,
+          "text": "METADATA"
+        },
+        {
+          "line": 40301,
+          "text": "TECHNICAL_REFINEMENT (MASTER SPEC)"
+        },
+        {
+          "line": 40305,
+          "text": "SCOPE"
+        },
+        {
+          "line": 40313,
+          "text": "WAIVERS GRANTED"
+        },
+        {
+          "line": 40317,
+          "text": "QUALITY_GATE"
+        },
+        {
+          "line": 40336,
+          "text": "AUTHORITY"
+        },
+        {
+          "line": 40344,
+          "text": "LINEAGE_AUDIT (ALL VERSIONS) [CX-580E]"
+        },
+        {
+          "line": 40350,
+          "text": "BOOTSTRAP"
+        },
+        {
+          "line": 40366,
+          "text": "SKELETON"
+        },
+        {
+          "line": 40371,
+          "text": "IMPLEMENTATION"
+        },
+        {
+          "line": 40374,
+          "text": "HYGIENE"
+        },
+        {
+          "line": 40377,
+          "text": "VALIDATION"
+        },
+        {
+          "line": 40405,
+          "text": "STATUS_HANDOFF"
+        },
+        {
+          "line": 40411,
+          "text": "EVIDENCE"
+        },
+        {
+          "line": 40414,
+          "text": "VALIDATION_REPORTS"
+        },
+        {
+          "line": 40437,
+          "text": "STUB_METADATA"
+        },
+        {
+          "line": 40448,
+          "text": "INTENT (DRAFT)"
+        },
+        {
+          "line": 40452,
+          "text": "SCOPE_SKETCH (DRAFT)"
+        },
+        {
+          "line": 40458,
+          "text": "ACCEPTANCE_CRITERIA (DRAFT)"
+        },
+        {
+          "line": 40461,
+          "text": "DEPENDENCIES / BLOCKERS (DRAFT)"
+        },
+        {
+          "line": 40464,
+          "text": "RISKS / UNKNOWNs (DRAFT)"
+        },
+        {
+          "line": 40467,
+          "text": "ACTIVATION_CHECKLIST (REQUIRED BEFORE ANY CODING)"
+        },
+        {
+          "line": 40482,
+          "text": "TECHNICAL_REFINEMENT (MASTER SPEC)"
+        },
+        {
+          "line": 40569,
+          "text": "What we did (summary)"
+        },
+        {
+          "line": 40578,
+          "text": "Why we did it (rationale)"
+        },
+        {
+          "line": 40585,
+          "text": "Canonical inputs and precedence (template)"
+        },
+        {
+          "line": 40593,
+          "text": "Required navigation pack (copy these)"
+        },
+        {
+          "line": 40606,
+          "text": "Roles (template)"
+        },
+        {
+          "line": 40613,
+          "text": "Task lifecycle (deterministic flow)"
+        },
+        {
+          "line": 40624,
+          "text": "Commands (single source)"
+        },
+        {
+          "line": 40632,
+          "text": "Scaffolding (structure enforcement)"
+        },
+        {
+          "line": 40638,
+          "text": "Manual review (required)"
+        },
+        {
+          "line": 40641,
+          "text": "Git hook (optional but recommended)"
+        },
+        {
+          "line": 40647,
+          "text": "Validation and enforcement (defaults)"
+        },
+        {
+          "line": 40655,
+          "text": "Logging and debug anchors"
+        },
+        {
+          "line": 40660,
+          "text": "Repository layout conventions (template)"
+        },
+        {
+          "line": 40666,
+          "text": "How to reuse this template in a new repo"
+        },
+        {
+          "line": 40676,
+          "text": "Optional extensions"
+        },
+        {
+          "line": 45306,
+          "text": "Section 0: Role Definition"
+        },
+        {
+          "line": 45330,
+          "text": "Section 1: Five Core Responsibilities (With Quality Standards)"
+        },
+        {
+          "line": 45596,
+          "text": "Section 2: Quality Standards (13/13 Checklist)"
+        },
+        {
+          "line": 45616,
+          "text": "Section 3: STOP Enforcement Gates (13 Gates)"
+        },
+        {
+          "line": 45640,
+          "text": "Section 4: Never Forget (10 Memory Items + 10 Gotchas)"
+        },
+        {
+          "line": 45670,
+          "text": "Section 5: Behavioral Expectations (Decision Trees)"
+        },
+        {
+          "line": 45747,
+          "text": "Section 6: Success Metrics"
+        },
+        {
+          "line": 45778,
+          "text": "Section 7: Failure Modes (Common Scenarios + Recovery)"
+        },
+        {
+          "line": 45905,
+          "text": "Section 8: Escalation Protocol (Clear Communication)"
+        },
+        {
+          "line": 45993,
+          "text": "Section 9: Perfection Checklist (15-Point Self-Audit)"
+        },
+        {
+          "line": 46017,
+          "text": "Final Summary: What A Perfect Coder Does"
+        },
+        {
+          "line": 46047,
+          "text": "0. ROLE DEFINITION: What an Orchestrator IS"
+        },
+        {
+          "line": 46067,
+          "text": "1. CORE RESPONSIBILITIES (The Five Pillars)"
+        },
+        {
+          "line": 46289,
+          "text": "2. QUALITY STANDARDS: Measurable Criteria"
+        },
+        {
+          "line": 46350,
+          "text": "3. ENFORCEMENT POINTS: Where Orchestrator MUST GATE Work"
+        },
+        {
+          "line": 46451,
+          "text": "4. NEVER FORGET: Common Pitfalls & Memory Items"
+        },
+        {
+          "line": 46617,
+          "text": "5. BEHAVIORAL EXPECTATIONS: How a Perfect Orchestrator Acts"
+        },
+        {
+          "line": 46692,
+          "text": "6. SUCCESS METRICS: How to Measure Orchestrator Performance"
+        },
+        {
+          "line": 46754,
+          "text": "7. FAILURE MODES: When Orchestrator Falls Short"
+        },
+        {
+          "line": 46845,
+          "text": "8. ESCALATION PROTOCOL: When Orchestrator Says \"No\""
+        },
+        {
+          "line": 46905,
+          "text": "9. PERFECTION CHECKLIST: Self-Audit Before Work Cycle"
+        },
+        {
+          "line": 46929,
+          "text": "10. FINAL SUMMARY: What Perfect Looks Like"
+        },
+        {
+          "line": 46959,
+          "text": "LAW: Portable SQL Invariants"
+        },
+        {
+          "line": 46966,
+          "text": "LAW: Migration Framework Usage"
+        },
+        {
+          "line": 46972,
+          "text": "LAW: Validation Before Merge"
+        },
+        {
+          "line": 46978,
+          "text": "Checklist for New Migrations"
+        }
+      ],
+      "structural_note_count": 239,
+      "review_status": "operator-review-required",
+      "observed_notes": [
+        "H2 outside declared section numbering at line 32145: {{PROJECT_DISPLAY_NAME}} Repo Guardrails (HARD RULES)",
+        "H2 outside declared section numbering at line 32171: 0. Meta",
+        "H2 outside declared section numbering at line 32179: 1. LAW Stack and Precedence",
+        "H2 outside declared section numbering at line 32195: 2. Hard Invariants (Core Rules)",
+        "H2 outside declared section numbering at line 32217: 3. Repository Layout (Guiding Structure)",
+        "H2 outside declared section numbering at line 32262: 4. Architectural Invariants (Detailed)",
+        "H2 outside declared section numbering at line 32962: 5. Spec Usage Protocol",
+        "H2 outside declared section numbering at line 32988: 6. Assistant Behaviour (General)",
+        "H2 outside declared section numbering at line 33239: 8. Drift and Known Deviations",
+        "H2 outside declared section numbering at line 33250: 9. Automated Enforcement (AI Autonomy Requirements)",
+        "H2 outside declared section numbering at line 33289: 10. Versioning",
+        "H2 outside declared section numbering at line 33314: SUMMARY FOR AI AGENTS",
+        "H2 outside declared section numbering at line 33809: Identity",
+        "H2 outside declared section numbering at line 33814: Naming Policy (Repo Root)",
+        "H2 outside declared section numbering at line 33821: Issue / Ticketing",
+        "H2 outside declared section numbering at line 33824: Language/Layout Guardrails (ALWAYS PRESENT)",
+        "H2 outside declared section numbering at line 33844: CI/Test Defaults (Optional)",
+        "H2 outside declared section numbering at line 33847: External Tool Paths (Optional but Explicit)",
+        "H2 outside declared section numbering at line 33882: Canonical sources",
+        "H2 outside declared section numbering at line 33888: AI Agent Workflow (Mandatory for AI-Autonomous Operation)",
+        "H2 outside declared section numbering at line 33924: Repo map (open in an editor and `rg`)",
+        "H2 outside declared section numbering at line 33939: How to run",
+        "H2 outside declared section numbering at line 33975: Bug triage map (jump into RUNBOOK_DEBUG)",
+        "H2 outside declared section numbering at line 33981: More context",
+        "H2 outside declared section numbering at line 33989: Past work",
+        "H2 outside declared section numbering at line 34012: Raw / Derived / Display (RDD)",
+        "H2 outside declared section numbering at line 34024: First 5 minutes",
+        "H2 outside declared section numbering at line 34032: Logs and verbosity",
+        "H2 outside declared section numbering at line 34037: Common symptom -> where to look",
+        "H2 outside declared section numbering at line 34047: If you only remember one thing",
+        "H2 outside declared section numbering at line 34051: Debugging a failed CI check",
+        "H2 outside declared section numbering at line 34065: Root-level specs and logs (canonical history)",
+        "H2 outside declared section numbering at line 34070: .GOV/operator/docs_local/ (staging, non-canonical)",
+        "H2 outside declared section numbering at line 34073: log_archive/",
+        "H2 outside declared section numbering at line 34101: Spec Authority Rule [CX-598] (HARD INVARIANT)",
+        "H2 outside declared section numbering at line 34129: Active (Cross-Branch Status)",
+        "H2 outside declared section numbering at line 34144: Ready for Dev",
+        "H2 outside declared section numbering at line 34149: Stub Backlog (Not Activated)",
+        "H2 outside declared section numbering at line 34154: In Progress",
+        "H2 outside declared section numbering at line 34159: Done"
+      ]
+    },
+    {
+      "section_id": "8",
+      "title": "8. Reference",
+      "line_start": 49312,
+      "line_end": 53634,
+      "line_count": 4323,
+      "h2_count": 19,
+      "h3_count": 50,
+      "h4plus_count": 13,
+      "h2_headings": [
+        {
+          "line": 50590,
+          "text": "0. Normative language"
+        },
+        {
+          "line": 50596,
+          "text": "1. Operator-locked constraints"
+        },
+        {
+          "line": 50617,
+          "text": "2. Definitions (addendum-local)"
+        },
+        {
+          "line": 50663,
+          "text": "3. Core invariants (non-negotiable)"
+        },
+        {
+          "line": 50704,
+          "text": "4. Atelier/Lens runtime model (tightened)"
+        },
+        {
+          "line": 50759,
+          "text": "5. Evidence model (click-to-source correctness)"
+        },
+        {
+          "line": 50785,
+          "text": "6. Canonical descriptor substrate (force multiplier)"
+        },
+        {
+          "line": 50874,
+          "text": "7. Persistence contract (SQLite now, Postgres later)"
+        },
+        {
+          "line": 50921,
+          "text": "8. Retrieval contract (two methods, deterministic)"
+        },
+        {
+          "line": 51029,
+          "text": "9. SYM-001 in Lens (first-class)"
+        },
+        {
+          "line": 51076,
+          "text": "10. Config profiles + UI editor (deterministic)"
+        },
+        {
+          "line": 51117,
+          "text": "11. NSFW/SFW policy (raw ingest; filtered view/output only)"
+        },
+        {
+          "line": 51144,
+          "text": "12. Role registry: Digital Production Studio RolePack (draft v1)"
+        },
+        {
+          "line": 51226,
+          "text": "13. Multi-model parallelism integration (Atelier Track)"
+        },
+        {
+          "line": 51232,
+          "text": "14. Cross-tool deliverables (typed + capability-gated)"
+        },
+        {
+          "line": 51309,
+          "text": "15. Patch map (surgical insertion points)"
+        },
+        {
+          "line": 51326,
+          "text": "16. Decisions captured (v0.2.3)"
+        },
+        {
+          "line": 51334,
+          "text": "17. Open questions (remaining)"
+        },
+        {
+          "line": 51340,
+          "text": "18. Embedded source snapshots (lossless archive)"
+        }
+      ],
+      "structural_note_count": 18,
+      "review_status": "operator-review-required",
+      "observed_notes": [
+        "H2 outside declared section numbering at line 50590: 0. Normative language",
+        "H2 outside declared section numbering at line 50596: 1. Operator-locked constraints",
+        "H2 outside declared section numbering at line 50617: 2. Definitions (addendum-local)",
+        "H2 outside declared section numbering at line 50663: 3. Core invariants (non-negotiable)",
+        "H2 outside declared section numbering at line 50704: 4. Atelier/Lens runtime model (tightened)",
+        "H2 outside declared section numbering at line 50759: 5. Evidence model (click-to-source correctness)",
+        "H2 outside declared section numbering at line 50785: 6. Canonical descriptor substrate (force multiplier)",
+        "H2 outside declared section numbering at line 50874: 7. Persistence contract (SQLite now, Postgres later)",
+        "H2 outside declared section numbering at line 51029: 9. SYM-001 in Lens (first-class)",
+        "H2 outside declared section numbering at line 51076: 10. Config profiles + UI editor (deterministic)",
+        "H2 outside declared section numbering at line 51117: 11. NSFW/SFW policy (raw ingest; filtered view/output only)",
+        "H2 outside declared section numbering at line 51144: 12. Role registry: Digital Production Studio RolePack (draft v1)",
+        "H2 outside declared section numbering at line 51226: 13. Multi-model parallelism integration (Atelier Track)",
+        "H2 outside declared section numbering at line 51232: 14. Cross-tool deliverables (typed + capability-gated)",
+        "H2 outside declared section numbering at line 51309: 15. Patch map (surgical insertion points)",
+        "H2 outside declared section numbering at line 51326: 16. Decisions captured (v0.2.3)",
+        "H2 outside declared section numbering at line 51334: 17. Open questions (remaining)",
+        "H2 outside declared section numbering at line 51340: 18. Embedded source snapshots (lossless archive)"
+      ]
+    },
+    {
+      "section_id": "9",
+      "title": "9. Continuous Local Skill Distillation (Skill Bank & Pipeline)",
+      "line_start": 53635,
+      "line_end": 54531,
+      "line_count": 897,
+      "h2_count": 0,
+      "h3_count": 0,
+      "h4plus_count": 0,
+      "h2_headings": [],
+      "structural_note_count": 0,
+      "review_status": "operator-review-required",
+      "observed_notes": []
+    },
+    {
+      "section_id": "10",
+      "title": "10. Product Surfaces",
+      "line_start": 54532,
+      "line_end": 62455,
+      "line_count": 7924,
+      "h2_count": 18,
+      "h3_count": 0,
+      "h4plus_count": 0,
+      "h2_headings": [
+        {
+          "line": 58277,
+          "text": "Environment"
+        },
+        {
+          "line": 58283,
+          "text": "Timeline"
+        },
+        {
+          "line": 58288,
+          "text": "Steps to Reproduce"
+        },
+        {
+          "line": 58299,
+          "text": "Expected Behavior"
+        },
+        {
+          "line": 58302,
+          "text": "Actual Behavior"
+        },
+        {
+          "line": 58305,
+          "text": "Related Artifacts"
+        },
+        {
+          "line": 58316,
+          "text": "Issue Summary"
+        },
+        {
+          "line": 58321,
+          "text": "Message"
+        },
+        {
+          "line": 58324,
+          "text": "Context"
+        },
+        {
+          "line": 58330,
+          "text": "Version Information"
+        },
+        {
+          "line": 58335,
+          "text": "What Failed"
+        },
+        {
+          "line": 58343,
+          "text": "Steps to Reproduce"
+        },
+        {
+          "line": 58346,
+          "text": "Expected vs Actual"
+        },
+        {
+          "line": 58350,
+          "text": "Evidence Files"
+        },
+        {
+          "line": 58361,
+          "text": "Key IDs for Investigation"
+        },
+        {
+          "line": 58368,
+          "text": "Policy Notes"
+        },
+        {
+          "line": 58377,
+          "text": "Missing Evidence"
+        },
+        {
+          "line": 58387,
+          "text": "Instructions for Coder"
+        }
+      ],
+      "structural_note_count": 18,
+      "review_status": "operator-review-required",
+      "observed_notes": [
+        "H2 outside declared section numbering at line 58277: Environment",
+        "H2 outside declared section numbering at line 58283: Timeline",
+        "H2 outside declared section numbering at line 58288: Steps to Reproduce",
+        "H2 outside declared section numbering at line 58299: Expected Behavior",
+        "H2 outside declared section numbering at line 58302: Actual Behavior",
+        "H2 outside declared section numbering at line 58305: Related Artifacts",
+        "H2 outside declared section numbering at line 58316: Issue Summary",
+        "H2 outside declared section numbering at line 58321: Message",
+        "H2 outside declared section numbering at line 58324: Context",
+        "H2 outside declared section numbering at line 58330: Version Information",
+        "H2 outside declared section numbering at line 58335: What Failed",
+        "H2 outside declared section numbering at line 58343: Steps to Reproduce",
+        "H2 outside declared section numbering at line 58346: Expected vs Actual",
+        "H2 outside declared section numbering at line 58350: Evidence Files",
+        "H2 outside declared section numbering at line 58361: Key IDs for Investigation",
+        "H2 outside declared section numbering at line 58368: Policy Notes",
+        "H2 outside declared section numbering at line 58377: Missing Evidence",
+        "H2 outside declared section numbering at line 58387: Instructions for Coder"
+      ]
+    },
+    {
+      "section_id": "11",
+      "title": "11. Shared Dev Platform & OSS Foundations",
+      "line_start": 62456,
+      "line_end": 72238,
+      "line_count": 9783,
+      "h2_count": 14,
+      "h3_count": 40,
+      "h4plus_count": 14,
+      "h2_headings": [
+        {
+          "line": 70963,
+          "text": "0. Normative Language"
+        },
+        {
+          "line": 70969,
+          "text": "1. Executive Summary"
+        },
+        {
+          "line": 70989,
+          "text": "2. Scope"
+        },
+        {
+          "line": 71009,
+          "text": "3. Model Resource Management (normative)"
+        },
+        {
+          "line": 71128,
+          "text": "4. Autonomous Governance Protocol (normative)"
+        },
+        {
+          "line": 71230,
+          "text": "5. Work Profile System (normative)"
+        },
+        {
+          "line": 71335,
+          "text": "6. Model Escalation Integration (normative)"
+        },
+        {
+          "line": 71407,
+          "text": "7. Inter-Model Communication Architecture (normative)"
+        },
+        {
+          "line": 71753,
+          "text": "7.7 Multi-Model Infrastructure (future extension)"
+        },
+        {
+          "line": 71803,
+          "text": "8. Prompt-to-Macro-to-Micro Pipeline (normative)"
+        },
+        {
+          "line": 71934,
+          "text": "9. Flight Recorder Events (normative)"
+        },
+        {
+          "line": 72034,
+          "text": "10. Conformance Tests (normative)"
+        },
+        {
+          "line": 72102,
+          "text": "11. Implementation Checklist"
+        },
+        {
+          "line": 72146,
+          "text": "Appendix A: Example End-to-End Flow"
+        }
+      ],
+      "structural_note_count": 13,
+      "review_status": "operator-review-required",
+      "observed_notes": [
+        "H2 outside declared section numbering at line 70963: 0. Normative Language",
+        "H2 outside declared section numbering at line 70969: 1. Executive Summary",
+        "H2 outside declared section numbering at line 70989: 2. Scope",
+        "H2 outside declared section numbering at line 71009: 3. Model Resource Management (normative)",
+        "H2 outside declared section numbering at line 71128: 4. Autonomous Governance Protocol (normative)",
+        "H2 outside declared section numbering at line 71230: 5. Work Profile System (normative)",
+        "H2 outside declared section numbering at line 71335: 6. Model Escalation Integration (normative)",
+        "H2 outside declared section numbering at line 71407: 7. Inter-Model Communication Architecture (normative)",
+        "H2 outside declared section numbering at line 71753: 7.7 Multi-Model Infrastructure (future extension)",
+        "H2 outside declared section numbering at line 71803: 8. Prompt-to-Macro-to-Micro Pipeline (normative)",
+        "H2 outside declared section numbering at line 71934: 9. Flight Recorder Events (normative)",
+        "H2 outside declared section numbering at line 72034: 10. Conformance Tests (normative)",
+        "H2 outside declared section numbering at line 72146: Appendix A: Example End-to-End Flow"
+      ]
+    },
+    {
+      "section_id": "12",
+      "title": "12. End-of-File Appendices (Feature Index + Matrix + UI Guidance) [CX-SPEC-APPX-001]",
+      "line_start": 72239,
+      "line_end": 84130,
+      "line_count": 11892,
+      "h2_count": 0,
+      "h3_count": 0,
+      "h4plus_count": 0,
+      "h2_headings": [],
+      "structural_note_count": 0,
+      "review_status": "operator-review-required",
+      "observed_notes": []
+    }
+  ],
+  "embedded_or_drift_markers": [
+    {
+      "label": "embedded-project-codex-template",
+      "line_start": 32169,
+      "heading": "# {{PROJECT_DISPLAY_NAME}} Codex v{{CODEX_VERSION}} (AI Autonomy with Deterministic Enforcement)",
+      "parent_section_id": "7",
+      "parent_section_title": "7. User Experience & Development",
+      "review_status": "operator-review-required"
+    },
+    {
+      "label": "embedded-governance-kernel-spec",
+      "line_start": 38778,
+      "heading": "# Governance Kernel Spec (Project-Agnostic)",
+      "parent_section_id": "7",
+      "parent_section_title": "7. User Experience & Development",
+      "review_status": "operator-review-required"
+    },
+    {
+      "label": "embedded-reference-implementation-governance",
+      "line_start": 39622,
+      "heading": "# Reference Implementation: {{PROJECT_DISPLAY_NAME}} Governance (Non-Normative)",
+      "parent_section_id": "7",
+      "parent_section_title": "7. User Experience & Development",
+      "review_status": "operator-review-required"
+    },
+    {
+      "label": "embedded-atelier-lens-addendum",
+      "line_start": 50580,
+      "heading": "# Handshake â€” Atelier/Lens Addendum Spec",
+      "parent_section_id": "8",
+      "parent_section_title": "8. Reference",
+      "review_status": "operator-review-required"
+    },
+    {
+      "label": "embedded-prompt-diaries-snapshot",
+      "line_start": 51465,
+      "heading": "# THE PROMPT DIARIES â€” SYMBOLIC ENGINE & CORPUS DESIGN JOURNAL",
+      "parent_section_id": "8",
+      "parent_section_title": "8. Reference",
+      "review_status": "operator-review-required"
+    },
+    {
+      "label": "embedded-prompt-diaries-snapshot",
+      "line_start": 52494,
+      "heading": "# THE PROMPT DIARIES â€” SYMBOLIC ENGINE & CORPUS DESIGN JOURNAL",
+      "parent_section_id": "8",
+      "parent_section_title": "8. Reference",
+      "review_status": "operator-review-required"
+    },
+    {
+      "label": "embedded-runtime-integration-addendum",
+      "line_start": 70949,
+      "heading": "## Appendix: Runtime Integration Addendum v0.5 (Archived Copy) (Non-Normative) [ADD v02.120]",
+      "parent_section_id": "11",
+      "parent_section_title": "11. Shared Dev Platform & OSS Foundations",
+      "review_status": "operator-review-required"
+    },
+    {
+      "label": "embedded-runtime-integration-addendum",
+      "line_start": 70954,
+      "heading": "# Handshake Runtime Integration Addendum v0.5",
+      "parent_section_id": "11",
+      "parent_section_title": "11. Shared Dev Platform & OSS Foundations",
+      "review_status": "operator-review-required"
+    },
+    {
+      "label": "inline-debug-reproduction-bundle",
+      "line_start": 58314,
+      "heading": "# Debug Bundle for LLM Coder",
+      "parent_section_id": "10",
+      "parent_section_title": "10. Product Surfaces",
+      "review_status": "operator-review-required"
+    },
+    {
+      "label": "inline-reproduction-steps",
+      "line_start": 58275,
+      "heading": "# Reproduction Steps",
+      "parent_section_id": "10",
+      "parent_section_title": "10. Product Surfaces",
+      "review_status": "operator-review-required"
+    },
+    {
+      "label": "add-v02-122-marker",
+      "line_start": 10692,
+      "heading": "##### 2.6.8.10.0 Collaboration Mailbox Taxonomy (MailboxKind) (Normative) [ADD v02.122]",
+      "parent_section_id": "2",
+      "parent_section_title": "2. System Architecture",
+      "review_status": "operator-review-required"
+    },
+    {
+      "label": "add-v02-122-marker",
+      "line_start": 10704,
+      "heading": "# ADD v02.122",
+      "parent_section_id": "2",
+      "parent_section_title": "2. System Architecture",
+      "review_status": "operator-review-required"
+    },
+    {
+      "label": "add-v02-122-marker",
+      "line_start": 20798,
+      "heading": "##### 4.3.3.4.5 SwapRequest + escalation rule (Normative) [ADD v02.122]",
+      "parent_section_id": "4",
+      "parent_section_title": "4. LLM Infrastructure",
+      "review_status": "operator-review-required"
+    },
+    {
+      "label": "add-v02-122-marker",
+      "line_start": 21108,
+      "heading": "#### 4.3.7.5 Work Profile Schema Extensions (Multi-Model + Dynamic Compute) (Normative) [ADD v02.122]",
+      "parent_section_id": "4",
+      "parent_section_title": "4. LLM Infrastructure",
+      "review_status": "operator-review-required"
+    },
+    {
+      "label": "add-v02-122-marker",
+      "line_start": 21312,
+      "heading": "### 4.3.9 Multi-Model Orchestration & Lifecycle Telemetry (Normative) [ADD v02.122]",
+      "parent_section_id": "4",
+      "parent_section_title": "4. LLM Infrastructure",
+      "review_status": "operator-review-required"
+    },
+    {
+      "label": "add-v02-122-marker",
+      "line_start": 21352,
+      "heading": "# ADD v02.122",
+      "parent_section_id": "4",
+      "parent_section_title": "4. LLM Infrastructure",
+      "review_status": "operator-review-required"
+    },
+    {
+      "label": "add-v02-122-marker",
+      "line_start": 21374,
+      "heading": "# ADD v02.122",
+      "parent_section_id": "4",
+      "parent_section_title": "4. LLM Infrastructure",
+      "review_status": "operator-review-required"
+    },
+    {
+      "label": "add-v02-122-marker",
+      "line_start": 21393,
+      "heading": "# ADD v02.122",
+      "parent_section_id": "4",
+      "parent_section_title": "4. LLM Infrastructure",
+      "review_status": "operator-review-required"
+    },
+    {
+      "label": "add-v02-122-marker",
+      "line_start": 21471,
+      "heading": "# ADD v02.122",
+      "parent_section_id": "4",
+      "parent_section_title": "4. LLM Infrastructure",
+      "review_status": "operator-review-required"
+    },
+    {
+      "label": "add-v02-122-marker",
+      "line_start": 21500,
+      "heading": "# ADD v02.122",
+      "parent_section_id": "4",
+      "parent_section_title": "4. LLM Infrastructure",
+      "review_status": "operator-review-required"
+    },
+    {
+      "label": "add-v02-122-marker",
+      "line_start": 21592,
+      "heading": "# ADD v02.122",
+      "parent_section_id": "4",
+      "parent_section_title": "4. LLM Infrastructure",
+      "review_status": "operator-review-required"
+    },
+    {
+      "label": "add-v02-122-marker",
+      "line_start": 21836,
+      "heading": "## 4.5 Layer-wise Inference & Dynamic Compute (Exploratory) [ADD v02.122]",
+      "parent_section_id": "4",
+      "parent_section_title": "4. LLM Infrastructure",
+      "review_status": "operator-review-required"
+    },
+    {
+      "label": "add-v02-122-marker",
+      "line_start": 36371,
+      "heading": "#### 5.6.1 File-scope locks for concurrent Work Units (WP/MT) (Normative) [ADD v02.122]",
+      "parent_section_id": "7",
+      "parent_section_title": "7. User Experience & Development",
+      "review_status": "operator-review-required"
+    },
+    {
+      "label": "add-v02-122-marker",
+      "line_start": 67724,
+      "heading": "#### 11.5.11 FR-EVT-LLM-EXEC-001 (llm_exec_policy) + hsk.layerwise_trace@0.1 (Normative) [ADD v02.122]",
+      "parent_section_id": "11",
+      "parent_section_title": "11. Shared Dev Platform & OSS Foundations",
+      "review_status": "operator-review-required"
+    },
+    {
+      "label": "add-v02-164-marker",
+      "line_start": 60967,
+      "heading": "#### 10.11.5.15 Recovery, Provider Readiness, and Repository Decision Surface [ADD v02.164]",
+      "parent_section_id": "10",
+      "parent_section_title": "10. Product Surfaces",
+      "review_status": "operator-review-required"
+    },
+    {
+      "label": "add-v02-164-marker",
+      "line_start": 60989,
+      "heading": "# ADD v02.164",
+      "parent_section_id": "10",
+      "parent_section_title": "10. Product Surfaces",
+      "review_status": "operator-review-required"
+    },
+    {
+      "label": "add-v02-165-marker",
+      "line_start": 61021,
+      "heading": "#### 10.11.5.16 Run History, Tool Infrastructure, Workspace Runtime, and Promotion Gates [ADD v02.165]",
+      "parent_section_id": "10",
+      "parent_section_title": "10. Product Surfaces",
+      "review_status": "operator-review-required"
+    },
+    {
+      "label": "add-v02-165-marker",
+      "line_start": 61044,
+      "heading": "# ADD v02.165",
+      "parent_section_id": "10",
+      "parent_section_title": "10. Product Surfaces",
+      "review_status": "operator-review-required"
+    },
+    {
+      "label": "moved-marker",
+      "line_start": 46990,
+      "heading": "# MOVED",
+      "parent_section_id": "7",
+      "parent_section_title": "7. User Experience & Development",
+      "review_status": "operator-review-required"
+    },
+    {
+      "label": "moved-marker",
+      "line_start": 47003,
+      "heading": "# MOVED",
+      "parent_section_id": "7",
+      "parent_section_title": "7. User Experience & Development",
+      "review_status": "operator-review-required"
+    },
+    {
+      "label": "moved-marker",
+      "line_start": 47016,
+      "heading": "# MOVED",
+      "parent_section_id": "7",
+      "parent_section_title": "7. User Experience & Development",
+      "review_status": "operator-review-required"
+    }
+  ]
+}

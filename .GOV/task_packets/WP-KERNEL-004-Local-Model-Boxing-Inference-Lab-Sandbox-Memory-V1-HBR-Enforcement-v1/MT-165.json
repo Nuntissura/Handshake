@@ -1,0 +1,172 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-165",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "D",
+  "cluster_subscope": "D.3",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:24:00Z",
+  "updated_at_utc": "2026-05-28T21:52:27.193Z",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-165.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "Retrieval trace bundle exporter (folded WP-1-Retrieval-Trace-Bundle-Export)",
+  "goal": "Provide a dedicated exporter that takes a retrieval trace_id and emits a redacted-by-default bundle containing QueryPlan + RetrievalTrace + budgets + cache markers + selected spans + referenced artifacts. Folded from WP-1-Retrieval-Trace-Bundle-Export. Makes retrieval issues debuggable, explainable, and shareable without leaking sensitive payloads.",
+  "expected_diff_shape": "New module src/backend/handshake_core/src/memory/trace_export.rs (RetrievalTraceExporter + TraceBundle + RedactionPolicy + ExportFormat types) + Tauri IPC `kernel.memory_trace.export`. Tests src/backend/handshake_core/tests/trace_export_tests.rs.",
+  "owned_files": [
+    "src/backend/handshake_core/src/memory/trace_export.rs",
+    "src/backend/handshake_core/tests/trace_export_tests.rs"
+  ],
+  "depends_on_mts": [
+    "MT-144",
+    "MT-161",
+    "MT-164"
+  ],
+  "unblock_conditions": "MT-144 (CapsuleInjector flight-recorder events provide the trace_id surface), MT-161 (DegradationReport included in bundle), MT-164 (RetrievalMode routing recorded in bundle).",
+  "implementation_notes": "Per WP-1-Retrieval-Trace-Bundle-Export preserved_intent. TraceBundle shape: `{ trace_id: Uuid, query_plan: QueryPlan, retrieval_trace: RetrievalTrace, budgets: MemoryPackBudgets, cache_markers: CacheMarkers, retrieval_mode: RetrievalMode, degradation_report: DegradationReport, selected_spans: Vec<SpanRef>, referenced_artifacts: Vec<ArtifactRef>, redactions_applied: Vec<RedactionRecord>, exported_at_utc, exporter_version: String }`. RedactionPolicy: `{ redact_pii: bool (default true), redact_credentials: bool (default true), redact_full_item_text: bool (default false), allowlist_artifact_kinds: Vec<String> }`. ExportFormat: `Json`, `JsonPretty`, `Tarball (includes referenced artifacts as separate files)`. RetrievalTraceExporter: `pub fn export(trace_id: Uuid, policy: &RedactionPolicy, format: ExportFormat) -> Result<ExportedBundle, ExportError>`. Redaction MUST be a pre-step: scan every text field through the same PII+credential scanner used by AC-DISTILL-CONTENT-REVIEW (regex + NER); failures redact to '[REDACTED]' and record in redactions_applied. IPC: `kernel.memory_trace.export(trace_id, policy, format) -> ExportedBundle`. Tests: bundle round-trips through serde; redaction policy default-on for PII + credentials; redactions_applied lists every redacted span; export to Tarball includes referenced artifacts as separate files; export of unknown trace_id returns typed ExportError.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target trace_export_tests"
+  ],
+  "risk_if_missed": "Without trace export retrieval issues become impossible to debug or share; the operator has no shareable evidence bundle for support cases.",
+  "validator_focus": "Redaction is default-on for PII + credentials; redaction record is non-optional; bundle round-trips deterministically.",
+  "hbr_obligations": [
+    "HBR-INT-006"
+  ],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.8.3"
+  ],
+  "acceptance_criteria_refs": [
+    "AC-DISTILL-CONTENT-REVIEW"
+  ],
+  "lifecycle": {
+    "active": false,
+    "status": "READY_FOR_VALIDATION_PHASE2",
+    "validator_verdict": "FAIL",
+    "integration_validator_verdict": "PENDING",
+    "depends_on": [
+      "MT-144",
+      "MT-161",
+      "MT-164"
+    ],
+    "blocks": [
+      "MT-168"
+    ],
+    "claimed_by": "KERNEL_BUILDER-20260523-031814-AGT-MT165-R2",
+    "claimed_at_utc": "2026-05-23T16:50:00Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260523-031814-AGT-MT165-R2",
+    "ready_for_validation_at_utc": "2026-05-23T17:30:00Z",
+    "implementation_record": {
+      "classification": "IMPLEMENTATION_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+      "authoritative_integration_validator_pass": false,
+      "summary": "MT-165 RetrievalTraceExporter folded WP-1-Retrieval-Trace-Bundle-Export. Prior session deposited src/memory/trace_export.rs (15122 bytes, 5 inline tests); this session extended it to satisfy the orchestrator's adversarial envelope: added ExportError::TooLarge / Deserialization / ArtifactLoad variants, MAX_BUNDLE_BYTES=1MiB ceiling enforced post-serialize, RouteDecision (MT-164 matched rule + rationale) + ScoringInputSnapshot (MT-161 per-item scoring inputs) fields, deterministic TraceBundle.deterministic_hash() (SHA-256 over canonical JSON with MIN_UTC sentinel for exported_at_utc), ExportedBundle.content_hash plumbed through, multi-file ustar tarball that emits one entry per referenced_artifact with self-contained payload bytes fetched through new TraceSource.load_artifact() hook, query_plan.query scanned by the same PII+credential redactors, replaced replacen-loop with regex.replace_all to fix duplicate-token redaction, allowlist filter records its own RedactionRecord. New tests/trace_export_tests.rs (20 tests) added per contract owned_files. 5/5 inline + 20/20 integration pass.",
+      "spec_realism_gate_self_check": {
+        "sub_rule_1_no_deferred_live_escape": "PASS — trace_export.rs is complete (no '*Unavailable' / 'pending MT-NNN' / 'deferred to follow-on' patterns).",
+        "sub_rule_2_external_resource_touch": "PASS — integration tests exercise the public RetrievalTraceExporter API with real serde_json + real SHA-256 hash + real ustar tarball; corrupt-bundle / missing-field / oversize / unknown-trace / artifact-load-failure cases each force a real typed-error path.",
+        "sub_rule_3_implementer_cannot_self_certify": "PASS — implementation extended this session; awaiting fresh Integration Validator review."
+      }
+    },
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "READY_FOR_VALIDATION",
+        "validator_verdict": "PENDING"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z",
+    "updated_at_utc": "2026-05-28T21:52:27.193Z",
+    "phase2_remediation": {
+      "remediated_by": "KERNEL_BUILDER-20260528-211023",
+      "remediated_at_utc": "2026-05-28T21:52:27.193Z",
+      "lane": "Theme-11 D-cluster trace-export redaction",
+      "commit_sha": "e4278be8",
+      "remediated_findings": [
+        "FAIL finding #1: Tarball export now redacts referenced-artifact bytes before embedding (packet.json is in the default allowlist, so credential-bearing artifacts previously exported verbatim). UTF-8 artifacts are scanned+redacted; non-UTF-8 binaries fail closed (ExportError::Redaction) or become [BINARY ARTIFACT REDACTED] when redact_full_item_text is set.",
+        "finding #2: PII detection routed through canonical pii_patterns::scan (the same scanner AC-DISTILL-CONTENT-REVIEW uses) adding Luhn credit cards, real api-key token prefixes, Windows user paths, MAC, IPv4; keyword=value secret check retained so generic credential assignments are not regressed.",
+        "finding #3: noisy ad-hoc phone regex superseded by the shared scanner."
+      ],
+      "deferred_or_residual": "Full NER remains governed-deferred per pii_patterns module / MT-120 implementation_notes (regex-only V1, NER is the existing tracked follow-on). content_hash stays format-independent; artifact-level redaction records appear in the tarball embedded manifest only.",
+      "partial": false,
+      "ack_for": "019e6be3-1603-7777-b7d6-0f345349a2f7",
+      "proof": "cargo test --lib memory::trace_export::tests 9/9 PASS + trace_export_tests 20/20 PASS (no external resource)",
+      "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1 - no per-MT validator; awaiting Phase-2 IV re-judgment"
+    }
+  },
+  "handoff": {
+    "coder_session": "KERNEL_BUILDER-20260523-031814-AGT-MT165-R2",
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": "019e6be3-1603-7777-b7d6-0f345349a2f7",
+    "review_response_receipt_actor_role": "INTEGRATION_VALIDATOR",
+    "review_response_receipt_track": "JUDGMENT_OOB_IV_PHASE1_PRE_REMEDIATION"
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Redaction is default-on for PII + credentials; opt-out requires explicit policy field.",
+      "redactions_applied lists every redaction so reviewers can see what was hidden.",
+      "Tarball format includes referenced artifacts as separate files so the bundle is self-contained."
+    ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_D_GAPS",
+    "reviewed_at_utc": "2026-05-27T18:40:00Z",
+    "aggregator_run_at_utc": "2026-05-28T00:01:31.342Z",
+    "verdict": "FAIL",
+    "verdict_reason": "RetrievalTraceExporter implements TraceBundle (query_plan + retrieval_trace + budgets + cache_markers + retrieval_mode + degradation_report + spans + artifacts + scoring_inputs + redactions_applied), default-on RedactionPolicy for PII + credentials, ExportFormat Json/JsonPretty/Tarball, MAX_BUNDLE_BYTES=1MiB ceiling, deterministic_hash via canonical JSON, 5+20 tests pass. HIGH severity gap on redaction scope: the contract says 'scan every text field through the same PII+credential scanner used by AC-DISTILL-CONTENT-REVIEW (regex + NER)' — implementation uses ONLY regex (email + phone + secret patterns); no NER, no name detection, no address/ID detection. Tarball format includes raw artifact bytes loaded via TraceSource.load_artifact — those bytes are NOT scanned for PII/credentials before being embedded in the tar. This means a 'redacted' tarball can ship a credential-bearing artifact verbatim.",
+    "spec_compliance_status": "FAILS",
+    "code_hygiene_status": "MAJOR",
+    "runtime_safety_status": "OK",
+    "agent_swarm_safety_status": "BAD",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "PARTIAL",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 2,
+      "MEDIUM": 0,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 2,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-165.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-165.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_D_GAPS",
+    "reviewed_at_utc": "2026-05-27T18:40:00Z",
+    "aggregator_run_at_utc": "2026-05-27T23:48:44.444Z",
+    "verdict": "FAIL",
+    "verdict_reason": "RetrievalTraceExporter implements TraceBundle (query_plan + retrieval_trace + budgets + cache_markers + retrieval_mode + degradation_report + spans + artifacts + scoring_inputs + redactions_applied), default-on RedactionPolicy for PII + credentials, ExportFormat Json/JsonPretty/Tarball, MAX_BUNDLE_BYTES=1MiB ceiling, deterministic_hash via canonical JSON, 5+20 tests pass. HIGH severity gap on redaction scope: the contract says 'scan every text field through the same PII+credential scanner used by AC-DISTILL-CONTENT-REVIEW (regex + NER)' — implementation uses ONLY regex (email + phone + secret patterns); no NER, no name detection, no address/ID detection. Tarball format includes raw artifact bytes loaded via TraceSource.load_artifact — those bytes are NOT scanned for PII/credentials before being embedded in the tar. This means a 'redacted' tarball can ship a credential-bearing artifact verbatim.",
+    "spec_compliance_status": "FAILS",
+    "code_hygiene_status": "MAJOR",
+    "runtime_safety_status": "OK",
+    "agent_swarm_safety_status": "BAD",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "PARTIAL",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 2,
+      "MEDIUM": 0,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 2,
+    "review_artifact_ref": "validator_reports_phase1/MT-165.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1\\validator_reports_phase1\\MT-165.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  }
+}

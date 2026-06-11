@@ -1,0 +1,165 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-057",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "B",
+  "cluster_subscope": "B.4",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:10:00Z",
+  "updated_at_utc": "2026-05-28T00:01:44.903Z",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-057.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "Cross-adapter parity harness: same workload runs identically on WSL2Podman / WindowsNativeJail / Docker",
+  "goal": "Build the canonical cross-adapter parity harness that runs a fixed workload matrix against all three SandboxAdapter implementations and asserts identical observable outcomes (exit code, stdout content, ProcessOwnershipLedger row shape modulo timestamps + UUIDs, NetPolicy enforcement behavior). Closes AC-SANDBOX-ADAPTER-IMPLS for the cluster — proves the 3 adapters are interchangeable at the trait surface for the workloads cluster C and cluster D depend on.",
+  "expected_diff_shape": "New tests under src/backend/handshake_core/tests/sandbox_cross_adapter_parity_tests.rs running the same workload set against each available adapter; new harness module src/backend/handshake_core/src/test_harness/cross_adapter.rs that holds the fixture catalog and parity-comparator. Test fixture catalog under src/backend/handshake_core/tests/fixtures/cross_adapter_parity/{trivial_exit.json, stdout_capture.json, bind_readonly.json, net_deny_all.json, net_loopback_only.json, env_passthrough.json, kill_signal_term.json, kill_signal_int.json}.",
+  "owned_files": [
+    "src/backend/handshake_core/src/test_harness/mod.rs",
+    "src/backend/handshake_core/src/test_harness/cross_adapter.rs",
+    "src/backend/handshake_core/tests/sandbox_cross_adapter_parity_tests.rs",
+    "src/backend/handshake_core/tests/fixtures/cross_adapter_parity/trivial_exit.json",
+    "src/backend/handshake_core/tests/fixtures/cross_adapter_parity/stdout_capture.json",
+    "src/backend/handshake_core/tests/fixtures/cross_adapter_parity/bind_readonly.json",
+    "src/backend/handshake_core/tests/fixtures/cross_adapter_parity/net_deny_all.json",
+    "src/backend/handshake_core/tests/fixtures/cross_adapter_parity/net_loopback_only.json",
+    "src/backend/handshake_core/tests/fixtures/cross_adapter_parity/env_passthrough.json",
+    "src/backend/handshake_core/tests/fixtures/cross_adapter_parity/kill_signal_term.json",
+    "src/backend/handshake_core/tests/fixtures/cross_adapter_parity/kill_signal_int.json"
+  ],
+  "depends_on_mts": [
+    "MT-044",
+    "MT-046",
+    "MT-047",
+    "MT-048",
+    "MT-049",
+    "MT-053"
+  ],
+  "unblock_conditions": "All three adapters + bootstrap + model-process boxing + ProcessOwnershipLedger merged so parity comparison can include ledger-row shape.",
+  "implementation_notes": "Harness shape: `pub struct CrossAdapterParityHarness { fixtures: Vec<ParityFixture>, adapters: Vec<Arc<dyn SandboxAdapter>> }` where `ParityFixture { name, process_spec_builder: fn(&Path) -> ProcessSpec, expected_outcome: ExpectedOutcome }` and `ExpectedOutcome { exit_code_class: ExitClass(Zero|NonZero), stdout_predicate: StdoutPredicate(ExactBytes|Substring|MatchesRegex), enforce_net_policy: bool, enforce_bind_readonly: bool }`. The harness iterates fixtures and runs each against each adapter in `adapters`; for each (fixture, adapter) pair it: (1) calls adapter.spawn(spec), (2) collects stdout via adapter.exec(handle, get_stdout_cmd) OR via the spawn-stream depending on adapter capabilities, (3) waits for exit via polling adapter.status, (4) reads exit_code, (5) verifies the expected outcome predicates, (6) reads the kernel_process_lifecycle row written by the LedgerDecorator (MT-053) and asserts the shape (modulo UUIDs/timestamps) matches across adapters. Parity assertion: across the 3 adapters, the (exit_code, stdout_bytes, ledger_row_shape) tuple MUST be identical modulo (UUIDs, timestamps, adapter_id, sandbox_internal_id). Skipping discipline: when a real adapter backend is unavailable (no WSL2, no Docker), that adapter is skipped with `#[ignore]`-style notice but never causes false-pass — the harness records `skipped_adapters: Vec<AdapterId>` in the test output so the validator sees coverage gaps explicitly. Fixture details: trivial_exit (echo hello, exit 0); stdout_capture (echo specific multi-line string, byte-exact comparison); bind_readonly (touch a file in a ReadOnly bind, expect EROFS-class exit code AND ledger row with non-zero exit); net_deny_all (getent hosts cnn.com, expect non-zero exit + no DNS resolution); net_loopback_only (spin a tiny server in another container? — skip if cross-adapter cross-container is intractable; instead do a `curl http://127.0.0.1:0` smoke against a `nc -l` started in the same container via separate exec); env_passthrough (env var set in ProcessSpec is visible in `printenv` output); kill_signal_term (long-running `sleep 60`, kill Term, expect exit within 10s); kill_signal_int (`trap 'exit 42' INT; sleep 60`, kill Int, expect exit code 42).",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target sandbox_cross_adapter_parity_tests",
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target --features wsl2-integration,docker-integration sandbox_cross_adapter_parity_tests"
+  ],
+  "risk_if_missed": "Without cross-adapter parity, the 3 adapters drift in behavior (NetPolicy semantic skew, BindMode semantic skew) and cluster C ModelRuntime adapters silently work on one but break on another.",
+  "validator_focus": "(a) skipped_adapters is reported (not silently passed); (b) parity assertion modulo UUIDs/timestamps holds for every fixture that ran; (c) net_deny_all and bind_readonly fixtures verify enforcement, not just absence-of-error.",
+  "hbr_obligations": [
+    "HBR-INT-001",
+    "HBR-SWARM-001"
+  ],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/03-local-first-infrastructure.md#3.5"
+  ],
+  "acceptance_criteria_refs": [
+    "AC-SANDBOX-ADAPTER-IMPLS",
+    "AC-SANDBOX-CAP-DECL"
+  ],
+  "lifecycle": {
+    "active": false,
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "CONCERN",
+    "integration_validator_verdict": "PENDING",
+    "depends_on": [
+      "MT-044",
+      "MT-046",
+      "MT-047",
+      "MT-048",
+      "MT-049",
+      "MT-053"
+    ],
+    "blocks": [],
+    "claimed_by": "KERNEL_BUILDER-20260522-171100",
+    "claimed_at_utc": "2026-05-22T22:45:00Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260522-171100",
+    "ready_for_validation_at_utc": "2026-05-22T23:10:00Z",
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "READY_FOR_VALIDATION",
+        "validator_verdict": "PENDING"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z"
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": "019e6be3-15c7-72fa-8eb6-0c4564ce606b",
+    "review_response_receipt_actor_role": "INTEGRATION_VALIDATOR",
+    "review_response_receipt_track": "JUDGMENT_OOB_IV_PHASE1_PRE_REMEDIATION"
+  },
+  "red_team": {
+    "minimum_controls": [
+      "skipped_adapters reporting prevents false-pass when a CI host lacks one of the three backends.",
+      "Parity assertion is strict on (exit_code, stdout_bytes, ledger_row_shape) modulo the documented allowed-drift fields.",
+      "Enforcement fixtures (net_deny_all, bind_readonly) test for OS-level enforcement, not just trait-method success."
+    ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_B_GAPS_REDO_WTC",
+    "reviewed_at_utc": "2026-05-27T22:30:00Z",
+    "aggregator_run_at_utc": "2026-05-28T00:01:31.342Z",
+    "verdict": "CONCERN",
+    "verdict_reason": "CrossAdapterParityHarness + 8 fixture JSONs + sandbox_cross_adapter_parity_tests.rs all exist. Harness wraps each adapter in a LedgerDecorator with InMemoryParityStore, polls status to terminal, drains stop_reason, computes exit_code/stop_reason parity. Always-on stub-adapter path runs every fixture. Real Wsl2Podman + Docker behind feature gates with skip-discipline. Two material gaps: (1) stdout_predicate_passed is unconditionally true (cross_adapter.rs:491) - stdout capture is not wired so the predicate check is vacuous; (2) net_loopback_only fixture expected.exit_code_class is 'any', so the harness cannot detect the silent LoopbackOnly to DenyAll coercion in podman_cli.rs:262 and kernel_003_bridge.rs:245.",
+    "spec_compliance_status": "PARTIAL",
+    "code_hygiene_status": "MINOR",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [
+      "HBR-INT-001 strict-parity for stdout_bytes is not exercised (auto-pass)"
+    ],
+    "test_coverage_status": "THIN",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 2,
+      "MEDIUM": 0,
+      "LOW": 0
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-057.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-057.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_B_GAPS_REDO_WTC",
+    "reviewed_at_utc": "2026-05-27T22:30:00Z",
+    "aggregator_run_at_utc": "2026-05-27T23:48:44.444Z",
+    "verdict": "CONCERN",
+    "verdict_reason": "CrossAdapterParityHarness + 8 fixture JSONs + sandbox_cross_adapter_parity_tests.rs all exist. Harness wraps each adapter in a LedgerDecorator with InMemoryParityStore, polls status to terminal, drains stop_reason, computes exit_code/stop_reason parity. Always-on stub-adapter path runs every fixture. Real Wsl2Podman + Docker behind feature gates with skip-discipline. Two material gaps: (1) stdout_predicate_passed is unconditionally true (cross_adapter.rs:491) - stdout capture is not wired so the predicate check is vacuous; (2) net_loopback_only fixture expected.exit_code_class is 'any', so the harness cannot detect the silent LoopbackOnly to DenyAll coercion in podman_cli.rs:262 and kernel_003_bridge.rs:245.",
+    "spec_compliance_status": "PARTIAL",
+    "code_hygiene_status": "MINOR",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [
+      "HBR-INT-001 strict-parity for stdout_bytes is not exercised (auto-pass)"
+    ],
+    "test_coverage_status": "THIN",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 2,
+      "MEDIUM": 0,
+      "LOW": 0
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "validator_reports_phase1/MT-057.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1\\validator_reports_phase1\\MT-057.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  }
+}

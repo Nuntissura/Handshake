@@ -1,0 +1,143 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-111",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "C",
+  "cluster_subscope": "C.10",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:00:00Z",
+  "updated_at_utc": "2026-05-28T00:01:44.934Z",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-111.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "INF-8 Self-Speculative perf eval + EAGLE-3 upgrade hook scaffold",
+  "goal": "Perf eval suite measuring speedup_observed and accept_rate for ngram and draft-model modes; scaffold an EAGLE-3 upgrade hook (placeholder function + capability flag flip path) so when llama.cpp PR #18039 merges, the upgrade MT touches one file.",
+  "expected_diff_shape": "New src/backend/handshake_core/tests/inf8_spec_perf_eval.rs; src/backend/handshake_core/src/model_runtime/llama_cpp/eagle3_hook.rs (placeholder + capability flag flip path).",
+  "owned_files": [
+    "src/backend/handshake_core/tests/inf8_spec_perf_eval.rs",
+    "src/backend/handshake_core/src/model_runtime/llama_cpp/eagle3_hook.rs"
+  ],
+  "depends_on_mts": [
+    "MT-109",
+    "MT-110"
+  ],
+  "unblock_conditions": "MT-109 + MT-110 merged.",
+  "implementation_notes": "Perf eval (env-gated): load target+draft pair; for a fixed seed and 32 eval prompts, run baseline (no spec) and ngram-spec generation; compute mean tokens/sec for each; assert speedup >= 1.1x on average (modest threshold — actual gains are model-dependent; this is a regression gate). Then run draft-model mode; assert accept_rate >= 30% on average. Stats emitted via FR-EVT-LLM-INFER-SPEC-STATS. Eagle3 hook scaffold: stub `pub fn eagle3_decode(...) -> Result<DraftTokens, EagleError>` returning Err(EagleError::PendingUpstream{pr_url: \"https://github.com/ggerganov/llama.cpp/pull/18039\"}); a TODO marker comment with a checklist of what changes when the PR merges (capability flag flip to supports_eagle3=true; constructor wiring; UI badge removal). Capability flag accessor `pub fn eagle3_available() -> bool` reads a const that's false until the upgrade MT flips it. Future upgrade MT (post-PR-merge, NOT in KERNEL-004): swap stub for real impl, flip const, remove UI deferral badge.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target inf8_spec_perf_eval"
+  ],
+  "risk_if_missed": "INF-8 perf claims unsupported; EAGLE-3 upgrade path requires hunt across many files.",
+  "validator_focus": "Threshold (1.1x speedup; 30% accept_rate) explicit; eagle3_available() const single-source-of-truth; TODO comment with PR link.",
+  "hbr_obligations": [
+    "HBR-INT-002"
+  ],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.7.1"
+  ],
+  "acceptance_criteria_refs": [
+    "AC-INFER-LAB-8-TECHNIQUES",
+    "AC-MODEL-CAP-DECL"
+  ],
+  "lifecycle": {
+    "active": false,
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "CONCERN",
+    "integration_validator_verdict": "PENDING",
+    "depends_on": [
+      "MT-109",
+      "MT-110"
+    ],
+    "blocks": [],
+    "claimed_by": "KERNEL_BUILDER-20260522-171100",
+    "claimed_at_utc": "2026-05-23T00:30:00Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260522-171100",
+    "ready_for_validation_at_utc": "2026-05-23T00:40:00Z",
+    "perf_eval_scaffold_note": "Perf eval test functions are env-gated on HANDSHAKE_TEST_GGUF_PATH + HANDSHAKE_TEST_DRAFT_GGUF_PATH; on hosts without those fixtures, the tests skip via let-else with descriptive eprintln. The 1.1x speedup + 30% accept_rate gates are documented in the test file and the MT-111 contract; the full eval methodology (32 prompts, fixed seed, statistical stability across runs) is staged in a follow-on perf-tuning MT — this commit lands the scaffold + skip-discipline + EAGLE-3 upgrade-hook contract tests.",
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "READY_FOR_VALIDATION",
+        "validator_verdict": "PENDING"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z"
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": "019e6be3-15e6-7eb2-aaa2-3878de933209",
+    "review_response_receipt_actor_role": "INTEGRATION_VALIDATOR",
+    "review_response_receipt_track": "JUDGMENT_OOB_IV_PHASE1_PRE_REMEDIATION"
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Thresholds explicit.",
+      "eagle3_available() const single source.",
+      "Upgrade-MT checklist comment with PR link."
+    ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C8_C10",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-28T00:01:31.342Z",
+    "verdict": "CONCERN",
+    "verdict_reason": "src/backend/handshake_core/src/model_runtime/llama_cpp/eagle3_hook.rs is an exemplary EAGLE-3 stub-only implementation per operator E-4 + spec §4.7.1(g): (1) `EAGLE3_AVAILABLE: bool = false` is the single source of truth — one constant flip will unlock the entire EAGLE-3 path; (2) `eagle3_available()` accessor wraps the const so call sites can switch to feature-flag/dynamic detection without churn; (3) `eagle3_decode(...)` returns `Err(EagleError::PendingUpstream { pr_url: EAGLE3_UPSTREAM_PR_URL })` instead of panicking or silently returning zero tokens — typed error with explicit citation; (4) the rustdoc carries a numbered upgrade-MT TODO checklist (7 steps including crate bump, body swap, const flip, capability-publisher wiring, deferral-badge removal, deferral-note removal) so the future upgrade MT is a one-file-mostly diff. EAGLE-3 is provably NOT active code: there is no path that returns Ok(DraftTokens) today. The contract minimum-controls are satisfied. CONCERN raised on the PERF EVAL side: tests/inf8_spec_perf_eval.rs ships the EAGLE-3 hook contract tests (4 always-run tests that pin EAGLE3_UPSTREAM_PR_URL, the typed error PR URL, consts agree with accessor, technique-surface re-exports canonical event IDs) — all good — BUT the perf eval bodies (inf8_spec_perf_eval_speedup_at_least_1_1x_with_ngram + inf8_spec_perf_eval_accept_rate_at_least_30_percent_with_draft_model) are STUBS that print 'scaffolded' eprintln and return even when the env vars ARE set. The 1.1x speedup and 30% accept_rate thresholds are documented in the rustdoc + contract but never actually measured. The perf eval is a SKIP regardless of host configuration. The scaffold_note in the lifecycle is honest about this; the contract still says risk_if_missed='INF-8 perf claims unsupported'. The Eagle3 stub-only scaffold is PASS-quality; the perf-eval claim is currently unverifiable.",
+    "spec_compliance_status": "PARTIAL",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "OK",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "PARTIAL",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 1,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-111.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-111.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C8_C10",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T23:48:44.444Z",
+    "verdict": "CONCERN",
+    "verdict_reason": "src/backend/handshake_core/src/model_runtime/llama_cpp/eagle3_hook.rs is an exemplary EAGLE-3 stub-only implementation per operator E-4 + spec §4.7.1(g): (1) `EAGLE3_AVAILABLE: bool = false` is the single source of truth — one constant flip will unlock the entire EAGLE-3 path; (2) `eagle3_available()` accessor wraps the const so call sites can switch to feature-flag/dynamic detection without churn; (3) `eagle3_decode(...)` returns `Err(EagleError::PendingUpstream { pr_url: EAGLE3_UPSTREAM_PR_URL })` instead of panicking or silently returning zero tokens — typed error with explicit citation; (4) the rustdoc carries a numbered upgrade-MT TODO checklist (7 steps including crate bump, body swap, const flip, capability-publisher wiring, deferral-badge removal, deferral-note removal) so the future upgrade MT is a one-file-mostly diff. EAGLE-3 is provably NOT active code: there is no path that returns Ok(DraftTokens) today. The contract minimum-controls are satisfied. CONCERN raised on the PERF EVAL side: tests/inf8_spec_perf_eval.rs ships the EAGLE-3 hook contract tests (4 always-run tests that pin EAGLE3_UPSTREAM_PR_URL, the typed error PR URL, consts agree with accessor, technique-surface re-exports canonical event IDs) — all good — BUT the perf eval bodies (inf8_spec_perf_eval_speedup_at_least_1_1x_with_ngram + inf8_spec_perf_eval_accept_rate_at_least_30_percent_with_draft_model) are STUBS that print 'scaffolded' eprintln and return even when the env vars ARE set. The 1.1x speedup and 30% accept_rate thresholds are documented in the rustdoc + contract but never actually measured. The perf eval is a SKIP regardless of host configuration. The scaffold_note in the lifecycle is honest about this; the contract still says risk_if_missed='INF-8 perf claims unsupported'. The Eagle3 stub-only scaffold is PASS-quality; the perf-eval claim is currently unverifiable.",
+    "spec_compliance_status": "PARTIAL",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "OK",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "PARTIAL",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 1,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "validator_reports_phase1/MT-111.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1\\validator_reports_phase1\\MT-111.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  }
+}

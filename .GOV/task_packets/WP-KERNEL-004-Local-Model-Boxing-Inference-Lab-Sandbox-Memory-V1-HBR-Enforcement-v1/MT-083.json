@@ -1,0 +1,153 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-083",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "C",
+  "cluster_subscope": "C.3",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:00:00Z",
+  "updated_at_utc": "2026-05-28T00:01:44.917Z",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-083.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "CandleRuntime transformer-path load + generate (safetensors-backed)",
+  "goal": "Implement load + generate for the Transformer variant of CandleModelHandle: load safetensors weights via candle-transformers (Llama/Qwen/etc), generate streaming with sampler integration, ensure hooks (MT-082) fire at correct layer indices during forward.",
+  "expected_diff_shape": "New src/backend/handshake_core/src/model_runtime/candle/transformer.rs with TransformerModel trait + Llama impl; generate_transformer streaming function; tests (env-gated).",
+  "owned_files": [
+    "src/backend/handshake_core/src/model_runtime/candle/transformer.rs",
+    "src/backend/handshake_core/src/model_runtime/candle/generate.rs",
+    "src/backend/handshake_core/src/model_runtime/candle/adapter.rs",
+    "src/backend/handshake_core/tests/candle_transformer_tests.rs"
+  ],
+  "depends_on_mts": [
+    "MT-081",
+    "MT-082"
+  ],
+  "unblock_conditions": "MT-081 scaffolding + MT-082 hooks merged.",
+  "implementation_notes": "TransformerModel trait abstracts over candle-transformers model implementations: `trait TransformerModel: Send + Sync { fn forward(&mut self, input_ids: &Tensor, hooks: &HookRegistry) -> Result<Tensor, CandleError>; fn n_layers(&self) -> u32; fn hidden_dim(&self) -> u32; fn vocab_size(&self) -> u32; }`. Initial concrete impl: LlamaModel wrapping candle_transformers::models::llama::Llama; future MTs can add Qwen, Mistral, etc. Load: read safetensors via candle_core::safetensors::load + VarBuilder; instantiate LlamaConfig from a config.json sibling; verify SHA256 of safetensors file matches LoadSpec.sha256_expected. Generate: tokenize prompt via tokenizer cache; loop forward(input_ids, &hook_registry) -> logits; sampler picks next token (reuse sampler module shape from MT-074 generalised); yield GeneratedToken stream; per-token cancellation poll; per-token hook callbacks fire as a side effect of forward (MT-082 plumbing). Per AC-CANDLE-ADAPTER capabilities for Transformer variant: supports_lora=true (MT-084), supports_activation_steering=true, supports_subquadratic=false, supports_speculative_draft=false (not in scope for CandleRuntime in v02.186), supports_kv_prefix_cache=true (basic prefix-share). Tests (env-gated by HANDSHAKE_TEST_CANDLE_MODEL_DIR pointing at a directory with config.json + tokenizer.json + safetensors + sha256.txt): load a small Llama-style model; generate 32 tokens deterministically (fixed seed); capture activations at layer 5 with hooks (verifies MT-082 integration end-to-end); cancel mid-stream within 100ms.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target candle_transformer_tests"
+  ],
+  "risk_if_missed": "CandleRuntime transformer path missing; activation-hook techniques have no model to run against.",
+  "validator_focus": "Hooks fire during forward (verified by counter incremented); SHA256 verification before load; cancel <100ms; deterministic output with fixed seed.",
+  "hbr_obligations": [
+    "HBR-INT-002",
+    "HBR-INT-008"
+  ],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.6.2"
+  ],
+  "acceptance_criteria_refs": [
+    "AC-CANDLE-ADAPTER",
+    "AC-INFER-LAB-8-TECHNIQUES"
+  ],
+  "lifecycle": {
+    "active": false,
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "PASS",
+    "depends_on": [
+      "MT-081",
+      "MT-082"
+    ],
+    "blocks": [
+      "MT-084",
+      "MT-096",
+      "MT-100",
+      "MT-103",
+      "MT-106"
+    ],
+    "claimed_by": "KERNEL_BUILDER-20260519-094814",
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "COMPLETED",
+        "validator_verdict": "PENDING",
+        "completed_at_utc": "2026-05-19T12:01:03.673Z"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "previous_completed_at_utc_before_ready_for_validation_20260525": "2026-05-19T12:01:03.673Z",
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z"
+  },
+  "handoff": {
+    "coder_session": "KERNEL_BUILDER-20260519-094814",
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": "019e6be3-15d5-7e5c-8633-7b3f97cd45c3",
+    "review_response_receipt_actor_role": "INTEGRATION_VALIDATOR",
+    "review_response_receipt_track": "JUDGMENT_OOB_IV_PHASE1_PRE_REMEDIATION"
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Hook counter incremented during forward (proves wiring).",
+      "SHA256 mismatch returns explicit LoadError.",
+      "Generation determinism with fixed seed verified."
+    ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C3_FRESH",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-28T00:01:31.342Z",
+    "verdict": "PASS",
+    "verdict_reason": "Transformer load + generate path is solidly wired. InstrumentedLlama is a clean adapt of candle-transformers Llama with a hook seam between every Block.forward and the residual stream; LoadSpec sha256 enforcement runs before any backend work; sampler integrates LogitsProcessor with proper top-k/top-p/argmax branching; cancellation is polled per token; EOS + stop-sequence + length finish reasons are distinct; per-token streaming via tokio unbounded_channel + dedicated thread. Tests prove (a) the hook count increments per layer on real forward, (b) the StopSequenceDetector handles split-across-token stops, (c) cancel mid-stream surfaces FinishReason::Cancelled, (d) sha256 mismatch rejected before backend. Minor concerns below do not block.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "MINOR",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [
+      "HBR-INT-002 — generate path does not write to ProcessLedgerIntegration or ArtifactStore. The MT-081 narrative names ledger but it is not present, and MT-083 generate yields GeneratedToken stream without any receipt emission."
+    ],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 1,
+      "LOW": 2
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-083.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-083.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C3_FRESH",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T23:48:44.444Z",
+    "verdict": "PASS",
+    "verdict_reason": "Transformer load + generate path is solidly wired. InstrumentedLlama is a clean adapt of candle-transformers Llama with a hook seam between every Block.forward and the residual stream; LoadSpec sha256 enforcement runs before any backend work; sampler integrates LogitsProcessor with proper top-k/top-p/argmax branching; cancellation is polled per token; EOS + stop-sequence + length finish reasons are distinct; per-token streaming via tokio unbounded_channel + dedicated thread. Tests prove (a) the hook count increments per layer on real forward, (b) the StopSequenceDetector handles split-across-token stops, (c) cancel mid-stream surfaces FinishReason::Cancelled, (d) sha256 mismatch rejected before backend. Minor concerns below do not block.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "MINOR",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [
+      "HBR-INT-002 — generate path does not write to ProcessLedgerIntegration or ArtifactStore. The MT-081 narrative names ledger but it is not present, and MT-083 generate yields GeneratedToken stream without any receipt emission."
+    ],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 1,
+      "LOW": 2
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "validator_reports_phase1/MT-083.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1\\validator_reports_phase1\\MT-083.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  }
+}

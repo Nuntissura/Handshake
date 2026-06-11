@@ -28,11 +28,11 @@
   "markdown_projection": {
     "path": ".GOV/task_packets/stubs/WP-1-Project-Brain-Runtime-Backfill-v1.md",
     "status": "LEGACY_PROJECTION_IN_SYNC",
-    "projection_sha256": "2a2b8624b3e9ce51dc4db352b21a305f20c45adfeb891a201c4d53cb9a53be58",
+    "projection_sha256": "4b6fa4941c559f531de098c5437523528812df2c2c547e72c46f6b6f67a73cad",
     "generated_by": "task-packet-stub-contracts.mjs"
   },
   "lifecycle": {
-    "status": "STUB (NOT READY FOR DEV)",
+    "status": "SUPERSEDED (FOLDED INTO WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1; replacement=.GOV/task_packets/stubs/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1.contract.json)",
     "format_version": "",
     "activation_required": true,
     "user_signature_required": false,

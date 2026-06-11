@@ -1,0 +1,154 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-065",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "C",
+  "cluster_subscope": "C.1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:00:00Z",
+  "updated_at_utc": "2026-05-28T00:01:44.907Z",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-065.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "SteeringHookHandle sub-trait + capture/inject API",
+  "goal": "Define the SteeringHookOps sub-trait used by activation steering / RepE / refusal vector / CAA techniques (INF-3, INF-4, INF-5). Exposes activation capture (read residual stream at any layer) and steering vector application (add a vector at a layer during forward pass). LlamaCppRuntime returns CapabilityNotSupported; CandleRuntime implements (MT-082).",
+  "expected_diff_shape": "New src/backend/handshake_core/src/model_runtime/steering.rs with SteeringHookHandle, SteeringHookOps, SteeringVectorId, SteeringVector, LayerIndex, CaptureSpec, CaptureResult, SteeringSession. mod.rs re-exports.",
+  "owned_files": [
+    "src/backend/handshake_core/src/model_runtime/steering.rs",
+    "src/backend/handshake_core/src/model_runtime/mod.rs"
+  ],
+  "depends_on_mts": [
+    "MT-062"
+  ],
+  "unblock_conditions": "MT-062 trait surface merged.",
+  "implementation_notes": "Per spec §4.7.1c (Activation Steering PRODUCTION; ref Zou 2023 arXiv:2310.01405) the steering hooks are the substrate for RepE, refusal vector, CAA. SteeringHookOps trait methods: `async fn capture(&self, spec: CaptureSpec) -> Result<CaptureResult, ModelRuntimeError>` — runs a forward pass on the supplied prompt batch and returns layer activations at `spec.layers: Vec<LayerIndex>` (resid_stream by default); `async fn register_vector(&self, vec: SteeringVector) -> Result<SteeringVectorId, ModelRuntimeError>` — registers a steering vector for runtime application; `fn list_vectors(&self) -> Vec<SteeringVectorMeta>`; `async fn set_active(&self, ids: Vec<SteeringVectorId>) -> Result<(), ModelRuntimeError>` — vectors in the list apply during subsequent generate calls; `async fn unregister(&self, id: SteeringVectorId) -> Result<(), ModelRuntimeError>`. SteeringVectorId = Uuid v7 (HBR-INT-008). SteeringVector: `{ id_proposed: Option<SteeringVectorId>, name: String, layer: LayerIndex, hook_point: HookPoint (enum ResidStream|MlpOut|AttnOut), values: Vec<f32>, intensity: f32 (clamped -10.0..=10.0 via try_new), description: String, derivation_provenance: SteeringProvenance }`. SteeringProvenance enum: `Manual { author: String, notes: String }`, `Contrastive { positive_prompts: Vec<String>, negative_prompts: Vec<String>, technique: ContrastiveTechnique (CAA|RefusalVector|RepE) }`. CaptureSpec: `{ prompts: Vec<String>, layers: Vec<LayerIndex>, hook_point: HookPoint }`. CaptureResult: `{ activations: BTreeMap<LayerIndex, Vec<Vec<f32>>>, tokens_seen: u32 }`. LlamaCppRuntime's stub impl returns `Err(CapabilityNotSupported { capability: \"activation_steering\".into(), adapter: \"LlamaCpp\".into() })`. CandleRuntime implements concretely in MT-082.",
+  "proof_commands": [
+    "cargo build -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target model_runtime::steering::"
+  ],
+  "risk_if_missed": "Activation steering / refusal vector / CAA have no trait substrate; each technique reinvents capture/inject plumbing.",
+  "validator_focus": "Trait is object-safe; SteeringVectorId mints via now_v7(); intensity clamp via try_new; provenance field is required (cannot register an unprovenanced steering vector).",
+  "hbr_obligations": [
+    "HBR-INT-002",
+    "HBR-INT-008"
+  ],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.7.1"
+  ],
+  "acceptance_criteria_refs": [
+    "AC-MODEL-RUNTIME-TRAIT",
+    "AC-INFER-LAB-8-TECHNIQUES"
+  ],
+  "lifecycle": {
+    "active": false,
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "PASS",
+    "depends_on": [
+      "MT-062"
+    ],
+    "blocks": [
+      "MT-082",
+      "MT-096",
+      "MT-097",
+      "MT-098",
+      "MT-099",
+      "MT-100",
+      "MT-101",
+      "MT-102",
+      "MT-103",
+      "MT-104",
+      "MT-105",
+      "MT-116"
+    ],
+    "claimed_by": "KERNEL_BUILDER-20260518-235451",
+    "claimed_at_utc": "2026-05-19T03:10:30Z",
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "COMPLETED",
+        "validator_verdict": "PENDING",
+        "completed_at_utc": "2026-05-19T03:19:42.926Z"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "previous_completed_at_utc_before_ready_for_validation_20260525": "2026-05-19T03:19:42.926Z",
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z"
+  },
+  "handoff": {
+    "coder_session": "KERNEL_BUILDER-20260518-235451",
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": "019e6be3-15ca-74f0-ab89-df2bc13224d7",
+    "review_response_receipt_actor_role": "INTEGRATION_VALIDATOR",
+    "review_response_receipt_track": "JUDGMENT_OOB_IV_PHASE1_PRE_REMEDIATION"
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Object-safe verification (Box<dyn SteeringHookOps> constructible).",
+      "Unprovenanced steering vector rejected at register_vector.",
+      "Intensity clamp at try_new (out-of-range Err)."
+    ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C1_FRESH",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-28T00:01:31.342Z",
+    "verdict": "PASS",
+    "verdict_reason": "SteeringHookOps surface covers capture/register/list/set_active/unregister with LayerIndex + HookPoint discriminants (ResidStream/MlpOut/AttnOut). SteeringVector requires provenance (Manual or Contrastive over {CAA, RefusalVector, RepE}) which is the right invariant for RepE/CAA/RV research lineage. UnsupportedSteeringHookOps fail-closed with CapabilityNotSupported — correct for LlamaCppRuntime per spec §4.7.1c.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "MINOR",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 0
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-065.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-065.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C1_FRESH",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T23:48:44.444Z",
+    "verdict": "PASS",
+    "verdict_reason": "SteeringHookOps surface covers capture/register/list/set_active/unregister with LayerIndex + HookPoint discriminants (ResidStream/MlpOut/AttnOut). SteeringVector requires provenance (Manual or Contrastive over {CAA, RefusalVector, RepE}) which is the right invariant for RepE/CAA/RV research lineage. UnsupportedSteeringHookOps fail-closed with CapabilityNotSupported — correct for LlamaCppRuntime per spec §4.7.1c.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "MINOR",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 0
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "validator_reports_phase1/MT-065.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1\\validator_reports_phase1\\MT-065.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  }
+}

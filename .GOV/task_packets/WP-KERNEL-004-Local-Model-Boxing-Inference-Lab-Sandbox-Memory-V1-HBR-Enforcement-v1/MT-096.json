@@ -1,0 +1,169 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-096",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "C",
+  "cluster_subscope": "C.6",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:00:00Z",
+  "updated_at_utc": "2026-05-28T15:46:46.165Z",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-096.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "INF-3 Activation Steering / RepE: activation capture API + vector application",
+  "goal": "Lift the per-adapter SteeringHookOps (CandleRuntime only; LlamaCpp returns CapabilityNotSupported) to the public Activation Steering / RepE technique surface per AC-INFER-LAB-8-TECHNIQUES.c. Reference: Zou et al. 2023 arXiv:2310.01405 (Representation Engineering: A Top-Down Approach to AI Transparency).",
+  "expected_diff_shape": "New src/backend/handshake_core/src/model_runtime/techniques/activation_steering.rs orchestrating capture + register + apply; Tauri commands; tests.",
+  "owned_files": [
+    "src/backend/handshake_core/src/model_runtime/techniques/activation_steering.rs",
+    "app/src-tauri/src/commands/steering.rs",
+    "app/src-tauri/src/main.rs",
+    "src/backend/handshake_core/tests/activation_steering_tests.rs"
+  ],
+  "depends_on_mts": [
+    "MT-065",
+    "MT-082",
+    "MT-083"
+  ],
+  "unblock_conditions": "MT-082 Candle hooks + MT-083 transformer generate merged.",
+  "implementation_notes": "Per AC-INFER-LAB-8-TECHNIQUES.c + refinement INF-3 (research basis: Zou et al. 2023 arXiv:2310.01405). Technique surface methods: `pub async fn capture(rt: &dyn ModelRuntime, model_id, prompts: Vec<String>, layers: Vec<LayerIndex>) -> Result<CaptureResult, ModelRuntimeError>`; `pub async fn register_steering_vector(...) -> Result<SteeringVectorId, ...>`; `pub async fn set_active_steering_vectors(...) -> Result<(), ...>`; `pub async fn unregister(...) -> Result<(), ...>`. Dispatches through ModelRuntime::steering_hooks(model_id). Tauri commands: kernel_model_runtime_steering_capture, _register_vector, _set_active, _unregister, _list_vectors. FR events: FR-EVT-LLM-INFER-STEER-CAPTURE { model_id, layers, prompts_count }, FR-EVT-LLM-INFER-STEER-REGISTER { vector_id, layer, intensity, technique: RepE|RefusalVector|CAA }, FR-EVT-LLM-INFER-STEER-ACTIVE { active_ids }, FR-EVT-LLM-INFER-STEER-APPLY { model_id, request_id, vector_id_count } (per generate). Capability gate: if capabilities.supportsActivationSteering == false, technique returns CapabilityNotSupported with `adapter` field naming which adapter rejected (helps UI explain why). Provenance enforced: register_vector requires non-empty SteeringProvenance (MT-065). Eval test: capture residual stream on a steering-targeted prompt pair (e.g., positive=\"I want to be honest\", negative=\"I want to deceive\"); compute difference vector at a middle layer; register; generate with steering active; assert generation drifts toward positive (use embedding-similarity to a held-out 'honest' generation as a soft metric). The eval is a smoke test — not a benchmark — because operator/coder will refine the eval suite in a follow-on WP.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target activation_steering_tests"
+  ],
+  "risk_if_missed": "INF-3 PRODUCTION ships without an operator-facing technique surface; capture/register/apply paths each handle differently.",
+  "validator_focus": "Capture round-trip (shape correct); provenance enforced; capability gate names adapter; smoke eval shows steering effect.",
+  "hbr_obligations": [
+    "HBR-INT-002"
+  ],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.7.1"
+  ],
+  "acceptance_criteria_refs": [
+    "AC-INFER-LAB-8-TECHNIQUES",
+    "AC-INFER-LAB-UI-TOGGLES"
+  ],
+  "lifecycle": {
+    "active": false,
+    "status": "READY_FOR_VALIDATION_PHASE2",
+    "validator_verdict": "CONCERN",
+    "depends_on": [
+      "MT-065",
+      "MT-082",
+      "MT-083"
+    ],
+    "blocks": [
+      "MT-097",
+      "MT-098",
+      "MT-099",
+      "MT-100",
+      "MT-103",
+      "MT-106"
+    ],
+    "claimed_by": "KERNEL_BUILDER-20260519-143049",
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "COMPLETED",
+        "validator_verdict": "PENDING",
+        "completed_at_utc": "2026-05-19T18:08:53.241Z"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "previous_completed_at_utc_before_ready_for_validation_20260525": "2026-05-19T18:08:53.241Z",
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z",
+    "phase2_remediation": {
+      "remediated_by": "KERNEL_BUILDER-20260528-141638",
+      "remediated_at_utc": "2026-05-28T15:46:46.165Z",
+      "lane": "Steering technique surface (refusal/activation steering)",
+      "commit_sha": "63ca4d53",
+      "remediated_findings": [
+        "HIGH(spec event coverage): added FR-EVT-LLM-INFER-STEER-WITHDRAW constant completing the register/withdraw lifecycle taxonomy (unregister-side sibling of STEER-REGISTER) and documented it on the unregister() wrapper. Spec-mandated FR-EVT-LLM-INFER-STEER-{APPLY,WITHDRAW} are now both present (declaration parity with the other STEER constants, which are emitted by the downstream recorder-wired layer)."
+      ],
+      "deferred_or_residual": "NEEDS_EXTERNAL_RESOURCE: production attach_live_runtime() wiring (so steering commands bind a real CandleRuntime in the Tauri load flow instead of only test fixtures) requires a live app + loaded model + GUI and is not backend-provable here. Residual: operator-gating before set_active activates a refusal-overriding vector (HIGH per operator stance) - a consent/gating control not yet added.",
+      "partial": true,
+      "ack_for": "019e6be3-15dd-7ad9-96c7-eab83d4f4674",
+      "proof": "cargo test activation_steering_tests 4/4 (incl WITHDRAW constant assertion)",
+      "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1 - no per-MT validator; awaiting Phase-2 IV re-judgment"
+    }
+  },
+  "handoff": {
+    "coder_session": "KERNEL_BUILDER-20260519-143049",
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": "019e6be3-15dd-7ad9-96c7-eab83d4f4674",
+    "review_response_receipt_actor_role": "INTEGRATION_VALIDATOR",
+    "review_response_receipt_track": "JUDGMENT_OOB_IV_PHASE1_PRE_REMEDIATION"
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Provenance non-empty enforced.",
+      "Capability gate names adapter (operator can see why it failed).",
+      "Smoke eval defines a clear pass criterion (similarity threshold) rather than being aspirational."
+    ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C6_C7",
+    "reviewed_at_utc": "2026-05-27T19:30:00Z",
+    "aggregator_run_at_utc": "2026-05-28T00:01:31.342Z",
+    "verdict": "CONCERN",
+    "verdict_reason": "Kernel-level technique surface (capture/register/set_active/unregister/list/contrastive_difference_vector) is well-shaped with provenance validation, capability gate, and adapter-naming. The Tauri command layer now dispatches through a live ModelRuntime via attach_live_runtime(). However, NO production code path ever calls attach_live_runtime() — only test fixtures do. In the real Tauri app, every steering command will fail-closed with the typed `capture_not_available` prefix because no CandleRuntime adapter is bound during the production load flow. Spec mandates FR-EVT-LLM-INFER-STEER-{APPLY,WITHDRAW}; only APPLY constant exists, WITHDRAW is absent. No operator-gating exists before set_active activates a vector that can override refusal behavior (HIGH per operator stance for refusal-overriding vectors). The kernel technique-surface API itself is sound; the gap is production wiring + spec event coverage + refusal-gating.",
+    "spec_compliance_status": "PARTIAL",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "CONCERN",
+    "agent_swarm_safety_status": "CONCERN",
+    "hbr_unsatisfied": [
+      "HBR-INT-002"
+    ],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 1,
+      "MEDIUM": 2,
+      "LOW": 0
+    },
+    "paperwork_notes_count": 1,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-096.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-096.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C6_C7",
+    "reviewed_at_utc": "2026-05-27T19:30:00Z",
+    "aggregator_run_at_utc": "2026-05-27T23:48:44.444Z",
+    "verdict": "CONCERN",
+    "verdict_reason": "Kernel-level technique surface (capture/register/set_active/unregister/list/contrastive_difference_vector) is well-shaped with provenance validation, capability gate, and adapter-naming. The Tauri command layer now dispatches through a live ModelRuntime via attach_live_runtime(). However, NO production code path ever calls attach_live_runtime() — only test fixtures do. In the real Tauri app, every steering command will fail-closed with the typed `capture_not_available` prefix because no CandleRuntime adapter is bound during the production load flow. Spec mandates FR-EVT-LLM-INFER-STEER-{APPLY,WITHDRAW}; only APPLY constant exists, WITHDRAW is absent. No operator-gating exists before set_active activates a vector that can override refusal behavior (HIGH per operator stance for refusal-overriding vectors). The kernel technique-surface API itself is sound; the gap is production wiring + spec event coverage + refusal-gating.",
+    "spec_compliance_status": "PARTIAL",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "CONCERN",
+    "agent_swarm_safety_status": "CONCERN",
+    "hbr_unsatisfied": [
+      "HBR-INT-002"
+    ],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 1,
+      "MEDIUM": 2,
+      "LOW": 0
+    },
+    "paperwork_notes_count": 1,
+    "review_artifact_ref": "validator_reports_phase1/MT-096.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1\\validator_reports_phase1\\MT-096.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  }
+}

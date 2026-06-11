@@ -1,0 +1,237 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-078",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "C",
+  "cluster_subscope": "C.2",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:00:00Z",
+  "updated_at_utc": "2026-05-28T00:01:44.914Z",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-078.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "LlamaCppRuntime score + embed implementations",
+  "goal": "Implement the score() (sequence log-prob) and embed() (text -> embedding vector) ModelRuntime trait methods for LlamaCppRuntime via llama-cpp-2 evaluation primitives. score returns Score { token_logprobs, total_logprob }; embed returns Embedding { vector: Vec<f32>, model_id, dim }.",
+  "expected_diff_shape": "New src/backend/handshake_core/src/model_runtime/llama_cpp/score_embed.rs; adapter.rs wiring; tests.",
+  "owned_files": [
+    "src/backend/handshake_core/src/model_runtime/llama_cpp/score_embed.rs",
+    "src/backend/handshake_core/src/model_runtime/llama_cpp/adapter.rs",
+    "src/backend/handshake_core/tests/llama_cpp_score_embed_tests.rs"
+  ],
+  "depends_on_mts": [
+    "MT-074"
+  ],
+  "unblock_conditions": "MT-074 generate path merged (shares sampler infrastructure).",
+  "implementation_notes": "score: feed `sequence: Vec<u32>` token-by-token through llama_cpp_2 decode, collect logits[i][sequence[i+1]] (the logprob of the next token) for i in 0..len-1; return Score { token_logprobs: Vec<f32>, total_logprob: f32 (sum) }. Used by Memory V0+ Self-Improvement Loop scoring (MemoryCapsule effectiveness). embed: requires model loaded with embeddings=true context param (MT-073 added); call llama_cpp_2 embed_eval or llama_get_embeddings_ith to get pooled sentence embedding; return Embedding { vector, model_id, dim }. Embedding dimension is model-dependent (e.g., 768 / 1024 / 4096); store on Embedding struct so consumers can validate dim match. score on a model not loaded returns explicit Err; embed on a model with embeddings=false context returns CapabilityNotSupported. Tests (env-gated): score a known sequence on a small model and assert total_logprob is negative finite; embed two similar prompts and assert cosine_similarity > 0.7 (sanity check); embed on a non-embedding model returns CapabilityNotSupported.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target llama_cpp_score_embed_tests"
+  ],
+  "risk_if_missed": "score / embed paths missing; MemoryCapsule scoring (cluster D) cannot be implemented; self-improvement loop missing a signal.",
+  "validator_focus": "Embedding dim matches model declared dim; sanity cosine similarity > 0.7 on similar prompts; capability gate correct.",
+  "hbr_obligations": [
+    "HBR-INT-002"
+  ],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.6.2"
+  ],
+  "acceptance_criteria_refs": [
+    "AC-LLAMACPP-ADAPTER",
+    "AC-MODEL-RUNTIME-TRAIT"
+  ],
+  "lifecycle": {
+    "active": false,
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "PASS",
+    "depends_on": [
+      "MT-074"
+    ],
+    "blocks": [],
+    "claimed_by": "KERNEL_BUILDER-20260521-203846",
+    "claimed_at_utc": "2026-05-22T04:28:56Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260522-042856",
+    "ready_for_validation_at_utc": "2026-05-22T05:05:03.578Z",
+    "integration_validator_verdict": "PENDING",
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "READY_FOR_VALIDATION",
+        "validator_verdict": "PENDING"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z"
+  },
+  "handoff": {
+    "coder_session": "KERNEL_BUILDER-20260522-055512",
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": "019e6be3-15d2-79de-bb9f-9c4224bdcb3e",
+    "review_response_receipt_actor_role": "INTEGRATION_VALIDATOR",
+    "review_response_receipt_track": "JUDGMENT_OOB_IV_PHASE1_PRE_REMEDIATION"
+  },
+  "implementation_evidence": {
+    "recorded_at_utc": "2026-05-22T05:05:03.578Z",
+    "recorded_by": "KERNEL_BUILDER-20260522-042856",
+    "classification": "IMPLEMENTATION_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+    "authoritative_integration_validator_pass": false,
+    "status_transition": "CLAIMED -> READY_FOR_VALIDATION",
+    "summary": "Implemented LlamaCppRuntime score() and embed() wiring through llama-cpp-2 native contexts. score validates token ids, decodes source tokens in n_batch-sized chunks, reads next-token logits, computes finite non-positive log probabilities, and returns the live Score shape. embed tokenizes text, decodes with embeddings enabled, returns finite deterministic vectors, and fails closed with CapabilityNotSupported when embeddings are disabled.",
+    "contract_drift_handled": {
+      "contract_text": "MT contract mentions Score { token_logprobs, total_logprob } and Embedding { vector, model_id, dim }.",
+      "live_trait_shape": "Current product types are Score { token_logprobs: Vec<f32>, mean_logprob: f32 } and Embedding { vector: Vec<f32> }.",
+      "selected_approach": "Implemented against the live shared ModelRuntime trait/types instead of reshaping shared runtime data contracts inside MT-078; validator should treat the older field names as contract drift recorded here, not as missing fields in this implementation."
+    },
+    "files_touched": [
+      "src/backend/handshake_core/src/model_runtime/llama_cpp/mod.rs",
+      "src/backend/handshake_core/src/model_runtime/llama_cpp/adapter.rs",
+      "src/backend/handshake_core/src/model_runtime/llama_cpp/gguf_loader.rs",
+      "src/backend/handshake_core/src/model_runtime/llama_cpp/context.rs",
+      "src/backend/handshake_core/src/model_runtime/llama_cpp/score_embed.rs",
+      "src/backend/handshake_core/tests/llama_cpp_score_embed_tests.rs"
+    ],
+    "research_basis": {
+      "sources_checked": [
+        "llama-cpp-2 0.1.146 local crate API",
+        "llama.cpp bundled headers/source for llama_decode, llama_encode, embeddings_ith, embeddings_seq, pooling_type behavior",
+        "upstream llama.cpp embedding behavior comments in include/llama.h",
+        "local ModelRuntime trait/types and existing llama.cpp generate/KV/speculative adapter patterns"
+      ],
+      "selected_patterns": [
+        "Use LlamaBatch + decode + get_logits_ith for sequence scoring; logits at source position i score token i+1.",
+        "Use llama.cpp embedding-enabled context and output-marked batch tokens for embedding extraction.",
+        "Do not force pooled sequence embeddings onto generative GGUF models whose default pooling_type is unspecified; default to llama.cpp model behavior and use last output token embedding when sequence pooling is unavailable."
+      ],
+      "rejected_options": [
+        "Changing shared Score/Embedding structs in this MT to match stale contract prose because that would widen blast radius beyond owned LlamaCppRuntime files.",
+        "Forcing Mean pooling globally on every llama.cpp context because it produced a native STATUS_ACCESS_VIOLATION on the configured generative GGUF embedding test.",
+        "Using encode-first for the configured decoder-only GGUF because the safe wrapper path can crash in this model/runtime combination."
+      ]
+    },
+    "native_crash_reproduction_and_fix": {
+      "failing_log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt078-debug-embed-exact-20260522-001.log",
+      "failing_exit_code": -1073741819,
+      "failure": "STATUS_ACCESS_VIOLATION in the isolated embedding test after forcing pooling_type=Mean and running encode-first on the configured generative GGUF.",
+      "fix": "Changed default pooling to Unspecified, decode-first for generative contexts, mark all embedding batch tokens as outputs, and fall back from embeddings_seq_ith(0) to embeddings_ith(-1) when llama.cpp reports NonePoolType."
+    },
+    "proof": {
+      "red_test": {
+        "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features llama-cpp-runtime-engine --test llama_cpp_score_embed_tests -- --nocapture",
+        "exit_code": 101,
+        "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt078-red-score-embed-native-20260522-001.log",
+        "note": "Pre-implementation failures proved score/embed placeholder behavior and incorrect capability handling."
+      },
+      "focused_native_score_embed": {
+        "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features llama-cpp-runtime-engine --test llama_cpp_score_embed_tests -- --nocapture",
+        "exit_code": 0,
+        "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt078-green-score-embed-native-20260522-002.log",
+        "note": "6 passed, 0 failed, including real configured GGUF score/embed/capability guard tests."
+      },
+      "default_feature_score_embed": {
+        "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test llama_cpp_score_embed_tests -- --nocapture",
+        "exit_code": 0,
+        "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt078-green-score-embed-default-20260522-001.log",
+        "note": "1 passed, 0 failed; disabled-native path compiles and missing-model typed errors are non-placeholder."
+      },
+      "native_generate_regression": {
+        "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features llama-cpp-runtime-engine --test llama_cpp_generate_tests -- --nocapture",
+        "exit_code": 0,
+        "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt078-regression-generate-native-20260522-001.log",
+        "note": "8 passed, 0 failed; context default changes did not regress native generation."
+      },
+      "adapter_regressions": [
+        {
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test llama_cpp_adapter_tests -- --nocapture",
+          "exit_code": 0,
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt078-regression-adapter-default-20260522-001.log",
+          "note": "6 passed, 0 failed."
+        },
+        {
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features llama-cpp-runtime-engine --test llama_cpp_adapter_tests -- --nocapture",
+          "exit_code": 0,
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt078-regression-adapter-native-20260522-001.log",
+          "note": "5 passed, 0 failed."
+        }
+      ],
+      "fmt_check": {
+        "command": "cargo fmt --manifest-path src/backend/handshake_core/Cargo.toml --check",
+        "exit_code": 0,
+        "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt078-cargo-fmt-check-20260522-001.log"
+      }
+    },
+    "residual_risks": [
+      "Returned embeddings for the configured generative GGUF are last output token hidden-state embeddings when sequence pooling is unavailable, not a dedicated retrieval embedding model output. Validator should decide whether MT-078 requires a later dedicated embedding-model fixture.",
+      "Encoder-only embedding models were not live-validated in this session; decode-first with encode fallback is implemented, but the live proof uses the configured decoder/generative GGUF.",
+      "Cargo output still includes pre-existing crate warnings outside MT-078 llama.cpp files; no MT-078-specific new warnings were observed in the focused logs.",
+      "No Integration Validator has reviewed this MT; status is READY_FOR_VALIDATION only."
+    ]
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Embedding context requirement enforced (embed without embeddings=true returns CapabilityNotSupported).",
+      "score returns finite negative float (not NaN/Inf/positive).",
+      "Embedding dim asserted against model card declared dim."
+    ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C2_FRESH",
+    "reviewed_at_utc": "2026-05-27T18:30:00Z",
+    "aggregator_run_at_utc": "2026-05-28T00:01:31.342Z",
+    "verdict": "PASS",
+    "verdict_reason": "score() and embed() implemented against live ModelRuntime trait; embedding-disabled capability gate enforced; native crash (STATUS_ACCESS_VIOLATION on Mean pooling) investigated and fixed via decode-first + Unspecified pooling default.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 1,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 2,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-078.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-078.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C2_FRESH",
+    "reviewed_at_utc": "2026-05-27T18:30:00Z",
+    "aggregator_run_at_utc": "2026-05-27T23:48:44.444Z",
+    "verdict": "PASS",
+    "verdict_reason": "score() and embed() implemented against live ModelRuntime trait; embedding-disabled capability gate enforced; native crash (STATUS_ACCESS_VIOLATION on Mean pooling) investigated and fixed via decode-first + Unspecified pooling default.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 1,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 2,
+    "review_artifact_ref": "validator_reports_phase1/MT-078.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1\\validator_reports_phase1\\MT-078.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  }
+}

@@ -1,0 +1,152 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-013",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "A",
+  "cluster_subscope": "A.6",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T02:30:00Z",
+  "updated_at_utc": "2026-05-28T00:01:44.876Z",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-013.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "ModelManual Tauri IPC bridge + on-demand md projection + HBR-MAN-002 no-context harness",
+  "goal": "Wire three deliverables for A.6 closure: (1) Tauri IPC bridge `kernel.model_manual.get/list_commands/search` per spec §10.15.2 (AC-MODEL-MANUAL-IPC); (2) `just generate-model-manual-md` recipe producing on-demand MODEL_MANUAL.md per §10.15.3 (AC-MODEL-MANUAL-MD-ON-DEMAND); (3) HBR-MAN-002 no-context-model harness per §10.15 that proves a no-context capable model can operate Handshake from the manual content alone.",
+  "expected_diff_shape": "New Tauri command handlers in app/src-tauri/src/manual.rs; justfile recipe; new test harness src/backend/handshake_core/tests/manual_no_context_harness.rs that simulates a no-context model reading the manual and answering a scripted set of operational questions.",
+  "owned_files": [
+    "app/src-tauri/src/manual.rs",
+    "src/backend/handshake_core/src/model_manual/projection.rs",
+    "src/backend/handshake_core/tests/manual_no_context_harness.rs",
+    "justfile"
+  ],
+  "depends_on_mts": [
+    "MT-010",
+    "MT-011",
+    "MT-012"
+  ],
+  "unblock_conditions": "MT-010 manual content exists; MT-011 paired-diff hook is active so adding the new Tauri commands also forces a manual entry in the same commit; MT-012 self-consistency scanner is active so the new IPC channels resolve correctly.",
+  "implementation_notes": "Three sub-deliverables, all in one MT because they share testing infrastructure. (1) Tauri IPC bridge — in app/src-tauri/src/manual.rs add `#[tauri::command] pub async fn model_manual_get() -> ManualJson` (returns full Manual serialized to JSON), `#[tauri::command] pub async fn model_manual_list_commands() -> Vec<CommandReferenceLite>`, `#[tauri::command] pub async fn model_manual_search(query: String) -> Vec<SearchResult>` (substring + tag search). Register them in app/src-tauri/src/main.rs via tauri::Builder.invoke_handler. Channel ids per spec: `kernel.model_manual.get`, `kernel.model_manual.list_commands`, `kernel.model_manual.search`. ManualJson and SearchResult derive Serialize. (2) on-demand md projection — in src/backend/handshake_core/src/model_manual/projection.rs implement `fn render_md(manual: &Manual) -> String` producing a structured markdown rendering (YAML frontmatter with file_id, file_kind=ModelManual, updated_at; <topic> tags per GLOBAL-GOVARTIFACTS-020 for each feature_group / command_reference section). Add justfile recipe `generate-model-manual-md` that runs a small Rust binary `model_manual_md_gen` (declared in Cargo.toml as a [[bin]]) and writes the output to `app/MODEL_MANUAL.md`. Per AC-MODEL-MANUAL-MD-ON-DEMAND the projection is NEVER auto-emitted — recipe is run only on demand; deleting MODEL_MANUAL.md never affects manual content. (3) HBR-MAN-002 no-context harness — manual_no_context_harness.rs runs an in-process simulation: it loads the manual via the IPC bridge mock, then asks a scripted list of operational questions (e.g., 'How does an operator start a governed session?', 'What command lists loaded models?', 'What is the safety constraint preventing model spawn outside SandboxAdapter?', 'How do I open the Diagnostics panel?') and asserts the answer can be derived purely from the manual text (no chat history, no provider memory). The harness uses a small scoring rule: each question has an expected substring in the manual text; the harness greps the manual for the substring and asserts presence. Per HBR-MAN-002 evidence_kind=no_context_model_operation_test this is the wire test.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target manual_no_context_harness",
+    "just generate-model-manual-md",
+    "just hbr-man-001 && just hbr-man-003"
+  ],
+  "risk_if_missed": "Without IPC bridge the frontend cannot read the manual; without md projection on-demand the operator has no read-only reference; without no-context harness HBR-MAN-002 has no evidence.",
+  "validator_focus": "All three Tauri commands resolve via the manual self-consistency scanner; md projection is run on-demand only (no CI cron); no-context harness scripted questions are documented inline so operators can review the coverage.",
+  "hbr_obligations": [
+    "HBR-MAN-001",
+    "HBR-MAN-002",
+    "HBR-MAN-003"
+  ],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/10-product-surfaces.md#10.15"
+  ],
+  "acceptance_criteria_refs": [
+    "AC-MODEL-MANUAL-IPC",
+    "AC-MODEL-MANUAL-MD-ON-DEMAND",
+    "AC-MODEL-MANUAL-AUTHORITY"
+  ],
+  "lifecycle": {
+    "active": false,
+    "status": "READY_FOR_VALIDATION_PHASE2",
+    "validator_verdict": "CONCERN",
+    "depends_on": [
+      "MT-010",
+      "MT-011",
+      "MT-012"
+    ],
+    "blocks": [
+      "MT-038"
+    ],
+    "claimed_by": "KERNEL_BUILDER-20260518-012310",
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "COMPLETED",
+        "validator_verdict": "PENDING",
+        "completed_at_utc": "2026-05-18T06:36:58.466Z"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "previous_completed_at_utc_before_ready_for_validation_20260525": "2026-05-18T06:36:58.466Z",
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z",
+    "updated_at_utc": "2026-05-28T01:28:00.000Z"
+  },
+  "handoff": {
+    "coder_session": "KERNEL_BUILDER-20260518-012310",
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": "019e6be3-15ac-7120-80e6-7ae00ef0f389",
+    "review_response_receipt_actor_role": "INTEGRATION_VALIDATOR",
+    "review_response_receipt_track": "JUDGMENT_OOB_IV_PHASE1_PRE_REMEDIATION"
+  },
+  "red_team": {
+    "minimum_controls": [
+      "On-demand md projection recipe is NEVER auto-run in CI (would create md drift).",
+      "No-context harness questions are documented inline and can be extended without recompiling.",
+      "Adding the three Tauri commands forces a manual update in the SAME commit (HBR-MAN-001 gate is now active)."
+    ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_A1tail_A6",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-28T00:01:31.342Z",
+    "verdict": "CONCERN",
+    "verdict_reason": "All three deliverables exist (Tauri IPC bridge, on-demand md projection via cargo bin + just recipe, no-context harness) and the harness asserts five operational questions resolve from manual text alone; concerns are (a) the manual.rs uses an in-line `#[path = ...]` include of the model_manual module rather than depending on the handshake_core crate, (b) deliverables are untracked in feat branch, (c) the no-context harness depends on MT-012 staying green which it currently is not.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "MINOR",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 1,
+      "MEDIUM": 2,
+      "LOW": 2
+    },
+    "paperwork_notes_count": 2,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-013.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-013.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_A1tail_A6",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T23:48:44.444Z",
+    "verdict": "CONCERN",
+    "verdict_reason": "All three deliverables exist (Tauri IPC bridge, on-demand md projection via cargo bin + just recipe, no-context harness) and the harness asserts five operational questions resolve from manual text alone; concerns are (a) the manual.rs uses an in-line `#[path = ...]` include of the model_manual module rather than depending on the handshake_core crate, (b) deliverables are untracked in feat branch, (c) the no-context harness depends on MT-012 staying green which it currently is not.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "MINOR",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 1,
+      "MEDIUM": 2,
+      "LOW": 2
+    },
+    "paperwork_notes_count": 2,
+    "review_artifact_ref": "validator_reports_phase1/MT-013.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1\\validator_reports_phase1\\MT-013.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  }
+}

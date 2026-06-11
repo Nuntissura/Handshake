@@ -67,7 +67,12 @@ function normalizePath(p) {
 }
 
 function packetIdFromPath(packetPath) {
-  return inferWpIdFromPacketPath(normalizePath(packetPath));
+  const normalized = normalizePath(packetPath);
+  if (/\/packet\.(json|md)$/i.test(normalized)) {
+    const parentName = normalized.split("/").at(-2) || "";
+    return /^WP-/.test(parentName) ? parentName : "";
+  }
+  return inferWpIdFromPacketPath(normalized);
 }
 
 function parseRegistryRows(content) {
@@ -151,6 +156,10 @@ function parseBuildOrderMeta(packetText) {
 }
 
 function parseBuildOrderMetaFromStubContract(contract = {}) {
+  return parseBuildOrderMetaFromContract(contract);
+}
+
+function parseBuildOrderMetaFromContract(contract = {}) {
   const buildOrder = contract.build_order || {};
   const lifecycle = contract.lifecycle || {};
   return {
@@ -170,6 +179,13 @@ function parseBuildOrderMetaForPath(packetPath, packetText) {
     const stubContractState = readStubContractForMarkdownPath(normalizedPath);
     if (stubContractState.ok) {
       return parseBuildOrderMetaFromStubContract(stubContractState.contract);
+    }
+  }
+  if (/\/packet\.json$/i.test(normalizedPath)) {
+    try {
+      return parseBuildOrderMetaFromContract(JSON.parse(packetText));
+    } catch {
+      return parseBuildOrderMeta(packetText);
     }
   }
   return parseBuildOrderMeta(packetText);

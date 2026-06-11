@@ -1,0 +1,333 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-193",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "X",
+  "cluster_subscope": "X.3",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:17:00Z",
+  "updated_at_utc": "2026-05-28T00:01:44.980Z",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-193.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "Restart resume orchestrator integrating with KERNEL-001 SessionBroker",
+  "goal": "Implement the restart resume orchestrator that, on Handshake process startup, discovers all sessions left in non-terminal states from the previous run, computes a ReplayPlan per session via MT-192, and hands reconstructed state back to the KERNEL-001 SessionBroker for resumption. This is the entrypoint that makes the cluster X crash recovery slice actually heal a crashed process.",
+  "expected_diff_shape": "New Rust module src/backend/handshake_core/src/process_ledger/restart_resume.rs with `RestartResumeOrchestrator`, `ResumeReport`; integration tests under src/backend/handshake_core/tests/restart_resume_tests.rs.",
+  "owned_files": [
+    "src/backend/handshake_core/src/process_ledger/restart_resume.rs",
+    "src/backend/handshake_core/tests/restart_resume_tests.rs"
+  ],
+  "depends_on_mts": [
+    "MT-191",
+    "MT-192",
+    "MT-186"
+  ],
+  "unblock_conditions": "MT-191 (checkpoint writer) and MT-192 (replay) merged. MT-186 cancellation primitive merged so the orchestrator can surface resume-impossible sessions for cancellation rather than silent hang.",
+  "implementation_notes": "Orchestrator runs once at startup, after database migrations, before SessionBroker accepts new traffic. Algorithm: (1) query KERNEL-001 session table for sessions where state IN ('Running', 'AwaitingVerification', 'Paused', 'CancellationRequested'); (2) for each session: (a) call StateReplayer::plan(session_id) (MT-192); (b) if plan succeeds, call StateReplayer::execute with the session's state_apply function (registered via a `ResumableSession` trait that KERNEL-001 SessionBroker implements); (c) if execute Ok, hand state to SessionBroker::resume(session_id, state) and mark resumed; (d) if execute Err (MissingEvent/StateInvariantViolated), mark session state='RecoveryFailed' and queue a decision_request mailbox message to operator role asking for cancel or manual rerun decision; (e) if ProcessOwnershipLedger shows orphan processes for this session, call reclaim hooks (MT-186 cancellation forced path) before resuming. Emits ResumeReport { sessions_examined, sessions_resumed: Vec<Uuid>, sessions_recovery_failed: Vec<(Uuid, ResumeError)>, total_replay_events, total_duration_ms } and writes ResumeReport to a `kernel_restart_resume_report` table for forensic audit. FR-EVT-RESTART-RESUME-{STARTED,SESSION_RESUMED,SESSION_RECOVERY_FAILED,COMPLETED} emitted per phase. Idempotent: if orchestrator runs twice on same database state, second run resumes 0 sessions (since first run transitioned them out of resumable states). Honors spec §5 line 1208: replay works with EventLedger alone, no Flight Recorder dependency. Tests: (a) seed db with 3 mid-run sessions + checkpoints + events, restart, expect 3 resumed; (b) seed with gap in event seq, expect 1 sessions_recovery_failed + decision_request mailbox message posted; (c) seed with orphan process, expect reclaim hook fired before resume; (d) idempotency: run twice, second time examines 0.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target restart_resume_tests -- --test-threads=1"
+  ],
+  "risk_if_missed": "Without the restart orchestrator, MT-190/191/192 primitives are unwired libraries — a crashed Handshake never actually resumes; cluster X's central recovery promise has zero behavior.",
+  "validator_focus": "Idempotency proven by second-run test (0 sessions examined); RecoveryFailed sessions always trigger operator decision_request (never silent hang); reclaim hooks invoked before resume (no double-process).",
+  "hbr_obligations": [
+    "HBR-INT-001",
+    "HBR-INT-008",
+    "HBR-SWARM-002"
+  ],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/05-security-and-observability.md#5",
+    ".GOV/spec/master-spec-v02.186/spec-modules/05-security-and-observability.md#5.7.5"
+  ],
+  "acceptance_criteria_refs": [
+    "PRESERVED_INTENT:WP-1-Session-Crash-Recovery-Checkpointing-v1 (restart reconstruction + orchestration)"
+  ],
+  "lifecycle": {
+    "active": true,
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "PASS",
+    "integration_validator_verdict": "PENDING",
+    "depends_on": [
+      "MT-191",
+      "MT-192",
+      "MT-186"
+    ],
+    "blocks": [
+      "MT-195"
+    ],
+    "claimed_by": "KERNEL_BUILDER-20260524-050725",
+    "claimed_at_utc": "2026-05-24T05:26:05.997Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260524-050725",
+    "ready_for_validation_at_utc": "2026-05-24T09:30:00Z",
+    "implementation_record": {
+      "summary": "MT-193 now includes both the folded restart-resume primitive and the production Postgres startup runner. main.rs initializes control-plane Postgres storage, runs migrations, invokes PostgresRestartResumeRunner before listener binding, resumes eligible kernel_session_queue rows from kernel_session_checkpoint plus kernel_event_ledger, persists kernel_restart_resume_report rows, emits typed restart-resume FR evidence, reclaims orphan kernel_process_lifecycle rows, posts real role_mailbox_v1 operator decision requests on recovery failure, and records target-specific idempotency keys for concrete Postgres writes.",
+      "files_modified": [
+        "src/backend/handshake_core/src/session_checkpoint/restart.rs",
+        "src/backend/handshake_core/src/session_checkpoint/mod.rs",
+        "src/backend/handshake_core/src/session_checkpoint/idempotency.rs",
+        "src/backend/handshake_core/src/process_ledger/restart_resume.rs",
+        "src/backend/handshake_core/src/process_ledger/mod.rs",
+        "src/backend/handshake_core/src/main.rs",
+        "src/backend/handshake_core/src/storage/mod.rs",
+        "src/backend/handshake_core/migrations/0028_restart_resume_report_wiring.sql",
+        "src/backend/handshake_core/migrations/0028_restart_resume_report_wiring.down.sql",
+        "src/backend/handshake_core/tests/restart_resume_tests.rs",
+        "src/backend/handshake_core/tests/restart_resume_postgres_tests.rs",
+        "src/backend/handshake_core/Cargo.toml"
+      ],
+      "files_used_or_verified": [
+        "src/backend/handshake_core/tests/restart_resume_tests.rs",
+        "src/backend/handshake_core/tests/restart_resume_postgres_tests.rs",
+        "src/backend/handshake_core/tests/session_checkpoint_tests.rs",
+        "src/backend/handshake_core/tests/idempotency_tests.rs",
+        "src/backend/handshake_core/tests/crash_recovery_e2e/mod.rs",
+        "src/backend/handshake_core/tests/process_ledger_reclaim_tests.rs",
+        "src/backend/handshake_core/tests/fr_event_registry_tests.rs"
+      ],
+      "contract_deviation_note": "PATH_SHAPE_DRIFT is narrowed to the folded primitive: src/backend/handshake_core/src/session_checkpoint/restart.rs still owns the original in-memory primitive and is re-exported from process_ledger/restart_resume.rs. The production startup/Postgres/mailbox/report adapter is now wired in process_ledger/restart_resume.rs and src/backend/handshake_core/src/main.rs; the prior unwired-startup, missing-Postgres-adapter, missing-real-mailbox, and missing-real-report risks are closed by live Postgres tests.",
+      "test_results": [
+        {
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --target-dir D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target --test restart_resume_tests -- --test-threads=1 --nocapture",
+          "exit_code": 101,
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/mt193-restart-resume-red-20260524-0610.log",
+          "note": "Expected red: ResumableSession lacked MT-193 integration hooks and ResumeReport lacked report_id/orphan_reclaims."
+        },
+        {
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --target-dir D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target --test restart_resume_tests -- --test-threads=1 --nocapture",
+          "exit_code": 0,
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/mt193-restart-resume-final-green-20260524-0648.log",
+          "note": "Final green after implementation, rustfmt, and explicit Cargo test target registration."
+        },
+        {
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --target-dir D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target --test session_checkpoint_tests mt_193_restart_resume_full_path -- --test-threads=1 --nocapture",
+          "exit_code": 0,
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/mt193-session-checkpoint-adjacent-green-20260524-0631.log",
+          "note": "Adjacent folded session-checkpoint MT-193 path still passes."
+        },
+        {
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --target-dir D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target --test process_ledger_reclaim_tests -- --test-threads=1 --nocapture",
+          "exit_code": 0,
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/mt193-process-ledger-reclaim-adjacent-green-20260524-0632.log",
+          "note": "Adjacent reclaim surface still passes."
+        },
+        {
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --target-dir D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target --test fr_event_registry_tests -- --test-threads=1 --nocapture",
+          "exit_code": 0,
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/mt193-fr-event-registry-adjacent-green-20260524-0633.log",
+          "note": "Typed FR registry remains aligned."
+        },
+        {
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --target-dir D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target --lib session_checkpoint::restart -- --test-threads=1 --nocapture",
+          "exit_code": 0,
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/mt193-restart-lib-green-20260524-0634.log",
+          "note": "Inline restart.rs tests pass with the extended report and default hooks."
+        },
+        {
+          "command": "rustfmt --edition 2021 src/backend/handshake_core/src/session_checkpoint/restart.rs src/backend/handshake_core/src/session_checkpoint/mod.rs src/backend/handshake_core/src/process_ledger/restart_resume.rs src/backend/handshake_core/src/process_ledger/mod.rs",
+          "exit_code": 0,
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/mt193-rustfmt-green-20260524-0647.log",
+          "note": "Touched Rust files are rustfmt-clean."
+        },
+        {
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --target-dir D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target --test restart_resume_postgres_tests -- --ignored --test-threads=1 --nocapture",
+          "exit_code": 101,
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/mt193-postgres-interleaved-seq-red-20260524-111500.log",
+          "note": "Expected red: interleaved global event_sequence from another session was incorrectly treated as a per-session replay gap."
+        },
+        {
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --target-dir D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target --test restart_resume_postgres_tests -- --ignored --test-threads=1 --nocapture",
+          "exit_code": 101,
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/mt193-postgres-target-idempotency-red-20260524-111600.log",
+          "note": "Expected red: production restart-resume side effects did not yet persist target-specific idempotency keys for kernel_process_lifecycle."
+        },
+        {
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --target-dir D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target --test restart_resume_postgres_tests -- --ignored --test-threads=1 --nocapture",
+          "exit_code": 0,
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/mt193-postgres-startup-live-green-20260524-130000.log",
+          "note": "Live Postgres proof passed: three ignored startup-runner tests cover successful resume/report persistence/idempotency, global event_sequence interleaving, orphan reclaim target keys, and recovery failure mailbox/idempotency rows."
+        },
+        {
+          "command": "cargo check --manifest-path src/backend/handshake_core/Cargo.toml --features app-runtime --target-dir D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target --bin handshake_core",
+          "exit_code": 0,
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/mt193-app-runtime-check-green-20260524-114900.log",
+          "note": "App runtime binary compiles with startup restart-resume wiring in main.rs."
+        }
+      ],
+      "red_team_coverage": {
+        "idempotency": "restart_resume_postgres_tests::mt193_postgres_startup_runner_resumes_persists_report_and_is_idempotent asserts first run resumes one session, persists report rows, writes target-specific idempotency keys for kernel_process_lifecycle/kernel_session_queue/kernel_session_checkpoint, and second run examines/resumes zero.",
+        "global_event_sequence": "restart_resume_postgres_tests::mt193_postgres_startup_runner_replays_session_events_when_global_event_sequence_interleaves_other_sessions proves global ledger sequences occupied by other sessions are not treated as gaps in the replaying session.",
+        "operator_decision_request": "restart_resume_postgres_tests::mt193_postgres_startup_runner_marks_recovery_failed_and_posts_operator_decision proves replay gaps mark the queue failed and insert real role_mailbox_thread/role_mailbox_message decision-request rows linked to the session.",
+        "reclaim_before_resume": "The live Postgres success path reclaims orphan kernel_process_lifecycle rows before queue resume and records a target-specific kernel_process_lifecycle idempotency key.",
+        "report_persistence_and_fr": "Live Postgres tests assert kernel_restart_resume_report rows with schema_version=2, orphan_reclaims/operator_decision_requests/fr_events_emitted evidence, and typed restart-resume FR event IDs.",
+        "startup_ordering": "cargo check --features app-runtime --bin handshake_core proves main.rs compiles with control-plane storage initialization, migrations, restart-resume runner execution, then listener/AppState setup."
+      },
+      "residual_risks": [],
+      "out_of_scope_self_evaluation": {
+        "why": "Closing MT-193 required touching startup/storage/migration surfaces beyond the original primitive-owned files because the contract requires process-startup behavior before SessionBroker traffic, real Postgres report persistence, real mailbox decision requests, and target-specific idempotency rows. Those surfaces are now wired and verified rather than parked as follow-on debt.",
+        "files_touched_outside_owned_files": [
+          "src/backend/handshake_core/src/session_checkpoint/restart.rs",
+          "src/backend/handshake_core/src/session_checkpoint/mod.rs",
+          "src/backend/handshake_core/src/session_checkpoint/idempotency.rs",
+          "src/backend/handshake_core/src/process_ledger/mod.rs",
+          "src/backend/handshake_core/src/main.rs",
+          "src/backend/handshake_core/src/storage/mod.rs",
+          "src/backend/handshake_core/migrations/0028_restart_resume_report_wiring.sql",
+          "src/backend/handshake_core/migrations/0028_restart_resume_report_wiring.down.sql",
+          "src/backend/handshake_core/tests/restart_resume_postgres_tests.rs",
+          "src/backend/handshake_core/Cargo.toml"
+        ],
+        "waiver_required": true
+      },
+      "next_dependent_mts_unblocked": [
+        "MT-194 target-specific idempotency is now consumed by MT-193 production restart-resume call sites for queue, checkpoint, mailbox, and process-lifecycle writes.",
+        "MT-195 can validate against live Postgres restart-resume report rows, mailbox decision rows, orphan reclaim evidence, and runtime chaos scenarios rather than only the folded in-memory primitive."
+      ]
+    },
+    "latest_postgres_test_evidence_20260525": {
+      "recorded_at_utc": "2026-05-25T02:36:47.3466494Z",
+      "recorded_by": "KERNEL_BUILDER-20260525-011217",
+      "classification": "KERNEL_BUILDER_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+      "postgres_target": "postgres://postgres:***@127.0.0.1:65432/handshake_test?sslmode=disable",
+      "artifact_target_root": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target",
+      "fixes": [],
+      "tests": [
+        {
+          "scope": "MT-193",
+          "command": "POSTGRES_TEST_URL=postgres://postgres:***@127.0.0.1:65432/handshake_test?sslmode=disable CARGO_TARGET_DIR=D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target/wp-kernel-004-postgres-restart-resume cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test restart_resume_postgres_tests -- --ignored --test-threads=1 --nocapture",
+          "exit_code": 0,
+          "result": "3 passed; 0 failed; 0 ignored",
+          "note": "Verified startup runner resume/report/idempotency, interleaved global event replay, and recovery-failed/operator-decision path against live Postgres."
+        }
+      ],
+      "shared_risks": [
+        "This is KERNEL_BUILDER supporting evidence, not an Integration Validator verdict; lifecycle.integration_validator_verdict remains PENDING unless a validator role signs off.",
+        "Broad workspace remains dirty with many pre-existing modified/untracked files outside this session; this evidence block records only the Postgres test/fix slice listed here.",
+        "Warnings remain in unrelated library areas during cargo test; no warnings were introduced as hard errors in the verified commands.",
+        "Postgres fixture was local Docker Postgres on 127.0.0.1:65432; validators should re-run against their configured POSTGRES_TEST_URL before marking authoritative completion."
+      ]
+    },
+    "postgres_test_url_live_evidence_20260525_continuation": {
+      "authoritative_integration_validator_pass": false,
+      "classification": "KERNEL_BUILDER_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+      "not_run_or_not_claimed": [
+        "mt195_runtime_real_handshake_core_binary_runs_startup_recovery_and_persists_report was not newly run or claimed in this continuation because it requires app-runtime binary coverage."
+      ],
+      "artifact_log_root": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs",
+      "implementation_or_hardening_notes": [],
+      "postgres_test_url_redacted": "postgres://postgres:***@127.0.0.1:65432/handshake_test",
+      "proof": [
+        {
+          "log": "postgres-live-session_checkpoint_tests-20260525-resume.log",
+          "scope": "session_checkpoint_tests",
+          "note": [
+            "Session checkpoint live Postgres suite passed.",
+            "Proof"
+          ],
+          "result": "passed"
+        }
+      ],
+      "recorded_by": "KERNEL_BUILDER-POSTGRES-TEST-URL-20260525-CONTINUATION",
+      "mt_ids": [
+        "MT-190",
+        "MT-191",
+        "MT-192",
+        "MT-193",
+        "MT-194",
+        "MT-195"
+      ],
+      "summary": "Checkpoint, restart/resume, idempotency, kernel end-to-end, and selected crash-recovery live Postgres checks passed; app-runtime binary crash-recovery case was not newly claimed in this continuation.",
+      "integration_validator_status": "PENDING",
+      "residual_risks": [
+        "Supporting evidence only; Integration Validator verdict remains PENDING.",
+        "Focused Postgres/live-kernel commands were run, not a full workspace cargo test."
+      ],
+      "recorded_at_utc": "2026-05-25T10:56:03.5601331Z",
+      "cargo_target_dir": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target"
+    },
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "READY_FOR_VALIDATION",
+        "validator_verdict": "PENDING"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z"
+  },
+  "handoff": {
+    "coder_session": "KERNEL_BUILDER-20260524-050725",
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": "019e6be3-1613-791a-b9fc-c32b55bb6f12",
+    "review_response_receipt_actor_role": "INTEGRATION_VALIDATOR",
+    "review_response_receipt_track": "JUDGMENT_OOB_IV_PHASE1_PRE_REMEDIATION"
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Orchestrator runs BEFORE SessionBroker accepts new traffic (startup ordering enforced by main.rs sequence + integration test).",
+      "ResumeReport persisted to kernel_restart_resume_report table for forensic audit even on partial failures.",
+      "Operator decision_request mailbox messages posted with linked_record_id=session_id and a clear reason field."
+    ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_X3_X4",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-28T00:01:31.342Z",
+    "verdict": "PASS",
+    "verdict_reason": "PostgresRestartResumeRunner is wired into main.rs after migrations and BEFORE listener bind / AppState build; resumes from kernel_session_checkpoint + kernel_event_ledger, persists ResumeReport, posts real role_mailbox_v1 decision rows on recovery-failed sessions, reclaims orphans, and is idempotent across reruns.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "MINOR",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 2,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-193.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-193.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_X3_X4",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T23:48:44.444Z",
+    "verdict": "PASS",
+    "verdict_reason": "PostgresRestartResumeRunner is wired into main.rs after migrations and BEFORE listener bind / AppState build; resumes from kernel_session_checkpoint + kernel_event_ledger, persists ResumeReport, posts real role_mailbox_v1 decision rows on recovery-failed sessions, reclaims orphans, and is idempotent across reruns.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "MINOR",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 2,
+    "review_artifact_ref": "validator_reports_phase1/MT-193.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1\\validator_reports_phase1\\MT-193.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  }
+}

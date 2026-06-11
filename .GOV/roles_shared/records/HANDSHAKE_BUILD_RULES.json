@@ -1,10 +1,10 @@
 {
   "schema": "handshake.build_rules@1",
   "name": "HANDSHAKE_BUILD_RULES",
-  "version": "1.1.0",
+  "version": "1.3.0",
   "status": "ACTIVE",
   "owner": "KERNEL_BUILDER",
-  "updated_at": "2026-05-17T00:00:00Z",
+  "updated_at": "2026-05-20T11:30:00Z",
   "purpose": "Authority registry for build-time and handoff-time gates that every Handshake product WP must demonstrate. Operationalizes interconnectivity, parallel agent + operator swarm safety, visual + operator-GUI verification, quiet/non-intrusive operation, and in-product ModelManual currency. Does NOT duplicate refinement, enrichment, Codex, AGENTS, or role-protocol authority; cite-only relationships to those surfaces.",
   "scope": {
     "trigger_phase": "build_time_and_handoff_time",
@@ -17,8 +17,8 @@
   "enforcement": {
     "mechanism": "PACKET_ACCEPTANCE_MATRIX_EXTENSION",
     "policy": "On packet hydration, applicable HBR-* rules auto-generate PACKET_ACCEPTANCE_MATRIX rows keyed by rule_id. Validators must mark each row PROVED, NOT_APPLICABLE (with reason), or BLOCKED (with cause). PASS closure is illegal while any required HBR row is PENDING, STEER, or BLOCKED, per CX-503B1.",
-    "implementation_status": "DESIGN_ONLY_WIRING_PENDING",
-    "implementation_owner": "Future RGF will: (1) extend packet hydration tooling to read this registry and emit matching acceptance rows, (2) extend validator scan to verify evidence per row, (3) add applicability predicate evaluator over packet metadata + touched-path globs. Until that wiring lands, this registry is authoritative reference for human-driven acceptance authoring."
+    "implementation_status": "ACTIVE",
+    "implementation_owner": "MT-001..MT-008 extended packet hydration tooling to read this registry and emit matching acceptance rows, wired hbr-matrix-check into gov-check, integrated validator-scan evidence verification, added the runtime handoff-gate evaluator, shipped HBR_VIOLATION typed receipts, and wired ProcessOwnershipLedger reclaim."
   },
   "non_duplication_principle": "Each HBR-* rule either operationalizes an existing rule (cited via citations array) or introduces a build-time obligation absent from refinement/enrichment/Codex/AGENTS/role-protocol surfaces. Restating existing authority is forbidden; surface drift if a citation goes stale.",
   "non_authority_surfaces": {
@@ -60,6 +60,11 @@
       "id": "MAN",
       "name": "In-Product ModelManual Connectivity",
       "intent": "The swarm and the operator both must find wiring without chat history. Every wired surface is mirrored in the in-product ModelManual; manual drift = build-rule fail."
+    },
+    {
+      "id": "STOP",
+      "name": "Implementer Stop Discipline",
+      "intent": "An implementer stop (claim-end, MT-end, WP-end, session-end, handoff) is a high-leverage failure point. Stops justified by token budget, session capacity, throughput, multi-session reasoning, or future-cost aggregates are the upstream cause of surface-shape implementations that pass tests without satisfying the spec. STOP rules forbid the motivational frame that produces deflection-shaped diffs; they are the upstream partner to INT (interconnectivity proof) and to the Spec-Realism Gate in role protocols."
     }
   ],
   "rules": [
@@ -71,13 +76,22 @@
       "trigger": "WP touches any product behavior",
       "applicability": {
         "predicate_text": "WP modifies any externally-observable product behavior in src/, app/, or product runtime surfaces",
-        "tags": ["product_code", "observable_behavior"]
+        "tags": [
+          "product_code",
+          "observable_behavior"
+        ]
       },
       "required_action": "Wire test proves the behavior emits a typed EventLedger append AND replay of the ledger reconstructs the behavior.",
       "evidence_kind": "test_run_with_ledger_replay",
       "citations": [
-        {"kind": "reset_brief", "anchor": "§6.0"},
-        {"kind": "reset_brief", "anchor": "§6.12"}
+        {
+          "kind": "reset_brief",
+          "anchor": "§6.0"
+        },
+        {
+          "kind": "reset_brief",
+          "anchor": "§6.12"
+        }
       ],
       "not_applicable_when": [
         "WP touches no externally-observable product behavior",
@@ -93,15 +107,30 @@
       "trigger": "WP touches any model invocation path",
       "applicability": {
         "predicate_text": "WP creates, modifies, or replaces any code path that calls an LLM or model adapter",
-        "tags": ["model_invocation", "model_adapter"]
+        "tags": [
+          "model_invocation",
+          "model_adapter"
+        ]
       },
       "required_action": "Wire test proves a stored ContextBundle is dispatched through ModelAdapter, tool requests pass through ToolGate, and model outputs land in ArtifactStore. No model invocation may bypass these primitives.",
       "evidence_kind": "test_run_with_session_trace",
       "citations": [
-        {"kind": "reset_brief", "anchor": "§6.6"},
-        {"kind": "reset_brief", "anchor": "§6.12"},
-        {"kind": "codex", "anchor": "CX-101"},
-        {"kind": "codex", "anchor": "CX-102"}
+        {
+          "kind": "reset_brief",
+          "anchor": "§6.6"
+        },
+        {
+          "kind": "reset_brief",
+          "anchor": "§6.12"
+        },
+        {
+          "kind": "codex",
+          "anchor": "CX-101"
+        },
+        {
+          "kind": "codex",
+          "anchor": "CX-102"
+        }
       ],
       "not_applicable_when": [
         "WP touches no model invocation surface"
@@ -116,13 +145,22 @@
       "trigger": "WP produces any artifact intended for authority state",
       "applicability": {
         "predicate_text": "WP creates or modifies any path that mutates durable authoritative state",
-        "tags": ["authority_mutation", "promotion"]
+        "tags": [
+          "authority_mutation",
+          "promotion"
+        ]
       },
       "required_action": "Wire test proves the artifact reaches authority state ONLY via PromotionGate event; negative test proves direct mutation paths fail closed.",
       "evidence_kind": "test_run_with_promotion_event_and_negative_guard",
       "citations": [
-        {"kind": "reset_brief", "anchor": "§5"},
-        {"kind": "reset_brief", "anchor": "§6.12"}
+        {
+          "kind": "reset_brief",
+          "anchor": "§5"
+        },
+        {
+          "kind": "reset_brief",
+          "anchor": "§6.12"
+        }
       ],
       "not_applicable_when": [
         "WP produces no authority-state artifact"
@@ -137,13 +175,22 @@
       "trigger": "WP touches any collaborative state surface",
       "applicability": {
         "predicate_text": "WP modifies CRDT-backed editable workspace state, presence, or live document surfaces",
-        "tags": ["crdt", "collaborative_state"]
+        "tags": [
+          "crdt",
+          "collaborative_state"
+        ]
       },
       "required_action": "Wire test proves CRDT updates persist, replay correctly after reconnect, and promote through ValidationRunner before reaching authority state.",
       "evidence_kind": "test_run_with_reconnect_and_promotion",
       "citations": [
-        {"kind": "reset_brief", "anchor": "§5"},
-        {"kind": "reset_brief", "anchor": "§6.2"}
+        {
+          "kind": "reset_brief",
+          "anchor": "§5"
+        },
+        {
+          "kind": "reset_brief",
+          "anchor": "§6.2"
+        }
       ],
       "not_applicable_when": [
         "WP touches no CRDT surface",
@@ -159,12 +206,18 @@
       "trigger": "WP touches any model lane adapter (local / CLI bridge / BYOK API / manual handoff)",
       "applicability": {
         "predicate_text": "WP creates, modifies, or replaces a ModelAdapter implementation for any lane",
-        "tags": ["model_adapter", "lane"]
+        "tags": [
+          "model_adapter",
+          "lane"
+        ]
       },
       "required_action": "Wire test proves the lane normalizes into the same SessionRun event stream as every other lane; no lane-specific authority leak; the TraceProjection cannot tell which lane ran beyond a lane label.",
       "evidence_kind": "test_run_with_cross_lane_trace_comparison",
       "citations": [
-        {"kind": "reset_brief", "anchor": "§6.11"}
+        {
+          "kind": "reset_brief",
+          "anchor": "§6.11"
+        }
       ],
       "not_applicable_when": [
         "WP touches no model lane adapter"
@@ -179,15 +232,31 @@
       "trigger": "WP touches any role/agent decision, blocker, insight, error, or session boundary",
       "applicability": {
         "predicate_text": "WP creates or modifies any code path that emits role-level decisions, blockers, errors, insights, or session-open/close events",
-        "tags": ["fems", "memory", "session_lifecycle"]
+        "tags": [
+          "fems",
+          "memory",
+          "session_lifecycle"
+        ]
       },
       "required_action": "Wire test proves a typed FEMS record is written with source link and retrieval policy; freeform prose logs are not sufficient. Repo-governance memory dual-write per feedback_dual_write_repo_memory.",
       "evidence_kind": "test_run_with_fems_record_and_retrieval_policy",
       "citations": [
-        {"kind": "reset_brief", "anchor": "§6.8"},
-        {"kind": "codex", "anchor": "CX-503K"},
-        {"kind": "codex", "anchor": "CX-503K1"},
-        {"kind": "codex", "anchor": "CX-503K2"}
+        {
+          "kind": "reset_brief",
+          "anchor": "§6.8"
+        },
+        {
+          "kind": "codex",
+          "anchor": "CX-503K"
+        },
+        {
+          "kind": "codex",
+          "anchor": "CX-503K1"
+        },
+        {
+          "kind": "codex",
+          "anchor": "CX-503K2"
+        }
       ],
       "not_applicable_when": [
         "WP touches no decision/blocker/insight/error/session-lifecycle surface",
@@ -203,13 +272,22 @@
       "trigger": "WP touches any observable behavior",
       "applicability": {
         "predicate_text": "WP modifies any behavior an operator or model needs to inspect after the fact",
-        "tags": ["observable_behavior", "trace_projection"]
+        "tags": [
+          "observable_behavior",
+          "trace_projection"
+        ]
       },
       "required_action": "Wire test proves the behavior is reconstructable from the Operator Surface TraceProjection using durable state alone (no chat history, no terminal scrollback, no provider memory).",
       "evidence_kind": "test_run_with_trace_projection_replay",
       "citations": [
-        {"kind": "reset_brief", "anchor": "§6.6"},
-        {"kind": "reset_brief", "anchor": "§7.0"}
+        {
+          "kind": "reset_brief",
+          "anchor": "§6.6"
+        },
+        {
+          "kind": "reset_brief",
+          "anchor": "§7.0"
+        }
       ],
       "not_applicable_when": [
         "WP touches no observable behavior",
@@ -225,14 +303,28 @@
       "trigger": "WP creates or modifies any UUID generation site in product code",
       "applicability": {
         "predicate_text": "WP introduces, modifies, or replaces any call site that mints a new Uuid in product code under src/, app/, or tests/",
-        "tags": ["uuid", "id_minting", "time_ordered_ids", "data_hygiene"]
+        "tags": [
+          "uuid",
+          "id_minting",
+          "time_ordered_ids",
+          "data_hygiene"
+        ]
       },
       "required_action": "All new UUID mint sites MUST use time-ordered UUID v7 (`Uuid::now_v7()`), not v4. v4 is reserved for fixtures, hardcoded test literals, and third-party-driven derives. Cargo manifests touching the uuid crate must declare the `v7` feature; `v4` may remain only while legacy sites are being swept. Wire test asserts `uuid.get_version_num() == 7` on a representative mint path and that two sequential mints satisfy `a <= b` (time order).",
       "evidence_kind": "grep_zero_v4_in_touched_files_plus_v7_version_assert_test",
       "citations": [
-        {"kind": "build_rule", "anchor": "HBR-INT-001"},
-        {"kind": "build_rule", "anchor": "HBR-INT-007"},
-        {"kind": "external_reference", "anchor": "RFC 9562 §5.7 (UUIDv7 time-ordered, monotonic within ms)"}
+        {
+          "kind": "build_rule",
+          "anchor": "HBR-INT-001"
+        },
+        {
+          "kind": "build_rule",
+          "anchor": "HBR-INT-007"
+        },
+        {
+          "kind": "external_reference",
+          "anchor": "RFC 9562 §5.7 (UUIDv7 time-ordered, monotonic within ms)"
+        }
       ],
       "not_applicable_when": [
         "WP touches no UUID generation site",
@@ -249,13 +341,22 @@
       "trigger": "WP touches any shared state surface",
       "applicability": {
         "predicate_text": "WP modifies code that holds, writes, or arbitrates state visible to more than one session or actor",
-        "tags": ["shared_state", "concurrency"]
+        "tags": [
+          "shared_state",
+          "concurrency"
+        ]
       },
       "required_action": "Test runs at least two concurrent agent sessions plus simulated operator edits against the touched state. Passes only when there is no silent last-writer-wins, no lease starvation, no deadlock, and all conflicts surface as deterministic conflict reports or revision rejections.",
       "evidence_kind": "concurrent_session_test_run",
       "citations": [
-        {"kind": "reset_brief", "anchor": "§5"},
-        {"kind": "reset_brief", "anchor": "§6.2"}
+        {
+          "kind": "reset_brief",
+          "anchor": "§5"
+        },
+        {
+          "kind": "reset_brief",
+          "anchor": "§6.2"
+        }
       ],
       "not_applicable_when": [
         "WP touches no state visible to more than one session/actor"
@@ -270,12 +371,18 @@
       "trigger": "WP introduces or modifies any lease, lock, queue, scheduler, or loop counter",
       "applicability": {
         "predicate_text": "WP changes any concurrency primitive: lease, lock, queue, scheduler, backpressure mechanism, cancellation token, loop counter, retry policy",
-        "tags": ["concurrency_primitive", "scheduler"]
+        "tags": [
+          "concurrency_primitive",
+          "scheduler"
+        ]
       },
       "required_action": "Test proves leases expire correctly, stale sessions are recoverable, backpressure works under load, cancellation is honored within a bounded time, and loop counters prevent runaway.",
       "evidence_kind": "concurrency_primitive_test_run",
       "citations": [
-        {"kind": "reset_brief", "anchor": "§6.1"}
+        {
+          "kind": "reset_brief",
+          "anchor": "§6.1"
+        }
       ],
       "not_applicable_when": [
         "WP touches no concurrency primitive"
@@ -290,12 +397,18 @@
       "trigger": "WP touches any operator-facing surface",
       "applicability": {
         "predicate_text": "WP modifies any UI panel, control, route, or operator-facing capability",
-        "tags": ["operator_surface", "ui"]
+        "tags": [
+          "operator_surface",
+          "ui"
+        ]
       },
       "required_action": "Test proves the operator can keep editing CRDT-backed surfaces while an agent session is active on adjacent state. Presence and conflict state must be visible in the UI.",
       "evidence_kind": "parallel_operator_agent_ui_test_run",
       "citations": [
-        {"kind": "reset_brief", "anchor": "§6.6"}
+        {
+          "kind": "reset_brief",
+          "anchor": "§6.6"
+        }
       ],
       "not_applicable_when": [
         "WP touches no operator-facing surface",
@@ -311,13 +424,22 @@
       "trigger": "WP introduces any cross-agent message, handoff, or routing decision",
       "applicability": {
         "predicate_text": "WP creates or modifies any inter-actor message, handoff, routing, or notification surface",
-        "tags": ["inter_agent", "routing"]
+        "tags": [
+          "inter_agent",
+          "routing"
+        ]
       },
       "required_action": "Every cross-agent message carries typed routing fields (target_role, target_session, correlation_id, requires_ack, ack_for); narrative-only routing is forbidden. Test proves a receiving agent can act from typed fields without parsing prose.",
       "evidence_kind": "typed_routing_test_run",
       "citations": [
-        {"kind": "codex", "anchor": "CX-130"},
-        {"kind": "codex", "anchor": "CX-218E1"}
+        {
+          "kind": "codex",
+          "anchor": "CX-130"
+        },
+        {
+          "kind": "codex",
+          "anchor": "CX-218E1"
+        }
       ],
       "not_applicable_when": [
         "WP introduces no inter-agent message or routing surface"
@@ -332,15 +454,31 @@
       "trigger": "WP touches any UI, automation, capture, diagnostic, or operator-facing control surface",
       "applicability": {
         "predicate_text": "WP modifies any code path the operator or a model agent observes through the Operator Surface",
-        "tags": ["ui", "operator_surface", "automation_surface"]
+        "tags": [
+          "ui",
+          "operator_surface",
+          "automation_surface"
+        ]
       },
       "required_action": "Verification drives the running Operator Surface via Playwright/CDP or equivalent headless automation, captures a screenshot via a headless capture API, and inspects the rendered result. Unit tests and process exit codes do not satisfy this rule.",
       "evidence_kind": "gui_drive_with_screenshot_capture",
       "citations": [
-        {"kind": "global", "anchor": "[GLOBAL-BUILD-014]"},
-        {"kind": "global", "anchor": "[GLOBAL-BUILD-023]"},
-        {"kind": "global", "anchor": "[GLOBAL-BUILD-026]"},
-        {"kind": "external_reference", "anchor": "CKC build_rules.md Visual Verification Rules"}
+        {
+          "kind": "global",
+          "anchor": "[GLOBAL-BUILD-014]"
+        },
+        {
+          "kind": "global",
+          "anchor": "[GLOBAL-BUILD-023]"
+        },
+        {
+          "kind": "global",
+          "anchor": "[GLOBAL-BUILD-026]"
+        },
+        {
+          "kind": "external_reference",
+          "anchor": "CKC build_rules.md Visual Verification Rules"
+        }
       ],
       "not_applicable_when": [
         "WP touches no operator-observable surface",
@@ -356,12 +494,17 @@
       "trigger": "Any captured frame produced for HBR-VIS-001",
       "applicability": {
         "predicate_text": "Triggered alongside every HBR-VIS-001 capture",
-        "tags": ["renderer_error_scan"]
+        "tags": [
+          "renderer_error_scan"
+        ]
       },
       "required_action": "Every captured frame must include a renderer console/runtime error scan. Uncaught errors during the test window fail the gate.",
       "evidence_kind": "renderer_console_error_report",
       "citations": [
-        {"kind": "build_rule", "anchor": "HBR-VIS-001"}
+        {
+          "kind": "build_rule",
+          "anchor": "HBR-VIS-001"
+        }
       ],
       "not_applicable_when": [
         "HBR-VIS-001 marked NOT_APPLICABLE for the same WP"
@@ -376,13 +519,22 @@
       "trigger": "WP touches any feature visible at multiple viewports or states",
       "applicability": {
         "predicate_text": "WP modifies any UI surface that has more than one viewport size or state worth verifying",
-        "tags": ["viewport_matrix", "state_matrix"]
+        "tags": [
+          "viewport_matrix",
+          "state_matrix"
+        ]
       },
       "required_action": "Capture matrix instead of a single shot: normal viewport, at least one constrained viewport, and at least one edge state (empty, error, loading, multi-item).",
       "evidence_kind": "capture_matrix",
       "citations": [
-        {"kind": "build_rule", "anchor": "HBR-VIS-001"},
-        {"kind": "external_reference", "anchor": "CKC build_rules.md LLM Visibility Audit"}
+        {
+          "kind": "build_rule",
+          "anchor": "HBR-VIS-001"
+        },
+        {
+          "kind": "external_reference",
+          "anchor": "CKC build_rules.md LLM Visibility Audit"
+        }
       ],
       "not_applicable_when": [
         "WP feature has only one meaningful viewport/state",
@@ -398,13 +550,22 @@
       "trigger": "WP touches a non-UI behavior",
       "applicability": {
         "predicate_text": "WP modifies backend, kernel, sandbox, or runtime behavior with no direct UI surface",
-        "tags": ["non_ui_behavior", "trace_projection"]
+        "tags": [
+          "non_ui_behavior",
+          "trace_projection"
+        ]
       },
       "required_action": "Visual verification = TraceProjection view of the run reconstructed from durable state. The projection must answer: what task / what context / what return / what tool calls / what artifact / what validation / what promotion.",
       "evidence_kind": "trace_projection_inspection",
       "citations": [
-        {"kind": "reset_brief", "anchor": "§6.6"},
-        {"kind": "build_rule", "anchor": "HBR-INT-007"}
+        {
+          "kind": "reset_brief",
+          "anchor": "§6.6"
+        },
+        {
+          "kind": "build_rule",
+          "anchor": "HBR-INT-007"
+        }
       ],
       "not_applicable_when": [
         "WP has a direct UI surface (covered by HBR-VIS-001)",
@@ -420,13 +581,21 @@
       "trigger": "GUI surface lacks a capture or automation path",
       "applicability": {
         "predicate_text": "During verification, the validator discovers a UI/automation surface that cannot be captured or driven by headless automation",
-        "tags": ["verification_gap"]
+        "tags": [
+          "verification_gap"
+        ]
       },
       "required_action": "Record as a blocking verification gap in WP OPEN_BLOCKERS with the exact missing surface; do not silently certify the work. Open a follow-up WP for the missing automation hook.",
       "evidence_kind": "open_blocker_with_missing_surface_named",
       "citations": [
-        {"kind": "codex", "anchor": "CX-572"},
-        {"kind": "external_reference", "anchor": "CKC build_rules.md Visual Verification Rules"}
+        {
+          "kind": "codex",
+          "anchor": "CX-572"
+        },
+        {
+          "kind": "external_reference",
+          "anchor": "CKC build_rules.md Visual Verification Rules"
+        }
       ],
       "not_applicable_when": [
         "All in-scope GUI surfaces have automation paths"
@@ -441,16 +610,34 @@
       "trigger": "Every automated test or agent run",
       "applicability": {
         "predicate_text": "Triggered for every WP that runs automated tests or governed agent activity",
-        "tags": ["automated_run", "headless"]
+        "tags": [
+          "automated_run",
+          "headless"
+        ]
       },
       "required_action": "Run Handshake in headless or hidden-window mode. The operator's foreground application stays in front. Pass requires zero focus/Z-order change events during the test window.",
       "evidence_kind": "headless_run_with_focus_audit",
       "citations": [
-        {"kind": "codex", "anchor": "CX-503D"},
-        {"kind": "global", "anchor": "[GLOBAL-BUILD-046]"},
-        {"kind": "global", "anchor": "[GLOBAL-BUILD-047]"},
-        {"kind": "global", "anchor": "[GLOBAL-BUILD-048]"},
-        {"kind": "global", "anchor": "[GLOBAL-BUILD-049]"}
+        {
+          "kind": "codex",
+          "anchor": "CX-503D"
+        },
+        {
+          "kind": "global",
+          "anchor": "[GLOBAL-BUILD-046]"
+        },
+        {
+          "kind": "global",
+          "anchor": "[GLOBAL-BUILD-047]"
+        },
+        {
+          "kind": "global",
+          "anchor": "[GLOBAL-BUILD-048]"
+        },
+        {
+          "kind": "global",
+          "anchor": "[GLOBAL-BUILD-049]"
+        }
       ],
       "not_applicable_when": [
         "WP runs no automated tests or agent activity (rare; document why)"
@@ -465,14 +652,26 @@
       "trigger": "Every automation surface",
       "applicability": {
         "predicate_text": "WP introduces or modifies any agent-facing or operator-facing automation surface",
-        "tags": ["automation_surface", "input_discipline"]
+        "tags": [
+          "automation_surface",
+          "input_discipline"
+        ]
       },
       "required_action": "Every automation surface must be reachable without OS-level keyboard injection, cursor movement, focus stealing, or foregrounding. Any code path requiring those mechanisms fails the gate. Negative test must prove the surface cannot be accidentally driven by global input hijacking.",
       "evidence_kind": "automation_path_audit",
       "citations": [
-        {"kind": "codex", "anchor": "CX-503D"},
-        {"kind": "global", "anchor": "[GLOBAL-BUILD-045]"},
-        {"kind": "external_reference", "anchor": "CKC build_rules.md Automation Rules"}
+        {
+          "kind": "codex",
+          "anchor": "CX-503D"
+        },
+        {
+          "kind": "global",
+          "anchor": "[GLOBAL-BUILD-045]"
+        },
+        {
+          "kind": "external_reference",
+          "anchor": "CKC build_rules.md Automation Rules"
+        }
       ],
       "not_applicable_when": [
         "WP introduces no automation surface"
@@ -487,13 +686,22 @@
       "trigger": "WP launches background process, sandbox runner, scheduled job, or hidden CLI",
       "applicability": {
         "predicate_text": "WP introduces or modifies any process lifecycle: spawn, schedule, supervise, reclaim",
-        "tags": ["process_lifecycle", "ownership"]
+        "tags": [
+          "process_lifecycle",
+          "ownership"
+        ]
       },
       "required_action": "Every background launch records ownership metadata (owner_session, owner_wp, owner_role, started_at) and is reclaimed at session close, failure, staleness, or operator cancel. Test proves no blank terminal windows and no orphan processes after a run, failure, or kill.",
       "evidence_kind": "process_lifecycle_test_run",
       "citations": [
-        {"kind": "codex", "anchor": "CX-503D"},
-        {"kind": "codex", "anchor": "CX-212G"}
+        {
+          "kind": "codex",
+          "anchor": "CX-503D"
+        },
+        {
+          "kind": "codex",
+          "anchor": "CX-212G"
+        }
       ],
       "not_applicable_when": [
         "WP launches no background or hidden processes"
@@ -508,13 +716,22 @@
       "trigger": "WP requires foreground interaction that cannot be eliminated",
       "applicability": {
         "predicate_text": "WP genuinely needs OS-foreground interaction (e.g., capturing operator gesture, hardware-only input)",
-        "tags": ["foreground_required", "exception"]
+        "tags": [
+          "foreground_required",
+          "exception"
+        ]
       },
       "required_action": "Declare the foreground requirement in the WP before any run. Use a bounded controlled test window or documented manual step. Surface an operator-visible warning before launch. The default is forbidden; exceptions must be justified and time-bounded.",
       "evidence_kind": "foreground_exception_declaration_and_operator_warning",
       "citations": [
-        {"kind": "global", "anchor": "[GLOBAL-BUILD-053]"},
-        {"kind": "global", "anchor": "[GLOBAL-BUILD-054]"}
+        {
+          "kind": "global",
+          "anchor": "[GLOBAL-BUILD-053]"
+        },
+        {
+          "kind": "global",
+          "anchor": "[GLOBAL-BUILD-054]"
+        }
       ],
       "not_applicable_when": [
         "WP has no foreground interaction requirement (the common case)"
@@ -529,14 +746,26 @@
       "trigger": "WP wires or modifies any model-callable command, tool, IPC channel, automation surface, operator-facing capability, or documented product feature",
       "applicability": {
         "predicate_text": "WP introduces, renames, removes, or changes the contract of any product surface a no-context model or operator must discover",
-        "tags": ["wired_surface_change", "manual_update"]
+        "tags": [
+          "wired_surface_change",
+          "manual_update"
+        ]
       },
       "required_action": "Update the in-product ModelManual in the same commit as the surface change. Bump MANUAL_VERSION. Add/remove/rename the entry in the relevant feature group and commandReference.",
       "evidence_kind": "manual_diff_in_same_commit",
       "citations": [
-        {"kind": "global", "anchor": "[GLOBAL-BUILD-002]"},
-        {"kind": "global", "anchor": "[GLOBAL-BUILD-011]"},
-        {"kind": "external_reference", "anchor": "CKC build_rules.md Internal Manual Rules"}
+        {
+          "kind": "global",
+          "anchor": "[GLOBAL-BUILD-002]"
+        },
+        {
+          "kind": "global",
+          "anchor": "[GLOBAL-BUILD-011]"
+        },
+        {
+          "kind": "external_reference",
+          "anchor": "CKC build_rules.md Internal Manual Rules"
+        }
       ],
       "not_applicable_when": [
         "WP wires or changes no model-callable or operator-facing surface",
@@ -552,20 +781,50 @@
       "trigger": "Any change to ModelManual content",
       "applicability": {
         "predicate_text": "WP modifies ModelManual artifact",
-        "tags": ["manual_content", "no_context_test"]
+        "tags": [
+          "manual_content",
+          "no_context_test"
+        ]
       },
       "required_action": "Manual content must let a no-context capable model operate Handshake (purpose, workflows, startup, commands, expected I/O, navigation, safety constraints, common failure modes, recovery steps) without reading repo files or chat history.",
       "evidence_kind": "no_context_model_operation_test",
       "citations": [
-        {"kind": "global", "anchor": "[GLOBAL-BUILD-003]"},
-        {"kind": "global", "anchor": "[GLOBAL-BUILD-004]"},
-        {"kind": "global", "anchor": "[GLOBAL-BUILD-005]"},
-        {"kind": "global", "anchor": "[GLOBAL-BUILD-006]"},
-        {"kind": "global", "anchor": "[GLOBAL-BUILD-007]"},
-        {"kind": "global", "anchor": "[GLOBAL-BUILD-008]"},
-        {"kind": "global", "anchor": "[GLOBAL-BUILD-009]"},
-        {"kind": "global", "anchor": "[GLOBAL-BUILD-010]"},
-        {"kind": "global", "anchor": "[GLOBAL-BUILD-011]"}
+        {
+          "kind": "global",
+          "anchor": "[GLOBAL-BUILD-003]"
+        },
+        {
+          "kind": "global",
+          "anchor": "[GLOBAL-BUILD-004]"
+        },
+        {
+          "kind": "global",
+          "anchor": "[GLOBAL-BUILD-005]"
+        },
+        {
+          "kind": "global",
+          "anchor": "[GLOBAL-BUILD-006]"
+        },
+        {
+          "kind": "global",
+          "anchor": "[GLOBAL-BUILD-007]"
+        },
+        {
+          "kind": "global",
+          "anchor": "[GLOBAL-BUILD-008]"
+        },
+        {
+          "kind": "global",
+          "anchor": "[GLOBAL-BUILD-009]"
+        },
+        {
+          "kind": "global",
+          "anchor": "[GLOBAL-BUILD-010]"
+        },
+        {
+          "kind": "global",
+          "anchor": "[GLOBAL-BUILD-011]"
+        }
       ],
       "not_applicable_when": [
         "WP does not modify ModelManual content"
@@ -580,17 +839,173 @@
       "trigger": "Any ModelManual entry that describes a wired code surface",
       "applicability": {
         "predicate_text": "Triggered for every manual entry that names a command, IPC channel, schema field, config key, CLI flag, or other code-defined surface",
-        "tags": ["self_consistency", "code_truth"]
+        "tags": [
+          "self_consistency",
+          "code_truth"
+        ]
       },
       "required_action": "Manual entries must be code-truthful: a self-consistency test verifies each named surface exists at the named contract. Drift = build-rule fail.",
       "evidence_kind": "manual_self_consistency_test",
       "citations": [
-        {"kind": "external_reference", "anchor": "CKC build_rules.md Documentation Rules"}
+        {
+          "kind": "external_reference",
+          "anchor": "CKC build_rules.md Documentation Rules"
+        }
       ],
       "not_applicable_when": [
         "Entries explicitly tagged as roadmap (not yet wired)"
       ],
       "deferred_until": null
+    },
+    {
+      "id": "HBR-STOP-001",
+      "pillar": "STOP",
+      "status": "ACTIVE",
+      "novelty": "NEW",
+      "trigger": "Implementer is about to estimate or reason about session capacity, tokens, throughput, or future-work aggregate cost",
+      "applicability": {
+        "predicate_text": "Every implementer role (kernel_builder, coder) at every step of work claim, plan, implementation, proof, and handoff",
+        "tags": [
+          "implementer_reasoning",
+          "stop_discipline"
+        ]
+      },
+      "required_action": "Never estimate session capacity, tokens remaining, throughput, or aggregate cost of future work.",
+      "evidence_kind": "absence_of_capacity_reasoning_in_receipts_and_lifecycle",
+      "citations": [
+        {
+          "kind": "role_protocol",
+          "anchor": "Spec-Realism Gate (KERNEL_BUILDER, CODER, VALIDATOR, WP_VALIDATOR, INTEGRATION_VALIDATOR)"
+        }
+      ],
+      "not_applicable_when": [],
+      "deferred_until": null,
+      "provenance": {
+        "authored_by": "OPERATOR",
+        "authored_at_utc": "2026-05-20",
+        "origin_incident": "27-MT NEEDS_REIMPLEMENTATION reopen on WP-KERNEL-004 driven by deflection patterns whose upstream cause was session-budget reasoning"
+      }
+    },
+    {
+      "id": "HBR-STOP-002",
+      "pillar": "STOP",
+      "status": "ACTIVE",
+      "novelty": "NEW",
+      "trigger": "Implementer generates a stop reason that names tokens, sessions, capacity, throughput, multi-session, or future-work aggregate",
+      "applicability": {
+        "predicate_text": "Every stop event the implementer considers — claim-end, MT-end, WP-end, session-end, handoff",
+        "tags": [
+          "implementer_reasoning",
+          "stop_discipline",
+          "override"
+        ]
+      },
+      "required_action": "Any stop reason that names tokens, sessions, capacity, throughput, multi-session, or future-work aggregate is invalid by definition. Override it and continue.",
+      "evidence_kind": "absence_of_capacity_stop_reasons_in_receipts_and_lifecycle",
+      "citations": [
+        {
+          "kind": "build_rule",
+          "anchor": "HBR-STOP-001"
+        }
+      ],
+      "not_applicable_when": [],
+      "deferred_until": null,
+      "provenance": {
+        "authored_by": "OPERATOR",
+        "authored_at_utc": "2026-05-20",
+        "origin_incident": "27-MT NEEDS_REIMPLEMENTATION reopen on WP-KERNEL-004"
+      }
+    },
+    {
+      "id": "HBR-STOP-003",
+      "pillar": "STOP",
+      "status": "ACTIVE",
+      "novelty": "NEW",
+      "trigger": "Implementer considers stopping work on an MT, WP, or session",
+      "applicability": {
+        "predicate_text": "Every stop event the implementer considers — claim-end, MT-end, WP-end, session-end, handoff",
+        "tags": [
+          "implementer_reasoning",
+          "stop_discipline",
+          "runtime_proof"
+        ]
+      },
+      "required_action": "Stops are only valid if work is complete AND can be proven in actual runtime.",
+      "evidence_kind": "proof_block_with_real_external_resource_touch_per_Spec_Realism_Gate_sub_rule_2",
+      "citations": [
+        {
+          "kind": "role_protocol",
+          "anchor": "Spec-Realism Gate sub-rule 2 (Real external-resource touch)"
+        }
+      ],
+      "not_applicable_when": [],
+      "deferred_until": null,
+      "provenance": {
+        "authored_by": "OPERATOR",
+        "authored_at_utc": "2026-05-20",
+        "origin_incident": "27-MT NEEDS_REIMPLEMENTATION reopen on WP-KERNEL-004"
+      }
+    },
+    {
+      "id": "HBR-STOP-004",
+      "pillar": "STOP",
+      "status": "ACTIVE",
+      "novelty": "NEW",
+      "trigger": "Implementer encounters a dependency that blocks completion of the current work",
+      "applicability": {
+        "predicate_text": "Every work item where a dependency (toolchain, library, upstream MT, external resource) is missing or incomplete",
+        "tags": [
+          "implementer_reasoning",
+          "stop_discipline",
+          "dependency_handling"
+        ]
+      },
+      "required_action": "If work cannot be completed because of dependencies, work on the dependencies first, then return to the outstanding work.",
+      "evidence_kind": "receipts_show_dependency_work_then_return_to_outstanding_work",
+      "citations": [
+        {
+          "kind": "build_rule",
+          "anchor": "HBR-STOP-005"
+        }
+      ],
+      "not_applicable_when": [],
+      "deferred_until": null,
+      "provenance": {
+        "authored_by": "OPERATOR",
+        "authored_at_utc": "2026-05-20",
+        "origin_incident": "27-MT NEEDS_REIMPLEMENTATION reopen on WP-KERNEL-004; closes the BLOCKED_ON_DEPENDENCY exit that was previously treated as a valid stop"
+      }
+    },
+    {
+      "id": "HBR-STOP-005",
+      "pillar": "STOP",
+      "status": "ACTIVE",
+      "novelty": "NEW",
+      "trigger": "Implementer encounters out-of-scope work needed to unblock the current work",
+      "applicability": {
+        "predicate_text": "Every work item where progressing the in-scope work requires touching code, files, or systems outside the declared scope",
+        "tags": [
+          "implementer_reasoning",
+          "stop_discipline",
+          "scope_handling",
+          "waiver"
+        ]
+      },
+      "required_action": "If work is out of scope, perform it but only as far as needed to unblock the previous work. At end of task/WP/MT, self-evaluate why I went out of scope, what I touched, and ask the operator for a waiver — and when asking, the operator must be explicitly told the why and the full list of what I touched.",
+      "evidence_kind": "end_of_task_self_evaluation_with_full_disclosure_waiver_request_to_operator",
+      "citations": [
+        {
+          "kind": "build_rule",
+          "anchor": "HBR-STOP-004"
+        }
+      ],
+      "not_applicable_when": [],
+      "deferred_until": null,
+      "provenance": {
+        "authored_by": "OPERATOR",
+        "authored_at_utc": "2026-05-20",
+        "origin_incident": "27-MT NEEDS_REIMPLEMENTATION reopen on WP-KERNEL-004"
+      }
     }
   ],
   "deferred_pillars": [
@@ -643,6 +1058,18 @@
       "summary": "Add HBR-INT-008 (UUID v7 default): new UUID mint sites in product code MUST use time-ordered Uuid::now_v7(); v4 reserved for fixtures and third-party derives. Recorded under INT pillar because time-ordering preserves cross-primitive correlation/replay locality (EventLedger, snapshots, ContextBundle, ArtifactStore). Operator-driven addition during WP-KERNEL-003 close-out; KB003 product code sweeps to v7 in the same lane.",
       "rgf": null,
       "changeset": "GOV-CHANGE-20260517-01"
+    },
+    {
+      "version": "1.2.0",
+      "date": "2026-05-18",
+      "summary": "Enforcement wiring active per MT-001..MT-008. PACKET_ACCEPTANCE_MATRIX auto-emission, gov-check sub-check, validator-scan integration, handoff-gate evaluator, ProcessOwnershipLedger reclaim, and HBR_VIOLATION typed receipts all online.",
+      "rgf": null,
+      "changeset": "WP-KERNEL-004-MT-009"
+    },
+    {
+      "version": "1.3.0",
+      "at_utc": "2026-05-20T11:30:00Z",
+      "change": "Added STOP pillar + 5 HBR-STOP-* rules (OPERATOR-authored 2026-05-20) forbidding capacity/token/throughput reasoning as stop justification, requiring runtime-proof for valid stops, requiring dependency-first work over BLOCKED exits, and requiring full-disclosure waiver requests for scope expansion. Origin: 27-MT NEEDS_REIMPLEMENTATION reopen on WP-KERNEL-004."
     }
   ]
 }

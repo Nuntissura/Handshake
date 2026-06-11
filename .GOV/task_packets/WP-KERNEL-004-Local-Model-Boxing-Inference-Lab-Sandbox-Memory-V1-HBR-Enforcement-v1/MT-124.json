@@ -1,0 +1,299 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-124",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "C",
+  "cluster_subscope": "C.12",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:00:00Z",
+  "updated_at_utc": "2026-05-28T00:01:44.942Z",
+  "contract_repair_log": [
+    {
+      "at_utc": "2026-05-20T05:15:00Z",
+      "actor": "KERNEL_BUILDER",
+      "kind": "FRAMEWORK_CORRECTION",
+      "summary": "Same Svelte->TSX defect class as MT-098 / MT-102 / MT-105. Replaced DistillationQueue.svelte with DistillationQueue.tsx (TypeScript-typed Props + named export + function component). Replaced lib/stores/distillation.ts (Svelte-store convention) with parent-passed props; the live IPC wiring for opted-in sessions / pending candidates / training jobs is a follow-on commit and the component renders structural empty states until then."
+    }
+  ],
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-124.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "Distillation queue UI (Inference Lab integration; AC-INFER-LAB-UI sub-feature)",
+  "goal": "Distillation queue UI in Inference Lab: list of opted-in sessions with [Extract corpus] button per session, pending candidates with [Promote] / [Reject] actions, training job queue with status (queued/running/done), per-candidate license + provenance display.",
+  "expected_diff_shape": "New React/TSX DistillationQueue.tsx (3 tabs + parent-passed props for sessions / candidates / jobs) + integration into existing InferenceLab.tsx parent + barrel export updates + CSS additions for tabs / table / status badges.",
+  "owned_files": [
+    "app/src/components/inference_lab/DistillationQueue.tsx",
+    "app/src/components/inference_lab/InferenceLab.tsx",
+    "app/src/components/inference_lab/index.ts",
+    "app/src/App.css"
+  ],
+  "depends_on_mts": [
+    "MT-119",
+    "MT-122",
+    "MT-123"
+  ],
+  "unblock_conditions": "MT-119 + MT-122 + MT-123 merged.",
+  "implementation_notes": "Per AC-INFER-LAB-UI sub-feature (Section 10.14 \"distillation queue\" listed in spec enrichment subsections_added). DistillationQueue.svelte: tabs [Opted-In Sessions | Pending Candidates | Training Jobs]. Opted-In Sessions tab: list of governed_sessions with distill_corpus=true; per-row [Extract Corpus] button. Pending Candidates tab: list of CandidateRegistry entries with review_status=Pending; per-row [Promote] / [Reject] (Reject requires reason text); provenance display ({teacher_id, student_base_id, corpus_size, trained_at_utc, license_tag}). Training Jobs tab: queue status from FR-EVT-DISTILL-* events; per-job status badge (queued/running/done/error). All actions route through KernelActionCatalogV1. Adult-production posture: no UI moralizing; copy is technical (\"Promote candidate to active\", not \"Approve this learning data\").",
+  "proof_commands": [
+    "cd app && pnpm run typecheck"
+  ],
+  "risk_if_missed": "Distillation flow lacks operator UI; opt-in + promote actions only via CLI/IPC; reduces usability.",
+  "validator_focus": "All actions through KernelActionCatalogV1; provenance display complete; no moralizing copy.",
+  "hbr_obligations": [
+    "HBR-INT-002"
+  ],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/10-product-surfaces.md#10.14"
+  ],
+  "acceptance_criteria_refs": [
+    "AC-INFER-LAB-UI-TOGGLES",
+    "AC-DISTILL-LOOP-SAFEGUARDS"
+  ],
+  "lifecycle": {
+    "active": false,
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "PENDING",
+    "depends_on": [
+      "MT-119",
+      "MT-122",
+      "MT-123"
+    ],
+    "blocks": [],
+    "claimed_by": "KERNEL_BUILDER-20260519-203500",
+    "claimed_at_utc": "2026-05-20T05:05:00Z",
+    "reopened_at_utc": "2026-05-20T08:50:00Z",
+    "reopened_by": "OPERATOR",
+    "operator_decision_summary": "Operator review found the implementation pattern (surface-shape + trait abstraction + LiveXxxUnavailable / placeholder props) satisfied test contracts but did not satisfy what the Master Spec actually says these things do. None of the 27 MTs listed below are correct implementations. All 27 are reopened and must be redone before WP-KERNEL-004 can be considered complete. No other MT may be claimed until these 27 are correctly implemented and re-validated. MT-148 work was rolled back; it is to be revisited after these 27 close correctly.",
+    "deflection_category": "ui_no_live_ipc_wiring",
+    "deflection_summary": "DistillationQueue.tsx 3-tab structure (Opted-In Sessions / Pending Candidates / Training Jobs) typechecks. BUT the parent InferenceLab.tsx passes DISTILLATION_QUEUE_PLACEHOLDER_SESSIONS / _CANDIDATES / _JOBS empty arrays + no-op handlers. No Tauri commands for kernel.distill.list_sessions / list_candidates / list_jobs exist. The UI never displays real data.",
+    "wp_hard_fail_until_redone": false,
+    "must_complete_before_other_mts": false,
+    "previous_completed_status": "COMPLETED",
+    "previous_completed_by": "KERNEL_BUILDER-20260519-203500",
+    "previous_completed_at_utc": "2026-05-20T05:20:00Z",
+    "wp_hard_fail_note": "WP-KERNEL-004 cannot complete with these 27 MTs in NEEDS_REIMPLEMENTATION status. Each MT below is individually hard-failed AND counts as a hard-fail blocker on the WP itself. The committed code from the prior session remains on the feat branch as a base to either deepen or replace; the lifecycle status below is the source of truth for whether the MT is done, not the presence of source files.",
+    "previous_proof": {
+      "pnpm_typecheck": "PASS (cd app && pnpm run typecheck => tsc --noEmit exit 0)",
+      "three_tab_structure": "DistillationQueue.tsx renders TABS = [Opted-In Sessions | Pending Candidates | Training Jobs] with role='tab' + aria-selected + data-testid='distillation-queue.tab.{sessions|candidates|jobs}' per tab",
+      "provenance_display_complete": "Candidates tab shows columns: LoRA + Teacher + Student base + Turns + Trained + License + Status + Actions; rejected candidates additionally render the rejection reason inline with data-testid='distillation-queue.candidates.row.{loraId}.rejection-reason'",
+      "no_moralizing_copy": "Copy uses technical language only: 'Extract corpus' / 'Promote' / 'Reject' / 'rejection reason' / status badges (queued/running/done/error). No phrases that imply moral judgement; the header note describes the technical pipeline (MT-119 -> MT-120 -> MT-122 -> MT-123) per GLOBAL-PRODUCTION-002..009",
+      "promote_reject_actions_present": "Each Pending candidate row exposes Promote button + rejection-reason text input + Reject button (disabled until reason non-empty); data-testids pin the action surface for downstream visual tests"
+    },
+    "operator_clarification_20260520": {
+      "captured_at_utc": "2026-05-20T10:30:00Z",
+      "captured_by": "OPERATOR",
+      "topic": "distillation_cloud_teacher_default",
+      "summary": "Distillation pipeline defaults to CLOUD-TEACHER -> LOCAL-STUDENT. Larger-local-teacher -> smaller-local-student is SUPPORTED but NOT the default. Teacher source is therefore typically a frontier cloud model (Claude / GPT / Gemini class); local-larger-teacher (e.g. Llama-70B -> Llama-7B) is the alternate non-default path.",
+      "prior_assumption_corrected": "Pre-clarification working assumption was that distillation was local-teacher-only (Llama-70B teaching Llama-7B). That was wrong. Cloud-teacher is the default.",
+      "implications": [
+        "Teacher ModelId in the PEFT pipeline (MT-122) MUST accept both cloud and local sources; cloud is the default path the operator actually uses.",
+        "Cloud-teacher invocation routes through MT-127 CLI bridge for the operator's production setup (subscription plans, no BYOK keys). See cloud-lane clarification on MT-127.",
+        "License tagging (MT-120) MUST capture cloud-teacher provenance per vendor (OpenAI ToS for GPT teacher, Anthropic Acceptable Use for Claude teacher, Google ToS for Gemini teacher). Local-larger-teacher provenance is simpler but still must be tagged.",
+        "Corpus extractor (MT-119) MUST support cloud-teacher invocation flow + capture, not only local-model session replay.",
+        "DISTILL_CORPUS opt-in semantics (MT-121) apply uniformly across teacher source; consent gating happens once per session regardless of teacher being cloud or local.",
+        "Wiremock is acceptable for MT-122 PEFT pipeline unit / integration tests (proves PEFT invocation + LoRA artifact shape). The FEATURE itself is operationally inert until a real teacher (CLI bridge or BYOK) is reachable at runtime."
+      ]
+    },
+    "autonomous_session_claim": {
+      "claimed_by": "KERNEL_BUILDER-20260520-AUTONOMOUS",
+      "claimed_at_utc": "2026-05-20T18:35:00Z",
+      "transition": "NEEDS_REIMPLEMENTATION -> CLAIMED -> BLOCKED_ON_DEPENDENCY",
+      "note": "Autonomous KERNEL_BUILDER session triage following the catastrophic-build-broken finding: this MT cannot be honestly implemented in the current product-code state because model_runtime cannot compile. Implementation deferred to a future session running against a restored build."
+    },
+    "implementer_retraction_history": {
+      "retracted_at_utc": "2026-05-20T23:30:00Z",
+      "retracted_by": "KERNEL_BUILDER-20260520-AUTONOMOUS",
+      "prior_attempt": "Earlier VALIDATOR-EXPLORE-MT124-OPTION1-20260520-AUTO returned FINAL_VERDICT: COMPLETED using the phrase 'structurally routable to KernelActionCatalogV1 at parent integration'. That is the generous-validator failure mode the operator reopened the 27 MTs for.",
+      "correction": "Lifecycle reverted to BLOCKED_ON_DEPENDENCY (its honest state). True validator-signed COMPLETED count stays at 7 of 27."
+    },
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "COMPLETED",
+        "validator_verdict": "PASS",
+        "completed_by": "VALIDATOR-EXPLORE-MT124-REWORK-PASS-20260520-AUTO-RETRY2",
+        "completed_at_utc": "2026-05-20T05:20:00Z",
+        "blocker": {
+          "blocked_at_utc": "2026-05-20T23:35:00Z",
+          "blocker_id": "MT-124-ui-no-live-ipc-wiring",
+          "blocked_by": "DEFLECTION_CATEGORY_UI_NO_LIVE_IPC_WIRING",
+          "blocking_record": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/RECEIPTS.jsonl",
+          "reason": "MT-124 DistillationQueue.tsx takes onExtractCorpus / onPromote / onReject as parent-passed props. Parent InferenceLab.tsx passes empty arrays + no-op handlers. The brief explicitly forbids 'UI placeholders instead of live Tauri->backend->resource'. Honest closure requires wiring the parent to invoke real Tauri commands dispatching through KernelActionCatalogV1, with the three lists (opted-in sessions / pending candidates / training jobs) sourced from real backends.",
+          "upstream_dependencies": "MT-123 candidate registry is COMPLETED; MT-119 corpus extractor is FAIL_NEEDS_REWORK (needs real EventLedger adapter); MT-122 PEFT pipeline is BLOCKED_ON_DEPENDENCY (needs Python install). MT-124 honest closure depends on MT-119 + MT-122 honest closure first, plus real IPC wiring of the parent.",
+          "operator_action_needed": "None — operator scope-expansion waiver (packet.json.lifecycle.operator_waiver) already authorizes the substantial implementation cycles for MT-119, MT-122, MT-124. This MT remains BLOCKED on upstream MT closures + its own IPC wiring work, all of which is in-scope.",
+          "triage_receipt": "correlation_id=mt124-implementer-retraction-20260520"
+        },
+        "wp_hard_fail_until_redone": true,
+        "must_complete_before_other_mts": true
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "historical_blocker_before_ready_for_validation_20260525": {
+      "blocked_at_utc": "2026-05-20T23:35:00Z",
+      "blocker_id": "MT-124-ui-no-live-ipc-wiring",
+      "blocked_by": "DEFLECTION_CATEGORY_UI_NO_LIVE_IPC_WIRING",
+      "blocking_record": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/RECEIPTS.jsonl",
+      "reason": "MT-124 DistillationQueue.tsx takes onExtractCorpus / onPromote / onReject as parent-passed props. Parent InferenceLab.tsx passes empty arrays + no-op handlers. The brief explicitly forbids 'UI placeholders instead of live Tauri->backend->resource'. Honest closure requires wiring the parent to invoke real Tauri commands dispatching through KernelActionCatalogV1, with the three lists (opted-in sessions / pending candidates / training jobs) sourced from real backends.",
+      "upstream_dependencies": "MT-123 candidate registry is COMPLETED; MT-119 corpus extractor is FAIL_NEEDS_REWORK (needs real EventLedger adapter); MT-122 PEFT pipeline is BLOCKED_ON_DEPENDENCY (needs Python install). MT-124 honest closure depends on MT-119 + MT-122 honest closure first, plus real IPC wiring of the parent.",
+      "operator_action_needed": "None — operator scope-expansion waiver (packet.json.lifecycle.operator_waiver) already authorizes the substantial implementation cycles for MT-119, MT-122, MT-124. This MT remains BLOCKED on upstream MT closures + its own IPC wiring work, all of which is in-scope.",
+      "triage_receipt": "correlation_id=mt124-implementer-retraction-20260520"
+    },
+    "previous_completed_by_before_ready_for_validation_20260525": "VALIDATOR-EXPLORE-MT124-REWORK-PASS-20260520-AUTO-RETRY2",
+    "previous_completed_at_utc_before_ready_for_validation_20260525": "2026-05-20T05:20:00Z",
+    "previous_wp_hard_fail_until_redone_before_ready_for_validation_20260525": true,
+    "previous_must_complete_before_other_mts_before_ready_for_validation_20260525": true,
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z"
+  },
+  "handoff": {
+    "coder_session": "KERNEL_BUILDER-20260519-203500",
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": "019e6be3-15ee-7c9d-8736-dfc8ecf93f7e",
+    "review_response_receipt_actor_role": "INTEGRATION_VALIDATOR",
+    "review_response_receipt_track": "JUDGMENT_OOB_IV_PHASE1_PRE_REMEDIATION"
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Three-tab structure (opted-in / pending / jobs).",
+      "Provenance display complete.",
+      "No moralizing copy."
+    ]
+  },
+  "post_validation_distill_job_visibility_hardening_20260525": {
+    "classification": "IMPLEMENTATION_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+    "authoritative_integration_validator_pass": false,
+    "integration_validator_status": "UNCHANGED_EXISTING_RECORD",
+    "recorded_at_utc": "2026-05-25T03:21:30Z",
+    "recorded_by": "KERNEL_BUILDER-20260525-024244",
+    "summary": "Distillation job projection now includes DistillPiiDetected as a distillation error event, so recorder-backed PEFT/content-review PII findings remain visible to the Training Jobs queue instead of being silently filtered out.",
+    "files_touched": [
+      "app/src-tauri/src/commands/distillation.rs",
+      "app/src-tauri/src/commands/peft.rs"
+    ],
+    "gap_closed": [
+      "list_distill_jobs includes DistillPiiDetected in the distillation event filter.",
+      "PII findings are projected as privacy-preserving Error job rows.",
+      "Tauri PEFT start records job-bound PII review events before training, giving the queue a stable job_id for grouping."
+    ],
+    "proof": [
+      {
+        "command": "$env:CARGO_TARGET_DIR='D:/Projects/LLM projects/Handshake/Handshake_Artifacts/cargo-target/wtc-kernel-004-fold-v1'; cargo test --manifest-path app/src-tauri/Cargo.toml commands::distillation::tests -- --nocapture",
+        "exit_code": 0,
+        "result": "16 passed; 0 failed; 88 filtered out"
+      },
+      {
+        "command": "$env:CARGO_TARGET_DIR='D:/Projects/LLM projects/Handshake/Handshake_Artifacts/cargo-target/wtc-kernel-004-fold-v1'; cargo test --manifest-path app/src-tauri/Cargo.toml commands::peft::tests -- --nocapture",
+        "exit_code": 0,
+        "result": "8 passed; 0 failed; 96 filtered out"
+      }
+    ],
+    "residual_risks": [
+      "No Integration Validator has reviewed this hardening block.",
+      "Mixed clean-plus-PII corpora may show both review errors and later training progress for the same job; validator should confirm the intended queue severity aggregation policy.",
+      "UI rendering of the projected row was not re-tested in this slice; this evidence covers the Tauri command projection layer."
+    ]
+  },
+  "implementation_evidence": {
+    "post_validation_distill_job_visibility_hardening_20260525": {
+      "classification": "IMPLEMENTATION_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+      "authoritative_integration_validator_pass": false,
+      "integration_validator_status": "PENDING",
+      "recorded_at_utc": "2026-05-25T04:42:53.818Z",
+      "recorded_by": "KERNEL_BUILDER-POSTGRES-TEST-URL-20260525",
+      "summary": "Tauri production startup now creates a writable DuckDB-backed DistillationJobsState under app_data_root/flight_recorder/distillation_jobs.duckdb instead of managing the inert default recorder. handshake_core app dependency now enables app-runtime so duckdb-flight-recorder is available in production app builds.",
+      "files_touched": [
+        "app/src-tauri/src/lib.rs",
+        "app/src-tauri/Cargo.toml"
+      ],
+      "proof": [
+        {
+          "command": "cargo test --manifest-path app/src-tauri/Cargo.toml distillation_jobs_state_from_app_data_root_attaches_writable_duckdb_recorder -- --nocapture",
+          "exit_code": 0,
+          "result": "1 passed; 0 failed"
+        },
+        {
+          "command": "cargo test --manifest-path app/src-tauri/Cargo.toml commands::peft::tests -- --nocapture",
+          "exit_code": 0,
+          "result": "8 passed; 0 failed"
+        },
+        {
+          "command": "cargo test --manifest-path app/src-tauri/Cargo.toml commands::distillation::tests -- --nocapture",
+          "exit_code": 0,
+          "result": "16 passed; 0 failed"
+        }
+      ],
+      "risks_and_mitigations": [
+        {
+          "risk": "Recorder initialization can fail at app startup if the app data directory or DuckDB file cannot be created.",
+          "mitigation": "Startup now fails loudly with a typed setup error instead of silently using the inert default recorder."
+        },
+        {
+          "risk": "Evidence was produced by Kernel Builder only.",
+          "mitigation": "Entry is explicitly marked supporting evidence; Integration Validator status remains PENDING."
+        }
+      ]
+    }
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C12_C13_FRESH",
+    "reviewed_at_utc": "2026-05-27T17:40:00Z",
+    "aggregator_run_at_utc": "2026-05-28T00:01:31.342Z",
+    "verdict": "PASS_WITH_NOTES",
+    "verdict_reason": "DistillationQueue.tsx three-tab structure typechecks and is mounted in InferenceLab.tsx with real Tauri IPC: list_distill_sessions / list_distill_candidates / list_distill_jobs (against real production CandidateRegistry + InMemorySessionFlagStore + FlightRecorder) and the row-action commands promote_distill_candidate / reject_distill_candidate route through the real CandidateRegistry. The earlier placeholder arrays are gone. Copy is technical, no moralizing. Adult-production discipline preserved.",
+    "spec_compliance_status": "PASSES",
+    "code_hygiene_status": "OK",
+    "runtime_safety_status": "OK",
+    "agent_swarm_safety_status": "OK",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "OK",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 1,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 1,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-124.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-124.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C12_C13_FRESH",
+    "reviewed_at_utc": "2026-05-27T17:40:00Z",
+    "aggregator_run_at_utc": "2026-05-27T23:48:44.444Z",
+    "verdict": "PASS_WITH_NOTES",
+    "verdict_reason": "DistillationQueue.tsx three-tab structure typechecks and is mounted in InferenceLab.tsx with real Tauri IPC: list_distill_sessions / list_distill_candidates / list_distill_jobs (against real production CandidateRegistry + InMemorySessionFlagStore + FlightRecorder) and the row-action commands promote_distill_candidate / reject_distill_candidate route through the real CandidateRegistry. The earlier placeholder arrays are gone. Copy is technical, no moralizing. Adult-production discipline preserved.",
+    "spec_compliance_status": "PASSES",
+    "code_hygiene_status": "OK",
+    "runtime_safety_status": "OK",
+    "agent_swarm_safety_status": "OK",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "OK",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 1,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 1,
+    "review_artifact_ref": "validator_reports_phase1/MT-124.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1\\validator_reports_phase1\\MT-124.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  }
+}

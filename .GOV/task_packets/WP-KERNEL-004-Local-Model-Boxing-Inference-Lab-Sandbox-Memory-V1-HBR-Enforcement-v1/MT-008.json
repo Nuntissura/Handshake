@@ -1,0 +1,147 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-008",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "A",
+  "cluster_subscope": "A.1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T02:30:00Z",
+  "updated_at_utc": "2026-05-28T00:01:44.873Z",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-008.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "ProcessOwnershipLedger reclaim hooks (session close / failure / staleness / cancel)",
+  "goal": "Implement reclaim hooks per spec §5.7.5 (AC-PROCESS-LEDGER-RECLAIM). On every session close, failure, staleness detection, and operator cancel (per CX-503D + CX-212G), the reclaim path queries kernel_process_lifecycle for the session's non-stopped rows, calls SandboxAdapter.kill on each, and writes STOP rows with exit_code = -1.",
+  "expected_diff_shape": "New Rust module src/backend/handshake_core/src/process_ledger/reclaim.rs; integration with SessionBroker (KERNEL-001 primitive) hook points; tests covering all four reclaim trigger modes.",
+  "owned_files": [
+    "src/backend/handshake_core/src/process_ledger/reclaim.rs",
+    "src/backend/handshake_core/tests/process_ledger_reclaim_tests.rs"
+  ],
+  "depends_on_mts": [
+    "MT-007"
+  ],
+  "unblock_conditions": "MT-007 ledger primitive + write path merged.",
+  "implementation_notes": "Per spec §5.7.5 reclaim covers four trigger modes: (a) session close (clean), (b) session failure (panic, broker death, abnormal exit), (c) staleness (no heartbeat within configured TTL — default 5min), (d) operator cancel (explicit kill). The reclaim primitive: `Reclaim::run(session_id: SessionId, trigger: ReclaimTrigger) -> ReclaimReport` where ReclaimTrigger is the enum {Close, Failure, Stale, OperatorCancel}. Internally: (1) SELECT process_uuid, sandbox_adapter_id, engine_kind FROM kernel_process_lifecycle WHERE parent_session_id = $1 AND stopped_at IS NULL FOR UPDATE; (2) for each row, locate the SandboxAdapter via a registry (the SandboxAdapter trait lives in cluster B; this MT defines a placeholder trait surface `trait SandboxKill { fn kill(&self, process_uuid: Uuid) -> Result<(), KillError>; }` with a TODO marker referencing cluster B for the real adapter binding); (3) call kill(); (4) write STOP row with exit_code = -1, stopped_at = now(), via the perf-safe writer from MT-007. ReclaimReport carries `{ session_id, trigger, processes_reclaimed: Vec<{process_uuid, kill_result}>, total_duration_ms }`. SessionBroker integration: this MT exposes a `reclaim_handle()` that SessionBroker can call from its session-close path (note: SessionBroker exists from KERNEL-001; if its actual API does not yet have a reclaim hook, add one in the cluster X integration pass — this MT just exposes the entry point). Staleness detection: a background tokio task scans for sessions whose last heartbeat is older than TTL every 30s; on hit, calls Reclaim::run(session_id, ReclaimTrigger::Stale). Tests use a mock SandboxKill impl: (a) clean close kills 0 hanging processes when session exited cleanly; (b) failure kills N pending processes; (c) stale detection fires after TTL; (d) operator cancel kills immediately. Per HBR-QUIET-003 evidence_kind=process_lifecycle_test_run this is exactly the test family this MT must produce.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target process_ledger_reclaim_tests"
+  ],
+  "risk_if_missed": "Without reclaim, orphan processes accumulate from crashed sessions; violates HBR-QUIET-003 'no orphan processes after a run, failure, or kill'.",
+  "validator_focus": "All four ReclaimTrigger variants have explicit tests; STOP row is always written even when kill() fails (kill_result captures the error); staleness detection runs as a background task without blocking the main event loop.",
+  "hbr_obligations": [
+    "HBR-INT-007",
+    "HBR-QUIET-003",
+    "HBR-SWARM-002"
+  ],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/05-security-and-observability.md#5.7"
+  ],
+  "acceptance_criteria_refs": [
+    "AC-PROCESS-LEDGER-RECLAIM",
+    "AC-PROCESS-LEDGER-SCOPE"
+  ],
+  "lifecycle": {
+    "active": false,
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "CONCERN",
+    "depends_on": [
+      "MT-007"
+    ],
+    "blocks": [
+      "MT-009",
+      "MT-034"
+    ],
+    "claimed_by": "KERNEL_BUILDER-20260518-012310",
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "COMPLETED",
+        "validator_verdict": "PENDING",
+        "completed_at_utc": "2026-05-18T04:43:27.472Z"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "previous_completed_at_utc_before_ready_for_validation_20260525": "2026-05-18T04:43:27.472Z",
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z"
+  },
+  "handoff": {
+    "coder_session": "KERNEL_BUILDER-20260518-012310",
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": "019e6be3-15a9-7c0f-896e-8a3e54c9350c",
+    "review_response_receipt_actor_role": "INTEGRATION_VALIDATOR",
+    "review_response_receipt_track": "JUDGMENT_OOB_IV_PHASE1_PRE_REMEDIATION"
+  },
+  "red_team": {
+    "minimum_controls": [
+      "STOP row is written even when kill() returns an error (so post-hoc audit knows the process was attempted to be reclaimed).",
+      "Staleness TTL is configurable and the default is documented in implementation notes.",
+      "FOR UPDATE row-lock prevents two reclaim runs racing on the same session."
+    ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_A1_A2",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-28T00:01:31.342Z",
+    "verdict": "CONCERN",
+    "verdict_reason": "Reclaim correctly queries kernel_process_lifecycle with FOR UPDATE row-lock (preventing two reclaim runs racing per the red-team control), writes a STOP row regardless of kill outcome (satisfies the audit-trail control), and tracks KillOutcome::Failed with the error message. However the reclaim loop runs sequentially over active processes: for a session with N processes, each sandbox.kill() is awaited serially — a slow/hung kill blocks the rest. No timeout, no parallel reclaim.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "MINOR",
+    "runtime_safety_status": "CONCERN",
+    "agent_swarm_safety_status": "CONCERN",
+    "hbr_unsatisfied": [
+      "HBR-SWARM-002 partially — leases-and-cancellation behavior is correct per-process but multi-process reclaim has no cancellation/timeout"
+    ],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 1,
+      "MEDIUM": 1,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-008.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-008.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_A1_A2",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T23:48:44.444Z",
+    "verdict": "CONCERN",
+    "verdict_reason": "Reclaim correctly queries kernel_process_lifecycle with FOR UPDATE row-lock (preventing two reclaim runs racing per the red-team control), writes a STOP row regardless of kill outcome (satisfies the audit-trail control), and tracks KillOutcome::Failed with the error message. However the reclaim loop runs sequentially over active processes: for a session with N processes, each sandbox.kill() is awaited serially — a slow/hung kill blocks the rest. No timeout, no parallel reclaim.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "MINOR",
+    "runtime_safety_status": "CONCERN",
+    "agent_swarm_safety_status": "CONCERN",
+    "hbr_unsatisfied": [
+      "HBR-SWARM-002 partially — leases-and-cancellation behavior is correct per-process but multi-process reclaim has no cancellation/timeout"
+    ],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 1,
+      "MEDIUM": 1,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "validator_reports_phase1/MT-008.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1\\validator_reports_phase1\\MT-008.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  }
+}

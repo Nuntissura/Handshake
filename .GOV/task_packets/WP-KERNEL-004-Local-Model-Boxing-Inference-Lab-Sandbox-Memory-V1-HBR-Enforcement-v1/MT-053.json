@@ -1,0 +1,156 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-053",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "B",
+  "cluster_subscope": "B.2",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:10:00Z",
+  "updated_at_utc": "2026-05-28T00:01:44.901Z",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-053.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "ProcessOwnershipLedger START + STOP registration on every sandbox spawn (perf-mitigated batched/async/capped path)",
+  "goal": "Every model process and validation process spawned via SandboxAdapter MUST register START + STOP rows in the ProcessOwnershipLedger Postgres table per spec §5.7.2 / AC-LOCAL-MODEL-BOXING. This MT lands the cross-cutting wiring that intercepts every spawn/kill on every SandboxAdapter, batches writes per the perf-mitigated path (R-11 mitigation: batched async writes + per-process metadata cap + FR-EVT-LEDGER-OVERFLOW degraded mode per spec §5.7.3), and exposes the live process registry to the Diagnostics Panel.",
+  "expected_diff_shape": "New module src/backend/handshake_core/src/process_ledger/{mod.rs, writer.rs, batcher.rs, overflow.rs, schema.rs} (Postgres table is added in cluster A.4 MT — coordinate; if not yet present, this MT lands the schema migration too at src/backend/handshake_core/migrations/<ts>_kernel_process_lifecycle.sql); SandboxAdapter wrapper decorator src/backend/handshake_core/src/sandbox/ledger_decorator.rs that wraps any Arc<dyn SandboxAdapter> and emits START/STOP on spawn/kill/status transitions; bootstrap (MT-048) updated to wrap each adapter in the ledger decorator before registering. Tests under src/backend/handshake_core/tests/process_ledger_writer_tests.rs.",
+  "owned_files": [
+    "src/backend/handshake_core/src/process_ledger/mod.rs",
+    "src/backend/handshake_core/src/process_ledger/writer.rs",
+    "src/backend/handshake_core/src/process_ledger/batcher.rs",
+    "src/backend/handshake_core/src/process_ledger/overflow.rs",
+    "src/backend/handshake_core/src/process_ledger/schema.rs",
+    "src/backend/handshake_core/src/sandbox/ledger_decorator.rs",
+    "src/backend/handshake_core/src/sandbox/mod.rs",
+    "src/backend/handshake_core/tests/process_ledger_writer_tests.rs"
+  ],
+  "depends_on_mts": [
+    "MT-042",
+    "MT-044",
+    "MT-048",
+    "MT-049"
+  ],
+  "unblock_conditions": "SandboxAdapter trait + bootstrap merged. If cluster A.4 lands the kernel_process_lifecycle Postgres schema independently, defer schema.sql here to a no-op reference; otherwise own the migration.",
+  "implementation_notes": "Schema (only land if cluster A.4 has not): `CREATE TABLE kernel_process_lifecycle ( process_id UUID PRIMARY KEY (v7), adapter_id TEXT NOT NULL, sandbox_internal_id TEXT NOT NULL, parent_process_id UUID, engine_kind TEXT NOT NULL, role_id TEXT, wp_id TEXT, mt_id TEXT, spawned_at_utc TIMESTAMPTZ NOT NULL, stopped_at_utc TIMESTAMPTZ, exit_code INT, stop_reason TEXT, sandbox_capabilities_snapshot JSONB NOT NULL, metadata_jsonb JSONB DEFAULT '{}'::jsonb )` plus index on (adapter_id, spawned_at_utc) and (wp_id, spawned_at_utc). Per CX-503R: NO SQLite — Postgres only. Per R-11 mitigations: writes go through a `LedgerBatcher` (tokio task with mpsc channel; flushes every 100 events OR every 250ms whichever first; per-process metadata cap = 16KB JSONB blob — overflow triggers FR-EVT-LEDGER-OVERFLOW row to EventLedger and the metadata field gets `{ \"capped\": true, \"original_bytes\": N }`). LedgerDecorator wraps any `Arc<dyn SandboxAdapter>` and on spawn() emits a START row (calling LedgerBatcher::record_start asynchronously — must not block spawn latency), on kill() and on observed status transitions to Exited/Killed emits a STOP row. Decorator is transparent to callers (implements SandboxAdapter itself, delegating to inner). MT-048 bootstrap is updated: each constructed adapter is wrapped via `let adapter = Arc::new(LedgerDecorator::new(inner_adapter, ledger_batcher.clone())) as Arc<dyn SandboxAdapter>` before registry.register(). Failure-mode discipline: if Postgres is unreachable, LedgerBatcher MUST NOT block spawn — it queues into an in-memory ring buffer (cap 10_000 events) and emits FR-EVT-LEDGER-OVERFLOW when the ring overflows; on Postgres recovery the buffered events flush in spawn order. Tests: (a) wrapping a NoopAdapter and calling spawn() enqueues exactly one START event; (b) calling kill() enqueues exactly one STOP event with the correct stop_reason; (c) overflow test: enqueue 10_001 events with Postgres unreachable and verify the 10_001st event triggers FR-EVT-LEDGER-OVERFLOW; (d) per-process metadata cap test: a 20KB metadata blob is truncated to 16KB and the capped marker is set; (e) replay-equivalence: two test runs with identical spawn/kill sequences produce identical kernel_process_lifecycle row sets (HBR-INT-001).",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target process_ledger_writer_tests",
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target ledger_decorator_tests"
+  ],
+  "risk_if_missed": "Without ledger registration the AC-LOCAL-MODEL-BOXING requirement ('every model process Handshake spawns MUST be registered with START + STOP rows') fails the §5.6 HBR gate; spawn-latency regression under swarm concurrency (R-11) is the most likely defect mode.",
+  "validator_focus": "(a) LedgerDecorator is the ONLY path that writes to kernel_process_lifecycle (no direct INSERT statements anywhere else); (b) spawn-latency overhead from decorator wrapping is <5ms p95 under unit-test load; (c) overflow degraded-mode works (Postgres-down test); (d) UUID v7 for process_id; (e) HBR-INT-001 replay equivalence holds.",
+  "hbr_obligations": [
+    "HBR-INT-001",
+    "HBR-INT-008",
+    "HBR-QUIET-003",
+    "HBR-SWARM-001"
+  ],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/05-security-and-observability.md#5.7"
+  ],
+  "acceptance_criteria_refs": [
+    "AC-LOCAL-MODEL-BOXING"
+  ],
+  "lifecycle": {
+    "active": false,
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "PASS",
+    "depends_on": [
+      "MT-042",
+      "MT-044",
+      "MT-048",
+      "MT-049"
+    ],
+    "blocks": [
+      "MT-057"
+    ],
+    "claimed_by": "KERNEL_BUILDER-20260518-231133",
+    "claimed_at_utc": "2026-05-18T23:12:53Z",
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "COMPLETED",
+        "validator_verdict": "PENDING",
+        "completed_at_utc": "2026-05-18T23:49:41.105Z"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "previous_completed_at_utc_before_ready_for_validation_20260525": "2026-05-18T23:49:41.105Z",
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z"
+  },
+  "handoff": {
+    "coder_session": "KERNEL_BUILDER-20260518-231133",
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": "019e6be3-15c5-7fc9-970b-40fe902456ee",
+    "review_response_receipt_actor_role": "INTEGRATION_VALIDATOR",
+    "review_response_receipt_track": "JUDGMENT_OOB_IV_PHASE1_PRE_REMEDIATION"
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Repo-wide grep test asserts no `INSERT INTO kernel_process_lifecycle` outside src/backend/handshake_core/src/process_ledger/** (LedgerDecorator is the sole write path).",
+      "Postgres-unreachable overflow test prevents silent loss of spawn events on temporary DB outage (R-11 mitigation).",
+      "Spawn-latency micro-benchmark (criterion crate or simple Instant timing) keeps decorator overhead below 5ms p95 under HBR-SWARM-001 concurrent load."
+    ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_B_GAPS_REDO_WTC",
+    "reviewed_at_utc": "2026-05-27T22:30:00Z",
+    "aggregator_run_at_utc": "2026-05-28T00:01:31.342Z",
+    "verdict": "PASS",
+    "verdict_reason": "ProcessOwnershipLedger (kernel_process_lifecycle table) + LedgerBatcher + LedgerDecorator + cap_metadata_jsonb + ring-buffer overflow path with FR_EVT_LEDGER_OVERFLOW are all implemented; UUID v7 used; START/STOP record_once guards prevent duplicate STOP rows; Postgres migration SQL is shipped; tests cover ring overflow, metadata cap, batching defaults.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 1,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-053.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-053.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_B_GAPS_REDO_WTC",
+    "reviewed_at_utc": "2026-05-27T22:30:00Z",
+    "aggregator_run_at_utc": "2026-05-27T23:48:44.444Z",
+    "verdict": "PASS",
+    "verdict_reason": "ProcessOwnershipLedger (kernel_process_lifecycle table) + LedgerBatcher + LedgerDecorator + cap_metadata_jsonb + ring-buffer overflow path with FR_EVT_LEDGER_OVERFLOW are all implemented; UUID v7 used; START/STOP record_once guards prevent duplicate STOP rows; Postgres migration SQL is shipped; tests cover ring overflow, metadata cap, batching defaults.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 1,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "validator_reports_phase1/MT-053.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1\\validator_reports_phase1\\MT-053.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  }
+}

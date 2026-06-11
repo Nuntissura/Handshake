@@ -51,12 +51,17 @@
       "enum": [
         "SYSTEM",
         "OPERATOR",
+        "PRIMARY_OPERATOR",
         "WORKFLOW_AUTHORITY",
         "PRIMARY_CODER",
         "MEMORY_MANAGER",
         "WP_VALIDATOR",
         "INTEGRATION_VALIDATOR",
-        "SECONDARY_VALIDATOR"
+        "SECONDARY_VALIDATOR",
+        "VALIDATOR_AUTHORED_PASS_GATE",
+        "VALIDATOR_AUTHORED_WP_FINAL_GATE",
+        "VALIDATOR_AUTHORED_WP_PASS_GATE",
+        "ADVERSARIAL_REVIEW"
       ]
     },
     "validator_role_kind": {
@@ -68,6 +73,9 @@
         "WP_VALIDATOR",
         "INTEGRATION_VALIDATOR",
         "SECONDARY_VALIDATOR",
+        "MT_PASS_GATE",
+        "WP_FINAL_GATE",
+        "MT_ADVERSARIAL_GATE",
         null
       ]
     },
@@ -96,7 +104,14 @@
         "WORKFLOW_INVALIDITY",
         "MEMORY_PROPOSAL",
         "MEMORY_FLAG",
-        "MEMORY_RGF_CANDIDATE"
+        "MEMORY_RGF_CANDIDATE",
+        "BLOCKED",
+        "READY_FOR_VALIDATION",
+        "COMPLETED",
+        "FAIL_NEEDS_REWORK",
+        "WP_BLOCKED",
+        "OPERATOR_WAIVER",
+        "RETRACTION"
       ]
     },
     "verb": {
@@ -159,6 +174,7 @@
         "OPERATOR",
         "ORCHESTRATOR",
         "CODER",
+        "KERNEL_BUILDER",
         "MEMORY_MANAGER",
         "WP_VALIDATOR",
         "INTEGRATION_VALIDATOR",
@@ -202,6 +218,7 @@
     "microtask_contract": {
       "type": [
         "object",
+        "string",
         "null"
       ],
       "additionalProperties": false,

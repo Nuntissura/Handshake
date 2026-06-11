@@ -1,0 +1,147 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-066",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "C",
+  "cluster_subscope": "C.1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:00:00Z",
+  "updated_at_utc": "2026-05-28T00:01:44.907Z",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-066.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "LocalModelAdapter invariant enforcement (no third-party wrapping)",
+  "goal": "Enforce the LocalModelAdapter invariant per spec §3.6: LocalModel runtime authority MUST NOT wrap a third-party app (LM Studio, Ollama) as its primary runtime path. Ship a guarded RuntimeKind enum + adapter-bind-time validation that rejects construction of a LocalModelAdapter whose engine_path resolves to a forbidden third-party-app process or HTTP endpoint pattern. ExternalEngineImport (spec §3.6.4) is the only pass-through lane and is flagged provider=\"external_compat\".",
+  "expected_diff_shape": "New src/backend/handshake_core/src/model_runtime/invariant.rs with LocalModelAdapterInvariant + EngineOriginValidator + ExternalEngineImportRecord; updates to types.rs RuntimeKind + LoadSpec.",
+  "owned_files": [
+    "src/backend/handshake_core/src/model_runtime/invariant.rs",
+    "src/backend/handshake_core/src/model_runtime/types.rs",
+    "src/backend/handshake_core/src/model_runtime/mod.rs",
+    "src/backend/handshake_core/tests/model_runtime_invariant_tests.rs"
+  ],
+  "depends_on_mts": [
+    "MT-062"
+  ],
+  "unblock_conditions": "MT-062 trait surface merged.",
+  "implementation_notes": "Per spec §3.6.1 (operator-locked invariant): No LM Studio or Ollama runtime authority. LocalModelAdapterInvariant::validate(spec: &LoadSpec) -> Result<(), ModelRuntimeError> checks: (1) RuntimeKind is LlamaCpp or Candle (never ExternalCompat for LocalModelAdapter); (2) artifact_path is a regular file on disk (not a URL); (3) if a sibling field engine_origin is Some, it does not match a denylist of patterns: process name `lm_studio*`, `ollama*`, HTTP host patterns matching `localhost:11434` (Ollama default) or `localhost:1234` (LM Studio default) UNLESS the LoadSpec carries an ExternalEngineImportRecord — in which case the model is flagged `provider=\"external_compat\"` and routed through the ExternalEngineImport lane (spec §3.6.4 AC-EXTERNAL-ENGINE-IMPORT) which does NOT register as Handshake-owned in ProcessOwnershipLedger. ExternalEngineImportRecord: `{ endpoint_url: Url, openai_compatible: bool, operator_signed_at_utc: DateTime<Utc>, operator_signature: String }`. The denylist is data-driven (deny_patterns Vec<String>) so future third-party apps can be added without code changes. Add LoadSpec field `provider: ProviderKind { Local, ExternalCompat, ByokCloud, OfficialCli }`. LocalModelAdapter wraps Box<dyn ModelRuntime> and runs validate() in its constructor; failed validation returns ModelRuntimeError::AdapterMismatch. Tests: load with engine_origin=\"ollama\" without ExternalEngineImportRecord fails; same with record succeeds and flags provider=ExternalCompat; load with LlamaCpp + regular GGUF path succeeds. This MT is the runtime enforcement of the operator-locked invariant (spec §3.6); CX-503R adjacent (no SQLite) is enforced separately in MT-068.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target model_runtime_invariant_tests"
+  ],
+  "risk_if_missed": "Invariant becomes prose-only; a future contributor wraps Ollama as primary runtime authority, violating operator-locked spec §3.6.1.",
+  "validator_focus": "Denylist enforces; ExternalEngineImport pass-through correctly flags provider=ExternalCompat; constructor validation runs unconditionally; signed ExternalEngineImportRecord required for the pass-through lane.",
+  "hbr_obligations": [
+    "HBR-INT-002"
+  ],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/03-local-first-infrastructure.md#3.6",
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.6.1"
+  ],
+  "acceptance_criteria_refs": [
+    "AC-MODEL-RUNTIME-TRAIT"
+  ],
+  "lifecycle": {
+    "active": false,
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "PASS",
+    "depends_on": [
+      "MT-062"
+    ],
+    "blocks": [
+      "MT-070",
+      "MT-072",
+      "MT-081",
+      "MT-125",
+      "MT-127"
+    ],
+    "claimed_by": "KERNEL_BUILDER-20260518-235451",
+    "claimed_at_utc": "2026-05-19T03:45:57Z",
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "COMPLETED",
+        "validator_verdict": "PENDING",
+        "completed_at_utc": "2026-05-19T03:45:57Z"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "previous_completed_at_utc_before_ready_for_validation_20260525": "2026-05-19T03:45:57Z",
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z"
+  },
+  "handoff": {
+    "coder_session": "KERNEL_BUILDER-20260518-235451",
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": "019e6be3-15cb-77e0-8366-cd20c0002758",
+    "review_response_receipt_actor_role": "INTEGRATION_VALIDATOR",
+    "review_response_receipt_track": "JUDGMENT_OOB_IV_PHASE1_PRE_REMEDIATION"
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Denylist patterns match case-insensitively (ollama, OLLAMA, Ollama all caught).",
+      "Pass-through lane signed_at_utc must be non-null and within operator-configured staleness window.",
+      "ProcessOwnershipLedger never records ExternalEngineImport endpoints as Handshake-owned (test asserts no insert on the lane)."
+    ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C1_FRESH",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-28T00:01:31.342Z",
+    "verdict": "PASS",
+    "verdict_reason": "LocalModelAdapter invariant correctly forbids wrapping LM Studio/Ollama as runtime authority. EngineOriginValidator deny-patterns cover ollama, lm_studio (multiple casings), and the canonical 11434/1234 loopback ports across loopback variants. ExternalEngineImport is gated to ExternalCompat provider with operator-signed (non-empty signature, non-future timestamp, max 30-day age), OpenAI-compatible, loopback-only HTTP(S) endpoint validation. Local provider with external_engine_import is hard-rejected.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-066.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-066.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C1_FRESH",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T23:48:44.444Z",
+    "verdict": "PASS",
+    "verdict_reason": "LocalModelAdapter invariant correctly forbids wrapping LM Studio/Ollama as runtime authority. EngineOriginValidator deny-patterns cover ollama, lm_studio (multiple casings), and the canonical 11434/1234 loopback ports across loopback variants. ExternalEngineImport is gated to ExternalCompat provider with operator-signed (non-empty signature, non-future timestamp, max 30-day age), OpenAI-compatible, loopback-only HTTP(S) endpoint validation. Local provider with external_engine_import is hard-rejected.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "validator_reports_phase1/MT-066.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1\\validator_reports_phase1\\MT-066.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  }
+}

@@ -1,0 +1,155 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-089",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "C",
+  "cluster_subscope": "C.3",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:00:00Z",
+  "updated_at_utc": "2026-05-28T00:01:44.921Z",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-089.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "CandleRuntime end-to-end integration smoke test (Mamba2 + RWKV + Transformer + hooks)",
+  "goal": "End-to-end smoke test for CandleRuntime covering all three model families: Transformer load+generate+hook+LoRA; Mamba2 load+generate+state_vector commit/restore; RWKV v5/v6/v7 load+generate. Test gated by per-family env vars (graceful skip per family).",
+  "expected_diff_shape": "New src/backend/handshake_core/tests/candle_e2e_smoke.rs with per-family sub-tests gated by env vars; tests/README.json updated with per-family env var list.",
+  "owned_files": [
+    "src/backend/handshake_core/tests/candle_e2e_smoke.rs",
+    "src/backend/handshake_core/tests/README.json"
+  ],
+  "depends_on_mts": [
+    "MT-082",
+    "MT-083",
+    "MT-084",
+    "MT-085",
+    "MT-086",
+    "MT-087",
+    "MT-088"
+  ],
+  "unblock_conditions": "All CandleRuntime feature MTs merged.",
+  "implementation_notes": "Smoke scenarios per family: (Transformer) load Llama-style via HANDSHAKE_TEST_CANDLE_MODEL_DIR; capabilities check; generate; capture activations at layer N; register zero-vector steering at N + generate (identity); register random vector + generate (output differs); mount LoRA + generate (output differs); unmount; unload. (Mamba2) load via HANDSHAKE_TEST_MAMBA2_MODEL_DIR; capabilities (subquad=true); generate 32 tokens deterministically; state_vector_commit; generate; state_vector_restore; generate same continuation; tamper hash test; unload. (RWKV v5) load via HANDSHAKE_TEST_RWKV_V5_MODEL_DIR; generate; state commit/restore; unload. (RWKV v6) same. (RWKV v7) same. Each sub-test skips gracefully if its env var unset; CI without any GPU env vars still runs the test binary (all sub-tests skip with status SKIPPED logged). FR event family coverage asserted per family. README.json updated: { test_id: \"candle_e2e_smoke\", required_env: [\"HANDSHAKE_TEST_CANDLE_MODEL_DIR\", \"HANDSHAKE_TEST_MAMBA2_MODEL_DIR\", \"HANDSHAKE_TEST_RWKV_V5_MODEL_DIR\", \"HANDSHAKE_TEST_RWKV_V6_MODEL_DIR\", \"HANDSHAKE_TEST_RWKV_V7_MODEL_DIR\"], description: \"per-family skip if unset\" }.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target candle_e2e_smoke -- --ignored"
+  ],
+  "risk_if_missed": "CandleRuntime regressions ship undetected; AC-CANDLE-ADAPTER has no integration evidence across families.",
+  "validator_focus": "Per-family skip path documented; FR event family coverage asserted per family; identity test (zero-vector hook -> output unchanged) is the correctness gate.",
+  "hbr_obligations": [
+    "HBR-INT-002"
+  ],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.6.2",
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.7.1"
+  ],
+  "acceptance_criteria_refs": [
+    "AC-CANDLE-ADAPTER",
+    "AC-INFER-LAB-8-TECHNIQUES"
+  ],
+  "lifecycle": {
+    "active": false,
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "CONCERN",
+    "depends_on": [
+      "MT-082",
+      "MT-083",
+      "MT-084",
+      "MT-085",
+      "MT-086",
+      "MT-087",
+      "MT-088"
+    ],
+    "blocks": [],
+    "claimed_by": "KERNEL_BUILDER-20260519-143049",
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "COMPLETED",
+        "validator_verdict": "PENDING",
+        "completed_at_utc": "2026-05-19T16:48:09.975Z"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "previous_completed_at_utc_before_ready_for_validation_20260525": "2026-05-19T16:48:09.975Z",
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z"
+  },
+  "handoff": {
+    "coder_session": "KERNEL_BUILDER-20260519-143049",
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": "019e6be3-15d9-7a05-a7a0-25621efb8bb2",
+    "review_response_receipt_actor_role": "INTEGRATION_VALIDATOR",
+    "review_response_receipt_track": "JUDGMENT_OOB_IV_PHASE1_PRE_REMEDIATION"
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Per-family skip path documented and tested (no panic on missing env var).",
+      "FR event family coverage asserted per family.",
+      "Identity test correctness gate."
+    ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C3_FRESH",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-28T00:01:31.342Z",
+    "verdict": "CONCERN",
+    "verdict_reason": "Per-family env-gated skip pattern is correct (each sub-test returns SKIPPED if its env var is unset; CI without any env vars still compiles and runs the test binary as all-SKIPPED); per-family event_family coverage strings are asserted; README.json contract is verified by a dedicated README test; family enumeration is the same in test code and README. CONCERN: (a) The state-vector sub-tests for Mamba2/RWKV are structurally insufficient (see MT-088 FAIL) — they pass without actually proving state restore works because generate always resets state; this MT inherits the defect. (b) The transformer sub-test asserts `assert_eq!(baseline, zero, \"zero-vector steering must preserve deterministic transformer output\")` which is the identity-test correctness gate the contract calls out — but the gate runs only when HANDSHAKE_TEST_CANDLE_MODEL_DIR is set; default CI runs all-SKIPPED, so the gate is never enforced in the default build. (c) The transformer sub-test mounts a LoRA at width-by-1 rank-1 dims (vec![0.5; width] reshaped to (width, 1)) — fine as a smoke target but does not assert the LoRA-applied output DIFFERS from baseline; the `_lora` result is discarded.",
+    "spec_compliance_status": "PARTIAL",
+    "code_hygiene_status": "MINOR",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [
+      "HBR-INT-002 — smoke tests do not assert ContextBundle -> ModelAdapter -> ToolGate -> ArtifactStore wire. They only exercise direct ModelRuntime calls; the actual obligation wire test is absent."
+    ],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 1,
+      "MEDIUM": 1,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 1,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-089.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-089.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C3_FRESH",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T23:48:44.444Z",
+    "verdict": "CONCERN",
+    "verdict_reason": "Per-family env-gated skip pattern is correct (each sub-test returns SKIPPED if its env var is unset; CI without any env vars still compiles and runs the test binary as all-SKIPPED); per-family event_family coverage strings are asserted; README.json contract is verified by a dedicated README test; family enumeration is the same in test code and README. CONCERN: (a) The state-vector sub-tests for Mamba2/RWKV are structurally insufficient (see MT-088 FAIL) — they pass without actually proving state restore works because generate always resets state; this MT inherits the defect. (b) The transformer sub-test asserts `assert_eq!(baseline, zero, \"zero-vector steering must preserve deterministic transformer output\")` which is the identity-test correctness gate the contract calls out — but the gate runs only when HANDSHAKE_TEST_CANDLE_MODEL_DIR is set; default CI runs all-SKIPPED, so the gate is never enforced in the default build. (c) The transformer sub-test mounts a LoRA at width-by-1 rank-1 dims (vec![0.5; width] reshaped to (width, 1)) — fine as a smoke target but does not assert the LoRA-applied output DIFFERS from baseline; the `_lora` result is discarded.",
+    "spec_compliance_status": "PARTIAL",
+    "code_hygiene_status": "MINOR",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [
+      "HBR-INT-002 — smoke tests do not assert ContextBundle -> ModelAdapter -> ToolGate -> ArtifactStore wire. They only exercise direct ModelRuntime calls; the actual obligation wire test is absent."
+    ],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 1,
+      "MEDIUM": 1,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 1,
+    "review_artifact_ref": "validator_reports_phase1/MT-089.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1\\validator_reports_phase1\\MT-089.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  }
+}

@@ -1,0 +1,148 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-036",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "A",
+  "cluster_subscope": "A.5",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T02:30:00Z",
+  "updated_at_utc": "2026-05-28T00:01:44.891Z",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-036.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "Swarm CLI + Tauri IPC bridge for harness invocation",
+  "goal": "Expose the swarm harness via a CLI binary `handshake-swarm` AND a Tauri IPC `kernel.swarm.run(scenario_id, n)` so the Diagnostics panel (cluster X) can launch a swarm scenario interactively. CLI is for CI; IPC is for in-app operator triggering.",
+  "expected_diff_shape": "New bin target src/backend/handshake_core/src/bin/handshake-swarm.rs in Cargo.toml; Tauri command in app/src-tauri/src/swarm.rs; ScenarioRegistry trait + builtin scenarios (the N=8 perf, a session-cancel scenario, a lease-contention scenario).",
+  "owned_files": [
+    "src/backend/handshake_core/src/bin/handshake-swarm.rs",
+    "src/backend/handshake_core/src/test_harness/scenarios.rs",
+    "app/src-tauri/src/swarm.rs",
+    "src/backend/handshake_core/Cargo.toml"
+  ],
+  "depends_on_mts": [
+    "MT-034",
+    "MT-007"
+  ],
+  "unblock_conditions": "MT-034 harness primitive ships; MT-007 ProcessLedger ships (swarm CLI run registers itself as a process).",
+  "implementation_notes": "Two exposure paths over the same MT-034 primitive. CLI bin: `handshake-swarm --scenario <id> --n <count> [--report <path>]` runs the named scenario and writes a SwarmReport JSON to the optional report path or stdout. Scenarios registered via `ScenarioRegistry::register(\"n8-perf\", N8PerfScenario)` etc.; this MT ships three built-in scenarios: `n8-perf` (alias for MT-035's scenario), `lease-contention` (10 sessions racing on one lease), `cancel-mid-mutation` (8 sessions, half cancel after first mutation). Cargo.toml: add `[[bin]] name = \"handshake-swarm\" path = \"src/bin/handshake-swarm.rs\"`. Tauri IPC: `#[tauri::command] async fn swarm_run(scenario_id: String, n: usize) -> Result<SwarmReport, String>` — registers the swarm run in ProcessLedger with `engine_kind=\"swarm_harness\"`, drives the harness from MT-034, returns SwarmReport. The IPC must be gated behind a debug-build feature `swarm_ipc` so it does NOT ship in release builds (per the spirit of MT-029 inspector feature gate — swarm-from-UI is a debug-only surface). Per HBR-MAN-001 the new Tauri command + CLI flag set must update ModelManual in the same commit (MT-013 manual content adds entries for kernel.swarm.run, handshake-swarm CLI, and all three scenario ids). Tests: invoke CLI with `n8-perf --n 2` (small N for unit-test speed), assert SwarmReport JSON parses; invoke Tauri IPC mock, assert SwarmReport returned.",
+  "proof_commands": [
+    "cargo build -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target --bin handshake-swarm",
+    "cargo run -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target --bin handshake-swarm -- --scenario lease-contention --n 4",
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target --features swarm_ipc swarm_ipc_tests"
+  ],
+  "risk_if_missed": "Without CLI/IPC the swarm harness is only reachable from cargo tests; ops cannot run ad-hoc swarm scenarios during diagnosis.",
+  "validator_focus": "ScenarioRegistry is extensible (test asserts a custom scenario can be registered); CLI and IPC drive identical harness code path (no duplicated orchestration); ModelManual entries exist for all new surfaces (HBR-MAN-001).",
+  "hbr_obligations": [
+    "HBR-SWARM-001",
+    "HBR-INT-007",
+    "HBR-MAN-001",
+    "HBR-QUIET-003"
+  ],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/06-mechanical-integrations.md#6.7"
+  ],
+  "acceptance_criteria_refs": [
+    "AC-SWARM-HARNESS-PRIMITIVE"
+  ],
+  "lifecycle": {
+    "active": false,
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "PASS",
+    "depends_on": [
+      "MT-034",
+      "MT-007"
+    ],
+    "blocks": [
+      "MT-037"
+    ],
+    "claimed_by": "KERNEL_BUILDER-20260518-073535",
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "COMPLETED",
+        "validator_verdict": "PENDING",
+        "completed_at_utc": "2026-05-18T14:29:21.689Z"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "previous_completed_at_utc_before_ready_for_validation_20260525": "2026-05-18T14:29:21.689Z",
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z"
+  },
+  "handoff": {
+    "coder_session": "KERNEL_BUILDER-20260518-073535",
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": "019e6be3-15ba-7965-9f8a-d4bdcd0fbe0a",
+    "review_response_receipt_actor_role": "INTEGRATION_VALIDATOR",
+    "review_response_receipt_track": "JUDGMENT_OOB_IV_PHASE1_PRE_REMEDIATION"
+  },
+  "red_team": {
+    "minimum_controls": [
+      "ScenarioRegistry extensibility tested (a custom scenario can be registered without touching MT-034).",
+      "CLI and IPC share orchestration code path (single source).",
+      "swarm_ipc is feature-gated to debug builds only."
+    ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_A3_A5_A7",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-28T00:01:31.342Z",
+    "verdict": "PASS",
+    "verdict_reason": "handshake-swarm CLI bin and kernel.swarm.run Tauri IPC both call run_swarm_scenario(scenario_id, n) from the same scenarios.rs registry; CLI is not feature-gated (callable in CI) and IPC is double-gated by debug_assertions AND feature \"swarm_ipc\"; the ScenarioRegistry accepts custom scenarios per the extensibility red-team control.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 2
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-036.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-036.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_A3_A5_A7",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T23:48:44.444Z",
+    "verdict": "PASS",
+    "verdict_reason": "handshake-swarm CLI bin and kernel.swarm.run Tauri IPC both call run_swarm_scenario(scenario_id, n) from the same scenarios.rs registry; CLI is not feature-gated (callable in CI) and IPC is double-gated by debug_assertions AND feature \"swarm_ipc\"; the ScenarioRegistry accepts custom scenarios per the extensibility red-team control.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 2
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "validator_reports_phase1/MT-036.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1\\validator_reports_phase1\\MT-036.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  }
+}

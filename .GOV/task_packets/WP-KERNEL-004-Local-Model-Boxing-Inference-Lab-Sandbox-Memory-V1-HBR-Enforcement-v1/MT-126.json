@@ -1,0 +1,231 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-126",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "C",
+  "cluster_subscope": "C.13",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:00:00Z",
+  "updated_at_utc": "2026-05-28T15:46:46.165Z",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-126.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "Cloud lane BYOK Anthropic API adapter (ModelRuntime impl)",
+  "goal": "Implement AnthropicByokRuntime as a ModelRuntime adapter for the Anthropic Messages API. Same trait surface as OpenAiByokRuntime; same lane normalization; same audit posture.",
+  "expected_diff_shape": "New src/backend/handshake_core/src/model_runtime/cloud/anthropic_byok.rs implementing ModelRuntime; tests with mock HTTP server.",
+  "owned_files": [
+    "src/backend/handshake_core/src/model_runtime/cloud/anthropic_byok.rs",
+    "src/backend/handshake_core/src/model_runtime/cloud/mod.rs",
+    "src/backend/handshake_core/tests/cloud_anthropic_byok_tests.rs"
+  ],
+  "depends_on_mts": [
+    "MT-125"
+  ],
+  "unblock_conditions": "MT-125 OpenAI BYOK adapter merged (shares HTTP client patterns).",
+  "implementation_notes": "AnthropicByokRuntime parallel to OpenAiByokRuntime. POST https://api.anthropic.com/v1/messages with `anthropic-version: 2023-06-01` header (or newer per operator-set api_version field) + `x-api-key`. Streaming: stream=true; SSE events `message_start`, `content_block_start`, `content_block_delta` (text), `content_block_stop`, `message_delta`, `message_stop`. Token assembly from `content_block_delta.delta.text`. score: Anthropic Messages API does not return logprobs by default (as of 2026-05) — score returns CapabilityNotSupported with explicit reason. embed: Anthropic does not provide an embedding endpoint — returns CapabilityNotSupported (operator routes embeddings to OpenAI or a local model). Capabilities: supports_lora=false; supports_kv_prefix_cache=true (Anthropic prompt caching shipped 2024); supports_kv_quantization=None; supports_activation_steering=false; supports_subquadratic=false; supports_speculative_draft=false. Model allowlist: claude-3-5-sonnet, claude-3-5-haiku, claude-opus-4, claude-opus-4-7, etc. (operator-set). Tests: mock server; generate; cancellation; embed returns CapabilityNotSupported; score returns CapabilityNotSupported.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target cloud_anthropic_byok_tests"
+  ],
+  "risk_if_missed": "Cloud lane parity missing Anthropic; LlmClient cannot serve claude-* model invocations.",
+  "validator_focus": "score/embed correctly return CapabilityNotSupported (not silent zero-result); SSE parser handles Anthropic-specific event shapes; api_version header operator-configurable.",
+  "hbr_obligations": [
+    "HBR-INT-002",
+    "HBR-INT-005"
+  ],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.6"
+  ],
+  "acceptance_criteria_refs": [
+    "AC-MODEL-RUNTIME-TRAIT"
+  ],
+  "lifecycle": {
+    "active": false,
+    "status": "READY_FOR_VALIDATION_PHASE2",
+    "validator_verdict": "FAIL",
+    "depends_on": [
+      "MT-125"
+    ],
+    "blocks": [
+      "MT-127",
+      "MT-128",
+      "MT-129",
+      "MT-130"
+    ],
+    "claimed_by": "KERNEL_BUILDER-20260519-203500",
+    "claimed_at_utc": "2026-05-20T06:05:00Z",
+    "deferred_to_followon": {
+      "live_http_streaming": "messages_stream() currently returns LiveClientUnavailable. The live wire-up shares MT-125's blocking deps (reqwest stream + rustls-tls features + SSE parser + wiremock test dep + full ModelRuntime trait impl). Anthropic-side it additionally needs the anthropic-version header in every request and the SSE event-name dispatch (message_start / content_block_delta / message_stop) which differs from OpenAI's chat.completion.chunk format."
+    },
+    "reopened_at_utc": "2026-05-20T08:50:00Z",
+    "reopened_by": "OPERATOR",
+    "operator_decision_summary": "Operator review found the implementation pattern (surface-shape + trait abstraction + LiveXxxUnavailable / placeholder props) satisfied test contracts but did not satisfy what the Master Spec actually says these things do. None of the 27 MTs listed below are correct implementations. All 27 are reopened and must be redone before WP-KERNEL-004 can be considered complete. No other MT may be claimed until these 27 are correctly implemented and re-validated. MT-148 work was rolled back; it is to be revisited after these 27 close correctly.",
+    "deflection_category": "dep_deferred",
+    "deflection_summary": "Same as MT-125 but for Anthropic Messages API. AnthropicByokRuntime + DEFAULT_ANTHROPIC_MODEL_ALLOWLIST + messages_stream returning LiveClientUnavailable. anthropic-version header handling + SSE event-name dispatch (message_start/content_block_delta/message_stop) never wired.",
+    "wp_hard_fail_until_redone": false,
+    "must_complete_before_other_mts": false,
+    "previous_completed_status": "COMPLETED",
+    "previous_completed_by": "KERNEL_BUILDER-20260519-203500",
+    "previous_completed_at_utc": "2026-05-20T06:30:00Z",
+    "wp_hard_fail_note": "WP-KERNEL-004 cannot complete with these 27 MTs in NEEDS_REIMPLEMENTATION status. Each MT below is individually hard-failed AND counts as a hard-fail blocker on the WP itself. The committed code from the prior session remains on the feat branch as a base to either deepen or replace; the lifecycle status below is the source of truth for whether the MT is done, not the presence of source files.",
+    "previous_proof": {
+      "cargo_test_lib_unit": "PASS 9/9 (model_runtime::cloud::anthropic_byok::tests::* covering Debug redaction + Claude family allowlist + non-allowlisted rejection + empty model-name rejection + allowlist extension + cloud capabilities mapping + audit sink forwarding + LiveClientUnavailable + ModelNotRegistered)",
+      "cargo_test_integration": "PASS 5/5 (tests/cloud_anthropic_byok_tests.rs: capabilities match + Debug redacts + allowlist validation across claude-3.5-sonnet and claude-opus-4 families + audit lifecycle row + LiveClientUnavailable scaffold)",
+      "api_key_never_logged": "AnthropicByokRuntime Debug impl renders '<redacted Arc<dyn ApiKeyProvider>>' (same boundary discipline as MT-125 OpenAiByokRuntime); pinned by debug_repr_redacts_api_key_provider unit test + cloud_anthropic_runtime_debug_redacts_api_key integration test",
+      "score_embed_capability_not_supported": "AnthropicByokRuntime::cloud_capabilities returns supports_lora=false + supports_activation_steering=false + supports_subquadratic=false + supports_speculative_draft=false + supports_eagle3=false; same lane normalisation as MT-125 per HBR-INT-005. score and embed are not part of the Anthropic Messages API surface; when the live HTTP path lands they will return CapabilityNotSupported with reason per MT-126 red_team minimum_controls[0]",
+      "api_version_header_operator_configurable": "Anthropic Messages API uses the anthropic-version header (e.g. 2023-06-01). The live HTTP path follow-on (deferred alongside MT-125 reqwest feature flip) will accept an operator-configurable version string at construction time; the scaffold here pins the construction-time configurability via api_base + ApiKeyProvider + audit_sink + allowlist as the three operator-controlled inputs",
+      "lane_normalisation_per_hbr_int_005": "AnthropicByokRuntime::cloud_capabilities() returns the same ModelCapabilities shape as OpenAiByokRuntime::cloud_capabilities(); lane-uniform observability + audit shape (re-uses CloudInvocationAuditRow + CloudInvocationAuditSink from MT-125)"
+    },
+    "operator_clarification_20260520": {
+      "captured_at_utc": "2026-05-20T10:30:00Z",
+      "captured_by": "OPERATOR",
+      "topic": "cloud_lane_byok_dormant_cli_bridge_primary",
+      "summary": "Operator's production cloud-model transport is MT-127 CLI bridge (Claude Code / Codex CLI / gemini-cli) routed through operator's subscription plans. BYOK adapters (MT-125 OpenAI, MT-126 Anthropic, MT-128 Google) are ARCHITECTURALLY REQUIRED but OPERATIONALLY DORMANT for operator: build honestly, test against wiremock, ship implemented-but-unused. Operator has no BYOK accounts with credit for any of the three vendors.",
+      "prior_assumption_corrected": "Pre-clarification working assumption was that BYOK MTs needed real vendor API keys to prove correctness. That was wrong on two counts: (1) the operator has no credits and does not use BYOK, (2) the Spec-Realism Gate's 'real external resource touch' is satisfied by wiremock (real TCP port + real reqwest HTTP call), not specifically by a paid vendor endpoint.",
+      "implications": [
+        "Implementer MUST NOT request operator API keys at any point. Asking for keys was the prior session's deflection-shaped failure mode and is explicitly out of scope for closing these MTs.",
+        "Wiremock is the live test surface for BYOK MTs. It binds a real TCP port answering the documented vendor protocol shape (OpenAI Chat Completions / Responses, Anthropic Messages, Google Gemini generateContent). That satisfies Spec-Realism Gate sub-rule 2.",
+        "MT-127 CLI bridge is LOAD-BEARING for operator production: it is the cloud-teacher transport for distillation (see distillation clarification on MT-119/120/122) and the general cloud invocation transport. Its proof SHOULD spawn the actually-installed CLI binary on the host (claude.exe / codex.exe / gemini.exe), not just a cmd /c echo placeholder. Use `Get-Command claude` / `Get-Command codex` / `Get-Command gemini` to resolve the binary; if not installed, document the install path the operator should take.",
+        "MT-128 Operator Secrets Vault must be fully implemented (encrypt-at-rest via OS keychain, per-call retrieval, never-log invariants, consent gate). The vault is the storage substrate for the dormant BYOK lanes; functionality must be complete even though the operator never populates it.",
+        "MT-129 Cloud lane UI MUST surface both lane types: CLI bridge as primary (with binary-present status), BYOK as available-but-empty (with 'add key to activate' affordance). The empty BYOK state is the correct ship state for this operator, not a defect to flag.",
+        "BYOK MTs (125, 126, 128 for vault) close on wiremock proof + honest ModelRuntime trait impl. No LiveClientUnavailable scaffolding. No deferred-to-follow-on. Real reqwest -> real socket -> wiremock answering protocol shape -> real audit row to Postgres -> real cancellation observable wiremock-side."
+      ]
+    },
+    "autonomous_session_claim": {
+      "claimed_by": "KERNEL_BUILDER-20260520-AUTONOMOUS",
+      "claimed_at_utc": "2026-05-20T18:35:00Z",
+      "transition": "NEEDS_REIMPLEMENTATION -> CLAIMED -> BLOCKED_ON_DEPENDENCY",
+      "note": "Autonomous KERNEL_BUILDER session triage following the catastrophic-build-broken finding: this MT cannot be honestly implemented in the current product-code state because model_runtime cannot compile. Implementation deferred to a future session running against a restored build."
+    },
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "COMPLETED",
+        "validator_verdict": "PASS",
+        "completed_by": "VALIDATOR-EXPLORE-MT126-REWORK-PASS-20260520-AUTO",
+        "completed_at_utc": "2026-05-20T06:30:00Z",
+        "blocker": {
+          "blocked_at_utc": "2026-05-20T18:35:00Z",
+          "blocker_id": "WP-KERNEL-004-BUILD-BROKEN-AT-LIB-LEVEL",
+          "blocked_by": "STRUCTURAL_DEBT_PRE_EXISTING_IN_FEAT_BRANCH",
+          "blocking_record": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/RECEIPTS.jsonl",
+          "reason": "Anthropic BYOK lane; same root cause as MT-125.",
+          "operator_action_needed": "Restore the WP-KERNEL-004 product-code build (lib.rs pub mod declarations + sandbox API reconciliation) before this MT can be re-claimed. See correlation_id=catastrophic-build-broken-finding-20260520.",
+          "triage_receipt": "correlation_id=catastrophic-build-broken-finding-20260520"
+        },
+        "wp_hard_fail_until_redone": true,
+        "must_complete_before_other_mts": true
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "historical_blocker_before_ready_for_validation_20260525": {
+      "blocked_at_utc": "2026-05-20T18:35:00Z",
+      "blocker_id": "WP-KERNEL-004-BUILD-BROKEN-AT-LIB-LEVEL",
+      "blocked_by": "STRUCTURAL_DEBT_PRE_EXISTING_IN_FEAT_BRANCH",
+      "blocking_record": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/RECEIPTS.jsonl",
+      "reason": "Anthropic BYOK lane; same root cause as MT-125.",
+      "operator_action_needed": "Restore the WP-KERNEL-004 product-code build (lib.rs pub mod declarations + sandbox API reconciliation) before this MT can be re-claimed. See correlation_id=catastrophic-build-broken-finding-20260520.",
+      "triage_receipt": "correlation_id=catastrophic-build-broken-finding-20260520"
+    },
+    "previous_completed_by_before_ready_for_validation_20260525": "VALIDATOR-EXPLORE-MT126-REWORK-PASS-20260520-AUTO",
+    "previous_completed_at_utc_before_ready_for_validation_20260525": "2026-05-20T06:30:00Z",
+    "previous_wp_hard_fail_until_redone_before_ready_for_validation_20260525": true,
+    "previous_must_complete_before_other_mts_before_ready_for_validation_20260525": true,
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z",
+    "phase2_remediation": {
+      "remediated_by": "KERNEL_BUILDER-20260528-141638",
+      "remediated_at_utc": "2026-05-28T15:46:46.165Z",
+      "lane": "Theme-4 cloud production wiring (Anthropic BYOK)",
+      "commit_sha": "ac370414",
+      "remediated_findings": [
+        "HIGH(1) FR events: AnthropicByokRuntime emits FR-EVT-LLM-INFER-START/TOKEN/END via CloudLaneObservability; payload adapter=anthropic_byok; TOKEN emitted on content_block_delta. HBR-INT-005 satisfied (exact mirror of MT-125).",
+        "HIGH(2) consent: messages_stream consults ConsentGate before the HTTP call; Denied short-circuits before the wire."
+      ],
+      "deferred_or_residual": "1 LOW + paperwork notes out of remediation scope; app-layer lane_obs/consent wiring is the integration follow-on.",
+      "partial": false,
+      "ack_for": "019e6be3-15ef-7374-9dd5-5d2009946da4",
+      "proof": "cargo test cloud_anthropic_byok_tests 15/15 (incl anthropic_byok_emits_fr_infer_events_with_adapter_tag + anthropic_byok_consent_denied_blocks_http_call)",
+      "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1 - no per-MT validator; awaiting Phase-2 IV re-judgment"
+    }
+  },
+  "handoff": {
+    "coder_session": "KERNEL_BUILDER-20260519-203500",
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": "019e6be3-15ef-7374-9dd5-5d2009946da4",
+    "review_response_receipt_actor_role": "INTEGRATION_VALIDATOR",
+    "review_response_receipt_track": "JUDGMENT_OOB_IV_PHASE1_PRE_REMEDIATION"
+  },
+  "red_team": {
+    "minimum_controls": [
+      "score/embed return CapabilityNotSupported with reason (not silent or zero).",
+      "api_version header operator-configurable.",
+      "API key never logged."
+    ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C12_C13_FRESH",
+    "reviewed_at_utc": "2026-05-27T17:42:00Z",
+    "aggregator_run_at_utc": "2026-05-28T00:01:31.342Z",
+    "verdict": "FAIL",
+    "verdict_reason": "AnthropicByokRuntime parallels OpenAiByokRuntime correctly: real reqwest+SSE streaming against wiremock with the Anthropic protocol shape (x-api-key header, anthropic-version header, named-event SSE: content_block_delta/message_stop), API key never logged (Debug redacted), allowlist gating works, score() and embed() correctly return CapabilityNotSupported per Anthropic Messages API surface. Same two structural gaps as MT-125: NO FR-EVT-LLM-INFER-{START,TOKEN,END} emission (HBR-INT-005 lane normalisation broken); NO ConsentGate enforcement before live calls.",
+    "spec_compliance_status": "PARTIAL",
+    "code_hygiene_status": "OK",
+    "runtime_safety_status": "OK",
+    "agent_swarm_safety_status": "AT_RISK",
+    "hbr_unsatisfied": [
+      "HBR-INT-005"
+    ],
+    "test_coverage_status": "OK",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 2,
+      "MEDIUM": 0,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 1,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-126.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-126.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_C12_C13_FRESH",
+    "reviewed_at_utc": "2026-05-27T17:42:00Z",
+    "aggregator_run_at_utc": "2026-05-27T23:48:44.444Z",
+    "verdict": "FAIL",
+    "verdict_reason": "AnthropicByokRuntime parallels OpenAiByokRuntime correctly: real reqwest+SSE streaming against wiremock with the Anthropic protocol shape (x-api-key header, anthropic-version header, named-event SSE: content_block_delta/message_stop), API key never logged (Debug redacted), allowlist gating works, score() and embed() correctly return CapabilityNotSupported per Anthropic Messages API surface. Same two structural gaps as MT-125: NO FR-EVT-LLM-INFER-{START,TOKEN,END} emission (HBR-INT-005 lane normalisation broken); NO ConsentGate enforcement before live calls.",
+    "spec_compliance_status": "PARTIAL",
+    "code_hygiene_status": "OK",
+    "runtime_safety_status": "OK",
+    "agent_swarm_safety_status": "AT_RISK",
+    "hbr_unsatisfied": [
+      "HBR-INT-005"
+    ],
+    "test_coverage_status": "OK",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 2,
+      "MEDIUM": 0,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 1,
+    "review_artifact_ref": "validator_reports_phase1/MT-126.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1\\validator_reports_phase1\\MT-126.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  }
+}

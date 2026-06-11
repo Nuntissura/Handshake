@@ -1,0 +1,407 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-195",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "X",
+  "cluster_subscope": "X.3",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:19:00Z",
+  "updated_at_utc": "2026-05-28T00:01:44.981Z",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-195.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "Crash recovery integration test corpus + failure-mode coverage matrix",
+  "goal": "Build the end-to-end crash recovery test corpus that exercises every documented failure mode of cluster X.3 in an integration setting: clean shutdown, SIGKILL mid-iteration, Postgres connection loss mid-checkpoint, orphan processes, event-seq gaps, idempotency conflicts, and operator-cancel during recovery. Mandatory because the folded WP-1-Session-Crash-Recovery-Checkpointing-v1 stub demands 'deterministic failure modes and explicit evidence.'",
+  "expected_diff_shape": "New integration test crate src/backend/handshake_core/tests/crash_recovery_e2e/ with one test file per failure mode + a shared harness module + a goldenfile evidence corpus under tests/fixtures/crash_recovery_evidence/.",
+  "owned_files": [
+    "src/backend/handshake_core/tests/crash_recovery_e2e/mod.rs",
+    "src/backend/handshake_core/tests/crash_recovery_e2e/clean_shutdown.rs",
+    "src/backend/handshake_core/tests/crash_recovery_e2e/sigkill_mid_iteration.rs",
+    "src/backend/handshake_core/tests/crash_recovery_e2e/postgres_loss.rs",
+    "src/backend/handshake_core/tests/crash_recovery_e2e/orphan_process.rs",
+    "src/backend/handshake_core/tests/crash_recovery_e2e/event_seq_gap.rs",
+    "src/backend/handshake_core/tests/crash_recovery_e2e/idempotency_conflict.rs",
+    "src/backend/handshake_core/tests/crash_recovery_e2e/operator_cancel_during_recovery.rs",
+    "src/backend/handshake_core/tests/fixtures/crash_recovery_evidence/.gitkeep"
+  ],
+  "depends_on_mts": [
+    "MT-190",
+    "MT-191",
+    "MT-192",
+    "MT-193",
+    "MT-194"
+  ],
+  "unblock_conditions": "All X.3 primitives + restart orchestrator + idempotency layer merged.",
+  "implementation_notes": "Each test file exercises one failure mode with a deterministic seed and expected ResumeReport. Shared harness module provides: (a) `CrashRecoveryHarness::new(scenario)` spins up a Postgres test container, seeds it with a scenario fixture, then runs a Handshake-subprocess (or in-process simulator) until the simulated crash point; (b) `harness.simulate_crash(kind)` executes the failure (SIGKILL, db disconnect, etc.); (c) `harness.restart()` invokes RestartResumeOrchestrator (MT-193) on the fresh process; (d) `harness.expect_resume_report(expected: ResumeReport)` asserts the report matches and persists evidence to tests/fixtures/crash_recovery_evidence/<scenario>.json for forensic comparison. Failure mode matrix: clean_shutdown -> all sessions resumed cleanly; sigkill_mid_iteration -> sessions resumed with one outcome=Failure recorded for the killed MT; postgres_loss -> orchestrator emits FR-EVT-RESTART-RESUME-DB-UNAVAILABLE, retries with backoff, eventually resumes when db returns; orphan_process -> reclaim hook (MT-186 forced cancellation) invoked, then resume; event_seq_gap -> sessions_recovery_failed populated, operator decision_request posted; idempotency_conflict -> AlreadyApplied path verified, no double side effects; operator_cancel_during_recovery -> resume aborted gracefully, session marked Cancelled with reason. Every test asserts: (1) ResumeReport.sessions_resumed and sessions_recovery_failed counts exact; (2) FR events emitted in expected order; (3) goldenfile match (tolerant of timestamps via canonicalization). The whole suite runs under `cargo test -p handshake_core --test crash_recovery_e2e`.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target --test crash_recovery_e2e -- --test-threads=1"
+  ],
+  "risk_if_missed": "Without an integration test corpus, all X.3 unit tests pass individually but the end-to-end recovery path may silently break — and the operator only finds out during a real crash. The folded stub's 'deterministic failure modes and explicit evidence' invariant cannot be validated.",
+  "validator_focus": "Every failure mode has a dedicated test; goldenfile evidence corpus is byte-stable (modulo canonicalized timestamps); FR event ordering asserted not just presence.",
+  "hbr_obligations": [
+    "HBR-INT-001",
+    "HBR-INT-008",
+    "HBR-SWARM-002"
+  ],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/05-security-and-observability.md#5",
+    ".GOV/spec/master-spec-v02.186/spec-modules/05-security-and-observability.md#5.7.5"
+  ],
+  "acceptance_criteria_refs": [
+    "PRESERVED_INTENT:WP-1-Session-Crash-Recovery-Checkpointing-v1 (deterministic failure modes + explicit evidence)"
+  ],
+  "lifecycle": {
+    "active": true,
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "PASS",
+    "integration_validator_verdict": "PENDING",
+    "depends_on": [
+      "MT-190",
+      "MT-191",
+      "MT-192",
+      "MT-193",
+      "MT-194"
+    ],
+    "blocks": [],
+    "claimed_by": "KERNEL_BUILDER-20260524-050725",
+    "claimed_at_utc": "2026-05-24T05:58:57.21Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260524-050725",
+    "ready_for_validation_at_utc": "2026-05-24T10:44:42.829Z",
+    "implementation_record": {
+      "summary": "MT-195 now combines the deterministic golden crash-recovery corpus with live Postgres runtime-chaos evidence. The golden suite still covers clean shutdown, SIGKILL-style interruption, Postgres loss, orphan process reclaim, event-seq gap, idempotency conflict, and operator cancel. The live runtime-chaos tests additionally prove persisted kernel_restart_resume_report rows, role mailbox decision rows, checkpoint/process evidence after a hard-killed test child process, pg_terminate_backend database-loss evidence without shared database damage, a real handshake_core app-runtime binary startup-recovery pass against production migrations/tables in an isolated Postgres schema, and transient DB-unavailable backoff/reconnect resume without stopping or damaging shared Postgres.",
+      "files_modified": [
+        "src/backend/handshake_core/tests/crash_recovery_e2e/mod.rs",
+        "src/backend/handshake_core/tests/crash_recovery_e2e/clean_shutdown.rs",
+        "src/backend/handshake_core/tests/crash_recovery_e2e/sigkill_mid_iteration.rs",
+        "src/backend/handshake_core/tests/crash_recovery_e2e/postgres_loss.rs",
+        "src/backend/handshake_core/tests/crash_recovery_e2e/orphan_process.rs",
+        "src/backend/handshake_core/tests/crash_recovery_e2e/event_seq_gap.rs",
+        "src/backend/handshake_core/tests/crash_recovery_e2e/idempotency_conflict.rs",
+        "src/backend/handshake_core/tests/crash_recovery_e2e/operator_cancel_during_recovery.rs",
+        "src/backend/handshake_core/tests/crash_recovery_e2e/runtime_chaos.rs",
+        "src/backend/handshake_core/tests/crash_recovery_e2e/runtime_child.rs",
+        "src/backend/handshake_core/tests/crash_recovery_e2e/runtime_postgres.rs",
+        "src/backend/handshake_core/tests/fixtures/crash_recovery_evidence/.gitkeep",
+        "src/backend/handshake_core/tests/fixtures/crash_recovery_evidence/clean_shutdown.json",
+        "src/backend/handshake_core/tests/fixtures/crash_recovery_evidence/sigkill_mid_iteration.json",
+        "src/backend/handshake_core/tests/fixtures/crash_recovery_evidence/postgres_loss.json",
+        "src/backend/handshake_core/tests/fixtures/crash_recovery_evidence/orphan_process.json",
+        "src/backend/handshake_core/tests/fixtures/crash_recovery_evidence/event_seq_gap.json",
+        "src/backend/handshake_core/tests/fixtures/crash_recovery_evidence/idempotency_conflict.json",
+        "src/backend/handshake_core/tests/fixtures/crash_recovery_evidence/operator_cancel_during_recovery.json",
+        "src/backend/handshake_core/Cargo.toml",
+        "src/backend/handshake_core/src/main.rs",
+        "src/backend/handshake_core/src/process_ledger/restart_resume.rs"
+      ],
+      "test_results": [
+        {
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --target-dir D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target --test crash_recovery_e2e -- --test-threads=1 --nocapture",
+          "exit_code": 101,
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/mt195-crash-recovery-target-red-20260524-0715.log",
+          "note": "Expected red: crash_recovery_e2e target did not exist."
+        },
+        {
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --target-dir D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target --test crash_recovery_e2e -- --test-threads=1 --nocapture",
+          "exit_code": 0,
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/mt195-crash-recovery-e2e-final-green-20260524-0729.log",
+          "note": "Seven scenario tests passed serially against canonical golden evidence."
+        },
+        {
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --target-dir D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target --test session_checkpoint_tests mt_195 -- --test-threads=1 --nocapture",
+          "exit_code": 0,
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/mt195-session-checkpoint-adjacent-green-20260524-0730.log",
+          "note": "Existing folded session_checkpoint MT-195 smoke still passes."
+        },
+        {
+          "command": "rustfmt --edition 2021 src/backend/handshake_core/tests/crash_recovery_e2e/mod.rs src/backend/handshake_core/tests/crash_recovery_e2e/clean_shutdown.rs src/backend/handshake_core/tests/crash_recovery_e2e/sigkill_mid_iteration.rs src/backend/handshake_core/tests/crash_recovery_e2e/postgres_loss.rs src/backend/handshake_core/tests/crash_recovery_e2e/orphan_process.rs src/backend/handshake_core/tests/crash_recovery_e2e/event_seq_gap.rs src/backend/handshake_core/tests/crash_recovery_e2e/idempotency_conflict.rs src/backend/handshake_core/tests/crash_recovery_e2e/operator_cancel_during_recovery.rs",
+          "exit_code": 0,
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/mt195-rustfmt-green-20260524-0728.log",
+          "note": "New crash_recovery_e2e Rust files are rustfmt-clean."
+        },
+        {
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --target-dir D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target --test crash_recovery_e2e -- --test-threads=1 --nocapture",
+          "exit_code": 0,
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-test/mt195-runtime/nonignored-crash-recovery-e2e-rerun-after-governance-20260524-130400.log",
+          "note": "Golden crash recovery corpus passed: 7 passed, 5 ignored."
+        },
+        {
+          "command": "POSTGRES_TEST_URL=<local Postgres>; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --target-dir D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target --test crash_recovery_e2e runtime_chaos::mt195_runtime -- --ignored --test-threads=1 --nocapture",
+          "exit_code": 0,
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-test/mt195-runtime/ignored-live-crash-recovery-e2e-runtime-chaos-only-20260524-130700.log",
+          "note": "Narrow live runtime-chaos proof passed: four live Postgres runtime_chaos tests only."
+        },
+        {
+          "command": "POSTGRES_TEST_URL=<local Postgres>; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --target-dir D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target --test crash_recovery_e2e mt195_runtime -- --ignored --test-threads=1 --nocapture",
+          "exit_code": 0,
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-test/mt195-runtime/ignored-live-crash-recovery-e2e-rerun-after-governance-20260524-130500.log",
+          "note": "Broader filter also passed 5 tests, including the internal runtime_child entrypoint because its name includes mt195_runtime; cite the narrower runtime_chaos::mt195_runtime command for scenario-only validation."
+        },
+        {
+          "command": "POSTGRES_TEST_URL=<local Postgres>; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --target-dir D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target --test crash_recovery_e2e mt195_runtime_real_handshake_core_binary_runs_startup_recovery_and_persists_report -- --ignored --exact --nocapture",
+          "exit_code": 101,
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-test/mt195-runtime/mt195-real-binary-startup-recovery-missing-harness-red-20260524-133700.log",
+          "note": "Expected red: new real-binary runtime-chaos test referenced a missing runtime_child harness function before implementation."
+        },
+        {
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --target-dir D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target --test crash_recovery_e2e --no-run",
+          "exit_code": 0,
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-test/mt195-runtime/mt195-crash-recovery-compile-after-real-binary-patch-20260524-135000.log",
+          "note": "Crash-recovery target compiled after adding the real-binary harness and startup-recovery-only hook."
+        },
+        {
+          "command": "POSTGRES_TEST_URL=<local Postgres>; HANDSHAKE_ARTIFACT_ROOT=<artifact root>; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,app-runtime --target-dir D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target --test crash_recovery_e2e runtime_chaos::mt195_runtime_real_handshake_core_binary_runs_startup_recovery_and_persists_report -- --ignored --exact --test-threads=1 --nocapture",
+          "exit_code": 0,
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-test/mt195-runtime/mt195-real-binary-startup-recovery-green-20260524-140500.log",
+          "note": "Real handshake_core app-runtime binary spawned without a foreground window, ran production startup restart-resume against an isolated Postgres schema, wrote a startup-recovery report, and exited before binding the server."
+        },
+        {
+          "command": "POSTGRES_TEST_URL=<local Postgres>; HANDSHAKE_ARTIFACT_ROOT=<artifact root>; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,app-runtime --target-dir D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target --test crash_recovery_e2e runtime_chaos::mt195_runtime -- --ignored --test-threads=1 --nocapture",
+          "exit_code": 0,
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-test/mt195-runtime/mt195-runtime-chaos-with-real-binary-green-20260524-141000.log",
+          "note": "Full live runtime-chaos slice passed with five tests: backend termination, event gap, hard-kill child, operator cancel, and real handshake_core binary startup recovery."
+        },
+        {
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --target-dir D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target --test crash_recovery_e2e -- --test-threads=1 --nocapture",
+          "exit_code": 0,
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-test/mt195-runtime/mt195-nonignored-golden-after-real-binary-20260524-141300.log",
+          "note": "Non-ignored golden crash-recovery corpus still passed after the real-binary runtime-chaos addition: 7 passed, 6 ignored."
+        },
+        {
+          "command": "POSTGRES_TEST_URL=<local Postgres>; HANDSHAKE_ARTIFACT_ROOT=<artifact root>; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,app-runtime --target-dir D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target --test crash_recovery_e2e runtime_chaos::mt195_runtime_transient_db_unavailable_backs_off_and_resumes_after_db_return_without_shared_db_damage -- --ignored --exact --test-threads=1 --nocapture",
+          "exit_code": 101,
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-test/mt195-runtime/mt195-transient-db-backoff-missing-harness-red-20260524-143000.log",
+          "note": "Expected red: new transient-DB-backoff runtime-chaos test referenced a missing runtime_postgres harness function before implementation."
+        },
+        {
+          "command": "POSTGRES_TEST_URL=<local Postgres>; HANDSHAKE_ARTIFACT_ROOT=<artifact root>; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,app-runtime --target-dir D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target --test crash_recovery_e2e runtime_chaos::mt195_runtime_transient_db_unavailable_backs_off_and_resumes_after_db_return_without_shared_db_damage -- --ignored --exact --test-threads=1 --nocapture",
+          "exit_code": 0,
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-test/mt195-runtime/mt195-transient-db-backoff-green-attempt-20260524-144000.log",
+          "note": "Transient DB-unavailable backoff proof passed using a closed-pool first attempt, bounded retry delay, reconnect to the same isolated production schema, persisted FR-EVT-RESTART-RESUME-DB-UNAVAILABLE evidence, and no shared DB stop."
+        },
+        {
+          "command": "POSTGRES_TEST_URL=<local Postgres>; HANDSHAKE_ARTIFACT_ROOT=<artifact root>; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,app-runtime --target-dir D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target --test crash_recovery_e2e runtime_chaos::mt195_runtime -- --ignored --test-threads=1 --nocapture",
+          "exit_code": 0,
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-test/mt195-runtime/mt195-runtime-chaos-with-real-binary-and-db-backoff-green-20260524-144500.log",
+          "note": "Full live runtime-chaos slice passed with six tests: backend termination, event gap, hard-kill child, operator cancel, real handshake_core binary startup recovery, and transient DB-unavailable backoff."
+        },
+        {
+          "command": "POSTGRES_TEST_URL=<local Postgres>; HANDSHAKE_ARTIFACT_ROOT=<artifact root>; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,app-runtime --target-dir D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target --test crash_recovery_e2e mt193_ -- --ignored --test-threads=1 --nocapture",
+          "exit_code": 0,
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-test/mt195-runtime/mt193-postgres-after-db-backoff-green-20260524-145100.log",
+          "note": "Adjacent MT-193 live Postgres restart-resume coverage still passed after adding the DB-unavailable retry wrapper."
+        },
+        {
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --target-dir D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target --test crash_recovery_e2e -- --test-threads=1 --nocapture",
+          "exit_code": 0,
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-test/mt195-runtime/mt195-nonignored-golden-after-db-backoff-20260524-145400.log",
+          "note": "Non-ignored golden crash-recovery corpus still passed after the DB-backoff addition: 7 passed, 7 ignored."
+        },
+        {
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --target-dir D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target --test crash_recovery_e2e -- --test-threads=1 --nocapture",
+          "exit_code": 0,
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-test/mt195-runtime/mt195-final-nonignored-golden-20260524-124100.log",
+          "note": "Fresh final verification after governance patch: non-ignored golden crash-recovery corpus passed with 7 passed, 0 failed, 7 ignored."
+        },
+        {
+          "command": "POSTGRES_TEST_URL=<local Postgres>; HANDSHAKE_ARTIFACT_ROOT=<artifact root>; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,app-runtime --target-dir D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target --test crash_recovery_e2e runtime_chaos::mt195_runtime -- --ignored --test-threads=1 --nocapture",
+          "exit_code": 0,
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-test/mt195-runtime/mt195-final-live-runtime-chaos-20260524-124200.log",
+          "note": "Fresh final verification after governance patch: live runtime-chaos slice passed with 6 passed, 0 failed, including real handshake_core startup recovery and transient DB-unavailable backoff."
+        },
+        {
+          "command": "POSTGRES_TEST_URL=<local Postgres>; HANDSHAKE_ARTIFACT_ROOT=<artifact root>; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,app-runtime --target-dir D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target --test restart_resume_postgres_tests -- --ignored --test-threads=1 --nocapture",
+          "exit_code": 0,
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-test/mt195-runtime/mt195-final-restart-resume-postgres-regression-ignored-20260524-124800.log",
+          "note": "Fresh final verification after governance patch: adjacent MT-193 live Postgres restart-resume regression passed with 3 passed, 0 failed."
+        }
+      ],
+      "red_team_coverage": {
+        "golden_canonicalization": "The harness drops volatile UUIDs/timestamps/paths and compares stable exact-count evidence fields plus FR event order to per-scenario JSON golden files.",
+        "exact_counts": "Every golden scenario asserts exact sessions_examined, sessions_resumed, sessions_recovery_failed, operator decision request, orphan reclaim, idempotency, and cancellation counts before golden comparison.",
+        "serial_execution": "All proof commands run with --test-threads=1; live Postgres tests isolate schemas and clean up after themselves.",
+        "live_persisted_reports": "runtime_chaos::mt195_runtime_* tests assert live kernel_restart_resume_report rows for hard-kill, backend termination, event-gap, and operator-cancel scenarios.",
+        "live_mailbox_decision_rows": "event-gap and operator-cancel runtime-chaos tests assert persisted role_mailbox_v1 decision evidence rather than only in-memory hook calls.",
+        "backend_termination": "runtime_chaos::mt195_runtime_backend_termination_records_db_loss_without_shared_db_damage uses pg_terminate_backend to force a database connection loss and verifies report evidence without damaging the shared local database.",
+        "hard_kill_child_process": "runtime_chaos::mt195_runtime_hard_kill_child_leaves_checkpoint_process_evidence_and_persists_report spawns and kills the test-binary child entrypoint, then verifies checkpoint/process/report evidence.",
+        "real_handshake_core_binary_startup_recovery": "runtime_chaos::mt195_runtime_real_handshake_core_binary_runs_startup_recovery_and_persists_report spawns the real handshake_core app-runtime binary in quiet startup-recovery-only mode, points it at an isolated production-migrated Postgres schema, and verifies report, queue, post-failure checkpoint, orphan reclaim, and final counter evidence.",
+        "transient_db_unavailable_backoff": "runtime_chaos::mt195_runtime_transient_db_unavailable_backs_off_and_resumes_after_db_return_without_shared_db_damage closes the first PgPool to force a transient DB-unavailable attempt, observes bounded backoff, reconnects to the same isolated production schema, resumes recovery, persists the DB-unavailable FR event in the report, and avoids stopping shared Postgres.",
+        "failure_modes": [
+          "clean_shutdown",
+          "sigkill_mid_iteration",
+          "postgres_loss",
+          "orphan_process",
+          "event_seq_gap",
+          "idempotency_conflict",
+          "operator_cancel_during_recovery",
+          "live_runtime_backend_termination",
+          "live_runtime_hard_kill_child",
+          "live_runtime_real_handshake_core_binary_startup_recovery",
+          "live_runtime_transient_db_unavailable_backoff",
+          "live_runtime_event_gap",
+          "live_runtime_operator_cancel"
+        ]
+      },
+      "residual_risks": [
+        "Hard-kill runtime evidence still kills a test-binary child entrypoint; the new real handshake_core app-runtime proof covers production startup restart-resume and production tables, but it does not kill a real production model-run subprocess mid-iteration.",
+        "DB-loss runtime evidence now combines pg_terminate_backend connection-loss proof with closed-pool transient backoff/reconnect proof in an isolated production schema; it still does not stop and restart the PostgreSQL server or container itself.",
+        "Operator-cancel runtime evidence proves persisted report/mailbox decision behavior through the runtime chaos harness, not through a real operator UI workflow."
+      ],
+      "out_of_scope_self_evaluation": {
+        "why": "MT-195 stayed primarily in test/fixture surfaces, but the live runtime-chaos extension depends on MT-193 production restart-resume persistence and role-mailbox rows so the evidence can validate real database artifacts instead of only golden in-memory reports.",
+        "files_touched_outside_owned_files": [
+          "src/backend/handshake_core/Cargo.toml",
+          "src/backend/handshake_core/src/main.rs",
+          "src/backend/handshake_core/src/process_ledger/restart_resume.rs"
+        ],
+        "waiver_required": true
+      }
+    },
+    "latest_postgres_test_evidence_20260525": {
+      "recorded_at_utc": "2026-05-25T02:36:47.3466494Z",
+      "recorded_by": "KERNEL_BUILDER-20260525-011217",
+      "classification": "KERNEL_BUILDER_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+      "postgres_target": "postgres://postgres:***@127.0.0.1:65432/handshake_test?sslmode=disable",
+      "artifact_target_root": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target",
+      "fixes": [],
+      "tests": [
+        {
+          "scope": "MT-195",
+          "command": "POSTGRES_TEST_URL=postgres://postgres:***@127.0.0.1:65432/handshake_test?sslmode=disable HANDSHAKE_ARTIFACT_ROOT=D:/Projects/LLM projects/Handshake/Handshake_Artifacts CARGO_TARGET_DIR=D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target/wp-kernel-004-postgres-crash-recovery cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,app-runtime --test crash_recovery_e2e mt195_runtime -- --ignored --test-threads=1 --nocapture",
+          "exit_code": 0,
+          "result": "7 passed; 0 failed; 0 ignored; 7 filtered out",
+          "note": "Verified runtime crash recovery, hard-kill child evidence, real app-runtime startup recovery binary, event gap/operator cancel/backend termination/transient DB unavailable paths, and child entrypoint."
+        }
+      ],
+      "shared_risks": [
+        "This is KERNEL_BUILDER supporting evidence, not an Integration Validator verdict; lifecycle.integration_validator_verdict remains PENDING unless a validator role signs off.",
+        "Broad workspace remains dirty with many pre-existing modified/untracked files outside this session; this evidence block records only the Postgres test/fix slice listed here.",
+        "Warnings remain in unrelated library areas during cargo test; no warnings were introduced as hard errors in the verified commands.",
+        "Postgres fixture was local Docker Postgres on 127.0.0.1:65432; validators should re-run against their configured POSTGRES_TEST_URL before marking authoritative completion."
+      ]
+    },
+    "postgres_test_url_live_evidence_20260525_continuation": {
+      "authoritative_integration_validator_pass": false,
+      "classification": "KERNEL_BUILDER_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+      "not_run_or_not_claimed": [
+        "mt195_runtime_real_handshake_core_binary_runs_startup_recovery_and_persists_report was not newly run or claimed in this continuation because it requires app-runtime binary coverage."
+      ],
+      "artifact_log_root": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs",
+      "implementation_or_hardening_notes": [],
+      "postgres_test_url_redacted": "postgres://postgres:***@127.0.0.1:65432/handshake_test",
+      "proof": [
+        {
+          "log": "postgres-live-session_checkpoint_tests-20260525-resume.log",
+          "scope": "session_checkpoint_tests",
+          "note": [
+            "Session checkpoint live Postgres suite passed.",
+            "Proof"
+          ],
+          "result": "passed"
+        }
+      ],
+      "recorded_by": "KERNEL_BUILDER-POSTGRES-TEST-URL-20260525-CONTINUATION",
+      "mt_ids": [
+        "MT-190",
+        "MT-191",
+        "MT-192",
+        "MT-193",
+        "MT-194",
+        "MT-195"
+      ],
+      "summary": "Checkpoint, restart/resume, idempotency, kernel end-to-end, and selected crash-recovery live Postgres checks passed; app-runtime binary crash-recovery case was not newly claimed in this continuation.",
+      "integration_validator_status": "PENDING",
+      "residual_risks": [
+        "Supporting evidence only; Integration Validator verdict remains PENDING.",
+        "Focused Postgres/live-kernel commands were run, not a full workspace cargo test."
+      ],
+      "recorded_at_utc": "2026-05-25T10:56:03.5601331Z",
+      "cargo_target_dir": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target"
+    },
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "READY_FOR_VALIDATION",
+        "validator_verdict": "PENDING"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z"
+  },
+  "handoff": {
+    "coder_session": "KERNEL_BUILDER-20260524-050725",
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": "019e6be3-1615-7f7b-a97e-5e705a59d241",
+    "review_response_receipt_actor_role": "INTEGRATION_VALIDATOR",
+    "review_response_receipt_track": "JUDGMENT_OOB_IV_PHASE1_PRE_REMEDIATION"
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Goldenfile canonicalization documented in harness (timestamps to T-N notation, UUIDs to U-N notation, paths to repo-relative).",
+      "Each failure mode test asserts EXACT counts not just non-zero (e.g., sessions_resumed == 3 not >= 1).",
+      "Integration suite runs serially (--test-threads=1) because shared Postgres test container is the bottleneck; documented in test module preamble."
+    ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_X3_X4",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-28T00:01:31.342Z",
+    "verdict": "PASS",
+    "verdict_reason": "Golden crash-recovery corpus covers all 7 documented failure modes with byte-stable canonicalized JSON evidence; live runtime-chaos slice adds 6 live Postgres tests including a real handshake_core app-runtime binary startup-recovery proof, pg_terminate_backend DB-loss proof, hard-kill child-process proof, and transient-DB-unavailable backoff proof.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 1,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-195.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-195.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_X3_X4",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T23:48:44.444Z",
+    "verdict": "PASS",
+    "verdict_reason": "Golden crash-recovery corpus covers all 7 documented failure modes with byte-stable canonicalized JSON evidence; live runtime-chaos slice adds 6 live Postgres tests including a real handshake_core app-runtime binary startup-recovery proof, pg_terminate_backend DB-loss proof, hard-kill child-process proof, and transient-DB-unavailable backoff proof.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 1,
+    "review_artifact_ref": "validator_reports_phase1/MT-195.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1\\validator_reports_phase1\\MT-195.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  }
+}

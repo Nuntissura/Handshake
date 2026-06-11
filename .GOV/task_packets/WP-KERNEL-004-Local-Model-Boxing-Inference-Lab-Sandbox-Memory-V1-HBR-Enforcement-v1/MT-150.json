@@ -1,0 +1,214 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-150",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "D",
+  "cluster_subscope": "D.2",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:09:00Z",
+  "updated_at_utc": "2026-05-28T00:01:44.953Z",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-150.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "HBR test-packet corpus loader + 60/20/20 train/dev/holdout split with encrypted-at-rest holdout",
+  "goal": "Land the fixed ~30-item HBR test-packet corpus loader and apply the 60/20/20 train/dev/holdout split per AC-DISTILL-LOOP-SAFEGUARDS. The holdout split MUST be encrypted-at-rest using a key sourced from the operator credential store; non-holdout splits stored plain. Corpus identity is content-addressed (sha256 over canonical item bytes) so loop runs are reproducible.",
+  "expected_diff_shape": "New module src/backend/handshake_core/src/self_improve/corpus.rs (HbrTestPacketCorpus + CorpusSplit + CorpusItem + EncryptedHoldout). Corpus fixture at src/backend/handshake_core/tests/fixtures/hbr_test_packet_corpus/items.json (30 items). Tests src/backend/handshake_core/tests/corpus_split_tests.rs. Cargo.toml gains aes-gcm + chacha20poly1305 (one will be chosen by implementation) for encrypted-at-rest.",
+  "owned_files": [
+    "src/backend/handshake_core/src/self_improve/corpus.rs",
+    "src/backend/handshake_core/tests/fixtures/hbr_test_packet_corpus/items.json",
+    "src/backend/handshake_core/tests/corpus_split_tests.rs",
+    "src/backend/handshake_core/Cargo.toml"
+  ],
+  "depends_on_mts": [
+    "MT-148"
+  ],
+  "unblock_conditions": "MT-148 loop core ships.",
+  "implementation_notes": "Per AC-DISTILL-LOOP-SAFEGUARDS: '60/20/20 train/dev/holdout split with holdout encrypted-at-rest'. Per RW-6: 'held-out task eval with seed isolation'. Surface: `pub struct HbrTestPacketCorpus { items: Vec<CorpusItem>, content_hash: String }` + `pub struct CorpusSplit { train: Vec<CorpusItem>, dev: Vec<CorpusItem>, holdout: EncryptedHoldout, split_seed: u64, content_hash: String }`. Split is deterministic from (content_hash, split_seed) so reproducibility holds across runs. EncryptedHoldout: `pub struct EncryptedHoldout { ciphertext: Vec<u8>, nonce: [u8; 12], key_id: String }` with `pub fn decrypt(key_provider: &dyn KeyProvider) -> Result<Vec<CorpusItem>, CorpusError>`. Key sourcing: `pub trait KeyProvider { fn fetch_key(key_id: &str) -> Result<Vec<u8>, KeyError>; }` so production wires to the operator credential store and tests inject a fixed key. CorpusItem shape: `{ id: Uuid (v7), hbr_rule_id: String, packet_under_test: String, expected_first_pass_verdict: ValidatorVerdict, fixtures: serde_json::Value }`. Fixture committed to tests/fixtures/ has exactly 30 items spanning the 5 HBR pillars (INT/SWARM/VIS/QUIET/MAN). Tests: split sizes are exactly 18/6/6 for a 30-item corpus; split is deterministic across runs for the same seed; holdout cannot be read without the key; tampered ciphertext fails decryption; content_hash changes if any item changes.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target corpus_split_tests"
+  ],
+  "risk_if_missed": "Without holdout encryption + deterministic split, the loop overfits to dev and the Goodhart sentinel (MT-153) cannot trust holdout PASS rate as an independent signal.",
+  "validator_focus": "Encryption is real (not stub); KeyProvider trait is testable; split is deterministic across runs.",
+  "hbr_obligations": [
+    "HBR-INT-008"
+  ],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.8.3"
+  ],
+  "acceptance_criteria_refs": [
+    "AC-DISTILL-LOOP-SAFEGUARDS"
+  ],
+  "lifecycle": {
+    "active": false,
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "PASS",
+    "integration_validator_verdict": "PENDING",
+    "depends_on": [
+      "MT-148"
+    ],
+    "blocks": [
+      "MT-151",
+      "MT-152",
+      "MT-153",
+      "MT-156",
+      "MT-167"
+    ],
+    "claimed_by": "KERNEL_BUILDER-20260523-031814",
+    "claimed_at_utc": "2026-05-23T06:50:00Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260523-031814",
+    "ready_for_validation_at_utc": "2026-05-23T07:00:00Z",
+    "implementation_record": {
+      "classification": "IMPLEMENTATION_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+      "authoritative_integration_validator_pass": false,
+      "summary": "MT-150 HBR test-packet corpus loader (src/self_improve/corpus.rs, prior session 532 lines) verified + REAL AEAD CRYPTO PATCH + integration test file added. Prior session shipped hand-rolled SHA-256-CTR + HMAC-SHA256 with a doc-comment claiming 'real AEAD cipher (XChaCha20-Poly1305)' — this violated MT-150 minimum_control 'real AEAD cipher; not a stub'. This session: (a) added `chacha20poly1305 = \"0.10\"` to Cargo.toml; (b) rewrote encrypt() to use ChaCha20Poly1305::encrypt (RFC 8439); (c) rewrote EncryptedHoldout::decrypt() to use ChaCha20Poly1305::decrypt; (d) removed xor_keystream / compute_auth_tag / ct_eq helpers; (e) removed obsolete auth_tag field from EncryptedHoldout (ChaCha20-Poly1305 ciphertext layout is plaintext_bytes + 16-byte Poly1305 tag suffix); (f) updated doc comments to match impl; (g) added integration test file tests/corpus_split_tests.rs (13 tests covering fixture integrity, 5-pillar coverage, AEAD layout verification (ciphertext.len() == plaintext.len() + 16), 12-byte nonce, Poly1305 tag-tampering detection, ciphertext-body tampering detection, wrong-key-bytes rejection, determinism, content-hash sensitivity, holdout cross-pillar span). All 7 inline tests + 13 integration tests pass with the real cipher.",
+      "spec_realism_gate_self_check": {
+        "sub_rule_1_no_deferred_live_escape": "PASS — encrypt/decrypt routes through chacha20poly1305 crate's ChaCha20Poly1305::encrypt/decrypt (RFC 8439 reference implementation); no '*Unavailable' / 'pending MT-NNN' / 'deferred to follow-on' code paths.",
+        "sub_rule_2_external_resource_touch": "PASS — integration tests exercise the real cipher with real plaintext/ciphertext byte length assertions; tag-tampering test perturbs the actual Poly1305 tag bytes and confirms the cipher detects the change.",
+        "sub_rule_3_implementer_cannot_self_certify": "PASS — corpus.rs prior session + this session's crypto patch + integration tests are all on the implementer side; validator role is separate."
+      },
+      "files_touched": [
+        "src/backend/handshake_core/Cargo.toml (+chacha20poly1305 dep)",
+        "src/backend/handshake_core/src/self_improve/corpus.rs (crypto rewrite: EncryptedHoldout fields + encrypt() + EncryptedHoldout::decrypt; removed xor_keystream/compute_auth_tag/ct_eq)",
+        "src/backend/handshake_core/tests/corpus_split_tests.rs (NEW; 13 integration tests)"
+      ],
+      "implementation_files_verified_unchanged": [
+        "src/backend/handshake_core/tests/fixtures/hbr_test_packet_corpus/items.json (30 items, 5-pillar coverage)"
+      ],
+      "test_results": {
+        "inline_lib_tests": {
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib self_improve::corpus",
+          "exit_code": 0,
+          "tests_passed": 7,
+          "tests_failed": 0,
+          "note": "All 7 inline tests pass post-crypto-rewrite including tampered_ciphertext_fails_authentication (real Poly1305 catches the bit-flip same as the prior HMAC did)."
+        },
+        "corpus_split_tests": {
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test corpus_split_tests -- --nocapture",
+          "exit_code": 0,
+          "tests_passed": 13,
+          "tests_failed": 0,
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt150-validate-20260523-001.log"
+        }
+      },
+      "red_team_coverage": {
+        "holdout_is_encrypted_at_rest_with_a_real_aead_cipher_not_a_stub": "covered — chacha20poly1305 crate (RustCrypto/AEADs) is RFC 8439 reference implementation. mt150_holdout_ciphertext_includes_poly1305_tag_suffix asserts the exact tag-suffix layout (ciphertext_len == plaintext_len + 16) which is the smoking gun for ChaCha20-Poly1305 (vs the prior hand-rolled construction which produced ciphertext_len == plaintext_len with a separate 32-byte auth_tag field).",
+        "key_provider_trait_so_production_cannot_accidentally_ship_test_keys": "covered — StaticKeyProvider::deterministic is documented as test-only in source; WrongValueKeyProvider integration test demonstrates the production-shape KeyProvider trait contract and proves that matching-key_id-but-wrong-key-bytes is rejected by the cipher.",
+        "split_is_deterministic_same_seed_content_always_produces_same_split": "covered — mt150_split_with_same_seed_and_key_is_deterministic_across_invocations runs 3 splits and asserts ciphertext + nonce byte-identity; mt150_content_hash_propagates_to_split confirms hash flow; mt150_modifying_one_item_changes_corpus_hash_and_holdout_membership verifies nonce-derivation sensitivity to content."
+      },
+      "out_of_scope_self_evaluation": {
+        "edits_made": [
+          {
+            "file": "src/backend/handshake_core/Cargo.toml",
+            "change": "+ chacha20poly1305 = \"0.10\" dependency (+ doc comment)",
+            "why_unavoidable": "MT-150 contract explicitly requires aes-gcm or chacha20poly1305 for real AEAD; prior session shipped hand-rolled SHA-256-CTR + HMAC-SHA256 instead, violating minimum_control 'real AEAD cipher; not a stub'. Adding the dep is the minimum-scope fix.",
+            "operator_waiver_status": "PENDING_OPERATOR_REVIEW — Cargo.toml is the workspace deps surface; the operator may want to know a new crypto dep was added."
+          },
+          {
+            "file": "src/backend/handshake_core/src/self_improve/corpus.rs",
+            "change": "removed auth_tag field from EncryptedHoldout (semantically equivalent — ChaCha20-Poly1305 appends the Poly1305 tag to the ciphertext per the crate convention); removed xor_keystream / compute_auth_tag / ct_eq helper fns (no longer needed); rewrote encrypt() + EncryptedHoldout::decrypt() to use ChaCha20Poly1305::{encrypt,decrypt}",
+            "why_unavoidable": "Same crypto-correctness reason as Cargo.toml change. The struct field change (auth_tag removed) is the minimum necessary surface change to align with the chacha20poly1305 crate's combined-ciphertext convention.",
+            "operator_waiver_status": "PENDING_OPERATOR_REVIEW — public struct field change in self_improve::corpus::EncryptedHoldout. Downstream MT-151/152/153 would need to refactor IF they read auth_tag; current grep confirms no other reader of that field exists."
+          }
+        ],
+        "edits_avoided": [
+          "No change to the deterministic nonce derivation (derive_nonce continues to produce 12-byte SHA-256-derived nonces from content_hash + split_seed; ChaCha20-Poly1305 uses 12-byte nonces natively so no nonce-size migration was needed).",
+          "No change to KeyProvider trait or StaticKeyProvider (32-byte key requirement still matches ChaCha20Poly1305 key size).",
+          "No change to CorpusError variants (KeyProvider, InvalidKey, AuthFailure, Serialization, Deserialization, EmptyCorpus, CorpusTooSmall continue to cover the new error surface)."
+        ]
+      },
+      "residual_risks": [
+        "Deterministic nonces are a DESIGN choice for replay-friendly corpus splits; under (key, nonce) reuse with different plaintext, ChaCha20-Poly1305 confidentiality breaks. Mitigation: every distinct corpus split must have a distinct (content_hash, split_seed, key_id) tuple. Documented in EncryptedHoldout.nonce field comment.",
+        "auth_tag field removal is a breaking change to the EncryptedHoldout serde shape; any persisted EncryptedHoldout from the prior hand-rolled cipher would fail to deserialize under the new struct (missing field). Mitigation: prior session's corpus state was never persisted across runs (in-process only); no migration needed.",
+        "Cargo.toml dep addition has a transitive blast radius — chacha20poly1305 pulls in chacha20, poly1305, opaque-debug, etc. All are RustCrypto crates with audited histories; no exotic transitive surface.",
+        "No Integration Validator has reviewed MT-150."
+      ],
+      "prior_session_crypto_finding": "Prior session shipped hand-rolled SHA-256 counter-mode XOR + HMAC-SHA256 in src/self_improve/corpus.rs under a doc comment falsely claiming 'real AEAD cipher (XChaCha20-Poly1305)'. This session detected the discrepancy via the MT-150 minimum_control inspection and patched to real chacha20poly1305 crate. The prior hand-rolled construction was Encrypt-then-MAC with single key; not cryptographically broken in obvious ways but not a vetted standard primitive and not what the contract asked for."
+    },
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "READY_FOR_VALIDATION",
+        "validator_verdict": "PENDING"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z"
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": "019e6be3-15f9-706f-8ed0-ef36c6496b6b",
+    "review_response_receipt_actor_role": "INTEGRATION_VALIDATOR",
+    "review_response_receipt_track": "JUDGMENT_OOB_IV_PHASE1_PRE_REMEDIATION"
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Holdout is encrypted-at-rest with a real AEAD cipher; not a stub.",
+      "KeyProvider trait so production cannot accidentally ship test keys.",
+      "Split is deterministic; same seed + content always produces same split."
+    ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_D1_D2",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-28T00:01:31.342Z",
+    "verdict": "PASS",
+    "verdict_reason": "HbrTestPacketCorpus uses ChaCha20-Poly1305 AEAD (chacha20poly1305 crate) for holdout-at-rest encryption with deterministic 60/20/20 split via SHA-256-counter Fisher-Yates. Tampered ciphertext fails authentication; wrong-key access fails; holdout is never decrypted into the train/dev paths.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 2
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-150.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-150.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_D1_D2",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T23:48:44.444Z",
+    "verdict": "PASS",
+    "verdict_reason": "HbrTestPacketCorpus uses ChaCha20-Poly1305 AEAD (chacha20poly1305 crate) for holdout-at-rest encryption with deterministic 60/20/20 split via SHA-256-counter Fisher-Yates. Tampered ciphertext fails authentication; wrong-key access fails; holdout is never decrypted into the train/dev paths.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 2
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "validator_reports_phase1/MT-150.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1\\validator_reports_phase1\\MT-150.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  }
+}

@@ -1,0 +1,155 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-034",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "A",
+  "cluster_subscope": "A.5",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T02:30:00Z",
+  "updated_at_utc": "2026-05-28T00:01:44.889Z",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-034.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "kernel_swarm_test_harness primitive (N concurrent governed sessions)",
+  "goal": "Per spec §6.7.1 (AC-SWARM-HARNESS-PRIMITIVE) build the `kernel_swarm_test_harness` primitive that spawns N concurrent governed sessions against the same Handshake instance with no shared session state between concurrent sessions (each session independent and re-entrant).",
+  "expected_diff_shape": "New module src/backend/handshake_core/src/test_harness/{mod.rs,swarm.rs,session.rs}; SwarmHarness struct + per-session worker; tests for N=2 baseline (real N=8 lands in MT-035).",
+  "owned_files": [
+    "src/backend/handshake_core/src/test_harness/mod.rs",
+    "src/backend/handshake_core/src/test_harness/swarm.rs",
+    "src/backend/handshake_core/src/test_harness/session.rs",
+    "src/backend/handshake_core/tests/swarm_harness_baseline_tests.rs"
+  ],
+  "depends_on_mts": [
+    "MT-007",
+    "MT-008",
+    "MT-020",
+    "MT-027",
+    "MT-030"
+  ],
+  "unblock_conditions": "MT-007 ProcessLedger + MT-008 reclaim ship (each spawned session writes to ledger); MT-020 automation-first audit (swarm sessions inherit quiet-mode guarantees); MT-027 visual smoke + MT-030 replay-drive (sessions exercise the mutation surface during swarm).",
+  "implementation_notes": "Per spec §6.7.1. API: `SwarmHarness::new(n: usize, scenario: SwarmScenario) -> SwarmHarness` and `.run() -> SwarmReport`. SwarmScenario is a trait `trait SwarmScenario { fn session_steps(&self, session_idx: usize) -> Vec<SessionStep>; }` where SessionStep enum carries the per-step actions (e.g., OpenWorkspace { ws_id }, MutateViaCatalog { action_id, envelope }, ReadInspector, CloseSession). The harness: (1) for each session 0..N, spawn a tokio task with its own SessionId (UUID v7); (2) each session runs through its SessionStep list independently; (3) sessions write to a SHARED EventLedger + ProcessLedger but have NO shared in-process state (re-entrance guarantee — assert no thread_local! used outside test infra); (4) on session end, write to SwarmReport. SwarmReport: `{ n, scenario_id, sessions: Vec<SessionResult { session_id, steps_completed, errors, duration_ms, process_ledger_rows }>, total_duration_ms, contention_events: Vec<ContentionEvent>, ledger_overflow_count: u64 }`. The harness wires into MT-007 ledger writer (so overflow is observable in the report) and MT-008 reclaim (test for session-close path covers all four ReclaimTriggers). Tests: N=2 baseline — assert both sessions complete independently, no shared-state leak (verify via thread_local detection trick: each session sets a per-session marker and asserts it does not appear in the other session's read view). Real N=8 perf testing lands in MT-035.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target --test swarm_harness_baseline_tests"
+  ],
+  "risk_if_missed": "Without the swarm harness, HBR-SWARM-001/002/003/004 have no test surface; concurrency invariants are unverified.",
+  "validator_focus": "Sessions truly independent (no thread_local! leak); SwarmReport captures contention events explicitly; ProcessLedger rows correlate session_id correctly under concurrency.",
+  "hbr_obligations": [
+    "HBR-SWARM-001",
+    "HBR-SWARM-002",
+    "HBR-SWARM-003",
+    "HBR-SWARM-004",
+    "HBR-INT-008"
+  ],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/06-mechanical-integrations.md#6.7"
+  ],
+  "acceptance_criteria_refs": [
+    "AC-SWARM-HARNESS-PRIMITIVE"
+  ],
+  "lifecycle": {
+    "active": false,
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "PASS",
+    "depends_on": [
+      "MT-007",
+      "MT-008",
+      "MT-020",
+      "MT-027",
+      "MT-030"
+    ],
+    "blocks": [
+      "MT-035",
+      "MT-036",
+      "MT-037"
+    ],
+    "claimed_by": "KERNEL_BUILDER-20260518-073535",
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "COMPLETED",
+        "validator_verdict": "PENDING",
+        "completed_at_utc": "2026-05-18T13:40:59.888Z"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "previous_completed_at_utc_before_ready_for_validation_20260525": "2026-05-18T13:40:59.888Z",
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z"
+  },
+  "handoff": {
+    "coder_session": "KERNEL_BUILDER-20260518-073535",
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": "019e6be3-15b9-73b7-a8d8-ba015bc131be",
+    "review_response_receipt_actor_role": "INTEGRATION_VALIDATOR",
+    "review_response_receipt_track": "JUDGMENT_OOB_IV_PHASE1_PRE_REMEDIATION"
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Sessions are truly independent (per-session marker test).",
+      "SwarmReport captures contention events as structured rows.",
+      "Session IDs use Uuid::now_v7() per HBR-INT-008."
+    ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_A3_A5_A7",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-28T00:01:31.342Z",
+    "verdict": "PASS",
+    "verdict_reason": "SwarmHarness::new(n, scenario).run() spawns N independent tokio tasks per session with UUID v7 session ids, each session carries its own SessionLocalState marker, the source-tree scan rejects thread_local!, and the baseline test asserts both sessions complete with no foreign_marker leak and matched ProcessLedger Start/Stop rows.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 2
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-034.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-034.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_A3_A5_A7",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T23:48:44.444Z",
+    "verdict": "PASS",
+    "verdict_reason": "SwarmHarness::new(n, scenario).run() spawns N independent tokio tasks per session with UUID v7 session ids, each session carries its own SessionLocalState marker, the source-tree scan rejects thread_local!, and the baseline test asserts both sessions complete with no foreign_marker leak and matched ProcessLedger Start/Stop rows.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 2
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "validator_reports_phase1/MT-034.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1\\validator_reports_phase1\\MT-034.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  }
+}

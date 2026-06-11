@@ -1,0 +1,149 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-043",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "B",
+  "cluster_subscope": "B.1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:10:00Z",
+  "updated_at_utc": "2026-05-28T00:01:44.894Z",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-043.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "SandboxAdapterRegistry + selection policy + SandboxSelectionFailure event",
+  "goal": "Build the central registry that holds every available SandboxAdapter instance and the selection policy that picks an adapter for a ProcessSpec per spec §3.5.3 (operator default = WSL2PodmanAdapter; per-job override via Work Profile knob OR ProcessSpec.required_capabilities; WindowsNativeJailAdapter when win32_native_fidelity required; DockerAdapter only on explicit operator opt-in; silent fallback is FORBIDDEN; failure emits typed SandboxSelectionFailure event).",
+  "expected_diff_shape": "New module src/backend/handshake_core/src/sandbox/registry.rs (SandboxAdapterRegistry struct) + src/backend/handshake_core/src/sandbox/selection.rs (selection policy + SandboxSelectionFailure event) + tests under src/backend/handshake_core/tests/sandbox_selection_tests.rs. mod.rs re-exports.",
+  "owned_files": [
+    "src/backend/handshake_core/src/sandbox/registry.rs",
+    "src/backend/handshake_core/src/sandbox/selection.rs",
+    "src/backend/handshake_core/src/sandbox/mod.rs",
+    "src/backend/handshake_core/tests/sandbox_selection_tests.rs"
+  ],
+  "depends_on_mts": [
+    "MT-041",
+    "MT-042"
+  ],
+  "unblock_conditions": "Shared types + SandboxAdapter trait merged; registry can hold trait objects.",
+  "implementation_notes": "SandboxAdapterRegistry: `pub struct SandboxAdapterRegistry { adapters: BTreeMap<AdapterId, Arc<dyn SandboxAdapter>>, default_adapter_id: AdapterId, docker_explicit_opt_in: bool }`. Constructor: `SandboxAdapterRegistry::new(default_adapter_id: AdapterId) -> Self`. Mutation surface: `register(adapter: Arc<dyn SandboxAdapter>)` (panics on duplicate AdapterId so registration mistakes fail loud), `set_docker_explicit_opt_in(opt_in: bool)`. Read surface: `list() -> Vec<AdapterCapabilities>`, `get(adapter_id: &AdapterId) -> Option<Arc<dyn SandboxAdapter>>`, `default() -> Arc<dyn SandboxAdapter>`. Selection policy lives in selection.rs: `pub fn select(registry: &SandboxAdapterRegistry, spec: &ProcessSpec, work_profile_override: Option<&AdapterId>) -> Result<Arc<dyn SandboxAdapter>, SandboxSelectionFailure>`. Algorithm: (1) if work_profile_override is Some, attempt that adapter and verify its capabilities satisfy spec.required_capabilities; if no match, emit SandboxSelectionFailure::OverrideCapabilityMismatch; (2) else if spec.required_capabilities contains win32_native_fidelity, attempt windows_native_jail; (3) else if spec.required_capabilities contains DockerOnly (a sentinel RequiredCapability variant added in this MT only if not already present from MT-041 — coordinate via MT-041 errata if needed), require docker_explicit_opt_in==true and use docker; (4) else use registry.default(). For every candidate, run `candidate.capabilities()` and check each `spec.required_capabilities` entry is satisfied (mapping rules: win32_native_fidelity -> caps.win32_native_fidelity==true; nvidia_cuda_passthrough -> caps.gpu_passthrough==NvidiaCuda; vendor_agnostic_gpu -> caps.gpu_passthrough!=None; cross_machine_portable -> caps.cross_machine_portable==true; very_strong_filesystem_isolation -> caps.filesystem_isolation_strength==VeryStrong; very_strong_network_isolation -> caps.network_isolation_strength==VeryStrong; high_stdio_throughput -> caps.stdio_throughput_class==High). If any required capability fails, emit SandboxSelectionFailure::CapabilityUnsatisfied{ required, available_by_adapter }. NO silent fallback to default; failure is loud per spec §3.5.3. SandboxSelectionFailure enum (thiserror Error + Serialize): CapabilityUnsatisfied{ required: Vec<RequiredCapability>, available_by_adapter: BTreeMap<AdapterId, AdapterCapabilities> }, AdapterNotRegistered{ adapter_id: AdapterId }, DockerNotExplicitlyOptedIn, OverrideCapabilityMismatch{ override_id: AdapterId, required: Vec<RequiredCapability> }. Selection failures MUST emit an EventLedger row of family `FR-EVT-SANDBOX-SELECT-FAIL` for HBR-INT-001 replay (consumer of the event is wired later in MT-050/MT-053). Tests: (a) default adapter is returned when no overrides and empty required_capabilities, (b) win32_native_fidelity routes to windows_native_jail, (c) Docker selection fails when docker_explicit_opt_in==false, (d) capability mismatch emits CapabilityUnsatisfied (NOT silent fallback), (e) work_profile_override forces a specific adapter or fails loud.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target sandbox_selection_tests"
+  ],
+  "risk_if_missed": "Without selection policy, callers reach for the first adapter they can `get()` and the spec §3.5.3 'silent fallback is forbidden' rule is violated; Docker becomes accidental default.",
+  "validator_focus": "Silent-fallback test: a ProcessSpec demanding win32_native_fidelity on a registry containing only WSL2Podman MUST return SandboxSelectionFailure, not WSL2Podman; Docker opt-in test: a ProcessSpec preferring docker MUST fail when docker_explicit_opt_in==false.",
+  "hbr_obligations": [
+    "HBR-INT-001",
+    "HBR-SWARM-001"
+  ],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/03-local-first-infrastructure.md#3.5.3"
+  ],
+  "acceptance_criteria_refs": [
+    "AC-SANDBOX-ADAPTER-IMPLS",
+    "AC-SANDBOX-CAP-DECL"
+  ],
+  "lifecycle": {
+    "active": false,
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "PASS",
+    "depends_on": [
+      "MT-041",
+      "MT-042"
+    ],
+    "blocks": [
+      "MT-048",
+      "MT-049",
+      "MT-050",
+      "MT-054",
+      "MT-056"
+    ],
+    "claimed_by": "KERNEL_BUILDER-20260518-073535",
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "COMPLETED",
+        "validator_verdict": "PENDING",
+        "completed_at_utc": "2026-05-18T18:39:25.002Z"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "previous_completed_at_utc_before_ready_for_validation_20260525": "2026-05-18T18:39:25.002Z",
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z"
+  },
+  "handoff": {
+    "coder_session": "KERNEL_BUILDER-20260518-073535",
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": "019e6be3-15be-7765-9370-e4100ae4356e",
+    "review_response_receipt_actor_role": "INTEGRATION_VALIDATOR",
+    "review_response_receipt_track": "JUDGMENT_OOB_IV_PHASE1_PRE_REMEDIATION"
+  },
+  "red_team": {
+    "minimum_controls": [
+      "No silent fallback test: capability mismatch returns SandboxSelectionFailure and does NOT silently return the default adapter.",
+      "Docker opt-in test asserts a packet that did not call set_docker_explicit_opt_in(true) cannot reach the DockerAdapter.",
+      "Registry duplicate-register call panics (registration mistakes fail loud at startup, not silently)."
+    ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_B1_B2",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-28T00:01:31.342Z",
+    "verdict": "PASS",
+    "verdict_reason": "Registry + selection policy fail-loud on capability mismatch, refuse Docker without explicit opt-in, panic on duplicate registration, and emit a structured SandboxSelectionFailure event family for replay; no silent fallback.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 2
+    },
+    "paperwork_notes_count": 1,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-043.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-043.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_B1_B2",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T23:48:44.444Z",
+    "verdict": "PASS",
+    "verdict_reason": "Registry + selection policy fail-loud on capability mismatch, refuse Docker without explicit opt-in, panic on duplicate registration, and emit a structured SandboxSelectionFailure event family for replay; no silent fallback.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 2
+    },
+    "paperwork_notes_count": 1,
+    "review_artifact_ref": "validator_reports_phase1/MT-043.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1\\validator_reports_phase1\\MT-043.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  }
+}

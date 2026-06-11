@@ -1,0 +1,321 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-194",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "X",
+  "cluster_subscope": "X.3",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:18:00Z",
+  "updated_at_utc": "2026-05-28T00:01:44.981Z",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-194.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "Idempotent recovery semantics + event-deduplication on replay",
+  "goal": "Land the idempotency layer that ensures replaying the same EventLedger event multiple times produces the same final state and does not double-apply side effects. Folded WP-1-Session-Crash-Recovery-Checkpointing-v1 stub intent: 'idempotent recovery/resume for interrupted model_run jobs with deterministic failure modes.'",
+  "expected_diff_shape": "New Rust module src/backend/handshake_core/src/process_ledger/idempotency.rs with `IdempotencyKey`, `IdempotencyLedger`, `IdempotentApply` trait; integration tests under src/backend/handshake_core/tests/idempotency_tests.rs.",
+  "owned_files": [
+    "src/backend/handshake_core/src/process_ledger/idempotency.rs",
+    "src/backend/handshake_core/tests/idempotency_tests.rs"
+  ],
+  "depends_on_mts": [
+    "MT-190",
+    "MT-192"
+  ],
+  "unblock_conditions": "MT-190 SessionCheckpoint and MT-192 replay primitives merged.",
+  "implementation_notes": "Some EventLedger events have external side effects (e.g., Postgres writes, mailbox message posts, file system writes) that must NOT re-execute on replay. Solution: an IdempotencyLedger table keyed by (session_id, event_seq, side_effect_kind) recording 'this side effect already executed for this event'. `IdempotencyKey { session_id: Uuid v7, event_seq: i64, side_effect_kind: SideEffectKind }`. Postgres table `kernel_idempotency_ledger` with UNIQUE constraint on the key (enforces single-application at db level). `IdempotentApply` trait: `async fn try_apply(key: IdempotencyKey, op: impl FnOnce() -> Future<Result<...>>) -> Result<ApplyOutcome { Applied | AlreadyApplied | Failed { err } }>`. Algorithm: (1) BEGIN; (2) INSERT idempotency row with ON CONFLICT DO NOTHING; (3) if 0 rows inserted -> return AlreadyApplied (rollback); (4) execute op; (5) on op success -> COMMIT, return Applied; (6) on op failure -> ROLLBACK (idempotency row removed), return Failed. SideEffectKind enum: `MailboxMessagePost`, `PostgresWrite { table }`, `FileSystemWrite { path_hash }`, `ProcessSpawn`, `LeaseAcquisition`. Each side effect in cluster X (MT-179 mailbox post, MT-184 job state transition, MT-188 outcome record, MT-189 executor steps) MUST wrap its mutating call in `IdempotentApply::try_apply(key, ...)` where key derives from (session_id, event_seq, side_effect_kind). MT-192 replay invokes state_apply which then routes through IdempotentApply, so re-replay sees AlreadyApplied for every previously-executed side effect. Tests: (a) try_apply twice with same key — first Applied, second AlreadyApplied; (b) parallel try_apply from 8 tasks — exactly one Applied; (c) op failure rolls back idempotency row so retry can succeed; (d) replay of 10 events with 5 side effects — second replay re-applies 0 side effects.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target idempotency_tests -- --test-threads=1"
+  ],
+  "risk_if_missed": "Without idempotency, restart resume (MT-193) double-posts mailbox messages, double-acquires leases, and double-runs MT outcomes; recovery becomes worse than crash; the cluster X 'idempotent recovery' invariant is violated.",
+  "validator_focus": "UNIQUE constraint at db level (not just app); parallel-apply test asserts exactly-one-Applied; rollback on op failure restores idempotency state for retry.",
+  "hbr_obligations": [
+    "HBR-INT-008",
+    "HBR-SWARM-001"
+  ],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/05-security-and-observability.md#5"
+  ],
+  "acceptance_criteria_refs": [
+    "PRESERVED_INTENT:WP-1-Session-Crash-Recovery-Checkpointing-v1 (idempotent recovery)"
+  ],
+  "lifecycle": {
+    "active": true,
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "PASS",
+    "integration_validator_verdict": "PENDING",
+    "depends_on": [
+      "MT-190",
+      "MT-192"
+    ],
+    "blocks": [
+      "MT-195"
+    ],
+    "claimed_by": "KERNEL_BUILDER-20260524-050725",
+    "claimed_at_utc": "2026-05-24T05:49:09.751Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260524-062232",
+    "ready_for_validation_at_utc": "2026-05-24T09:30:00Z",
+    "implementation_record": {
+      "summary": "MT-194 idempotency was upgraded from side-effect-kind-only dedupe to target-specific dedupe. SideEffectKind now has PostgresWriteTarget { table } and FileSystemWriteTarget { path_key } constructors, and IdempotencyLedger stores deterministic exact target keys in the existing side_effect_kind TEXT column using len+hex encoding rather than lossy hashes. The contract-named process_ledger::idempotency re-export remains, and both in-memory and Postgres-backed ledgers now prove same session/event writes to different tables or filesystem targets apply independently while duplicates of the same target dedupe. MT-193 production startup wiring now consumes these target-specific constructors for concrete Postgres side effects, so the prior dependent-runtime-verification note is closed.",
+      "files_modified": [
+        "src/backend/handshake_core/src/session_checkpoint/idempotency.rs",
+        "src/backend/handshake_core/src/session_checkpoint/mod.rs",
+        "src/backend/handshake_core/src/process_ledger/idempotency.rs",
+        "src/backend/handshake_core/src/process_ledger/mod.rs",
+        "src/backend/handshake_core/tests/idempotency_tests.rs",
+        "src/backend/handshake_core/Cargo.toml"
+      ],
+      "contract_deviation_note": "PATH_SHAPE_DRIFT remains: the durable implementation lives in src/backend/handshake_core/src/session_checkpoint/idempotency.rs and is re-exported from src/backend/handshake_core/src/process_ledger/idempotency.rs. The target-specific side-effect deviation is closed: Postgres and filesystem writes now carry exact target identity through deterministic TEXT storage keys without changing the existing kernel_idempotency_ledger schema.",
+      "test_results": [
+        {
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --target-dir D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target --test idempotency_tests -- --test-threads=1 --nocapture",
+          "exit_code": 101,
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/mt194-idempotency-red-20260524-0655.log",
+          "note": "Expected red: process_ledger::idempotency contract path was missing."
+        },
+        {
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --target-dir D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target --test idempotency_tests -- --test-threads=1 --nocapture",
+          "exit_code": 0,
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/mt194-idempotency-final-green-20260524-0703.log",
+          "note": "Final green after adding process-ledger re-export, IdempotentApply trait export, Cargo target registration, and rustfmt. Four pure-Rust tests passed; one Postgres unique-constraint test remains ignored unless POSTGRES_TEST_URL is set."
+        },
+        {
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --target-dir D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target --test session_checkpoint_tests mt_194 -- --test-threads=1 --nocapture",
+          "exit_code": 0,
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/mt194-session-checkpoint-adjacent-green-20260524-0705.log",
+          "note": "Existing folded MT-194 session_checkpoint test still passes."
+        },
+        {
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --target-dir D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target --lib session_checkpoint::idempotency -- --test-threads=1 --nocapture",
+          "exit_code": 0,
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/mt194-idempotency-lib-green-20260524-0706.log",
+          "note": "Inline idempotency.rs tests pass with the added trait export."
+        },
+        {
+          "command": "rustfmt --edition 2021 src/backend/handshake_core/src/session_checkpoint/idempotency.rs src/backend/handshake_core/src/session_checkpoint/mod.rs src/backend/handshake_core/src/process_ledger/idempotency.rs src/backend/handshake_core/src/process_ledger/mod.rs src/backend/handshake_core/tests/idempotency_tests.rs",
+          "exit_code": 0,
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/mt194-rustfmt-green-20260524-0702.log",
+          "note": "Touched Rust files are rustfmt-clean."
+        },
+        {
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --target-dir D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target --test idempotency_tests -- --test-threads=1 --nocapture",
+          "exit_code": 0,
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/mt194-idempotency-target-green-20260524-075300.log",
+          "note": "Seven non-ignored tests passed and one live Postgres test remained intentionally ignored in the default target. Coverage includes target-specific Postgres table keys, target-specific filesystem path keys, deterministic exact TEXT storage keys, replay suppression, parallel exactly-one-applied, and rollback-on-failure retry."
+        },
+        {
+          "command": "$env:POSTGRES_TEST_URL=postgres://postgres:postgres@127.0.0.1:5432/postgres?sslmode=disable; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --target-dir D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target --test idempotency_tests mt194_postgres_ledger_distinguishes_side_effect_targets_and_dedupes_duplicates -- --ignored --test-threads=1 --nocapture",
+          "exit_code": 0,
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/mt194-idempotency-postgres-exact-key-green-20260524-080900.log",
+          "note": "Live Postgres proof passed against an isolated schema. IdempotencyLedger::new(PgPool).try_apply applied three distinct same-session/same-event side-effect targets exactly once each, deduped duplicate attempts, and persisted three distinct exact target TEXT keys."
+        },
+        {
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --target-dir D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target --lib session_checkpoint::idempotency -- --test-threads=1 --nocapture",
+          "exit_code": 0,
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/mt194-idempotency-lib-exact-key-green-20260524-080900.log",
+          "note": "Inline idempotency unit tests passed after IdempotencyKey stopped deriving Copy."
+        },
+        {
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --target-dir D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target --test session_checkpoint_tests mt_194_idempotency_dedupes_repeated_apply -- --test-threads=1 --nocapture",
+          "exit_code": 0,
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/mt194-session-checkpoint-regression-green-20260524-080300.log",
+          "note": "Existing session_checkpoint MT-194 import path still passes after IdempotencyKey changed from Copy to Clone."
+        },
+        {
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --target-dir D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target --test crash_recovery_e2e idempotency -- --test-threads=1 --nocapture",
+          "exit_code": 0,
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/mt194-crash-recovery-compile-green-20260524-080300.log",
+          "note": "Crash-recovery idempotency conflict scenario still passes after IdempotencyKey changed from Copy to Clone."
+        },
+        {
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --target-dir D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target --test idempotency_tests -- --test-threads=1 --nocapture",
+          "exit_code": 0,
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/mt194-idempotency-green-20260524-130200.log",
+          "note": "Seven non-ignored tests passed and one live Postgres test remained intentionally ignored by default."
+        },
+        {
+          "command": "POSTGRES_TEST_URL=<local Postgres>; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --target-dir D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target --test idempotency_tests mt194_postgres_ledger_distinguishes_side_effect_targets_and_dedupes_duplicates -- --ignored --test-threads=1 --nocapture",
+          "exit_code": 0,
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/mt194-idempotency-postgres-green-20260524-130300.log",
+          "note": "Live Postgres target-specific IdempotencyLedger proof passed with exact target key persistence and duplicate dedupe."
+        },
+        {
+          "command": "POSTGRES_TEST_URL=<local Postgres>; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --target-dir D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target --test restart_resume_postgres_tests -- --ignored --test-threads=1 --nocapture",
+          "exit_code": 0,
+          "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/mt193-postgres-startup-live-green-20260524-130000.log",
+          "note": "Dependent runtime call-site proof: restart-resume production writes now persist target-specific keys for process lifecycle, queue, checkpoint, and mailbox writes."
+        }
+      ],
+      "red_team_coverage": {
+        "dedupe_twice": "idempotency_tests::mt194_try_apply_twice_applies_once asserts first Applied, second AlreadyApplied, and only one side-effect counter increment.",
+        "parallel_exactly_one": "idempotency_tests::mt194_parallel_try_apply_allows_exactly_one_apply spawns 8 concurrent attempts for the same key and asserts exactly one Applied and seven AlreadyApplied.",
+        "failure_rollback": "idempotency_tests::mt194_failed_op_rolls_back_so_retry_can_succeed asserts Failed on a transient op and Applied on the retry with the same key.",
+        "replay_side_effect_suppression": "idempotency_tests::mt194_replay_reuses_ledger_and_does_not_repeat_side_effects replays ten events twice, wraps five even-seq side effects in the ledger, and asserts only five side effects execute total.",
+        "target_specificity": "idempotency_tests::mt194_postgres_write_idempotency_is_specific_to_table and mt194_file_system_write_idempotency_is_specific_to_target_key assert same session/event writes to different targets apply independently and duplicate same-target writes dedupe.",
+        "deterministic_exact_storage_key": "idempotency_tests::mt194_targeted_side_effect_storage_key_is_deterministic_text asserts exact len+hex storage keys, including a delimiter-like table name, so keys are deterministic without hash-collision risk.",
+        "postgres_ledger_target_specificity": "idempotency_tests::mt194_postgres_ledger_distinguishes_side_effect_targets_and_dedupes_duplicates uses IdempotencyLedger::new(PgPool).try_apply against real Postgres and asserts three distinct target keys are persisted.",
+        "runtime_call_site_target_specificity": "restart_resume_postgres_tests live Postgres assertions prove MT-193 concrete side-effect call sites choose target-specific PostgresWriteTarget keys for kernel_process_lifecycle, kernel_session_queue, kernel_session_checkpoint, and role_mailbox_message writes."
+      },
+      "residual_risks": [],
+      "out_of_scope_self_evaluation": {
+        "why": "The implementation had to touch the folded session_checkpoint implementation and shared crash-recovery/session-checkpoint tests because the existing MT-194 primitive lives there and IdempotencyKey no longer implements Copy after exact target strings replaced lossy hashes.",
+        "files_touched_outside_owned_files": [
+          "src/backend/handshake_core/src/session_checkpoint/idempotency.rs",
+          "src/backend/handshake_core/tests/session_checkpoint_tests.rs",
+          "src/backend/handshake_core/tests/crash_recovery_e2e/mod.rs"
+        ],
+        "waiver_required": true
+      },
+      "next_dependent_mts_unblocked": [
+        "MT-195 can use idempotency_tests plus restart_resume_postgres_tests as the cluster X.3 idempotency and failure-mode coverage input.",
+        "The earlier MT-193/MT-195 runtime-call-site verification gap is closed for current Postgres restart-resume side effects; future filesystem replay call sites should reuse FileSystemWriteTarget { path_key } when they are introduced."
+      ]
+    },
+    "latest_postgres_test_evidence_20260525": {
+      "recorded_at_utc": "2026-05-25T02:36:47.3466494Z",
+      "recorded_by": "KERNEL_BUILDER-20260525-011217",
+      "classification": "KERNEL_BUILDER_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+      "postgres_target": "postgres://postgres:***@127.0.0.1:65432/handshake_test?sslmode=disable",
+      "artifact_target_root": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target",
+      "fixes": [],
+      "tests": [
+        {
+          "scope": "MT-194",
+          "command": "POSTGRES_TEST_URL=postgres://postgres:***@127.0.0.1:65432/handshake_test?sslmode=disable CARGO_TARGET_DIR=D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target/wp-kernel-004-postgres-idempotency cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test idempotency_tests -- --ignored --test-threads=1 --nocapture",
+          "exit_code": 0,
+          "result": "1 passed; 0 failed; 0 ignored",
+          "note": "Verified Postgres idempotency ledger distinguishes side-effect targets and dedupes duplicates."
+        }
+      ],
+      "shared_risks": [
+        "This is KERNEL_BUILDER supporting evidence, not an Integration Validator verdict; lifecycle.integration_validator_verdict remains PENDING unless a validator role signs off.",
+        "Broad workspace remains dirty with many pre-existing modified/untracked files outside this session; this evidence block records only the Postgres test/fix slice listed here.",
+        "Warnings remain in unrelated library areas during cargo test; no warnings were introduced as hard errors in the verified commands.",
+        "Postgres fixture was local Docker Postgres on 127.0.0.1:65432; validators should re-run against their configured POSTGRES_TEST_URL before marking authoritative completion."
+      ]
+    },
+    "postgres_test_url_live_evidence_20260525_continuation": {
+      "authoritative_integration_validator_pass": false,
+      "classification": "KERNEL_BUILDER_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+      "not_run_or_not_claimed": [
+        "mt195_runtime_real_handshake_core_binary_runs_startup_recovery_and_persists_report was not newly run or claimed in this continuation because it requires app-runtime binary coverage."
+      ],
+      "artifact_log_root": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs",
+      "implementation_or_hardening_notes": [],
+      "postgres_test_url_redacted": "postgres://postgres:***@127.0.0.1:65432/handshake_test",
+      "proof": [
+        {
+          "log": "postgres-live-session_checkpoint_tests-20260525-resume.log",
+          "scope": "session_checkpoint_tests",
+          "note": [
+            "Session checkpoint live Postgres suite passed.",
+            "Proof"
+          ],
+          "result": "passed"
+        }
+      ],
+      "recorded_by": "KERNEL_BUILDER-POSTGRES-TEST-URL-20260525-CONTINUATION",
+      "mt_ids": [
+        "MT-190",
+        "MT-191",
+        "MT-192",
+        "MT-193",
+        "MT-194",
+        "MT-195"
+      ],
+      "summary": "Checkpoint, restart/resume, idempotency, kernel end-to-end, and selected crash-recovery live Postgres checks passed; app-runtime binary crash-recovery case was not newly claimed in this continuation.",
+      "integration_validator_status": "PENDING",
+      "residual_risks": [
+        "Supporting evidence only; Integration Validator verdict remains PENDING.",
+        "Focused Postgres/live-kernel commands were run, not a full workspace cargo test."
+      ],
+      "recorded_at_utc": "2026-05-25T10:56:03.5601331Z",
+      "cargo_target_dir": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target"
+    },
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "READY_FOR_VALIDATION",
+        "validator_verdict": "PENDING"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z"
+  },
+  "handoff": {
+    "coder_session": "KERNEL_BUILDER-20260524-050725",
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": "019e6be3-1614-766a-a178-d6f60dbd605a",
+    "review_response_receipt_actor_role": "INTEGRATION_VALIDATOR",
+    "review_response_receipt_track": "JUDGMENT_OOB_IV_PHASE1_PRE_REMEDIATION"
+  },
+  "red_team": {
+    "minimum_controls": [
+      "UNIQUE constraint on (session_id, event_seq, side_effect_kind) at db level; live Postgres IdempotencyLedger test must dedupe duplicate same-target side effects while allowing distinct same-event target keys.",
+      "Parallel apply test (8 tasks) asserts exactly one Applied outcome; others see AlreadyApplied.",
+      "Failed op test verifies idempotency row rolled back so retry can succeed."
+    ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_X3_X4",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-28T00:01:31.342Z",
+    "verdict": "PASS",
+    "verdict_reason": "IdempotencyLedger uses Postgres PK + INSERT ... ON CONFLICT DO NOTHING for db-level dedupe; target-specific keys (PostgresWriteTarget { table }, FileSystemWriteTarget { path_key }) encode exact target identity deterministically; rollback-on-failure restores ledger state for retry; live Postgres test proves three distinct target keys persist independently.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "MINOR",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 2,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-194.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-194.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_X3_X4",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T23:48:44.444Z",
+    "verdict": "PASS",
+    "verdict_reason": "IdempotencyLedger uses Postgres PK + INSERT ... ON CONFLICT DO NOTHING for db-level dedupe; target-specific keys (PostgresWriteTarget { table }, FileSystemWriteTarget { path_key }) encode exact target identity deterministically; rollback-on-failure restores ledger state for retry; live Postgres test proves three distinct target keys persist independently.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "MINOR",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 2,
+    "review_artifact_ref": "validator_reports_phase1/MT-194.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1\\validator_reports_phase1\\MT-194.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  }
+}

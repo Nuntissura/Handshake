@@ -1,0 +1,153 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-047",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "B",
+  "cluster_subscope": "B.1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:10:00Z",
+  "updated_at_utc": "2026-05-28T00:01:44.897Z",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-047.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "DockerAdapter (compat-only-not-default) preserving KERNEL-003 DocketAdapter integration",
+  "goal": "Implement the DockerAdapter as the third concrete SandboxAdapter per spec §3.5.2, preserving the existing KERNEL-003 DocketAdapter integration as one of three adapters. Tagged compat-only-not-default; selected only when operator explicitly opts in via SandboxAdapterRegistry.set_docker_explicit_opt_in(true) (no implicit fallback per spec §3.5.3).",
+  "expected_diff_shape": "New module src/backend/handshake_core/src/sandbox/docker/{mod.rs, adapter.rs, kernel_003_bridge.rs}; integration tests under src/backend/handshake_core/tests/docker_adapter_tests.rs (gated by `#[cfg_attr(not(feature=\"docker-integration\"), ignore)]`). The kernel_003_bridge.rs module is the thin glue mapping the shipped KERNEL-003 DocketAdapter container-management code onto the SandboxAdapter trait surface; existing KERNEL-003 code is NOT rewritten here (that's MT-054).",
+  "owned_files": [
+    "src/backend/handshake_core/src/sandbox/docker/mod.rs",
+    "src/backend/handshake_core/src/sandbox/docker/adapter.rs",
+    "src/backend/handshake_core/src/sandbox/docker/kernel_003_bridge.rs",
+    "src/backend/handshake_core/tests/docker_adapter_tests.rs",
+    "src/backend/handshake_core/Cargo.toml"
+  ],
+  "depends_on_mts": [
+    "MT-041",
+    "MT-042"
+  ],
+  "unblock_conditions": "Shared types + SandboxAdapter trait merged. KERNEL-003 code in main provides the existing DocketAdapter; this MT bridges, MT-054 refactors the callers.",
+  "implementation_notes": "Per spec §3.5.2 the DockerAdapter is tagged compat-only-not-default; per refinement R-3 ('Sandbox-architecture-flip-orphans-KERNEL-003') the 3-adapter pattern explicitly preserves the KERNEL-003 work. Implementation: shell out to the `docker` CLI (matches the KERNEL-003 DocketAdapter approach — no bollard or docker-api crate). adapter.rs implements SandboxAdapter by translating ProcessSpec into `docker run` argv: (1) `spawn`: `docker run --rm -d --name <uuid_v7> -v host:guest:mode -e ... <image> <cmd>` with NetPolicy mapped (DenyAll -> `--network=none`; LoopbackOnly -> `--network=bridge` plus iptables localhost rule; Allowlist -> ephemeral docker network plus iptables); resource_limits via `--memory --cpus --pids-limit`; capture container id as sandbox_internal_id; mint ProcessHandle UUID v7. (2) `exec`: `docker exec` with stdin/stdout pipes; ExecResult populated with duration_ms. (3) `fs_bind`: post-spawn binds unsupported by Docker (same as Podman); SpawnFailed loud per spec §3.5.3. (4) `net_policy`: `docker network connect/disconnect`; DenyAll = disconnect all networks. (5) `kill`: Term -> `docker stop -t 10`; Kill -> `docker kill --signal KILL`; Int -> `docker kill --signal INT`. (6) `status`: `docker inspect --format '{{.State.Status}}'`. (7) `exit_code`: `docker inspect --format '{{.State.ExitCode}}'`. (8) `capabilities()`: AdapterCapabilities { adapter_id: \"docker\", filesystem_isolation_strength: Strong, network_isolation_strength: Strong, gpu_passthrough: NvidiaCuda (when host has nvidia-container-toolkit; detect via `docker run --rm --gpus all nvidia/cuda:base nvidia-smi` once, cache 60s), stdio_throughput_class: High, win32_native_fidelity: false, cross_machine_portable: true }. kernel_003_bridge.rs: thin re-export/wrap of the existing KERNEL-003 helper types (image-pull retry policy, container-tagging convention, docker-CLI argv builder) so behavior parity with KERNEL-003 is structural, not coincidental; if KERNEL-003 already exposes `docker_cli_argv_builder(spec) -> Vec<String>`, reuse it; if not, copy the relevant function and ADD a `// Adapted from KERNEL-003 DocketAdapter (commit a813b76)` source-of-truth comment. Integration tests (gated): `docker run --rm alpine:3.20 echo hello` returns 0; NetPolicy::DenyAll prevents outbound DNS; bind ReadOnly enforced. CRITICAL: this adapter must register itself in the registry as compat-only — `capabilities().adapter_id == \"docker\"` AND `set_docker_explicit_opt_in(true)` is required before selection (MT-043) returns it. A test asserts that with default opt-out, selection.select() returns SandboxSelectionFailure not DockerAdapter.",
+  "proof_commands": [
+    "cargo build -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target --features docker-integration",
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target docker_adapter_tests --features docker-integration"
+  ],
+  "risk_if_missed": "Without DockerAdapter, R-3 ('orphans KERNEL-003') triggers — every existing Docker-using KERNEL-003 sandbox consumer breaks in MT-054 refactoring with no migration target.",
+  "validator_focus": "(a) Adapter delegates docker CLI calls the same way KERNEL-003 DocketAdapter does (verified by comparing argv shapes); (b) capabilities() returns adapter_id==\"docker\" and the rest of the AdapterCapabilities matches the KERNEL-003 baseline; (c) compat-only-not-default is enforced — opt-out test in selection.rs MUST refuse Docker selection; (d) UUID v7 in ProcessHandle.id.",
+  "hbr_obligations": [
+    "HBR-INT-008",
+    "HBR-QUIET-003"
+  ],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/03-local-first-infrastructure.md#3.5.2",
+    ".GOV/spec/master-spec-v02.186/spec-modules/03-local-first-infrastructure.md#3.5.3"
+  ],
+  "acceptance_criteria_refs": [
+    "AC-SANDBOX-ADAPTER-IMPLS",
+    "AC-SANDBOX-CAP-DECL"
+  ],
+  "lifecycle": {
+    "active": false,
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "CONCERN",
+    "depends_on": [
+      "MT-041",
+      "MT-042"
+    ],
+    "blocks": [
+      "MT-048",
+      "MT-054",
+      "MT-055",
+      "MT-056",
+      "MT-057",
+      "MT-058"
+    ],
+    "claimed_by": "KERNEL_BUILDER-20260518-073535",
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "COMPLETED",
+        "validator_verdict": "PENDING",
+        "completed_at_utc": "2026-05-18T20:41:05.456Z"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "previous_completed_at_utc_before_ready_for_validation_20260525": "2026-05-18T20:41:05.456Z",
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z"
+  },
+  "handoff": {
+    "coder_session": "KERNEL_BUILDER-20260518-073535",
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": "019e6be3-15c1-7d2c-8465-ba822f1e946e",
+    "review_response_receipt_actor_role": "INTEGRATION_VALIDATOR",
+    "review_response_receipt_track": "JUDGMENT_OOB_IV_PHASE1_PRE_REMEDIATION"
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Compat-only enforcement test: registry.select() with default opt-out and a ProcessSpec preferring docker returns SandboxSelectionFailure, never the DockerAdapter.",
+      "Behavior parity with KERNEL-003: golden argv-shape test compares docker_cli_argv_builder output to a fixture captured from KERNEL-003 to prove behavior parity.",
+      "Image-pull retry policy is preserved from KERNEL-003 (same exponential backoff, same max attempts)."
+    ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_B1_B2",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-28T00:01:31.342Z",
+    "verdict": "CONCERN",
+    "verdict_reason": "DockerAdapter is well-built and the compat-only-not-default rule is enforced by selection.rs+set_docker_explicit_opt_in, but the kernel_003_bridge cannot deliver the contract's behavior-parity promise (KERNEL-003 DocketAdapter does not exist; only ContainerAdapterStub remains) and the same LoopbackOnly silent-downgrade bug as the Podman adapter is present.",
+    "spec_compliance_status": "PARTIAL",
+    "code_hygiene_status": "MINOR",
+    "runtime_safety_status": "CONCERN",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "THIN",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 2,
+      "MEDIUM": 2,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 1,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-047.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-047.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_B1_B2",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T23:48:44.444Z",
+    "verdict": "CONCERN",
+    "verdict_reason": "DockerAdapter is well-built and the compat-only-not-default rule is enforced by selection.rs+set_docker_explicit_opt_in, but the kernel_003_bridge cannot deliver the contract's behavior-parity promise (KERNEL-003 DocketAdapter does not exist; only ContainerAdapterStub remains) and the same LoopbackOnly silent-downgrade bug as the Podman adapter is present.",
+    "spec_compliance_status": "PARTIAL",
+    "code_hygiene_status": "MINOR",
+    "runtime_safety_status": "CONCERN",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "THIN",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 2,
+      "MEDIUM": 2,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 1,
+    "review_artifact_ref": "validator_reports_phase1/MT-047.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1\\validator_reports_phase1\\MT-047.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  }
+}

@@ -72,6 +72,7 @@ Entry format (recommended):
 ## Ready for Dev
 
 A WP is only Ready for Dev if its Active Packet (per `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md`) is an official packet under `.GOV/task_packets/` (not a stub).
+- **[WP-KERNEL-005]** - [READY_FOR_DEV]
 
 
 
@@ -119,10 +120,7 @@ Note: This section is an **inventory list**, not a priority order. Do not infer 
 - **[WP-1-ACE-Auditability-v2]** - [STUB]
 - **[WP-1-ACE-Persist-QueryPlan-Trace-v1]** - [STUB]
 - **[WP-1-RAG-Iterative-v2]** - [STUB]
-- **[WP-1-RAG-Retrieval-Mode-Policy-v1]** - [STUB]
 - **[WP-1-AIReady-CoreMetadata-v1]** - [STUB]
-- **[WP-1-AIReady-Index-Evidence-Export-v1]** - [STUB]
-- **[WP-1-AIReady-RelationshipIds-GraphRetrieval-v1]** - [STUB]
 - **[WP-1-Model-Profiles-v2]** - [STUB]
 - **[WP-1-MEX-Safety-Gates-v2]** - [STUB]
 - **[WP-1-MEX-Observability-v2]** - [STUB]
@@ -130,19 +128,14 @@ Note: This section is an **inventory list**, not a priority order. Do not infer 
 - **[WP-1-MTE-LoRA-Wiring-v1]** - [STUB]
 - **[WP-1-AI-UX-Rewrite-v2]** - [STUB]
 - **[WP-1-PDF-Pipeline-v2]** - [STUB]
-- **[WP-1-Atelier-Lens-CKC-Core-Data-Intake-v1]** - [STUB]
-- **[WP-1-Atelier-Lens-CKC-Pose-ComfyUI-Pipeline-v1]** - [STUB]
-- **[WP-1-Atelier-Lens-CKC-Model-Workflow-Diagnostics-v1]** - [STUB]
 - **[WP-1-Studio-Runtime-Visibility-v1]** - [STUB]
 - **[WP-1-Calendar-Lens-v3]** - [STUB]
 - **[WP-1-Calendar-Policy-Integration-v1]** - [STUB]
 - **[WP-1-Calendar-Law-Compliance-Tests-v1]** - [STUB]
 - **[WP-1-Calendar-Correlation-Export-v1]** - [STUB]
 - **[WP-1-Calendar-Mailbox-Correlation-v1]** - [STUB]
-- **[WP-1-ContextPack-Recorder-Visibility-v1]** - [STUB]
 - **[WP-1-Governance-Hooks-v2]** - [STUB]
 - **[WP-1-Workspace-Bundle-v2]** - [STUB]
-- **[WP-1-Semantic-Catalog-v2]** - [STUB]
 - **[WP-1-Metrics-Traces-v2]** - [STUB]
 - **[WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1]** - [STUB]
 - **[WP-1-FEMS-Acceptance-Replay-Eval-v1]** - [STUB]
@@ -168,15 +161,14 @@ Note: This section is an **inventory list**, not a priority order. Do not infer 
 - **[WP-1-Thinking-Pipeline-Runtime-Backfill-v1]** - [STUB]
 - **[WP-1-Canvas-Runtime-Backfill-v1]** - [STUB]
 - **[WP-1-Presentations-Decks-Backfill-v1]** - [STUB]
-- **[WP-1-Project-Brain-Runtime-Backfill-v1]** - [STUB]
 - **[WP-KERNEL-006-Principal-Authority-Foundation-v1]** - [STUB]
 - **[WP-KERNEL-007-Principal-Visitor-Pass-MCP-Gate-v1]** - [STUB]
 - **[WP-KERNEL-008-Principal-Profile-CRM-Layer-v1]** - [STUB]
+- **[WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1]** - [STUB]
 
 ## In Progress
 
 Assignee/model is recorded in the work packet (CODER_MODEL, CODER_REASONING_STRENGTH). Task Board stays minimal.
-- **[WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1]** - [IN_PROGRESS]
 
 
 
@@ -1203,10 +1195,12 @@ Assignee/model is recorded in the work packet (CODER_MODEL, CODER_REASONING_STRE
 - **[WP-1-Software-Delivery-Validator-Gate-Closeout-Posture-v1]** - [VALIDATED]
 - **[WP-1-Postgres-Primary-Control-Plane-Foundation-v1]** - [VALIDATED]
 - **[WP-KERNEL-001-Event-Ledger-Session-Broker-v1]** - [VALIDATED]
+- **[WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1]** - [VALIDATED]
 
 
 ## Blocked
 - **[WP-1-Atelier-Lens-Consolidation-v1]** - [READY_FOR_DEV]
+- **[WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1]** - [BLOCKED] - integration rerun 7 failed and declared worktree is missing; KERNEL-004 continues separately
 ---
 
 
@@ -1235,6 +1229,15 @@ Entry format for this section:
 ---
 
 ## Superseded (Archive)
+- **[WP-1-Project-Brain-Runtime-Backfill-v1]** - [SUPERSEDED]
+- **[WP-1-Semantic-Catalog-v2]** - [SUPERSEDED]
+- **[WP-1-AIReady-Index-Evidence-Export-v1]** - [SUPERSEDED]
+- **[WP-1-AIReady-RelationshipIds-GraphRetrieval-v1]** - [SUPERSEDED]
+- **[WP-1-RAG-Retrieval-Mode-Policy-v1]** - [SUPERSEDED]
+- **[WP-1-ContextPack-Recorder-Visibility-v1]** - [SUPERSEDED]
+- **[WP-1-Atelier-Lens-CKC-Core-Data-Intake-v1]** - [SUPERSEDED]
+- **[WP-1-Atelier-Lens-CKC-Pose-ComfyUI-Pipeline-v1]** - [SUPERSEDED]
+- **[WP-1-Atelier-Lens-CKC-Model-Workflow-Diagnostics-v1]** - [SUPERSEDED]
 - **[WP-1-Postgres-Control-Plane-Shift-Bundle-v1]** - [SUPERSEDED]
 - **[WP-1-Media-Downloader-v1]** - [SUPERSEDED]
 - **[WP-1-AppState-Refactoring]** - [SUPERSEDED]

@@ -1,0 +1,143 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-016",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "A",
+  "cluster_subscope": "A.4",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T02:30:00Z",
+  "updated_at_utc": "2026-05-28T00:01:44.878Z",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-016.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "WH_KEYBOARD_LL keyboard-injection negative test",
+  "goal": "Per spec §6.6.5 (AC-QUIET-INJECT-NEG-TEST) install a `WH_KEYBOARD_LL` low-level hook checking `KBDLLHOOKSTRUCT.flags & LLKHF_INJECTED`, fire `SendInput` shortcut sequences while a hidden Tauri window is alive, and assert (a) no `#[tauri::command]` handler fired, (b) no state mutation occurred, (c) the LL-hook saw the injection.",
+  "expected_diff_shape": "New module src/backend/handshake_core/src/operator_foreground/keyboard_inject_test.rs (Windows-only); cargo test that orchestrates a hidden window + SendInput + assertions.",
+  "owned_files": [
+    "src/backend/handshake_core/src/operator_foreground/keyboard_inject_test.rs",
+    "src/backend/handshake_core/tests/keyboard_inject_neg_tests.rs",
+    "src/backend/handshake_core/Cargo.toml"
+  ],
+  "depends_on_mts": [
+    "MT-014",
+    "MT-015"
+  ],
+  "unblock_conditions": "MT-014 quiet window + MT-015 focus audit merged so test can use them.",
+  "implementation_notes": "Per spec §6.6.5 this is a *negative* test: it deliberately tries to drive Handshake via OS-level keyboard injection and proves the attempt cannot succeed. Cargo.toml: add `[target.'cfg(windows)'.dependencies] windows = { version = \"<latest>\", features = [\"Win32_UI_WindowsAndMessaging\", \"Win32_UI_Input_KeyboardAndMouse\"] }`. keyboard_inject_test.rs implements: (1) `install_ll_hook() -> LlHookHandle` calls `SetWindowsHookExW(WH_KEYBOARD_LL, callback, ...)` with a callback that examines `KBDLLHOOKSTRUCT.flags`; if `flags & LLKHF_INJECTED != 0`, increments an atomic injected_event_count. (2) `simulate_shortcut_injection(seq: &[VkSequence])` calls `SendInput` with the keystroke sequence (e.g., Ctrl+Shift+F to simulate an arbitrary registered shortcut). (3) `track_command_invocations(app: &AppHandle) -> CmdTracker` instruments every #[tauri::command] handler via a global counter (use a test-only middleware or a global AtomicU64 incremented in a test-only wrapping macro). The test flow: spawn a hidden QuietWindow, install LL hook, install cmd tracker, simulate injection of a known shortcut, sleep 100ms, query: assert injected_event_count >= 1 (the LL-hook saw the injection) AND assert tracker.invocation_count() == 0 (no Tauri command fired) AND assert state-mutation observable via a sentinel field == unchanged. Per HBR-QUIET-002 evidence_kind=automation_path_audit this satisfies the negative test obligation. Like MT-015, gated `#[cfg_attr(not(target_os = \"windows\"), ignore)]` and documented as Windows-desktop-only.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target keyboard_inject_neg_tests"
+  ],
+  "risk_if_missed": "Without negative test, HBR-QUIET-002 'surface cannot be accidentally driven by global input hijacking' is unverified; a future regression could open Handshake to OS-keyboard hijack.",
+  "validator_focus": "All three assertions (LL-hook saw injection, no Tauri command fired, no state mutation) are explicit and the test fails loudly on any one being violated.",
+  "hbr_obligations": [
+    "HBR-QUIET-001",
+    "HBR-QUIET-002"
+  ],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/06-mechanical-integrations.md#6.6"
+  ],
+  "acceptance_criteria_refs": [
+    "AC-QUIET-INJECT-NEG-TEST"
+  ],
+  "lifecycle": {
+    "active": false,
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "PASS",
+    "depends_on": [
+      "MT-014",
+      "MT-015"
+    ],
+    "blocks": [
+      "MT-020"
+    ],
+    "claimed_by": "KERNEL_BUILDER-20260518-012310",
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "COMPLETED",
+        "validator_verdict": "PENDING",
+        "completed_at_utc": "2026-05-18T07:23:54.020Z"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "previous_completed_at_utc_before_ready_for_validation_20260525": "2026-05-18T07:23:54.020Z",
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z"
+  },
+  "handoff": {
+    "coder_session": "KERNEL_BUILDER-20260518-012310",
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": "019e6be3-15ae-7276-aadc-9255b109d30d",
+    "review_response_receipt_actor_role": "INTEGRATION_VALIDATOR",
+    "review_response_receipt_track": "JUDGMENT_OOB_IV_PHASE1_PRE_REMEDIATION"
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Test must assert the LL-hook actually saw the injection (proves the test is meaningful, not a no-op).",
+      "Cmd tracker uses a test-only macro to avoid leaking into release builds.",
+      "Test is gated to Windows-desktop and the gate reason is documented inline."
+    ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_A4_A2_REDO_WTC",
+    "reviewed_at_utc": "2026-05-27T20:00:00Z",
+    "aggregator_run_at_utc": "2026-05-28T00:01:31.342Z",
+    "verdict": "PASS",
+    "verdict_reason": "WH_KEYBOARD_LL hook installed via SetWindowsHookExW with KBDLLHOOKSTRUCT.flags LLKHF_INJECTED detection; SendInput injects Ctrl+Shift+F; CmdTracker + MutationSentinel provide the three-way assertion (injected_event_count>=1, command_invocation_count==0, !state_mutated); live probe gated behind HANDSHAKE_RUN_KEYBOARD_INJECT_LIVE=1.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-016.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-016.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_A4_A2_REDO_WTC",
+    "reviewed_at_utc": "2026-05-27T20:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T23:48:44.444Z",
+    "verdict": "PASS",
+    "verdict_reason": "WH_KEYBOARD_LL hook installed via SetWindowsHookExW with KBDLLHOOKSTRUCT.flags LLKHF_INJECTED detection; SendInput injects Ctrl+Shift+F; CmdTracker + MutationSentinel provide the three-way assertion (injected_event_count>=1, command_invocation_count==0, !state_mutated); live probe gated behind HANDSHAKE_RUN_KEYBOARD_INJECT_LIVE=1.",
+    "spec_compliance_status": "MEETS",
+    "code_hygiene_status": "CLEAN",
+    "runtime_safety_status": "ROBUST",
+    "agent_swarm_safety_status": "SAFE",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 0,
+    "review_artifact_ref": "validator_reports_phase1/MT-016.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1\\validator_reports_phase1\\MT-016.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  }
+}

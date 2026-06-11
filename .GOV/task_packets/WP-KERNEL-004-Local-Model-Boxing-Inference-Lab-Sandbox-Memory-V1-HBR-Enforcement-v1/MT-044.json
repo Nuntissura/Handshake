@@ -1,0 +1,155 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-044",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "B",
+  "cluster_subscope": "B.1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:10:00Z",
+  "updated_at_utc": "2026-05-28T00:01:44.895Z",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-044.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "WSL2PodmanAdapter implementation (DEFAULT adapter)",
+  "goal": "Land the WSL2PodmanAdapter — rootless Podman containers running inside WSL2 — as the operator-default SandboxAdapter implementation per spec §3.5.2. Cross-machine portable, near-native NVIDIA CUDA via the WSL2 CUDA driver, bind-mounts large GGUF files without copy. Default adapter for the disk-agnostic portability requirement [GLOBAL-PORTABILITY-001].",
+  "expected_diff_shape": "New module src/backend/handshake_core/src/sandbox/wsl2_podman/{mod.rs, adapter.rs, podman_cli.rs, wsl_detection.rs, gpu_probe.rs}; integration tests under src/backend/handshake_core/tests/wsl2_podman_adapter_tests.rs (gated by `#[cfg_attr(not(feature = \"wsl2-integration\"), ignore)]` so the suite runs in CI only when the WSL2 host is wired). Cargo.toml additions: tokio (process + io), which, tempfile.",
+  "owned_files": [
+    "src/backend/handshake_core/src/sandbox/wsl2_podman/mod.rs",
+    "src/backend/handshake_core/src/sandbox/wsl2_podman/adapter.rs",
+    "src/backend/handshake_core/src/sandbox/wsl2_podman/podman_cli.rs",
+    "src/backend/handshake_core/src/sandbox/wsl2_podman/wsl_detection.rs",
+    "src/backend/handshake_core/src/sandbox/wsl2_podman/gpu_probe.rs",
+    "src/backend/handshake_core/tests/wsl2_podman_adapter_tests.rs",
+    "src/backend/handshake_core/Cargo.toml"
+  ],
+  "depends_on_mts": [
+    "MT-041",
+    "MT-042"
+  ],
+  "unblock_conditions": "Shared types + SandboxAdapter trait merged; selection registry not required for this MT (adapter is implemented standalone, then registered in MT-048 wiring).",
+  "implementation_notes": "Per RW-1 synthesis (refinement.json research_basis_plan[0]) WSL2+Podman scored 32/40 on the Windows landscape scan and is the operator-locked DEFAULT. Implementation strategy: shell out to the `wsl.exe` CLI to enter the configured WSL2 distro (default: `Ubuntu`, configurable via `settings.local_models.wsl2_distro`), then run `podman --remote=false --rootless` commands inside the distro. NO direct libpod bindings (avoids C ABI risk per RW-1 maintenance scoring). adapter.rs implements `SandboxAdapter`: (1) `spawn`: builds a `podman run --rm -d --userns=keep-id --net=$NET --read-only --tmpfs /tmp` argv from ProcessSpec, applies bind specs as `-v host:guest:mode`, applies env via `-e`, applies resource limits via `--memory --cpus --pids-limit`, applies net policy (DenyAll -> `--network=none`; LoopbackOnly -> `--network=slirp4netns:port_handler=slirp4netns,allow_host_loopback=true` plus per-process iptables localhost-only seed; Allowlist -> create an ephemeral CNI network per process plus iptables allowlist seed), captures the container id as `sandbox_internal_id`, mints ProcessHandle with UUID v7. (2) `exec`: `podman exec <container_id> <argv>` with stdin/stdout/stderr piped via tokio::process; returns ExecResult with duration_ms measured by Instant. (3) `fs_bind`: post-spawn binds are NOT supported by Podman (bind specs are spawn-time); MUST return SandboxAdapterError::SpawnFailed{ reason: \"post-spawn fs_bind unsupported on Podman; declare in ProcessSpec.binds\" }. (4) `net_policy`: post-spawn policy reapply uses `podman network connect/disconnect` (Allowlist updates) and iptables rules; DenyAll forces network removal. (5) `kill`: maps Signal::Term -> `podman stop --time 10`, Signal::Kill -> `podman kill --signal KILL`, Signal::Int -> `podman kill --signal INT`. (6) `status`: `podman inspect --format '{{.State.Status}}'` parsed into ProcessStatus. (7) `exit_code`: `podman inspect --format '{{.State.ExitCode}}'`. (8) `capabilities()`: returns AdapterCapabilities { adapter_id: \"wsl2_podman\", filesystem_isolation_strength: Strong, network_isolation_strength: Strong, gpu_passthrough: NvidiaCuda (detected via gpu_probe.rs running `nvidia-smi` inside the distro; falls back to None if probe fails; cached across calls per HBR-SWARM-001 perf), stdio_throughput_class: High, win32_native_fidelity: false, cross_machine_portable: true }. wsl_detection.rs verifies WSL2 is installed (`wsl.exe --status` parsed for `Default Version: 2`) and the configured distro is registered (`wsl.exe -l -v`); SpawnFailed loud on detection failure. gpu_probe.rs runs `wsl.exe -d <distro> -- nvidia-smi --query-gpu=name --format=csv,noheader` and parses; cached for 60s; HBR-SWARM-001 concurrency-safe via OnceCell + Mutex. Integration tests (gated): spawn a `docker.io/library/alpine:3.20` container, run `echo hello`, assert exit code 0 + stdout==\"hello\\n\"; NetPolicy::DenyAll prevents outbound DNS; bind a 1KB temp file ReadOnly and verify writes inside guest fail with EROFS.",
+  "proof_commands": [
+    "cargo build -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target --features wsl2-integration",
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target wsl2_podman_adapter_tests --features wsl2-integration"
+  ],
+  "risk_if_missed": "Without the default adapter Handshake's local-model stack cannot box any process; KERNEL-004 cannot ship.",
+  "validator_focus": "(a) Adapter implements SandboxAdapter without leaking podman or wsl types into the trait surface; (b) net_policy DenyAll actually blocks outbound DNS in integration test; (c) capabilities().cross_machine_portable==true; (d) bind-mount ReadOnly mode is enforced (guest write returns EROFS); (e) UUID v7 in ProcessHandle.id; (f) gpu_probe is cached and concurrent-safe under HBR-SWARM-001.",
+  "hbr_obligations": [
+    "HBR-INT-008",
+    "HBR-SWARM-001",
+    "HBR-QUIET-003"
+  ],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/03-local-first-infrastructure.md#3.5.2"
+  ],
+  "acceptance_criteria_refs": [
+    "AC-SANDBOX-ADAPTER-IMPLS",
+    "AC-SANDBOX-CAP-DECL"
+  ],
+  "lifecycle": {
+    "active": false,
+    "status": "READY_FOR_VALIDATION",
+    "validator_verdict": "CONCERN",
+    "depends_on": [
+      "MT-041",
+      "MT-042"
+    ],
+    "blocks": [
+      "MT-048",
+      "MT-049",
+      "MT-052",
+      "MT-053",
+      "MT-057",
+      "MT-058"
+    ],
+    "claimed_by": "KERNEL_BUILDER-20260518-073535",
+    "builder_handoff_correction_20260525": {
+      "correction_id": "KERNEL004-WP-RFV-CORRECTION-20260525",
+      "corrected_at_utc": "2026-05-25T15:54:56.028Z",
+      "corrected_by": "KERNEL_BUILDER-20260525-144915",
+      "operator_instruction": "Operator clarified that completed/pass-like states were not validator-reviewed and instructed Kernel Builder to mark everything ready for validator handoff except the blocked item.",
+      "previous_lifecycle": {
+        "status": "COMPLETED",
+        "validator_verdict": "PENDING",
+        "completed_at_utc": "2026-05-18T19:24:01.792Z"
+      },
+      "current_interpretation": "Kernel Builder implementation handoff readiness only; no WP/Integration Validator pass or validator-reviewed completion is claimed."
+    },
+    "previous_completed_at_utc_before_ready_for_validation_20260525": "2026-05-18T19:24:01.792Z",
+    "ready_by": "KERNEL_BUILDER-20260525-144915",
+    "ready_at_utc": "2026-05-25T15:54:56.028Z",
+    "ready_for_validation_reason": "Kernel Builder believes implementation/supporting evidence is ready for Integration Validator handoff; validator review remains pending.",
+    "validator_verdict_set_by": "INTEGRATION_VALIDATOR_AGGREGATOR_PHASE1_OPUS_4_7",
+    "validator_verdict_set_at_utc": "2026-05-28T00:01:31.342Z"
+  },
+  "handoff": {
+    "coder_session": "KERNEL_BUILDER-20260518-073535",
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": "019e6be3-15bf-7e06-b02d-59a1061a19d9",
+    "review_response_receipt_actor_role": "INTEGRATION_VALIDATOR",
+    "review_response_receipt_track": "JUDGMENT_OOB_IV_PHASE1_PRE_REMEDIATION"
+  },
+  "red_team": {
+    "minimum_controls": [
+      "WSL2 + distro detection at adapter construction fails loud if WSL2 is absent; no silent local-only fallback.",
+      "Net-policy DenyAll integration test asserts an outbound `getent hosts` inside the guest fails; prevents the most-common 'sandbox advertised but doesn't enforce' regression.",
+      "Bind ReadOnly integration test asserts `echo x > /mnt/readonly/foo` returns EROFS; required by spec §3.6.3 (gguf_root mounted read-only)."
+    ]
+  },
+  "integration_validator_review": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_B1_B2",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-28T00:01:31.342Z",
+    "verdict": "CONCERN",
+    "verdict_reason": "WSL2PodmanAdapter spawns/exec/kill/status work and capabilities are honest about win32 fidelity, but the NetPolicy::LoopbackOnly path silently maps to --network=none (loopback is unreachable in netnone, so the policy name lies about what is enforced) and the test suite endorses that downgrade.",
+    "spec_compliance_status": "PARTIAL",
+    "code_hygiene_status": "MINOR",
+    "runtime_safety_status": "CONCERN",
+    "agent_swarm_safety_status": "CONCERN",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 1,
+      "MEDIUM": 2,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 1,
+    "review_artifact_ref": "../../../../../Handshake_Artifacts/wp-kernel-004-validation/per-mt/MT-044.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts\\wp-kernel-004-validation\\per-mt\\MT-044.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  },
+  "integration_validator_review_prior": {
+    "reviewer": "INTEGRATION_VALIDATOR_SUB_REVIEWER_B1_B2",
+    "reviewed_at_utc": "2026-05-27T00:00:00Z",
+    "aggregator_run_at_utc": "2026-05-27T23:48:44.444Z",
+    "verdict": "CONCERN",
+    "verdict_reason": "WSL2PodmanAdapter spawns/exec/kill/status work and capabilities are honest about win32 fidelity, but the NetPolicy::LoopbackOnly path silently maps to --network=none (loopback is unreachable in netnone, so the policy name lies about what is enforced) and the test suite endorses that downgrade.",
+    "spec_compliance_status": "PARTIAL",
+    "code_hygiene_status": "MINOR",
+    "runtime_safety_status": "CONCERN",
+    "agent_swarm_safety_status": "CONCERN",
+    "hbr_unsatisfied": [],
+    "test_coverage_status": "ADEQUATE",
+    "findings_count_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 1,
+      "MEDIUM": 2,
+      "LOW": 1
+    },
+    "paperwork_notes_count": 1,
+    "review_artifact_ref": "validator_reports_phase1/MT-044.review.json",
+    "review_artifact_abs_path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1\\validator_reports_phase1\\MT-044.review.json",
+    "classification": "INTEGRATION_VALIDATOR_PER_MT_VERDICT_PHASE1_PRE_REMEDIATION"
+  }
+}
