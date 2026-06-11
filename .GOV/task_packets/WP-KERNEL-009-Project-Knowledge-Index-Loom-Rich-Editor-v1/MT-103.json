@@ -22,7 +22,7 @@
   "title": "CodeIndexingAndNavigation-103-DocCommentTodoExtractor",
   "group": "CodeIndexingAndNavigation",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T16:55:57.726Z",
+  "updated_at_utc": "2026-06-11T19:01:36.361Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-103.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -79,7 +79,7 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "BLOCKED_ON_DEPENDENCY",
     "active": false,
     "depends_on": [
       "MT-097"
@@ -114,13 +114,60 @@
     "ready_for_validation_at_utc": "2026-06-11T16:55:57.726Z",
     "evidence": [
       "Adversarial code review PASS (ADVERSARIAL_CODE_REVIEWER-20260611-PM); only minor intended-behavior notes."
-    ]
+    ],
+    "validator_verdict_set_by": "WP_VALIDATOR-20260611-181356",
+    "validator_verdict_set_at_utc": "2026-06-11T19:01:36.361Z",
+    "validator_verdict": "FAIL_V1",
+    "failure_label": "FAIL_V1",
+    "failed_by": "WP_VALIDATOR-20260611-181356",
+    "failed_at_utc": "2026-06-11T19:01:36.361Z",
+    "completed_at_utc": null,
+    "wp_validator_review_v1": {
+      "schema_id": "hsk.wp_validator_mt_review@1",
+      "verdict": "FAIL_V1",
+      "reviewed_by": "WP_VALIDATOR-20260611-181356",
+      "reviewed_at_utc": "2026-06-11T19:01:36.361Z",
+      "review_scope": "Validated only MTs that were READY_FOR_VALIDATION in WP-KERNEL-009; no ACP used.",
+      "status_after": "BLOCKED_ON_DEPENDENCY",
+      "findings": [
+        {
+          "code": "UPSTREAM_DEPENDENCY_NOT_READY",
+          "severity": "HIGH",
+          "summary": "MT-103 is READY_FOR_VALIDATION but declares MT-097 as a dependency, and MT-097 is still CLAIMED rather than validator-completed.",
+          "evidence_paths": [
+            ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-103.json",
+            ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-097.json"
+          ],
+          "required_remediation": "Do not resubmit MT-103 until MT-097 is READY_FOR_VALIDATION and passes WP Validator review, or update the dependency graph through the packet authority if the dependency is no longer real."
+        },
+        {
+          "code": "DOCS_TODO_OPERATOR_STRING_EXTRACTION_GAP",
+          "severity": "HIGH",
+          "summary": "The MT contract says doc comments, TODOs, safety notes, and operator-facing strings; implementation only extracts comments/markers. No string-literal/operator-facing extraction or test coverage was found.",
+          "evidence_paths": [
+            "src/backend/handshake_core/src/knowledge_code_index/docs_todo.rs",
+            "src/backend/handshake_core/src/knowledge_code_index/engine.rs",
+            "src/backend/handshake_core/tests/knowledge_code_index_tests.rs"
+          ],
+          "required_remediation": "After MT-097 is ready/completed, add operator-facing string literal extraction or explicitly narrow the MT contract. Include tests that prove operator-facing strings are indexed separately from TODO/doc-comment markers."
+        }
+      ],
+      "evidence_basis": [
+        "Authoritative MT JSON contract and current product tree inspection.",
+        "Dependency failures use deterministic packet status/dependency reads only; WIP MT work products were not inspected."
+      ],
+      "required_next_actor": "KERNEL_BUILDER",
+      "remediation_summary": [
+        "Do not resubmit MT-103 until MT-097 is READY_FOR_VALIDATION and passes WP Validator review, or update the dependency graph through the packet authority if the dependency is no longer real.",
+        "After MT-097 is ready/completed, add operator-facing string literal extraction or explicitly narrow the MT contract. Include tests that prove operator-facing strings are indexed separately from TODO/doc-comment markers."
+      ]
+    }
   },
   "handoff": {
     "coder_session": null,
     "review_request_receipt_id": null,
     "review_response_receipt_id": null,
-    "wp_validator_session": null
+    "wp_validator_session": "WP_VALIDATOR-20260611-181356"
   },
   "red_team": {
     "required": true,

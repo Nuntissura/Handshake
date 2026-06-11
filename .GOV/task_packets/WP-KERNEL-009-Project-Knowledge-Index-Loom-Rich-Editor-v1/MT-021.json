@@ -22,7 +22,7 @@
   "title": "NativeDependencyAndPackaging-021-TiptapPackageIntegrationPlan",
   "group": "NativeDependencyAndPackaging",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T11:51:38.914Z",
+  "updated_at_utc": "2026-06-11T19:01:36.361Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-021.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -81,7 +81,7 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "FAIL_NEEDS_REWORK",
     "active": false,
     "depends_on": [
       "MT-017"
@@ -113,13 +113,49 @@
     "ready_for_validation_at_utc": "2026-06-11T11:51:38.914Z",
     "evidence": [
       "Implementation commit c76c5fbc on feat/WP-KERNEL-009; adversarial code review verdict PASS (refutation attempts failed); runtime evidence: check:dependency-policy 8/8 exit 0 (real builds), cargo --lib dependency_policy:: 31/31, vitest 67/67 post-hardening."
-    ]
+    ],
+    "validator_verdict_set_by": "WP_VALIDATOR-20260611-181356",
+    "validator_verdict_set_at_utc": "2026-06-11T19:01:36.361Z",
+    "validator_verdict": "FAIL_V1",
+    "failure_label": "FAIL_V1",
+    "failed_by": "WP_VALIDATOR-20260611-181356",
+    "failed_at_utc": "2026-06-11T19:01:36.361Z",
+    "completed_at_utc": null,
+    "wp_validator_review_v1": {
+      "schema_id": "hsk.wp_validator_mt_review@1",
+      "verdict": "FAIL_V1",
+      "reviewed_by": "WP_VALIDATOR-20260611-181356",
+      "reviewed_at_utc": "2026-06-11T19:01:36.361Z",
+      "review_scope": "Validated only MTs that were READY_FOR_VALIDATION in WP-KERNEL-009; no ACP used.",
+      "status_after": "FAIL_NEEDS_REWORK",
+      "findings": [
+        {
+          "code": "TIPTAP_SCHEMA_COLLAB_HOOK_GAP",
+          "severity": "HIGH",
+          "summary": "Tiptap package/schema basics are present, but the MT contract calls for schema versioning and collaboration hooks; the Tiptap extension owner does not import or own the collaboration extension/hook surface.",
+          "evidence_paths": [
+            "app/src/editor/extension_set.ts",
+            "app/src/editor/extension_set.test.ts",
+            "app/pnpm-lock.yaml"
+          ],
+          "required_remediation": "Add the missing schema-version surface and collaboration hook integration/ownership evidence, or narrow the MT contract through the orchestrator before resubmitting. Include a test proving the extension set exposes the required collaboration/version contract rather than only locking the dependency."
+        }
+      ],
+      "evidence_basis": [
+        "Authoritative MT JSON contract and current product tree inspection.",
+        "Dependency failures use deterministic packet status/dependency reads only; WIP MT work products were not inspected."
+      ],
+      "required_next_actor": "KERNEL_BUILDER",
+      "remediation_summary": [
+        "Add the missing schema-version surface and collaboration hook integration/ownership evidence, or narrow the MT contract through the orchestrator before resubmitting. Include a test proving the extension set exposes the required collaboration/version contract rather than only locking the dependency."
+      ]
+    }
   },
   "handoff": {
     "coder_session": null,
     "review_request_receipt_id": null,
     "review_response_receipt_id": null,
-    "wp_validator_session": null
+    "wp_validator_session": "WP_VALIDATOR-20260611-181356"
   },
   "red_team": {
     "required": true,

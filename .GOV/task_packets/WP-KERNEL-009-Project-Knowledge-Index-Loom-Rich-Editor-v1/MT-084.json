@@ -22,7 +22,7 @@
   "title": "SourceIngestionAndEvidence-084-ContentHashStrategy",
   "group": "SourceIngestionAndEvidence",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T15:32:04.773Z",
+  "updated_at_utc": "2026-06-11T19:16:10.973Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-084.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -80,7 +80,7 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "READY_FOR_VALIDATION_V2",
     "active": false,
     "depends_on": [
       "MT-081"
@@ -117,13 +117,54 @@
     "ready_for_validation_at_utc": "2026-06-11T15:32:04.773Z",
     "evidence": [
       "Adversarial code review PASS/PASS_WITH_NOTES (ADVERSARIAL_CODE_REVIEWER-20260611-PM); only LOW non-blocking notes."
-    ]
+    ],
+    "validator_verdict_set_by": "WP_VALIDATOR-20260611-181356",
+    "validator_verdict_set_at_utc": "2026-06-11T19:01:36.361Z",
+    "validator_verdict": "FAIL_V1",
+    "failure_label": "FAIL_V1",
+    "failed_by": "WP_VALIDATOR-20260611-181356",
+    "failed_at_utc": "2026-06-11T19:01:36.361Z",
+    "completed_at_utc": null,
+    "wp_validator_review_v1": {
+      "schema_id": "hsk.wp_validator_mt_review@1",
+      "verdict": "FAIL_V1",
+      "reviewed_by": "WP_VALIDATOR-20260611-181356",
+      "reviewed_at_utc": "2026-06-11T19:01:36.361Z",
+      "review_scope": "Validated only MTs that were READY_FOR_VALIDATION in WP-KERNEL-009; no ACP used.",
+      "status_after": "BLOCKED_ON_DEPENDENCY",
+      "findings": [
+        {
+          "code": "UPSTREAM_DEPENDENCY_NOT_READY",
+          "severity": "HIGH",
+          "summary": "MT-084 is READY_FOR_VALIDATION but declares MT-081 as a dependency, and MT-081 is still CLAIMED rather than validator-completed.",
+          "evidence_paths": [
+            ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-084.json",
+            ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-081.json"
+          ],
+          "required_remediation": "Do not resubmit MT-084 until MT-081 is READY_FOR_VALIDATION and passes WP Validator review, or update the dependency graph through the packet authority if the dependency is no longer real."
+        }
+      ],
+      "evidence_basis": [
+        "Authoritative MT JSON contract and current product tree inspection.",
+        "Dependency failures use deterministic packet status/dependency reads only; WIP MT work products were not inspected."
+      ],
+      "required_next_actor": "KERNEL_BUILDER",
+      "remediation_summary": [
+        "Do not resubmit MT-084 until MT-081 is READY_FOR_VALIDATION and passes WP Validator review, or update the dependency graph through the packet authority if the dependency is no longer real."
+      ]
+    },
+    "remediation_v2": {
+      "at_utc": "2026-06-11T19:16:10.973Z",
+      "by": "KERNEL_BUILDER-20260611-071323",
+      "fail_verdict": "FAIL_V1 BLOCKED_ON_DEPENDENCY (MT-081 unfinished at validation time)",
+      "remediation": "Dependency resolved: MT-081 is now implemented+hardened+verified (commit 5876feaf) and READY_FOR_VALIDATION. This MT own implementation passed adversarial review; the only V1 blocker was the MT-081 dependency. Resubmitting for V2 re-validation."
+    }
   },
   "handoff": {
     "coder_session": null,
     "review_request_receipt_id": null,
     "review_response_receipt_id": null,
-    "wp_validator_session": null
+    "wp_validator_session": "WP_VALIDATOR-20260611-181356"
   },
   "red_team": {
     "required": true,

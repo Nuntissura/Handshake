@@ -22,7 +22,7 @@
   "title": "MasterSpecEnrichmentSeed-041-SwarmRecoverySpecSeed",
   "group": "MasterSpecEnrichmentSeed",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T08:13:01.737Z",
+  "updated_at_utc": "2026-06-11T19:17:33.962Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-041.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -111,7 +111,7 @@
     }
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "READY_FOR_VALIDATION_V2",
     "active": false,
     "depends_on": [
       "MT-033"
@@ -123,7 +123,7 @@
     "ready_for_validation_at_utc": "2026-06-11T07:53:27.940Z",
     "evidence": [
       "Spec-ready lease/checkpoint contract drafted as scope.swarm_lease_checkpoint_contract_seed in this MT contract (MUST-level claim/expiry/renewal/takeover/denial semantics + durable checkpoint/recovery records).",
-      "Seed aligned with implementation owner MTs MT-209/210/213/214/216 so the external validator can diff implementation against the seed.",
+      "Seed aligned with implementation owner MTs MT-209/210/213/214/215/216/217/223 (the full current set in scope.swarm_lease_checkpoint_contract_seed.implementation_owner_mts) so the external validator can diff implementation against the seed. The base owners MT-209/210/213/214/216 cover lease+checkpoint+receipt; MT-215 (LocalCloudAttribution), MT-217 (ParallelEditorAgentSafety), and MT-223 (StateRecoveryNegativeCases) were added per adversarial review to own attribution, concurrent-editor safety, and recovery-negative cases respectively.",
       "Attribution/receipt base law already applied in v02.192 02#2.3.13.11 (backend navigation receipts with actor/session/correlation ids).",
       "AC3 (no sidecar authority): the seed is typed contract content inside this MT contract, derived from stub state_recovery_contract + PRODUCT-AC-008, not from external papers; research provenance is non-normative per stub research_basis.",
       "AC4 (HBR rows): hbr_focus HBR-SWARM-001/002/003 are implementation obligations transferred to owner MTs (now MT-209/210/213/214/215/216/217/223); seed itself is record-scope, NA per HBRNA-002."
@@ -149,13 +149,53 @@
         "Marked seed explicitly as future-spec-bump material with today's applied law boundary.",
         "Added AC3/AC4 evidence entries."
       ]
+    },
+    "validator_verdict_set_by": "WP_VALIDATOR-20260611-181356",
+    "validator_verdict_set_at_utc": "2026-06-11T19:01:36.361Z",
+    "validator_verdict": "FAIL_V1",
+    "failure_label": "FAIL_V1",
+    "failed_by": "WP_VALIDATOR-20260611-181356",
+    "failed_at_utc": "2026-06-11T19:01:36.361Z",
+    "completed_at_utc": null,
+    "wp_validator_review_v1": {
+      "schema_id": "hsk.wp_validator_mt_review@1",
+      "verdict": "FAIL_V1",
+      "reviewed_by": "WP_VALIDATOR-20260611-181356",
+      "reviewed_at_utc": "2026-06-11T19:01:36.361Z",
+      "review_scope": "Validated only MTs that were READY_FOR_VALIDATION in WP-KERNEL-009; no ACP used.",
+      "status_after": "FAIL_NEEDS_REWORK",
+      "findings": [
+        {
+          "code": "CONTRACT_EVIDENCE_OWNER_SET_DRIFT",
+          "severity": "MEDIUM",
+          "summary": "The contract seed now lists MT-215/217/223, but validator-facing evidence still says owner MTs are only MT-209/210/213/214/216.",
+          "evidence_paths": [
+            ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-041.json"
+          ],
+          "required_remediation": "Reconcile the owner-MT set in MT-041 so the seed, evidence, and handoff text all name the same current owners. If MT-215/217/223 are required, add evidence for them; if not, remove them from the seed through the proper contract update path."
+        }
+      ],
+      "evidence_basis": [
+        "Authoritative MT JSON contract and current product tree inspection.",
+        "Dependency failures use deterministic packet status/dependency reads only; WIP MT work products were not inspected."
+      ],
+      "required_next_actor": "KERNEL_BUILDER",
+      "remediation_summary": [
+        "Reconcile the owner-MT set in MT-041 so the seed, evidence, and handoff text all name the same current owners. If MT-215/217/223 are required, add evidence for them; if not, remove them from the seed through the proper contract update path."
+      ]
+    },
+    "remediation_v2": {
+      "at_utc": "2026-06-11T19:17:33.962Z",
+      "by": "KERNEL_BUILDER-20260611-071323",
+      "fail_verdict": "FAIL_V1 CONTRACT_EVIDENCE_OWNER_SET_DRIFT (MEDIUM): seed listed 8 owners but evidence named only 5",
+      "remediation": "Reconciled evidence[1] to name the full 8-owner set matching scope.swarm_lease_checkpoint_contract_seed.implementation_owner_mts; justified the MT-215/217/223 additions. Seed and evidence now consistent."
     }
   },
   "handoff": {
     "coder_session": null,
     "review_request_receipt_id": null,
     "review_response_receipt_id": null,
-    "wp_validator_session": null
+    "wp_validator_session": "WP_VALIDATOR-20260611-181356"
   },
   "red_team": {
     "required": true,

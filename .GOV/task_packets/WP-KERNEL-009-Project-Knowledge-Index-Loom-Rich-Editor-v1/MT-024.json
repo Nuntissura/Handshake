@@ -22,7 +22,7 @@
   "title": "NativeDependencyAndPackaging-024-NoDockerDefaultProof",
   "group": "NativeDependencyAndPackaging",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T11:51:38.914Z",
+  "updated_at_utc": "2026-06-11T19:01:36.361Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-024.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -81,14 +81,14 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-017"
     ],
     "blocks": [],
     "claimed_by": "KERNEL_BUILDER-20260611-071323",
-    "completed_by": null,
+    "completed_by": "WP_VALIDATOR-20260611-181356",
     "implementation_commit": "943899ac",
     "implementation_evidence": "Implemented in wtc-kernel-009 feat/WP-KERNEL-009 commit 943899ac; proof commands green per delegate report (vitest/cargo/playwright; MT-032 aggregate check:dependency-policy 8/8 pass, app suite 313/313). Pending adversarial code review before READY_FOR_VALIDATION.",
     "adversarial_code_review": {
@@ -116,13 +116,39 @@
     "ready_for_validation_at_utc": "2026-06-11T11:51:38.914Z",
     "evidence": [
       "Implementation commit 943899ac on feat/WP-KERNEL-009; adversarial code review verdict HARDEN_RECOMMENDED -> remediated in commit 0bfcceb2, exploits independently re-run by reviewer and confirmed CLOSED; runtime evidence: check:dependency-policy 8/8 exit 0 (real builds), cargo --lib dependency_policy:: 31/31, vitest 67/67 post-hardening."
-    ]
+    ],
+    "validator_verdict_set_by": "WP_VALIDATOR-20260611-181356",
+    "validator_verdict_set_at_utc": "2026-06-11T19:01:36.361Z",
+    "validator_verdict": "PASS_V1",
+    "pass_label": "PASS_V1",
+    "completed_at_utc": "2026-06-11T19:01:36.361Z",
+    "wp_validator_review_v1": {
+      "schema_id": "hsk.wp_validator_mt_review@1",
+      "verdict": "PASS_V1",
+      "reviewed_by": "WP_VALIDATOR-20260611-181356",
+      "reviewed_at_utc": "2026-06-11T19:01:36.361Z",
+      "review_scope": "Validated only MTs that were READY_FOR_VALIDATION in WP-KERNEL-009; no ACP used.",
+      "status_after": "COMPLETED",
+      "findings": [],
+      "evidence_basis": [
+        "Subagent and local WP Validator review of only the MTs that were READY_FOR_VALIDATION at session read.",
+        "Direct packet status/dependency map checked before mutation.",
+        "Targeted local cargo probes passed for MT-054, MT-056, and MT-063 hardening paths: relationship_id_resists_separator_injection_collision; db_blocks_retired_to_accepted_resurrection_via_raw_sql; scratch_schema_apply_rollback_reapply.",
+        "MT-049..MT-064 were independently confirmed by the returned subagent slice using real PostgreSQL-backed test paths."
+      ],
+      "tests_run": [
+        "cargo test --features test-utils --test knowledge_graph_tests relationship_id_resists_separator_injection_collision -- --nocapture (PASS)",
+        "cargo test --features test-utils --test knowledge_claims_tests db_blocks_retired_to_accepted_resurrection_via_raw_sql -- --nocapture (PASS)",
+        "cargo test --features test-utils --test knowledge_migration_tests scratch_schema_apply_rollback_reapply -- --nocapture (PASS)"
+      ],
+      "residual_uncertainty": "Validation was scoped to MTs already READY_FOR_VALIDATION. Concurrent WIP/untracked files outside those MTs were not inspected."
+    }
   },
   "handoff": {
     "coder_session": null,
     "review_request_receipt_id": null,
     "review_response_receipt_id": null,
-    "wp_validator_session": null
+    "wp_validator_session": "WP_VALIDATOR-20260611-181356"
   },
   "red_team": {
     "required": true,

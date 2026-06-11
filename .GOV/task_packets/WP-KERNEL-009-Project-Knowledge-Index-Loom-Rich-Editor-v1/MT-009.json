@@ -22,7 +22,7 @@
   "title": "ResearchSpecTranslation-009-BuildRulesApplicabilityMap",
   "group": "ResearchSpecTranslation",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T08:13:01.737Z",
+  "updated_at_utc": "2026-06-11T19:17:33.962Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-009.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -81,7 +81,7 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "READY_FOR_VALIDATION_V2",
     "active": false,
     "depends_on": [
       "MT-001"
@@ -95,8 +95,8 @@
       "Per-surface HBR applicability matrix recorded as packet.json acceptance_matrix.hbr (13 typed rows keyed by feature/primitive/tool/UI/storage/lane surface, each with applicable HBR rule ids, owner MT range, required flag, evidence_kind).",
       "Pillar tags INT/SWARM/VIS/QUIET/MAN/STOP declared in packet.json hbr.tags_declared.",
       "Per-MT hbr_focus already present in all 240 MT contracts (stub-promoted).",
-      "AC3 (no sidecar/outside-runtime authority): the applicability matrix lives in packet.json acceptance_matrix (typed JSON contract), not in markdown, sidecar papers, or external tooling; HBR registry .GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json is the rule authority.",
-      "AC4 (HBR rows proven/blocked/NA named): acceptance_matrix.hbr rows are all status=PENDING with evidence_kind=mt_group_runtime_evidence (proof lands with owner MT groups); acceptance_matrix.hbr_not_applicable records NA dispositions for the two record-only MT groups and the validator lane with concrete reasons; this MT's own hbr_focus rows (HBR-INT-001, CX-503S, CX-503P) are satisfied by the matrix being a typed in-product-governance contract with no external dependency.",
+      "AC3 (no sidecar/outside-runtime authority): the applicability matrix lives in packet.json acceptance_matrix (typed JSON contract), not in markdown, sidecar papers, or external tooling; Actual hbr_focus rows are HBR-INT-001/HBR-INT-004/HBR-MAN-001/HBR-SWARM-001 (no CX rows are cited as substitutes). HBR registry .GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json is the rule authority.",
+      "AC4 (each hbr_focus row proven or marked NOT_APPLICABLE): MT-009 is a record-only deliverable that produces the HBR applicability matrix; per actual hbr_focus = [HBR-INT-001, HBR-INT-004, HBR-MAN-001, HBR-SWARM-001]: HBR-INT-001 = SATISFIED (the applicability matrix is a typed in-governance JSON contract at packet.json acceptance_matrix.hbr, no markdown/sidecar/external authority). HBR-INT-004 = NOT_APPLICABLE (this MT changes no product code, runtime behavior, or trace surface; it is a governance-record artifact). HBR-MAN-001 = NOT_APPLICABLE (no model-callable command, IPC channel, schema field, config key, or CLI flag is added/changed by this record MT, so no UserManual update is triggered). HBR-SWARM-001 = NOT_APPLICABLE (no concurrent runtime/CRDT/EventLedger behavior is introduced by this record MT). The matrix's per-surface rows carry the runtime HBR obligations for the owner MT groups; they are not this record MT's own proof obligations.",
       "Spec 12.7 reconciliation: all 15 spec-declared HBR rules now present in the matrix (acceptance_matrix.spec_12_7_reconciliation); supplementary stricter rules retained and justified."
     ],
     "evidence_basis": "SATISFIED_BY_ACTIVATION_PHASE_ARTIFACTS_PLUS_KERNEL_BUILDER_RECORD",
@@ -122,13 +122,55 @@
         "Added AC3/AC4 evidence entries.",
         "Recorded spec_12_7_reconciliation block."
       ]
+    },
+    "validator_verdict_set_by": "WP_VALIDATOR-20260611-181356",
+    "validator_verdict_set_at_utc": "2026-06-11T19:01:36.361Z",
+    "validator_verdict": "FAIL_V1",
+    "failure_label": "FAIL_V1",
+    "failed_by": "WP_VALIDATOR-20260611-181356",
+    "failed_at_utc": "2026-06-11T19:01:36.361Z",
+    "completed_at_utc": null,
+    "wp_validator_review_v1": {
+      "schema_id": "hsk.wp_validator_mt_review@1",
+      "verdict": "FAIL_V1",
+      "reviewed_by": "WP_VALIDATOR-20260611-181356",
+      "reviewed_at_utc": "2026-06-11T19:01:36.361Z",
+      "review_scope": "Validated only MTs that were READY_FOR_VALIDATION in WP-KERNEL-009; no ACP used.",
+      "status_after": "FAIL_NEEDS_REWORK",
+      "findings": [
+        {
+          "code": "HBR_FOCUS_EVIDENCE_MISMATCH",
+          "severity": "HIGH",
+          "summary": "The MT contract evidence contradicts its own HBR focus set: the ready evidence cites CX-503S/CX-503P while the MT hbr_focus is HBR-INT-001, HBR-INT-004, HBR-MAN-001, and HBR-SWARM-001.",
+          "evidence_paths": [
+            ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-009.json",
+            ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json",
+            ".GOV/codex/Handshake_Codex_v1.4.md"
+          ],
+          "required_remediation": "Rewrite the MT-009 handoff/evidence block so it explicitly proves or marks not-applicable each actual hbr_focus row: HBR-INT-001, HBR-INT-004, HBR-MAN-001, and HBR-SWARM-001. Do not cite unrelated CX rows as substitutes for the MT HBR rows."
+        }
+      ],
+      "evidence_basis": [
+        "Authoritative MT JSON contract and current product tree inspection.",
+        "Dependency failures use deterministic packet status/dependency reads only; WIP MT work products were not inspected."
+      ],
+      "required_next_actor": "KERNEL_BUILDER",
+      "remediation_summary": [
+        "Rewrite the MT-009 handoff/evidence block so it explicitly proves or marks not-applicable each actual hbr_focus row: HBR-INT-001, HBR-INT-004, HBR-MAN-001, and HBR-SWARM-001. Do not cite unrelated CX rows as substitutes for the MT HBR rows."
+      ]
+    },
+    "remediation_v2": {
+      "at_utc": "2026-06-11T19:17:33.962Z",
+      "by": "KERNEL_BUILDER-20260611-071323",
+      "fail_verdict": "FAIL_V1 HBR_FOCUS_EVIDENCE_MISMATCH (HIGH): evidence cited CX-503S/CX-503P instead of the actual hbr_focus rows",
+      "remediation": "Rewrote AC4 evidence to prove/NA each actual hbr_focus row (HBR-INT-001 SATISFIED; HBR-INT-004/MAN-001/SWARM-001 NOT_APPLICABLE for this record-only MT); removed the unrelated CX-503S/CX-503P citation."
     }
   },
   "handoff": {
     "coder_session": null,
     "review_request_receipt_id": null,
     "review_response_receipt_id": null,
-    "wp_validator_session": null
+    "wp_validator_session": "WP_VALIDATOR-20260611-181356"
   },
   "red_team": {
     "required": true,

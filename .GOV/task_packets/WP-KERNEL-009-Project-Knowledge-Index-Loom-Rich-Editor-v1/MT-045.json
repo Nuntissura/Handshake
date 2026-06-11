@@ -22,7 +22,7 @@
   "title": "MasterSpecEnrichmentSeed-045-AppendixFeatureRegistrySeed",
   "group": "MasterSpecEnrichmentSeed",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T08:13:01.737Z",
+  "updated_at_utc": "2026-06-11T19:17:33.962Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-045.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -80,7 +80,7 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "READY_FOR_VALIDATION_V2",
     "active": false,
     "depends_on": [
       "MT-033"
@@ -91,7 +91,7 @@
     "ready_for_validation_at_utc": "2026-06-11T07:38:33.727Z",
     "evidence_basis": "SATISFIED_BY_ACTIVATION_PHASE_ARTIFACTS",
     "evidence": [
-      "AC1 (AppendixFeatureRegistrySeed specified for no-context continuation) -> the registry rows were not only listed but applied in .GOV/spec/master-spec-v02.192/spec-modules/12-end-of-file-appendices.md#12.7 WP-KERNEL-009 Primitive and Interaction Addendum: thirteen primitive rows (PRIM-ProjectKnowledgeIndex, PRIM-KnowledgeSource, PRIM-KnowledgeSpan, PRIM-KnowledgeEntity, PRIM-KnowledgeEdge, PRIM-KnowledgeClaim, PRIM-MemoryPassage, PRIM-RetrievalTrace, PRIM-RichDocument, PRIM-EditorCodeNode, PRIM-UserManual, PRIM-BackendNavigationReceipt, PRIM-VisualDebugEvidence) plus five interaction additions and the HBR applicability row, with the addendum explicitly registering rows until the next full appendix generator pass folds them into the machine appendix blocks; the row plan is recorded in .GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/spec-enrichment-proposal.json module_change_plan for 12-end-of-file-appendices.md",
+      "AC1 (AppendixFeatureRegistrySeed specified for no-context continuation) -> the registry rows were not only listed but applied in .GOV/spec/master-spec-v02.192/spec-modules/12-end-of-file-appendices.md#12.7 WP-KERNEL-009 Primitive and Interaction Addendum: thirteen primitive rows (PRIM-ProjectKnowledgeIndex, PRIM-KnowledgeSource, PRIM-KnowledgeSpan, PRIM-KnowledgeEntity, PRIM-KnowledgeEdge, PRIM-KnowledgeClaim, PRIM-MemoryPassage, PRIM-RetrievalTrace, PRIM-RichDocument, PRIM-EditorCodeNode, PRIM-UserManual, PRIM-BackendNavigationReceipt, PRIM-VisualDebugEvidence) plus four interaction additions and the HBR applicability row (five 12.7 interaction/HBR bullets total, the fifth being the HBR row, not a sixth), with the addendum explicitly registering rows until the next full appendix generator pass folds them into the machine appendix blocks; the row plan is recorded in .GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/spec-enrichment-proposal.json module_change_plan for 12-end-of-file-appendices.md",
       "AC2 (exact files, state tables, constraints, failure modes, verification evidence) -> exact files pinned in this MT scope.relevant_files and scope.constraints; registry consistency proven by refinement.json refinement.verification_results just spec-eof-appendices-check PASS and spec-bundle-check PASS (spec-eof-appendices and spec-growth-discipline checks); failure modes: spec-enrichment-proposal.json stale_conflict_examples for module 12 (appendices must resolve new primitive IDs)",
       "AC3 (sidecar research rejected, ideas restated Handshake-native) -> stub research_basis.normative_status=non_normative_context_only + translation_rule; registry rows are Handshake-native primitives, not external references; this MT scope.constraints bar sidecar-paper and outside-runtime proof",
       "AC4 (HBR rows named with concrete reasons) -> HBR-INT-001, HBR-MAN-001, HBR-SWARM-001 = NOT_APPLICABLE for runtime proof on this spec-seed record MT (no product surface, code, test, or runtime state changed by it; requirement content recorded for implementation MTs in 12-end-of-file-appendices.md#12.7, 10-product-surfaces.md#10.15.8 and #10.20); CX-503R PostgreSQL-only storage law = SATISFIED at spec level by 02-system-architecture.md#2.3.13.11 and 11-shared-dev-platform-and-oss-foundations.md#9.1.1 which lock PostgreSQL/EventLedger-only authority and bar SQLite for WP-KERNEL-009 paths; per packet.json acceptance_matrix.note HBR proof is carried per-MT"
@@ -113,13 +113,54 @@
       "items": [
         "Corrected interaction-addition count to four + HBR row per adversarial review."
       ]
+    },
+    "validator_verdict_set_by": "WP_VALIDATOR-20260611-181356",
+    "validator_verdict_set_at_utc": "2026-06-11T19:01:36.361Z",
+    "validator_verdict": "FAIL_V1",
+    "failure_label": "FAIL_V1",
+    "failed_by": "WP_VALIDATOR-20260611-181356",
+    "failed_at_utc": "2026-06-11T19:01:36.361Z",
+    "completed_at_utc": null,
+    "wp_validator_review_v1": {
+      "schema_id": "hsk.wp_validator_mt_review@1",
+      "verdict": "FAIL_V1",
+      "reviewed_by": "WP_VALIDATOR-20260611-181356",
+      "reviewed_at_utc": "2026-06-11T19:01:36.361Z",
+      "review_scope": "Validated only MTs that were READY_FOR_VALIDATION in WP-KERNEL-009; no ACP used.",
+      "status_after": "FAIL_NEEDS_REWORK",
+      "findings": [
+        {
+          "code": "AC1_EVIDENCE_OVERCLAIM",
+          "severity": "MEDIUM",
+          "summary": "AC1 evidence still overclaims five interaction additions plus the HBR row; the appendix has five bullets total, with the fifth being the HBR row.",
+          "evidence_paths": [
+            ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-045.json",
+            ".GOV/spec/modules/12-end-of-file-appendices.md"
+          ],
+          "required_remediation": "Correct the MT-045 evidence wording to match the actual appendix contents. Either add the missing fifth interaction addition in the spec/module evidence, or state that there are four interaction additions plus the HBR row."
+        }
+      ],
+      "evidence_basis": [
+        "Authoritative MT JSON contract and current product tree inspection.",
+        "Dependency failures use deterministic packet status/dependency reads only; WIP MT work products were not inspected."
+      ],
+      "required_next_actor": "KERNEL_BUILDER",
+      "remediation_summary": [
+        "Correct the MT-045 evidence wording to match the actual appendix contents. Either add the missing fifth interaction addition in the spec/module evidence, or state that there are four interaction additions plus the HBR row."
+      ]
+    },
+    "remediation_v2": {
+      "at_utc": "2026-06-11T19:17:33.962Z",
+      "by": "KERNEL_BUILDER-20260611-071323",
+      "fail_verdict": "FAIL_V1 AC1_EVIDENCE_OVERCLAIM (MEDIUM): evidence claimed five interaction additions + HBR row (the fifth 12.7 bullet IS the HBR row)",
+      "remediation": "Corrected AC1 wording to four interaction additions plus the HBR row (five 12.7 bullets total). Matches the actual appendix contents."
     }
   },
   "handoff": {
     "coder_session": null,
     "review_request_receipt_id": null,
     "review_response_receipt_id": null,
-    "wp_validator_session": null
+    "wp_validator_session": "WP_VALIDATOR-20260611-181356"
   },
   "red_team": {
     "required": true,

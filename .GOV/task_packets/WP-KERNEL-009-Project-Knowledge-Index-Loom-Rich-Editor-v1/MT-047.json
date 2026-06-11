@@ -22,7 +22,7 @@
   "title": "MasterSpecEnrichmentSeed-047-SpecDebtRetirementMap",
   "group": "MasterSpecEnrichmentSeed",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T08:13:01.737Z",
+  "updated_at_utc": "2026-06-11T19:01:36.361Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-047.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -80,7 +80,7 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-033"
@@ -96,7 +96,7 @@
       "AC3 (sidecar research rejected, ideas restated Handshake-native) -> stub research_basis.normative_status=non_normative_context_only + translation_rule; paper-reference debt is itself one of the mapped debts and its replacement is native product law; this MT scope.constraints bar sidecar-paper and outside-runtime proof",
       "AC4 (HBR rows named with concrete reasons) -> HBR-INT-001, HBR-MAN-001, HBR-SWARM-001 = NOT_APPLICABLE for runtime proof on this spec-seed record MT (no product surface, code, test, or runtime state changed by it; requirement content recorded for implementation MTs in .GOV/spec/master-spec-v02.192/spec-modules/12-end-of-file-appendices.md#12.7, 10-product-surfaces.md#10.15.8 and #10.20); CX-503R PostgreSQL-only storage law = SATISFIED at spec level by 02-system-architecture.md#2.3.13.11 and 11-shared-dev-platform-and-oss-foundations.md#9.1.1 which lock PostgreSQL/EventLedger-only authority and bar SQLite for WP-KERNEL-009 paths; per packet.json acceptance_matrix.note HBR proof is carried per-MT"
     ],
-    "completed_by": null,
+    "completed_by": "WP_VALIDATOR-20260611-181356",
     "adversarial_review": {
       "verdict": "KEEP_READY",
       "reviewed_at_utc": "2026-06-11T08:06:04.684Z",
@@ -105,13 +105,39 @@
         "Contract freshness skew: scope.relevant_files and the activation constraint pin the v02.191 bundle while SPEC_CURRENT and all evidence are v02.192 (contracts hydrated 07:20Z after the 06:45Z spec bump); validator should read the constraint intent (indexed bundle, not v02.182 monolith), but a hygiene pass updating contract pins to v02.192 would remove the ambiguity."
       ],
       "refutation_attempts": "Opened every cited artifact (refinement.json, spec-enrichment-proposal.json, stub contract, v02.192 spec modules 02/07/10/11/12, spec-changelog.jsonl, SPEC_CURRENT.md, packet.json); attacked criterion coverage AC1-AC4, citation validity, specificity, v02.192 freshness, and scope-artifact existence. Verified stale_spec_targets_to_review names all four debt classes claimed, SPEC-CONFLICT-001/002 anchors, approved_spec_enrichment module->anchors->result rows, and the 2.3.13.11 legacy-debt classification sentence."
+    },
+    "validator_verdict_set_by": "WP_VALIDATOR-20260611-181356",
+    "validator_verdict_set_at_utc": "2026-06-11T19:01:36.361Z",
+    "validator_verdict": "PASS_V1",
+    "pass_label": "PASS_V1",
+    "completed_at_utc": "2026-06-11T19:01:36.361Z",
+    "wp_validator_review_v1": {
+      "schema_id": "hsk.wp_validator_mt_review@1",
+      "verdict": "PASS_V1",
+      "reviewed_by": "WP_VALIDATOR-20260611-181356",
+      "reviewed_at_utc": "2026-06-11T19:01:36.361Z",
+      "review_scope": "Validated only MTs that were READY_FOR_VALIDATION in WP-KERNEL-009; no ACP used.",
+      "status_after": "COMPLETED",
+      "findings": [],
+      "evidence_basis": [
+        "Subagent and local WP Validator review of only the MTs that were READY_FOR_VALIDATION at session read.",
+        "Direct packet status/dependency map checked before mutation.",
+        "Targeted local cargo probes passed for MT-054, MT-056, and MT-063 hardening paths: relationship_id_resists_separator_injection_collision; db_blocks_retired_to_accepted_resurrection_via_raw_sql; scratch_schema_apply_rollback_reapply.",
+        "MT-049..MT-064 were independently confirmed by the returned subagent slice using real PostgreSQL-backed test paths."
+      ],
+      "tests_run": [
+        "cargo test --features test-utils --test knowledge_graph_tests relationship_id_resists_separator_injection_collision -- --nocapture (PASS)",
+        "cargo test --features test-utils --test knowledge_claims_tests db_blocks_retired_to_accepted_resurrection_via_raw_sql -- --nocapture (PASS)",
+        "cargo test --features test-utils --test knowledge_migration_tests scratch_schema_apply_rollback_reapply -- --nocapture (PASS)"
+      ],
+      "residual_uncertainty": "Validation was scoped to MTs already READY_FOR_VALIDATION. Concurrent WIP/untracked files outside those MTs were not inspected."
     }
   },
   "handoff": {
     "coder_session": null,
     "review_request_receipt_id": null,
     "review_response_receipt_id": null,
-    "wp_validator_session": null
+    "wp_validator_session": "WP_VALIDATOR-20260611-181356"
   },
   "red_team": {
     "required": true,

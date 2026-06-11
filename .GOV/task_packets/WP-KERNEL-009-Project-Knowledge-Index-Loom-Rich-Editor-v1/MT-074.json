@@ -22,7 +22,7 @@
   "title": "CRDTAndConcurrencyCore-074-AiEditProposalReviewFlow",
   "group": "CRDTAndConcurrencyCore",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T18:05:59.097Z",
+  "updated_at_utc": "2026-06-11T19:01:36.361Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-074.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -79,7 +79,7 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "NEEDS_MANAGED_RESOURCE_PROOF",
     "active": false,
     "depends_on": [
       "MT-065"
@@ -122,13 +122,50 @@
     },
     "evidence": [
       "Hardened d6adf2dd: AI-edit lease chokepoint + approved-vs-applied binding (migration 0192 CHECK applied_sha256=diff_sha256); applied_update_must_hash_to_approved_diff PASS."
-    ]
+    ],
+    "validator_verdict_set_by": "WP_VALIDATOR-20260611-181356",
+    "validator_verdict_set_at_utc": "2026-06-11T19:01:36.361Z",
+    "validator_verdict": "FAIL_V1",
+    "failure_label": "FAIL_V1",
+    "failed_by": "WP_VALIDATOR-20260611-181356",
+    "failed_at_utc": "2026-06-11T19:01:36.361Z",
+    "completed_at_utc": null,
+    "wp_validator_review_v1": {
+      "schema_id": "hsk.wp_validator_mt_review@1",
+      "verdict": "FAIL_V1",
+      "reviewed_by": "WP_VALIDATOR-20260611-181356",
+      "reviewed_at_utc": "2026-06-11T19:01:36.361Z",
+      "review_scope": "Validated only MTs that were READY_FOR_VALIDATION in WP-KERNEL-009; no ACP used.",
+      "status_after": "NEEDS_MANAGED_RESOURCE_PROOF",
+      "findings": [
+        {
+          "code": "APPLIED_UPDATE_ID_EXISTENCE_GAP",
+          "severity": "HIGH",
+          "summary": "The applied AI edit binding records applied_update_id as if it identifies a kernel_crdt_updates row, but neither the 0192 schema nor bind_applied_ai_edit_update verifies that the row exists. The positive test binds update-good-* without inserting a kernel_crdt_updates row, proving a fabricated update id can be recorded as applied when the hash matches.",
+          "evidence_paths": [
+            "src/backend/handshake_core/migrations/0192_knowledge_crdt_ai_edit_applied_binding.sql",
+            "src/backend/handshake_core/src/storage/knowledge_crdt.rs:1353",
+            "src/backend/handshake_core/src/kernel/crdt/ai_edit_proposal.rs:643",
+            "src/backend/handshake_core/tests/knowledge_crdt_proposal_tests.rs:1105"
+          ],
+          "required_remediation": "Before binding applied_update_id, require a matching kernel_crdt_updates row for the proposal workspace/document/crdt_document_id/update_id and verify that row content/hash is the applied update. Add a negative test where the approved diff hash matches but the update id is absent; it must refuse the binding and emit the durable denial receipt."
+        }
+      ],
+      "evidence_basis": [
+        "Authoritative MT JSON contract and current product tree inspection.",
+        "Dependency failures use deterministic packet status/dependency reads only; WIP MT work products were not inspected."
+      ],
+      "required_next_actor": "KERNEL_BUILDER",
+      "remediation_summary": [
+        "Before binding applied_update_id, require a matching kernel_crdt_updates row for the proposal workspace/document/crdt_document_id/update_id and verify that row content/hash is the applied update. Add a negative test where the approved diff hash matches but the update id is absent; it must refuse the binding and emit the durable denial receipt."
+      ]
+    }
   },
   "handoff": {
     "coder_session": null,
     "review_request_receipt_id": null,
     "review_response_receipt_id": null,
-    "wp_validator_session": null
+    "wp_validator_session": "WP_VALIDATOR-20260611-181356"
   },
   "red_team": {
     "required": true,

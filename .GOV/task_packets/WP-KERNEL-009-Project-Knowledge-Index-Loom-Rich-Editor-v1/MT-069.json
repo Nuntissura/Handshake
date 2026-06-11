@@ -22,7 +22,7 @@
   "title": "CRDTAndConcurrencyCore-069-ClaimPromotionBridge",
   "group": "CRDTAndConcurrencyCore",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T18:05:59.097Z",
+  "updated_at_utc": "2026-06-11T19:01:36.361Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-069.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -79,14 +79,14 @@
     ]
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "COMPLETED",
     "active": false,
     "depends_on": [
       "MT-065"
     ],
     "blocks": [],
     "claimed_by": "KERNEL_BUILDER-20260611-071323",
-    "completed_by": null,
+    "completed_by": "WP_VALIDATOR-20260611-181356",
     "implementation_commit": "d81c79a6",
     "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 d81c79a6; CRDTAndConcurrencyCore: 41 tests/6 binaries green on real PostgreSQL. Pending adversarial code review.",
     "adversarial_code_review": {
@@ -121,13 +121,39 @@
     },
     "evidence": [
       "Hardened d6adf2dd: HIGH soft-ref hole CLOSED: promote_graph_proposal validates every KSP- span exists/same-workspace/not-retired (migration 0190 BEFORE INSERT trigger backstop); pending/missing/foreign/retired DENIED with durable receipt; promotion made atomic (promote_graph_fact_atomic single tx) + replay-converges. Negative tests must_refuse_promotion_citing_nonexistent_span + promotion_is_atomic_and_converges_after_crash_window PASS."
-    ]
+    ],
+    "validator_verdict_set_by": "WP_VALIDATOR-20260611-181356",
+    "validator_verdict_set_at_utc": "2026-06-11T19:01:36.361Z",
+    "validator_verdict": "PASS_V1",
+    "pass_label": "PASS_V1",
+    "completed_at_utc": "2026-06-11T19:01:36.361Z",
+    "wp_validator_review_v1": {
+      "schema_id": "hsk.wp_validator_mt_review@1",
+      "verdict": "PASS_V1",
+      "reviewed_by": "WP_VALIDATOR-20260611-181356",
+      "reviewed_at_utc": "2026-06-11T19:01:36.361Z",
+      "review_scope": "Validated only MTs that were READY_FOR_VALIDATION in WP-KERNEL-009; no ACP used.",
+      "status_after": "COMPLETED",
+      "findings": [],
+      "evidence_basis": [
+        "Subagent and local WP Validator review of only the MTs that were READY_FOR_VALIDATION at session read.",
+        "Direct packet status/dependency map checked before mutation.",
+        "Targeted local cargo probes passed for MT-054, MT-056, and MT-063 hardening paths: relationship_id_resists_separator_injection_collision; db_blocks_retired_to_accepted_resurrection_via_raw_sql; scratch_schema_apply_rollback_reapply.",
+        "MT-049..MT-064 were independently confirmed by the returned subagent slice using real PostgreSQL-backed test paths."
+      ],
+      "tests_run": [
+        "cargo test --features test-utils --test knowledge_graph_tests relationship_id_resists_separator_injection_collision -- --nocapture (PASS)",
+        "cargo test --features test-utils --test knowledge_claims_tests db_blocks_retired_to_accepted_resurrection_via_raw_sql -- --nocapture (PASS)",
+        "cargo test --features test-utils --test knowledge_migration_tests scratch_schema_apply_rollback_reapply -- --nocapture (PASS)"
+      ],
+      "residual_uncertainty": "Validation was scoped to MTs already READY_FOR_VALIDATION. Concurrent WIP/untracked files outside those MTs were not inspected."
+    }
   },
   "handoff": {
     "coder_session": null,
     "review_request_receipt_id": null,
     "review_response_receipt_id": null,
-    "wp_validator_session": null
+    "wp_validator_session": "WP_VALIDATOR-20260611-181356"
   },
   "red_team": {
     "required": true,
