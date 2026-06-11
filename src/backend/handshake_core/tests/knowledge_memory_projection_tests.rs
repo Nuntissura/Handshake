@@ -16,6 +16,9 @@ use handshake_core::knowledge_memory::passage::{
 use handshake_core::knowledge_memory::projection::{
     build_fact_graph, build_ontology_graph, build_passage_evidence_graph,
 };
+use handshake_core::knowledge_memory::visual_debug::{
+    build_memory_graph_visual_debug, MEMORY_GRAPH_VISUAL_DEBUG_SCHEMA_ID,
+};
 use handshake_core::storage::knowledge::{
     KnowledgeCompactionPolicy, KnowledgePassageEvidenceRef, KnowledgeRetrievalMode, KnowledgeStore,
     NewKnowledgeMemoryPassage,
@@ -261,4 +264,92 @@ async fn passage_evidence_graph_and_citation_resolution() {
         .await
         .expect("citing passages");
     assert_eq!(citing, vec![passage.passage_id]);
+}
+
+// ---------------------------------------------------------------------------
+// MT-127 MemoryGraphVisualDebugPayload
+// ---------------------------------------------------------------------------
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn visual_debug_payload_composes_graphs_and_counts() {
+    let Some(fx) = MemoryFixture::setup().await else {
+        eprintln!("SKIP visual_debug_payload_composes_graphs_and_counts: no PostgreSQL");
+        return;
+    };
+    let pool = pool_for(&fx.pg).await;
+    let db = PostgresDatabase::new(pool.clone());
+
+    // One ontology term, one source fact, one passage citing the claim.
+    upsert_memory_ontology_term(
+        &pool,
+        NewMemoryOntologyTerm {
+            workspace_id: fx.workspace_id.clone(),
+            term_kind: MemoryOntologyTermKind::RelationClass,
+            term_key: "depends_on".to_string(),
+            normalized_label: "depends on".to_string(),
+            maps_to_edge_type: Some("depends_on".to_string()),
+            maps_to_entity_kind: None,
+            promotion_threshold: 3,
+            operator_approved: false,
+            detection_provenance: json!({}),
+            seen_in_run: None,
+        },
+    )
+    .await
+    .expect("term");
+    let subject = fx.entity("symbol", "crate::a::Foo", "Foo").await;
+    let object = fx.entity("symbol", "crate::b::Bar", "Bar").await;
+    let claim = fx.claim("Foo depends on Bar").await;
+    create_memory_fact(
+        &pool,
+        NewMemoryFact {
+            workspace_id: fx.workspace_id.clone(),
+            claim_id: claim.claim_id.clone(),
+            subject_entity_id: subject.clone(),
+            predicate_key: "depends_on".to_string(),
+            predicate_term_id: None,
+            object: MemoryFactObject::Entity {
+                entity_id: object.clone(),
+            },
+            qualifiers: json!({}),
+            authority_label: MemoryClaimAuthorityLabel::Source,
+            extractor_version: "v1".to_string(),
+            created_in_run: None,
+        },
+    )
+    .await
+    .expect("fact");
+    db.create_knowledge_memory_passage(NewKnowledgeMemoryPassage {
+        workspace_id: fx.workspace_id.clone(),
+        passage_text: "Foo depends on Bar.".to_string(),
+        token_count: Some(5),
+        ocr_transcript_metadata: None,
+        extraction_confidence: 1.0,
+        ranking_features: json!({}),
+        retrieval_mode: KnowledgeRetrievalMode::DirectLoad,
+        compaction_policy: KnowledgeCompactionPolicy::Keep,
+        failure_receipt_event_id: None,
+        derived_in_run: None,
+        evidence: vec![KnowledgePassageEvidenceRef::Claim {
+            claim_id: claim.claim_id.clone(),
+        }],
+    })
+    .await
+    .expect("passage");
+
+    let payload = build_memory_graph_visual_debug(&db, &pool, &fx.workspace_id, false, 50)
+        .await
+        .expect("visual debug payload");
+
+    assert_eq!(payload.schema_id, MEMORY_GRAPH_VISUAL_DEBUG_SCHEMA_ID);
+    assert_eq!(payload.authority_class, "projection");
+    // All three subgraphs are populated and each is itself a projection.
+    assert_eq!(payload.ontology_graph.nodes.len(), 1);
+    assert_eq!(payload.ontology_graph.authority_class, "projection");
+    assert_eq!(payload.fact_graph.edges.len(), 1);
+    assert_eq!(payload.passage_evidence_graph.nodes.len(), 1);
+    // Counts: one proposed claim, one source fact, no open conflicts.
+    assert_eq!(payload.claim_state_counts.proposed, 1);
+    assert_eq!(payload.fact_label_counts.source, 1);
+    assert_eq!(payload.open_conflict_count, 0);
 }

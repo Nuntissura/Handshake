@@ -13,6 +13,7 @@ pub mod kernel;
 pub mod knowledge_code_nav;
 pub mod knowledge_crdt;
 pub mod knowledge_ingestion;
+pub mod knowledge_memory;
 pub mod logs;
 pub mod loom;
 pub mod paths;
@@ -33,6 +34,7 @@ pub fn routes(state: AppState) -> Router {
     let knowledge_code_nav_routes = knowledge_code_nav::routes(state.clone());
     let knowledge_crdt_routes = knowledge_crdt::routes(state.clone());
     let knowledge_ingestion_routes = knowledge_ingestion::routes(state.clone());
+    let knowledge_memory_routes = knowledge_memory::routes(state.clone());
     let atelier_routes = atelier::routes(state.clone());
     let log_routes = Router::new()
         .route("/logs/tail", get(logs::tail_logs))
@@ -52,5 +54,6 @@ pub fn routes(state: AppState) -> Router {
         .merge(knowledge_code_nav_routes)
         .merge(knowledge_crdt_routes)
         .merge(knowledge_ingestion_routes)
+        .merge(knowledge_memory_routes)
         .merge(atelier_routes)
 }
