@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
   "base_wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T15:32:04.773Z",
+  "updated_at_utc": "2026-06-11T16:26:10.470Z",
   "authority_files": {
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json",
     "refinement_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/refinement.json",
@@ -70,6 +70,15 @@
         "summary": "7 pre-existing deny-level clippy findings at branch HEAD in WP-004/005 baseline files (src/atelier/exports.rs, src/atelier/moodboards.rs, src/model_runtime/kv_cache.rs Uuid::new_v4, src/process_ledger/mt_executor.rs, src/sandbox/cloud_hypervisor/warm_agent_package.rs never_loop). NOT WP-009 code. disallowed_methods=deny is a clippy lint only - does NOT block cargo build/test, so it does not block any agent runtime proof; it blocks the final cargo clippy hygiene gate.",
         "disposition": "DEFERRED to pre-validation cleanup pass (not blocking forward work). KERNEL_BUILDER to fix as dependency-unblock before external whole-WP validation.",
         "status": "OPEN"
+      },
+      {
+        "id": "BLK-003",
+        "severity": "ENVIRONMENT_BLOCKS_APP_RUNTIME_BUILD",
+        "discovered_by": "CodeIndexingAndNavigation delegate",
+        "at_utc": "2026-06-11T16:26:10.470Z",
+        "summary": "cargo --features app-runtime fails: app-runtime pulls duckdb-flight-recorder, libduckdb-sys bundled C++ (compressed_materialization.cpp) crashes MSVC cl.exe. Toolchain/environment break, NOT WP-009 code. All WP-009 code gated on runtime-full and compiles+tests clean under runtime-full,test-utils.",
+        "disposition": "ENVIRONMENT issue for operator. Validation workaround: --features runtime-full,test-utils. Product duckdb dependency needs env/toolchain fix separate from this WP.",
+        "status": "OPEN_ENVIRONMENT"
       }
     ],
     "waiver_items": [
