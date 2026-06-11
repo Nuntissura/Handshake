@@ -341,6 +341,11 @@ fn model_session_for_test(session_id: &str, capability_grants: Vec<String>) -> M
         last_checkpoint_at: None,
         checkpoint_count: 0,
         merge_back_artifact: None,
+        agent: None,
+        purpose: None,
+        close_reason: None,
+        closed_by_actor: None,
+        closed_at: None,
         created_at: now,
         updated_at: now,
     }
