@@ -120,17 +120,22 @@ pub async fn build_monaco_payload(
         })
         .collect();
 
-    // Symbol entities of this workspace whose key targets this file.
+    // Symbol entities of this workspace whose key targets this file. MT-109
+    // hardening: the path filter pushes down to SQL (via lookup_code_symbols'
+    // `:{path}#` segment match) instead of loading every symbol in the workspace
+    // and filtering in Rust - the adversarial-review load-all DoS. A defensive
+    // Rust prefix re-check keeps the exact `{lang}:{path}#` boundary (the SQL
+    // LIKE is a superset because `path` could be a substring of another path).
     let prefix_a = format!("rust:{relative_path}#");
     let prefix_b = format!("typescript:{relative_path}#");
     let prefix_c = format!("tsx:{relative_path}#");
     let prefix_d = format!("javascript:{relative_path}#");
-    let all_symbols = db
-        .list_knowledge_entities_by_kind(workspace_id, KnowledgeEntityKind::Symbol)
+    let file_symbols = db
+        .lookup_code_symbols(workspace_id, None, Some(relative_path), 100_000)
         .await?;
 
     let mut entries = Vec::new();
-    for symbol in all_symbols {
+    for symbol in file_symbols {
         if !(symbol.entity_key.starts_with(&prefix_a)
             || symbol.entity_key.starts_with(&prefix_b)
             || symbol.entity_key.starts_with(&prefix_c)
