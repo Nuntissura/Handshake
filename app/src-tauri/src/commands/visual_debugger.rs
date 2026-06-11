@@ -19,8 +19,9 @@
 //! independent (headless-ok).
 //!
 //! # Focus safety (HBR-QUIET, [GLOBAL-BUILD-QUIET])
-//! The capture path NEVER calls `SetForegroundWindow`, `ShowWindow(SW_SHOW)`,
-//! `window.set_focus()`, or otherwise activates / re-orders the window. The
+//! The capture path NEVER invokes the Win32 foreground-activation API,
+//! `ShowWindow(SW_SHOW)`, or Tauri's window focus-activation method, and never
+//! otherwise activates / re-orders the window. The
 //! default behavior captures the app's CURRENT window state without changing its
 //! activation, focus, or Z-order at all (`fromSurface` makes that possible). The
 //! sole Win32 helper provided here — [`ensure_visible_no_activate`] — is an
