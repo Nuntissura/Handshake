@@ -72,7 +72,7 @@ path = "src/bin/mt046_token_probe.rs"
 required-features = ["win-native-integration"]
 test = false
 
-# MT-058 â€” live Win32 foreground-steal payload for ESC-WIN32-FOREGROUND-INJECT
+# MT-058 — live Win32 foreground-steal payload for ESC-WIN32-FOREGROUND-INJECT
 # (the HBR-QUIET-001 acid test). Built on the Windows CI lane with
 # `--features win-native-integration`; produces
 # `handshake-foreground-inject-probe.exe`, whose absolute path Cargo exposes to
@@ -113,7 +113,7 @@ name = "peft_train"
 path = "src/bin/peft_train.rs"
 test = false
 
-# MT-027 â€” headless driver for the a2 visual smoke focus audit. Runs the real
+# MT-027 — headless driver for the a2 visual smoke focus audit. Runs the real
 # `operator_foreground::focus_audit` FocusAuditHandle over a supplied run_id and
 # prints the genuine FocusAuditReport JSON, so the smoke never hardcodes
 # `handshake_owned_events: []`.
