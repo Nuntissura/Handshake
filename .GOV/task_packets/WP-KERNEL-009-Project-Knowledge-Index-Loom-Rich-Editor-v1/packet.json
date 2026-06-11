@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
   "base_wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T07:26:24.908Z",
+  "updated_at_utc": "2026-06-11T08:13:01.737Z",
   "authority_files": {
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json",
     "refinement_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/refinement.json",
@@ -650,9 +650,298 @@
   },
   "acceptance_matrix": {
     "schema_version": 1,
-    "hbr": [],
-    "hbr_not_applicable": [],
-    "note": "HBR proof is carried per-MT via hbr_focus + evidence; whole-WP HBR review is the external validator's batch pass."
+    "hbr": [
+      {
+        "id": "HBRROW-001",
+        "surface": "knowledge_authority_storage",
+        "kind": "storage",
+        "applicable": [
+          "HBR-INT-001",
+          "CX-503R",
+          "HBR-SWARM-003",
+          "HBR-INT-003",
+          "HBR-INT-007"
+        ],
+        "owner_mts": "MT-049..MT-064",
+        "note": "PostgreSQL/EventLedger tables for the 10 record families; durable runtime proof, no SQLite, concurrent-write safety.",
+        "required": true,
+        "evidence_kind": "mt_group_runtime_evidence",
+        "status": "PENDING",
+        "evidence": null,
+        "reason": "Resolves when owner MT group evidence lands; external validator closes rows per INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1."
+      },
+      {
+        "id": "HBRROW-002",
+        "surface": "crdt_draft_promotion",
+        "kind": "storage_runtime",
+        "applicable": [
+          "HBR-INT-001",
+          "HBR-SWARM-001",
+          "HBR-SWARM-002",
+          "HBR-SWARM-003",
+          "HBR-INT-003"
+        ],
+        "owner_mts": "MT-065..MT-080",
+        "note": "CRDT draft state, write-box promotion, leases, conflict visibility, replay.",
+        "required": true,
+        "evidence_kind": "mt_group_runtime_evidence",
+        "status": "PENDING",
+        "evidence": null,
+        "reason": "Resolves when owner MT group evidence lands; external validator closes rows per INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1."
+      },
+      {
+        "id": "HBRROW-003",
+        "surface": "source_ingestion_pipeline",
+        "kind": "pipeline",
+        "applicable": [
+          "HBR-INT-001",
+          "HBR-QUIET-001",
+          "HBR-STOP"
+        ],
+        "owner_mts": "MT-081..MT-096",
+        "note": "Root allowlist, hashing, receipts, redaction preflight, backpressure; background work must be quiet and bounded.",
+        "required": true,
+        "evidence_kind": "mt_group_runtime_evidence",
+        "status": "PENDING",
+        "evidence": null,
+        "reason": "Resolves when owner MT group evidence lands; external validator closes rows per INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1."
+      },
+      {
+        "id": "HBRROW-004",
+        "surface": "code_indexing_navigation",
+        "kind": "pipeline_api",
+        "applicable": [
+          "HBR-INT-001",
+          "HBR-MAN-001",
+          "HBR-MAN-003"
+        ],
+        "owner_mts": "MT-097..MT-112",
+        "note": "Tree-sitter extraction, symbol/relationship builders, navigation APIs; nav commands need UserManual rows.",
+        "required": true,
+        "evidence_kind": "mt_group_runtime_evidence",
+        "status": "PENDING",
+        "evidence": null,
+        "reason": "Resolves when owner MT group evidence lands; external validator closes rows per INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1."
+      },
+      {
+        "id": "HBRROW-005",
+        "surface": "memory_graph_claims",
+        "kind": "storage_jobs",
+        "applicable": [
+          "HBR-INT-001",
+          "HBR-SWARM-003",
+          "CX-503R",
+          "HBR-INT-003"
+        ],
+        "owner_mts": "MT-113..MT-128",
+        "note": "Ontology/fact/passage schemas, claim lifecycle, conflict agent jobs, bridge edges.",
+        "required": true,
+        "evidence_kind": "mt_group_runtime_evidence",
+        "status": "PENDING",
+        "evidence": null,
+        "reason": "Resolves when owner MT group evidence lands; external validator closes rows per INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1."
+      },
+      {
+        "id": "HBRROW-006",
+        "surface": "retrieval_context_ranking",
+        "kind": "runtime_api",
+        "applicable": [
+          "HBR-INT-001",
+          "HBR-MAN-001",
+          "HBR-INT-007"
+        ],
+        "owner_mts": "MT-129..MT-144",
+        "note": "Mode planners, ranking, traces, context bundle compiler; replayable RetrievalTrace required.",
+        "required": true,
+        "evidence_kind": "mt_group_runtime_evidence",
+        "status": "PENDING",
+        "evidence": null,
+        "reason": "Resolves when owner MT group evidence lands; external validator closes rows per INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1."
+      },
+      {
+        "id": "HBRROW-007",
+        "surface": "rich_document_authority",
+        "kind": "storage_runtime",
+        "applicable": [
+          "HBR-INT-001",
+          "HBR-VIS-003",
+          "CX-503R",
+          "HBR-INT-003"
+        ],
+        "owner_mts": "MT-145..MT-160",
+        "note": "RichDocument/EditorCodeNode authority, save/load, history, crash recovery; round-trip + capture evidence.",
+        "required": true,
+        "evidence_kind": "mt_group_runtime_evidence",
+        "status": "PENDING",
+        "evidence": null,
+        "reason": "Resolves when owner MT group evidence lands; external validator closes rows per INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1."
+      },
+      {
+        "id": "HBRROW-008",
+        "surface": "tiptap_monaco_editor_ui",
+        "kind": "ui",
+        "applicable": [
+          "HBR-VIS-002",
+          "HBR-VIS-003",
+          "HBR-QUIET-001",
+          "HBR-MAN-001",
+          "HBR-INT-004",
+          "HBR-VIS-001",
+          "HBR-QUIET-002"
+        ],
+        "owner_mts": "MT-161..MT-176",
+        "note": "Editor toolbar/palette/code nodes; renderer console errors fail gate; stable selectors; no focus stealing.",
+        "required": true,
+        "evidence_kind": "mt_group_runtime_evidence",
+        "status": "PENDING",
+        "evidence": null,
+        "reason": "Resolves when owner MT group evidence lands; external validator closes rows per INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1."
+      },
+      {
+        "id": "HBRROW-009",
+        "surface": "loom_obsidian_navigation_ui",
+        "kind": "ui",
+        "applicable": [
+          "HBR-VIS-002",
+          "HBR-VIS-003",
+          "HBR-MAN-001",
+          "HBR-INT-001",
+          "HBR-VIS-001"
+        ],
+        "owner_mts": "MT-177..MT-192",
+        "note": "Backlinks, local/global graph, tags, folders, pins, wiki projections; visual capture matrix required.",
+        "required": true,
+        "evidence_kind": "mt_group_runtime_evidence",
+        "status": "PENDING",
+        "evidence": null,
+        "reason": "Resolves when owner MT group evidence lands; external validator closes rows per INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1."
+      },
+      {
+        "id": "HBRROW-010",
+        "surface": "usermanual_surface",
+        "kind": "ui_api_storage",
+        "applicable": [
+          "HBR-MAN-001",
+          "HBR-MAN-002",
+          "HBR-MAN-003",
+          "HBR-VIS-003",
+          "HBR-VIS-001"
+        ],
+        "owner_mts": "MT-193..MT-208",
+        "note": "UserManualRecord authority, same-commit coverage rule, no-context operation harness, self-consistency.",
+        "required": true,
+        "evidence_kind": "mt_group_runtime_evidence",
+        "status": "PENDING",
+        "evidence": null,
+        "reason": "Resolves when owner MT group evidence lands; external validator closes rows per INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1."
+      },
+      {
+        "id": "HBRROW-011",
+        "surface": "backend_navigation_swarm_lanes",
+        "kind": "api_runtime",
+        "applicable": [
+          "HBR-SWARM-001",
+          "HBR-SWARM-002",
+          "HBR-SWARM-003",
+          "HBR-QUIET-003",
+          "HBR-STOP",
+          "HBR-INT-006",
+          "HBR-INT-007",
+          "HBR-SWARM-004",
+          "HBR-QUIET-002"
+        ],
+        "owner_mts": "MT-209..MT-224",
+        "note": "Agent lanes, leases, claims, receipts, checkpoints, recovery; process ownership ledger; no capacity-stop reasoning.",
+        "required": true,
+        "evidence_kind": "mt_group_runtime_evidence",
+        "status": "PENDING",
+        "evidence": null,
+        "reason": "Resolves when owner MT group evidence lands; external validator closes rows per INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1."
+      },
+      {
+        "id": "HBRROW-012",
+        "surface": "security_portability_fixtures",
+        "kind": "fixtures",
+        "applicable": [
+          "HBR-INT-001",
+          "HBR-STOP"
+        ],
+        "owner_mts": "MT-225..MT-240",
+        "note": "Negative fixtures: secrets, SQLite/Docker/external-dep tripwires, missing-Postgres fail-closed, replay, conflicts.",
+        "required": true,
+        "evidence_kind": "mt_group_runtime_evidence",
+        "status": "PENDING",
+        "evidence": null,
+        "reason": "Resolves when owner MT group evidence lands; external validator closes rows per INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1."
+      },
+      {
+        "id": "HBRROW-013",
+        "surface": "dependency_packaging",
+        "kind": "packaging",
+        "applicable": [
+          "HBR-INT-001",
+          "HBR-INT-004",
+          "HBR-QUIET-001",
+          "CX-503S"
+        ],
+        "owner_mts": "MT-017..MT-032",
+        "note": "Bundled Monaco/Tiptap/Yjs/tree-sitter, offline workers, license notices, allowlist + policy validator hook.",
+        "required": true,
+        "evidence_kind": "mt_group_runtime_evidence",
+        "status": "PENDING",
+        "evidence": null,
+        "reason": "Resolves when owner MT group evidence lands; external validator closes rows per INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1."
+      }
+    ],
+    "hbr_not_applicable": [
+      {
+        "id": "HBRNA-001",
+        "scope": "mt_group:ResearchSpecTranslation (MT-001..MT-016)",
+        "reason": "Record-only research/spec-translation deliverables; no product code, runtime, UI, storage, or automation surface is produced, so no HBR pillar attaches. Evidence lives in activation artifacts."
+      },
+      {
+        "id": "HBRNA-002",
+        "scope": "mt_group:MasterSpecEnrichmentSeed (MT-033..MT-048)",
+        "reason": "Record-only spec-seed deliverables applied as the v02.192 bundle by the activation phase; spec text carries no build-time HBR obligation. Implementation obligations transfer to the owning product MT groups in the matrix rows."
+      },
+      {
+        "id": "HBRNA-003",
+        "scope": "lane:external_validator",
+        "reason": "Validation lanes consume HBR evidence; they do not carry build obligations. Mirrors the registry rule that validator/memory-manager phases hold no build-rule duty of their own."
+      }
+    ],
+    "note": "Typed HBR applicability matrix (MT-009 deliverable). Rows resolve from owner-MT runtime evidence; external validator performs closure.",
+    "spec_12_7_reconciliation": {
+      "spec_declared_rules": [
+        "HBR-INT-001",
+        "HBR-INT-003",
+        "HBR-INT-004",
+        "HBR-INT-006",
+        "HBR-INT-007",
+        "HBR-SWARM-001",
+        "HBR-SWARM-003",
+        "HBR-SWARM-004",
+        "HBR-VIS-001",
+        "HBR-VIS-002",
+        "HBR-QUIET-001",
+        "HBR-QUIET-002",
+        "HBR-MAN-001",
+        "HBR-MAN-002",
+        "HBR-MAN-003"
+      ],
+      "all_declared_rules_present_in_matrix": true,
+      "supplementary_rules_in_matrix": [
+        "HBR-SWARM-002",
+        "HBR-VIS-003",
+        "HBR-QUIET-003",
+        "HBR-STOP",
+        "CX-503R",
+        "CX-503S",
+        "HBR-INT-004"
+      ],
+      "supplementary_rationale": "Supplementary ids exceed the 12.7 floor deliberately (stricter coverage); they are obligations the MT contracts' hbr_focus fields already carry.",
+      "reconciled_at_utc": "2026-06-11T08:13:01.737Z"
+    }
   },
   "role_profiles": {
     "kernel_builder": "CLAUDE_FABLE_5_MAX",
@@ -1312,5 +1601,12 @@
     "mockup_image": ".GOV/operator/docs_local/handshake-gui-mockup/paper-control-room-mockup-firefox.png",
     "binding": "LOOSE_REFERENCE_FUNCTIONALITY_PRIMARY",
     "operator_intent": "GUI surfaces must replace VS Code and Obsidian functionality as Handshake-native features without outside dependencies."
+  },
+  "contract_hygiene": {
+    "version_pin_pass": {
+      "applied_at_utc": "2026-06-11T08:13:01.737Z",
+      "change": "MT contract scope.relevant_files + scope.constraints pins updated v02.191 -> v02.192 (authority bumped 06:45Z before hydration 07:20Z). MT-002 scope.relevant_files intentionally retains v02.191 module paths: its deliverable is the v02.191 stale-SQLite conflict map.",
+      "trigger": "ADVERSARIAL_REVIEWER cross-cutting risk 1"
+    }
   }
 }

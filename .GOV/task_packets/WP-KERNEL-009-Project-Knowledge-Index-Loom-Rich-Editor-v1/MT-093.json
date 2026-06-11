@@ -22,7 +22,7 @@
   "title": "SourceIngestionAndEvidence-093-DeletedMovedSourceHandling",
   "group": "SourceIngestionAndEvidence",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-11T08:13:01.737Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-093.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -43,7 +43,7 @@
       "src/backend/handshake_core/src/storage/loom.rs",
       "src/backend/handshake_core/src/api/loom.rs",
       ".GOV/task_packets/",
-      ".GOV/spec/master-spec-v02.191/"
+      ".GOV/spec/master-spec-v02.192/"
     ],
     "constraints": [
       "Use the existing microtask_plan_draft execution surface only; do not introduce a separate MT execution surface or suite field.",

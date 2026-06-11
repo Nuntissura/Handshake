@@ -22,7 +22,7 @@
   "title": "ResearchSpecTranslation-009-BuildRulesApplicabilityMap",
   "group": "ResearchSpecTranslation",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-11T08:13:01.737Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-009.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -39,9 +39,9 @@
     "scope": "Map every WP-009 feature, primitive, tool, UI, storage surface, and validator lane to applicable HBR rows and build_rules constraints. This MT belongs to ResearchSpecTranslation. Convert research, operator intent, and current authority into self-contained WP/spec-ready requirements.",
     "relevant_files": [
       ".GOV/spec/SPEC_CURRENT.md",
-      ".GOV/spec/master-spec-v02.191/indexed-spec-manifest.json",
-      ".GOV/spec/master-spec-v02.191/INDEX.json",
-      ".GOV/spec/master-spec-v02.191/spec-modules/",
+      ".GOV/spec/master-spec-v02.192/indexed-spec-manifest.json",
+      ".GOV/spec/master-spec-v02.192/INDEX.json",
+      ".GOV/spec/master-spec-v02.192/spec-modules/",
       ".GOV/operator/docs_local/external_research_papers/MemGraphRAG-Memory-based-Multi-Agent-System-for-Graph-Retrieval-Augmented-Generation.pdf",
       ".GOV/task_packets/stubs/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1.contract.json"
     ],
@@ -52,7 +52,7 @@
       "PostgreSQL plus EventLedger is canonical for durable state, receipts, indexing evidence, runtime proof, and validation; generated markdown, wiki pages, HTML, context bundles, debug reports, and UI projections are projections only.",
       "Every implementation handoff must be restartable by a no-context local model using only the WP/MT contract, current Master Spec bundle, product code, tests, and receipts.",
       "Research papers and GitHub/codebase findings are context inputs only; translate every accepted idea into Handshake-native requirements before activation.",
-      "Activation must cite SPEC_CURRENT and the v02.191 indexed bundle as current authority, not the v02.182 monolith alone."
+      "Activation must cite SPEC_CURRENT and the v02.192 indexed bundle as current authority, not the v02.182 monolith alone."
     ],
     "expected_behavior": "BuildRulesApplicabilityMap leaves a concrete, restartable implementation or activation artifact with PostgreSQL/EventLedger authority, Master Spec anchors, UserManual impact, and validator-readable evidence.",
     "acceptance_criteria": [
@@ -81,14 +81,48 @@
     ]
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-001"
     ],
     "blocks": [],
-    "claimed_by": null,
-    "completed_by": null
+    "claimed_by": "KERNEL_BUILDER-20260611-071323",
+    "completed_by": null,
+    "ready_by": "KERNEL_BUILDER-20260611-071323",
+    "ready_for_validation_at_utc": "2026-06-11T07:53:27.940Z",
+    "evidence": [
+      "Per-surface HBR applicability matrix recorded as packet.json acceptance_matrix.hbr (13 typed rows keyed by feature/primitive/tool/UI/storage/lane surface, each with applicable HBR rule ids, owner MT range, required flag, evidence_kind).",
+      "Pillar tags INT/SWARM/VIS/QUIET/MAN/STOP declared in packet.json hbr.tags_declared.",
+      "Per-MT hbr_focus already present in all 240 MT contracts (stub-promoted).",
+      "AC3 (no sidecar/outside-runtime authority): the applicability matrix lives in packet.json acceptance_matrix (typed JSON contract), not in markdown, sidecar papers, or external tooling; HBR registry .GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json is the rule authority.",
+      "AC4 (HBR rows proven/blocked/NA named): acceptance_matrix.hbr rows are all status=PENDING with evidence_kind=mt_group_runtime_evidence (proof lands with owner MT groups); acceptance_matrix.hbr_not_applicable records NA dispositions for the two record-only MT groups and the validator lane with concrete reasons; this MT's own hbr_focus rows (HBR-INT-001, CX-503S, CX-503P) are satisfied by the matrix being a typed in-product-governance contract with no external dependency.",
+      "Spec 12.7 reconciliation: all 15 spec-declared HBR rules now present in the matrix (acceptance_matrix.spec_12_7_reconciliation); supplementary stricter rules retained and justified."
+    ],
+    "evidence_basis": "SATISFIED_BY_ACTIVATION_PHASE_ARTIFACTS_PLUS_KERNEL_BUILDER_RECORD",
+    "adversarial_review": {
+      "verdict": "DEMOTE_RECOMMENDED",
+      "reviewed_at_utc": "2026-06-11T08:06:04.684Z",
+      "reviewer": "ADVERSARIAL_REVIEWER-20260611",
+      "concerns": [
+        "Contract freshness skew: scope.relevant_files and the activation constraint pin the v02.191 bundle while SPEC_CURRENT and all evidence are v02.192 (contracts hydrated 07:20Z after the 06:45Z spec bump); validator should read the constraint intent (indexed bundle, not v02.182 monolith), but a hygiene pass updating contract pins to v02.192 would remove the ambiguity.",
+        "AC coverage: evidence addresses only the matrix deliverable; AC3 (sidecar-research rejection restated) and AC4 (HBR rows proven/blocked/not-applicable for THIS MT with concrete reasons) have no evidence entries; MT-009 gives no disposition for its own hbr_focus rows (HBR-INT-001/INT-004/MAN-001/SWARM-001), unlike the other 29 reviewed MTs.",
+        "Matrix completeness vs scope: scope demands mapping every feature, primitive, tool, UI, storage surface, AND validator lane; acceptance_matrix.hbr has 13 rows keyed by implementation MT-group surface only; ResearchSpecTranslation (MT-001..016) and MasterSpecEnrichmentSeed (MT-033..048) appear in no row and acceptance_matrix.hbr_not_applicable is empty [], so two of fifteen MT groups have no explicit matrix disposition; no row is keyed by validator lane or by the thirteen 12.7 primitives.",
+        "Matrix vs spec floor: 12-end-of-file-appendices.md#12.7 declares HBR rows applicable at packet hydration including HBR-INT-003, HBR-INT-006, HBR-INT-007, HBR-SWARM-004, HBR-VIS-001, HBR-QUIET-002 - none of these six appears in any matrix row applicable list (union = INT-001/004, MAN-001/002/003, SWARM-001/002/003, QUIET-001/003, VIS-002/003, STOP, CX-503R/S).",
+        "Loose rule citation: rows cite bare HBR-STOP (registry defines HBR-STOP-001..005) and CX-503R/CX-503S which live in the Codex, not HANDSHAKE_BUILD_RULES.json (both verified to exist in Handshake_Codex_v1.4.md)."
+      ],
+      "refutation_attempts": "Opened every cited artifact (refinement.json, spec-enrichment-proposal.json, stub contract, v02.192 spec modules 02/07/10/11/12, spec-changelog.jsonl, SPEC_CURRENT.md, packet.json); attacked criterion coverage AC1-AC4, citation validity, specificity, v02.192 freshness, and scope-artifact existence. Verified the 13 rows, row fields, hbr.tags_declared, and per-MT hbr_focus on all 240 contracts programmatically; diffed the matrix rule-ID union against the spec 12.7 applicability row and the HANDSHAKE_BUILD_RULES registry; cross-checked group_index for unmapped groups. Fix: add explicit not_applicable matrix rows for the two research/spec MT groups (and a validator-lane disposition), reconcile or justify the six missing 12.7 rules per row, and add AC3/AC4 evidence entries to this MT."
+    },
+    "remediation": {
+      "applied_at_utc": "2026-06-11T08:13:01.737Z",
+      "applied_by": "KERNEL_BUILDER-20260611-071323",
+      "items": [
+        "Added 6 spec-12.7-declared rules missing from matrix (HBR-INT-003/006/007, HBR-SWARM-004, HBR-VIS-001, HBR-QUIET-002) to owning surface rows.",
+        "Added hbr_not_applicable dispositions for ResearchSpecTranslation + MasterSpecEnrichmentSeed groups and external-validator lane.",
+        "Added AC3/AC4 evidence entries.",
+        "Recorded spec_12_7_reconciliation block."
+      ]
+    }
   },
   "handoff": {
     "coder_session": null,

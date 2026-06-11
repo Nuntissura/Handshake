@@ -22,7 +22,7 @@
   "title": "ResearchSpecTranslation-001-CurrentSpecEntrypointAudit",
   "group": "ResearchSpecTranslation",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-11T08:13:01.737Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-001.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -36,12 +36,12 @@
     "note": "JSON contract is authority. No markdown projection is generated for WP-KERNEL-009 (prevents projection drift)."
   },
   "scope": {
-    "scope": "Verify SPEC_CURRENT, v02.191 manifest, module resolver, and changelog are the current Master Spec authority and record exact anchors for WP-009 enrichment. This MT belongs to ResearchSpecTranslation. Convert research, operator intent, and current authority into self-contained WP/spec-ready requirements.",
+    "scope": "Verify SPEC_CURRENT, v02.192 manifest, module resolver, and changelog are the current Master Spec authority and record exact anchors for WP-009 enrichment. This MT belongs to ResearchSpecTranslation. Convert research, operator intent, and current authority into self-contained WP/spec-ready requirements.",
     "relevant_files": [
       ".GOV/spec/SPEC_CURRENT.md",
-      ".GOV/spec/master-spec-v02.191/indexed-spec-manifest.json",
-      ".GOV/spec/master-spec-v02.191/INDEX.json",
-      ".GOV/spec/master-spec-v02.191/spec-modules/",
+      ".GOV/spec/master-spec-v02.192/indexed-spec-manifest.json",
+      ".GOV/spec/master-spec-v02.192/INDEX.json",
+      ".GOV/spec/master-spec-v02.192/spec-modules/",
       ".GOV/operator/docs_local/external_research_papers/MemGraphRAG-Memory-based-Multi-Agent-System-for-Graph-Retrieval-Augmented-Generation.pdf",
       ".GOV/task_packets/stubs/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1.contract.json"
     ],
@@ -52,7 +52,7 @@
       "PostgreSQL plus EventLedger is canonical for durable state, receipts, indexing evidence, runtime proof, and validation; generated markdown, wiki pages, HTML, context bundles, debug reports, and UI projections are projections only.",
       "Every implementation handoff must be restartable by a no-context local model using only the WP/MT contract, current Master Spec bundle, product code, tests, and receipts.",
       "Research papers and GitHub/codebase findings are context inputs only; translate every accepted idea into Handshake-native requirements before activation.",
-      "Activation must cite SPEC_CURRENT and the v02.191 indexed bundle as current authority, not the v02.182 monolith alone."
+      "Activation must cite SPEC_CURRENT and the v02.192 indexed bundle as current authority, not the v02.182 monolith alone."
     ],
     "expected_behavior": "CurrentSpecEntrypointAudit leaves a concrete, restartable implementation or activation artifact with PostgreSQL/EventLedger authority, Master Spec anchors, UserManual impact, and validator-readable evidence.",
     "acceptance_criteria": [
@@ -81,12 +81,31 @@
     ]
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [],
     "blocks": [],
-    "claimed_by": null,
-    "completed_by": null
+    "claimed_by": "KERNEL_BUILDER-20260611-071323",
+    "ready_by": "KERNEL_BUILDER-20260611-071323",
+    "ready_for_validation_at_utc": "2026-06-11T07:38:33.727Z",
+    "evidence_basis": "SATISFIED_BY_ACTIVATION_PHASE_ARTIFACTS",
+    "evidence": [
+      "AC1 (CurrentSpecEntrypointAudit specified for no-context continuation) -> audit result recorded in .GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/refinement.json refinement.current_spec (entrypoint .GOV/spec/SPEC_CURRENT.md, version v02.192, manifest .GOV/spec/master-spec-v02.192/indexed-spec-manifest.json, resolver .GOV/spec/master-spec-v02.192/INDEX.json, sha1 4795dd5e11addaa347c89ca052c9b78a4b83c888); confirmed on disk by .GOV/spec/SPEC_CURRENT.md (entrypoint_type indexed_manifest, changelog_path .GOV/spec/master-spec-v02.192/spec-changelog.jsonl); exact WP-009 enrichment anchors recorded in refinement.json refinement.spec_anchors (02-system-architecture.md#2.3.13.11, 07-user-experience-and-development.md#7.1.1.8, 10-product-surfaces.md#10.15.8 and #10.20, 11-shared-dev-platform-and-oss-foundations.md#9.1.1, 12-end-of-file-appendices.md#12.7) and all six headings verified present in the v02.192 modules",
+      "Changelog authority -> .GOV/spec/master-spec-v02.192/spec-changelog.jsonl v02.192 entry (author_role ACTIVATION_MANAGER, changed_module_paths, before/after module sha256, validation_results PASS) proves SPEC_CURRENT + manifest + resolver + changelog are the live authority chain",
+      "AC2 (exact files, state tables, constraints, failure modes, verification evidence) -> exact files pinned in this MT scope.relevant_files and scope.constraints; state tables and APIs: .GOV/task_packets/stubs/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1.contract.json architecture_seed.data_model_seed + core_components; failure modes: same stub failure_scenarios; verification evidence: refinement.json refinement.verification_results (spec-current-check PASS, spec-bundle-check PASS, validator-spec-regression PASS, spec-eof-appendices-check PASS, packet-contract-projection-check BLOCKED_PRE_EXISTING by WP-KERNEL-005 drift)",
+      "AC3 (sidecar research rejected, ideas restated Handshake-native) -> .GOV/task_packets/stubs/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1.contract.json research_basis.normative_status=non_normative_context_only + research_basis.translation_rule + translated_memory_system_spec.source_research_is_normative=false; restated as product law in .GOV/spec/master-spec-v02.192/spec-modules/02-system-architecture.md#2.3.13.11; this MT scope.constraints bar sidecar-paper and outside-runtime proof",
+      "AC4 (HBR rows named with concrete reasons) -> HBR-INT-001, HBR-INT-004, HBR-MAN-001, HBR-SWARM-001 = NOT_APPLICABLE for runtime proof on this research/spec-record MT (no product surface, code, test, or runtime state changed by it); their requirement content is recorded for implementation MTs in .GOV/spec/master-spec-v02.192/spec-modules/12-end-of-file-appendices.md#12.7 (HBR applicability row), 10-product-surfaces.md#10.15.8 (UserManual duty) and #10.20 (backend-navigation/parallel-agent receipts); per packet.json acceptance_matrix.note HBR proof is carried per-MT and whole-WP HBR review is the external validator batch pass"
+    ],
+    "completed_by": null,
+    "adversarial_review": {
+      "verdict": "KEEP_READY",
+      "reviewed_at_utc": "2026-06-11T08:06:04.684Z",
+      "reviewer": "ADVERSARIAL_REVIEWER-20260611",
+      "concerns": [
+        "Contract freshness skew: scope.relevant_files and the activation constraint pin the v02.191 bundle while SPEC_CURRENT and all evidence are v02.192 (contracts hydrated 07:20Z after the 06:45Z spec bump); validator should read the constraint intent (indexed bundle, not v02.182 monolith), but a hygiene pass updating contract pins to v02.192 would remove the ambiguity."
+      ],
+      "refutation_attempts": "Opened every cited artifact (refinement.json, spec-enrichment-proposal.json, stub contract, v02.192 spec modules 02/07/10/11/12, spec-changelog.jsonl, SPEC_CURRENT.md, packet.json); attacked criterion coverage AC1-AC4, citation validity, specificity, v02.192 freshness, and scope-artifact existence. Verified all six v02.192 anchor headings exist on disk, SPEC_CURRENT fields, changelog entry fields (author_role, changed_module_paths, before/after sha256, validation results incl. the disclosed BLOCKED_PRE_EXISTING row), and refinement.current_spec sha1/sha256."
+    }
   },
   "handoff": {
     "coder_session": null,

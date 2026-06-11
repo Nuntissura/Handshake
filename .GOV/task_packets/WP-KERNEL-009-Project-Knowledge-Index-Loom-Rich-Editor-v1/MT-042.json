@@ -22,7 +22,7 @@
   "title": "MasterSpecEnrichmentSeed-042-PostgresEventLedgerSpecPatch",
   "group": "MasterSpecEnrichmentSeed",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-11T08:13:01.737Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-042.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -39,10 +39,10 @@
     "scope": "Prepare replacement text for stale SQLite/file-authority passages so WP-009 aligns with PostgreSQL/EventLedger authority. This MT belongs to MasterSpecEnrichmentSeed. Prepare the future Master Spec refinement/enrichment payload without relying on sidecar research.",
     "relevant_files": [
       ".GOV/spec/SPEC_CURRENT.md",
-      ".GOV/spec/master-spec-v02.191/spec-modules/02-system-architecture.md",
-      ".GOV/spec/master-spec-v02.191/spec-modules/04-llm-infrastructure.md",
-      ".GOV/spec/master-spec-v02.191/spec-modules/10-product-surfaces.md",
-      ".GOV/spec/master-spec-v02.191/spec-modules/12-end-of-file-appendices.md"
+      ".GOV/spec/master-spec-v02.192/spec-modules/02-system-architecture.md",
+      ".GOV/spec/master-spec-v02.192/spec-modules/04-llm-infrastructure.md",
+      ".GOV/spec/master-spec-v02.192/spec-modules/10-product-surfaces.md",
+      ".GOV/spec/master-spec-v02.192/spec-modules/12-end-of-file-appendices.md"
     ],
     "constraints": [
       "Use the existing microtask_plan_draft execution surface only; do not introduce a separate MT execution surface or suite field.",
@@ -80,14 +80,33 @@
     ]
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-033"
     ],
     "blocks": [],
-    "claimed_by": null,
-    "completed_by": null
+    "claimed_by": "KERNEL_BUILDER-20260611-071323",
+    "ready_by": "KERNEL_BUILDER-20260611-071323",
+    "ready_for_validation_at_utc": "2026-06-11T07:38:33.727Z",
+    "evidence_basis": "SATISFIED_BY_ACTIVATION_PHASE_ARTIFACTS",
+    "evidence": [
+      "AC1 (PostgresEventLedgerSpecPatch specified for no-context continuation) -> the replacement text was not only prepared but applied: .GOV/spec/master-spec-v02.192/spec-modules/11-shared-dev-platform-and-oss-foundations.md#9.1.1 WP-KERNEL-009 authority supersession (older SQLite-compatible roadmap and fallback language superseded; PostgreSQL/EventLedger is the only authority path; SQLite references are legacy research context or unrelated product debt, not acceptable authority/cache/offline/compatibility/bootstrap/test/proof paths) and 02-system-architecture.md#2.3.13.11 (SQLite, embedded local relational stores, browser storage, generated wiki folders, Docker-only proof, external app state, provider chat history MUST NOT satisfy ProjectKnowledgeIndex authority, replay, validation, cache or fixture requirements); stale source passages enumerated in refinement.json spec_conflicts_requiring_enrichment SPEC-CONFLICT-001 and spec-enrichment-proposal.json module_change_plan stale_conflict_examples",
+      "Patch applied with hashes -> .GOV/spec/master-spec-v02.192/spec-changelog.jsonl v02.192 entry records before/after module sha256 for 02 and 11 and validation PASS results",
+      "AC2 (exact files, state tables, constraints, failure modes, verification evidence) -> exact files pinned in this MT scope.relevant_files and scope.constraints plus the line anchors above; failure modes: stub failure_scenarios (implementation tries to introduce SQLite or a second durable database, mitigated by no-SQLite tripwire); verification evidence: refinement.json refinement.verification_results (4x PASS, 1x BLOCKED_PRE_EXISTING)",
+      "AC3 (sidecar research rejected, ideas restated Handshake-native) -> stub research_basis.normative_status=non_normative_context_only + translation_rule; replacement text expressed as Handshake product law; this MT scope.constraints bar sidecar-paper and outside-runtime proof",
+      "AC4 (HBR rows named with concrete reasons) -> HBR-INT-001, HBR-MAN-001, HBR-SWARM-001 = NOT_APPLICABLE for runtime proof on this spec-seed record MT (no product surface, code, test, or runtime state changed by it; requirement content recorded for implementation MTs in .GOV/spec/master-spec-v02.192/spec-modules/12-end-of-file-appendices.md#12.7, 10-product-surfaces.md#10.15.8 and #10.20); CX-503R PostgreSQL-only storage law = SATISFIED at spec level by 02-system-architecture.md#2.3.13.11 and 11-shared-dev-platform-and-oss-foundations.md#9.1.1 which lock PostgreSQL/EventLedger-only authority and bar SQLite for WP-KERNEL-009 paths; per packet.json acceptance_matrix.note HBR proof is carried per-MT"
+    ],
+    "completed_by": null,
+    "adversarial_review": {
+      "verdict": "KEEP_READY",
+      "reviewed_at_utc": "2026-06-11T08:06:04.684Z",
+      "reviewer": "ADVERSARIAL_REVIEWER-20260611",
+      "concerns": [
+        "Contract freshness skew: scope.relevant_files and the activation constraint pin the v02.191 bundle while SPEC_CURRENT and all evidence are v02.192 (contracts hydrated 07:20Z after the 06:45Z spec bump); validator should read the constraint intent (indexed bundle, not v02.182 monolith), but a hygiene pass updating contract pins to v02.192 would remove the ambiguity."
+      ],
+      "refutation_attempts": "Opened every cited artifact (refinement.json, spec-enrichment-proposal.json, stub contract, v02.192 spec modules 02/07/10/11/12, spec-changelog.jsonl, SPEC_CURRENT.md, packet.json); attacked criterion coverage AC1-AC4, citation validity, specificity, v02.192 freshness, and scope-artifact existence. Verified 9.1.1 supersession wording and the 2.3.13.11 MUST-NOT storage list verbatim, SPEC-CONFLICT-001 and proposal stale_conflict_examples line anchors (7 of 11 literal SQLite hits, 4 contextual), and changelog before/after sha256 for modules 02 and 11."
+    }
   },
   "handoff": {
     "coder_session": null,

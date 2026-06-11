@@ -22,7 +22,7 @@
   "title": "MasterSpecEnrichmentSeed-041-SwarmRecoverySpecSeed",
   "group": "MasterSpecEnrichmentSeed",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-11T08:13:01.737Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-041.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -39,10 +39,10 @@
     "scope": "Write the spec-ready contract for local/cloud model lane attribution, leases, receipts, checkpoints, and restart recovery. This MT belongs to MasterSpecEnrichmentSeed. Prepare the future Master Spec refinement/enrichment payload without relying on sidecar research.",
     "relevant_files": [
       ".GOV/spec/SPEC_CURRENT.md",
-      ".GOV/spec/master-spec-v02.191/spec-modules/02-system-architecture.md",
-      ".GOV/spec/master-spec-v02.191/spec-modules/04-llm-infrastructure.md",
-      ".GOV/spec/master-spec-v02.191/spec-modules/10-product-surfaces.md",
-      ".GOV/spec/master-spec-v02.191/spec-modules/12-end-of-file-appendices.md"
+      ".GOV/spec/master-spec-v02.192/spec-modules/02-system-architecture.md",
+      ".GOV/spec/master-spec-v02.192/spec-modules/04-llm-infrastructure.md",
+      ".GOV/spec/master-spec-v02.192/spec-modules/10-product-surfaces.md",
+      ".GOV/spec/master-spec-v02.192/spec-modules/12-end-of-file-appendices.md"
     ],
     "constraints": [
       "Use the existing microtask_plan_draft execution surface only; do not introduce a separate MT execution surface or suite field.",
@@ -77,17 +77,79 @@
       "HBR-MAN-001",
       "HBR-SWARM-001",
       "CX-503R"
-    ]
+    ],
+    "swarm_lease_checkpoint_contract_seed": {
+      "seed_kind": "MASTER_SPEC_ENRICHMENT_SEED",
+      "status": "SEED_READY_FOR_FUTURE_SPEC_BUMP",
+      "target_module_suggestion": "02-system-architecture.md#2.3.13.11 extension or 10-product-surfaces.md#10.20",
+      "normative_draft": {
+        "AgentLaneLease": [
+          "An agent lane lease MUST be claimed before a model session mutates ProjectKnowledgeIndex drafts, rich-document drafts, index runs, or graph mutation proposals.",
+          "A lease record MUST carry: lease_id (ULID), lane_id, actor_id, actor_kind (operator|local_model|cloud_model|validator|system), session_id, correlation_id, scope_ref (workspace|document|source_root|index_run), claimed_at_utc, expires_at_utc, renewal_count, released_at_utc (nullable), takeover_of (nullable).",
+          "Leases MUST expire and expiry MUST be enforced server-side; a write under an expired or foreign lease MUST be denied with a typed denial receipt.",
+          "Takeover: a new actor MAY claim an expired lease's scope; the takeover lease MUST record takeover_of = prior lease_id and MUST emit a lease-takeover event.",
+          "Renewal MUST extend expires_at_utc without changing lease identity and MUST emit a renewal event.",
+          "All lease transitions (claim/renew/expire/release/takeover/denial) MUST be EventLedger events with idempotency keys."
+        ],
+        "SwarmCheckpoint": [
+          "A swarm checkpoint MUST capture: checkpoint_id, session_id, actor_id, lane_id, lease_id, scope_ref, resume_pointer (typed: MT id, claim id, document revision, or index-run position), created_at_utc, payload_hash.",
+          "Checkpoints MUST be durable PostgreSQL/EventLedger records; recovery after session loss or compaction MUST be reconstructable from checkpoints plus receipts alone, with no chat-history dependency.",
+          "A recovery MUST emit a recovery receipt linking the new session to the recovered checkpoint and lease lineage."
+        ]
+      },
+      "implementation_owner_mts": [
+        "MT-209",
+        "MT-210",
+        "MT-213",
+        "MT-214",
+        "MT-216",
+        "MT-215",
+        "MT-217",
+        "MT-223"
+      ],
+      "application_status": "FUTURE_SPEC_BUMP_MATERIAL_ONLY - not applied to v02.192; today's applied law is limited to 02#2.3.13.11 backend-navigation receipt requirements (actor/session/correlation ids)."
+    }
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-033"
     ],
     "blocks": [],
-    "claimed_by": null,
-    "completed_by": null
+    "claimed_by": "KERNEL_BUILDER-20260611-071323",
+    "completed_by": null,
+    "ready_by": "KERNEL_BUILDER-20260611-071323",
+    "ready_for_validation_at_utc": "2026-06-11T07:53:27.940Z",
+    "evidence": [
+      "Spec-ready lease/checkpoint contract drafted as scope.swarm_lease_checkpoint_contract_seed in this MT contract (MUST-level claim/expiry/renewal/takeover/denial semantics + durable checkpoint/recovery records).",
+      "Seed aligned with implementation owner MTs MT-209/210/213/214/216 so the external validator can diff implementation against the seed.",
+      "Attribution/receipt base law already applied in v02.192 02#2.3.13.11 (backend navigation receipts with actor/session/correlation ids).",
+      "AC3 (no sidecar authority): the seed is typed contract content inside this MT contract, derived from stub state_recovery_contract + PRODUCT-AC-008, not from external papers; research provenance is non-normative per stub research_basis.",
+      "AC4 (HBR rows): hbr_focus HBR-SWARM-001/002/003 are implementation obligations transferred to owner MTs (now MT-209/210/213/214/215/216/217/223); seed itself is record-scope, NA per HBRNA-002."
+    ],
+    "evidence_basis": "SATISFIED_BY_ACTIVATION_PHASE_ARTIFACTS_PLUS_KERNEL_BUILDER_RECORD",
+    "adversarial_review": {
+      "verdict": "DEMOTE_RECOMMENDED",
+      "reviewed_at_utc": "2026-06-11T08:06:04.684Z",
+      "reviewer": "ADVERSARIAL_REVIEWER-20260611",
+      "concerns": [
+        "Contract freshness skew: scope.relevant_files and the activation constraint pin the v02.191 bundle while SPEC_CURRENT and all evidence are v02.192 (contracts hydrated 07:20Z after the 06:45Z spec bump); validator should read the constraint intent (indexed bundle, not v02.182 monolith), but a hygiene pass updating contract pins to v02.192 would remove the ambiguity.",
+        "AC coverage: evidence addresses the seed deliverable only; AC3 (sidecar rejection) and AC4 (HBR disposition - hbr_focus includes CX-503R) have no evidence entries, unlike sibling MTs MT-034..048.",
+        "Owner-MT list incomplete vs scope: scope includes lane attribution but MT-215 (LocalCloudAttribution) is absent from swarm_lease_checkpoint_contract_seed.implementation_owner_mts (MT-209/210/213/214/216); MT-217 (parallel overwrite safety) and MT-223 (stale-lease negative cases) also implement seed semantics (denial, expiry proof) and are unlisted, so a validator diffing implementation against the seed via the listed owners alone would miss surfaces.",
+        "Applied-vs-seeded clarity: the lease/checkpoint contract is NOT in v02.192 (status SEED_READY_FOR_FUTURE_SPEC_BUMP, consistent with the no-spec-edit constraint); only the attribution/receipt base law of EV3 is applied law (02#2.3.13.11). EV wording is honest but a validator must not read EV1 as applied spec law."
+      ],
+      "refutation_attempts": "Opened every cited artifact (refinement.json, spec-enrichment-proposal.json, stub contract, v02.192 spec modules 02/07/10/11/12, spec-changelog.jsonl, SPEC_CURRENT.md, packet.json); attacked criterion coverage AC1-AC4, citation validity, specificity, v02.192 freshness, and scope-artifact existence. Verified the seed contains MUST-level claim/expiry(server-enforced)/renewal/takeover(takeover_of lineage)/denial(typed receipt) lease semantics and durable checkpoint/recovery records with no-chat-history reconstruction; read MT-209/210/213/214/216 scopes and confirmed each maps to seed semantics; confirmed 02#2.3.13.11 receipt law. Fix: add MT-215 (and consider MT-217/223) to implementation_owner_mts and add AC3/AC4 evidence entries."
+    },
+    "remediation": {
+      "applied_at_utc": "2026-06-11T08:13:01.737Z",
+      "applied_by": "KERNEL_BUILDER-20260611-071323",
+      "items": [
+        "Added MT-215 (LocalCloudAttribution), MT-217 (ParallelEditorAgentSafety), MT-223 (StateRecoveryNegativeCases) to implementation_owner_mts.",
+        "Marked seed explicitly as future-spec-bump material with today's applied law boundary.",
+        "Added AC3/AC4 evidence entries."
+      ]
+    }
   },
   "handoff": {
     "coder_session": null,

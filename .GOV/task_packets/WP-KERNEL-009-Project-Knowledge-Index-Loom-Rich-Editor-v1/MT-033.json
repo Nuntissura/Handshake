@@ -22,7 +22,7 @@
   "title": "MasterSpecEnrichmentSeed-033-SpecModuleAnchorMap",
   "group": "MasterSpecEnrichmentSeed",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-11T08:13:01.737Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-033.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -39,10 +39,10 @@
     "scope": "Map WP-009 concepts to current modules: system architecture, local-first infrastructure, LLM infrastructure, product surfaces, OSS foundations, and appendices. This MT belongs to MasterSpecEnrichmentSeed. Prepare the future Master Spec refinement/enrichment payload without relying on sidecar research.",
     "relevant_files": [
       ".GOV/spec/SPEC_CURRENT.md",
-      ".GOV/spec/master-spec-v02.191/spec-modules/02-system-architecture.md",
-      ".GOV/spec/master-spec-v02.191/spec-modules/04-llm-infrastructure.md",
-      ".GOV/spec/master-spec-v02.191/spec-modules/10-product-surfaces.md",
-      ".GOV/spec/master-spec-v02.191/spec-modules/12-end-of-file-appendices.md"
+      ".GOV/spec/master-spec-v02.192/spec-modules/02-system-architecture.md",
+      ".GOV/spec/master-spec-v02.192/spec-modules/04-llm-infrastructure.md",
+      ".GOV/spec/master-spec-v02.192/spec-modules/10-product-surfaces.md",
+      ".GOV/spec/master-spec-v02.192/spec-modules/12-end-of-file-appendices.md"
     ],
     "constraints": [
       "Use the existing microtask_plan_draft execution surface only; do not introduce a separate MT execution surface or suite field.",
@@ -77,10 +77,19 @@
       "HBR-MAN-001",
       "HBR-SWARM-001",
       "CX-503R"
-    ]
+    ],
+    "module_anchor_disposition": {
+      "02-system-architecture.md": "ANCHORED:2.3.13.11",
+      "07-user-experience-and-development.md": "ANCHORED:7.1.1.8",
+      "10-product-surfaces.md": "ANCHORED:10.15.8,10.20",
+      "11-shared-dev-platform-and-oss-foundations.md": "ANCHORED:9.1.1",
+      "12-end-of-file-appendices.md": "ANCHORED:12.7",
+      "03-local-first-infrastructure.md": "NO_ANCHOR_REQUIRED:grep_zero_matches_20260611:law_carried_by_02#2.3.13.11",
+      "04-llm-infrastructure.md": "NO_ANCHOR_REQUIRED:grep_zero_matches_20260611:law_carried_by_02#2.3.13.11_and_02#2.3.14"
+    }
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-001",
@@ -88,8 +97,40 @@
       "MT-005"
     ],
     "blocks": [],
-    "claimed_by": null,
-    "completed_by": null
+    "claimed_by": "KERNEL_BUILDER-20260611-071323",
+    "completed_by": null,
+    "ready_by": "KERNEL_BUILDER-20260611-071323",
+    "ready_for_validation_at_utc": "2026-06-11T07:53:27.940Z",
+    "evidence": [
+      "Anchor map for modules 02/07/10/11/12 recorded in refinement.json spec_anchors and applied in v02.192 (content-verified twice: evidence pass and adversarial review pass both opened the cited sections; see lifecycle.adversarial_review.refutation_attempts).",
+      "03-local-first-infrastructure.md disposition: NO_ANCHOR_REQUIRED - grep 'WP-KERNEL-009|ProjectKnowledgeIndex|KnowledgeClaim|RichDocument|UserManualRecord' = 0 matches (2026-06-11); local-first storage law for WP-009 is carried by 02#2.3.13.11 PostgreSQL/EventLedger clauses.",
+      "04-llm-infrastructure.md disposition: NO_ANCHOR_REQUIRED - same grep 0 matches; WP-009 retrieval/memory law carried by 02#2.3.13.11 (MemoryPassage/RetrievalTrace) + 2.3.14 AI-Ready Data; module 04 model-runtime sections owned by other packets.",
+      "AC2 (exact files/state named): scope.module_anchor_disposition enumerates all seven v02.192 spec modules with ANCHORED section ids or NO_ANCHOR_REQUIRED dispositions backed by a named, reproducible grep (pattern and date recorded).",
+      "AC3 (no sidecar authority): the disposition is recorded in this typed MT contract; the anchors themselves live in the applied v02.192 bundle resolved through SPEC_CURRENT.md.",
+      "AC4 (HBR rows): this MT's hbr_focus rows are record-scope only; disposition NA per packet acceptance_matrix.hbr_not_applicable HBRNA-002 (MasterSpecEnrichmentSeed group)."
+    ],
+    "evidence_basis": "SATISFIED_BY_ACTIVATION_PHASE_ARTIFACTS_PLUS_KERNEL_BUILDER_RECORD",
+    "adversarial_review": {
+      "verdict": "DEMOTE_RECOMMENDED",
+      "reviewed_at_utc": "2026-06-11T08:06:04.684Z",
+      "reviewer": "ADVERSARIAL_REVIEWER-20260611",
+      "concerns": [
+        "Contract freshness skew: scope.relevant_files and the activation constraint pin the v02.191 bundle while SPEC_CURRENT and all evidence are v02.192 (contracts hydrated 07:20Z after the 06:45Z spec bump); validator should read the constraint intent (indexed bundle, not v02.182 monolith), but a hygiene pass updating contract pins to v02.192 would remove the ambiguity.",
+        "AC coverage: evidence addresses AC1 only; AC2 (state tables/failure modes/verification evidence), AC3 (sidecar rejection), and AC4 (HBR disposition - hbr_focus here includes CX-503R) have no evidence entries, unlike sibling MTs MT-034..048 which carry explicit AC2/AC3/AC4 rows.",
+        "Unverifiable agent citation: EV1 says \"verified by evidence-mapper agent\" - no receipt or artifact for that agent run exists; the underlying claims were independently re-verified by this review, but the citation itself proves nothing.",
+        "Coverage note (scope-conformant but worth validator attention): the disposition covers modules 02/07/10/11/12/03/04 only; 05-security-and-observability has no disposition row even though WP-009 carries secrets/permissions scope (the MT scope text does not list module 05, so this is not a contract breach)."
+      ],
+      "refutation_attempts": "Opened every cited artifact (refinement.json, spec-enrichment-proposal.json, stub contract, v02.192 spec modules 02/07/10/11/12, spec-changelog.jsonl, SPEC_CURRENT.md, packet.json); attacked criterion coverage AC1-AC4, citation validity, specificity, v02.192 freshness, and scope-artifact existence. Re-ran the disposition grep myself: grep -E \"WP-KERNEL-009|ProjectKnowledgeIndex|KnowledgeClaim|RichDocument|UserManualRecord\" on v02.192 modules 03 and 04 returned 0 matches for both, reproducing the recorded claim; verified refinement.spec_anchors and all six anchored headings on disk. Fix: add AC2/AC3/AC4 evidence entries (mirror the MT-034 template) and either drop or substantiate the evidence-mapper citation."
+    },
+    "remediation": {
+      "applied_at_utc": "2026-06-11T08:13:01.737Z",
+      "applied_by": "KERNEL_BUILDER-20260611-071323",
+      "items": [
+        "Replaced unverifiable agent citation with reproducible verification facts (adversarial reviewer independently reproduced the 0-match greps on modules 03/04).",
+        "Added AC2/AC3/AC4 evidence entries.",
+        "Note: module 05-security-and-observability was not in this MT's declared scope; flagged to external validator via adversarial_review concerns."
+      ]
+    }
   },
   "handoff": {
     "coder_session": null,
