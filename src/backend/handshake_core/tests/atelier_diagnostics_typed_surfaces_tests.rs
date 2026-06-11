@@ -23,11 +23,15 @@ mod atelier_pg_support;
 
 use atelier_pg_support::database_url;
 use handshake_core::atelier::command_corpus::{
-    error_taxonomy_catalog, prompt_response_matrix_catalog, DiagnosticsErrorClass,
-    NewPromptResponseMatrixEntry, PromptResponseMatrixStatus,
+    diagnostics_event_family, error_taxonomy_catalog, prompt_response_matrix_catalog,
+    DiagnosticsErrorClass, NewPromptResponseMatrixEntry, PromptResponseMatrixStatus,
 };
-use handshake_core::atelier::{AtelierError, AtelierStore};
+use handshake_core::atelier::intake::{
+    AtelierResetMode, AtelierResetRequest, OrphanAdoptionRequest, OrphanAdoptionStatus,
+};
+use handshake_core::atelier::{AtelierError, AtelierStore, NewMediaAsset};
 use std::collections::HashMap;
+use uuid::Uuid;
 
 /// Connect, ensure the wired schema, then apply the (not-yet-wired) 0112
 /// diagnostics migration. Idempotent.
@@ -226,6 +230,11 @@ async fn mt207_non_object_scoring_schema_is_rejected() {
 /// MT-166: the reset/orphan evidence projection reads the existing reset/orphan
 /// tables, enumerates the reset modes, surfaces orphan-pending/adopted counts,
 /// and emits a projection event.
+///
+/// Non-trivial seeding: a real full-preserve reset is recorded first (creating
+/// an `atelier_reset_operation` row plus `atelier_orphan_manifest_item` rows),
+/// one orphan is adopted, and the projection is asserted to surface exactly
+/// those canonical rows — never just `>= 0` counts.
 #[tokio::test]
 async fn mt166_reset_orphan_diagnostics_projection() {
     let Some(url) = database_url().await else {
@@ -234,6 +243,52 @@ async fn mt166_reset_orphan_diagnostics_projection() {
     };
     let store = connected_store(&url).await;
 
+    const PROJECTION_AGGREGATE: (&str, &str) = (
+        "atelier_diagnostics_reset_orphan_projection",
+        "reset-orphan-evidence",
+    );
+    let baseline_events = store
+        .count_events_for_aggregate(
+            diagnostics_event_family::DIAGNOSTICS_RESET_ORPHAN_PROJECTED,
+            PROJECTION_AGGREGATE.0,
+            PROJECTION_AGGREGATE.1,
+        )
+        .await
+        .expect("count projection events before recording");
+
+    // --- Seed: an original media asset, then a full-preserve reset. -------
+    // The reset writes a real atelier_reset_operation row and one orphaned
+    // atelier_orphan_manifest_item per preserved original.
+    let marker = format!("mt-166-reset-orphan-{}", Uuid::new_v4());
+    let artifact =
+        atelier_pg_support::write_native_media_artifact(format!("{marker}-original").as_bytes());
+    let asset = store
+        .materialize_media_asset(&NewMediaAsset {
+            content_hash: artifact.content_hash.clone(),
+            mime: "image/png".to_string(),
+            byte_len: artifact.byte_len,
+            source_provenance: Some(format!("test-source:{marker}")),
+            artifact_ref: artifact.artifact_ref.clone(),
+        })
+        .await
+        .expect("materialize original media before reset");
+    let reset = store
+        .record_atelier_reset(&AtelierResetRequest {
+            mode: AtelierResetMode::FullPreserveOriginalMedia,
+            requested_by: "mt-166-diagnostics".to_string(),
+            reason: format!("{marker}-full-preserve"),
+        })
+        .await
+        .expect("record full-preserve reset");
+    assert!(
+        reset.original_media_preserved_count >= 1,
+        "the seeded original must be preserved into the orphan manifest"
+    );
+    let manifest_id = reset
+        .orphan_manifest_id
+        .expect("full-preserve reset creates an orphan manifest");
+
+    // --- Record the projection and prove it surfaces the seeded rows. -----
     let projection = store
         .record_reset_orphan_diagnostics_projection()
         .await
@@ -253,29 +308,87 @@ async fn mt166_reset_orphan_diagnostics_projection() {
         "projection must enumerate the full_preserve_original_media reset mode"
     );
 
-    // Counts are non-negative and consistent with a fresh read.
-    assert!(
-        projection.orphaned_pending_count >= 0,
-        "orphaned pending count must be non-negative"
-    );
-    assert!(
-        projection.adopted_count >= 0,
-        "adopted count must be non-negative"
+    // The seeded reset operation is surfaced with its canonical columns.
+    let surfaced = projection
+        .resets
+        .iter()
+        .find(|row| row.reset_id == reset.reset_id)
+        .expect("the seeded reset operation must be surfaced by the projection");
+    assert_eq!(surfaced.mode, "full_preserve_original_media");
+    assert_eq!(surfaced.requested_by, "mt-166-diagnostics");
+    assert_eq!(surfaced.reason, format!("{marker}-full-preserve"));
+    assert_eq!(surfaced.orphan_manifest_id, Some(manifest_id));
+    assert_eq!(
+        surfaced.original_media_preserved_count, reset.original_media_preserved_count,
+        "projection must mirror the canonical preserved-original count"
     );
 
-    // The read-only projection matches the recorded projection (same canonical
-    // source rows).
-    let read_again = store
+    // The seeded orphaned item is counted as pending (non-zero, not >= 0).
+    assert!(
+        projection.orphaned_pending_count >= 1,
+        "the seeded orphan manifest item must be counted as pending, got {}",
+        projection.orphaned_pending_count
+    );
+
+    // Recording the projection emitted DIAGNOSTICS_RESET_ORPHAN_PROJECTED.
+    let events_after_record = store
+        .count_events_for_aggregate(
+            diagnostics_event_family::DIAGNOSTICS_RESET_ORPHAN_PROJECTED,
+            PROJECTION_AGGREGATE.0,
+            PROJECTION_AGGREGATE.1,
+        )
+        .await
+        .expect("count projection events after recording");
+    assert_eq!(
+        events_after_record,
+        baseline_events + 1,
+        "recording the projection must emit exactly one projection event"
+    );
+
+    // --- Adopt the seeded orphan: pending shrinks, adopted grows. ----------
+    let items = store
+        .list_orphan_manifest_items(manifest_id)
+        .await
+        .expect("list orphan manifest items");
+    let seeded_item = items
+        .iter()
+        .find(|item| item.asset_id == asset.asset_id)
+        .expect("manifest contains the seeded original asset");
+    assert_eq!(seeded_item.adoption_status, OrphanAdoptionStatus::Orphaned);
+    store
+        .adopt_orphan_manifest_item(&OrphanAdoptionRequest {
+            manifest_item_id: seeded_item.manifest_item_id,
+            requested_by: "mt-166-adopt".to_string(),
+        })
+        .await
+        .expect("adopt the seeded orphan manifest item");
+
+    let after_adoption = store
         .list_reset_orphan_diagnostics()
         .await
-        .expect("list reset/orphan diagnostics");
+        .expect("list reset/orphan diagnostics after adoption");
     assert_eq!(
-        read_again.reset_modes, projection.reset_modes,
-        "read-only and recorded projections must enumerate the same reset modes"
+        after_adoption.adopted_count,
+        projection.adopted_count + 1,
+        "adoption must move exactly one item into the adopted count"
     );
     assert_eq!(
-        read_again.resets.len(),
-        projection.resets.len(),
-        "read-only and recorded projections must surface the same reset rows"
+        after_adoption.orphaned_pending_count,
+        projection.orphaned_pending_count - 1,
+        "adoption must remove exactly one item from the pending count"
+    );
+
+    // The read-only list path never emits the projection event.
+    let events_after_list = store
+        .count_events_for_aggregate(
+            diagnostics_event_family::DIAGNOSTICS_RESET_ORPHAN_PROJECTED,
+            PROJECTION_AGGREGATE.0,
+            PROJECTION_AGGREGATE.1,
+        )
+        .await
+        .expect("count projection events after read-only list");
+    assert_eq!(
+        events_after_list, events_after_record,
+        "list_reset_orphan_diagnostics is read-only and must not emit events"
     );
 }

@@ -3,16 +3,21 @@
 //!
 //! The two allow-listed editable surfaces persist their live values here:
 //! ModelManual capsule section text and RetrievalPolicy parameters. The
-//! PG-backed surface providers in `self_improve::editable_surface_pg` read
-//! snapshots from these tables and write promotions through these methods,
-//! which mirror every live-authority write into the Atelier EventLedger.
+//! production PG-backed surface providers ([`pg_model_manual_surface`] /
+//! [`pg_retrieval_policy_surface`]) read snapshots from these tables and
+//! write promotions through these methods, which mirror every
+//! live-authority write into the Atelier EventLedger.
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::Row;
-use uuid::Uuid;
 
+use crate::memory::persistence_postgres::block_on;
+use crate::memory::policy_table::CapsulePolicyTable;
 use crate::memory::TaskType;
+use crate::self_improve::editable_surface::{
+    EditableSurfaceError, ModelManualSurface, RetrievalPolicySurface,
+};
 use crate::self_improve::iteration::PolicyParameterRef;
 
 use super::{AtelierError, AtelierResult, AtelierStore};
@@ -266,6 +271,106 @@ fn sha256_hex(bytes: &[u8]) -> String {
     format!("sha256:{}", hex::encode(Sha256::digest(bytes)))
 }
 
-// Keep Uuid in scope for future row links without a warning if unused.
-#[allow(unused_imports)]
-use uuid::Uuid as _ReservedUuid;
+fn surface_io(error: AtelierError) -> EditableSurfaceError {
+    EditableSurfaceError::Io {
+        message: error.to_string(),
+    }
+}
+
+/// Production [`ModelManualSurface`] wired to the live PG authority table.
+///
+/// `snapshot` reads the persisted section text through
+/// [`AtelierStore::get_model_manual_section`]; `promote` writes the gated
+/// candidate through [`AtelierStore::upsert_model_manual_section`], the
+/// single authority write path (revision bump + EventLedger mirror).
+///
+/// The provider closures bridge the sync `EditableSurfaceProvider` trait to
+/// async PG via the shared Tokio bridge; callers inside a runtime must use
+/// a multi-thread runtime (`#[tokio::test(flavor = "multi_thread")]`).
+pub fn pg_model_manual_surface(
+    store: AtelierStore,
+    updated_by: String,
+) -> ModelManualSurface<
+    impl Fn(&str) -> Result<String, EditableSurfaceError>,
+    impl Fn(&str, &str) -> Result<(), EditableSurfaceError>,
+> {
+    let read_store = store.clone();
+    let write_store = store;
+    ModelManualSurface::new(
+        move |section_id: &str| {
+            let record = block_on(read_store.get_model_manual_section(section_id))
+                .map_err(surface_io)?;
+            match record {
+                Some(record) => Ok(record.section_text),
+                None => Err(EditableSurfaceError::Io {
+                    message: format!(
+                        "model manual section {section_id} has no live authority row; \
+                         seed it via upsert_model_manual_section before looping on it"
+                    ),
+                }),
+            }
+        },
+        move |section_id: &str, new_text: &str| {
+            block_on(write_store.upsert_model_manual_section(section_id, new_text, &updated_by))
+                .map(|_| ())
+                .map_err(surface_io)
+        },
+    )
+}
+
+/// Production [`RetrievalPolicySurface`] wired to the live PG authority
+/// table.
+///
+/// `snapshot` reads the persisted parameter value through
+/// [`AtelierStore::get_retrieval_policy_value`], falling back to
+/// [`CapsulePolicyTable::default_policy_for`] when no live row exists yet;
+/// `promote` writes the gated candidate through
+/// [`AtelierStore::upsert_retrieval_policy_value`] (EventLedger mirror).
+pub fn pg_retrieval_policy_surface(
+    store: AtelierStore,
+    updated_by: String,
+) -> RetrievalPolicySurface<
+    impl Fn(TaskType, PolicyParameterRef) -> Result<u64, EditableSurfaceError>,
+    impl Fn(TaskType, PolicyParameterRef, u64) -> Result<(), EditableSurfaceError>,
+> {
+    let read_store = store.clone();
+    let write_store = store;
+    RetrievalPolicySurface::new(
+        move |task_type: TaskType, parameter: PolicyParameterRef| {
+            let record = block_on(read_store.get_retrieval_policy_value(task_type, parameter))
+                .map_err(surface_io)?;
+            match record {
+                Some(record) => u64::try_from(record.value).map_err(|_| {
+                    EditableSurfaceError::Io {
+                        message: format!(
+                            "persisted retrieval policy value {} is negative",
+                            record.value
+                        ),
+                    }
+                }),
+                None => {
+                    let default_policy = CapsulePolicyTable::default_policy_for(task_type);
+                    Ok(match parameter {
+                        PolicyParameterRef::TopK => u64::from(default_policy.top_k),
+                        PolicyParameterRef::CapsuleBudgetBytes => {
+                            default_policy.capsule_budget_bytes
+                        }
+                    })
+                }
+            }
+        },
+        move |task_type: TaskType, parameter: PolicyParameterRef, value: u64| {
+            let value = i64::try_from(value).map_err(|_| EditableSurfaceError::Io {
+                message: format!("retrieval policy value {value} exceeds i64 range"),
+            })?;
+            block_on(write_store.upsert_retrieval_policy_value(
+                task_type,
+                parameter,
+                value,
+                &updated_by,
+            ))
+            .map(|_| ())
+            .map_err(surface_io)
+        },
+    )
+}

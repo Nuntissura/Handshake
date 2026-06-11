@@ -318,6 +318,8 @@ async fn run_mcp_e2e(db: Arc<dyn Database>) -> Result<(), Box<dyn std::error::Er
         checkpoint_artifact_id: None,
         last_checkpoint_at: None,
         checkpoint_count: 0,
+        agent: None,
+        purpose: None,
     })
     .await?;
 

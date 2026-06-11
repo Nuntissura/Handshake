@@ -15,10 +15,11 @@
 //! Gated on `atelier_pg_support::database_url()`: when no PostgreSQL is
 //! available the test prints SKIP and returns (never SQLite).
 //!
-//! NOTE: migration 0115 is not yet wired into `ensure_schema` (the orchestrator
-//! wires it after this MT lands). The shared preamble therefore applies the 0115
-//! migration itself; `CREATE TABLE IF NOT EXISTS` makes this idempotent and safe
-//! once the orchestrator has wired it in.
+//! Migrations 0115 (tables) and 0129 (MT-158 retention/redaction columns) are
+//! wired into `AtelierStore::ensure_schema`, and every `record_*` write emits
+//! its `diagnostics_projection_event_family` event in the same transaction;
+//! these tests assert both the PostgreSQL row round-trip AND the emitted
+//! EventLedger event (`count_events_for_aggregate`).
 //!
 //! Proof command (all four tests):
 //!   DATABASE_URL=postgres://postgres@127.0.0.1:5544/handshake \
@@ -29,25 +30,19 @@ mod atelier_pg_support;
 
 use atelier_pg_support::database_url;
 use handshake_core::atelier::state_probe::{
-    DccPanelKind, NewDccPanelProjection, NewScreenshotArtifactStorage, NewWorkStateProjection,
+    diagnostics_projection_event_family, DccPanelKind, NewDccPanelProjection,
+    NewScreenshotArtifactStorage, NewWorkStateProjection,
 };
 use handshake_core::atelier::stealth_window::{NewStealthWindow, QuietFlags, VisibilityFlag};
 use handshake_core::atelier::{AtelierError, AtelierStore};
 use uuid::Uuid;
 
-/// Connect, ensure the wired schema, then apply the (not-yet-wired) 0115
-/// diagnostics-projection migration. Idempotent.
+/// Connect and ensure the wired schema (0115 + 0129 included). Idempotent.
 async fn connected_store(url: &str) -> AtelierStore {
     let store = AtelierStore::connect(url)
         .await
         .expect("connect to PostgreSQL");
     store.ensure_schema().await.expect("ensure atelier schema");
-    sqlx::raw_sql(include_str!(
-        "../migrations/0115_atelier_diagnostics_projections.sql"
-    ))
-    .execute(store.pool())
-    .await
-    .expect("apply 0115 diagnostics-projection migration");
     store
 }
 
@@ -90,6 +85,20 @@ async fn mt147_work_state_projection_round_trips() {
         Some("artifact-manifest-evidence-001")
     );
 
+    // The write emitted its EventLedger event in the same transaction.
+    let events_after_record = store
+        .count_events_for_aggregate(
+            diagnostics_projection_event_family::WORK_STATE_PROJECTION_RECORDED,
+            "atelier_work_state_projection",
+            &projection_id,
+        )
+        .await
+        .expect("count WORK_STATE_PROJECTION_RECORDED events");
+    assert_eq!(
+        events_after_record, 1,
+        "recording a work-state projection must emit exactly one EventLedger event"
+    );
+
     // Reload via the list projection and find our row.
     let reloaded = store
         .list_work_state_projections()
@@ -112,9 +121,24 @@ async fn mt147_work_state_projection_round_trips() {
     assert_eq!(updated.projection_id, projection_id);
     assert_eq!(updated.status, "VALIDATED");
 
+    // The idempotent re-record emitted a second event for the same aggregate.
+    let events_after_rerecord = store
+        .count_events_for_aggregate(
+            diagnostics_projection_event_family::WORK_STATE_PROJECTION_RECORDED,
+            "atelier_work_state_projection",
+            &projection_id,
+        )
+        .await
+        .expect("count WORK_STATE_PROJECTION_RECORDED events after re-record");
+    assert_eq!(
+        events_after_rerecord, 2,
+        "re-recording must emit a second EventLedger event"
+    );
+
     // A .GOV / machine-local evidence ref is rejected.
+    let bad_projection_id = format!("wsp-bad-{}", Uuid::new_v4());
     let bad = NewWorkStateProjection {
-        projection_id: format!("wsp-bad-{}", Uuid::new_v4()),
+        projection_id: bad_projection_id.clone(),
         evidence_ref: Some("C:/Users/op/evidence.json".to_string()),
         ..input.clone()
     };
@@ -129,6 +153,17 @@ async fn mt147_work_state_projection_round_trips() {
         ),
         "machine-local evidence ref must be rejected, got {err:?}"
     );
+
+    // A rejected write must never emit an EventLedger event.
+    let bad_events = store
+        .count_events_for_aggregate(
+            diagnostics_projection_event_family::WORK_STATE_PROJECTION_RECORDED,
+            "atelier_work_state_projection",
+            &bad_projection_id,
+        )
+        .await
+        .expect("count events for the rejected projection");
+    assert_eq!(bad_events, 0, "a rejected write must not emit an event");
 }
 
 /// MT-148: a DCC panel projection round-trips for each of the four panel kinds.
@@ -157,6 +192,20 @@ async fn mt148_dcc_panel_projection_round_trips_each_kind() {
         assert_eq!(recorded.panel_id, panel_id);
         assert_eq!(recorded.panel_kind, kind);
         assert_eq!(recorded.state_json, state);
+
+        // The write emitted its EventLedger event in the same transaction.
+        let events = store
+            .count_events_for_aggregate(
+                diagnostics_projection_event_family::DCC_PANEL_PROJECTION_RECORDED,
+                "atelier_dcc_panel_projection",
+                &panel_id,
+            )
+            .await
+            .unwrap_or_else(|err| panic!("count DCC panel events for {kind:?}: {err:?}"));
+        assert_eq!(
+            events, 1,
+            "recording a {kind:?} panel projection must emit exactly one EventLedger event"
+        );
 
         // list_by_kind returns our row and never a row of a different kind.
         let listed = store
@@ -222,6 +271,9 @@ async fn mt153_stealth_capture_extension() {
             label: Some("dcc-diagnostics-capture".to_string()),
             retention_ttl_days: Some(30),
             pinned: false,
+            retention_class: "visual-validation".to_string(),
+            exportable: false,
+            redaction_applied: false,
         })
         .await
         .expect("store screenshot artifact");
@@ -234,6 +286,23 @@ async fn mt153_stealth_capture_extension() {
     assert_eq!(recorded.byte_len, Some(204_800));
     assert_eq!(recorded.retention_ttl_days, Some(30));
     assert!(!recorded.pinned);
+    assert_eq!(recorded.retention_class, "visual-validation");
+    assert!(!recorded.exportable);
+    assert!(!recorded.redaction_applied);
+
+    // The write emitted its EventLedger event in the same transaction.
+    let events_after_store = store
+        .count_events_for_aggregate(
+            diagnostics_projection_event_family::SCREENSHOT_ARTIFACT_STORED,
+            "atelier_screenshot_artifact_storage",
+            &storage_id,
+        )
+        .await
+        .expect("count SCREENSHOT_ARTIFACT_STORED events");
+    assert_eq!(
+        events_after_store, 1,
+        "storing a screenshot artifact must emit exactly one EventLedger event"
+    );
 
     // Round-trip via the list read path.
     let reloaded = store
@@ -261,16 +330,34 @@ async fn mt153_stealth_capture_extension() {
             label: Some("dcc-diagnostics-capture".to_string()),
             retention_ttl_days: None,
             pinned: true,
+            retention_class: "visual-validation".to_string(),
+            exportable: false,
+            redaction_applied: false,
         })
         .await
         .expect("re-store screenshot artifact (pin)");
     assert!(pinned.pinned, "re-store must update the retention policy");
     assert_eq!(pinned.retention_ttl_days, None);
 
+    // The idempotent re-store emitted a second event for the same aggregate.
+    let events_after_pin = store
+        .count_events_for_aggregate(
+            diagnostics_projection_event_family::SCREENSHOT_ARTIFACT_STORED,
+            "atelier_screenshot_artifact_storage",
+            &storage_id,
+        )
+        .await
+        .expect("count SCREENSHOT_ARTIFACT_STORED events after pin");
+    assert_eq!(
+        events_after_pin, 2,
+        "re-storing (pinning) must emit a second EventLedger event"
+    );
+
     // A machine-local artifact manifest id is rejected.
+    let bad_storage_id = format!("sas-bad-{}", Uuid::new_v4());
     let err = store
         .record_screenshot_artifact_storage(&NewScreenshotArtifactStorage {
-            storage_id: format!("sas-bad-{}", Uuid::new_v4()),
+            storage_id: bad_storage_id.clone(),
             capture_id: Uuid::now_v7(),
             artifact_manifest_id: "C:/Users/op/shot.png".to_string(),
             content_sha256: sha.clone(),
@@ -281,6 +368,9 @@ async fn mt153_stealth_capture_extension() {
             label: None,
             retention_ttl_days: None,
             pinned: false,
+            retention_class: "visual-validation".to_string(),
+            exportable: false,
+            redaction_applied: false,
         })
         .await
         .expect_err("machine-local manifest id must be rejected");
@@ -291,6 +381,17 @@ async fn mt153_stealth_capture_extension() {
         ),
         "machine-local manifest id must be rejected, got {err:?}"
     );
+
+    // A rejected write must never emit an EventLedger event.
+    let bad_events = store
+        .count_events_for_aggregate(
+            diagnostics_projection_event_family::SCREENSHOT_ARTIFACT_STORED,
+            "atelier_screenshot_artifact_storage",
+            &bad_storage_id,
+        )
+        .await
+        .expect("count events for the rejected storage row");
+    assert_eq!(bad_events, 0, "a rejected write must not emit an event");
 }
 
 /// MT-167: the drift detector records a finding for a mismatch and records
@@ -340,6 +441,36 @@ async fn mt167_spec_drift_detector_records_mismatch_only() {
         some.detail.contains("CkcReferenceWindow")
             && some.detail.contains("StealthReferenceWindow"),
         "drift detail must name both the doc-claimed and code surfaces"
+    );
+
+    // MT-167 EventLedger half: recording the mismatch finding emitted exactly
+    // one SPEC_DRIFT_FINDING_RECORDED event in the same transaction.
+    let mismatch_events = store
+        .count_events_for_aggregate(
+            diagnostics_projection_event_family::SPEC_DRIFT_FINDING_RECORDED,
+            "atelier_spec_drift_finding",
+            &drift_finding_id,
+        )
+        .await
+        .expect("count SPEC_DRIFT_FINDING_RECORDED events for the mismatch");
+    assert_eq!(
+        mismatch_events, 1,
+        "a recorded drift finding must emit exactly one SPEC_DRIFT_FINDING_RECORDED event"
+    );
+
+    // The matching doc/code surface recorded nothing, so it must also have
+    // emitted nothing into the EventLedger.
+    let match_events = store
+        .count_events_for_aggregate(
+            diagnostics_projection_event_family::SPEC_DRIFT_FINDING_RECORDED,
+            "atelier_spec_drift_finding",
+            &match_finding_id,
+        )
+        .await
+        .expect("count SPEC_DRIFT_FINDING_RECORDED events for the match");
+    assert_eq!(
+        match_events, 0,
+        "a matching doc/code surface must never emit a drift-finding event"
     );
 
     // The recorded finding is listed; the match id is never listed.

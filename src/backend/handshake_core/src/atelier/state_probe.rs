@@ -1573,6 +1573,10 @@ pub mod diagnostics_projection_event_family {
     /// A screenshot artifact-storage row was recorded (MT-153).
     pub const SCREENSHOT_ARTIFACT_STORED: &str =
         "atelier.state_probe.screenshot_artifact_stored";
+    /// An expired, unpinned screenshot artifact-storage row was pruned by the
+    /// retention cleanup pass (MT-158).
+    pub const SCREENSHOT_ARTIFACT_RETENTION_CLEANED: &str =
+        "atelier.state_probe.screenshot_artifact_retention_cleaned";
     /// A spec/README drift finding was recorded (MT-167).
     pub const SPEC_DRIFT_FINDING_RECORDED: &str =
         "atelier.state_probe.spec_drift_finding_recorded";
@@ -1582,6 +1586,7 @@ pub mod diagnostics_projection_event_family {
         WORK_STATE_PROJECTION_RECORDED,
         DCC_PANEL_PROJECTION_RECORDED,
         SCREENSHOT_ARTIFACT_STORED,
+        SCREENSHOT_ARTIFACT_RETENTION_CLEANED,
         SPEC_DRIFT_FINDING_RECORDED,
     ];
 }
@@ -1783,6 +1788,14 @@ pub struct NewScreenshotArtifactStorage {
     pub retention_ttl_days: Option<i32>,
     /// Whether the artifact is pinned (exempt from retention prune).
     pub pinned: bool,
+    /// Retention policy bucket this capture belongs to (MT-158), e.g.
+    /// `visual-validation`. Non-empty.
+    pub retention_class: String,
+    /// Whether the capture may leave the workspace (MT-158). An unredacted
+    /// capture must never be exportable.
+    pub exportable: bool,
+    /// Whether sensitive regions were blacked out before storage (MT-158).
+    pub redaction_applied: bool,
 }
 
 /// Persisted screenshot artifact-storage row (MT-153).
@@ -1799,12 +1812,16 @@ pub struct ScreenshotArtifactStorage {
     pub label: Option<String>,
     pub retention_ttl_days: Option<i32>,
     pub pinned: bool,
+    pub retention_class: String,
+    pub exportable: bool,
+    pub redaction_applied: bool,
     pub created_at_utc: DateTime<Utc>,
 }
 
 const SCREENSHOT_ARTIFACT_STORAGE_COLUMNS: &str =
     "storage_id, capture_id, artifact_manifest_id, content_sha256, mime, width_px, height_px, \
-     byte_len, label, retention_ttl_days, pinned, created_at_utc";
+     byte_len, label, retention_ttl_days, pinned, retention_class, exportable, \
+     redaction_applied, created_at_utc";
 
 fn screenshot_artifact_storage_from_row(row: &sqlx::postgres::PgRow) -> ScreenshotArtifactStorage {
     ScreenshotArtifactStorage {
@@ -1819,6 +1836,9 @@ fn screenshot_artifact_storage_from_row(row: &sqlx::postgres::PgRow) -> Screensh
         label: row.get("label"),
         retention_ttl_days: row.get("retention_ttl_days"),
         pinned: row.get("pinned"),
+        retention_class: row.get("retention_class"),
+        exportable: row.get("exportable"),
+        redaction_applied: row.get("redaction_applied"),
         created_at_utc: row.get("created_at_utc"),
     }
 }
@@ -1846,6 +1866,19 @@ fn validate_screenshot_artifact_storage(
                 "screenshot artifact storage retention_ttl_days must be >= 0".into(),
             ));
         }
+    }
+    // MT-158: the retention class is the policy bucket; it must be declared.
+    if new.retention_class.trim().is_empty() || new.retention_class.trim() != new.retention_class {
+        return Err(AtelierError::Validation(
+            "screenshot artifact storage retention_class must be non-empty and unpadded".into(),
+        ));
+    }
+    // MT-158: protect sensitive captures -- an unredacted capture must never be
+    // marked exportable.
+    if new.exportable && !new.redaction_applied {
+        return Err(AtelierError::Validation(
+            "screenshot artifact storage must not be exportable without redaction_applied".into(),
+        ));
     }
     Ok(())
 }
@@ -2070,8 +2103,9 @@ impl AtelierStore {
         let row = sqlx::query(&format!(
             r#"INSERT INTO atelier_screenshot_artifact_storage
                  (storage_id, capture_id, artifact_manifest_id, content_sha256, mime,
-                  width_px, height_px, byte_len, label, retention_ttl_days, pinned)
-               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+                  width_px, height_px, byte_len, label, retention_ttl_days, pinned,
+                  retention_class, exportable, redaction_applied)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
                ON CONFLICT (capture_id) DO UPDATE SET
                  artifact_manifest_id = EXCLUDED.artifact_manifest_id,
                  content_sha256 = EXCLUDED.content_sha256,
@@ -2081,7 +2115,10 @@ impl AtelierStore {
                  byte_len = EXCLUDED.byte_len,
                  label = EXCLUDED.label,
                  retention_ttl_days = EXCLUDED.retention_ttl_days,
-                 pinned = EXCLUDED.pinned
+                 pinned = EXCLUDED.pinned,
+                 retention_class = EXCLUDED.retention_class,
+                 exportable = EXCLUDED.exportable,
+                 redaction_applied = EXCLUDED.redaction_applied
                RETURNING {SCREENSHOT_ARTIFACT_STORAGE_COLUMNS}"#
         ))
         .bind(&new.storage_id)
@@ -2095,6 +2132,9 @@ impl AtelierStore {
         .bind(&new.label)
         .bind(new.retention_ttl_days)
         .bind(new.pinned)
+        .bind(&new.retention_class)
+        .bind(new.exportable)
+        .bind(new.redaction_applied)
         .fetch_one(&mut *tx)
         .await?;
         let recorded = screenshot_artifact_storage_from_row(&row);
@@ -2112,6 +2152,9 @@ impl AtelierStore {
                 "mime": recorded.mime,
                 "retention_ttl_days": recorded.retention_ttl_days,
                 "pinned": recorded.pinned,
+                "retention_class": recorded.retention_class,
+                "exportable": recorded.exportable,
+                "redaction_applied": recorded.redaction_applied,
                 "schema": "hsk.atelier.screenshot_artifact_storage@1",
             }),
         )
@@ -2137,6 +2180,52 @@ impl AtelierStore {
             .iter()
             .map(screenshot_artifact_storage_from_row)
             .collect())
+    }
+
+    /// Prune expired, unpinned screenshot artifact-storage rows (MT-158).
+    ///
+    /// A row is expired when it carries a retention TTL and
+    /// `created_at_utc + retention_ttl_days` is in the past. Pinned rows and
+    /// rows without a TTL are never pruned. Emits one
+    /// `SCREENSHOT_ARTIFACT_RETENTION_CLEANED` event per pruned row and returns
+    /// the pruned rows so callers can release the referenced artifacts.
+    pub async fn cleanup_expired_screenshot_artifacts(
+        &self,
+    ) -> AtelierResult<Vec<ScreenshotArtifactStorage>> {
+        let mut tx = self.pool().begin().await?;
+        let rows = sqlx::query(&format!(
+            r#"DELETE FROM atelier_screenshot_artifact_storage
+               WHERE pinned = FALSE
+                 AND retention_ttl_days IS NOT NULL
+                 AND created_at_utc + make_interval(days => retention_ttl_days) <= NOW()
+               RETURNING {SCREENSHOT_ARTIFACT_STORAGE_COLUMNS}"#
+        ))
+        .fetch_all(&mut *tx)
+        .await?;
+        let cleaned: Vec<ScreenshotArtifactStorage> = rows
+            .iter()
+            .map(screenshot_artifact_storage_from_row)
+            .collect();
+
+        for row in &cleaned {
+            self.record_event_in_tx(
+                &mut tx,
+                diagnostics_projection_event_family::SCREENSHOT_ARTIFACT_RETENTION_CLEANED,
+                "atelier_screenshot_artifact_storage",
+                &row.storage_id,
+                json!({
+                    "storage_id": row.storage_id,
+                    "capture_id": row.capture_id,
+                    "artifact_manifest_id": row.artifact_manifest_id,
+                    "retention_class": row.retention_class,
+                    "retention_ttl_days": row.retention_ttl_days,
+                    "schema": "hsk.atelier.screenshot_artifact_retention_cleanup@1",
+                }),
+            )
+            .await?;
+        }
+        tx.commit().await?;
+        Ok(cleaned)
     }
 
     /// Record one doc/spec drift finding (MT-167).

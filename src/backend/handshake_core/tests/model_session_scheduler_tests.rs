@@ -378,6 +378,8 @@ async fn seed_active_model_session(
             checkpoint_artifact_id: None,
             last_checkpoint_at: None,
             checkpoint_count: 0,
+            agent: None,
+            purpose: None,
         })
         .await?;
     state.session_registry.upsert_session(session.clone()).await;
@@ -2301,6 +2303,8 @@ async fn model_session_memory_policy_is_immutable() -> Result<(), Box<dyn std::e
             checkpoint_artifact_id: None,
             last_checkpoint_at: None,
             checkpoint_count: 0,
+            agent: None,
+            purpose: None,
         })
         .await?;
     assert_eq!(created.memory_policy, "full");
@@ -2328,6 +2332,8 @@ async fn model_session_memory_policy_is_immutable() -> Result<(), Box<dyn std::e
             checkpoint_artifact_id: None,
             last_checkpoint_at: None,
             checkpoint_count: 0,
+            agent: None,
+            purpose: None,
         })
         .await
         .expect_err("expected immutability violation");

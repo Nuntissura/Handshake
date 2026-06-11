@@ -18,7 +18,7 @@ use std::io::Cursor;
 use handshake_core::kernel::product_screenshot_capture::{
     record_native_product_screenshot, NativeScreenshotEvidence, ProductScreenshotExecutionError,
     ProductScreenshotRequestV1, ScreenshotCaptureExecutionSurface, ScreenshotCaptureScope,
-    ScreenshotCaptureTriggerKind,
+    ScreenshotCaptureTriggerKind, VisualEvidenceProtectionV1,
 };
 use handshake_core::operator_foreground::focus_audit::{
     FocusAuditEvent, FocusAuditReport, OwnedProcessPidSet,
@@ -52,6 +52,7 @@ fn mt152_native_screenshot_stored_as_governed_artifact_without_playwright() {
             focus_audit_clean: true,
         },
         Some(&clean_focus_report("native-capture-run-1")),
+        &VisualEvidenceProtectionV1::default(),
         workspace_root.path(),
     )
     .expect("native capture should record a governed artifact");
@@ -138,6 +139,7 @@ fn mt158_native_capture_rejects_non_focus_safe_evidence() {
             focus_audit_clean: true,
         },
         Some(&clean_focus_report("native-capture-run-2")),
+        &VisualEvidenceProtectionV1::default(),
         workspace_root.path(),
     );
     assert!(
@@ -161,6 +163,7 @@ fn mt158_native_capture_rejects_non_focus_safe_evidence() {
             focus_audit_clean: false,
         },
         Some(&clean_focus_report("native-capture-run-3")),
+        &VisualEvidenceProtectionV1::default(),
         workspace_root.path(),
     );
     assert!(
@@ -185,6 +188,7 @@ fn mt158_native_capture_rejects_non_focus_safe_evidence() {
             focus_audit_clean: true,
         },
         Some(&dirty_focus_report("native-capture-run-4")),
+        &VisualEvidenceProtectionV1::default(),
         workspace_root.path(),
     );
     assert!(

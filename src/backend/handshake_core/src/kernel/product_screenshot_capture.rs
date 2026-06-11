@@ -658,6 +658,49 @@ pub struct NativeScreenshotEvidence {
     pub focus_audit_clean: bool,
 }
 
+/// MT-158: one rectangular sensitive region to black out before a capture is
+/// stored. Coordinates are in capture pixels, origin top-left.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct VisualRedactionRegionV1 {
+    pub x: u32,
+    pub y: u32,
+    pub width: u32,
+    pub height: u32,
+}
+
+/// MT-158: visual evidence retention + redaction policy applied when a native
+/// capture is recorded.
+///
+/// Bounds the stored artifact (retention class + TTL) and protects sensitive
+/// captures: declared `redact_regions` are blacked out in the PNG BEFORE it is
+/// hashed and written to the ArtifactStore (the unredacted pixels never touch
+/// disk), a redacted capture is classified `High`, and an unredacted capture
+/// must never be exportable.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct VisualEvidenceProtectionV1 {
+    /// Retention policy bucket recorded on the governed artifact. Non-empty.
+    pub retention_class: String,
+    /// Retention TTL in days for the stored ArtifactStore manifest; `None` =
+    /// no automatic prune.
+    pub retention_ttl_days: Option<u32>,
+    /// Whether the stored capture may leave the workspace. Only allowed when
+    /// redaction was applied.
+    pub exportable: bool,
+    /// Sensitive regions to black out before storage; empty = no redaction.
+    pub redact_regions: Vec<VisualRedactionRegionV1>,
+}
+
+impl Default for VisualEvidenceProtectionV1 {
+    fn default() -> Self {
+        Self {
+            retention_class: "visual-validation".to_string(),
+            retention_ttl_days: Some(30),
+            exportable: false,
+            redact_regions: Vec::new(),
+        }
+    }
+}
+
 /// Result of recording a native (Playwright-free) screenshot as a governed
 /// ArtifactStore artifact.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -676,6 +719,9 @@ pub struct NativeProductScreenshotResultV1 {
     /// `None` when the caller asserted focus-safety via the evidence flags only
     /// (still requires `focus_audit_clean == true`).
     pub focus_audit_run_id: Option<String>,
+    /// MT-158: whether sensitive regions were blacked out before the PNG was
+    /// hashed and stored.
+    pub redaction_applied: bool,
 }
 
 /// Record a native CDP screenshot as a governed ArtifactStore artifact, with NO
@@ -689,10 +735,16 @@ pub struct NativeProductScreenshotResultV1 {
 /// On success the PNG is written to the ArtifactStore as an L1 `File` image
 /// artifact (stable UUID id, content-hash validated) and a
 /// `ProductScreenshotArtifactV1` is returned referencing that stored artifact.
+///
+/// MT-158: `protection` bounds the stored artifact (retention class + TTL,
+/// exportability) and blacks out declared sensitive regions BEFORE the PNG is
+/// hashed and written -- unredacted sensitive pixels never reach the
+/// ArtifactStore, and an unredacted capture must never be exportable.
 pub fn record_native_product_screenshot(
     request: &ProductScreenshotRequestV1,
     evidence: NativeScreenshotEvidence,
     focus_audit: Option<&FocusAuditReport>,
+    protection: &VisualEvidenceProtectionV1,
     workspace_root: impl AsRef<Path>,
 ) -> Result<NativeProductScreenshotResultV1, ProductScreenshotExecutionError> {
     // --- Request shape validation (reuse the governed request invariants). ---
@@ -733,6 +785,18 @@ pub fn record_native_product_screenshot(
         }
     }
 
+    // --- MT-158 protection policy validation. ---------------------------------
+    if protection.retention_class.trim().is_empty() {
+        return Err(ProductScreenshotExecutionError::Validation(
+            "visual evidence protection requires a retention_class",
+        ));
+    }
+    if protection.exportable && protection.redact_regions.is_empty() {
+        return Err(ProductScreenshotExecutionError::Validation(
+            "unredacted captures must never be exportable",
+        ));
+    }
+
     // --- Decode + dimension-check the PNG (real image, never a stub blob). ----
     let decoded =
         image::load_from_memory_with_format(&evidence.png_bytes, image::ImageFormat::Png)
@@ -745,9 +809,44 @@ pub fn record_native_product_screenshot(
         ));
     }
 
+    // --- MT-158: black out sensitive regions BEFORE hashing/storing. ----------
+    let redaction_applied = !protection.redact_regions.is_empty();
+    let stored_png_bytes = if redaction_applied {
+        let mut rgba = decoded.to_rgba8();
+        for region in &protection.redact_regions {
+            if region.width == 0 || region.height == 0 {
+                return Err(ProductScreenshotExecutionError::Validation(
+                    "redaction regions must have positive dimensions",
+                ));
+            }
+            let x_end = region.x.checked_add(region.width);
+            let y_end = region.y.checked_add(region.height);
+            if x_end.is_none_or(|end| end > width) || y_end.is_none_or(|end| end > height) {
+                return Err(ProductScreenshotExecutionError::Validation(
+                    "redaction regions must lie within the capture bounds",
+                ));
+            }
+            for y in region.y..region.y + region.height {
+                for x in region.x..region.x + region.width {
+                    rgba.put_pixel(x, y, image::Rgba([0, 0, 0, 255]));
+                }
+            }
+        }
+        let mut redacted = Vec::new();
+        image::DynamicImage::ImageRgba8(rgba)
+            .write_to(
+                &mut std::io::Cursor::new(&mut redacted),
+                image::ImageFormat::Png,
+            )
+            .map_err(|err| ProductScreenshotExecutionError::InvalidPng(err.to_string()))?;
+        redacted
+    } else {
+        evidence.png_bytes.clone()
+    };
+
     // --- Persist the PNG as a real ArtifactStore L1 image artifact. -----------
     let workspace_root = workspace_root.as_ref();
-    let png_sha256_hex = sha256_hex_raw(&evidence.png_bytes);
+    let png_sha256_hex = sha256_hex_raw(&stored_png_bytes);
     let artifact_store_id = Uuid::now_v7();
     let manifest = ArtifactManifest {
         artifact_id: artifact_store_id,
@@ -763,15 +862,21 @@ pub fn record_native_product_screenshot(
         source_entity_refs: Vec::new(),
         source_artifact_refs: Vec::new(),
         content_hash: png_sha256_hex.clone(),
-        size_bytes: evidence.png_bytes.len() as u64,
-        classification: ArtifactClassification::Low,
-        exportable: false,
-        retention_ttl_days: None,
+        size_bytes: stored_png_bytes.len() as u64,
+        // MT-158: a capture with declared sensitive regions is High; routine
+        // visual-validation captures stay Low.
+        classification: if redaction_applied {
+            ArtifactClassification::High
+        } else {
+            ArtifactClassification::Low
+        },
+        exportable: protection.exportable,
+        retention_ttl_days: protection.retention_ttl_days,
         pinned: None,
         hash_basis: None,
         hash_exclude_paths: Vec::new(),
     };
-    write_file_artifact(workspace_root, &manifest, &evidence.png_bytes)?;
+    write_file_artifact(workspace_root, &manifest, &stored_png_bytes)?;
     let artifact_store_rel = artifact_root_rel(ArtifactLayer::L1, artifact_store_id);
 
     // --- Build the governed artifact contract referencing the stored PNG. -----
@@ -784,7 +889,7 @@ pub fn record_native_product_screenshot(
         width,
         height,
         captured_at_utc: evidence.captured_at_utc.clone(),
-        retention_class: "visual-validation".to_string(),
+        retention_class: protection.retention_class.clone(),
         screenshot_path: format!("{artifact_store_rel}/payload"),
         metadata_path: format!("{artifact_store_rel}/artifact.json"),
         metadata_schema_id: "hsk.product_screenshot_metadata@1".to_string(),
@@ -796,6 +901,7 @@ pub fn record_native_product_screenshot(
         artifact_store_rel,
         png_sha256: format!("sha256:{png_sha256_hex}"),
         focus_audit_run_id: focus_audit.map(|report| report.run_id.clone()),
+        redaction_applied,
     })
 }
 

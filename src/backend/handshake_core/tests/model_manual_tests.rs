@@ -849,7 +849,6 @@ fn manual_covers_diagnostics_surfaces() {
         "diagnostics_source_evidence_matrix",
         "diagnostics_problem_store_query",
         "diagnostics_hbr_handoff_gate_evaluate",
-        "diagnostics_debug_bundle_export",
     ] {
         let command = manual
             .command_reference
@@ -902,7 +901,36 @@ fn manual_covers_diagnostics_surfaces() {
         );
     }
 
-    // The manual version moved to the merge/drift-guard wired increment
+    // MT-181: the smoke path's terminal step is no longer a Planned scaffold.
+    // The debug-bundle export is the executable kernel diagnostic-bundle
+    // manifest surface (src/diagnostics/bundle_manifest.rs): Wired like the
+    // other library surfaces, but never claiming a route.
+    let bundle_export = manual
+        .command_reference
+        .iter()
+        .find(|command| command.id == "diagnostics_debug_bundle_export")
+        .expect("missing diagnostics_debug_bundle_export command");
+    assert_eq!(
+        bundle_export.status,
+        CommandStatus::Wired,
+        "diagnostics_debug_bundle_export must be Wired (executable library surface)"
+    );
+    assert_eq!(
+        bundle_export.ipc_channel, None,
+        "diagnostics_debug_bundle_export must not claim a route"
+    );
+    assert_eq!(
+        bundle_export.tauri_command, None,
+        "diagnostics_debug_bundle_export is a library surface, not a Tauri command"
+    );
+    assert!(
+        bundle_export
+            .description
+            .contains("src/diagnostics/bundle_manifest.rs"),
+        "diagnostics_debug_bundle_export must cite its executable implementation"
+    );
+
+    // The manual version moved to the smoke-path bundle-export wired increment
     // (HBR-MAN-001: wired-surface diff bumps MANUAL_VERSION).
-    assert_eq!(MANUAL_VERSION, "1.4.0");
+    assert_eq!(MANUAL_VERSION, "1.5.0");
 }

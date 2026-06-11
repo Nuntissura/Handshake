@@ -1409,6 +1409,19 @@ impl TryFrom<&str> for ModelSessionState {
     }
 }
 
+impl ModelSessionState {
+    /// MT-142: whether this state closes the session. Only terminal states may
+    /// carry close metadata (close reason / closing actor / closed-at).
+    pub fn is_terminal(&self) -> bool {
+        matches!(
+            self,
+            ModelSessionState::Completed
+                | ModelSessionState::Failed
+                | ModelSessionState::Cancelled
+        )
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum SessionMessageRole {
@@ -1469,6 +1482,24 @@ pub struct ModelSession {
     pub last_checkpoint_at: Option<DateTime<Utc>>,
     pub checkpoint_count: i64,
     pub merge_back_artifact: Option<MergeBackArtifact>,
+    /// MT-142: the agent identity that owns the session (e.g. a model/session
+    /// principal), durable across restarts.
+    #[serde(default)]
+    pub agent: Option<String>,
+    /// MT-142: why the session exists (operator/work intent), durable across
+    /// restarts.
+    #[serde(default)]
+    pub purpose: Option<String>,
+    /// MT-142: why the session was closed. Set only by
+    /// [`Database::close_model_session`] together with a terminal state.
+    #[serde(default)]
+    pub close_reason: Option<String>,
+    /// MT-142: the actor that closed the session.
+    #[serde(default)]
+    pub closed_by_actor: Option<String>,
+    /// MT-142: when the session was closed.
+    #[serde(default)]
+    pub closed_at: Option<DateTime<Utc>>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -1495,6 +1526,10 @@ pub struct NewModelSession {
     pub checkpoint_artifact_id: Option<String>,
     pub last_checkpoint_at: Option<DateTime<Utc>>,
     pub checkpoint_count: i64,
+    /// MT-142: durable agent identity for the session.
+    pub agent: Option<String>,
+    /// MT-142: durable session purpose.
+    pub purpose: Option<String>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -2129,6 +2164,19 @@ pub trait Database: Send + Sync {
         state: ModelSessionState,
         job_id: Option<Uuid>,
         merge_back_artifact: Option<MergeBackArtifact>,
+    ) -> StorageResult<ModelSession>;
+    /// MT-142: close a durable model session with close metadata.
+    ///
+    /// `state` must be terminal ([`ModelSessionState::is_terminal`]);
+    /// `close_reason` and `actor` must be non-empty. Sets `close_reason`,
+    /// `closed_by_actor` and `closed_at` on the durable row so the close
+    /// metadata survives restart.
+    async fn close_model_session(
+        &self,
+        session_id: &str,
+        state: ModelSessionState,
+        close_reason: &str,
+        actor: &str,
     ) -> StorageResult<ModelSession>;
     async fn create_session_checkpoint(
         &self,

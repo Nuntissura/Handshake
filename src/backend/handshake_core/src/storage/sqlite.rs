@@ -472,6 +472,28 @@ impl SqliteDatabase {
                 .execute(&self.pool)
                 .await?;
         }
+        // MT-142: durable session identity (agent, purpose) + close metadata
+        // (close_reason, closed_by_actor, closed_at) surviving restart.
+        for (column, statement) in [
+            ("agent", "ALTER TABLE model_sessions ADD COLUMN agent TEXT"),
+            ("purpose", "ALTER TABLE model_sessions ADD COLUMN purpose TEXT"),
+            (
+                "close_reason",
+                "ALTER TABLE model_sessions ADD COLUMN close_reason TEXT",
+            ),
+            (
+                "closed_by_actor",
+                "ALTER TABLE model_sessions ADD COLUMN closed_by_actor TEXT",
+            ),
+            (
+                "closed_at",
+                "ALTER TABLE model_sessions ADD COLUMN closed_at TIMESTAMP",
+            ),
+        ] {
+            if !existing_model_session_columns.contains(column) {
+                sqlx::query(statement).execute(&self.pool).await?;
+            }
+        }
         if !existing_model_session_columns.contains("checkpoint_count") {
             sqlx::query(
                 "ALTER TABLE model_sessions ADD COLUMN checkpoint_count INTEGER NOT NULL DEFAULT 0",
@@ -619,6 +641,11 @@ impl SqliteDatabase {
             last_checkpoint_at,
             checkpoint_count,
             merge_back_artifact,
+            agent: row.get("agent"),
+            purpose: row.get("purpose"),
+            close_reason: row.get("close_reason"),
+            closed_by_actor: row.get("closed_by_actor"),
+            closed_at: row.get("closed_at"),
             created_at: row.get("created_at"),
             updated_at: row.get("updated_at"),
         })
@@ -5876,10 +5903,12 @@ impl super::Database for SqliteDatabase {
                 checkpoint_artifact_id,
                 last_checkpoint_at,
                 checkpoint_count,
+                agent,
+                purpose,
                 created_at,
                 updated_at
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24)
             ON CONFLICT(session_id) DO UPDATE SET
                 parent_session_id = excluded.parent_session_id,
                 spawn_depth = excluded.spawn_depth,
@@ -5899,6 +5928,8 @@ impl super::Database for SqliteDatabase {
                 checkpoint_artifact_id = excluded.checkpoint_artifact_id,
                 last_checkpoint_at = excluded.last_checkpoint_at,
                 checkpoint_count = excluded.checkpoint_count,
+                agent = excluded.agent,
+                purpose = excluded.purpose,
                 updated_at = excluded.updated_at
             WHERE model_sessions.memory_policy = excluded.memory_policy
             RETURNING
@@ -5923,6 +5954,11 @@ impl super::Database for SqliteDatabase {
                 last_checkpoint_at,
                 checkpoint_count,
                 merge_back_artifact,
+                agent,
+                purpose,
+                close_reason,
+                closed_by_actor,
+                closed_at,
                 created_at,
                 updated_at
             "#,
@@ -5947,6 +5983,8 @@ impl super::Database for SqliteDatabase {
                 .bind(session.checkpoint_artifact_id)
                 .bind(session.last_checkpoint_at)
                 .bind(session.checkpoint_count)
+                .bind(session.agent)
+                .bind(session.purpose)
                 .bind(now)
                 .bind(now)
                 .fetch_optional(&self.pool)
@@ -6002,6 +6040,11 @@ impl super::Database for SqliteDatabase {
                 last_checkpoint_at,
                 checkpoint_count,
                 merge_back_artifact,
+                agent,
+                purpose,
+                close_reason,
+                closed_by_actor,
+                closed_at,
                 created_at,
                 updated_at
             FROM model_sessions
@@ -6044,6 +6087,11 @@ impl super::Database for SqliteDatabase {
                 last_checkpoint_at,
                 checkpoint_count,
                 merge_back_artifact,
+                agent,
+                purpose,
+                close_reason,
+                closed_by_actor,
+                closed_at,
                 created_at,
                 updated_at
             FROM model_sessions
@@ -6113,6 +6161,11 @@ impl super::Database for SqliteDatabase {
                 last_checkpoint_at,
                 checkpoint_count,
                 merge_back_artifact,
+                agent,
+                purpose,
+                close_reason,
+                closed_by_actor,
+                closed_at,
                 created_at,
                 updated_at
             "#,
@@ -6120,6 +6173,85 @@ impl super::Database for SqliteDatabase {
         .bind(state.as_str())
         .bind(job_id.map(|value| value.to_string()))
         .bind(merge_back_artifact)
+        .bind(now)
+        .bind(session_id)
+        .fetch_optional(&self.pool)
+        .await?;
+
+        match row {
+            Some(row) => self.map_model_session_row(row),
+            None => Err(StorageError::NotFound("model_session")),
+        }
+    }
+
+    async fn close_model_session(
+        &self,
+        session_id: &str,
+        state: ModelSessionState,
+        close_reason: &str,
+        actor: &str,
+    ) -> StorageResult<ModelSession> {
+        if !state.is_terminal() {
+            return Err(StorageError::Validation(
+                "close_model_session requires a terminal session state",
+            ));
+        }
+        if close_reason.trim().is_empty() {
+            return Err(StorageError::Validation(
+                "close_model_session requires a non-empty close_reason",
+            ));
+        }
+        if actor.trim().is_empty() {
+            return Err(StorageError::Validation(
+                "close_model_session requires a non-empty actor",
+            ));
+        }
+
+        self.ensure_model_session_schema().await?;
+        let now = Utc::now();
+        let row = sqlx::query(
+            r#"
+            UPDATE model_sessions
+            SET state = $1,
+                close_reason = $2,
+                closed_by_actor = $3,
+                closed_at = $4,
+                updated_at = $4
+            WHERE session_id = $5
+            RETURNING
+                session_id,
+                parent_session_id,
+                spawn_depth,
+                state,
+                model_id,
+                backend,
+                parameter_class,
+                role,
+                wp_id,
+                mt_id,
+                work_profile_id,
+                execution_mode,
+                memory_policy,
+                consent_receipt_id,
+                capability_grants,
+                capability_token_ids,
+                job_id,
+                checkpoint_artifact_id,
+                last_checkpoint_at,
+                checkpoint_count,
+                merge_back_artifact,
+                agent,
+                purpose,
+                close_reason,
+                closed_by_actor,
+                closed_at,
+                created_at,
+                updated_at
+            "#,
+        )
+        .bind(state.as_str())
+        .bind(close_reason)
+        .bind(actor)
         .bind(now)
         .bind(session_id)
         .fetch_optional(&self.pool)

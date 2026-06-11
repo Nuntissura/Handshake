@@ -7286,6 +7286,8 @@ pub async fn create_session_checkpoint(
             checkpoint_artifact_id: Some(checkpoint_artifact_id.clone()),
             last_checkpoint_at: Some(now),
             checkpoint_count: session.checkpoint_count.saturating_add(1),
+            agent: session.agent,
+            purpose: session.purpose,
         })
         .await?;
     state.session_registry.upsert_session(session.clone()).await;
@@ -7353,6 +7355,8 @@ pub async fn recover_session_from_checkpoint(
             checkpoint_artifact_id: Some(checkpoint.checkpoint_artifact_id.clone()),
             last_checkpoint_at: Some(checkpoint.timestamp),
             checkpoint_count: checkpointed_session.checkpoint_count,
+            agent: checkpointed_session.agent,
+            purpose: checkpointed_session.purpose,
         })
         .await?;
     state.session_registry.upsert_session(session.clone()).await;
@@ -8038,6 +8042,13 @@ async fn ensure_model_session_artifact_refs(
             checkpoint_artifact_id: None,
             last_checkpoint_at: None,
             checkpoint_count: 0,
+            // MT-142: durable session identity -- the model that runs the
+            // session, acting in its declared role.
+            agent: Some(format!("{}:{}", metadata.role, metadata.model_id)),
+            purpose: metadata
+                .mt_id
+                .clone()
+                .or_else(|| metadata.wp_id.clone()),
         })
         .await?;
     state.session_registry.upsert_session(session).await;
@@ -28523,6 +28534,8 @@ mod tests {
                 checkpoint_artifact_id: None,
                 last_checkpoint_at: None,
                 checkpoint_count: 0,
+                agent: None,
+                purpose: None,
             })
             .await?;
 
@@ -28603,6 +28616,11 @@ mod tests {
             last_checkpoint_at: None,
             checkpoint_count: 0,
             merge_back_artifact: None,
+            agent: None,
+            purpose: None,
+            close_reason: None,
+            closed_by_actor: None,
+            closed_at: None,
             created_at: Utc::now(),
             updated_at: Utc::now(),
         }

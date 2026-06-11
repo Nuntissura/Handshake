@@ -137,6 +137,7 @@ pub mod validation;
 pub mod validator_finding_report_contract;
 pub mod validator_verdict_mediation_contract;
 pub mod visual_debugging_loop;
+pub mod visual_diff_baseline;
 pub mod work_packet_full_detail_authority;
 pub mod work_profiles;
 pub mod workflow_transition_registry;

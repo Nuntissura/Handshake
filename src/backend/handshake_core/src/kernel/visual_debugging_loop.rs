@@ -58,6 +58,15 @@ impl VisualDiffOutcome {
             VisualDiffOutcome::ManualReviewRequired => "manual_review_required",
         }
     }
+
+    pub fn from_token(token: &str) -> Option<Self> {
+        match token {
+            "pass" => Some(VisualDiffOutcome::Pass),
+            "fail" => Some(VisualDiffOutcome::Fail),
+            "manual_review_required" => Some(VisualDiffOutcome::ManualReviewRequired),
+            _ => None,
+        }
+    }
 }
 
 /// MT-157: computed comparison result fields (not request/config fields).

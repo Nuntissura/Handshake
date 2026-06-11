@@ -35,12 +35,14 @@ pub mod core;
 pub mod dcc_flight_recorder;
 pub mod documents;
 pub mod downloader;
+pub mod editable_surface_authority;
 pub mod exports;
 pub mod filesystem_health;
 pub mod image_import;
 pub mod intake;
 pub mod links;
 pub mod media;
+pub mod model_lease;
 pub mod model_manual_merge;
 pub mod moodboards;
 pub mod pose;
@@ -54,6 +56,8 @@ pub mod sourcing;
 pub mod state_probe;
 pub mod stealth_window;
 pub mod transcript;
+pub mod validator_first_pass;
+pub mod visual_steer_feedback;
 
 pub use self::bulk::{
     BulkExportRequestResult, BulkOperationReceipt, BulkTagRequest, BulkTrashMediaRequest,
@@ -94,6 +98,8 @@ pub enum AtelierError {
     Database(#[from] sqlx::Error),
     #[error("atelier entity not found: {0}")]
     NotFound(String),
+    #[error("atelier conflict: {0}")]
+    Conflict(String),
     #[error("forbidden storage backend: {0}")]
     ForbiddenStorage(String),
     #[error("atelier validation error: {0}")]
@@ -135,6 +141,7 @@ pub mod event_family {
     use super::state_probe::diagnostics_projection_event_family;
     use super::state_probe::state_probe_event_family;
     use super::stealth_window::stealth_ref_event_family;
+    use super::visual_steer_feedback::visual_steer_event_family;
 
     pub const CHARACTER_CREATED: &str = "atelier.character.created";
     pub const SHEET_VERSION_APPENDED: &str = "atelier.sheet.version_appended";
@@ -282,7 +289,9 @@ pub mod event_family {
         diagnostics_projection_event_family::WORK_STATE_PROJECTION_RECORDED,
         diagnostics_projection_event_family::DCC_PANEL_PROJECTION_RECORDED,
         diagnostics_projection_event_family::SCREENSHOT_ARTIFACT_STORED,
+        diagnostics_projection_event_family::SCREENSHOT_ARTIFACT_RETENTION_CLEANED,
         diagnostics_projection_event_family::SPEC_DRIFT_FINDING_RECORDED,
+        visual_steer_event_family::VISUAL_STEER_FEEDBACK_RECORDED,
         dcc_flight_recorder_event_family::DCC_WORKFLOW_PANEL_PROJECTION_RECORDED,
         dcc_flight_recorder_event_family::FR_WORKFLOW_EVENT_RECORDED,
         model_manual_merge_event_family::MANUAL_ROW_MERGE_RECORDED,
@@ -2140,6 +2149,11 @@ impl AtelierStore {
         .await?;
         sqlx::raw_sql(include_str!(
             "../../migrations/0122_atelier_model_manual_merge_drift.sql"
+        ))
+        .execute(&mut *tx)
+        .await?;
+        sqlx::raw_sql(include_str!(
+            "../../migrations/0129_atelier_visual_steer_retention.sql"
         ))
         .execute(&mut *tx)
         .await?;
