@@ -36,8 +36,21 @@
     "status": "READY_FOR_VALIDATION",
     "validator_verdict": "PENDING",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
-    "ready_for_validation_at_utc": "2026-06-05T05:28:57.777Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT"
+    "ready_for_validation_at_utc": "2026-06-11T00:45:46.539Z",
+    "ready_by": "KB-KERNEL-005-V3-REMEDIATION",
+    "integration_validation_v2": {
+      "verdict": "FAIL",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "MISSING",
+      "proof_validity": "TRIVIAL",
+      "sr1": "NA",
+      "sr2": "FAIL",
+      "fail_category": "WP004_MT_ID_COLLISION",
+      "gap": "MT-192 requires Flight Recorder events for visual capture/validation/recovery. No such FR events exist. Cited mt_192_* tests prove state-replay determinism/gap-detection (WP-KERNEL-004), emitting FR-EVT-REPLAY-* events — not visual/validation/recovery events.",
+      "evidence": "tests/session_checkpoint_tests.rs:1499-1506 (asserts FR-EVT-REPLAY-STARTED/PROGRESS/COMPLETED — replay, not visual/validation/recovery); src/atelier/state_probe.rs:1044 (VISUAL_EVIDENCE matrix is MT-175, not an MT-192 FR-event surface)"
+    },
+    "ready_for_validation_v3": true
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.354Z",
@@ -78,6 +91,6 @@
     "risk_if_missed": "CKC parity loss for Flight Recorder Visual Validation And Recovery Events",
     "summary": "MT-192 [Model-Workflow-Diagnostics] Flight Recorder Visual Validation And Recovery Events -- Define Flight Recorder events for visual capture, validation, recovery only."
   },
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-06-11T00:45:46.539Z",
   "wp_id": "WP-KERNEL-005"
 }

@@ -36,8 +36,21 @@
     "status": "READY_FOR_VALIDATION",
     "validator_verdict": "PENDING",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
-    "ready_for_validation_at_utc": "2026-06-05T05:09:29.821Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT"
+    "ready_for_validation_at_utc": "2026-06-11T00:45:46.539Z",
+    "ready_by": "KB-KERNEL-005-V3-REMEDIATION",
+    "integration_validation_v2": {
+      "verdict": "FAIL",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "MISSING",
+      "proof_validity": "MISSING",
+      "sr1": "NA",
+      "sr2": "FAIL",
+      "fail_category": "MISSING_FIXTURE_CORPUS",
+      "gap": "Required reset/orphan fixture-corpus deliverable does not exist: no fixtures/atelier_core_data/reset_orphan*.json file and no mt066 fixture-corpus round-trip test; MT-061..065 corpus exists but MT-066 is absent",
+      "evidence": "tests/fixtures/atelier_core_data/ contains only character_sheet/collection_contact_sheet/docs_moodboard_relations/media_intake/search_tags_similarity.json (no reset/orphan); atelier_fixture_corpus_tests.rs defines mt061..mt065 only (lines 95,253,426,617,877); no MT-066 source/test ref anywhere in handshake_core"
+    },
+    "ready_for_validation_v3": true
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.257Z",
@@ -77,6 +90,6 @@
     "risk_if_missed": "CKC parity loss for Reset And Orphan Fixture Corpus",
     "summary": "MT-066 [Core-Data-Intake] Reset And Orphan Fixture Corpus -- Create portable fixtures for reset and orphan-adoption behavior (checksums, relocatable roots, no drive-letter paths)."
   },
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-06-11T00:45:46.539Z",
   "wp_id": "WP-KERNEL-005"
 }

@@ -36,8 +36,21 @@
     "status": "READY_FOR_VALIDATION",
     "validator_verdict": "PENDING",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
-    "ready_for_validation_at_utc": "2026-06-05T05:28:39.627Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT"
+    "ready_for_validation_at_utc": "2026-06-11T00:45:46.539Z",
+    "ready_by": "KB-KERNEL-005-V3-REMEDIATION",
+    "integration_validation_v2": {
+      "verdict": "FAIL",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "MISSING",
+      "proof_validity": "TRIVIAL",
+      "sr1": "NA",
+      "sr2": "FAIL",
+      "fail_category": "WP004_MT_ID_COLLISION",
+      "gap": "WP-KERNEL-005 MT-190 requires a DCC Approvals/Visual-Capture diagnostics surface; no such artifact exists. The only MT-190-labeled code/test is WP-KERNEL-004 session-checkpoint code (oversize-state rejection / v7 id) — wrong feature reused under the same MT number.",
+      "evidence": "tests/session_checkpoint_tests.rs:1 (\"WP-KERNEL-004 cluster X.3 (MT-190..MT-195)\"); tests/session_checkpoint_tests.rs:81 (mt_190_checkpoint_rejects_oversize_state — checkpoint, not DCC approvals); src/atelier/state_probe.rs:782-792 (matrix kinds stop at MT-175, no DCC approvals row)"
+    },
+    "ready_for_validation_v3": true
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.353Z",
@@ -77,6 +90,6 @@
     "risk_if_missed": "CKC parity loss for DCC Approvals And Visual Capture Panels",
     "summary": "MT-190 [Model-Workflow-Diagnostics] DCC Approvals And Visual Capture Panels -- Define DCC visibility for approvals and visual captures only (projection, GUI later)."
   },
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-06-11T00:45:46.539Z",
   "wp_id": "WP-KERNEL-005"
 }

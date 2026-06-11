@@ -36,8 +36,21 @@
     "status": "READY_FOR_VALIDATION",
     "validator_verdict": "PENDING",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
-    "ready_for_validation_at_utc": "2026-06-05T05:29:08.062Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT"
+    "ready_for_validation_at_utc": "2026-06-11T00:45:46.539Z",
+    "ready_by": "KB-KERNEL-005-V3-REMEDIATION",
+    "integration_validation_v2": {
+      "verdict": "FAIL",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "MISSING",
+      "proof_validity": "TRIVIAL",
+      "sr1": "NA",
+      "sr2": "FAIL",
+      "fail_category": "WP004_MT_ID_COLLISION",
+      "gap": "MT-193 requires Flight Recorder events for build/package guard and stale-doc detection. No such FR events exist. Cited mt_193_restart_resume_full_path tests session restart/resume (WP-KERNEL-004), unrelated to build/package/stale-doc events.",
+      "evidence": "tests/session_checkpoint_tests.rs:204 (mt_193_restart_resume_full_path — restart/resume, not build/package/stale-doc); src/flight_recorder/fr_event_registry.rs:46,84 (no build/package/stale FR events; registry is WP-KERNEL-004)"
+    },
+    "ready_for_validation_v3": true
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.355Z",
@@ -76,6 +89,6 @@
     "risk_if_missed": "CKC parity loss for Flight Recorder Build Package And Stale-Doc Events",
     "summary": "MT-193 [Model-Workflow-Diagnostics] Flight Recorder Build Package And Stale-Doc Events -- Define Flight Recorder events for build/package guard and stale-doc detection only."
   },
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-06-11T00:45:46.539Z",
   "wp_id": "WP-KERNEL-005"
 }

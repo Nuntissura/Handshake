@@ -36,8 +36,21 @@
     "status": "READY_FOR_VALIDATION",
     "validator_verdict": "PENDING",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
-    "ready_for_validation_at_utc": "2026-06-05T05:28:12.902Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT"
+    "ready_for_validation_at_utc": "2026-06-11T00:45:46.539Z",
+    "ready_by": "KB-KERNEL-005-V3-REMEDIATION",
+    "integration_validation_v2": {
+      "verdict": "FAIL",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "SCAFFOLD",
+      "proof_validity": "TRIVIAL",
+      "sr1": "FAIL",
+      "sr2": "FAIL",
+      "fail_category": "SCAFFOLD_PLANNED_ROW",
+      "gap": "Acceptance 'merge Diagnostics-owned manual/action/state/error/bundle rows, normalize ids, mark missing as blockers' has no executable merge: DiagnosticsOwnedRowMerge is a Planned manual row name literal. Referenced surfaces diagnostics_problem_store_query and diagnostics_debug_bundle_export are themselves Planned; proof is in-memory membership only.",
+      "evidence": "src/backend/handshake_core/src/model_manual/content.rs:2700-2717 (diagnostics_owned_row_merge status Planned, 'Data-only'); content.rs:2492-2496 (diagnostics_problem_store_query Planned, None route); tests/model_manual_tests.rs:749-759,875 (asserts group membership + MANUAL_VERSION==\"1.3.0\" constant, never touches managed resource)"
+    },
+    "ready_for_validation_v3": true
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.350Z",
@@ -68,8 +81,12 @@
       "mark missing as blockers."
     ],
     "allowed_paths": [
-      "src/backend/handshake_core/src/kernel (action_catalog",
-      "diagnostics) + app DCC projections + ModelManual"
+      "src/backend/handshake_core/src/model_manual/",
+      "src/backend/handshake_core/src/atelier/model_manual_merge.rs",
+      "src/backend/handshake_core/migrations/0122_atelier_model_manual_merge_drift.sql",
+      "src/backend/handshake_core/tests/atelier_model_manual_merge_tests.rs",
+      "src/backend/handshake_core/src/kernel/ (action_catalog, diagnostics surfaces)",
+      "app/src/ (DCC projections)"
     ],
     "forbidden_paths": [],
     "proof_targets": [
@@ -78,6 +95,6 @@
     "risk_if_missed": "CKC parity loss for Manual Source Merge For Diagnostics Rows",
     "summary": "MT-187 [Model-Workflow-Diagnostics] Manual Source Merge For Diagnostics Rows -- Merge Diagnostics-owned manual/action/state/error/bundle rows into manual dataset only; normalize ids; mark missing as blockers."
   },
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-06-11T00:46:24.349Z",
   "wp_id": "WP-KERNEL-005"
 }

@@ -36,8 +36,21 @@
     "status": "READY_FOR_VALIDATION",
     "validator_verdict": "PENDING",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
-    "ready_for_validation_at_utc": "2026-06-05T05:26:34.828Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT"
+    "ready_for_validation_at_utc": "2026-06-11T00:45:46.539Z",
+    "ready_by": "KB-KERNEL-005-V3-REMEDIATION",
+    "integration_validation_v2": {
+      "verdict": "FAIL",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "MISSING",
+      "proof_validity": "MISSING",
+      "sr1": "NA",
+      "sr2": "FAIL",
+      "fail_category": "WP004_MT_ID_COLLISION",
+      "gap": "Build And Package Validation Matrix not implemented: no BUILD_PACKAGE matrix_kind/rows. role_mailbox_v1_tests::mt_179 are WP-KERNEL-004 in-memory serde round-trips of message families (DelegateWork/Blocker/Unknown), unrelated to build/packaging diagnostics and never hitting the managed resource.",
+      "evidence": "src/backend/handshake_core/src/atelier/state_probe.rs:782-793 (no BUILD_PACKAGE kind); tests/role_mailbox_v1_tests.rs:41-64,200-208 (mt_179 serde round-trips, in-memory)"
+    },
+    "ready_for_validation_v3": true
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.344Z",
@@ -76,6 +89,6 @@
     "risk_if_missed": "CKC parity loss for Build And Package Validation Matrix",
     "summary": "MT-179 [Model-Workflow-Diagnostics] Build And Package Validation Matrix -- Create validation rows for build diagnostics and packaging/release evidence only (no repo-local output leakage)."
   },
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-06-11T00:45:46.539Z",
   "wp_id": "WP-KERNEL-005"
 }

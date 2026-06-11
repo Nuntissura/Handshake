@@ -36,8 +36,21 @@
     "status": "READY_FOR_VALIDATION",
     "validator_verdict": "PENDING",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
-    "ready_for_validation_at_utc": "2026-06-05T05:26:10.981Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT"
+    "ready_for_validation_at_utc": "2026-06-11T00:45:46.539Z",
+    "ready_by": "KB-KERNEL-005-V3-REMEDIATION",
+    "integration_validation_v2": {
+      "verdict": "FAIL",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "MISSING",
+      "proof_validity": "MISSING",
+      "sr1": "NA",
+      "sr2": "FAIL",
+      "fail_category": "WP004_MT_ID_COLLISION",
+      "gap": "Local LLM And Chat Proposal Validation Matrix not implemented: no LOCAL_LLM matrix_kind or rows in the diagnostics validation catalog. role_mailbox_v1_tests::mt_177 is a WP-KERNEL-004 Postgres repo round-trip for role-mailbox threads, #[ignore]-gated, unrelated to the required local-LLM/chat-proposal diagnostic surface.",
+      "evidence": "src/backend/handshake_core/src/atelier/state_probe.rs:782-793 (kind module: only MANUAL_ACTION_CATALOG..VISUAL_EVIDENCE); tests/role_mailbox_v1_tests.rs:212-247 (mt_177 role_mailbox repo, #[ignore])"
+    },
+    "ready_for_validation_v3": true
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.342Z",
@@ -76,6 +89,6 @@
     "risk_if_missed": "CKC parity loss for Local LLM And Chat Proposal Validation Matrix",
     "summary": "MT-177 [Model-Workflow-Diagnostics] Local LLM And Chat Proposal Validation Matrix -- Create validation rows for local LLM config and local chat proposal boundaries only."
   },
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-06-11T00:45:46.539Z",
   "wp_id": "WP-KERNEL-005"
 }

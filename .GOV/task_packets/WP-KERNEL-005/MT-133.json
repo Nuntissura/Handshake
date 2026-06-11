@@ -36,8 +36,21 @@
     "status": "READY_FOR_VALIDATION",
     "validator_verdict": "PENDING",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
-    "ready_for_validation_at_utc": "2026-06-05T05:19:54.490Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT"
+    "ready_for_validation_at_utc": "2026-06-11T00:45:46.539Z",
+    "ready_by": "KB-KERNEL-005-V3-REMEDIATION",
+    "integration_validation_v2": {
+      "verdict": "FAIL",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "MISSING",
+      "proof_validity": "MISSING",
+      "sr1": "NA",
+      "sr2": "NA",
+      "fail_category": "MISSING_KERNEL_DIAGNOSTICS",
+      "gap": "No diagnostics product-anchor matrix verifying the surfaces MT-133 names (sessions, command catalog, Workflow Engine, DCC, Locus, Flight Recorder, visual capture, build diagnostics); only pose/media/comfy MT-082 anchors exist. No test in unit covers it.",
+      "evidence": "src/atelier/source_evidence.rs:24,484 only POSE_MEDIA_ANCHOR_VERIFICATION_MATRIX (MT-082 scope, pose/media/comfy anchors); no diagnostics matrix builder; tests/atelier_source_evidence_tests.rs covers MT-001/002 core-data matrix only; MT-133.md CODER STATUS: PENDING."
+    },
+    "ready_for_validation_v3": true
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.308Z",
@@ -83,6 +96,6 @@
     "risk_if_missed": "CKC parity loss for Diagnostics Product Anchor Verification",
     "summary": "MT-133 [Model-Workflow-Diagnostics] Diagnostics Product Anchor Verification -- Verify Handshake product anchors for sessions, command catalog, Workflow Engine, DCC, Locus, Flight Recorder, visual capture, build diagnostics."
   },
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-06-11T00:45:46.539Z",
   "wp_id": "WP-KERNEL-005"
 }

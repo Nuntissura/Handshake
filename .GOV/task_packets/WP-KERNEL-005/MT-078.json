@@ -36,8 +36,21 @@
     "status": "READY_FOR_VALIDATION",
     "validator_verdict": "PENDING",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
-    "ready_for_validation_at_utc": "2026-06-05T05:11:46.821Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT"
+    "ready_for_validation_at_utc": "2026-06-11T00:45:46.539Z",
+    "ready_by": "KB-KERNEL-005-V3-REMEDIATION",
+    "integration_validation_v2": {
+      "verdict": "FAIL",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "MISSING",
+      "proof_validity": "MISSING",
+      "sr1": "NA",
+      "sr2": "NA",
+      "fail_category": "MISSING_FIXTURE_CORPUS",
+      "gap": "LLM Evidence Pack Fixture Corpus deliverable is absent: no evidence-pack fixture JSON and no fixture-corpus round-trip test for it.",
+      "evidence": "tests/atelier_fixture_corpus_tests.rs covers only MT-061..065; ls fixtures/atelier_core_data has no evidence_pack fixture; grep llm_evidence/evidence_pack in tests/fixtures returns nothing. The MT-072 pure-function test (atelier_core_data_tests.rs:7027) constructs files programmatically, not from a portable fixture corpus"
+    },
+    "ready_for_validation_v3": true
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.266Z",
@@ -77,6 +90,6 @@
     "risk_if_missed": "CKC parity loss for LLM Evidence Pack Fixture Corpus",
     "summary": "MT-078 [Core-Data-Intake] LLM Evidence Pack Fixture Corpus -- Create portable fixtures for LLM evidence pack export only (strict format validation, source anchors, no SQLite/machine-local paths)."
   },
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-06-11T00:45:46.539Z",
   "wp_id": "WP-KERNEL-005"
 }

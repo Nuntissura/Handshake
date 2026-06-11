@@ -36,8 +36,21 @@
     "status": "READY_FOR_VALIDATION",
     "validator_verdict": "PENDING",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
-    "ready_for_validation_at_utc": "2026-06-05T05:26:22.034Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT"
+    "ready_for_validation_at_utc": "2026-06-11T00:45:46.539Z",
+    "ready_by": "KB-KERNEL-005-V3-REMEDIATION",
+    "integration_validation_v2": {
+      "verdict": "FAIL",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "MISSING",
+      "proof_validity": "MISSING",
+      "sr1": "NA",
+      "sr2": "FAIL",
+      "fail_category": "WP004_MT_ID_COLLISION",
+      "gap": "AI Tagging Validation Matrix not implemented: no AI_TAGGING matrix_kind/rows. role_mailbox_v1_tests::mt_178 is a WP-KERNEL-004 exporter idempotency test writing to a tempfile dir (no managed PG/EventLedger/ArtifactStore), unrelated to AI tagging proposal/apply diagnostics.",
+      "evidence": "src/backend/handshake_core/src/atelier/state_probe.rs:782-793 (no AI_TAGGING kind); tests/role_mailbox_v1_tests.rs:249-281 (mt_178 exporter to tempfile, no managed resource)"
+    },
+    "ready_for_validation_v3": true
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.343Z",
@@ -76,6 +89,6 @@
     "risk_if_missed": "CKC parity loss for AI Tagging Validation Matrix",
     "summary": "MT-178 [Model-Workflow-Diagnostics] AI Tagging Validation Matrix -- Create validation rows for AI tagging proposal/apply behavior only (no silent media mutation)."
   },
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-06-11T00:45:46.539Z",
   "wp_id": "WP-KERNEL-005"
 }

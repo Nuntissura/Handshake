@@ -36,8 +36,21 @@
     "status": "READY_FOR_VALIDATION",
     "validator_verdict": "PENDING",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
-    "ready_for_validation_at_utc": "2026-06-05T05:29:16.185Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT"
+    "ready_for_validation_at_utc": "2026-06-11T00:45:46.539Z",
+    "ready_by": "KB-KERNEL-005-V3-REMEDIATION",
+    "integration_validation_v2": {
+      "verdict": "FAIL",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "MISSING",
+      "proof_validity": "TRIVIAL",
+      "sr1": "NA",
+      "sr2": "FAIL",
+      "fail_category": "WP004_MT_ID_COLLISION",
+      "gap": "MT-194 requires diagnostics validation-matrix rows for reset and orphan diagnostics. The diagnostics validation matrix catalog stops at MT-175 and contains no reset/orphan matrix_kind or rows. Cited mt_194_idempotency_dedupes_repeated_apply tests the WP-KERNEL-004 IdempotencyLedger (in-memory), not a reset/orphan matrix.",
+      "evidence": "src/atelier/state_probe.rs:782-792 (catalog kinds only MT-171..175; no reset/orphan); tests/session_checkpoint_tests.rs:181-201 (mt_194 tests IdempotencyLedger::in_memory dedupe — wrong feature, in-memory not managed PG matrix)"
+    },
+    "ready_for_validation_v3": true
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.355Z",
@@ -76,6 +89,6 @@
     "risk_if_missed": "CKC parity loss for Reset And Orphan Diagnostic Validation Matrix",
     "summary": "MT-194 [Model-Workflow-Diagnostics] Reset And Orphan Diagnostic Validation Matrix -- Create validation rows for reset and orphan diagnostics only."
   },
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-06-11T00:45:46.539Z",
   "wp_id": "WP-KERNEL-005"
 }

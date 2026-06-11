@@ -36,8 +36,21 @@
     "status": "READY_FOR_VALIDATION",
     "validator_verdict": "PENDING",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
-    "ready_for_validation_at_utc": "2026-06-05T05:11:38.717Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT"
+    "ready_for_validation_at_utc": "2026-06-11T00:45:46.539Z",
+    "ready_by": "KB-KERNEL-005-V3-REMEDIATION",
+    "integration_validation_v2": {
+      "verdict": "FAIL",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "MISSING",
+      "proof_validity": "MISSING",
+      "sr1": "NA",
+      "sr2": "NA",
+      "fail_category": "MISSING_FIXTURE_CORPUS",
+      "gap": "Share Pack Export Fixture Corpus deliverable is absent: no share-pack fixture JSON and no fixture-corpus round-trip test for it.",
+      "evidence": "tests/atelier_fixture_corpus_tests.rs covers only MT-061..065; ls fixtures/atelier_core_data has no share_pack fixture; grep share_pack/share-pack in tests/fixtures returns nothing. Share-pack behavior is covered only by the inline MT-071 manifest test (atelier_core_data_tests.rs:6843), not a portable fixture corpus"
+    },
+    "ready_for_validation_v3": true
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.265Z",
@@ -77,6 +90,6 @@
     "risk_if_missed": "CKC parity loss for Share Pack Export Fixture Corpus",
     "summary": "MT-077 [Core-Data-Intake] Share Pack Export Fixture Corpus -- Create portable fixtures for share-pack export only (subset safety, manifest completeness, no CKC namespace)."
   },
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-06-11T00:45:46.539Z",
   "wp_id": "WP-KERNEL-005"
 }

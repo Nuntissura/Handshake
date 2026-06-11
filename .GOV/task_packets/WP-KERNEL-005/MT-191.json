@@ -36,8 +36,21 @@
     "status": "READY_FOR_VALIDATION",
     "validator_verdict": "PENDING",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
-    "ready_for_validation_at_utc": "2026-06-05T05:28:51.414Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT"
+    "ready_for_validation_at_utc": "2026-06-11T00:45:46.539Z",
+    "ready_by": "KB-KERNEL-005-V3-REMEDIATION",
+    "integration_validation_v2": {
+      "verdict": "FAIL",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "MISSING",
+      "proof_validity": "TRIVIAL",
+      "sr1": "NA",
+      "sr2": "FAIL",
+      "fail_category": "WP004_MT_ID_COLLISION",
+      "gap": "MT-191 requires Flight Recorder events for tool calls/proposals/apply decisions. The FR event registry is WP-KERNEL-004 work and only defines checkpoint/replay/restart-resume events; no tool/proposal/apply event exists. Cited mt_191_* tests exercise the checkpoint WRITER, not tool/proposal/apply FR events.",
+      "evidence": "src/flight_recorder/fr_event_registry.rs:46 (FR_EVENT_REGISTRY_ADDED_IN_WP = \"WP-KERNEL-004\"); fr_event_registry.rs:84,139 (only RestartResume*/checkpoint events; no tool/proposal/apply); tests/session_checkpoint_tests.rs:703-1226 (mt_191_adversarial tests target CheckpointWriter)"
+    },
+    "ready_for_validation_v3": true
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.353Z",
@@ -78,6 +91,6 @@
     "risk_if_missed": "CKC parity loss for Flight Recorder Tool Proposal And Apply Events",
     "summary": "MT-191 [Model-Workflow-Diagnostics] Flight Recorder Tool Proposal And Apply Events -- Define Flight Recorder events for tool calls, proposals, apply decisions only."
   },
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-06-11T00:45:46.539Z",
   "wp_id": "WP-KERNEL-005"
 }

@@ -36,8 +36,21 @@
     "status": "READY_FOR_VALIDATION",
     "validator_verdict": "PENDING",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
-    "ready_for_validation_at_utc": "2026-06-05T05:29:20.846Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT"
+    "ready_for_validation_at_utc": "2026-06-11T00:45:46.539Z",
+    "ready_by": "KB-KERNEL-005-V3-REMEDIATION",
+    "integration_validation_v2": {
+      "verdict": "FAIL",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "MISSING",
+      "proof_validity": "TRIVIAL",
+      "sr1": "NA",
+      "sr2": "FAIL",
+      "fail_category": "WP004_MT_ID_COLLISION",
+      "gap": "MT-195 requires validation-matrix rows for stale README/spec detection and path portability (reject drive-letter/user-profile paths). No such matrix_kind/rows exist in the diagnostics catalog. Cited mt_195_crash_recovery_scenarios tests WP-KERNEL-004 crash-recovery harness, unrelated to stale-source/path-portability validation.",
+      "evidence": "tests/session_checkpoint_tests.rs:257 (mt_195_crash_recovery_scenarios — crash recovery, not stale-doc/portability); src/atelier/state_probe.rs:782-792 (no portability/stale matrix kind; MT-167 stale-README detector at :1481 is a separate finding type, not the MT-195 matrix)"
+    },
+    "ready_for_validation_v3": true
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.356Z",
@@ -76,6 +89,6 @@
     "risk_if_missed": "CKC parity loss for Stale Source And Path Portability Validation Matrix",
     "summary": "MT-195 [Model-Workflow-Diagnostics] Stale Source And Path Portability Validation Matrix -- Create validation rows for stale README/spec detection and path portability only (reject drive-letter/user-profile paths)."
   },
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-06-11T00:45:46.539Z",
   "wp_id": "WP-KERNEL-005"
 }

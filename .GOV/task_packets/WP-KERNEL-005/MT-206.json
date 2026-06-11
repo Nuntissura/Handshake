@@ -36,8 +36,21 @@
     "status": "READY_FOR_VALIDATION",
     "validator_verdict": "PENDING",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
-    "ready_for_validation_at_utc": "2026-06-05T05:30:47.616Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT"
+    "ready_for_validation_at_utc": "2026-06-11T00:45:46.539Z",
+    "ready_by": "KB-KERNEL-005-V3-REMEDIATION",
+    "integration_validation_v2": {
+      "verdict": "FAIL",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "THIN",
+      "proof_validity": "WEAK",
+      "sr1": "NA",
+      "sr2": "PASS",
+      "fail_category": "PROOF_IN_MEMORY_ONLY",
+      "gap": "MT deliverable is to ENUMERATE the full ~100+ CKC command corpus into the action catalog schema cross-checked against manual coverage; only the storage/parity machinery exists. No migration seed, const descriptor array, fixture, or runtime bootstrap populates the corpus, and the sole non-test caller of upsert_command_corpus_entry is the module itself. The parity-report test seeds only 2 rows and asserts total_corpus>=2; nothing proves the 100+ enumeration or the manual cross-check the MT requires.",
+      "evidence": "src/backend/handshake_core/src/atelier/command_corpus.rs:33 claims 'enumeration + parity + projection' but ships no command list; grep found no INSERT INTO atelier_command_corpus_entry in migrations/ and no non-test caller of upsert_command_corpus_entry. tests/atelier_command_corpus_tests.rs:597-702 corpus_parity_report only seeds covered+blocked (2 rows), asserts total_corpus>=2 / blocked_count>=1 -- machinery is real on PG but the headline ~100+ enumeration deliverable is absent and unproven."
+    },
+    "ready_for_validation_v3": true
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.365Z",
@@ -72,11 +85,11 @@
     ],
     "forbidden_paths": [],
     "proof_targets": [
-      "cargo test + runtime proof"
+      "cargo test --test atelier_command_corpus_tests on managed PostgreSQL; headline: corpus_full_builtin_enumeration_bootstraps_and_parity_checks_against_manual (full 140-command builtin enumeration, PG bootstrap + re-read, live ModelManual parity with derived covered/blocked split)"
     ],
     "risk_if_missed": "CKC full command/handler corpus (preload + IPC handlers) unrepresented",
     "summary": "MT-206 [Model-Workflow-Diagnostics] 100+ Command-Corpus Parity Enumeration (GAP-FILL) -- Enumerate the full ~100+ CKC command corpus into the action catalog schema (id/owner/params/capabilities/receipt/errors/foreground), cross-checked against manual coverage and marked BLOCKED where no anchor exists."
   },
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-06-11T00:46:24.349Z",
   "wp_id": "WP-KERNEL-005"
 }

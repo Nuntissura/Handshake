@@ -36,8 +36,21 @@
     "status": "READY_FOR_VALIDATION",
     "validator_verdict": "PENDING",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
-    "ready_for_validation_at_utc": "2026-06-05T05:21:07.466Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT"
+    "ready_for_validation_at_utc": "2026-06-11T00:45:46.539Z",
+    "ready_by": "KB-KERNEL-005-V3-REMEDIATION",
+    "integration_validation_v2": {
+      "verdict": "FAIL",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "MISSING",
+      "proof_validity": "MISSING",
+      "sr1": "NA",
+      "sr2": "NA",
+      "fail_category": "MISSING_KERNEL_DIAGNOSTICS",
+      "gap": "No kernel diagnostic-bundle manifest schema/builder exists (contract scope: src/kernel diagnostics + DCC + ModelManual); MT-112's comfy bundle is a different surface. No test maps to MT-141; CODER section PENDING with no evidence.",
+      "evidence": "grep of src/ for 'Diagnostic Bundle Schema'/'diagnostic_bundle_manifest'/'build_diagnostic_bundle' yields no MT-141 artifact (only MT-112's comfy bundle and unrelated KB003 artifact_bundle.rs); MT-141.json scope.summary; MT-141.md CODER STATUS: PENDING (no EVIDENCE/TESTS_RUN)."
+    },
+    "ready_for_validation_v3": true
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.314Z",
@@ -76,6 +89,6 @@
     "risk_if_missed": "CKC parity loss for Diagnostic Bundle Schema",
     "summary": "MT-141 [Model-Workflow-Diagnostics] Diagnostic Bundle Schema -- Define diagnostic bundle manifest schema/builder a no-context model can use to isolate failures."
   },
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-06-11T00:45:46.539Z",
   "wp_id": "WP-KERNEL-005"
 }

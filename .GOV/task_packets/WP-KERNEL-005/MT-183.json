@@ -36,8 +36,21 @@
     "status": "READY_FOR_VALIDATION",
     "validator_verdict": "PENDING",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
-    "ready_for_validation_at_utc": "2026-06-05T05:27:26.699Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT"
+    "ready_for_validation_at_utc": "2026-06-11T00:45:46.539Z",
+    "ready_by": "KB-KERNEL-005-V3-REMEDIATION",
+    "integration_validation_v2": {
+      "verdict": "FAIL",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "SCAFFOLD",
+      "proof_validity": "TRIVIAL",
+      "sr1": "FAIL",
+      "sr2": "FAIL",
+      "fail_category": "SCAFFOLD_PLANNED_ROW",
+      "gap": "Drift-guard deliverable (diagnostics_manual_drift_guard) is a Planned manual row only; the named DiagnosticsManualDriftGuard is a string literal, not code. No negative check is actually implemented or run; proof is in-memory struct membership.",
+      "evidence": "src/backend/handshake_core/src/model_manual/content.rs:2636-2655 (diagnostics_manual_drift_guard status Planned, 'runs as a test-time check' that does not exist); DiagnosticsManualDriftGuard appears only as the name field, no type anywhere (grep hit only content.rs); tests/model_manual_tests.rs:718-726,848-872 (asserts Planned status + None route, never executes a guard)"
+    },
+    "ready_for_validation_v3": true
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.347Z",
@@ -66,8 +79,12 @@
       "MT-183 [Model-Workflow-Diagnostics] Diagnostics Red-Team Manual Visual And Command Drift Guards -- Turn manual-command and visual-loop drift risks into focused negative checks."
     ],
     "allowed_paths": [
-      "src/backend/handshake_core/src/kernel (action_catalog",
-      "diagnostics) + app DCC projections + ModelManual"
+      "src/backend/handshake_core/src/model_manual/",
+      "src/backend/handshake_core/src/atelier/model_manual_merge.rs",
+      "src/backend/handshake_core/migrations/0122_atelier_model_manual_merge_drift.sql",
+      "src/backend/handshake_core/tests/atelier_model_manual_merge_tests.rs",
+      "src/backend/handshake_core/src/kernel/ (action_catalog, diagnostics surfaces)",
+      "app/src/ (DCC projections)"
     ],
     "forbidden_paths": [],
     "proof_targets": [
@@ -76,6 +93,6 @@
     "risk_if_missed": "CKC parity loss for Diagnostics Red-Team Manual Visual And Command Drift Guards",
     "summary": "MT-183 [Model-Workflow-Diagnostics] Diagnostics Red-Team Manual Visual And Command Drift Guards -- Turn manual-command and visual-loop drift risks into focused negative checks."
   },
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-06-11T00:46:24.349Z",
   "wp_id": "WP-KERNEL-005"
 }

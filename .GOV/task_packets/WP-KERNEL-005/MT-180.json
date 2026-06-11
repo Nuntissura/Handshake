@@ -36,8 +36,21 @@
     "status": "READY_FOR_VALIDATION",
     "validator_verdict": "PENDING",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
-    "ready_for_validation_at_utc": "2026-06-05T05:26:46.400Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT"
+    "ready_for_validation_at_utc": "2026-06-11T00:45:46.539Z",
+    "ready_by": "KB-KERNEL-005-V3-REMEDIATION",
+    "integration_validation_v2": {
+      "verdict": "FAIL",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "MISSING",
+      "proof_validity": "MISSING",
+      "sr1": "NA",
+      "sr2": "FAIL",
+      "fail_category": "WP004_MT_ID_COLLISION",
+      "gap": "No-Focus Synthetic Input And Parallel Coordination Validation Matrix not implemented: no SYNTHETIC_INPUT/parallel-coordination matrix_kind/rows. role_mailbox_v1_tests::mt_180 is a WP-KERNEL-004 in-memory LeaseManager acquire/takeover test, unrelated to non-intrusive automation / synthetic-input guard diagnostics.",
+      "evidence": "src/backend/handshake_core/src/atelier/state_probe.rs:782-793 (no SYNTHETIC_INPUT kind); tests/role_mailbox_v1_tests.rs:66-107 (mt_180 in-memory LeaseManager)"
+    },
+    "ready_for_validation_v3": true
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.345Z",
@@ -78,6 +91,6 @@
     "risk_if_missed": "CKC parity loss for No-Focus Synthetic Input And Parallel Coordination Validation Matrix",
     "summary": "MT-180 [Model-Workflow-Diagnostics] No-Focus Synthetic Input And Parallel Coordination Validation Matrix -- Create validation rows for non-intrusive automation, synthetic input guards, parallel coordination only."
   },
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-06-11T00:45:46.539Z",
   "wp_id": "WP-KERNEL-005"
 }

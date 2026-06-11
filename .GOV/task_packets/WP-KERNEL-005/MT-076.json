@@ -36,8 +36,21 @@
     "status": "READY_FOR_VALIDATION",
     "validator_verdict": "PENDING",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
-    "ready_for_validation_at_utc": "2026-06-05T05:11:28.670Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT"
+    "ready_for_validation_at_utc": "2026-06-11T00:45:46.539Z",
+    "ready_by": "KB-KERNEL-005-V3-REMEDIATION",
+    "integration_validation_v2": {
+      "verdict": "FAIL",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "MISSING",
+      "proof_validity": "MISSING",
+      "sr1": "NA",
+      "sr2": "NA",
+      "fail_category": "MISSING_FIXTURE_CORPUS",
+      "gap": "Web Portfolio Export Fixture Corpus deliverable is absent: no web-portfolio fixture JSON in tests/fixtures/atelier_core_data/ and no fixture-corpus round-trip test for it (fixture corpus covers only MT-061..065).",
+      "evidence": "tests/atelier_fixture_corpus_tests.rs:89-877 loads only character_sheet/media_intake/collection_contact_sheet/docs_moodboard_relations/search_tags_similarity (MT-061..065); ls fixtures/atelier_core_data shows no web_portfolio fixture; repo-wide grep for web_portfolio in tests/fixtures returns nothing. The web-portfolio behavior test at atelier_core_data_tests.rs:7149 is MT-048's inline behavior test, not a portable fixture corpus"
+    },
+    "ready_for_validation_v3": true
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.264Z",
@@ -77,6 +90,6 @@
     "risk_if_missed": "CKC parity loss for Web Portfolio Export Fixture Corpus",
     "summary": "MT-076 [Core-Data-Intake] Web Portfolio Export Fixture Corpus -- Create portable fixtures for web portfolio export only (relocatable, no-space, no .GOV output paths)."
   },
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-06-11T00:45:46.539Z",
   "wp_id": "WP-KERNEL-005"
 }

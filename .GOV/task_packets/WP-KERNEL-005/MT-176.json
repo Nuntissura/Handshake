@@ -36,8 +36,21 @@
     "status": "READY_FOR_VALIDATION",
     "validator_verdict": "PENDING",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
-    "ready_for_validation_at_utc": "2026-06-05T05:26:00.959Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT"
+    "ready_for_validation_at_utc": "2026-06-11T00:45:46.539Z",
+    "ready_by": "KB-KERNEL-005-V3-REMEDIATION",
+    "integration_validation_v2": {
+      "verdict": "FAIL",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "MISSING",
+      "proof_validity": "MISSING",
+      "sr1": "NA",
+      "sr2": "FAIL",
+      "fail_category": "WP004_MT_ID_COLLISION",
+      "gap": "Diagnostic Bundle Validation Matrix not implemented: state_probe matrix catalog covers only MT-171..175; no MT-176 matrix_kind/rows. Only proof is WP-KERNEL-004 role_mailbox_v1_tests::mt_176 (in-memory thread lifecycle), an MT-number collision unrelated to WP-KERNEL-005 diagnostics and never touching the managed resource.",
+      "evidence": "src/backend/handshake_core/src/atelier/state_probe.rs:781 (\"one per MT area (171..175)\"); state_probe.rs:1082 (catalog vec ends after MT-175); tests/role_mailbox_v1_tests.rs:1 (\"WP-KERNEL-004 ... MT-176..MT-183\"), :29 mt_176 in-memory only"
+    },
+    "ready_for_validation_v3": true
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.342Z",
@@ -76,6 +89,6 @@
     "risk_if_missed": "CKC parity loss for Diagnostic Bundle Validation Matrix",
     "summary": "MT-176 [Model-Workflow-Diagnostics] Diagnostic Bundle Validation Matrix -- Create validation rows for diagnostic bundle creation and contents only."
   },
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-06-11T00:45:46.539Z",
   "wp_id": "WP-KERNEL-005"
 }
