@@ -10,6 +10,8 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+# WP-KERNEL-009 MT-020: built dependency-policy harness (pnpm run build:harness)
+dist-harness
 *.local
 
 # Editor directories and files

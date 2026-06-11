@@ -61,7 +61,7 @@ describe("MT-017 runtime dependency allowlist", () => {
       }),
     ).toThrow(/schema/);
     // A document whose CUI gate defaults open must be rejected.
-    const gateOpen = structuredClone(RUNTIME_DEPENDENCY_ALLOWLIST) as {
+    const gateOpen = structuredClone(RUNTIME_DEPENDENCY_ALLOWLIST) as unknown as {
       allowed_external_runtime_inputs: Array<{ kind: string; default_enabled: boolean }>;
     };
     const cui = gateOpen.allowed_external_runtime_inputs.find(
@@ -71,7 +71,7 @@ describe("MT-017 runtime dependency allowlist", () => {
     cui!.default_enabled = true;
     expect(() => validateAllowlistDocument(gateOpen)).toThrow(/default to disabled/);
     // A document missing the sqlite forbidden class must be rejected.
-    const noSqlite = structuredClone(RUNTIME_DEPENDENCY_ALLOWLIST) as {
+    const noSqlite = structuredClone(RUNTIME_DEPENDENCY_ALLOWLIST) as unknown as {
       forbidden_runtime_dependency_classes: Array<{ id: string }>;
     };
     noSqlite.forbidden_runtime_dependency_classes =
