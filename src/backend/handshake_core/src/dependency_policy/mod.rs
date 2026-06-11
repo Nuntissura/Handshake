@@ -25,6 +25,10 @@
 //! - Editor libraries (Tiptap, Monaco, Yjs, tree-sitter) are bundled,
 //!   lockfile-governed product libraries — never external runtime services.
 
+pub mod cui_gate;
+
+pub use cui_gate::{CuiGateError, CuiPortableGate};
+
 use std::path::{Path, PathBuf};
 
 use serde::Deserialize;
