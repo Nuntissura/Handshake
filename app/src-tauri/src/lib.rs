@@ -369,6 +369,9 @@ impl OrchestratorState {
 
         // DEV-ONLY: spawns handshake_core via cargo run; later we'll replace this with a packaged binary path.
         let mut cmd = Command::new("cargo");
+        let database_url = std::env::var("DATABASE_URL").unwrap_or_else(|_| {
+            "postgres://postgres:postgres@localhost:65432/handshake_test".to_string()
+        });
         cmd.args([
             "run",
             "--features",
@@ -378,11 +381,9 @@ impl OrchestratorState {
         ])
         .current_dir(workdir)
         .env("HANDSHAKE_WORKSPACE_ROOT", workspace_root())
+        .env("DATABASE_URL", database_url)
         .stdout(Stdio::inherit())
         .stderr(Stdio::inherit());
-        if let Ok(database_url) = std::env::var("DATABASE_URL") {
-            cmd.env("DATABASE_URL", database_url);
-        }
 
         let child = cmd.spawn()?;
         println!("spawned handshake_core via cargo run (pid {})", child.id());
@@ -1132,48 +1133,56 @@ pub fn run() {
             // state (the `kernel_sandbox_*` commands still resolve it).
             let sandbox_registry_for_swarm: Arc<handshake_core::sandbox::SandboxAdapterRegistry> =
                 (*app.state::<Arc<handshake_core::sandbox::SandboxAdapterRegistry>>()).clone();
-            let mut swarm_state = match swarm_recorder {
-                Some(recorder) => {
-                    commands::swarm_runtime::SwarmRuntimeState::production_with_fr_recorder(
-                        recorder,
-                        &schedule_store_root,
-                        Some(sandbox_registry_for_swarm),
-                    )
-                }
-                None => commands::swarm_runtime::SwarmRuntimeState::production_with_registry(
-                    &schedule_store_root,
-                    Some(sandbox_registry_for_swarm),
-                ),
-            };
-            // Wire the §10.1 capture seam: each swarm spawn opens a read-only
-            // AiJob capture session bound to its swarm_id swimlane through the
-            // SAME terminal runtime the panel reads. Only when both the terminal
-            // runtime and the swarm recorder were built (i.e. the durable FR is up).
-            if let Some(runtime) = terminal_runtime.clone() {
-                swarm_state = swarm_state.with_terminal_capture(runtime);
-            }
-            // rank-4: start the single board forwarder (broadcast -> typed
-            // swarm://event deltas) before managing the state moves it.
-            let board_events = swarm_state.board_events();
+            let terminal_capture_runtime = terminal_runtime.clone();
+            let (mut swarm_state, board_events, scheduler_state) =
+                tauri::async_runtime::block_on(async move {
+                    let mut swarm_state = match swarm_recorder {
+                        Some(recorder) => {
+                            commands::swarm_runtime::SwarmRuntimeState::production_with_fr_recorder(
+                                recorder,
+                                &schedule_store_root,
+                                Some(sandbox_registry_for_swarm),
+                            )
+                        }
+                        None => {
+                            commands::swarm_runtime::SwarmRuntimeState::production_with_registry(
+                                &schedule_store_root,
+                                Some(sandbox_registry_for_swarm),
+                            )
+                        }
+                    };
+                    // Wire the §10.1 capture seam: each swarm spawn opens a read-only
+                    // AiJob capture session bound to its swarm_id swimlane through the
+                    // SAME terminal runtime the panel reads. Only when both the terminal
+                    // runtime and the swarm recorder were built (i.e. the durable FR is up).
+                    if let Some(runtime) = terminal_capture_runtime {
+                        swarm_state = swarm_state.with_terminal_capture(runtime);
+                    }
+                    // rank-4: start the single board forwarder (broadcast -> typed
+                    // swarm://event deltas) before managing the state moves it.
+                    let board_events = swarm_state.board_events();
 
-            // TRACK 1 (calendar) Integrate wiring: construct the SwarmSchedulerState
-            // bound to the SAME managed coordinator, LOAD persisted schedules,
-            // RE-ARM them, apply the SKIP catch-up policy, and START the scheduler.
-            // `production_bootstrap` calls `tokio::runtime::Handle::current()`, so
-            // it must run inside the Tauri async runtime; `block_on` provides that
-            // context (and re-arming a tiny operator-authored schedule set is fast).
-            let scheduler_coordinator = swarm_state.coordinator();
-            let scheduler_state = tauri::async_runtime::block_on(async move {
-                commands::swarm_schedule::SwarmSchedulerState::production_bootstrap(
-                    scheduler_coordinator,
-                    &schedule_store_root,
-                    schedule_recorder,
-                )
-                .await
-            })
-            .map_err(|error| {
-                std::io::Error::other(format!("TRACK 1 swarm scheduler bootstrap failed: {error}"))
-            })?;
+                    // TRACK 1 (calendar) Integrate wiring: construct the SwarmSchedulerState
+                    // bound to the SAME managed coordinator, LOAD persisted schedules,
+                    // RE-ARM them, apply the SKIP catch-up policy, and START the scheduler.
+                    // `production_bootstrap` calls `tokio::runtime::Handle::current()`, so
+                    // it must run inside the Tauri async runtime; `block_on` provides that
+                    // context (and re-arming a tiny operator-authored schedule set is fast).
+                    let scheduler_coordinator = swarm_state.coordinator();
+                    let scheduler_state =
+                        commands::swarm_schedule::SwarmSchedulerState::production_bootstrap(
+                            scheduler_coordinator,
+                            &schedule_store_root,
+                            schedule_recorder,
+                        )
+                        .await
+                        .map_err(|error| {
+                            std::io::Error::other(format!(
+                                "TRACK 1 swarm scheduler bootstrap failed: {error}"
+                            ))
+                        })?;
+                    Ok::<_, std::io::Error>((swarm_state, board_events, scheduler_state))
+                })?;
             app.manage(scheduler_state);
 
             app.manage(swarm_state);
