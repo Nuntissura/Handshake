@@ -1,12 +1,55 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { EditorContent, JSONContent, useEditor } from "@tiptap/react";
+import type { AnyExtension } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
+import {
+  dependencyFailures,
+  formatDependencyFailureMessage,
+} from "../lib/dependency_policy/dependency_failure";
 
 export type TiptapSelectionInfo = {
   text: string;
   startUtf8: number;
   endUtf8: number;
 };
+
+/** MT-031 test seam: lets tests simulate document-extension init failure. */
+let documentExtensionFactoryOverride: (() => AnyExtension[]) | null = null;
+
+export function setTiptapDocumentExtensionFactoryForTests(
+  factory: (() => AnyExtension[]) | null,
+): void {
+  documentExtensionFactoryOverride = factory;
+}
+
+/**
+ * Builds the document editor's extension list behind the MT-031 typed
+ * failure guard: a construction failure is reported to the dependency-failure
+ * registry (surfacing in DependencyFailureBanner at the mount site) and the
+ * editor renders nothing instead of leaving a half-initialized blank surface.
+ */
+function buildGuardedDocumentExtensions(): AnyExtension[] | null {
+  try {
+    if (documentExtensionFactoryOverride) return documentExtensionFactoryOverride();
+    return [
+      StarterKit.configure({
+        heading: { levels: [1, 2, 3] },
+      }),
+    ];
+  } catch (error) {
+    const failure = {
+      dependency: "@tiptap/starter-kit",
+      component: "extension:document-editor",
+      phase: "extension_init" as const,
+      cause: error instanceof Error ? error.message : String(error),
+    };
+    dependencyFailures.report({
+      ...failure,
+      message: formatDependencyFailureMessage(failure),
+    });
+    return null;
+  }
+}
 
 type TiptapEditorProps = {
   initialContent: JSONContent | null;
@@ -15,19 +58,26 @@ type TiptapEditorProps = {
   onSelectionChange?: (info: TiptapSelectionInfo) => void;
 };
 
-export function TiptapEditor({
+export function TiptapEditor(props: TiptapEditorProps) {
+  // MT-031 guard: a failed document-extension set reports a typed dependency
+  // failure (DependencyFailureBanner shows it at the mount site) and the
+  // editor renders nothing — booting an Editor without its schema would crash
+  // into a blank surface.
+  const extensions = useMemo(buildGuardedDocumentExtensions, []);
+  if (extensions === null) return null;
+  return <TiptapEditorInner extensions={extensions} {...props} />;
+}
+
+function TiptapEditorInner({
+  extensions,
   initialContent,
   onChange,
   readOnly = false,
   onSelectionChange,
-}: TiptapEditorProps) {
+}: TiptapEditorProps & { extensions: AnyExtension[] }) {
   const [, forceSelectionRefresh] = useState(0);
   const editor = useEditor({
-    extensions: [
-      StarterKit.configure({
-        heading: { levels: [1, 2, 3] },
-      }),
-    ],
+    extensions,
     content: initialContent ?? { type: "doc", content: [{ type: "paragraph" }] },
     editable: !readOnly,
     onUpdate: ({ editor }) => {

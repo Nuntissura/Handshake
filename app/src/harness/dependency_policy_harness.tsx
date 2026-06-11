@@ -18,6 +18,7 @@ import {
   proveTypescriptWorkerRoundTrip,
 } from "../lib/monaco/setup";
 import { dependencyFailures } from "../lib/dependency_policy/dependency_failure";
+import { DependencyFailureBanner } from "../components/DependencyFailureBanner";
 import { mountWp009TiptapProof } from "./tiptap_harness_mount";
 import "monaco-editor/min/vs/editor/editor.main.css";
 
@@ -113,6 +114,8 @@ function HarnessShell() {
   return (
     <div data-testid="dependency-policy-harness-root" style={{ padding: 16 }}>
       <h1 style={{ fontSize: 16 }}>Handshake dependency-policy harness</h1>
+      {/* MT-031: any bundled-dependency failure must be visible, not silent. */}
+      <DependencyFailureBanner />
       <section>
         <h2 style={{ fontSize: 14 }}>Monaco (bundled workers, offline)</h2>
         <div

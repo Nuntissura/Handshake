@@ -15,6 +15,7 @@ import { logEvent } from "../state/debugEvents";
 import { addJob } from "../state/aiJobs";
 import { CommandPalette, CommandPaletteAction } from "./CommandPalette";
 import { AtelierCollaborationPanel } from "./AtelierCollaborationPanel";
+import { DependencyFailureBanner } from "./DependencyFailureBanner";
 
 type Props = {
   documentId: string | null;
@@ -356,6 +357,9 @@ export function DocumentView({ documentId, onDeleted }: Props) {
 
         <div className="document-editor__body">
           <div className="document-editor__main">
+            {/* MT-031: typed bundled-dependency failures surface here instead
+                of a blank or silently degraded editor. */}
+            <DependencyFailureBanner />
             <TiptapEditor
               initialContent={editorContent}
               onChange={(next) => {
