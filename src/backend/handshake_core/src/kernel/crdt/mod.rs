@@ -3,6 +3,7 @@ pub mod agent_lease;
 pub mod ai_edit_proposal;
 pub mod claim_promotion;
 pub mod conflict_presence;
+pub mod conflict_ui;
 pub mod context_slice;
 pub mod graph_proposal;
 pub mod identity;

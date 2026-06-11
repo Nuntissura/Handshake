@@ -570,6 +570,11 @@ path = "tests/knowledge_crdt_model_tests.rs"
 required-features = ["test-utils"]
 
 [[test]]
+name = "knowledge_crdt_bridge_api_tests"
+path = "tests/knowledge_crdt_bridge_api_tests.rs"
+required-features = ["test-utils"]
+
+[[test]]
 name = "knowledge_crdt_concurrency_tests"
 path = "tests/knowledge_crdt_concurrency_tests.rs"
 required-features = ["test-utils"]
