@@ -11,6 +11,7 @@ pub mod index_run_guard;
 pub mod offline_boundary;
 pub mod persistence;
 pub mod promotion_bridge;
+pub mod recovery_receipt;
 pub mod rich_document_snapshot;
 pub mod save_semantics;
 pub mod snapshot;

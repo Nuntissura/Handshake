@@ -1104,3 +1104,215 @@ pub async fn mark_ai_edit_proposal_promoted(
     row.map(map_ai_edit_proposal).transpose()
 }
 
+// ---------------------------------------------------------------------------
+// MT-079 swarm checkpoints + recovery receipts.
+// ---------------------------------------------------------------------------
+
+/// One swarm checkpoint (row of `knowledge_crdt_swarm_checkpoints`).
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct SwarmCheckpointRow {
+    pub checkpoint_id: String,
+    pub session_id: String,
+    pub actor_id: String,
+    pub lane_id: String,
+    pub lease_id: String,
+    pub scope_ref: String,
+    pub resume_pointer: Value,
+    pub checkpoint_payload: Value,
+    pub payload_sha256: String,
+    pub recorded_event_id: String,
+    pub created_at_utc: DateTime<Utc>,
+}
+
+const CHECKPOINT_COLUMNS: &str = r#"
+    checkpoint_id, session_id, actor_id, lane_id, lease_id, scope_ref,
+    resume_pointer, checkpoint_payload, payload_sha256, recorded_event_id,
+    created_at_utc
+"#;
+
+fn map_checkpoint(row: sqlx::postgres::PgRow) -> StorageResult<SwarmCheckpointRow> {
+    Ok(SwarmCheckpointRow {
+        checkpoint_id: row.try_get("checkpoint_id")?,
+        session_id: row.try_get("session_id")?,
+        actor_id: row.try_get("actor_id")?,
+        lane_id: row.try_get("lane_id")?,
+        lease_id: row.try_get("lease_id")?,
+        scope_ref: row.try_get("scope_ref")?,
+        resume_pointer: row.try_get("resume_pointer")?,
+        checkpoint_payload: row.try_get("checkpoint_payload")?,
+        payload_sha256: row.try_get("payload_sha256")?,
+        recorded_event_id: row.try_get("recorded_event_id")?,
+        created_at_utc: row.try_get("created_at_utc")?,
+    })
+}
+
+#[derive(Clone, Debug)]
+pub struct NewSwarmCheckpoint {
+    pub checkpoint_id: String,
+    pub session_id: String,
+    pub actor_id: String,
+    pub lane_id: String,
+    pub lease_id: String,
+    pub scope_ref: String,
+    pub resume_pointer: Value,
+    pub checkpoint_payload: Value,
+    pub payload_sha256: String,
+    pub recorded_event_id: String,
+}
+
+pub async fn insert_swarm_checkpoint(
+    pool: &PgPool,
+    checkpoint: NewSwarmCheckpoint,
+) -> StorageResult<SwarmCheckpointRow> {
+    let row = sqlx::query(&format!(
+        r#"
+        INSERT INTO knowledge_crdt_swarm_checkpoints (
+            checkpoint_id, session_id, actor_id, lane_id, lease_id,
+            scope_ref, resume_pointer, checkpoint_payload, payload_sha256,
+            recorded_event_id
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        RETURNING {CHECKPOINT_COLUMNS}
+        "#
+    ))
+    .bind(&checkpoint.checkpoint_id)
+    .bind(&checkpoint.session_id)
+    .bind(&checkpoint.actor_id)
+    .bind(&checkpoint.lane_id)
+    .bind(&checkpoint.lease_id)
+    .bind(&checkpoint.scope_ref)
+    .bind(&checkpoint.resume_pointer)
+    .bind(&checkpoint.checkpoint_payload)
+    .bind(&checkpoint.payload_sha256)
+    .bind(&checkpoint.recorded_event_id)
+    .fetch_one(pool)
+    .await?;
+    map_checkpoint(row)
+}
+
+pub async fn get_swarm_checkpoint(
+    pool: &PgPool,
+    checkpoint_id: &str,
+) -> StorageResult<Option<SwarmCheckpointRow>> {
+    let row = sqlx::query(&format!(
+        "SELECT {CHECKPOINT_COLUMNS} FROM knowledge_crdt_swarm_checkpoints WHERE checkpoint_id = $1"
+    ))
+    .bind(checkpoint_id)
+    .fetch_optional(pool)
+    .await?;
+    row.map(map_checkpoint).transpose()
+}
+
+/// Latest checkpoint for a lane (recovery entrypoint after session loss).
+pub async fn latest_checkpoint_for_lane(
+    pool: &PgPool,
+    lane_id: &str,
+) -> StorageResult<Option<SwarmCheckpointRow>> {
+    let row = sqlx::query(&format!(
+        r#"
+        SELECT {CHECKPOINT_COLUMNS} FROM knowledge_crdt_swarm_checkpoints
+        WHERE lane_id = $1
+        ORDER BY created_at_utc DESC, checkpoint_id DESC
+        LIMIT 1
+        "#
+    ))
+    .bind(lane_id)
+    .fetch_optional(pool)
+    .await?;
+    row.map(map_checkpoint).transpose()
+}
+
+/// One recovery receipt (row of `knowledge_crdt_recovery_receipts`).
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct RecoveryReceiptRow {
+    pub receipt_id: String,
+    pub checkpoint_id: String,
+    pub prior_session_id: String,
+    pub new_session_id: String,
+    pub new_actor_id: String,
+    pub new_lease_id: String,
+    pub lease_lineage: Value,
+    pub resume_pointer: Value,
+    pub recorded_event_id: String,
+    pub created_at_utc: DateTime<Utc>,
+}
+
+const RECOVERY_RECEIPT_COLUMNS: &str = r#"
+    receipt_id, checkpoint_id, prior_session_id, new_session_id,
+    new_actor_id, new_lease_id, lease_lineage, resume_pointer,
+    recorded_event_id, created_at_utc
+"#;
+
+fn map_recovery_receipt(row: sqlx::postgres::PgRow) -> StorageResult<RecoveryReceiptRow> {
+    Ok(RecoveryReceiptRow {
+        receipt_id: row.try_get("receipt_id")?,
+        checkpoint_id: row.try_get("checkpoint_id")?,
+        prior_session_id: row.try_get("prior_session_id")?,
+        new_session_id: row.try_get("new_session_id")?,
+        new_actor_id: row.try_get("new_actor_id")?,
+        new_lease_id: row.try_get("new_lease_id")?,
+        lease_lineage: row.try_get("lease_lineage")?,
+        resume_pointer: row.try_get("resume_pointer")?,
+        recorded_event_id: row.try_get("recorded_event_id")?,
+        created_at_utc: row.try_get("created_at_utc")?,
+    })
+}
+
+#[derive(Clone, Debug)]
+pub struct NewRecoveryReceipt {
+    pub receipt_id: String,
+    pub checkpoint_id: String,
+    pub prior_session_id: String,
+    pub new_session_id: String,
+    pub new_actor_id: String,
+    pub new_lease_id: String,
+    pub lease_lineage: Value,
+    pub resume_pointer: Value,
+    pub recorded_event_id: String,
+}
+
+pub async fn insert_recovery_receipt(
+    pool: &PgPool,
+    receipt: NewRecoveryReceipt,
+) -> StorageResult<RecoveryReceiptRow> {
+    let row = sqlx::query(&format!(
+        r#"
+        INSERT INTO knowledge_crdt_recovery_receipts (
+            receipt_id, checkpoint_id, prior_session_id, new_session_id,
+            new_actor_id, new_lease_id, lease_lineage, resume_pointer,
+            recorded_event_id
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        RETURNING {RECOVERY_RECEIPT_COLUMNS}
+        "#
+    ))
+    .bind(&receipt.receipt_id)
+    .bind(&receipt.checkpoint_id)
+    .bind(&receipt.prior_session_id)
+    .bind(&receipt.new_session_id)
+    .bind(&receipt.new_actor_id)
+    .bind(&receipt.new_lease_id)
+    .bind(&receipt.lease_lineage)
+    .bind(&receipt.resume_pointer)
+    .bind(&receipt.recorded_event_id)
+    .fetch_one(pool)
+    .await?;
+    map_recovery_receipt(row)
+}
+
+pub async fn list_recovery_receipts_for_checkpoint(
+    pool: &PgPool,
+    checkpoint_id: &str,
+) -> StorageResult<Vec<RecoveryReceiptRow>> {
+    let rows = sqlx::query(&format!(
+        r#"
+        SELECT {RECOVERY_RECEIPT_COLUMNS} FROM knowledge_crdt_recovery_receipts
+        WHERE checkpoint_id = $1
+        ORDER BY created_at_utc ASC, receipt_id ASC
+        "#
+    ))
+    .bind(checkpoint_id)
+    .fetch_all(pool)
+    .await?;
+    rows.into_iter().map(map_recovery_receipt).collect()
+}

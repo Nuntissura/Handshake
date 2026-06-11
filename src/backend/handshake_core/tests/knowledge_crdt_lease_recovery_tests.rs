@@ -360,3 +360,202 @@ mod mt_076_agent_lease {
             .any(|event| event.event_type == KernelEventType::KnowledgeCrdtLeaseExpired));
     }
 }
+
+mod mt_079_recovery_receipt {
+    use super::*;
+    use handshake_core::kernel::crdt::recovery_receipt::{
+        recover_from_checkpoint, write_swarm_checkpoint, RecoveryFailureV1,
+        SwarmCheckpointRequestV1, SwarmResumePointerV1,
+    };
+    use handshake_core::kernel::KernelEventType;
+    use handshake_core::storage::knowledge_crdt::list_recovery_receipts_for_checkpoint;
+    use serde_json::json;
+    use uuid::Uuid;
+
+    /// Seed scenario: a session checkpoints its work, dies (lease expires),
+    /// a new session takes over the lease and recovers from the checkpoint.
+    /// The recovery receipt links new session -> checkpoint -> lease lineage
+    /// and everything reconstructs from PostgreSQL alone.
+    #[tokio::test]
+    async fn session_loss_recovery_emits_linked_receipt_reconstructable_from_postgres() {
+        let backend = backend_or_blocked().await;
+        let db = backend.database.clone();
+        let pool = backend.postgres_pool.clone();
+        let suffix = Uuid::now_v7().simple().to_string();
+        let scope_id = format!("crdt-mt079-{suffix}");
+        let lane_id = format!("lane-mt079-{suffix}");
+        let dying =
+            KnowledgeActorIdV1::new(KnowledgeActorKind::LocalModel, "dying-lm").expect("actor");
+        let recovering = KnowledgeActorIdV1::new(KnowledgeActorKind::LocalModel, "recovering-lm")
+            .expect("actor");
+
+        // Session 1 claims a short lease and checkpoints mid-work.
+        let lease_one = match claim_lease(
+            db.as_ref(),
+            &pool,
+            LeaseClaimRequestV1 {
+                lane_id: lane_id.clone(),
+                actor: dying.clone(),
+                session_id: format!("sr-dying-{suffix}"),
+                correlation_id: format!("corr-dying-{suffix}"),
+                scope_kind: KnowledgeLeaseScopeKind::Document,
+                scope_id: scope_id.clone(),
+                ttl_seconds: 1,
+            },
+        )
+        .await
+        .expect("claim flow")
+        {
+            LeaseClaimOutcomeV1::Claimed(lease) => lease,
+            other => panic!("expected claim, got {other:?}"),
+        };
+
+        let checkpoint = write_swarm_checkpoint(
+            db.as_ref(),
+            &pool,
+            SwarmCheckpointRequestV1 {
+                session_id: format!("sr-dying-{suffix}"),
+                actor: dying.clone(),
+                lane_id: lane_id.clone(),
+                lease_id: lease_one.lease_id.clone(),
+                scope_ref: format!("document:{scope_id}"),
+                resume_pointer: SwarmResumePointerV1::DocumentRevision {
+                    crdt_document_id: scope_id.clone(),
+                    update_seq: 7,
+                    state_vector: "hsk-sv1:site-aaaa=7".to_string(),
+                },
+                checkpoint_payload: json!({
+                    "pending_block_ids": ["blk-1", "blk-2"],
+                    "draft_summary": "halfway through reference rewrite"
+                }),
+            },
+        )
+        .await
+        .expect("checkpoint written");
+        assert_eq!(checkpoint.payload_sha256.len(), 64);
+
+        // Session 1 dies; the lease expires on the database clock.
+        wait_for_db_expiry(&pool, &lease_one.lease_id).await;
+
+        // Session 2 takes over the scope.
+        let lease_two = match takeover_lease(
+            db.as_ref(),
+            &pool,
+            &lease_one.lease_id,
+            LeaseClaimRequestV1 {
+                lane_id: lane_id.clone(),
+                actor: recovering.clone(),
+                session_id: format!("sr-recover-{suffix}"),
+                correlation_id: format!("corr-recover-{suffix}"),
+                scope_kind: KnowledgeLeaseScopeKind::Document,
+                scope_id: scope_id.clone(),
+                ttl_seconds: 600,
+            },
+        )
+        .await
+        .expect("takeover flow")
+        {
+            LeaseTakeoverOutcomeV1::TakenOver(lease) => lease,
+            other => panic!("expected takeover, got {other:?}"),
+        };
+
+        // Recovery: payload verified, lineage walked, receipt + event.
+        let recovery = recover_from_checkpoint(
+            db.as_ref(),
+            &pool,
+            &checkpoint.checkpoint_id,
+            &format!("sr-recover-{suffix}"),
+            &recovering,
+            &lease_two.lease_id,
+        )
+        .await
+        .expect("recovery flow")
+        .expect("recovery succeeds");
+        assert_eq!(
+            recovery.lease_lineage_ids,
+            vec![lease_two.lease_id.clone(), lease_one.lease_id.clone()],
+            "lineage runs newest -> original claim"
+        );
+        assert_eq!(
+            recovery.receipt.prior_session_id,
+            format!("sr-dying-{suffix}")
+        );
+        assert_eq!(
+            recovery.receipt.new_session_id,
+            format!("sr-recover-{suffix}")
+        );
+        match &recovery.resume_pointer {
+            SwarmResumePointerV1::DocumentRevision {
+                crdt_document_id,
+                update_seq,
+                state_vector,
+            } => {
+                assert_eq!(crdt_document_id, &scope_id);
+                assert_eq!(*update_seq, 7);
+                assert_eq!(state_vector, "hsk-sv1:site-aaaa=7");
+            }
+            other => panic!("resume pointer round-trip failed: {other:?}"),
+        }
+
+        // Receipt + checkpoint events are in the ledger.
+        let events = db
+            .list_kernel_events_for_aggregate(
+                "knowledge_swarm_checkpoint",
+                &checkpoint.checkpoint_id,
+            )
+            .await
+            .expect("events");
+        assert!(events
+            .iter()
+            .any(|event| event.event_type == KernelEventType::KnowledgeCrdtCheckpointRecorded));
+        assert!(events.iter().any(|event| {
+            event.event_type == KernelEventType::KnowledgeCrdtRecoveryReceiptRecorded
+        }));
+
+        // No-chat-history reconstruction: a fresh reader sees the same
+        // receipt purely from PostgreSQL rows.
+        let receipts = list_recovery_receipts_for_checkpoint(&pool, &checkpoint.checkpoint_id)
+            .await
+            .expect("receipts");
+        assert_eq!(receipts.len(), 1);
+        assert_eq!(receipts[0], recovery.receipt);
+
+        // Failure paths: unknown checkpoint, tampered payload.
+        let unknown = recover_from_checkpoint(
+            db.as_ref(),
+            &pool,
+            "01ARZ3NDEKTSV4RRFFQ69G5FAV",
+            "sr-x",
+            &recovering,
+            &lease_two.lease_id,
+        )
+        .await
+        .expect("recovery flow");
+        assert!(matches!(
+            unknown,
+            Err(RecoveryFailureV1::CheckpointNotFound { .. })
+        ));
+
+        sqlx::query(
+            "UPDATE knowledge_crdt_swarm_checkpoints SET checkpoint_payload = '{\"tampered\": true}'::jsonb WHERE checkpoint_id = $1",
+        )
+        .bind(&checkpoint.checkpoint_id)
+        .execute(&pool)
+        .await
+        .expect("tamper for negative test");
+        let tampered = recover_from_checkpoint(
+            db.as_ref(),
+            &pool,
+            &checkpoint.checkpoint_id,
+            "sr-y",
+            &recovering,
+            &lease_two.lease_id,
+        )
+        .await
+        .expect("recovery flow");
+        assert!(matches!(
+            tampered,
+            Err(RecoveryFailureV1::PayloadHashMismatch { .. })
+        ));
+    }
+}
