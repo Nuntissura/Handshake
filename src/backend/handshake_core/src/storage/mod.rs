@@ -20,6 +20,7 @@ use crate::ai_ready_data::records::{
 
 pub mod calendar;
 pub mod kb003_storage;
+pub mod knowledge;
 pub mod loom;
 pub mod postgres;
 pub mod retention;

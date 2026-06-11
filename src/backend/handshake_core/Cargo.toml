@@ -491,3 +491,10 @@ required-features = ["duckdb-flight-recorder"]
 name = "native_screenshot_capture_tests"
 path = "tests/native_screenshot_capture_tests.rs"
 required-features = ["test-utils"]
+
+# WP-KERNEL-009 PostgresEventLedgerCore (MT-049..MT-064): real-PostgreSQL
+# integration proof for the ProjectKnowledgeIndex authority schema.
+[[test]]
+name = "knowledge_schema_tests"
+path = "tests/knowledge_schema_tests.rs"
+required-features = ["test-utils"]
