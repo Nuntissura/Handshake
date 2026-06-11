@@ -57,6 +57,7 @@
 //!   external OCR, import the produced transcript artifact instead.
 
 pub mod allowlist;
+pub mod governance;
 pub mod hashing;
 pub mod kinds;
 pub mod paths;
