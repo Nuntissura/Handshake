@@ -1,7 +1,7 @@
 //! WP-KERNEL-009 PostgresEventLedgerCore integration tests against REAL
 //! Handshake-managed PostgreSQL: MT-058 (WikiProjectionTables), MT-059
 //! (RichDocumentTables + EditorCodeNode), MT-060 (ContextBundleTables +
-//! RetrievalTrace).
+//! RetrievalTrace), MT-061 (EventLedgerEventFamilies on the real ledger).
 
 mod knowledge_pg_support;
 
@@ -553,5 +553,72 @@ mod mt_060_context_bundles {
                 .contains("chk_knowledge_context_bundles_id_matches_hash"),
             "unexpected: {err}"
         );
+    }
+}
+
+// ---------------------------------------------------------------------------
+// MT-061 EventLedgerEventFamilies: knowledge events on the REAL ledger
+// ---------------------------------------------------------------------------
+
+mod mt_061_event_families {
+    use super::*;
+    use handshake_core::kernel::{KernelActor, KernelEventType, NewKernelEvent};
+    use handshake_core::storage::Database;
+    use uuid::Uuid;
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn knowledge_event_families_append_and_replay_on_real_ledger() {
+        let Some(pg) = knowledge_pg().await else {
+            eprintln!(
+                "SKIP knowledge_event_families_append_and_replay_on_real_ledger: no PostgreSQL"
+            );
+            return;
+        };
+        let suffix = Uuid::now_v7();
+        let aggregate_id = format!("KIR-EVENTS-{suffix}");
+
+        // One representative event per MT-061 family axis: write through the
+        // real ledger, then replay by aggregate and parse the types back.
+        let families = [
+            KernelEventType::KnowledgeIndexRunStarted,
+            KernelEventType::KnowledgeClaimProposed,
+            KernelEventType::KnowledgeClaimConflictDetected,
+            KernelEventType::KnowledgeRetrievalTraceRecorded,
+            KernelEventType::KnowledgeRichDocumentSaved,
+            KernelEventType::KnowledgeLoomBlockIndexed,
+            KernelEventType::KnowledgeUserManualEntryRecorded,
+            KernelEventType::KnowledgeValidationRecorded,
+        ];
+        for (ordinal, event_type) in families.iter().enumerate() {
+            pg.db
+                .append_kernel_event(
+                    NewKernelEvent::builder(
+                        format!("KTR-KNOWLEDGE-{suffix}"),
+                        format!("SR-KNOWLEDGE-{suffix}"),
+                        event_type.clone(),
+                        KernelActor::System("knowledge-index".to_string()),
+                    )
+                    .aggregate("knowledge_index_run", aggregate_id.clone())
+                    .idempotency_key(format!("idem-knowledge-family-{ordinal}-{suffix}"))
+                    .payload(json!({"ordinal": ordinal}))
+                    .build()
+                    .expect("event"),
+                )
+                .await
+                .unwrap_or_else(|err| panic!("append {} failed: {err:?}", event_type.as_str()));
+        }
+
+        let replayed = pg
+            .db
+            .list_kernel_events_for_aggregate("knowledge_index_run", &aggregate_id)
+            .await
+            .expect("replay by aggregate");
+        assert_eq!(replayed.len(), families.len());
+        for (event, expected) in replayed.iter().zip(families.iter()) {
+            assert_eq!(
+                &event.event_type, expected,
+                "ledger replay must parse the knowledge event family back losslessly"
+            );
+        }
     }
 }

@@ -132,3 +132,67 @@ fn flight_recorder_kernel_mirror_exposes_required_debug_fields() {
         "mirror diagnostics must expose idempotency for duplicate/conflict triage"
     );
 }
+
+// ---------------------------------------------------------------------------
+// WP-KERNEL-009 MT-061 EventLedgerEventFamilies
+// ---------------------------------------------------------------------------
+
+#[test]
+fn kernel_event_taxonomy_covers_wp009_knowledge_families() {
+    let event_names: Vec<&'static str> = KernelEventType::required_first_slice_events()
+        .iter()
+        .map(KernelEventType::as_str)
+        .collect();
+
+    // MT-061 families: index, claim, conflict, retrieval, editor, Loom,
+    // UserManual, validation (spec 2.3.13.11). The knowledge_* receipt FK
+    // columns target events of these families.
+    for required in [
+        "KNOWLEDGE_INDEX_RUN_STARTED",
+        "KNOWLEDGE_INDEX_RUN_COMPLETED",
+        "KNOWLEDGE_INDEX_RUN_FAILED",
+        "KNOWLEDGE_INDEX_RUN_CANCELLED",
+        "KNOWLEDGE_CLAIM_PROPOSED",
+        "KNOWLEDGE_CLAIM_ACCEPTED",
+        "KNOWLEDGE_CLAIM_RETIRED",
+        "KNOWLEDGE_CLAIM_CONFLICT_DETECTED",
+        "KNOWLEDGE_CLAIM_CONFLICT_RESOLVED",
+        "KNOWLEDGE_RETRIEVAL_TRACE_RECORDED",
+        "KNOWLEDGE_RICH_DOCUMENT_SAVED",
+        "KNOWLEDGE_RICH_DOCUMENT_PROMOTED",
+        "KNOWLEDGE_LOOM_BLOCK_INDEXED",
+        "KNOWLEDGE_PROJECTION_REBUILT",
+        "KNOWLEDGE_USER_MANUAL_ENTRY_RECORDED",
+        "KNOWLEDGE_VALIDATION_RECORDED",
+    ] {
+        assert!(
+            event_names.contains(&required),
+            "missing required WP-009 knowledge event family {required}"
+        );
+    }
+}
+
+#[test]
+fn kernel_event_type_round_trips_every_variant_through_string_and_serde() {
+    for event_type in KernelEventType::required_first_slice_events() {
+        // as_str -> TryFrom round-trip (the EventLedger DB read path).
+        let parsed = KernelEventType::try_from(event_type.as_str())
+            .unwrap_or_else(|err| panic!("{} must parse: {err:?}", event_type.as_str()));
+        assert_eq!(&parsed, event_type, "string round-trip must be lossless");
+
+        // serde round-trip must agree with the string form (the enum is
+        // SCREAMING_SNAKE_CASE so JSON and ledger rows share one vocabulary).
+        let serialized = serde_json::to_value(event_type).expect("serialize");
+        assert_eq!(
+            serialized,
+            serde_json::Value::String(event_type.as_str().to_string()),
+            "serde form must equal as_str form"
+        );
+        let deserialized: KernelEventType =
+            serde_json::from_value(serialized).expect("deserialize");
+        assert_eq!(
+            &deserialized, event_type,
+            "serde round-trip must be lossless"
+        );
+    }
+}

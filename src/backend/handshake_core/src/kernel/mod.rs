@@ -252,6 +252,29 @@ pub enum KernelEventType {
     GraphMutationProposalDecided,
     AiEditProposalRecorded,
     AiEditProposalDecided,
+    // WP-KERNEL-009 PostgresEventLedgerCore (MT-061) event families.
+    // Spec 2.3.13.11: index runs, claim lifecycle/conflicts, retrieval
+    // traces, editor (RichDocument) saves/promotions, Loom blocks,
+    // projections, UserManual entries, and knowledge validation MUST leave
+    // EventLedger receipts; the knowledge_* receipt FK columns
+    // (migrations 0133/0137/0138/0139/0140/0141) target events of these
+    // families.
+    KnowledgeIndexRunStarted,
+    KnowledgeIndexRunCompleted,
+    KnowledgeIndexRunFailed,
+    KnowledgeIndexRunCancelled,
+    KnowledgeClaimProposed,
+    KnowledgeClaimAccepted,
+    KnowledgeClaimRetired,
+    KnowledgeClaimConflictDetected,
+    KnowledgeClaimConflictResolved,
+    KnowledgeRetrievalTraceRecorded,
+    KnowledgeRichDocumentSaved,
+    KnowledgeRichDocumentPromoted,
+    KnowledgeLoomBlockIndexed,
+    KnowledgeProjectionRebuilt,
+    KnowledgeUserManualEntryRecorded,
+    KnowledgeValidationRecorded,
 }
 
 impl KernelEventType {
@@ -303,6 +326,22 @@ impl KernelEventType {
             Self::GraphMutationProposalDecided => "GRAPH_MUTATION_PROPOSAL_DECIDED",
             Self::AiEditProposalRecorded => "AI_EDIT_PROPOSAL_RECORDED",
             Self::AiEditProposalDecided => "AI_EDIT_PROPOSAL_DECIDED",
+            Self::KnowledgeIndexRunStarted => "KNOWLEDGE_INDEX_RUN_STARTED",
+            Self::KnowledgeIndexRunCompleted => "KNOWLEDGE_INDEX_RUN_COMPLETED",
+            Self::KnowledgeIndexRunFailed => "KNOWLEDGE_INDEX_RUN_FAILED",
+            Self::KnowledgeIndexRunCancelled => "KNOWLEDGE_INDEX_RUN_CANCELLED",
+            Self::KnowledgeClaimProposed => "KNOWLEDGE_CLAIM_PROPOSED",
+            Self::KnowledgeClaimAccepted => "KNOWLEDGE_CLAIM_ACCEPTED",
+            Self::KnowledgeClaimRetired => "KNOWLEDGE_CLAIM_RETIRED",
+            Self::KnowledgeClaimConflictDetected => "KNOWLEDGE_CLAIM_CONFLICT_DETECTED",
+            Self::KnowledgeClaimConflictResolved => "KNOWLEDGE_CLAIM_CONFLICT_RESOLVED",
+            Self::KnowledgeRetrievalTraceRecorded => "KNOWLEDGE_RETRIEVAL_TRACE_RECORDED",
+            Self::KnowledgeRichDocumentSaved => "KNOWLEDGE_RICH_DOCUMENT_SAVED",
+            Self::KnowledgeRichDocumentPromoted => "KNOWLEDGE_RICH_DOCUMENT_PROMOTED",
+            Self::KnowledgeLoomBlockIndexed => "KNOWLEDGE_LOOM_BLOCK_INDEXED",
+            Self::KnowledgeProjectionRebuilt => "KNOWLEDGE_PROJECTION_REBUILT",
+            Self::KnowledgeUserManualEntryRecorded => "KNOWLEDGE_USER_MANUAL_ENTRY_RECORDED",
+            Self::KnowledgeValidationRecorded => "KNOWLEDGE_VALIDATION_RECORDED",
         }
     }
 
@@ -352,6 +391,22 @@ impl KernelEventType {
             KernelEventType::GraphMutationProposalDecided,
             KernelEventType::AiEditProposalRecorded,
             KernelEventType::AiEditProposalDecided,
+            KernelEventType::KnowledgeIndexRunStarted,
+            KernelEventType::KnowledgeIndexRunCompleted,
+            KernelEventType::KnowledgeIndexRunFailed,
+            KernelEventType::KnowledgeIndexRunCancelled,
+            KernelEventType::KnowledgeClaimProposed,
+            KernelEventType::KnowledgeClaimAccepted,
+            KernelEventType::KnowledgeClaimRetired,
+            KernelEventType::KnowledgeClaimConflictDetected,
+            KernelEventType::KnowledgeClaimConflictResolved,
+            KernelEventType::KnowledgeRetrievalTraceRecorded,
+            KernelEventType::KnowledgeRichDocumentSaved,
+            KernelEventType::KnowledgeRichDocumentPromoted,
+            KernelEventType::KnowledgeLoomBlockIndexed,
+            KernelEventType::KnowledgeProjectionRebuilt,
+            KernelEventType::KnowledgeUserManualEntryRecorded,
+            KernelEventType::KnowledgeValidationRecorded,
         ]
     }
 }
