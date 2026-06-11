@@ -27,6 +27,7 @@
 
 pub mod cui_gate;
 pub mod input_registry;
+pub mod manifest_tripwires;
 
 pub use cui_gate::{CuiGateError, CuiPortableGate};
 pub use input_registry::{RuntimeInputDeclaration, RuntimeInputError, RuntimeInputRegistry};

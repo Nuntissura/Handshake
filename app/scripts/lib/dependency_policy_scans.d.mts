@@ -67,6 +67,7 @@ export declare function scanCdnReferences(args: {
   repoRoot: string;
   allowlist: AllowlistDocument;
 }): PatternScanResult;
+export declare function npmManifestDependencyNames(packageJsonText: string): string[];
 export declare function cargoManifestDependencyNames(cargoTomlText: string): string[];
 export declare function cargoLockPackageNames(cargoLockText: string): string[];
 export declare function pnpmLockPackageNames(pnpmLockText: string): string[];

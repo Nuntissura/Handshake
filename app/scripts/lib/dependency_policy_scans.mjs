@@ -166,16 +166,23 @@ export function scanCdnReferences({ repoRoot, allowlist }) {
   });
 }
 
+/**
+ * Direct dependency names declared in a package.json text (dependencies,
+ * devDependencies, optionalDependencies). Pure text parser so negative
+ * fixtures exercise the exact production code path.
+ */
+export function npmManifestDependencyNames(packageJsonText) {
+  const pkg = JSON.parse(packageJsonText);
+  return [
+    ...Object.keys(pkg.dependencies ?? {}),
+    ...Object.keys(pkg.devDependencies ?? {}),
+    ...Object.keys(pkg.optionalDependencies ?? {}),
+  ];
+}
+
 function parseManifestDeps(packageJsonPath) {
-  const pkg = JSON.parse(readFileSync(packageJsonPath, "utf8"));
-  return {
-    pkg,
-    names: [
-      ...Object.keys(pkg.dependencies ?? {}),
-      ...Object.keys(pkg.devDependencies ?? {}),
-      ...Object.keys(pkg.optionalDependencies ?? {}),
-    ],
-  };
+  const text = readFileSync(packageJsonPath, "utf8");
+  return { pkg: JSON.parse(text), names: npmManifestDependencyNames(text) };
 }
 
 /** Extracts `[dependencies]`-style section dependency names from a Cargo.toml. */
