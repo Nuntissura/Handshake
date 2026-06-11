@@ -1858,6 +1858,231 @@ fn code_node_from_pg(row: &sqlx::postgres::PgRow) -> KnowledgeEditorCodeNode {
 }
 
 // ---------------------------------------------------------------------------
+// MT-060 ContextBundleTables: durable bundle runs, per-item retrieval
+// decisions, token budgets, citations, and replayable RetrievalTraces.
+//
+// The BUNDLE CONTENT is a projection (spec 2.3.13.11); these tables are the
+// durable RUN/DECISION evidence, which is authority. Bundles persist the
+// exact kernel ContextBundle V1 shape: bundle_id is derived from the
+// canonical-JSON content hash (CTX- + first 16 hex), enforced by a DB CHECK.
+// ---------------------------------------------------------------------------
+
+/// What a context-bundle item points at.
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum KnowledgeBundleItemRefKind {
+    Source,
+    Span,
+    Claim,
+    Passage,
+    Entity,
+}
+
+impl KnowledgeBundleItemRefKind {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Source => "source",
+            Self::Span => "span",
+            Self::Claim => "claim",
+            Self::Passage => "passage",
+            Self::Entity => "entity",
+        }
+    }
+}
+
+impl FromStr for KnowledgeBundleItemRefKind {
+    type Err = StorageError;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        match value {
+            "source" => Ok(Self::Source),
+            "span" => Ok(Self::Span),
+            "claim" => Ok(Self::Claim),
+            "passage" => Ok(Self::Passage),
+            "entity" => Ok(Self::Entity),
+            _ => Err(StorageError::Validation(
+                "invalid knowledge bundle item ref_kind",
+            )),
+        }
+    }
+}
+
+/// Per-item retrieval decision inside a bundle build.
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum KnowledgeBundleItemDecision {
+    Included,
+    ExcludedBudget,
+    ExcludedRelevance,
+    ExcludedRedacted,
+}
+
+impl KnowledgeBundleItemDecision {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Included => "included",
+            Self::ExcludedBudget => "excluded_budget",
+            Self::ExcludedRelevance => "excluded_relevance",
+            Self::ExcludedRedacted => "excluded_redacted",
+        }
+    }
+}
+
+impl FromStr for KnowledgeBundleItemDecision {
+    type Err = StorageError;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        match value {
+            "included" => Ok(Self::Included),
+            "excluded_budget" => Ok(Self::ExcludedBudget),
+            "excluded_relevance" => Ok(Self::ExcludedRelevance),
+            "excluded_redacted" => Ok(Self::ExcludedRedacted),
+            _ => Err(StorageError::Validation(
+                "invalid knowledge bundle item retrieval_decision",
+            )),
+        }
+    }
+}
+
+/// A persisted context bundle run (kernel ContextBundle V1 shape + retrieval
+/// evidence).
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct KnowledgeContextBundle {
+    pub bundle_id: String,
+    pub workspace_id: String,
+    pub kernel_task_run_id: String,
+    pub session_run_id: String,
+    pub allowed_context: Value,
+    pub context_hash: String,
+    pub query_text: Option<String>,
+    pub token_budget: Option<i32>,
+    pub tokens_used: Option<i32>,
+    pub build_receipt_event_id: Option<String>,
+    pub created_at: DateTime<Utc>,
+}
+
+/// One recorded item decision of a bundle build.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct KnowledgeContextBundleItem {
+    pub bundle_id: String,
+    pub item_ordinal: i32,
+    pub ref_kind: KnowledgeBundleItemRefKind,
+    pub ref_id: String,
+    pub retrieval_decision: KnowledgeBundleItemDecision,
+    pub relevance_score: Option<f64>,
+    pub token_count: Option<i32>,
+    pub citation: Option<String>,
+}
+
+/// Insert payload for one bundle item (ordinal is assigned by position).
+#[derive(Clone, Debug, Serialize)]
+pub struct NewKnowledgeContextBundleItem {
+    pub ref_kind: KnowledgeBundleItemRefKind,
+    pub ref_id: String,
+    pub retrieval_decision: KnowledgeBundleItemDecision,
+    pub relevance_score: Option<f64>,
+    pub token_count: Option<i32>,
+    pub citation: Option<String>,
+}
+
+/// Insert payload for a bundle run: the REAL kernel V1 bundle plus the WP-009
+/// retrieval evidence.
+#[derive(Clone, Debug)]
+pub struct NewKnowledgeContextBundle {
+    pub workspace_id: String,
+    /// The kernel V1 bundle; persisted exactly as constructed (id, hash,
+    /// run ids, allowed_context).
+    pub bundle: crate::kernel::context_bundle::ContextBundle,
+    pub query_text: Option<String>,
+    pub token_budget: Option<i32>,
+    pub tokens_used: Option<i32>,
+    pub build_receipt_event_id: Option<String>,
+    pub items: Vec<NewKnowledgeContextBundleItem>,
+}
+
+/// A replayable retrieval trace (spec 2.3.13.11 RetrievalTrace).
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct KnowledgeRetrievalTrace {
+    pub trace_id: String,
+    pub workspace_id: String,
+    pub retrieval_mode: KnowledgeRetrievalMode,
+    /// Spec MUST: why broader retrieval was used or skipped.
+    pub mode_reason: String,
+    pub query_text: Option<String>,
+    pub bundle_id: Option<String>,
+    /// Replayable decision log: `[{"step": ..., "action": ...}, ...]`.
+    pub decisions: Value,
+    pub trace_receipt_event_id: Option<String>,
+    pub created_at: DateTime<Utc>,
+}
+
+/// Insert payload for [`KnowledgeRetrievalTrace`].
+#[derive(Clone, Debug, Serialize)]
+pub struct NewKnowledgeRetrievalTrace {
+    pub workspace_id: String,
+    pub retrieval_mode: KnowledgeRetrievalMode,
+    pub mode_reason: String,
+    pub query_text: Option<String>,
+    pub bundle_id: Option<String>,
+    pub decisions: Value,
+    pub trace_receipt_event_id: Option<String>,
+}
+
+const KNOWLEDGE_BUNDLE_COLUMNS: &str = r#"
+    bundle_id, workspace_id, kernel_task_run_id, session_run_id,
+    allowed_context, context_hash, query_text, token_budget, tokens_used,
+    build_receipt_event_id, created_at
+"#;
+
+fn bundle_from_pg(row: &sqlx::postgres::PgRow) -> KnowledgeContextBundle {
+    KnowledgeContextBundle {
+        bundle_id: row.get("bundle_id"),
+        workspace_id: row.get("workspace_id"),
+        kernel_task_run_id: row.get("kernel_task_run_id"),
+        session_run_id: row.get("session_run_id"),
+        allowed_context: row.get("allowed_context"),
+        context_hash: row.get("context_hash"),
+        query_text: row.get("query_text"),
+        token_budget: row.get("token_budget"),
+        tokens_used: row.get("tokens_used"),
+        build_receipt_event_id: row.get("build_receipt_event_id"),
+        created_at: row.get("created_at"),
+    }
+}
+
+fn bundle_item_from_pg(row: &sqlx::postgres::PgRow) -> StorageResult<KnowledgeContextBundleItem> {
+    Ok(KnowledgeContextBundleItem {
+        bundle_id: row.get("bundle_id"),
+        item_ordinal: row.get("item_ordinal"),
+        ref_kind: row.get::<String, _>("ref_kind").parse()?,
+        ref_id: row.get("ref_id"),
+        retrieval_decision: row.get::<String, _>("retrieval_decision").parse()?,
+        relevance_score: row.get("relevance_score"),
+        token_count: row.get("token_count"),
+        citation: row.get("citation"),
+    })
+}
+
+const KNOWLEDGE_TRACE_COLUMNS: &str = r#"
+    trace_id, workspace_id, retrieval_mode, mode_reason, query_text,
+    bundle_id, decisions, trace_receipt_event_id, created_at
+"#;
+
+fn trace_from_pg(row: &sqlx::postgres::PgRow) -> StorageResult<KnowledgeRetrievalTrace> {
+    Ok(KnowledgeRetrievalTrace {
+        trace_id: row.get("trace_id"),
+        workspace_id: row.get("workspace_id"),
+        retrieval_mode: row.get::<String, _>("retrieval_mode").parse()?,
+        mode_reason: row.get("mode_reason"),
+        query_text: row.get("query_text"),
+        bundle_id: row.get("bundle_id"),
+        decisions: row.get("decisions"),
+        trace_receipt_event_id: row.get("trace_receipt_event_id"),
+        created_at: row.get("created_at"),
+    })
+}
+
+// ---------------------------------------------------------------------------
 // KnowledgeStore trait: the WP-009 storage surface on PostgresDatabase.
 // ---------------------------------------------------------------------------
 
@@ -2199,6 +2424,32 @@ pub trait KnowledgeStore: Send + Sync {
         &self,
         rich_document_id: &str,
     ) -> StorageResult<Vec<KnowledgeEditorCodeNode>>;
+
+    // -- MT-060 context bundles + retrieval traces ----------------------------------
+    /// Persists a kernel ContextBundle V1 run with its per-item retrieval
+    /// decisions in one transaction.
+    async fn record_knowledge_context_bundle(
+        &self,
+        new_bundle: NewKnowledgeContextBundle,
+    ) -> StorageResult<KnowledgeContextBundle>;
+
+    /// Fetches a bundle run plus its item decisions in ordinal order.
+    async fn get_knowledge_context_bundle(
+        &self,
+        bundle_id: &str,
+    ) -> StorageResult<Option<(KnowledgeContextBundle, Vec<KnowledgeContextBundleItem>)>>;
+
+    /// Records a replayable retrieval trace; `mode_reason` is a spec MUST
+    /// (why broader retrieval was used or skipped).
+    async fn record_knowledge_retrieval_trace(
+        &self,
+        new_trace: NewKnowledgeRetrievalTrace,
+    ) -> StorageResult<KnowledgeRetrievalTrace>;
+
+    async fn list_knowledge_retrieval_traces_for_bundle(
+        &self,
+        bundle_id: &str,
+    ) -> StorageResult<Vec<KnowledgeRetrievalTrace>>;
 }
 
 fn registry_row_from_pg(row: &sqlx::postgres::PgRow) -> StorageResult<KnowledgeSchemaRegistryRow> {
@@ -3857,5 +4108,153 @@ impl KnowledgeStore for PostgresDatabase {
             .fetch_all(self.pool())
             .await?;
         Ok(rows.iter().map(code_node_from_pg).collect())
+    }
+
+    async fn record_knowledge_context_bundle(
+        &self,
+        new_bundle: NewKnowledgeContextBundle,
+    ) -> StorageResult<KnowledgeContextBundle> {
+        for item in &new_bundle.items {
+            if item.ref_id.trim() != item.ref_id || item.ref_id.is_empty() {
+                return Err(StorageError::Validation(
+                    "knowledge bundle item ref_id must be non-empty and trimmed",
+                ));
+            }
+        }
+        let bundle = &new_bundle.bundle;
+
+        let mut tx = self.pool().begin().await?;
+        let sql = format!(
+            r#"
+            INSERT INTO knowledge_context_bundles
+                (bundle_id, workspace_id, kernel_task_run_id, session_run_id,
+                 allowed_context, context_hash, query_text, token_budget,
+                 tokens_used, build_receipt_event_id)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+            RETURNING {KNOWLEDGE_BUNDLE_COLUMNS}
+            "#
+        );
+        let row = sqlx::query(&sql)
+            .bind(&bundle.context_bundle_id)
+            .bind(&new_bundle.workspace_id)
+            .bind(&bundle.kernel_task_run_id)
+            .bind(&bundle.session_run_id)
+            .bind(&bundle.allowed_context)
+            .bind(&bundle.context_hash)
+            .bind(&new_bundle.query_text)
+            .bind(new_bundle.token_budget)
+            .bind(new_bundle.tokens_used)
+            .bind(&new_bundle.build_receipt_event_id)
+            .fetch_one(&mut *tx)
+            .await?;
+        let stored = bundle_from_pg(&row);
+
+        for (index, item) in new_bundle.items.iter().enumerate() {
+            sqlx::query(
+                r#"
+                INSERT INTO knowledge_context_bundle_items
+                    (bundle_id, item_ordinal, ref_kind, ref_id,
+                     retrieval_decision, relevance_score, token_count, citation)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                "#,
+            )
+            .bind(&stored.bundle_id)
+            .bind(index as i32)
+            .bind(item.ref_kind.as_str())
+            .bind(&item.ref_id)
+            .bind(item.retrieval_decision.as_str())
+            .bind(item.relevance_score)
+            .bind(item.token_count)
+            .bind(&item.citation)
+            .execute(&mut *tx)
+            .await?;
+        }
+        tx.commit().await?;
+        Ok(stored)
+    }
+
+    async fn get_knowledge_context_bundle(
+        &self,
+        bundle_id: &str,
+    ) -> StorageResult<Option<(KnowledgeContextBundle, Vec<KnowledgeContextBundleItem>)>> {
+        let sql = format!(
+            "SELECT {KNOWLEDGE_BUNDLE_COLUMNS} FROM knowledge_context_bundles
+             WHERE bundle_id = $1"
+        );
+        let row = sqlx::query(&sql)
+            .bind(bundle_id)
+            .fetch_optional(self.pool())
+            .await?;
+        let Some(row) = row else {
+            return Ok(None);
+        };
+        let bundle = bundle_from_pg(&row);
+
+        let item_rows = sqlx::query(
+            r#"
+            SELECT bundle_id, item_ordinal, ref_kind, ref_id,
+                   retrieval_decision, relevance_score, token_count, citation
+            FROM knowledge_context_bundle_items
+            WHERE bundle_id = $1
+            ORDER BY item_ordinal
+            "#,
+        )
+        .bind(bundle_id)
+        .fetch_all(self.pool())
+        .await?;
+        let items = item_rows
+            .iter()
+            .map(bundle_item_from_pg)
+            .collect::<StorageResult<Vec<_>>>()?;
+        Ok(Some((bundle, items)))
+    }
+
+    async fn record_knowledge_retrieval_trace(
+        &self,
+        new_trace: NewKnowledgeRetrievalTrace,
+    ) -> StorageResult<KnowledgeRetrievalTrace> {
+        if new_trace.mode_reason.trim() != new_trace.mode_reason || new_trace.mode_reason.is_empty()
+        {
+            return Err(StorageError::Validation(
+                "knowledge retrieval trace mode_reason is a spec MUST: record why broader retrieval was used or skipped",
+            ));
+        }
+        let trace_id = new_knowledge_id("KRT");
+        let sql = format!(
+            r#"
+            INSERT INTO knowledge_retrieval_traces
+                (trace_id, workspace_id, retrieval_mode, mode_reason,
+                 query_text, bundle_id, decisions, trace_receipt_event_id)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            RETURNING {KNOWLEDGE_TRACE_COLUMNS}
+            "#
+        );
+        let row = sqlx::query(&sql)
+            .bind(&trace_id)
+            .bind(&new_trace.workspace_id)
+            .bind(new_trace.retrieval_mode.as_str())
+            .bind(&new_trace.mode_reason)
+            .bind(&new_trace.query_text)
+            .bind(&new_trace.bundle_id)
+            .bind(&new_trace.decisions)
+            .bind(&new_trace.trace_receipt_event_id)
+            .fetch_one(self.pool())
+            .await?;
+        trace_from_pg(&row)
+    }
+
+    async fn list_knowledge_retrieval_traces_for_bundle(
+        &self,
+        bundle_id: &str,
+    ) -> StorageResult<Vec<KnowledgeRetrievalTrace>> {
+        let sql = format!(
+            "SELECT {KNOWLEDGE_TRACE_COLUMNS} FROM knowledge_retrieval_traces
+             WHERE bundle_id = $1 ORDER BY created_at"
+        );
+        let rows = sqlx::query(&sql)
+            .bind(bundle_id)
+            .fetch_all(self.pool())
+            .await?;
+        rows.iter().map(trace_from_pg).collect()
     }
 }

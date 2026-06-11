@@ -397,3 +397,161 @@ mod mt_059_rich_documents {
         assert!(err.to_string().contains("foreign key"), "got {err}");
     }
 }
+
+// ---------------------------------------------------------------------------
+// MT-060 ContextBundleTables + RetrievalTrace
+// ---------------------------------------------------------------------------
+
+mod mt_060_context_bundles {
+    use super::*;
+    use handshake_core::kernel::context_bundle::ContextBundle;
+    use handshake_core::storage::knowledge::{
+        KnowledgeBundleItemDecision, KnowledgeBundleItemRefKind, KnowledgeRetrievalMode,
+        NewKnowledgeContextBundle, NewKnowledgeContextBundleItem, NewKnowledgeRetrievalTrace,
+    };
+    use handshake_core::storage::StorageError;
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn v1_compatible_bundle_persists_with_items_and_trace() {
+        let Some(pg) = knowledge_pg().await else {
+            eprintln!("SKIP v1_compatible_bundle_persists_with_items_and_trace: no PostgreSQL");
+            return;
+        };
+        let workspace_id = pg.create_workspace().await;
+
+        // Build through the REAL kernel V1 ContextBundle constructor so the
+        // persisted shape is exactly the runtime shape.
+        let allowed_context = json!({
+            "files": ["src/storage/knowledge.rs"],
+            "claims": ["KCL-demo"],
+        });
+        let v1 = ContextBundle::new("KTR-BUNDLE-1", "SR-BUNDLE-1", allowed_context.clone())
+            .expect("kernel V1 context bundle");
+
+        let stored = pg
+            .db
+            .record_knowledge_context_bundle(NewKnowledgeContextBundle {
+                workspace_id: workspace_id.clone(),
+                bundle: v1.clone(),
+                query_text: Some("how does knowledge storage fail closed?".to_string()),
+                token_budget: Some(8192),
+                tokens_used: Some(2048),
+                build_receipt_event_id: None,
+                items: vec![
+                    NewKnowledgeContextBundleItem {
+                        ref_kind: KnowledgeBundleItemRefKind::Source,
+                        ref_id: "KSRC-demo".to_string(),
+                        retrieval_decision: KnowledgeBundleItemDecision::Included,
+                        relevance_score: Some(0.91),
+                        token_count: Some(1024),
+                        citation: Some("src/storage/knowledge.rs#L1-L40".to_string()),
+                    },
+                    NewKnowledgeContextBundleItem {
+                        ref_kind: KnowledgeBundleItemRefKind::Passage,
+                        ref_id: "KMP-demo".to_string(),
+                        retrieval_decision: KnowledgeBundleItemDecision::ExcludedBudget,
+                        relevance_score: Some(0.4),
+                        token_count: Some(4096),
+                        citation: None,
+                    },
+                ],
+            })
+            .await
+            .expect("record bundle");
+        // V1 invariants hold in storage.
+        assert_eq!(stored.bundle_id, v1.context_bundle_id);
+        assert_eq!(stored.context_hash, v1.context_hash);
+        assert_eq!(stored.allowed_context, allowed_context);
+
+        let (reread, items) = pg
+            .db
+            .get_knowledge_context_bundle(&stored.bundle_id)
+            .await
+            .expect("get bundle")
+            .expect("bundle exists");
+        assert_eq!(reread, stored);
+        assert_eq!(items.len(), 2);
+        assert_eq!(
+            items[0].retrieval_decision,
+            KnowledgeBundleItemDecision::Included
+        );
+        assert_eq!(
+            items[1].retrieval_decision,
+            KnowledgeBundleItemDecision::ExcludedBudget
+        );
+
+        // Retrieval trace with mode_reason (spec MUST: why broader retrieval
+        // was used or skipped), linked to the bundle.
+        let trace = pg
+            .db
+            .record_knowledge_retrieval_trace(NewKnowledgeRetrievalTrace {
+                workspace_id: workspace_id.clone(),
+                retrieval_mode: KnowledgeRetrievalMode::ExactLookup,
+                mode_reason: "stable source id was already known; hybrid retrieval skipped"
+                    .to_string(),
+                query_text: Some("KSRC-demo".to_string()),
+                bundle_id: Some(stored.bundle_id.clone()),
+                decisions: json!([{"step": 1, "action": "exact_lookup", "hit": true}]),
+                trace_receipt_event_id: None,
+            })
+            .await
+            .expect("record trace");
+        assert!(trace.trace_id.starts_with("KRT-"));
+
+        let traces = pg
+            .db
+            .list_knowledge_retrieval_traces_for_bundle(&stored.bundle_id)
+            .await
+            .expect("traces for bundle");
+        assert_eq!(traces.len(), 1);
+        assert_eq!(
+            traces[0].retrieval_mode,
+            KnowledgeRetrievalMode::ExactLookup
+        );
+
+        // Empty mode_reason fails closed (typed Validation).
+        let err = pg
+            .db
+            .record_knowledge_retrieval_trace(NewKnowledgeRetrievalTrace {
+                workspace_id: workspace_id.clone(),
+                retrieval_mode: KnowledgeRetrievalMode::HybridRag,
+                mode_reason: "".to_string(),
+                query_text: None,
+                bundle_id: None,
+                decisions: json!([]),
+                trace_receipt_event_id: None,
+            })
+            .await
+            .expect_err("mode_reason is a spec MUST");
+        assert!(matches!(err, StorageError::Validation(_)), "got {err:?}");
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn bundle_id_hash_binding_is_db_enforced() {
+        let Some(pg) = knowledge_pg().await else {
+            eprintln!("SKIP bundle_id_hash_binding_is_db_enforced: no PostgreSQL");
+            return;
+        };
+        let workspace_id = pg.create_workspace().await;
+        let mut conn = pg.raw_connection().await;
+
+        // A bundle id that does not match the content hash prefix violates
+        // the V1 derivation CHECK even when the app layer is bypassed.
+        let err = sqlx::query(
+            "INSERT INTO knowledge_context_bundles
+                 (bundle_id, workspace_id, kernel_task_run_id, session_run_id,
+                  allowed_context, context_hash)
+             VALUES ('CTX-deadbeefdeadbeef', $1, 'KTR-X', 'SR-X', '{}'::jsonb, $2)",
+        )
+        .bind(&workspace_id)
+        .bind(super::sha256_hex(b"different-content"))
+        .execute(&mut conn)
+        .await
+        .expect_err("bundle_id must be derived from context_hash");
+        assert!(
+            err.to_string()
+                .contains("chk_knowledge_context_bundles_id_matches_hash"),
+            "unexpected: {err}"
+        );
+    }
+}
