@@ -304,3 +304,114 @@ mod mt_070_save_semantics {
         ));
     }
 }
+
+mod mt_071_index_run_guard {
+    use super::*;
+    use handshake_core::kernel::crdt::index_run_guard::{
+        claim_index_run_slot, release_index_run_slot, IndexRunSlotOutcomeV1, IndexRunSlotRequestV1,
+    };
+    use handshake_core::storage::knowledge_crdt::list_denial_receipts_for_scope;
+    use uuid::Uuid;
+
+    fn slot_request(
+        ws: &str,
+        root: &str,
+        actor: &KnowledgeActorIdV1,
+        session: &str,
+    ) -> IndexRunSlotRequestV1 {
+        IndexRunSlotRequestV1 {
+            lane_id: format!("lane-{session}"),
+            actor: actor.clone(),
+            session_id: session.to_string(),
+            correlation_id: format!("corr-{session}"),
+            workspace_id: ws.to_string(),
+            source_root_id: root.to_string(),
+            index_run_ref: None,
+            ttl_seconds: 600,
+        }
+    }
+
+    /// Only one active index run per source root; the second claimant gets a
+    /// typed rejection + durable receipt; other roots claim in parallel;
+    /// release frees the slot.
+    #[tokio::test]
+    async fn one_active_run_per_source_root_with_typed_rejection() {
+        let backend = backend_or_blocked().await;
+        let db = backend.database.clone();
+        let pool = backend.postgres_pool.clone();
+        let suffix = Uuid::now_v7().simple().to_string();
+        let ws = format!("ws-mt071-{suffix}");
+        let root_a = format!("KSR-{:032}", 1);
+        let root_b = format!("KSR-{:032}", 2);
+        let indexer_one =
+            KnowledgeActorIdV1::new(KnowledgeActorKind::LocalModel, "indexer-1").expect("actor");
+        let indexer_two =
+            KnowledgeActorIdV1::new(KnowledgeActorKind::LocalModel, "indexer-2").expect("actor");
+
+        // First claim wins.
+        let first = claim_index_run_slot(
+            db.as_ref(),
+            &pool,
+            slot_request(&ws, &root_a, &indexer_one, &format!("sr-one-{suffix}")),
+        )
+        .await
+        .expect("claim flow");
+        let lease_one = match first {
+            IndexRunSlotOutcomeV1::Claimed(lease) => {
+                assert_eq!(lease.scope_ref(), format!("source_root:{root_a}"));
+                lease
+            }
+            other => panic!("first claim must win, got {other:?}"),
+        };
+
+        // Second claimant on the SAME root: typed rejection + receipt.
+        let second = claim_index_run_slot(
+            db.as_ref(),
+            &pool,
+            slot_request(&ws, &root_a, &indexer_two, &format!("sr-two-{suffix}")),
+        )
+        .await
+        .expect("claim flow");
+        match second {
+            IndexRunSlotOutcomeV1::Rejected(rejection) => {
+                assert_eq!(rejection.holder_lease_id, lease_one.lease_id);
+                assert_eq!(rejection.holder_actor_id, indexer_one.canonical());
+                assert!(!rejection.holder_expired_takeover_possible);
+                let receipts = list_denial_receipts_for_scope(
+                    &pool,
+                    &format!("lease_scope:source_root:{root_a}"),
+                )
+                .await
+                .expect("receipts");
+                assert_eq!(receipts.len(), 1);
+                assert_eq!(receipts[0].receipt_kind, "index_run_slot_rejected");
+                assert_eq!(receipts[0].receipt_id, rejection.denial_receipt_id);
+            }
+            other => panic!("second claim must be rejected, got {other:?}"),
+        }
+
+        // A different root partitions safely in parallel.
+        let parallel = claim_index_run_slot(
+            db.as_ref(),
+            &pool,
+            slot_request(&ws, &root_b, &indexer_two, &format!("sr-two-{suffix}")),
+        )
+        .await
+        .expect("claim flow");
+        assert!(matches!(parallel, IndexRunSlotOutcomeV1::Claimed(_)));
+
+        // Release frees the slot for the next indexer.
+        release_index_run_slot(db.as_ref(), &pool, &lease_one.lease_id, &indexer_one)
+            .await
+            .expect("release flow")
+            .expect("lease released");
+        let third = claim_index_run_slot(
+            db.as_ref(),
+            &pool,
+            slot_request(&ws, &root_a, &indexer_two, &format!("sr-two-{suffix}")),
+        )
+        .await
+        .expect("claim flow");
+        assert!(matches!(third, IndexRunSlotOutcomeV1::Claimed(_)));
+    }
+}
