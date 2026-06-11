@@ -864,3 +864,243 @@ pub async fn get_promoted_fact_by_proposal(
     row.map(map_promoted_fact).transpose()
 }
 
+// ---------------------------------------------------------------------------
+// MT-074 AI edit proposals.
+// ---------------------------------------------------------------------------
+
+/// One AI edit proposal (row of `knowledge_crdt_ai_edit_proposals`).
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct AiEditProposalRow {
+    pub proposal_id: String,
+    pub workspace_id: String,
+    pub document_id: String,
+    pub crdt_document_id: String,
+    pub base_update_seq: i64,
+    pub base_state_vector: String,
+    pub proposed_diff: Value,
+    pub diff_sha256: String,
+    pub source_span_citations: Value,
+    pub actor_id: String,
+    pub actor_kind: String,
+    pub session_id: String,
+    pub correlation_id: String,
+    pub lease_id: Option<String>,
+    pub review_state: String,
+    pub decided_by: Option<String>,
+    pub decided_at_utc: Option<DateTime<Utc>>,
+    pub decision_reason: Option<String>,
+    pub recorded_event_id: String,
+    pub decided_event_id: Option<String>,
+    pub promotion_requested_event_id: Option<String>,
+    pub promotion_accepted_event_id: Option<String>,
+    pub created_at_utc: DateTime<Utc>,
+}
+
+const AI_EDIT_PROPOSAL_COLUMNS: &str = r#"
+    proposal_id, workspace_id, document_id, crdt_document_id,
+    base_update_seq, base_state_vector, proposed_diff, diff_sha256,
+    source_span_citations, actor_id, actor_kind, session_id, correlation_id,
+    lease_id, review_state, decided_by, decided_at_utc, decision_reason,
+    recorded_event_id, decided_event_id, promotion_requested_event_id,
+    promotion_accepted_event_id, created_at_utc
+"#;
+
+fn map_ai_edit_proposal(row: sqlx::postgres::PgRow) -> StorageResult<AiEditProposalRow> {
+    Ok(AiEditProposalRow {
+        proposal_id: row.try_get("proposal_id")?,
+        workspace_id: row.try_get("workspace_id")?,
+        document_id: row.try_get("document_id")?,
+        crdt_document_id: row.try_get("crdt_document_id")?,
+        base_update_seq: row.try_get("base_update_seq")?,
+        base_state_vector: row.try_get("base_state_vector")?,
+        proposed_diff: row.try_get("proposed_diff")?,
+        diff_sha256: row.try_get("diff_sha256")?,
+        source_span_citations: row.try_get("source_span_citations")?,
+        actor_id: row.try_get("actor_id")?,
+        actor_kind: row.try_get("actor_kind")?,
+        session_id: row.try_get("session_id")?,
+        correlation_id: row.try_get("correlation_id")?,
+        lease_id: row.try_get("lease_id")?,
+        review_state: row.try_get("review_state")?,
+        decided_by: row.try_get("decided_by")?,
+        decided_at_utc: row.try_get("decided_at_utc")?,
+        decision_reason: row.try_get("decision_reason")?,
+        recorded_event_id: row.try_get("recorded_event_id")?,
+        decided_event_id: row.try_get("decided_event_id")?,
+        promotion_requested_event_id: row.try_get("promotion_requested_event_id")?,
+        promotion_accepted_event_id: row.try_get("promotion_accepted_event_id")?,
+        created_at_utc: row.try_get("created_at_utc")?,
+    })
+}
+
+#[derive(Clone, Debug)]
+pub struct NewAiEditProposal {
+    pub proposal_id: String,
+    pub workspace_id: String,
+    pub document_id: String,
+    pub crdt_document_id: String,
+    pub base_update_seq: i64,
+    pub base_state_vector: String,
+    pub proposed_diff: Value,
+    pub diff_sha256: String,
+    pub source_span_citations: Vec<String>,
+    pub actor_id: String,
+    pub actor_kind: String,
+    pub session_id: String,
+    pub correlation_id: String,
+    pub lease_id: Option<String>,
+    pub recorded_event_id: String,
+}
+
+pub async fn insert_ai_edit_proposal(
+    pool: &PgPool,
+    proposal: NewAiEditProposal,
+) -> StorageResult<AiEditProposalRow> {
+    if proposal.source_span_citations.is_empty()
+        || proposal
+            .source_span_citations
+            .iter()
+            .any(|span| span.trim().is_empty())
+    {
+        return Err(StorageError::Validation(
+            "AI edit proposal requires at least one non-empty source span citation",
+        ));
+    }
+    let row = sqlx::query(&format!(
+        r#"
+        INSERT INTO knowledge_crdt_ai_edit_proposals (
+            proposal_id, workspace_id, document_id, crdt_document_id,
+            base_update_seq, base_state_vector, proposed_diff, diff_sha256,
+            source_span_citations, actor_id, actor_kind, session_id,
+            correlation_id, lease_id, recorded_event_id
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+        RETURNING {AI_EDIT_PROPOSAL_COLUMNS}
+        "#
+    ))
+    .bind(&proposal.proposal_id)
+    .bind(&proposal.workspace_id)
+    .bind(&proposal.document_id)
+    .bind(&proposal.crdt_document_id)
+    .bind(proposal.base_update_seq)
+    .bind(&proposal.base_state_vector)
+    .bind(&proposal.proposed_diff)
+    .bind(&proposal.diff_sha256)
+    .bind(serde_json::json!(proposal.source_span_citations))
+    .bind(&proposal.actor_id)
+    .bind(&proposal.actor_kind)
+    .bind(&proposal.session_id)
+    .bind(&proposal.correlation_id)
+    .bind(&proposal.lease_id)
+    .bind(&proposal.recorded_event_id)
+    .fetch_one(pool)
+    .await?;
+    map_ai_edit_proposal(row)
+}
+
+pub async fn get_ai_edit_proposal(
+    pool: &PgPool,
+    proposal_id: &str,
+) -> StorageResult<Option<AiEditProposalRow>> {
+    let row = sqlx::query(&format!(
+        "SELECT {AI_EDIT_PROPOSAL_COLUMNS} FROM knowledge_crdt_ai_edit_proposals WHERE proposal_id = $1"
+    ))
+    .bind(proposal_id)
+    .fetch_optional(pool)
+    .await?;
+    row.map(map_ai_edit_proposal).transpose()
+}
+
+pub async fn list_ai_edit_proposals_for_document(
+    pool: &PgPool,
+    crdt_document_id: &str,
+    review_state: Option<&str>,
+) -> StorageResult<Vec<AiEditProposalRow>> {
+    let rows = match review_state {
+        Some(state) => {
+            sqlx::query(&format!(
+                r#"
+                SELECT {AI_EDIT_PROPOSAL_COLUMNS} FROM knowledge_crdt_ai_edit_proposals
+                WHERE crdt_document_id = $1 AND review_state = $2
+                ORDER BY created_at_utc ASC, proposal_id ASC
+                "#
+            ))
+            .bind(crdt_document_id)
+            .bind(state)
+            .fetch_all(pool)
+            .await?
+        }
+        None => {
+            sqlx::query(&format!(
+                r#"
+                SELECT {AI_EDIT_PROPOSAL_COLUMNS} FROM knowledge_crdt_ai_edit_proposals
+                WHERE crdt_document_id = $1
+                ORDER BY created_at_utc ASC, proposal_id ASC
+                "#
+            ))
+            .bind(crdt_document_id)
+            .fetch_all(pool)
+            .await?
+        }
+    };
+    rows.into_iter().map(map_ai_edit_proposal).collect()
+}
+
+/// Atomic review decision: proposed -> approved|rejected (no lost updates).
+pub async fn decide_ai_edit_proposal(
+    pool: &PgPool,
+    proposal_id: &str,
+    new_state: &str,
+    decided_by: &str,
+    decision_reason: &str,
+    decided_event_id: &str,
+) -> StorageResult<Option<AiEditProposalRow>> {
+    if !matches!(new_state, "approved" | "rejected") {
+        return Err(StorageError::Validation(
+            "AI edit proposal decision must be approved or rejected",
+        ));
+    }
+    let row = sqlx::query(&format!(
+        r#"
+        UPDATE knowledge_crdt_ai_edit_proposals
+        SET review_state = $2, decided_by = $3, decided_at_utc = NOW(),
+            decision_reason = $4, decided_event_id = $5
+        WHERE proposal_id = $1 AND review_state = 'proposed'
+        RETURNING {AI_EDIT_PROPOSAL_COLUMNS}
+        "#
+    ))
+    .bind(proposal_id)
+    .bind(new_state)
+    .bind(decided_by)
+    .bind(decision_reason)
+    .bind(decided_event_id)
+    .fetch_optional(pool)
+    .await?;
+    row.map(map_ai_edit_proposal).transpose()
+}
+
+/// approved -> promoted with the EventLedger promotion pair (atomic guard).
+pub async fn mark_ai_edit_proposal_promoted(
+    pool: &PgPool,
+    proposal_id: &str,
+    promotion_requested_event_id: &str,
+    promotion_accepted_event_id: &str,
+) -> StorageResult<Option<AiEditProposalRow>> {
+    let row = sqlx::query(&format!(
+        r#"
+        UPDATE knowledge_crdt_ai_edit_proposals
+        SET review_state = 'promoted',
+            promotion_requested_event_id = $2,
+            promotion_accepted_event_id = $3
+        WHERE proposal_id = $1 AND review_state = 'approved'
+        RETURNING {AI_EDIT_PROPOSAL_COLUMNS}
+        "#
+    ))
+    .bind(proposal_id)
+    .bind(promotion_requested_event_id)
+    .bind(promotion_accepted_event_id)
+    .fetch_optional(pool)
+    .await?;
+    row.map(map_ai_edit_proposal).transpose()
+}
+

@@ -437,3 +437,258 @@ mod mt_069_claim_promotion {
         ));
     }
 }
+
+mod mt_074_ai_edit_proposals {
+    use super::*;
+    use handshake_core::kernel::crdt::ai_edit_proposal::{
+        decide_ai_edit_proposal, promote_ai_edit_proposal, record_ai_edit_proposal,
+        validate_ai_edit_proposal_request, AiEditPromotionDenialReasonV1, AiEditPromotionOutcomeV1,
+        AiEditProposalRequestV1, AiEditProposalValidationError,
+    };
+    use handshake_core::kernel::KernelEventType;
+    use handshake_core::storage::knowledge_crdt::list_denial_receipts_for_scope;
+    use serde_json::json;
+    use uuid::Uuid;
+
+    fn request(
+        ws: &str,
+        doc: &str,
+        crdt_doc: &str,
+        actor: &KnowledgeActorIdV1,
+        lease_id: Option<String>,
+    ) -> AiEditProposalRequestV1 {
+        AiEditProposalRequestV1 {
+            workspace_id: ws.to_string(),
+            document_id: doc.to_string(),
+            crdt_document_id: crdt_doc.to_string(),
+            base_update_seq: 4,
+            base_state_vector: "hsk-sv1:site-aaaa=4".to_string(),
+            proposed_diff: json!({
+                "diff_kind": "prosemirror_steps_v1",
+                "steps": [
+                    {"stepType": "replace", "from": 12, "to": 18,
+                     "slice": {"content": [{"type": "text", "text": "port 5544"}]}}
+                ]
+            }),
+            source_span_citations: vec![format!("KSP-{:032x}", 0xc1c1u32)],
+            actor: actor.clone(),
+            session_id: "sr-mt074".to_string(),
+            correlation_id: "corr-mt074".to_string(),
+            lease_id,
+        }
+    }
+
+    #[test]
+    fn validation_pins_model_actor_lease_and_citations() {
+        let model =
+            KnowledgeActorIdV1::new(KnowledgeActorKind::LocalModel, "edit-lm").expect("actor");
+        let operator = KnowledgeActorIdV1::new(KnowledgeActorKind::Operator, "op").expect("actor");
+
+        // Operator actors cannot file AI edit proposals.
+        assert!(
+            validate_ai_edit_proposal_request(&request("ws", "doc", "crdt", &operator, None))
+                .expect_err("operator proposer must fail")
+                .iter()
+                .any(|error| matches!(error, AiEditProposalValidationError::ActorNotModel { .. }))
+        );
+
+        // Model without a lease fails (MT-041 seed).
+        assert!(
+            validate_ai_edit_proposal_request(&request("ws", "doc", "crdt", &model, None))
+                .expect_err("unleased model must fail")
+                .iter()
+                .any(|error| matches!(
+                    error,
+                    AiEditProposalValidationError::ModelActorWithoutLease { .. }
+                ))
+        );
+
+        // Citations are mandatory.
+        let mut uncited = request("ws", "doc", "crdt", &model, Some("lease".to_string()));
+        uncited.source_span_citations.clear();
+        assert!(validate_ai_edit_proposal_request(&uncited)
+            .expect_err("no citations must fail")
+            .iter()
+            .any(|error| matches!(error, AiEditProposalValidationError::NoCitations)));
+    }
+
+    /// Full review flow on PostgreSQL: proposed -> approved -> promoted with
+    /// the EventLedger pair; rejected proposals deny promotion durably.
+    #[tokio::test]
+    async fn review_flow_promotes_approved_and_denies_rejected_durably() {
+        let backend = backend_or_blocked().await;
+        let db = backend.database.clone();
+        let pool = backend.postgres_pool.clone();
+        let suffix = Uuid::now_v7().simple().to_string();
+        let ws = format!("ws-mt074-{suffix}");
+        let doc = format!("doc-mt074-{suffix}");
+        let crdt_doc = format!("crdt-mt074-{suffix}");
+        let model =
+            KnowledgeActorIdV1::new(KnowledgeActorKind::CloudModel, "edit-cm").expect("actor");
+        let operator = KnowledgeActorIdV1::new(KnowledgeActorKind::Operator, "op").expect("actor");
+        let lease_id = model_lease(&backend, &model, &ws, &format!("sr-mt074-{suffix}")).await;
+
+        // Record.
+        let proposal = record_ai_edit_proposal(
+            db.as_ref(),
+            &pool,
+            request(&ws, &doc, &crdt_doc, &model, Some(lease_id.clone())),
+        )
+        .await
+        .expect("record flow")
+        .expect("valid proposal");
+        assert_eq!(proposal.review_state, "proposed");
+        assert_eq!(proposal.actor_id, model.canonical());
+        assert_eq!(proposal.diff_sha256.len(), 64);
+
+        let events = db
+            .list_kernel_events_for_aggregate("knowledge_ai_edit_proposal", &proposal.proposal_id)
+            .await
+            .expect("events");
+        assert!(events
+            .iter()
+            .any(|event| event.event_type == KernelEventType::AiEditProposalRecorded));
+
+        // Promoting a pending proposal is denied durably.
+        let premature = promote_ai_edit_proposal(
+            db.as_ref(),
+            &pool,
+            &proposal.proposal_id,
+            &operator,
+            "sr-gate",
+            "corr-gate",
+        )
+        .await
+        .expect("promotion flow");
+        let premature_denial = match premature {
+            AiEditPromotionOutcomeV1::Denied(denial) => denial,
+            other => panic!("expected denial, got {other:?}"),
+        };
+        assert!(matches!(
+            premature_denial.reason,
+            AiEditPromotionDenialReasonV1::NotApproved { ref current_state } if current_state == "proposed"
+        ));
+
+        // Operator approves; decision event lands.
+        let approved = decide_ai_edit_proposal(
+            db.as_ref(),
+            &pool,
+            &proposal.proposal_id,
+            true,
+            &operator,
+            "sr-review",
+            "diff verified against citations",
+        )
+        .await
+        .expect("decide flow")
+        .expect("approved");
+        assert_eq!(approved.review_state, "approved");
+        let events = db
+            .list_kernel_events_for_aggregate("knowledge_ai_edit_proposal", &proposal.proposal_id)
+            .await
+            .expect("events");
+        assert!(events
+            .iter()
+            .any(|event| event.event_type == KernelEventType::AiEditProposalDecided));
+
+        // Promotion lands the pair and stamps the row.
+        let promoted = promote_ai_edit_proposal(
+            db.as_ref(),
+            &pool,
+            &proposal.proposal_id,
+            &operator,
+            "sr-gate",
+            "corr-gate",
+        )
+        .await
+        .expect("promotion flow");
+        let promoted_row = match promoted {
+            AiEditPromotionOutcomeV1::Promoted(row) => row,
+            other => panic!("expected promotion, got {other:?}"),
+        };
+        assert_eq!(promoted_row.review_state, "promoted");
+        assert!(promoted_row.promotion_requested_event_id.is_some());
+        assert!(promoted_row.promotion_accepted_event_id.is_some());
+
+        // Idempotent replay.
+        let replay = promote_ai_edit_proposal(
+            db.as_ref(),
+            &pool,
+            &proposal.proposal_id,
+            &operator,
+            "sr-gate",
+            "corr-gate",
+        )
+        .await
+        .expect("promotion flow");
+        assert!(matches!(
+            replay,
+            AiEditPromotionOutcomeV1::AlreadyPromoted(_)
+        ));
+
+        // Rejection path: a second proposal is rejected; its promotion is
+        // denied with a durable receipt.
+        let rejected = record_ai_edit_proposal(
+            db.as_ref(),
+            &pool,
+            request(&ws, &doc, &crdt_doc, &model, Some(lease_id)),
+        )
+        .await
+        .expect("record flow")
+        .expect("valid proposal");
+        decide_ai_edit_proposal(
+            db.as_ref(),
+            &pool,
+            &rejected.proposal_id,
+            false,
+            &operator,
+            "sr-review",
+            "diff contradicts cited spans",
+        )
+        .await
+        .expect("decide flow")
+        .expect("rejected");
+
+        let denied = promote_ai_edit_proposal(
+            db.as_ref(),
+            &pool,
+            &rejected.proposal_id,
+            &operator,
+            "sr-gate",
+            "corr-gate",
+        )
+        .await
+        .expect("promotion flow");
+        let denial = match denied {
+            AiEditPromotionOutcomeV1::Denied(denial) => denial,
+            other => panic!("expected denial, got {other:?}"),
+        };
+        let receipts =
+            list_denial_receipts_for_scope(&pool, &format!("proposal:{}", rejected.proposal_id))
+                .await
+                .expect("receipts");
+        assert!(receipts
+            .iter()
+            .any(|receipt| receipt.receipt_id == denial.denial_receipt_id
+                && receipt.receipt_kind == "ai_edit_promotion_denied"));
+
+        // The DB CHECK keeps models out of the reviewer column.
+        let rogue_review = sqlx::query(
+            r#"
+            UPDATE knowledge_crdt_ai_edit_proposals
+            SET review_state = 'approved', decided_by = 'local_model:rogue',
+                decided_at_utc = NOW(), decision_reason = 'self-approve',
+                decided_event_id = $2
+            WHERE proposal_id = $1
+            "#,
+        )
+        .bind(&rejected.proposal_id)
+        .bind(&rejected.recorded_event_id)
+        .execute(&pool)
+        .await;
+        assert!(
+            rogue_review.is_err(),
+            "model reviewer must be refused by CHECK"
+        );
+    }
+}
