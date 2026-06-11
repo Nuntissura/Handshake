@@ -16,6 +16,7 @@
     "check:worker-bundling": "node scripts/check-worker-bundling.mjs",
     "generate:third-party-notices": "node scripts/generate-third-party-notices.mjs",
     "check:third-party-notices": "node scripts/generate-third-party-notices.mjs --check",
+    "check:dependency-policy": "node scripts/check-dependency-policy.mjs",
     "lint": "eslint src --ext .ts,.tsx",
     "depcruise": "dependency-cruiser --config .dependency-cruiser.cjs src",
     "screenshot:capture": "node scripts/handshake-screenshot-capture.mjs"

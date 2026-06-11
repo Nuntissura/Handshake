@@ -100,9 +100,11 @@ function diffSnapshots(before, after) {
 
 function runBuild(scriptName) {
   process.stderr.write(`[worker-bundling] running pnpm run ${scriptName}\n`);
+  // Build output goes to STDERR (fd 2): this script's stdout contract is ONE
+  // JSON summary object, and the MT-032 hook parses it programmatically.
   const result = spawnSync("pnpm", ["run", scriptName], {
     cwd: appDir,
-    stdio: ["ignore", "inherit", "inherit"],
+    stdio: ["ignore", 2, 2],
     shell: process.platform === "win32",
   });
   if (result.status !== 0) {
