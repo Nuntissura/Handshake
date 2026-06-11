@@ -439,6 +439,25 @@ mod tests {
     }
 
     #[test]
+    fn every_span_extracting_text_kind_enables_secret_scan() {
+        // MT-082 #9 invariant: any kind that produces span content from
+        // text-decodable bytes MUST run the MT-091 secret preflight, or raw
+        // secret bytes could reach knowledge_ingestion_spans.content. Every
+        // span-extracting kind in the registry is text-decodable (PDF text,
+        // transcript cues, JSON, markdown, code, rich-doc JSON), so the
+        // invariant is simply span_extraction => secret_scan.
+        for spec in registry() {
+            if spec.capabilities.span_extraction {
+                assert!(
+                    spec.capabilities.secret_scan,
+                    "{} extracts spans but skips the secret preflight",
+                    spec.kind_key
+                );
+            }
+        }
+    }
+
+    #[test]
     fn kind_keys_round_trip_through_from_str() {
         for spec in registry() {
             let parsed: IngestionSourceKind = spec.kind_key.parse().expect("parse kind key");

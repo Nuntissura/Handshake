@@ -37,6 +37,14 @@ pub const DEFAULT_DENY_PATTERNS: &[&str] = &[
     "**/node_modules/**",
     "**/target/**",
     "Handshake_Artifacts/managed_pgdata/**",
+    // MT-091 #10: secret-bearing file shapes that must never be index roots
+    // even when nested under an otherwise-allowed tree (dotenv files, private
+    // keys, SSH identities, cloud-credential and registry-auth stores).
+    "**/.env*",
+    "**/*.pem",
+    "**/id_rsa*",
+    "**/.aws/**",
+    "**/.npmrc",
 ];
 
 /// Typed workspace policy for root registration (MT-081).
@@ -240,6 +248,15 @@ mod tests {
             "app/node_modules/x",
             "src/backend/target/debug",
             "Handshake_Artifacts/managed_pgdata/base",
+            // MT-091 #10 secret-bearing file shapes.
+            ".env",
+            "app/.env.local",
+            "deploy/.env.production",
+            "certs/server.pem",
+            "keys/id_rsa",
+            "keys/id_rsa.pub",
+            "home/.aws/credentials",
+            "project/.npmrc",
         ] {
             let verdict = policy.evaluate(denied, KnowledgeRootKind::ProjectRepo, false);
             assert_eq!(
@@ -251,6 +268,12 @@ mod tests {
         }
         let allowed = policy.evaluate("src/backend", KnowledgeRootKind::ProjectRepo, false);
         assert!(allowed.kind.is_allowed());
+        // A file legitimately named `environment.rs` must NOT be caught by the
+        // `.env*` shape (deny is anchored at the path-segment dot).
+        assert!(policy
+            .evaluate("src/environment.rs", KnowledgeRootKind::ProjectRepo, false)
+            .kind
+            .is_allowed());
     }
 
     #[test]

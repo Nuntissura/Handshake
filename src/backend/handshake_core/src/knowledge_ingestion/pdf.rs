@@ -44,9 +44,15 @@ pub struct PdfPageAnalysis {
 }
 
 impl PdfPageAnalysis {
-    /// The page carries a usable text layer.
+    /// The page carries a usable, VISIBLE text layer (MT-086 #6): visible
+    /// text-show operators present, at least `MIN_TEXT_LAYER_CHARS`
+    /// non-whitespace characters extracted, and no decode/extraction error.
+    /// Pages whose only text is invisible (`Tr 3`) or below the minimum are
+    /// treated as image-only / no-text and routed to the OCR-needed path.
     pub fn has_text_layer(&self) -> bool {
-        self.has_text_operators && self.extracted_chars > 0 && self.error.is_none()
+        self.has_text_operators
+            && self.extracted_chars >= MIN_TEXT_LAYER_CHARS
+            && self.error.is_none()
     }
 }
 
@@ -100,6 +106,57 @@ pub struct PdfAnalysisError {
 }
 
 const TEXT_SHOW_OPERATORS: &[&str] = &["Tj", "TJ", "'", "\""];
+
+/// Minimum non-whitespace characters a page must yield to count as a real
+/// text layer (MT-086 #6). A page whose only "text" is a stray invisible or
+/// sub-glyph operator producing one or two characters is treated as
+/// image-only / no-text rather than a usable layer.
+const MIN_TEXT_LAYER_CHARS: usize = 3;
+
+/// PDF text render mode 3 = "invisible" (`<n> Tr` with n == 3). Text drawn in
+/// this mode is not visible to a reader and is a classic OCR-overlay / hidden
+/// watermark shape; we do not count it as a usable text layer.
+const TEXT_RENDER_MODE_INVISIBLE: i64 = 3;
+
+/// Run a closure that calls into lopdf, converting any panic raised inside
+/// the parser into a typed error instead of aborting the whole ingestion pass
+/// (MT-086/087 #5). One poison PDF degrades to one failed file.
+///
+/// The process-global panic hook is intentionally NOT swapped here: doing so
+/// races other threads in a parallel runtime. `catch_unwind` still stops the
+/// unwind at this boundary; the default hook may print a backtrace, which is
+/// harmless noise.
+fn guard_lopdf<T>(
+    what: &str,
+    f: impl FnOnce() -> Result<T, PdfAnalysisError>,
+) -> Result<T, PdfAnalysisError> {
+    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(f)) {
+        Ok(inner) => inner,
+        Err(payload) => Err(PdfAnalysisError {
+            class: IngestionErrorClass::Internal,
+            detail: format!("lopdf panicked during {what}: {}", panic_message(&payload)),
+        }),
+    }
+}
+
+fn panic_message(payload: &(dyn std::any::Any + Send)) -> String {
+    if let Some(s) = payload.downcast_ref::<&str>() {
+        (*s).to_string()
+    } else if let Some(s) = payload.downcast_ref::<String>() {
+        s.clone()
+    } else {
+        "non-string panic payload".to_string()
+    }
+}
+
+/// Read a PDF numeric operand (integer or real) as an i64 for render-mode
+/// comparison. Returns `None` for non-numeric operands.
+fn object_as_i64(object: &Object) -> Option<i64> {
+    object
+        .as_i64()
+        .ok()
+        .or_else(|| object.as_float().ok().map(|f| f as i64))
+}
 
 fn object_is_image(doc: &Document, object: &Object) -> bool {
     let resolved = match object {
@@ -157,7 +214,15 @@ fn load_document(bytes: &[u8]) -> Result<Document, PdfAnalysisError> {
 }
 
 /// MT-086: analyze whether the PDF carries a text layer, per page.
+///
+/// A panic raised inside lopdf (crafted/malformed PDF) is caught and returned
+/// as a typed `INTERNAL` error so one poison file degrades to one failed file
+/// instead of aborting the whole ingestion pass (MT-086/087 #5).
 pub fn analyze_text_layer(bytes: &[u8]) -> Result<PdfTextLayerReport, PdfAnalysisError> {
+    guard_lopdf("analyze_text_layer", || analyze_text_layer_inner(bytes))
+}
+
+fn analyze_text_layer_inner(bytes: &[u8]) -> Result<PdfTextLayerReport, PdfAnalysisError> {
     let doc = load_document(bytes)?;
     let pages = doc.get_pages();
     if pages.is_empty() {
@@ -180,14 +245,33 @@ pub fn analyze_text_layer(bytes: &[u8]) -> Result<PdfTextLayerReport, PdfAnalysi
         match doc.get_page_content(page_id) {
             Ok(content_bytes) => match Content::decode(&content_bytes) {
                 Ok(content) => {
-                    analysis.has_text_operators = content
-                        .operations
-                        .iter()
-                        .any(|op| TEXT_SHOW_OPERATORS.contains(&op.operator.as_str()));
-                    // Inline images (BI/ID/EI) count as image content, not text.
-                    if content.operations.iter().any(|op| op.operator == "BI") {
-                        analysis.has_images = true;
+                    // Track text render mode (`<n> Tr`): a text-show operator
+                    // only proves a VISIBLE text layer when the current mode is
+                    // not 3 (invisible). MT-086 #6.
+                    let mut render_mode: i64 = 0;
+                    let mut has_visible_text = false;
+                    for op in &content.operations {
+                        match op.operator.as_str() {
+                            "Tr" => {
+                                if let Some(mode) = op
+                                    .operands
+                                    .first()
+                                    .and_then(|o| object_as_i64(o))
+                                {
+                                    render_mode = mode;
+                                }
+                            }
+                            other if TEXT_SHOW_OPERATORS.contains(&other) => {
+                                if render_mode != TEXT_RENDER_MODE_INVISIBLE {
+                                    has_visible_text = true;
+                                }
+                            }
+                            // Inline images (BI/ID/EI) are image content.
+                            "BI" => analysis.has_images = true,
+                            _ => {}
+                        }
                     }
+                    analysis.has_text_operators = has_visible_text;
                 }
                 Err(err) => analysis.error = Some(format!("content decode: {err}")),
             },
@@ -264,7 +348,11 @@ impl PdfExtraction {
 /// * Some pages without text -> Ok with `failed_pages` populated; the
 ///   caller MUST write a `partial` receipt.
 pub fn extract_pdf_text(bytes: &[u8]) -> Result<PdfExtraction, PdfAnalysisError> {
-    let report = analyze_text_layer(bytes)?;
+    guard_lopdf("extract_pdf_text", || extract_pdf_text_inner(bytes))
+}
+
+fn extract_pdf_text_inner(bytes: &[u8]) -> Result<PdfExtraction, PdfAnalysisError> {
+    let report = analyze_text_layer_inner(bytes)?;
     if report.pages_with_text == 0 {
         let class = IngestionErrorClass::NoTextLayer;
         return Err(PdfAnalysisError {
@@ -344,6 +432,10 @@ pub mod fixtures {
         ImageOnly,
         /// A page with neither text nor images.
         Blank,
+        /// An image-only page that ALSO carries an invisible text operator
+        /// (`3 Tr` then a tiny `Tj`) — the OCR-overlay / hidden-text shape.
+        /// MT-086 #6: invisible text must NOT count as a usable text layer.
+        ImageOnlyWithInvisibleText(String),
     }
 
     /// Build a real PDF with the given pages and return its bytes.
@@ -416,6 +508,54 @@ pub mod fixtures {
                         ops,
                     )
                 }
+                FixturePage::ImageOnlyWithInvisibleText(hidden) => {
+                    // Same 2x2 image as ImageOnly, plus an INVISIBLE text run
+                    // (`3 Tr` before the Tj). A reader sees only the image; a
+                    // naive text-operator check would wrongly call this a text
+                    // layer. MT-086 #6.
+                    let image_stream = Stream::new(
+                        dictionary! {
+                            "Type" => "XObject",
+                            "Subtype" => "Image",
+                            "Width" => 2,
+                            "Height" => 2,
+                            "ColorSpace" => "DeviceRGB",
+                            "BitsPerComponent" => 8,
+                        },
+                        vec![255, 0, 0, 0, 255, 0, 0, 0, 255, 255, 255, 0],
+                    );
+                    let image_id = doc.add_object(image_stream);
+                    let ops = vec![
+                        Operation::new("q", vec![]),
+                        Operation::new(
+                            "cm",
+                            vec![
+                                200.into(),
+                                0.into(),
+                                0.into(),
+                                200.into(),
+                                100.into(),
+                                500.into(),
+                            ],
+                        ),
+                        Operation::new("Do", vec!["Im0".into()]),
+                        Operation::new("Q", vec![]),
+                        Operation::new("BT", vec![]),
+                        Operation::new("Tf", vec!["F1".into(), 12.into()]),
+                        Operation::new("Td", vec![72.into(), 700.into()]),
+                        // Render mode 3 = invisible.
+                        Operation::new("Tr", vec![3.into()]),
+                        Operation::new("Tj", vec![Object::string_literal(hidden.clone())]),
+                        Operation::new("ET", vec![]),
+                    ];
+                    (
+                        dictionary! {
+                            "Font" => dictionary! { "F1" => font_id },
+                            "XObject" => dictionary! { "Im0" => image_id },
+                        },
+                        ops,
+                    )
+                }
                 FixturePage::Blank => (dictionary! {}, vec![]),
             };
 
@@ -467,6 +607,15 @@ pub mod fixtures {
     /// Image-only (scanned-document shape) PDF.
     pub fn image_only_pdf(page_count: usize) -> Vec<u8> {
         build_pdf(&vec![FixturePage::ImageOnly; page_count])
+    }
+
+    /// Single-page image-only PDF with an INVISIBLE text run (`3 Tr`).
+    /// MT-086 #6 fixture: a naive text-operator check would mis-classify this
+    /// as a text layer; the detector must call it NO_TEXT_LAYER.
+    pub fn invisible_text_pdf(hidden_text: &str) -> Vec<u8> {
+        build_pdf(&[FixturePage::ImageOnlyWithInvisibleText(
+            hidden_text.to_string(),
+        )])
     }
 }
 
@@ -534,6 +683,60 @@ mod tests {
     fn garbage_bytes_fail_typed_parse_error() {
         let err = analyze_text_layer(b"this is not a pdf at all").expect_err("garbage");
         assert_eq!(err.class, IngestionErrorClass::ParseError);
+    }
+
+    #[test]
+    fn truncated_pdf_header_fails_typed_not_panic() {
+        // A PDF magic header followed by truncated garbage: must return a
+        // typed error, never unwind (MT-086/087 #5).
+        let bytes = b"%PDF-1.5\n1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendo";
+        let result = analyze_text_layer(bytes);
+        assert!(result.is_err(), "truncated PDF must be a typed error");
+        let extract = extract_pdf_text(bytes);
+        assert!(extract.is_err());
+    }
+
+    #[test]
+    fn guard_lopdf_converts_panic_to_typed_internal_error() {
+        // MT-086/087 #5: a panic inside the lopdf-calling closure degrades to
+        // one typed failed file, it does NOT abort the process.
+        let err = guard_lopdf::<()>("unit_panic", || {
+            panic!("simulated lopdf parser panic");
+        })
+        .expect_err("panic must become a typed error");
+        assert_eq!(err.class, IngestionErrorClass::Internal);
+        assert!(err.detail.contains("panicked"));
+        // The happy path still returns its value through the guard.
+        let ok = guard_lopdf("unit_ok", || Ok::<u8, PdfAnalysisError>(7)).expect("ok path");
+        assert_eq!(ok, 7);
+    }
+
+    #[test]
+    fn invisible_text_pdf_is_not_a_text_layer() {
+        // MT-086 #6: image-only page whose only text is invisible (`3 Tr`).
+        let bytes = super::fixtures::invisible_text_pdf("hidden overlay words here");
+        let report = analyze_text_layer(&bytes).expect("analyze");
+        assert_eq!(
+            report.verdict,
+            PdfTextLayerVerdict::NoTextLayer,
+            "invisible text must not count as a text layer: {:?}",
+            report.pages
+        );
+        assert!(report.pages.iter().all(|p| !p.has_text_layer()));
+        // It carries the image, so it is OCR-needed, not blank.
+        assert_eq!(report.image_only_pages, 1);
+
+        let err = extract_pdf_text(&bytes).expect_err("must not empty-succeed");
+        assert_eq!(err.class, IngestionErrorClass::NoTextLayer);
+    }
+
+    #[test]
+    fn tiny_text_below_minimum_is_not_a_text_layer() {
+        // A page with a visible but sub-minimum text run (< MIN_TEXT_LAYER_CHARS
+        // non-whitespace chars) is not a usable layer. MT-086 #6.
+        let bytes = build_pdf(&[FixturePage::Text("a".to_string())]);
+        let report = analyze_text_layer(&bytes).expect("analyze");
+        assert_eq!(report.verdict, PdfTextLayerVerdict::NoTextLayer);
     }
 
     #[test]

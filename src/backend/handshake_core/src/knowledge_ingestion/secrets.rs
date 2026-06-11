@@ -30,11 +30,22 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "snake_case")]
 pub enum SecretKind {
     PrivateKeyBlock,
+    /// A PEM-shaped key block whose label is not a standard PRIVATE KEY
+    /// label (e.g. `-----BEGIN OPENSSH KEY-----`, vendor key blocks).
+    NonPemLabelKeyBlock,
+    /// A standalone high-entropy base64 blob with no PEM header — the body of
+    /// a private key pasted without its armor (heuristic: length + charset +
+    /// entropy on a standalone line).
+    HeaderlessKeyBlob,
     AwsAccessKeyId,
     AwsSecretAssignment,
     ConnectionStringCredentials,
     GithubToken,
+    /// Fine-grained GitHub personal access token (`github_pat_...`).
+    GithubFineGrainedPat,
     SlackToken,
+    /// Slack app-level token (`xapp-...`).
+    SlackAppToken,
     GoogleApiKey,
     JsonWebToken,
     GenericHighEntropyAssignment,
@@ -44,11 +55,15 @@ impl SecretKind {
     pub fn as_str(&self) -> &'static str {
         match self {
             Self::PrivateKeyBlock => "private_key_block",
+            Self::NonPemLabelKeyBlock => "non_pem_label_key_block",
+            Self::HeaderlessKeyBlob => "headerless_key_blob",
             Self::AwsAccessKeyId => "aws_access_key_id",
             Self::AwsSecretAssignment => "aws_secret_assignment",
             Self::ConnectionStringCredentials => "connection_string_credentials",
             Self::GithubToken => "github_token",
+            Self::GithubFineGrainedPat => "github_fine_grained_pat",
             Self::SlackToken => "slack_token",
+            Self::SlackAppToken => "slack_app_token",
             Self::GoogleApiKey => "google_api_key",
             Self::JsonWebToken => "json_web_token",
             Self::GenericHighEntropyAssignment => "generic_high_entropy_assignment",
@@ -58,7 +73,11 @@ impl SecretKind {
     /// HIGH severity blocks the whole file; MEDIUM redacts regions.
     pub fn severity(&self) -> SecretSeverity {
         match self {
+            // Key material in any shape (armored, alternately-labelled, or a
+            // bare high-entropy blob) is the highest-impact leak: block.
             Self::PrivateKeyBlock
+            | Self::NonPemLabelKeyBlock
+            | Self::HeaderlessKeyBlob
             | Self::AwsAccessKeyId
             | Self::AwsSecretAssignment
             | Self::ConnectionStringCredentials => SecretSeverity::High,
@@ -133,8 +152,30 @@ static CONNECTION_STRING: Lazy<Regex> = Lazy::new(|| {
 });
 static GITHUB_TOKEN: Lazy<Regex> =
     Lazy::new(|| Regex::new(r"\bgh[pousr]_[A-Za-z0-9]{36,255}\b").expect("github token regex"));
+// Fine-grained PAT: `github_pat_` + 22 base62 + `_` + 59 base62 (GitHub's
+// documented shape). Matched before the classic `ghp_` rule so the longer,
+// more specific token wins.
+static GITHUB_FINE_GRAINED_PAT: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(r"\bgithub_pat_[A-Za-z0-9]{22}_[A-Za-z0-9]{59}\b")
+        .expect("github fine-grained pat regex")
+});
 static SLACK_TOKEN: Lazy<Regex> =
     Lazy::new(|| Regex::new(r"\bxox[baprs]-[0-9A-Za-z-]{10,}\b").expect("slack token regex"));
+// Slack app-level token: `xapp-` + version digit + `-` + alnum/`-` body.
+static SLACK_APP_TOKEN: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(r"\bxapp-[0-9]-[0-9A-Za-z-]{10,}\b").expect("slack app token regex")
+});
+// Alternately-labelled key block: any PEM-armored `BEGIN ... KEY` block whose
+// label is NOT a standard PRIVATE KEY label already covered by PRIVATE_KEY
+// (e.g. `OPENSSH PRIVATE KEY` without the explicit prefix-form, vendor key
+// labels). The PRIVATE_KEY rule runs first; merge logic drops the overlap so
+// a single block is never double-counted.
+static NON_PEM_LABEL_KEY_BLOCK: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(
+        r"-----BEGIN [A-Z0-9 ]*KEY(?: BLOCK)?-----(?s:.*?)(?:-----END [A-Z0-9 ]*KEY(?: BLOCK)?-----|\z)",
+    )
+    .expect("non-pem-label key block regex")
+});
 static GOOGLE_API_KEY: Lazy<Regex> =
     Lazy::new(|| Regex::new(r"\bAIza[0-9A-Za-z_-]{35}\b").expect("google api key regex"));
 static JWT: Lazy<Regex> = Lazy::new(|| {
@@ -149,9 +190,16 @@ static GENERIC_ASSIGNMENT: Lazy<Regex> = Lazy::new(|| {
 });
 
 const PATTERNS: &[PatternSpec] = &[
+    // PRIVATE_KEY before NON_PEM_LABEL_KEY_BLOCK: on a standard private-key
+    // block both match the same region; scan_text's overlap merge keeps the
+    // FIRST-inserted kind, so the specific `private_key_block` wins.
     PatternSpec {
         kind: SecretKind::PrivateKeyBlock,
         regex: &PRIVATE_KEY,
+    },
+    PatternSpec {
+        kind: SecretKind::NonPemLabelKeyBlock,
+        regex: &NON_PEM_LABEL_KEY_BLOCK,
     },
     PatternSpec {
         kind: SecretKind::AwsAccessKeyId,
@@ -165,6 +213,12 @@ const PATTERNS: &[PatternSpec] = &[
         kind: SecretKind::ConnectionStringCredentials,
         regex: &CONNECTION_STRING,
     },
+    // Fine-grained PAT before the classic token: distinct prefixes, but keep
+    // the more specific rule earlier for clarity.
+    PatternSpec {
+        kind: SecretKind::GithubFineGrainedPat,
+        regex: &GITHUB_FINE_GRAINED_PAT,
+    },
     PatternSpec {
         kind: SecretKind::GithubToken,
         regex: &GITHUB_TOKEN,
@@ -172,6 +226,10 @@ const PATTERNS: &[PatternSpec] = &[
     PatternSpec {
         kind: SecretKind::SlackToken,
         regex: &SLACK_TOKEN,
+    },
+    PatternSpec {
+        kind: SecretKind::SlackAppToken,
+        regex: &SLACK_APP_TOKEN,
     },
     PatternSpec {
         kind: SecretKind::GoogleApiKey,
@@ -224,6 +282,57 @@ fn looks_like_placeholder(value: &str) -> bool {
 /// 3.5 bits/char; English words and placeholders sit below.
 const GENERIC_ENTROPY_THRESHOLD: f64 = 3.5;
 
+/// Headerless key-blob heuristic. A standalone base64 line this long with
+/// near-maximal entropy is overwhelmingly key material pasted without its PEM
+/// armor (base64 of random bytes approaches ~6 bits/char; English prose and
+/// source identifiers sit far below 4.8). Bounded above so an enormous data
+/// URI does not anchor a pathological match.
+const BLOB_MIN_LEN: usize = 64;
+const BLOB_MAX_LEN: usize = 8192;
+const BLOB_ENTROPY_THRESHOLD: f64 = 4.8;
+
+fn is_base64_line(line: &str) -> bool {
+    !line.is_empty()
+        && line
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b == b'+' || b == b'/' || b == b'=')
+}
+
+/// Detect standalone headerless base64 key blobs. Each whole standalone line
+/// (after trimming surrounding whitespace) that is pure base64, within the
+/// length window, and high-entropy is reported over its ORIGINAL byte span.
+fn scan_headerless_key_blobs(text: &str, out: &mut Vec<SecretFinding>) {
+    let mut offset = 0usize;
+    for line in text.split_inclusive('\n') {
+        let line_start = offset;
+        offset += line.len();
+        let trimmed = line.trim_end_matches(['\n', '\r']);
+        let lead_ws = trimmed.len() - trimmed.trim_start().len();
+        let body = trimmed.trim();
+        if body.len() < BLOB_MIN_LEN || body.len() > BLOB_MAX_LEN {
+            continue;
+        }
+        if !is_base64_line(body) {
+            continue;
+        }
+        if looks_like_placeholder(body) {
+            continue;
+        }
+        if shannon_entropy(body) < BLOB_ENTROPY_THRESHOLD {
+            continue;
+        }
+        let start = line_start + lead_ws;
+        let end = start + body.len();
+        out.push(SecretFinding {
+            kind: SecretKind::HeaderlessKeyBlob,
+            line: line_of(text, start),
+            byte_start: start,
+            byte_end: end,
+            matched_len: body.len(),
+        });
+    }
+}
+
 fn line_of(text: &str, byte_offset: usize) -> u32 {
     (text[..byte_offset].bytes().filter(|b| *b == b'\n').count() + 1) as u32
 }
@@ -266,6 +375,9 @@ pub fn scan_text(text: &str) -> SecretScanReport {
         });
     }
 
+    // Headerless key blobs (standalone high-entropy base64 lines).
+    scan_headerless_key_blobs(text, &mut findings);
+
     // Sort + merge overlaps so redaction is single-pass safe.
     findings.sort_by_key(|f| (f.byte_start, std::cmp::Reverse(f.byte_end)));
     let mut merged: Vec<SecretFinding> = Vec::with_capacity(findings.len());
@@ -299,6 +411,79 @@ pub fn redact_text(text: &str, report: &SecretScanReport) -> String {
     }
     out.push_str(&text[cursor..]);
     out
+}
+
+/// Outcome of redacting one span against the whole-file findings.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SpanRedactionOutcome {
+    /// Span content after redaction (no raw secret byte survives).
+    pub content: String,
+    /// How many whole-file findings touched this span (including findings
+    /// that only partially overlap the span boundary).
+    pub redactions: usize,
+}
+
+/// Map the largest byte offset `<= limit` that is a valid char boundary of `s`.
+fn clamp_to_boundary(s: &str, mut offset: usize) -> usize {
+    if offset >= s.len() {
+        return s.len();
+    }
+    while offset > 0 && !s.is_char_boundary(offset) {
+        offset -= 1;
+    }
+    offset
+}
+
+/// Redact one span using WHOLE-FILE findings (MT-091 #1 cross-span boundary
+/// fix). `span_byte_start` is the span's start offset in the ORIGINAL scanned
+/// text; `content` is the span's stored text. Any whole-file finding that
+/// overlaps `[span_byte_start, span_byte_start + content.len())` — even a
+/// secret that STRADDLES the span boundary and is only partially inside this
+/// span — has its in-span portion replaced with a `[REDACTED:<kind>]` marker.
+///
+/// This catches secrets that a per-span re-scan would miss because each
+/// window holds only a fragment that matches no pattern on its own.
+pub fn redact_span_with_whole_file_findings(
+    content: &str,
+    span_byte_start: usize,
+    report: &SecretScanReport,
+) -> SpanRedactionOutcome {
+    // Span byte range in original-text coordinates. The stored content can be
+    // SHORTER than the source slice (e.g. a windowed code span drops the
+    // trailing newline), so map by content length, not by a recomputed end.
+    let span_end = span_byte_start.saturating_add(content.len());
+    let mut out = String::with_capacity(content.len());
+    let mut cursor = 0usize; // span-relative
+    let mut redactions = 0usize;
+    for finding in &report.findings {
+        // Overlap test in original-text coordinates.
+        if finding.byte_end <= span_byte_start || finding.byte_start >= span_end {
+            continue;
+        }
+        // Clip the finding to the span, then translate to span-relative bytes.
+        let clip_start = finding.byte_start.max(span_byte_start) - span_byte_start;
+        let clip_end = finding.byte_end.min(span_end) - span_byte_start;
+        let rel_start = clamp_to_boundary(content, clip_start);
+        let rel_end = clamp_to_boundary(content, clip_end);
+        if rel_end <= cursor {
+            // Already covered by a previous (merged/overlapping) finding.
+            continue;
+        }
+        let splice_start = rel_start.max(cursor);
+        if splice_start > cursor {
+            out.push_str(&content[cursor..splice_start]);
+        }
+        out.push_str(&format!("[REDACTED:{}]", finding.kind.as_str()));
+        cursor = rel_end;
+        redactions += 1;
+    }
+    if cursor < content.len() {
+        out.push_str(&content[cursor..]);
+    }
+    SpanRedactionOutcome {
+        content: out,
+        redactions,
+    }
 }
 
 #[cfg(test)]
@@ -418,5 +603,183 @@ mod tests {
         assert!(shannon_entropy("aaaaaaaa") < 0.1);
         assert!(shannon_entropy("q7Xz2pLm9KvR4tNw") > 3.5);
         assert_eq!(shannon_entropy(""), 0.0);
+    }
+
+    // -- MT-091 #2 new patterns ------------------------------------------------
+
+    #[test]
+    fn detects_github_fine_grained_pat() {
+        // github_pat_ + 22 + _ + 59 base62 chars (FAKE shape).
+        let body22 = "A1b2C3d4E5f6G7h8I9j0K1";
+        let body59 = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456";
+        assert_eq!(body22.len(), 22);
+        assert_eq!(body59.len(), 59);
+        let text = format!("token = github_pat_{body22}_{body59}\n");
+        let report = scan_text(&text);
+        assert!(report
+            .findings
+            .iter()
+            .any(|f| f.kind == SecretKind::GithubFineGrainedPat));
+        // A token redacts (MEDIUM), consistent with the classic GitHub token.
+        assert!(!report.must_block(), "fine-grained PAT redacts, not blocks");
+        let redacted = redact_text(&text, &report);
+        assert!(!redacted.contains(body59));
+        assert!(redacted.contains("[REDACTED:github_fine_grained_pat]"));
+    }
+
+    #[test]
+    fn detects_slack_app_token() {
+        let text = "slack_app = xapp-1-A012BCDEFGH-1234567890-abcdef0123456789\n";
+        let report = scan_text(text);
+        assert!(report
+            .findings
+            .iter()
+            .any(|f| f.kind == SecretKind::SlackAppToken));
+        let redacted = redact_text(text, &report);
+        assert!(!redacted.contains("A012BCDEFGH"));
+    }
+
+    #[test]
+    fn detects_headerless_base64_key_blob() {
+        // A standalone high-entropy base64 line with NO PEM armor.
+        let blob = "MIIBVAIBADANBgkqhkiG9w0BAQEFAASCAT4wggE6AgEAAkEA3Tn7HkQxZpLm9KvR4tNw8YbD3cFgH6sJaUePq7Xz2pLm9KvR4tNwQ==";
+        assert!(blob.len() >= BLOB_MIN_LEN);
+        let text = format!("key:\n{blob}\nend\n");
+        let report = scan_text(&text);
+        assert!(
+            report
+                .findings
+                .iter()
+                .any(|f| f.kind == SecretKind::HeaderlessKeyBlob),
+            "headerless blob must be detected: {:?}",
+            report.findings
+        );
+        assert!(report.must_block(), "key material blocks the file");
+        let redacted = redact_text(&text, &report);
+        assert!(!redacted.contains(blob));
+    }
+
+    #[test]
+    fn headerless_blob_heuristic_ignores_prose_and_short_lines() {
+        // Long English prose line: low entropy, not base64 charset.
+        let prose = "The quick brown fox jumps over the lazy dog while the cat sleeps soundly in the warm afternoon sun today.";
+        // Short base64 identifier: under the length floor.
+        let short = "aGVsbG8gd29ybGQ=";
+        let text = format!("{prose}\n{short}\n");
+        let report = scan_text(&text);
+        assert!(
+            !report
+                .findings
+                .iter()
+                .any(|f| f.kind == SecretKind::HeaderlessKeyBlob),
+            "prose / short base64 must not be a key blob: {:?}",
+            report.findings
+        );
+    }
+
+    #[test]
+    fn detects_non_pem_label_key_block() {
+        // OPENSSH key armor — labelled block the standard PRIVATE_KEY prefix
+        // form does not literally enumerate; the alt-label rule catches it.
+        let text = "-----BEGIN OPENSSH PRIVATE KEY-----\nb3BlbnNzaC1rZXktdjEFAKE\n-----END OPENSSH PRIVATE KEY-----\n";
+        let report = scan_text(text);
+        assert!(report.must_block());
+        // The standard rule already enumerates `OPENSSH PRIVATE KEY`; assert
+        // at least one key-block kind fires and the body is redacted.
+        assert!(report.findings.iter().any(|f| matches!(
+            f.kind,
+            SecretKind::PrivateKeyBlock | SecretKind::NonPemLabelKeyBlock
+        )));
+        let redacted = redact_text(text, &report);
+        assert!(!redacted.contains("b3BlbnNzaC1rZXktdjEFAKE"));
+    }
+
+    #[test]
+    fn non_standard_label_key_block_is_caught_by_alt_rule() {
+        // A vendor key label the PRIVATE_KEY rule does NOT enumerate.
+        let text =
+            "-----BEGIN VENDOR SIGNING KEY-----\nQUJDREVGRkFLRQ==\n-----END VENDOR SIGNING KEY-----\n";
+        let report = scan_text(text);
+        assert!(report
+            .findings
+            .iter()
+            .any(|f| f.kind == SecretKind::NonPemLabelKeyBlock));
+        assert!(report.must_block());
+    }
+
+    // -- MT-091 #1 cross-span boundary redaction ------------------------------
+
+    #[test]
+    fn whole_file_redaction_catches_boundary_split_secret() {
+        // Build text where a MEDIUM secret (JWT) sits at a known byte offset,
+        // then split it into two "spans" at a byte INSIDE the secret. Neither
+        // half re-scanned alone would match, but whole-file findings redact
+        // both partial overlaps.
+        let prefix = "line one\nbearer ";
+        let jwt = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U";
+        let suffix = "\ntrailing line\n";
+        let text = format!("{prefix}{jwt}{suffix}");
+        let report = scan_text(&text);
+        assert!(
+            report
+                .findings
+                .iter()
+                .any(|f| f.kind == SecretKind::JsonWebToken),
+            "whole-file scan must see the JWT"
+        );
+
+        // Cut point: 10 bytes into the JWT.
+        let jwt_start = prefix.len();
+        let cut = jwt_start + 10;
+        let span_a = &text[..cut];
+        let span_b = &text[cut..];
+
+        // Per-span re-scan (the OLD behaviour) misses both fragments.
+        assert!(
+            scan_text(span_a).is_clean(),
+            "fragment A alone should not match"
+        );
+        assert!(
+            scan_text(span_b).is_clean(),
+            "fragment B alone should not match"
+        );
+
+        // Whole-file redaction over each span removes every secret byte.
+        let out_a = redact_span_with_whole_file_findings(span_a, 0, &report);
+        let out_b = redact_span_with_whole_file_findings(span_b, cut, &report);
+        assert!(out_a.redactions >= 1);
+        assert!(out_b.redactions >= 1);
+        let combined = format!("{}{}", out_a.content, out_b.content);
+        // No contiguous run of the original JWT survives across the join.
+        assert!(
+            !combined.contains(&jwt[..20]),
+            "boundary-split secret leaked: {combined}"
+        );
+        assert!(!combined.contains(&jwt[10..30]));
+        assert!(combined.contains("[REDACTED:json_web_token]"));
+    }
+
+    #[test]
+    fn whole_file_redaction_preserves_clean_span_unchanged() {
+        let text = "alpha\nbeta\ngamma\n";
+        let report = scan_text(text);
+        assert!(report.is_clean());
+        let out = redact_span_with_whole_file_findings("beta", 6, &report);
+        assert_eq!(out.content, "beta");
+        assert_eq!(out.redactions, 0);
+    }
+
+    #[test]
+    fn whole_file_redaction_handles_multibyte_content() {
+        // A unicode prefix shifts byte offsets; redaction must stay on char
+        // boundaries and still excise the secret.
+        let pre = "café ☕ note\nkey = ";
+        let secret = "AKIAIOSFODNN7EXAMPLE";
+        let text = format!("{pre}{secret}\n");
+        let report = scan_text(&text);
+        let out = redact_span_with_whole_file_findings(&text, 0, &report);
+        assert!(!out.content.contains(secret));
+        assert!(out.content.contains("café ☕ note"));
+        assert!(out.redactions >= 1);
     }
 }

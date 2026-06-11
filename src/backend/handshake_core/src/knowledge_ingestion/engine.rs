@@ -38,7 +38,9 @@ use super::receipts::{
     ExtractionReceipt, ExtractionStatus, IngestionErrorClass, NewExtractionReceipt,
 };
 use super::repair::{NewRepairEntry, RepairAttemptOutcome, RepairEntry, RepairReason};
-use super::secrets::{redact_text, scan_text, SecretScanReport};
+use super::secrets::{
+    redact_span_with_whole_file_findings, redact_text, scan_text, SecretScanReport,
+};
 use super::spans::{ExtractedSpan, SpanAnchor, SpanRedaction};
 use super::store::{KnowledgeIngestionStore, NewPolicyDecision, PolicyDecision, StoredSpan};
 use super::transcripts::parse_transcript_artifact;
@@ -930,16 +932,39 @@ fn code_spans(text: &str) -> Vec<ExtractedSpan> {
     spans
 }
 
-/// Apply the MT-091 redaction pass over extracted spans. Returns the total
-/// redaction count.
-fn redact_spans(spans: &mut [ExtractedSpan]) -> i32 {
+/// Apply the MT-091 redaction pass over extracted spans using WHOLE-FILE
+/// findings (#1 cross-span boundary fix). Spans carry their byte offset into
+/// the original scanned text; whole-file findings are mapped onto each span's
+/// byte range so a secret that STRADDLES a window boundary — and therefore
+/// matches no per-window re-scan — is still excised from every span it
+/// touches. Spans WITHOUT byte offsets (PDF pages, transcript cues, JSON
+/// pointers) are natural units extracted from their own text and fall back to
+/// a per-span scan. Returns the total redaction count.
+fn redact_spans(spans: &mut [ExtractedSpan], whole_file: &SecretScanReport) -> i32 {
     let mut total = 0i32;
     for span in spans.iter_mut() {
-        let report = scan_text(&span.content);
-        if !report.is_clean() {
-            total += report.redaction_count() as i32;
-            span.content = redact_text(&span.content, &report);
-            span.redaction = SpanRedaction::Redacted;
+        match span.byte_start {
+            Some(byte_start) if byte_start >= 0 => {
+                let outcome = redact_span_with_whole_file_findings(
+                    &span.content,
+                    byte_start as usize,
+                    whole_file,
+                );
+                if outcome.redactions > 0 {
+                    total += outcome.redactions as i32;
+                    span.content = outcome.content;
+                    span.redaction = SpanRedaction::Redacted;
+                }
+            }
+            // No source-byte mapping: scan the span's own content directly.
+            _ => {
+                let report = scan_text(&span.content);
+                if !report.is_clean() {
+                    total += report.redaction_count() as i32;
+                    span.content = redact_text(&span.content, &report);
+                    span.redaction = SpanRedaction::Redacted;
+                }
+            }
         }
     }
     total
@@ -1005,22 +1030,30 @@ fn run_extraction(
         }
     }
 
-    // MT-091 whole-file preflight: HIGH severity blocks before extraction.
-    if spec.capabilities.secret_scan && needs_text {
-        let report = scan_text(text);
-        if report.must_block() {
-            return ExtractionOutput {
-                kind: Some(kind),
-                status: ExtractionStatus::Blocked,
-                error_class: Some(IngestionErrorClass::SecretBlocked),
-                error_detail: Some(secret_block_detail(&report)),
-                spans: Vec::new(),
-                spans_failed: 0,
-                redaction_count: report.redaction_count() as i32,
-                redaction_state: KnowledgeRedactionState::Redacted,
-            };
-        }
-    }
+    // MT-091 whole-file preflight: scan ONCE over the full contiguous text.
+    // The report is reused for (a) the HIGH-severity block decision and (b)
+    // the span-level redaction pass below, so MEDIUM findings that straddle a
+    // window boundary (#1) are caught — they are visible to the whole-file
+    // scan even when no single window holds the whole secret.
+    let whole_file_report: Option<SecretScanReport> =
+        if spec.capabilities.secret_scan && needs_text {
+            let report = scan_text(text);
+            if report.must_block() {
+                return ExtractionOutput {
+                    kind: Some(kind),
+                    status: ExtractionStatus::Blocked,
+                    error_class: Some(IngestionErrorClass::SecretBlocked),
+                    error_detail: Some(secret_block_detail(&report)),
+                    spans: Vec::new(),
+                    spans_failed: 0,
+                    redaction_count: report.redaction_count() as i32,
+                    redaction_state: KnowledgeRedactionState::Redacted,
+                };
+            }
+            Some(report)
+        } else {
+            None
+        };
 
     // Per-kind extraction over the RAW text (anchors reference the source;
     // redaction below only rewrites stored content).
@@ -1217,8 +1250,15 @@ fn run_extraction(
     };
 
     // MT-091 span-level redaction pass (MEDIUM severity rewrites content).
+    // Whole-file findings drive redaction for byte-anchored spans (#1); kinds
+    // without a whole-file scan (PDF page text, external imports) fall back to
+    // a per-span scan inside redact_spans against this empty report.
     if spec.capabilities.secret_scan && !output.spans.is_empty() {
-        let redactions = redact_spans(&mut output.spans);
+        let empty = SecretScanReport {
+            findings: Vec::new(),
+        };
+        let report = whole_file_report.as_ref().unwrap_or(&empty);
+        let redactions = redact_spans(&mut output.spans, report);
         if redactions > 0 {
             output.redaction_count += redactions;
             output.redaction_state = KnowledgeRedactionState::Partial;
