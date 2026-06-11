@@ -14,6 +14,7 @@ use handshake_core::kernel::crdt::agent_lease::{
 };
 use handshake_core::storage::tests::{postgres_backend_with_pool_from_env, PostgresTestBackend};
 use handshake_core::storage::StorageError;
+use uuid::Uuid;
 
 async fn backend_or_blocked() -> PostgresTestBackend {
     match postgres_backend_with_pool_from_env().await {
@@ -25,6 +26,46 @@ async fn backend_or_blocked() -> PostgresTestBackend {
         }
         Err(err) => panic!("failed to init postgres backend: {err:?}"),
     }
+}
+
+/// Authority-hardening #1 fixture: create a real workspace + source + span and
+/// return `(workspace_id, span_id)` so a proposal in `workspace_id` citing
+/// `span_id` has promotable (live, same-workspace, non-stale) evidence.
+async fn live_span_fixture(pool: &sqlx::PgPool, label: &str) -> (String, String) {
+    let workspace_id = format!("ws-span-{label}");
+    let source_id = format!("KSRC-{}", Uuid::now_v7().simple());
+    let span_id = format!("KSP-{}", Uuid::now_v7().simple());
+    let hash = "a".repeat(64);
+    sqlx::query("INSERT INTO workspaces (id, name) VALUES ($1, $2) ON CONFLICT (id) DO NOTHING")
+        .bind(&workspace_id)
+        .bind(format!("span-fixture-{label}"))
+        .execute(pool)
+        .await
+        .expect("insert workspace");
+    sqlx::query(
+        r#"INSERT INTO knowledge_sources
+           (source_id, workspace_id, source_kind, content_hash)
+           VALUES ($1, $2, 'external_import', $3)"#,
+    )
+    .bind(&source_id)
+    .bind(&workspace_id)
+    .bind(&hash)
+    .execute(pool)
+    .await
+    .expect("insert source");
+    sqlx::query(
+        r#"INSERT INTO knowledge_spans
+           (span_id, source_id, span_kind, range_start, range_end,
+            content_sha256, parser_version)
+           VALUES ($1, $2, 'byte', 0, 16, $3, 'v1')"#,
+    )
+    .bind(&span_id)
+    .bind(&source_id)
+    .bind(&hash)
+    .execute(pool)
+    .await
+    .expect("insert span");
+    (workspace_id, span_id)
 }
 
 /// Claim a workspace-scope lane lease for a model actor (proposals from
@@ -61,7 +102,7 @@ mod mt_068_graph_proposals {
     use handshake_core::kernel::crdt::graph_proposal::{
         decide_graph_proposal, record_graph_proposal, validate_graph_proposal_request,
         GraphMutationKind, GraphMutationProposalRequestV1, GraphProposalValidationError,
-        ProposalDecisionError, ProposalReviewState,
+        ProposalDecisionError, ProposalReviewState, RecordGraphProposalOutcomeV1,
     };
     use handshake_core::kernel::KernelEventType;
     use serde_json::json;
@@ -160,14 +201,17 @@ mod mt_068_graph_proposals {
             KnowledgeActorIdV1::new(KnowledgeActorKind::Validator, "wp-val").expect("actor");
         let lease_id = model_lease(&backend, &model, &ws, &format!("sr-mt068-{suffix}")).await;
 
-        let recorded = record_graph_proposal(
+        let recorded = match record_graph_proposal(
             db.as_ref(),
             &pool,
             request(&ws, &model, Some(lease_id.clone())),
         )
         .await
         .expect("record flow")
-        .expect("valid proposal accepted");
+        {
+            RecordGraphProposalOutcomeV1::Recorded(row) => *row,
+            other => panic!("expected recorded draft, got {other:?}"),
+        };
         assert_eq!(recorded.review_state, "proposed");
         assert_eq!(recorded.actor_id, model.canonical());
         assert_eq!(recorded.lease_id.as_deref(), Some(lease_id.as_str()));
@@ -263,7 +307,7 @@ mod mt_069_claim_promotion {
     };
     use handshake_core::kernel::crdt::graph_proposal::{
         decide_graph_proposal, record_graph_proposal, GraphMutationKind,
-        GraphMutationProposalRequestV1,
+        GraphMutationProposalRequestV1, RecordGraphProposalOutcomeV1,
     };
     use handshake_core::kernel::KernelEventType;
     use handshake_core::storage::knowledge_crdt::list_denial_receipts_for_scope;
@@ -279,10 +323,13 @@ mod mt_069_claim_promotion {
         let db = backend.database.clone();
         let pool = backend.postgres_pool.clone();
         let suffix = Uuid::now_v7().simple().to_string();
-        let ws = format!("ws-mt069-{suffix}");
         let model =
             KnowledgeActorIdV1::new(KnowledgeActorKind::LocalModel, "claims-lm").expect("actor");
         let operator = KnowledgeActorIdV1::new(KnowledgeActorKind::Operator, "op").expect("actor");
+        // Authority-hardening #1: the promoted proposal must cite a LIVE span;
+        // the workspace + lease are aligned to that span's workspace so the
+        // promotion span-evidence gate (and the #4 lease guard) both pass.
+        let (ws, live_span_id) = live_span_fixture(&pool, &format!("mt069-{suffix}")).await;
         let lease_id = model_lease(&backend, &model, &ws, &format!("sr-mt069-{suffix}")).await;
 
         let mut record_request = GraphMutationProposalRequestV1 {
@@ -293,17 +340,21 @@ mod mt_069_claim_promotion {
                 "from_entity": "module:managed_postgres",
                 "to_entity": "behavior:embedded-cluster-5544"
             }),
-            source_span_refs: vec![format!("KSP-{:032x}", 0xabcdu32)],
+            source_span_refs: vec![live_span_id],
             confidence: 0.9,
             actor: model.clone(),
             session_id: format!("sr-mt069-{suffix}"),
             correlation_id: format!("corr-mt069-{suffix}"),
             lease_id: Some(lease_id),
         };
-        let approved_proposal = record_graph_proposal(db.as_ref(), &pool, record_request.clone())
-            .await
-            .expect("record flow")
-            .expect("valid proposal");
+        let approved_proposal =
+            match record_graph_proposal(db.as_ref(), &pool, record_request.clone())
+                .await
+                .expect("record flow")
+            {
+                RecordGraphProposalOutcomeV1::Recorded(row) => *row,
+                other => panic!("expected recorded draft, got {other:?}"),
+            };
         decide_graph_proposal(
             db.as_ref(),
             &pool,
@@ -389,10 +440,13 @@ mod mt_069_claim_promotion {
 
         // Invalid promotion: a still-'proposed' proposal denies durably.
         record_request.correlation_id = format!("corr-mt069-b-{suffix}");
-        let pending = record_graph_proposal(db.as_ref(), &pool, record_request)
+        let pending = match record_graph_proposal(db.as_ref(), &pool, record_request)
             .await
             .expect("record flow")
-            .expect("valid proposal");
+        {
+            RecordGraphProposalOutcomeV1::Recorded(row) => *row,
+            other => panic!("expected recorded draft, got {other:?}"),
+        };
         let denied = promote_graph_proposal(
             db.as_ref(),
             &pool,
@@ -443,7 +497,7 @@ mod mt_074_ai_edit_proposals {
     use handshake_core::kernel::crdt::ai_edit_proposal::{
         decide_ai_edit_proposal, promote_ai_edit_proposal, record_ai_edit_proposal,
         validate_ai_edit_proposal_request, AiEditPromotionDenialReasonV1, AiEditPromotionOutcomeV1,
-        AiEditProposalRequestV1, AiEditProposalValidationError,
+        AiEditProposalRequestV1, AiEditProposalValidationError, RecordAiEditProposalOutcomeV1,
     };
     use handshake_core::kernel::KernelEventType;
     use handshake_core::storage::knowledge_crdt::list_denial_receipts_for_scope;
@@ -529,14 +583,17 @@ mod mt_074_ai_edit_proposals {
         let lease_id = model_lease(&backend, &model, &ws, &format!("sr-mt074-{suffix}")).await;
 
         // Record.
-        let proposal = record_ai_edit_proposal(
+        let proposal = match record_ai_edit_proposal(
             db.as_ref(),
             &pool,
             request(&ws, &doc, &crdt_doc, &model, Some(lease_id.clone())),
         )
         .await
         .expect("record flow")
-        .expect("valid proposal");
+        {
+            RecordAiEditProposalOutcomeV1::Recorded(row) => *row,
+            other => panic!("expected recorded draft, got {other:?}"),
+        };
         assert_eq!(proposal.review_state, "proposed");
         assert_eq!(proposal.actor_id, model.canonical());
         assert_eq!(proposal.diff_sha256.len(), 64);
@@ -628,14 +685,17 @@ mod mt_074_ai_edit_proposals {
 
         // Rejection path: a second proposal is rejected; its promotion is
         // denied with a durable receipt.
-        let rejected = record_ai_edit_proposal(
+        let rejected = match record_ai_edit_proposal(
             db.as_ref(),
             &pool,
             request(&ws, &doc, &crdt_doc, &model, Some(lease_id)),
         )
         .await
         .expect("record flow")
-        .expect("valid proposal");
+        {
+            RecordAiEditProposalOutcomeV1::Recorded(row) => *row,
+            other => panic!("expected recorded draft, got {other:?}"),
+        };
         decide_ai_edit_proposal(
             db.as_ref(),
             &pool,
@@ -690,5 +750,382 @@ mod mt_074_ai_edit_proposals {
             rogue_review.is_err(),
             "model reviewer must be refused by CHECK"
         );
+    }
+}
+
+/// Authority-hardening #4: every draft/proposal write that presents a lease
+/// is routed through the server-side lease write-guard; an expired / foreign /
+/// wrong-scope lease is DENIED with a durable receipt and writes no draft.
+mod hardening_lease_chokepoint {
+    use super::*;
+    use base64::Engine as _;
+    use handshake_core::kernel::crdt::actor_site::derive_knowledge_site_id;
+    use handshake_core::kernel::crdt::agent_lease::{release_lease, LeaseWriteDenialReasonV1};
+    use handshake_core::kernel::crdt::ai_edit_proposal::{
+        record_ai_edit_proposal, AiEditProposalRequestV1, RecordAiEditProposalOutcomeV1,
+    };
+    use handshake_core::kernel::crdt::graph_proposal::{
+        record_graph_proposal, GraphMutationKind, GraphMutationProposalRequestV1,
+        RecordGraphProposalOutcomeV1,
+    };
+    use handshake_core::kernel::crdt::save_semantics::{
+        save_rich_document_draft_under_lease, KnowledgeDraftSaveOutcomeV1,
+    };
+    use handshake_core::kernel::crdt::state_vector::KnowledgeStateVectorV1;
+    use handshake_core::kernel::crdt::yjs_bridge::{
+        YjsUpdateEnvelopeV1, YJS_UPDATE_ENCODING_V1, YJS_UPDATE_ENVELOPE_SCHEMA_ID,
+    };
+    use handshake_core::storage::knowledge_crdt::{get_lease, list_denial_receipts_for_document};
+    use serde_json::json;
+    use uuid::Uuid;
+
+    async fn wait_for_db_expiry(pool: &sqlx::PgPool, lease_id: &str) {
+        for _ in 0..40 {
+            if get_lease(pool, lease_id)
+                .await
+                .expect("get lease")
+                .expect("lease")
+                .is_expired
+            {
+                return;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(250)).await;
+        }
+        panic!("lease {lease_id} did not expire within 10s");
+    }
+
+    async fn claim_ws_lease(
+        backend: &PostgresTestBackend,
+        actor: &KnowledgeActorIdV1,
+        ws: &str,
+        session: &str,
+        ttl: i64,
+    ) -> String {
+        match claim_lease(
+            backend.database.as_ref(),
+            &backend.postgres_pool,
+            LeaseClaimRequestV1 {
+                lane_id: format!("lane-{session}"),
+                actor: actor.clone(),
+                session_id: session.to_string(),
+                correlation_id: format!("corr-{session}"),
+                scope_kind: KnowledgeLeaseScopeKind::Workspace,
+                scope_id: ws.to_string(),
+                ttl_seconds: ttl,
+            },
+        )
+        .await
+        .expect("claim flow")
+        {
+            LeaseClaimOutcomeV1::Claimed(lease) => lease.lease_id.clone(),
+            other => panic!("expected claim, got {other:?}"),
+        }
+    }
+
+    /// An EXPIRED lease on a graph proposal write is denied (not presence-only).
+    #[tokio::test]
+    async fn expired_lease_denies_graph_proposal_write() {
+        let backend = backend_or_blocked().await;
+        let db = backend.database.clone();
+        let pool = backend.postgres_pool.clone();
+        let suffix = Uuid::now_v7().simple().to_string();
+        let ws = format!("ws-choke-{suffix}");
+        let model =
+            KnowledgeActorIdV1::new(KnowledgeActorKind::LocalModel, "choke-lm").expect("actor");
+        let lease_id = claim_ws_lease(&backend, &model, &ws, &format!("sr-{suffix}"), 1).await;
+        wait_for_db_expiry(&pool, &lease_id).await;
+
+        let outcome = record_graph_proposal(
+            db.as_ref(),
+            &pool,
+            GraphMutationProposalRequestV1 {
+                workspace_id: ws.clone(),
+                mutation_kind: GraphMutationKind::AddClaim,
+                mutation_payload: json!({"claim_text": "written under a dead lease"}),
+                source_span_refs: vec![format!("KSP-{}", "0".repeat(32))],
+                confidence: 0.5,
+                actor: model.clone(),
+                session_id: format!("sr-{suffix}"),
+                correlation_id: format!("corr-{suffix}"),
+                lease_id: Some(lease_id.clone()),
+            },
+        )
+        .await
+        .expect("record flow");
+        match outcome {
+            RecordGraphProposalOutcomeV1::LeaseDenied(denial) => {
+                assert!(matches!(
+                    denial.reason,
+                    LeaseWriteDenialReasonV1::LeaseExpired { .. }
+                ));
+            }
+            other => panic!("expired lease must deny the write, got {other:?}"),
+        }
+        // No draft row landed for this workspace.
+        let count: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*) FROM knowledge_crdt_graph_proposals WHERE workspace_id = $1",
+        )
+        .bind(&ws)
+        .fetch_one(&pool)
+        .await
+        .expect("count");
+        assert_eq!(count, 0, "no draft may be written under a dead lease");
+    }
+
+    /// A FOREIGN lease (held by another actor) on an AI edit write is denied.
+    #[tokio::test]
+    async fn foreign_lease_denies_ai_edit_write() {
+        let backend = backend_or_blocked().await;
+        let db = backend.database.clone();
+        let pool = backend.postgres_pool.clone();
+        let suffix = Uuid::now_v7().simple().to_string();
+        let ws = format!("ws-choke-ai-{suffix}");
+        let owner =
+            KnowledgeActorIdV1::new(KnowledgeActorKind::LocalModel, "owner-lm").expect("actor");
+        let other =
+            KnowledgeActorIdV1::new(KnowledgeActorKind::CloudModel, "other-cm").expect("actor");
+        // `owner` holds the workspace lease; `other` tries to write under it.
+        let lease_id =
+            claim_ws_lease(&backend, &owner, &ws, &format!("sr-own-{suffix}"), 600).await;
+
+        let outcome = record_ai_edit_proposal(
+            db.as_ref(),
+            &pool,
+            AiEditProposalRequestV1 {
+                workspace_id: ws.clone(),
+                document_id: format!("doc-{suffix}"),
+                crdt_document_id: format!("crdt-{suffix}"),
+                base_update_seq: 0,
+                base_state_vector: "hsk-sv1:".to_string(),
+                proposed_diff: json!({"steps": []}),
+                source_span_citations: vec![format!("KSP-{}", "0".repeat(32))],
+                actor: other.clone(),
+                session_id: format!("sr-other-{suffix}"),
+                correlation_id: format!("corr-other-{suffix}"),
+                lease_id: Some(lease_id.clone()),
+            },
+        )
+        .await
+        .expect("record flow");
+        match outcome {
+            RecordAiEditProposalOutcomeV1::LeaseDenied(denial) => {
+                assert!(matches!(
+                    denial.reason,
+                    LeaseWriteDenialReasonV1::ForeignLease { .. }
+                ));
+            }
+            other => panic!("foreign lease must deny the write, got {other:?}"),
+        }
+    }
+
+    /// A WRONG-SCOPE lease on a guarded save is denied with a durable receipt.
+    #[tokio::test]
+    async fn wrong_scope_lease_denies_guarded_save() {
+        let backend = backend_or_blocked().await;
+        let db = backend.database.clone();
+        let pool = backend.postgres_pool.clone();
+        let suffix = Uuid::now_v7().simple().to_string();
+        let ws = format!("ws-choke-save-{suffix}");
+        let doc = format!("doc-{suffix}");
+        let crdt_doc = format!("crdt-{suffix}");
+        let operator =
+            KnowledgeActorIdV1::new(KnowledgeActorKind::Operator, "save-op").expect("actor");
+        // A workspace lease on a DIFFERENT workspace -> wrong scope for this
+        // document save (the save guard checks document scope).
+        let lease_id = claim_ws_lease(
+            &backend,
+            &operator,
+            "ws-unrelated",
+            &format!("sr-{suffix}"),
+            600,
+        )
+        .await;
+
+        let site = derive_knowledge_site_id(&ws, &crdt_doc, &operator);
+        let mut sv = KnowledgeStateVectorV1::new();
+        let before = sv.clone();
+        sv.increment(&site.site_id);
+        let bytes = b"guarded-save";
+        let env = YjsUpdateEnvelopeV1 {
+            schema_id: YJS_UPDATE_ENVELOPE_SCHEMA_ID.to_string(),
+            workspace_id: ws.clone(),
+            document_id: doc.clone(),
+            crdt_document_id: crdt_doc.clone(),
+            update_id: format!("u-{suffix}"),
+            actor_id: operator.canonical(),
+            site_id: site.site_id.clone(),
+            session_id: format!("sr-{suffix}"),
+            trace_id: format!("trace-{suffix}"),
+            document_schema_id: "hsk.doc.rich_document@1".to_string(),
+            update_b64: base64::engine::general_purpose::STANDARD.encode(bytes),
+            update_sha256: handshake_core::kernel::crdt::persistence::sha256_hex(bytes),
+            state_vector_before: before.encode(),
+            state_vector_after: sv.encode(),
+            encoding: YJS_UPDATE_ENCODING_V1.to_string(),
+        };
+        let outcome = save_rich_document_draft_under_lease(db.as_ref(), &pool, &env, &lease_id)
+            .await
+            .expect("save flow");
+        match outcome {
+            KnowledgeDraftSaveOutcomeV1::LeaseDenied { denial } => {
+                assert!(matches!(
+                    denial.reason,
+                    LeaseWriteDenialReasonV1::ScopeMismatch { .. }
+                ));
+            }
+            other => panic!("wrong-scope lease must deny the save, got {other:?}"),
+        }
+        // The denial is durable and the draft did not land.
+        let receipts = list_denial_receipts_for_document(&pool, &crdt_doc)
+            .await
+            .expect("receipts");
+        assert!(receipts
+            .iter()
+            .any(|r| r.receipt_kind == "lease_write_denied"));
+        let count: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*) FROM kernel_crdt_updates WHERE crdt_document_id = $1",
+        )
+        .bind(&crdt_doc)
+        .fetch_one(&pool)
+        .await
+        .expect("count");
+        assert_eq!(count, 0, "no update may land under a wrong-scope lease");
+
+        // Cleanup the unrelated lease so the scope is reusable.
+        release_lease(db.as_ref(), &pool, &lease_id, &operator)
+            .await
+            .expect("release");
+    }
+}
+
+/// Authority-hardening #5: an approved AI edit's applied update is bound to the
+/// approved diff_sha256; a push whose content does not hash to the approved
+/// diff is rejected.
+mod hardening_applied_binding {
+    use super::*;
+    use handshake_core::kernel::crdt::ai_edit_proposal::{
+        apply_approved_ai_edit, decide_ai_edit_proposal, record_ai_edit_proposal,
+        AiEditApplyOutcomeV1, AiEditProposalRequestV1, RecordAiEditProposalOutcomeV1,
+    };
+    use handshake_core::storage::knowledge_crdt::{
+        get_ai_edit_proposal, list_denial_receipts_for_scope,
+    };
+    use serde_json::json;
+    use uuid::Uuid;
+
+    #[tokio::test]
+    async fn applied_update_must_hash_to_approved_diff() {
+        let backend = backend_or_blocked().await;
+        let db = backend.database.clone();
+        let pool = backend.postgres_pool.clone();
+        let suffix = Uuid::now_v7().simple().to_string();
+        let ws = format!("ws-applied-{suffix}");
+        let doc = format!("doc-{suffix}");
+        let crdt_doc = format!("crdt-{suffix}");
+        let model =
+            KnowledgeActorIdV1::new(KnowledgeActorKind::CloudModel, "apply-cm").expect("actor");
+        let operator = KnowledgeActorIdV1::new(KnowledgeActorKind::Operator, "op").expect("actor");
+        let lease_id = model_lease(&backend, &model, &ws, &format!("sr-{suffix}")).await;
+
+        let approved_diff = json!({"steps": [{"insert": "approved text"}]});
+        let proposal = match record_ai_edit_proposal(
+            db.as_ref(),
+            &pool,
+            AiEditProposalRequestV1 {
+                workspace_id: ws.clone(),
+                document_id: doc.clone(),
+                crdt_document_id: crdt_doc.clone(),
+                base_update_seq: 0,
+                base_state_vector: "hsk-sv1:".to_string(),
+                proposed_diff: approved_diff.clone(),
+                source_span_citations: vec![format!("KSP-{}", "0".repeat(32))],
+                actor: model.clone(),
+                session_id: format!("sr-{suffix}"),
+                correlation_id: format!("corr-{suffix}"),
+                lease_id: Some(lease_id),
+            },
+        )
+        .await
+        .expect("record flow")
+        {
+            RecordAiEditProposalOutcomeV1::Recorded(row) => *row,
+            other => panic!("expected recorded draft, got {other:?}"),
+        };
+        decide_ai_edit_proposal(
+            db.as_ref(),
+            &pool,
+            &proposal.proposal_id,
+            true,
+            &operator,
+            &format!("sr-rev-{suffix}"),
+            "approved",
+        )
+        .await
+        .expect("decide flow")
+        .expect("approved");
+
+        // A push NOT matching the approved diff is rejected with a durable
+        // mismatch receipt; the binding is refused.
+        let tampered_diff = json!({"steps": [{"insert": "TAMPERED text"}]});
+        let mismatch = apply_approved_ai_edit(
+            db.as_ref(),
+            &pool,
+            &proposal.proposal_id,
+            &format!("update-bad-{suffix}"),
+            &tampered_diff,
+            &model,
+            &format!("sr-apply-{suffix}"),
+            &format!("corr-apply-{suffix}"),
+        )
+        .await
+        .expect("apply flow");
+        match mismatch {
+            AiEditApplyOutcomeV1::HashMismatch { .. } => {}
+            other => panic!("non-matching applied update must be rejected, got {other:?}"),
+        }
+        let receipts =
+            list_denial_receipts_for_scope(&pool, &format!("proposal:{}", proposal.proposal_id))
+                .await
+                .expect("receipts");
+        assert!(
+            receipts
+                .iter()
+                .any(|r| r.receipt_kind == "ai_edit_applied_mismatch"),
+            "a durable ai_edit_applied_mismatch receipt must exist"
+        );
+        // The row carries NO applied binding after a mismatch.
+        let row = get_ai_edit_proposal(&pool, &proposal.proposal_id)
+            .await
+            .expect("get")
+            .expect("row");
+        assert!(row.applied_update_id.is_none());
+        assert!(row.applied_update_sha256.is_none());
+
+        // The matching applied update binds successfully.
+        let bound = apply_approved_ai_edit(
+            db.as_ref(),
+            &pool,
+            &proposal.proposal_id,
+            &format!("update-good-{suffix}"),
+            &approved_diff,
+            &model,
+            &format!("sr-apply-{suffix}"),
+            &format!("corr-apply2-{suffix}"),
+        )
+        .await
+        .expect("apply flow");
+        match bound {
+            AiEditApplyOutcomeV1::Bound(row) => {
+                assert_eq!(
+                    row.applied_update_id.as_deref(),
+                    Some(format!("update-good-{suffix}").as_str())
+                );
+                assert_eq!(
+                    row.applied_update_sha256.as_deref(),
+                    Some(row.diff_sha256.as_str())
+                );
+            }
+            other => panic!("matching applied update must bind, got {other:?}"),
+        }
     }
 }

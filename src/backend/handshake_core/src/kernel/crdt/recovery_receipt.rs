@@ -9,6 +9,7 @@
 //! (takeover chain) — reconstructable from PostgreSQL alone, with no chat
 //! history dependency.
 
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use sqlx::PgPool;
@@ -138,6 +139,30 @@ pub enum RecoveryFailureV1 {
     NewLeaseNotFound {
         lease_id: String,
     },
+    /// Authority-hardening #3: the recovering lease does not cover the
+    /// checkpoint's scope (recovery under an unrelated lease is refused).
+    LeaseScopeMismatch {
+        lease_id: String,
+        lease_scope_ref: String,
+        checkpoint_scope_ref: String,
+    },
+    /// Authority-hardening #3: the recovering lease has expired on the
+    /// database clock (a dead session cannot authorize a recovery).
+    LeaseExpired {
+        lease_id: String,
+        expires_at_utc: DateTime<Utc>,
+    },
+    /// Authority-hardening #3: the recovering lease was already released.
+    LeaseReleased {
+        lease_id: String,
+    },
+    /// Authority-hardening #3: the recovering lease belongs to a different
+    /// actor than the one claiming recovery (foreign-actor recovery refused).
+    LeaseForeignActor {
+        lease_id: String,
+        holder_actor_id: String,
+        recovering_actor_id: String,
+    },
 }
 
 /// A verified recovery: the durable receipt plus the typed resume pointer
@@ -187,14 +212,45 @@ pub async fn recover_from_checkpoint(
         }));
     }
 
-    if knowledge_crdt::get_lease(pool, new_lease_id)
-        .await?
-        .is_none()
-    {
-        return Ok(Err(RecoveryFailureV1::NewLeaseNotFound {
-            lease_id: new_lease_id.to_string(),
+    // Authority-hardening #3: a recovery is only authorized under a lease that
+    // EXISTS, is UNRELEASED, is UNEXPIRED on the database clock, belongs to the
+    // RECOVERING ACTOR, and COVERS the checkpoint's scope. Checking only
+    // existence let a released/expired/foreign/unrelated-scope lease authorize
+    // a takeover of frozen work. Each failure is typed (no silent recovery).
+    let lease = match knowledge_crdt::get_lease(pool, new_lease_id).await? {
+        Some(lease) => lease,
+        None => {
+            return Ok(Err(RecoveryFailureV1::NewLeaseNotFound {
+                lease_id: new_lease_id.to_string(),
+            }));
+        }
+    };
+    if lease.released_at_utc.is_some() {
+        return Ok(Err(RecoveryFailureV1::LeaseReleased {
+            lease_id: lease.lease_id,
         }));
     }
+    if lease.is_expired {
+        return Ok(Err(RecoveryFailureV1::LeaseExpired {
+            lease_id: lease.lease_id,
+            expires_at_utc: lease.expires_at_utc,
+        }));
+    }
+    if lease.actor_id != new_actor.canonical() {
+        return Ok(Err(RecoveryFailureV1::LeaseForeignActor {
+            lease_id: lease.lease_id.clone(),
+            holder_actor_id: lease.actor_id,
+            recovering_actor_id: new_actor.canonical(),
+        }));
+    }
+    if !lease_scope_covers_checkpoint(&lease.scope_ref(), &checkpoint.scope_ref) {
+        return Ok(Err(RecoveryFailureV1::LeaseScopeMismatch {
+            lease_id: lease.lease_id.clone(),
+            lease_scope_ref: lease.scope_ref(),
+            checkpoint_scope_ref: checkpoint.scope_ref.clone(),
+        }));
+    }
+
     let lineage = knowledge_crdt::lease_lineage(pool, new_lease_id).await?;
     let lease_lineage_ids: Vec<String> =
         lineage.iter().map(|lease| lease.lease_id.clone()).collect();
@@ -258,4 +314,30 @@ pub async fn recover_from_checkpoint(
         resume_pointer,
         lease_lineage_ids,
     }))
+}
+
+/// Authority-hardening #3: does a lease scope (`kind:id`, e.g.
+/// `document:crdt-x`) cover a checkpoint scope_ref?
+///
+/// A scope covers the checkpoint when it is an exact match, or when a
+/// `workspace:<ws>`-kind lease covers a finer scope inside that same
+/// workspace whose checkpoint scope_ref is `<kind>:<ws>/...` (hierarchical
+/// path coverage). Exact match is the common legitimate path (the recovering
+/// session re-claims the same document scope the checkpoint was written
+/// under); the hierarchical rule lets a workspace-wide lease recover its
+/// documents without over-broadly accepting unrelated scopes. Migration 0191
+/// records this contract as the checkpoint<->recovery scope link.
+pub fn lease_scope_covers_checkpoint(lease_scope_ref: &str, checkpoint_scope_ref: &str) -> bool {
+    if lease_scope_ref == checkpoint_scope_ref {
+        return true;
+    }
+    // Workspace-wide lease covers same-workspace child scopes encoded as
+    // `<kind>:<workspace_id>/<child>`.
+    if let Some(workspace_id) = lease_scope_ref.strip_prefix("workspace:") {
+        if let Some((_, scope_body)) = checkpoint_scope_ref.split_once(':') {
+            return scope_body == workspace_id
+                || scope_body.starts_with(&format!("{workspace_id}/"));
+        }
+    }
+    false
 }

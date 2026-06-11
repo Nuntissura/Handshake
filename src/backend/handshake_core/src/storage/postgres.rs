@@ -7419,6 +7419,79 @@ impl super::Database for PostgresDatabase {
         Ok(vec![first_event, second_event])
     }
 
+    /// WP-KERNEL-009 authority-hardening #2: ledger pair + fact insert +
+    /// proposal flip in a SINGLE transaction (atomic promotion). See the
+    /// trait doc. The fact insert is `ON CONFLICT (proposal_id) DO NOTHING`
+    /// so a crashed-then-retried promotion converges on one fact row; the
+    /// committed event ids on that row are the first writer's.
+    async fn promote_graph_fact_atomic(
+        &self,
+        requested: NewKernelEvent,
+        mut accepted: NewKernelEvent,
+        fact: crate::storage::knowledge_crdt::NewPromotedFact,
+    ) -> StorageResult<crate::storage::knowledge_crdt::PromotedFactRow> {
+        let mut tx = self.pool.begin().await?;
+        let requested_event = append_kernel_event_with_executor(&mut *tx, requested).await?;
+        accepted.causation_id = Some(requested_event.event_id.clone());
+        let accepted_event = append_kernel_event_with_executor(&mut *tx, accepted).await?;
+
+        // Frozen authority fact, carrying the just-appended ledger receipts.
+        // Migration 0190's trigger re-validates span existence at INSERT time
+        // as the schema backstop; an invalid ref aborts the whole tx.
+        sqlx::query(
+            r#"
+            INSERT INTO knowledge_crdt_promoted_facts (
+                fact_id, proposal_id, workspace_id, mutation_kind, fact_payload,
+                source_span_refs, confidence, proposed_by, promoted_by,
+                promotion_requested_event_id, promotion_accepted_event_id
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+            ON CONFLICT (proposal_id) DO NOTHING
+            "#,
+        )
+        .bind(&fact.fact_id)
+        .bind(&fact.proposal_id)
+        .bind(&fact.workspace_id)
+        .bind(&fact.mutation_kind)
+        .bind(&fact.fact_payload)
+        .bind(&fact.source_span_refs)
+        .bind(fact.confidence)
+        .bind(&fact.proposed_by)
+        .bind(&fact.promoted_by)
+        .bind(&requested_event.event_id)
+        .bind(&accepted_event.event_id)
+        .execute(&mut *tx)
+        .await?;
+
+        // Finalize the proposal lifecycle in the same tx (approved ->
+        // promoted; idempotent: a re-promotion is already 'promoted').
+        sqlx::query(
+            r#"
+            UPDATE knowledge_crdt_graph_proposals
+            SET review_state = 'promoted'
+            WHERE proposal_id = $1 AND review_state = 'approved'
+            "#,
+        )
+        .bind(&fact.proposal_id)
+        .execute(&mut *tx)
+        .await?;
+
+        let row = sqlx::query(&format!(
+            "SELECT {cols} FROM knowledge_crdt_promoted_facts WHERE proposal_id = $1",
+            cols = crate::storage::knowledge_crdt::PROMOTED_FACT_COLUMNS,
+        ))
+        .bind(&fact.proposal_id)
+        .fetch_optional(&mut *tx)
+        .await?;
+
+        tx.commit().await?;
+
+        let row = row.ok_or(StorageError::NotFound(
+            "promoted fact after atomic promotion",
+        ))?;
+        crate::storage::knowledge_crdt::map_promoted_fact_row(row)
+    }
+
     async fn list_kernel_events_for_session(
         &self,
         session_run_id: &str,

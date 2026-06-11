@@ -558,4 +558,227 @@ mod mt_079_recovery_receipt {
             Err(RecoveryFailureV1::PayloadHashMismatch { .. })
         ));
     }
+
+    /// Authority-hardening #3: recovery is only authorized under a lease that
+    /// is unreleased, unexpired (DB clock), owned by the recovering actor, and
+    /// scope-covering. Each bad lease yields a TYPED failure and writes NO
+    /// recovery receipt. Previously recovery checked lease existence alone.
+    #[tokio::test]
+    async fn recovery_refuses_released_expired_foreign_or_wrong_scope_lease() {
+        let backend = backend_or_blocked().await;
+        let db = backend.database.clone();
+        let pool = backend.postgres_pool.clone();
+        let suffix = Uuid::now_v7().simple().to_string();
+        let scope_id = format!("crdt-mt079neg-{suffix}");
+        let lane_id = format!("lane-mt079neg-{suffix}");
+        let actor =
+            KnowledgeActorIdV1::new(KnowledgeActorKind::LocalModel, "owner-lm").expect("actor");
+        let stranger =
+            KnowledgeActorIdV1::new(KnowledgeActorKind::LocalModel, "stranger-lm").expect("actor");
+
+        // A checkpoint scoped to `document:<scope_id>`.
+        let lease_for_ckpt = match claim_lease(
+            db.as_ref(),
+            &pool,
+            claim_request(
+                &actor,
+                &format!("sr-ckpt-{suffix}"),
+                KnowledgeLeaseScopeKind::Document,
+                &scope_id,
+                600,
+            ),
+        )
+        .await
+        .expect("claim flow")
+        {
+            LeaseClaimOutcomeV1::Claimed(lease) => *lease,
+            other => panic!("expected claim, got {other:?}"),
+        };
+        let checkpoint = write_swarm_checkpoint(
+            db.as_ref(),
+            &pool,
+            SwarmCheckpointRequestV1 {
+                session_id: format!("sr-ckpt-{suffix}"),
+                actor: actor.clone(),
+                lane_id: lane_id.clone(),
+                lease_id: lease_for_ckpt.lease_id.clone(),
+                scope_ref: format!("document:{scope_id}"),
+                resume_pointer: SwarmResumePointerV1::MicroTask {
+                    mt_id: "MT-079".to_string(),
+                },
+                checkpoint_payload: json!({"k": "v"}),
+            },
+        )
+        .await
+        .expect("checkpoint written");
+
+        async fn receipt_count(pool: &sqlx::PgPool, checkpoint_id: &str) -> usize {
+            list_recovery_receipts_for_checkpoint(pool, checkpoint_id)
+                .await
+                .expect("receipts")
+                .len()
+        }
+
+        // (a) RELEASED lease.
+        let released = match claim_lease(
+            db.as_ref(),
+            &pool,
+            claim_request(
+                &actor,
+                &format!("sr-rel-{suffix}"),
+                KnowledgeLeaseScopeKind::Document,
+                &scope_id,
+                600,
+            ),
+        )
+        .await
+        .expect("claim flow")
+        {
+            LeaseClaimOutcomeV1::Claimed(lease) => *lease,
+            // scope already held by lease_for_ckpt -> claim a distinct scope.
+            LeaseClaimOutcomeV1::ScopeHeld { .. } => {
+                match claim_lease(
+                    db.as_ref(),
+                    &pool,
+                    claim_request(
+                        &actor,
+                        &format!("sr-rel-{suffix}"),
+                        KnowledgeLeaseScopeKind::Document,
+                        &format!("{scope_id}-rel"),
+                        600,
+                    ),
+                )
+                .await
+                .expect("claim flow")
+                {
+                    LeaseClaimOutcomeV1::Claimed(lease) => *lease,
+                    other => panic!("expected claim, got {other:?}"),
+                }
+            }
+        };
+        release_lease(db.as_ref(), &pool, &released.lease_id, &actor)
+            .await
+            .expect("release");
+        let out = recover_from_checkpoint(
+            db.as_ref(),
+            &pool,
+            &checkpoint.checkpoint_id,
+            &format!("sr-rec-{suffix}"),
+            &actor,
+            &released.lease_id,
+        )
+        .await
+        .expect("recovery flow");
+        assert!(
+            matches!(out, Err(RecoveryFailureV1::LeaseReleased { .. })),
+            "released lease must refuse recovery, got {out:?}"
+        );
+        assert_eq!(receipt_count(&pool, &checkpoint.checkpoint_id).await, 0);
+
+        // (b) EXPIRED lease (1s ttl, waited out on the DB clock).
+        let expiring = match claim_lease(
+            db.as_ref(),
+            &pool,
+            claim_request(
+                &actor,
+                &format!("sr-exp-{suffix}"),
+                KnowledgeLeaseScopeKind::Document,
+                &format!("{scope_id}-exp"),
+                1,
+            ),
+        )
+        .await
+        .expect("claim flow")
+        {
+            LeaseClaimOutcomeV1::Claimed(lease) => *lease,
+            other => panic!("expected claim, got {other:?}"),
+        };
+        wait_for_db_expiry(&pool, &expiring.lease_id).await;
+        let out = recover_from_checkpoint(
+            db.as_ref(),
+            &pool,
+            &checkpoint.checkpoint_id,
+            &format!("sr-rec-{suffix}"),
+            &actor,
+            &expiring.lease_id,
+        )
+        .await
+        .expect("recovery flow");
+        assert!(
+            matches!(out, Err(RecoveryFailureV1::LeaseExpired { .. })),
+            "expired lease must refuse recovery, got {out:?}"
+        );
+        assert_eq!(receipt_count(&pool, &checkpoint.checkpoint_id).await, 0);
+
+        // (c) FOREIGN actor: a live lease owned by `actor`, but recovery
+        // claims `stranger`.
+        let owned = match claim_lease(
+            db.as_ref(),
+            &pool,
+            claim_request(
+                &actor,
+                &format!("sr-own-{suffix}"),
+                KnowledgeLeaseScopeKind::Document,
+                &scope_id,
+                600,
+            ),
+        )
+        .await
+        .expect("claim flow")
+        {
+            LeaseClaimOutcomeV1::Claimed(lease) => *lease,
+            // The original checkpoint lease already holds `document:scope_id`;
+            // reuse it (it is live + owned by `actor`).
+            LeaseClaimOutcomeV1::ScopeHeld { .. } => lease_for_ckpt.clone(),
+        };
+        let out = recover_from_checkpoint(
+            db.as_ref(),
+            &pool,
+            &checkpoint.checkpoint_id,
+            &format!("sr-rec-{suffix}"),
+            &stranger,
+            &owned.lease_id,
+        )
+        .await
+        .expect("recovery flow");
+        assert!(
+            matches!(out, Err(RecoveryFailureV1::LeaseForeignActor { .. })),
+            "foreign-actor lease must refuse recovery, got {out:?}"
+        );
+        assert_eq!(receipt_count(&pool, &checkpoint.checkpoint_id).await, 0);
+
+        // (d) WRONG scope: a live, owned lease on an unrelated document scope.
+        let wrong_scope = match claim_lease(
+            db.as_ref(),
+            &pool,
+            claim_request(
+                &actor,
+                &format!("sr-ws-{suffix}"),
+                KnowledgeLeaseScopeKind::Document,
+                &format!("unrelated-{suffix}"),
+                600,
+            ),
+        )
+        .await
+        .expect("claim flow")
+        {
+            LeaseClaimOutcomeV1::Claimed(lease) => *lease,
+            other => panic!("expected claim, got {other:?}"),
+        };
+        let out = recover_from_checkpoint(
+            db.as_ref(),
+            &pool,
+            &checkpoint.checkpoint_id,
+            &format!("sr-rec-{suffix}"),
+            &actor,
+            &wrong_scope.lease_id,
+        )
+        .await
+        .expect("recovery flow");
+        assert!(
+            matches!(out, Err(RecoveryFailureV1::LeaseScopeMismatch { .. })),
+            "wrong-scope lease must refuse recovery, got {out:?}"
+        );
+        assert_eq!(receipt_count(&pool, &checkpoint.checkpoint_id).await, 0);
+    }
 }

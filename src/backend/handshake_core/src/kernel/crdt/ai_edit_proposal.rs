@@ -27,7 +27,10 @@ use crate::storage::knowledge_crdt::{
 use crate::storage::Database;
 
 use super::actor_site::{KnowledgeActorIdV1, KnowledgeActorKind};
-use super::agent_lease::{new_ulid, LeaseFlowError};
+use super::agent_lease::{
+    guard_lease_for_write, new_ulid, KnowledgeLeaseScopeKind, LeaseFlowError, LeaseWriteDenialV1,
+    LeaseWriteGuardOutcomeV1,
+};
 use super::persistence::sha256_hex;
 use super::state_vector::KnowledgeStateVectorV1;
 
@@ -137,15 +140,58 @@ pub fn validate_ai_edit_proposal_request(
     }
 }
 
+/// Outcome of recording an AI edit proposal. A lease denial is a durable
+/// runtime denial (receipt + event), distinct from a validation error and
+/// from success.
+#[derive(Debug, Clone, PartialEq)]
+pub enum RecordAiEditProposalOutcomeV1 {
+    Recorded(Box<AiEditProposalRow>),
+    Invalid(Vec<AiEditProposalValidationError>),
+    /// Authority-hardening #4: the presented lease failed the server-side
+    /// write guard (expired / foreign / released / wrong-scope). Durable.
+    LeaseDenied(Box<LeaseWriteDenialV1>),
+}
+
 /// Record an AI edit proposal (AI_EDIT_PROPOSAL_RECORDED + draft row).
+///
+/// Authority-hardening #4: AI edit proposals always carry a model actor +
+/// lease (validation above). The presented lease is routed through
+/// [`guard_lease_for_write`] (document scope) BEFORE the draft is written, so
+/// an expired/foreign/wrong-scope lease is denied with a durable receipt and
+/// NO draft row — presence-only checking let those through.
 pub async fn record_ai_edit_proposal(
     db: &(dyn Database + '_),
     pool: &PgPool,
     request: AiEditProposalRequestV1,
-) -> Result<Result<AiEditProposalRow, Vec<AiEditProposalValidationError>>, LeaseFlowError> {
+) -> Result<RecordAiEditProposalOutcomeV1, LeaseFlowError> {
     if let Err(errors) = validate_ai_edit_proposal_request(&request) {
-        return Ok(Err(errors));
+        return Ok(RecordAiEditProposalOutcomeV1::Invalid(errors));
     }
+
+    // Lease chokepoint over the workspace scope (model lane leases are
+    // workspace-scoped per the MT-041 seed; the validation above already
+    // guarantees a model actor presented a lease id).
+    if let Some(lease_id) = &request.lease_id {
+        match guard_lease_for_write(
+            db,
+            pool,
+            lease_id,
+            &request.actor,
+            &request.session_id,
+            &request.correlation_id,
+            &request.workspace_id,
+            KnowledgeLeaseScopeKind::Workspace,
+            &request.workspace_id,
+        )
+        .await?
+        {
+            LeaseWriteGuardOutcomeV1::Allowed(_) => {}
+            LeaseWriteGuardOutcomeV1::Denied(denial) => {
+                return Ok(RecordAiEditProposalOutcomeV1::LeaseDenied(denial));
+            }
+        }
+    }
+
     let proposal_id = new_ulid();
     let diff_bytes = serde_json::to_vec(&request.proposed_diff)
         .map_err(|error| LeaseFlowError::Event(error.to_string()))?;
@@ -201,7 +247,7 @@ pub async fn record_ai_edit_proposal(
         },
     )
     .await?;
-    Ok(Ok(row))
+    Ok(RecordAiEditProposalOutcomeV1::Recorded(Box::new(row)))
 }
 
 /// Typed review errors (mirrors graph proposal semantics).
@@ -557,4 +603,167 @@ async fn deny_promotion(
             event_ledger_event_id: stored_event.event_id,
         },
     )))
+}
+
+pub const AI_EDIT_APPLIED_BINDING_SCHEMA_ID: &str = "hsk.kernel.knowledge_ai_edit_applied@1";
+pub const AI_EDIT_APPLIED_MISMATCH_SCHEMA_ID: &str =
+    "hsk.kernel.knowledge_ai_edit_applied_mismatch@1";
+
+/// Outcome of binding an applied update to an approved AI edit proposal.
+#[derive(Debug, Clone, PartialEq)]
+pub enum AiEditApplyOutcomeV1 {
+    /// The applied update hashed to the approved diff; the proposal row now
+    /// carries the binding (`applied_update_id` + `applied_update_sha256`).
+    Bound(Box<AiEditProposalRow>),
+    /// The proposal does not exist.
+    UnknownProposal { proposal_id: String },
+    /// The proposal is not approved/promoted (only those can be applied).
+    NotApplicable { current_state: String },
+    /// Authority-hardening #5: the applied update content did NOT hash to the
+    /// approved `diff_sha256`. Durable `ai_edit_applied_mismatch` receipt; the
+    /// binding is refused so authority cannot claim an unrelated edit as the
+    /// approved one.
+    HashMismatch {
+        expected_diff_sha256: String,
+        applied_content_sha256: String,
+        denial_receipt_id: String,
+        event_ledger_event_id: String,
+    },
+}
+
+/// Authority-hardening #5: record that `applied_update_id` (a
+/// `kernel_crdt_updates` row already pushed to the document) is the
+/// application of an APPROVED AI edit proposal, binding it to the approved
+/// `diff_sha256`. `applied_diff` is the diff payload that was actually
+/// applied; its canonical hash MUST equal the proposal's approved
+/// `diff_sha256` or the binding is refused with a durable receipt. This is
+/// what closes the approved-vs-applied gap: nothing else lets an approved
+/// proposal's authority trail point at the update that realized it, and a
+/// non-matching update can never be recorded as that application.
+pub async fn apply_approved_ai_edit(
+    db: &(dyn Database + '_),
+    pool: &PgPool,
+    proposal_id: &str,
+    applied_update_id: &str,
+    applied_diff: &Value,
+    actor: &KnowledgeActorIdV1,
+    session_id: &str,
+    correlation_id: &str,
+) -> Result<AiEditApplyOutcomeV1, LeaseFlowError> {
+    let proposal = match knowledge_crdt::get_ai_edit_proposal(pool, proposal_id).await? {
+        Some(row) => row,
+        None => {
+            return Ok(AiEditApplyOutcomeV1::UnknownProposal {
+                proposal_id: proposal_id.to_string(),
+            })
+        }
+    };
+    if !matches!(proposal.review_state.as_str(), "approved" | "promoted") {
+        return Ok(AiEditApplyOutcomeV1::NotApplicable {
+            current_state: proposal.review_state,
+        });
+    }
+
+    let applied_bytes = serde_json::to_vec(applied_diff)
+        .map_err(|error| LeaseFlowError::Event(error.to_string()))?;
+    let applied_content_sha256 = sha256_hex(&applied_bytes);
+
+    // The binder only stamps the row when the hash equals the approved diff
+    // hash (and the 0192 CHECK is the schema backstop).
+    if let Some(bound) = knowledge_crdt::bind_applied_ai_edit_update(
+        pool,
+        proposal_id,
+        applied_update_id,
+        &applied_content_sha256,
+    )
+    .await?
+    {
+        // Durable applied-binding receipt event (AI_EDIT_PROPOSAL_DECIDED
+        // family, applied discriminator).
+        let event = NewKernelEvent::builder(
+            format!("KTR-KNOWLEDGE-AI-EDIT-{}", proposal.crdt_document_id),
+            session_id.to_string(),
+            KernelEventType::AiEditProposalDecided,
+            actor.to_kernel_actor(),
+        )
+        .aggregate("knowledge_ai_edit_proposal", proposal_id.to_string())
+        .idempotency_key(format!(
+            "knowledge-ai-edit:{proposal_id}:applied:{applied_update_id}"
+        ))
+        .correlation_id(correlation_id.to_string())
+        .source_component("knowledge_crdt_ai_edit_proposal")
+        .payload(json!({
+            "schema_id": AI_EDIT_APPLIED_BINDING_SCHEMA_ID,
+            "proposal_id": proposal_id,
+            "applied_update_id": applied_update_id,
+            "applied_update_sha256": applied_content_sha256,
+            "approved_diff_sha256": proposal.diff_sha256,
+        }))
+        .build()
+        .map_err(|error| LeaseFlowError::Event(error.to_string()))?;
+        db.append_kernel_event(event)
+            .await
+            .map_err(|error| LeaseFlowError::Event(error.to_string()))?;
+        return Ok(AiEditApplyOutcomeV1::Bound(Box::new(bound)));
+    }
+
+    // No row matched -> the applied content did not hash to the approved
+    // diff. Emit a durable mismatch denial.
+    let receipt_id = new_denial_receipt_id();
+    let event = NewKernelEvent::builder(
+        format!("KTR-KNOWLEDGE-AI-EDIT-{}", proposal.crdt_document_id),
+        session_id.to_string(),
+        KernelEventType::AiEditProposalDecided,
+        actor.to_kernel_actor(),
+    )
+    .aggregate("knowledge_ai_edit_proposal", proposal_id.to_string())
+    .idempotency_key(format!("knowledge-ai-edit-applied-denial:{receipt_id}"))
+    .correlation_id(correlation_id.to_string())
+    .source_component("knowledge_crdt_ai_edit_proposal")
+    .payload(json!({
+        "schema_id": AI_EDIT_APPLIED_MISMATCH_SCHEMA_ID,
+        "proposal_id": proposal_id,
+        "applied_update_id": applied_update_id,
+        "applied_content_sha256": applied_content_sha256,
+        "approved_diff_sha256": proposal.diff_sha256,
+    }))
+    .build()
+    .map_err(|error| LeaseFlowError::Event(error.to_string()))?;
+    let stored_event = db
+        .append_kernel_event(event)
+        .await
+        .map_err(|error| LeaseFlowError::Event(error.to_string()))?;
+
+    let receipt = insert_denial_receipt(
+        pool,
+        NewKnowledgeCrdtDenialReceipt {
+            receipt_id: receipt_id.clone(),
+            receipt_kind: "ai_edit_applied_mismatch".to_string(),
+            workspace_id: proposal.workspace_id.clone(),
+            document_id: Some(proposal.document_id.clone()),
+            crdt_document_id: Some(proposal.crdt_document_id.clone()),
+            scope_ref: format!("proposal:{proposal_id}"),
+            actor_id: actor.canonical(),
+            actor_kind: actor.kind().as_str().to_string(),
+            session_id: session_id.to_string(),
+            correlation_id: correlation_id.to_string(),
+            denial_payload: json!({
+                "schema_id": AI_EDIT_APPLIED_MISMATCH_SCHEMA_ID,
+                "proposal_id": proposal_id,
+                "applied_update_id": applied_update_id,
+                "applied_content_sha256": applied_content_sha256,
+                "approved_diff_sha256": proposal.diff_sha256,
+            }),
+            event_ledger_event_id: stored_event.event_id.clone(),
+            idempotency_key: format!("knowledge-ai-edit-applied-denial:{receipt_id}"),
+        },
+    )
+    .await?;
+
+    Ok(AiEditApplyOutcomeV1::HashMismatch {
+        expected_diff_sha256: proposal.diff_sha256,
+        applied_content_sha256,
+        denial_receipt_id: receipt.receipt_id,
+        event_ledger_event_id: stored_event.event_id,
+    })
 }

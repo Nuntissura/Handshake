@@ -12,8 +12,14 @@
 --
 -- Span refs: JSONB array of span ref strings ('KSP-<32hex>' ids from
 -- knowledge_spans, migration 0134, or 'pending:<source>:<range>' markers for
--- spans not yet extracted). Soft refs by design: a proposal may cite spans
--- that a later re-index retires; the promotion gate (MT-069) re-validates.
+-- spans not yet extracted). Soft refs by design AT THE DRAFT STAGE only: this
+-- table CHECKs the array is non-empty (chk_..._spans below) but does NOT
+-- verify the refs resolve. Authority-hardening #1 (2026-06-11): the promotion
+-- gate (MT-069, claim_promotion.rs) RE-VALIDATES every cited ref against the
+-- live span graph before a fact becomes authority — a 'pending:' marker, a
+-- malformed ref, or a 'KSP-' id that does not exist / is foreign-workspace /
+-- is retired (stale source) is DENIED with a durable receipt and never
+-- promoted. Migration 0190 is the schema backstop on knowledge_crdt_promoted_facts.
 
 CREATE TABLE IF NOT EXISTS knowledge_crdt_graph_proposals (
     proposal_id TEXT PRIMARY KEY,

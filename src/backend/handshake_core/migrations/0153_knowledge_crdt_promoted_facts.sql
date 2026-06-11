@@ -10,12 +10,18 @@
 --
 -- Relationship to knowledge_claims (migration 0137, committed by MT-056):
 -- promotion lands here, in the WP-009 CRDT namespace, instead of
--- double-writing knowledge_claims rows, because knowledge_claims requires
--- commit-time KSP-* span evidence (FK + trigger) while proposals may cite
--- 'pending:<source>:<range>' span markers for spans not extracted yet. The
--- fact row freezes the full mutation payload + span refs so the
--- knowledge-claims lane can map promoted add_claim facts into
--- knowledge_claims without data loss once their spans exist.
+-- double-writing knowledge_claims rows. knowledge_claims requires commit-time
+-- KSP-* span evidence (FK + trigger); a DRAFT proposal (0152) may still cite
+-- 'pending:<source>:<range>' markers for spans not extracted yet. Authority-
+-- hardening #1 (2026-06-11): such soft markers DO NOT reach this authority
+-- table. The MT-069 promotion gate resolves+validates every cited ref and
+-- freezes ONLY the validated, de-duplicated canonical KSP- ids into
+-- source_span_refs (a 'pending:' marker, a missing/foreign/retired span ->
+-- promotion DENIED). Migration 0190 adds a BEFORE INSERT trigger here that
+-- re-checks each KSP- ref exists, is same-workspace, and is not stale, so a
+-- direct INSERT cannot create a fact with dangling evidence either. The frozen
+-- KSP- ids let the knowledge-claims lane map promoted add_claim facts into
+-- knowledge_claims without data loss.
 
 CREATE TABLE IF NOT EXISTS knowledge_crdt_promoted_facts (
     fact_id TEXT PRIMARY KEY,

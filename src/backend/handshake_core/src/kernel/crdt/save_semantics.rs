@@ -33,6 +33,9 @@ use crate::storage::knowledge_crdt::{
 use crate::storage::Database;
 
 use super::actor_site::KnowledgeActorIdV1;
+use super::agent_lease::{
+    guard_lease_for_write, KnowledgeLeaseScopeKind, LeaseWriteDenialV1, LeaseWriteGuardOutcomeV1,
+};
 use super::state_vector::{KnowledgeStateVectorOrdering, KnowledgeStateVectorV1};
 use super::yjs_bridge::{
     push_yjs_update, read_draft_head, KnowledgeCrdtFlowError, YjsPushDenialReasonV1,
@@ -128,6 +131,11 @@ pub enum KnowledgeDraftSaveOutcomeV1 {
     /// Structural rejection (invalid envelope / mismatched update_id reuse /
     /// sequence race). No durable receipt: the writer must fix the request.
     Rejected { reason: YjsPushDenialReasonV1 },
+    /// Authority-hardening #4: the save was attempted under a lease that
+    /// failed the server-side write guard (expired / foreign / released /
+    /// wrong-scope). Durable receipt + KNOWLEDGE_CRDT_LEASE_WRITE_DENIED
+    /// event; the draft is NOT written.
+    LeaseDenied { denial: LeaseWriteDenialV1 },
 }
 
 /// Save a rich-document draft update with deterministic concurrent-save
@@ -206,6 +214,43 @@ pub async fn save_rich_document_draft(
                 reason: denial.reason,
             }),
         },
+    }
+}
+
+/// Authority-hardening #4: save a rich-document draft under a presented lane
+/// lease, enforced as a server-side chokepoint. The lease MUST be live,
+/// owned by the saving actor, and cover the document scope; otherwise the
+/// save is refused with a durable [`KnowledgeDraftSaveOutcomeV1::LeaseDenied`]
+/// receipt and NO draft is written. When the guard passes, the save proceeds
+/// exactly as [`save_rich_document_draft`]. Callers that hold no lease (e.g.
+/// operator direct saves where a lease is not required) use the unguarded
+/// entrypoint.
+pub async fn save_rich_document_draft_under_lease(
+    db: &(dyn Database + '_),
+    pool: &PgPool,
+    envelope: &YjsUpdateEnvelopeV1,
+    lease_id: &str,
+) -> Result<KnowledgeDraftSaveOutcomeV1, KnowledgeCrdtFlowError> {
+    let actor = KnowledgeActorIdV1::parse(&envelope.actor_id)
+        .map_err(|error| KnowledgeCrdtFlowError::Storage(error.to_string()))?;
+    match guard_lease_for_write(
+        db,
+        pool,
+        lease_id,
+        &actor,
+        &envelope.session_id,
+        &envelope.trace_id,
+        &envelope.workspace_id,
+        KnowledgeLeaseScopeKind::Document,
+        &envelope.crdt_document_id,
+    )
+    .await
+    .map_err(|error| KnowledgeCrdtFlowError::Storage(error.to_string()))?
+    {
+        LeaseWriteGuardOutcomeV1::Allowed(_) => save_rich_document_draft(db, pool, envelope).await,
+        LeaseWriteGuardOutcomeV1::Denied(denial) => {
+            Ok(KnowledgeDraftSaveOutcomeV1::LeaseDenied { denial: *denial })
+        }
     }
 }
 

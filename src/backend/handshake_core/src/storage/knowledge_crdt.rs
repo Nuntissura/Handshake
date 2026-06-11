@@ -47,7 +47,7 @@ pub struct KnowledgeCrdtDenialReceiptRow {
 
 /// Allowed receipt kinds (mirrors the migration CHECK; kept in Rust so
 /// callers fail closed before touching the database).
-pub const KNOWLEDGE_CRDT_DENIAL_KINDS: [&str; 9] = [
+pub const KNOWLEDGE_CRDT_DENIAL_KINDS: [&str; 10] = [
     "stale_draft_save",
     "concurrent_draft_fork",
     "ahead_of_head_save",
@@ -57,6 +57,9 @@ pub const KNOWLEDGE_CRDT_DENIAL_KINDS: [&str; 9] = [
     "index_run_slot_rejected",
     "graph_promotion_denied",
     "ai_edit_promotion_denied",
+    // Authority-hardening #5: an applied update did not hash to the approved
+    // proposal's diff_sha256 (approved-vs-applied binding violation).
+    "ai_edit_applied_mismatch",
 ];
 
 /// Generate a new denial receipt id (`KCDR-<32 hex>`, time-ordered v7 per
@@ -758,6 +761,166 @@ pub async fn mark_graph_proposal_promoted(
 }
 
 // ---------------------------------------------------------------------------
+// MT-069 promotion span-evidence validation (authority-hardening #1).
+//
+// Spec 02-system-architecture.md 2.3.13.11: "KnowledgeClaim ... Claims MUST
+// carry ... evidence spans". A graph proposal may cite soft `pending:<...>`
+// markers or `KSP-` ids that a later re-index retires, so the proposal table
+// only CHECKs non-emptiness (0152). The promotion bridge (MT-069) is the
+// authority gate: before a proposal becomes a durable `authority` fact every
+// cited span MUST resolve to a real, live, same-workspace `knowledge_spans`
+// row. This module is the resolver; `claim_promotion.rs` denies on any
+// failure and migration 0190 is the schema backstop (a fact may only carry
+// KSP- refs that exist in the same workspace and whose source is not stale).
+// ---------------------------------------------------------------------------
+
+/// One cited span ref classified for promotion-time validation.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum PromotionSpanRefKind {
+    /// A concrete `KSP-<32hex>` id that must resolve against knowledge_spans.
+    KnowledgeSpan,
+    /// A `pending:<source>:<range>` soft marker — never durable authority.
+    PendingMarker,
+    /// Anything else (malformed / unknown scheme) — never durable authority.
+    Unrecognized,
+}
+
+/// Classify a single span ref string for promotion validation.
+pub fn classify_promotion_span_ref(span_ref: &str) -> PromotionSpanRefKind {
+    let trimmed = span_ref.trim();
+    if trimmed.starts_with("pending:") {
+        PromotionSpanRefKind::PendingMarker
+    } else if is_canonical_ksp_id(trimmed) {
+        PromotionSpanRefKind::KnowledgeSpan
+    } else {
+        PromotionSpanRefKind::Unrecognized
+    }
+}
+
+/// `KSP-` followed by exactly 32 lowercase hex chars (mirrors the
+/// `chk_knowledge_spans_id` CHECK in migration 0134).
+fn is_canonical_ksp_id(value: &str) -> bool {
+    let Some(hex) = value.strip_prefix("KSP-") else {
+        return false;
+    };
+    hex.len() == 32
+        && hex
+            .bytes()
+            .all(|b| b.is_ascii_hexdigit() && !b.is_ascii_uppercase())
+}
+
+/// Why a single cited span ref is not promotable into authority.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "code", rename_all = "snake_case")]
+pub enum PromotionSpanRejection {
+    /// A `pending:<...>` soft marker reached the authority gate; it must be
+    /// resolved to a real span (re-index) before promotion.
+    PendingMarker { span_ref: String },
+    /// Malformed / unknown span-ref scheme.
+    Unrecognized { span_ref: String },
+    /// A `KSP-` id that does not exist in knowledge_spans at all.
+    SpanNotFound { span_ref: String },
+    /// The span exists but belongs to a different workspace than the proposal
+    /// (cross-workspace evidence leak).
+    SpanForeignWorkspace {
+        span_ref: String,
+        span_workspace_id: String,
+        proposal_workspace_id: String,
+    },
+    /// The span's source has been superseded by a newer index run
+    /// (`knowledge_sources.stale = true`): retired evidence.
+    SpanRetired { span_ref: String },
+}
+
+/// Outcome of validating every cited span ref of a proposal against the live
+/// span graph. `Ok` carries the de-duplicated, validated `KSP-` ids that may
+/// be frozen into the authority fact.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum PromotionSpanValidation {
+    Ok {
+        validated_span_ids: Vec<String>,
+    },
+    Rejected {
+        rejections: Vec<PromotionSpanRejection>,
+    },
+}
+
+/// Resolve + validate every cited span ref of a proposal before it becomes
+/// durable authority. A ref is promotable only when it is a canonical `KSP-`
+/// id whose `knowledge_spans` row (a) exists, (b) is anchored to a
+/// `knowledge_sources` row in the SAME `workspace_id`, and (c) whose source
+/// is not `stale` (not superseded by a newer index run). `pending:` markers,
+/// malformed refs, missing/foreign/retired spans all reject — the caller
+/// turns any rejection into a durable promotion-denial receipt.
+pub async fn validate_promotion_span_refs(
+    pool: &PgPool,
+    proposal_workspace_id: &str,
+    span_refs: &[String],
+) -> StorageResult<PromotionSpanValidation> {
+    let mut rejections = Vec::new();
+    let mut validated: Vec<String> = Vec::new();
+
+    for span_ref in span_refs {
+        match classify_promotion_span_ref(span_ref) {
+            PromotionSpanRefKind::PendingMarker => {
+                rejections.push(PromotionSpanRejection::PendingMarker {
+                    span_ref: span_ref.clone(),
+                });
+            }
+            PromotionSpanRefKind::Unrecognized => {
+                rejections.push(PromotionSpanRejection::Unrecognized {
+                    span_ref: span_ref.clone(),
+                });
+            }
+            PromotionSpanRefKind::KnowledgeSpan => {
+                let span_id = span_ref.trim().to_string();
+                // Resolve span -> source -> workspace + stale, in one query.
+                let row = sqlx::query(
+                    r#"
+                    SELECT src.workspace_id AS workspace_id, src.stale AS stale
+                    FROM knowledge_spans sp
+                    JOIN knowledge_sources src ON src.source_id = sp.source_id
+                    WHERE sp.span_id = $1
+                    "#,
+                )
+                .bind(&span_id)
+                .fetch_optional(pool)
+                .await?;
+                match row {
+                    None => {
+                        rejections.push(PromotionSpanRejection::SpanNotFound { span_ref: span_id })
+                    }
+                    Some(row) => {
+                        let span_workspace_id: String = row.try_get("workspace_id")?;
+                        let stale: bool = row.try_get("stale")?;
+                        if span_workspace_id != proposal_workspace_id {
+                            rejections.push(PromotionSpanRejection::SpanForeignWorkspace {
+                                span_ref: span_id,
+                                span_workspace_id,
+                                proposal_workspace_id: proposal_workspace_id.to_string(),
+                            });
+                        } else if stale {
+                            rejections
+                                .push(PromotionSpanRejection::SpanRetired { span_ref: span_id });
+                        } else if !validated.contains(&span_id) {
+                            validated.push(span_id);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if rejections.is_empty() {
+        Ok(PromotionSpanValidation::Ok {
+            validated_span_ids: validated,
+        })
+    } else {
+        Ok(PromotionSpanValidation::Rejected { rejections })
+    }
+}
+
+// ---------------------------------------------------------------------------
 // MT-069 promoted facts.
 // ---------------------------------------------------------------------------
 
@@ -778,11 +941,19 @@ pub struct PromotedFactRow {
     pub promoted_at_utc: DateTime<Utc>,
 }
 
-const PROMOTED_FACT_COLUMNS: &str = r#"
+/// Column list for `knowledge_crdt_promoted_facts` selects. `pub(crate)` so
+/// the Postgres atomic-promotion helper (postgres.rs) can re-select the row
+/// inside its transaction.
+pub(crate) const PROMOTED_FACT_COLUMNS: &str = r#"
     fact_id, proposal_id, workspace_id, mutation_kind, fact_payload,
     source_span_refs, confidence, proposed_by, promoted_by,
     promotion_requested_event_id, promotion_accepted_event_id, promoted_at_utc
 "#;
+
+/// `pub(crate)` row mapper for the Postgres atomic-promotion helper.
+pub(crate) fn map_promoted_fact_row(row: sqlx::postgres::PgRow) -> StorageResult<PromotedFactRow> {
+    map_promoted_fact(row)
+}
 
 fn map_promoted_fact(row: sqlx::postgres::PgRow) -> StorageResult<PromotedFactRow> {
     Ok(PromotedFactRow {
@@ -864,6 +1035,65 @@ pub async fn get_promoted_fact_by_proposal(
     row.map(map_promoted_fact).transpose()
 }
 
+/// Authority-hardening #2 (recovery/replay branch): materialize the promoted
+/// fact for a proposal whose EventLedger promotion pair already exists but
+/// whose fact row never landed (the historical crash window). Inserts the
+/// fact (carrying the already-committed event ids) and flips the proposal to
+/// 'promoted', in ONE transaction, idempotent on `proposal_id`. Does NOT
+/// append events — the pair is already durable, so passive replay converges
+/// without re-appending (which the EventLedger would reject as an idempotency
+/// conflict). The 0190 span-evidence trigger still guards the insert.
+pub async fn materialize_promoted_fact_from_existing_events(
+    pool: &PgPool,
+    fact: NewPromotedFact,
+) -> StorageResult<PromotedFactRow> {
+    let mut tx = pool.begin().await?;
+    sqlx::query(
+        r#"
+        INSERT INTO knowledge_crdt_promoted_facts (
+            fact_id, proposal_id, workspace_id, mutation_kind, fact_payload,
+            source_span_refs, confidence, proposed_by, promoted_by,
+            promotion_requested_event_id, promotion_accepted_event_id
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+        ON CONFLICT (proposal_id) DO NOTHING
+        "#,
+    )
+    .bind(&fact.fact_id)
+    .bind(&fact.proposal_id)
+    .bind(&fact.workspace_id)
+    .bind(&fact.mutation_kind)
+    .bind(&fact.fact_payload)
+    .bind(&fact.source_span_refs)
+    .bind(fact.confidence)
+    .bind(&fact.proposed_by)
+    .bind(&fact.promoted_by)
+    .bind(&fact.promotion_requested_event_id)
+    .bind(&fact.promotion_accepted_event_id)
+    .execute(&mut *tx)
+    .await?;
+    sqlx::query(
+        r#"
+        UPDATE knowledge_crdt_graph_proposals
+        SET review_state = 'promoted'
+        WHERE proposal_id = $1 AND review_state = 'approved'
+        "#,
+    )
+    .bind(&fact.proposal_id)
+    .execute(&mut *tx)
+    .await?;
+    let row = sqlx::query(&format!(
+        "SELECT {PROMOTED_FACT_COLUMNS} FROM knowledge_crdt_promoted_facts WHERE proposal_id = $1"
+    ))
+    .bind(&fact.proposal_id)
+    .fetch_optional(&mut *tx)
+    .await?;
+    tx.commit().await?;
+    row.map(map_promoted_fact)
+        .transpose()?
+        .ok_or(StorageError::NotFound("promoted fact after materialize"))
+}
+
 // ---------------------------------------------------------------------------
 // MT-074 AI edit proposals.
 // ---------------------------------------------------------------------------
@@ -893,6 +1123,10 @@ pub struct AiEditProposalRow {
     pub decided_event_id: Option<String>,
     pub promotion_requested_event_id: Option<String>,
     pub promotion_accepted_event_id: Option<String>,
+    /// Authority-hardening #5: the applied update bound to the approved diff
+    /// (set only when the applied content hashed to `diff_sha256`).
+    pub applied_update_id: Option<String>,
+    pub applied_update_sha256: Option<String>,
     pub created_at_utc: DateTime<Utc>,
 }
 
@@ -902,7 +1136,8 @@ const AI_EDIT_PROPOSAL_COLUMNS: &str = r#"
     source_span_citations, actor_id, actor_kind, session_id, correlation_id,
     lease_id, review_state, decided_by, decided_at_utc, decision_reason,
     recorded_event_id, decided_event_id, promotion_requested_event_id,
-    promotion_accepted_event_id, created_at_utc
+    promotion_accepted_event_id, applied_update_id, applied_update_sha256,
+    created_at_utc
 "#;
 
 fn map_ai_edit_proposal(row: sqlx::postgres::PgRow) -> StorageResult<AiEditProposalRow> {
@@ -929,6 +1164,8 @@ fn map_ai_edit_proposal(row: sqlx::postgres::PgRow) -> StorageResult<AiEditPropo
         decided_event_id: row.try_get("decided_event_id")?,
         promotion_requested_event_id: row.try_get("promotion_requested_event_id")?,
         promotion_accepted_event_id: row.try_get("promotion_accepted_event_id")?,
+        applied_update_id: row.try_get("applied_update_id")?,
+        applied_update_sha256: row.try_get("applied_update_sha256")?,
         created_at_utc: row.try_get("created_at_utc")?,
     })
 }
@@ -1099,6 +1336,41 @@ pub async fn mark_ai_edit_proposal_promoted(
     .bind(proposal_id)
     .bind(promotion_requested_event_id)
     .bind(promotion_accepted_event_id)
+    .fetch_optional(pool)
+    .await?;
+    row.map(map_ai_edit_proposal).transpose()
+}
+
+/// Authority-hardening #5: bind the applied update to the approved diff. Sets
+/// `applied_update_id` + `applied_update_sha256` ONLY when the proposal is
+/// approved/promoted AND `applied_content_sha256` EQUALS the approved
+/// `diff_sha256` (the WHERE clause enforces the hash match server-side, and
+/// the 0192 CHECK is the schema backstop). Returns `None` when no row matched
+/// — i.e. the hash did not match the approved diff, the proposal is not in an
+/// applicable state, or it does not exist — so the caller can emit a durable
+/// `ai_edit_applied_mismatch` denial. Idempotent: re-binding the same update
+/// id + hash is a no-op that still returns the row.
+pub async fn bind_applied_ai_edit_update(
+    pool: &PgPool,
+    proposal_id: &str,
+    applied_update_id: &str,
+    applied_content_sha256: &str,
+) -> StorageResult<Option<AiEditProposalRow>> {
+    let row = sqlx::query(&format!(
+        r#"
+        UPDATE knowledge_crdt_ai_edit_proposals
+        SET applied_update_id = $2,
+            applied_update_sha256 = $3
+        WHERE proposal_id = $1
+          AND review_state IN ('approved', 'promoted')
+          AND diff_sha256 = $3
+          AND (applied_update_id IS NULL OR applied_update_id = $2)
+        RETURNING {AI_EDIT_PROPOSAL_COLUMNS}
+        "#
+    ))
+    .bind(proposal_id)
+    .bind(applied_update_id)
+    .bind(applied_content_sha256)
     .fetch_optional(pool)
     .await?;
     row.map(map_ai_edit_proposal).transpose()

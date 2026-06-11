@@ -17,7 +17,10 @@ use crate::storage::knowledge_crdt::{self, GraphMutationProposalRow, NewGraphMut
 use crate::storage::{Database, StorageError};
 
 use super::actor_site::{KnowledgeActorIdV1, KnowledgeActorKind};
-use super::agent_lease::LeaseFlowError;
+use super::agent_lease::{
+    guard_lease_for_write, KnowledgeLeaseScopeKind, LeaseFlowError, LeaseWriteDenialV1,
+    LeaseWriteGuardOutcomeV1,
+};
 
 pub const GRAPH_MUTATION_PROPOSAL_SCHEMA_ID: &str =
     "hsk.kernel.knowledge_graph_mutation_proposal@1";
@@ -192,16 +195,59 @@ pub fn validate_graph_proposal_request(
     }
 }
 
+/// Outcome of recording a graph mutation proposal. A lease denial is a
+/// durable runtime denial (receipt + event), distinct from a pre-flight
+/// validation error and from success.
+#[derive(Debug, Clone, PartialEq)]
+pub enum RecordGraphProposalOutcomeV1 {
+    Recorded(Box<GraphMutationProposalRow>),
+    Invalid(Vec<GraphProposalValidationError>),
+    /// Authority-hardening #4: the presented lease failed the server-side
+    /// write guard (expired / foreign / released / wrong-scope). Durable.
+    LeaseDenied(Box<LeaseWriteDenialV1>),
+}
+
 /// Record a graph mutation proposal: GRAPH_MUTATION_PROPOSAL_RECORDED event
 /// plus the draft row. Model actors must present a lane lease.
+///
+/// Authority-hardening #4: when a lease is presented it is routed through
+/// [`guard_lease_for_write`] (workspace scope) BEFORE the draft is written —
+/// presence-only checking let an expired/foreign/wrong-scope lease through.
+/// A guard denial returns [`RecordGraphProposalOutcomeV1::LeaseDenied`] with a
+/// durable receipt and NO draft row.
 pub async fn record_graph_proposal(
     db: &(dyn Database + '_),
     pool: &PgPool,
     request: GraphMutationProposalRequestV1,
-) -> Result<Result<GraphMutationProposalRow, Vec<GraphProposalValidationError>>, LeaseFlowError> {
+) -> Result<RecordGraphProposalOutcomeV1, LeaseFlowError> {
     if let Err(errors) = validate_graph_proposal_request(&request) {
-        return Ok(Err(errors));
+        return Ok(RecordGraphProposalOutcomeV1::Invalid(errors));
     }
+
+    // Lease chokepoint: a presented lease MUST be live, owned, and cover the
+    // workspace scope. (Model actors always present one per the validation
+    // above; operator/system writers may omit it.)
+    if let Some(lease_id) = &request.lease_id {
+        match guard_lease_for_write(
+            db,
+            pool,
+            lease_id,
+            &request.actor,
+            &request.session_id,
+            &request.correlation_id,
+            &request.workspace_id,
+            KnowledgeLeaseScopeKind::Workspace,
+            &request.workspace_id,
+        )
+        .await?
+        {
+            LeaseWriteGuardOutcomeV1::Allowed(_) => {}
+            LeaseWriteGuardOutcomeV1::Denied(denial) => {
+                return Ok(RecordGraphProposalOutcomeV1::LeaseDenied(denial));
+            }
+        }
+    }
+
     let proposal_id = super::agent_lease::new_ulid();
     let event = NewKernelEvent::builder(
         format!("KTR-KNOWLEDGE-GRAPH-{}", request.workspace_id),
@@ -248,7 +294,7 @@ pub async fn record_graph_proposal(
         },
     )
     .await?;
-    Ok(Ok(row))
+    Ok(RecordGraphProposalOutcomeV1::Recorded(Box::new(row)))
 }
 
 /// Typed review decision errors.

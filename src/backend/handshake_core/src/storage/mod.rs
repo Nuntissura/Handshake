@@ -2211,6 +2211,24 @@ pub trait Database: Send + Sync {
             "atomic causation-linked kernel EventLedger append requires Postgres",
         ))
     }
+    /// WP-KERNEL-009 authority-hardening #2: promote a graph proposal into a
+    /// durable `knowledge_crdt_promoted_facts` row in ONE transaction with the
+    /// causation-linked PROMOTION_REQUESTED/PROMOTION_ACCEPTED event pair and
+    /// the proposal's `approved -> promoted` state flip. Either the ledger
+    /// pair AND the fact AND the flip all commit, or none do — closing the
+    /// crash window where the ledger said "promoted" but no fact row existed
+    /// (passive replay then never converged). Idempotent on `proposal_id`:
+    /// a re-promotion returns the existing fact untouched.
+    async fn promote_graph_fact_atomic(
+        &self,
+        _requested: NewKernelEvent,
+        _accepted: NewKernelEvent,
+        _fact: knowledge_crdt::NewPromotedFact,
+    ) -> StorageResult<knowledge_crdt::PromotedFactRow> {
+        Err(StorageError::NotImplemented(
+            "atomic graph-fact promotion requires Postgres",
+        ))
+    }
     async fn list_kernel_events_for_session(
         &self,
         session_run_id: &str,

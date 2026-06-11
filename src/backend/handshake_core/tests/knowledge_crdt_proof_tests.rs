@@ -31,6 +31,50 @@ async fn backend_or_blocked() -> PostgresTestBackend {
     }
 }
 
+/// Authority-hardening #1 fixture: create a real workspace + source + span and
+/// return `(workspace_id, span_id)`. The span is a live (non-stale),
+/// same-workspace `KSP-` row, so a proposal in `workspace_id` citing `span_id`
+/// has promotable evidence. `stale` controls whether the source is retired.
+async fn live_span_fixture(pool: &sqlx::PgPool, label: &str, stale: bool) -> (String, String) {
+    let workspace_id = format!("ws-span-{label}");
+    let source_id = format!("KSRC-{}", uuid::Uuid::now_v7().simple());
+    let span_id = format!("KSP-{}", uuid::Uuid::now_v7().simple());
+    let hash = "a".repeat(64);
+
+    sqlx::query("INSERT INTO workspaces (id, name) VALUES ($1, $2) ON CONFLICT (id) DO NOTHING")
+        .bind(&workspace_id)
+        .bind(format!("span-fixture-{label}"))
+        .execute(pool)
+        .await
+        .expect("insert workspace");
+    sqlx::query(
+        r#"INSERT INTO knowledge_sources
+           (source_id, workspace_id, source_kind, content_hash, stale)
+           VALUES ($1, $2, 'external_import', $3, $4)"#,
+    )
+    .bind(&source_id)
+    .bind(&workspace_id)
+    .bind(&hash)
+    .bind(stale)
+    .execute(pool)
+    .await
+    .expect("insert source");
+    sqlx::query(
+        r#"INSERT INTO knowledge_spans
+           (span_id, source_id, span_kind, range_start, range_end,
+            content_sha256, parser_version)
+           VALUES ($1, $2, 'byte', 0, 16, $3, 'v1')"#,
+    )
+    .bind(&span_id)
+    .bind(&source_id)
+    .bind(&hash)
+    .execute(pool)
+    .await
+    .expect("insert span");
+
+    (workspace_id, span_id)
+}
+
 #[allow(clippy::too_many_arguments)]
 fn envelope(
     workspace_id: &str,
@@ -66,11 +110,11 @@ fn envelope(
 mod mt_077_promotion_e2e {
     use super::*;
     use handshake_core::kernel::crdt::claim_promotion::{
-        promote_graph_proposal, GraphPromotionOutcomeV1,
+        promote_graph_proposal, GraphPromotionDenialReasonV1, GraphPromotionOutcomeV1,
     };
     use handshake_core::kernel::crdt::graph_proposal::{
         decide_graph_proposal, record_graph_proposal, GraphMutationKind,
-        GraphMutationProposalRequestV1,
+        GraphMutationProposalRequestV1, RecordGraphProposalOutcomeV1,
     };
     use handshake_core::kernel::crdt::persistence::build_crdt_replay_plan;
     use handshake_core::kernel::crdt::rich_document_snapshot::{
@@ -213,7 +257,12 @@ mod mt_077_promotion_e2e {
             .expect("snapshot persists");
 
         // --- Promotion (graph proposal derived from the draft) -------------
-        let proposal = record_graph_proposal(
+        // Authority-hardening #1: a proposal citing only a `pending:` soft
+        // marker is APPROVED as a draft but REFUSED at the authority gate —
+        // it must be re-grounded on a live span before it can become a fact.
+        // (This test previously promoted the `pending:` span and asserted
+        // success, codifying the bug as happy-path; it now asserts refusal.)
+        let pending_proposal = match record_graph_proposal(
             db.as_ref(),
             &pool,
             GraphMutationProposalRequestV1 {
@@ -234,7 +283,99 @@ mod mt_077_promotion_e2e {
         )
         .await
         .expect("record flow")
-        .expect("valid proposal");
+        {
+            RecordGraphProposalOutcomeV1::Recorded(row) => *row,
+            other => panic!("expected recorded draft, got {other:?}"),
+        };
+        decide_graph_proposal(
+            db.as_ref(),
+            &pool,
+            &pending_proposal.proposal_id,
+            true,
+            &operator,
+            "sr-e2e",
+            "operator-authored claim",
+        )
+        .await
+        .expect("decide flow")
+        .expect("approved");
+        let refused = promote_graph_proposal(
+            db.as_ref(),
+            &pool,
+            &pending_proposal.proposal_id,
+            &operator,
+            "sr-e2e",
+            format!("corr-e2e-{suffix}").as_str(),
+        )
+        .await
+        .expect("promotion flow");
+        match refused {
+            GraphPromotionOutcomeV1::Denied(denial) => match denial.reason {
+                GraphPromotionDenialReasonV1::SpanEvidenceInvalid { rejections } => {
+                    assert!(
+                        rejections.iter().any(|r| matches!(
+                            r,
+                            handshake_core::storage::knowledge_crdt::PromotionSpanRejection::PendingMarker { .. }
+                        )),
+                        "pending: marker must be the rejection reason, got {rejections:?}"
+                    );
+                }
+                other => panic!("expected SpanEvidenceInvalid, got {other:?}"),
+            },
+            other => panic!("pending: span promotion must be REFUSED, got {other:?}"),
+        }
+        // No authority fact was created for the refused promotion.
+        assert!(
+            handshake_core::storage::knowledge_crdt::get_promoted_fact_by_proposal(
+                &pool,
+                &pending_proposal.proposal_id,
+            )
+            .await
+            .expect("fact lookup")
+            .is_none(),
+            "a refused promotion must not create an authority fact"
+        );
+        // The proposal stays 'approved' (not 'promoted') after refusal.
+        assert_eq!(
+            handshake_core::storage::knowledge_crdt::get_graph_proposal(
+                &pool,
+                &pending_proposal.proposal_id,
+            )
+            .await
+            .expect("get proposal")
+            .expect("row")
+            .review_state,
+            "approved"
+        );
+
+        // A proposal grounded on a LIVE span promotes (stays green) and is the
+        // subject of the exactly-once ledger assertions below.
+        let (span_ws, live_span_id) =
+            live_span_fixture(&pool, &format!("mt077-{suffix}"), false).await;
+        let proposal = match record_graph_proposal(
+            db.as_ref(),
+            &pool,
+            GraphMutationProposalRequestV1 {
+                workspace_id: span_ws.clone(),
+                mutation_kind: GraphMutationKind::AddClaim,
+                mutation_payload: json!({
+                    "claim_text": "e2e document captures the final draft state",
+                    "derived_from_crdt_document": crdt_doc,
+                }),
+                source_span_refs: vec![live_span_id.clone()],
+                confidence: 0.95,
+                actor: operator.clone(),
+                session_id: "sr-e2e".to_string(),
+                correlation_id: format!("corr-e2e-valid-{suffix}"),
+                lease_id: None,
+            },
+        )
+        .await
+        .expect("record flow")
+        {
+            RecordGraphProposalOutcomeV1::Recorded(row) => *row,
+            other => panic!("expected recorded draft, got {other:?}"),
+        };
         decide_graph_proposal(
             db.as_ref(),
             &pool,
@@ -242,7 +383,7 @@ mod mt_077_promotion_e2e {
             true,
             &operator,
             "sr-e2e",
-            "operator-authored claim",
+            "operator-authored claim on live span",
         )
         .await
         .expect("decide flow")
@@ -253,7 +394,7 @@ mod mt_077_promotion_e2e {
             &proposal.proposal_id,
             &operator,
             "sr-e2e",
-            format!("corr-e2e-{suffix}").as_str(),
+            format!("corr-e2e-valid-{suffix}").as_str(),
         )
         .await
         .expect("promotion flow");
@@ -261,6 +402,12 @@ mod mt_077_promotion_e2e {
             GraphPromotionOutcomeV1::Promoted(fact) => fact,
             other => panic!("expected promotion, got {other:?}"),
         };
+        // The frozen fact carries the validated KSP- id (never a pending ref).
+        assert_eq!(
+            fact.source_span_refs,
+            serde_json::json!([live_span_id]),
+            "fact freezes the validated span id"
+        );
 
         // Promotion is exactly-once: replays converge on the same fact and
         // the ledger holds exactly one REQUESTED/ACCEPTED pair.
@@ -270,7 +417,7 @@ mod mt_077_promotion_e2e {
             &proposal.proposal_id,
             &operator,
             "sr-e2e",
-            format!("corr-e2e-{suffix}").as_str(),
+            format!("corr-e2e-valid-{suffix}").as_str(),
         )
         .await
         .expect("promotion flow");
@@ -366,6 +513,236 @@ mod mt_077_promotion_e2e {
         assert_eq!(
             restored.doc_json["content"][0]["content"][0]["text"],
             "e2e state"
+        );
+    }
+}
+
+/// Authority-hardening #2: promotion is atomic (ledger pair + fact insert +
+/// proposal flip in ONE transaction) and converges under the crash window.
+mod mt_069_atomic_promotion {
+    use super::*;
+    use handshake_core::kernel::crdt::claim_promotion::{
+        promote_graph_proposal, GraphPromotionOutcomeV1,
+    };
+    use handshake_core::kernel::crdt::graph_proposal::{
+        decide_graph_proposal, record_graph_proposal, GraphMutationKind,
+        GraphMutationProposalRequestV1, RecordGraphProposalOutcomeV1,
+    };
+    use handshake_core::kernel::{KernelActor, KernelEventType, NewKernelEvent};
+    use handshake_core::storage::knowledge_crdt::get_promoted_fact_by_proposal;
+    use serde_json::json;
+    use uuid::Uuid;
+
+    /// One promotion call writes the ledger pair AND the fact AND the proposal
+    /// flip together; and a re-run after a partial (ledger-only) state
+    /// converges on exactly one fact + exactly one event pair (passive replay
+    /// no longer diverges).
+    #[tokio::test]
+    async fn promotion_is_atomic_and_converges_after_crash_window() {
+        let backend = backend_or_blocked().await;
+        let db = backend.database.clone();
+        let pool = backend.postgres_pool.clone();
+        let suffix = Uuid::now_v7().simple().to_string();
+        let operator =
+            KnowledgeActorIdV1::new(KnowledgeActorKind::Operator, "atomic-op").expect("actor");
+        let (ws, span_id) = live_span_fixture(&pool, &format!("mt069atom-{suffix}"), false).await;
+
+        let proposal = match record_graph_proposal(
+            db.as_ref(),
+            &pool,
+            GraphMutationProposalRequestV1 {
+                workspace_id: ws.clone(),
+                mutation_kind: GraphMutationKind::AddClaim,
+                mutation_payload: json!({"claim_text": "atomic promotion"}),
+                source_span_refs: vec![span_id.clone()],
+                confidence: 0.7,
+                actor: operator.clone(),
+                session_id: format!("sr-{suffix}"),
+                correlation_id: format!("corr-{suffix}"),
+                lease_id: None,
+            },
+        )
+        .await
+        .expect("record flow")
+        {
+            RecordGraphProposalOutcomeV1::Recorded(row) => *row,
+            other => panic!("expected recorded draft, got {other:?}"),
+        };
+        decide_graph_proposal(
+            db.as_ref(),
+            &pool,
+            &proposal.proposal_id,
+            true,
+            &operator,
+            &format!("sr-{suffix}"),
+            "approved",
+        )
+        .await
+        .expect("decide flow")
+        .expect("approved");
+
+        // Before promotion: ledger has no promotion pair and no fact.
+        assert!(get_promoted_fact_by_proposal(&pool, &proposal.proposal_id)
+            .await
+            .expect("fact")
+            .is_none());
+
+        // One atomic promotion: BOTH the fact AND the ledger pair appear.
+        let fact = match promote_graph_proposal(
+            db.as_ref(),
+            &pool,
+            &proposal.proposal_id,
+            &operator,
+            &format!("sr-{suffix}"),
+            &format!("corr-{suffix}"),
+        )
+        .await
+        .expect("promotion flow")
+        {
+            GraphPromotionOutcomeV1::Promoted(fact) => *fact,
+            other => panic!("expected promotion, got {other:?}"),
+        };
+        let events = db
+            .list_kernel_events_for_aggregate("knowledge_graph_promotion", &proposal.proposal_id)
+            .await
+            .expect("events");
+        assert_eq!(
+            events
+                .iter()
+                .filter(|e| e.event_type == KernelEventType::PromotionRequested)
+                .count(),
+            1
+        );
+        assert_eq!(
+            events
+                .iter()
+                .filter(|e| e.event_type == KernelEventType::PromotionAccepted)
+                .count(),
+            1
+        );
+        // The fact's ledger ids are exactly the appended pair (one tx).
+        assert!(events
+            .iter()
+            .any(|e| e.event_id == fact.promotion_requested_event_id));
+        assert!(events
+            .iter()
+            .any(|e| e.event_id == fact.promotion_accepted_event_id));
+        assert_eq!(fact.workspace_id, ws);
+
+        // Crash-window convergence: a SECOND proposal whose ledger pair was
+        // committed but whose fact never landed (the old non-atomic crash)
+        // converges to exactly one fact + one pair when promotion re-runs.
+        let proposal2 = match record_graph_proposal(
+            db.as_ref(),
+            &pool,
+            GraphMutationProposalRequestV1 {
+                workspace_id: ws.clone(),
+                mutation_kind: GraphMutationKind::AddClaim,
+                mutation_payload: json!({"claim_text": "converges after crash"}),
+                source_span_refs: vec![span_id.clone()],
+                confidence: 0.7,
+                actor: operator.clone(),
+                session_id: format!("sr2-{suffix}"),
+                correlation_id: format!("corr2-{suffix}"),
+                lease_id: None,
+            },
+        )
+        .await
+        .expect("record flow")
+        {
+            RecordGraphProposalOutcomeV1::Recorded(row) => *row,
+            other => panic!("expected recorded draft, got {other:?}"),
+        };
+        decide_graph_proposal(
+            db.as_ref(),
+            &pool,
+            &proposal2.proposal_id,
+            true,
+            &operator,
+            &format!("sr2-{suffix}"),
+            "approved",
+        )
+        .await
+        .expect("decide flow")
+        .expect("approved");
+
+        // Simulate the crash window: append the promotion pair directly (same
+        // idempotency keys the bridge uses) but DO NOT write the fact.
+        let requested = NewKernelEvent::builder(
+            format!("KTR-KNOWLEDGE-GRAPH-{ws}"),
+            format!("sr2-{suffix}"),
+            KernelEventType::PromotionRequested,
+            KernelActor::Operator(operator.canonical()),
+        )
+        .aggregate("knowledge_graph_promotion", proposal2.proposal_id.clone())
+        .idempotency_key(format!(
+            "knowledge-graph-promotion:{}:requested",
+            proposal2.proposal_id
+        ))
+        .source_component("knowledge_crdt_claim_promotion")
+        .payload(json!({"proposal_id": proposal2.proposal_id}))
+        .build()
+        .expect("event");
+        let accepted = NewKernelEvent::builder(
+            format!("KTR-KNOWLEDGE-GRAPH-{ws}"),
+            format!("sr2-{suffix}"),
+            KernelEventType::PromotionAccepted,
+            KernelActor::Operator(operator.canonical()),
+        )
+        .aggregate("knowledge_graph_promotion", proposal2.proposal_id.clone())
+        .idempotency_key(format!(
+            "knowledge-graph-promotion:{}:accepted",
+            proposal2.proposal_id
+        ))
+        .source_component("knowledge_crdt_claim_promotion")
+        .payload(json!({"proposal_id": proposal2.proposal_id}))
+        .build()
+        .expect("event");
+        db.append_kernel_event_pair_atomic_with_causation(requested, accepted)
+            .await
+            .expect("append partial pair");
+        // Crash state: ledger says promoted, but no fact row exists.
+        assert!(get_promoted_fact_by_proposal(&pool, &proposal2.proposal_id)
+            .await
+            .expect("fact")
+            .is_none());
+
+        // Recovery: re-run promotion. The events dedupe on their idempotency
+        // keys (no second pair), the missing fact is materialized, and the
+        // proposal converges to 'promoted'. Passive replay now converges.
+        let recovered = promote_graph_proposal(
+            db.as_ref(),
+            &pool,
+            &proposal2.proposal_id,
+            &operator,
+            &format!("sr2-{suffix}"),
+            &format!("corr2-{suffix}"),
+        )
+        .await
+        .expect("promotion flow");
+        assert!(matches!(recovered, GraphPromotionOutcomeV1::Promoted(_)));
+        assert!(get_promoted_fact_by_proposal(&pool, &proposal2.proposal_id)
+            .await
+            .expect("fact")
+            .is_some());
+        let events2 = db
+            .list_kernel_events_for_aggregate("knowledge_graph_promotion", &proposal2.proposal_id)
+            .await
+            .expect("events");
+        assert_eq!(
+            events2
+                .iter()
+                .filter(|e| e.event_type == KernelEventType::PromotionRequested)
+                .count(),
+            1,
+            "ledger pair dedups: exactly one PROMOTION_REQUESTED after recovery"
+        );
+        assert_eq!(
+            events2
+                .iter()
+                .filter(|e| e.event_type == KernelEventType::PromotionAccepted)
+                .count(),
+            1
         );
     }
 }
@@ -508,6 +885,7 @@ mod mt_080_spec_compatibility {
     };
     use handshake_core::kernel::crdt::yjs_bridge::validate_yjs_update_envelope;
     use handshake_core::kernel::KernelEventType;
+    use serde_json::json;
     use uuid::Uuid;
 
     /// Spec 2.3.13.11: "RichDocument and EditorCodeNode edits MAY use CRDT
@@ -804,5 +1182,112 @@ mod mt_080_spec_compatibility {
         // Identification cannot be dropped "because the UI is single-user".
         env.session_id = "  ".to_string();
         assert!(validate_yjs_update_envelope(&env).is_err());
+    }
+
+    /// Spec 2.3.13.11: "KnowledgeClaim ... Claims MUST carry ... evidence
+    /// spans." Authority-hardening #6: the evidence-span-existence MUST had
+    /// no guard test. Prove it end-to-end on real PostgreSQL: a promotion
+    /// citing a non-existent `KSP-` span is REFUSED with a durable receipt and
+    /// creates no authority fact — the MUST is enforced, not merely declared.
+    #[tokio::test]
+    async fn must_refuse_promotion_citing_nonexistent_span() {
+        use handshake_core::kernel::crdt::claim_promotion::{
+            promote_graph_proposal, GraphPromotionDenialReasonV1, GraphPromotionOutcomeV1,
+        };
+        use handshake_core::kernel::crdt::graph_proposal::{
+            decide_graph_proposal, record_graph_proposal, GraphMutationKind,
+            GraphMutationProposalRequestV1, RecordGraphProposalOutcomeV1,
+        };
+        use handshake_core::storage::knowledge_crdt::{
+            get_promoted_fact_by_proposal, list_denial_receipts_for_scope, PromotionSpanRejection,
+        };
+
+        let backend = backend_or_blocked().await;
+        let db = backend.database.clone();
+        let pool = backend.postgres_pool.clone();
+        let suffix = Uuid::now_v7().simple().to_string();
+        let ws = format!("ws-mt080-span-{suffix}");
+        let operator =
+            KnowledgeActorIdV1::new(KnowledgeActorKind::Operator, "spec-op").expect("actor");
+
+        // A canonical-but-NONEXISTENT KSP- id (never inserted).
+        let ghost_span = format!("KSP-{}", "0".repeat(32));
+        let proposal = match record_graph_proposal(
+            db.as_ref(),
+            &pool,
+            GraphMutationProposalRequestV1 {
+                workspace_id: ws.clone(),
+                mutation_kind: GraphMutationKind::AddClaim,
+                mutation_payload: json!({"claim_text": "cites a span that does not exist"}),
+                source_span_refs: vec![ghost_span.clone()],
+                confidence: 0.5,
+                actor: operator.clone(),
+                session_id: format!("sr-mt080-{suffix}"),
+                correlation_id: format!("corr-mt080-{suffix}"),
+                lease_id: None,
+            },
+        )
+        .await
+        .expect("record flow")
+        {
+            RecordGraphProposalOutcomeV1::Recorded(row) => *row,
+            other => panic!("expected recorded draft, got {other:?}"),
+        };
+        decide_graph_proposal(
+            db.as_ref(),
+            &pool,
+            &proposal.proposal_id,
+            true,
+            &operator,
+            &format!("sr-mt080-{suffix}"),
+            "approved as draft",
+        )
+        .await
+        .expect("decide flow")
+        .expect("approved");
+
+        let outcome = promote_graph_proposal(
+            db.as_ref(),
+            &pool,
+            &proposal.proposal_id,
+            &operator,
+            &format!("sr-mt080-{suffix}"),
+            &format!("corr-mt080-{suffix}"),
+        )
+        .await
+        .expect("promotion flow");
+        match outcome {
+            GraphPromotionOutcomeV1::Denied(denial) => match denial.reason {
+                GraphPromotionDenialReasonV1::SpanEvidenceInvalid { rejections } => {
+                    assert!(
+                        rejections
+                            .iter()
+                            .any(|r| matches!(r, PromotionSpanRejection::SpanNotFound { .. })),
+                        "non-existent span must reject with SpanNotFound, got {rejections:?}"
+                    );
+                }
+                other => panic!("expected SpanEvidenceInvalid, got {other:?}"),
+            },
+            other => panic!("promotion citing a non-existent span must be REFUSED, got {other:?}"),
+        }
+
+        // No authority fact; a durable denial receipt exists.
+        assert!(
+            get_promoted_fact_by_proposal(&pool, &proposal.proposal_id)
+                .await
+                .expect("fact lookup")
+                .is_none(),
+            "refused promotion must create no authority fact"
+        );
+        let receipts =
+            list_denial_receipts_for_scope(&pool, &format!("proposal:{}", proposal.proposal_id))
+                .await
+                .expect("receipts");
+        assert!(
+            receipts
+                .iter()
+                .any(|r| r.receipt_kind == "graph_promotion_denied"),
+            "a durable graph_promotion_denied receipt must exist"
+        );
     }
 }
