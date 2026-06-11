@@ -520,10 +520,18 @@ async fn mt195_nonportable_evidence_refs_are_rejected() {
     };
     let store = connected_store(&url).await;
 
-    for (probe_suffix, bad_ref) in [
-        ("drive-letter", "D:/Projects/handshake/src/lib.rs"),
-        ("user-profile", "~/handshake/src/lib.rs"),
-        ("home-dir", "/home/operator/handshake/src/lib.rs"),
+    // Layering: drive-letter, `~/`, and rooted `/home/...` refs are stopped by
+    // the canonical machine-local boundary (`reject_legacy_runtime_ref` ->
+    // ForbiddenStorage). The MT-195 portability layer on top of it catches the
+    // user-profile shapes the canonical gate misses (embedded `%appdata%`,
+    // `$home`) and raises Validation. Both layers fail closed; each probe
+    // asserts the variant its layer raises.
+    for (probe_suffix, bad_ref, expect_forbidden_storage) in [
+        ("drive-letter", "D:/Projects/handshake/src/lib.rs", true),
+        ("user-profile", "~/handshake/src/lib.rs", true),
+        ("home-dir", "/home/operator/handshake/src/lib.rs", true),
+        ("appdata", "cache/%appdata%/handshake/baseline.json", false),
+        ("dollar-home", "deploy/$home/handshake/baseline.json", false),
     ] {
         let nonportable = NewDiagnosticsValidationRow {
             row_id: format!("mt-195.path-portability.bad-ref-probe-{probe_suffix}"),
@@ -538,9 +546,18 @@ async fn mt195_nonportable_evidence_refs_are_rejected() {
             .record_diagnostics_validation_row(&nonportable)
             .await
             .unwrap_err();
-        assert!(
-            matches!(err, AtelierError::Validation(_)),
-            "nonportable {probe_suffix} evidence ref must produce a Validation error, got {err:?}"
-        );
+        if expect_forbidden_storage {
+            assert!(
+                matches!(err, AtelierError::ForbiddenStorage(_)),
+                "nonportable {probe_suffix} evidence ref must be stopped by the canonical \
+                 machine-local boundary (ForbiddenStorage), got {err:?}"
+            );
+        } else {
+            assert!(
+                matches!(err, AtelierError::Validation(_)),
+                "nonportable {probe_suffix} evidence ref must be stopped by the MT-195 \
+                 portability layer (Validation), got {err:?}"
+            );
+        }
     }
 }
