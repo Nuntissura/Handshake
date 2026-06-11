@@ -33,6 +33,8 @@ export interface AllowlistDocument {
     pattern: string;
     required_context_marker: string;
     max_marker_distance: number;
+    forward_only?: boolean;
+    max_total_occurrences?: number;
     dependency: string;
     reason: string;
     mt: string;
@@ -43,6 +45,13 @@ export interface AllowlistDocument {
     npm_lockfiles: string[];
     cargo: string[];
     cargo_lockfiles: string[];
+  };
+  scan_self_exempt_paths: { description?: string; paths: string[] };
+  docker_artifact_scan: {
+    description?: string;
+    filename_globs: string[];
+    shell_extensions?: string[];
+    shell_content_markers?: string[];
   };
 }
 
@@ -59,18 +68,29 @@ export interface PatternScanResult {
 }
 
 export declare function loadAllowlist(repoRoot: string): AllowlistDocument;
+export declare function selfExemptPathSet(allowlist: AllowlistDocument): Set<string>;
 export declare function walkSourceFiles(rootDir: string): string[];
+export declare function walkAllFiles(rootDir: string): string[];
+export declare function globMatchesFilename(glob: string, filename: string): boolean;
 export declare function scanFilesForPatterns(args: {
   repoRoot: string;
   files: string[];
   patterns: string[];
   exceptPathPrefixes?: string[];
   excludePathSubstrings?: string[];
+  exactExemptPaths?: Set<string> | string[] | null;
 }): PatternScanResult;
 export declare function scanDockerDefault(args: {
   repoRoot: string;
   allowlist: AllowlistDocument;
 }): PatternScanResult;
+export declare function scanDockerArtifacts(args: {
+  repoRoot: string;
+  allowlist: AllowlistDocument;
+}): {
+  violations: Array<{ path: string; reason: string }>;
+  exceptionsApplied: Array<{ path: string; reason: string; exception: string }>;
+};
 export declare function scanCdnReferences(args: {
   repoRoot: string;
   allowlist: AllowlistDocument;
@@ -89,6 +109,32 @@ export declare function partitionCdnHits(args: {
   violations: Array<{ path: string; pattern: string; offset: number }>;
   exempted: Array<{ path: string; pattern: string; dependency: string; marker: string }>;
 };
+export declare function assertSingleOccurrenceExceptions(args: {
+  files: Array<{ relPath: string; content: string }>;
+  allowlist: AllowlistDocument;
+}): {
+  perPattern: Array<{
+    pattern: string;
+    count: number;
+    max: number;
+    ok: boolean;
+    locations: Array<{ path: string; count: number }>;
+  }>;
+  violations: Array<{
+    pattern: string;
+    count: number;
+    max: number;
+    dependency: string;
+    locations: Array<{ path: string; count: number }>;
+    detail: string;
+  }>;
+};
+export declare function normalizeSplitHostLiterals(content: string): string;
+export declare function scanSplitHostCdn(args: {
+  content: string;
+  relPath: string;
+  patterns: string[];
+}): Array<{ path: string; pattern: string; kind: string }>;
 export declare function cargoManifestDependencyNames(cargoTomlText: string): string[];
 export declare function cargoLockPackageNames(cargoLockText: string): string[];
 export declare function pnpmLockPackageNames(pnpmLockText: string): string[];

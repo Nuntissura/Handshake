@@ -14,17 +14,25 @@
 // excalidraw ASSETS_FALLBACK_URL exemption cannot widen to arbitrary esm.sh
 // references.
 
+import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import {
+  assertSingleOccurrenceExceptions,
   externalWorkerLoads,
   loadAllowlist,
+  normalizeSplitHostLiterals,
   partitionCdnHits,
+  scanSplitHostCdn,
 } from "../../../scripts/lib/dependency_policy_scans.mjs";
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "..");
 const allowlist = loadAllowlist(repoRoot);
+
+const cdnPatterns = allowlist.forbidden_runtime_dependency_classes
+  .find((c) => c.id === "cdn_runtime_asset")!
+  .source_scan_patterns.map((p) => p.toLowerCase());
 
 describe("MT-027 external worker-load detection", () => {
   it("catches literal external worker loads in all three call shapes", () => {
@@ -97,5 +105,133 @@ describe("MT-027 CDN-hit partitioning with self-verifying exceptions", () => {
       expect(exc.max_marker_distance).toBeLessThanOrEqual(1000);
       expect(exc.mt).toMatch(/^MT-\d{3}$/);
     }
+  });
+});
+
+// H1 — proximity-window evasion: a 2nd hostile esm.sh planted near the marker.
+describe("MT-027 H1 esm.sh single-occurrence whitelist (proximity-window evasion closed)", () => {
+  it("tightens the esm.sh exception to forward-only with a small window", () => {
+    const exc = (allowlist.built_output_scan_exceptions ?? []).find((e) => e.pattern === "esm.sh");
+    expect(exc).toBeTruthy();
+    expect(exc!.forward_only).toBe(true);
+    expect(exc!.max_marker_distance).toBeLessThanOrEqual(64);
+    expect(exc!.max_total_occurrences).toBe(1);
+  });
+
+  it("forward-only window does NOT exempt a 2nd esm.sh placed AFTER the marker (evasion case)", () => {
+    // The reviewer's evasion: a hostile import 200 chars past the marker. With a
+    // forward-only 64-char window the marker can no longer reach forward to it.
+    const filler = "x".repeat(200);
+    const content = `Y(yW,"ASSETS_FALLBACK_URL",\`https://esm.sh/pkg/\`);${filler}import("https://esm.sh/EVIL");`;
+    const { violations, exempted } = partitionCdnHits({
+      content,
+      relPath: "app/dist/assets/evil.js",
+      pattern: "esm.sh",
+      allowlist,
+    });
+    // The legitimate one (marker precedes within 64) is exempted; the hostile
+    // one (no preceding marker within 64) is a violation.
+    expect(exempted).toHaveLength(1);
+    expect(violations).toHaveLength(1);
+    expect(violations[0].pattern).toBe("esm.sh");
+  });
+
+  it("single-occurrence cap FAILS when esm.sh appears more than once across the dist tree", () => {
+    // Even if BOTH occurrences sat next to a marker, the tree-level cap rejects
+    // them: there may be at most ONE esm.sh in the whole product dist.
+    const files = [
+      {
+        relPath: "app/dist/assets/index.js",
+        content: 'Y(yW,"ASSETS_FALLBACK_URL",`https://esm.sh/legit/`);',
+      },
+      {
+        relPath: "app/dist/assets/evil-chunk.js",
+        content: 'const x = await import("https://esm.sh/EVIL@1");',
+      },
+    ];
+    const { perPattern, violations } = assertSingleOccurrenceExceptions({ files, allowlist });
+    const esm = perPattern.find((p) => p.pattern === "esm.sh")!;
+    expect(esm.count).toBe(2);
+    expect(esm.ok).toBe(false);
+    expect(violations).toHaveLength(1);
+    expect(violations[0].dependency).toBe("@excalidraw/excalidraw");
+  });
+
+  it("single-occurrence cap PASSES on the real one-esm.sh shape", () => {
+    const files = [
+      {
+        relPath: "app/dist/assets/index.js",
+        content: 'Y(yW,"ASSETS_FALLBACK_URL",`https://esm.sh/${pkg}/dist/`);',
+      },
+    ];
+    const { perPattern, violations } = assertSingleOccurrenceExceptions({ files, allowlist });
+    expect(perPattern.find((p) => p.pattern === "esm.sh")!.count).toBe(1);
+    expect(violations).toHaveLength(0);
+  });
+
+  it("the REAL app/dist has exactly one esm.sh (single-occurrence cap satisfied)", () => {
+    const indexFile = join(repoRoot, "app", "dist", "assets", "index-CsHVxNuj.js");
+    let content = "";
+    try {
+      content = readFileSync(indexFile, "utf8");
+    } catch {
+      content = "";
+    }
+    if (content.length === 0) {
+      // dist not built in this environment — the full check covers the real tree.
+      return;
+    }
+    const { perPattern, violations } = assertSingleOccurrenceExceptions({
+      files: [{ relPath: "app/dist/assets/index.js", content }],
+      allowlist,
+    });
+    expect(perPattern.find((p) => p.pattern === "esm.sh")!.count).toBe(1);
+    expect(violations).toHaveLength(0);
+  });
+});
+
+// H4 — split-host string-concatenation evasion in built output.
+describe("MT-027 H4 split-host CDN evasion (string-concatenation normalization)", () => {
+  it("normalization collapses adjacent string literals so the host re-forms", () => {
+    expect(normalizeSplitHostLiterals('"https://cdn." + "jsdelivr.net"')).toContain(
+      "cdn.jsdelivr.net",
+    );
+    // 3-part split must fully re-form too.
+    expect(normalizeSplitHostLiterals('"https://cdn." + "js" + "delivr.net"')).toContain(
+      "cdn.jsdelivr.net",
+    );
+  });
+
+  it("catches a split-host CDN literal that the raw substring scan misses (evasion case)", () => {
+    const evasive = 'const base = "https://cdn." + "jsdelivr.net" + "/npm/x";';
+    // Raw literal scan over the un-normalized text sees no contiguous host:
+    const { violations: rawViolations } = partitionCdnHits({
+      content: evasive,
+      relPath: "app/dist/assets/evasive.js",
+      pattern: "cdn.jsdelivr.net",
+      allowlist,
+    });
+    expect(rawViolations).toHaveLength(0);
+    // The split-host pass catches it:
+    const hits = scanSplitHostCdn({
+      content: evasive,
+      relPath: "app/dist/assets/evasive.js",
+      patterns: cdnPatterns,
+    });
+    expect(hits.length).toBeGreaterThanOrEqual(1);
+    expect(hits[0].pattern).toBe("cdn.jsdelivr.net");
+    expect(hits[0].kind).toBe("split-host-concatenation");
+  });
+
+  it("does not double-report a host already present as a contiguous substring", () => {
+    // A normal contiguous CDN literal is the literal-scan's job, not H4's; H4
+    // reports only the evasion (split) cases to avoid duplicate failures.
+    const contiguous = 'fetch("https://cdn.jsdelivr.net/npm/x")';
+    const hits = scanSplitHostCdn({
+      content: contiguous,
+      relPath: "app/dist/assets/normal.js",
+      patterns: cdnPatterns,
+    });
+    expect(hits).toHaveLength(0);
   });
 });

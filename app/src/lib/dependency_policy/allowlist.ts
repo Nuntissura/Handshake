@@ -72,14 +72,60 @@ export interface DockerOptInException {
  * pattern occurrence is exempt ONLY when `required_context_marker` appears
  * within `max_marker_distance` characters of the hit (self-verifying — the
  * exception cannot silently widen to unrelated occurrences of the pattern).
+ *
+ * HARDENED (H1, adversarial-review finding): `forward_only: true` restricts
+ * the window to markers that PRECEDE the hit (the real Excalidraw minified
+ * shape puts the marker ~30 chars before the CDN-host literal), and
+ * `max_total_occurrences` caps how often the pattern may appear across the
+ * WHOLE built dist tree regardless of marker proximity — so a second hostile
+ * occurrence planted beside the legitimate marker still fails the scan.
+ * (Doc note: the concrete host pattern is spelled only in the JSON authority;
+ * naming it here would trip the MT-018 source scan on this very file — the
+ * typed accessor is deliberately NOT in the H3 self-exempt list.)
  */
 export interface BuiltOutputScanException {
   pattern: string;
   required_context_marker: string;
   max_marker_distance: number;
+  /** When true the marker must precede the hit (window does not extend past it). */
+  forward_only?: boolean;
+  /** Tree-wide occurrence cap for the pattern, enforced regardless of markers. */
+  max_total_occurrences?: number;
   dependency: string;
   reason: string;
   mt: string;
+}
+
+/**
+ * HARDENED (H3, adversarial-review finding): precise, exact-path allowlist of
+ * the policy data/scanner/test files that legitimately embed forbidden-pattern
+ * literals. Replaces the blanket "dependency_policy" substring exemption that
+ * silently excluded the real product file
+ * app/src/harness/dependency_policy_harness.tsx from the source tripwires.
+ */
+export interface ScanSelfExemptPaths {
+  description?: string;
+  /** Repo-relative paths, matched EXACTLY (no substring or prefix widening). */
+  paths: readonly string[];
+}
+
+/**
+ * HARDENED (H2, adversarial-review finding): docker-orchestration ARTIFACT
+ * walker config. The code-source tripwire only walks code-source extensions,
+ * so compose YAML files, container build files (Dockerfile / Containerfile /
+ * *.dockerfile), and container-invoking .sh scripts inside product scan roots
+ * need this dedicated filename/content walker. (The concrete glob and marker
+ * strings live only in the JSON authority; spelling the compose-file pattern
+ * here would trip the MT-024 source scan on this very file.)
+ */
+export interface DockerArtifactScan {
+  description?: string;
+  /** Case-insensitive filename globs (only `*` wildcards) that fail MT-024. */
+  filename_globs: readonly string[];
+  /** Extensions of shell scripts whose CONTENT is checked for docker markers. */
+  shell_extensions?: readonly string[];
+  /** Content substrings that mark a shell script as docker-invoking. */
+  shell_content_markers?: readonly string[];
 }
 
 export interface ProductManifests {
@@ -102,6 +148,8 @@ export interface RuntimeDependencyAllowlist {
   built_output_scan_exceptions?: readonly BuiltOutputScanException[];
   product_scan_roots: readonly string[];
   product_manifests: ProductManifests;
+  scan_self_exempt_paths: ScanSelfExemptPaths;
+  docker_artifact_scan: DockerArtifactScan;
 }
 
 export class AllowlistShapeError extends Error {
@@ -213,9 +261,61 @@ export function validateAllowlistDocument(doc: unknown): RuntimeDependencyAllowl
         typeof exc.max_marker_distance === "number" && exc.max_marker_distance > 0,
         `built-output exception for ${String(exc.pattern)} missing max_marker_distance`,
       );
+      // H1 hardening fields: optional, but must be well-formed when present so
+      // a typo cannot silently disable the forward-only window or the
+      // tree-wide occurrence cap.
+      if (exc.forward_only !== undefined) {
+        assertCondition(
+          typeof exc.forward_only === "boolean",
+          `built-output exception for ${String(exc.pattern)} has non-boolean forward_only`,
+        );
+      }
+      if (exc.max_total_occurrences !== undefined) {
+        assertCondition(
+          typeof exc.max_total_occurrences === "number" &&
+            Number.isInteger(exc.max_total_occurrences) &&
+            exc.max_total_occurrences >= 1,
+          `built-output exception for ${String(exc.pattern)} has invalid max_total_occurrences (must be integer >= 1)`,
+        );
+      }
       assertCondition(
         typeof exc.reason === "string" && exc.reason.length > 0,
         `built-output exception for ${String(exc.pattern)} missing reason`,
+      );
+    }
+  }
+  // H3: precise self-exempt allowlist is REQUIRED (parity with the .mjs loader:
+  // dropping it would silently re-blind the source tripwires to drift).
+  const selfExempt = d.scan_self_exempt_paths as Record<string, unknown> | undefined;
+  assertCondition(
+    typeof selfExempt === "object" && selfExempt !== null,
+    "scan_self_exempt_paths missing (H3 precise self-exempt allowlist)",
+  );
+  assertCondition(
+    Array.isArray(selfExempt.paths) && selfExempt.paths.length > 0,
+    "scan_self_exempt_paths.paths must be a non-empty array",
+  );
+  for (const p of selfExempt.paths as unknown[]) {
+    assertCondition(
+      typeof p === "string" && p.length > 0 && !p.includes("\\"),
+      `scan_self_exempt_paths entry must be a non-empty repo-relative path with forward slashes: ${String(p)}`,
+    );
+  }
+  // H2: docker artifact scan config is REQUIRED (parity with the .mjs loader).
+  const dockerArtifacts = d.docker_artifact_scan as Record<string, unknown> | undefined;
+  assertCondition(
+    typeof dockerArtifacts === "object" && dockerArtifacts !== null,
+    "docker_artifact_scan missing (H2 docker-orchestration artifact walker)",
+  );
+  assertCondition(
+    Array.isArray(dockerArtifacts.filename_globs) && dockerArtifacts.filename_globs.length > 0,
+    "docker_artifact_scan.filename_globs must be a non-empty array",
+  );
+  for (const key of ["shell_extensions", "shell_content_markers"]) {
+    if (dockerArtifacts[key] !== undefined) {
+      assertCondition(
+        Array.isArray(dockerArtifacts[key]),
+        `docker_artifact_scan.${key} must be an array when present`,
       );
     }
   }

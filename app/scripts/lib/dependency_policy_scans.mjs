@@ -41,10 +41,31 @@ export function loadAllowlist(repoRoot) {
     "docker_opt_in_exceptions",
     "product_scan_roots",
     "product_manifests",
+    // Hardening (H2/H3) authority blocks. Required so a future allowlist edit
+    // that drops them is caught as drift instead of silently disabling the
+    // precise self-exempt allowlist or the docker-artifact walker.
+    "scan_self_exempt_paths",
+    "docker_artifact_scan",
   ]) {
     if (!(key in doc)) throw new Error(`allowlist missing ${key}`);
   }
+  if (!Array.isArray(doc.scan_self_exempt_paths?.paths)) {
+    throw new Error("allowlist scan_self_exempt_paths.paths must be an array");
+  }
+  if (!Array.isArray(doc.docker_artifact_scan?.filename_globs)) {
+    throw new Error("allowlist docker_artifact_scan.filename_globs must be an array");
+  }
   return doc;
+}
+
+/**
+ * Repo-relative paths that legitimately embed forbidden-pattern literals as
+ * policy DATA or negative-test FIXTURES (H3). Matched EXACTLY — no substring
+ * widening — so a real product file (e.g. dependency_policy_harness.tsx) whose
+ * path merely contains "dependency_policy" is NOT exempted from source scans.
+ */
+export function selfExemptPathSet(allowlist) {
+  return new Set(allowlist.scan_self_exempt_paths?.paths ?? []);
 }
 
 function forbiddenClass(allowlist, id) {
@@ -79,6 +100,42 @@ export function walkSourceFiles(rootDir) {
   return out;
 }
 
+/**
+ * Recursively lists ALL files under rootDir (no extension filter), skipping the
+ * same build/vendor dirs as walkSourceFiles. Used by the docker-artifact walker
+ * (H2), which must see extensionless files (Dockerfile, Containerfile) and
+ * config-only files (.yml/.yaml) the code-source walker deliberately ignores.
+ */
+export function walkAllFiles(rootDir) {
+  if (!existsSync(rootDir)) return [];
+  const out = [];
+  const skipDirs = new Set(["node_modules", "dist", "dist-harness", "target", ".git"]);
+  const stack = [rootDir];
+  while (stack.length > 0) {
+    const dir = stack.pop();
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const full = join(dir, entry.name);
+      if (entry.isDirectory()) {
+        if (!skipDirs.has(entry.name)) stack.push(full);
+        continue;
+      }
+      out.push(full);
+    }
+  }
+  return out;
+}
+
+/**
+ * Minimal case-insensitive filename glob matcher supporting only `*` (matches
+ * any run of characters). Sufficient for the docker_artifact_scan globs
+ * (Dockerfile, Dockerfile.*, docker-compose*.yml, *.dockerfile, ...). Anchored
+ * full-string match against a bare filename (no path separators).
+ */
+export function globMatchesFilename(glob, filename) {
+  const escaped = glob.replace(/[.+^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*");
+  return new RegExp(`^${escaped}$`, "i").test(filename);
+}
+
 function toRepoRel(repoRoot, fullPath) {
   return relative(repoRoot, fullPath).split(sep).join("/");
 }
@@ -86,8 +143,11 @@ function toRepoRel(repoRoot, fullPath) {
 /**
  * Core text scan: returns violations for any file whose content contains one
  * of `patterns` (case-insensitive), excluding files whose repo-relative path
- * starts with one of `exceptPathPrefixes` or contains one of
- * `excludePathSubstrings`.
+ * starts with one of `exceptPathPrefixes`, EXACTLY matches one of
+ * `exactExemptPaths` (the precise policy-data/fixture allowlist, H3), or
+ * contains one of `excludePathSubstrings` (legacy substring escape hatch, kept
+ * only for callers that pass it explicitly — production callers use
+ * `exactExemptPaths`).
  */
 export function scanFilesForPatterns({
   repoRoot,
@@ -95,12 +155,15 @@ export function scanFilesForPatterns({
   patterns,
   exceptPathPrefixes = [],
   excludePathSubstrings = [],
+  exactExemptPaths = null,
 }) {
   const violations = [];
   const exceptionsApplied = [];
+  const exactSet = exactExemptPaths instanceof Set ? exactExemptPaths : new Set(exactExemptPaths ?? []);
   const lowered = patterns.map((p) => p.toLowerCase());
   for (const file of files) {
     const rel = toRepoRel(repoRoot, file);
+    if (exactSet.has(rel)) continue;
     if (excludePathSubstrings.some((s) => rel.includes(s))) continue;
     const exception = exceptPathPrefixes.find((p) => rel.startsWith(p));
     let content;
@@ -144,9 +207,63 @@ export function scanDockerDefault({ repoRoot, allowlist }) {
     files,
     patterns: cls.source_scan_patterns,
     exceptPathPrefixes: allowlist.docker_opt_in_exceptions.map((e) => e.path_prefix),
-    // The policy data/scanner/test files legitimately contain the patterns.
-    excludePathSubstrings: ["dependency_policy", "dependency-policy"],
+    // H3: precise policy-data/fixture allowlist (exact paths), NOT a broad
+    // substring that would also exempt real product files like
+    // app/src/harness/dependency_policy_harness.tsx.
+    exactExemptPaths: selfExemptPathSet(allowlist),
   });
+}
+
+/**
+ * MT-024 (H2) — Docker-orchestration ARTIFACT walker. The code-source tripwire
+ * (scanDockerDefault) only inspects code-source extensions, so a
+ * docker-compose*.yml / Dockerfile / Containerfile / *.dockerfile, or a .sh
+ * that shells out to docker, dropped into a product scan root would slip past
+ * it. This walker scans product_scan_roots for those orchestration artifacts
+ * independently. Any hit is a violation unless its path is under one of the
+ * documented docker_opt_in_exceptions prefixes (the opt-in sandbox adapter).
+ */
+export function scanDockerArtifacts({ repoRoot, allowlist }) {
+  const cfg = allowlist.docker_artifact_scan ?? {};
+  const filenameGlobs = cfg.filename_globs ?? [];
+  const shellExts = new Set((cfg.shell_extensions ?? []).map((e) => e.toLowerCase()));
+  const shellMarkers = (cfg.shell_content_markers ?? []).map((m) => m.toLowerCase());
+  const optInPrefixes = allowlist.docker_opt_in_exceptions.map((e) => e.path_prefix);
+
+  const matchesGlob = (name) => filenameGlobs.some((glob) => globMatchesFilename(glob, name));
+
+  const violations = [];
+  const exceptionsApplied = [];
+  for (const root of allowlist.product_scan_roots) {
+    const rootDir = join(repoRoot, ...root.split("/"));
+    for (const file of walkAllFiles(rootDir)) {
+      const rel = toRepoRel(repoRoot, file);
+      const base = file.split(sep).pop();
+      const dot = base.lastIndexOf(".");
+      const ext = dot >= 0 ? base.slice(dot).toLowerCase() : "";
+      let reason = null;
+      if (matchesGlob(base)) {
+        reason = "docker-orchestration artifact filename";
+      } else if (shellExts.has(ext)) {
+        let content = "";
+        try {
+          content = readFileSync(file, "utf8").toLowerCase();
+        } catch {
+          content = "";
+        }
+        const marker = shellMarkers.find((m) => content.includes(m));
+        if (marker) reason = `shell script invoking docker (${marker})`;
+      }
+      if (!reason) continue;
+      const optIn = optInPrefixes.find((p) => rel.startsWith(p));
+      if (optIn) {
+        exceptionsApplied.push({ path: rel, reason, exception: optIn });
+      } else {
+        violations.push({ path: rel, reason });
+      }
+    }
+  }
+  return { violations, exceptionsApplied };
 }
 
 /**
@@ -162,7 +279,10 @@ export function scanCdnReferences({ repoRoot, allowlist }) {
     repoRoot,
     files,
     patterns: cls.source_scan_patterns,
-    excludePathSubstrings: ["dependency_policy", "dependency-policy"],
+    // H3: precise policy-data/fixture allowlist (exact paths). The product
+    // surface app/src/harness/dependency_policy_harness.tsx is now scanned like
+    // any other product source instead of being blanket-exempted by substring.
+    exactExemptPaths: selfExemptPathSet(allowlist),
   });
 }
 
@@ -377,8 +497,15 @@ export function partitionCdnHits({ content, relPath, pattern, allowlist }) {
   while ((index = lowered.indexOf(pattern, index)) !== -1) {
     const applicable = exceptions.find((exc) => {
       if (exc.pattern !== pattern) return false;
+      // H1: forward_only windows require the marker to PRECEDE the hit (the real
+      // Excalidraw shape is `"ASSETS_FALLBACK_URL",`+esm.sh, marker ~30 chars
+      // before). A forward-only window therefore looks BACKWARD from the hit and
+      // does not extend past it, so a second hostile esm.sh AFTER the marker
+      // cannot borrow the marker on its right.
       const from = Math.max(0, index - exc.max_marker_distance);
-      const to = Math.min(content.length, index + exc.max_marker_distance);
+      const to = exc.forward_only
+        ? index
+        : Math.min(content.length, index + exc.max_marker_distance);
       return content.slice(from, to).includes(exc.required_context_marker);
     });
     if (applicable) {
@@ -394,6 +521,116 @@ export function partitionCdnHits({ content, relPath, pattern, allowlist }) {
     index += pattern.length;
   }
   return { violations, exempted };
+}
+
+/** Counts case-insensitive occurrences of `needle` in `text`. */
+function countOccurrences(text, needle) {
+  if (!needle) return 0;
+  const lowered = text.toLowerCase();
+  const lneedle = needle.toLowerCase();
+  let n = 0;
+  let i = 0;
+  while ((i = lowered.indexOf(lneedle, i)) !== -1) {
+    n += 1;
+    i += lneedle.length;
+  }
+  return n;
+}
+
+/**
+ * H1 — single-occurrence whitelist for marker-exempted CDN patterns. For each
+ * built_output_scan_exception that declares max_total_occurrences, counts that
+ * pattern across the WHOLE dist tree (all provided {relPath, content} files)
+ * and FAILS when the total exceeds the cap — regardless of marker proximity.
+ * This closes the proximity-window evasion: a second hostile esm.sh planted
+ * near the legitimate ASSETS_FALLBACK_URL marker is rejected because there can
+ * be at most ONE esm.sh in the entire product dist.
+ *
+ * Returns { perPattern: [{pattern, count, max, ok, locations}], violations }.
+ */
+export function assertSingleOccurrenceExceptions({ files, allowlist }) {
+  const exceptions = (allowlist.built_output_scan_exceptions ?? []).filter(
+    (exc) => typeof exc.max_total_occurrences === "number",
+  );
+  const perPattern = [];
+  const violations = [];
+  for (const exc of exceptions) {
+    let count = 0;
+    const locations = [];
+    for (const { relPath, content } of files) {
+      const c = countOccurrences(content, exc.pattern);
+      if (c > 0) {
+        count += c;
+        locations.push({ path: relPath, count: c });
+      }
+    }
+    const ok = count <= exc.max_total_occurrences;
+    perPattern.push({
+      pattern: exc.pattern,
+      count,
+      max: exc.max_total_occurrences,
+      ok,
+      locations,
+    });
+    if (!ok) {
+      violations.push({
+        pattern: exc.pattern,
+        count,
+        max: exc.max_total_occurrences,
+        dependency: exc.dependency,
+        locations,
+        detail: `${exc.pattern} occurs ${count}x in built output but the marker exception permits at most ${exc.max_total_occurrences}; a hostile occurrence cannot hide beside the legitimate ${exc.dependency} fallback`,
+      });
+    }
+  }
+  return { perPattern, violations };
+}
+
+/**
+ * H4 — split-host string-concatenation normalization for BUILT output. Minified
+ * bundlers leave concatenations like `"https://cdn." + "jsdelivr.net"` intact;
+ * a literal-substring CDN scan misses them. This collapses adjacent
+ * string-literal concatenations (`"a" + "b"` → `"ab"`, including `+` across
+ * whitespace/newlines, single/double/backtick quotes) so the host re-forms as a
+ * contiguous substring the CDN-pattern scan then catches. Conservative: it only
+ * joins string-literal-to-string-literal `+` joins and never alters non-string
+ * tokens, so it cannot fabricate a host that was not spelled across adjacent
+ * literals. Intended for app/dist built output where split-host evasion matters.
+ */
+export function normalizeSplitHostLiterals(content) {
+  // Collapse `"..." + "..."` (and ' / ` quoted) repeatedly until stable, so a
+  // 3+ part split ("https://cdn." + "js" + "delivr.net") fully re-forms.
+  const joinPattern = /(["'`])([^"'`]*)\1\s*\+\s*(["'`])([^"'`]*)\3/g;
+  let prev;
+  let out = content;
+  let guard = 0;
+  do {
+    prev = out;
+    // Re-emit as a double-quoted literal carrying the concatenated text. The
+    // quote style of the result is irrelevant — only the inner text is scanned.
+    out = out.replace(joinPattern, (_m, _q1, a, _q2, b) => `"${a}${b}"`);
+    guard += 1;
+  } while (out !== prev && guard < 50);
+  return out;
+}
+
+/**
+ * H4 — scans normalized built-output text for CDN host patterns that only
+ * appear once adjacent string literals are concatenated. Returns split-host
+ * hits that are NOT already present as contiguous substrings in the raw content
+ * (those are the literal-scan's job), so this reports the EVASION cases only.
+ */
+export function scanSplitHostCdn({ content, relPath, patterns }) {
+  const rawLower = content.toLowerCase();
+  const normalizedLower = normalizeSplitHostLiterals(content).toLowerCase();
+  const hits = [];
+  for (const pattern of patterns) {
+    const p = pattern.toLowerCase();
+    if (normalizedLower.includes(p) && !rawLower.includes(p)) {
+      hits.push({ path: relPath, pattern, kind: "split-host-concatenation" });
+    }
+  }
+  return hits;
 }
 
 /**

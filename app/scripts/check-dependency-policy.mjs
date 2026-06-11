@@ -49,6 +49,7 @@ import {
   loadAllowlist,
   scanCargoLockUnionEntries,
   scanCdnReferences,
+  scanDockerArtifacts,
   scanDockerDefault,
   scanForbiddenManifestPackages,
 } from "./lib/dependency_policy_scans.mjs";
@@ -111,16 +112,25 @@ function main() {
     checks.push({ id: "cdn-source-tripwire", mt: "MT-018", pass: violations.length === 0, violations });
   }
 
-  // 3. MT-024 docker-default tripwire.
+  // 3. MT-024 docker-default tripwire (code-source patterns + H2 artifact files).
   progress("3/8 docker-default tripwire (MT-024)");
   {
     const { violations, exceptionsApplied } = scanDockerDefault({ repoRoot, allowlist });
+    // H2: docker-orchestration ARTIFACT files (docker-compose*.yml, Dockerfile,
+    // Containerfile, *.dockerfile, docker-invoking .sh) that the code-source
+    // walker's extension filter would miss.
+    const artifactScan = scanDockerArtifacts({ repoRoot, allowlist });
+    const allViolations = [...violations, ...artifactScan.violations];
     checks.push({
       id: "docker-default-tripwire",
       mt: "MT-024",
-      pass: violations.length === 0,
-      violations,
+      pass: allViolations.length === 0,
+      violations: allViolations,
       exceptions_applied: exceptionsApplied.length,
+      docker_artifact_scan: {
+        violations: artifactScan.violations,
+        exceptions_applied: artifactScan.exceptionsApplied.length,
+      },
     });
   }
 
@@ -185,6 +195,11 @@ function main() {
         external_worker_refs: tree.external_worker_refs?.length ?? 0,
         cdn_hits: tree.cdn_hits?.length ?? 0,
         cdn_exceptions_applied: tree.cdn_exceptions_applied?.length ?? 0,
+        // H4 split-host evasion + H1 single-occurrence cap, surfaced per tree.
+        split_host_cdn_hits: tree.split_host_cdn_hits?.length ?? 0,
+        esm_sh_occurrence_count:
+          tree.occurrence_caps?.find((c) => c.pattern === "esm.sh")?.count ?? 0,
+        occurrence_violations: tree.occurrence_violations?.length ?? 0,
       })),
     });
   }

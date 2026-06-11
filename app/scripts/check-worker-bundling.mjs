@@ -41,9 +41,11 @@ import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
+  assertSingleOccurrenceExceptions,
   externalWorkerLoads,
   loadAllowlist,
   partitionCdnHits,
+  scanSplitHostCdn,
 } from "./lib/dependency_policy_scans.mjs";
 
 const appDir = join(fileURLToPath(new URL(".", import.meta.url)), "..");
@@ -124,10 +126,13 @@ function scanDistTree(distDir, allowlist) {
   const externalWorkerRefs = [];
   const cdnHits = [];
   const cdnExceptionsApplied = [];
+  const splitHostCdnHits = [];
+  const textContents = []; // {relPath, content} for the tree-level H1 occurrence cap
   let monacoMarker = false;
 
   for (const file of textFiles) {
     const content = readFileSync(file, "utf8");
+    textContents.push({ relPath: rel(file), content });
     for (const pattern of cdnPatterns) {
       const { violations, exempted } = partitionCdnHits({
         content,
@@ -138,11 +143,20 @@ function scanDistTree(distDir, allowlist) {
       cdnHits.push(...violations);
       cdnExceptionsApplied.push(...exempted);
     }
+    // H4: catch CDN hosts that only re-form after adjacent string-literal
+    // concatenation is collapsed (e.g. "https://cdn." + "jsdelivr.net").
+    splitHostCdnHits.push(...scanSplitHostCdn({ content, relPath: rel(file), patterns: cdnPatterns }));
     if (jsFiles.includes(file)) {
       externalWorkerRefs.push(...externalWorkerLoads(content, rel(file)));
       if (content.includes("MonacoEnvironment")) monacoMarker = true;
     }
   }
+
+  // H1: marker-exempted CDN patterns are capped at max_total_occurrences across
+  // the WHOLE dist tree — a second hostile esm.sh anywhere fails the scan even
+  // if it sits next to the legitimate ASSETS_FALLBACK_URL marker.
+  const { perPattern: occurrenceCaps, violations: occurrenceViolations } =
+    assertSingleOccurrenceExceptions({ files: textContents, allowlist });
 
   const workerChunks = files
     .map((f) => rel(f))
@@ -163,6 +177,9 @@ function scanDistTree(distDir, allowlist) {
     external_worker_refs: externalWorkerRefs,
     cdn_hits: cdnHits,
     cdn_exceptions_applied: cdnExceptionsApplied,
+    split_host_cdn_hits: splitHostCdnHits,
+    occurrence_caps: occurrenceCaps,
+    occurrence_violations: occurrenceViolations,
   };
 }
 
@@ -220,6 +237,19 @@ function main() {
     }
     if (tree.cdn_hits.length > 0) {
       failures.push(`${tree.dist}: CDN host references in built output`);
+    }
+    // H4: split-host concatenated CDN references in built output.
+    if (tree.split_host_cdn_hits.length > 0) {
+      failures.push(
+        `${tree.dist}: split-host concatenated CDN references in built output: ${JSON.stringify(tree.split_host_cdn_hits)}`,
+      );
+    }
+    // H1: a marker-exempted CDN pattern (esm.sh) exceeded its single-occurrence
+    // cap across the dist tree.
+    if (tree.occurrence_violations.length > 0) {
+      failures.push(
+        `${tree.dist}: ${JSON.stringify(tree.occurrence_violations.map((v) => v.detail))}`,
+      );
     }
     if (tree.missing_monaco_workers.length > 0) {
       failures.push(

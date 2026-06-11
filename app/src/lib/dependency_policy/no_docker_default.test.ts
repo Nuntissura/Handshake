@@ -24,6 +24,7 @@ import { fileURLToPath } from "node:url";
 import { afterAll, describe, expect, it } from "vitest";
 import {
   loadAllowlist,
+  scanDockerArtifacts,
   scanDockerDefault,
   scanFilesForPatterns,
   scanForbiddenManifestPackages,
@@ -107,5 +108,93 @@ describe("MT-024 no docker default", () => {
     expect(exceptionsApplied).toHaveLength(1);
     expect(exceptionsApplied[0].path).toBe("sandbox/docker/adapter.rs");
     expect(exceptionsApplied[0].patterns).toContain("docker run");
+  });
+});
+
+// H2 — docker-orchestration ARTIFACT files (.yml/.yaml/Dockerfile/Containerfile/
+// .sh) that the code-source extension filter would let slip past MT-024.
+describe("MT-024 H2 docker-artifact walker", () => {
+  /** Builds a fake repo with a product scan root, plus an allowlist that points
+   * product_scan_roots at it (and re-uses the real docker_artifact_scan config). */
+  function fakeRepo() {
+    const dir = mkdtempSync(join(tmpdir(), "hsk-docker-artifact-"));
+    tempDirs.push(dir);
+    const scanRoot = "app/src";
+    mkdirSync(join(dir, "app", "src"), { recursive: true });
+    const repoAllowlist = {
+      ...allowlist,
+      product_scan_roots: [scanRoot],
+      // Keep the real opt-in exception semantics, but anchor a fixture prefix
+      // under the fake scan root so the exception path can be exercised.
+      docker_opt_in_exceptions: [
+        { path_prefix: "app/src/sandbox/docker/", reason: "opt-in HardIsolation fixture" },
+      ],
+    };
+    return { dir, repoAllowlist };
+  }
+
+  it("the real product scan roots contain NO docker-orchestration artifacts today", () => {
+    const { violations } = scanDockerArtifacts({ repoRoot, allowlist });
+    expect(violations, JSON.stringify(violations, null, 2)).toHaveLength(0);
+  });
+
+  it("FAILS on a docker-compose.dev.yml dropped into a product scan root (evasion case)", () => {
+    const { dir, repoAllowlist } = fakeRepo();
+    writeFileSync(
+      join(dir, "app", "src", "docker-compose.dev.yml"),
+      "services:\n  db:\n    image: postgres:16\n",
+      "utf8",
+    );
+    const { violations } = scanDockerArtifacts({ repoRoot: dir, allowlist: repoAllowlist });
+    expect(violations).toHaveLength(1);
+    expect(violations[0].path).toBe("app/src/docker-compose.dev.yml");
+  });
+
+  it("FAILS on a bare Dockerfile and a *.dockerfile and a Containerfile", () => {
+    const { dir, repoAllowlist } = fakeRepo();
+    writeFileSync(join(dir, "app", "src", "Dockerfile"), "FROM postgres:16\n", "utf8");
+    writeFileSync(join(dir, "app", "src", "build.dockerfile"), "FROM node:22\n", "utf8");
+    writeFileSync(join(dir, "app", "src", "Containerfile"), "FROM alpine\n", "utf8");
+    const { violations } = scanDockerArtifacts({ repoRoot: dir, allowlist: repoAllowlist });
+    const paths = violations.map((v) => v.path).sort();
+    expect(paths).toEqual([
+      "app/src/Containerfile",
+      "app/src/Dockerfile",
+      "app/src/build.dockerfile",
+    ]);
+  });
+
+  it("FAILS on a .sh that shells out to docker, but not on an unrelated .sh", () => {
+    const { dir, repoAllowlist } = fakeRepo();
+    writeFileSync(join(dir, "app", "src", "boot.sh"), "#!/bin/sh\ndocker run -d postgres:16\n", "utf8");
+    writeFileSync(join(dir, "app", "src", "fmt.sh"), "#!/bin/sh\necho formatting\n", "utf8");
+    const { violations } = scanDockerArtifacts({ repoRoot: dir, allowlist: repoAllowlist });
+    expect(violations).toHaveLength(1);
+    expect(violations[0].path).toBe("app/src/boot.sh");
+    expect(violations[0].reason).toContain("docker run");
+  });
+
+  it("PASSES (no violation) once the artifact is removed", () => {
+    const { dir, repoAllowlist } = fakeRepo();
+    // no artifact written
+    const { violations } = scanDockerArtifacts({ repoRoot: dir, allowlist: repoAllowlist });
+    expect(violations).toHaveLength(0);
+  });
+
+  it("allows a docker artifact UNDER the documented opt-in sandbox exception prefix", () => {
+    const { dir, repoAllowlist } = fakeRepo();
+    mkdirSync(join(dir, "app", "src", "sandbox", "docker"), { recursive: true });
+    writeFileSync(
+      join(dir, "app", "src", "sandbox", "docker", "docker-compose.hardiso.yml"),
+      "services:\n  iso:\n    image: alpine\n",
+      "utf8",
+    );
+    const { violations, exceptionsApplied } = scanDockerArtifacts({
+      repoRoot: dir,
+      allowlist: repoAllowlist,
+    });
+    expect(violations).toHaveLength(0);
+    expect(exceptionsApplied).toHaveLength(1);
+    expect(exceptionsApplied[0].path).toBe("app/src/sandbox/docker/docker-compose.hardiso.yml");
   });
 });

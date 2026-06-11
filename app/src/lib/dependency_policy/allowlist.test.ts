@@ -141,3 +141,67 @@ describe("MT-017 runtime dependency allowlist", () => {
     expect(classifyExternalRuntimeInputPath("db.sqlite3")).toBeNull();
   });
 });
+
+// Adversarial-review hardening (H1/H2/H3): the typed accessor must validate the
+// hardened authority blocks with the same strictness as the .mjs loader
+// (app/scripts/lib/dependency_policy_scans.mjs), so neither consumer can run on
+// a document whose hardening blocks were dropped or malformed.
+describe("MT-017 hardened authority blocks (H1/H2/H3 validation parity)", () => {
+  it("exposes the hardened esm.sh exception through the typed accessor", () => {
+    const esm = (RUNTIME_DEPENDENCY_ALLOWLIST.built_output_scan_exceptions ?? []).find(
+      (e) => e.pattern === "esm.sh",
+    );
+    expect(esm).toBeDefined();
+    expect(esm!.forward_only).toBe(true);
+    expect(esm!.max_marker_distance).toBeLessThanOrEqual(64);
+    expect(esm!.max_total_occurrences).toBe(1);
+  });
+
+  it("exposes the H3 exact self-exempt paths and the H2 docker artifact config", () => {
+    expect(RUNTIME_DEPENDENCY_ALLOWLIST.scan_self_exempt_paths.paths.length).toBeGreaterThan(0);
+    // The real product harness file must NOT be in the exempt list.
+    expect(
+      RUNTIME_DEPENDENCY_ALLOWLIST.scan_self_exempt_paths.paths.some((p) =>
+        p.includes("harness"),
+      ),
+    ).toBe(false);
+    expect(RUNTIME_DEPENDENCY_ALLOWLIST.docker_artifact_scan.filename_globs).toContain(
+      "Dockerfile",
+    );
+    expect(RUNTIME_DEPENDENCY_ALLOWLIST.docker_artifact_scan.filename_globs).toContain(
+      "Containerfile",
+    );
+  });
+
+  it("rejects a document missing scan_self_exempt_paths (H3 cannot be dropped silently)", () => {
+    const doc = structuredClone(RUNTIME_DEPENDENCY_ALLOWLIST) as unknown as Record<
+      string,
+      unknown
+    >;
+    delete doc.scan_self_exempt_paths;
+    expect(() => validateAllowlistDocument(doc)).toThrow(/scan_self_exempt_paths/);
+  });
+
+  it("rejects a document missing docker_artifact_scan (H2 cannot be dropped silently)", () => {
+    const doc = structuredClone(RUNTIME_DEPENDENCY_ALLOWLIST) as unknown as Record<
+      string,
+      unknown
+    >;
+    delete doc.docker_artifact_scan;
+    expect(() => validateAllowlistDocument(doc)).toThrow(/docker_artifact_scan/);
+  });
+
+  it("rejects malformed hardening fields (empty paths; bad occurrence cap)", () => {
+    const emptyPaths = structuredClone(RUNTIME_DEPENDENCY_ALLOWLIST) as unknown as {
+      scan_self_exempt_paths: { paths: unknown };
+    };
+    emptyPaths.scan_self_exempt_paths.paths = [];
+    expect(() => validateAllowlistDocument(emptyPaths)).toThrow(/non-empty array/);
+
+    const badCap = structuredClone(RUNTIME_DEPENDENCY_ALLOWLIST) as unknown as {
+      built_output_scan_exceptions: Array<{ max_total_occurrences?: unknown }>;
+    };
+    badCap.built_output_scan_exceptions[0].max_total_occurrences = 0;
+    expect(() => validateAllowlistDocument(badCap)).toThrow(/max_total_occurrences/);
+  });
+});

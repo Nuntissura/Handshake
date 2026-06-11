@@ -145,9 +145,11 @@
     {
       "pattern": "esm.sh",
       "required_context_marker": "ASSETS_FALLBACK_URL",
-      "max_marker_distance": 400,
+      "max_marker_distance": 64,
+      "forward_only": true,
+      "max_total_occurrences": 1,
       "dependency": "@excalidraw/excalidraw",
-      "reason": "Excalidraw 0.18 hardcodes a static ASSETS_FALLBACK_URL constant pointing at esm.sh inside its published bundle; the string cannot be removed without patching the library. Its core fonts are bundled by Vite into app/dist/assets (*.woff2 emitted at build), so the fallback stays dormant in the packaged product. The exception only suppresses esm.sh hits that sit within max_marker_distance characters of the literal ASSETS_FALLBACK_URL marker (self-verifying); any other esm.sh reference still fails the MT-027 built-output scan. Tracked risk for the canvas-owning WP: an Excalidraw surface relying on lazily fetched non-bundled assets would make this fallback live — that surface must pin window.EXCALIDRAW_ASSET_PATH to a packaged path and prove offline canvas load with esm.sh aborted.",
+      "reason": "Excalidraw 0.18 hardcodes a static ASSETS_FALLBACK_URL constant pointing at esm.sh inside its published bundle; the string cannot be removed without patching the library. The actual minified shape is `Y(yW,\"ASSETS_FALLBACK_URL\",`https://esm.sh/...`)`, i.e. the marker sits ~30 chars BEFORE the esm.sh literal, so the exception window is forward-only (marker must precede the hit) and capped at max_marker_distance=64 — far tighter than the wider proximity window an attacker could exploit by planting a second hostile esm.sh import within range. Its core fonts are bundled by Vite into app/dist/assets (*.woff2 emitted at build), so the fallback stays dormant in the packaged product. HARDENED (H1, external-validator finding): the built-output scan now also asserts max_total_occurrences=1 across the whole product dist tree — if esm.sh appears more than once anywhere in built output the scan FAILS regardless of marker proximity, so a hostile second occurrence cannot be smuggled in beside the legitimate one. Tracked risk for the canvas-owning WP: an Excalidraw surface relying on lazily fetched non-bundled assets would make this fallback live — that surface must pin window.EXCALIDRAW_ASSET_PATH to a packaged path and prove offline canvas load with esm.sh aborted.",
       "mt": "MT-027"
     }
   ],
@@ -157,5 +159,35 @@
     "npm_lockfiles": ["app/pnpm-lock.yaml"],
     "cargo": ["src/backend/handshake_core/Cargo.toml", "app/src-tauri/Cargo.toml"],
     "cargo_lockfiles": ["src/backend/handshake_core/Cargo.lock", "app/src-tauri/Cargo.lock"]
+  },
+  "scan_self_exempt_paths": {
+    "description": "HARDENED (H3, external-validator finding): replaces a blanket excludePathSubstrings:['dependency_policy','dependency-policy'] exemption that was so broad it silently excluded the REAL product runtime file app/src/harness/dependency_policy_harness.tsx (and any other product file whose path merely contains the substring) from the CDN + docker source tripwires. Only the EXACT policy-data, scanner, and test files below — which legitimately embed forbidden-pattern literals as data or negative-test fixtures — are exempt from those source scans. Every other product source file (including dependency_policy_harness.tsx) is scanned like any other product source. Paths are repo-relative and matched EXACTLY (no substring widening).",
+    "paths": [
+      "app/src/lib/dependency_policy/runtime_dependency_allowlist.json",
+      "app/src/lib/dependency_policy/allowlist.test.ts",
+      "app/src/lib/dependency_policy/bundled_library_policy.test.ts",
+      "app/src/lib/dependency_policy/frontend_worker_bundling.test.ts",
+      "app/src/lib/dependency_policy/no_docker_default.test.ts",
+      "app/src/lib/dependency_policy/no_sqlite_regression.test.ts",
+      "app/src/lib/dependency_policy/package_lock_audit.test.ts",
+      "app/src/lib/dependency_policy/portable_build_artifacts.test.ts",
+      "app/src/lib/dependency_policy/third_party_notices.test.ts"
+    ]
+  },
+  "docker_artifact_scan": {
+    "description": "HARDENED (H2, external-validator finding): the code-source tripwire (scan_self code extensions) excludes .yml/.yaml/Dockerfile/Containerfile/.sh, so a docker-compose.dev.yml or Dockerfile dropped into a product scan root would not trip MT-024. This walker scans product_scan_roots for docker-orchestration artifact files independently of the code-source walker. Any matching file FAILS MT-024 unless its repo-relative path is under one of the docker_opt_in_exceptions path_prefixes (the opt-in HardIsolation sandbox adapter ONLY). Shell scripts match only when their content references docker run / docker compose / docker-compose, so unrelated .sh scripts are not false-positived.",
+    "filename_globs": [
+      "docker-compose*.yml",
+      "docker-compose*.yaml",
+      "compose*.yml",
+      "compose*.yaml",
+      "Dockerfile",
+      "Dockerfile.*",
+      "*.dockerfile",
+      "Containerfile",
+      "Containerfile.*"
+    ],
+    "shell_extensions": [".sh"],
+    "shell_content_markers": ["docker run", "docker compose", "docker-compose"]
   }
 }
