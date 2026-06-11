@@ -33,11 +33,23 @@
     "depends_on": [
       "MT-150"
     ],
-    "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "status": "NEEDS_MANAGED_RESOURCE_PROOF",
+    "validator_verdict": "FAIL",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:22:26.431Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT"
+    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "integration_validation_v2": {
+      "verdict": "FAIL",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "THIN",
+      "proof_validity": "TRIVIAL",
+      "sr1": "PASS",
+      "sr2": "FAIL",
+      "fail_category": "PROOF_IN_MEMORY_ONLY",
+      "gap": "Evaluator metric math (pass-rate, p95) is real, but the core 'run validator first-pass in sandbox' is stubbed: LoopSandbox+ValidatorRunner have no production impl and the sandbox 'run' just returns a fresh UUID; integration test header states 'real adapter lives in cluster B' and injects stubs. No PG/validator execution.",
+      "evidence": "src/self_improve/evaluator.rs:58 sandbox.run returns SandboxRunResult{uuid} only; impl LoopSandbox exists only as StubSandbox at evaluator.rs:209; tests/validator_first_pass_evaluator_tests.rs:60-91 CountingSandbox/FailingSandbox + RecordingRunner mocks; no production LoopSandbox impl anywhere in src/."
+    }
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.322Z",

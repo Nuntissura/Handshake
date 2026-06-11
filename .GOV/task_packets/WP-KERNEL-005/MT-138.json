@@ -33,11 +33,23 @@
     "depends_on": [
       "MT-137"
     ],
-    "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "status": "VALIDATED_V2",
+    "validator_verdict": "PASS",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:20:41.464Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT"
+    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "integration_validation_v2": {
+      "verdict": "PASS",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "REAL",
+      "proof_validity": "STRONG",
+      "sr1": "PASS",
+      "sr2": "PASS",
+      "fail_category": null,
+      "gap": null,
+      "evidence": "src/atelier/state_probe.rs:31 REQUIRED_STATE_PROBE_SURFACES covers the 10 contract surfaces; record_state_probe_catalog persisted via migration 0088 (applied in mod.rs:2117). tests/atelier_state_probe_tests.rs:38 records the catalog on PG, reloads via get_state_probe_catalog (:132), asserts EventLedger evidence (:138), and rejects missing/bogus surfaces (:156,:189). The 'not yet wired' comment (state_probe.rs:1183) is STALE over a different MT-147 region whose migration 0115 IS applied at mod.rs:2107 — not an SR1 escape."
+    }
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.312Z",

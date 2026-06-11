@@ -33,11 +33,23 @@
     "depends_on": [
       "MT-025"
     ],
-    "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "status": "VALIDATED_V2",
+    "validator_verdict": "PASS",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:04:06.903Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT"
+    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "integration_validation_v2": {
+      "verdict": "PASS",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "REAL",
+      "proof_validity": "STRONG",
+      "sr1": "PASS",
+      "sr2": "PASS",
+      "fail_category": null,
+      "gap": null,
+      "evidence": "src/atelier/intake.rs:879 scan_inbox_folder_import enumerates a real folder read-only, bounds by max_files (:888-901), skips duplicates (:1066), and persists pending items + EventLedger summary in a tx. tests/atelier_intake_folder_scan_tests.rs:58 scans a real temp dir against store.pool(), proves max-file bound (:99), duplicate skip on rescan (:143), and source-folder immutability via snapshot diff (:131)."
+    }
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.225Z",

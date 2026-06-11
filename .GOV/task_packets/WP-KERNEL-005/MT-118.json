@@ -33,11 +33,23 @@
     "depends_on": [
       "MT-117"
     ],
-    "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "status": "VALIDATED_V2",
+    "validator_verdict": "PASS",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:17:57.077Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT"
+    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "integration_validation_v2": {
+      "verdict": "PASS",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "REAL",
+      "proof_validity": "STRONG",
+      "sr1": "PASS",
+      "sr2": "PASS",
+      "fail_category": null,
+      "gap": null,
+      "evidence": "tests/atelier_pose_pipeline_integration_tests.rs:73 mt118_pose_comfy_pipeline_integration_chain chains real AtelierStore API source->rig->record_pose_sidecar(:166)->intake output->record_comfy_workflow_receipt(:271)->get_comfy_workflow_receipt re-read(:314)->list_comfy_workflow_history(:325), each persisted and cross-linked on real PG. Fake detector/ComfyUI adapter is explicitly required by the MT scope."
+    }
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.296Z",

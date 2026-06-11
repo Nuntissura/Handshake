@@ -33,11 +33,23 @@
     "depends_on": [
       "MT-026"
     ],
-    "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "status": "VALIDATED_V2",
+    "validator_verdict": "PASS",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:04:09.017Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT"
+    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "integration_validation_v2": {
+      "verdict": "PASS",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "REAL",
+      "proof_validity": "STRONG",
+      "sr1": "PASS",
+      "sr2": "PASS",
+      "fail_category": null,
+      "gap": null,
+      "evidence": "media.rs:1023-1108 set_/get_media_source_provenance_refs (upsert to atelier_media_source_provenance_ref + MEDIA_SOURCE_PROVENANCE_REFS_SET event); test atelier_core_data_tests.rs:842-1147 proves all 6 refs survive collection reassignment, export, archive/restore, content-hash reingest, asserts persisted rows + EventLedger payload"
+    }
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.226Z",

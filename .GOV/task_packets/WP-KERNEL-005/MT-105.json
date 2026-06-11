@@ -33,11 +33,23 @@
     "depends_on": [
       "MT-104"
     ],
-    "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "status": "VALIDATED_V2",
+    "validator_verdict": "PASS",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:15:36.051Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT"
+    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "integration_validation_v2": {
+      "verdict": "PASS",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "REAL",
+      "proof_validity": "STRONG",
+      "sr1": "PASS",
+      "sr2": "PASS",
+      "fail_category": null,
+      "gap": null,
+      "evidence": "comfy.rs:839-866 NewIntakeOutput::saveimage_fallback + comfy.rs:2232-2280 mark/get_saveimage_fallback persist fallback markers/outputs as ArtifactStore-ref'd rows (no localhost /history dependency, per contract); tests/atelier_comfy_tests.rs:1252-1318 records a saveimage_fallback output, marks fallback idempotently, and produce_intake_receipt reconstructs the materialized artifact_ref against real PG. Contract sanctions fake-adapter tests and explicitly removes /history /view proof requirement."
+    }
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.286Z",
@@ -63,8 +75,8 @@
   "schema_version": "microtask_contract_v1",
   "scope": {
     "acceptance_criteria": [
-      "MT-105 [Pose-ComfyUI-Pipeline] SaveImage Output Discovery Fallback -- Preserve vanilla ComfyUI SaveImage output discovery (poll /history",
-      "discover /view outputs) via a capability-gated external adapter when bridge node is absent."
+      "MT-105 [Pose-ComfyUI-Pipeline] SaveImage Output Discovery Fallback -- Preserve SaveImage fallback discovery as Handshake-native Workflow-Engine adapter receipts/output manifests",
+      "with fake-adapter tests and no direct localhost /history or /view proof requirement."
     ],
     "allowed_paths": [
       "src/backend/handshake_core/src/atelier/pose + engine.comfyui adapters + ArtifactStore sidecars"
@@ -74,7 +86,7 @@
       "cargo test + runtime proof vs PostgreSQL/EventLedger"
     ],
     "risk_if_missed": "CKC parity loss for SaveImage Output Discovery Fallback",
-    "summary": "MT-105 [Pose-ComfyUI-Pipeline] SaveImage Output Discovery Fallback -- Preserve vanilla ComfyUI SaveImage output discovery (poll /history, discover /view outputs) via a capability-gated external adapter when bridge node is absent."
+    "summary": "MT-105 [Pose-ComfyUI-Pipeline] SaveImage Output Discovery Fallback -- Preserve SaveImage fallback discovery as Handshake-native Workflow-Engine adapter receipts/output manifests, with fake-adapter tests and no direct localhost /history or /view proof requirement."
   },
   "updated_at_utc": null,
   "wp_id": "WP-KERNEL-005"

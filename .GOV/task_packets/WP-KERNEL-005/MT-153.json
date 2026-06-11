@@ -33,11 +33,23 @@
     "depends_on": [
       "MT-152"
     ],
-    "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "status": "VALIDATED_V2_WITH_CONCERN",
+    "validator_verdict": "PASS_WITH_CONCERN",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:22:39.466Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT"
+    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "integration_validation_v2": {
+      "verdict": "PASS_WITH_CONCERN",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "REAL",
+      "proof_validity": "WEAK",
+      "sr1": "PASS",
+      "sr2": "PASS",
+      "fail_category": null,
+      "gap": null,
+      "evidence": "state_probe.rs:1690-1748 (record_screenshot_artifact_storage: validate_screenshot_artifact_storage + real PG upsert keyed to capture_id, retention ttl/pinned, in-tx SCREENSHOT_ARTIFACT_STORED event); migration 0115 wired at mod.rs:2107. CONCERN: atelier_diagnostics_projections_tests.rs:185-294 proves real stealth-window+capture base, metadata round-trip, idempotent re-store, machine-local manifest-id rejection -- but no count_events_for_aggregate on SCREENSHOT_ARTIFACT_STORED; EventLedger proof half missing"
+    }
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.324Z",

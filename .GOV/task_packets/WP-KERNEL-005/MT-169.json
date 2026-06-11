@@ -33,11 +33,23 @@
     "depends_on": [
       "MT-168"
     ],
-    "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "status": "VALIDATED_V2",
+    "validator_verdict": "PASS",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:24:56.159Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT"
+    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "integration_validation_v2": {
+      "verdict": "PASS",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "REAL",
+      "proof_validity": "STRONG",
+      "sr1": "PASS",
+      "sr2": "PASS",
+      "fail_category": null,
+      "gap": null,
+      "evidence": "guard_synthetic_input settings.rs:1576-1589 records the row first (record_synthetic_input settings.rs:1534) then rejects unauthorized ops, so audit row always persists; emits SYNTHETIC_INPUT_RECORDED. Test atelier_model_config_apply_tests.rs:219-280 asserts event count on real PG and that an unauthorized op still leaves an atelier_synthetic_input_guard audit row."
+    }
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.336Z",

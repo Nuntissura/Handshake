@@ -33,11 +33,23 @@
     "depends_on": [
       "MT-061"
     ],
-    "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "status": "VALIDATED_V2",
+    "validator_verdict": "PASS",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:08:31.260Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT"
+    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "integration_validation_v2": {
+      "verdict": "PASS",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "REAL",
+      "proof_validity": "STRONG",
+      "sr1": "PASS",
+      "sr2": "PASS",
+      "fail_category": null,
+      "gap": null,
+      "evidence": "media_intake.json exists (1557B); atelier_fixture_corpus_tests.rs:252-269 materializes real ArtifactStore payloads via write_native_media_artifact (content_hash/artifact_ref) and round-trips media identity + intake review through live store; atelier_pg_support.rs:52 uses real write_file_artifact/validate_artifact_content_hash"
+    }
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.253Z",

@@ -33,11 +33,23 @@
     "depends_on": [
       "MT-110"
     ],
-    "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "status": "VALIDATED_V2",
+    "validator_verdict": "PASS",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:16:50.583Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT"
+    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "integration_validation_v2": {
+      "verdict": "PASS",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "REAL",
+      "proof_validity": "STRONG",
+      "sr1": "PASS",
+      "sr2": "PASS",
+      "fail_category": null,
+      "gap": null,
+      "evidence": "POSE_RIG_INGESTED/POSE_HEAD_POSE_RECORDED families emitted via record_event_in_tx into kernel_event_ledger (src/atelier/pose.rs:1770-1772, 2581-2596; mod.rs:2180-2243). Proven by count_events_for_aggregate==4 for head-pose and ==2 for rig (tests/atelier_pose_tests.rs:1843-1854, 510-521)."
+    }
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.291Z",

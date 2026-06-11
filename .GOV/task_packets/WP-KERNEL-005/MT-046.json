@@ -33,11 +33,23 @@
     "depends_on": [
       "MT-045"
     ],
-    "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "status": "VALIDATED_V2",
+    "validator_verdict": "PASS",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:05:12.745Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT"
+    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "integration_validation_v2": {
+      "verdict": "PASS",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "REAL",
+      "proof_validity": "STRONG",
+      "sr1": "PASS",
+      "sr2": "PASS",
+      "fail_category": null,
+      "gap": null,
+      "evidence": "search.rs:1010-1042 lens extraction_tier rank<=$2 and SFW requires content_tier='sfw' applied in SQL; test atelier_core_data_tests.rs:5908-6099 proves Tier1 default, Tier2 inclusion, SFW hard-drop, read-only (atelier_event count unchanged 6061-6068) and source text unmutated for all three docs"
+    }
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.241Z",

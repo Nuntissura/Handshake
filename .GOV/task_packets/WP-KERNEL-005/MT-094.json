@@ -33,11 +33,23 @@
     "depends_on": [
       "MT-093"
     ],
-    "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "status": "VALIDATED_V2",
+    "validator_verdict": "PASS",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:14:03.086Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT"
+    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "integration_validation_v2": {
+      "verdict": "PASS",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "REAL",
+      "proof_validity": "STRONG",
+      "sr1": "PASS",
+      "sr2": "PASS",
+      "fail_category": null,
+      "gap": null,
+      "evidence": "pose.rs:1835-1940 set_pose_context_state is an append-only history INSERT (state_seq) into atelier_pose_context_state (migration 0092) emitting POSE_CONTEXT_STATE_SET; test atelier_pose_tests.rs:1058-1167 switches Blank/SingleImage/CharacterLinked/CollectionLinked contexts and asserts rigs/media/links survive on live PG"
+    }
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.278Z",

@@ -175,7 +175,6 @@ Note: This section is an **inventory list**, not a priority order. Do not infer 
 ## In Progress
 
 Assignee/model is recorded in the work packet (CODER_MODEL, CODER_REASONING_STRENGTH). Task Board stays minimal.
-- **[WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1]** - [IN_PROGRESS]
 
 
 
@@ -1202,6 +1201,7 @@ Assignee/model is recorded in the work packet (CODER_MODEL, CODER_REASONING_STRE
 - **[WP-1-Software-Delivery-Validator-Gate-Closeout-Posture-v1]** - [VALIDATED]
 - **[WP-1-Postgres-Primary-Control-Plane-Foundation-v1]** - [VALIDATED]
 - **[WP-KERNEL-001-Event-Ledger-Session-Broker-v1]** - [VALIDATED]
+- **[WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1]** - [VALIDATED]
 
 
 ## Blocked

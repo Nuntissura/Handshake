@@ -33,11 +33,23 @@
     "depends_on": [
       "MT-164"
     ],
-    "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "status": "NEEDS_MANAGED_RESOURCE_PROOF",
+    "validator_verdict": "FAIL",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:24:25.192Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT"
+    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "integration_validation_v2": {
+      "verdict": "FAIL",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "REAL",
+      "proof_validity": "TRIVIAL",
+      "sr1": "PASS",
+      "sr2": "FAIL",
+      "fail_category": "PROOF_IN_MEMORY_ONLY",
+      "gap": "Redaction/tarball logic is real (regex secret scan, per-artifact redaction before embedding), but TraceSource has NO production impl and RetrievalTraceExporter has ZERO non-test callers; proof loads traces/artifacts from in-memory stubs only — never the real ArtifactStore.",
+      "evidence": "src/memory/trace_export.rs:233-303 real export + artifact redaction; redact via regex secret_re() line 390-392; grep: impl TraceSource only at trace_export.rs:594/744/792/815 (all #[cfg(test)] stubs); RetrievalTraceExporter::new appears only inside trace_export.rs test module (664-759), no src/ or app/ production caller; tests/trace_export_tests.rs:53-86 FixedSource mock."
+    }
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.333Z",

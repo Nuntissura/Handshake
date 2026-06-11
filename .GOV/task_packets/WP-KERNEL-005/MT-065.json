@@ -33,11 +33,23 @@
     "depends_on": [
       "MT-064"
     ],
-    "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "status": "VALIDATED_V2",
+    "validator_verdict": "PASS",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:09:13.458Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT"
+    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "integration_validation_v2": {
+      "verdict": "PASS",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "REAL",
+      "proof_validity": "STRONG",
+      "sr1": "PASS",
+      "sr2": "PASS",
+      "fail_category": null,
+      "gap": null,
+      "evidence": "search_tags_similarity.json exists (1262B); atelier_fixture_corpus_tests.rs:876-987 persists manual tags, derived tag rules (separate), and AI suggestions, then explicitly asserts proposed suggestions are NOT in applied tag list (l.977-987 = spec 'suggestions separate from applied tags'); similarity built on real ArtifactStore-materialized assets (l.1023); search.rs:1396 record_ai_tag_suggestion is real tx INSERT + EventLedger"
+    }
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.256Z",

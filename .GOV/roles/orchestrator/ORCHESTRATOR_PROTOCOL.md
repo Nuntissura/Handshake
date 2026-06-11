@@ -41,13 +41,17 @@ In the orchestrator-managed workflow, the Orchestrator:
 
 ## HBR Gate Obligations
 
-This role must honor `HANDSHAKE_BUILD_RULES.json` v1.2.0+ (see Codex CX-131, Master Spec §5.6, registry at `.GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json`).
+This role must honor `HANDSHAKE_BUILD_RULES.json` v1.3.0+ (see Codex CX-131, Master Spec Section 5.6, registry at `.GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json`). Treat HBR as build-time and handoff-time law for every product WP, not as optional checklist prose.
 
-- At WP claim: read `packet.acceptance_matrix.hbr` and confirm row applicability.
-- At MT execution: ensure the assigned role produces evidence per `evidence_kind` for each Applicable HBR rule.
-- At role handoff: HandoffGate (MT-004) MUST PASS or the handoff is blocked.
-- At closeout: confirm no HBR row is `PENDING`, `STEER`, or `BLOCKED` per CX-503B1.
-- Applicable pillars for this role: SWARM, MAN. Orchestrator must especially preserve parallel workflow safety and ModelManual currency across dispatch, handoff, and closeout.
+- Planning duty: before launch, confirm the packet and Activation Manager outputs carry applicable HBR acceptance rows for every touched feature, primitive, tool, model lane, storage path, sandbox/workspace/worktree surface, UI surface, automation surface, UserManual surface, and backend navigation path.
+- Swarm duty: route and launch work as if multiple local and cloud model lanes plus the Operator may work in parallel. Packet state, communication state, worktree assignment, backend navigation, typed routing, leases, cancellation, and recovery must make those actions observable, attributable, and restartable.
+- Native-runtime duty: if a packet or readiness artifact treats Docker Desktop, Docker Compose, third-party daemons, manually launched support apps, SQLite, or SQL-portability shims as a default proof path for core Handshake behavior, route it for activation/spec repair before product work starts.
+- PostgreSQL/EventLedger duty: ensure planning surfaces name PostgreSQL/EventLedger authority when durable state is touched, and do not let a WP launch with proof scoped only to mocks, in-memory stores, or legacy SQLite paths.
+- CRDT duty: when collaborative state, operator/model co-work, live workspace state, or editable project surfaces are touched, require HBR rows for CRDT persistence, reconnect/replay, conflict visibility, and promotion into authority state.
+- Visual duty: for GUI/operator-surface work, ensure the launch and handoff route requires the internal visual/debug inspection path or headless GUI capture evidence. Unit tests alone cannot satisfy visual HBR rows.
+- UserManual duty: when a WP wires or changes a model-callable command, tool, IPC channel, config key, operator-facing capability, or documented feature, require same-change UserManual updates and self-consistency evidence. Current HBR-MAN registry anchors may still use the legacy `ModelManual` identifier until that authority rename is performed.
+- Handoff duty: HandoffGate (MT-004) and `hbr-matrix-check` must pass before role handoff/closeout. Do not advance a WP while any required HBR row is `PENDING`, `STEER`, or `BLOCKED` per CX-503B1.
+- Orchestrator limitation: Orchestrator does not implement or validate product evidence. It blocks, repairs routing/readiness, or returns to Activation Manager/Classic Orchestrator when HBR applicability or evidence requirements are missing.
 
 ## Why Governance Correctness Matters
 

@@ -33,11 +33,23 @@
     "depends_on": [
       "MT-027"
     ],
-    "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "status": "VALIDATED_V2",
+    "validator_verdict": "PASS",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:04:11.832Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT"
+    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "integration_validation_v2": {
+      "verdict": "PASS",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "REAL",
+      "proof_validity": "STRONG",
+      "sr1": "PASS",
+      "sr2": "PASS",
+      "fail_category": null,
+      "gap": null,
+      "evidence": "intake.rs open_intake_batch/mark_intake_batch_in_progress/get_intake_batch_by_key (no stubs/deferred); test atelier_core_data_tests.rs:2060-2157 opens batch with source_ref/mode/resume_cursor, marks in-progress, reconnects via fresh connected_store, asserts status+cursor+resumed_at survive reconnect, INTAKE_BATCH_RESUMED ledger event"
+    }
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.227Z",

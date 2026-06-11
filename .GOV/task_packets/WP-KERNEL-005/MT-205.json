@@ -33,11 +33,23 @@
     "depends_on": [
       "MT-204"
     ],
-    "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "status": "VALIDATED_V2",
+    "validator_verdict": "PASS",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:30:39.529Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT"
+    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "integration_validation_v2": {
+      "verdict": "PASS",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "REAL",
+      "proof_validity": "STRONG",
+      "sr1": "PASS",
+      "sr2": "PASS",
+      "fail_category": null,
+      "gap": null,
+      "evidence": "src/backend/handshake_core/src/atelier/stealth_window.rs (create_stealth_window, add_stealth_ref, visibility/quiet flags). tests/atelier_stealth_window_tests.rs:1218-1315 create idempotent + quiet-default-ON invariant + rejects non-quiet off-screen window (HBR-QUIET non-intrusive policy) + count_events_for_aggregate on real EventLedger; :1318+ monotonic ref seq + redacted resolver."
+    }
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.365Z",

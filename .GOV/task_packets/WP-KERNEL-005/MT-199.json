@@ -33,11 +33,23 @@
     "depends_on": [
       "MT-198"
     ],
-    "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "status": "VALIDATED_V2",
+    "validator_verdict": "PASS",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:29:51.565Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT"
+    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "integration_validation_v2": {
+      "verdict": "PASS",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "REAL",
+      "proof_validity": "STRONG",
+      "sr1": "PASS",
+      "sr2": "PASS",
+      "fail_category": null,
+      "gap": null,
+      "evidence": "src/backend/handshake_core/src/atelier/exports.rs:1188 (INSERT INTO atelier_export_request on real pool), :1259 (INSERT atelier_export_result tx), :1343 (manifest entry seq); tests/atelier_core_data_tests.rs:6750-6840 exercises request_sheet_export/record_export_result idempotency/add_manifest_entry on connected_store(real PG). ExportFormat enum (exports.rs:97-104) includes Pdf/PlainText; test only drives Markdown/Json but round-trip path is uniform. Rendering is intentionally an ArtifactStore ref, not a deferred stub."
+    }
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.359Z",

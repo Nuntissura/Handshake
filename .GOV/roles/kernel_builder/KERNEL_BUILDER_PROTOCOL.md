@@ -44,6 +44,27 @@ If these disagree, higher-priority repo law wins. The reset brief controls build
 - Treat existing Markdown-heavy governance artifacts as migration safety rails only. Do not copy them into future kernel-build WPs, refinements, microtasks, task-state records, or handoffs as the authoring pattern.
 - New model-created kernel governance artifacts should start from typed JSON/JSONL/YAML-compatible contracts; Markdown is generated only when an explicit projection/report contract or current Operator request requires it.
 
+## Closure-Unit and Deliverable-First Discipline (mandatory)
+
+`KERNEL_BUILDER` MUST follow `.GOV/codex/Handshake_Codex_v1.4.md` [CX-972] and the global `[GLOBAL-CLOSURE]` discipline.
+
+- Before starting work, internally determine the smallest externally valid closure unit: the concrete product behavior, MT validator verdict, proof command, code/data/test change, handoff, or requested authority-state change that makes the current task count.
+- Work only on that closure unit until it is proven done, explicitly blocked, or the Operator changes scope.
+- The primary deliverable surface comes before paperwork. Product code, data, runtime behavior, tests, validator state, generated artifacts, or user-visible output must move before receipts, evidence files, summaries, taskboard polishing, governance notes, or status reports, unless the Operator explicitly requested those artifacts as the deliverable.
+- Supporting paperwork does not count as progress unless it is the requested deliverable, records an already-implemented closure unit, or is the minimum required input to unlock the next direct work step.
+- "Required" means blocking: helpful, cleaner, safer, governance-preferred, or conventionally expected support work is not required unless direct deliverable work cannot proceed without it.
+- If support work is required, name the exact direct work step it unblocks when reporting it, do only the minimum needed, avoid durable support artifacts unless required, then return to the closure unit.
+- Do not redefine implementation, remediation, debugging, or validation work as planning, evidence production, investigation, review, or risk hardening unless the Operator explicitly requested that as the deliverable.
+- Progress reports for non-paperwork tasks must include direct-work evidence when available: a changed artifact, command result, runtime behavior, user-visible output, or external verdict movement. If none exists, report `no direct progress`; do not create a progress report, receipt, or evidence file solely to prove closure compliance.
+- When multiple acceptance surfaces exist, precedence is: explicit Operator command, external validator or reviewer verdict, runtime behavior, failing test reproduction plus passing test, changed deliverable artifact, supporting documentation.
+- Local notes, partial evidence, receipts, and plans cannot replace validator or runtime acceptance surfaces.
+- Closure-unit tracking stays internal or in transient chat/status unless the Operator explicitly asks for a durable artifact or the artifact is already required by the acceptance surface.
+- Missing closure-unit paperwork is never a blocker to product, MT, validator, proof, or handoff work.
+- Gather only the minimum context needed to determine the deliverable, current failure, and next edit/run/action. Additional context gathering must name the immediate decision it enables.
+- Complexity does not authorize paperwork-first behavior. For large packets, choose the first externally valid closure unit and execute it deliverable-first.
+- Tests count as direct work only when tied to a specific deliverable requirement or bug and run to produce RED, GREEN, or regression-proof evidence. Tests written but not run, broad unrelated sweeps, and tests not mapped to the closure unit are support work.
+- When a closure-discipline violation is noticed during active kernel-builder work, correct behavior immediately and continue direct deliverable work; do not create a new remediation task, governance artifact, or process patch unless the Operator asks for one.
+
 ## Product Code Stance
 
 - The current product codebase is the implementation target and foundation.
@@ -51,6 +72,16 @@ If these disagree, higher-priority repo law wins. The reset brief controls build
 - Treat existing product code as a good implementation of the Master Spec unless local code, tests, or validator evidence proves a specific defect.
 - Prefer building on existing product modules, data contracts, tests, and runtime patterns before introducing parallel replacements.
 - When code needs replacement, state the concrete reason and migration path in the WP or microtask.
+
+## Handshake-Native Runtime Dependency Stance (mandatory)
+
+`KERNEL_BUILDER` MUST follow Codex `[CX-503S]`.
+
+- Build Handshake so core operation runs through Handshake-native integrated product features, not outside apps the Operator has to start, babysit, or keep installed as a hidden prerequisite.
+- Use open-source software by internalizing it behind Handshake-managed libraries, managed subprocesses, bundled or runtime-discovered components, native tools, product lifecycle managers, or explicit operator-configured adapters.
+- Docker Desktop, Docker Compose, third-party model-server daemons, external service wrappers, and manually launched support apps are not acceptable defaults, implicit fallbacks, proof prerequisites, or MT/WP acceptance shortcuts.
+- PostgreSQL/EventLedger proof must use Handshake-managed PostgreSQL or an explicit real PostgreSQL URL. Do not launch Docker to satisfy PostgreSQL proof unless the Operator explicitly creates a compatibility exception for that exact task.
+- If an MT, WP, test, packet, or Master Spec clause requires outside-app operation for core Handshake behavior, treat that clause as stale drift. Update or escalate the authority surface before implementing; do not preserve stale dependency posture because it appears in older contract text.
 
 ## Authority and Boundaries
 
@@ -81,13 +112,18 @@ If these disagree, higher-priority repo law wins. The reset brief controls build
 
 ## HBR Gate Obligations
 
-This role must honor `HANDSHAKE_BUILD_RULES.json` v1.2.0+ (see Codex CX-131, Master Spec §5.6, registry at `.GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json`).
+This role must honor `HANDSHAKE_BUILD_RULES.json` v1.3.0+ (see Codex CX-131, Master Spec Section 5.6, registry at `.GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json`). Kernel Builder is both a planning role in Activation Mode and an implementer role in Product Implementation Mode, so it must account for all active HBR pillars: INT, SWARM, VIS, QUIET, MAN, and STOP.
 
-- At WP claim: read `packet.acceptance_matrix.hbr` and confirm row applicability.
-- At MT execution: produce evidence per `evidence_kind` for each Applicable HBR rule.
-- At role handoff: HandoffGate (MT-004) MUST PASS or the handoff is blocked.
-- At closeout: confirm no HBR row is `PENDING`, `STEER`, or `BLOCKED` per CX-503B1.
-- Applicable pillars for this role: INT, SWARM, VIS, QUIET, MAN. Kernel Builder must account for all active HBR rules in the registry, with implementation responsibility focused on the INT pillar.
+- Activation Mode duty: map every touched feature, primitive, tool, model lane, storage path, sandbox/workspace/worktree surface, UI surface, automation surface, UserManual surface, and backend navigation path to applicable HBR rows before readiness.
+- Implementation duty: for each claimed MT, produce evidence per `evidence_kind` for every applicable HBR row. Test-only or fixture-only proof cannot satisfy rows that require runtime behavior, PostgreSQL/EventLedger durability, CRDT replay, visual capture, UserManual currency, process ownership, or parallel-agent behavior.
+- Swarm duty: build for parallel local and cloud model lanes plus Operator co-work. Typed events, backend navigation, leases, cancellation, runtime state, artifact promotion, conflict handling, and recovery must be observable, attributable, restartable, and safe under concurrent model/operator activity.
+- Native-runtime duty: core Handshake behavior must be Handshake-native. Do not use Docker Desktop, Docker Compose, third-party daemons, manually launched support apps, SQLite, SQL-portability shims, or mock-only resources as default proof or fallbacks. Built-in sandbox/VM/workspace/worktree features must be product-managed surfaces, not outside-app prerequisites.
+- PostgreSQL/EventLedger duty: durable authority work must use Handshake-managed PostgreSQL/EventLedger paths or an explicit real PostgreSQL URL. No SQLite authority, cache, fixture, compatibility, fallback, import, example, harness, or temporary adapter is acceptable.
+- CRDT duty: collaborative state work must prove CRDT persistence, reconnect/replay, conflict visibility, and promotion into EventLedger authority where in scope.
+- Visual duty: GUI/operator-surface and diagnostic-surface work must use the internal visual/debug inspection path or headless GUI capture evidence when observable UI behavior is touched.
+- UserManual duty: model-callable commands, tools, IPC channels, config keys, operator-facing capabilities, and documented features must update the in-product UserManual in the same change when applicable. Current HBR-MAN registry anchors may still use the legacy `ModelManual` identifier until that authority rename is performed.
+- STOP duty: never use capacity, token, throughput, multi-session, or future-work aggregate reasoning as a stop reason. Dependency blockers must be worked or routed through the packet, and out-of-scope unblockers require full disclosure and waiver handling per HBR-STOP.
+- Handoff duty: HandoffGate (MT-004), `hbr-matrix-check`, and packet HBR matrix closure must pass before final Kernel Builder handoff. Do not request validation while any required HBR row is `PENDING`, `STEER`, or `BLOCKED`.
 
 ## Kernel Builder Activation Mode
 
@@ -411,7 +447,7 @@ Before this role can hand off (`READY_FOR_VALIDATION`), apply the three sub-rule
 
 **Sub-rule 1 — No deferred-live escape.** If any proof command, or any function body the spec requires to run at runtime, exits through a `*Unavailable` / `not yet wired` / "follow-on commit will…" code path, the MT is `BLOCKED_ON_DEPENDENCY` (with the missing dep named in `lifecycle.blocker`), not `READY_FOR_VALIDATION`. Lexical trip-wires the gov-check greps for: `LiveClientUnavailable`, `LiveSpawnUnavailable`, `LiveRuntimeUnavailable`, `TrainerUnavailable`, `NativeToolchainUnavailable`, `not yet wired`, `deferred to follow-on`, `pending MT-NNN`, `live store not attached`. Adding new placeholder error variants of the same shape is the same failure.
 
-**Sub-rule 2 — External-resource touch.** For every external resource the MT contract names — model artifact, Postgres table/column, HTTP endpoint, subprocess, file-format round-trip, OS-level surface, IPC channel actually routed to a running process — at least one proof command must touch the real resource. A trait abstraction plus an in-memory impl this role also authored does not count as touching the resource. If the contract names external resources and the proof only touches mocks, status is `NEEDS_EXTERNAL_RESOURCE` (resource named in `lifecycle.missing_resource`).
+**Sub-rule 2 — Handshake-owned resource touch.** For every resource the MT contract names — model artifact, Handshake-managed PostgreSQL/EventLedger table/column, Handshake-native HTTP endpoint, product-managed subprocess, file-format round-trip, OS-level surface, IPC channel routed to a Handshake-owned process, or explicit operator-configured adapter — at least one proof command must touch the real product resource or adapter boundary. A trait abstraction plus an in-memory impl this role also authored does not count as touching the resource. Docker Desktop, Docker Compose, third-party model-server daemons, external service wrappers, and manually launched support apps do not count as default proof resources; they are compatibility-only opt-ins and must have an explicit adapter contract. If the contract names product resources and proof only touches mocks or an unmanaged outside app, status is `NEEDS_MANAGED_RESOURCE_PROOF` (resource named in `lifecycle.missing_resource`).
 
 **Sub-rule 3 — Implementer cannot self-certify.** Structural rule, not a self-check. `lifecycle.claimed_by` must not equal `lifecycle.completed_by`. The implementer transitions `CLAIMED -> READY_FOR_VALIDATION` and emits the validator handoff per the packet's `workflow.validation_topology`. The validator role transitions `READY_FOR_VALIDATION -> COMPLETED`.
 

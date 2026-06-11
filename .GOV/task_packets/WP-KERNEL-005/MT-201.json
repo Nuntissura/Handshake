@@ -33,11 +33,23 @@
     "depends_on": [
       "MT-200"
     ],
-    "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "status": "VALIDATED_V2",
+    "validator_verdict": "PASS",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:30:06.756Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT"
+    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "integration_validation_v2": {
+      "verdict": "PASS",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "REAL",
+      "proof_validity": "STRONG",
+      "sr1": "PASS",
+      "sr2": "PASS",
+      "fail_category": null,
+      "gap": null,
+      "evidence": "src/backend/handshake_core/src/atelier/sourcing.rs (register_sourcing_spec_yaml, handler_version_matrix, decide_binding); tests/atelier_sourcing_tests.rs:197-355 YAML schema parse/validate/canonicalize + reject unknown fields; :481-600 version-pin semver range binding to concrete handler 2.1.0 with matrix_snapshot replay + mismatch receipts + count_events on real EventLedger."
+    }
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.361Z",

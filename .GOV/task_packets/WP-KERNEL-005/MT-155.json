@@ -33,11 +33,23 @@
     "depends_on": [
       "MT-154"
     ],
-    "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "status": "NEEDS_MANAGED_RESOURCE_PROOF",
+    "validator_verdict": "FAIL",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:23:03.409Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT"
+    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "integration_validation_v2": {
+      "verdict": "FAIL",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "THIN",
+      "proof_validity": "TRIVIAL",
+      "sr1": "PASS",
+      "sr2": "FAIL",
+      "fail_category": "PROOF_IN_MEMORY_ONLY",
+      "gap": "Proof is an in-memory struct validation only; never touches PG/EventLedger/ArtifactStore despite proof_target 'runtime proof vs PostgreSQL/EventLedger'. No standalone diff-request schema; threshold/metadata only appear as embedded fields of an in-memory loop projection with stringly-typed 'artifact://' refs that are never persisted or read.",
+      "evidence": "src/kernel/visual_debugging_loop.rs:28-47 VisualDebuggingThresholdConfigV1 / VisualDebugEvidenceArtifactV1 (plain structs); tests/kernel_visual_debugging_loop_tests.rs:11-72 build literals and assert on validate/project return values; no managed-resource access anywhere in the test."
+    }
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.325Z",

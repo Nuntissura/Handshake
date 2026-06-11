@@ -36,13 +36,18 @@
 
 ## HBR Gate Obligations
 
-This role must honor `HANDSHAKE_BUILD_RULES.json` v1.2.0+ (see Codex CX-131, Master Spec §5.6, registry at `.GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json`).
+This role must honor `HANDSHAKE_BUILD_RULES.json` v1.3.0+ (see Codex CX-131, Master Spec Section 5.6, registry at `.GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json`). Integration Validator owns whole-WP HBR closure and must not merge or final-PASS product work while any applicable HBR obligation is missing or weakly proven.
 
-- At WP claim: read `packet.acceptance_matrix.hbr` and confirm row applicability.
-- At MT execution: require evidence per `evidence_kind` for each Applicable HBR rule.
-- At role handoff: HandoffGate (MT-004) MUST PASS or the handoff is blocked.
-- At closeout: confirm no HBR row is `PENDING`, `STEER`, or `BLOCKED` per CX-503B1.
-- Applicable pillars for this role: INT, SWARM, VIS, QUIET, MAN. Integration Validator must account for all active HBR rules in the registry, with validator-scan integration from MT-005 as the evidence-review focus.
+- Applicability duty: inspect the final packet, MT set, touched paths, acceptance matrix, and validator-scan output. Every touched feature, primitive, tool, model lane, storage path, sandbox/workspace/worktree surface, UI surface, automation surface, UserManual surface, and backend navigation path must have correct HBR applicability.
+- Interconnectivity duty: require runtime evidence that changed behavior wires into the actual product graph. EventLedger, ContextBundle, ModelAdapter, ToolGate, ArtifactStore, ValidationRunner, PromotionGate, TraceProjection, CRDT, UserManual, and backend navigation claims must have executable consumers/producers, not declarations only.
+- Swarm duty: whole-WP review must account for parallel local and cloud model lanes plus Operator co-work. Shared state, queues, leases, cancellation, typed routing, backend navigation, conflict handling, workspaces/worktrees, and recovery must be safe under concurrent agent/operator activity when touched.
+- Native-runtime duty: reject Docker Desktop, Docker Compose, third-party daemons, manually launched support apps, SQLite, SQL-portability shims, and mock-only resources as default core-operation proof. Built-in sandbox/VM/workspace/worktree behavior must be product-managed or explicitly operator-configured.
+- PostgreSQL/EventLedger duty: durable authority behavior requires real PostgreSQL/EventLedger proof through Handshake-managed PostgreSQL or an explicit real PostgreSQL URL. SQLite authority, caches, fixtures, compatibility paths, imports, examples, harnesses, or temporary adapters are merge blockers unless the Operator created an explicit non-Handshake exception.
+- CRDT duty: collaborative state behavior requires CRDT persistence, reconnect/replay, conflict visibility, and promotion into authority state when in scope.
+- Visual duty: UI/operator-surface and diagnostic-surface changes require internal visual/debug inspection or headless GUI capture evidence. If the visual tool path is missing for an in-scope surface, record a blocking HBR-VIS gap rather than issuing PASS.
+- UserManual duty: model-callable commands, tools, IPC channels, config keys, operator-facing capabilities, and documented features must have same-change UserManual updates and code-truth self-consistency evidence when applicable. Current HBR-MAN registry anchors may still use the legacy `ModelManual` identifier until that authority rename is performed.
+- Quiet/process duty: final evidence must show tests, agent activity, sandboxes, and background processes are non-intrusive, attributable, and reclaimed.
+- Final-verdict duty: before PASS/merge readiness, run or review `hbr-matrix-check`, HandoffGate evidence, validator-scan HBR evidence, and packet acceptance closure. Any required HBR row left `PENDING`, `STEER`, or `BLOCKED` is a hard blocker.
 
 ## Current Indexed Master Spec Write Surface [CX-SPEC-IDX] (HARD)
 
@@ -322,7 +327,7 @@ For the default `INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1` topology this role
 
 **Sub-rule 1 — No deferred-live escape.** Grep the committed proof block, the linked test files, and the diff for `LiveClientUnavailable`, `LiveSpawnUnavailable`, `LiveRuntimeUnavailable`, `TrainerUnavailable`, `NativeToolchainUnavailable`, `not yet wired`, `deferred to follow-on`, `pending MT-NNN`, `live store not attached`, or any new placeholder error variant of the same shape. Any hit reachable from the proof path or from the function bodies the MT spec requires to run -> status `BLOCKED_ON_DEPENDENCY`, verdict `HARD_FAIL`. Name the missing dep in the verdict receipt.
 
-**Sub-rule 2 — External-resource touch.** Read the MT contract's `owned_files` + `spec_anchors` + `implementation_notes`. For every external resource named — model artifact, Postgres table/column, HTTP endpoint, subprocess, file-format round-trip, OS-level surface, IPC channel actually routed to a running process — confirm at least one proof command touches the real resource. If the proof only touches mocks the implementer authored alongside the impl, status `NEEDS_EXTERNAL_RESOURCE`, verdict `HARD_FAIL`. Name the resource in the verdict receipt.
+**Sub-rule 2 — Handshake-owned resource touch.** Read the MT contract's `owned_files` + `spec_anchors` + `implementation_notes`. For every Handshake-owned managed resource or explicitly required integration surface named — model artifact, PostgreSQL/EventLedger table/column, adapter boundary, receipt, ArtifactStore manifest, file-format round-trip, OS-level surface, or IPC channel actually routed through Handshake-managed lifecycle — confirm at least one proof command touches the real Handshake-native implementation, managed integration record, rejection gate, or adapter contract. Do not require Docker, outside apps, manually launched services, or external model-server daemons as core proof unless the MT explicitly marks them as opt-in compatibility. If proof only touches mocks the implementer authored alongside the impl and does not exercise the Handshake-owned contract, status `NEEDS_MANAGED_RESOURCE_PROOF`, verdict `HARD_FAIL`. Name the resource in the verdict receipt.
 
 **Sub-rule 3 — Implementer did not self-certify.** Read `lifecycle.claimed_by` and the proposed `completed_by`. If they are the same actor, the handoff is malformed; reject and emit `INVALID_HANDOFF_SELF_CERTIFICATION` in the verdict receipt with the request that the implementer transition to `READY_FOR_VALIDATION` instead. This role then performs the `READY_FOR_VALIDATION -> COMPLETED` transition itself.
 

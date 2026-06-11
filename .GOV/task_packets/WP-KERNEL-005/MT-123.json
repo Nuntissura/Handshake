@@ -33,11 +33,23 @@
     "depends_on": [
       "MT-122"
     ],
-    "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "status": "VALIDATED_V2_WITH_CONCERN",
+    "validator_verdict": "PASS_WITH_CONCERN",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:18:36.431Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT"
+    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "integration_validation_v2": {
+      "verdict": "PASS_WITH_CONCERN",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "REAL",
+      "proof_validity": "WEAK",
+      "sr1": "PASS",
+      "sr2": "NA",
+      "fail_category": null,
+      "gap": null,
+      "evidence": "model_manual_tests.rs:514-527 full 7-command set for atelier_pose_sidecar_and_identity with exact-count guard; rows back to real pose.rs methods (record_pose_sidecar, append_identity_profile). Static-data proof only; no AtelierStore::pool()/EventLedger touch despite proof_target."
+    }
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.300Z",

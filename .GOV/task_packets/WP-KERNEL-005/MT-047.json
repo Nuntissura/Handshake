@@ -33,11 +33,23 @@
     "depends_on": [
       "MT-046"
     ],
-    "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "status": "VALIDATED_V2",
+    "validator_verdict": "PASS",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:05:19.470Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT"
+    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "integration_validation_v2": {
+      "verdict": "PASS",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "REAL",
+      "proof_validity": "STRONG",
+      "sr1": "PASS",
+      "sr2": "PASS",
+      "fail_category": null,
+      "gap": null,
+      "evidence": "search.rs:1050-1132 save_saved_search persists to atelier_saved_search + emits SAVED_SEARCH_UPSERTED; tests/atelier_core_data_tests.rs:6287-6358 runs saved search on real PG, asserts DB retrieval-projection row count and EventLedger count; mod.rs:1967 migration 0083 applied in ensure_schema"
+    }
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.242Z",

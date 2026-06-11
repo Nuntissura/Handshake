@@ -33,11 +33,23 @@
     "depends_on": [
       "MT-153"
     ],
-    "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "status": "NEEDS_MANAGED_RESOURCE_PROOF",
+    "validator_verdict": "FAIL",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:22:53.577Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT"
+    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "integration_validation_v2": {
+      "verdict": "FAIL",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "REAL",
+      "proof_validity": "TRIVIAL",
+      "sr1": "PASS",
+      "sr2": "FAIL",
+      "fail_category": "PROOF_IN_MEMORY_ONLY",
+      "gap": "LoopPromotionGate iteration-id binding check is real logic, but PromotionGateSubmitter (the KERNEL-001 PromotionGate boundary) has NO production implementation; all proof runs against MockGate/MisbindingGate/StubGate. The gate is never wired to the real PromotionGate or PG.",
+      "evidence": "src/self_improve/promotion_gate_adapter.rs:73-77 trait + comment 'Production wires this to the KERNEL-001 PromotionGate; tests use an in-memory mock'; grep: impl PromotionGateSubmitter only at promotion_gate_adapter.rs:193 (MockGate), :315 (MisbindingGate), ipc.rs:382 (StubGate) — all test-only."
+    }
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.324Z",

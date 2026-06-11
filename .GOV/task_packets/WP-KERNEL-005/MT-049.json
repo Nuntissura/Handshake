@@ -33,11 +33,23 @@
     "depends_on": [
       "MT-048"
     ],
-    "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "status": "VALIDATED_V2",
+    "validator_verdict": "PASS",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:05:39.433Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT"
+    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "integration_validation_v2": {
+      "verdict": "PASS",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "REAL",
+      "proof_validity": "STRONG",
+      "sr1": "PASS",
+      "sr2": "PASS",
+      "fail_category": null,
+      "gap": null,
+      "evidence": "exports.rs:1779-1838 preflight_backup_restore computes refusal_reason and persists atelier_backup_restore_preflight; tests/atelier_core_data_tests.rs:7444-7560 asserts newer-app and newer-schema refusal plus BACKUP_MANIFEST_RECORDED/PREFLIGHT EventLedger counts on live PG"
+    }
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.244Z",

@@ -33,11 +33,23 @@
     "depends_on": [
       "MT-079"
     ],
-    "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "status": "VALIDATED_V2_WITH_CONCERN",
+    "validator_verdict": "PASS_WITH_CONCERN",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:12:09.242Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT"
+    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "integration_validation_v2": {
+      "verdict": "PASS_WITH_CONCERN",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "REAL",
+      "proof_validity": "MISSING",
+      "sr1": "NA",
+      "sr2": "NA",
+      "fail_category": null,
+      "gap": null,
+      "evidence": "Refinement-closure deliverable: 158KB refinement.md + refinement.json exist at .GOV/task_packets/WP-KERNEL-005/. No product-code/test surface maps to MT-080 (its 'cargo test' proof_target is boilerplate from contract import); the actual deliverable is the activation-ready refinement, which is present. Governance/paperwork deliverable, non-blocking."
+    }
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.267Z",

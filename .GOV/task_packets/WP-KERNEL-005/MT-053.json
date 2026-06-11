@@ -33,11 +33,23 @@
     "depends_on": [
       "MT-052"
     ],
-    "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "status": "VALIDATED_V2",
+    "validator_verdict": "PASS",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:06:22.937Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT"
+    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "integration_validation_v2": {
+      "verdict": "PASS",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "REAL",
+      "proof_validity": "STRONG",
+      "sr1": "PASS",
+      "sr2": "NA",
+      "fail_category": null,
+      "gap": null,
+      "evidence": "content.rs:96-107 atelier_media_intake group; intake.rs:1294 open_intake_batch is real; model_manual_tests.rs:293-304 + 438-468 asserts atelier_open_intake_batch Wired with real Axum route /atelier/intake/batches (api/atelier.rs:49)"
+    }
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.247Z",

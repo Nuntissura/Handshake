@@ -33,11 +33,23 @@
     "depends_on": [
       "MT-090"
     ],
-    "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "status": "VALIDATED_V2",
+    "validator_verdict": "PASS",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:13:40.453Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT"
+    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "integration_validation_v2": {
+      "verdict": "PASS",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "REAL",
+      "proof_validity": "STRONG",
+      "sr1": "PASS",
+      "sr2": "PASS",
+      "fail_category": null,
+      "gap": null,
+      "evidence": "pose.rs:2286-2356 record_pose_sidecar persists OpenPoseJson sidecar with source_image id/rig id/hash/role/artifact_ref/manifest_ref and emits POSE_SIDECAR_RECORDED; migration 0090_atelier_pose_sidecars.sql; test atelier_pose_tests.rs:605-686,759-780 asserts role=openpose_json, manifest_ref, and reads real event payload via store.pool()"
+    }
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.275Z",

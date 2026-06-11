@@ -33,11 +33,23 @@
     "depends_on": [
       "MT-057"
     ],
-    "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "status": "VALIDATED_V2",
+    "validator_verdict": "PASS",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:07:35.129Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT"
+    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "integration_validation_v2": {
+      "verdict": "PASS",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "REAL",
+      "proof_validity": "STRONG",
+      "sr1": "PASS",
+      "sr2": "NA",
+      "fail_category": null,
+      "gap": null,
+      "evidence": "content.rs:152-163 atelier_search_tags_similarity group; model_manual_tests.rs:349-360 + 438-468 asserts atelier_record_ai_tag_suggestion Wired with real route /atelier/ai-tag-suggestions (api/atelier.rs:77)"
+    }
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.250Z",

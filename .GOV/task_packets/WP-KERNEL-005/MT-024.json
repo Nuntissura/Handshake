@@ -33,11 +33,23 @@
     "depends_on": [
       "MT-023"
     ],
-    "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "status": "VALIDATED_V2",
+    "validator_verdict": "PASS",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:04:02.868Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT"
+    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "integration_validation_v2": {
+      "verdict": "PASS",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "REAL",
+      "proof_validity": "STRONG",
+      "sr1": "NA",
+      "sr2": "PASS",
+      "fail_category": null,
+      "gap": null,
+      "evidence": "bulk.rs:607-733 preview_deletion_impact (collect states then rollback, no mutation), archive_deletion_targets (atelier_trash_marker upsert, prevalidated, receipt+event), restore_deletion_targets (delete marker). Test atelier_bulk_operations_tests.rs:496-657 proves preview/archive/restore/soft-delete across media assets AND sheet versions on real PG, with rows physically retained and hidden from gallery."
+    }
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.224Z",

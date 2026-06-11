@@ -33,11 +33,23 @@
     "depends_on": [
       "MT-134"
     ],
-    "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "status": "VALIDATED_V2",
+    "validator_verdict": "PASS",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:20:10.708Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT"
+    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "integration_validation_v2": {
+      "verdict": "PASS",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "REAL",
+      "proof_validity": "WEAK",
+      "sr1": "PASS",
+      "sr2": "NA",
+      "fail_category": null,
+      "gap": null,
+      "evidence": "model_manual/types.rs:3-60 + mod.rs:12 define the full ModelManual skeleton schema (feature_groups/command_reference/safety_constraints/workflows, version 1.3.0); model_manual_tests.rs:672-681 verifies structure + kernel_model_manual_update_section→registered action kernel.model_manual.update_section (action_catalog.rs:354). Manual structure is the deliverable and tests exercise it directly; proof_target's PG/EventLedger claim is N/A to a schema-definition MT."
+    }
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.309Z",

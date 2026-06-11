@@ -33,11 +33,23 @@
     "depends_on": [
       "MT-167"
     ],
-    "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "status": "NEEDS_MANAGED_RESOURCE_PROOF",
+    "validator_verdict": "FAIL",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:24:49.700Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT"
+    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "integration_validation_v2": {
+      "verdict": "FAIL",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "THIN",
+      "proof_validity": "TRIVIAL",
+      "sr1": "PASS",
+      "sr2": "FAIL",
+      "fail_category": "PROOF_IN_MEMORY_ONLY",
+      "gap": "FEMS V1 'end-to-end' proof composes every surface through deterministic in-memory adapters; the single e2e test touches no real PG/EventLedger/ArtifactStore despite the WP claiming Handshake-native managed-resource integration.",
+      "evidence": "tests/fems_integration_e2e_tests.rs:3-4 header 'deterministic in-memory adapters'; FixtureFems (line 111), StubTier (227), TraceSourceStub (280), SpawnFixtureLedger (345), InMemoryFemsAccessor (25); grep confirms zero PgPool/sqlx/ensure_schema/AtelierStore in the file; only one #[tokio::test]."
+    }
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.335Z",

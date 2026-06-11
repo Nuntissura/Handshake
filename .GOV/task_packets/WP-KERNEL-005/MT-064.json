@@ -33,11 +33,23 @@
     "depends_on": [
       "MT-063"
     ],
-    "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "status": "VALIDATED_V2",
+    "validator_verdict": "PASS",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:08:56.495Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT"
+    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "integration_validation_v2": {
+      "verdict": "PASS",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "REAL",
+      "proof_validity": "STRONG",
+      "sr1": "PASS",
+      "sr2": "PASS",
+      "fail_category": null,
+      "gap": null,
+      "evidence": "docs_moodboard_relations.json exists (3287B); atelier_fixture_corpus_tests.rs:616-810 round-trips character documents (append-only versions, body_raw_text byte-exact), story cards/beats, moodboard raw_json_text byte-exact, and relationship rows through live store with read-back"
+    }
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.255Z",

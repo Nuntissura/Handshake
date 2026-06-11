@@ -33,11 +33,23 @@
     "depends_on": [
       "MT-086"
     ],
-    "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "status": "VALIDATED_V2",
+    "validator_verdict": "PASS",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:13:08.400Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT"
+    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "integration_validation_v2": {
+      "verdict": "PASS",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "REAL",
+      "proof_validity": "STRONG",
+      "sr1": "PASS",
+      "sr2": "PASS",
+      "fail_category": null,
+      "gap": null,
+      "evidence": "pose.rs:1739-1792 persists detector_provider/model/model_version/source_asset_version_ref/path_ref/confidence_available and emits event payload; migration 0095_atelier_pose_rig_provenance.sql adds the columns wired at mod.rs:2012; test atelier_pose_tests.rs:186-195,536-556 round-trips provenance fields and reads the real event payload via store.pool()"
+    }
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.272Z",

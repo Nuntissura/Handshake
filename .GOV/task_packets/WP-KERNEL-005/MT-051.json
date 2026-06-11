@@ -33,11 +33,23 @@
     "depends_on": [
       "MT-050"
     ],
-    "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "status": "VALIDATED_V2",
+    "validator_verdict": "PASS",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:05:57.900Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT"
+    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "integration_validation_v2": {
+      "verdict": "PASS",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "REAL",
+      "proof_validity": "STRONG",
+      "sr1": "PASS",
+      "sr2": "NA",
+      "fail_category": null,
+      "gap": null,
+      "evidence": "acceptance.rs:17-79 AtelierAcceptanceConstraints::validate rejects machine-local data roots, non-relocatable artifact refs, and repo dist/ release targets; tests/atelier_core_data_tests.rs:7785-7848 positive + adversarial negative cases (drive letters, file://, .GOV artifacts, repo dist, traversal). Pure runtime guard, no managed-resource surface by design (sr2 NA)"
+    }
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.245Z",

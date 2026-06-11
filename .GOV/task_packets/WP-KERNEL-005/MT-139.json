@@ -33,11 +33,23 @@
     "depends_on": [
       "MT-138"
     ],
-    "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "status": "VALIDATED_V2",
+    "validator_verdict": "PASS",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:20:50.919Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT"
+    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "integration_validation_v2": {
+      "verdict": "PASS",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "REAL",
+      "proof_validity": "STRONG",
+      "sr1": "PASS",
+      "sr2": "PASS",
+      "fail_category": null,
+      "gap": null,
+      "evidence": "src/atelier/action_receipt.rs:89 record_action_receipt INSERTs action_id, params_sha256 (raw params never stored), actor/session, timing, status, refs, with sanitized EventLedger event. tests/atelier_action_receipt_tests.rs:61 records on PG, asserts params_sha256 starts sha256: and excludes the raw secret (:77-78), reloads via get_action_receipt (:86), verifies EventLedger row and no raw-param leak (:92-115); :119 proves validation rejection."
+    }
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.312Z",

@@ -33,11 +33,23 @@
     "depends_on": [
       "MT-201"
     ],
-    "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "status": "VALIDATED_V2",
+    "validator_verdict": "PASS",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:30:14.647Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT"
+    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "integration_validation_v2": {
+      "verdict": "PASS",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "REAL",
+      "proof_validity": "STRONG",
+      "sr1": "PASS",
+      "sr2": "PASS",
+      "fail_category": null,
+      "gap": null,
+      "evidence": "src/backend/handshake_core/src/atelier/comfy.rs:580+ records pin workflow_run_id (Workflow-Engine job context); record_bridge_probe/register_bridge_capability/record_intake_output. tests/atelier_comfy_tests.rs:109-228 fake-adapter probe(node presence)+capability gating(denied not persisted)+output routing on real PG, with list_kernel_events_for_aggregate assertion against kernel EventLedger. Fake adapter is the external bridge double, not a managed-resource mock."
+    }
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.362Z",

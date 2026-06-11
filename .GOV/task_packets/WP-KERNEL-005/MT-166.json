@@ -33,11 +33,23 @@
     "depends_on": [
       "MT-165"
     ],
-    "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "status": "VALIDATED_V2_WITH_CONCERN",
+    "validator_verdict": "PASS_WITH_CONCERN",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:24:33.855Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT"
+    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "integration_validation_v2": {
+      "verdict": "PASS_WITH_CONCERN",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "REAL",
+      "proof_validity": "WEAK",
+      "sr1": "PASS",
+      "sr2": "PASS",
+      "fail_category": null,
+      "gap": null,
+      "evidence": "command_corpus.rs:1720-1764 list_reset_orphan_diagnostics reads real atelier_reset_operation + COUNT FILTER over atelier_orphan_manifest_item (migration 0089 wired mod.rs:1982); but test atelier_diagnostics_typed_surfaces_tests.rs:257-264 only asserts counts >=0 (trivially true) and never seeds reset/orphan rows to prove non-zero projection — count proof is thin though read-again consistency (272-280) and mode enumeration are checked"
+    }
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.334Z",

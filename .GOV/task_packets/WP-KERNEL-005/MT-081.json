@@ -33,11 +33,23 @@
     "depends_on": [
       "MT-080"
     ],
-    "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "status": "VALIDATED_V2",
+    "validator_verdict": "PASS",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:12:16.851Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT"
+    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "integration_validation_v2": {
+      "verdict": "PASS",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "REAL",
+      "proof_validity": "STRONG",
+      "sr1": "PASS",
+      "sr2": "PASS",
+      "fail_category": null,
+      "gap": null,
+      "evidence": "source_evidence.rs:280-472 pose_comfy matrix (6 sources/anchors, all cited refs exist on disk); tests/atelier_source_evidence_tests.rs:223 asserts each required adapter source DONE, verified anchor coverage equals source set, assert_source_tree_ref_exists over every evidence/proof ref (:289-335), and EventLedger evidence (:364)"
+    }
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.268Z",

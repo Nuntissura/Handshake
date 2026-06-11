@@ -31,11 +31,23 @@
     "active": true,
     "blocks": [],
     "depends_on": [],
-    "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "status": "VALIDATED_V2",
+    "validator_verdict": "PASS",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:02:11.676Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT"
+    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "integration_validation_v2": {
+      "verdict": "PASS",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "REAL",
+      "proof_validity": "STRONG",
+      "sr1": "PASS",
+      "sr2": "PASS",
+      "fail_category": null,
+      "gap": null,
+      "evidence": "src/atelier/source_evidence.rs:684 record_source_evidence_matrix (matrix-scoped INSERT into atelier_source_evidence_record/atelier_anchor_verification_record, migrations 0041/0042 wired at mod.rs:1762/1767); tests/atelier_source_evidence_tests.rs:60 records core-data matrix, reloads, verifies SOURCE_EVIDENCE_MATRIX_RECORDED via list_kernel_events_for_aggregate:186"
+    }
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.204Z",

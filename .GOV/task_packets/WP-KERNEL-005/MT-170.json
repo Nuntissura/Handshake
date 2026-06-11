@@ -33,11 +33,23 @@
     "depends_on": [
       "MT-169"
     ],
-    "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "status": "NEEDS_MANAGED_RESOURCE_PROOF",
+    "validator_verdict": "FAIL",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:25:09.775Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT"
+    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "integration_validation_v2": {
+      "verdict": "FAIL",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "REAL",
+      "proof_validity": "WEAK",
+      "sr1": "PASS",
+      "sr2": "FAIL",
+      "fail_category": "PROOF_IN_MEMORY_ONLY",
+      "gap": "The operator-review pause invariant (apply_proposal must not run while ticket Pending/Rejected) is real and well-asserted, but the whole e2e runs against a mock gate and an in-memory EditableSurfaceProvider; no real PromotionGate/PG is exercised, so the 'managed resource' claim is unproven.",
+      "evidence": "tests/promotion_gate_pause_e2e_tests.rs:292-308 mock promote writes to a RefCell value; 454 + 723 assert apply_count==0 invariant; sample_request/eval_result fixtures lines 315-369 are synthetic; grep confirms zero PgPool/sqlx/AtelierStore in the file; PromotionGateSubmitter still has no production impl (see MT-154)."
+    }
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.337Z",

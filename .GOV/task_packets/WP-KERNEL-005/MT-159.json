@@ -33,11 +33,23 @@
     "depends_on": [
       "MT-158"
     ],
-    "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "status": "VALIDATED_V2_WITH_CONCERN",
+    "validator_verdict": "PASS_WITH_CONCERN",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:23:34.901Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT"
+    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "integration_validation_v2": {
+      "verdict": "PASS_WITH_CONCERN",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "REAL",
+      "proof_validity": "WEAK",
+      "sr1": "PASS",
+      "sr2": "NA",
+      "fail_category": null,
+      "gap": null,
+      "evidence": "content.rs:265-275 GUI verification group + :620-621 visual_debug_dom_snapshot (real tauri_command, CDP client exists operator_foreground/cdp_client.rs); model_manual_tests.rs:682-693 + :806-824 wires kernel_product_screenshot_capture_execute / visual_debugging_loop to registered actions (action_catalog.rs:2379,2430). Checklist is a manual/workflow row; proof is static, no managed-resource surface."
+    }
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.328Z",

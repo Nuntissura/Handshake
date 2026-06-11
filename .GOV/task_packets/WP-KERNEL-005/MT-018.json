@@ -33,11 +33,23 @@
     "depends_on": [
       "MT-017"
     ],
-    "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "status": "VALIDATED_V2",
+    "validator_verdict": "PASS",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:03:48.214Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT"
+    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "integration_validation_v2": {
+      "verdict": "PASS",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "REAL",
+      "proof_validity": "STRONG",
+      "sr1": "PASS",
+      "sr2": "PASS",
+      "fail_category": null,
+      "gap": null,
+      "evidence": "media.rs:1921 (bulk_update_media_review_metadata, batch-safe with prevalidation); migration 0043 wired at mod.rs:1773; atelier_media_artifact_tests.rs:468-779 (rating clamp 0..5 high/low, all-or-nothing batch on missing/invalid-status target, receipt+canonical_receipt_event_count linkage, note text preserved, no partial write / no receipt / no EventLedger row / no Flight Recorder side-effect on failure)"
+    }
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.219Z",

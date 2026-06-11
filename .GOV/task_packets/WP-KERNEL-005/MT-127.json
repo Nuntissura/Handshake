@@ -33,11 +33,23 @@
     "depends_on": [
       "MT-126"
     ],
-    "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "status": "VALIDATED_V2",
+    "validator_verdict": "PASS",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:19:07.578Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT"
+    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "integration_validation_v2": {
+      "verdict": "PASS",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "REAL",
+      "proof_validity": "STRONG",
+      "sr1": "PASS",
+      "sr2": "PASS",
+      "fail_category": null,
+      "gap": null,
+      "evidence": "comfy.rs:3349-3394 poll_comfy_job + mark_comfy_job_running with SQL transition guard (WHERE status='QUEUED'); atelier_comfy_job_tests.rs:108-190 QUEUED->RUNNING->COMPLETED on real PG, re-run rejection, run-scoped JOB_RUNNING/JOB_COMPLETED event counts"
+    }
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.303Z",
@@ -63,10 +75,11 @@
   "schema_version": "microtask_contract_v1",
   "scope": {
     "acceptance_criteria": [
-      "MT-127 [Pose-ComfyUI-Pipeline] ComfyUI Polling And Result Capture Adapter -- Implement/specify only ComfyUI polling and result capture (polling schema",
+      "MT-127 [Pose-ComfyUI-Pipeline] ComfyUI Polling And Result Capture Adapter -- Implement/specify only the Handshake-native adapter result-capture contract (status mapping",
       "status mapping",
       "result artifact capture",
-      "output metadata) capturing results as ArtifactStore refs before registration."
+      "output metadata from managed Workflow-Engine receipts",
+      "and direct external polling compatibility-only) capturing results as ArtifactStore refs before registration."
     ],
     "allowed_paths": [
       "src/backend/handshake_core/src/atelier/pose + engine.comfyui adapters + ArtifactStore sidecars"
@@ -76,7 +89,7 @@
       "cargo test + runtime proof vs PostgreSQL/EventLedger"
     ],
     "risk_if_missed": "CKC parity loss for ComfyUI Polling And Result Capture Adapter",
-    "summary": "MT-127 [Pose-ComfyUI-Pipeline] ComfyUI Polling And Result Capture Adapter -- Implement/specify only ComfyUI polling and result capture (polling schema, status mapping, result artifact capture, output metadata) capturing results as ArtifactStore refs before registration."
+    "summary": "MT-127 [Pose-ComfyUI-Pipeline] ComfyUI Polling And Result Capture Adapter -- Implement/specify only the Handshake-native adapter result-capture contract: status mapping, artifact capture, and output metadata from managed Workflow-Engine receipts; direct external polling is compatibility-only."
   },
   "updated_at_utc": null,
   "wp_id": "WP-KERNEL-005"

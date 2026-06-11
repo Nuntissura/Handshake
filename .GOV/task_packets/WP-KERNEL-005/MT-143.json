@@ -33,11 +33,23 @@
     "depends_on": [
       "MT-142"
     ],
-    "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "status": "NEEDS_MANAGED_RESOURCE_PROOF",
+    "validator_verdict": "FAIL",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:21:23.161Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT"
+    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "integration_validation_v2": {
+      "verdict": "FAIL",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "THIN",
+      "proof_validity": "TRIVIAL",
+      "sr1": "PASS",
+      "sr2": "FAIL",
+      "fail_category": "PROOF_IN_MEMORY_ONLY",
+      "gap": "MT-143 artifact (kernel/role_mailbox_claim_lease.rs) is an in-memory struct/projection validator with NO clock or PG: no Utc::now, no sqlx, no INSERT/SELECT; lease_expired/lease_age_seconds/lease_state are caller-supplied fields. The cited test asserts hardcoded constants (lease_expired:true, lease_age_seconds:3900) it itself set — TTL/stale/conflict are never enforced against a managed resource.",
+      "evidence": "src/kernel/role_mailbox_claim_lease.rs (838 lines) has no Utc::now/sqlx/INSERT (grep empty); fields carried, not computed (:151,:334). tests/kernel_role_mailbox_claim_lease_tests.rs:16-30 assert constants from sample_controls() (:184 lease_expired:true hardcoded) with no DATABASE_URL/.pool(). The real PG TTL/conflict lease (LeaseManager, src/role_mailbox_v1/lease.rs, postgres_* conflict tests in role_mailbox_lease_tests.rs) is WP-KERNEL-004 MT-180, a different WP/MT, not this MT's cited surface."
+    }
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.316Z",

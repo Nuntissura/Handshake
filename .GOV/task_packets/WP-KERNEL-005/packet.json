@@ -37,8 +37,11 @@
     "main_containment_status": "NOT_STARTED",
     "packet_format_version": "2026-04-06",
     "risk_tier": "HIGH",
-    "status": "Ready for Dev",
-    "user_signature": "ilja040620261643"
+    "status": "FAILED_INTEGRATION_VALIDATION_V2_NEEDS_REMEDIATION",
+    "user_signature": "ilja040620261643",
+    "integration_validator_verdict": "FAIL",
+    "integration_validation_record": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-005/MT_VERDICTS_INTEGRATION_VALIDATOR_V2.json",
+    "integration_validation_at_utc": "2026-06-10T11:55:00Z"
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.197Z",
@@ -297,7 +300,8 @@
   "schema_version": "work_packet_contract_v1",
   "scope": {
     "acceptance_criteria": [
-      "All 207 MTs implemented or honestly blocked, each with runtime proof vs PostgreSQL/EventLedger, handed off to Integration Validator."
+      "All 207 MTs implemented or honestly blocked, each with runtime proof vs PostgreSQL/EventLedger, handed off to Integration Validator.",
+      "Runtime proof uses Handshake-managed PostgreSQL or an explicit real PostgreSQL URL; Docker, Docker Compose, external model-server daemons, manually launched ComfyUI/ASR services, and outside support apps are not acceptance shortcuts or default dependencies."
     ],
     "allowed_paths": [
       "src/backend/handshake_core/src",
@@ -308,6 +312,7 @@
     "data_contract_profile": "LLM_FIRST_DATA_V1",
     "forbidden_paths": [
       "SQLite, Electron IPC authority, localhost intake authority, CKC namespace, direct LLM/ComfyUI calls",
+      "Docker or outside-app runtime/proof dependency for core Handshake behavior",
       "WP-0118 model prompt-response matrix (deferred; preserved as MT-207)"
     ],
     "spec_anchors": [
@@ -317,7 +322,7 @@
     ],
     "summary": "Rebuild CastKit Codex as a Handshake-native feature: fold the three CKC stubs plus 10 gap-fill features into one packet of 207 microtasks.",
     "touched_file_budget": "5",
-    "why": "Stop maintaining CKC outside Handshake; translate its data/pose/comfy/diagnostics features onto PostgreSQL/EventLedger/ArtifactStore/CRDT/Workflow-Engine primitives."
+    "why": "Stop maintaining CKC outside Handshake; translate its data/pose/comfy/diagnostics features onto Handshake-native PostgreSQL/EventLedger/ArtifactStore/CRDT/Workflow-Engine primitives without Docker or outside-app runtime dependencies."
   },
   "source_control": {
     "canonical_branch": "main",
@@ -326,7 +331,7 @@
     "work_branch": "feat/WP-KERNEL-005",
     "worktree_dir": "../wtc-kernel-005"
   },
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-06-10T11:55:00Z",
   "workflow": {
     "authority": "ORCHESTRATOR",
     "communication_contract": "DIRECT_REVIEW_V1",

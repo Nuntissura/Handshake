@@ -33,11 +33,23 @@
     "depends_on": [
       "MT-159"
     ],
-    "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "status": "VALIDATED_V2",
+    "validator_verdict": "PASS",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:23:43.483Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT"
+    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "integration_validation_v2": {
+      "verdict": "PASS",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "REAL",
+      "proof_validity": "STRONG",
+      "sr1": "PASS",
+      "sr2": "PASS",
+      "fail_category": null,
+      "gap": null,
+      "evidence": "settings.rs:1329 record_model_config persists to atelier_model_config with api_key_ref=sha256 (redact_api_key settings.rs:1168 -> event_ref_for_text mod.rs:436-438); test atelier_model_config_apply_tests.rs:98-122 scans real atelier_event payload for leaked raw key (0). Migration 0114 IS wired in ensure_schema mod.rs:2101-2105 (inside committed tx, commit at 2126), so 'not yet wired' comments are stale -> sr1 PASS."
+    }
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.329Z",

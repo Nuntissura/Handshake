@@ -33,11 +33,23 @@
     "depends_on": [
       "MT-013"
     ],
-    "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "status": "VALIDATED_V2",
+    "validator_verdict": "PASS",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:03:37.895Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT"
+    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "integration_validation_v2": {
+      "verdict": "PASS",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "REAL",
+      "proof_validity": "STRONG",
+      "sr1": "NA",
+      "sr2": "PASS",
+      "fail_category": null,
+      "gap": null,
+      "evidence": "bulk.rs:368-449 bulk_tag_characters_with_receipt opens a tx, require_all_characters_exist prevalidates all targets before any INSERT, writes one receipt + one event, commits atomically. Test atelier_bulk_operations_tests.rs:172-255 proves missing target rejects whole batch (no mutation, no receipt) and success writes one linked kernel_event_ledger row (assert_one_bulk_receipt_event joins atelier_event to kernel_event_ledger lines 81-104)."
+    }
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.216Z",

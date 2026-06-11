@@ -33,11 +33,23 @@
     "depends_on": [
       "MT-156"
     ],
-    "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "status": "NEEDS_MANAGED_RESOURCE_PROOF",
+    "validator_verdict": "FAIL",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:23:17.854Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT"
+    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "integration_validation_v2": {
+      "verdict": "FAIL",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "THIN",
+      "proof_validity": "TRIVIAL",
+      "sr1": "PASS",
+      "sr2": "FAIL",
+      "fail_category": "PROOF_IN_MEMORY_ONLY",
+      "gap": "Required 'Manual' comparison strategy variant is MISSING from the enum (only PixelDiff + StructuralDom), and there are no diff 'result fields' (struct is request/config only). Proof is in-memory struct validation, no PG/EventLedger/ArtifactStore touch.",
+      "evidence": "src/kernel/visual_debugging_loop.rs:13-17 VisualComparisonMode { PixelDiff, StructuralDom } — no Manual variant; no DiffResult/result-field struct anywhere (grep for Manual/ComparisonStrategy/DiffResult finds none); tests/kernel_visual_debugging_loop_tests.rs only validates in-memory structs."
+    }
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.326Z",

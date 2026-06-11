@@ -33,11 +33,23 @@
     "depends_on": [
       "MT-187"
     ],
-    "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "status": "VALIDATED_V2",
+    "validator_verdict": "PASS",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:28:21.325Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT"
+    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "integration_validation_v2": {
+      "verdict": "PASS",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "REAL",
+      "proof_validity": "STRONG",
+      "sr1": "PASS",
+      "sr2": "PASS",
+      "fail_category": null,
+      "gap": null,
+      "evidence": "src/backend/handshake_core/src/mt_executor/outcome.rs:801-862 (MtOutcomeRecorder persist + kernel_distillation_candidate query + 0027 migration), outcome.rs:937 (EscalationRouter::route pure-compute deterministic logic); tests/mt_executor_integration_tests.rs:785-793 (PG read-back of persisted outcome via MtOutcomeRecorder::list_for_job); dedicated tests/mt_outcome_tests.rs:1027,1071 PG-gated outcome+distillation persistence. lora_by_tag empty default is documented Phase-1 behavior, not a deferred-live escape."
+    }
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.351Z",

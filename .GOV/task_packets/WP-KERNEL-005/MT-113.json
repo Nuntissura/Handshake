@@ -33,11 +33,23 @@
     "depends_on": [
       "MT-112"
     ],
-    "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "status": "VALIDATED_V2",
+    "validator_verdict": "PASS",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:17:15.120Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT"
+    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "integration_validation_v2": {
+      "verdict": "PASS",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "REAL",
+      "proof_validity": "STRONG",
+      "sr1": "PASS",
+      "sr2": "PASS",
+      "fail_category": null,
+      "gap": null,
+      "evidence": "Four portable JSON fixtures exist under tests/fixtures/atelier_pose/ (pose_rig_sidecars/context_workspace/calibration/identity_profiles). tests/atelier_pose_fixture_corpus_tests.rs:261 mt113_pose_fixture_corpus_round_trips ingests each fixture rig through the real store (ingest_fixture_rig :228), reloads via get_pose_rig and asserts round-trip (:300), plus head-pose (:554) and calibration (:605) against PG. Fixtures are CKC-free, non-SQLite per module doc."
+    }
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.293Z",

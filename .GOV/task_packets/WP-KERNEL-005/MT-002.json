@@ -33,11 +33,23 @@
     "depends_on": [
       "MT-001"
     ],
-    "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "status": "VALIDATED_V2_WITH_CONCERN",
+    "validator_verdict": "PASS_WITH_CONCERN",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:02:18.919Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT"
+    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "integration_validation_v2": {
+      "verdict": "PASS_WITH_CONCERN",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "REAL",
+      "proof_validity": "STRONG",
+      "sr1": "PASS",
+      "sr2": "PASS",
+      "fail_category": null,
+      "gap": null,
+      "evidence": "source_evidence.rs:233-276 anchor rows + validate_matrix:962 rejects VERIFIED anchors with empty verified_product_paths and BLOCKED without reason; tests/atelier_source_evidence_tests.rs:121 asserts MT-018 anchor VERIFIED+round-trips, :565 negative tests reject candidate/empty-verified/missing-reason. Non-blocking: 'VERIFIED' only proves cited file exists (assert_source_tree_ref_exists), not that the module implements the claimed Core/Data behavior"
+    }
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.205Z",

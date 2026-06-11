@@ -33,11 +33,23 @@
     "depends_on": [
       "MT-172"
     ],
-    "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "status": "VALIDATED_V2",
+    "validator_verdict": "PASS",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:25:35.370Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT"
+    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "integration_validation_v2": {
+      "verdict": "PASS",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "REAL",
+      "proof_validity": "STRONG",
+      "sr1": "PASS",
+      "sr2": "PASS",
+      "fail_category": null,
+      "gap": null,
+      "evidence": "state_probe.rs:1000-1023 command_log/error_class/state_probe rows; tests/atelier_diagnostics_validation_matrix_tests.rs:146 mt173 PG round-trip; negative test empty_requirement_is_rejected at :204 proves blank requirement -> AtelierError::Validation"
+    }
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.340Z",

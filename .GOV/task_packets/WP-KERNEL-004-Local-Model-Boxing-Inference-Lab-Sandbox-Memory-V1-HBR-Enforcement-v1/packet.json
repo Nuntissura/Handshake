@@ -34,10 +34,10 @@
   },
   "kernel004_extension_ref": "refinement.json kernel004_extension carries cluster_map, inference_technique_matrix (8 PRODUCTION + 1 SPEC_DEFERRED MoD), stub_fold_preservation_map (30 stubs), operator_decisions_locked (10 decisions), key_open_questions (9 RESOLVED), blockers (4 RESOLVED + 1 STILL_BLOCKING B-FEMS-V1-INTEGRATION-SURFACE non-signature-blocking), research_basis_plan (6 COMPLETED workstreams), foundation_in_main (KERNEL-001/002/003 + FEMS V1), hbr_enforcement_status. Packet.json does not duplicate; refinement.json is the deep contract authority surface.",
   "lifecycle": {
-    "current_main_compatibility_baseline_sha": "NONE",
-    "current_main_compatibility_status": "NOT_RUN",
-    "current_main_compatibility_verified_at_utc": "N/A",
-    "integration_validator_of_record": "INTEGRATION_VALIDATOR (Opus 4.8, 1M ctx) Phase-2 20260530",
+    "current_main_compatibility_baseline_sha": "82a7c9670e11b6c43072593d59e0886d8c163a03",
+    "current_main_compatibility_status": "COMPATIBLE",
+    "current_main_compatibility_verified_at_utc": "2026-06-11T02:13:15Z",
+    "integration_validator_of_record": "INTEGRATION_VALIDATOR [IV-20260604 main integration closeout]",
     "integration_validator_phase2_record": {
       "blocked_mts": 24,
       "candidate_sha": "f0c6faf0d5bdb9600bed999a98b9bd2f06eb998d",
@@ -53,7 +53,7 @@
       "validated_by": "INTEGRATION_VALIDATOR (Opus 4.8, 1M ctx) no-governance product-quality pass",
       "verdict": "FAIL"
     },
-    "integration_validator_verdict": "FAIL",
+    "integration_validator_verdict": "PASS",
     "last_validator_signed_mt": {
       "completed_at_utc": "2026-05-20T19:05:00Z",
       "completed_by": "VALIDATOR-EXPLORE-MT127-20260520-AUTO",
@@ -370,9 +370,9 @@
         }
       ]
     },
-    "main_containment_status": "NOT_STARTED",
-    "main_containment_verified_at_utc": "N/A",
-    "merged_main_commit": "NONE",
+    "main_containment_status": "CONTAINED_IN_MAIN",
+    "main_containment_verified_at_utc": "2026-06-11T02:13:15Z",
+    "merged_main_commit": "82a7c9670e11b6c43072593d59e0886d8c163a03",
     "mt074_native_toolchain_blocker_cleared_20260521": {
       "authoritative_integration_validator_pass": false,
       "blocker_cleared": "HOST_NATIVE_LLAMA_CPP_TOOLCHAIN",
@@ -1044,12 +1044,12 @@
       "wp_pass_path": "WP can WP_PASS only when all 27 are validator-signed COMPLETED. Waiver enables that path; does not declare WP_PASS itself."
     },
     "packet_format_version": "2026-04-06",
-    "packet_widening_decision": "NONE",
+    "packet_widening_decision": "NOT_REQUIRED",
     "packet_widening_evidence": "N/A",
     "ready_for_validation": false,
-    "ready_for_validation_reason": null,
+    "ready_for_validation_reason": "Closed: product payload validated and integrated into handshake_main/main.",
     "risk_tier": "HIGH",
-    "status": "In Progress",
+    "status": "Validated (PASS)",
     "user_signature": "ilja180520260209",
     "user_signature_evidence": "Operator provided signature in chat on 2026-05-18 after reviewing the REFINEMENT_HANDOFF_SUMMARY for KERNEL-004 (post-spec-v02.186 bump, all 9 KOQs resolved, 4 of 5 blockers resolved, B-FEMS-V1-INTEGRATION-SURFACE non-signature-blocking): ilja180520260209. Globally unique per CX-585C verification via Grep across .GOV and full repo (no prior matches).",
     "validator_audit_summary": {
@@ -1073,7 +1073,7 @@
       "note": "Per operator stance, governance paperwork issues did NOT drive verdicts. Hardening report drives remediation. Phase 2 whole-product vs Master Spec pass is a separate follow-on session after remediation.",
       "schema": "hsk.wp_validator_audit_summary@1"
     },
-    "validator_verdict": "PENDING",
+    "validator_verdict": "PASS",
     "wp_hard_fail_cleared": {
       "claim_reclassified_at_utc": "2026-05-21T06:01:37Z",
       "claimed_cleared_at_utc": "2026-05-21T03:00:00Z",
@@ -1222,7 +1222,36 @@
       "verdict": "WP_BLOCKED",
       "wp_final_pass_authorship_complete": true
     },
-    "wp_validator_of_record": "NONE"
+    "wp_validator_of_record": "NONE",
+    "integration_validator_final_record": {
+      "schema": "hsk.iv_main_integration_closeout@1",
+      "classification": "MAIN_INTEGRATION_VALIDATED_PRODUCT_ONLY_RECONCILIATION",
+      "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+      "base_wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement",
+      "feature_worktree": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-004-fold-v1",
+      "feature_branch": "feat/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+      "feature_head_sha": "f1c128cff150100e836aa678f4bd6e89651c21cd",
+      "main_worktree": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/handshake_main",
+      "main_branch": "main",
+      "main_commit_sha": "82a7c9670e11b6c43072593d59e0886d8c163a03",
+      "main_commit_subject": "feat(WP-KERNEL-004): integrate validated kernel-reset product into main",
+      "product_tree_check": {
+        "checked_at_utc": "2026-06-11T02:13:15Z",
+        "result": "MATCHES_FEATURE_TIP_EXCEPT_REPO_AUTHORITY_FILES_AND_GOV_EXCLUDED",
+        "command_basis": [
+          "git diff --stat main HEAD -- . :!.GOV in wtc-kernel-004-fold-v1 showed only .github workflow, AGENTS.md, CLAUDE.md, and justfile differences",
+          "git show -s --format=fuller 82a7c967 in handshake_main records product-only integration of feature tip f1c128cf with .GOV excluded"
+        ]
+      },
+      "verdict": "PASS",
+      "verdict_source": "main commit body [IV-20260604]",
+      "summary": "Product payload from wtc-kernel-004-fold-v1 feature tip f1c128cf was integrated product-only into handshake_main/main at 82a7c967 on 2026-06-04. Main commit records IV verdict: 0 FAIL after remediation, build exit 0, 97 affected tests pass. .GOV was intentionally excluded from that product-only integration and is reconciled here.",
+      "supersedes_runtime_states": [
+        "PHASE2_VERDICT.json remains historical FAIL at candidate f0c6faf0 and does not represent final main integration state",
+        "BUILDER_PHASE2_REMEDIATION_STATUS.json remains historical builder remediation status before main integration",
+        "Prior runtime_status main_containment_status=NOT_STARTED was stale after 2026-06-04 main integration"
+      ]
+    }
   },
   "markdown_projection": {
     "generated_at_utc": null,
@@ -1654,7 +1683,7 @@
     "worktree_dir": "../wtc-kernel-004-fold-v1",
     "worktree_gov_junction": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-004-fold-v1/.GOV -> D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV"
   },
-  "updated_at_utc": "2026-06-02T09:23:32Z",
+  "updated_at_utc": "2026-06-11T02:13:15Z",
   "workflow": {
     "authority": "ORCHESTRATOR",
     "coder_compatible_execution_lane": "CODER_A",

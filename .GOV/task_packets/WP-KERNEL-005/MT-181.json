@@ -33,11 +33,23 @@
     "depends_on": [
       "MT-180"
     ],
-    "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "status": "NEEDS_REIMPLEMENTATION",
+    "validator_verdict": "FAIL",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:27:00.239Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT"
+    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "integration_validation_v2": {
+      "verdict": "FAIL",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "THIN",
+      "proof_validity": "TRIVIAL",
+      "sr1": "FAIL",
+      "sr2": "FAIL",
+      "fail_category": "SCAFFOLD_PLANNED_ROW",
+      "gap": "Acceptance demands an end-to-end smoke path run (session->lease->state->command->receipt->visual->bundle->release); only a static ModelManual feature-group DESCRIBING the path exists, never executed, and its terminal step diagnostics_debug_bundle_export is status Planned (deferred).",
+      "evidence": "src/backend/handshake_core/src/model_manual/content.rs:288-299 (feature group is data only); content.rs:2615-2634 (diagnostics_debug_bundle_export status Planned, ipc_channel None); tests/model_manual_tests.rs:763-801 (proof only asserts group/command/workflow membership in the in-memory struct, no PG/EventLedger touch, no smoke-path run)"
+    }
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.345Z",

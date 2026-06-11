@@ -33,11 +33,23 @@
     "depends_on": [
       "MT-011"
     ],
-    "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "status": "VALIDATED_V2",
+    "validator_verdict": "PASS",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:03:33.214Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT"
+    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "integration_validation_v2": {
+      "verdict": "PASS",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "REAL",
+      "proof_validity": "STRONG",
+      "sr1": "PASS",
+      "sr2": "PASS",
+      "fail_category": null,
+      "gap": null,
+      "evidence": "atelier/sheet.rs:1764-1814 append_sheet_version inserts append-only rows with parent_version_id/seq/author/tool + SHEET_VERSION_APPENDED; atelier_foundation_tests.rs:56-93 asserts seq 1/2, v2.parent_version_id==v1, history len 2 (no overwrite), latest seq 2 on real PG."
+    }
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.215Z",

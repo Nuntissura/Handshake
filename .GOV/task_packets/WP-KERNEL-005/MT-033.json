@@ -33,11 +33,23 @@
     "depends_on": [
       "MT-032"
     ],
-    "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "status": "VALIDATED_V2",
+    "validator_verdict": "PASS",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:04:25.109Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT"
+    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "integration_validation_v2": {
+      "verdict": "PASS",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "REAL",
+      "proof_validity": "STRONG",
+      "sr1": "PASS",
+      "sr2": "PASS",
+      "fail_category": null,
+      "gap": null,
+      "evidence": "atelier/intake.rs:1437-1485 mark_intake_batch_in_progress persists status/resume_cursor route-independently + INTAKE_BATCH_RESUMED; intake_lane_counts mod.rs:2244-2268; atelier_core_data_tests.rs:2060-2099 (resume_and_source_ref_survive_reconnect) verifies persistent batch survives on real PG."
+    }
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.231Z",

@@ -33,11 +33,23 @@
     "depends_on": [
       "MT-155"
     ],
-    "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "status": "VALIDATED_V2_WITH_CONCERN",
+    "validator_verdict": "PASS_WITH_CONCERN",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:23:09.923Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT"
+    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "integration_validation_v2": {
+      "verdict": "PASS_WITH_CONCERN",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "REAL",
+      "proof_validity": "STRONG",
+      "sr1": "PASS",
+      "sr2": "NA",
+      "fail_category": null,
+      "gap": null,
+      "evidence": "src/self_improve/scheduler.rs:149-204 real rolling-window cap + deterministic skip-reason priority (operator>goodhart>pending>budget); inline+integration tests prove 25/24h cap and true sliding window. CONCERN: scheduler doc (scheduler.rs:147-148) says it is the 'only caller of LoopCore::run_one_iteration' yet run_one_iteration has zero non-test callers in src/ — the scheduler is orphaned, and FR-EVT-DISTILL-LOOP-CAP is only returned as a struct, never emitted to a real EventLedger."
+    }
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.326Z",

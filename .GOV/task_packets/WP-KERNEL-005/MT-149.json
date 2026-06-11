@@ -33,11 +33,23 @@
     "depends_on": [
       "MT-148"
     ],
-    "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "status": "NEEDS_MANAGED_RESOURCE_PROOF",
+    "validator_verdict": "FAIL",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:22:09.369Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT"
+    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "integration_validation_v2": {
+      "verdict": "FAIL",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "REAL",
+      "proof_validity": "TRIVIAL",
+      "sr1": "PASS",
+      "sr2": "FAIL",
+      "fail_category": "PROOF_IN_MEMORY_ONLY",
+      "gap": "EditableSurface providers have NO production wiring; ModelManualSurface/RetrievalPolicySurface are constructed only with in-memory test closures and the integration test asserts hardcoded action_id/write_box_schema_id constants it supplies itself, never touching the real ModelManual surface or PG policy table.",
+      "evidence": "src/self_improve/editable_surface.rs:183-296 (closure-injected read/write); grep shows ModelManualSurface::new/RetrievalPolicySurface::new only at editable_surface.rs:560-639 (tests); tests/editable_surface_tests.rs:53-57 + 192-245 record test-authored MODEL_MANUAL_ACTION_ID/WRITE_BOX constants, comment lines 18-22 say it does not 'drag the entire catalog dispatcher in'."
+    }
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.321Z",

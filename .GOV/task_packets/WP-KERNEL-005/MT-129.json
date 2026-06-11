@@ -33,11 +33,23 @@
     "depends_on": [
       "MT-128"
     ],
-    "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "status": "VALIDATED_V2",
+    "validator_verdict": "PASS",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:19:23.244Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT"
+    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "integration_validation_v2": {
+      "verdict": "PASS",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "REAL",
+      "proof_validity": "STRONG",
+      "sr1": "PASS",
+      "sr2": "PASS",
+      "fail_category": null,
+      "gap": null,
+      "evidence": "POSE_SIDECAR_RECORDED + IDENTITY_PROFILE_APPENDED/IDENTITY_CROP_ARTIFACT_RECORDED emitted from real mutations (src/atelier/pose.rs:2330-2332,2862,3023). Sidecars registered as portable ArtifactStore artifacts; proven by count_events_for_aggregate + direct atelier_event SQL (tests/atelier_pose_tests.rs:589 'registered_as_portable_artifacts', 750-769, 2247-2492)."
+    }
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.305Z",

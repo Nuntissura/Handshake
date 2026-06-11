@@ -33,11 +33,23 @@
     "depends_on": [
       "MT-005"
     ],
-    "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "status": "VALIDATED_V2",
+    "validator_verdict": "PASS",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:03:05.127Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT"
+    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "integration_validation_v2": {
+      "verdict": "PASS",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "REAL",
+      "proof_validity": "STRONG",
+      "sr1": "PASS",
+      "sr2": "PASS",
+      "fail_category": null,
+      "gap": null,
+      "evidence": "atelier/core.rs:40-79 create_character inserts atelier_character with public_id distinct from internal_id + records CHARACTER_CREATED; atelier_foundation_tests.rs:36-54 asserts public_id != internal_id and get_character_by_public_id roundtrip on real PG."
+    }
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.209Z",

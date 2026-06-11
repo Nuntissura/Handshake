@@ -33,11 +33,23 @@
     "depends_on": [
       "MT-202"
     ],
-    "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "status": "VALIDATED_V2",
+    "validator_verdict": "PASS",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:30:23.126Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT"
+    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "integration_validation_v2": {
+      "verdict": "PASS",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "REAL",
+      "proof_validity": "STRONG",
+      "sr1": "PASS",
+      "sr2": "PASS",
+      "fail_category": null,
+      "gap": null,
+      "evidence": "src/backend/handshake_core/src/atelier/transcript.rs:750-1197 (record_media_probe/record_transcript/record_caption/render_caption/file_pipeline_receipt all persist via self.pool() + emit EventLedger events, lineage LAW enforced l.858-867 plus DB FK in migrations/0032_atelier_pose_diagnostics.sql:246; secret redaction l.378-401); migration 0032 wired in atelier/mod.rs ensure_schema; tests/atelier_transcript_tests.rs:222-369 live-PG lineage round-trip with count_events deltas, idempotency, render determinism (l.486-607), and redaction (l.610-767). NEVER spawns a process (governed-job-only) so no NativeToolchainUnavailable escape is reachable."
+    }
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.363Z",
@@ -63,10 +75,9 @@
   "schema_version": "microtask_contract_v1",
   "scope": {
     "acceptance_criteria": [
-      "MT-203 [Pose-ComfyUI-Pipeline] ASR/Transcript Depth (ffmpeg/ffprobe/transcript/captions) (GAP-FILL) -- Add governed audio/video transcript pipeline (ffmpeg/ffprobe probe",
-      "ASR job",
-      "transcript-format storage",
-      "caption/subtitle artifacts) as Workflow-Engine jobs producing ArtifactStore outputs and receipts."
+      "MT-203 [Pose-ComfyUI-Pipeline] ASR/Transcript Depth (ffmpeg/ffprobe/transcript/captions) (GAP-FILL) -- Add Handshake-native media probe/transcript records for Workflow-Engine-managed ffmpeg/ffprobe/ASR-compatible jobs",
+      "proven through PostgreSQL/EventLedger receipts and ArtifactStore refs",
+      "with no manually launched subprocess/service required as core proof."
     ],
     "allowed_paths": [
       "src/backend/handshake_core/src/atelier/pose + engine.comfyui adapters + ArtifactStore sidecars"
@@ -76,7 +87,7 @@
       "cargo test + runtime proof"
     ],
     "risk_if_missed": "CKC ffmpeg/ffprobe transcript + caption generation unrepresented",
-    "summary": "MT-203 [Pose-ComfyUI-Pipeline] ASR/Transcript Depth (ffmpeg/ffprobe/transcript/captions) (GAP-FILL) -- Add governed audio/video transcript pipeline (ffmpeg/ffprobe probe, ASR job, transcript-format storage, caption/subtitle artifacts) as Workflow-Engine jobs producing ArtifactStore outputs and receipts."
+    "summary": "MT-203 [Pose-ComfyUI-Pipeline] ASR/Transcript Depth (ffmpeg/ffprobe/transcript/captions) (GAP-FILL) -- Add Handshake-native media probe/transcript records for Workflow-Engine-managed ffmpeg/ffprobe/ASR-compatible jobs, proven through PostgreSQL/EventLedger receipts and ArtifactStore refs; no manually launched subprocess/service is required as core proof."
   },
   "updated_at_utc": null,
   "wp_id": "WP-KERNEL-005"

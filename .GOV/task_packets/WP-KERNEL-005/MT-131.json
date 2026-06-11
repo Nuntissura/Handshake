@@ -33,11 +33,23 @@
     "depends_on": [
       "MT-130"
     ],
-    "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "status": "OUT_OF_SCOPE_BY_OPERATOR",
+    "validator_verdict": "OUT_OF_SCOPE",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:19:39.544Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT"
+    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "integration_validation_v2": {
+      "verdict": "OUT_OF_SCOPE",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": null,
+      "proof_validity": null,
+      "sr1": null,
+      "sr2": null,
+      "fail_category": null,
+      "gap": null,
+      "evidence": null
+    }
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.306Z",

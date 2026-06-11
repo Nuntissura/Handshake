@@ -33,11 +33,23 @@
     "depends_on": [
       "MT-183"
     ],
-    "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "status": "VALIDATED_V2",
+    "validator_verdict": "PASS",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:27:39.567Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT"
+    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "integration_validation_v2": {
+      "verdict": "PASS",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "REAL",
+      "proof_validity": "STRONG",
+      "sr1": "PASS",
+      "sr2": "PASS",
+      "fail_category": null,
+      "gap": null,
+      "evidence": "src/backend/handshake_core/src/mt_executor/queue.rs:75-83 (SELECT ... FOR UPDATE SKIP LOCKED atomic claim); tests/micro_task_job_tests.rs:403-477 (mt_184_pg_atomic_claim_race_8_workers_one_winner exercises real kernel_micro_task_job table); queue.rs:323 (SCHEMA_SQL include_str! 0023 migration). Contract summary is a generic 'Diagnostics' import mismatched with the implemented MicroTaskJob/queue (WP-KERNEL-004 cluster X.2) but the implemented behavior is real and proven."
+    }
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.348Z",

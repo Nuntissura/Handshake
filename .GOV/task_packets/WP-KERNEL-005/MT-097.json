@@ -33,11 +33,23 @@
     "depends_on": [
       "MT-096"
     ],
-    "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "status": "VALIDATED_V2",
+    "validator_verdict": "PASS",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:14:27.637Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT"
+    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "integration_validation_v2": {
+      "verdict": "PASS",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "REAL",
+      "proof_validity": "STRONG",
+      "sr1": "PASS",
+      "sr2": "PASS",
+      "fail_category": null,
+      "gap": null,
+      "evidence": "pose.rs:2179 route_pose_workspace_to_rig + :2241 apply_pose_workspace_keyboard_action compute next/prev over durable sort_order tab list and persist via upsert (real PG); test atelier_pose_tests.rs:1597-1740 asserts route_ref portability, wraparound next/prev nav, durable active-rig state, and panel_id token validation against real PG"
+    }
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.280Z",

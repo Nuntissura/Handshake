@@ -33,11 +33,23 @@
     "depends_on": [
       "MT-127"
     ],
-    "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "status": "VALIDATED_V2",
+    "validator_verdict": "PASS",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:19:15.245Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT"
+    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "integration_validation_v2": {
+      "verdict": "PASS",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "REAL",
+      "proof_validity": "STRONG",
+      "sr1": "PASS",
+      "sr2": "PASS",
+      "fail_category": null,
+      "gap": null,
+      "evidence": "comfy.rs:3451-3540 cancel/timeout preserve partial_evidence_ref via reject_legacy_runtime_ref + JOB_PARTIAL_EVIDENCE_PRESERVED; atelier_comfy_job_tests.rs:193-318 real PG: cancel/timeout preserve evidence, cancel-of-terminal rejected, .GOV ref rejected with state unchanged"
+    }
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.304Z",

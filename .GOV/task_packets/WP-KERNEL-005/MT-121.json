@@ -33,11 +33,23 @@
     "depends_on": [
       "MT-120"
     ],
-    "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "status": "VALIDATED_V2",
+    "validator_verdict": "PASS",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:18:21.136Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT"
+    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "integration_validation_v2": {
+      "verdict": "PASS",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "REAL",
+      "proof_validity": "STRONG",
+      "sr1": "PASS",
+      "sr2": "PASS",
+      "fail_category": null,
+      "gap": null,
+      "evidence": "Red-team risks converted to enforced checks: explicit keypoint schema (validate_keypoints pose.rs:1005), deferred/blocked persisted as real rows with mandatory non-empty reason (pose.rs:3227-3249, PoseDeferredStatus), versions recorded+asserted (detector_model_version), capability gate not bypassed (validate_engine_comfyui_grant_ref comfy.rs:732-759). Capability denial proven against real kernel EventLedger (tests/atelier_comfy_tests.rs:110-227; tests/atelier_pose_deferred_feature_tests.rs:57-102)."
+    }
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.299Z",

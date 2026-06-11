@@ -33,11 +33,23 @@
     "depends_on": [
       "MT-113"
     ],
-    "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "status": "VALIDATED_V2",
+    "validator_verdict": "PASS",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:17:25.838Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT"
+    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "integration_validation_v2": {
+      "verdict": "PASS",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "REAL",
+      "proof_validity": "STRONG",
+      "sr1": "PASS",
+      "sr2": "PASS",
+      "fail_category": null,
+      "gap": null,
+      "evidence": "ComfyBridgeFakeAdapterV1 is a contract-sanctioned deterministic offline INPUT ('without real ComfyUI'); persistence is real: record_comfy_workflow_receipt, record_comfy_output_registration_failure, mark_saveimage_fallback all INSERT into real atelier_comfy_* tables (src/atelier/comfy.rs:2243,2314,2657). Tests assert receipt schema, retryable registration failure, SaveImage fallback + event counts against real PG (tests/atelier_comfy_tests.rs:753-771,928,1200-1322)."
+    }
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.293Z",

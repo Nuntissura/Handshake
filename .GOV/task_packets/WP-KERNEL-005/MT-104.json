@@ -33,11 +33,23 @@
     "depends_on": [
       "MT-103"
     ],
-    "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "status": "VALIDATED_V2",
+    "validator_verdict": "PASS",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:15:25.549Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT"
+    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "integration_validation_v2": {
+      "verdict": "PASS",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "REAL",
+      "proof_validity": "STRONG",
+      "sr1": "PASS",
+      "sr2": "PASS",
+      "fail_category": null,
+      "gap": null,
+      "evidence": "comfy.rs:2842-2897 resolve_replay_inputs resolves each input ref against atelier_comfy_intake_output for the run, rejects unresolved refs and legacy/.GOV refs (reject_legacy_runtime_ref mod.rs:339; .GOV message mod.rs:429). Test atelier_replay_contract_tests.rs:76-156 stores real intake outputs then resolves/rejects against real PG."
+    }
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.286Z",

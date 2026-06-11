@@ -33,11 +33,23 @@
     "depends_on": [
       "MT-054"
     ],
-    "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "status": "VALIDATED_V2",
+    "validator_verdict": "PASS",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:06:49.930Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT"
+    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "integration_validation_v2": {
+      "verdict": "PASS",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "REAL",
+      "proof_validity": "STRONG",
+      "sr1": "PASS",
+      "sr2": "NA",
+      "fail_category": null,
+      "gap": null,
+      "evidence": "content.rs:120-131 atelier_documents_scripts group; create_character_document (documents.rs:248) and create_character_script (scripts.rs:165) are real; model_manual_tests.rs:317-328 coverage"
+    }
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.248Z",

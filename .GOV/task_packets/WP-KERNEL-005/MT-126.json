@@ -33,11 +33,23 @@
     "depends_on": [
       "MT-125"
     ],
-    "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "status": "VALIDATED_V2",
+    "validator_verdict": "PASS",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:18:58.943Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT"
+    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "integration_validation_v2": {
+      "verdict": "PASS",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "REAL",
+      "proof_validity": "STRONG",
+      "sr1": "PASS",
+      "sr2": "PASS",
+      "fail_category": null,
+      "gap": null,
+      "evidence": "comfy.rs:3266-3309 enqueue_comfy_job real INSERT + scrub_provenance + JOB_ENQUEUED event; migration 0108 wired mod.rs:2076-2080; atelier_comfy_job_tests.rs:51-105 real PG round-trip, credential-scrub assert, count_events_for_aggregate on JOB_ENQUEUED"
+    }
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.303Z",
@@ -63,9 +75,10 @@
   "schema_version": "microtask_contract_v1",
   "scope": {
     "acceptance_criteria": [
-      "MT-126 [Pose-ComfyUI-Pipeline] ComfyUI Job Creation And Queue Adapter -- Implement/specify only the governed ComfyUI job creation and queue phase (job request schema",
+      "MT-126 [Pose-ComfyUI-Pipeline] ComfyUI Job Creation And Queue Adapter -- Implement/specify only the Handshake-native Comfy-compatible job creation and queue contract (job request schema",
       "queue builder",
-      "queued receipt) with no direct LLM execution path."
+      "queued receipt",
+      "and Workflow-Engine ownership) with no external ComfyUI service required for core proof."
     ],
     "allowed_paths": [
       "src/backend/handshake_core/src/atelier/pose + engine.comfyui adapters + ArtifactStore sidecars"
@@ -75,7 +88,7 @@
       "cargo test + runtime proof vs PostgreSQL/EventLedger"
     ],
     "risk_if_missed": "CKC parity loss for ComfyUI Job Creation And Queue Adapter",
-    "summary": "MT-126 [Pose-ComfyUI-Pipeline] ComfyUI Job Creation And Queue Adapter -- Implement/specify only the governed ComfyUI job creation and queue phase (job request schema, queue builder, queued receipt) with no direct LLM execution path."
+    "summary": "MT-126 [Pose-ComfyUI-Pipeline] ComfyUI Job Creation And Queue Adapter -- Implement/specify only the Handshake-native Comfy-compatible job creation and queue contract: request schema, queue builder, queued receipt, and Workflow-Engine ownership, with no external ComfyUI service required for core proof."
   },
   "updated_at_utc": null,
   "wp_id": "WP-KERNEL-005"

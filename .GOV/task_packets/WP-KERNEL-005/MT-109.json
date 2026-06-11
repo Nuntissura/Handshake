@@ -33,11 +33,23 @@
     "depends_on": [
       "MT-108"
     ],
-    "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "status": "VALIDATED_V2",
+    "validator_verdict": "PASS",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:16:25.265Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT"
+    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "integration_validation_v2": {
+      "verdict": "PASS",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "REAL",
+      "proof_validity": "STRONG",
+      "sr1": "PASS",
+      "sr2": "NA",
+      "fail_category": null,
+      "gap": null,
+      "evidence": "comfy.rs:279-343 ComfyEndpointConfig/ComfyAdapterKind define the adapter-boundary contract and validate() rejects DirectComfyEndpoint/DirectLlmEndpoint kinds and non-portable/localhost endpoint_refs via reject_legacy_runtime_ref, accepting only HandshakeNativeManaged; tests/atelier_comfy_intake_routing_tests.rs:115-168 rejects direct-LLM/direct-comfy kinds and localhost/127.0.0.1/ollama/machine-local refs, accepts only the managed portable ref. Capability/endpoint gate is config-level (no PG surface), sr2 NA."
+    }
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.289Z",
@@ -63,11 +75,12 @@
   "schema_version": "microtask_contract_v1",
   "scope": {
     "acceptance_criteria": [
-      "MT-109 [Pose-ComfyUI-Pipeline] ComfyUI Capability And Endpoint Boundary -- Define ComfyUI as governed external tool execution",
+      "MT-109 [Pose-ComfyUI-Pipeline] ComfyUI Capability And Endpoint Boundary -- Define Comfy-compatible workflow execution as a Handshake-native integrated adapter boundary",
       "adapter boundary contract",
       "capability check",
       "endpoint config validation",
-      "and direct-LLM-call rejection."
+      "endpoint/config rejection gates",
+      "and no manual ComfyUI app dependency."
     ],
     "allowed_paths": [
       "src/backend/handshake_core/src/atelier/pose + engine.comfyui adapters + ArtifactStore sidecars"
@@ -77,7 +90,7 @@
       "cargo test + runtime proof vs PostgreSQL/EventLedger"
     ],
     "risk_if_missed": "CKC parity loss for ComfyUI Capability And Endpoint Boundary",
-    "summary": "MT-109 [Pose-ComfyUI-Pipeline] ComfyUI Capability And Endpoint Boundary -- Define ComfyUI as governed external tool execution; adapter boundary contract, capability check, endpoint config validation, and direct-LLM-call rejection."
+    "summary": "MT-109 [Pose-ComfyUI-Pipeline] ComfyUI Capability And Endpoint Boundary -- Define Comfy-compatible workflow execution as a Handshake-native integrated adapter boundary, with capability checks, endpoint/config rejection gates, and no manual ComfyUI app dependency."
   },
   "updated_at_utc": null,
   "wp_id": "WP-KERNEL-005"

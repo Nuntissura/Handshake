@@ -33,11 +33,23 @@
     "depends_on": [
       "MT-151"
     ],
-    "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "status": "VALIDATED_V2",
+    "validator_verdict": "PASS",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:22:31.992Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT"
+    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "integration_validation_v2": {
+      "verdict": "PASS",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "REAL",
+      "proof_validity": "STRONG",
+      "sr1": "PASS",
+      "sr2": "PASS",
+      "fail_category": null,
+      "gap": null,
+      "evidence": "src/kernel/product_screenshot_capture.rs:692-800 record_native_product_screenshot decodes PNG and persists a real ArtifactStore L1 manifest via write_file_artifact; tests/native_screenshot_capture_tests.rs:34-115 reads the real manifest (read_artifact_manifest), validates content-hash and on-disk payload."
+    }
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.323Z",

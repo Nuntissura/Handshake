@@ -33,11 +33,23 @@
     "depends_on": [
       "MT-015"
     ],
-    "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "status": "VALIDATED_V2",
+    "validator_verdict": "PASS",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:03:43.528Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT"
+    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "integration_validation_v2": {
+      "verdict": "PASS",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "REAL",
+      "proof_validity": "STRONG",
+      "sr1": "PASS",
+      "sr2": "PASS",
+      "fail_category": null,
+      "gap": null,
+      "evidence": "media.rs:929-1021 (materialize_media_asset: validate_artifact_ref + verify_artifact_store_binding + tx insert + in-tx MEDIA_ASSET_MATERIALIZED event); media.rs:805-838 (real ArtifactStore manifest/hash/size/mime binding check); atelier_media_artifact_tests.rs:151-356,1509-1696 (real PG materialize, manifest asserts, count_events_for_aggregate, forbidden .GOV/network/path rejection with assert_rejected_without_row_or_event)"
+    }
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.217Z",

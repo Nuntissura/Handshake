@@ -33,11 +33,23 @@
     "depends_on": [
       "MT-024"
     ],
-    "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "status": "VALIDATED_V2",
+    "validator_verdict": "PASS",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:04:05.171Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT"
+    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "integration_validation_v2": {
+      "verdict": "PASS",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "REAL",
+      "proof_validity": "STRONG",
+      "sr1": "PASS",
+      "sr2": "PASS",
+      "fail_category": null,
+      "gap": null,
+      "evidence": "src/atelier/image_import.rs:481 record_url_image_import does real SSRF preflight (:229 preflight_url blocks loopback/private IP/ambiguous literals/credentials), capability validation, idempotency, and INSERTs into atelier_image_import_request with a sanitized event. tests/atelier_image_import_tests.rs:261/:358 hit store.pool(); SSRF-blocked targets create zero rows (:410). Network fetch deferred to Workflow-Engine is an architectural boundary, not the MT's required behavior (recording) which is fully wired."
+    }
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.224Z",

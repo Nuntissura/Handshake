@@ -35,13 +35,18 @@
 
 ## HBR Gate Obligations
 
-This role must honor `HANDSHAKE_BUILD_RULES.json` v1.2.0+ (see Codex CX-131, Master Spec §5.6, registry at `.GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json`).
+This role must honor `HANDSHAKE_BUILD_RULES.json` v1.3.0+ (see Codex CX-131, Master Spec Section 5.6, registry at `.GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json`). WP Validator is the per-MT evidence reviewer for HBR unless the packet explicitly routes that review to Integration Validator.
 
-- At WP claim: read `packet.acceptance_matrix.hbr` and confirm row applicability.
-- At MT execution: require evidence per `evidence_kind` for each Applicable HBR rule.
-- At role handoff: HandoffGate (MT-004) MUST PASS or the handoff is blocked.
-- At closeout: confirm no HBR row is `PENDING`, `STEER`, or `BLOCKED` per CX-503B1.
-- Applicable pillars for this role: INT, SWARM, VIS, QUIET, MAN. WP Validator must account for all active HBR rules in the registry through the per-MT verification path; when a packet disables the WP Validator gate, as KERNEL-004 does, the protocol obligation remains active for other WPs.
+- Applicability duty: for each MT review, read `packet.acceptance_matrix.hbr`, the MT contract, and touched paths. Challenge missing or over-broad `NOT_APPLICABLE` rows for any feature, primitive, tool, model lane, storage path, sandbox/workspace/worktree surface, UI surface, automation surface, UserManual surface, or backend navigation path.
+- Interconnectivity duty: reject evidence that proves only an isolated function when HBR requires a wire through EventLedger, ContextBundle, ModelAdapter, ToolGate, ArtifactStore, ValidationRunner, PromotionGate, TraceProjection, CRDT, UserManual, or backend navigation.
+- Swarm duty: require concurrency evidence when shared state, queues, locks, leases, cancellation, routing, operator/model co-work, workspaces, worktrees, or backend navigation paths are touched. Local and cloud model lanes must normalize into safe typed state.
+- Native-runtime duty: reject Docker Desktop, Docker Compose, third-party daemons, manually launched support apps, SQLite, SQL-portability shims, and mock-only resources as default core-operation proof. Built-in sandbox/VM/workspace/worktree behavior must be product-managed or explicitly operator-configured.
+- PostgreSQL/EventLedger duty: durable authority claims require real PostgreSQL/EventLedger proof through Handshake-managed PostgreSQL or an explicit real PostgreSQL URL. Legacy SQLite or in-memory-only tests cannot satisfy authority storage rows.
+- CRDT duty: collaborative state claims require CRDT persistence, reconnect/replay, conflict visibility, and promotion-gate evidence when in scope.
+- Visual duty: for UI/operator-surface or diagnostic-surface MTs, use the internal visual/debug inspection path or headless GUI capture evidence before accepting the MT. If no capture path exists, record the missing surface as a blocking HBR-VIS gap.
+- UserManual duty: verify model-callable and operator-facing surface changes include UserManual updates and code-truth self-consistency evidence when applicable. Current HBR-MAN registry anchors may still use the legacy `ModelManual` identifier until that authority rename is performed.
+- Quiet/process duty: require proof that tests, agent activity, sandboxes, and background processes are non-intrusive and reclaim owned processes.
+- Verdict duty: a per-MT approval is illegal while an applicable required HBR row lacks evidence, is only prose-supported, or remains `PENDING`, `STEER`, or `BLOCKED`. Emit remediation through typed review receipts.
 
 ## Master Spec Resolver Discipline (Read-Only)
 
@@ -342,7 +347,7 @@ This role enforces the Spec-Realism Gate. The `READY_FOR_VALIDATION -> COMPLETED
 
 **Sub-rule 1 — No deferred-live escape.** Grep the committed proof block, the linked test files, and the diff for `LiveClientUnavailable`, `LiveSpawnUnavailable`, `LiveRuntimeUnavailable`, `TrainerUnavailable`, `NativeToolchainUnavailable`, `not yet wired`, `deferred to follow-on`, `pending MT-NNN`, `live store not attached`, or any new placeholder error variant of the same shape. Any hit reachable from the proof path or from the function bodies the MT spec requires to run -> status `BLOCKED_ON_DEPENDENCY`, verdict `HARD_FAIL`. Name the missing dep in the verdict receipt.
 
-**Sub-rule 2 — External-resource touch.** Read the MT contract's `owned_files` + `spec_anchors` + `implementation_notes`. For every external resource named — model artifact, Postgres table/column, HTTP endpoint, subprocess, file-format round-trip, OS-level surface, IPC channel actually routed to a running process — confirm at least one proof command touches the real resource. If the proof only touches mocks the implementer authored alongside the impl, status `NEEDS_EXTERNAL_RESOURCE`, verdict `HARD_FAIL`. Name the resource in the verdict receipt.
+**Sub-rule 2 — Handshake-owned resource touch.** Read the MT contract's `owned_files` + `spec_anchors` + `implementation_notes`. For every Handshake-owned managed resource or explicitly required integration surface named — model artifact, PostgreSQL/EventLedger table/column, adapter boundary, receipt, ArtifactStore manifest, file-format round-trip, OS-level surface, or IPC channel actually routed through Handshake-managed lifecycle — confirm at least one proof command touches the real Handshake-native implementation, managed integration record, rejection gate, or adapter contract. Do not require Docker, outside apps, manually launched services, or external model-server daemons as core proof unless the MT explicitly marks them as opt-in compatibility. If proof only touches mocks the implementer authored alongside the impl and does not exercise the Handshake-owned contract, status `NEEDS_MANAGED_RESOURCE_PROOF`, verdict `HARD_FAIL`. Name the resource in the verdict receipt.
 
 **Sub-rule 3 — Implementer did not self-certify.** Read `lifecycle.claimed_by` and the proposed `completed_by`. If they are the same actor, the handoff is malformed; reject and emit `INVALID_HANDOFF_SELF_CERTIFICATION` in the verdict receipt with the request that the implementer transition to `READY_FOR_VALIDATION` instead. This role then performs the `READY_FOR_VALIDATION -> COMPLETED` transition itself.
 

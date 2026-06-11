@@ -33,11 +33,23 @@
     "depends_on": [
       "MT-195"
     ],
-    "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "status": "VALIDATED_V2_WITH_CONCERN",
+    "validator_verdict": "PASS_WITH_CONCERN",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:29:27.197Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT"
+    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "integration_validation_v2": {
+      "verdict": "PASS_WITH_CONCERN",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "REAL",
+      "proof_validity": "TRIVIAL",
+      "sr1": "PASS",
+      "sr2": "FAIL",
+      "fail_category": null,
+      "gap": "Both assigned test files prove the MT only in-memory/on-disk and never touch the managed PostgreSQL/EventLedger that the contract's proof_target ('runtime proof vs PostgreSQL/EventLedger') demands.",
+      "evidence": "tests/flight_recorder_span_tests.rs:19-33,79-95 all assert against StubFrRecorder.events (in-memory Vec, src/.../spans.rs:184-206); tests/fr_event_registry_tests.rs:39-44,60-100 validate the on-disk FR_EVENT_REGISTRY.json vs the Rust enum (std::fs::read_to_string), no PG. The impl is genuinely real (42-family registry, RAII span guard with 16-attr bounding) and a real EventLedger path exists (spans.rs:657,731 AggregateQueryBackend::Postgres on kernel_event_ledger; span_repo.rs SpanRepo) but is proven only by other non-assigned test files. No deferred-live escape present (sr1 PASS)."
+    }
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.357Z",

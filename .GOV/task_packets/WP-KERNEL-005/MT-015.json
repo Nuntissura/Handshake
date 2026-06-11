@@ -33,11 +33,23 @@
     "depends_on": [
       "MT-014"
     ],
-    "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "status": "VALIDATED_V2",
+    "validator_verdict": "PASS",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:03:41.549Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT"
+    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "integration_validation_v2": {
+      "verdict": "PASS",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "REAL",
+      "proof_validity": "STRONG",
+      "sr1": "PASS",
+      "sr2": "PASS",
+      "fail_category": null,
+      "gap": null,
+      "evidence": "atelier/media.rs:929-1021 materialize_media_asset does content-hash dedup via get_media_asset_by_hash + ON CONFLICT(content_hash) DO NOTHING, validates native ArtifactStore handle; atelier_foundation_tests.rs:95-121 asserts identical content_hash dedups to same asset_id using real write_native_media_artifact (atelier_pg_support.rs:89-130 writes+validates real manifest)."
+    }
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.217Z",

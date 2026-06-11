@@ -33,11 +33,23 @@
     "depends_on": [
       "MT-118"
     ],
-    "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "status": "VALIDATED_V2",
+    "validator_verdict": "PASS",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:18:05.055Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT"
+    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "integration_validation_v2": {
+      "verdict": "PASS",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "REAL",
+      "proof_validity": "STRONG",
+      "sr1": "PASS",
+      "sr2": "PASS",
+      "fail_category": null,
+      "gap": null,
+      "evidence": "comfy.rs:356-358 reject_direct_localhost_comfy_execution rejects loopback/machine-local execution; comfy.rs:190-232 scrub_provenance recursively redacts authorization/token/cookie/secret keys and is applied on every persisted receipt/evidence path (e.g. record_comfy_workflow_receipt:2642, identity:386-392). Localhost rejection tested at routing_tests.rs:173-192; secret scrub-on-persist proven against real PG at atelier_comfy_tests.rs:813-816 (failure evidence Authorization -> [REDACTED]) and 1238-1250."
+    }
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.297Z",

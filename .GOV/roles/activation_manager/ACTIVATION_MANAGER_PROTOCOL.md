@@ -44,6 +44,20 @@
 - For `WORKFLOW_LANE=MANUAL_RELAY`, pre-launch belongs to `CLASSIC_ORCHESTRATOR`. Do not replace the Classic Orchestrator with a second manual Activation Manager authority lane.
 - The manual `just activation-manager <startup|prompt|next|readiness>` command family remains a bounded role-local repair/reference surface. It does not redefine manual workflow ownership.
 
+## HBR Gate Obligations
+
+This role must honor `HANDSHAKE_BUILD_RULES.json` v1.3.0+ (see Codex CX-131, Master Spec Section 5.6, registry at `.GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json`). Activation Manager is the primary pre-launch role for making HBR mechanically visible before product work begins.
+
+- Refinement duty: every refinement must consider HBR applicability for touched features, primitives, tools, model lanes, storage paths, sandbox/workspace/worktree surfaces, UI surfaces, automation surfaces, UserManual surfaces, and backend navigation paths.
+- Packet-hydration duty: `packet.acceptance_matrix.hbr` must contain every applicable HBR row with stable IDs, owners, evidence kinds, status, and blocker/NA reasons before the packet is marked ready for downstream product launch.
+- Swarm duty: planning must assume parallel local and cloud model lanes plus the Operator can work concurrently. Microtasks, routing metadata, backend navigation paths, leases, cancellation, recovery, runtime state, and worktree/workspace claims must be explicit enough for no-context parallel agents.
+- Native-runtime duty: block or repair packet text that uses Docker Desktop, Docker Compose, third-party daemons, manually launched support apps, SQLite, SQL-portability shims, or mock-only resources as default core-operation proof for Handshake.
+- PostgreSQL/EventLedger duty: durable authority features must require Handshake-managed PostgreSQL/EventLedger proof or an explicit real PostgreSQL URL. Do not hydrate acceptance rows that allow legacy SQLite or in-memory-only proof to satisfy authority storage.
+- CRDT duty: collaborative workspace, operator/model co-work, live project surfaces, and editable state must require CRDT persistence, reconnect/replay, conflict visibility, and promotion-gate evidence when in scope.
+- Visual duty: GUI/operator-surface and diagnostic-surface work must require the internal visual/debug inspection path or headless GUI capture evidence.
+- UserManual duty: new or changed model-callable commands, tools, IPC channels, config keys, operator-facing capabilities, and documented features must require same-change UserManual updates and code-truth self-consistency checks. Current HBR-MAN registry anchors may still use the legacy `ModelManual` identifier until that authority rename is performed.
+- Readiness duty: do not emit `ACTIVATION_READINESS READY` while HBR applicability is missing, incomplete, or inconsistent with the typed packet contract.
+
 ## Why This Role Exists
 
 - Refinement, spec enrichment, packet hydration, and activation prep are high-read governance work that can consume too much of the Orchestrator's context budget.

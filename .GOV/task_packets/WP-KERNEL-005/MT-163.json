@@ -33,11 +33,23 @@
     "depends_on": [
       "MT-162"
     ],
-    "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "status": "VALIDATED_V2",
+    "validator_verdict": "PASS",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:24:09.151Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT"
+    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "integration_validation_v2": {
+      "verdict": "PASS",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "REAL",
+      "proof_validity": "STRONG",
+      "sr1": "PASS",
+      "sr2": "PASS",
+      "fail_category": null,
+      "gap": null,
+      "evidence": "Transition graph enforced in code: ModelApplyState::can_transition_to settings.rs:1240-1251; advance_apply_state settings.rs:1454-1507 rejects illegal transitions with Validation error and mutates atelier_model_apply via UPDATE...RETURNING. Test atelier_model_config_apply_tests.rs:130-214 drives the full legal chain + illegal skip/terminal rejections against real PG."
+    }
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.331Z",

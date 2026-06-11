@@ -33,11 +33,23 @@
     "depends_on": [
       "MT-004"
     ],
-    "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "status": "VALIDATED_V2",
+    "validator_verdict": "PASS",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:02:57.234Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT"
+    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "integration_validation_v2": {
+      "verdict": "PASS",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "REAL",
+      "proof_validity": "STRONG",
+      "sr1": "PASS",
+      "sr2": "PASS",
+      "fail_category": null,
+      "gap": null,
+      "evidence": "atelier/mod.rs:112-289 centralized event_family registry + ALL[]; record_event dual-writes kernel_event_ledger (mod.rs:2213-2287); atelier_foundation_tests.rs:124-144 asserts count_events>=1/2/1 for CHARACTER_CREATED/SHEET_VERSION_APPENDED/MEDIA_ASSET_MATERIALIZED on real ledger projection."
+    }
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.208Z",

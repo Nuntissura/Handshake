@@ -33,11 +33,23 @@
     "depends_on": [
       "MT-051"
     ],
-    "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "status": "VALIDATED_V2",
+    "validator_verdict": "PASS",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:06:09.552Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT"
+    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "integration_validation_v2": {
+      "verdict": "PASS",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "REAL",
+      "proof_validity": "STRONG",
+      "sr1": "PASS",
+      "sr2": "NA",
+      "fail_category": null,
+      "gap": null,
+      "evidence": "content.rs:84-95 atelier_character_core group + commands; content.rs:1271-1320 detailed CommandReference rows mapping to real AtelierStore::create_character (atelier/core.rs:40); model_manual_tests.rs:281-292 + 403-433 coverage assertions"
+    }
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.246Z",

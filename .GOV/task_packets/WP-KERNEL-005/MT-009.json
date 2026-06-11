@@ -33,11 +33,23 @@
     "depends_on": [
       "MT-008"
     ],
-    "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "status": "VALIDATED_V2",
+    "validator_verdict": "PASS",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:03:25.084Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT"
+    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "integration_validation_v2": {
+      "verdict": "PASS",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "REAL",
+      "proof_validity": "STRONG",
+      "sr1": "PASS",
+      "sr2": "PASS",
+      "fail_category": null,
+      "gap": null,
+      "evidence": "sheet.rs:1605-1651 recursive block-instance parse into SheetBlockInstance with schema member ids; atelier_sheet_parser_tests.rs:1282-1305 Trait_Block schema records recursive member field ids and BlockList typing; recursive-storage/instance-scoped-apply tests at l.1788 and l.2035 round-trip on live PG"
+    }
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.212Z",

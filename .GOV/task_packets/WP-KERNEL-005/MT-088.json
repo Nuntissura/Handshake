@@ -33,11 +33,23 @@
     "depends_on": [
       "MT-087"
     ],
-    "status": "READY_FOR_VALIDATION",
-    "validator_verdict": "PENDING",
+    "status": "VALIDATED_V2",
+    "validator_verdict": "PASS",
     "claimed_by": "KB-KERNEL-005-CLOSEOUT",
     "ready_for_validation_at_utc": "2026-06-05T05:13:16.932Z",
-    "ready_by": "KB-KERNEL-005-CLOSEOUT"
+    "ready_by": "KB-KERNEL-005-CLOSEOUT",
+    "integration_validation_v2": {
+      "verdict": "PASS",
+      "round": "v2",
+      "at_utc": "2026-06-10T11:55:00Z",
+      "impl_reality": "REAL",
+      "proof_validity": "STRONG",
+      "sr1": "PASS",
+      "sr2": "PASS",
+      "fail_category": null,
+      "gap": null,
+      "evidence": "pose.rs:1722 validate_detector_error_reason enforces Fallback/Failed must carry non-empty error_reason (DB constraint chk_atelier_pose_rig_status_error, migration 0096 at mod.rs:2017); test atelier_pose_tests.rs:402-506 ingests Fallback/Failed rigs, round-trips error_reason via Postgres, and rejects fallback-without-reason"
+    }
   },
   "markdown_projection": {
     "generated_at_utc": "2026-06-04T17:06:21.273Z",
