@@ -1703,6 +1703,161 @@ fn projection_from_pg(row: &sqlx::postgres::PgRow) -> StorageResult<KnowledgeWik
 }
 
 // ---------------------------------------------------------------------------
+// MT-059 RichDocumentTables: versioned RichDocument JSON authority +
+// EditorCodeNode payloads (spec 2.3.13.11 RichDocument / EditorCodeNode).
+//
+// Versioning model: `knowledge_rich_documents` holds the CURRENT authority
+// revision; `knowledge_rich_document_versions` is the append-only promoted
+// revision history (v1 is recorded at creation). Saves are optimistic
+// (expected_version) so concurrent writers fail closed with a typed
+// `StorageError::Conflict` instead of overwriting each other.
+// ---------------------------------------------------------------------------
+
+/// sha256 over the canonical JSON encoding of a value (same canonical form
+/// as kernel ContextBundle hashing, so content hashes are replayable).
+fn knowledge_canonical_json_sha256(content: &Value) -> String {
+    crate::kernel::context_bundle::sha256_hex(&crate::kernel::context_bundle::canonical_json_bytes(
+        content,
+    ))
+}
+
+/// A versioned ProseMirror/Tiptap document JSON authority record.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct KnowledgeRichDocument {
+    pub rich_document_id: String,
+    pub workspace_id: String,
+    /// Optional anchor to the legacy `documents` surface.
+    pub document_id: Option<String>,
+    pub title: String,
+    /// ProseMirror/Tiptap schema version token (e.g. `hsk_richdoc_v1`).
+    pub schema_version: String,
+    pub doc_version: i64,
+    /// The document JSON authority (ProseMirror doc node).
+    pub content_json: Value,
+    /// sha256 over the canonical JSON of `content_json`.
+    pub content_sha256: String,
+    /// Soft refs into kernel CRDT storage (composite PK there; the CRDT
+    /// promotion bridge owns that integrity).
+    pub crdt_document_id: Option<String>,
+    pub crdt_snapshot_id: Option<String>,
+    /// EventLedger promotion receipt for the CURRENT revision.
+    pub promotion_receipt_event_id: Option<String>,
+    /// Outbound projection refs: `[{"projection_id": "KWP-..."}, ...]`.
+    pub projection_refs: Value,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+/// Insert payload for [`KnowledgeRichDocument`].
+#[derive(Clone, Debug, Serialize)]
+pub struct NewKnowledgeRichDocument {
+    pub workspace_id: String,
+    pub document_id: Option<String>,
+    pub title: String,
+    pub schema_version: String,
+    pub content_json: Value,
+    pub crdt_document_id: Option<String>,
+    pub crdt_snapshot_id: Option<String>,
+    pub promotion_receipt_event_id: Option<String>,
+}
+
+/// One promoted revision in the append-only version history.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct KnowledgeRichDocumentVersion {
+    pub rich_document_id: String,
+    pub doc_version: i64,
+    pub schema_version: String,
+    pub content_json: Value,
+    pub content_sha256: String,
+    pub crdt_snapshot_id: Option<String>,
+    pub promotion_receipt_event_id: Option<String>,
+    pub created_at: DateTime<Utc>,
+}
+
+/// A Monaco-backed code block embedded in a RichDocument.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct KnowledgeEditorCodeNode {
+    pub code_node_id: String,
+    pub rich_document_id: String,
+    /// Stable node path inside the document block tree (e.g. `body.3.code`).
+    pub node_path: String,
+    pub language_id: String,
+    pub code_text: String,
+    /// sha256 over `code_text`: the editor round-trip integrity hash. A
+    /// Monaco mount/unmount cycle must reproduce this hash or the round-trip
+    /// failed.
+    pub round_trip_sha256: String,
+    /// Worker/bundling requirements: `{"worker": "ts", "bundled": true}`.
+    pub worker_requirements: Value,
+    /// Source mapping back into project sources, when the block mirrors one.
+    pub source_mapping: Option<Value>,
+    pub lint_diagnostics: Value,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+/// Upsert payload for [`KnowledgeEditorCodeNode`]; the round-trip hash is
+/// always recomputed from the exact code text.
+#[derive(Clone, Debug, Serialize)]
+pub struct UpsertEditorCodeNode {
+    pub rich_document_id: String,
+    pub node_path: String,
+    pub language_id: String,
+    pub code_text: String,
+    pub worker_requirements: Value,
+    pub source_mapping: Option<Value>,
+    pub lint_diagnostics: Value,
+}
+
+const KNOWLEDGE_RICH_DOCUMENT_COLUMNS: &str = r#"
+    rich_document_id, workspace_id, document_id, title, schema_version,
+    doc_version, content_json, content_sha256, crdt_document_id,
+    crdt_snapshot_id, promotion_receipt_event_id, projection_refs,
+    created_at, updated_at
+"#;
+
+fn rich_document_from_pg(row: &sqlx::postgres::PgRow) -> KnowledgeRichDocument {
+    KnowledgeRichDocument {
+        rich_document_id: row.get("rich_document_id"),
+        workspace_id: row.get("workspace_id"),
+        document_id: row.get("document_id"),
+        title: row.get("title"),
+        schema_version: row.get("schema_version"),
+        doc_version: row.get("doc_version"),
+        content_json: row.get("content_json"),
+        content_sha256: row.get("content_sha256"),
+        crdt_document_id: row.get("crdt_document_id"),
+        crdt_snapshot_id: row.get("crdt_snapshot_id"),
+        promotion_receipt_event_id: row.get("promotion_receipt_event_id"),
+        projection_refs: row.get("projection_refs"),
+        created_at: row.get("created_at"),
+        updated_at: row.get("updated_at"),
+    }
+}
+
+const KNOWLEDGE_CODE_NODE_COLUMNS: &str = r#"
+    code_node_id, rich_document_id, node_path, language_id, code_text,
+    round_trip_sha256, worker_requirements, source_mapping, lint_diagnostics,
+    created_at, updated_at
+"#;
+
+fn code_node_from_pg(row: &sqlx::postgres::PgRow) -> KnowledgeEditorCodeNode {
+    KnowledgeEditorCodeNode {
+        code_node_id: row.get("code_node_id"),
+        rich_document_id: row.get("rich_document_id"),
+        node_path: row.get("node_path"),
+        language_id: row.get("language_id"),
+        code_text: row.get("code_text"),
+        round_trip_sha256: row.get("round_trip_sha256"),
+        worker_requirements: row.get("worker_requirements"),
+        source_mapping: row.get("source_mapping"),
+        lint_diagnostics: row.get("lint_diagnostics"),
+        created_at: row.get("created_at"),
+        updated_at: row.get("updated_at"),
+    }
+}
+
+// ---------------------------------------------------------------------------
 // KnowledgeStore trait: the WP-009 storage surface on PostgresDatabase.
 // ---------------------------------------------------------------------------
 
@@ -1999,6 +2154,51 @@ pub trait KnowledgeStore: Send + Sync {
     /// Deletes a projection row. Projections are regenerable; deleting one
     /// MUST NOT mutate authority records (spec 2.3.13.11).
     async fn delete_knowledge_wiki_projection(&self, projection_id: &str) -> StorageResult<()>;
+
+    // -- MT-059 rich documents + editor code nodes ----------------------------------
+    /// Creates a rich document at `doc_version = 1` and records revision 1 in
+    /// the append-only history, in one transaction.
+    async fn create_knowledge_rich_document(
+        &self,
+        new_document: NewKnowledgeRichDocument,
+    ) -> StorageResult<KnowledgeRichDocument>;
+
+    async fn get_knowledge_rich_document(
+        &self,
+        rich_document_id: &str,
+    ) -> StorageResult<Option<KnowledgeRichDocument>>;
+
+    /// Optimistic-concurrency save: succeeds only when `expected_version`
+    /// matches the current `doc_version`; bumps the version, recomputes the
+    /// content hash, and appends the revision (with its EventLedger promotion
+    /// receipt) to the append-only history. A stale `expected_version` fails
+    /// closed with a typed `StorageError::Conflict`.
+    async fn save_knowledge_rich_document_version(
+        &self,
+        rich_document_id: &str,
+        expected_version: i64,
+        content_json: Value,
+        promotion_receipt_event_id: Option<&str>,
+    ) -> StorageResult<KnowledgeRichDocument>;
+
+    /// Lists the append-only promoted revision history in version order.
+    async fn list_knowledge_rich_document_versions(
+        &self,
+        rich_document_id: &str,
+    ) -> StorageResult<Vec<KnowledgeRichDocumentVersion>>;
+
+    /// Upserts a Monaco code node by its stable (document, node_path)
+    /// identity; the round-trip integrity hash is recomputed from the exact
+    /// code text on every write.
+    async fn upsert_knowledge_editor_code_node(
+        &self,
+        upsert: UpsertEditorCodeNode,
+    ) -> StorageResult<KnowledgeEditorCodeNode>;
+
+    async fn list_knowledge_editor_code_nodes(
+        &self,
+        rich_document_id: &str,
+    ) -> StorageResult<Vec<KnowledgeEditorCodeNode>>;
 }
 
 fn registry_row_from_pg(row: &sqlx::postgres::PgRow) -> StorageResult<KnowledgeSchemaRegistryRow> {
@@ -3409,5 +3609,253 @@ impl KnowledgeStore for PostgresDatabase {
             return Err(StorageError::NotFound("knowledge wiki projection"));
         }
         Ok(())
+    }
+
+    async fn create_knowledge_rich_document(
+        &self,
+        new_document: NewKnowledgeRichDocument,
+    ) -> StorageResult<KnowledgeRichDocument> {
+        if new_document.title.trim() != new_document.title || new_document.title.is_empty() {
+            return Err(StorageError::Validation(
+                "knowledge rich document title must be non-empty and trimmed",
+            ));
+        }
+        if new_document.schema_version.trim() != new_document.schema_version
+            || new_document.schema_version.is_empty()
+        {
+            return Err(StorageError::Validation(
+                "knowledge rich document schema_version must be non-empty and trimmed",
+            ));
+        }
+        let rich_document_id = new_knowledge_id("KRD");
+        let content_sha256 = knowledge_canonical_json_sha256(&new_document.content_json);
+
+        let mut tx = self.pool().begin().await?;
+        let sql = format!(
+            r#"
+            INSERT INTO knowledge_rich_documents
+                (rich_document_id, workspace_id, document_id, title,
+                 schema_version, content_json, content_sha256,
+                 crdt_document_id, crdt_snapshot_id, promotion_receipt_event_id)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+            RETURNING {KNOWLEDGE_RICH_DOCUMENT_COLUMNS}
+            "#
+        );
+        let row = sqlx::query(&sql)
+            .bind(&rich_document_id)
+            .bind(&new_document.workspace_id)
+            .bind(&new_document.document_id)
+            .bind(&new_document.title)
+            .bind(&new_document.schema_version)
+            .bind(&new_document.content_json)
+            .bind(&content_sha256)
+            .bind(&new_document.crdt_document_id)
+            .bind(&new_document.crdt_snapshot_id)
+            .bind(&new_document.promotion_receipt_event_id)
+            .fetch_one(&mut *tx)
+            .await?;
+        let document = rich_document_from_pg(&row);
+
+        // Revision 1 lands in the append-only history at creation so the
+        // history is complete from the first promoted revision.
+        sqlx::query(
+            r#"
+            INSERT INTO knowledge_rich_document_versions
+                (rich_document_id, doc_version, schema_version, content_json,
+                 content_sha256, crdt_snapshot_id, promotion_receipt_event_id)
+            VALUES ($1, 1, $2, $3, $4, $5, $6)
+            "#,
+        )
+        .bind(&document.rich_document_id)
+        .bind(&document.schema_version)
+        .bind(&document.content_json)
+        .bind(&document.content_sha256)
+        .bind(&document.crdt_snapshot_id)
+        .bind(&document.promotion_receipt_event_id)
+        .execute(&mut *tx)
+        .await?;
+        tx.commit().await?;
+        Ok(document)
+    }
+
+    async fn get_knowledge_rich_document(
+        &self,
+        rich_document_id: &str,
+    ) -> StorageResult<Option<KnowledgeRichDocument>> {
+        let sql = format!(
+            "SELECT {KNOWLEDGE_RICH_DOCUMENT_COLUMNS} FROM knowledge_rich_documents
+             WHERE rich_document_id = $1"
+        );
+        let row = sqlx::query(&sql)
+            .bind(rich_document_id)
+            .fetch_optional(self.pool())
+            .await?;
+        Ok(row.as_ref().map(rich_document_from_pg))
+    }
+
+    async fn save_knowledge_rich_document_version(
+        &self,
+        rich_document_id: &str,
+        expected_version: i64,
+        content_json: Value,
+        promotion_receipt_event_id: Option<&str>,
+    ) -> StorageResult<KnowledgeRichDocument> {
+        let content_sha256 = knowledge_canonical_json_sha256(&content_json);
+
+        let mut tx = self.pool().begin().await?;
+        let sql = format!(
+            r#"
+            UPDATE knowledge_rich_documents
+            SET doc_version = doc_version + 1,
+                content_json = $3,
+                content_sha256 = $4,
+                promotion_receipt_event_id = $5,
+                updated_at = NOW()
+            WHERE rich_document_id = $1 AND doc_version = $2
+            RETURNING {KNOWLEDGE_RICH_DOCUMENT_COLUMNS}
+            "#
+        );
+        let row = sqlx::query(&sql)
+            .bind(rich_document_id)
+            .bind(expected_version)
+            .bind(&content_json)
+            .bind(&content_sha256)
+            .bind(promotion_receipt_event_id)
+            .fetch_optional(&mut *tx)
+            .await?;
+        let Some(row) = row else {
+            // Distinguish a stale expected_version (typed Conflict, the
+            // optimistic-concurrency fail-closed path) from a missing doc.
+            let exists: Option<i64> = sqlx::query_scalar(
+                "SELECT doc_version FROM knowledge_rich_documents WHERE rich_document_id = $1",
+            )
+            .bind(rich_document_id)
+            .fetch_optional(&mut *tx)
+            .await?;
+            return Err(match exists {
+                Some(_) => StorageError::Conflict(
+                    "knowledge rich document version conflict: expected_version is stale",
+                ),
+                None => StorageError::NotFound("knowledge rich document"),
+            });
+        };
+        let document = rich_document_from_pg(&row);
+
+        sqlx::query(
+            r#"
+            INSERT INTO knowledge_rich_document_versions
+                (rich_document_id, doc_version, schema_version, content_json,
+                 content_sha256, crdt_snapshot_id, promotion_receipt_event_id)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            "#,
+        )
+        .bind(&document.rich_document_id)
+        .bind(document.doc_version)
+        .bind(&document.schema_version)
+        .bind(&document.content_json)
+        .bind(&document.content_sha256)
+        .bind(&document.crdt_snapshot_id)
+        .bind(&document.promotion_receipt_event_id)
+        .execute(&mut *tx)
+        .await?;
+        tx.commit().await?;
+        Ok(document)
+    }
+
+    async fn list_knowledge_rich_document_versions(
+        &self,
+        rich_document_id: &str,
+    ) -> StorageResult<Vec<KnowledgeRichDocumentVersion>> {
+        let rows = sqlx::query(
+            r#"
+            SELECT rich_document_id, doc_version, schema_version, content_json,
+                   content_sha256, crdt_snapshot_id, promotion_receipt_event_id,
+                   created_at
+            FROM knowledge_rich_document_versions
+            WHERE rich_document_id = $1
+            ORDER BY doc_version
+            "#,
+        )
+        .bind(rich_document_id)
+        .fetch_all(self.pool())
+        .await?;
+        Ok(rows
+            .into_iter()
+            .map(|row| KnowledgeRichDocumentVersion {
+                rich_document_id: row.get("rich_document_id"),
+                doc_version: row.get("doc_version"),
+                schema_version: row.get("schema_version"),
+                content_json: row.get("content_json"),
+                content_sha256: row.get("content_sha256"),
+                crdt_snapshot_id: row.get("crdt_snapshot_id"),
+                promotion_receipt_event_id: row.get("promotion_receipt_event_id"),
+                created_at: row.get("created_at"),
+            })
+            .collect())
+    }
+
+    async fn upsert_knowledge_editor_code_node(
+        &self,
+        upsert: UpsertEditorCodeNode,
+    ) -> StorageResult<KnowledgeEditorCodeNode> {
+        if upsert.node_path.trim() != upsert.node_path || upsert.node_path.is_empty() {
+            return Err(StorageError::Validation(
+                "knowledge editor code node node_path must be non-empty and trimmed",
+            ));
+        }
+        if upsert.language_id.trim() != upsert.language_id || upsert.language_id.is_empty() {
+            return Err(StorageError::Validation(
+                "knowledge editor code node language_id must be non-empty and trimmed",
+            ));
+        }
+        let code_node_id = new_knowledge_id("KCN");
+        let round_trip_sha256 =
+            crate::kernel::context_bundle::sha256_hex(upsert.code_text.as_bytes());
+        let sql = format!(
+            r#"
+            INSERT INTO knowledge_editor_code_nodes
+                (code_node_id, rich_document_id, node_path, language_id,
+                 code_text, round_trip_sha256, worker_requirements,
+                 source_mapping, lint_diagnostics)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+            ON CONFLICT (rich_document_id, node_path) DO UPDATE SET
+                language_id = EXCLUDED.language_id,
+                code_text = EXCLUDED.code_text,
+                round_trip_sha256 = EXCLUDED.round_trip_sha256,
+                worker_requirements = EXCLUDED.worker_requirements,
+                source_mapping = EXCLUDED.source_mapping,
+                lint_diagnostics = EXCLUDED.lint_diagnostics,
+                updated_at = NOW()
+            RETURNING {KNOWLEDGE_CODE_NODE_COLUMNS}
+            "#
+        );
+        let row = sqlx::query(&sql)
+            .bind(&code_node_id)
+            .bind(&upsert.rich_document_id)
+            .bind(&upsert.node_path)
+            .bind(&upsert.language_id)
+            .bind(&upsert.code_text)
+            .bind(&round_trip_sha256)
+            .bind(&upsert.worker_requirements)
+            .bind(&upsert.source_mapping)
+            .bind(&upsert.lint_diagnostics)
+            .fetch_one(self.pool())
+            .await?;
+        Ok(code_node_from_pg(&row))
+    }
+
+    async fn list_knowledge_editor_code_nodes(
+        &self,
+        rich_document_id: &str,
+    ) -> StorageResult<Vec<KnowledgeEditorCodeNode>> {
+        let sql = format!(
+            "SELECT {KNOWLEDGE_CODE_NODE_COLUMNS} FROM knowledge_editor_code_nodes
+             WHERE rich_document_id = $1 ORDER BY node_path"
+        );
+        let rows = sqlx::query(&sql)
+            .bind(rich_document_id)
+            .fetch_all(self.pool())
+            .await?;
+        Ok(rows.iter().map(code_node_from_pg).collect())
     }
 }

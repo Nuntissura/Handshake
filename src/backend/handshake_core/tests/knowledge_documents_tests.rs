@@ -182,3 +182,218 @@ mod mt_058_projections {
         );
     }
 }
+
+// ---------------------------------------------------------------------------
+// MT-059 RichDocumentTables + EditorCodeNode
+// ---------------------------------------------------------------------------
+
+mod mt_059_rich_documents {
+    use super::*;
+    use handshake_core::kernel::{KernelActor, KernelEventType, NewKernelEvent};
+    use handshake_core::storage::knowledge::{NewKnowledgeRichDocument, UpsertEditorCodeNode};
+    use handshake_core::storage::{Database, StorageError};
+    use uuid::Uuid;
+
+    fn doc(workspace_id: &str, title: &str) -> NewKnowledgeRichDocument {
+        let content = json!({
+            "type": "doc",
+            "content": [{"type": "paragraph", "content": [{"type": "text", "text": "v1"}]}]
+        });
+        NewKnowledgeRichDocument {
+            workspace_id: workspace_id.to_string(),
+            document_id: None,
+            title: title.to_string(),
+            schema_version: "hsk_richdoc_v1".to_string(),
+            content_json: content,
+            crdt_document_id: None,
+            crdt_snapshot_id: None,
+            promotion_receipt_event_id: None,
+        }
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn versioned_save_with_optimistic_concurrency_and_history() {
+        let Some(pg) = knowledge_pg().await else {
+            eprintln!("SKIP versioned_save_with_optimistic_concurrency_and_history: no PostgreSQL");
+            return;
+        };
+        let workspace_id = pg.create_workspace().await;
+
+        let created = pg
+            .db
+            .create_knowledge_rich_document(doc(&workspace_id, "Runbook"))
+            .await
+            .expect("create rich document");
+        assert!(created.rich_document_id.starts_with("KRD-"));
+        assert_eq!(created.doc_version, 1);
+
+        // Promotion receipt for v2 through the real EventLedger.
+        let suffix = Uuid::now_v7();
+        let receipt = pg
+            .db
+            .append_kernel_event(
+                NewKernelEvent::builder(
+                    format!("KTR-RICHDOC-{suffix}"),
+                    format!("SR-RICHDOC-{suffix}"),
+                    KernelEventType::PromotionAccepted,
+                    KernelActor::PromotionGate("richdoc-test".to_string()),
+                )
+                .aggregate("knowledge_rich_document", created.rich_document_id.clone())
+                .idempotency_key(format!("idem-richdoc-promote-{suffix}"))
+                .payload(json!({"doc_version": 2}))
+                .build()
+                .expect("event"),
+            )
+            .await
+            .expect("append promotion receipt");
+
+        let v2_content = json!({
+            "type": "doc",
+            "content": [{"type": "paragraph", "content": [{"type": "text", "text": "v2"}]}]
+        });
+        let saved = pg
+            .db
+            .save_knowledge_rich_document_version(
+                &created.rich_document_id,
+                1,
+                v2_content.clone(),
+                Some(&receipt.event_id),
+            )
+            .await
+            .expect("save v2");
+        assert_eq!(saved.doc_version, 2);
+        assert_eq!(saved.content_json, v2_content);
+        assert_eq!(
+            saved.promotion_receipt_event_id.as_deref(),
+            Some(receipt.event_id.as_str())
+        );
+
+        // Optimistic concurrency: stale expected_version fails closed.
+        let err = pg
+            .db
+            .save_knowledge_rich_document_version(
+                &created.rich_document_id,
+                1,
+                json!({"type": "doc", "content": []}),
+                None,
+            )
+            .await
+            .expect_err("stale expected_version must be a typed Conflict");
+        assert!(matches!(err, StorageError::Conflict(_)), "got {err:?}");
+
+        // Version history is append-only and complete.
+        let versions = pg
+            .db
+            .list_knowledge_rich_document_versions(&created.rich_document_id)
+            .await
+            .expect("version history");
+        assert_eq!(versions.len(), 2);
+        assert_eq!(versions[0].doc_version, 1);
+        assert_eq!(versions[1].doc_version, 2);
+        assert_eq!(
+            versions[1].promotion_receipt_event_id.as_deref(),
+            Some(receipt.event_id.as_str())
+        );
+
+        // content_sha256 matches the canonical content hash discipline.
+        let reread = pg
+            .db
+            .get_knowledge_rich_document(&created.rich_document_id)
+            .await
+            .expect("get doc")
+            .expect("doc exists");
+        assert_eq!(reread.doc_version, 2);
+        assert_eq!(reread.content_sha256.len(), 64);
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn editor_code_nodes_roundtrip_with_integrity_hash() {
+        let Some(pg) = knowledge_pg().await else {
+            eprintln!("SKIP editor_code_nodes_roundtrip_with_integrity_hash: no PostgreSQL");
+            return;
+        };
+        let workspace_id = pg.create_workspace().await;
+        let document = pg
+            .db
+            .create_knowledge_rich_document(doc(&workspace_id, "Code Doc"))
+            .await
+            .expect("doc");
+
+        let code = "fn main() { println!(\"hello\"); }";
+        let node = pg
+            .db
+            .upsert_knowledge_editor_code_node(UpsertEditorCodeNode {
+                rich_document_id: document.rich_document_id.clone(),
+                node_path: "body.0.code".to_string(),
+                language_id: "rust".to_string(),
+                code_text: code.to_string(),
+                worker_requirements: json!({"worker": "editor", "bundled": true}),
+                source_mapping: Some(json!({"source_path": "src/main.rs"})),
+                lint_diagnostics: json!([]),
+            })
+            .await
+            .expect("upsert code node");
+        assert!(node.code_node_id.starts_with("KCN-"));
+        // Round-trip hash is the sha256 of the exact code text.
+        assert_eq!(node.round_trip_sha256, super::sha256_hex(code.as_bytes()));
+
+        // Round-trip proof: read back and re-derive the hash from the stored
+        // text — a Monaco mount/unmount must preserve this equality.
+        let listed = pg
+            .db
+            .list_knowledge_editor_code_nodes(&document.rich_document_id)
+            .await
+            .expect("list code nodes");
+        assert_eq!(listed.len(), 1);
+        assert_eq!(listed[0].code_text, code);
+        assert_eq!(
+            super::sha256_hex(listed[0].code_text.as_bytes()),
+            listed[0].round_trip_sha256,
+            "stored round-trip hash must re-derive from stored code text"
+        );
+
+        // Same node_path upserts in place (stable node identity).
+        let updated = pg
+            .db
+            .upsert_knowledge_editor_code_node(UpsertEditorCodeNode {
+                rich_document_id: document.rich_document_id.clone(),
+                node_path: "body.0.code".to_string(),
+                language_id: "rust".to_string(),
+                code_text: "fn main() {}".to_string(),
+                worker_requirements: json!({"worker": "editor", "bundled": true}),
+                source_mapping: None,
+                lint_diagnostics: json!([{"severity": "warning", "message": "empty main"}]),
+            })
+            .await
+            .expect("re-upsert code node");
+        assert_eq!(updated.code_node_id, node.code_node_id);
+        assert_eq!(
+            updated.round_trip_sha256,
+            super::sha256_hex(b"fn main() {}")
+        );
+        assert_eq!(
+            pg.db
+                .list_knowledge_editor_code_nodes(&document.rich_document_id)
+                .await
+                .expect("list again")
+                .len(),
+            1
+        );
+
+        // Ghost document: FK violation fails closed.
+        let err = pg
+            .db
+            .upsert_knowledge_editor_code_node(UpsertEditorCodeNode {
+                rich_document_id: "KRD-00000000000000000000000000000000".to_string(),
+                node_path: "body.0.code".to_string(),
+                language_id: "rust".to_string(),
+                code_text: "x".to_string(),
+                worker_requirements: json!({}),
+                source_mapping: None,
+                lint_diagnostics: json!([]),
+            })
+            .await
+            .expect_err("code nodes must belong to a real rich document");
+        assert!(err.to_string().contains("foreign key"), "got {err}");
+    }
+}
