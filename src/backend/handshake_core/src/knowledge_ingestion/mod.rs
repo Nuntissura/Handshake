@@ -60,6 +60,7 @@ pub mod allowlist;
 pub mod hashing;
 pub mod kinds;
 pub mod paths;
+pub mod pdf;
 pub mod receipts;
 
 use crate::storage::StorageError;
