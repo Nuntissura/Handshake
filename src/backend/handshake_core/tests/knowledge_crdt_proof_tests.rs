@@ -496,3 +496,313 @@ mod mt_078_no_external_relay {
         }
     }
 }
+
+mod mt_080_spec_compatibility {
+    use super::*;
+    use handshake_core::kernel::crdt::offline_boundary::{
+        knowledge_offline_draft_boundary_contract, validate_offline_draft_boundary_contract,
+    };
+    use handshake_core::kernel::crdt::persistence::{
+        kernel_crdt_postgres_update_log_contract, validate_crdt_update_record,
+        CrdtStorageAuthorityPosture,
+    };
+    use handshake_core::kernel::crdt::yjs_bridge::validate_yjs_update_envelope;
+    use handshake_core::kernel::KernelEventType;
+    use uuid::Uuid;
+
+    /// Spec 2.3.13.11: "RichDocument and EditorCodeNode edits MAY use CRDT
+    /// state for collaboration and pre-promotion drafting, but authority
+    /// changes MUST flow through WriteBoxV1 and EventLedger promotion."
+    /// Proven over the real implementation: draft rows exist without any
+    /// authority fact; the only path that creates an authority fact appends
+    /// the EventLedger promotion pair first; direct authority inserts
+    /// without ledger events are refused by the database itself.
+    #[tokio::test]
+    async fn must_authority_changes_flow_through_event_ledger_promotion() {
+        let backend = backend_or_blocked().await;
+        let pool = backend.postgres_pool.clone();
+        let suffix = Uuid::now_v7().simple().to_string();
+        let ws = format!("ws-mt080a-{suffix}");
+        let doc = format!("doc-mt080a-{suffix}");
+        let crdt_doc = format!("crdt-mt080a-{suffix}");
+        let operator =
+            KnowledgeActorIdV1::new(KnowledgeActorKind::Operator, "spec-op").expect("actor");
+        let site = derive_knowledge_site_id(&ws, &crdt_doc, &operator);
+
+        // CRDT drafting works pre-promotion...
+        let mut sv = KnowledgeStateVectorV1::new();
+        let before = sv.clone();
+        sv.increment(&site.site_id);
+        let env = envelope(
+            &ws, &doc, &crdt_doc, "spec-u1", &operator, "sr-spec", b"draft", &before, &sv,
+        );
+        assert!(matches!(
+            push_yjs_update(backend.database.as_ref(), &env)
+                .await
+                .expect("push"),
+            YjsPushOutcomeV1::Stored { .. }
+        ));
+
+        // ...and produces NO authority facts by itself.
+        let fact_count: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*) FROM knowledge_crdt_promoted_facts WHERE workspace_id = $1",
+        )
+        .bind(&ws)
+        .fetch_one(&pool)
+        .await
+        .expect("count facts");
+        assert_eq!(fact_count, 0, "drafting must not create authority");
+
+        // A direct authority write outside the promotion path is invalid:
+        // the fact table's FK to kernel_event_ledger refuses fabricated
+        // promotion receipts.
+        let direct = sqlx::query(
+            r#"
+            INSERT INTO knowledge_crdt_promoted_facts (
+                fact_id, proposal_id, workspace_id, mutation_kind,
+                fact_payload, source_span_refs, confidence, proposed_by,
+                promoted_by, promotion_requested_event_id,
+                promotion_accepted_event_id
+            )
+            VALUES ('01ARZ3NDEKTSV4RRFFQ69G5FAV', '01ARZ3NDEKTSV4RRFFQ69G5FAW',
+                    $1, 'add_claim', '{}'::jsonb, '["KSP-x"]'::jsonb, 0.5,
+                    'local_model:rogue', 'operator:rogue',
+                    'fabricated-event-1', 'fabricated-event-2')
+            "#,
+        )
+        .bind(&ws)
+        .execute(&pool)
+        .await;
+        assert!(
+            direct.is_err(),
+            "direct authority write without EventLedger receipts must fail"
+        );
+    }
+
+    /// Spec 2.3.13.11: "AI edit proposals, graph mutation proposals, ...
+    /// auto-tagging, and manual edits MUST leave actor, source span,
+    /// state-vector, validation, denial, or promotion receipts."
+    /// Proven receipt-by-receipt over the real rows and events.
+    #[tokio::test]
+    async fn must_every_edit_class_leaves_typed_receipts() {
+        let backend = backend_or_blocked().await;
+        let db = backend.database.clone();
+        let suffix = Uuid::now_v7().simple().to_string();
+        let ws = format!("ws-mt080b-{suffix}");
+        let doc = format!("doc-mt080b-{suffix}");
+        let crdt_doc = format!("crdt-mt080b-{suffix}");
+        let operator =
+            KnowledgeActorIdV1::new(KnowledgeActorKind::Operator, "spec-op").expect("actor");
+        let site = derive_knowledge_site_id(&ws, &crdt_doc, &operator);
+
+        // Manual edit: actor + state-vector receipt on the update row AND
+        // the paired EventLedger event.
+        let mut sv = KnowledgeStateVectorV1::new();
+        let before = sv.clone();
+        sv.increment(&site.site_id);
+        let env = envelope(
+            &ws,
+            &doc,
+            &crdt_doc,
+            "receipt-u1",
+            &operator,
+            "sr-receipt",
+            b"manual-edit",
+            &before,
+            &sv,
+        );
+        push_yjs_update(db.as_ref(), &env).await.expect("push");
+        let records = db
+            .list_kernel_crdt_updates(&ws, &doc, &crdt_doc)
+            .await
+            .expect("list");
+        assert_eq!(records.len(), 1);
+        let record = &records[0];
+        assert_eq!(record.actor_id, operator.canonical(), "actor receipt");
+        assert_eq!(
+            record.state_vector_before,
+            before.encode(),
+            "state-vector receipt"
+        );
+        assert_eq!(
+            record.state_vector_after,
+            sv.encode(),
+            "state-vector receipt"
+        );
+        assert!(!record.event_ledger_event_id.is_empty(), "ledger receipt");
+        let events = db
+            .list_kernel_events_for_aggregate("knowledge_crdt_document", &crdt_doc)
+            .await
+            .expect("events");
+        assert!(events
+            .iter()
+            .any(|event| event.event_type == KernelEventType::KnowledgeCrdtUpdateRecorded));
+
+        // Graph mutation + AI edit proposal receipts are proven on real rows
+        // in knowledge_crdt_proposal_tests (MT-068/MT-074); here we pin the
+        // SCHEMA-level guarantee: the tables refuse rows without actor or
+        // span evidence (fail-closed receipts).
+        let pool = backend.postgres_pool.clone();
+        let spanless_graph = sqlx::query(
+            r#"
+            INSERT INTO knowledge_crdt_graph_proposals (
+                proposal_id, workspace_id, mutation_kind, mutation_payload,
+                source_span_refs, confidence, actor_id, actor_kind,
+                session_id, correlation_id, recorded_event_id
+            )
+            VALUES ('01ARZ3NDEKTSV4RRFFQ69G5FB0', $1, 'add_claim', '{}'::jsonb,
+                    '"not-an-array"'::jsonb, 0.5, 'local_model:rogue',
+                    'local_model', 'sr', 'corr', $2)
+            "#,
+        )
+        .bind(&ws)
+        .bind(&record.event_ledger_event_id)
+        .execute(&pool)
+        .await;
+        assert!(
+            spanless_graph.is_err(),
+            "span-evidence receipt is mandatory"
+        );
+
+        let anonymous_ai_edit = sqlx::query(
+            r#"
+            INSERT INTO knowledge_crdt_ai_edit_proposals (
+                proposal_id, workspace_id, document_id, crdt_document_id,
+                base_update_seq, base_state_vector, proposed_diff, diff_sha256,
+                source_span_citations, actor_id, actor_kind, session_id,
+                correlation_id, recorded_event_id
+            )
+            VALUES ('01ARZ3NDEKTSV4RRFFQ69G5FB1', $1, $2, $3, 0, 'hsk-sv1:',
+                    '{}'::jsonb, repeat('a', 64), '["KSP-x"]'::jsonb,
+                    'operator:not-a-model', 'operator', 'sr', 'corr', $4)
+            "#,
+        )
+        .bind(&ws)
+        .bind(&doc)
+        .bind(&crdt_doc)
+        .bind(&record.event_ledger_event_id)
+        .execute(&pool)
+        .await;
+        assert!(
+            anonymous_ai_edit.is_err(),
+            "AI edit proposals must carry a MODEL actor receipt"
+        );
+    }
+
+    /// Spec 2.3.13.11: denial receipts are first-class. A denied write MUST
+    /// leave a durable, typed denial receipt (proven end-to-end in MT-070/
+    /// MT-076 tests); here: the receipt table itself refuses anonymous or
+    /// ledger-less denials, so the receipt guarantee cannot erode.
+    #[tokio::test]
+    async fn must_denial_receipts_are_durable_and_ledger_paired() {
+        let backend = backend_or_blocked().await;
+        let pool = backend.postgres_pool.clone();
+        let anonymous = sqlx::query(
+            r#"
+            INSERT INTO knowledge_crdt_denial_receipts (
+                receipt_id, receipt_kind, workspace_id, scope_ref, actor_id,
+                actor_kind, session_id, correlation_id, denial_payload,
+                event_ledger_event_id, idempotency_key
+            )
+            VALUES ('KCDR-00000000000000000000000000000000', 'stale_draft_save',
+                    'ws', 'crdt_document:x', 'not-a-typed-actor', 'operator',
+                    'sr', 'corr', '{}'::jsonb, 'fabricated-event', 'key-1')
+            "#,
+        )
+        .execute(&pool)
+        .await;
+        assert!(
+            anonymous.is_err(),
+            "denial receipts require typed actors and real ledger events"
+        );
+    }
+
+    /// Spec 2.3.13.11: storage-authority MUSTs. Browser/file/memory state is
+    /// never CRDT authority; the typed posture and the update-log contract
+    /// reject every non-Postgres authority claim.
+    #[test]
+    fn must_postgres_event_ledger_is_the_only_crdt_authority() {
+        // The update-log contract names the denied authority surfaces.
+        let contract = kernel_crdt_postgres_update_log_contract();
+        assert_eq!(contract.table_name, "kernel_crdt_updates");
+        assert!(contract
+            .denied_authority_refs
+            .contains(&"browser_local_storage_authority"));
+        assert!(contract
+            .denied_authority_refs
+            .contains(&"filesystem_update_bytes"));
+
+        // A record claiming filesystem authority fails validation.
+        let actor =
+            KnowledgeActorIdV1::new(KnowledgeActorKind::Operator, "authority-op").expect("actor");
+        let site = derive_knowledge_site_id("ws-auth", "crdt-auth", &actor);
+        let mut sv = KnowledgeStateVectorV1::new();
+        let before = sv.clone();
+        sv.increment(&site.site_id);
+        let env = envelope(
+            "ws-auth",
+            "doc-auth",
+            "crdt-auth",
+            "auth-u1",
+            &actor,
+            "sr-auth",
+            b"bytes",
+            &before,
+            &sv,
+        );
+        let validated = validate_yjs_update_envelope(&env).expect("valid envelope");
+        let mut record = handshake_core::kernel::crdt::yjs_bridge::envelope_to_update_record(
+            &env, &validated, 1, "evt-auth",
+        );
+        record.storage_authority = CrdtStorageAuthorityPosture::FileSystemAuthority;
+        record.update_bytes_ref = "file://draft/update.bin".to_string();
+        let errors = validate_crdt_update_record(&record)
+            .expect_err("filesystem authority must be rejected");
+        assert!(errors
+            .iter()
+            .any(|error| error.field == "storage_authority"));
+        assert!(errors.iter().any(|error| error.field == "update_bytes_ref"));
+
+        // The offline boundary contract pins the same law for client state.
+        let boundary = knowledge_offline_draft_boundary_contract();
+        validate_offline_draft_boundary_contract(&boundary).expect("boundary sound");
+        assert!(boundary
+            .denied_durable_surfaces
+            .contains(&"browser_local_storage"));
+    }
+
+    /// MT-080 contract scope: the CRDT implementation must not conflict with
+    /// the DEFERRED realtime multi-user UI boundary. Pin: the backend draft
+    /// path is complete without any realtime relay (per-update envelopes
+    /// over request/response, replay by pull), so deferring the realtime UI
+    /// removes no MUST-level capability; and the spec's backend-navigation
+    /// identification is enforced at the envelope layer (empty session ids
+    /// are refused), independent of any UI.
+    #[test]
+    fn deferred_realtime_ui_boundary_leaves_crdt_law_intact() {
+        let actor =
+            KnowledgeActorIdV1::new(KnowledgeActorKind::Operator, "deferred-op").expect("actor");
+        let site = derive_knowledge_site_id("ws-deferred", "crdt-deferred", &actor);
+        let mut sv = KnowledgeStateVectorV1::new();
+        let before = sv.clone();
+        sv.increment(&site.site_id);
+        let mut env = envelope(
+            "ws-deferred",
+            "doc-deferred",
+            "crdt-deferred",
+            "deferred-u1",
+            &actor,
+            "sr-deferred",
+            b"bytes",
+            &before,
+            &sv,
+        );
+        // The envelope is fully self-describing: ids, actor, site, hashes,
+        // typed vectors — nothing presumes a live multi-user socket.
+        assert!(validate_yjs_update_envelope(&env).is_ok());
+
+        // Identification cannot be dropped "because the UI is single-user".
+        env.session_id = "  ".to_string();
+        assert!(validate_yjs_update_envelope(&env).is_err());
+    }
+}
