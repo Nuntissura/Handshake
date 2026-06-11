@@ -4,6 +4,7 @@ pub mod conflict_presence;
 pub mod context_slice;
 pub mod identity;
 pub mod index_run_guard;
+pub mod offline_boundary;
 pub mod persistence;
 pub mod promotion_bridge;
 pub mod rich_document_snapshot;

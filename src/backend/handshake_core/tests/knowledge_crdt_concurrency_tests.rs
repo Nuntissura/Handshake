@@ -415,3 +415,133 @@ mod mt_071_index_run_guard {
         assert!(matches!(third, IndexRunSlotOutcomeV1::Claimed(_)));
     }
 }
+
+mod mt_073_offline_boundary {
+    use super::*;
+    use handshake_core::kernel::crdt::offline_boundary::{
+        knowledge_offline_draft_boundary_contract, replay_offline_envelopes,
+        validate_offline_draft_boundary_contract, OfflineReplayVerdictV1,
+    };
+    use handshake_core::kernel::KernelEventType;
+    use uuid::Uuid;
+
+    #[test]
+    fn boundary_contract_pins_postgres_as_only_durable_draft_authority() {
+        let contract = knowledge_offline_draft_boundary_contract();
+        validate_offline_draft_boundary_contract(&contract).expect("contract is sound");
+        assert_eq!(
+            contract.durable_draft_authority_tables,
+            vec!["kernel_crdt_updates", "kernel_crdt_snapshots"]
+        );
+        assert!(contract
+            .denied_durable_surfaces
+            .contains(&"browser_local_storage"));
+        assert!(contract.denied_durable_surfaces.contains(&"sqlite_file"));
+
+        // Negative: a contract that lets a denied surface into the durable
+        // list must fail validation.
+        let mut poisoned = contract.clone();
+        poisoned.durable_draft_authority_tables = vec!["sqlite_file", "kernel_crdt_updates"];
+        assert!(validate_offline_draft_boundary_contract(&poisoned).is_err());
+    }
+
+    /// Reconnect path: buffered offline envelopes replay in order with no
+    /// draft loss; resubmission is idempotent; replay never touches
+    /// promotion/authority surfaces.
+    #[tokio::test]
+    async fn offline_replay_loses_no_drafts_and_never_mutates_authority() {
+        let backend = backend_or_blocked().await;
+        let db = backend.database.clone();
+        let pool = backend.postgres_pool.clone();
+        let suffix = Uuid::now_v7().simple().to_string();
+        let ws = format!("ws-mt073-{suffix}");
+        let doc = format!("doc-mt073-{suffix}");
+        let crdt_doc = format!("crdt-mt073-{suffix}");
+        let model =
+            KnowledgeActorIdV1::new(KnowledgeActorKind::LocalModel, "offline-lm").expect("actor");
+        let site = derive_knowledge_site_id(&ws, &crdt_doc, &model);
+
+        // Three buffered offline updates, causally chained.
+        let mut sv = KnowledgeStateVectorV1::new();
+        let mut buffered = Vec::new();
+        for index in 1..=3u64 {
+            let before = sv.clone();
+            sv.increment(&site.site_id);
+            buffered.push(envelope(
+                &ws,
+                &doc,
+                &crdt_doc,
+                &format!("offline-u{index}"),
+                &model,
+                "sr-offline",
+                format!("offline-payload-{index}").as_bytes(),
+                &before,
+                &sv,
+            ));
+        }
+
+        let report = replay_offline_envelopes(db.as_ref(), &buffered)
+            .await
+            .expect("replay runs");
+        assert_eq!(report.stored_count, 3);
+        assert_eq!(report.denied_count, 0);
+        assert_eq!(report.head_state_vector, sv.encode());
+        assert!(report
+            .verdicts
+            .iter()
+            .all(|verdict| matches!(verdict, OfflineReplayVerdictV1::Stored { .. })));
+
+        // No draft loss: every update is in PostgreSQL.
+        let stored = db
+            .list_kernel_crdt_updates(&ws, &doc, &crdt_doc)
+            .await
+            .expect("list updates");
+        assert_eq!(stored.len(), 3);
+
+        // Idempotent resubmission after a flaky reconnect.
+        let replay_again = replay_offline_envelopes(db.as_ref(), &buffered)
+            .await
+            .expect("replay runs");
+        assert_eq!(replay_again.already_stored_count, 3);
+        assert_eq!(replay_again.stored_count, 0);
+        let stored_again = db
+            .list_kernel_crdt_updates(&ws, &doc, &crdt_doc)
+            .await
+            .expect("list updates");
+        assert_eq!(stored_again.len(), 3, "no duplicates from resubmission");
+
+        // Tampered resubmission (same update_id, different bytes) is denied.
+        let mut tampered = buffered[0].clone();
+        tampered.update_b64 = base64::engine::general_purpose::STANDARD.encode(b"tampered-bytes");
+        tampered.update_sha256 = sha256_hex(b"tampered-bytes");
+        let tampered_report = replay_offline_envelopes(db.as_ref(), &[tampered])
+            .await
+            .expect("replay runs");
+        assert_eq!(tampered_report.denied_count, 1);
+
+        // No silent authority mutation: the document's event stream carries
+        // only draft-update events — no promotion decisions.
+        let events = db
+            .list_kernel_events_for_aggregate("knowledge_crdt_document", &crdt_doc)
+            .await
+            .expect("events");
+        assert!(!events.is_empty());
+        assert!(events.iter().all(|event| matches!(
+            event.event_type,
+            KernelEventType::KnowledgeCrdtUpdateRecorded
+        )));
+
+        // And the authority fact table itself stays untouched (PG-level).
+        let fact_count: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*) FROM knowledge_crdt_promoted_facts WHERE workspace_id = $1",
+        )
+        .bind(&ws)
+        .fetch_one(&pool)
+        .await
+        .expect("count facts");
+        assert_eq!(
+            fact_count, 0,
+            "offline replay must not create authority facts"
+        );
+    }
+}
