@@ -1165,3 +1165,232 @@ pub async fn list_conflict_resolution_jobs(
     .await?;
     rows.iter().map(resolution_job_from_row).collect()
 }
+
+// ===========================================================================
+// MT-124 BridgeEdgeGenerator  (storage helpers + decision log)
+// ===========================================================================
+
+/// An (entity_a, entity_b, shared_span) co-occurrence: two DISTINCT entities
+/// detected from the SAME span. Ordered (entity_id_a < entity_id_b) so each
+/// unordered pair appears once per shared span.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct EntityCooccurrence {
+    pub entity_id_a: String,
+    pub entity_id_b: String,
+    pub shared_span_id: String,
+}
+
+/// Find entity pairs that co-occur in evidence (share a detection span). These
+/// are the raw bridge candidates: co-occurrence is the evidence a bridge needs
+/// (the translated-spec rule "only when evidence supports the bridge"). The
+/// ordered self-join over `knowledge_entity_spans` yields one row per
+/// (entity_a < entity_b, span).
+pub async fn find_entity_cooccurrences(
+    pool: &PgPool,
+    workspace_id: &str,
+    limit: i64,
+) -> StorageResult<Vec<EntityCooccurrence>> {
+    let rows = sqlx::query(
+        r#"
+        SELECT esa.entity_id AS entity_id_a,
+               esb.entity_id AS entity_id_b,
+               esa.span_id   AS shared_span_id
+        FROM knowledge_entity_spans esa
+        JOIN knowledge_entity_spans esb
+          ON esa.span_id = esb.span_id
+         AND esa.entity_id < esb.entity_id
+        JOIN knowledge_entities ea ON ea.entity_id = esa.entity_id
+        JOIN knowledge_entities eb ON eb.entity_id = esb.entity_id
+        WHERE ea.workspace_id = $1 AND eb.workspace_id = $1
+        ORDER BY esa.entity_id, esb.entity_id, esa.span_id
+        LIMIT $2
+        "#,
+    )
+    .bind(workspace_id)
+    .bind(limit)
+    .fetch_all(pool)
+    .await?;
+    Ok(rows
+        .iter()
+        .map(|row| EntityCooccurrence {
+            entity_id_a: row.get("entity_id_a"),
+            entity_id_b: row.get("entity_id_b"),
+            shared_span_id: row.get("shared_span_id"),
+        })
+        .collect())
+}
+
+/// A directed-or-undirected edge endpoint pair from `knowledge_edges`, used to
+/// build connected components (only non-retired edges count toward
+/// connectivity). Returned as (source, target) pairs.
+pub async fn list_active_edge_endpoints(
+    pool: &PgPool,
+    workspace_id: &str,
+) -> StorageResult<Vec<(String, String)>> {
+    let rows = sqlx::query(
+        r#"
+        SELECT source_entity_id, target_entity_id
+        FROM knowledge_edges
+        WHERE workspace_id = $1 AND lifecycle_state <> 'retired'
+        "#,
+    )
+    .bind(workspace_id)
+    .fetch_all(pool)
+    .await?;
+    Ok(rows
+        .iter()
+        .map(|row| {
+            (
+                row.get::<String, _>("source_entity_id"),
+                row.get::<String, _>("target_entity_id"),
+            )
+        })
+        .collect())
+}
+
+/// Undirected degree of an entity in the non-retired edge graph (number of
+/// edges touching it as source or target). The hub-suppression input.
+pub async fn entity_edge_degree(pool: &PgPool, entity_id: &str) -> StorageResult<i64> {
+    let row = sqlx::query(
+        r#"
+        SELECT COUNT(*) AS degree
+        FROM knowledge_edges
+        WHERE lifecycle_state <> 'retired'
+          AND (source_entity_id = $1 OR target_entity_id = $1)
+        "#,
+    )
+    .bind(entity_id)
+    .fetch_one(pool)
+    .await?;
+    Ok(row.get::<i64, _>("degree"))
+}
+
+/// The outcome of a bridge evaluation for one candidate pair.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum BridgeDecision {
+    Bridged,
+    SuppressedHub,
+    SuppressedNoEvidence,
+    SuppressedConnected,
+}
+
+impl BridgeDecision {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            BridgeDecision::Bridged => "bridged",
+            BridgeDecision::SuppressedHub => "suppressed_hub",
+            BridgeDecision::SuppressedNoEvidence => "suppressed_no_evidence",
+            BridgeDecision::SuppressedConnected => "suppressed_connected",
+        }
+    }
+
+    fn from_db(value: &str) -> StorageResult<Self> {
+        match value {
+            "bridged" => Ok(BridgeDecision::Bridged),
+            "suppressed_hub" => Ok(BridgeDecision::SuppressedHub),
+            "suppressed_no_evidence" => Ok(BridgeDecision::SuppressedNoEvidence),
+            "suppressed_connected" => Ok(BridgeDecision::SuppressedConnected),
+            _ => Err(StorageError::Validation("invalid bridge decision")),
+        }
+    }
+}
+
+/// A recorded bridge-evaluation decision (auditable "why did/didn't a bridge
+/// appear").
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct BridgeDecisionRecord {
+    pub decision_id: String,
+    pub workspace_id: String,
+    pub entity_id_a: String,
+    pub entity_id_b: String,
+    pub decision: BridgeDecision,
+    pub degree_a: i32,
+    pub degree_b: i32,
+    pub hub_degree_threshold: i32,
+    pub evidence_span_id: Option<String>,
+    pub bridge_edge_id: Option<String>,
+    pub created_at: DateTime<Utc>,
+}
+
+fn bridge_decision_from_row(row: &sqlx::postgres::PgRow) -> StorageResult<BridgeDecisionRecord> {
+    Ok(BridgeDecisionRecord {
+        decision_id: row.get("decision_id"),
+        workspace_id: row.get("workspace_id"),
+        entity_id_a: row.get("entity_id_a"),
+        entity_id_b: row.get("entity_id_b"),
+        decision: BridgeDecision::from_db(row.get::<String, _>("decision").as_str())?,
+        degree_a: row.get("degree_a"),
+        degree_b: row.get("degree_b"),
+        hub_degree_threshold: row.get("hub_degree_threshold"),
+        evidence_span_id: row.get("evidence_span_id"),
+        bridge_edge_id: row.get("bridge_edge_id"),
+        created_at: row.get("created_at"),
+    })
+}
+
+/// Record one bridge-evaluation decision.
+#[allow(clippy::too_many_arguments)]
+pub async fn record_bridge_decision(
+    pool: &PgPool,
+    workspace_id: &str,
+    entity_id_a: &str,
+    entity_id_b: &str,
+    decision: BridgeDecision,
+    degree_a: i32,
+    degree_b: i32,
+    hub_degree_threshold: i32,
+    evidence_span_id: Option<&str>,
+    bridge_edge_id: Option<&str>,
+) -> StorageResult<BridgeDecisionRecord> {
+    let decision_id = new_memory_id("KBR");
+    let row = sqlx::query(
+        r#"
+        INSERT INTO knowledge_memory_bridge_decisions (
+            decision_id, workspace_id, entity_id_a, entity_id_b, decision,
+            degree_a, degree_b, hub_degree_threshold, evidence_span_id,
+            bridge_edge_id
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        RETURNING decision_id, workspace_id, entity_id_a, entity_id_b, decision,
+                  degree_a, degree_b, hub_degree_threshold, evidence_span_id,
+                  bridge_edge_id, created_at
+        "#,
+    )
+    .bind(&decision_id)
+    .bind(workspace_id)
+    .bind(entity_id_a)
+    .bind(entity_id_b)
+    .bind(decision.as_str())
+    .bind(degree_a)
+    .bind(degree_b)
+    .bind(hub_degree_threshold)
+    .bind(evidence_span_id)
+    .bind(bridge_edge_id)
+    .fetch_one(pool)
+    .await?;
+    bridge_decision_from_row(&row)
+}
+
+/// List bridge decisions for a workspace, newest first.
+pub async fn list_bridge_decisions(
+    pool: &PgPool,
+    workspace_id: &str,
+    limit: i64,
+) -> StorageResult<Vec<BridgeDecisionRecord>> {
+    let rows = sqlx::query(
+        r#"
+        SELECT decision_id, workspace_id, entity_id_a, entity_id_b, decision,
+               degree_a, degree_b, hub_degree_threshold, evidence_span_id,
+               bridge_edge_id, created_at
+        FROM knowledge_memory_bridge_decisions
+        WHERE workspace_id = $1
+        ORDER BY created_at DESC, decision_id DESC
+        LIMIT $2
+        "#,
+    )
+    .bind(workspace_id)
+    .bind(limit)
+    .fetch_all(pool)
+    .await?;
+    rows.iter().map(bridge_decision_from_row).collect()
+}
