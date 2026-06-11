@@ -172,6 +172,11 @@ pub mod inspector_read;
 #[cfg(feature = "runtime-full")]
 pub mod jobs;
 pub mod kernel;
+/// WP-KERNEL-009 SourceIngestionAndEvidence (MT-081..MT-096): allowlisted,
+/// hash-based, secret-aware project source ingestion with extraction
+/// receipts, ingestion spans, and a durable repair queue.
+#[cfg(feature = "runtime-full")]
+pub mod knowledge_ingestion;
 #[cfg(feature = "runtime-full")]
 pub mod llm;
 #[cfg(feature = "runtime-full")]
