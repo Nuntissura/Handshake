@@ -795,3 +795,373 @@ pub async fn set_memory_fact_authority_label(
         .await?;
     fact_from_row(&row)
 }
+
+// ===========================================================================
+// MT-121 ConflictCandidateSearch
+// ===========================================================================
+
+/// A pair of facts that assert the SAME (subject, predicate) but with a
+/// DIFFERENT object — i.e. a symbolic conflict candidate. The pair is ordered
+/// deterministically by fact_id so the same two facts always produce the same
+/// candidate (idempotent search; no duplicate (a,b)/(b,a)).
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct FactConflictCandidate {
+    pub subject_entity_id: String,
+    pub predicate_key: String,
+    pub fact_id_a: String,
+    pub claim_id_a: String,
+    pub object_a: String,
+    pub fact_id_b: String,
+    pub claim_id_b: String,
+    pub object_b: String,
+    /// Why these are candidates (the symbolic key class).
+    pub candidate_reason: String,
+}
+
+/// MT-121: find symbolic conflict candidates in a workspace — facts that share
+/// a (subject_entity_id, predicate_key) symbolic key but disagree on the object
+/// (entity object id or literal). This is the deterministic candidate search
+/// the ConflictDetectionJob (MT-122) runs; semantic/embedding candidates are a
+/// future extension noted in the contract ("embedding/vector-like evidence
+/// where available"). The self-join is ordered (a.fact_id < b.fact_id) so each
+/// unordered pair appears once.
+pub async fn find_fact_conflict_candidates(
+    pool: &PgPool,
+    workspace_id: &str,
+    limit: i64,
+) -> StorageResult<Vec<FactConflictCandidate>> {
+    let rows = sqlx::query(
+        r#"
+        SELECT
+            a.subject_entity_id AS subject_entity_id,
+            a.predicate_key     AS predicate_key,
+            a.fact_id           AS fact_id_a,
+            a.claim_id          AS claim_id_a,
+            COALESCE(a.object_entity_id, a.object_literal) AS object_a,
+            b.fact_id           AS fact_id_b,
+            b.claim_id          AS claim_id_b,
+            COALESCE(b.object_entity_id, b.object_literal) AS object_b
+        FROM knowledge_memory_facts a
+        JOIN knowledge_memory_facts b
+          ON a.workspace_id = b.workspace_id
+         AND a.subject_entity_id = b.subject_entity_id
+         AND a.predicate_key = b.predicate_key
+         AND a.fact_id < b.fact_id
+        WHERE a.workspace_id = $1
+          AND COALESCE(a.object_entity_id, a.object_literal)
+              IS DISTINCT FROM COALESCE(b.object_entity_id, b.object_literal)
+        ORDER BY a.subject_entity_id, a.predicate_key, a.fact_id, b.fact_id
+        LIMIT $2
+        "#,
+    )
+    .bind(workspace_id)
+    .bind(limit)
+    .fetch_all(pool)
+    .await?;
+
+    Ok(rows
+        .iter()
+        .map(|row| FactConflictCandidate {
+            subject_entity_id: row.get("subject_entity_id"),
+            predicate_key: row.get("predicate_key"),
+            fact_id_a: row.get("fact_id_a"),
+            claim_id_a: row.get("claim_id_a"),
+            object_a: row.get("object_a"),
+            fact_id_b: row.get("fact_id_b"),
+            claim_id_b: row.get("claim_id_b"),
+            object_b: row.get("object_b"),
+            candidate_reason: "symbolic_subject_predicate_object_mismatch".to_string(),
+        })
+        .collect())
+}
+
+// ===========================================================================
+// MT-122 ConflictDetectionAgentJob  (typed job record + findings)
+// ===========================================================================
+
+/// The conflict class a detection pass searched for.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ConflictDetectionKind {
+    Symbolic,
+    Temporal,
+    Alias,
+    StaleSource,
+    Granularity,
+    Semantic,
+}
+
+impl ConflictDetectionKind {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            ConflictDetectionKind::Symbolic => "symbolic",
+            ConflictDetectionKind::Temporal => "temporal",
+            ConflictDetectionKind::Alias => "alias",
+            ConflictDetectionKind::StaleSource => "stale_source",
+            ConflictDetectionKind::Granularity => "granularity",
+            ConflictDetectionKind::Semantic => "semantic",
+        }
+    }
+
+    fn from_db(value: &str) -> StorageResult<Self> {
+        match value {
+            "symbolic" => Ok(ConflictDetectionKind::Symbolic),
+            "temporal" => Ok(ConflictDetectionKind::Temporal),
+            "alias" => Ok(ConflictDetectionKind::Alias),
+            "stale_source" => Ok(ConflictDetectionKind::StaleSource),
+            "granularity" => Ok(ConflictDetectionKind::Granularity),
+            "semantic" => Ok(ConflictDetectionKind::Semantic),
+            _ => Err(StorageError::Validation("invalid conflict detection_kind")),
+        }
+    }
+}
+
+/// A typed conflict-detection job record (NOT a spawned LLM agent).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct ConflictDetectionJob {
+    pub job_id: String,
+    pub workspace_id: String,
+    pub detection_kind: ConflictDetectionKind,
+    pub job_state: String,
+    pub candidates_scanned: i32,
+    pub conflicts_found: i32,
+    pub search_parameters: Value,
+    pub detection_receipt_event_id: Option<String>,
+    pub created_at: DateTime<Utc>,
+    pub completed_at: Option<DateTime<Utc>>,
+}
+
+fn detection_job_from_row(row: &sqlx::postgres::PgRow) -> StorageResult<ConflictDetectionJob> {
+    Ok(ConflictDetectionJob {
+        job_id: row.get("job_id"),
+        workspace_id: row.get("workspace_id"),
+        detection_kind: ConflictDetectionKind::from_db(
+            row.get::<String, _>("detection_kind").as_str(),
+        )?,
+        job_state: row.get("job_state"),
+        candidates_scanned: row.get("candidates_scanned"),
+        conflicts_found: row.get("conflicts_found"),
+        search_parameters: row.get("search_parameters"),
+        detection_receipt_event_id: row.get("detection_receipt_event_id"),
+        created_at: row.get("created_at"),
+        completed_at: row.get("completed_at"),
+    })
+}
+
+/// Record a completed conflict-detection job and link the conflict ids it
+/// found, in one transaction. `conflict_ids` are existing
+/// knowledge_claim_conflicts rows (produced by the detection pass).
+pub async fn record_conflict_detection_job(
+    pool: &PgPool,
+    workspace_id: &str,
+    detection_kind: ConflictDetectionKind,
+    candidates_scanned: i32,
+    search_parameters: Value,
+    conflict_ids: &[String],
+    detection_receipt_event_id: Option<&str>,
+) -> StorageResult<ConflictDetectionJob> {
+    let job_id = new_memory_id("KCDJ");
+    let mut tx = pool.begin().await?;
+    let row = sqlx::query(
+        r#"
+        INSERT INTO knowledge_memory_conflict_detection_jobs (
+            job_id, workspace_id, detection_kind, job_state, candidates_scanned,
+            conflicts_found, search_parameters, detection_receipt_event_id,
+            completed_at
+        ) VALUES ($1, $2, $3, 'completed', $4, $5, $6, $7, NOW())
+        RETURNING job_id, workspace_id, detection_kind, job_state,
+                  candidates_scanned, conflicts_found, search_parameters,
+                  detection_receipt_event_id, created_at, completed_at
+        "#,
+    )
+    .bind(&job_id)
+    .bind(workspace_id)
+    .bind(detection_kind.as_str())
+    .bind(candidates_scanned)
+    .bind(conflict_ids.len() as i32)
+    .bind(&search_parameters)
+    .bind(detection_receipt_event_id)
+    .fetch_one(&mut *tx)
+    .await?;
+
+    for conflict_id in conflict_ids {
+        sqlx::query(
+            r#"
+            INSERT INTO knowledge_memory_conflict_detection_findings (job_id, conflict_id)
+            VALUES ($1, $2)
+            "#,
+        )
+        .bind(&job_id)
+        .bind(conflict_id)
+        .execute(&mut *tx)
+        .await?;
+    }
+
+    tx.commit().await?;
+    detection_job_from_row(&row)
+}
+
+/// List the conflict ids a detection job found.
+pub async fn list_conflict_detection_findings(
+    pool: &PgPool,
+    job_id: &str,
+) -> StorageResult<Vec<String>> {
+    let rows = sqlx::query(
+        r#"
+        SELECT conflict_id FROM knowledge_memory_conflict_detection_findings
+        WHERE job_id = $1 ORDER BY conflict_id ASC
+        "#,
+    )
+    .bind(job_id)
+    .fetch_all(pool)
+    .await?;
+    Ok(rows
+        .iter()
+        .map(|row| row.get::<String, _>("conflict_id"))
+        .collect())
+}
+
+// ===========================================================================
+// MT-123 ConflictResolutionAgentJob  (typed job record)
+// ===========================================================================
+
+/// A conflict resolution outcome (translated-spec ConflictResolutionJob).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ConflictResolutionOutcome {
+    Discard,
+    Refine,
+    TemporalQualify,
+    GranularityQualify,
+    Merge,
+}
+
+impl ConflictResolutionOutcome {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            ConflictResolutionOutcome::Discard => "discard",
+            ConflictResolutionOutcome::Refine => "refine",
+            ConflictResolutionOutcome::TemporalQualify => "temporal_qualify",
+            ConflictResolutionOutcome::GranularityQualify => "granularity_qualify",
+            ConflictResolutionOutcome::Merge => "merge",
+        }
+    }
+
+    fn from_db(value: &str) -> StorageResult<Self> {
+        match value {
+            "discard" => Ok(ConflictResolutionOutcome::Discard),
+            "refine" => Ok(ConflictResolutionOutcome::Refine),
+            "temporal_qualify" => Ok(ConflictResolutionOutcome::TemporalQualify),
+            "granularity_qualify" => Ok(ConflictResolutionOutcome::GranularityQualify),
+            "merge" => Ok(ConflictResolutionOutcome::Merge),
+            _ => Err(StorageError::Validation(
+                "invalid conflict resolution outcome",
+            )),
+        }
+    }
+
+    /// Whether this outcome requires both a kept and a discarded claim.
+    fn requires_discarded(&self) -> bool {
+        matches!(
+            self,
+            ConflictResolutionOutcome::Discard | ConflictResolutionOutcome::Merge
+        )
+    }
+}
+
+/// A typed conflict-resolution job record. The resolution is receipt-backed.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct ConflictResolutionJob {
+    pub job_id: String,
+    pub workspace_id: String,
+    pub conflict_id: String,
+    pub outcome: ConflictResolutionOutcome,
+    pub kept_claim_id: Option<String>,
+    pub discarded_claim_id: Option<String>,
+    pub resolution_detail: Value,
+    pub resolution_receipt_event_id: String,
+    pub created_at: DateTime<Utc>,
+}
+
+fn resolution_job_from_row(row: &sqlx::postgres::PgRow) -> StorageResult<ConflictResolutionJob> {
+    Ok(ConflictResolutionJob {
+        job_id: row.get("job_id"),
+        workspace_id: row.get("workspace_id"),
+        conflict_id: row.get("conflict_id"),
+        outcome: ConflictResolutionOutcome::from_db(row.get::<String, _>("outcome").as_str())?,
+        kept_claim_id: row.get("kept_claim_id"),
+        discarded_claim_id: row.get("discarded_claim_id"),
+        resolution_detail: row.get("resolution_detail"),
+        resolution_receipt_event_id: row.get("resolution_receipt_event_id"),
+        created_at: row.get("created_at"),
+    })
+}
+
+/// Record a conflict-resolution job. Validates the kept/discarded claim shape
+/// against the chosen outcome before insert (the DB CHECK is the backstop).
+#[allow(clippy::too_many_arguments)]
+pub async fn record_conflict_resolution_job(
+    pool: &PgPool,
+    workspace_id: &str,
+    conflict_id: &str,
+    outcome: ConflictResolutionOutcome,
+    kept_claim_id: Option<&str>,
+    discarded_claim_id: Option<&str>,
+    resolution_detail: Value,
+    resolution_receipt_event_id: &str,
+) -> StorageResult<ConflictResolutionJob> {
+    if kept_claim_id.is_none() {
+        return Err(StorageError::Validation(
+            "conflict resolution requires a kept claim",
+        ));
+    }
+    if outcome.requires_discarded() && discarded_claim_id.is_none() {
+        return Err(StorageError::Validation(
+            "discard/merge resolution requires a discarded claim",
+        ));
+    }
+    let job_id = new_memory_id("KCRJ");
+    let row = sqlx::query(
+        r#"
+        INSERT INTO knowledge_memory_conflict_resolution_jobs (
+            job_id, workspace_id, conflict_id, outcome, kept_claim_id,
+            discarded_claim_id, resolution_detail, resolution_receipt_event_id
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        RETURNING job_id, workspace_id, conflict_id, outcome, kept_claim_id,
+                  discarded_claim_id, resolution_detail,
+                  resolution_receipt_event_id, created_at
+        "#,
+    )
+    .bind(&job_id)
+    .bind(workspace_id)
+    .bind(conflict_id)
+    .bind(outcome.as_str())
+    .bind(kept_claim_id)
+    .bind(discarded_claim_id)
+    .bind(&resolution_detail)
+    .bind(resolution_receipt_event_id)
+    .fetch_one(pool)
+    .await?;
+    resolution_job_from_row(&row)
+}
+
+/// List resolution jobs for a conflict (newest first).
+pub async fn list_conflict_resolution_jobs(
+    pool: &PgPool,
+    conflict_id: &str,
+) -> StorageResult<Vec<ConflictResolutionJob>> {
+    let rows = sqlx::query(
+        r#"
+        SELECT job_id, workspace_id, conflict_id, outcome, kept_claim_id,
+               discarded_claim_id, resolution_detail, resolution_receipt_event_id,
+               created_at
+        FROM knowledge_memory_conflict_resolution_jobs
+        WHERE conflict_id = $1
+        ORDER BY created_at DESC, job_id DESC
+        "#,
+    )
+    .bind(conflict_id)
+    .fetch_all(pool)
+    .await?;
+    rows.iter().map(resolution_job_from_row).collect()
+}
