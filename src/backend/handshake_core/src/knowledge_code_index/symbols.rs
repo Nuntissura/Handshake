@@ -224,7 +224,16 @@ fn extract_rust(tree: &ParsedTree, source: &str) -> Vec<ExtractedSymbol> {
             continue;
         }
 
-        let symbol_path = scope_path(tree, node, source, &name, "::", RUST_SCOPE_KINDS);
+        // An `impl Type` block names the SAME identifier as its `struct Type`;
+        // give the impl a distinct path (`impl Type`) so the two never collide
+        // on `entity_key` and merge in the upsert. Methods inside still scope
+        // under the bare type (`Type::method`) via `scope_name_for`.
+        let path_name = if kind == SymbolKind::Impl {
+            format!("impl {name}")
+        } else {
+            name.clone()
+        };
+        let symbol_path = scope_path(tree, node, source, &path_name, "::", RUST_SCOPE_KINDS);
         out.push(ExtractedSymbol {
             kind,
             name,

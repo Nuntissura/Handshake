@@ -511,6 +511,16 @@ path = "tests/knowledge_graph_tests.rs"
 required-features = ["test-utils"]
 
 [[test]]
+name = "knowledge_code_index_tests"
+path = "tests/knowledge_code_index_tests.rs"
+required-features = ["test-utils"]
+
+[[test]]
+name = "knowledge_code_nav_api_tests"
+path = "tests/knowledge_code_nav_api_tests.rs"
+required-features = ["test-utils"]
+
+[[test]]
 name = "knowledge_claims_tests"
 path = "tests/knowledge_claims_tests.rs"
 required-features = ["test-utils"]
