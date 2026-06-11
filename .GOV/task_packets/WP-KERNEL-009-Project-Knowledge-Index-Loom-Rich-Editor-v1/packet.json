@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
   "base_wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T17:34:39.272Z",
+  "updated_at_utc": "2026-06-11T18:05:59.097Z",
   "authority_files": {
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json",
     "refinement_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/refinement.json",
@@ -205,18 +205,11 @@
       "note": "MT-104 relationship_id collision auto-fixed by storage MT-054 _v2 derivation."
     },
     "crdt_hardening_status": {
-      "at_utc": "2026-06-11T17:34:39.272Z",
-      "state": "AUTHORED_UNCOMMITTED_UNVERIFIED",
-      "detail": "CRDT-hardening agent authored the 7-item fix (uncommitted WIP: kernel/crdt/{claim_promotion,recovery_receipt,agent_lease(see save_semantics/graph_proposal/ai_edit_proposal),save_semantics}.rs, storage/knowledge_crdt.rs, migrations 0190/0191/0192 + 0152/0153 comment fixes, crdt tests) but ran out of budget waiting on slow test-compiles without committing or verifying. A CRDT-hardening-RESUME must adopt this WIP, verify (compile + run the negative tests), and commit per-MT. Authoring is done; only verify+commit remains.",
-      "affected_mts": [
-        "MT-068",
-        "MT-069",
-        "MT-074",
-        "MT-076",
-        "MT-077",
-        "MT-079",
-        "MT-080"
-      ]
+      "at_utc": "2026-06-11T18:05:59.097Z",
+      "state": "DONE_VERIFIED",
+      "commit": "d6adf2dd",
+      "detail": "All 7 CRDT authority-hardening items closed; 33 CRDT tests pass on real PostgreSQL. KEY FINDING: the soft-ref hole was WORSE than the review reported - happy-path tests were promoting FABRICATED KSP- ids that never existed in knowledge_spans (not only pending: markers), so pre-fix ANY non-existent span id could become durable authority. Fix re-grounds valid paths on real fixtures.",
+      "span_retirement_note": "knowledge_spans has no retirement column; the fix uses knowledge_sources.stale (re-index superseded) as the queryable retired signal."
     },
     "systemic_findings": [
       {

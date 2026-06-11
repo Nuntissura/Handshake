@@ -22,7 +22,7 @@
   "title": "CRDTAndConcurrencyCore-076-AgentLeaseExpiration",
   "group": "CRDTAndConcurrencyCore",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T15:27:06.182Z",
+  "updated_at_utc": "2026-06-11T18:05:59.097Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-076.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -79,7 +79,7 @@
     ]
   },
   "lifecycle": {
-    "status": "CLAIMED",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-065"
@@ -113,11 +113,16 @@
         "Cross-checked save_semantics.rs and ai_edit_proposal.rs for guard invocation: not invoked"
       ]
     },
-    "hardening_pending": {
-      "at_utc": "2026-06-11T15:27:06.182Z",
-      "severity": "MEDIUM",
-      "reason": "Lease guard advisory not enforced - never called by write/proposal paths. Fix #4 (make guard a chokepoint)."
-    }
+    "ready_by": "KERNEL_BUILDER-20260611-071323",
+    "ready_for_validation_at_utc": "2026-06-11T18:05:59.097Z",
+    "hardening_closed": {
+      "at_utc": "2026-06-11T18:05:59.097Z",
+      "commit": "d6adf2dd",
+      "note": "Adversarial finding fixed + real-PG negative test green (33 CRDT tests pass under runtime-full,test-utils)."
+    },
+    "evidence": [
+      "Hardened d6adf2dd: Lease guard made enforced chokepoint (guard_lease_for_write on proposal/save paths); expired/foreign/wrong-scope denied with durable receipt."
+    ]
   },
   "handoff": {
     "coder_session": null,

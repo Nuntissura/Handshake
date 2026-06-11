@@ -22,7 +22,7 @@
   "title": "CRDTAndConcurrencyCore-074-AiEditProposalReviewFlow",
   "group": "CRDTAndConcurrencyCore",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T15:27:06.182Z",
+  "updated_at_utc": "2026-06-11T18:05:59.097Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-074.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -79,7 +79,7 @@
     ]
   },
   "lifecycle": {
-    "status": "CLAIMED",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-065"
@@ -113,11 +113,16 @@
         "src/backend/handshake_core/migrations/0154_knowledge_crdt_ai_edit_proposals.sql:13-93 (schema, decision/reviewer/promotion CHECKs, FKs)"
       ]
     },
-    "hardening_pending": {
-      "at_utc": "2026-06-11T15:27:06.182Z",
-      "severity": "MEDIUM",
-      "reason": "Approved-vs-applied integrity gap: applied update not bound to approved diff_sha256. Fix #5; route through lease guard #4."
-    }
+    "ready_by": "KERNEL_BUILDER-20260611-071323",
+    "ready_for_validation_at_utc": "2026-06-11T18:05:59.097Z",
+    "hardening_closed": {
+      "at_utc": "2026-06-11T18:05:59.097Z",
+      "commit": "d6adf2dd",
+      "note": "Adversarial finding fixed + real-PG negative test green (33 CRDT tests pass under runtime-full,test-utils)."
+    },
+    "evidence": [
+      "Hardened d6adf2dd: AI-edit lease chokepoint + approved-vs-applied binding (migration 0192 CHECK applied_sha256=diff_sha256); applied_update_must_hash_to_approved_diff PASS."
+    ]
   },
   "handoff": {
     "coder_session": null,
