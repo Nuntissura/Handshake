@@ -62,6 +62,7 @@ pub mod kinds;
 pub mod paths;
 pub mod pdf;
 pub mod receipts;
+pub mod spans;
 
 use crate::storage::StorageError;
 use thiserror::Error;
