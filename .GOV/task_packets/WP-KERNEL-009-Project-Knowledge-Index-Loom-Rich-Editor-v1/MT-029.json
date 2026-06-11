@@ -22,7 +22,7 @@
   "title": "NativeDependencyAndPackaging-029-LicenseAndNoticeReceipts",
   "group": "NativeDependencyAndPackaging",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T11:08:10.673Z",
+  "updated_at_utc": "2026-06-11T11:51:38.914Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-029.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -81,7 +81,7 @@
     ]
   },
   "lifecycle": {
-    "status": "CLAIMED",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-017"
@@ -90,7 +90,30 @@
     "claimed_by": "KERNEL_BUILDER-20260611-071323",
     "completed_by": null,
     "implementation_commit": "415ec54e",
-    "implementation_evidence": "Implemented in wtc-kernel-009 feat/WP-KERNEL-009 commit 415ec54e; proof commands green per delegate report (vitest/cargo/playwright; MT-032 aggregate check:dependency-policy 8/8 pass, app suite 313/313). Pending adversarial code review before READY_FOR_VALIDATION."
+    "implementation_evidence": "Implemented in wtc-kernel-009 feat/WP-KERNEL-009 commit 415ec54e; proof commands green per delegate report (vitest/cargo/playwright; MT-032 aggregate check:dependency-policy 8/8 pass, app suite 313/313). Pending adversarial code review before READY_FOR_VALIDATION.",
+    "adversarial_code_review": {
+      "verdict": "PASS",
+      "reviewed_at_utc": "2026-06-11T11:21:06Z",
+      "reviewer": "ADVERSARIAL_CODE_REVIEWER-20260611",
+      "concerns": [
+        "THIRD_PARTY_NOTICES.json (77 receipts) generated from REAL sources: npm families walked from pnpm-lock packages incl transitives (truncated-store resolution handled), licenses read from INSTALLED package.json (LICENSE-file SPDX fallback for @excalidraw/mermaid-to-excalidraw); tree-sitter crates from cargo metadata feature-resolved graph (license must be in allowed set, sourced from crates.io).",
+        "Deterministic (stable sort, no timestamps) -> byte-diff drift gate (check:third-party-notices) passed in the live run; file ships via tauri bundle resources."
+      ],
+      "evasion_probes": [
+        "Spot-check: prosemirror-transform/-commands/-keymap/-schema-list each present in notices AND in pnpm-lock (transitive walk really happened; tiptap count >8 asserted).",
+        "A missing/uninstalled package, an out-of-allowed-set license, or cargo non-crates.io source all throw HARD (no silent skip)."
+      ],
+      "evidence_checked": [
+        "pnpm run check:dependency-policy ran end-to-end with REAL builds (tsc+vite app/dist + build:harness app/dist-harness); exit 0; 8/8 checks pass. third-party-notices-sync pass, notice_count:77 (byte-identical regeneration).",
+        "vitest 56/56 green across app/src/lib/dependency_policy/*, DependencyFailureBanner.test.tsx, worker_map.test.ts, extension_set.test.ts. third_party_notices.test.ts (real --check regen, named anchors, license/registry invariants)."
+      ],
+      "parent_recorded_verdict": "PASS"
+    },
+    "ready_by": "KERNEL_BUILDER-20260611-071323",
+    "ready_for_validation_at_utc": "2026-06-11T11:51:38.914Z",
+    "evidence": [
+      "Implementation commit 415ec54e on feat/WP-KERNEL-009; adversarial code review verdict PASS (refutation attempts failed); runtime evidence: check:dependency-policy 8/8 exit 0 (real builds), cargo --lib dependency_policy:: 31/31, vitest 67/67 post-hardening."
+    ]
   },
   "handoff": {
     "coder_session": null,

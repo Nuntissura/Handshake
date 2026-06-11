@@ -22,7 +22,7 @@
   "title": "NativeDependencyAndPackaging-025-NoSQLiteTransitiveRegression",
   "group": "NativeDependencyAndPackaging",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T11:08:10.673Z",
+  "updated_at_utc": "2026-06-11T11:51:38.914Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-025.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -81,7 +81,7 @@
     ]
   },
   "lifecycle": {
-    "status": "CLAIMED",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-017"
@@ -90,7 +90,33 @@
     "claimed_by": "KERNEL_BUILDER-20260611-071323",
     "completed_by": null,
     "implementation_commit": "304dfdee",
-    "implementation_evidence": "Implemented in wtc-kernel-009 feat/WP-KERNEL-009 commit 304dfdee; proof commands green per delegate report (vitest/cargo/playwright; MT-032 aggregate check:dependency-policy 8/8 pass, app suite 313/313). Pending adversarial code review before READY_FOR_VALIDATION."
+    "implementation_evidence": "Implemented in wtc-kernel-009 feat/WP-KERNEL-009 commit 304dfdee; proof commands green per delegate report (vitest/cargo/playwright; MT-032 aggregate check:dependency-policy 8/8 pass, app suite 313/313). Pending adversarial code review before READY_FOR_VALIDATION.",
+    "adversarial_code_review": {
+      "verdict": "HARDEN_RECOMMENDED",
+      "reviewed_at_utc": "2026-06-11T11:21:06Z",
+      "reviewer": "ADVERSARIAL_CODE_REVIEWER-20260611",
+      "concerns": [
+        "Strong multi-layer design: npm manifest scan + pnpm-lock hard scan (any name containing 'sqlite') + cargo direct-declaration scan (incl alias=package rename) + cargo-tree --all-features -i inertness proof + Rust feature-aware activation closure over cargo metadata. The dormant sqlx-sqlite union is correctly proven INERT (4 advisories, all inert) rather than false-positived.",
+        "node:sqlite source scan inherits the blanket dependency_policy path exemption (harness exempt) and the SOURCE_EXTENSIONS limitation (a .wasm sqlite or a non-listed-extension file would not be content-scanned) - but the manifest/lock/activation layers cover the realistic package vectors, so risk is low.",
+        "cargoTreeProvesAbsent treats 'did not match any packages' as proof of absence - correct, but if cargo itself errored for an unrelated reason the broad catch could mask it; it does re-throw other errors, so acceptable."
+      ],
+      "evasion_probes": [
+        "Feature-smuggling (sqlx features=['sqlite']) IS flagged by forbidden_activated_packages (test feature_smuggled_sqlite_is_flagged); renamed-feature dep:rusqlite IS flagged; alias=package rename IS caught by the direct scan.",
+        "Dormant union (sqlx postgres-only) correctly NOT flagged (dormant_optional_sqlite_union_is_not_flagged + real-graph inertness pass)."
+      ],
+      "evidence_checked": [
+        "pnpm run check:dependency-policy ran end-to-end with REAL builds (tsc+vite app/dist + build:harness app/dist-harness); exit 0; 8/8 checks pass. forbidden-manifest-scan pass + sqlite-cargo-inertness pass (libsqlite3-sys & sqlx-sqlite inert in BOTH lockfiles).",
+        "vitest 56/56 green across app/src/lib/dependency_policy/*, DependencyFailureBanner.test.tsx, worker_map.test.ts, extension_set.test.ts. no_sqlite_regression.test.ts (runs real cargo tree, checked>=2).",
+        "cargo dependency_policy::manifest_tripwires activation-closure tests."
+      ],
+      "parent_recorded_verdict": "HARDEN_RECOMMENDED",
+      "hardening_dispatched": true
+    },
+    "ready_by": "KERNEL_BUILDER-20260611-071323",
+    "ready_for_validation_at_utc": "2026-06-11T11:51:38.914Z",
+    "evidence": [
+      "Implementation commit 304dfdee on feat/WP-KERNEL-009; adversarial code review verdict HARDEN_RECOMMENDED -> remediated in commit 0bfcceb2, exploits independently re-run by reviewer and confirmed CLOSED; runtime evidence: check:dependency-policy 8/8 exit 0 (real builds), cargo --lib dependency_policy:: 31/31, vitest 67/67 post-hardening."
+    ]
   },
   "handoff": {
     "coder_session": null,

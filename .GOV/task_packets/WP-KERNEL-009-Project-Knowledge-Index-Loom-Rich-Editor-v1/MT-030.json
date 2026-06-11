@@ -22,7 +22,7 @@
   "title": "NativeDependencyAndPackaging-030-OfflineInstallMode",
   "group": "NativeDependencyAndPackaging",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T11:08:10.673Z",
+  "updated_at_utc": "2026-06-11T11:51:38.914Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-030.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -81,7 +81,7 @@
     ]
   },
   "lifecycle": {
-    "status": "CLAIMED",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-017"
@@ -90,7 +90,32 @@
     "claimed_by": "KERNEL_BUILDER-20260611-071323",
     "completed_by": null,
     "implementation_commit": "55da0ff6",
-    "implementation_evidence": "Implemented in wtc-kernel-009 feat/WP-KERNEL-009 commit 55da0ff6; proof commands green per delegate report (vitest/cargo/playwright; MT-032 aggregate check:dependency-policy 8/8 pass, app suite 313/313). Pending adversarial code review before READY_FOR_VALIDATION."
+    "implementation_evidence": "Implemented in wtc-kernel-009 feat/WP-KERNEL-009 commit 55da0ff6; proof commands green per delegate report (vitest/cargo/playwright; MT-032 aggregate check:dependency-policy 8/8 pass, app suite 313/313). Pending adversarial code review before READY_FOR_VALIDATION.",
+    "adversarial_code_review": {
+      "verdict": "PASS",
+      "reviewed_at_utc": "2026-06-11T11:21:06Z",
+      "reviewer": "ADVERSARIAL_CODE_REVIEWER-20260611",
+      "concerns": [
+        "Offline proof is genuinely runtime: serves built dist-harness from 127.0.0.1 ONLY and routes page.route('**/*') to ABORT every non-loopback request BEFORE navigation, collecting them into externalRequests. Asserts externalRequests===[] (zero ATTEMPTS, not mere absence of failures).",
+        "Typing proof asserts DOCUMENT-MODEL mutation, not just DOM: tiptapDocText() (editor.getText()) must contain the typed paragraph AND the code-block text; code block created via the real ``` StarterKit input rule; Monaco accepts typed input. Worker chunk really fetched from loopback (servedRequests includes worker-*.js).",
+        "Caret placement uses the model API (focusFreshLeadingParagraph) but the TYPING itself is real page.keyboard.type - documented reason (headless Ctrl+Home/End lands in taskItem schema). Acceptable; the keystrokes are real."
+      ],
+      "evasion_probes": [
+        "Network kill-switch is installed via page.route BEFORE page.goto, so any external fetch during load is aborted+recorded -> a hidden CDN load would populate externalRequests and fail the assertion.",
+        "Document-model assertion (getText) defeats a DOM-only fake: text must reach the ProseMirror doc."
+      ],
+      "evidence_checked": [
+        "offline_editor_load.spec.ts full read (network abort + ledger + docText + worker-chunk-served assertions).",
+        "global_setup builds real harness (vite build, no dev server).",
+        "pnpm run check:dependency-policy ran end-to-end with REAL builds (tsc+vite app/dist + build:harness app/dist-harness); exit 0; 8/8 checks pass. worker-bundling proves the static side (0 external refs)."
+      ],
+      "parent_recorded_verdict": "PASS"
+    },
+    "ready_by": "KERNEL_BUILDER-20260611-071323",
+    "ready_for_validation_at_utc": "2026-06-11T11:51:38.914Z",
+    "evidence": [
+      "Implementation commit 55da0ff6 on feat/WP-KERNEL-009; adversarial code review verdict PASS (refutation attempts failed); runtime evidence: check:dependency-policy 8/8 exit 0 (real builds), cargo --lib dependency_policy:: 31/31, vitest 67/67 post-hardening."
+    ]
   },
   "handoff": {
     "coder_session": null,

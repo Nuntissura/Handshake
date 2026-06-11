@@ -22,7 +22,7 @@
   "title": "NativeDependencyAndPackaging-020-MonacoPackageIntegrationPlan",
   "group": "NativeDependencyAndPackaging",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T11:08:10.673Z",
+  "updated_at_utc": "2026-06-11T11:51:38.914Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-020.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -81,7 +81,7 @@
     ]
   },
   "lifecycle": {
-    "status": "CLAIMED",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-017"
@@ -90,7 +90,30 @@
     "claimed_by": "KERNEL_BUILDER-20260611-071323",
     "completed_by": null,
     "implementation_commit": "845f5680",
-    "implementation_evidence": "Implemented in wtc-kernel-009 feat/WP-KERNEL-009 commit 845f5680; proof commands green per delegate report (vitest/cargo/playwright; MT-032 aggregate check:dependency-policy 8/8 pass, app suite 313/313). Pending adversarial code review before READY_FOR_VALIDATION."
+    "implementation_evidence": "Implemented in wtc-kernel-009 feat/WP-KERNEL-009 commit 845f5680; proof commands green per delegate report (vitest/cargo/playwright; MT-032 aggregate check:dependency-policy 8/8 pass, app suite 313/313). Pending adversarial code review before READY_FOR_VALIDATION.",
+    "adversarial_code_review": {
+      "verdict": "PASS",
+      "reviewed_at_utc": "2026-06-11T11:21:06Z",
+      "reviewer": "ADVERSARIAL_CODE_REVIEWER-20260611",
+      "concerns": [
+        "monaco-editor bundled via Vite ?worker (new Worker(new URL(...,import.meta.url))) - same-origin, CSP-safe, no CDN loader. @monaco-editor/loader & /react forbidden by name in allowlist.",
+        "worker_map.ts label->kind mapping unit-tested; setup.ts worker construction + editor mount wrapped in typed failure reporting (MT-031).",
+        "Real-app note: Monaco is NOT mounted in any shipping product view yet (app/dist bundles_monaco:false); the proof surface is the harness only. Honest and consistent with MT-027 commentary."
+      ],
+      "evasion_probes": [
+        "proveTypescriptWorkerRoundTrip does a genuine getSyntacticDiagnostics round-trip (real worker boot), asserted in the offline Playwright spec."
+      ],
+      "evidence_checked": [
+        "pnpm run check:dependency-policy ran end-to-end with REAL builds (tsc+vite app/dist + build:harness app/dist-harness); exit 0; 8/8 checks pass. worker-bundling: dist-harness bundles_monaco:true, 5 worker chunks, 0 external refs.",
+        "vitest 56/56 green across app/src/lib/dependency_policy/*, DependencyFailureBanner.test.tsx, worker_map.test.ts, extension_set.test.ts."
+      ],
+      "parent_recorded_verdict": "PASS"
+    },
+    "ready_by": "KERNEL_BUILDER-20260611-071323",
+    "ready_for_validation_at_utc": "2026-06-11T11:51:38.914Z",
+    "evidence": [
+      "Implementation commit 845f5680 on feat/WP-KERNEL-009; adversarial code review verdict PASS (refutation attempts failed); runtime evidence: check:dependency-policy 8/8 exit 0 (real builds), cargo --lib dependency_policy:: 31/31, vitest 67/67 post-hardening."
+    ]
   },
   "handoff": {
     "coder_session": null,

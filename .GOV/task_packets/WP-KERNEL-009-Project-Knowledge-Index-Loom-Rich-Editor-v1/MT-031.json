@@ -22,7 +22,7 @@
   "title": "NativeDependencyAndPackaging-031-DependencyFailureMessaging",
   "group": "NativeDependencyAndPackaging",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T11:08:10.673Z",
+  "updated_at_utc": "2026-06-11T11:51:38.914Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-031.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -81,7 +81,7 @@
     ]
   },
   "lifecycle": {
-    "status": "CLAIMED",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-017"
@@ -90,7 +90,32 @@
     "claimed_by": "KERNEL_BUILDER-20260611-071323",
     "completed_by": null,
     "implementation_commit": "f69c5bbf",
-    "implementation_evidence": "Implemented in wtc-kernel-009 feat/WP-KERNEL-009 commit f69c5bbf; proof commands green per delegate report (vitest/cargo/playwright; MT-032 aggregate check:dependency-policy 8/8 pass, app suite 313/313). Pending adversarial code review before READY_FOR_VALIDATION."
+    "implementation_evidence": "Implemented in wtc-kernel-009 feat/WP-KERNEL-009 commit f69c5bbf; proof commands green per delegate report (vitest/cargo/playwright; MT-032 aggregate check:dependency-policy 8/8 pass, app suite 313/313). Pending adversarial code review before READY_FOR_VALIDATION.",
+    "adversarial_code_review": {
+      "verdict": "PASS",
+      "reviewed_at_utc": "2026-06-11T11:21:06Z",
+      "reviewer": "ADVERSARIAL_CODE_REVIEWER-20260611",
+      "concerns": [
+        "Real DependencyFailureBanner (data-testid=dependency-failure-banner, role=alert) wired at the REAL DocumentView mount site next to TiptapEditor (git show f69c5bbf confirms the JSX insertion) and the harness. TiptapEditor's buildGuardedDocumentExtensions returns null on failure and renders nothing while the SIBLING banner explains it -> no blank screen.",
+        "vitest uses mocks ONLY as failure injectors (operator rule): the setMonaco/Tiptap factory seams take the EXACT production reporting path (constructWorker/buildWp009ExtensionSet -> dependencyFailures.report). Banner shows dependency+component, degraded-mode + restart/reinstall guidance, dismiss + re-surface on new failure.",
+        "SCOPE NOTE (not a defect): Monaco is not mounted in any shipping product view, so a real-app Monaco worker failure cannot occur yet; the Monaco failure path is proven in the harness/vitest. The only real-app editor mount (DocumentView/TiptapEditor) is banner-covered. No uncovered blank-screen editor path found."
+      ],
+      "evasion_probes": [
+        "Traced: a Monaco worker construction throw -> constructWorker catch -> dependencyFailures.report -> banner subscription re-renders (proven in test). A Tiptap extension throw -> guarded factory -> report -> banner. A document-extension throw -> TiptapEditor returns null -> banner sibling visible (container has no .tiptap-editor but shows 'What you can do').",
+        "Banner catches failures reported before mount via useState(()=>registry.list())+effect catch-up."
+      ],
+      "evidence_checked": [
+        "git show f69c5bbf DocumentView.tsx + TiptapEditor.tsx diffs.",
+        "vitest 56/56 green across app/src/lib/dependency_policy/*, DependencyFailureBanner.test.tsx, worker_map.test.ts, extension_set.test.ts. DependencyFailureBanner.test.tsx 5 cases (incl render-nothing-no-failure, dismiss/re-surface).",
+        "grep: only one <TiptapEditor mount site, banner-adjacent."
+      ],
+      "parent_recorded_verdict": "PASS"
+    },
+    "ready_by": "KERNEL_BUILDER-20260611-071323",
+    "ready_for_validation_at_utc": "2026-06-11T11:51:38.914Z",
+    "evidence": [
+      "Implementation commit f69c5bbf on feat/WP-KERNEL-009; adversarial code review verdict PASS (refutation attempts failed); runtime evidence: check:dependency-policy 8/8 exit 0 (real builds), cargo --lib dependency_policy:: 31/31, vitest 67/67 post-hardening."
+    ]
   },
   "handoff": {
     "coder_session": null,

@@ -22,7 +22,7 @@
   "title": "NativeDependencyAndPackaging-032-DependencyPolicyValidatorHook",
   "group": "NativeDependencyAndPackaging",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T11:08:10.673Z",
+  "updated_at_utc": "2026-06-11T11:51:38.914Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-032.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -81,7 +81,7 @@
     ]
   },
   "lifecycle": {
-    "status": "CLAIMED",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-017"
@@ -90,7 +90,32 @@
     "claimed_by": "KERNEL_BUILDER-20260611-071323",
     "completed_by": null,
     "implementation_commit": "dc2a9105",
-    "implementation_evidence": "Implemented in wtc-kernel-009 feat/WP-KERNEL-009 commit dc2a9105; proof commands green per delegate report (vitest/cargo/playwright; MT-032 aggregate check:dependency-policy 8/8 pass, app suite 313/313). Pending adversarial code review before READY_FOR_VALIDATION."
+    "implementation_evidence": "Implemented in wtc-kernel-009 feat/WP-KERNEL-009 commit dc2a9105; proof commands green per delegate report (vitest/cargo/playwright; MT-032 aggregate check:dependency-policy 8/8 pass, app suite 313/313). Pending adversarial code review before READY_FOR_VALIDATION.",
+    "adversarial_code_review": {
+      "verdict": "PASS",
+      "reviewed_at_utc": "2026-06-11T11:21:06Z",
+      "reviewer": "ADVERSARIAL_CODE_REVIEWER-20260611",
+      "concerns": [
+        "Aggregate hook chains 8 checks against the MT-017 allowlist authority and the REAL builds; pass = checks.every(c=>c.pass), process.exitCode = pass?0:1 -> any single failing check yields non-zero exit. ONE machine-readable JSON summary on stdout, progress on stderr, quiet/headless (no foreground windows).",
+        "Cargo-side checks (parity, activation closure, grammar proofs) are referenced in the header and run separately as cargo test --lib dependency_policy:: - the hook does spawn cargo tree/metadata (graph-only, no compile) for checks 5 and 8.",
+        "Forced-failure behavior verified at the primitive level (sqlite dep, external worker, unmarked esm.sh, docker run all flag); each check's own negative fixtures in the vitest suites assert non-zero violations and pass."
+      ],
+      "evasion_probes": [
+        "PROBE #8 (controlled failure): drove the real scanner primitives with hostile inputs in-memory -> sqlite-dep flagged, external-worker flagged, unmarked-esm violation, docker pattern present (all true). The aggregate's every()/exitCode wiring propagates any failure to a non-zero exit.",
+        "Inherits the MT-018/024/025 source-scan exemption + SOURCE_EXTENSIONS limitations noted in those MTs (the hook is only as strong as the checks it chains)."
+      ],
+      "evidence_checked": [
+        "pnpm run check:dependency-policy ran end-to-end with REAL builds (tsc+vite app/dist + build:harness app/dist-harness); exit 0; 8/8 checks pass. full JSON summary exit 0, all 8 checks pass:true.",
+        "Static read of check-dependency-policy.mjs (every()/exitCode contract).",
+        "In-repo forced-failure probe (deleted, git clean)."
+      ],
+      "parent_recorded_verdict": "PASS"
+    },
+    "ready_by": "KERNEL_BUILDER-20260611-071323",
+    "ready_for_validation_at_utc": "2026-06-11T11:51:38.914Z",
+    "evidence": [
+      "Implementation commit dc2a9105 on feat/WP-KERNEL-009; adversarial code review verdict PASS (refutation attempts failed); runtime evidence: check:dependency-policy 8/8 exit 0 (real builds), cargo --lib dependency_policy:: 31/31, vitest 67/67 post-hardening."
+    ]
   },
   "handoff": {
     "coder_session": null,
