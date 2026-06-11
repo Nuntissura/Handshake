@@ -60,6 +60,7 @@ pub mod allowlist;
 pub mod governance;
 pub mod hashing;
 pub mod kinds;
+pub mod notes;
 pub mod paths;
 pub mod pdf;
 pub mod receipts;
