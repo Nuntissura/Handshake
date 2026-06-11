@@ -1,0 +1,703 @@
+{
+  "schema": "handshake.third_party_notices@1",
+  "wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
+  "mt_id": "MT-029",
+  "generated_by": "app/scripts/generate-third-party-notices.mjs",
+  "description": "License/notice receipts for the bundled third-party library families declared in the runtime dependency allowlist (npm families walked from app/pnpm-lock.yaml including transitives; tree-sitter crates from the cargo metadata feature-resolved graph). Regenerate with `pnpm run generate:third-party-notices`; `pnpm run check:third-party-notices` fails on drift.",
+  "notice_count": 77,
+  "notices": [
+    {
+      "name": "tree-sitter",
+      "version": "0.24.7",
+      "license": "MIT",
+      "license_evidence": "cargo metadata",
+      "registry": "https://crates.io",
+      "ecosystem": "cargo",
+      "family": "tree-sitter"
+    },
+    {
+      "name": "tree-sitter-javascript",
+      "version": "0.23.1",
+      "license": "MIT",
+      "license_evidence": "cargo metadata",
+      "registry": "https://crates.io",
+      "ecosystem": "cargo",
+      "family": "tree-sitter"
+    },
+    {
+      "name": "tree-sitter-language",
+      "version": "0.1.7",
+      "license": "MIT",
+      "license_evidence": "cargo metadata",
+      "registry": "https://crates.io",
+      "ecosystem": "cargo",
+      "family": "tree-sitter"
+    },
+    {
+      "name": "tree-sitter-rust",
+      "version": "0.23.3",
+      "license": "MIT",
+      "license_evidence": "cargo metadata",
+      "registry": "https://crates.io",
+      "ecosystem": "cargo",
+      "family": "tree-sitter"
+    },
+    {
+      "name": "tree-sitter-typescript",
+      "version": "0.23.2",
+      "license": "MIT",
+      "license_evidence": "cargo metadata",
+      "registry": "https://crates.io",
+      "ecosystem": "cargo",
+      "family": "tree-sitter"
+    },
+    {
+      "name": "@excalidraw/excalidraw",
+      "version": "0.18.0",
+      "license": "MIT",
+      "license_evidence": "package.json",
+      "registry": "https://registry.npmjs.org",
+      "ecosystem": "npm",
+      "family": "excalidraw"
+    },
+    {
+      "name": "@excalidraw/laser-pointer",
+      "version": "1.3.1",
+      "license": "MIT",
+      "license_evidence": "package.json",
+      "registry": "https://registry.npmjs.org",
+      "ecosystem": "npm",
+      "family": "excalidraw"
+    },
+    {
+      "name": "@excalidraw/markdown-to-text",
+      "version": "0.1.2",
+      "license": "MIT",
+      "license_evidence": "package.json",
+      "registry": "https://registry.npmjs.org",
+      "ecosystem": "npm",
+      "family": "excalidraw"
+    },
+    {
+      "name": "@excalidraw/mermaid-to-excalidraw",
+      "version": "1.1.2",
+      "license": "MIT",
+      "license_evidence": "LICENSE file header",
+      "registry": "https://registry.npmjs.org",
+      "ecosystem": "npm",
+      "family": "excalidraw"
+    },
+    {
+      "name": "@excalidraw/random-username",
+      "version": "1.1.0",
+      "license": "MIT",
+      "license_evidence": "package.json",
+      "registry": "https://registry.npmjs.org",
+      "ecosystem": "npm",
+      "family": "excalidraw"
+    },
+    {
+      "name": "@remirror/core-constants",
+      "version": "3.0.0",
+      "license": "MIT",
+      "license_evidence": "package.json",
+      "registry": "https://registry.npmjs.org",
+      "ecosystem": "npm",
+      "family": "prosemirror"
+    },
+    {
+      "name": "@tiptap/core",
+      "version": "3.13.0",
+      "license": "MIT",
+      "license_evidence": "package.json",
+      "registry": "https://registry.npmjs.org",
+      "ecosystem": "npm",
+      "family": "tiptap"
+    },
+    {
+      "name": "@tiptap/extension-blockquote",
+      "version": "3.13.0",
+      "license": "MIT",
+      "license_evidence": "package.json",
+      "registry": "https://registry.npmjs.org",
+      "ecosystem": "npm",
+      "family": "tiptap"
+    },
+    {
+      "name": "@tiptap/extension-bold",
+      "version": "3.13.0",
+      "license": "MIT",
+      "license_evidence": "package.json",
+      "registry": "https://registry.npmjs.org",
+      "ecosystem": "npm",
+      "family": "tiptap"
+    },
+    {
+      "name": "@tiptap/extension-bubble-menu",
+      "version": "3.13.0",
+      "license": "MIT",
+      "license_evidence": "package.json",
+      "registry": "https://registry.npmjs.org",
+      "ecosystem": "npm",
+      "family": "tiptap"
+    },
+    {
+      "name": "@tiptap/extension-bullet-list",
+      "version": "3.13.0",
+      "license": "MIT",
+      "license_evidence": "package.json",
+      "registry": "https://registry.npmjs.org",
+      "ecosystem": "npm",
+      "family": "tiptap"
+    },
+    {
+      "name": "@tiptap/extension-code",
+      "version": "3.13.0",
+      "license": "MIT",
+      "license_evidence": "package.json",
+      "registry": "https://registry.npmjs.org",
+      "ecosystem": "npm",
+      "family": "tiptap"
+    },
+    {
+      "name": "@tiptap/extension-code-block",
+      "version": "3.13.0",
+      "license": "MIT",
+      "license_evidence": "package.json",
+      "registry": "https://registry.npmjs.org",
+      "ecosystem": "npm",
+      "family": "tiptap"
+    },
+    {
+      "name": "@tiptap/extension-collaboration",
+      "version": "3.13.0",
+      "license": "MIT",
+      "license_evidence": "package.json",
+      "registry": "https://registry.npmjs.org",
+      "ecosystem": "npm",
+      "family": "tiptap"
+    },
+    {
+      "name": "@tiptap/extension-document",
+      "version": "3.13.0",
+      "license": "MIT",
+      "license_evidence": "package.json",
+      "registry": "https://registry.npmjs.org",
+      "ecosystem": "npm",
+      "family": "tiptap"
+    },
+    {
+      "name": "@tiptap/extension-dropcursor",
+      "version": "3.13.0",
+      "license": "MIT",
+      "license_evidence": "package.json",
+      "registry": "https://registry.npmjs.org",
+      "ecosystem": "npm",
+      "family": "tiptap"
+    },
+    {
+      "name": "@tiptap/extension-floating-menu",
+      "version": "3.13.0",
+      "license": "MIT",
+      "license_evidence": "package.json",
+      "registry": "https://registry.npmjs.org",
+      "ecosystem": "npm",
+      "family": "tiptap"
+    },
+    {
+      "name": "@tiptap/extension-gapcursor",
+      "version": "3.13.0",
+      "license": "MIT",
+      "license_evidence": "package.json",
+      "registry": "https://registry.npmjs.org",
+      "ecosystem": "npm",
+      "family": "tiptap"
+    },
+    {
+      "name": "@tiptap/extension-hard-break",
+      "version": "3.13.0",
+      "license": "MIT",
+      "license_evidence": "package.json",
+      "registry": "https://registry.npmjs.org",
+      "ecosystem": "npm",
+      "family": "tiptap"
+    },
+    {
+      "name": "@tiptap/extension-heading",
+      "version": "3.13.0",
+      "license": "MIT",
+      "license_evidence": "package.json",
+      "registry": "https://registry.npmjs.org",
+      "ecosystem": "npm",
+      "family": "tiptap"
+    },
+    {
+      "name": "@tiptap/extension-horizontal-rule",
+      "version": "3.13.0",
+      "license": "MIT",
+      "license_evidence": "package.json",
+      "registry": "https://registry.npmjs.org",
+      "ecosystem": "npm",
+      "family": "tiptap"
+    },
+    {
+      "name": "@tiptap/extension-italic",
+      "version": "3.13.0",
+      "license": "MIT",
+      "license_evidence": "package.json",
+      "registry": "https://registry.npmjs.org",
+      "ecosystem": "npm",
+      "family": "tiptap"
+    },
+    {
+      "name": "@tiptap/extension-link",
+      "version": "3.13.0",
+      "license": "MIT",
+      "license_evidence": "package.json",
+      "registry": "https://registry.npmjs.org",
+      "ecosystem": "npm",
+      "family": "tiptap"
+    },
+    {
+      "name": "@tiptap/extension-list",
+      "version": "3.13.0",
+      "license": "MIT",
+      "license_evidence": "package.json",
+      "registry": "https://registry.npmjs.org",
+      "ecosystem": "npm",
+      "family": "tiptap"
+    },
+    {
+      "name": "@tiptap/extension-list",
+      "version": "3.26.0",
+      "license": "MIT",
+      "license_evidence": "package.json",
+      "registry": "https://registry.npmjs.org",
+      "ecosystem": "npm",
+      "family": "tiptap"
+    },
+    {
+      "name": "@tiptap/extension-list-item",
+      "version": "3.13.0",
+      "license": "MIT",
+      "license_evidence": "package.json",
+      "registry": "https://registry.npmjs.org",
+      "ecosystem": "npm",
+      "family": "tiptap"
+    },
+    {
+      "name": "@tiptap/extension-list-keymap",
+      "version": "3.13.0",
+      "license": "MIT",
+      "license_evidence": "package.json",
+      "registry": "https://registry.npmjs.org",
+      "ecosystem": "npm",
+      "family": "tiptap"
+    },
+    {
+      "name": "@tiptap/extension-mention",
+      "version": "3.13.0",
+      "license": "MIT",
+      "license_evidence": "package.json",
+      "registry": "https://registry.npmjs.org",
+      "ecosystem": "npm",
+      "family": "tiptap"
+    },
+    {
+      "name": "@tiptap/extension-ordered-list",
+      "version": "3.13.0",
+      "license": "MIT",
+      "license_evidence": "package.json",
+      "registry": "https://registry.npmjs.org",
+      "ecosystem": "npm",
+      "family": "tiptap"
+    },
+    {
+      "name": "@tiptap/extension-paragraph",
+      "version": "3.13.0",
+      "license": "MIT",
+      "license_evidence": "package.json",
+      "registry": "https://registry.npmjs.org",
+      "ecosystem": "npm",
+      "family": "tiptap"
+    },
+    {
+      "name": "@tiptap/extension-strike",
+      "version": "3.13.0",
+      "license": "MIT",
+      "license_evidence": "package.json",
+      "registry": "https://registry.npmjs.org",
+      "ecosystem": "npm",
+      "family": "tiptap"
+    },
+    {
+      "name": "@tiptap/extension-table",
+      "version": "3.13.0",
+      "license": "MIT",
+      "license_evidence": "package.json",
+      "registry": "https://registry.npmjs.org",
+      "ecosystem": "npm",
+      "family": "tiptap"
+    },
+    {
+      "name": "@tiptap/extension-text",
+      "version": "3.13.0",
+      "license": "MIT",
+      "license_evidence": "package.json",
+      "registry": "https://registry.npmjs.org",
+      "ecosystem": "npm",
+      "family": "tiptap"
+    },
+    {
+      "name": "@tiptap/extension-underline",
+      "version": "3.13.0",
+      "license": "MIT",
+      "license_evidence": "package.json",
+      "registry": "https://registry.npmjs.org",
+      "ecosystem": "npm",
+      "family": "tiptap"
+    },
+    {
+      "name": "@tiptap/extensions",
+      "version": "3.13.0",
+      "license": "MIT",
+      "license_evidence": "package.json",
+      "registry": "https://registry.npmjs.org",
+      "ecosystem": "npm",
+      "family": "tiptap"
+    },
+    {
+      "name": "@tiptap/pm",
+      "version": "3.13.0",
+      "license": "MIT",
+      "license_evidence": "package.json",
+      "registry": "https://registry.npmjs.org",
+      "ecosystem": "npm",
+      "family": "tiptap"
+    },
+    {
+      "name": "@tiptap/react",
+      "version": "3.13.0",
+      "license": "MIT",
+      "license_evidence": "package.json",
+      "registry": "https://registry.npmjs.org",
+      "ecosystem": "npm",
+      "family": "tiptap"
+    },
+    {
+      "name": "@tiptap/starter-kit",
+      "version": "3.13.0",
+      "license": "MIT",
+      "license_evidence": "package.json",
+      "registry": "https://registry.npmjs.org",
+      "ecosystem": "npm",
+      "family": "tiptap"
+    },
+    {
+      "name": "@tiptap/suggestion",
+      "version": "3.13.0",
+      "license": "MIT",
+      "license_evidence": "package.json",
+      "registry": "https://registry.npmjs.org",
+      "ecosystem": "npm",
+      "family": "tiptap"
+    },
+    {
+      "name": "@tiptap/y-tiptap",
+      "version": "3.0.1",
+      "license": "MIT",
+      "license_evidence": "package.json",
+      "registry": "https://registry.npmjs.org",
+      "ecosystem": "npm",
+      "family": "tiptap"
+    },
+    {
+      "name": "@xterm/addon-fit",
+      "version": "0.11.0",
+      "license": "MIT",
+      "license_evidence": "package.json",
+      "registry": "https://registry.npmjs.org",
+      "ecosystem": "npm",
+      "family": "xterm"
+    },
+    {
+      "name": "@xterm/addon-search",
+      "version": "0.16.0",
+      "license": "MIT",
+      "license_evidence": "package.json",
+      "registry": "https://registry.npmjs.org",
+      "ecosystem": "npm",
+      "family": "xterm"
+    },
+    {
+      "name": "@xterm/addon-web-links",
+      "version": "0.12.0",
+      "license": "MIT",
+      "license_evidence": "package.json",
+      "registry": "https://registry.npmjs.org",
+      "ecosystem": "npm",
+      "family": "xterm"
+    },
+    {
+      "name": "@xterm/xterm",
+      "version": "6.0.0",
+      "license": "MIT",
+      "license_evidence": "package.json",
+      "registry": "https://registry.npmjs.org",
+      "ecosystem": "npm",
+      "family": "xterm"
+    },
+    {
+      "name": "crelt",
+      "version": "1.0.6",
+      "license": "MIT",
+      "license_evidence": "package.json",
+      "registry": "https://registry.npmjs.org",
+      "ecosystem": "npm",
+      "family": "prosemirror"
+    },
+    {
+      "name": "isomorphic.js",
+      "version": "0.2.5",
+      "license": "MIT",
+      "license_evidence": "package.json",
+      "registry": "https://registry.npmjs.org",
+      "ecosystem": "npm",
+      "family": "yjs"
+    },
+    {
+      "name": "lib0",
+      "version": "0.2.114",
+      "license": "MIT",
+      "license_evidence": "package.json",
+      "registry": "https://registry.npmjs.org",
+      "ecosystem": "npm",
+      "family": "yjs"
+    },
+    {
+      "name": "linkifyjs",
+      "version": "4.3.2",
+      "license": "MIT",
+      "license_evidence": "package.json",
+      "registry": "https://registry.npmjs.org",
+      "ecosystem": "npm",
+      "family": "prosemirror"
+    },
+    {
+      "name": "monaco-editor",
+      "version": "0.55.1",
+      "license": "MIT",
+      "license_evidence": "package.json",
+      "registry": "https://registry.npmjs.org",
+      "ecosystem": "npm",
+      "family": "monaco"
+    },
+    {
+      "name": "orderedmap",
+      "version": "2.1.1",
+      "license": "MIT",
+      "license_evidence": "package.json",
+      "registry": "https://registry.npmjs.org",
+      "ecosystem": "npm",
+      "family": "prosemirror"
+    },
+    {
+      "name": "prosemirror-changeset",
+      "version": "2.3.1",
+      "license": "MIT",
+      "license_evidence": "package.json",
+      "registry": "https://registry.npmjs.org",
+      "ecosystem": "npm",
+      "family": "prosemirror"
+    },
+    {
+      "name": "prosemirror-collab",
+      "version": "1.3.1",
+      "license": "MIT",
+      "license_evidence": "package.json",
+      "registry": "https://registry.npmjs.org",
+      "ecosystem": "npm",
+      "family": "prosemirror"
+    },
+    {
+      "name": "prosemirror-commands",
+      "version": "1.7.1",
+      "license": "MIT",
+      "license_evidence": "package.json",
+      "registry": "https://registry.npmjs.org",
+      "ecosystem": "npm",
+      "family": "prosemirror"
+    },
+    {
+      "name": "prosemirror-dropcursor",
+      "version": "1.8.2",
+      "license": "MIT",
+      "license_evidence": "package.json",
+      "registry": "https://registry.npmjs.org",
+      "ecosystem": "npm",
+      "family": "prosemirror"
+    },
+    {
+      "name": "prosemirror-gapcursor",
+      "version": "1.4.0",
+      "license": "MIT",
+      "license_evidence": "package.json",
+      "registry": "https://registry.npmjs.org",
+      "ecosystem": "npm",
+      "family": "prosemirror"
+    },
+    {
+      "name": "prosemirror-history",
+      "version": "1.5.0",
+      "license": "MIT",
+      "license_evidence": "package.json",
+      "registry": "https://registry.npmjs.org",
+      "ecosystem": "npm",
+      "family": "prosemirror"
+    },
+    {
+      "name": "prosemirror-inputrules",
+      "version": "1.5.1",
+      "license": "MIT",
+      "license_evidence": "package.json",
+      "registry": "https://registry.npmjs.org",
+      "ecosystem": "npm",
+      "family": "prosemirror"
+    },
+    {
+      "name": "prosemirror-keymap",
+      "version": "1.2.3",
+      "license": "MIT",
+      "license_evidence": "package.json",
+      "registry": "https://registry.npmjs.org",
+      "ecosystem": "npm",
+      "family": "prosemirror"
+    },
+    {
+      "name": "prosemirror-markdown",
+      "version": "1.13.2",
+      "license": "MIT",
+      "license_evidence": "package.json",
+      "registry": "https://registry.npmjs.org",
+      "ecosystem": "npm",
+      "family": "prosemirror"
+    },
+    {
+      "name": "prosemirror-menu",
+      "version": "1.2.5",
+      "license": "MIT",
+      "license_evidence": "package.json",
+      "registry": "https://registry.npmjs.org",
+      "ecosystem": "npm",
+      "family": "prosemirror"
+    },
+    {
+      "name": "prosemirror-model",
+      "version": "1.25.4",
+      "license": "MIT",
+      "license_evidence": "package.json",
+      "registry": "https://registry.npmjs.org",
+      "ecosystem": "npm",
+      "family": "prosemirror"
+    },
+    {
+      "name": "prosemirror-schema-basic",
+      "version": "1.2.4",
+      "license": "MIT",
+      "license_evidence": "package.json",
+      "registry": "https://registry.npmjs.org",
+      "ecosystem": "npm",
+      "family": "prosemirror"
+    },
+    {
+      "name": "prosemirror-schema-list",
+      "version": "1.5.1",
+      "license": "MIT",
+      "license_evidence": "package.json",
+      "registry": "https://registry.npmjs.org",
+      "ecosystem": "npm",
+      "family": "prosemirror"
+    },
+    {
+      "name": "prosemirror-state",
+      "version": "1.4.4",
+      "license": "MIT",
+      "license_evidence": "package.json",
+      "registry": "https://registry.npmjs.org",
+      "ecosystem": "npm",
+      "family": "prosemirror"
+    },
+    {
+      "name": "prosemirror-tables",
+      "version": "1.8.3",
+      "license": "MIT",
+      "license_evidence": "package.json",
+      "registry": "https://registry.npmjs.org",
+      "ecosystem": "npm",
+      "family": "prosemirror"
+    },
+    {
+      "name": "prosemirror-trailing-node",
+      "version": "3.0.0",
+      "license": "MIT",
+      "license_evidence": "package.json",
+      "registry": "https://registry.npmjs.org",
+      "ecosystem": "npm",
+      "family": "prosemirror"
+    },
+    {
+      "name": "prosemirror-transform",
+      "version": "1.10.5",
+      "license": "MIT",
+      "license_evidence": "package.json",
+      "registry": "https://registry.npmjs.org",
+      "ecosystem": "npm",
+      "family": "prosemirror"
+    },
+    {
+      "name": "prosemirror-view",
+      "version": "1.41.4",
+      "license": "MIT",
+      "license_evidence": "package.json",
+      "registry": "https://registry.npmjs.org",
+      "ecosystem": "npm",
+      "family": "prosemirror"
+    },
+    {
+      "name": "rope-sequence",
+      "version": "1.3.4",
+      "license": "MIT",
+      "license_evidence": "package.json",
+      "registry": "https://registry.npmjs.org",
+      "ecosystem": "npm",
+      "family": "prosemirror"
+    },
+    {
+      "name": "w3c-keyname",
+      "version": "2.2.8",
+      "license": "MIT",
+      "license_evidence": "package.json",
+      "registry": "https://registry.npmjs.org",
+      "ecosystem": "npm",
+      "family": "prosemirror"
+    },
+    {
+      "name": "y-protocols",
+      "version": "1.0.6",
+      "license": "MIT",
+      "license_evidence": "package.json",
+      "registry": "https://registry.npmjs.org",
+      "ecosystem": "npm",
+      "family": "yjs"
+    },
+    {
+      "name": "yjs",
+      "version": "13.6.27",
+      "license": "MIT",
+      "license_evidence": "package.json",
+      "registry": "https://registry.npmjs.org",
+      "ecosystem": "npm",
+      "family": "yjs"
+    }
+  ]
+}
