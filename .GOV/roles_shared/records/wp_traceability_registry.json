@@ -4,7 +4,7 @@
   "authority_surface": "MACHINE_CONTRACT",
   "rendered_md_projection_path": ".GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md",
   "rendered_md_projection_policy": "GENERATED_FROM_JSON_DO_NOT_HAND_EDIT",
-  "updated_at_utc": "2026-06-11T03:13:56.005Z",
+  "updated_at_utc": "2026-06-11T05:27:29.084Z",
   "entries": [
     {
       "base_wp_id": "WP-1-ACE-Auditability",
@@ -963,8 +963,8 @@
     {
       "base_wp_id": "WP-KERNEL-005",
       "active_packet_path": ".GOV/task_packets/WP-KERNEL-005/packet.md",
-      "task_board_projection": "TBD",
-      "notes": ""
+      "task_board_projection": "Done: WP-KERNEL-005 [VALIDATED]",
+      "notes": "Integration Validation v3 PASS_V3 (205/207 MTs PASS_V3, 2 OUT_OF_SCOPE_BY_OPERATOR) at head 17b2abd4; merged to main 41b610df 2026-06-11; verdict record gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-005/MT_VERDICTS_INTEGRATION_VALIDATOR_V3.json"
     }
   ],
   "superseded_activation_history": [

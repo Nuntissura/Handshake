@@ -72,7 +72,6 @@ Entry format (recommended):
 ## Ready for Dev
 
 A WP is only Ready for Dev if its Active Packet (per `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md`) is an official packet under `.GOV/task_packets/` (not a stub).
-- **[WP-KERNEL-005]** - [READY_FOR_DEV]
 
 
 
@@ -1196,6 +1195,7 @@ Assignee/model is recorded in the work packet (CODER_MODEL, CODER_REASONING_STRE
 - **[WP-1-Postgres-Primary-Control-Plane-Foundation-v1]** - [VALIDATED]
 - **[WP-KERNEL-001-Event-Ledger-Session-Broker-v1]** - [VALIDATED]
 - **[WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1]** - [VALIDATED]
+- **[WP-KERNEL-005]** - [VALIDATED]
 
 
 ## Blocked
