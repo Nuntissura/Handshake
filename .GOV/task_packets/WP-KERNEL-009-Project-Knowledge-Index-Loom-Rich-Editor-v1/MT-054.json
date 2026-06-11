@@ -22,7 +22,7 @@
   "title": "PostgresEventLedgerCore-054-KnowledgeEdgeTables",
   "group": "PostgresEventLedgerCore",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T15:22:01.969Z",
+  "updated_at_utc": "2026-06-11T17:29:19.644Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-054.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -79,7 +79,7 @@
     ]
   },
   "lifecycle": {
-    "status": "CLAIMED",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-049"
@@ -110,10 +110,16 @@
         "migrations/0135_knowledge_entities.sql:45-46 (entity_key CHECK = btrim/non-empty only, no separator exclusion)"
       ]
     },
-    "hardening_pending": {
-      "at_utc": "2026-06-11T15:22:01.969Z",
-      "reason": "relationship_id separator-injection collision: length-prefix components OR forbid |/: in entity_key; add regression test with |/: keys."
-    }
+    "ready_by": "KERNEL_BUILDER-20260611-071323",
+    "ready_for_validation_at_utc": "2026-06-11T17:29:19.644Z",
+    "hardening_closed": {
+      "at_utc": "2026-06-11T17:29:19.644Z",
+      "commit": "1f87bf33",
+      "note": "Adversarial finding fixed + real-PG negative test green under runtime-full,test-utils."
+    },
+    "evidence": [
+      "Hardened 1f87bf33: relationship_id v2 length-prefix derivation; separator-injection collision test green on real PG"
+    ]
   },
   "handoff": {
     "coder_session": null,

@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
   "base_wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T16:55:57.726Z",
+  "updated_at_utc": "2026-06-11T17:29:19.644Z",
   "authority_files": {
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json",
     "refinement_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/refinement.json",
@@ -91,6 +91,15 @@
           "pip install psycopg2-binary (machine-local) for read-only pg_locks/pg_stat_activity stall diagnosis."
         ],
         "scope": "Machine-local test infrastructure only; no product code or governance touched."
+      },
+      {
+        "id": "WAIVER-002",
+        "from": "storage-hardening delegate",
+        "at_utc": "2026-06-11T17:29:19.644Z",
+        "items": [
+          "Path-scoped git stash push/pop on the dead ingestion agent broken uncommitted knowledge_ingestion files to run own tests, then restored byte-exact (verified hashes). [CX-108] git-stash-without-same-turn-consent technical deviation, mitigated by verified restore; non-destructive."
+        ],
+        "scope": "Test-run unblock only; no committed product change to ingestion lane."
       }
     ],
     "recovery_snapshot": {

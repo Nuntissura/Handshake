@@ -22,7 +22,7 @@
   "title": "PostgresEventLedgerCore-056-KnowledgeClaimTables",
   "group": "PostgresEventLedgerCore",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T15:22:01.969Z",
+  "updated_at_utc": "2026-06-11T17:29:19.644Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-056.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -79,7 +79,7 @@
     ]
   },
   "lifecycle": {
-    "status": "CLAIMED",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-049"
@@ -110,10 +110,16 @@
         "transition guard documented app-only at 0137:17-22 and 0133:10-12"
       ]
     },
-    "hardening_pending": {
-      "at_utc": "2026-06-11T15:22:01.969Z",
-      "reason": "retired->accepted resurrection via raw SQL: add BEFORE UPDATE transition-guard trigger + raw-SQL negative test."
-    }
+    "ready_by": "KERNEL_BUILDER-20260611-071323",
+    "ready_for_validation_at_utc": "2026-06-11T17:29:19.644Z",
+    "hardening_closed": {
+      "at_utc": "2026-06-11T17:29:19.644Z",
+      "commit": "9091a1f9",
+      "note": "Adversarial finding fixed + real-PG negative test green under runtime-full,test-utils."
+    },
+    "evidence": [
+      "Hardened 9091a1f9: BEFORE UPDATE transition-guard trigger (migration 0200); raw-SQL retired->accepted refusal test green"
+    ]
   },
   "handoff": {
     "coder_session": null,

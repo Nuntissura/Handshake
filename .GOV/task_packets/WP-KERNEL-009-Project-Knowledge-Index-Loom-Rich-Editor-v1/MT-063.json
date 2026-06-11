@@ -22,7 +22,7 @@
   "title": "PostgresEventLedgerCore-063-RollbackAndRepairMigrations",
   "group": "PostgresEventLedgerCore",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T15:22:01.969Z",
+  "updated_at_utc": "2026-06-11T17:29:19.644Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-063.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -79,7 +79,7 @@
     ]
   },
   "lifecycle": {
-    "status": "CLAIMED",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-049"
@@ -108,10 +108,16 @@
         "migrations 0130-0142 .down.sql files (verified DROP coverage: 4/4 functions, all tables, registry cleanup, FK-safe order)"
       ]
     },
-    "hardening_pending": {
-      "at_utc": "2026-06-11T15:22:01.969Z",
-      "reason": "rollback completeness: add information_schema.routines zero-leftover assertion after rollback."
-    }
+    "ready_by": "KERNEL_BUILDER-20260611-071323",
+    "ready_for_validation_at_utc": "2026-06-11T17:29:19.644Z",
+    "hardening_closed": {
+      "at_utc": "2026-06-11T17:29:19.644Z",
+      "commit": "e18067f3",
+      "note": "Adversarial finding fixed + real-PG negative test green under runtime-full,test-utils."
+    },
+    "evidence": [
+      "Hardened e18067f3: rollback test asserts zero leftover routines after scratch apply/rollback/re-apply"
+    ]
   },
   "handoff": {
     "coder_session": null,
