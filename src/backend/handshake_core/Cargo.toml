@@ -524,6 +524,11 @@ name = "knowledge_migration_tests"
 path = "tests/knowledge_migration_tests.rs"
 required-features = ["test-utils"]
 
+[[test]]
+name = "knowledge_fail_closed_tests"
+path = "tests/knowledge_fail_closed_tests.rs"
+required-features = ["test-utils"]
+
 # WP-KERNEL-009 SourceIngestionAndEvidence (MT-081..MT-096): real-PostgreSQL
 # integration proof for allowlisted, hash-based, secret-aware ingestion.
 [[test]]
