@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
   "base_wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T12:31:09.506Z",
+  "updated_at_utc": "2026-06-11T15:06:27.131Z",
   "authority_files": {
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json",
     "refinement_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/refinement.json",
@@ -71,7 +71,52 @@
         "disposition": "DEFERRED to pre-validation cleanup pass (not blocking forward work). KERNEL_BUILDER to fix as dependency-unblock before external whole-WP validation.",
         "status": "OPEN"
       }
-    ]
+    ],
+    "waiver_items": [
+      {
+        "id": "WAIVER-001",
+        "from": "CRDTAndConcurrencyCore delegate",
+        "at_utc": "2026-06-11T12:38:34.533Z",
+        "items": [
+          "Created local PostgreSQL test DB handshake_wp009_crdt_test (+pgcrypto) on 5432 to break a cross-agent sqlx advisory-lock serialization stall; drop with DROP DATABASE if unwanted.",
+          "pip install psycopg2-binary (machine-local) for read-only pg_locks/pg_stat_activity stall diagnosis."
+        ],
+        "scope": "Machine-local test infrastructure only; no product code or governance touched."
+      }
+    ],
+    "recovery_snapshot": {
+      "at_utc": "2026-06-11T15:06:27.130Z",
+      "head_commit": "bffa7b64",
+      "committed_groups": {
+        "packaging_MT_017_032": "READY_FOR_VALIDATION (full adversarial loop closed)",
+        "postgres_MT_049_064": "CLAIMED (47 tests green; adversarial review LOST to session limit - must re-run)",
+        "ingestion_MT_081_096": "CLAIMED (80 tests green; adversarial review LOST to session limit - must re-run)",
+        "crdt_MT_065_080": "CLAIMED (41 tests green; adversarial review LOST to session limit - must re-run)",
+        "records_MT_001_016_033_048": "READY_FOR_VALIDATION (evidence + remediations + adversarial pass done)"
+      },
+      "committed_mt_feat_commits": 64,
+      "uncommitted_wip": {
+        "code_indexing_MT_097_112": "UNCOMMITTED in worktree: migrations 0170/0171, src/knowledge_code_index/ dir, +447 lines in storage/knowledge.rs, lib.rs mod decl. Agent died mid-stream after 64 tool calls, no commit. Resume agent must inventory + finish + commit.",
+        "cross_lane_compile_fixes": "small uncommitted edits in api/{atelier,loom,workspaces}.rs, kernel/{visual_debugging_loop,visual_diff_baseline,product_screenshot_capture}.rs - likely dead-agent unblock edits; resume to reconcile."
+      },
+      "not_started": {
+        "rich_document_MT_145_160": "died at launch (2 tool calls)",
+        "memory_graph_MT_113_128": "gated on MT-097",
+        "retrieval_MT_129_144": "gated on MT-113/097",
+        "tiptap_monaco_MT_161_176": "gated on MT-145",
+        "loom_MT_177_192": "gated on MT-145/113/129",
+        "usermanual_MT_193_208": "gated on MT-129/177",
+        "swarm_MT_209_224": "gated on MT-193",
+        "security_MT_225_240": "gated on all group openers"
+      },
+      "lost_to_session_limit": [
+        "ingestion adversarial review (0 annotations written)",
+        "storage adversarial review (0 annotations written)",
+        "crdt adversarial review (died at launch)"
+      ],
+      "open_blockers": "BLK-002 (7 pre-existing WP-004/005 clippy findings, clippy-gate only) still OPEN/deferred",
+      "session_reset": "subscription limit reset 17:00 Europe/Brussels; relaunch in progress"
+    }
   },
   "scope": {
     "summary": "Build the Handshake Project Knowledge Index, native memory/claims system, retrieval+context bundles, Tiptap/ProseMirror rich document editor with embedded Monaco code editing, Loom/Obsidian-replacement navigation (backlinks, graphs, tags, folders, pins, wiki projections), UserManual migration, parallel-swarm backend navigation/state recovery, and security/portability validation fixtures as one integrated PostgreSQL/EventLedger-backed product foundation that replaces VS Code and Obsidian for operator knowledge/editing workflows.",
