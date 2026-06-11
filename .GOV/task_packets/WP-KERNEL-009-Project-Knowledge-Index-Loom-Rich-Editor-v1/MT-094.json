@@ -22,7 +22,7 @@
   "title": "SourceIngestionAndEvidence-094-SourceRepairQueue",
   "group": "SourceIngestionAndEvidence",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T12:17:05.036Z",
+  "updated_at_utc": "2026-06-11T15:32:04.773Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-094.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -89,7 +89,39 @@
     "claimed_by": "KERNEL_BUILDER-20260611-071323",
     "completed_by": null,
     "implementation_commit": "e3e154b4",
-    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 e3e154b4; real-PG tests green (group total 80 passed/0 failed; lopdf 0.41 MIT only dep added). Pending adversarial code review before READY_FOR_VALIDATION."
+    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 e3e154b4; real-PG tests green (group total 80 passed/0 failed; lopdf 0.41 MIT only dep added). Pending adversarial code review before READY_FOR_VALIDATION.",
+    "adversarial_code_review": {
+      "verdict": "PASS_WITH_NOTES",
+      "reviewed_at_utc": "2026-06-11T15:42:00Z",
+      "reviewer": "ADVERSARIAL_CODE_REVIEWER-20260611-PM",
+      "concerns": [
+        "BUDGET BOUNDED, NO INFINITE LOOP: begin_repair_attempt only claims when attempts < max_attempts (default 3); on exhaustion it dead-letters and returns a typed Conflict (no 4th attempt). Terminal states (resolved, dead_letter) refuse further transitions (is_terminal guard + optimistic WHERE state='retrying'/state IN open). Verified by lifecycle mt094 (3 attempts -> dead_letter -> 'terminal' conflict) and resolve path. TERMINAL STAYS TERMINAL: CONFIRMED.",
+        "DEAD-LETTER ROW-GROWTH (the across-pass gap, not refuted by tests): the partial unique index uq_*_repair_open_source covers only state IN (queued, retrying), so it guarantees at most ONE OPEN entry per source — but a DEAD-LETTERED entry is NOT covered. enqueue_repair's UPDATE matches only open states, so once an entry dead-letters, the NEXT ingestion pass over the same still-failing file INSERTs a FRESH queued entry (attempts=0). Across N passes of a permanently-failing-and-dead-lettered file you accumulate N repair rows (1 dead_letter + new queued each cycle). The test mt094_refailing_source...multiplying_rows proves the OPEN-entry dedup (3 passes -> 1 open) but does NOT exercise pass-after-dead-letter, so the growth is real though bounded per pass. HARDENING: on enqueue, if a dead_letter entry exists for the source with the same reason_class, refresh/reopen it under operator control rather than inserting a new row, or require explicit operator reopen.",
+        "MISSING-ASSET handling: a vanished file during retry settles FailedAgain/MISSING_ASSET and requeues (attempts counted) rather than panicking — verified mt094 dlq test. Partial retry RESOLVES (residual loss documented) to avoid looping forever on identical content — sensible.",
+        "is_repairable() correctly EXCLUDES SecretBlocked and UnsupportedFormat, so a blocked secret file and an unsupported binary never enter the retry queue (verified fixture mt096: secret + blob NOT queued)."
+      ],
+      "evasion_probes": [
+        "attempts exhaust -> dead_letter -> typed 'terminal' conflict, never a 4th attempt CONFIRMED.",
+        "resolved/dead_letter entries refuse retry (terminal) CONFIRMED.",
+        "3 passes over a perma-failing file -> exactly 1 OPEN entry (UPDATE-in-place) CONFIRMED.",
+        "missing asset on retry -> requeue + MISSING_ASSET reason, no panic CONFIRMED.",
+        "resolved entry must name resolved_receipt_id (DB chk_*_resolved_shape) CONFIRMED.",
+        "PASS-AFTER-DEAD-LETTER -> new queued row inserted (row growth) — NOT covered by any test; flagged above.",
+        "reason vocabulary superset (extraction classes + MISSING_ASSET/DENIED_PATH/STALE_HASH) round-trips CONFIRMED."
+      ],
+      "evidence_checked": [
+        "src/backend/handshake_core/src/knowledge_ingestion/repair.rs (full)",
+        "store.rs:415-634 enqueue_repair (UPDATE-open-first then INSERT), begin_repair_attempt (budget guard + dead-letter), settle_repair_attempt, dead_letter_repair",
+        "engine.rs:731-838 retry_repair (missing-asset, partial-resolves, terminal)",
+        "migrations/0164_knowledge_ingestion_repair_queue.sql (partial unique index on open states only; max_attempts>=1; resolved-shape CHECK)",
+        "tests/knowledge_ingestion_lifecycle_tests.rs mt094 resolve/dead-letter/dedupe + fixture mt096 queue population"
+      ]
+    },
+    "hardening_pending": {
+      "at_utc": "2026-06-11T15:32:04.773Z",
+      "severity": "MEDIUM",
+      "reason": "Dead-letter row growth across passes (partial unique index covers only open states). Reopen existing dead-letter row instead of inserting."
+    }
   },
   "handoff": {
     "coder_session": null,

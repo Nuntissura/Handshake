@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
   "base_wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T15:27:06.182Z",
+  "updated_at_utc": "2026-06-11T15:32:04.773Z",
   "authority_files": {
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json",
     "refinement_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/refinement.json",
@@ -138,6 +138,33 @@
         "MT-077",
         "MT-079",
         "MT-080"
+      ]
+    },
+    "ingestion_hardening": {
+      "at_utc": "2026-06-11T15:32:04.773Z",
+      "severity": "HIGH",
+      "source": "ADVERSARIAL_CODE_REVIEWER-20260611-PM",
+      "items": [
+        "#1 MT-091 redact at whole-file granularity before windowing (carry whole-file MEDIUM findings into per-span redaction) so boundary-split secrets are caught.",
+        "#2 MT-091 add patterns: github_pat_, xapp-, headerless base64 key blobs, non-PEM-label key blocks; scan relative_path too.",
+        "#3 MT-091 DB guard: trigger/CHECK on redaction_state consistency OR store only hashed content for redacted spans (schema-enforced no-raw-bytes).",
+        "#4 MT-091/096 fixture: >120-line file with MEDIUM secret straddling window boundary; assert absent from all span content.",
+        "#5 MT-086/087 wrap lopdf entry points in std::panic::catch_unwind -> typed receipt; one poison PDF degrades to one failed file.",
+        "#6 MT-086 treat Tr3 invisible text as non-text and/or require per-page min extracted_chars.",
+        "#7 MT-094 reopen/refresh existing dead-letter entry instead of inserting a new row.",
+        "#8 MT-085 receipt_event_id + repair.enqueue_event_id NOT NULL.",
+        "#9 MT-082 unit test: every span_extraction text-decodable kind has secret_scan=true.",
+        "#10 MT-081 extend DEFAULT_DENY_PATTERNS with .env*/*.pem/id_rsa*/.aws/.npmrc."
+      ],
+      "affected_mts": [
+        "MT-081",
+        "MT-082",
+        "MT-085",
+        "MT-086",
+        "MT-087",
+        "MT-091",
+        "MT-094",
+        "MT-096"
       ]
     }
   },

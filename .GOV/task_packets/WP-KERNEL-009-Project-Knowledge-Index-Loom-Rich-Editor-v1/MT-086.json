@@ -22,7 +22,7 @@
   "title": "SourceIngestionAndEvidence-086-PdfTextLayerDetector",
   "group": "SourceIngestionAndEvidence",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T12:17:05.036Z",
+  "updated_at_utc": "2026-06-11T15:32:04.773Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-086.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -111,6 +111,11 @@
         "engine.rs:1139-1201 PDF extraction branch + secret preflight over extracted text",
         "tests/knowledge_ingestion_pipeline_tests.rs mt086/mt087 + fixture mt096 scanned.pdf"
       ]
+    },
+    "hardening_pending": {
+      "at_utc": "2026-06-11T15:32:04.773Z",
+      "severity": "MEDIUM",
+      "reason": "No catch_unwind around lopdf (one poison PDF aborts whole pass) + invisible/tiny-text false text-bearing. Wrap lopdf in catch_unwind; treat Tr3/min-char as non-text."
     }
   },
   "handoff": {

@@ -22,7 +22,7 @@
   "title": "SourceIngestionAndEvidence-087-PdfTranscriptImportPath",
   "group": "SourceIngestionAndEvidence",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T12:17:05.036Z",
+  "updated_at_utc": "2026-06-11T15:32:04.773Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-087.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -112,6 +112,11 @@
         "src/backend/handshake_core/migrations/0163_knowledge_ingestion_spans.sql (pdf_page anchor)",
         "tests/knowledge_ingestion_pipeline_tests.rs mt086/mt087"
       ]
+    },
+    "hardening_pending": {
+      "at_utc": "2026-06-11T15:32:04.773Z",
+      "severity": "MEDIUM",
+      "reason": "Inherits MT-086 lopdf panic gap; harden together."
     }
   },
   "handoff": {

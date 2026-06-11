@@ -22,7 +22,7 @@
   "title": "SourceIngestionAndEvidence-095-SourceIngestionApi",
   "group": "SourceIngestionAndEvidence",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T12:17:05.036Z",
+  "updated_at_utc": "2026-06-11T15:32:04.773Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-095.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -80,7 +80,7 @@
     ]
   },
   "lifecycle": {
-    "status": "CLAIMED",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-081"
@@ -89,7 +89,38 @@
     "claimed_by": "KERNEL_BUILDER-20260611-071323",
     "completed_by": null,
     "implementation_commit": "f720f43c",
-    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 f720f43c; real-PG tests green (group total 80 passed/0 failed; lopdf 0.41 MIT only dep added). Pending adversarial code review before READY_FOR_VALIDATION."
+    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 f720f43c; real-PG tests green (group total 80 passed/0 failed; lopdf 0.41 MIT only dep added). Pending adversarial code review before READY_FOR_VALIDATION.",
+    "adversarial_code_review": {
+      "verdict": "PASS_WITH_NOTES",
+      "reviewed_at_utc": "2026-06-11T15:45:00Z",
+      "reviewer": "ADVERSARIAL_CODE_REVIEWER-20260611-PM",
+      "concerns": [
+        "BACKEND-NAV RECEIPT LAW (spec 2.3.13.11): every MUTATING route (register_root, trigger_run, retry_repair) REQUIRES x-hsk-actor-id + x-hsk-kernel-task-run-id + x-hsk-session-run-id via mutation_context() -> typed 400 bad_request if any is missing (NOT a panic, NOT a silent default). These three ids propagate verbatim into IngestionContext and thence into every append_receipt_event payload (actor_id/session_run_id/correlation_id on the ledger row) — verified by pipeline mt085 ledger-row assert. READ routes (list_*) correctly do NOT require them.",
+        "MINOR LAW DEVIATION: the actor KIND header (x-hsk-actor-kind) defaults to 'system' when ABSENT (an UNKNOWN value is a typed 400, but a MISSING one silently defaults). actor-id is still required, so identity is never fully anonymous; but the spec 'carry actor identity verbatim' is slightly relaxed for the kind dimension. Low risk; recommend either requiring actor-kind or documenting the default as intentional.",
+        "fs_anchor (machine-local checkout root) is operator-supplied REQUEST input on trigger_run/retry_repair and is only validated as non-empty + (in the engine) is_dir(). A caller with API access could point fs_anchor at an arbitrary host directory; combined with a registered root whose repo_relative_path is empty, the walk would traverse that directory. Bounded by: (a) the root must be registered + eligible (MT-081 allowlist gate), (b) the per-root file allowlist + ALWAYS_SKIPPED_DIRS still apply, (c) fs_anchor is never stored. Acceptable given the registration gate, but note the API trusts the caller for fs_anchor.",
+        "Typed error mapping is correct: PolicyDenied->403 with durable decision_id, Validation->400, NotFound->404, Conflict->409, Io->400 typed, unexpected->500 with tracing::error (no secret/content in the 500 body). List endpoints clamp limit to [1, LIST_CAP=500] — bounded reads."
+      ],
+      "evasion_probes": [
+        "missing x-hsk-actor-id / kernel-task-run-id / session-run-id on a mutation -> typed 400, never panic/silent CONFIRMED (mutation_context).",
+        "unknown x-hsk-actor-kind -> typed 400 CONFIRMED; missing -> defaults 'system' (noted).",
+        "policy-denied root registration -> 403 with verdict + decision_id (replayable) CONFIRMED.",
+        "blank fs_anchor -> 400 'fs_anchor is required' CONFIRMED.",
+        "limit out of range -> clamped, not rejected/overflowed CONFIRMED.",
+        "engine_for wraps the SHARED pool (Arc clone), does NOT reconnect/open SQLite CONFIRMED.",
+        "no-context agent can list roots/sources/receipts/repairs and trigger run/retry purely over HTTP (MT-095 scope) CONFIRMED."
+      ],
+      "evidence_checked": [
+        "src/backend/handshake_core/src/api/knowledge_ingestion.rs (full)",
+        "engine.rs:113-139 append_receipt_event (actor/session/correlation into ledger)",
+        "tests/knowledge_ingestion_api_tests.rs (referenced)",
+        "tests/knowledge_ingestion_pipeline_tests.rs mt085 ledger actor/session/correlation assert"
+      ]
+    },
+    "ready_by": "KERNEL_BUILDER-20260611-071323",
+    "ready_for_validation_at_utc": "2026-06-11T15:32:04.773Z",
+    "evidence": [
+      "Adversarial code review PASS/PASS_WITH_NOTES (ADVERSARIAL_CODE_REVIEWER-20260611-PM); only LOW non-blocking notes."
+    ]
   },
   "handoff": {
     "coder_session": null,
