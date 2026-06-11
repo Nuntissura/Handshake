@@ -6,7 +6,7 @@
 
 import { spawnSync } from "node:child_process";
 import { createRequire } from "node:module";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 
 // CJS context (tests/dependency_policy/package.json sets type commonjs;
@@ -23,9 +23,18 @@ export default function globalSetup(): void {
     // Reuse the existing build; `pnpm run build:harness` refreshes it.
     return;
   }
-  // Resolve the app's own vite binary (no PATH/shell assumptions — Windows-safe).
+  // Resolve the app's own vite CLI through its package.json `bin` field
+  // (no PATH/shell assumptions — Windows-safe). Direct subpath resolution
+  // ("vite/bin/vite.js") broke in vite 7: the bin file is no longer an
+  // exported subpath, but "./package.json" still is.
   const appRequire = createRequire(path.join(appDir, "package.json"));
-  const viteCli = appRequire.resolve("vite/bin/vite.js");
+  const vitePkgPath = appRequire.resolve("vite/package.json");
+  const vitePkg = JSON.parse(readFileSync(vitePkgPath, "utf8")) as {
+    bin?: string | Record<string, string>;
+  };
+  const binRel = typeof vitePkg.bin === "string" ? vitePkg.bin : vitePkg.bin?.vite;
+  if (!binRel) throw new Error(`vite package.json at ${vitePkgPath} declares no bin entry`);
+  const viteCli = path.join(path.dirname(vitePkgPath), binRel);
   const result = spawnSync(
     process.execPath,
     [viteCli, "build", "--config", "vite.harness.config.ts"],

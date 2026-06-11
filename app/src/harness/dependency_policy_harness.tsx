@@ -26,6 +26,10 @@ export interface HarnessState {
   monacoWorkerProof: string | null;
   tiptapReady: boolean;
   tiptapExtensions: string[];
+  /** Live document-model text accessor (MT-030 offline typing proof). */
+  tiptapDocText?: () => string;
+  /** Deterministic caret placement for the MT-030 keyboard-typing proof. */
+  tiptapFocusFreshLeadingParagraph?: () => void;
   failures: Array<{ dependency: string; component: string; message: string }>;
   errors: string[];
 }
@@ -95,7 +99,10 @@ function HarnessShell() {
       })
       .then(() => {
         try {
-          state.tiptapExtensions = mountWp009TiptapProof(tiptapEl);
+          const mount = mountWp009TiptapProof(tiptapEl);
+          state.tiptapExtensions = mount.extensionNames;
+          state.tiptapDocText = mount.docText;
+          state.tiptapFocusFreshLeadingParagraph = mount.focusFreshLeadingParagraph;
           state.tiptapReady = true;
         } catch (error) {
           state.errors.push(`tiptap: ${error instanceof Error ? error.message : String(error)}`);

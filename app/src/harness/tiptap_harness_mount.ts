@@ -7,11 +7,27 @@
 import { Editor } from "@tiptap/core";
 import { buildWp009ExtensionSet } from "../lib/tiptap/extension_set";
 
+export interface TiptapProofMount {
+  /** Active extension names (validator-readable instantiation proof). */
+  extensionNames: string[];
+  /** Plain-text snapshot of the live document model (MT-030 typing proof). */
+  docText: () => string;
+  /**
+   * Places the caret in a fresh empty top-level paragraph at the document
+   * start (MT-030). Keyboard caret-navigation chords (Ctrl+Home/End) are not
+   * reliably handled across contenteditable/headless combinations, so the
+   * offline spec positions deterministically through the model API and then
+   * performs REAL keyboard typing.
+   */
+  focusFreshLeadingParagraph: () => void;
+}
+
 /**
  * Mounts a real Tiptap editor into `host` and returns the active extension
- * names (validator-readable proof of which extensions instantiated).
+ * names plus a document-text accessor (proof that typed input reaches the
+ * ProseMirror model, not just the DOM).
  */
-export function mountWp009TiptapProof(host: HTMLElement): string[] {
+export function mountWp009TiptapProof(host: HTMLElement): TiptapProofMount {
   const editor = new Editor({
     element: host,
     extensions: buildWp009ExtensionSet({
@@ -43,5 +59,16 @@ export function mountWp009TiptapProof(host: HTMLElement): string[] {
       ],
     },
   });
-  return editor.extensionManager.extensions.map((extension) => extension.name);
+  return {
+    extensionNames: editor.extensionManager.extensions.map((extension) => extension.name),
+    docText: () => editor.getText(),
+    focusFreshLeadingParagraph: () => {
+      editor
+        .chain()
+        .insertContentAt(0, { type: "paragraph" })
+        .setTextSelection(1)
+        .focus()
+        .run();
+    },
+  };
 }

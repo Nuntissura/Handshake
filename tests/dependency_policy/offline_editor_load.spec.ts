@@ -7,6 +7,8 @@
 //   - Monaco mounts from bundled assets and its TypeScript worker performs a
 //     REAL round-trip (web worker booted from a locally served chunk),
 //   - the Tiptap editor instantiates,
+//   - REAL keyboard interaction works offline (MT-030): text typed into both
+//     editors renders, and the Tiptap ``` input rule creates a code block,
 //   - ZERO external network requests are attempted (request ledger empty).
 //
 // This is the runtime counterpart of the static MT-027 worker-bundling check:
@@ -125,6 +127,42 @@ test.describe("WP-KERNEL-009 offline editor load (built assets, network blocked)
     expect(tiptapExtensions.length).toBeGreaterThan(5);
     await expect(page.locator("[data-testid='tiptap-host'] .tiptap").first()).toBeVisible();
 
+    // ---- MT-030: the editors must WORK offline, not merely render. ----
+
+    // Real typing into Tiptap (ProseMirror contenteditable). Caret placement
+    // goes through the editor model API (deterministic across headless
+    // keyboard-navigation quirks; Ctrl+Home/End landed inside the harness
+    // task list, whose taskItem schema cannot host a code block) — the
+    // TYPING itself is real keyboard input.
+    const tiptapSurface = page.locator("[data-testid='tiptap-host'] .tiptap").first();
+    await page.evaluate(() => window.__HARNESS_STATE__?.tiptapFocusFreshLeadingParagraph?.());
+    await page.keyboard.type("Typed offline through the bundled Tiptap stack.");
+    await expect(
+      tiptapSurface.getByText("Typed offline through the bundled Tiptap stack."),
+    ).toBeVisible();
+
+    // Create a code block via the StarterKit ``` input rule and type into it.
+    await page.keyboard.press("Enter");
+    await page.keyboard.type("```ts ");
+    await page.keyboard.type('const offlineProof = "code block created";');
+    const codeBlock = page.locator("[data-testid='tiptap-host'] .tiptap pre code").first();
+    await expect(codeBlock).toBeVisible();
+    await expect(codeBlock).toContainText('const offlineProof = "code block created";');
+
+    // The typed content landed in the document model, not just the DOM.
+    const tiptapDocText = await page.evaluate(
+      () => window.__HARNESS_STATE__?.tiptapDocText?.() ?? "",
+    );
+    expect(tiptapDocText).toContain("Typed offline through the bundled Tiptap stack.");
+    expect(tiptapDocText).toContain('const offlineProof = "code block created";');
+
+    // Real typing into Monaco: the bundled editor accepts input and renders it.
+    await page.locator("[data-testid='monaco-host'] .view-lines").first().click();
+    await page.keyboard.press("Control+End");
+    await page.keyboard.press("Enter");
+    await page.keyboard.type("// offline monaco typing proof");
+    await expect(page.getByText("// offline monaco typing proof").first()).toBeVisible();
+
     // Worker chunks were really fetched from the loopback server.
     expect(
       servedRequests.some((url) => /worker-[^/]*\.js/.test(url)),
@@ -149,6 +187,8 @@ declare global {
       monacoWorkerProof: string | null;
       tiptapReady: boolean;
       tiptapExtensions: string[];
+      tiptapDocText?: () => string;
+      tiptapFocusFreshLeadingParagraph?: () => void;
       failures: Array<{ dependency: string; component: string; message: string }>;
       errors: string[];
     };
