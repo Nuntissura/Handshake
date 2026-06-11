@@ -22,7 +22,7 @@
   "title": "CodeIndexingAndNavigation-108-CodeIndexPartialFailureHandling",
   "group": "CodeIndexingAndNavigation",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T16:26:10.470Z",
+  "updated_at_utc": "2026-06-11T16:55:57.726Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-108.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -88,7 +88,34 @@
     "claimed_by": "KERNEL_BUILDER-20260611-071323",
     "completed_by": null,
     "implementation_commit": "5d6490b0+79e1a7e4",
-    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 commits 5d6490b0 (compiling foundation) + 79e1a7e4 (runtime proof); 43 lib + 11 integration + 1 nav-API tests green on real PostgreSQL under runtime-full,test-utils. Found+fixed impl-Type/struct-Type entity collision. Pending adversarial code review."
+    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 commits 5d6490b0 (compiling foundation) + 79e1a7e4 (runtime proof); 43 lib + 11 integration + 1 nav-API tests green on real PostgreSQL under runtime-full,test-utils. Found+fixed impl-Type/struct-Type entity collision. Pending adversarial code review.",
+    "adversarial_code_review": {
+      "verdict": "HARDEN_RECOMMENDED",
+      "reviewed_at_utc": "2026-06-11T18:18:00Z",
+      "reviewer": "ADVERSARIAL_CODE_REVIEWER-20260611-PM",
+      "concerns": [
+        "REPAIR-QUEUE NOT IMPLEMENTED but presented as delivered. mod.rs:38/54/59 and engine.rs:24 describe MT-108 as 'partial receipts + repair-queue integration' and 'a repair-queue entry holds it (MT-108)'. The actual record_parse_failure (engine.rs:757-827) writes a `failed` source receipt + a `failed` knowledge_code_files row, and NOTHING ELSE - the comment at engine.rs:754 hedges '(when a repair hook is wired)', i.e. it is NOT wired. No enqueue to any ingestion repair queue occurs. The failure-recovery surface the contract claims (repairable files held for re-processing) does not exist; only a status flag + receipt are written. This is a prose-vs-code gap, not just a polish item.",
+        "Only CodeParseError is caught, not Io: index_code_file matches adapter.parse() Err -> record_parse_failure (engine.rs:251). But a binary / non-UTF-8 file never reaches the parser - std::fs::read_to_string in read_and_index (engine.rs:1101) returns CodeIndexError::Io, which propagates as a hard error. There is NO directory-runner in this module that catches Io per-file, so the 'one bad file never fails the run' guarantee covers grammar failures only; a single non-UTF-8/unreadable file aborts a `?`-propagating batch caller. mod.rs lists 'binary/invalid-UTF-8 input' as a handled failure mode, which is inaccurate for the read path.",
+        "No std::panic::catch_unwind around the tree-sitter FFI parse: parse() relies on tree-sitter never panicking. tree-sitter is C via FFI; an internal abort/panic is not a typed CodeParseError and would unwind past record_parse_failure, taking down the run. The 'never a panic' claim (parser.rs:27) is the grammar's behavior, not an enforced boundary."
+      ],
+      "evasion_probes": [
+        "Verified the parse-error partial path IS real: a grammar init / no-tree failure is captured and the outcome carries failed=true with a receipt + code_file row (parse_status=failed); a tree WITH syntax errors that still yields symbols -> parse_status=partial and the run continues (engine.rs:276-280). This half of the contract works.",
+        "Tried to find a panic in the extractors on malformed input: extractors are pure Rust over the flattened node stream with Option-guarded text slicing; the delegate's malformed_source test shows a broken file returns root_has_error rather than erroring. No extractor panic found.",
+        "Confirmed record_parse_failure for CONFIG files reuses the same path with a placeholder language tag (engine.rs:857 maps to JavaScript) - the language tag in a config failure receipt is therefore WRONG (says javascript for a failed .toml), a minor receipt-accuracy bug."
+      ],
+      "evidence_checked": [
+        "src/backend/handshake_core/src/knowledge_code_index/engine.rs:236-268 parse-failure capture",
+        "src/backend/handshake_core/src/knowledge_code_index/engine.rs:753-827 record_parse_failure (no repair enqueue)",
+        "src/backend/handshake_core/src/knowledge_code_index/engine.rs:1091-1115 read_and_index (Io not caught by MT-108)",
+        "src/backend/handshake_core/src/knowledge_code_index/mod.rs:36-65 (claims repair-queue + binary/UTF-8 handling)",
+        "grep repair_queue across knowledge_code_index/** -> only docstrings, zero implementation"
+      ]
+    },
+    "hardening_pending": {
+      "at_utc": "2026-06-11T16:55:57.726Z",
+      "severity": "HIGH",
+      "reason": "HIGH: repair-queue NOT IMPLEMENTED but presented as delivered (record_parse_failure has no queue integration - overclaim/scaffold violation); only CodeParseError caught not Io (binary/non-UTF8 bypass); no catch_unwind around tree-sitter FFI."
+    }
   },
   "handoff": {
     "coder_session": null,

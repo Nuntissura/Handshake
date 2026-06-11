@@ -22,7 +22,7 @@
   "title": "CodeIndexingAndNavigation-109-MonacoCodeLensBridge",
   "group": "CodeIndexingAndNavigation",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T16:26:10.470Z",
+  "updated_at_utc": "2026-06-11T16:55:57.726Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -88,7 +88,33 @@
     "claimed_by": "KERNEL_BUILDER-20260611-071323",
     "completed_by": null,
     "implementation_commit": "5d6490b0+79e1a7e4",
-    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 commits 5d6490b0 (compiling foundation) + 79e1a7e4 (runtime proof); 43 lib + 11 integration + 1 nav-API tests green on real PostgreSQL under runtime-full,test-utils. Found+fixed impl-Type/struct-Type entity collision. Pending adversarial code review."
+    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 commits 5d6490b0 (compiling foundation) + 79e1a7e4 (runtime proof); 43 lib + 11 integration + 1 nav-API tests green on real PostgreSQL under runtime-full,test-utils. Found+fixed impl-Type/struct-Type entity collision. Pending adversarial code review.",
+    "adversarial_code_review": {
+      "verdict": "HARDEN_RECOMMENDED",
+      "reviewed_at_utc": "2026-06-11T18:24:00Z",
+      "reviewer": "ADVERSARIAL_CODE_REVIEWER-20260611-PM",
+      "concerns": [
+        "Scalability/N+1: build_monaco_payload loads ALL workspace symbol entities (monaco_bridge.rs:128 list_knowledge_entities_by_kind) and filters by the four `{lang}:{path}#` prefixes in Rust; then for EACH matching symbol it runs list_knowledge_entity_span_ids + list_knowledge_edges_for_entity + (per documents edge) get_knowledge_entity. For one file this is bounded by file symbol count, but the initial load is O(workspace_symbols), so rendering a lens in a 100k-symbol workspace transfers the whole symbol table per request. No SQL pushdown on the file prefix.",
+        "Prefix filter relies on entity_key shape: matches `rust:{path}#` / `typescript:{path}#` / `tsx:{path}#` / `javascript:{path}#`. The trailing '#' prevents a sibling-path false match (rust:src/foo# vs rust:src/foobar#), verified - so this is safe, not a bug, but it is a hard-coded language list: a 5th language added later silently drops from the lens until this list is updated.",
+        "caller_count counts incoming references edges across the WHOLE workspace (monaco_bridge.rs:163) but the `references` ranges shown are only those whose evidence spans live in this file (filtered via span_by_id, monaco_bridge.rs:167); so caller_count can exceed the number of reference ranges displayed - a consumer reconciling the two will see a mismatch (count > shown). Cosmetic but unexplained in the payload."
+      ],
+      "evasion_probes": [
+        "VERIFIED staleness IS attached here (MonacoCodeLensPayload.staleness, monaco_bridge.rs:91-105) via evaluate_staleness against the caller's content_hash/parser_version; no-code_file-row -> MarkedStale. This route is the ONE place the 'never serve stale silently' guarantee is honored (cf. MT-106 where the symbol routes omit it). Integration test asserts staleness.state == 'fresh' on a freshly-indexed file.",
+        "Confirmed this is BACKEND SHAPE only (typed payload + query); no React/Monaco runtime wiring, matching the contract's explicit 'not the React wiring (that lands in a later GUI group)'. No GUI surface to visually debug for this MT - correctly scoped.",
+        "Confirmed deterministic ordering (entries sorted by definition.start_line then symbol_key, references sorted+dedup) - stable payload across runs.",
+        "No panic: all span/edge lookups Option/Result-guarded; missing definition span -> LineRange{0,0} default."
+      ],
+      "evidence_checked": [
+        "src/backend/handshake_core/src/knowledge_code_index/monaco_bridge.rs:71-221 build_monaco_payload",
+        "src/backend/handshake_core/src/api/knowledge_code_nav.rs:535-573 file_lens (calls the bridge + receipt)",
+        "tests/knowledge_code_nav_api_tests.rs:338-362 lens assertion incl staleness 'fresh'"
+      ]
+    },
+    "hardening_pending": {
+      "at_utc": "2026-06-11T16:55:57.726Z",
+      "severity": "MEDIUM",
+      "reason": "MEDIUM: N+1/load-all-workspace-symbols in monaco lens; caller_count whole-workspace vs file-filtered ranges mismatch."
+    }
   },
   "handoff": {
     "coder_session": null,

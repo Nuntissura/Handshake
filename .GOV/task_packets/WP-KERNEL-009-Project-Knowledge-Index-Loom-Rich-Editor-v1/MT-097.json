@@ -22,7 +22,7 @@
   "title": "CodeIndexingAndNavigation-097-TreeSitterParserAdapter",
   "group": "CodeIndexingAndNavigation",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T16:26:10.470Z",
+  "updated_at_utc": "2026-06-11T16:55:57.726Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-097.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -89,7 +89,35 @@
     "claimed_by": "KERNEL_BUILDER-20260611-071323",
     "completed_by": null,
     "implementation_commit": "5d6490b0+79e1a7e4",
-    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 commits 5d6490b0 (compiling foundation) + 79e1a7e4 (runtime proof); 43 lib + 11 integration + 1 nav-API tests green on real PostgreSQL under runtime-full,test-utils. Found+fixed impl-Type/struct-Type entity collision. Pending adversarial code review."
+    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 commits 5d6490b0 (compiling foundation) + 79e1a7e4 (runtime proof); 43 lib + 11 integration + 1 nav-API tests green on real PostgreSQL under runtime-full,test-utils. Found+fixed impl-Type/struct-Type entity collision. Pending adversarial code review.",
+    "adversarial_code_review": {
+      "verdict": "HARDEN_RECOMMENDED",
+      "reviewed_at_utc": "2026-06-11T17:05:00Z",
+      "reviewer": "ADVERSARIAL_CODE_REVIEWER-20260611-PM",
+      "concerns": [
+        "No input-size or node-count guard before tree-sitter parse (parser.rs:235 parse). A multi-megabyte or pathologically deep file is parsed unconditionally; tree-sitter will not panic (offsets are bounded), but a directory run over an adversarial/giant file consumes unbounded time+memory. The module docstring promises 'bounded' operation but the parser enforces no bound.",
+        "node_field_name (parser.rs:333) re-walks the parent with a fresh cursor for EVERY node via Node::id() linear scan; combined with the full-tree flatten this is O(nodes * siblings) per file. Cheap for normal files, but a wide flat file (thousands of siblings under one parent, e.g. a generated array literal) is quadratic.",
+        "reorder_preorder (parser.rs:355) clones every AstNode into a second Vec; the whole named-node stream is materialized twice. Memory ~2x the node count with no cap."
+      ],
+      "evasion_probes": [
+        "Verified parse() fail-closed paths: set_language err -> typed CodeParseError (no panic); parser.parse returns Option, handled by ok_or_else (parser.rs:245); a tree WITH syntax errors returns root_has_error=true rather than erroring -> correct per MT-108 contract.",
+        "Verified node_text (parser.rs:166) uses source.get(range) returning Option, so a non-UTF-8-boundary byte range yields None, never a slice panic. parse() takes &str so the input is already valid UTF-8 (Rust invariant); invalid-UTF-8 FILES are rejected upstream at read_to_string, see MT-108 note.",
+        "Confirmed byte_range_to_line_range uses saturating_sub/max guards (parser.rs:427) so empty/zero-length ranges do not underflow.",
+        "Confirmed language detection ordering handles compound suffixes (.d.ts before .ts, .tsx before .ts) correctly (parser.rs:91)."
+      ],
+      "evidence_checked": [
+        "src/backend/handshake_core/src/knowledge_code_index/parser.rs:91-114 detect_code_language",
+        "src/backend/handshake_core/src/knowledge_code_index/parser.rs:235-312 parse (fail-closed, no panic)",
+        "src/backend/handshake_core/src/knowledge_code_index/parser.rs:333-401 node_field_name + reorder_preorder",
+        "src/backend/handshake_core/src/knowledge_code_index/parser.rs:404-429 line-offset math",
+        "5 unit tests incl malformed_source_returns_tree_with_error_flag_not_panic"
+      ]
+    },
+    "hardening_pending": {
+      "at_utc": "2026-06-11T16:55:57.726Z",
+      "severity": "MEDIUM",
+      "reason": "MEDIUM: no input-size/node-count guard before tree-sitter parse; O(nodes*siblings) node_field_name + 2x node clone. Add size cap + optimize."
+    }
   },
   "handoff": {
     "coder_session": null,

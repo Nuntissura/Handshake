@@ -22,7 +22,7 @@
   "title": "CodeIndexingAndNavigation-106-CodeNavigationApi",
   "group": "CodeIndexingAndNavigation",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T16:26:10.470Z",
+  "updated_at_utc": "2026-06-11T16:55:57.726Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-106.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -88,7 +88,37 @@
     "claimed_by": "KERNEL_BUILDER-20260611-071323",
     "completed_by": null,
     "implementation_commit": "5d6490b0+79e1a7e4",
-    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 commits 5d6490b0 (compiling foundation) + 79e1a7e4 (runtime proof); 43 lib + 11 integration + 1 nav-API tests green on real PostgreSQL under runtime-full,test-utils. Found+fixed impl-Type/struct-Type entity collision. Pending adversarial code review."
+    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 commits 5d6490b0 (compiling foundation) + 79e1a7e4 (runtime proof); 43 lib + 11 integration + 1 nav-API tests green on real PostgreSQL under runtime-full,test-utils. Found+fixed impl-Type/struct-Type entity collision. Pending adversarial code review.",
+    "adversarial_code_review": {
+      "verdict": "HARDEN_RECOMMENDED",
+      "reviewed_at_utc": "2026-06-11T18:02:00Z",
+      "reviewer": "ADVERSARIAL_CODE_REVIEWER-20260611-PM",
+      "concerns": [
+        "STALENESS-SILENTLY-SERVED (spec 2.3.13.11 'mark stale, never serve stale silently'): the staleness module docstring (staleness.rs:10) and the MT contract claim the nav API 'attaches the resulting StalenessVerdict to every served symbol'. FALSE. Only file_lens (1 of 6 routes) returns staleness (via build_monaco_payload). lookup_symbols, get_symbol, symbol_references, symbol_tests, symbol_spans return symbols with NO staleness field at all (symbol_to_json, knowledge_code_nav.rs:257-298, emits nothing). A symbol whose source file changed is served as authoritative through 5 of 6 routes with no freshness flag - the exact 'serve stale silently' failure the spec forbids. The nav-API test only asserts staleness on the lens route (test line 354), so this gap is untested and the contract claim is unmet.",
+        "Scalability/DoS: lookup_symbols (knowledge_code_nav.rs:313) and the lens (monaco_bridge.rs:128) call list_knowledge_entities_by_kind which SELECTs ALL symbol entities in the workspace, then filter in Rust by name/path/prefix. At a real repo (100k+ symbols) every lookup transfers and heap-allocates the entire symbol set; combined with the per-symbol N+1 span/edge queries in symbol_to_json/monaco it is O(workspace_symbols) per request. The 'precise backend navigation' claim does not hold at scale - there is no name/path index pushdown to SQL.",
+        "decode_path (knowledge_code_nav.rs:638) re-replaces %2F->'/' AFTER axum already percent-decoded the segment; a caller who double-encodes ('%252F') yields a literal '%2F' that won't match an indexed file (lookup miss, not an injection) - benign but surprising. No '..' rejection on the :path segment either; today it only feeds get_knowledge_entity_by_identity (a bind), so not exploitable, but unguarded."
+      ],
+      "evasion_probes": [
+        "VERIFIED all 6 routes call nav_context(&headers)? as the FIRST fallible step (knowledge_code_nav.rs:307,364,381,443,492,543) -> 400 if x-hsk-actor-id / kernel-task-run-id / session-run-id missing. The integration test only probes the lookup route for 400, but source inspection confirms all 6 enforce it. Unknown actor_kind -> 400 (knowledge_code_nav.rs:181).",
+        "VERIFIED every route appends record_nav_receipt(...).await? carrying actor+session+correlation verbatim (KnowledgeRetrievalTraceRecorded) BEFORE returning the body, and threads nav_receipt_event_id into the response. A receipt build/append failure -> 500, no data served (fail-closed). No route returns data without a receipt.",
+        "SQL-INJECTION: NEGATIVE. The name/path query params are NEVER concatenated into SQL; filtering is in-Rust over a bound list query. The :path and :entity_id segments are passed to parameterised queries ($1) via get_knowledge_entity_by_identity / get_knowledge_entity. symbol-name params cannot inject.",
+        "PATH-INJECTION: NEGATIVE for DB (binds); relative_path only reaches get_knowledge_entity_by_identity as a bound value, not a filesystem path, in the nav layer.",
+        "Confirmed require_symbol 404s missing ids and 400s non-symbol entity kinds (knowledge_code_nav.rs:580) - type confusion (passing a file/concept entity id) is rejected."
+      ],
+      "evidence_checked": [
+        "src/backend/handshake_core/src/api/knowledge_code_nav.rs:158-192 nav_context (all-routes 400 guard)",
+        "src/backend/handshake_core/src/api/knowledge_code_nav.rs:198-228 record_nav_receipt (fail-closed)",
+        "src/backend/handshake_core/src/api/knowledge_code_nav.rs:257-298 symbol_to_json (NO staleness field)",
+        "src/backend/handshake_core/src/api/knowledge_code_nav.rs:301-355 lookup_symbols (load-all + in-Rust filter)",
+        "src/backend/handshake_core/tests/knowledge_code_nav_api_tests.rs (happy path + 400 + 404; staleness asserted only on lens)",
+        "runtime: code-index lib 43 tests green; nav-API integration test present (PG-gated)"
+      ]
+    },
+    "hardening_pending": {
+      "at_utc": "2026-06-11T16:55:57.726Z",
+      "severity": "HIGH",
+      "reason": "HIGH: staleness SILENTLY SERVED - contract/docstring claim StalenessVerdict attached to every served symbol but nav API does not (spec 2.3.13.11 mark-stale-never-serve-stale-silently violation); load-all-workspace-symbols then Rust-filter DoS."
+    }
   },
   "handoff": {
     "coder_session": null,

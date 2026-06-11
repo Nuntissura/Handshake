@@ -22,7 +22,7 @@
   "title": "CodeIndexingAndNavigation-107-CodeIndexStalenessDetector",
   "group": "CodeIndexingAndNavigation",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T16:26:10.470Z",
+  "updated_at_utc": "2026-06-11T16:55:57.726Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-107.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -88,7 +88,34 @@
     "claimed_by": "KERNEL_BUILDER-20260611-071323",
     "completed_by": null,
     "implementation_commit": "5d6490b0+79e1a7e4",
-    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 commits 5d6490b0 (compiling foundation) + 79e1a7e4 (runtime proof); 43 lib + 11 integration + 1 nav-API tests green on real PostgreSQL under runtime-full,test-utils. Found+fixed impl-Type/struct-Type entity collision. Pending adversarial code review."
+    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 commits 5d6490b0 (compiling foundation) + 79e1a7e4 (runtime proof); 43 lib + 11 integration + 1 nav-API tests green on real PostgreSQL under runtime-full,test-utils. Found+fixed impl-Type/struct-Type entity collision. Pending adversarial code review.",
+    "adversarial_code_review": {
+      "verdict": "HARDEN_RECOMMENDED",
+      "reviewed_at_utc": "2026-06-11T18:08:00Z",
+      "reviewer": "ADVERSARIAL_CODE_REVIEWER-20260611-PM",
+      "concerns": [
+        "Caller-supplied live hash = trust boundary: evaluate_staleness compares indexed_content_hash against a current_content_hash that the SERVER does NOT compute - it is passed in by the caller (lens/context-bundle query param, or the editor buffer hash). If a caller passes the INDEXED hash (or any matching value) the verdict is Fresh even when the on-disk file changed. The detector cannot detect staleness the caller lies about; nothing re-reads the source to recompute the hash server-side. The MT proves the comparison logic, not an end-to-end 'the file really changed -> flagged' guarantee.",
+        "Detection is pull-only, never pushed on real edits: there is no wiring that, on a file write/ingestion update, calls mark_knowledge_code_file_stale. The `stale` flag flips TRUE only if some external lifecycle calls it (none shown in the code-index group), and clears to FALSE on re-index (knowledge.rs:5028). So between an edit and the next explicit re-index/lens-query-with-fresh-hash, the index reports Fresh. The 'never serve stale silently' guarantee depends on consumers always supplying a correct live hash - and 5/6 nav routes don't even call the detector (see MT-106).",
+        "The mtime/size race the attack posits does NOT apply (the detector keys on sha256 content hash, not mtime/size) - that is a strength, noted to refute the probe."
+      ],
+      "evasion_probes": [
+        "Verified precedence: MarkedStale > SourceChanged > ParserChanged > Fresh (staleness.rs:76-93). A content change AND a parser change reports source_changed (stronger), correct. Delegate tests cover all four branches incl precedence (source_change_detected_and_precedes_parser_change).",
+        "Tried the 'same size/mtime, changed content' race: not reproducible - hash differs so SourceChanged fires. Refuted.",
+        "Verified upsert_knowledge_code_file CLEARS stale=FALSE on re-index (knowledge.rs:5020,5028) and mark_knowledge_code_file_stale sets TRUE idempotently (knowledge.rs:5090); a file with no code_file row is treated MarkedStale by both consumers (monaco_bridge.rs:104, context_bridge.rs:331) - fail-safe direction.",
+        "No hash-collision concern: sha256 preimage resistance is sufficient for a change detector."
+      ],
+      "evidence_checked": [
+        "src/backend/handshake_core/src/knowledge_code_index/staleness.rs:76-93 evaluate_staleness",
+        "src/backend/handshake_core/src/storage/knowledge.rs:4998-5104 upsert_knowledge_code_file + mark_knowledge_code_file_stale",
+        "src/backend/handshake_core/src/knowledge_code_index/monaco_bridge.rs:91-105 + context_bridge.rs:319-332 staleness wiring",
+        "consumers: only file_lens/context-bundle compute it; symbol nav routes do not (cross-ref MT-106)"
+      ]
+    },
+    "hardening_pending": {
+      "at_utc": "2026-06-11T16:55:57.726Z",
+      "severity": "MEDIUM",
+      "reason": "MEDIUM: staleness pull-only (no mark_stale wired on file write/ingestion); caller-supplied live hash is a trust boundary (server does not compute current hash)."
+    }
   },
   "handoff": {
     "coder_session": null,

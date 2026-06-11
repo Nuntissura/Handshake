@@ -22,7 +22,7 @@
   "title": "CodeIndexingAndNavigation-105-ScipLspImportBoundary",
   "group": "CodeIndexingAndNavigation",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T16:26:10.470Z",
+  "updated_at_utc": "2026-06-11T16:55:57.726Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-105.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -88,7 +88,34 @@
     "claimed_by": "KERNEL_BUILDER-20260611-071323",
     "completed_by": null,
     "implementation_commit": "5d6490b0+79e1a7e4",
-    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 commits 5d6490b0 (compiling foundation) + 79e1a7e4 (runtime proof); 43 lib + 11 integration + 1 nav-API tests green on real PostgreSQL under runtime-full,test-utils. Found+fixed impl-Type/struct-Type entity collision. Pending adversarial code review."
+    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 commits 5d6490b0 (compiling foundation) + 79e1a7e4 (runtime proof); 43 lib + 11 integration + 1 nav-API tests green on real PostgreSQL under runtime-full,test-utils. Found+fixed impl-Type/struct-Type entity collision. Pending adversarial code review.",
+    "adversarial_code_review": {
+      "verdict": "HARDEN_RECOMMENDED",
+      "reviewed_at_utc": "2026-06-11T17:50:00Z",
+      "reviewer": "ADVERSARIAL_CODE_REVIEWER-20260611-PM",
+      "concerns": [
+        "Path traversal NOT fully blocked: validate (scip.rs:170) rejects backslash and leading '/', but does NOT reject '../' sequences or '.'/'..' segments. A document relative_path '../../etc/passwd' or 'a/../../b' PASSES validation despite the docstring claiming 'repo-relative POSIX'. Today the engine uses relative_path only as an entity_key/display_name string (no filesystem write is wired in the reviewed code), so it is not yet an arbitrary-write primitive - but the moment any consumer joins this path to an FS anchor (cf. read_and_index at engine.rs:1100 which does fs_anchor.join(relative_path)), a malicious artifact escapes the repo root. Defense-in-depth: reject '..' segments at import validation.",
+        "Unbounded memory on a hostile artifact: parse_scip_artifact (scip.rs:149) calls serde_json::from_slice on the WHOLE byte buffer with no size cap and no documents/symbols/occurrences count cap. A multi-GB or billions-of-symbols artifact OOMs the process (DoS). The import is operator-gated, but 'operator-provided' is not 'trusted-to-be-small'.",
+        "Documented invariant not enforced: the comment at scip.rs:193 says 'Every occurrence must reference a symbol declared SOMEWHERE in the artifact', but validate() only checks byte ranges (scip.rs:196-202) - it never verifies occurrence.symbol is in the declared symbol set. An occurrence referencing an undeclared symbol passes; when projected to edges it would dangle or create a phantom target. Dead comment / missing check."
+      ],
+      "evasion_probes": [
+        "Confirmed PARSE-ONLY: scip.rs imports only serde + sha2; parse_scip_artifact does serde_json::from_slice then validate; no process spawn, no std::process, no IO, no LSP. The MT's core claim (never spawn an indexer/LSP) holds.",
+        "Confirmed strict shape rejection: non-JSON, empty documents, empty symbol id/display_name, inverted byte ranges all -> typed ScipImportRejected (delegate tests rejects_non_json / rejects_empty_documents / rejects_absolute_path / rejects_inverted_byte_range).",
+        "Confirmed artifact_hash is sha256 over bytes (fidelity hash for the import ledger 0171) and record_knowledge_scip_import requires a reason for non-imported status (knowledge.rs:5116) - rejected imports are auditable.",
+        "byte_start/byte_end are u64; no overflow path. line_start/end are u32; a degenerate line_end<line_start is NOT validated (only byte ranges are) - minor, lines are advisory."
+      ],
+      "evidence_checked": [
+        "src/backend/handshake_core/src/knowledge_code_index/scip.rs:149-205 parse_scip_artifact + validate",
+        "src/backend/handshake_core/src/storage/knowledge.rs:5106-5153 record_knowledge_scip_import",
+        "src/backend/handshake_core/migrations/0171_knowledge_code_scip_imports.sql (import ledger)",
+        "src/backend/handshake_core/src/knowledge_code_index/engine.rs:1091-1115 read_and_index (fs_anchor.join sink for relative_path)"
+      ]
+    },
+    "hardening_pending": {
+      "at_utc": "2026-06-11T16:55:57.726Z",
+      "severity": "HIGH_ISH",
+      "reason": "HIGH-ish: SCIP path traversal NOT blocked (../ and ./.. segments pass validate); unbounded memory (no size/count cap on artifact); documented occurrence->declared-symbol invariant not enforced."
+    }
   },
   "handoff": {
     "coder_session": null,

@@ -22,7 +22,7 @@
   "title": "CodeIndexingAndNavigation-102-TestMappingExtractor",
   "group": "CodeIndexingAndNavigation",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T16:26:10.470Z",
+  "updated_at_utc": "2026-06-11T16:55:57.726Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-102.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -88,7 +88,32 @@
     "claimed_by": "KERNEL_BUILDER-20260611-071323",
     "completed_by": null,
     "implementation_commit": "5d6490b0+79e1a7e4",
-    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 commits 5d6490b0 (compiling foundation) + 79e1a7e4 (runtime proof); 43 lib + 11 integration + 1 nav-API tests green on real PostgreSQL under runtime-full,test-utils. Found+fixed impl-Type/struct-Type entity collision. Pending adversarial code review."
+    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 commits 5d6490b0 (compiling foundation) + 79e1a7e4 (runtime proof); 43 lib + 11 integration + 1 nav-API tests green on real PostgreSQL under runtime-full,test-utils. Found+fixed impl-Type/struct-Type entity collision. Pending adversarial code review.",
+    "adversarial_code_review": {
+      "verdict": "HARDEN_RECOMMENDED",
+      "reviewed_at_utc": "2026-06-11T17:36:00Z",
+      "reviewer": "ADVERSARIAL_CODE_REVIEWER-20260611-PM",
+      "concerns": [
+        "validates-edge mis-attribution via simple-name resolution: write_test_mappings (engine.rs:706) resolves each referenced name through resolve_symbol_by_name, which returns the FIRST last-segment match (engine.rs:1042-1052). If a test calls `add` and the file has two symbols ending in `add` (e.g. `add` and `Calc::add`), the validates edge points at the lexicographically-first one regardless of which was actually exercised. The 0.7 confidence is a static placeholder, not derived from resolution ambiguity, so a wrong edge looks as confident as a right one.",
+        "TS/JS test mapping is effectively absent: extract_test_mappings only treats Rust SymbolKind::Test as a test (tests_map.rs:48-54); the comment promises 'map test-runner call blocks instead' for TS/JS but no such code exists. So `describe/it` Jest/Vitest tests produce NO validates edges. The MT title (TestMappingExtractor) implies multi-language coverage; TS/JS is a silent non-implementation, not a flagged limitation in the contract.",
+        "referenced_names_in_subtree (tests_map.rs:85) scans ALL tree nodes for EACH test symbol and uses byte-range containment (O(tests x nodes)); a file with many tests is quadratic in node count - same DoS class as the relationship hotspots (MT-111)."
+      ],
+      "evasion_probes": [
+        "Confirmed test-framework noise is filtered (is_ignored_name, tests_map.rs:148: assert*, expect, unwrap, it, describe, toBe...) so edges point at product symbols, and own_name is excluded (no self-edge). The delegate test maps_rust_test_to_called_function proves the happy path and the assertion-filter.",
+        "Confirmed names that do not resolve are dropped (engine.rs:707 `let Some(target_id) ... else continue`) - no false edge to a nonexistent symbol, which is the right conservative choice.",
+        "Confirmed validates edge carries the test's evidence span (engine.rs:713) so the edge is citeable per spec 2.3.13.11."
+      ],
+      "evidence_checked": [
+        "src/backend/handshake_core/src/knowledge_code_index/tests_map.rs:41-180 extract_test_mappings",
+        "src/backend/handshake_core/src/knowledge_code_index/engine.rs:691-751 write_test_mappings",
+        "src/backend/handshake_core/src/knowledge_code_index/engine.rs:1033-1053 resolve_symbol_by_name (first-match ambiguity)"
+      ]
+    },
+    "hardening_pending": {
+      "at_utc": "2026-06-11T16:55:57.726Z",
+      "severity": "MEDIUM",
+      "reason": "MEDIUM: TS/JS test mapping effectively absent (only Rust SymbolKind::Test mapped despite contract); validates-edge mis-attribution via first-last-segment-match; quadratic referenced_names scan."
+    }
   },
   "handoff": {
     "coder_session": null,

@@ -22,7 +22,7 @@
   "title": "CodeIndexingAndNavigation-104-CallImportRelationshipBuilder",
   "group": "CodeIndexingAndNavigation",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T16:26:10.470Z",
+  "updated_at_utc": "2026-06-11T16:55:57.726Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-104.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -88,7 +88,36 @@
     "claimed_by": "KERNEL_BUILDER-20260611-071323",
     "completed_by": null,
     "implementation_commit": "5d6490b0+79e1a7e4",
-    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 commits 5d6490b0 (compiling foundation) + 79e1a7e4 (runtime proof); 43 lib + 11 integration + 1 nav-API tests green on real PostgreSQL under runtime-full,test-utils. Found+fixed impl-Type/struct-Type entity collision. Pending adversarial code review."
+    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 commits 5d6490b0 (compiling foundation) + 79e1a7e4 (runtime proof); 43 lib + 11 integration + 1 nav-API tests green on real PostgreSQL under runtime-full,test-utils. Found+fixed impl-Type/struct-Type entity collision. Pending adversarial code review.",
+    "adversarial_code_review": {
+      "verdict": "HARDEN_RECOMMENDED",
+      "reviewed_at_utc": "2026-06-11T17:45:00Z",
+      "reviewer": "ADVERSARIAL_CODE_REVIEWER-20260611-PM",
+      "concerns": [
+        "relationship_id separator-injection collision: the code-index DOES feed unescaped keys into derive_knowledge_relationship_id - file entity_key `file:{relpath}` (engine.rs:312), module entity_key `module:{import_string}` (engine.rs:620, where import_string is arbitrary JS/TS string-literal content that can contain `|` and `:`), and symbol keys `{lang}:{path}#{path}`. AT REVIEW TIME this is NEUTRALISED: the concurrently-edited storage/knowledge.rs:1145 derive_knowledge_relationship_id now uses the _v2 LENGTH-PREFIXED preimage ({byte_len}:{value} per component), which is separator-injective, and the crate compiles + 43 lib tests pass with that fix in place. My constructed collision against the old _v1 unescaped-join NO LONGER reproduces under _v2. CAVEAT: this safety is supplied by ANOTHER agent's uncommitted edit to storage/knowledge.rs (NOT part of code-index commits 5d6490b0/79e1a7e4). If that _v2 fix is reverted or not committed, the code-index's unescaped module:/file: keys reintroduce the collision. The code-index has NO defense of its own (it relies entirely on the derivation being injective).",
+        "Re-index idempotency holds for relationship_id (derivation hashes only edge_type + entity natural identities, no run/row ids) so a re-run upserts the same edge - the idempotency claim is sound. BUT the EVIDENCE SPAN for each rel is recreated every run (create_knowledge_span at engine.rs:646 always inserts a new span row keyed on content_sha256 of `{kind}|{name}|{start_byte}`); a re-index of an unchanged file accumulates duplicate edge_span rows unless span creation also dedups - the edge dedups, the span does not obviously.",
+        "Call resolution is intra-file only (resolve_symbol_by_name searches this file's symbol_index, engine.rs:593): a call to a function defined in another file produces NO references edge (silently skipped, engine.rs:599 `None => continue`). Cross-file call graph is therefore absent; the nav 'callers/callees' is file-local. Not flagged to the consumer as a limitation.",
+        "Implements edge resolves the trait by simple name within the same file (engine.rs:603); a trait imported from another module never resolves -> no implements edge. Same intra-file limitation."
+      ],
+      "evasion_probes": [
+        "Re-read storage/knowledge.rs:1110-1174 (changed mid-review by the concurrent storage agent): confirmed _v2 length-prefix landed; built the crate and ran 43 code-index lib tests GREEN with _v2 in place. The _v1 collision I constructed early in the review is closed by _v2.",
+        "Verified relationships.rs is pure data (no DB), deterministic (sort+dedup at relationships.rs:98-104), conservative confidence (imports 0.95, implements 0.9, calls 0.6 because simple-name calls collide). The builder itself is sound.",
+        "Verified self-edge guard (engine.rs:640 source==target continue) and unresolved-target skip - no false/degenerate edges.",
+        "Probed simple_type stripping (relationships.rs:266): `impl Trait for module::Foo<T>` -> implements source 'Foo', target trait simple name; combined with the MT-098 impl-collision this means implements edges for two impls of the same type attach to the merged 'impl Foo' entity."
+      ],
+      "evidence_checked": [
+        "src/backend/handshake_core/src/knowledge_code_index/relationships.rs:87-270 extract_relationships",
+        "src/backend/handshake_core/src/knowledge_code_index/engine.rs:565-687 write_relationships + module entity key",
+        "src/backend/handshake_core/src/storage/knowledge.rs:1145-1174 derive_knowledge_relationship_id (_v2 length-prefixed, verified current)",
+        "src/backend/handshake_core/migrations/0136_knowledge_edges.sql:9-30 (_v2 derivation doc + uq_knowledge_edges_relationship)",
+        "runtime: cargo test --features runtime-full,test-utils --lib knowledge_code_index -> 43 passed 0 failed"
+      ]
+    },
+    "hardening_pending": {
+      "at_utc": "2026-06-11T16:55:57.726Z",
+      "severity": "MEDIUM",
+      "reason": "MEDIUM(mostly auto-fixed): relationship_id separator collision shared with storage MT-054 _v2 fix; cross-file call/implements resolution absent (intra-file only - silently drops edges); evidence span recreated each re-index."
+    }
   },
   "handoff": {
     "coder_session": null,

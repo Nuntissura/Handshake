@@ -22,7 +22,7 @@
   "title": "CodeIndexingAndNavigation-112-CodeIndexFixtures",
   "group": "CodeIndexingAndNavigation",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T16:26:10.470Z",
+  "updated_at_utc": "2026-06-11T16:55:57.726Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-112.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -88,7 +88,35 @@
     "claimed_by": "KERNEL_BUILDER-20260611-071323",
     "completed_by": null,
     "implementation_commit": "5d6490b0+79e1a7e4",
-    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 commits 5d6490b0 (compiling foundation) + 79e1a7e4 (runtime proof); 43 lib + 11 integration + 1 nav-API tests green on real PostgreSQL under runtime-full,test-utils. Found+fixed impl-Type/struct-Type entity collision. Pending adversarial code review."
+    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 commits 5d6490b0 (compiling foundation) + 79e1a7e4 (runtime proof); 43 lib + 11 integration + 1 nav-API tests green on real PostgreSQL under runtime-full,test-utils. Found+fixed impl-Type/struct-Type entity collision. Pending adversarial code review.",
+    "adversarial_code_review": {
+      "verdict": "HARDEN_RECOMMENDED",
+      "reviewed_at_utc": "2026-06-11T18:55:00Z",
+      "reviewer": "ADVERSARIAL_CODE_REVIEWER-20260611-PM",
+      "concerns": [
+        "UserManual / model-manual coverage gap (spec 10.15.8): the 6 new model-callable nav routes (/knowledge/code/*) are NOT registered in src/model_manual/** (grep of model_manual for code_nav/knowledge_code/code-index -> zero hits) and knowledge_code_nav.rs has no model_manual hook. The delegate deferred this to MT-193. The routes are BUILT and callable now, so there is a window where a model-callable surface exists without the structured manual coverage 10.15.8 requires. The in-source mod.rs 'Model manual' docstring helps a human reader but is not the machine-readable manual surface a no-context model queries. Acceptable ONLY if MT-193 remains a tracked, committed obligation before these routes are exposed to models in production; flagging as a real (tracked) gap, not a silent omission.",
+        "Idempotency proof is shallow: mt104_reindex_is_idempotent_on_relationship_id asserts only edges1.len()==edges2.len() on a 2-function fixture. It does NOT assert evidence-span rows do not accumulate across re-index (create_knowledge_span re-inserts each run, see MT-104 concern), nor does it cover the entity-merge collisions (MT-098/099/100). The fixture coverage is happy-path; the collision and span-accumulation shapes are untested.",
+        "SKIP-on-no-PostgreSQL means CI without the managed PG proves NOTHING for 10 of 11 integration tests + the nav-API test (each returns early printing SKIP). The runtime guarantee depends on the gated PG being present; a green run in a PG-less environment is a false positive. Not a code defect, but the proof is conditional."
+      ],
+      "evasion_probes": [
+        "NO SQLite / Docker / mock store: grep across src/knowledge_code_index/** + both test files for sqlite|docker|mock|in-memory -> zero (only the doc text 'no SQLite'/'never spawn'). The AppState pool and the engine handle point at the SAME isolated schema (knowledge_pg_support); tests assert against real knowledge_entities/spans/edges rows. The PostgreSQL/EventLedger authority constraint is honored.",
+        "mt112_indexes_mixed_tree_with_symbols_spans_edges, mt108 (partial failure), mt107 (staleness flip on content change), mt105 (scip ledger), mt104 (idempotent edges) each drive the real engine and re-query the DB to assert state - these are behavioral proofs, NOT tautologies. mt108 specifically proves a broken sibling does not abort the good file's indexing (DB query confirms rust:src/good.rs#ok present).",
+        "FAIL-CLOSED on PG-unavailable at PRODUCT level: the nav API's db.append_kernel_event / queries propagate StorageError -> storage_error -> 500 with no body; no fail-open path serves data when the store errors.",
+        "RUNTIME: re-ran cargo test --features runtime-full,test-utils --lib knowledge_code_index -> 43 passed/0 failed with the concurrent storage _v2 edit in place; integration+nav-API suite re-run launched against managed PG 127.0.0.1:5544 (PG-gated)."
+      ],
+      "evidence_checked": [
+        "src/backend/handshake_core/tests/knowledge_code_index_tests.rs (11 per-MT integration tests, real PG, no mocks)",
+        "src/backend/handshake_core/tests/knowledge_code_nav_api_tests.rs (route-level proof, real PG)",
+        "src/backend/handshake_core/src/model_manual/** (no code-nav registration -> 10.15.8 deferred to MT-193)",
+        "grep sqlite|docker|mock across code-index + tests -> none",
+        "runtime: 43 lib tests green; integration suite PG-gated re-run in progress"
+      ]
+    },
+    "hardening_pending": {
+      "at_utc": "2026-06-11T16:55:57.726Z",
+      "severity": "MEDIUM",
+      "reason": "MEDIUM: UserManual/model_manual coverage gap for /knowledge/code/* nav routes (delegate deferred to MT-193); shallow idempotency proof (does not assert evidence-span rows do not accumulate); SKIP-on-no-PG means PG-less CI proves nothing."
+    }
   },
   "handoff": {
     "coder_session": null,

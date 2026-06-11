@@ -22,7 +22,7 @@
   "title": "CodeIndexingAndNavigation-111-CodeIndexPerformanceBudget",
   "group": "CodeIndexingAndNavigation",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T16:26:10.470Z",
+  "updated_at_utc": "2026-06-11T16:55:57.726Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-111.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -88,7 +88,32 @@
     "claimed_by": "KERNEL_BUILDER-20260611-071323",
     "completed_by": null,
     "implementation_commit": "5d6490b0+79e1a7e4",
-    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 commits 5d6490b0 (compiling foundation) + 79e1a7e4 (runtime proof); 43 lib + 11 integration + 1 nav-API tests green on real PostgreSQL under runtime-full,test-utils. Found+fixed impl-Type/struct-Type entity collision. Pending adversarial code review."
+    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 commits 5d6490b0 (compiling foundation) + 79e1a7e4 (runtime proof); 43 lib + 11 integration + 1 nav-API tests green on real PostgreSQL under runtime-full,test-utils. Found+fixed impl-Type/struct-Type entity collision. Pending adversarial code review.",
+    "adversarial_code_review": {
+      "verdict": "HARDEN_RECOMMENDED",
+      "reviewed_at_utc": "2026-06-11T18:40:00Z",
+      "reviewer": "ADVERSARIAL_CODE_REVIEWER-20260611-PM",
+      "concerns": [
+        "Real O(symbols x calls) hotspots exist and are NOT covered by the budget's enforcement: enclosing_symbol_path (relationships.rs:229) scans ALL symbols for EACH call site = O(C x S) per file; resolve_symbol_by_name (engine.rs:1033) builds+sorts a candidate vec for EACH relationship = O(R x S log S); and the nav/lens/context paths load ALL workspace symbols (O(workspace)). The mt111 fixture is ~1000 lines / ~800 symbols / ~400 calls so it touches the per-file quadratic (~320k iters, still fast), but it does NOT exercise a single LARGE file (20k+ lines) nor the O(workspace) nav cost - so the budget validates the small-file AST walk, not the actual large-repo DoS surface.",
+        "The production budget (250 ms/kloc + 50 ms) is NEVER measured against real timing: perf.rs unit tests are tautological (they assert the arithmetic 50+250*10=2550, not that any parse fits). The only timed assertion (mt111_parse_extract_within_documented_budget) runs against an 8x-inflated debug budget. So 'the production budget holds' is asserted by NO timing test; it is an unvalidated number.",
+        "The budget is per-FILE wall-clock; it cannot catch a regression that is fast per file but O(N^2) across files at workspace scale (the lens/lookup load-all pattern). The guardrail's scope is narrower than the WP constraint 'indexing large repos must stay bounded'."
+      ],
+      "evasion_probes": [
+        "The delegate's honesty claim CHECKS OUT: the mt111 test comment (knowledge_code_index_tests.rs:819-826) explicitly states the production budget targets an optimized build, that the test uses an 8x debug allowance to catch quadratic blowups, and that 'the production budget itself is asserted by its own unit tests in perf.rs' (which are arithmetic-only). The admission is accurate, not concealed.",
+        "Verified is_within / allowed_ms arithmetic (perf.rs:42-50) and PerfSample::measure record a real verdict; the fixture genuinely runs extract_symbols+docs+relationships and times them (knowledge_code_index_tests.rs:835-841), so the quadratic-catch is a real (if coarse) guardrail at ~1k lines.",
+        "No micro-benchmark fraud: elapsed is measured around the actual extraction calls, not a no-op."
+      ],
+      "evidence_checked": [
+        "src/backend/handshake_core/src/knowledge_code_index/perf.rs:16-110 budget + tautological unit tests",
+        "src/backend/handshake_core/tests/knowledge_code_index_tests.rs:804-851 mt111 timed test (8x debug budget)",
+        "hotspots: relationships.rs:229 enclosing_symbol_path, engine.rs:1033 resolve_symbol_by_name, monaco_bridge.rs:128 / knowledge_code_nav.rs:313 load-all-symbols"
+      ]
+    },
+    "hardening_pending": {
+      "at_utc": "2026-06-11T16:55:57.726Z",
+      "severity": "MEDIUM",
+      "reason": "MEDIUM: real O(symbols*calls) hotspots not covered by budget; production budget never measured (tautological perf.rs unit test); per-file budget misses cross-file O(N^2)."
+    }
   },
   "handoff": {
     "coder_session": null,

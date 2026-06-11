@@ -22,7 +22,7 @@
   "title": "CodeIndexingAndNavigation-101-ConfigAndSchemaExtractor",
   "group": "CodeIndexingAndNavigation",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T16:26:10.470Z",
+  "updated_at_utc": "2026-06-11T16:55:57.726Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-101.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -88,7 +88,34 @@
     "claimed_by": "KERNEL_BUILDER-20260611-071323",
     "completed_by": null,
     "implementation_commit": "5d6490b0+79e1a7e4",
-    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 commits 5d6490b0 (compiling foundation) + 79e1a7e4 (runtime proof); 43 lib + 11 integration + 1 nav-API tests green on real PostgreSQL under runtime-full,test-utils. Found+fixed impl-Type/struct-Type entity collision. Pending adversarial code review."
+    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 commits 5d6490b0 (compiling foundation) + 79e1a7e4 (runtime proof); 43 lib + 11 integration + 1 nav-API tests green on real PostgreSQL under runtime-full,test-utils. Found+fixed impl-Type/struct-Type entity collision. Pending adversarial code review.",
+    "adversarial_code_review": {
+      "verdict": "HARDEN_RECOMMENDED",
+      "reviewed_at_utc": "2026-06-11T17:32:00Z",
+      "reviewer": "ADVERSARIAL_CODE_REVIEWER-20260611-PM",
+      "concerns": [
+        "locate_key (config_schema.rs:128) finds a key by LITERAL substring search ('\"key\"' for JSON, 'key:' for YAML) advancing a forward cursor. A value string that contains the same text as a later sibling key mislocates the span to the WRONG line (e.g. a JSON value \"\\\"port\\\"\" appearing before the real `\"port\"` key). The recorded span line/byte range can therefore point at a non-key location; the citation is not guaranteed accurate. serde gives no positions so this is a known tradeoff, but the span is presented as authoritative evidence with no accuracy flag.",
+        "Config files get a file: entity + contains edges but NO knowledge_code_files row (index_config_file at engine.rs:833 never calls upsert_knowledge_code_file). Consequence: context_bridge.file_staleness / monaco file_lens for a config file always return MarkedStale (no code_file row, engine.rs path returns None->MarkedStale). Config facts are therefore PERMANENTLY flagged stale and can never be served as fresh - a correctness/usability gap, though fail-safe in direction.",
+        "config entity_key `config:{relative_path}#{key_path}` (config_schema.rs:95) is unescaped, same shape as symbol keys; collisions across the `:`/`#`/`.` joins are now neutralised at the relationship_id layer by the concurrent _v2 length-prefix fix in storage/knowledge.rs, but the ENTITY upsert key itself is still raw - two config facts whose `{path}#{keypath}` flatten identically (e.g. duplicate keys in malformed-but-parseable TOML) would merge.",
+        "TOML scanner is line-based and does not handle multi-line arrays / inline tables / dotted keys spanning lines; a `key = [\\n 1,\\n 2\\n]` records only the first line and a dotted `a.b.c = 1` is taken verbatim as key 'a.b.c' under the current table (acceptable for nav, but values are not validated as the docstring admits)."
+      ],
+      "evasion_probes": [
+        "Verified depth cap 24 on walk_json/walk_yaml (config_schema.rs:195,267) prevents stack overflow on a deeply nested document - good.",
+        "Verified malformed JSON/YAML returns typed Err(reason) (serde_json/serde_yaml from_str) routed to record_parse_failure -> failed receipt, run continues. Confirmed by delegate test malformed_json_is_typed_error.",
+        "split_toml_assignment respects quotes so `key = \"a=b\"` is not split at the inner '=' (config_schema.rs:360). Sound.",
+        "No size cap before serde parse of a config file: a multi-GB JSON/YAML is loaded+parsed fully (unbounded memory), same class as the SCIP/parser size-guard gap."
+      ],
+      "evidence_checked": [
+        "src/backend/handshake_core/src/knowledge_code_index/config_schema.rs:102-371 extractors + locate_key + TOML scanner",
+        "src/backend/handshake_core/src/knowledge_code_index/engine.rs:833-983 index_config_file (no code_file row)",
+        "delegate tests json_package_scripts_and_keys / yaml_keys_with_lines / toml_tables_and_keys"
+      ]
+    },
+    "hardening_pending": {
+      "at_utc": "2026-06-11T16:55:57.726Z",
+      "severity": "MEDIUM",
+      "reason": "MEDIUM: config files get no knowledge_code_files row (staleness/lens broken for config); locate_key literal-substring mislocates span; TOML multiline/dotted keys mishandled."
+    }
   },
   "handoff": {
     "coder_session": null,

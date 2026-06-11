@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
   "base_wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T16:26:10.470Z",
+  "updated_at_utc": "2026-06-11T16:55:57.726Z",
   "authority_files": {
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json",
     "refinement_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/refinement.json",
@@ -175,6 +175,25 @@
         "MT-094",
         "MT-096"
       ]
+    },
+    "code_index_hardening": {
+      "at_utc": "2026-06-11T16:55:57.726Z",
+      "severity": "HIGH",
+      "source": "ADVERSARIAL_CODE_REVIEWER-20260611-PM",
+      "verdicts": "15 HARDEN_RECOMMENDED, 1 PASS (MT-103)",
+      "items": [
+        "HIGH MT-108: implement the real repair-queue integration for parse failures (or stop claiming it); catch Io errors (binary/non-UTF8) not just CodeParseError; wrap tree-sitter FFI parse in std::panic::catch_unwind -> typed failure receipt.",
+        "HIGH MT-106: attach StalenessVerdict to every served symbol in the nav API (never serve stale silently); replace load-all-then-filter with a DB-side name/prefix query.",
+        "HIGH-ish MT-105: reject ../ and . / .. path segments in SCIP validate; cap artifact size + document/symbol/occurrence counts; enforce the occurrence->declared-symbol invariant.",
+        "MEDIUM MT-098/099/100: disambiguate residual entity_key collisions - two impl blocks of same type, trait-vs-inherent method same name, TS overloads + declaration merging, JS class+function same name; multi-declarator const must extract all declarators.",
+        "MEDIUM MT-102: implement TS/JS test mapping (describe/it/test call blocks) or honestly mark deferred; fix validates-edge first-segment mis-attribution; bound the quadratic referenced_names scan.",
+        "MEDIUM MT-101: emit a knowledge_code_files row for config files (or document the staleness/lens consequence); replace locate_key literal substring with a structured key locator; handle TOML multiline/dotted keys.",
+        "MEDIUM MT-107: wire mark_knowledge_code_file_stale on file write/ingestion (push staleness, not pull-only); document/justify the caller-supplied-hash trust boundary or compute server-side.",
+        "MEDIUM perf MT-097/109/110/111: add input-size guards; replace load-all-workspace-symbols with DB-side filtered queries; bound context-bundle work (not just output); make the perf budget a real measured assertion.",
+        "MEDIUM MT-104: cross-file call/implements resolution (or document intra-file-only as a conservative contract); ensure relationship_id _v2 fix (storage MT-054) covers code-index edges; stop recreating evidence spans each re-index.",
+        "MEDIUM MT-112: register /knowledge/code/* in model_manual (or confirm MT-193 ownership); strengthen idempotency test to assert no evidence-span accumulation; flag the PG-less-CI SKIP gap."
+      ],
+      "note": "MT-104 relationship_id collision auto-fixed by storage MT-054 _v2 derivation."
     }
   },
   "scope": {

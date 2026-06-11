@@ -22,7 +22,7 @@
   "title": "CodeIndexingAndNavigation-098-RustSymbolExtractor",
   "group": "CodeIndexingAndNavigation",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T16:26:10.470Z",
+  "updated_at_utc": "2026-06-11T16:55:57.726Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-098.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -88,7 +88,32 @@
     "claimed_by": "KERNEL_BUILDER-20260611-071323",
     "completed_by": null,
     "implementation_commit": "5d6490b0+79e1a7e4",
-    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 commits 5d6490b0 (compiling foundation) + 79e1a7e4 (runtime proof); 43 lib + 11 integration + 1 nav-API tests green on real PostgreSQL under runtime-full,test-utils. Found+fixed impl-Type/struct-Type entity collision. Pending adversarial code review."
+    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 commits 5d6490b0 (compiling foundation) + 79e1a7e4 (runtime proof); 43 lib + 11 integration + 1 nav-API tests green on real PostgreSQL under runtime-full,test-utils. Found+fixed impl-Type/struct-Type entity collision. Pending adversarial code review.",
+    "adversarial_code_review": {
+      "verdict": "HARDEN_RECOMMENDED",
+      "reviewed_at_utc": "2026-06-11T17:20:00Z",
+      "reviewer": "ADVERSARIAL_CODE_REVIEWER-20260611-PM",
+      "concerns": [
+        "RESIDUAL entity_key collision beyond the one the delegate fixed. The fix disambiguates struct-Type vs impl-Type (symbols.rs:231 path_name='impl {name}'), but does NOT disambiguate TWO impl blocks of the SAME type. `impl A {}` + `impl Trait for A {}`, or `impl T1 for A {}` + `impl T2 for A {}`, both yield symbol_path 'impl A' (scope_name_for returns the `type` field 'A' for both), producing identical entity_key `rust:path#impl A`. The upsert ON CONFLICT (workspace_id,entity_kind,entity_key) at knowledge.rs:3336 then SILENTLY MERGES the two distinct impl entities into one (display_name/provenance overwritten by last writer; both spans attach to survivor). Distinct symbols collapse - the same failure class the delegate claimed closed; only the struct-vs-impl variant was closed.",
+        "Method-name collision across impl blocks of the same type: two `impl A` blocks each defining `fn run` both scope to `A::run` (scope uses the impl `type`, not the trait), so a trait method and an inherent method of the same name on the same type collide on `A::run` and merge.",
+        "Generic impls are inconsistently handled: `impl A<u32>` vs `impl A<String>` get distinct keys (type-field text differs) but the COMMON bare repeated `impl A` collides."
+      ],
+      "evasion_probes": [
+        "Traced extract_rust (symbols.rs:193-250): SymbolKind::Impl path_name='impl {name}', name=scope_name_for->`type` field. For two impls of type A at module top level, scope_path adds no prefix -> both 'impl A'. The delegate's test rust_extracts_fns_structs_impls_methods_traits_tests covers only a SINGLE impl, so this collision is untested.",
+        "Verified #[test]/#[cfg(test)] detection (rust_has_test_attribute) keys on attribute text containing 'test' - a non-test attr like #[contest] or a doc mentioning test would NOT match because it scans attribute_item nodes only; acceptable.",
+        "Confirmed free fn vs method of same name do NOT collide (distinct paths)."
+      ],
+      "evidence_checked": [
+        "src/backend/handshake_core/src/knowledge_code_index/symbols.rs:193-290 extract_rust + scope_name_for",
+        "src/backend/handshake_core/src/knowledge_code_index/symbols.rs:96-106 entity_key format",
+        "src/backend/handshake_core/src/storage/knowledge.rs:3310-3378 upsert ON CONFLICT merge semantics"
+      ]
+    },
+    "hardening_pending": {
+      "at_utc": "2026-06-11T16:55:57.726Z",
+      "severity": "MEDIUM",
+      "reason": "MEDIUM: residual entity_key collision - two impl blocks of same type (impl A {} + impl Trait for A) and method-name collisions across impl blocks both scope to A::x and merge in upsert."
+    }
   },
   "handoff": {
     "coder_session": null,

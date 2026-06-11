@@ -22,7 +22,7 @@
   "title": "CodeIndexingAndNavigation-103-DocCommentTodoExtractor",
   "group": "CodeIndexingAndNavigation",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T16:26:10.470Z",
+  "updated_at_utc": "2026-06-11T16:55:57.726Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-103.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -79,7 +79,7 @@
     ]
   },
   "lifecycle": {
-    "status": "CLAIMED",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-097"
@@ -88,7 +88,33 @@
     "claimed_by": "KERNEL_BUILDER-20260611-071323",
     "completed_by": null,
     "implementation_commit": "5d6490b0+79e1a7e4",
-    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 commits 5d6490b0 (compiling foundation) + 79e1a7e4 (runtime proof); 43 lib + 11 integration + 1 nav-API tests green on real PostgreSQL under runtime-full,test-utils. Found+fixed impl-Type/struct-Type entity collision. Pending adversarial code review."
+    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 commits 5d6490b0 (compiling foundation) + 79e1a7e4 (runtime proof); 43 lib + 11 integration + 1 nav-API tests green on real PostgreSQL under runtime-full,test-utils. Found+fixed impl-Type/struct-Type entity collision. Pending adversarial code review.",
+    "adversarial_code_review": {
+      "verdict": "PASS",
+      "reviewed_at_utc": "2026-06-11T17:39:00Z",
+      "reviewer": "ADVERSARIAL_CODE_REVIEWER-20260611-PM",
+      "concerns": [
+        "Doc passage entity_key `doc:{path}#L{line}:{kind}` (docs_todo.rs:67) is line-anchored by design, so any edit that shifts lines orphans the old key and mints a new one - the delegate documents this as intended (stale old key). Acceptable but means doc-passage concept entities accumulate across edits (the old keys are not retired here; retirement depends on a staleness sweep that is not wired for concept entities).",
+        "Marker scan find_marker (docs_todo.rs:270) is O(MARKERS x text.len()) per comment with an inner find loop; cheap for comments but unbounded by comment size.",
+        "A doc comment that merely MENTIONS a marker word (e.g. '/// see the TODO list policy') is reclassified from DocComment to Todo (record_text_passage at docs_todo.rs:225 short-circuits to marker). This can mislabel legitimate doc text as an actionable TODO. Low severity (searchability), but the kind is presented authoritatively."
+      ],
+      "evasion_probes": [
+        "Verified word-boundary marker detection rejects TODOLIST/TODOs-substrings (is_word_byte, docs_todo.rs:293) - delegate test marker_word_boundary_avoids_false_positive confirms.",
+        "Verified block-comment state machine terminates: in_block cleared on '*/' (docs_todo.rs:101); a never-closed /* runs to EOF and is then never pushed (block_text dropped) - no infinite loop, no panic, just silent drop of an unterminated block.",
+        "byte_span uses offsets.get(...).unwrap_or(text.len()) (docs_todo.rs:314) so out-of-range lines do not panic.",
+        "Only DocComment passages produce `documents` edges (engine.rs:408); TODO/SAFETY remain searchable concept entities without edges - matches the contract and avoids polluting the call graph."
+      ],
+      "evidence_checked": [
+        "src/backend/handshake_core/src/knowledge_code_index/docs_todo.rs:82-318 extract_doc_passages + find_marker + byte_span",
+        "src/backend/handshake_core/src/knowledge_code_index/engine.rs:361-423 doc-passage write path",
+        "delegate tests (6) incl block_doc_comment_extracted, safety_note_is_classified_safety"
+      ]
+    },
+    "ready_by": "KERNEL_BUILDER-20260611-071323",
+    "ready_for_validation_at_utc": "2026-06-11T16:55:57.726Z",
+    "evidence": [
+      "Adversarial code review PASS (ADVERSARIAL_CODE_REVIEWER-20260611-PM); only minor intended-behavior notes."
+    ]
   },
   "handoff": {
     "coder_session": null,
