@@ -26,8 +26,10 @@
 //!   lockfile-governed product libraries — never external runtime services.
 
 pub mod cui_gate;
+pub mod input_registry;
 
 pub use cui_gate::{CuiGateError, CuiPortableGate};
+pub use input_registry::{RuntimeInputDeclaration, RuntimeInputError, RuntimeInputRegistry};
 
 use std::path::{Path, PathBuf};
 
