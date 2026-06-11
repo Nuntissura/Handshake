@@ -8,3 +8,4 @@ pub mod rich_document_snapshot;
 pub mod snapshot;
 pub mod state_vector;
 pub mod validity_guard;
+pub mod yjs_bridge;
