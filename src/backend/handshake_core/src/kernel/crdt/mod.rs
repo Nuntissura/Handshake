@@ -5,4 +5,5 @@ pub mod identity;
 pub mod persistence;
 pub mod promotion_bridge;
 pub mod snapshot;
+pub mod state_vector;
 pub mod validity_guard;

@@ -22,6 +22,318 @@ async fn postgres_or_environment_blocked() -> std::sync::Arc<dyn handshake_core:
     }
 }
 
+mod mt_072_state_vector {
+    use super::postgres_or_environment_blocked;
+    use handshake_core::kernel::crdt::actor_site::{
+        derive_knowledge_site_id, knowledge_crdt_identity, KnowledgeActorIdV1, KnowledgeActorKind,
+    };
+    use handshake_core::kernel::crdt::persistence::{
+        new_crdt_update_record, CrdtReplayMetadataV1, CrdtUpdateRecordInputV1,
+    };
+    use handshake_core::kernel::crdt::state_vector::{
+        verify_causal_chain, KnowledgeCausalChainError, KnowledgeStateVectorOrdering,
+        KnowledgeStateVectorParseError, KnowledgeStateVectorV1,
+    };
+    use handshake_core::kernel::{KernelEventType, NewKernelEvent};
+    use serde_json::json;
+    use uuid::Uuid;
+
+    #[test]
+    fn state_vector_encoding_is_canonical_and_round_trips() {
+        let empty = KnowledgeStateVectorV1::new();
+        assert_eq!(empty.encode(), "hsk-sv1:");
+        assert_eq!(
+            KnowledgeStateVectorV1::parse("hsk-sv1:").expect("empty parses"),
+            empty
+        );
+
+        let mut sv = KnowledgeStateVectorV1::new();
+        sv.observe("site-bb", 2);
+        sv.observe("site-aa", 7);
+        // Lexicographic site order regardless of observe order.
+        assert_eq!(sv.encode(), "hsk-sv1:site-aa=7;site-bb=2");
+        let reparsed = KnowledgeStateVectorV1::parse(&sv.encode()).expect("round-trip");
+        assert_eq!(reparsed, sv);
+        assert_eq!(reparsed.clock("site-aa"), 7);
+        assert_eq!(reparsed.clock("site-absent"), 0);
+        assert_eq!(reparsed.lamport_max(), 7);
+
+        // serde round-trip uses the canonical string.
+        let json_form = serde_json::to_string(&sv).expect("serialize");
+        assert_eq!(json_form, "\"hsk-sv1:site-aa=7;site-bb=2\"");
+        let back: KnowledgeStateVectorV1 = serde_json::from_str(&json_form).expect("deserialize");
+        assert_eq!(back, sv);
+    }
+
+    #[test]
+    fn state_vector_parse_rejects_malformed_inputs() {
+        for (input, expectation) in [
+            ("sv-without-prefix", "MissingPrefix"),
+            ("hsk-sv1:;", "EmptyEntry"),
+            ("hsk-sv1:site-a", "MissingClockSeparator"),
+            ("hsk-sv1:=3", "EmptySite"),
+            ("hsk-sv1:site a=3", "BadSiteChar"),
+            ("hsk-sv1:site-a=x", "BadClock"),
+            ("hsk-sv1:site-a=0", "ZeroClock"),
+            ("hsk-sv1:site-a=1;site-a=2", "DuplicateSite"),
+        ] {
+            let err = KnowledgeStateVectorV1::parse(input)
+                .expect_err(&format!("'{input}' must fail to parse"));
+            let matches_expectation = matches!(
+                (&err, expectation),
+                (
+                    KnowledgeStateVectorParseError::MissingPrefix { .. },
+                    "MissingPrefix"
+                ) | (KnowledgeStateVectorParseError::EmptyEntry, "EmptyEntry")
+                    | (
+                        KnowledgeStateVectorParseError::MissingClockSeparator { .. },
+                        "MissingClockSeparator"
+                    )
+                    | (
+                        KnowledgeStateVectorParseError::EmptySite { .. },
+                        "EmptySite"
+                    )
+                    | (
+                        KnowledgeStateVectorParseError::BadSiteChar { .. },
+                        "BadSiteChar"
+                    )
+                    | (KnowledgeStateVectorParseError::BadClock { .. }, "BadClock")
+                    | (
+                        KnowledgeStateVectorParseError::ZeroClock { .. },
+                        "ZeroClock"
+                    )
+                    | (
+                        KnowledgeStateVectorParseError::DuplicateSite { .. },
+                        "DuplicateSite"
+                    )
+            );
+            assert!(
+                matches_expectation,
+                "'{input}' produced unexpected error {err:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn causality_comparison_covers_all_orderings() {
+        let parse = |s: &str| KnowledgeStateVectorV1::parse(s).expect("valid sv");
+        let base = parse("hsk-sv1:a=2;b=1");
+        assert_eq!(
+            base.compare(&parse("hsk-sv1:a=2;b=1")),
+            KnowledgeStateVectorOrdering::Equal
+        );
+        assert_eq!(
+            base.compare(&parse("hsk-sv1:a=1;b=1")),
+            KnowledgeStateVectorOrdering::Dominates
+        );
+        assert_eq!(
+            base.compare(&parse("hsk-sv1:a=2;b=1;c=4")),
+            KnowledgeStateVectorOrdering::DominatedBy
+        );
+        assert_eq!(
+            base.compare(&parse("hsk-sv1:a=1;b=1;c=4")),
+            KnowledgeStateVectorOrdering::Concurrent
+        );
+        // Empty vector is dominated by anything non-empty.
+        assert_eq!(
+            KnowledgeStateVectorV1::new().compare(&base),
+            KnowledgeStateVectorOrdering::DominatedBy
+        );
+        assert!(base.dominates_or_equal(&parse("hsk-sv1:a=1")));
+        assert!(!base.dominates_or_equal(&parse("hsk-sv1:c=1")));
+    }
+
+    #[test]
+    fn merge_takes_pointwise_maximum_and_increment_advances_locally() {
+        let parse = |s: &str| KnowledgeStateVectorV1::parse(s).expect("valid sv");
+        let ours = parse("hsk-sv1:a=3;b=1");
+        let theirs = parse("hsk-sv1:a=1;c=5");
+        let merged = ours.merge(&theirs);
+        assert_eq!(merged.encode(), "hsk-sv1:a=3;b=1;c=5");
+        assert!(merged.dominates_or_equal(&ours));
+        assert!(merged.dominates_or_equal(&theirs));
+
+        let mut local = merged.clone();
+        assert_eq!(local.increment("b"), 2);
+        assert_eq!(local.increment("new-site"), 1);
+        assert_eq!(
+            local.compare(&merged),
+            KnowledgeStateVectorOrdering::Dominates
+        );
+    }
+
+    #[test]
+    fn causal_chain_proof_rejects_broken_chains() {
+        // Build two records whose before/after vectors do not chain.
+        let actor =
+            KnowledgeActorIdV1::new(KnowledgeActorKind::LocalModel, "mt072").expect("valid actor");
+        let identity = knowledge_crdt_identity(
+            "ws-mt072-neg",
+            "doc-mt072-neg",
+            "crdt-mt072-neg",
+            "hsk.doc.rich_document@1",
+            &actor,
+            "trace-mt072-neg",
+        );
+        let site = derive_knowledge_site_id("ws-mt072-neg", "crdt-mt072-neg", &actor);
+        let make = |seq: u64, before: String, after: String| {
+            new_crdt_update_record(CrdtUpdateRecordInputV1 {
+                identity: &identity,
+                update_id: &format!("u{seq}"),
+                update_seq: seq,
+                update_bytes: b"x",
+                update_bytes_ref: &format!(
+                    "postgres://kernel_crdt_updates/{}/u{seq}/update_bytes",
+                    identity.crdt_document_id
+                ),
+                session_id: "sr-mt072",
+                trace_id: "trace-mt072",
+                state_vector_before: &before,
+                state_vector_after: &after,
+                replay_metadata: CrdtReplayMetadataV1 {
+                    replay_order_key: format!("k/{seq:020}"),
+                    dependency_update_ids: Vec::new(),
+                    encoding: "yjs-update-v1".to_string(),
+                    schema_version: "kernel-crdt-update-v1".to_string(),
+                },
+                event_ledger_event_id: &format!("evt-mt072-{seq}"),
+            })
+        };
+        let sv = |clock: u64| format!("hsk-sv1:{}={clock}", site.site_id);
+
+        // after == before (no domination) is rejected.
+        let stuck = make(1, sv(1), sv(1));
+        assert!(matches!(
+            verify_causal_chain(&[stuck]),
+            Err(KnowledgeCausalChainError::AfterDoesNotDominateBefore { .. })
+        ));
+
+        // before of step 2 skips the after of step 1.
+        let first = make(1, "hsk-sv1:".to_string(), sv(1));
+        let skipping = make(2, sv(2), sv(3));
+        assert!(matches!(
+            verify_causal_chain(&[first.clone(), skipping]),
+            Err(KnowledgeCausalChainError::BeforeBreaksChain { .. })
+        ));
+
+        // sequence gap is rejected before vector checks.
+        let gapped = make(3, sv(1), sv(2));
+        assert!(matches!(
+            verify_causal_chain(&[first, gapped]),
+            Err(KnowledgeCausalChainError::NonContiguousSequence { .. })
+        ));
+
+        assert!(matches!(
+            verify_causal_chain(&[]),
+            Err(KnowledgeCausalChainError::EmptyChain)
+        ));
+    }
+
+    /// PostgreSQL proof: typed causal metadata persists on kernel_crdt_updates
+    /// rows and the replay-ordering proof verifies over the listed records,
+    /// out-of-order input included (Postgres replay order is by update_seq).
+    #[tokio::test]
+    async fn persisted_causal_metadata_yields_replay_ordering_proof() {
+        let db = postgres_or_environment_blocked().await;
+        let suffix = Uuid::now_v7().simple().to_string();
+        let human =
+            KnowledgeActorIdV1::new(KnowledgeActorKind::Operator, "op-mt072").expect("valid actor");
+        let model = KnowledgeActorIdV1::new(KnowledgeActorKind::LocalModel, "lm-mt072")
+            .expect("valid actor");
+        let workspace_id = format!("ws-mt072-{suffix}");
+        let document_id = format!("doc-mt072-{suffix}");
+        let crdt_document_id = format!("crdt-mt072-{suffix}");
+
+        let human_site = derive_knowledge_site_id(&workspace_id, &crdt_document_id, &human);
+        let model_site = derive_knowledge_site_id(&workspace_id, &crdt_document_id, &model);
+
+        // Interleaved two-actor causal chain: op, model, op.
+        let mut sv = KnowledgeStateVectorV1::new();
+        let mut chain = Vec::new();
+        for (seq, (actor, site)) in [
+            (&human, &human_site),
+            (&model, &model_site),
+            (&human, &human_site),
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            let seq = seq as u64 + 1;
+            let before = sv.encode();
+            sv.increment(&site.site_id);
+            let after = sv.encode();
+            let identity = knowledge_crdt_identity(
+                &workspace_id,
+                &document_id,
+                &crdt_document_id,
+                "hsk.doc.rich_document@1",
+                actor,
+                &format!("trace-mt072-{suffix}"),
+            );
+            let event = NewKernelEvent::builder(
+                format!("KTR-MT072-{suffix}"),
+                format!("SR-MT072-{suffix}"),
+                KernelEventType::KnowledgeCrdtUpdateRecorded,
+                actor.to_kernel_actor(),
+            )
+            .aggregate("knowledge_crdt_document", crdt_document_id.clone())
+            .idempotency_key(format!("mt072:{suffix}:u{seq}"))
+            .source_component("knowledge_crdt_model_tests")
+            .payload(json!({"seq": seq, "after": after}))
+            .build()
+            .expect("valid event");
+            let stored_event = db.append_kernel_event(event).await.expect("append event");
+
+            let bytes = format!("mt072-update-{seq}").into_bytes();
+            let record = new_crdt_update_record(CrdtUpdateRecordInputV1 {
+                identity: &identity,
+                update_id: &format!("mt072-u{seq}"),
+                update_seq: seq,
+                update_bytes: &bytes,
+                update_bytes_ref: &format!(
+                    "postgres://kernel_crdt_updates/{crdt_document_id}/mt072-u{seq}/update_bytes"
+                ),
+                session_id: &format!("SR-MT072-{suffix}"),
+                trace_id: &format!("trace-mt072-{suffix}"),
+                state_vector_before: &before,
+                state_vector_after: &after,
+                replay_metadata: CrdtReplayMetadataV1 {
+                    replay_order_key: format!("{workspace_id}/{document_id}/{seq:020}"),
+                    dependency_update_ids: Vec::new(),
+                    encoding: "yjs-update-v1".to_string(),
+                    schema_version: "kernel-crdt-update-v1".to_string(),
+                },
+                event_ledger_event_id: &stored_event.event_id,
+            });
+            db.append_kernel_crdt_update(record.clone(), bytes)
+                .await
+                .expect("append update");
+            chain.push(record);
+        }
+
+        let mut replayed = db
+            .list_kernel_crdt_updates(&workspace_id, &document_id, &crdt_document_id)
+            .await
+            .expect("list persisted updates");
+        assert_eq!(replayed.len(), 3);
+        // Feed the proof out of order on purpose; it must sort by update_seq.
+        replayed.reverse();
+        let proof = verify_causal_chain(&replayed).expect("persisted chain proves replay order");
+        assert_eq!(proof.steps.len(), 3);
+        assert_eq!(proof.final_lamport, 2, "operator advanced twice");
+        assert_eq!(
+            proof.final_state_vector,
+            sv.encode(),
+            "proof reconstructs the exact final typed state vector"
+        );
+        assert_eq!(
+            proof.steps[1].advanced_sites,
+            vec![model_site.site_id.clone()]
+        );
+        assert!(proof.steps[0].advanced_sites.contains(&human_site.site_id));
+    }
+}
+
 mod mt_065_actor_site {
     use super::postgres_or_environment_blocked;
     use handshake_core::kernel::crdt::actor_site::{
