@@ -136,3 +136,167 @@ mod mt_049_namespace {
         );
     }
 }
+
+// ---------------------------------------------------------------------------
+// MT-050 ProjectSourceRootTables
+// ---------------------------------------------------------------------------
+
+mod mt_050_source_roots {
+    use super::*;
+    use handshake_core::storage::knowledge::{
+        normalize_repo_relative_path, KnowledgeIndexingEligibility, KnowledgeRootKind,
+        KnowledgeStore, NewKnowledgeSourceRoot,
+    };
+    use handshake_core::storage::StorageError;
+    use serde_json::json;
+
+    fn new_root(workspace_id: &str, path: &str) -> NewKnowledgeSourceRoot {
+        NewKnowledgeSourceRoot {
+            workspace_id: workspace_id.to_string(),
+            display_name: "Backend core".to_string(),
+            root_kind: KnowledgeRootKind::ProjectRepo,
+            repo_relative_path: path.to_string(),
+            allowlist_policy: json!({
+                "include": ["src/**/*.rs", "migrations/**/*.sql"],
+                "exclude": ["**/target/**"]
+            }),
+            indexing_eligibility: KnowledgeIndexingEligibility::Eligible,
+        }
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn create_read_list_and_eligibility_roundtrip() {
+        let Some(pg) = knowledge_pg().await else {
+            eprintln!("SKIP create_read_list_and_eligibility_roundtrip: no PostgreSQL");
+            return;
+        };
+        let workspace_id = pg.create_workspace().await;
+
+        let created = pg
+            .db
+            .create_knowledge_source_root(new_root(&workspace_id, "src/backend/handshake_core"))
+            .await
+            .expect("create knowledge source root");
+        assert!(created.root_id.starts_with("KSR-"));
+        assert_eq!(created.path_normalization, "repo_relative_posix_v1");
+        assert_eq!(
+            created.indexing_eligibility,
+            KnowledgeIndexingEligibility::Eligible
+        );
+
+        let fetched = pg
+            .db
+            .get_knowledge_source_root(&created.root_id)
+            .await
+            .expect("get root")
+            .expect("root must exist after create");
+        assert_eq!(fetched, created);
+
+        let listed = pg
+            .db
+            .list_knowledge_source_roots(&workspace_id)
+            .await
+            .expect("list roots");
+        assert_eq!(listed.len(), 1);
+        assert_eq!(listed[0].root_id, created.root_id);
+
+        let paused = pg
+            .db
+            .set_knowledge_root_eligibility(&created.root_id, KnowledgeIndexingEligibility::Paused)
+            .await
+            .expect("pause root");
+        assert_eq!(
+            paused.indexing_eligibility,
+            KnowledgeIndexingEligibility::Paused
+        );
+        assert!(paused.updated_at >= created.updated_at);
+
+        let missing = pg
+            .db
+            .set_knowledge_root_eligibility("KSR-00000000000000000000000000000000",
+                KnowledgeIndexingEligibility::Excluded)
+            .await;
+        assert!(
+            matches!(missing, Err(StorageError::NotFound(_))),
+            "eligibility update on a missing root must be typed NotFound"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn absolute_path_authority_is_rejected_in_rust_and_postgres() {
+        let Some(pg) = knowledge_pg().await else {
+            eprintln!("SKIP absolute_path_authority_is_rejected_in_rust_and_postgres: no PostgreSQL");
+            return;
+        };
+        let workspace_id = pg.create_workspace().await;
+
+        // Rust-level normalization rejects machine-local path authority.
+        for bad in ["C:/projects/handshake", "/var/handshake", "../escape", "a/../../b"] {
+            let err = pg
+                .db
+                .create_knowledge_source_root(new_root(&workspace_id, bad))
+                .await
+                .expect_err("absolute/escaping path must be rejected");
+            assert!(
+                matches!(err, StorageError::Validation(_)),
+                "expected typed Validation error for {bad}, got {err:?}"
+            );
+        }
+        // Backslash input is normalized (not rejected) into POSIX form.
+        assert_eq!(
+            normalize_repo_relative_path("src\\backend").expect("normalize"),
+            "src/backend"
+        );
+
+        // DB-level portability boundary holds even if application code is
+        // bypassed (direct SQL).
+        let mut conn = pg.raw_connection().await;
+        let err = sqlx::query(
+            "INSERT INTO knowledge_source_roots
+                 (root_id, workspace_id, display_name, root_kind, repo_relative_path)
+             VALUES ('KSR-00000000000000000000000000000001', $1, 'rogue', 'project_repo', 'C:/abs')",
+        )
+        .bind(&workspace_id)
+        .execute(&mut conn)
+        .await
+        .expect_err("DB constraint must reject absolute paths");
+        assert!(
+            err.to_string()
+                .contains("chk_knowledge_source_roots_path_portable"),
+            "unexpected constraint error: {err}"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn duplicate_path_and_unknown_workspace_fail_closed() {
+        let Some(pg) = knowledge_pg().await else {
+            eprintln!("SKIP duplicate_path_and_unknown_workspace_fail_closed: no PostgreSQL");
+            return;
+        };
+        let workspace_id = pg.create_workspace().await;
+
+        pg.db
+            .create_knowledge_source_root(new_root(&workspace_id, "src"))
+            .await
+            .expect("create first root");
+        let dup = pg
+            .db
+            .create_knowledge_source_root(new_root(&workspace_id, "src"))
+            .await
+            .expect_err("duplicate (workspace, path) must violate unique constraint");
+        assert!(
+            dup.to_string().contains("uq_knowledge_source_roots_workspace_path"),
+            "unexpected duplicate-root error: {dup}"
+        );
+
+        let orphan = pg
+            .db
+            .create_knowledge_source_root(new_root("ws-does-not-exist", "docs"))
+            .await
+            .expect_err("unknown workspace must violate the FK");
+        assert!(
+            orphan.to_string().contains("foreign key"),
+            "unexpected FK error: {orphan}"
+        );
+    }
+}

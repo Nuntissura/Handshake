@@ -83,6 +83,22 @@ impl KnowledgePg {
             .await
             .expect("open raw connection into isolated knowledge schema")
     }
+
+    /// Create a real workspace row (FK target for knowledge tables).
+    pub async fn create_workspace(&self) -> String {
+        let ctx = handshake_core::storage::WriteContext::human(None);
+        let workspace = self
+            .db
+            .create_workspace(
+                &ctx,
+                handshake_core::storage::NewWorkspace {
+                    name: format!("knowledge-ws-{}", Uuid::now_v7()),
+                },
+            )
+            .await
+            .expect("create workspace for knowledge tests");
+        workspace.id
+    }
 }
 
 /// Build a fresh isolated schema + run all migrations on the real cluster.
