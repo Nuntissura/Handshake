@@ -144,9 +144,30 @@ pub fn artifact_hash(bytes: &[u8]) -> String {
     hex::encode(hasher.finalize())
 }
 
+/// MT-105 resource caps. A provided import artifact is operator-supplied but
+/// UNTRUSTED input; without caps a hostile/huge artifact would OOM the parse or
+/// blow up the downstream entity/span/edge writes. These bounds reject such an
+/// artifact with a typed reason (recorded in the import ledger) before any
+/// allocation of the parsed model beyond the raw bytes.
+pub const SCIP_MAX_ARTIFACT_BYTES: usize = 64 * 1024 * 1024; // 64 MiB
+pub const SCIP_MAX_DOCUMENTS: usize = 100_000;
+pub const SCIP_MAX_SYMBOLS: usize = 2_000_000;
+pub const SCIP_MAX_OCCURRENCES: usize = 5_000_000;
+
 /// Parse and validate an import artifact from bytes. Strict: anything that is
-/// not the owned shape is `Err(ScipImportRejected)`.
+/// not the owned shape — or that exceeds the MT-105 resource caps, escapes the
+/// repo with a `..`/`.` path segment, or references an undeclared symbol — is
+/// `Err(ScipImportRejected)`.
 pub fn parse_scip_artifact(bytes: &[u8]) -> Result<ScipArtifact, ScipImportRejected> {
+    // Size cap FIRST, before deserialisation allocates the parsed model.
+    if bytes.len() > SCIP_MAX_ARTIFACT_BYTES {
+        return Err(ScipImportRejected {
+            reason: format!(
+                "artifact is {} bytes, exceeds the {SCIP_MAX_ARTIFACT_BYTES}-byte import cap",
+                bytes.len()
+            ),
+        });
+    }
     let artifact: ScipArtifact =
         serde_json::from_slice(bytes).map_err(|err| ScipImportRejected {
             reason: format!("artifact is not a valid Handshake SCIP/LSIF import JSON: {err}"),
@@ -155,22 +176,73 @@ pub fn parse_scip_artifact(bytes: &[u8]) -> Result<ScipArtifact, ScipImportRejec
     Ok(artifact)
 }
 
+/// True when `path` is a repo-relative POSIX path that does not escape the repo:
+/// no leading `/`, no backslash, and no `.`/`..` path segment (the traversal
+/// vectors). An empty segment (`a//b`) is also rejected as malformed.
+fn is_repo_relative_posix(path: &str) -> bool {
+    if path.is_empty() || path.starts_with('/') || path.contains('\\') {
+        return false;
+    }
+    path.split('/')
+        .all(|seg| !seg.is_empty() && seg != "." && seg != "..")
+}
+
 fn validate(artifact: &ScipArtifact) -> Result<(), ScipImportRejected> {
     if artifact.documents.is_empty() {
         return Err(ScipImportRejected {
             reason: "artifact declares no documents".to_string(),
         });
     }
+    // Count caps (the parse already bounded total bytes; these bound the work
+    // the downstream projection would do).
+    if artifact.documents.len() > SCIP_MAX_DOCUMENTS {
+        return Err(ScipImportRejected {
+            reason: format!(
+                "artifact declares {} documents, exceeds the {SCIP_MAX_DOCUMENTS} cap",
+                artifact.documents.len()
+            ),
+        });
+    }
+    let total_symbols = artifact.symbol_count();
+    if total_symbols > SCIP_MAX_SYMBOLS {
+        return Err(ScipImportRejected {
+            reason: format!(
+                "artifact declares {total_symbols} symbols, exceeds the {SCIP_MAX_SYMBOLS} cap"
+            ),
+        });
+    }
+    let total_occurrences = artifact.occurrence_count();
+    if total_occurrences > SCIP_MAX_OCCURRENCES {
+        return Err(ScipImportRejected {
+            reason: format!(
+                "artifact declares {total_occurrences} occurrences, exceeds the \
+                 {SCIP_MAX_OCCURRENCES} cap"
+            ),
+        });
+    }
+
+    // Collect every symbol id DECLARED anywhere in the artifact so the
+    // occurrence->declared-symbol invariant can be enforced (an occurrence that
+    // references no declared symbol cannot become an edge and is rejected, not
+    // silently dropped).
+    let mut declared: std::collections::HashSet<&str> = std::collections::HashSet::new();
+    for doc in &artifact.documents {
+        for sym in &doc.symbols {
+            declared.insert(sym.symbol.as_str());
+        }
+    }
+
     for (di, doc) in artifact.documents.iter().enumerate() {
         if doc.relative_path.trim().is_empty() {
             return Err(ScipImportRejected {
                 reason: format!("document #{di} has an empty relative_path"),
             });
         }
-        if doc.relative_path.contains('\\') || doc.relative_path.starts_with('/') {
+        if !is_repo_relative_posix(&doc.relative_path) {
             return Err(ScipImportRejected {
                 reason: format!(
-                    "document #{di} relative_path '{}' must be repo-relative POSIX",
+                    "document #{di} relative_path '{}' must be a repo-relative POSIX path with \
+                     no '..'/'.' segment",
                     doc.relative_path
                 ),
             });
@@ -191,12 +263,21 @@ fn validate(artifact: &ScipArtifact) -> Result<(), ScipImportRejected> {
             }
         }
         // Every occurrence must reference a symbol declared SOMEWHERE in the
-        // artifact (occurrences without a definition are not importable as
-        // edges).
+        // artifact (occurrences without a declaration are not importable as
+        // edges) and have a well-formed byte range.
         for occ in &doc.occurrences {
             if occ.byte_end < occ.byte_start {
                 return Err(ScipImportRejected {
                     reason: format!("occurrence of '{}' has byte_end < byte_start", occ.symbol),
+                });
+            }
+            if !declared.contains(occ.symbol.as_str()) {
+                return Err(ScipImportRejected {
+                    reason: format!(
+                        "occurrence in '{}' references undeclared symbol '{}' (occurrence-to-\
+                         declared-symbol invariant)",
+                        doc.relative_path, occ.symbol
+                    ),
                 });
             }
         }
@@ -275,5 +356,101 @@ mod tests {
     fn artifact_hash_is_deterministic() {
         assert_eq!(artifact_hash(b"abc"), artifact_hash(b"abc"));
         assert_ne!(artifact_hash(b"abc"), artifact_hash(b"abd"));
+    }
+
+    #[test]
+    fn rejects_dot_dot_path_segment() {
+        let bytes = br#"{ "format": "scip", "documents": [
+            { "relative_path": "src/../../../etc/passwd", "language": "rust" }
+        ] }"#;
+        let err = parse_scip_artifact(bytes).unwrap_err();
+        assert!(
+            err.reason.contains("'..'/'.'") || err.reason.contains("repo-relative"),
+            "{err}"
+        );
+    }
+
+    #[test]
+    fn rejects_single_dot_path_segment() {
+        let bytes = br#"{ "format": "scip", "documents": [
+            { "relative_path": "src/./lib.rs", "language": "rust" }
+        ] }"#;
+        let err = parse_scip_artifact(bytes).unwrap_err();
+        assert!(err.reason.contains("'..'/'.'"), "{err}");
+    }
+
+    #[test]
+    fn rejects_occurrence_referencing_undeclared_symbol() {
+        // The occurrence points at a symbol that is declared NOWHERE in the
+        // artifact -> rejected by the occurrence->declared-symbol invariant.
+        let bytes = br#"{ "format": "scip", "documents": [
+            { "relative_path": "a.rs", "language": "rust",
+              "symbols": [
+                { "symbol": "rust:a.rs#known", "kind": "function",
+                  "display_name": "known", "line_start": 1, "line_end": 1,
+                  "byte_start": 0, "byte_end": 10 }
+              ],
+              "occurrences": [
+                { "symbol": "rust:a.rs#ghost", "role": "reference",
+                  "line_start": 5, "line_end": 5, "byte_start": 50, "byte_end": 55 }
+              ] }
+        ] }"#;
+        let err = parse_scip_artifact(bytes).unwrap_err();
+        assert!(
+            err.reason.contains("undeclared symbol") && err.reason.contains("ghost"),
+            "{err}"
+        );
+    }
+
+    #[test]
+    fn accepts_occurrence_referencing_symbol_declared_in_other_document() {
+        // Cross-document references are valid: the symbol is declared in doc A,
+        // the occurrence is in doc B.
+        let bytes = br#"{ "format": "scip", "documents": [
+            { "relative_path": "a.rs", "language": "rust",
+              "symbols": [
+                { "symbol": "rust:a.rs#shared", "kind": "function",
+                  "display_name": "shared", "line_start": 1, "line_end": 1,
+                  "byte_start": 0, "byte_end": 10 }
+              ] },
+            { "relative_path": "b.rs", "language": "rust",
+              "occurrences": [
+                { "symbol": "rust:a.rs#shared", "role": "reference",
+                  "line_start": 2, "line_end": 2, "byte_start": 20, "byte_end": 26 }
+              ] }
+        ] }"#;
+        let artifact = parse_scip_artifact(bytes).expect("cross-doc reference is valid");
+        assert_eq!(artifact.occurrence_count(), 1);
+    }
+
+    #[test]
+    fn rejects_artifact_exceeding_byte_cap() {
+        // A blob just over the byte cap is rejected before JSON parsing.
+        let oversize = vec![b' '; SCIP_MAX_ARTIFACT_BYTES + 1];
+        let err = parse_scip_artifact(&oversize).unwrap_err();
+        assert!(err.reason.contains("import cap"), "{err}");
+    }
+
+    #[test]
+    fn rejects_too_many_documents() {
+        // Build an artifact whose document count exceeds the cap with tiny docs.
+        let mut docs = String::new();
+        for i in 0..(SCIP_MAX_DOCUMENTS + 1) {
+            if i > 0 {
+                docs.push(',');
+            }
+            docs.push_str(&format!(
+                r#"{{ "relative_path": "f{i}.rs", "language": "rust" }}"#
+            ));
+        }
+        let json = format!(r#"{{ "format": "scip", "documents": [{docs}] }}"#);
+        // Guard: this synthetic artifact must still be under the byte cap so the
+        // DOCUMENT cap (not the byte cap) is what fires.
+        assert!(json.len() <= SCIP_MAX_ARTIFACT_BYTES);
+        let err = parse_scip_artifact(json.as_bytes()).unwrap_err();
+        assert!(
+            err.reason.contains("documents") && err.reason.contains("cap"),
+            "{err}"
+        );
     }
 }
