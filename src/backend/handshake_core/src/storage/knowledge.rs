@@ -707,6 +707,116 @@ fn index_run_from_pg(row: &sqlx::postgres::PgRow) -> StorageResult<KnowledgeInde
 }
 
 // ---------------------------------------------------------------------------
+// MT-055 KnowledgeSpanTables: the minimum citeable evidence unit.
+// ---------------------------------------------------------------------------
+
+/// Kind of range a knowledge span addresses (spec 2.3.13.11 KnowledgeSpan).
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum KnowledgeSpanKind {
+    Byte,
+    Text,
+    Ast,
+    MediaTime,
+    Page,
+    Cell,
+    RichDoc,
+}
+
+impl KnowledgeSpanKind {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Byte => "byte",
+            Self::Text => "text",
+            Self::Ast => "ast",
+            Self::MediaTime => "media_time",
+            Self::Page => "page",
+            Self::Cell => "cell",
+            Self::RichDoc => "rich_doc",
+        }
+    }
+}
+
+impl FromStr for KnowledgeSpanKind {
+    type Err = StorageError;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        match value {
+            "byte" => Ok(Self::Byte),
+            "text" => Ok(Self::Text),
+            "ast" => Ok(Self::Ast),
+            "media_time" => Ok(Self::MediaTime),
+            "page" => Ok(Self::Page),
+            "cell" => Ok(Self::Cell),
+            "rich_doc" => Ok(Self::RichDoc),
+            _ => Err(StorageError::Validation("invalid knowledge span_kind")),
+        }
+    }
+}
+
+/// A citeable evidence span anchored to a [`KnowledgeSource`].
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct KnowledgeSpan {
+    pub span_id: String,
+    pub source_id: String,
+    pub span_kind: KnowledgeSpanKind,
+    pub range_start: i64,
+    pub range_end: i64,
+    pub line_start: Option<i32>,
+    pub line_end: Option<i32>,
+    pub section_path: Option<String>,
+    pub content_sha256: String,
+    pub parser_version: String,
+    pub extraction_receipt_event_id: Option<String>,
+    pub index_run_id: Option<String>,
+    pub display_snippet: Option<String>,
+    pub created_at: DateTime<Utc>,
+}
+
+/// Insert payload for [`KnowledgeSpan`].
+#[derive(Clone, Debug)]
+pub struct NewKnowledgeSpan {
+    pub source_id: String,
+    pub span_kind: KnowledgeSpanKind,
+    pub range_start: i64,
+    pub range_end: i64,
+    pub line_start: Option<i32>,
+    pub line_end: Option<i32>,
+    pub section_path: Option<String>,
+    /// SHA-256 hex of the exact span content.
+    pub content_sha256: String,
+    pub parser_version: String,
+    pub extraction_receipt_event_id: Option<String>,
+    pub index_run_id: Option<String>,
+    pub display_snippet: Option<String>,
+}
+
+const KNOWLEDGE_SPAN_COLUMNS: &str = r#"
+    span_id, source_id, span_kind, range_start, range_end, line_start,
+    line_end, section_path, content_sha256, parser_version,
+    extraction_receipt_event_id, index_run_id, display_snippet, created_at
+"#;
+
+fn span_from_pg(row: &sqlx::postgres::PgRow) -> StorageResult<KnowledgeSpan> {
+    Ok(KnowledgeSpan {
+        span_id: row.get("span_id"),
+        source_id: row.get("source_id"),
+        span_kind: row.get::<String, _>("span_kind").parse()?,
+        range_start: row.get("range_start"),
+        range_end: row.get("range_end"),
+        line_start: row.get("line_start"),
+        line_end: row.get("line_end"),
+        section_path: row.get("section_path"),
+        content_sha256: row.get("content_sha256"),
+        parser_version: row.get("parser_version"),
+        extraction_receipt_event_id: row.get("extraction_receipt_event_id"),
+        index_run_id: row.get("index_run_id"),
+        display_snippet: row.get("display_snippet"),
+        created_at: row.get("created_at"),
+    })
+}
+
+// ---------------------------------------------------------------------------
 // KnowledgeStore trait: the WP-009 storage surface on PostgresDatabase.
 // ---------------------------------------------------------------------------
 
@@ -809,6 +919,19 @@ pub trait KnowledgeStore: Send + Sync {
         outcome: KnowledgeIndexRunOutcome,
         finish_receipt_event_id: Option<&str>,
     ) -> StorageResult<KnowledgeIndexRun>;
+
+    // -- MT-055 spans ---------------------------------------------------------
+    async fn create_knowledge_span(
+        &self,
+        new_span: NewKnowledgeSpan,
+    ) -> StorageResult<KnowledgeSpan>;
+
+    async fn get_knowledge_span(&self, span_id: &str) -> StorageResult<Option<KnowledgeSpan>>;
+
+    async fn list_knowledge_spans_for_source(
+        &self,
+        source_id: &str,
+    ) -> StorageResult<Vec<KnowledgeSpan>>;
 }
 
 fn registry_row_from_pg(row: &sqlx::postgres::PgRow) -> StorageResult<KnowledgeSchemaRegistryRow> {
@@ -1242,5 +1365,80 @@ impl KnowledgeStore for PostgresDatabase {
                 }
             }
         }
+    }
+
+    async fn create_knowledge_span(
+        &self,
+        new_span: NewKnowledgeSpan,
+    ) -> StorageResult<KnowledgeSpan> {
+        if !is_sha256_hex(&new_span.content_sha256) {
+            return Err(StorageError::Validation(
+                "knowledge span content_sha256 must be a lowercase sha256 hex digest",
+            ));
+        }
+        if new_span.parser_version.trim().is_empty() {
+            return Err(StorageError::Validation(
+                "knowledge span parser_version is required",
+            ));
+        }
+        if new_span.range_end < new_span.range_start || new_span.range_start < 0 {
+            return Err(StorageError::Validation(
+                "knowledge span range must satisfy 0 <= range_start <= range_end",
+            ));
+        }
+        let span_id = new_knowledge_id("KSP");
+        let sql = format!(
+            r#"
+            INSERT INTO knowledge_spans
+                (span_id, source_id, span_kind, range_start, range_end,
+                 line_start, line_end, section_path, content_sha256,
+                 parser_version, extraction_receipt_event_id, index_run_id,
+                 display_snippet)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+            RETURNING {KNOWLEDGE_SPAN_COLUMNS}
+            "#
+        );
+        let row = sqlx::query(&sql)
+            .bind(&span_id)
+            .bind(&new_span.source_id)
+            .bind(new_span.span_kind.as_str())
+            .bind(new_span.range_start)
+            .bind(new_span.range_end)
+            .bind(new_span.line_start)
+            .bind(new_span.line_end)
+            .bind(&new_span.section_path)
+            .bind(&new_span.content_sha256)
+            .bind(&new_span.parser_version)
+            .bind(&new_span.extraction_receipt_event_id)
+            .bind(&new_span.index_run_id)
+            .bind(&new_span.display_snippet)
+            .fetch_one(self.pool())
+            .await?;
+        span_from_pg(&row)
+    }
+
+    async fn get_knowledge_span(&self, span_id: &str) -> StorageResult<Option<KnowledgeSpan>> {
+        let sql =
+            format!("SELECT {KNOWLEDGE_SPAN_COLUMNS} FROM knowledge_spans WHERE span_id = $1");
+        let row = sqlx::query(&sql)
+            .bind(span_id)
+            .fetch_optional(self.pool())
+            .await?;
+        row.as_ref().map(span_from_pg).transpose()
+    }
+
+    async fn list_knowledge_spans_for_source(
+        &self,
+        source_id: &str,
+    ) -> StorageResult<Vec<KnowledgeSpan>> {
+        let sql = format!(
+            "SELECT {KNOWLEDGE_SPAN_COLUMNS} FROM knowledge_spans
+             WHERE source_id = $1 ORDER BY range_start, range_end"
+        );
+        let rows = sqlx::query(&sql)
+            .bind(source_id)
+            .fetch_all(self.pool())
+            .await?;
+        rows.iter().map(span_from_pg).collect()
     }
 }

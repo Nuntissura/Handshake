@@ -498,3 +498,8 @@ required-features = ["test-utils"]
 name = "knowledge_schema_tests"
 path = "tests/knowledge_schema_tests.rs"
 required-features = ["test-utils"]
+
+[[test]]
+name = "knowledge_graph_tests"
+path = "tests/knowledge_graph_tests.rs"
+required-features = ["test-utils"]
