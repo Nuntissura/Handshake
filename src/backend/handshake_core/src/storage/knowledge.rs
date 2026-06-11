@@ -1098,14 +1098,50 @@ impl FromStr for KnowledgeEdgeLifecycle {
 
 /// Derives the stable, deterministic `relationship_id` for a knowledge edge.
 ///
-/// Derivation (documented in migrations/0136_knowledge_edges.sql and stable
-/// across re-index runs because it hashes the entities' natural identities,
-/// never row ids or timestamps):
+/// Stable across re-index runs because it hashes the entities' natural
+/// identities (entity_kind + entity_key, MT-053), never row ids, timestamps,
+/// or run ids — the same logical relationship re-extracted by any later index
+/// run derives the same id.
+///
+/// Collision resistance (hardening, MT-054): entity keys are free text under a
+/// single non-empty CHECK and legitimately contain the byte-level separators a
+/// naive `a|b:c` join would use — file paths (`C:\...`), Rust FQNs
+/// (`mod::item`), spec anchors, even literal `|`. A plain delimiter-joined
+/// string is therefore NOT injective: edge `(file,"p") -> (folder,"x|folder:y")`
+/// and edge `(file,"p|folder:x") -> (folder,"y")` would both flatten to the
+/// same `...|file:p|folder:x|folder:y` and alias onto one `relationship_id`,
+/// silently merging two distinct edges under
+/// `UNIQUE (workspace_id, relationship_id)`.
+///
+/// The derivation is made injective by **length-prefixing every component**:
+/// each field is emitted as `{byte_len}:{value}` and the fields are joined with
+/// `|`. Because each value is preceded by its exact byte length, a parser (and
+/// therefore the hash) can recover the original field boundaries unambiguously
+/// no matter what bytes the value contains, so no choice of `|` or `:` inside
+/// any entity key can ever produce the same canonical string as a different
+/// tuple. The leading domain tag and the `_v2` version keep the namespace
+/// stable and let the scheme be versioned if the framing ever changes.
+///
+/// Canonical preimage:
 ///
 /// ```text
 /// relationship_id = "KREL-" + sha256_hex(
-///     "knowledge_edge_relationship_v1|{edge_type}|{source_kind}:{source_key}|{target_kind}:{target_key}")
+///     "knowledge_edge_relationship_v2"
+///     + "|" + len(edge_type)    + ":" + edge_type
+///     + "|" + len(source_kind)  + ":" + source_kind
+///     + "|" + len(source_key)   + ":" + source_key
+///     + "|" + len(target_kind)  + ":" + target_kind
+///     + "|" + len(target_key)   + ":" + target_key)
 /// ```
+///
+/// where `len(x)` is the number of UTF-8 bytes in `x`. The derivation is
+/// authoritative and mirrored in migrations/0136_knowledge_edges.sql.
+///
+/// NOTE: this v2 framing changes the hash of EVERY edge relative to the prior
+/// unescaped-join scheme. That is intentional and safe on this pre-merge dev
+/// branch (no production edge rows); the determinism/stability test
+/// (`relationship_id_is_deterministic_across_reindex_runs`) asserts structure
+/// and round-trip stability, never a frozen literal, so it still passes.
 pub fn derive_knowledge_relationship_id(
     edge_type: KnowledgeEdgeType,
     source_kind: KnowledgeEntityKind,
@@ -1114,14 +1150,24 @@ pub fn derive_knowledge_relationship_id(
     target_key: &str,
 ) -> String {
     use sha2::{Digest, Sha256};
-    let canonical = format!(
-        "knowledge_edge_relationship_v1|{}|{}:{}|{}:{}",
+    use std::fmt::Write as _;
+
+    // Length-prefixed, separator-injective canonical preimage. Each component
+    // is framed as `{byte_len}:{value}`; the byte length restores field
+    // boundaries regardless of which bytes the value contains, so no `|`/`:`
+    // inside a free-text entity key can alias two distinct tuples.
+    let mut canonical = String::from("knowledge_edge_relationship_v2");
+    for component in [
         edge_type.as_str(),
         source_kind.as_str(),
         source_key,
         target_kind.as_str(),
-        target_key
-    );
+        target_key,
+    ] {
+        // Infallible: writing to a String never errors.
+        let _ = write!(canonical, "|{}:{}", component.len(), component);
+    }
+
     let mut hasher = Sha256::new();
     hasher.update(canonical.as_bytes());
     format!("KREL-{}", hex::encode(hasher.finalize()))

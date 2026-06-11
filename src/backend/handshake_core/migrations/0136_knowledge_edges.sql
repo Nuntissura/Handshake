@@ -3,13 +3,25 @@
 -- entities or sources. Every edge MUST carry source span refs, extractor
 -- version, lifecycle state, confidence, and stable relationship_id.").
 --
--- STABLE relationship_id DERIVATION (authoritative; mirrored in
+-- STABLE relationship_id DERIVATION (authoritative copy lives in
 -- storage/knowledge.rs::derive_knowledge_relationship_id):
 --
 --   relationship_id = 'KREL-' || sha256_hex(
---       'knowledge_edge_relationship_v1' || '|' || edge_type
---       || '|' || source_kind || ':' || source_key
---       || '|' || target_kind || ':' || target_key)
+--       'knowledge_edge_relationship_v2'
+--       || '|' || len(edge_type)   || ':' || edge_type
+--       || '|' || len(source_kind) || ':' || source_kind
+--       || '|' || len(source_key)  || ':' || source_key
+--       || '|' || len(target_kind) || ':' || target_kind
+--       || '|' || len(target_key)  || ':' || target_key)
+--
+-- where len(x) is the UTF-8 byte length of x. Every component is
+-- LENGTH-PREFIXED (`{len}:{value}`) so the framing is injective: entity_key is
+-- free text under a single non-empty CHECK and legitimately contains `:` and
+-- `|` (file paths, FQNs, spec anchors), so a plain delimiter-joined preimage
+-- (the prior _v1 scheme) was collision-prone — two distinct (kind,key) tuples
+-- could alias onto one relationship_id and silently merge under
+-- uq_knowledge_edges_relationship. Length-prefixing makes that impossible: no
+-- choice of separators inside a key can reproduce another tuple's preimage.
 --
 -- The hash input uses the entities' stable natural identities
 -- (entity_kind + entity_key, MT-053), NEVER volatile row ids, timestamps, or

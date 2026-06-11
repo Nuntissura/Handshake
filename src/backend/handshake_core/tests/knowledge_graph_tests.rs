@@ -653,4 +653,182 @@ mod mt_054_edges {
         assert_eq!(retired.lifecycle_state, KnowledgeEdgeLifecycle::Retired);
         assert!(retired.conflict_marker.is_none(), "leaving conflicted clears the marker");
     }
+
+    /// HARDENING (MT-054): the relationship_id derivation must be
+    /// separator-injective. entity_key is free text and legitimately contains
+    /// `|` and `:` (file paths, FQNs, spec anchors). A plain delimiter-joined
+    /// preimage aliased two distinct edges onto one relationship_id:
+    ///
+    ///   edge A: (file, "p")           -> (folder, "x|folder:y")
+    ///   edge B: (file, "p|folder:x")  -> (folder, "y")
+    ///
+    /// both flatten to `...|file:p|folder:x|folder:y` under the old v1 scheme.
+    /// Length-prefixing makes the framing injective, so the two derive DISTINCT
+    /// ids. This test proves it (a) at the pure-derivation layer and (b) on real
+    /// PostgreSQL, where the old behavior silently merged the second edge into
+    /// the first under uq_knowledge_edges_relationship.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn relationship_id_resists_separator_injection_collision() {
+        // Pure-derivation layer: the classic separator-injection collision pair
+        // must derive DISTINCT relationship_ids (no PostgreSQL needed).
+        let rel_a = derive_knowledge_relationship_id(
+            KnowledgeEdgeType::Contains,
+            KnowledgeEntityKind::File,
+            "p",
+            KnowledgeEntityKind::Folder,
+            "x|folder:y",
+        );
+        let rel_b = derive_knowledge_relationship_id(
+            KnowledgeEdgeType::Contains,
+            KnowledgeEntityKind::File,
+            "p|folder:x",
+            KnowledgeEntityKind::Folder,
+            "y",
+        );
+        assert_ne!(
+            rel_a, rel_b,
+            "separator-injection pair must derive distinct relationship_ids \
+             (length-prefixed framing must be injective)"
+        );
+        assert!(rel_a.starts_with("KREL-") && rel_a.len() == 5 + 64);
+        assert!(rel_b.starts_with("KREL-") && rel_b.len() == 5 + 64);
+
+        // Determinism is preserved under the new framing.
+        assert_eq!(
+            rel_a,
+            derive_knowledge_relationship_id(
+                KnowledgeEdgeType::Contains,
+                KnowledgeEntityKind::File,
+                "p",
+                KnowledgeEntityKind::Folder,
+                "x|folder:y",
+            ),
+            "v2 derivation must stay deterministic"
+        );
+
+        // A second classic alias pair where the `:` between kind and key is the
+        // injected byte: (symbol, "a") vs (symbol, "a") with a moved boundary.
+        let rel_c = derive_knowledge_relationship_id(
+            KnowledgeEdgeType::References,
+            KnowledgeEntityKind::Symbol,
+            "mod::a",
+            KnowledgeEntityKind::Symbol,
+            "b",
+        );
+        let rel_d = derive_knowledge_relationship_id(
+            KnowledgeEdgeType::References,
+            KnowledgeEntityKind::Symbol,
+            "mod",
+            KnowledgeEntityKind::Symbol,
+            ":a|symbol:b",
+        );
+        assert_ne!(rel_c, rel_d, "`:`-injection pair must derive distinct ids");
+
+        // Real-PostgreSQL layer: the two edges must COEXIST as separate rows.
+        // Under the old scheme the second upsert collided onto the first's
+        // relationship_id and silently overwrote it (UNIQUE merge).
+        let Some(pg) = knowledge_pg().await else {
+            eprintln!("SKIP relationship_id_resists_separator_injection_collision (PG portion): no PostgreSQL");
+            return;
+        };
+        let (workspace_id, source_id) = source_fixture(&pg).await;
+        let span = pg
+            .db
+            .create_knowledge_span(byte_span(&source_id, 0, 10))
+            .await
+            .expect("span");
+
+        let mk_entity = |kind: KnowledgeEntityKind, key: &str| NewKnowledgeEntity {
+            workspace_id: workspace_id.clone(),
+            entity_kind: kind,
+            entity_key: key.to_string(),
+            display_name: format!("{kind:?}:{key}"),
+            detection_provenance: json!({"extractor": "collision_test"}),
+            primary_source_id: None,
+            detected_in_run: None,
+            evidence_span_ids: vec![span.span_id.clone()],
+        };
+
+        // Four entities backing the A/B collision pair. The keys carry the
+        // adversarial `|` and `:` bytes.
+        let file_p = pg
+            .db
+            .upsert_knowledge_entity(mk_entity(KnowledgeEntityKind::File, "p"))
+            .await
+            .expect("entity file:p");
+        let folder_xfy = pg
+            .db
+            .upsert_knowledge_entity(mk_entity(KnowledgeEntityKind::Folder, "x|folder:y"))
+            .await
+            .expect("entity folder:x|folder:y");
+        let file_pfx = pg
+            .db
+            .upsert_knowledge_entity(mk_entity(KnowledgeEntityKind::File, "p|folder:x"))
+            .await
+            .expect("entity file:p|folder:x");
+        let folder_y = pg
+            .db
+            .upsert_knowledge_entity(mk_entity(KnowledgeEntityKind::Folder, "y"))
+            .await
+            .expect("entity folder:y");
+
+        let edge_a = pg
+            .db
+            .upsert_knowledge_edge(NewKnowledgeEdge {
+                workspace_id: workspace_id.clone(),
+                edge_type: KnowledgeEdgeType::Contains,
+                source_entity_id: file_p.entity_id.clone(),
+                target_entity_id: folder_xfy.entity_id.clone(),
+                extractor_version: "collision_v1".to_string(),
+                confidence: 0.5,
+                detected_in_run: None,
+                evidence_span_ids: vec![span.span_id.clone()],
+            })
+            .await
+            .expect("edge A");
+        let edge_b = pg
+            .db
+            .upsert_knowledge_edge(NewKnowledgeEdge {
+                workspace_id: workspace_id.clone(),
+                edge_type: KnowledgeEdgeType::Contains,
+                source_entity_id: file_pfx.entity_id.clone(),
+                target_entity_id: folder_y.entity_id.clone(),
+                extractor_version: "collision_v1".to_string(),
+                confidence: 0.9,
+                detected_in_run: None,
+                evidence_span_ids: vec![span.span_id.clone()],
+            })
+            .await
+            .expect("edge B");
+
+        // The two edges must be DISTINCT rows with DISTINCT relationship_ids.
+        assert_eq!(edge_a.relationship_id, rel_a);
+        assert_eq!(edge_b.relationship_id, rel_b);
+        assert_ne!(
+            edge_a.relationship_id, edge_b.relationship_id,
+            "two distinct edges must not share a relationship_id"
+        );
+        assert_ne!(
+            edge_a.edge_id, edge_b.edge_id,
+            "two distinct edges must not collapse into one row"
+        );
+
+        // Both rows physically present under the workspace's UNIQUE namespace.
+        let by_rel_a = pg
+            .db
+            .get_knowledge_edge_by_relationship_id(&workspace_id, &rel_a)
+            .await
+            .expect("get A by rel")
+            .expect("edge A present");
+        let by_rel_b = pg
+            .db
+            .get_knowledge_edge_by_relationship_id(&workspace_id, &rel_b)
+            .await
+            .expect("get B by rel")
+            .expect("edge B present");
+        assert_eq!(by_rel_a.edge_id, edge_a.edge_id);
+        assert_eq!(by_rel_b.edge_id, edge_b.edge_id);
+        // Edge A's confidence was NOT clobbered by edge B's upsert.
+        assert!((by_rel_a.confidence - 0.5).abs() < f64::EPSILON);
+    }
 }
