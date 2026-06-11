@@ -22,7 +22,7 @@
   "title": "CRDTAndConcurrencyCore-071-ConcurrentIndexRunSemantics",
   "group": "CRDTAndConcurrencyCore",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-11T12:38:34.533Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-071.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -79,14 +79,37 @@
     ]
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "CLAIMED",
     "active": false,
     "depends_on": [
       "MT-065"
     ],
     "blocks": [],
-    "claimed_by": null,
-    "completed_by": null
+    "claimed_by": "KERNEL_BUILDER-20260611-071323",
+    "completed_by": null,
+    "implementation_commit": "923df085",
+    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 923df085; CRDTAndConcurrencyCore: 41 tests/6 binaries green on real PostgreSQL. Pending adversarial code review.",
+    "adversarial_code_review": {
+      "verdict": "PASS",
+      "reviewed_at_utc": "2026-06-11T20:20:00Z",
+      "reviewer": "ADVERSARIAL_CODE_REVIEWER-20260611-PM",
+      "concerns": [
+        "AT-MOST-ONE-RUN-PER-ROOT is DB-enforced, not memory-coordinated. claim_index_run_slot delegates to claim_lease with scope_kind=SourceRoot (index_run_guard.rs:89-102); the partial unique index uq_knowledge_crdt_lease_active_scope (0151:46-48 WHERE released_at_utc IS NULL) is the mutual exclusion. Two indexers racing the same root resolve in PostgreSQL; the loser gets a typed index_run_slot_rejected denial + KNOWLEDGE_CRDT_LEASE_WRITE_DENIED event naming the holder, its expiry, and whether takeover is possible.",
+        "STRICTER THAN THE WRITE GUARD on expiry: because the unique index keys on released_at_utc IS NULL (NOT on expiry), an EXPIRED-but-unreleased holder still BLOCKS a new claim -> Rejected with holder_expired_takeover_possible=true. So a crashed indexer's stale lease does not silently free the slot; the claimant must explicitly takeover (MT-076). This eliminates any double-grant / overlapping-run window. Different roots claim independently (safe parallel partitioning).",
+        "Does NOT modify knowledge_index_runs (0133, MT-052 lane); only threads index_run_ref into receipts for correlation (index_run_guard.rs:15-20). Clean lane separation -- no foreign-table write.",
+        "MINOR: release_index_run_slot just calls release_lease (own-actor guarded). If an indexer crashes without releasing, the slot is held until expiry+takeover; relies on the sweep/takeover path for liveness. Acceptable; flagged for operational awareness."
+      ],
+      "evasion_probes": [
+        "Two concurrent claims on one source_root: second hits the partial unique index -> ScopeHeld -> Rejected (durable receipt). No two simultaneous holders.",
+        "Tried to claim over an expired holder without takeover: still Rejected (index keys on released, not expiry). No overlapping index run.",
+        "Different source roots in parallel: independent scope_ids -> both Claimed. Correct partitioning, no false contention."
+      ],
+      "evidence_checked": [
+        "src/backend/handshake_core/src/kernel/crdt/index_run_guard.rs:83-192 (claim/release index run slot)",
+        "src/backend/handshake_core/migrations/0151_knowledge_crdt_agent_lane_leases.sql:46-48 (partial unique index on released-null scope)",
+        "src/backend/handshake_core/src/kernel/crdt/agent_lease.rs:179-221 (claim_lease ScopeHeld path)"
+      ]
+    }
   },
   "handoff": {
     "coder_session": null,

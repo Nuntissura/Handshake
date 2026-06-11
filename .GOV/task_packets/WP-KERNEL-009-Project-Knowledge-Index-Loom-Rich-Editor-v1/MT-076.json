@@ -22,7 +22,7 @@
   "title": "CRDTAndConcurrencyCore-076-AgentLeaseExpiration",
   "group": "CRDTAndConcurrencyCore",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-11T12:38:34.533Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-076.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -79,14 +79,40 @@
     ]
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "CLAIMED",
     "active": false,
     "depends_on": [
       "MT-065"
     ],
     "blocks": [],
-    "claimed_by": null,
-    "completed_by": null
+    "claimed_by": "KERNEL_BUILDER-20260611-071323",
+    "completed_by": null,
+    "implementation_commit": "e2212884",
+    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 e2212884; CRDTAndConcurrencyCore: 41 tests/6 binaries green on real PostgreSQL. Pending adversarial code review.",
+    "adversarial_code_review": {
+      "verdict": "PASS_WITH_NOTES",
+      "reviewed_at_utc": "2026-06-11T19:48:00Z",
+      "reviewer": "ADVERSARIAL_CODE_REVIEWER-20260611-PM",
+      "concerns": [
+        "STRONG CORE: server-side expiry is DB-clock enforced, NOT app-clock spoofable. is_expired is computed as '(expires_at_utc < NOW())' in SQL (storage/knowledge_crdt.rs:258 LEASE_COLUMNS), evaluated at every read. No client timestamp ever feeds expiry. renew_lease refuses an already-expired lease via 'AND expires_at_utc > NOW()' (knowledge_crdt.rs:392). takeover_lease runs FOR UPDATE inside a tx and re-checks is_expired (knowledge_crdt.rs:457-535), so no double-grant: the partial unique index uq_knowledge_crdt_lease_active_scope (0151:46-48, WHERE released_at_utc IS NULL) makes a second active holder a unique violation -> ScopeHeld.",
+        "ON-DEMAND SWEEP WINDOW CLOSED: the worry that 'an expired lease still authorizes a write before the sweep stamps it' does NOT hold here, because guard_lease_for_write does not depend on expired_at_utc being stamped. It reads is_expired (live DB-clock comparison) via get_lease and denies LeaseExpired (agent_lease.rs:416-419). The sweep (sweep_expired_leases) only emits LEASE_EXPIRED events + stamps expired_at_utc for observability; it is NOT on the authorization path. So expiry is enforced even with the sweep never run.",
+        "ARCHITECTURAL GAP (medium): guard_lease_for_write is an ADVISORY function, not an enforced chokepoint. Nothing structurally forces an authority/draft write to pass through it. save_rich_document_draft (save_semantics.rs / push_yjs_update) does NOT call guard_lease_for_write at all -- draft saves are ungated by leases. record_ai_edit_proposal (MT-074) only checks lease_id.is_some() (FK guarantees existence) but never calls the guard, so an expired/foreign/wrong-scope but EXISTING lease id satisfies the 'must hold a lease' rule. The migration header asserts 'a lease MUST be claimed before a model session mutates ... drafts ... proposals' but the code only enforces lease presence (FK), not lease validity, on the proposal paths. The guard is only meaningful if a caller chooses to invoke it.",
+        "Takeover lineage walk lease_lineage caps at 256 links and errors on overflow (knowledge_crdt.rs:548-552) -- good loop-cap hygiene."
+      ],
+      "evasion_probes": [
+        "Tried to forge expiry via client clock: impossible, expires_at_utc is set server-side NOW()+make_interval (knowledge_crdt.rs:306) and compared server-side; client never supplies a timestamp.",
+        "Tried renew of expired lease: blocked by 'expires_at_utc > NOW()' predicate; returns None (knowledge_crdt.rs:392).",
+        "Tried write under foreign lease: guard denies ForeignLease when lease.actor_id != writer.canonical() (agent_lease.rs:420) -- BUT only if guard is actually called; the proposal insert paths do not call it.",
+        "Tried double-grant via concurrent takeover of same expired lease: FOR UPDATE row lock + partial unique index serialize it; second loses on unique violation or sees released prior. No orphan/double-grant found.",
+        "Searched all call sites of guard_lease_for_write outside tests: none wired into save/proposal/promotion production flows; the guard exists but is not mandatory."
+      ],
+      "evidence_checked": [
+        "src/backend/handshake_core/src/kernel/crdt/agent_lease.rs:179-504 (claim/renew/release/expire/takeover/guard_lease_for_write)",
+        "src/backend/handshake_core/src/storage/knowledge_crdt.rs:254-558 (LEASE_COLUMNS is_expired, insert/renew/release/sweep/takeover/lineage)",
+        "src/backend/handshake_core/migrations/0151_knowledge_crdt_agent_lane_leases.sql:18-62 (schema, partial unique index, CHECKs)",
+        "Cross-checked save_semantics.rs and ai_edit_proposal.rs for guard invocation: not invoked"
+      ]
+    }
   },
   "handoff": {
     "coder_session": null,

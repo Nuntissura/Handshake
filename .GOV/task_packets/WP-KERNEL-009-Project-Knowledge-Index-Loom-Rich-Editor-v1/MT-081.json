@@ -90,7 +90,30 @@
     "claimed_by": "KERNEL_BUILDER-20260611-071323",
     "completed_by": null,
     "implementation_commit": "c61465c2",
-    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 c61465c2; real-PG tests green (group total 80 passed/0 failed; lopdf 0.41 MIT only dep added). Pending adversarial code review before READY_FOR_VALIDATION."
+    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 c61465c2; real-PG tests green (group total 80 passed/0 failed; lopdf 0.41 MIT only dep added). Pending adversarial code review before READY_FOR_VALIDATION.",
+    "adversarial_code_review": {
+      "verdict": "PASS_WITH_NOTES",
+      "reviewed_at_utc": "2026-06-11T15:10:00Z",
+      "reviewer": "ADVERSARIAL_CODE_REVIEWER-20260611-PM",
+      "concerns": [
+        "Default deny patterns (allowlist.rs DEFAULT_DENY_PATTERNS) cover .git/.ssh/secrets/node_modules/target/managed_pgdata but NOT common secret-bearing files like **/.env*, **/*.pem, **/id_rsa, **/.aws/**, **/.npmrc — defense-in-depth gap; relies on the MT-091 file-level secret preflight as the backstop (which is sound but pattern-limited, see MT-091).",
+        "register_root persists the policy DECISION row and EventLedger receipt BEFORE checking is_allowed() and returning PolicyDenied — correct (denials are durable evidence), but the source root row is only created on allow; verified no Ok-path leak."
+      ],
+      "evasion_probes": [
+        "empty allow_patterns -> DeniedNotAllowlisted (fail-closed) CONFIRMED via allowlist.rs test empty_allow_list_fails_closed and code path evaluate().",
+        "deny-wins-over-allow CONFIRMED (deny matches checked first in evaluate()).",
+        "malformed glob -> typed Validation error, never silent-allow CONFIRMED (CompiledRootPolicy::compile).",
+        "operator-gated kinds (ExternalImport/OperatorFolder) always require operator_approved CONFIRMED.",
+        "candidate path normalized via storage::knowledge::normalize_repo_relative_path before evaluation — drive-letter/UNC/traversal rejected upstream (see MT-083)."
+      ],
+      "evidence_checked": [
+        "src/backend/handshake_core/src/knowledge_ingestion/allowlist.rs (full)",
+        "src/backend/handshake_core/src/knowledge_ingestion/engine.rs:145-229 register_root",
+        "src/backend/handshake_core/src/api/knowledge_ingestion.rs:300-341 register_root handler (403 typed denial w/ decision_id)",
+        "src/backend/handshake_core/migrations/0160_knowledge_ingestion_policies.sql (referenced)",
+        "tests/knowledge_ingestion_policy_tests.rs (referenced)"
+      ]
+    }
   },
   "handoff": {
     "coder_session": null,

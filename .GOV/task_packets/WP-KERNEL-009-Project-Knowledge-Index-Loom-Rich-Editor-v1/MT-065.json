@@ -22,7 +22,7 @@
   "title": "CRDTAndConcurrencyCore-065-ActorSiteIdModel",
   "group": "CRDTAndConcurrencyCore",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-11T12:38:34.533Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-065.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -79,15 +79,38 @@
     ]
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "CLAIMED",
     "active": false,
     "depends_on": [
       "MT-049",
       "MT-033"
     ],
     "blocks": [],
-    "claimed_by": null,
-    "completed_by": null
+    "claimed_by": "KERNEL_BUILDER-20260611-071323",
+    "completed_by": null,
+    "implementation_commit": "8463e674",
+    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 8463e674; CRDTAndConcurrencyCore: 41 tests/6 binaries green on real PostgreSQL. Pending adversarial code review.",
+    "adversarial_code_review": {
+      "verdict": "PASS",
+      "reviewed_at_utc": "2026-06-11T20:28:00Z",
+      "reviewer": "ADVERSARIAL_CODE_REVIEWER-20260611-PM",
+      "concerns": [
+        "Typed actor id '<kind>:<ident>' with a closed kind enum (operator|local_model|cloud_model|validator|system) matching the MT-041 seed vocabulary, plus strict ident validation (non-empty, <=128 chars, charset [A-Za-z0-9._-]) (actor_site.rs:139-228). serde via try_from String so PostgreSQL TEXT columns, EventLedger payloads, and JSON envelopes all round-trip the identical canonical form. This is the identity backbone that makes the spec's actor-receipt MUSTs attributable everywhere.",
+        "Site id is a DETERMINISTIC SHA256 derivation over (derivation_tag | workspace_id | crdt_document_id | actor.canonical) (derive_knowledge_site_id, actor_site.rs:246-267). Same inputs -> same site, so a restarted no-context session re-derives its site with zero local state -- exactly what swarm recovery needs. yjs_client_id = first 4 bytes of the digest so the browser Y.Doc adopts the same client id without a registration round-trip. site_id is 64-bit (16 hex) -- adequate collision resistance for per-(workspace,doc) attribution.",
+        "to_kernel_actor maps cleanly onto the existing KernelActor taxonomy (Operator/ModelAdapter/ValidationRunner/System), so CRDT-side events carry the same actor model as the rest of the kernel -- no parallel attribution vocabulary.",
+        "No sidecar / file-based actor registry: actor ids live only in PostgreSQL rows. Consistent with the no-external-authority posture."
+      ],
+      "evasion_probes": [
+        "Tried an unknown actor kind ('admin:x'): UnknownActorKind rejected at parse.",
+        "Tried an empty or oversized ident, and idents with forbidden chars (space, '/', ':'): EmptyIdent / IdentTooLong / IdentBadChar rejected.",
+        "Tried to forge a foreign site id: every consumer (yjs_bridge validate, save semantics) re-derives the site from (workspace, doc, actor) and compares (SiteIdMismatch), so a spoofed site_id is caught downstream.",
+        "Tried two different idents colliding to one site: derivation includes actor.canonical(), so distinct actors get distinct digests barring SHA256 collision."
+      ],
+      "evidence_checked": [
+        "src/backend/handshake_core/src/kernel/crdt/actor_site.rs:28-318 (actor kind, actor id, site derivation, identity builder)",
+        "Cross-checked yjs_bridge.rs:211-219 (SiteIdMismatch enforcement) and 0151/0150/0152/0153/0154/0155 actor_id regex CHECKs which pin the same '<kind>:<ident>' grammar at the DB layer"
+      ]
+    }
   },
   "handoff": {
     "coder_session": null,

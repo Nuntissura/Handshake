@@ -22,7 +22,7 @@
   "title": "CRDTAndConcurrencyCore-072-VectorClockOrEquivalentMetadata",
   "group": "CRDTAndConcurrencyCore",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-11T12:38:34.533Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-072.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -79,14 +79,37 @@
     ]
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "CLAIMED",
     "active": false,
     "depends_on": [
       "MT-065"
     ],
     "blocks": [],
-    "claimed_by": null,
-    "completed_by": null
+    "claimed_by": "KERNEL_BUILDER-20260611-071323",
+    "completed_by": null,
+    "implementation_commit": "c39e8451",
+    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 c39e8451; CRDTAndConcurrencyCore: 41 tests/6 binaries green on real PostgreSQL. Pending adversarial code review.",
+    "adversarial_code_review": {
+      "verdict": "PASS",
+      "reviewed_at_utc": "2026-06-11T20:20:00Z",
+      "reviewer": "ADVERSARIAL_CODE_REVIEWER-20260611-PM",
+      "concerns": [
+        "Clean version-vector implementation. KnowledgeStateVectorV1 is a per-site BTreeMap<site,clock> with deterministic canonical encoding ('hsk-sv1:siteA=3;siteB=1', lexicographic order; empty vector == 'hsk-sv1:'). compare() correctly implements the partial order (Equal/Dominates/DominatedBy/Concurrent) by scanning both directions (state_vector.rs:210-231). This is the determinism backbone MT-070's no-lost-update verdicts rely on.",
+        "Strict parser (state_vector.rs:114-165): rejects missing prefix, empty entries, missing '=', empty site, forbidden site chars, non-u64 clock, ZERO clock (clocks start at 1; absent sites omitted -- prevents '0' vs absent ambiguity), and duplicate sites. serde via try_from String so persisted columns round-trip safely.",
+        "verify_causal_chain (state_vector.rs:357-442) is a genuine machine-checkable replay-ordering proof: contiguous update_seq, every after strictly Dominates its before, and each before == previous.after (linear server-ordered chain). Emits per-step advanced_sites + lamport_after. Used by MT-077 to prove byte-hash-equal replay convergence.",
+        "lamport_max() is a monotone total-order hint that grows along any causal chain -- the 'or equivalent' clock the MT contract permits. No correctness concern."
+      ],
+      "evasion_probes": [
+        "Tried '0'-clock smuggling (encode a site at clock 0 to fake presence): rejected ZeroClock on parse.",
+        "Tried two encodings of the same vector to break equality (reordered sites): impossible -- BTreeMap forces canonical lexicographic order, so equal vectors always encode identically.",
+        "Tried a non-monotone chain (after does not dominate before): verify_causal_chain returns AfterDoesNotDominateBefore.",
+        "Tried a broken chain (before != previous.after): BeforeBreaksChain. Tried a seq gap: NonContiguousSequence."
+      ],
+      "evidence_checked": [
+        "src/backend/handshake_core/src/kernel/crdt/state_vector.rs:33-442 (vector type, parse/encode/compare/merge, causal chain proof)",
+        "Cross-checked consumers: save_semantics.rs decide_concurrent_save and yjs_bridge.rs validation both rely on compare()"
+      ]
+    }
   },
   "handoff": {
     "coder_session": null,

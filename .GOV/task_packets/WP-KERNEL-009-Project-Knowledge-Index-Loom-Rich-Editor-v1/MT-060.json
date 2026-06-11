@@ -22,7 +22,7 @@
   "title": "PostgresEventLedgerCore-060-ContextBundleTables",
   "group": "PostgresEventLedgerCore",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T12:31:09.506Z",
+  "updated_at_utc": "2026-06-11T15:22:01.969Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-060.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -79,7 +79,7 @@
     ]
   },
   "lifecycle": {
-    "status": "CLAIMED",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-049"
@@ -88,7 +88,28 @@
     "claimed_by": "KERNEL_BUILDER-20260611-071323",
     "completed_by": null,
     "implementation_commit": "fb7ce171",
-    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 fb7ce171; PostgresEventLedgerCore group: 47 tests across 8 binaries green on Handshake-managed PostgreSQL (port 5544, no Docker/SQLite). Pending adversarial code review before READY_FOR_VALIDATION."
+    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 fb7ce171; PostgresEventLedgerCore group: 47 tests across 8 binaries green on Handshake-managed PostgreSQL (port 5544, no Docker/SQLite). Pending adversarial code review before READY_FOR_VALIDATION.",
+    "adversarial_code_review": {
+      "verdict": "PASS",
+      "reviewed_at_utc": "2026-06-11T15:15:10Z",
+      "reviewer": "ADVERSARIAL_CODE_REVIEWER-20260611-PM",
+      "concerns": [],
+      "evasion_probes": [
+        "bundle_id<->content_hash binding enforced at DB layer: raw INSERT with CTX- id not matching context_hash violates chk_knowledge_context_bundles_id_matches_hash even when app bypassed (test:529-556) - id is provably content-derived, not free-text.",
+        "RetrievalTrace mode_reason MUST (spec 2.3.14.1.4 cheapest-authoritative-mode): empty mode_reason -> typed Validation (test:512-526).",
+        "Persisted shape == runtime shape: bundle built through the REAL kernel ContextBundle::new V1 constructor, then context_hash/allowed_context asserted equal after round-trip (test:414-464).",
+        "Per-item retrieval decisions (included/excluded_budget) round-trip with relevance scores."
+      ],
+      "evidence_checked": [
+        "knowledge_documents_tests.rs:405-557 (V1 round-trip, item decisions, trace mode_reason MUST, DB hash-binding)",
+        "commit fb7ce171 (CTX- id derived from canonical-JSON hash, DB CHECK)"
+      ]
+    },
+    "ready_by": "KERNEL_BUILDER-20260611-071323",
+    "ready_for_validation_at_utc": "2026-06-11T15:22:01.969Z",
+    "evidence": [
+      "Adversarial code review verdict PASS (ADVERSARIAL_CODE_REVIEWER-20260611-PM); committed runtime proof + static refutation survived."
+    ]
   },
   "handoff": {
     "coder_session": null,

@@ -22,7 +22,7 @@
   "title": "CRDTAndConcurrencyCore-070-ConcurrentEditorSaveSemantics",
   "group": "CRDTAndConcurrencyCore",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-11T12:38:34.533Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-070.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -79,14 +79,39 @@
     ]
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "CLAIMED",
     "active": false,
     "depends_on": [
       "MT-065"
     ],
     "blocks": [],
-    "claimed_by": null,
-    "completed_by": null
+    "claimed_by": "KERNEL_BUILDER-20260611-071323",
+    "completed_by": null,
+    "implementation_commit": "0bcde5fc",
+    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 0bcde5fc; CRDTAndConcurrencyCore: 41 tests/6 binaries green on real PostgreSQL. Pending adversarial code review.",
+    "adversarial_code_review": {
+      "verdict": "PASS",
+      "reviewed_at_utc": "2026-06-11T20:04:00Z",
+      "reviewer": "ADVERSARIAL_CODE_REVIEWER-20260611-PM",
+      "concerns": [
+        "NO LOST UPDATE -- DB-CONSTRAINT-GUARANTEED, not interleaving luck. decide_concurrent_save (save_semantics.rs:70-89) is a pure deterministic state-vector comparison (Equal->FastForward, DominatedBy->StaleWrite, Dominates->AheadOfHead, Concurrent->ConcurrentFork): same vectors always yield the same verdict regardless of wall-clock order. The actual append guard is in push_yjs_update: the optimistic 'before == head' check (yjs_bridge.rs:537) is a TOCTOU fast-path, but the real backstop is the UNIQUE index idx_kernel_crdt_updates_seq on (workspace_id, document_id, crdt_document_id, update_seq) (migration 0020:28-29). Two writers that both read head_seq=N and both attempt seq=N+1 cannot both insert; the loser gets a unique violation surfaced as a typed SequenceSlotRace denial (yjs_bridge.rs:595-602). So two actors can NEVER both win the same slot.",
+        "NO SILENT OVERWRITE: every non-accepted save returns a typed Conflict carrying BOTH a durable denial receipt id AND a KNOWLEDGE_CRDT_CONFLICT_DETECTED event (save_semantics.rs:187-203, record_conflict_receipt), idempotent on (crdt_document_id, update_id). The spec MUST 'manual edits leave actor/state-vector/denial receipts' is satisfied for the denied path.",
+        "Draft-log only (not authority): saves land in kernel_crdt_updates (storage_authority column, WP-KERNEL-002 draft log), never in a ProjectKnowledgeIndex authority table. Correct per spec 2.3.13.11 (drafts MAY use CRDT).",
+        "MINOR: this MT does not call guard_lease_for_write -- draft saves are not lease-gated. Acceptable since drafts are not authority, but means a writer without any lease can append draft updates. Noted, not blocking."
+      ],
+      "evasion_probes": [
+        "Concurrent same-slot save race: simulated two envelopes with state_vector_before == current head; both pass the optimistic check; both target seq=N+1; the second INSERT violates idx_kernel_crdt_updates_seq UNIQUE -> SequenceSlotRace (not a silent overwrite, not a lost update). Verified the index is UNIQUE in 0020.",
+        "StaleBase with equal vectors: impossible by construction (push would have accepted); code defensively errors 'stale-base denial with fast-forward decision' (save_semantics.rs:182-184).",
+        "update_id reuse with different bytes: UpdateIdContentMismatch denial (yjs_bridge.rs:524-531). Idempotent identical resubmit: AlreadyStored.",
+        "Tried to make both ConcurrentFork writers commit: the second still collides on the unique seq slot -> one denied. No double-win path found."
+      ],
+      "evidence_checked": [
+        "src/backend/handshake_core/src/kernel/crdt/save_semantics.rs:44-284 (decide_concurrent_save, save_rich_document_draft, record_conflict_receipt)",
+        "src/backend/handshake_core/src/kernel/crdt/yjs_bridge.rs:480-609 (push_yjs_update head check + SequenceSlotRace mapping)",
+        "src/backend/handshake_core/migrations/0020_kernel_crdt_storage.sql:28-29 (UNIQUE idx_kernel_crdt_updates_seq -- the real lost-update guard)",
+        "src/backend/handshake_core/migrations/0150_knowledge_crdt_denial_receipts.sql (durable denial home, FK to ledger, unique idempotency_key)"
+      ]
+    }
   },
   "handoff": {
     "coder_session": null,

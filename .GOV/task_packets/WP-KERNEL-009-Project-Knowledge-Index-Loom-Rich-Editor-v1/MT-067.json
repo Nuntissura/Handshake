@@ -22,7 +22,7 @@
   "title": "CRDTAndConcurrencyCore-067-TiptapYjsBridgeContract",
   "group": "CRDTAndConcurrencyCore",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-11T12:38:34.533Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-067.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -79,14 +79,38 @@
     ]
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "CLAIMED",
     "active": false,
     "depends_on": [
       "MT-065"
     ],
     "blocks": [],
-    "claimed_by": null,
-    "completed_by": null
+    "claimed_by": "KERNEL_BUILDER-20260611-071323",
+    "completed_by": null,
+    "implementation_commit": "15413cd9",
+    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 15413cd9; CRDTAndConcurrencyCore: 41 tests/6 binaries green on real PostgreSQL. Pending adversarial code review.",
+    "adversarial_code_review": {
+      "verdict": "PASS_WITH_NOTES",
+      "reviewed_at_utc": "2026-06-11T20:10:00Z",
+      "reviewer": "ADVERSARIAL_CODE_REVIEWER-20260611-PM",
+      "concerns": [
+        "OPAQUE BYTES NEVER REACH AUTHORITY (the key #6 question): Yjs update bytes are explicitly opaque (no yrs dependency; yjs_bridge.rs:22-26), persisted into kernel_crdt_updates (a WP-002 DRAFT log with a storage_authority column), with update_bytes_ref on the postgres:// scheme (yjs_bridge.rs:313-316). They are NEVER written into any knowledge_crdt_promoted_facts authority row. Authority promotion (MT-069) operates on typed proposal mutation_payload JSON, not raw Yjs bytes. So there is no path from opaque draft bytes to ProjectKnowledgeIndex authority without going through typed proposal + EventLedger promotion. Clean.",
+        "Strong envelope validation (validate_yjs_update_envelope, yjs_bridge.rs:171-290): site_id MUST equal the deterministic MT-065 derivation (SiteIdMismatch), update_sha256 MUST match the decoded bytes (UpdateHashMismatch), state_vector_after MUST strictly dominate before AND advance the sender's own site (AfterDoesNotAdvanceOwnSite). Identity (actor/session/trace) all non-empty. The spec actor + state-vector receipt MUSTs are enforced at ingest.",
+        "Idempotent replay is content-checked: an existing update_id with matching sha256+before+after returns AlreadyStored; same update_id with different content -> UpdateIdContentMismatch denial (yjs_bridge.rs:507-532). No silent divergence.",
+        "MINOR: head is computed by listing ALL updates and taking max(update_seq) in app memory (head_of, yjs_bridge.rs:459-471). For very long draft logs this is O(n) per push with no snapshot compaction wired into the push path. Not a correctness bug (the unique seq index is the real guard) but a scaling note. Also push is not lease-gated (consistent with MT-070)."
+      ],
+      "evasion_probes": [
+        "Tried to smuggle authority via opaque bytes: bytes only land in kernel_crdt_updates draft log; promotion never reads them. No bypass.",
+        "Tried site-id spoof (claim another actor's site): SiteIdMismatch -- site is re-derived server-side from (workspace, crdt_document, actor) and compared (yjs_bridge.rs:211-219).",
+        "Tried hash/byte mismatch (claim sha for different bytes): UpdateHashMismatch blocks it (yjs_bridge.rs:228-234).",
+        "Tried non-monotonic state vector (after does not advance own site): AfterDoesNotAdvanceOwnSite blocks it (yjs_bridge.rs:272-276)."
+      ],
+      "evidence_checked": [
+        "src/backend/handshake_core/src/kernel/crdt/yjs_bridge.rs:45-677 (envelope, validation, push, pull, head)",
+        "src/backend/handshake_core/migrations/0020_kernel_crdt_storage.sql (kernel_crdt_updates draft log, UNIQUE seq/bytes_ref indexes, storage_authority column)",
+        "src/backend/handshake_core/src/api/knowledge_crdt.rs (HTTP push/pull surface, co-landed with MT-075) -- reviewed for identification enforcement"
+      ]
+    }
   },
   "handoff": {
     "coder_session": null,

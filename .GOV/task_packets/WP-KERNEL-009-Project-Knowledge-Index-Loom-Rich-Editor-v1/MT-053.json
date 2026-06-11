@@ -22,7 +22,7 @@
   "title": "PostgresEventLedgerCore-053-KnowledgeEntityTables",
   "group": "PostgresEventLedgerCore",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T12:31:09.506Z",
+  "updated_at_utc": "2026-06-11T15:22:01.969Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-053.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -79,7 +79,7 @@
     ]
   },
   "lifecycle": {
-    "status": "CLAIMED",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-049"
@@ -88,7 +88,28 @@
     "claimed_by": "KERNEL_BUILDER-20260611-071323",
     "completed_by": null,
     "implementation_commit": "ba727b98",
-    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 ba727b98; PostgresEventLedgerCore group: 47 tests across 8 binaries green on Handshake-managed PostgreSQL (port 5544, no Docker/SQLite). Pending adversarial code review before READY_FOR_VALIDATION."
+    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 ba727b98; PostgresEventLedgerCore group: 47 tests across 8 binaries green on Handshake-managed PostgreSQL (port 5544, no Docker/SQLite). Pending adversarial code review before READY_FOR_VALIDATION.",
+    "adversarial_code_review": {
+      "verdict": "PASS",
+      "reviewed_at_utc": "2026-06-11T15:15:10Z",
+      "reviewer": "ADVERSARIAL_CODE_REVIEWER-20260611-PM",
+      "concerns": [
+        "entity_key CHECK only enforces non-empty/no-surrounding-whitespace; free-text keys with ':' or '|' are accepted. Benign for entities (UNIQUE is on tuple (workspace,kind,key)) but is the upstream enabler of the MT-054 relationship_id separator-collision finding."
+      ],
+      "evasion_probes": [
+        "every_spec_entity_kind_is_storable iterates all 21 KnowledgeEntityKind::all() against the SQL CHECK list - Rust enum and DB CHECK proven in agreement (not fixture-only).",
+        "entity_evidence_is_fk_guarded proves ghost-span evidence rolls back the entity insert (transactional) and evidence spans are delete-protected (RESTRICT) via raw-SQL DELETE probe."
+      ],
+      "evidence_checked": [
+        "migrations/0135_knowledge_entities.sql:19-81 (21-kind CHECK, identity UNIQUE, entity_spans RESTRICT)",
+        "knowledge_graph_tests.rs:222-374 (stable-id upsert, kind matrix, FK rollback, delete-protect)"
+      ]
+    },
+    "ready_by": "KERNEL_BUILDER-20260611-071323",
+    "ready_for_validation_at_utc": "2026-06-11T15:22:01.969Z",
+    "evidence": [
+      "Adversarial code review verdict PASS (ADVERSARIAL_CODE_REVIEWER-20260611-PM); committed runtime proof + static refutation survived."
+    ]
   },
   "handoff": {
     "coder_session": null,

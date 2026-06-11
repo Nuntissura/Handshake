@@ -22,7 +22,7 @@
   "title": "PostgresEventLedgerCore-052-IndexRunLifecycleTables",
   "group": "PostgresEventLedgerCore",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T12:31:09.506Z",
+  "updated_at_utc": "2026-06-11T15:22:01.969Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-052.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -79,7 +79,7 @@
     ]
   },
   "lifecycle": {
-    "status": "CLAIMED",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-049"
@@ -88,7 +88,32 @@
     "claimed_by": "KERNEL_BUILDER-20260611-071323",
     "completed_by": null,
     "implementation_commit": "a653477d",
-    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 a653477d; PostgresEventLedgerCore group: 47 tests across 8 binaries green on Handshake-managed PostgreSQL (port 5544, no Docker/SQLite). Pending adversarial code review before READY_FOR_VALIDATION."
+    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 a653477d; PostgresEventLedgerCore group: 47 tests across 8 binaries green on Handshake-managed PostgreSQL (port 5544, no Docker/SQLite). Pending adversarial code review before READY_FOR_VALIDATION.",
+    "adversarial_code_review": {
+      "verdict": "PASS",
+      "reviewed_at_utc": "2026-06-11T15:19:27Z",
+      "reviewer": "ADVERSARIAL_CODE_REVIEWER-20260611-PM",
+      "concerns": [
+        "Index-run TRANSITION ORDERING (started -> terminal; terminal is terminal) is enforced ONLY in app code (transition_knowledge_index_run); the DB enforces shape (chk_finished_shape, chk_error_shape) but not ordering, so a raw SQL UPDATE could move a completed run back to started if finished_at were also nulled. Lower severity than MT-056 because index_runs is the Support/provenance family (spec does not enumerate its states as a MUST), and finished_shape already couples run_state to finished_at. Same defense-in-depth note as claims."
+      ],
+      "evasion_probes": [
+        "lifecycle states CHECK-constrained (started/completed/failed/cancelled); chk_knowledge_index_runs_finished_shape couples terminal state to finished_at and running state to NULL finished_at - a half-finished terminal row is rejected.",
+        "chk_knowledge_index_runs_error_shape forces failed runs to capture error_capture.",
+        "actor_kind/actor_id non-empty CHECK; worktree_id is a portable token not a machine path; restart_checkpoint JSONB for resumable runs.",
+        "start/finish receipt FKs into kernel_event_ledger (ON DELETE RESTRICT) - run evidence is replayable.",
+        "non-negative count CHECKs on sources_seen/indexed, spans/entities/edges/claims."
+      ],
+      "evidence_checked": [
+        "migrations/0133_knowledge_index_runs.sql:14-72 (state CHECK, finished/error shape CHECKs, receipt FKs, count CHECKs)",
+        "knowledge_schema_tests.rs (MT-052 run lifecycle, checkpoints, error capture)",
+        "transition guard documented app-only at 0133:10-12"
+      ]
+    },
+    "ready_by": "KERNEL_BUILDER-20260611-071323",
+    "ready_for_validation_at_utc": "2026-06-11T15:22:01.969Z",
+    "evidence": [
+      "Adversarial code review verdict PASS (ADVERSARIAL_CODE_REVIEWER-20260611-PM); committed runtime proof + static refutation survived."
+    ]
   },
   "handoff": {
     "coder_session": null,

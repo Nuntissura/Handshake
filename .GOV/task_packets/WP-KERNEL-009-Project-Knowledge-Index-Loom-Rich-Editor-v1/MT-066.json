@@ -22,7 +22,7 @@
   "title": "CRDTAndConcurrencyCore-066-RichDocumentCrdtSnapshotModel",
   "group": "CRDTAndConcurrencyCore",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-11T12:38:34.533Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-066.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -79,14 +79,37 @@
     ]
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "CLAIMED",
     "active": false,
     "depends_on": [
       "MT-065"
     ],
     "blocks": [],
-    "claimed_by": null,
-    "completed_by": null
+    "claimed_by": "KERNEL_BUILDER-20260611-071323",
+    "completed_by": null,
+    "implementation_commit": "1f7989d6",
+    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 1f7989d6; CRDTAndConcurrencyCore: 41 tests/6 binaries green on real PostgreSQL. Pending adversarial code review.",
+    "adversarial_code_review": {
+      "verdict": "PASS",
+      "reviewed_at_utc": "2026-06-11T20:30:00Z",
+      "reviewer": "ADVERSARIAL_CODE_REVIEWER-20260611-PM",
+      "concerns": [
+        "Snapshot bytes live ONLY in kernel_crdt_snapshots.snapshot_bytes (PostgreSQL, migration 0020) with a postgres:// bytes_ref (rich_document_snapshot.rs:124-129); never filesystem, never browser. The snapshot is a DRAFT materialization, not a ProjectKnowledgeIndex authority record -- consistent with spec 2.3.13.11 (drafts MAY use CRDT).",
+        "restore_rich_document_snapshot (rich_document_snapshot.rs:243-295) runs a full tamper-evident verification chain: (1) validate the envelope (validate_crdt_snapshot_record), (2) sha256 byte-hash check -> ByteHashMismatch, (3) parse + structural validation of the ProseMirror payload (root type MUST be 'doc', content MUST be array), (4) cross-field drift checks that payload.state_vector == envelope.state_vector AND payload.covered_update_seq == envelope.covered_update_seq -> EnvelopePayloadDrift. A corrupted or mislabeled snapshot cannot restore silently.",
+        "prosemirror_schema_version is surfaced on restore so the frontend can refuse/migrate incompatible documents -- a real forward-compat hook, not a placeholder.",
+        "state_vector validated as a typed hsk-sv1 vector on both build and restore (reuses MT-072 parser)."
+      ],
+      "evasion_probes": [
+        "Tampered snapshot bytes (flip a byte): ByteHashMismatch blocks restore.",
+        "Mislabeled envelope (envelope state_vector differs from payload): EnvelopePayloadDrift blocks restore.",
+        "Non-ProseMirror payload (root type != 'doc', or content not an array): PayloadInvalid blocks restore.",
+        "Tried to make the snapshot an authority shortcut: it is not written to any promoted_facts/authority table; only the typed proposal->promotion path reaches authority. No bypass."
+      ],
+      "evidence_checked": [
+        "src/backend/handshake_core/src/kernel/crdt/rich_document_snapshot.rs:35-295 (payload, validation, build, restore with hash + drift checks)",
+        "src/backend/handshake_core/migrations/0020_kernel_crdt_storage.sql:43-74 (kernel_crdt_snapshots schema, UNIQUE bytes_ref/event indexes, FK to event ledger)"
+      ]
+    }
   },
   "handoff": {
     "coder_session": null,

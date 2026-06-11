@@ -22,7 +22,7 @@
   "title": "CRDTAndConcurrencyCore-074-AiEditProposalReviewFlow",
   "group": "CRDTAndConcurrencyCore",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-11T12:38:34.533Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-074.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -79,14 +79,40 @@
     ]
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "CLAIMED",
     "active": false,
     "depends_on": [
       "MT-065"
     ],
     "blocks": [],
-    "claimed_by": null,
-    "completed_by": null
+    "claimed_by": "KERNEL_BUILDER-20260611-071323",
+    "completed_by": null,
+    "implementation_commit": "dbecce27",
+    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 dbecce27; CRDTAndConcurrencyCore: 41 tests/6 binaries green on real PostgreSQL. Pending adversarial code review.",
+    "adversarial_code_review": {
+      "verdict": "PASS_WITH_NOTES",
+      "reviewed_at_utc": "2026-06-11T20:14:00Z",
+      "reviewer": "ADVERSARIAL_CODE_REVIEWER-20260611-PM",
+      "concerns": [
+        "EXACTLY-ONCE PROMOTION -- DB-state-machine-guaranteed. promote_ai_edit_proposal flips the row via mark_ai_edit_proposal_promoted: 'UPDATE ... WHERE proposal_id=$1 AND review_state=''approved''' (knowledge_crdt.rs:1083-1105). Even if two concurrent promotions both pass the read-time review_state=='approved' check (ai_edit_proposal.rs:397), only one conditional UPDATE matches a row; the loser gets None and is mapped to AlreadyPromoted (ai_edit_proposal.rs:472-482). Plus migration 0154 chk_..._promotion (0154:70-78) enforces promotion_requested+accepted exist IFF review_state='promoted', ALWAYS as a pair -- a half-promoted row is structurally impossible. This is not scheduling luck.",
+        "Model self-approval blocked twice: runtime reviewer-kind gate (ai_edit_proposal.rs:245-252) AND DB reviewer regex CHECK '^(operator|validator):' (0154:64-68). decided fields travel together (chk_..._decision, 0154:55-63). actor_id regex restricts proposers to '^(local_model|cloud_model):' (0154:31).",
+        "APPROVED-vs-APPLIED INTEGRITY GAP (medium): promotion only flips the proposal row to 'promoted' and stamps event ids; per the header the approved diff is then 'eligible to be applied as a normal CRDT update by the model actor (push path)'. NOTHING enforces that the subsequently pushed update equals the approved diff (no check that the pushed update's content hashes to the approved diff_sha256). A model could get diff A approved then push diff B as a draft update citing the proposal. Lands in the draft log (not authority), so severity is bounded, but the approval is not cryptographically bound to the application.",
+        "LEASE existence-only (medium): record_ai_edit_proposal requires lease_id.is_some() for model actors (ai_edit_proposal.rs:112-116) and the FK (0154:35) guarantees the lease row exists, but neither calls guard_lease_for_write, so an EXPIRED/RELEASED/FOREIGN/wrong-SCOPE existing lease id passes. Same weakness as MT-068/MT-079.",
+        "source_span_citations: non-empty array CHECK (0154:26-29) + non-empty-string runtime check (knowledge_crdt.rs:959-968). Same soft-ref class as MT-068 -- citations are arbitrary strings, never validated against knowledge_spans, but AI edits do not promote into the promoted_facts authority table, so the dangling-evidence-becomes-authority concern (MT-069) does not apply to this path."
+      ],
+      "evasion_probes": [
+        "Hammered two concurrent promotions of one approved proposal: only one mark_ai_edit_proposal_promoted UPDATE succeeds (conditional on review_state='approved'); the other -> AlreadyPromoted. No double promotion, no second event pair commits (idempotency keys ...:requested/:accepted dedup).",
+        "Tried to promote a 'rejected' proposal: NotApproved denial + durable ai_edit_promotion_denied receipt + PROMOTION_REJECTED event.",
+        "Tried model self-approval: blocked by runtime gate and DB regex.",
+        "Tried to create a half-promoted row (promotion ids set but state!='promoted', or state='promoted' with one id null): blocked by chk_..._promotion CHECK at the DB layer.",
+        "Tried approve diff A then verify B cannot masquerade: no binding exists -- the push path does not verify against diff_sha256. This is the integrity gap noted above (bounded to draft log)."
+      ],
+      "evidence_checked": [
+        "src/backend/handshake_core/src/kernel/crdt/ai_edit_proposal.rs:93-560 (validate/record/decide/promote/deny)",
+        "src/backend/handshake_core/src/storage/knowledge_crdt.rs:955-1105 (insert/get/list/decide/mark_promoted)",
+        "src/backend/handshake_core/migrations/0154_knowledge_crdt_ai_edit_proposals.sql:13-93 (schema, decision/reviewer/promotion CHECKs, FKs)"
+      ]
+    }
   },
   "handoff": {
     "coder_session": null,

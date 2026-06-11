@@ -22,7 +22,7 @@
   "title": "CRDTAndConcurrencyCore-073-OfflineDraftStateBoundary",
   "group": "CRDTAndConcurrencyCore",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-11T12:38:34.533Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-073.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -79,14 +79,36 @@
     ]
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "CLAIMED",
     "active": false,
     "depends_on": [
       "MT-065"
     ],
     "blocks": [],
-    "claimed_by": null,
-    "completed_by": null
+    "claimed_by": "KERNEL_BUILDER-20260611-071323",
+    "completed_by": null,
+    "implementation_commit": "f53a9cae",
+    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 f53a9cae; CRDTAndConcurrencyCore: 41 tests/6 binaries green on real PostgreSQL. Pending adversarial code review.",
+    "adversarial_code_review": {
+      "verdict": "PASS_WITH_NOTES",
+      "reviewed_at_utc": "2026-06-11T20:32:00Z",
+      "reviewer": "ADVERSARIAL_CODE_REVIEWER-20260611-PM",
+      "concerns": [
+        "OFFLINE REPLAY CANNOT REACH AUTHORITY (the #6 offline variant): replay_offline_envelopes (offline_boundary.rs:163-225) routes EVERY buffered envelope through the same push_yjs_update draft-log path. It physically cannot write promoted_facts, promotion events, or proposal review_state -- replay is draft-only. The boundary contract's replay_must_not_mutate list (offline_boundary.rs:74-79) names exactly those authority surfaces, and the code honors it by construction (no authority writers in the replay loop).",
+        "NO DRAFT LOSS / IDEMPOTENT: every envelope gets a typed verdict (Stored | AlreadyStored | Denied) with counts -- no silent drops. Re-submitted already-stored updates dedup (AlreadyStored); stale ones get a typed Denied carrying the reason so the client rebases and resubmits exactly the failed tail.",
+        "SELF-REFERENTIAL CONTRACT VALIDATOR (note): validate_offline_draft_boundary_contract (offline_boundary.rs:92-137) largely asserts the contract equals hardcoded constants (e.g. durable tables == ['kernel_crdt_updates','kernel_crdt_snapshots']). That part is tautological -- it proves the constructor matches itself, not that the system obeys the boundary. The MEANINGFUL proof is the runtime replay_offline_envelopes path, which is real. The contract object is a serialize-only descriptor for validators; treat it as documentation, not enforcement.",
+        "The denied-surface list (browser_local_storage, sqlite_file, filesystem_draft_files, markdown_mirror, provider_chat_history) correctly encodes the spec 2.3.13.11 prohibition; the cross-check that no denied surface appears in an allowed list (offline_boundary.rs:110-119) is a useful invariant guard."
+      ],
+      "evasion_probes": [
+        "Tried to drive an authority mutation through offline replay: impossible -- the loop only calls push_yjs_update (draft log). No promotion/proposal writer reachable.",
+        "Tried to lose a buffered update silently: every envelope yields a verdict; denied tail is reported with reason, not dropped.",
+        "Tried to claim a denied durable surface (e.g. sqlite) as allowed in the contract: validate_offline_draft_boundary_contract rejects 'a denied surface appears in an allowed list' -- but this only guards the descriptor, not real storage."
+      ],
+      "evidence_checked": [
+        "src/backend/handshake_core/src/kernel/crdt/offline_boundary.rs:50-225 (boundary contract, validator, replay_offline_envelopes)",
+        "src/backend/handshake_core/src/kernel/crdt/yjs_bridge.rs:480-609 (push path the replay reuses) -- confirms draft-only"
+      ]
+    }
   },
   "handoff": {
     "coder_session": null,

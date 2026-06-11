@@ -22,7 +22,7 @@
   "title": "CRDTAndConcurrencyCore-079-CrdtRecoveryReceiptFormat",
   "group": "CRDTAndConcurrencyCore",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-11T12:38:34.533Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-079.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -79,14 +79,39 @@
     ]
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "CLAIMED",
     "active": false,
     "depends_on": [
       "MT-065"
     ],
     "blocks": [],
-    "claimed_by": null,
-    "completed_by": null
+    "claimed_by": "KERNEL_BUILDER-20260611-071323",
+    "completed_by": null,
+    "implementation_commit": "bac0570d",
+    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 bac0570d; CRDTAndConcurrencyCore: 41 tests/6 binaries green on real PostgreSQL. Pending adversarial code review.",
+    "adversarial_code_review": {
+      "verdict": "CHANGES_REQUESTED",
+      "reviewed_at_utc": "2026-06-11T19:54:00Z",
+      "reviewer": "ADVERSARIAL_CODE_REVIEWER-20260611-PM",
+      "concerns": [
+        "RECOVERY SCOPE GAP (high) -- CONFIRMED the implementer's own honest-risk note. recover_from_checkpoint (recovery_receipt.rs:161-261) verifies only that the new lease EXISTS: 'if get_lease(new_lease_id).is_none() -> NewLeaseNotFound' (line 190-197). It does NOT check that the new lease's scope_ref covers checkpoint.scope_ref. A new lease scoped to document:OTHER (or workspace:X) successfully recovers a checkpoint scoped to document:TARGET, and a durable recovery receipt is written authorizing cross-scope resumption. This is a real authorization hole: recovery is supposed to re-establish work under a lease that legitimately covers the checkpointed scope.",
+        "WIDER THAN SCOPE ALONE (high): get_lease returns the row even when the lease is EXPIRED or RELEASED (is_expired / released_at_utc are just fields, not filters). recover_from_checkpoint never inspects them. So recovery proceeds under an expired or released lease -- the recovering session is authorized to resume work it can no longer legitimately hold. Combined with the scope gap, recovery accepts (a) any-scope, (b) expired, (c) released, and (d) foreign-actor leases: there is no check that new_lease.actor_id == new_actor.canonical() either.",
+        "Checkpoint write path is sound: payload_sha256 over canonical JSON (recovery_receipt.rs:73-75), re-verified on recovery with PayloadHashMismatch (line 182-188). Tampered payload is caught. Unknown checkpoint -> CheckpointNotFound. Lineage walk reuses MT-076 lease_lineage. The HASH integrity and lineage parts are correct; the AUTHORIZATION parts are missing.",
+        "Checkpoint/receipt are two separate awaits (event append at line 233-236, row insert at 238-252) -- same crash-window class as MT-069 but lower severity: a recovery receipt is an audit record, not authority that gates truth. Replay would show RECOVERY_RECEIPT_RECORDED with no row; acceptable for an audit trail but worth a note."
+      ],
+      "evasion_probes": [
+        "Constructed cross-scope recovery: checkpoint.scope_ref='document:DOC-A'; claim a fresh lease with scope_kind=Document scope_id='DOC-B'; call recover_from_checkpoint(checkpoint_id, ..., new_lease_id=DOC-B lease). No scope comparison exists -> recovery SUCCEEDS and writes a receipt. Hole confirmed by static path analysis.",
+        "Constructed expired-lease recovery: lease past expires_at_utc; get_lease still returns Some(row) (is_expired=true but unused) -> recovery SUCCEEDS. Hole confirmed.",
+        "Checked whether insert_recovery_receipt or migration 0155 enforces scope coverage: storage just binds new_lease_id (knowledge_crdt.rs:1274-1301); the swarm_checkpoints/recovery_receipts schema (0155) has no scope-coverage constraint linking lease.scope to checkpoint.scope.",
+        "Tampered checkpoint payload: caught by sha256 re-hash (PayloadHashMismatch). This evasion is correctly blocked."
+      ],
+      "evidence_checked": [
+        "src/backend/handshake_core/src/kernel/crdt/recovery_receipt.rs:67-261 (write_swarm_checkpoint, recover_from_checkpoint)",
+        "src/backend/handshake_core/src/storage/knowledge_crdt.rs:1163-1318 (checkpoint + recovery receipt storage; lease_lineage at 539-558)",
+        "src/backend/handshake_core/migrations/0155_knowledge_crdt_swarm_checkpoints.sql (no scope-coverage constraint)",
+        "Cross-referenced AgentLaneLeaseRow.scope_ref() (knowledge_crdt.rs:231) which exists and could be compared but is not used in recovery"
+      ]
+    }
   },
   "handoff": {
     "coder_session": null,

@@ -22,7 +22,7 @@
   "title": "PostgresEventLedgerCore-062-TransactionalIdempotencyKeys",
   "group": "PostgresEventLedgerCore",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T12:31:09.506Z",
+  "updated_at_utc": "2026-06-11T15:22:01.969Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-062.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -79,7 +79,7 @@
     ]
   },
   "lifecycle": {
-    "status": "CLAIMED",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-049"
@@ -88,7 +88,31 @@
     "claimed_by": "KERNEL_BUILDER-20260611-071323",
     "completed_by": null,
     "implementation_commit": "eb856e06",
-    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 eb856e06; PostgresEventLedgerCore group: 47 tests across 8 binaries green on Handshake-managed PostgreSQL (port 5544, no Docker/SQLite). Pending adversarial code review before READY_FOR_VALIDATION."
+    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 eb856e06; PostgresEventLedgerCore group: 47 tests across 8 binaries green on Handshake-managed PostgreSQL (port 5544, no Docker/SQLite). Pending adversarial code review before READY_FOR_VALIDATION.",
+    "adversarial_code_review": {
+      "verdict": "PASS",
+      "reviewed_at_utc": "2026-06-11T15:19:27Z",
+      "reviewer": "ADVERSARIAL_CODE_REVIEWER-20260611-PM",
+      "concerns": [],
+      "evasion_probes": [
+        "EXACTLY-ONCE BY DB CONSTRAINT not test luck: write + key-claim commit in ONE transaction; claim uses INSERT ... ON CONFLICT (idempotency_key) DO NOTHING and checks rows_affected()==1 (storage/knowledge.rs:2287-2314, 4562-4593). PK on idempotency_key is the hard guarantee.",
+        "DIVERGENT-PAYLOAD REPLAY -> typed Conflict NOT silent overwrite: find_knowledge_idempotency_result compares stored request_hash vs incoming and returns StorageError::Conflict on mismatch (knowledge.rs:2275-2279); proven by same_key_with_divergent_payload_is_a_typed_conflict AND count stays 1 (test:158-189).",
+        "request_hash is sha256 over canonical-JSON of {operation, payload} (knowledge.rs:2238-2244) - key-order independent, so a re-serialized identical payload still matches.",
+        "RACE: real tokio::join! of two writers on one key converges on one passage_id with passage_count==1 and at least one real write (test:191-223) - the losing tx rolls back its write entirely (drop(tx)) and re-reads the winner.",
+        "replay returns prior result with ZERO writes (passage_count==1, exactly one key row, both via raw SQL COUNT, test:111-156); editor-save replay returns the promoted revision instead of a version conflict and does not append history (test:225-306).",
+        "graph writes covered by MT-054 deterministic relationship_id upsert; bundle builds by MT-060 content-derived id PK + hash CHECK - documented, not orphaned."
+      ],
+      "evidence_checked": [
+        "storage/knowledge.rs(@eb856e06):2238-2314 (canonical-hash, find/claim engine), 4534-4675 (passage + rich-doc idempotent engines, race+conflict reconciliation)",
+        "migrations/0142_knowledge_idempotency_keys.sql:21-52 (PK, request_hash CHECK, operation_kind CHECK)",
+        "knowledge_idempotency_tests.rs:111-307 (no-double-write, divergent conflict, tokio::join race, editor replay)"
+      ]
+    },
+    "ready_by": "KERNEL_BUILDER-20260611-071323",
+    "ready_for_validation_at_utc": "2026-06-11T15:22:01.969Z",
+    "evidence": [
+      "Adversarial code review verdict PASS (ADVERSARIAL_CODE_REVIEWER-20260611-PM); committed runtime proof + static refutation survived."
+    ]
   },
   "handoff": {
     "coder_session": null,

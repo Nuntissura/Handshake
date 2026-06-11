@@ -22,7 +22,7 @@
   "title": "PostgresEventLedgerCore-061-EventLedgerEventFamilies",
   "group": "PostgresEventLedgerCore",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T12:31:09.506Z",
+  "updated_at_utc": "2026-06-11T15:22:01.969Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-061.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -79,7 +79,7 @@
     ]
   },
   "lifecycle": {
-    "status": "CLAIMED",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-049"
@@ -88,7 +88,30 @@
     "claimed_by": "KERNEL_BUILDER-20260611-071323",
     "completed_by": null,
     "implementation_commit": "c819786c",
-    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 c819786c; PostgresEventLedgerCore group: 47 tests across 8 binaries green on Handshake-managed PostgreSQL (port 5544, no Docker/SQLite). Pending adversarial code review before READY_FOR_VALIDATION."
+    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 c819786c; PostgresEventLedgerCore group: 47 tests across 8 binaries green on Handshake-managed PostgreSQL (port 5544, no Docker/SQLite). Pending adversarial code review before READY_FOR_VALIDATION.",
+    "adversarial_code_review": {
+      "verdict": "PASS",
+      "reviewed_at_utc": "2026-06-11T15:15:10Z",
+      "reviewer": "ADVERSARIAL_CODE_REVIEWER-20260611-PM",
+      "concerns": [],
+      "evasion_probes": [
+        "ALL-variant string+serde round-trip: kernel_event_type_round_trips_every_variant_through_string_and_serde iterates required_first_slice_events() and asserts as_str->TryFrom lossless AND serde form == as_str form AND serde round-trip lossless (kernel_event_ledger_tests.rs:176-198) - catches rename_all drift or a missing parse arm.",
+        "COLLISION: TryFrom matches against as_str() of each variant in the canonical slice (mod.rs:414-426); as_str is the single source of truth (16 distinct KNOWLEDGE_* SCREAMING_SNAKE literals, all unique), so no two variants share a string and no parse ambiguity exists.",
+        "All 16 WP-009 variants confirmed present in BOTH required_first_slice_events() (the slice TryFrom iterates) AND as_str (mod.rs:348+) - no orphan variant.",
+        "Append+replay order/identity: 8 representative families appended to the REAL ledger and replayed by aggregate in insertion order, each parsed back == expected (knowledge_documents_tests.rs:569-623).",
+        "WP-009 taxonomy coverage asserted explicitly (kernel_event_ledger_tests.rs:141-168)."
+      ],
+      "evidence_checked": [
+        "kernel/mod.rs(@c819786c):281-426 (as_str arms, required_first_slice_events slice, TryFrom)",
+        "kernel_event_ledger_tests.rs:141-198 (taxonomy + every-variant round-trip)",
+        "knowledge_documents_tests.rs:569-623 (real-ledger append+replay)"
+      ]
+    },
+    "ready_by": "KERNEL_BUILDER-20260611-071323",
+    "ready_for_validation_at_utc": "2026-06-11T15:22:01.969Z",
+    "evidence": [
+      "Adversarial code review verdict PASS (ADVERSARIAL_CODE_REVIEWER-20260611-PM); committed runtime proof + static refutation survived."
+    ]
   },
   "handoff": {
     "coder_session": null,

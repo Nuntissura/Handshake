@@ -22,7 +22,7 @@
   "title": "CRDTAndConcurrencyCore-075-ConflictUiStateModel",
   "group": "CRDTAndConcurrencyCore",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-11T12:38:34.533Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-075.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -79,14 +79,37 @@
     ]
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "CLAIMED",
     "active": false,
     "depends_on": [
       "MT-065"
     ],
     "blocks": [],
-    "claimed_by": null,
-    "completed_by": null
+    "claimed_by": "KERNEL_BUILDER-20260611-071323",
+    "completed_by": null,
+    "implementation_commit": "15413cd9",
+    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 15413cd9; CRDTAndConcurrencyCore: 41 tests/6 binaries green on real PostgreSQL. Pending adversarial code review.",
+    "adversarial_code_review": {
+      "verdict": "PASS",
+      "reviewed_at_utc": "2026-06-11T20:34:00Z",
+      "reviewer": "ADVERSARIAL_CODE_REVIEWER-20260611-PM",
+      "concerns": [
+        "compute_conflict_ui_state (conflict_ui.rs:110-190) is a PURE projection over durable knowledge_crdt_denial_receipts rows plus the draft head -- it RENDERS receipts, never recomputes a guess. Each conflict entry is backed 1:1 by a real denial_receipt_id AND event_ledger_event_id (conflict_ui.rs:176-177), so the UI cannot invent a conflict that has no durable receipt. This matches the spec note that denied/conflicted writes leave durable receipts and the UI renders those.",
+        "Read-only: this module performs ZERO writes (no Database/pool mutation). It is served by GET /knowledge/crdt/conflict_state which enforces backend-navigation identification (require_navigation_ids -> 400) and returns a typed navigation receipt with a postgres:// target_authority_ref (api/knowledge_crdt.rs:240-290). No authority mutation possible through this path.",
+        "Resolution options are derived deterministically from receipt kind (PullMergeResubmit with a precise pull point computed from base vs head vectors, AdoptServerHead, PushMissingUpdatesFirst, ResolveLeaseFirst{lease_id}, ReviewProposal{proposal_id}). The pull point uses the MT-072 vector comparison and falls back to 0 (pull everything) when the base is unparseable -- safe default.",
+        "NOTE: unrecognized receipt kinds are silently skipped (conflict_ui.rs:119-121 'continue'). A newly added denial kind would be invisible in the conflict UI until it is mapped into ConflictUiKindV1. Forward-compat choice; flag so a future denial kind is not silently dropped from operator view."
+      ],
+      "evasion_probes": [
+        "Tried to surface a fabricated conflict with no receipt: impossible -- the function iterates only over real receipt rows.",
+        "Tried to mutate authority via the conflict surface: no write path exists; handler is read-only and identification-gated.",
+        "Fed a receipt with an unmapped kind: silently skipped (the noted forward-compat gap), not an error or a fake entry."
+      ],
+      "evidence_checked": [
+        "src/backend/handshake_core/src/kernel/crdt/conflict_ui.rs:18-242 (compute_conflict_ui_state, resolution_options_for)",
+        "src/backend/handshake_core/src/api/knowledge_crdt.rs:240-290 (conflict_state handler, identification + navigation receipt)",
+        "src/backend/handshake_core/src/storage/knowledge_crdt.rs:144-201 (list_denial_receipts_for_document feeding the projection)"
+      ]
+    }
   },
   "handoff": {
     "coder_session": null,

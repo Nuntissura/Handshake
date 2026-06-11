@@ -22,7 +22,7 @@
   "title": "PostgresEventLedgerCore-054-KnowledgeEdgeTables",
   "group": "PostgresEventLedgerCore",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T12:31:09.506Z",
+  "updated_at_utc": "2026-06-11T15:22:01.969Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-054.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -88,7 +88,32 @@
     "claimed_by": "KERNEL_BUILDER-20260611-071323",
     "completed_by": null,
     "implementation_commit": "0a9ae31e",
-    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 0a9ae31e; PostgresEventLedgerCore group: 47 tests across 8 binaries green on Handshake-managed PostgreSQL (port 5544, no Docker/SQLite). Pending adversarial code review before READY_FOR_VALIDATION."
+    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 0a9ae31e; PostgresEventLedgerCore group: 47 tests across 8 binaries green on Handshake-managed PostgreSQL (port 5544, no Docker/SQLite). Pending adversarial code review before READY_FOR_VALIDATION.",
+    "adversarial_code_review": {
+      "verdict": "HARDEN_RECOMMENDED",
+      "reviewed_at_utc": "2026-06-11T15:15:10Z",
+      "reviewer": "ADVERSARIAL_CODE_REVIEWER-20260611-PM",
+      "concerns": [
+        "SEPARATOR-INJECTION COLLISION in derive_knowledge_relationship_id (storage/knowledge.rs:1109-1128 / migrations/0136_knowledge_edges.sql:9-12). Canonical string 'knowledge_edge_relationship_v1|{edge_type}|{source_kind}:{source_key}|{target_kind}:{target_key}' concatenates with UNESCAPED | and : over free-text entity_key. edge_type/entity_kind are closed enums but entity_key is unconstrained (only btrim/non-empty per 0135). Constructed collision: Edge A source=(file,key=p) target=(folder,key=x|folder:y) and Edge B source=(file,key=p|folder:x) target=(folder,key=y) both hash v1|references|file:p|folder:x|folder:y -> identical relationship_id -> UNIQUE(workspace_id,relationship_id) merges two distinct logical edges (silent overwrite of confidence/extractor + span merge). Entity keys are file path/symbol FQN/spec anchor; Windows paths, Rust FQNs (mod::item) and section paths legitimately contain : and can contain |, so reachable not theoretical.",
+        "No test exercises keys containing | or : delimiters; the determinism test proves stability for only one clean key pair, so the collision is unprobed by the suite."
+      ],
+      "evasion_probes": [
+        "Tried to break determinism via caller-supplied relationship_id: NOT possible - NewKnowledgeEdge has no relationship_id field, always derived (good).",
+        "Re-index stability: ON CONFLICT (workspace_id,relationship_id) DO UPDATE keeps edge_id stable and merges spans/last_seen_in_run - genuinely stable for non-colliding keys (tests:461-533).",
+        "DB-level REQUIRED-span: deferred constraint trigger trg_knowledge_edge_requires_span fires at COMMIT, proven via raw-SQL bypass; delete-guard blocks stripping the last span. Span MUST robustly enforced.",
+        "conflict-marker shape chk_knowledge_edges_conflict_shape proven in Rust AND via raw UPDATE."
+      ],
+      "evidence_checked": [
+        "storage/knowledge.rs(@eb856e06):1099-1128 (derivation), 3478-3552 (upsert ON CONFLICT, span insert)",
+        "migrations/0136_knowledge_edges.sql:9-135 (derivation doc, UNIQUE, deferred trigger, delete guard)",
+        "knowledge_graph_tests.rs:381-656 (relationship stability, span-required, lifecycle/conflict)",
+        "migrations/0135_knowledge_entities.sql:45-46 (entity_key CHECK = btrim/non-empty only, no separator exclusion)"
+      ]
+    },
+    "hardening_pending": {
+      "at_utc": "2026-06-11T15:22:01.969Z",
+      "reason": "relationship_id separator-injection collision: length-prefix components OR forbid |/: in entity_key; add regression test with |/: keys."
+    }
   },
   "handoff": {
     "coder_session": null,

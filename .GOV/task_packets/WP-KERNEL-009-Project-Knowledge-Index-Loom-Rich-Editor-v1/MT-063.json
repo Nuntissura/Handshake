@@ -22,7 +22,7 @@
   "title": "PostgresEventLedgerCore-063-RollbackAndRepairMigrations",
   "group": "PostgresEventLedgerCore",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T12:31:09.506Z",
+  "updated_at_utc": "2026-06-11T15:22:01.969Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-063.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -88,7 +88,30 @@
     "claimed_by": "KERNEL_BUILDER-20260611-071323",
     "completed_by": null,
     "implementation_commit": "5fe02b12",
-    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 5fe02b12; PostgresEventLedgerCore group: 47 tests across 8 binaries green on Handshake-managed PostgreSQL (port 5544, no Docker/SQLite). Pending adversarial code review before READY_FOR_VALIDATION."
+    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 5fe02b12; PostgresEventLedgerCore group: 47 tests across 8 binaries green on Handshake-managed PostgreSQL (port 5544, no Docker/SQLite). Pending adversarial code review before READY_FOR_VALIDATION.",
+    "adversarial_code_review": {
+      "verdict": "HARDEN_RECOMMENDED",
+      "reviewed_at_utc": "2026-06-11T15:19:27Z",
+      "reviewer": "ADVERSARIAL_CODE_REVIEWER-20260611-PM",
+      "concerns": [
+        "The scratch-schema rollback proof asserts ZERO leftover only for information_schema BASE TABLE (test:217-221); it does NOT assert zero leftover FUNCTIONS (information_schema.routines). The down files DO drop all 4 trigger functions (knowledge_edge_requires_span, knowledge_edge_span_delete_guard, knowledge_claim_requires_span, knowledge_passage_requires_evidence - verified 1:1 against the up files), so the actual rollback IS complete; but a FUTURE down file that forgot a DROP FUNCTION would still pass this test green. Add a routines-empty assertion to make the 'zero knowledge objects incl functions' claim test-enforced, not just construction-true.",
+        "The scratch chain stops at 0142 by design (CRDT 0150+/ingestion 0160+ FK into knowledge_sources and must roll back first in a full DB); this is documented and acceptable for the group's deterministic proof, but means the full-chain rollback ordering is not exercised here."
+      ],
+      "evasion_probes": [
+        "Verified rollback completeness by inventory: NO CREATE TYPE (all enums are CHECK-constrained TEXT) and NO sequences (all ids TEXT) exist in 0130-0142, so functions are the only non-table objects; triggers are auto-dropped with their tables (CASCADE). Down files drop child->parent in FK-safe order and clean knowledge_schema_registry rows.",
+        "every_knowledge_migration_ships_a_down_file asserts each NNNN_knowledge*.sql has a .down.sql twin containing DROP, >=13 checked (test:59-99) - filesystem audit, always runs.",
+        "scratch_schema_apply_rollback_reapply (real PG): apply full chain ->=14 tables, rollback 0142->0130 leaves zero knowledge_ tables, re-apply restores EXACT table set AND exact registry rows (test:119-251) - repair path proven, scratch schema disposed.",
+        "ON CONFLICT DO NOTHING registry inserts make re-apply idempotent."
+      ],
+      "evidence_checked": [
+        "knowledge_migration_tests.rs:59-251 (down-file audit, scratch apply/rollback/reapply, registry equality)",
+        "migrations 0130-0142 .down.sql files (verified DROP coverage: 4/4 functions, all tables, registry cleanup, FK-safe order)"
+      ]
+    },
+    "hardening_pending": {
+      "at_utc": "2026-06-11T15:22:01.969Z",
+      "reason": "rollback completeness: add information_schema.routines zero-leftover assertion after rollback."
+    }
   },
   "handoff": {
     "coder_session": null,

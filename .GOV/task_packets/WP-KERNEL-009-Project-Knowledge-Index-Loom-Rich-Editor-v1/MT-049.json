@@ -22,7 +22,7 @@
   "title": "PostgresEventLedgerCore-049-KnowledgeSchemaNamespace",
   "group": "PostgresEventLedgerCore",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T12:31:09.506Z",
+  "updated_at_utc": "2026-06-11T15:22:01.969Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-049.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -79,7 +79,7 @@
     ]
   },
   "lifecycle": {
-    "status": "CLAIMED",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-017",
@@ -89,7 +89,27 @@
     "claimed_by": "KERNEL_BUILDER-20260611-071323",
     "completed_by": null,
     "implementation_commit": "cb70a350",
-    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 cb70a350; PostgresEventLedgerCore group: 47 tests across 8 binaries green on Handshake-managed PostgreSQL (port 5544, no Docker/SQLite). Pending adversarial code review before READY_FOR_VALIDATION."
+    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 cb70a350; PostgresEventLedgerCore group: 47 tests across 8 binaries green on Handshake-managed PostgreSQL (port 5544, no Docker/SQLite). Pending adversarial code review before READY_FOR_VALIDATION.",
+    "adversarial_code_review": {
+      "verdict": "PASS",
+      "reviewed_at_utc": "2026-06-11T15:15:10Z",
+      "reviewer": "ADVERSARIAL_CODE_REVIEWER-20260611-PM",
+      "concerns": [],
+      "evasion_probes": [
+        "Checked dedicated-PG-schema vs table-prefix collision: migration documents a 0001-0129 collision audit; CHECK chk_knowledge_schema_registry_prefix enforces knowledge_ prefix on every registered table.",
+        "Verified knowledge_schema_registry is a real machine-readable boundary (authority_class CHECK in {authority,projection,support}, table_name UNIQUE, mt_id regex) consumed by MT-058/064 tests, not prose."
+      ],
+      "evidence_checked": [
+        "migrations/0130_knowledge_schema_namespace.sql:35-59 (registry DDL + prefix/family/mt CHECKs)",
+        "knowledge_schema_tests.rs (namespace + registry round-trip)",
+        "knowledge_pg_support.rs:108-165 (real-PG isolated-schema harness, no SQLite/mock fallback)"
+      ]
+    },
+    "ready_by": "KERNEL_BUILDER-20260611-071323",
+    "ready_for_validation_at_utc": "2026-06-11T15:22:01.969Z",
+    "evidence": [
+      "Adversarial code review verdict PASS (ADVERSARIAL_CODE_REVIEWER-20260611-PM); committed runtime proof + static refutation survived."
+    ]
   },
   "handoff": {
     "coder_session": null,
