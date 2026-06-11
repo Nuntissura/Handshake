@@ -58,6 +58,7 @@
 
 pub mod allowlist;
 pub mod backpressure;
+pub mod engine;
 pub mod governance;
 pub mod hashing;
 pub mod kinds;
@@ -68,6 +69,7 @@ pub mod receipts;
 pub mod repair;
 pub mod secrets;
 pub mod spans;
+pub mod store;
 pub mod transcripts;
 
 use crate::storage::StorageError;
