@@ -1520,7 +1520,10 @@ pub struct KnowledgeMemoryPassage {
 }
 
 /// Insert payload for [`KnowledgeMemoryPassage`].
-#[derive(Clone, Debug)]
+///
+/// `Serialize` exists so idempotent writes (MT-062) can derive a canonical
+/// request hash from the exact payload.
+#[derive(Clone, Debug, Serialize)]
 pub struct NewKnowledgeMemoryPassage {
     pub workspace_id: String,
     pub passage_text: String,
@@ -2083,6 +2086,234 @@ fn trace_from_pg(row: &sqlx::postgres::PgRow) -> StorageResult<KnowledgeRetrieva
 }
 
 // ---------------------------------------------------------------------------
+// MT-062 TransactionalIdempotencyKeys: replay-safe knowledge mutations.
+//
+// Discipline (documented next to the table in 0142):
+//   1. The caller supplies an idempotency_key; the request_hash is derived
+//      here as sha256 over the canonical JSON of the exact request payload.
+//   2. The write and the key row commit in ONE transaction.
+//   3. A replay with the SAME key + SAME request_hash returns the prior
+//      result without writing anything.
+//   4. The SAME key with a DIFFERENT request_hash is a typed Conflict
+//      (divergent duplicate), mirroring kernel_event_ledger semantics.
+//   5. Two racing writers on one key: the loser's key insert hits
+//      ON CONFLICT DO NOTHING (after blocking on the winner's commit), the
+//      loser's whole transaction rolls back (no double-write), and the
+//      winner's result is re-read and returned as a replay.
+//
+// Unique-constraint coverage for the four contract surfaces:
+//   * parallel indexing  -> passage_write engine here (+ span/source unique
+//     identities from MT-051/MT-055);
+//   * editor saves       -> rich_document_save engine here (+ optimistic
+//     doc_version);
+//   * graph writes       -> deterministic relationship_id upsert (MT-054);
+//   * bundle builds      -> content-derived bundle_id PK + id/hash CHECK
+//     (MT-060).
+// ---------------------------------------------------------------------------
+
+/// Operation vocabulary of `knowledge_idempotency_keys.operation_kind`.
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum KnowledgeIdempotentOperationKind {
+    IndexRunStart,
+    SourceUpsert,
+    SpanWrite,
+    EntityWrite,
+    EdgeWrite,
+    ClaimWrite,
+    PassageWrite,
+    ProjectionWrite,
+    RichDocumentSave,
+    BundleBuild,
+}
+
+impl KnowledgeIdempotentOperationKind {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::IndexRunStart => "index_run_start",
+            Self::SourceUpsert => "source_upsert",
+            Self::SpanWrite => "span_write",
+            Self::EntityWrite => "entity_write",
+            Self::EdgeWrite => "edge_write",
+            Self::ClaimWrite => "claim_write",
+            Self::PassageWrite => "passage_write",
+            Self::ProjectionWrite => "projection_write",
+            Self::RichDocumentSave => "rich_document_save",
+            Self::BundleBuild => "bundle_build",
+        }
+    }
+}
+
+/// Outcome of an idempotent knowledge write.
+#[derive(Clone, Debug, PartialEq)]
+pub struct KnowledgeIdempotentWrite<T> {
+    pub value: T,
+    /// True when the idempotency key already existed and the prior result
+    /// was returned without writing anything.
+    pub replayed: bool,
+}
+
+/// Inserts a memory passage plus its REQUIRED lineage inside the caller's
+/// transaction (shared by the plain and idempotent create paths).
+async fn insert_knowledge_memory_passage_tx(
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    new_passage: &NewKnowledgeMemoryPassage,
+) -> StorageResult<KnowledgeMemoryPassage> {
+    if new_passage.evidence.is_empty() {
+        return Err(StorageError::Validation(
+            "knowledge memory passages are derived from sources and claims; evidence is required (spec 2.3.13.11)",
+        ));
+    }
+    if new_passage.passage_text.is_empty() {
+        return Err(StorageError::Validation(
+            "knowledge passage_text is required",
+        ));
+    }
+    if !(0.0..=1.0).contains(&new_passage.extraction_confidence) {
+        return Err(StorageError::Validation(
+            "knowledge passage extraction_confidence must be within [0.0, 1.0]",
+        ));
+    }
+    let passage_id = new_knowledge_id("KMP");
+
+    let sql = format!(
+        r#"
+        INSERT INTO knowledge_memory_passages
+            (passage_id, workspace_id, passage_text, token_count,
+             ocr_transcript_metadata, extraction_confidence,
+             ranking_features, retrieval_mode, compaction_policy,
+             failure_receipt_event_id, derived_in_run)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+        RETURNING {KNOWLEDGE_PASSAGE_COLUMNS}
+        "#
+    );
+    let row = sqlx::query(&sql)
+        .bind(&passage_id)
+        .bind(&new_passage.workspace_id)
+        .bind(&new_passage.passage_text)
+        .bind(new_passage.token_count)
+        .bind(&new_passage.ocr_transcript_metadata)
+        .bind(new_passage.extraction_confidence)
+        .bind(&new_passage.ranking_features)
+        .bind(new_passage.retrieval_mode.as_str())
+        .bind(new_passage.compaction_policy.as_str())
+        .bind(&new_passage.failure_receipt_event_id)
+        .bind(&new_passage.derived_in_run)
+        .fetch_one(&mut **tx)
+        .await?;
+    let passage = passage_from_pg(&row)?;
+
+    for (index, evidence) in new_passage.evidence.iter().enumerate() {
+        let (ref_kind, source_id, claim_id, span_id) = match evidence {
+            KnowledgePassageEvidenceRef::Source { source_id } => {
+                ("source", Some(source_id.as_str()), None, None)
+            }
+            KnowledgePassageEvidenceRef::Claim { claim_id } => {
+                ("claim", None, Some(claim_id.as_str()), None)
+            }
+            KnowledgePassageEvidenceRef::Span { span_id } => {
+                ("span", None, None, Some(span_id.as_str()))
+            }
+        };
+        sqlx::query(
+            r#"
+            INSERT INTO knowledge_passage_evidence
+                (passage_id, ref_kind, source_id, claim_id, span_id, ordinal)
+            VALUES ($1, $2, $3, $4, $5, $6)
+            "#,
+        )
+        .bind(&passage.passage_id)
+        .bind(ref_kind)
+        .bind(source_id)
+        .bind(claim_id)
+        .bind(span_id)
+        .bind(index as i32)
+        .execute(&mut **tx)
+        .await?;
+    }
+    Ok(passage)
+}
+
+/// sha256 over the canonical JSON of an idempotent request payload.
+fn knowledge_request_hash<T: Serialize>(operation: &str, payload: &T) -> StorageResult<String> {
+    let value = serde_json::to_value(payload)?;
+    Ok(knowledge_canonical_json_sha256(&serde_json::json!({
+        "operation": operation,
+        "payload": value,
+    })))
+}
+
+fn validate_knowledge_idempotency_key(idempotency_key: &str) -> StorageResult<()> {
+    if idempotency_key.trim() != idempotency_key || idempotency_key.is_empty() {
+        return Err(StorageError::Validation(
+            "knowledge idempotency_key must be non-empty and trimmed",
+        ));
+    }
+    Ok(())
+}
+
+/// Looks up a committed idempotency key. Same hash -> the prior result ref;
+/// different hash -> typed Conflict (divergent duplicate).
+async fn find_knowledge_idempotency_result(
+    pool: &sqlx::PgPool,
+    idempotency_key: &str,
+    request_hash: &str,
+) -> StorageResult<Option<(String, String)>> {
+    let row = sqlx::query(
+        r#"
+        SELECT request_hash, result_ref_kind, result_ref_id
+        FROM knowledge_idempotency_keys
+        WHERE idempotency_key = $1
+        "#,
+    )
+    .bind(idempotency_key)
+    .fetch_optional(pool)
+    .await?;
+    let Some(row) = row else {
+        return Ok(None);
+    };
+    let stored_hash: String = row.get("request_hash");
+    if stored_hash != request_hash {
+        return Err(StorageError::Conflict(
+            "knowledge idempotency key replayed with a different request payload",
+        ));
+    }
+    Ok(Some((row.get("result_ref_kind"), row.get("result_ref_id"))))
+}
+
+/// Claims the key inside the caller's transaction AFTER the write. Returns
+/// false when another writer holds the key (the caller must roll back and
+/// re-read the winner's result).
+async fn claim_knowledge_idempotency_key_tx(
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    idempotency_key: &str,
+    workspace_id: &str,
+    operation_kind: KnowledgeIdempotentOperationKind,
+    request_hash: &str,
+    result_ref_kind: &str,
+    result_ref_id: &str,
+) -> StorageResult<bool> {
+    let result = sqlx::query(
+        r#"
+        INSERT INTO knowledge_idempotency_keys
+            (idempotency_key, workspace_id, operation_kind, request_hash,
+             result_ref_kind, result_ref_id)
+        VALUES ($1, $2, $3, $4, $5, $6)
+        ON CONFLICT (idempotency_key) DO NOTHING
+        "#,
+    )
+    .bind(idempotency_key)
+    .bind(workspace_id)
+    .bind(operation_kind.as_str())
+    .bind(request_hash)
+    .bind(result_ref_kind)
+    .bind(result_ref_id)
+    .execute(&mut **tx)
+    .await?;
+    Ok(result.rows_affected() == 1)
+}
+
+// ---------------------------------------------------------------------------
 // KnowledgeStore trait: the WP-009 storage surface on PostgresDatabase.
 // ---------------------------------------------------------------------------
 
@@ -2450,6 +2681,30 @@ pub trait KnowledgeStore: Send + Sync {
         &self,
         bundle_id: &str,
     ) -> StorageResult<Vec<KnowledgeRetrievalTrace>>;
+
+    // -- MT-062 transactional idempotency keys --------------------------------------
+    /// Idempotent passage write (parallel-indexing surface): the write and
+    /// the key row commit in one transaction; a replay with the same key and
+    /// payload returns the prior passage without writing anything; the same
+    /// key with a different payload is a typed Conflict.
+    async fn create_knowledge_memory_passage_idempotent(
+        &self,
+        idempotency_key: &str,
+        new_passage: NewKnowledgeMemoryPassage,
+    ) -> StorageResult<KnowledgeIdempotentWrite<KnowledgeMemoryPassage>>;
+
+    /// Idempotent editor save (rich_document_save surface): replaying the
+    /// same save (same key + same payload) returns the already-promoted
+    /// revision instead of a version conflict, and never double-writes the
+    /// version history.
+    async fn save_knowledge_rich_document_version_idempotent(
+        &self,
+        idempotency_key: &str,
+        rich_document_id: &str,
+        expected_version: i64,
+        content_json: Value,
+        promotion_receipt_event_id: Option<&str>,
+    ) -> StorageResult<KnowledgeIdempotentWrite<KnowledgeRichDocument>>;
 }
 
 fn registry_row_from_pg(row: &sqlx::postgres::PgRow) -> StorageResult<KnowledgeSchemaRegistryRow> {
@@ -2465,6 +2720,95 @@ fn registry_row_from_pg(row: &sqlx::postgres::PgRow) -> StorageResult<KnowledgeS
         mt_id: row.get("mt_id"),
         registered_at: row.get("registered_at"),
     })
+}
+
+impl PostgresDatabase {
+    /// MT-062 inner save: optimistic update + history append + key claim in
+    /// ONE transaction. `Ok(None)` = the key claim lost a race and the whole
+    /// write rolled back (no double-write).
+    async fn save_knowledge_rich_document_version_with_key(
+        &self,
+        idempotency_key: &str,
+        rich_document_id: &str,
+        expected_version: i64,
+        content_json: &Value,
+        promotion_receipt_event_id: Option<&str>,
+        request_hash: &str,
+    ) -> StorageResult<Option<KnowledgeRichDocument>> {
+        let content_sha256 = knowledge_canonical_json_sha256(content_json);
+
+        let mut tx = self.pool().begin().await?;
+        let sql = format!(
+            r#"
+            UPDATE knowledge_rich_documents
+            SET doc_version = doc_version + 1,
+                content_json = $3,
+                content_sha256 = $4,
+                promotion_receipt_event_id = $5,
+                updated_at = NOW()
+            WHERE rich_document_id = $1 AND doc_version = $2
+            RETURNING {KNOWLEDGE_RICH_DOCUMENT_COLUMNS}
+            "#
+        );
+        let row = sqlx::query(&sql)
+            .bind(rich_document_id)
+            .bind(expected_version)
+            .bind(content_json)
+            .bind(&content_sha256)
+            .bind(promotion_receipt_event_id)
+            .fetch_optional(&mut *tx)
+            .await?;
+        let Some(row) = row else {
+            let exists: Option<i64> = sqlx::query_scalar(
+                "SELECT doc_version FROM knowledge_rich_documents WHERE rich_document_id = $1",
+            )
+            .bind(rich_document_id)
+            .fetch_optional(&mut *tx)
+            .await?;
+            return Err(match exists {
+                Some(_) => StorageError::Conflict(
+                    "knowledge rich document version conflict: expected_version is stale",
+                ),
+                None => StorageError::NotFound("knowledge rich document"),
+            });
+        };
+        let document = rich_document_from_pg(&row);
+
+        sqlx::query(
+            r#"
+            INSERT INTO knowledge_rich_document_versions
+                (rich_document_id, doc_version, schema_version, content_json,
+                 content_sha256, crdt_snapshot_id, promotion_receipt_event_id)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            "#,
+        )
+        .bind(&document.rich_document_id)
+        .bind(document.doc_version)
+        .bind(&document.schema_version)
+        .bind(&document.content_json)
+        .bind(&document.content_sha256)
+        .bind(&document.crdt_snapshot_id)
+        .bind(&document.promotion_receipt_event_id)
+        .execute(&mut *tx)
+        .await?;
+
+        let claimed = claim_knowledge_idempotency_key_tx(
+            &mut tx,
+            idempotency_key,
+            &document.workspace_id,
+            KnowledgeIdempotentOperationKind::RichDocumentSave,
+            request_hash,
+            "rich_document",
+            &document.rich_document_id,
+        )
+        .await?;
+        if !claimed {
+            drop(tx);
+            return Ok(None);
+        }
+        tx.commit().await?;
+        Ok(Some(document))
+    }
 }
 
 #[async_trait]
@@ -3575,79 +3919,8 @@ impl KnowledgeStore for PostgresDatabase {
         &self,
         new_passage: NewKnowledgeMemoryPassage,
     ) -> StorageResult<KnowledgeMemoryPassage> {
-        if new_passage.evidence.is_empty() {
-            return Err(StorageError::Validation(
-                "knowledge memory passages are derived from sources and claims; evidence is required (spec 2.3.13.11)",
-            ));
-        }
-        if new_passage.passage_text.is_empty() {
-            return Err(StorageError::Validation(
-                "knowledge passage_text is required",
-            ));
-        }
-        if !(0.0..=1.0).contains(&new_passage.extraction_confidence) {
-            return Err(StorageError::Validation(
-                "knowledge passage extraction_confidence must be within [0.0, 1.0]",
-            ));
-        }
-        let passage_id = new_knowledge_id("KMP");
-
         let mut tx = self.pool().begin().await?;
-        let sql = format!(
-            r#"
-            INSERT INTO knowledge_memory_passages
-                (passage_id, workspace_id, passage_text, token_count,
-                 ocr_transcript_metadata, extraction_confidence,
-                 ranking_features, retrieval_mode, compaction_policy,
-                 failure_receipt_event_id, derived_in_run)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-            RETURNING {KNOWLEDGE_PASSAGE_COLUMNS}
-            "#
-        );
-        let row = sqlx::query(&sql)
-            .bind(&passage_id)
-            .bind(&new_passage.workspace_id)
-            .bind(&new_passage.passage_text)
-            .bind(new_passage.token_count)
-            .bind(&new_passage.ocr_transcript_metadata)
-            .bind(new_passage.extraction_confidence)
-            .bind(&new_passage.ranking_features)
-            .bind(new_passage.retrieval_mode.as_str())
-            .bind(new_passage.compaction_policy.as_str())
-            .bind(&new_passage.failure_receipt_event_id)
-            .bind(&new_passage.derived_in_run)
-            .fetch_one(&mut *tx)
-            .await?;
-        let passage = passage_from_pg(&row)?;
-
-        for (index, evidence) in new_passage.evidence.iter().enumerate() {
-            let (ref_kind, source_id, claim_id, span_id) = match evidence {
-                KnowledgePassageEvidenceRef::Source { source_id } => {
-                    ("source", Some(source_id.as_str()), None, None)
-                }
-                KnowledgePassageEvidenceRef::Claim { claim_id } => {
-                    ("claim", None, Some(claim_id.as_str()), None)
-                }
-                KnowledgePassageEvidenceRef::Span { span_id } => {
-                    ("span", None, None, Some(span_id.as_str()))
-                }
-            };
-            sqlx::query(
-                r#"
-                INSERT INTO knowledge_passage_evidence
-                    (passage_id, ref_kind, source_id, claim_id, span_id, ordinal)
-                VALUES ($1, $2, $3, $4, $5, $6)
-                "#,
-            )
-            .bind(&passage.passage_id)
-            .bind(ref_kind)
-            .bind(source_id)
-            .bind(claim_id)
-            .bind(span_id)
-            .bind(index as i32)
-            .execute(&mut *tx)
-            .await?;
-        }
+        let passage = insert_knowledge_memory_passage_tx(&mut tx, &new_passage).await?;
         tx.commit().await?;
         Ok(passage)
     }
@@ -4256,5 +4529,148 @@ impl KnowledgeStore for PostgresDatabase {
             .fetch_all(self.pool())
             .await?;
         rows.iter().map(trace_from_pg).collect()
+    }
+
+    async fn create_knowledge_memory_passage_idempotent(
+        &self,
+        idempotency_key: &str,
+        new_passage: NewKnowledgeMemoryPassage,
+    ) -> StorageResult<KnowledgeIdempotentWrite<KnowledgeMemoryPassage>> {
+        validate_knowledge_idempotency_key(idempotency_key)?;
+        let request_hash = knowledge_request_hash("passage_write", &new_passage)?;
+
+        let replay = |passage_id: String| async move {
+            let passage = self
+                .get_knowledge_memory_passage(&passage_id)
+                .await?
+                .ok_or(StorageError::NotFound(
+                    "knowledge idempotency result passage",
+                ))?;
+            Ok(KnowledgeIdempotentWrite {
+                value: passage,
+                replayed: true,
+            })
+        };
+
+        // Committed replay: return the prior result without writing.
+        if let Some((_, passage_id)) =
+            find_knowledge_idempotency_result(self.pool(), idempotency_key, &request_hash).await?
+        {
+            return replay(passage_id).await;
+        }
+
+        // Write + key claim in ONE transaction.
+        let mut tx = self.pool().begin().await?;
+        let passage = insert_knowledge_memory_passage_tx(&mut tx, &new_passage).await?;
+        let claimed = claim_knowledge_idempotency_key_tx(
+            &mut tx,
+            idempotency_key,
+            &new_passage.workspace_id,
+            KnowledgeIdempotentOperationKind::PassageWrite,
+            &request_hash,
+            "memory_passage",
+            &passage.passage_id,
+        )
+        .await?;
+        if claimed {
+            tx.commit().await?;
+            return Ok(KnowledgeIdempotentWrite {
+                value: passage,
+                replayed: false,
+            });
+        }
+
+        // Race lost: roll the whole write back (no double-write) and re-read
+        // the winner's committed result.
+        drop(tx);
+        let (_, passage_id) =
+            find_knowledge_idempotency_result(self.pool(), idempotency_key, &request_hash)
+                .await?
+                .ok_or(StorageError::Conflict(
+                    "knowledge idempotency race lost without a committed winner row",
+                ))?;
+        replay(passage_id).await
+    }
+
+    async fn save_knowledge_rich_document_version_idempotent(
+        &self,
+        idempotency_key: &str,
+        rich_document_id: &str,
+        expected_version: i64,
+        content_json: Value,
+        promotion_receipt_event_id: Option<&str>,
+    ) -> StorageResult<KnowledgeIdempotentWrite<KnowledgeRichDocument>> {
+        validate_knowledge_idempotency_key(idempotency_key)?;
+        let request_hash = knowledge_request_hash(
+            "rich_document_save",
+            &serde_json::json!({
+                "rich_document_id": rich_document_id,
+                "expected_version": expected_version,
+                "content_json": content_json,
+                "promotion_receipt_event_id": promotion_receipt_event_id,
+            }),
+        )?;
+
+        let replay = |document_id: String| async move {
+            let document = self
+                .get_knowledge_rich_document(&document_id)
+                .await?
+                .ok_or(StorageError::NotFound(
+                    "knowledge idempotency result rich document",
+                ))?;
+            Ok(KnowledgeIdempotentWrite {
+                value: document,
+                replayed: true,
+            })
+        };
+
+        // Committed replay: return the prior result without writing.
+        if let Some((_, document_id)) =
+            find_knowledge_idempotency_result(self.pool(), idempotency_key, &request_hash).await?
+        {
+            return replay(document_id).await;
+        }
+
+        // The optimistic save + key claim in ONE transaction.
+        let save_result = self
+            .save_knowledge_rich_document_version_with_key(
+                idempotency_key,
+                rich_document_id,
+                expected_version,
+                &content_json,
+                promotion_receipt_event_id,
+                &request_hash,
+            )
+            .await;
+        match save_result {
+            Ok(Some(document)) => Ok(KnowledgeIdempotentWrite {
+                value: document,
+                replayed: false,
+            }),
+            // Race lost on the key claim: the write rolled back; re-read the
+            // winner's committed result.
+            Ok(None) => {
+                let (_, document_id) =
+                    find_knowledge_idempotency_result(self.pool(), idempotency_key, &request_hash)
+                        .await?
+                        .ok_or(StorageError::Conflict(
+                            "knowledge idempotency race lost without a committed winner row",
+                        ))?;
+                replay(document_id).await
+            }
+            // A replayed save typically loses the optimistic version race
+            // first (the winner already bumped doc_version). If the same
+            // key+payload committed, that conflict IS the replay signal.
+            Err(StorageError::Conflict(message)) => {
+                if let Some((_, document_id)) =
+                    find_knowledge_idempotency_result(self.pool(), idempotency_key, &request_hash)
+                        .await?
+                {
+                    return replay(document_id).await;
+                }
+                Err(StorageError::Conflict(message))
+            }
+            Err(err) => Err(err),
+        }
     }
 }
