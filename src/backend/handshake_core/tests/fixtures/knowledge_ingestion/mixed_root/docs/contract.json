@@ -1,0 +1,8 @@
+{
+  "artifact_id": "FIXTURE-CONTRACT-001",
+  "scope": {
+    "constraints": ["no sqlite", "no docker"],
+    "title": "synthetic governance-shaped artifact"
+  },
+  "lifecycle": { "status": "PENDING" }
+}

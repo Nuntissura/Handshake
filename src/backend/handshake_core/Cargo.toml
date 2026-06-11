@@ -557,6 +557,11 @@ name = "knowledge_ingestion_api_tests"
 path = "tests/knowledge_ingestion_api_tests.rs"
 required-features = ["test-utils"]
 
+[[test]]
+name = "knowledge_ingestion_fixture_tests"
+path = "tests/knowledge_ingestion_fixture_tests.rs"
+required-features = ["test-utils"]
+
 # WP-KERNEL-009 CRDTAndConcurrencyCore (MT-065..MT-080): typed actor/site ids,
 # state vectors, rich-document CRDT drafts, proposals, leases, recovery.
 [[test]]
