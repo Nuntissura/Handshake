@@ -89,7 +89,32 @@
     "claimed_by": "KERNEL_BUILDER-20260611-071323",
     "completed_by": null,
     "implementation_commit": "4a21588b",
-    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 4a21588b; real-PG tests green (group total 80 passed/0 failed; lopdf 0.41 MIT only dep added). Pending adversarial code review before READY_FOR_VALIDATION."
+    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 4a21588b; real-PG tests green (group total 80 passed/0 failed; lopdf 0.41 MIT only dep added). Pending adversarial code review before READY_FOR_VALIDATION.",
+    "adversarial_code_review": {
+      "verdict": "PASS",
+      "reviewed_at_utc": "2026-06-11T15:27:00Z",
+      "reviewer": "ADVERSARIAL_CODE_REVIEWER-20260611-PM",
+      "concerns": [
+        "Bounded + deterministic: max_depth=2, max_spans=200, max_span_chars=4000. Span cap overflow is COUNTED as skipped_nodes -> 'partial' receipt (never silent loss); content truncation is FLAGGED on the anchor (truncated:true), never silent. RFC 6901 pointer escaping (~0/~1) correct.",
+        "JSONL: malformed lines skipped + counted (partial); empty artifact or all-malformed -> typed PARSE_ERROR. JSON depth recursion is bounded by max_depth (2) so a deeply-nested adversarial artifact cannot blow the stack.",
+        "Governance JSON spans pass redact_spans (secret_scan=true) and the whole-file preflight runs over the raw JSON text, so a credential committed into an MT/WP/receipt JSON value is redacted/blocked. NOTE: governance artifacts are exactly the files most likely to legitimately contain receipt ids that LOOK token-shaped; the entropy gate + placeholder filter reduce false positives but a high-entropy id could be over-redacted (availability, not leak)."
+      ],
+      "evasion_probes": [
+        "object root -> /key and one nested level /key/sub, /key/index CONFIRMED.",
+        "pointer special chars a/b, c~d escaped to /a~1b, /c~0d CONFIRMED.",
+        "span cap respected, skipped_nodes counted, long node truncation flagged CONFIRMED.",
+        "JSONL line numbers recorded, malformed line counted not fatal CONFIRMED.",
+        "broken JSON ({broken) -> typed PARSE_ERROR + repair entry CONFIRMED (pipeline mt089).",
+        "bare scalar document -> single whole-document span CONFIRMED.",
+        "governance_sub_kind classification (mt_contract/wp_contract/taskboard/...) recorded in provenance CONFIRMED."
+      ],
+      "evidence_checked": [
+        "src/backend/handshake_core/src/knowledge_ingestion/governance.rs (full, incl. 5 unit tests)",
+        "engine.rs:1054-1090 GovernanceArtifact branch (json vs jsonl, lossy->partial)",
+        "kinds.rs:335 detect_governance_sub_kind",
+        "tests/knowledge_ingestion_pipeline_tests.rs mt089 + fixture mt096 contract.json/broken.json"
+      ]
+    }
   },
   "handoff": {
     "coder_session": null,

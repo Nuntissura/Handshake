@@ -22,7 +22,7 @@
   "title": "CRDTAndConcurrencyCore-078-CrdtNoExternalRelayProof",
   "group": "CRDTAndConcurrencyCore",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T12:38:34.533Z",
+  "updated_at_utc": "2026-06-11T15:27:06.182Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-078.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -79,7 +79,7 @@
     ]
   },
   "lifecycle": {
-    "status": "CLAIMED",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-065"
@@ -88,7 +88,33 @@
     "claimed_by": "KERNEL_BUILDER-20260611-071323",
     "completed_by": null,
     "implementation_commit": "ea0a601b",
-    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 ea0a601b; CRDTAndConcurrencyCore: 41 tests/6 binaries green on real PostgreSQL. Pending adversarial code review."
+    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 ea0a601b; CRDTAndConcurrencyCore: 41 tests/6 binaries green on real PostgreSQL. Pending adversarial code review.",
+    "adversarial_code_review": {
+      "verdict": "PASS_WITH_NOTES",
+      "reviewed_at_utc": "2026-06-11T20:48:00Z",
+      "reviewer": "ADVERSARIAL_CODE_REVIEWER-20260611-PM",
+      "concerns": [
+        "STATIC SCAN is real and reasonably complete. static_scan_finds_no_external_relay_dependency (knowledge_crdt_proof_tests.rs:380-436) asserts Cargo.toml declares none of {y-websocket, hocuspocus, yrs-warp, y-sync, liveblocks, partykit, sharedb, automerge-repo-network}, AND scans every .rs in src/kernel/crdt plus api/knowledge_crdt.rs for forbidden tokens {ws://, wss://, y-websocket, hocuspocus, liveblocks, partykit, sync-server, tokio_tungstenite}, asserting scanned.len() > 10. I independently grepped the same surfaces plus src/storage/knowledge_crdt.rs: the only 'sqlite' hits are in PROHIBITION contexts (offline boundary denied list + a 'NO SQLite' comment); no relay tokens anywhere. Confirmed.",
+        "RUNTIME PROOF is real. full_draft_cycle_needs_only_postgres (line 442-497) runs a two-actor draft cycle entirely against local PostgreSQL and asserts every update_bytes_ref starts with 'postgres://' and the event stream id is 'knowledge-crdt:<doc>'. No relay process is started or contacted.",
+        "COVERAGE GAP (note): the static scan does NOT include src/storage/knowledge_crdt.rs (the storage layer) -- only the crdt module dir + the one API file. Storage is pure sqlx so the risk is low, but a relay client added there would slip past this specific test. Also the scan greps source TEXT, so it is defeatable by string obfuscation; for an honest no-relay posture it is adequate, not adversarial-proof.",
+        "NOT TAUTOLOGICAL: this is a filesystem+dependency scan plus a real DB round-trip, not an assertion that a constant equals itself. Distinct from the weaker offline-boundary contract self-check in MT-073/MT-080."
+      ],
+      "evasion_probes": [
+        "Independent grep -E 'y-websocket|hocuspocus|liveblocks|partykit|tokio_tungstenite|ws://|wss://|sqlite|rusqlite' over crdt+storage+api: only prohibition-context hits. No external relay.",
+        "Checked whether durable bytes could leave Postgres: update_bytes_ref is always 'postgres://kernel_crdt_updates/...' (yjs_bridge.rs:313) and snapshot refs 'postgres://kernel_crdt_snapshots/...' -- enforced by validate_crdt_update_record (proven in MT-080's filesystem-authority rejection).",
+        "Checked the scan breadth assertion (scanned.len() > 10): the crdt dir has 22 .rs files, so the guard is satisfied and meaningful."
+      ],
+      "evidence_checked": [
+        "src/backend/handshake_core/tests/knowledge_crdt_proof_tests.rs:373-498 (mt_078_no_external_relay static + runtime)",
+        "independent grep over src/kernel/crdt/, src/storage/knowledge_crdt.rs, src/api/knowledge_crdt.rs",
+        "Rerun status: test rerun deferred (tree mid-foreign-WIP, knowledge_code_index wired into lib.rs:180); static review stands."
+      ]
+    },
+    "ready_by": "KERNEL_BUILDER-20260611-071323",
+    "ready_for_validation_at_utc": "2026-06-11T15:27:06.182Z",
+    "evidence": [
+      "Adversarial code review PASS/PASS_WITH_NOTES (ADVERSARIAL_CODE_REVIEWER-20260611-PM); core sound, only defense-in-depth notes."
+    ]
   },
   "handoff": {
     "coder_session": null,

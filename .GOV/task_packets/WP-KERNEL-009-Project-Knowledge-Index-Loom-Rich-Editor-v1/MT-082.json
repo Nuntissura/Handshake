@@ -89,7 +89,28 @@
     "claimed_by": "KERNEL_BUILDER-20260611-071323",
     "completed_by": null,
     "implementation_commit": "5d8b4eee",
-    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 5d8b4eee; real-PG tests green (group total 80 passed/0 failed; lopdf 0.41 MIT only dep added). Pending adversarial code review before READY_FOR_VALIDATION."
+    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 5d8b4eee; real-PG tests green (group total 80 passed/0 failed; lopdf 0.41 MIT only dep added). Pending adversarial code review before READY_FOR_VALIDATION.",
+    "adversarial_code_review": {
+      "verdict": "PASS_WITH_NOTES",
+      "reviewed_at_utc": "2026-06-11T15:12:00Z",
+      "reviewer": "ADVERSARIAL_CODE_REVIEWER-20260611-PM",
+      "concerns": [
+        "CRITICAL DEPENDENCY FOR MT-091: the secret_scan capability flag is defined here. ALL text-bearing kinds (code_file, markdown_text, rich_document, pdf, media_transcript, governance_artifact, operator_research_note) and external_import are secret_scan=true, so NO text kind bypasses the secret preflight. This is load-bearing: engine.rs gates BOTH the whole-file preflight and the span redaction pass on spec.capabilities.secret_scan. If a future kind sets secret_scan=false while span_extraction=true, raw secrets would skip redaction. Recommend a test invariant asserting (span_extraction && text-decodable) => secret_scan.",
+        "IngestionCapabilities (kinds.rs:107) had Deserialize removed by a cross-lane edit (static-str fields). DB projection knowledge_ingestion_kind_registry is Serialize/sync-only — acceptable, code is authority.",
+        "Dotfiles (.env/.gitignore) yield extension=None -> kind=None -> Skipped/UNSUPPORTED_FORMAT, so a .env is never read or secret-scanned (safe from leak, but also silently ignored; MT-081 allowlist also does not deny .env)."
+      ],
+      "evasion_probes": [
+        "md claimed by both markdown_text and operator_research_note resolved by root_kind in detect_kind CONFIRMED.",
+        "unknown binary -> None -> typed UNSUPPORTED_FORMAT skip, never guessed CONFIRMED (pipeline test unsupported_binary_is_skipped_typed_with_receipt).",
+        "*.transcript.json forced to MediaTranscript regardless of root CONFIRMED.",
+        "external_import bucket has span_extraction=false (hash+provenance only) — no span leak surface."
+      ],
+      "evidence_checked": [
+        "src/backend/handshake_core/src/knowledge_ingestion/kinds.rs (full)",
+        "src/backend/handshake_core/migrations/0161_knowledge_ingestion_kind_registry.sql (referenced)",
+        "engine.rs:1009,1220 secret_scan capability gating cross-checked"
+      ]
+    }
   },
   "handoff": {
     "coder_session": null,

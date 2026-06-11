@@ -22,7 +22,7 @@
   "title": "CRDTAndConcurrencyCore-076-AgentLeaseExpiration",
   "group": "CRDTAndConcurrencyCore",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T12:38:34.533Z",
+  "updated_at_utc": "2026-06-11T15:27:06.182Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-076.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -112,6 +112,11 @@
         "src/backend/handshake_core/migrations/0151_knowledge_crdt_agent_lane_leases.sql:18-62 (schema, partial unique index, CHECKs)",
         "Cross-checked save_semantics.rs and ai_edit_proposal.rs for guard invocation: not invoked"
       ]
+    },
+    "hardening_pending": {
+      "at_utc": "2026-06-11T15:27:06.182Z",
+      "severity": "MEDIUM",
+      "reason": "Lease guard advisory not enforced - never called by write/proposal paths. Fix #4 (make guard a chokepoint)."
     }
   },
   "handoff": {

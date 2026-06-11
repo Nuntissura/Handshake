@@ -89,7 +89,32 @@
     "claimed_by": "KERNEL_BUILDER-20260611-071323",
     "completed_by": null,
     "implementation_commit": "f7f404c2",
-    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 f7f404c2; real-PG tests green (group total 80 passed/0 failed; lopdf 0.41 MIT only dep added). Pending adversarial code review before READY_FOR_VALIDATION."
+    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 f7f404c2; real-PG tests green (group total 80 passed/0 failed; lopdf 0.41 MIT only dep added). Pending adversarial code review before READY_FOR_VALIDATION.",
+    "adversarial_code_review": {
+      "verdict": "PASS",
+      "reviewed_at_utc": "2026-06-11T15:36:00Z",
+      "reviewer": "ADVERSARIAL_CODE_REVIEWER-20260611-PM",
+      "concerns": [
+        "No-OOM guarantee honored: ingest_file_from_disk checks file METADATA size against the per-kind byte ceiling BEFORE std::fs::read; oversize files are stream-hashed in 64 KiB chunks (stream_sha256) and recorded as a typed Deferred/OVERSIZE receipt — the file is never loaded whole. Verified by lifecycle mt092 (3 MiB vs 2 MiB ceiling -> Deferred, streamed hash equals full-content hash, parser_status stays pending).",
+        "Per-kind ceilings: 2 MiB default text, 20 MiB PDF, 50k line ceiling (content-stage). Deferral is REPAIRABLE (raise the limit and retry) — correct, an oversize file is not a permanent skip.",
+        "GAP (bypass of the metadata pre-check): ingest_file_bytes (the in-memory entry used by the API-less direct path and tests) receives bytes ALREADY in memory and only calls limits.check_size on bytes.len() inside run_extraction — by then the bytes are resident. The no-OOM guarantee holds ONLY for the run_ingestion_pass disk path (which uses ingest_file_from_disk's metadata gate). A caller invoking ingest_file_bytes with a huge Vec has already paid the memory. Acceptable since the production walk path uses the disk gate, but worth noting the in-memory entrypoint does not itself bound input size.",
+        "No streaming chunked EXTRACTION/resume: 'chunking, cancellation, resume' from the MT scope is realized as defer+repair-retry rather than mid-file resume. The deferral receipt + repair queue provide the restart unit. Reasonable interpretation; full streaming extraction is not implemented (and not needed at these ceilings)."
+      ],
+      "evasion_probes": [
+        "3 MiB text file -> Deferred/OVERSIZE, streamed hash == full hash, no spans, repair queued, source pending CONFIRMED.",
+        "60k-line file under raised byte limit -> Deferred/oversize_lines (content-stage) CONFIRMED.",
+        "3 MiB PDF (under 20 MiB) -> allowed CONFIRMED.",
+        "limit overrides via API LimitOverrides.resolve() fall back to compiled defaults for unset fields CONFIRMED.",
+        "metadata size check precedes read in run_ingestion_pass disk path CONFIRMED (no whole-file load for oversize)."
+      ],
+      "evidence_checked": [
+        "src/backend/handshake_core/src/knowledge_ingestion/backpressure.rs (full)",
+        "engine.rs:269-338 ingest_file_from_disk metadata gate + stream-hash deferral; engine.rs:1369-1389 stream_sha256",
+        "engine.rs:235-263 ingest_file_bytes (in-memory entry, no pre-read size bound)",
+        "api/knowledge_ingestion.rs LimitOverrides",
+        "tests/knowledge_ingestion_lifecycle_tests.rs mt092"
+      ]
+    }
   },
   "handoff": {
     "coder_session": null,

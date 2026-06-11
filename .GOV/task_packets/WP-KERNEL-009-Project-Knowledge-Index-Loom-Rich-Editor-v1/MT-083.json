@@ -89,7 +89,33 @@
     "claimed_by": "KERNEL_BUILDER-20260611-071323",
     "completed_by": null,
     "implementation_commit": "feab81f6",
-    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 feab81f6; real-PG tests green (group total 80 passed/0 failed; lopdf 0.41 MIT only dep added). Pending adversarial code review before READY_FOR_VALIDATION."
+    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 feab81f6; real-PG tests green (group total 80 passed/0 failed; lopdf 0.41 MIT only dep added). Pending adversarial code review before READY_FOR_VALIDATION.",
+    "adversarial_code_review": {
+      "verdict": "PASS",
+      "reviewed_at_utc": "2026-06-11T15:14:00Z",
+      "reviewer": "ADVERSARIAL_CODE_REVIEWER-20260611-PM",
+      "concerns": [
+        "Homoglyph note (not a traversal escape): NFC normalization unifies composed/decomposed forms but does NOT collapse confusable scripts (e.g. Cyrillic 'а' vs Latin 'a'). Two visually identical filenames in different scripts produce DIFFERENT stored source paths -> two distinct source rows. This is a source-identity ambiguity, not a root-escape; acceptable for a path normalizer (collapsing scripts would corrupt legitimate non-Latin filenames).",
+        "normalize_source_relative_path delegates final-form validation to storage::knowledge::normalize_repo_relative_path AND the chk_*_path_portable DB CHECKs (defense in depth); the idempotence + storage-compat property test confirms outputs survive the storage normalizer unchanged."
+      ],
+      "evasion_probes": [
+        "Drive letter (C:/, c:\\, Z:relative) REJECTED CONFIRMED.",
+        "UNC //server, \\\\server, \\\\?\\C:\\ REJECTED CONFIRMED (// prefix + ':' catch).",
+        "ADS file.txt:stream REJECTED via ':' check CONFIRMED.",
+        "Traversal ../, a/../b, trailing .. REJECTED (exact '..' segment match after '.'-collapse) CONFIRMED.",
+        "Rooted /x and \\x REJECTED CONFIRMED.",
+        "Control chars / NUL REJECTED via is_control() CONFIRMED.",
+        "Windows reserved device names CON/NUL/COM1..LPT9 (with or without extension via stem) REJECTED CONFIRMED; near-misses console.rs/nulled.txt stay valid.",
+        "Trailing dot/space segments REJECTED (Windows round-trip break) CONFIRMED.",
+        "Overlong-UTF-8 evasion: Rust str::from_utf8 (upstream in hashing.is_text) rejects overlong encodings before this normalizer sees text; non-UTF-8 paths cannot reach a String here.",
+        "Symlink escape: handled at the walk layer (engine.rs walk_files skips is_symlink) not here — cross-checked, no symlink target is ever normalized into a stored path."
+      ],
+      "evidence_checked": [
+        "src/backend/handshake_core/src/knowledge_ingestion/paths.rs (full, incl. 5 unit tests)",
+        "src/backend/handshake_core/src/storage/knowledge.rs:230 normalize_repo_relative_path (delegated base normalizer)",
+        "engine.rs:1305-1364 walk_files symlink skip + strip_prefix escape guard"
+      ]
+    }
   },
   "handoff": {
     "coder_session": null,

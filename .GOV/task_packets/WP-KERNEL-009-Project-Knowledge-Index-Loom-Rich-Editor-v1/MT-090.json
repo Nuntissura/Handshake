@@ -89,7 +89,32 @@
     "claimed_by": "KERNEL_BUILDER-20260611-071323",
     "completed_by": null,
     "implementation_commit": "d0393ffc",
-    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 d0393ffc; real-PG tests green (group total 80 passed/0 failed; lopdf 0.41 MIT only dep added). Pending adversarial code review before READY_FOR_VALIDATION."
+    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 d0393ffc; real-PG tests green (group total 80 passed/0 failed; lopdf 0.41 MIT only dep added). Pending adversarial code review before READY_FOR_VALIDATION.",
+    "adversarial_code_review": {
+      "verdict": "PASS",
+      "reviewed_at_utc": "2026-06-11T15:29:00Z",
+      "reviewer": "ADVERSARIAL_CODE_REVIEWER-20260611-PM",
+      "concerns": [
+        "Authority labelling correct: engine.rs stamps provenance.authority = 'non_normative_context' for OperatorResearchNote kind (verified pipeline test asserts it). Notes are context, not authority, until a spec enrichment promotes them — matches MT-090 contract and [GLOBAL-GOVARTIFACTS-028].",
+        "Fenced code blocks (``` ... ```) stay single spans and a heading-looking line INSIDE a fence ('# not a heading') never enters the heading path — guards against markdown-injection of fake section structure. Heading stack pop logic is level-correct.",
+        "Wikilinks recorded as CANDIDATES only (never resolved at ingestion) — link_candidates ride along as JSONB for later graph work. detect_wikilinks handles malformed/unclosed/nested [[ without panic (spans.rs).",
+        "Notes pass redact_spans (secret_scan=true): a credential pasted into a research note is redacted/blocked. Empty/whitespace-only note yields zero spans (no empty rows)."
+      ],
+      "evasion_probes": [
+        "heading path tracking across #/## levels CONFIRMED (pipeline mt085_mt090 + notes unit tests).",
+        "fenced code block with fake heading stays one block, fake heading excluded from path CONFIRMED.",
+        "wikilink [[target]] and [[target|label]] -> candidates with target/label CONFIRMED.",
+        "malformed [[unclosed / [[Nested[[x]] handled without panic CONFIRMED (spans.rs wikilink test).",
+        "one-based ordered line anchors CONFIRMED.",
+        "provenance authority=non_normative_context CONFIRMED (pipeline assert)."
+      ],
+      "evidence_checked": [
+        "src/backend/handshake_core/src/knowledge_ingestion/notes.rs (full, incl. 5 unit tests)",
+        "src/backend/handshake_core/src/knowledge_ingestion/spans.rs detect_wikilinks (+ test)",
+        "engine.rs:367-371 provenance authority stamp; engine.rs:1038-1053 note branch",
+        "tests/knowledge_ingestion_pipeline_tests.rs mt085_mt090 + fixture mt096 overview.md"
+      ]
+    }
   },
   "handoff": {
     "coder_session": null,

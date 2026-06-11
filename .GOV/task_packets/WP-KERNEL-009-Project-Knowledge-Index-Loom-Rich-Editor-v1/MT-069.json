@@ -22,7 +22,7 @@
   "title": "CRDTAndConcurrencyCore-069-ClaimPromotionBridge",
   "group": "CRDTAndConcurrencyCore",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T12:38:34.533Z",
+  "updated_at_utc": "2026-06-11T15:27:06.182Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-069.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -111,6 +111,11 @@
         "src/backend/handshake_core/src/storage/postgres.rs:7409-7420 (atomic event pair is its own tx; fact insert is not in it)",
         "spec 02-system-architecture.md 2.3.13.11 line 2704 (Claims MUST carry evidence spans) and 2715 (promotion path)"
       ]
+    },
+    "hardening_pending": {
+      "at_utc": "2026-06-11T15:27:06.182Z",
+      "severity": "HIGH",
+      "reason": "HIGH: soft-ref promotion writes unvalidated spans into authority (dangling evidence ref, spec 2.3.13.11 violation) + non-atomic promotion crash window. Fix #1 (re-validate span existence + DB CHECK/trigger; reject pending:) + #2 (atomic promotion tx or replay materialization)."
     }
   },
   "handoff": {

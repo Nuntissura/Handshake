@@ -89,7 +89,29 @@
     "claimed_by": "KERNEL_BUILDER-20260611-071323",
     "completed_by": null,
     "implementation_commit": "c1785c1a",
-    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 c1785c1a; real-PG tests green (group total 80 passed/0 failed; lopdf 0.41 MIT only dep added). Pending adversarial code review before READY_FOR_VALIDATION."
+    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 c1785c1a; real-PG tests green (group total 80 passed/0 failed; lopdf 0.41 MIT only dep added). Pending adversarial code review before READY_FOR_VALIDATION.",
+    "adversarial_code_review": {
+      "verdict": "PASS_WITH_NOTES",
+      "reviewed_at_utc": "2026-06-11T15:21:00Z",
+      "reviewer": "ADVERSARIAL_CODE_REVIEWER-20260611-PM",
+      "concerns": [
+        "FALSE-SUCCESS PROBE (the prompt's core MT-086 concern): has_text_layer() = has_text_operators && extracted_chars > 0 && error.is_none(). A scanned/image-only PDF that ALSO carries a tiny text operator — e.g. a 1-character watermark, a page number, or an INVISIBLE text layer (PDF text rendering mode Tr 3) emitting a single non-whitespace glyph — would set extracted_chars>=1 and be classified PartialTextLayer/TextLayer, then extracted as 'success' for that page, SILENTLY under-indexing the visual scan. The detector does NOT inspect text rendering mode (Tr 3 = invisible) and has NO minimum-char or char-density threshold. Real-world impact is low (most scans have zero text ops) but this is a genuine misclassification path that violates the 'never silent partial' spirit for the watermarked-scan case. HARDENING: treat Tr 3 / invisible text as non-text, and/or require a per-page minimum extracted_chars (e.g. > N) before calling a page text-bearing.",
+        "lopdf INTERNAL PANIC robustness: load_document/Content::decode/extract_text/get_page_resources are all Result-handled (no unwrap/expect on input), and garbage bytes yield a typed ParseError (test garbage_bytes_fail_typed_parse_error). BUT lopdf has a history of internal panics on crafted/malformed PDFs, and NONE of these calls is wrapped in std::panic::catch_unwind. A crafted PDF that panics inside lopdf would propagate up through run_extraction -> ingest_file_from_disk (called with ?) and ABORT THE WHOLE ingestion pass (one poison file kills the batch). HARDENING: wrap the lopdf entry points in catch_unwind and convert a caught panic into a typed Internal/ParseError receipt so one bad PDF degrades to a single failed file, not a dead pass."
+      ],
+      "evasion_probes": [
+        "image-only PDF -> NoTextLayer verdict, image_only_pages counted, OCR_NEEDED hint, NEVER empty-success CONFIRMED (test image_only_pdf_yields_typed_no_text_layer_never_empty_success).",
+        "blank page (no text, no image) -> NoTextLayer, image_only_pages=0 CONFIRMED.",
+        "inline images (BI/ID/EI) counted as image content CONFIRMED.",
+        "encrypted PDF -> typed Encrypted error (is_encrypted check) CONFIRMED.",
+        "PDF with 0 pages -> typed ParseError CONFIRMED.",
+        "garbage/truncated bytes -> typed ParseError, no panic on the tested inputs CONFIRMED (but see catch_unwind gap above for crafted panic inputs)."
+      ],
+      "evidence_checked": [
+        "src/backend/handshake_core/src/knowledge_ingestion/pdf.rs (full, incl. fixtures + 5 unit tests)",
+        "engine.rs:1139-1201 PDF extraction branch + secret preflight over extracted text",
+        "tests/knowledge_ingestion_pipeline_tests.rs mt086/mt087 + fixture mt096 scanned.pdf"
+      ]
+    }
   },
   "handoff": {
     "coder_session": null,

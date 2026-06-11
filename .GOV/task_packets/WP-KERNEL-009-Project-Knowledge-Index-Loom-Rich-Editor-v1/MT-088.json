@@ -89,7 +89,33 @@
     "claimed_by": "KERNEL_BUILDER-20260611-071323",
     "completed_by": null,
     "implementation_commit": "4a9aa81d",
-    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 4a9aa81d; real-PG tests green (group total 80 passed/0 failed; lopdf 0.41 MIT only dep added). Pending adversarial code review before READY_FOR_VALIDATION."
+    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 4a9aa81d; real-PG tests green (group total 80 passed/0 failed; lopdf 0.41 MIT only dep added). Pending adversarial code review before READY_FOR_VALIDATION.",
+    "adversarial_code_review": {
+      "verdict": "PASS",
+      "reviewed_at_utc": "2026-06-11T15:25:00Z",
+      "reviewer": "ADVERSARIAL_CODE_REVIEWER-20260611-PM",
+      "concerns": [
+        "NO ASR contract honored: parses operator-provided SRT/VTT/JSON caption artifacts into media_time-anchored cues; never invokes speech recognition. Matches OPERATOR LAW.",
+        "Malformed-cue policy is correct: bad timing line / negative range / missing text are recorded as typed MalformedCue and parsing CONTINUES -> 'partial' receipt naming every lost cue + repair entry; a file that is not the claimed format (VTT without WEBVTT header) is a whole-file PARSE_ERROR. No silent success.",
+        "Transcript cues DO pass redact_spans (media_transcript secret_scan=true), so a credential spoken/captioned into a transcript is redacted/blocked like any text. Whole-file preflight also runs over the raw artifact text.",
+        "Minor: JSON whisper-style start/end are f64 seconds rounded to ms; extreme/NaN/Inf f64 are filtered by the (e>=s && s>=0.0) guard (NaN comparisons are false -> dropped as malformed). No panic on pathological floats."
+      ],
+      "evasion_probes": [
+        "well-formed SRT -> 2 cues, correct ms, cue_index CONFIRMED.",
+        "VTT missing header -> PARSE_ERROR CONFIRMED; short MM:SS.mmm timestamps + <tag> stripping CONFIRMED.",
+        "negative range / non-numeric timing -> MalformedCue, parsing continues, partial CONFIRMED.",
+        "whisper segments shape -> ms conversion CONFIRMED; unknown shape ({foo:1}) -> PARSE_ERROR CONFIRMED.",
+        "all-malformed artifact -> typed whole-file PARSE_ERROR CONFIRMED.",
+        "unknown extension -> UNSUPPORTED_FORMAT CONFIRMED.",
+        "millisecond field must be exactly 3 digits -> guards timestamp spoofing/overflow CONFIRMED."
+      ],
+      "evidence_checked": [
+        "src/backend/handshake_core/src/knowledge_ingestion/transcripts.rs (full, incl. 5 unit tests)",
+        "engine.rs:1091-1138 MediaTranscript branch + media_time spans",
+        "src/backend/handshake_core/migrations/0163_knowledge_ingestion_spans.sql (media_time anchor)",
+        "tests/knowledge_ingestion_pipeline_tests.rs mt088 + fixture mt096 srt/vtt"
+      ]
+    }
   },
   "handoff": {
     "coder_session": null,

@@ -89,7 +89,37 @@
     "claimed_by": "KERNEL_BUILDER-20260611-071323",
     "completed_by": null,
     "implementation_commit": "1c52a45e",
-    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 1c52a45e; real-PG tests green (group total 80 passed/0 failed; lopdf 0.41 MIT only dep added). Pending adversarial code review before READY_FOR_VALIDATION."
+    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 1c52a45e; real-PG tests green (group total 80 passed/0 failed; lopdf 0.41 MIT only dep added). Pending adversarial code review before READY_FOR_VALIDATION.",
+    "adversarial_code_review": {
+      "verdict": "PASS_WITH_NOTES",
+      "reviewed_at_utc": "2026-06-11T15:34:00Z",
+      "reviewer": "ADVERSARIAL_CODE_REVIEWER-20260611-PM",
+      "concerns": [
+        "ARCHITECTURE (sound where it applies): HIGH severity (private key block, AWS access key id, aws_secret assignment, credential-bearing connection URL) -> the FILE is BLOCKED: status=blocked/SECRET_BLOCKED, source redaction_state=redacted, ZERO spans stored. MEDIUM (github/slack/google tokens, JWT, generic high-entropy assignment) -> REDACT: spans extracted over raw text then span content rewritten to [REDACTED:<kind>] markers, source redaction_state=partial. The HIGH/block path is verified leak-free by a real cross-table probe in pipeline test mt091_high_severity_secrets_block_the_file_and_store_no_raw_bytes (probes knowledge_ingestion_spans.content, receipts.error_detail, sources.provenance, kernel_event_ledger.payload for the raw key -> count 0). Findings carry NO excerpt (kind/line/len only); serialized findings asserted not to contain the secret.",
+        "TOP LEAK FINDING (MEDIUM secret, cross-span split): redaction is enforced by redact_spans() which re-runs scan_text() INDEPENDENTLY PER SPAN. The whole-file scan at engine.rs:1010 is consulted ONLY for must_block() (HIGH); its MEDIUM findings are DISCARDED. For code files, code_spans() cuts NON-OVERLAPPING 120-line windows. A MEDIUM secret whose structure straddles a 120-line window boundary (e.g. a JWT 'eyJ...\\n.payload\\n.sig' where the dot-delimited segments fall on different windows, or a generic 'api_key =' whose key wraps to the next window) is NOT matched by either half -> RAW secret bytes are written to knowledge_ingestion_spans.content. The DB column is `content TEXT NOT NULL` with NO redaction constraint, so the leak is durable and unguarded. The MEDIUM test only covers a single-line secret in one span, so this path is UNEXERCISED. Real risk for multi-line PEM-less keys, wrapped connection strings, and base64 blobs split across windows.",
+        "PATTERN-MISS leaks (secrets the regex/entropy set does NOT catch -> stored raw because not even flagged): (1) JWT split across lines/spans (above). (2) base64-encoded private key WITHOUT a -----BEGIN----- header (DER/PKCS8 base64 blob) — no pattern, entropy gate only fires inside a `key=value` assignment, so a bare base64 blob on its own line is stored raw. (3) GitHub FINE-GRAINED tokens 'github_pat_...' — GITHUB_TOKEN regex is gh[pousr]_ only, so github_pat_ prefix is MISSED (stored raw unless it happens to be in an assignment with high entropy). (4) Generic bearer/opaque API tokens NOT in a key=value assignment and not matching a vendor prefix (e.g. a raw 40-hex or base64 token on a markdown line) — no assignment context -> GENERIC_ASSIGNMENT does not fire -> stored raw. (5) Slack app-level 'xapp-' tokens — SLACK regex is xox[baprs] only. (6) Secrets in FILENAMES/PATHS (e.g. a file literally named with a token) — scanner only sees file CONTENT, never the path; such a token persists in knowledge_sources.relative_path. (7) Private key blocks with non-standard PEM labels (e.g. 'BEGIN PRIVATE KEY BLOCK' variants beyond the enumerated RSA/EC/DSA/OPENSSH/PGP/ENCRYPTED set).",
+        "RECEIPT/PROVENANCE leak check (asked by prompt): secret_block_detail() emits ONLY kind/line/matched_len (no value) — verified no secret bytes in the block receipt; mt091 test asserts !detail.contains(fake_key). Provenance JSON carries hashes + run_token, no raw content. Error messages in extractors quote PATHS and parser errors, not secret content. PASS on this axis for the patterns that ARE detected; the gap is purely the UNDETECTED secrets above, which flow into span content untouched.",
+        "ENTROPY-GATE availability risk (not a leak): GENERIC_ASSIGNMENT requires shannon_entropy >= 3.5 bits/char AND not a placeholder. A genuinely secret but low-entropy password (dictionary-word passphrase) in `password = correcthorsebatterystaple` is BELOW 3.5 -> NOT redacted -> stored raw. This is a real miss for weak-but-real credentials.",
+        "MERGE/redact_text correctness: overlapping findings are sorted and merged (first kind wins, byte_end extended) so redact_text never double-splices; the defensive 'finding.byte_start < cursor' continue handles residual overlaps. redact_text byte-slices on regex match boundaries which are guaranteed UTF-8 char boundaries (regex crate). Sound."
+      ],
+      "evasion_probes": [
+        "PROVEN BLOCKED (leak-free): AWS access key id (AKIA...), RSA private key block (even truncated/no-END marker -> blocks to end of text), credential-bearing postgres:// URL -> file BLOCKED, no spans, raw bytes absent from all 4 durable tables. CONFIRMED by code + pipeline test.",
+        "PROVEN REDACTED (single-span): github ghp_, slack xoxb-, google AIza..., JWT eyJ..., generic high-entropy api_key= -> [REDACTED:kind], raw absent from span content. CONFIRMED.",
+        "LEAKS (constructed, NOT caught -> raw bytes stored): github_pat_<...> fine-grained token; xapp-<...> Slack app token; bare base64 PKCS8 key blob with no PEM header on its own line; opaque 40-hex bearer token on a markdown line (no assignment); a JWT or connection string split across a 120-line code-window boundary; a low-entropy dictionary passphrase in password=; a token embedded in a FILE PATH (persists in relative_path). Each bypasses both the whole-file must_block scan and the per-span redact_spans.",
+        "NUL-smuggling BLOCKED: a file with an embedded NUL byte is is_text=false -> text-required kind returns Failed/ParseError, no spans (cannot smuggle a secret past the scanner as 'binary'). CONFIRMED.",
+        "PDF text-layer secret BLOCKED: HIGH secret in a PDF text layer is caught by the preflight over concatenated extracted text (engine.rs:1159). CONFIRMED.",
+        "must_block discards MEDIUM findings at whole-file stage -> redaction depends entirely on per-span re-scan -> the cross-span split is the systemic hole."
+      ],
+      "evidence_checked": [
+        "src/backend/handshake_core/src/knowledge_ingestion/secrets.rs (full: patterns, entropy gate, placeholder filter, scan_text merge, redact_text, 7 unit tests)",
+        "engine.rs:933-946 redact_spans (per-span independent re-scan); engine.rs:1008-1023 whole-file must_block; engine.rs:1219-1227 span redaction pass; engine.rs:894-931 code_spans 120-line non-overlapping windows",
+        "engine.rs:1230-1243 secret_block_detail (kind/line/len only, no value)",
+        "src/backend/handshake_core/src/knowledge_ingestion/spans.rs (ExtractedSpan.content, SpanRedaction)",
+        "store.rs:340-393 replace_source_spans (binds span.content verbatim, content_hash=sha256 of stored content)",
+        "migrations/0163_knowledge_ingestion_spans.sql (content TEXT NOT NULL, redaction_state CHECK none|redacted — NO DB-level redaction enforcement)",
+        "tests/knowledge_ingestion_pipeline_tests.rs mt091_high_severity (4-table raw-secret probe) + mt091_medium_severity (single-line span only) + fixture mt096 ops/leaked_key.md"
+      ]
+    }
   },
   "handoff": {
     "coder_session": null,

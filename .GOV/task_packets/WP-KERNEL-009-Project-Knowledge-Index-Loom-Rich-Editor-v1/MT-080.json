@@ -22,7 +22,7 @@
   "title": "CRDTAndConcurrencyCore-080-CrdtSpecCompatibilityCheck",
   "group": "CRDTAndConcurrencyCore",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T12:38:34.533Z",
+  "updated_at_utc": "2026-06-11T15:27:06.182Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-080.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -88,7 +88,35 @@
     "claimed_by": "KERNEL_BUILDER-20260611-071323",
     "completed_by": null,
     "implementation_commit": "bffa7b64",
-    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 bffa7b64; CRDTAndConcurrencyCore: 41 tests/6 binaries green on real PostgreSQL. Pending adversarial code review."
+    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 bffa7b64; CRDTAndConcurrencyCore: 41 tests/6 binaries green on real PostgreSQL. Pending adversarial code review.",
+    "adversarial_code_review": {
+      "verdict": "PASS_WITH_NOTES",
+      "reviewed_at_utc": "2026-06-11T20:52:00Z",
+      "reviewer": "ADVERSARIAL_CODE_REVIEWER-20260611-PM",
+      "concerns": [
+        "EXERCISES MUSTs AGAINST REAL IMPL + REAL DB, not constants. must_authority_changes_flow_through_event_ledger_promotion (knowledge_crdt_proof_tests.rs:520-580): drafts -> asserts fact_count==0, then attempts a DIRECT INSERT into knowledge_crdt_promoted_facts with fabricated 'fabricated-event-1/2' promotion ids and asserts it FAILS on the FK to kernel_event_ledger. This is a genuine negative proof of 'direct authority write outside the promotion path is invalid'. must_every_edit_class_leaves_typed_receipts (587-690): real push asserts actor+state-vector+ledger receipts, then a spanless graph proposal ('\"not-an-array\"'::jsonb) FAILS the span CHECK and an anonymous AI edit ('operator:not-a-model') FAILS the model-actor regex. must_denial_receipts_are_durable_and_ledger_paired (697-718): an anonymous/ledger-less denial INSERT FAILS. These are real fail-closed DB negatives, not tautologies.",
+        "MIXED TAUTOLOGY (note): must_postgres_event_ledger_is_the_only_crdt_authority (724-772) has BOTH real and tautological parts. Real: it sets a record's storage_authority=FileSystemAuthority + update_bytes_ref='file://...' and asserts validate_crdt_update_record rejects BOTH fields -- a genuine validator negative. Tautological: it also asserts the contract object's denied_authority_refs/denied_durable_surfaces *contain* certain strings, which only proves the constructor matches itself. The deferred-realtime test (781-807) is real: validate_yjs_update_envelope passes a full envelope then rejects it after session_id is blanked, proving identification cannot be dropped.",
+        "GAP vs the spec MUST set: MT-080 enumerates (1) promotion-only authority, (2) typed receipts per edit class, (3) durable ledger-paired denials, (4) Postgres-only authority, (5) deferred-UI identification. It does NOT test the spec MUST that 'KnowledgeClaim/edge MUST carry EVIDENCE SPANS that actually exist'. Because the promoted_facts span CHECK is non-empty-array ONLY (no FK to knowledge_spans), MT-080 cannot and does not catch the MT-069 dangling-evidence hole -- in fact the suite's own MT-077 e2e promotes a 'pending:' span as authority. So the spec-compatibility check is INCOMPLETE on the evidence-span MUST.",
+        "migration rollback (the prompt's 0150-0155 question): verified separately from this test -- each down-migration DROPs its table(s) + DELETEs registry rows; headers document FK reverse-order ('roll back 0153 first'); DROP without CASCADE preserves FK integrity (out-of-order rollback fails loudly rather than silently orphaning). Leaves zero objects when run in correct reverse order. Not exercised by an automated test here, but the down SQL is correct by inspection."
+      ],
+      "evasion_probes": [
+        "Probed whether MT-080 would catch a non-existent span becoming authority: NO -- there is no test asserting span existence, and the promoted_facts schema permits arbitrary span strings. The MUST 'claims carry evidence spans' is checked only for NON-EMPTINESS, not existence.",
+        "Probed whether the 'direct authority write invalid' MUST is real: YES -- the fabricated-event FK-rejection INSERT is a true negative test.",
+        "Probed whether identification can be dropped for single-user UI: NO -- blanked session_id fails envelope validation.",
+        "Probed the storage-authority MUST: filesystem authority posture + file:// ref are rejected by validate_crdt_update_record on both fields (real)."
+      ],
+      "evidence_checked": [
+        "src/backend/handshake_core/tests/knowledge_crdt_proof_tests.rs:500-808 (mt_080_spec_compatibility: 5 tests)",
+        "src/backend/handshake_core/migrations/0150-0155 .down.sql (rollback correctness + FK reverse-order headers)",
+        "src/backend/handshake_core/migrations/0153_knowledge_crdt_promoted_facts.sql:33-36 (span CHECK is non-empty-array only -- the gap MT-080 cannot catch)",
+        "Rerun status: test rerun deferred (tree mid-foreign-WIP, knowledge_code_index wired into lib.rs:180); static review of committed test source stands. POSTGRES_TEST_URL not set in review shell."
+      ]
+    },
+    "hardening_pending": {
+      "at_utc": "2026-06-11T15:27:06.182Z",
+      "severity": "MEDIUM",
+      "reason": "Spec-compat does NOT test the evidence-span-existence MUST. Fix #6 (add negative test that promotion citing a non-existent span is refused)."
+    }
   },
   "handoff": {
     "coder_session": null,

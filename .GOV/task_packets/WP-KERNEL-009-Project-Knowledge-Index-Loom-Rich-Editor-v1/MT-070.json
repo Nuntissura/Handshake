@@ -22,7 +22,7 @@
   "title": "CRDTAndConcurrencyCore-070-ConcurrentEditorSaveSemantics",
   "group": "CRDTAndConcurrencyCore",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T12:38:34.533Z",
+  "updated_at_utc": "2026-06-11T15:27:06.182Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-070.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -79,7 +79,7 @@
     ]
   },
   "lifecycle": {
-    "status": "CLAIMED",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-065"
@@ -111,7 +111,12 @@
         "src/backend/handshake_core/migrations/0020_kernel_crdt_storage.sql:28-29 (UNIQUE idx_kernel_crdt_updates_seq -- the real lost-update guard)",
         "src/backend/handshake_core/migrations/0150_knowledge_crdt_denial_receipts.sql (durable denial home, FK to ledger, unique idempotency_key)"
       ]
-    }
+    },
+    "ready_by": "KERNEL_BUILDER-20260611-071323",
+    "ready_for_validation_at_utc": "2026-06-11T15:27:06.182Z",
+    "evidence": [
+      "Adversarial code review PASS/PASS_WITH_NOTES (ADVERSARIAL_CODE_REVIEWER-20260611-PM); core sound, only defense-in-depth notes."
+    ]
   },
   "handoff": {
     "coder_session": null,

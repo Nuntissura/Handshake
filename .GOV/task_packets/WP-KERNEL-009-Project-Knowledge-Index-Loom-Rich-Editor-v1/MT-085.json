@@ -89,7 +89,31 @@
     "claimed_by": "KERNEL_BUILDER-20260611-071323",
     "completed_by": null,
     "implementation_commit": "ce857886",
-    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 ce857886; real-PG tests green (group total 80 passed/0 failed; lopdf 0.41 MIT only dep added). Pending adversarial code review before READY_FOR_VALIDATION."
+    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 ce857886; real-PG tests green (group total 80 passed/0 failed; lopdf 0.41 MIT only dep added). Pending adversarial code review before READY_FOR_VALIDATION.",
+    "adversarial_code_review": {
+      "verdict": "PASS_WITH_NOTES",
+      "reviewed_at_utc": "2026-06-11T15:18:00Z",
+      "reviewer": "ADVERSARIAL_CODE_REVIEWER-20260611-PM",
+      "concerns": [
+        "MEDIUM: receipts.receipt_event_id (0162) is NULLABLE (TEXT REFERENCES kernel_event_ledger ... ON DELETE RESTRICT, no NOT NULL). The engine always passes Some(&event_id) so live receipts are ledger-paired, but the DB does NOT enforce 'every receipt has a ledger receipt'. A future/alternate caller could insert a ledger-less receipt and pass the CHECKs. Spec law (every mutation leaves an EventLedger receipt) is APPLICATION-enforced here, not schema-enforced. Recommend NOT NULL or a trigger if the law must be unbreakable.",
+        "NewExtractionReceipt::validate() mirrors the 0162 CHECKs (success<=>no error_class; non-success<=>error_class; non-negative counts) so callers fail before touching the DB — good fail-fast.",
+        "ON DELETE RESTRICT on receipt_event_id correctly prevents deleting a ledger event out from under a receipt (audit integrity)."
+      ],
+      "evasion_probes": [
+        "non-success receipt without error_class -> rejected by validate() AND DB chk_*_error_shape CONFIRMED.",
+        "success receipt WITH error_class -> rejected by validate() AND DB chk_*_success_shape CONFIRMED.",
+        "negative span/redaction counts -> rejected (validate + DB CHECK >=0) CONFIRMED.",
+        "empty extractor_id/version -> rejected (validate + DB btrim CHECK) CONFIRMED.",
+        "every status (success/partial/failed/deferred/skipped/blocked) round-trips through FromStr and the DB CHECK vocabulary CONFIRMED.",
+        "SecretBlocked + UnsupportedFormat are is_repairable()==false (correctly NOT queued) CONFIRMED — a blocked secret never enters the repair retry loop."
+      ],
+      "evidence_checked": [
+        "src/backend/handshake_core/src/knowledge_ingestion/receipts.rs (full)",
+        "src/backend/handshake_core/migrations/0162_knowledge_ingestion_receipts.sql (full)",
+        "engine.rs:392-438 receipt event + record_extraction_receipt (always Some(event_id))",
+        "store.rs:263-299 record_extraction_receipt"
+      ]
+    }
   },
   "handoff": {
     "coder_session": null,

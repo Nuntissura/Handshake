@@ -89,7 +89,30 @@
     "claimed_by": "KERNEL_BUILDER-20260611-071323",
     "completed_by": null,
     "implementation_commit": "0903cdcf",
-    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 0903cdcf; real-PG tests green (group total 80 passed/0 failed; lopdf 0.41 MIT only dep added). Pending adversarial code review before READY_FOR_VALIDATION."
+    "implementation_evidence": "wtc-kernel-009 feat/WP-KERNEL-009 0903cdcf; real-PG tests green (group total 80 passed/0 failed; lopdf 0.41 MIT only dep added). Pending adversarial code review before READY_FOR_VALIDATION.",
+    "adversarial_code_review": {
+      "verdict": "PASS",
+      "reviewed_at_utc": "2026-06-11T15:23:00Z",
+      "reviewer": "ADVERSARIAL_CODE_REVIEWER-20260611-PM",
+      "concerns": [
+        "No-OCR contract honored: extract_pdf_text never runs OCR; an image-only PDF returns a typed NO_TEXT_LAYER error (never empty-success) carrying the report detail with OCR_NEEDED guidance. OCR is an out-of-band operator step that re-imports a transcript ARTIFACT (media_transcript path), not an undeclared runtime dependency — matches MT-087 contract and OPERATOR LAW (no ASR/OCR daemons).",
+        "Partial extraction (some pages text, some image) -> Ok with failed_pages populated and the caller writes a 'partial' receipt + repair entry (OCR the failed pages). Whitespace-only extracted page is demoted to a failed_page (never a silent empty span).",
+        "INHERITS the MT-086 catch_unwind gap: extract_pdf_text calls load_document twice and doc.extract_text per page with no panic guard; a crafted PDF panicking inside lopdf aborts the pass. Same hardening recommendation as MT-086."
+      ],
+      "evasion_probes": [
+        "image-only -> NO_TEXT_LAYER typed error, no spans CONFIRMED (pipeline mt086_image_only + fixture mt096 scanned.pdf).",
+        "mixed -> Partial, spans for readable pages, failed_pages names page 2 with OCR_NEEDED, repair enqueued CONFIRMED (pipeline mt087_mixed_pdf).",
+        "every text-bearing page failing extraction -> typed NO_TEXT_LAYER (not empty success) CONFIRMED.",
+        "extracted text is trimmed; secret preflight runs over the CONCATENATED extracted page text and BLOCKS on HIGH severity before any page span is stored (engine.rs:1152-1170) CONFIRMED — a secret embedded in a PDF text layer is caught.",
+        "PDF spans go through redact_spans (secret_scan=true) for MEDIUM redaction CONFIRMED."
+      ],
+      "evidence_checked": [
+        "src/backend/handshake_core/src/knowledge_ingestion/pdf.rs:260-328 extract_pdf_text",
+        "engine.rs:1139-1201 PDF branch (block on HIGH over extracted text; partial/NoTextLayer)",
+        "src/backend/handshake_core/migrations/0163_knowledge_ingestion_spans.sql (pdf_page anchor)",
+        "tests/knowledge_ingestion_pipeline_tests.rs mt086/mt087"
+      ]
+    }
   },
   "handoff": {
     "coder_session": null,
