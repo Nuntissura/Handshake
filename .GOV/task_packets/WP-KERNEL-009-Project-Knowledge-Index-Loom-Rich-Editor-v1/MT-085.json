@@ -22,7 +22,7 @@
   "title": "SourceIngestionAndEvidence-085-ExtractionReceiptModel",
   "group": "SourceIngestionAndEvidence",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T15:32:04.773Z",
+  "updated_at_utc": "2026-06-11T18:58:58.290Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-085.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -80,7 +80,7 @@
     ]
   },
   "lifecycle": {
-    "status": "CLAIMED",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-081"
@@ -114,11 +114,16 @@
         "store.rs:263-299 record_extraction_receipt"
       ]
     },
-    "hardening_pending": {
-      "at_utc": "2026-06-11T15:32:04.773Z",
-      "severity": "MEDIUM",
-      "reason": "receipt_event_id NULLABLE - ledger-pairing app-enforced not schema-enforced. Make NOT NULL."
-    }
+    "ready_by": "KERNEL_BUILDER-20260611-071323",
+    "ready_for_validation_at_utc": "2026-06-11T18:58:58.290Z",
+    "hardening_closed": {
+      "at_utc": "2026-06-11T18:58:58.290Z",
+      "commit": "5876feaf",
+      "note": "Adversarial finding fixed + real-PG negative test green (8 hardening tests + 70 unit, no regression)."
+    },
+    "evidence": [
+      "Hardened 5876feaf: ingestion secret-leak/lopdf/dead-letter fixes verified; boundary-seam fixture shows ZERO raw secret bytes in spans; DB redaction guard (0210) + receipt NOT NULL (0211) enforced."
+    ]
   },
   "handoff": {
     "coder_session": null,
