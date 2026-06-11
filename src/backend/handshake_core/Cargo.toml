@@ -568,3 +568,8 @@ required-features = ["test-utils"]
 name = "knowledge_crdt_model_tests"
 path = "tests/knowledge_crdt_model_tests.rs"
 required-features = ["test-utils"]
+
+[[test]]
+name = "knowledge_crdt_concurrency_tests"
+path = "tests/knowledge_crdt_concurrency_tests.rs"
+required-features = ["test-utils"]
