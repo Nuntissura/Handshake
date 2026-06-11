@@ -4,6 +4,7 @@ pub mod context_slice;
 pub mod identity;
 pub mod persistence;
 pub mod promotion_bridge;
+pub mod rich_document_snapshot;
 pub mod snapshot;
 pub mod state_vector;
 pub mod validity_guard;

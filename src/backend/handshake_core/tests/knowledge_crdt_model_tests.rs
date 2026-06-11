@@ -22,6 +22,228 @@ async fn postgres_or_environment_blocked() -> std::sync::Arc<dyn handshake_core:
     }
 }
 
+mod mt_066_snapshot_model {
+    use super::postgres_or_environment_blocked;
+    use handshake_core::kernel::crdt::actor_site::{
+        knowledge_crdt_identity, KnowledgeActorIdV1, KnowledgeActorKind,
+    };
+    use handshake_core::kernel::crdt::rich_document_snapshot::{
+        build_rich_document_snapshot_record, restore_rich_document_snapshot,
+        validate_rich_document_snapshot_payload, RichDocumentRestoreError,
+        RichDocumentSnapshotPayloadV1, RICH_DOCUMENT_SCHEMA_ID,
+        RICH_DOCUMENT_SNAPSHOT_PAYLOAD_SCHEMA_ID,
+    };
+    use handshake_core::kernel::{KernelEventType, NewKernelEvent};
+    use serde_json::json;
+    use uuid::Uuid;
+
+    fn sample_payload() -> RichDocumentSnapshotPayloadV1 {
+        RichDocumentSnapshotPayloadV1 {
+            schema_id: RICH_DOCUMENT_SNAPSHOT_PAYLOAD_SCHEMA_ID.to_string(),
+            document_schema_id: RICH_DOCUMENT_SCHEMA_ID.to_string(),
+            prosemirror_schema_version: "tiptap-starter-kit@3.13.0".to_string(),
+            doc_json: json!({
+                "type": "doc",
+                "content": [
+                    {"type": "heading", "attrs": {"level": 1},
+                     "content": [{"type": "text", "text": "MT-066"}]},
+                    {"type": "paragraph",
+                     "content": [{"type": "text", "text": "snapshot model"}]}
+                ]
+            }),
+            state_vector: "hsk-sv1:site-aaaa=4;site-bbbb=2".to_string(),
+            covered_update_seq: 6,
+        }
+    }
+
+    #[test]
+    fn payload_validation_rejects_structural_defects() {
+        assert!(validate_rich_document_snapshot_payload(&sample_payload()).is_ok());
+
+        let mut wrong_root = sample_payload();
+        wrong_root.doc_json = json!({"type": "paragraph"});
+        let errors = validate_rich_document_snapshot_payload(&wrong_root)
+            .expect_err("non-doc root must fail");
+        assert!(errors.iter().any(|error| error.field == "doc_json.type"));
+
+        let mut not_object = sample_payload();
+        not_object.doc_json = json!(["not", "a", "doc"]);
+        assert!(validate_rich_document_snapshot_payload(&not_object)
+            .expect_err("array root must fail")
+            .iter()
+            .any(|error| error.field == "doc_json"));
+
+        let mut unstamped = sample_payload();
+        unstamped.prosemirror_schema_version = "  ".to_string();
+        assert!(validate_rich_document_snapshot_payload(&unstamped)
+            .expect_err("blank schema version must fail")
+            .iter()
+            .any(|error| error.field == "prosemirror_schema_version"));
+
+        let mut bad_vector = sample_payload();
+        bad_vector.state_vector = "yjs-binary-sv".to_string();
+        assert!(validate_rich_document_snapshot_payload(&bad_vector)
+            .expect_err("untyped state vector must fail")
+            .iter()
+            .any(|error| error.field == "state_vector"));
+
+        let mut wrong_schema = sample_payload();
+        wrong_schema.schema_id = "hsk.other@1".to_string();
+        assert!(validate_rich_document_snapshot_payload(&wrong_schema)
+            .expect_err("wrong payload schema id must fail")
+            .iter()
+            .any(|error| error.field == "schema_id"));
+    }
+
+    #[test]
+    fn build_and_restore_round_trip_without_storage() {
+        let actor =
+            KnowledgeActorIdV1::new(KnowledgeActorKind::Operator, "op-mt066").expect("valid actor");
+        let identity = knowledge_crdt_identity(
+            "ws-mt066",
+            "doc-mt066",
+            "crdt-mt066",
+            RICH_DOCUMENT_SCHEMA_ID,
+            &actor,
+            "trace-mt066",
+        );
+        let payload = sample_payload();
+        let (record, bytes) = build_rich_document_snapshot_record(
+            &identity,
+            "snap-mt066-1",
+            &payload,
+            "evt-mt066-1",
+            &["mt066-u5", "mt066-u6"],
+        )
+        .expect("snapshot record builds");
+        assert_eq!(record.covered_update_seq, payload.covered_update_seq);
+        assert_eq!(record.state_vector, payload.state_vector);
+        assert_eq!(
+            record.promotion_evidence_update_ids,
+            vec!["mt066-u5".to_string(), "mt066-u6".to_string()]
+        );
+
+        let restored =
+            restore_rich_document_snapshot(&record, &bytes).expect("restore round-trips");
+        assert_eq!(restored.doc_json, payload.doc_json);
+        assert_eq!(
+            restored.prosemirror_schema_version,
+            "tiptap-starter-kit@3.13.0"
+        );
+        assert_eq!(restored.covered_update_seq, 6);
+
+        // Tampered bytes are refused by the hash check.
+        let mut tampered = bytes.clone();
+        tampered[0] ^= 0xFF;
+        assert!(matches!(
+            restore_rich_document_snapshot(&record, &tampered),
+            Err(RichDocumentRestoreError::ByteHashMismatch { .. })
+        ));
+
+        // Envelope/payload drift is refused even when hashes are recomputed.
+        let mut drifted_payload = payload.clone();
+        drifted_payload.covered_update_seq = 7;
+        let (drift_record, _) = build_rich_document_snapshot_record(
+            &identity,
+            "snap-mt066-2",
+            &drifted_payload,
+            "evt-mt066-2",
+            &[],
+        )
+        .expect("drift record builds");
+        // Restore the *other* payload bytes against this envelope.
+        assert!(matches!(
+            restore_rich_document_snapshot(&drift_record, &bytes),
+            Err(RichDocumentRestoreError::ByteHashMismatch { .. })
+        ));
+
+        // Identity/payload schema mismatch fails the build path itself.
+        let mut alien_identity = identity.clone();
+        alien_identity.document_schema_id = "hsk.doc.other@1".to_string();
+        assert!(build_rich_document_snapshot_record(
+            &alien_identity,
+            "snap-mt066-3",
+            &payload,
+            "evt-mt066-3",
+            &[],
+        )
+        .is_err());
+    }
+
+    /// PostgreSQL proof: the rich-document snapshot persists through the
+    /// kernel CRDT snapshot store and restores to the identical document
+    /// JSON after a fresh read of envelope + bytes.
+    #[tokio::test]
+    async fn rich_document_snapshot_persists_and_restores_from_postgres() {
+        let db = postgres_or_environment_blocked().await;
+        let suffix = Uuid::now_v7().simple().to_string();
+        let actor =
+            KnowledgeActorIdV1::new(KnowledgeActorKind::Operator, "op-mt066").expect("valid actor");
+        let identity = knowledge_crdt_identity(
+            &format!("ws-mt066-{suffix}"),
+            &format!("doc-mt066-{suffix}"),
+            &format!("crdt-mt066-{suffix}"),
+            RICH_DOCUMENT_SCHEMA_ID,
+            &actor,
+            &format!("trace-mt066-{suffix}"),
+        );
+
+        let event = NewKernelEvent::builder(
+            format!("KTR-MT066-{suffix}"),
+            format!("SR-MT066-{suffix}"),
+            KernelEventType::KnowledgeCrdtSnapshotRecorded,
+            actor.to_kernel_actor(),
+        )
+        .aggregate("knowledge_crdt_document", identity.crdt_document_id.clone())
+        .idempotency_key(format!("mt066:{suffix}:snapshot-1"))
+        .source_component("knowledge_crdt_model_tests")
+        .payload(json!({"snapshot_id": format!("snap-{suffix}")}))
+        .build()
+        .expect("valid event");
+        let stored_event = db.append_kernel_event(event).await.expect("append event");
+
+        let payload = sample_payload();
+        let (record, bytes) = build_rich_document_snapshot_record(
+            &identity,
+            &format!("snap-{suffix}"),
+            &payload,
+            &stored_event.event_id,
+            &[],
+        )
+        .expect("snapshot record builds");
+
+        db.append_kernel_crdt_snapshot(record.clone(), bytes)
+            .await
+            .expect("append snapshot to Postgres");
+
+        let snapshots = db
+            .list_kernel_crdt_snapshots(
+                &identity.workspace_id,
+                &identity.document_id,
+                &identity.crdt_document_id,
+            )
+            .await
+            .expect("list snapshots");
+        assert_eq!(snapshots.len(), 1);
+        let persisted = &snapshots[0];
+        let persisted_bytes = db
+            .read_kernel_crdt_snapshot_bytes(&persisted.snapshot_bytes_ref)
+            .await
+            .expect("read snapshot bytes from Postgres");
+
+        let restored = restore_rich_document_snapshot(persisted, &persisted_bytes)
+            .expect("restore from persisted snapshot");
+        assert_eq!(restored.doc_json, payload.doc_json);
+        assert_eq!(restored.state_vector, payload.state_vector);
+        assert_eq!(restored.covered_update_seq, payload.covered_update_seq);
+        assert_eq!(restored.event_ledger_event_id, stored_event.event_id);
+        assert_eq!(
+            restored.prosemirror_schema_version,
+            "tiptap-starter-kit@3.13.0"
+        );
+    }
+}
+
 mod mt_072_state_vector {
     use super::postgres_or_environment_blocked;
     use handshake_core::kernel::crdt::actor_site::{
