@@ -61,7 +61,8 @@ use serde_json::{json, Value};
 use crate::kernel::{KernelActor, KernelEventType, NewKernelEvent};
 use crate::knowledge_code_index::monaco_bridge::build_monaco_payload;
 use crate::storage::knowledge::{
-    KnowledgeEdgeType, KnowledgeEntity, KnowledgeEntityKind, KnowledgeSpanKind, KnowledgeStore,
+    KnowledgeCodeParseStatus, KnowledgeEdgeType, KnowledgeEntity, KnowledgeEntityKind,
+    KnowledgeSpanKind, KnowledgeStore,
 };
 use crate::storage::postgres::PostgresDatabase;
 use crate::storage::{Database, StorageError};
@@ -253,7 +254,50 @@ struct LensParams {
 // Handlers.
 // ---------------------------------------------------------------------------
 
-/// The JSON projection of a symbol entity + its definition span.
+/// MT-106 (spec 2.3.13.11 "mark stale, never serve stale silently"): the
+/// served-symbol staleness flag attached to EVERY symbol the nav API returns.
+///
+/// A symbol nav query has no live editor buffer to hash against (unlike the
+/// MT-109 lens route, which is given the buffer's content_hash), so freshness is
+/// taken from the PERSISTED code-file index health for the symbol's source:
+/// * no code-file row  -> `unindexed` (the symbol predates/escapes the index)
+/// * row marked stale  -> `marked_stale` (MT-107/ingestion flagged it)
+/// * parse_status≠parsed-> `failed`/`partial` (the file did not fully index)
+/// * otherwise         -> `fresh`
+///
+/// This guarantees a stale/failed symbol is FLAGGED rather than served as
+/// authoritative. The flag is intentionally conservative: anything not provably
+/// fresh is surfaced as not-fresh so a consumer never mistakes it for current.
+async fn served_staleness(db: &PostgresDatabase, source_id: Option<&str>) -> Value {
+    let Some(source_id) = source_id else {
+        return json!({"state": "unindexed", "fresh": false,
+            "detail": "symbol has no primary source"});
+    };
+    match db.get_knowledge_code_file_by_source(source_id).await {
+        Ok(Some(code_file)) => {
+            if code_file.stale {
+                json!({"state": "marked_stale", "fresh": false,
+                    "indexed_content_hash": code_file.indexed_content_hash,
+                    "indexed_parser_version": code_file.parser_version})
+            } else if code_file.parse_status != KnowledgeCodeParseStatus::Parsed {
+                json!({"state": code_file.parse_status.as_str(), "fresh": false,
+                    "detail": "source did not fully index"})
+            } else {
+                json!({"state": "fresh", "fresh": true,
+                    "indexed_content_hash": code_file.indexed_content_hash,
+                    "indexed_parser_version": code_file.parser_version})
+            }
+        }
+        // No code-file row: the symbol is not backed by a current index pass.
+        Ok(None) => json!({"state": "unindexed", "fresh": false,
+            "detail": "no code-file index state for source"}),
+        // A staleness lookup failure must not be served as "fresh": fail closed.
+        Err(_) => json!({"state": "unknown", "fresh": false,
+            "detail": "staleness lookup failed"}),
+    }
+}
+
+/// The JSON projection of a symbol entity + its definition span + staleness.
 async fn symbol_to_json(db: &PostgresDatabase, symbol: &KnowledgeEntity) -> Value {
     let symbol_kind = symbol
         .detection_provenance
@@ -285,6 +329,7 @@ async fn symbol_to_json(db: &PostgresDatabase, symbol: &KnowledgeEntity) -> Valu
             }
         }
     }
+    let staleness = served_staleness(db, symbol.primary_source_id.as_deref()).await;
     json!({
         "symbol_entity_id": symbol.entity_id,
         "symbol_key": symbol.entity_key,
@@ -294,6 +339,7 @@ async fn symbol_to_json(db: &PostgresDatabase, symbol: &KnowledgeEntity) -> Valu
         "primary_source_id": symbol.primary_source_id,
         "lifecycle_state": symbol.lifecycle_state.as_str(),
         "definition": definition,
+        "staleness": staleness,
     })
 }
 
@@ -308,16 +354,27 @@ async fn lookup_symbols(
     if params.name.is_none() && params.path.is_none() {
         return Err(bad_request("at least one of name or path is required"));
     }
-    let limit = params.limit.unwrap_or(LIST_CAP).clamp(1, LIST_CAP) as usize;
-
-    let all = db
-        .list_knowledge_entities_by_kind(&params.workspace_id, KnowledgeEntityKind::Symbol)
-        .await
-        .map_err(storage_error)?;
+    let limit = params.limit.unwrap_or(LIST_CAP).clamp(1, LIST_CAP);
 
     let name = params.name.as_deref();
     let path = params.path.as_deref();
-    let mut matched: Vec<&KnowledgeEntity> = all
+
+    // DB-side path/name pushdown (MT-106 DoS fix): SQL cuts the candidate set to
+    // the matching path segment / name suffix instead of loading every symbol in
+    // the workspace. We over-fetch (limit*4, capped) because the SQL name-suffix
+    // LIKE (`%name`) is broader than the exact simple-name match, then refine to
+    // exactness in Rust on the small candidate set.
+    let candidates = db
+        .lookup_code_symbols(
+            &params.workspace_id,
+            name,
+            path,
+            (limit.saturating_mul(4)).clamp(limit, 10_000),
+        )
+        .await
+        .map_err(storage_error)?;
+
+    let mut matched: Vec<&KnowledgeEntity> = candidates
         .iter()
         .filter(|s| {
             let name_ok = match name {
@@ -332,7 +389,7 @@ async fn lookup_symbols(
         })
         .collect();
     matched.sort_by(|a, b| a.entity_key.cmp(&b.entity_key));
-    matched.truncate(limit);
+    matched.truncate(limit as usize);
 
     let mut results = Vec::with_capacity(matched.len());
     for symbol in &matched {
@@ -395,28 +452,34 @@ async fn symbol_references(
         if edge.target_entity_id == symbol.entity_id {
             // Incoming reference: source calls this symbol.
             if let Ok(Some(src)) = db.get_knowledge_entity(&edge.source_entity_id).await {
+                let staleness = served_staleness(&db, src.primary_source_id.as_deref()).await;
                 callers.push(json!({
                     "symbol_entity_id": src.entity_id,
                     "symbol_key": src.entity_key,
                     "display_name": src.display_name,
                     "confidence": edge.confidence,
                     "evidence_spans": spans,
+                    "staleness": staleness,
                 }));
             }
         } else if edge.source_entity_id == symbol.entity_id {
             // Outgoing reference: this symbol calls target.
             if let Ok(Some(tgt)) = db.get_knowledge_entity(&edge.target_entity_id).await {
+                let staleness = served_staleness(&db, tgt.primary_source_id.as_deref()).await;
                 callees.push(json!({
                     "symbol_entity_id": tgt.entity_id,
                     "symbol_key": tgt.entity_key,
                     "display_name": tgt.display_name,
                     "confidence": edge.confidence,
                     "evidence_spans": spans,
+                    "staleness": staleness,
                 }));
             }
         }
     }
 
+    // The queried symbol's own staleness is surfaced alongside its relations.
+    let self_staleness = served_staleness(&db, symbol.primary_source_id.as_deref()).await;
     let receipt = record_nav_receipt(
         &db,
         &ctx,
@@ -427,6 +490,7 @@ async fn symbol_references(
 
     Ok(Json(json!({
         "symbol_entity_id": symbol.entity_id,
+        "staleness": self_staleness,
         "callers": callers,
         "callees": callees,
         "nav_receipt_event_id": receipt,
@@ -456,17 +520,20 @@ async fn symbol_tests(
         {
             let spans = edge_span_refs(&db, &edge.edge_id).await;
             if let Ok(Some(test)) = db.get_knowledge_entity(&edge.source_entity_id).await {
+                let staleness = served_staleness(&db, test.primary_source_id.as_deref()).await;
                 tests.push(json!({
                     "test_entity_id": test.entity_id,
                     "test_symbol_key": test.entity_key,
                     "display_name": test.display_name,
                     "confidence": edge.confidence,
                     "evidence_spans": spans,
+                    "staleness": staleness,
                 }));
             }
         }
     }
 
+    let self_staleness = served_staleness(&db, symbol.primary_source_id.as_deref()).await;
     let receipt = record_nav_receipt(
         &db,
         &ctx,
@@ -477,6 +544,7 @@ async fn symbol_tests(
 
     Ok(Json(json!({
         "symbol_entity_id": symbol.entity_id,
+        "staleness": self_staleness,
         "tests": tests,
         "nav_receipt_event_id": receipt,
     })))
@@ -517,6 +585,7 @@ async fn symbol_spans(
         }
     }
 
+    let self_staleness = served_staleness(&db, symbol.primary_source_id.as_deref()).await;
     let receipt = record_nav_receipt(
         &db,
         &ctx,
@@ -527,6 +596,7 @@ async fn symbol_spans(
 
     Ok(Json(json!({
         "symbol_entity_id": symbol.entity_id,
+        "staleness": self_staleness,
         "spans": spans,
         "nav_receipt_event_id": receipt,
     })))
@@ -542,6 +612,15 @@ async fn file_lens(
     let db = db_for(&state);
     let ctx = nav_context(&headers)?;
     let relative_path = decode_path(&path);
+    // Reject path traversal / absolute paths on the lookup key. The path only
+    // feeds a parameterised DB lookup today (not the filesystem), so this is
+    // defence in depth, but an indexed file is always a repo-relative POSIX path
+    // with no `..`/`.` segment, so anything else is a guaranteed miss anyway.
+    if !is_safe_relative_path(&relative_path) {
+        return Err(bad_request(
+            "path must be a repo-relative POSIX path with no '..'/'.' segments",
+        ));
+    }
     let payload = build_monaco_payload(
         &db,
         &params.workspace_id,
@@ -639,6 +718,17 @@ fn decode_path(raw: &str) -> String {
     // Axum already percent-decodes a single path segment; this also accepts a
     // caller that encoded `/` as `%2F` by replacing the literal back.
     raw.replace("%2F", "/").replace("%2f", "/")
+}
+
+/// True when `path` is a repo-relative POSIX path with no traversal: no leading
+/// `/`, no backslash, and no `.`/`..` segment. Indexed file keys always satisfy
+/// this, so a path that does not is rejected rather than silently missing.
+fn is_safe_relative_path(path: &str) -> bool {
+    if path.is_empty() || path.starts_with('/') || path.contains('\\') {
+        return false;
+    }
+    path.split('/')
+        .all(|seg| !seg.is_empty() && seg != "." && seg != "..")
 }
 
 /// Map a code-index error to HTTP.

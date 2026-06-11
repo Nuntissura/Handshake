@@ -5421,4 +5421,60 @@ impl PostgresDatabase {
             .ok_or(StorageError::NotFound("open knowledge code repair entry"))?;
         code_repair_from_pg(&row)
     }
+
+    /// MT-106: DB-side symbol lookup for the nav API. The code-symbol entity_key
+    /// is `{lang}:{relative_path}#{symbol_path}`, so the high-selectivity path
+    /// and name filters push down to SQL instead of loading every symbol in the
+    /// workspace and filtering in Rust (the adversarial-review DoS: a 100k-symbol
+    /// repo transferred + heap-allocated on every lookup). A `path` filter
+    /// matches the `:{path}#` segment; a `name` filter matches the trailing
+    /// symbol-path segment (`%name`) OR display_name; results are bounded by
+    /// `limit`. The trailing-segment match is refined caller-side for exactness,
+    /// but the SQL has already cut the candidate set to the matching path/name.
+    pub async fn lookup_code_symbols(
+        &self,
+        workspace_id: &str,
+        name: Option<&str>,
+        path: Option<&str>,
+        limit: i64,
+    ) -> StorageResult<Vec<KnowledgeEntity>> {
+        let mut sql = format!(
+            "SELECT {KNOWLEDGE_ENTITY_COLUMNS} FROM knowledge_entities
+             WHERE workspace_id = $1 AND entity_kind = 'symbol'"
+        );
+        // $2 path-segment LIKE, $3 name-suffix LIKE, $4 name equality on
+        // display_name, $5 limit. Unused params are bound as NULL and guarded by
+        // the `IS NULL OR` shape so the planner can still use the entity_key
+        // index for the supplied filter(s).
+        sql.push_str(
+            " AND ($2::text IS NULL OR entity_key LIKE $2)
+              AND ($3::text IS NULL OR entity_key LIKE $3 OR display_name = $4)
+             ORDER BY entity_key
+             LIMIT $5",
+        );
+        // `path` -> match the `:{path}#` segment anywhere in the key (escape the
+        // LIKE metacharacters in the operator-supplied path).
+        let path_like = path.map(|p| format!("%:{}#%", escape_like(p)));
+        // `name` -> match a key ending in the simple name after `.`/`::`.
+        let name_like = name.map(|n| format!("%{}", escape_like(n)));
+        let rows = sqlx::query(&sql)
+            .bind(workspace_id)
+            .bind(path_like.as_deref())
+            .bind(name_like.as_deref())
+            .bind(name)
+            .bind(limit.clamp(1, 10_000))
+            .fetch_all(self.pool())
+            .await?;
+        rows.iter().map(entity_from_pg).collect()
+    }
+}
+
+/// Escape PostgreSQL `LIKE` metacharacters (`%`, `_`, `\`) in an operator-
+/// supplied literal so a symbol name/path containing them matches literally and
+/// cannot widen the scan. The default escape char `\` is escaped first.
+fn escape_like(value: &str) -> String {
+    value
+        .replace('\\', "\\\\")
+        .replace('%', "\\%")
+        .replace('_', "\\_")
 }

@@ -260,6 +260,13 @@ async fn mt106_nav_api_lookup_definition_references_tests_spans_with_receipts() 
         .to_string();
     // Definition span present.
     assert!(add_match["definition"]["line_start"].as_i64().unwrap_or(0) > 0);
+    // MT-106 (spec 2.3.13.11 "never serve stale silently"): EVERY served symbol
+    // carries a staleness flag. A freshly-indexed, unmodified file is `fresh`.
+    assert_eq!(
+        add_match["staleness"]["state"], "fresh",
+        "lookup must attach staleness to every served symbol: {add_match:?}"
+    );
+    assert_eq!(add_match["staleness"]["fresh"], true);
 
     // --- Symbol detail --------------------------------------------------------
     let detail = nav_headers(
@@ -272,6 +279,10 @@ async fn mt106_nav_api_lookup_definition_references_tests_spans_with_receipts() 
     assert_eq!(detail.status(), 200);
     let detail_body: Value = detail.json().await.expect("detail json");
     assert_eq!(detail_body["symbol"]["display_name"], "add");
+    assert_eq!(
+        detail_body["symbol"]["staleness"]["state"], "fresh",
+        "symbol detail must attach staleness"
+    );
 
     // --- References: add has a caller (incoming reference) --------------------
     let refs = nav_headers(
@@ -302,6 +313,12 @@ async fn mt106_nav_api_lookup_definition_references_tests_spans_with_receipts() 
             .unwrap_or(false),
         "reference must carry evidence spans"
     );
+    // Staleness on the related symbol AND on the queried symbol itself.
+    assert_eq!(
+        caller["staleness"]["state"], "fresh",
+        "each referenced symbol must carry staleness: {caller:?}"
+    );
+    assert_eq!(refs_body["staleness"]["state"], "fresh");
 
     // --- Tests: the `adds` test validates add ---------------------------------
     let tests = nav_headers(
@@ -320,6 +337,15 @@ async fn mt106_nav_api_lookup_definition_references_tests_spans_with_receipts() 
             .any(|t| t["test_symbol_key"] == "rust:src/lib.rs#tests::adds"),
         "the adds test should validate add: {test_list:?}"
     );
+    let adds_test = test_list
+        .iter()
+        .find(|t| t["test_symbol_key"] == "rust:src/lib.rs#tests::adds")
+        .unwrap();
+    assert_eq!(
+        adds_test["staleness"]["state"], "fresh",
+        "each served test symbol must carry staleness"
+    );
+    assert_eq!(tests_body["staleness"]["state"], "fresh");
 
     // --- Spans: citation spans for add ----------------------------------------
     let spans = nav_headers(
@@ -334,6 +360,10 @@ async fn mt106_nav_api_lookup_definition_references_tests_spans_with_receipts() 
     let span_list = spans_body["spans"].as_array().expect("spans array");
     assert!(!span_list.is_empty(), "add must expose citation spans");
     assert!(span_list.iter().any(|s| s["span_kind"] == "ast"));
+    assert_eq!(
+        spans_body["staleness"]["state"], "fresh",
+        "spans route must attach the symbol's staleness"
+    );
 
     // --- File lens (MT-109 via the API) ---------------------------------------
     let parser_version = CodeParserAdapter::new(CodeLanguage::Rust).parser_version();
@@ -370,6 +400,96 @@ async fn mt106_nav_api_lookup_definition_references_tests_spans_with_receipts() 
     .await
     .expect("missing send");
     assert_eq!(missing.status(), 404);
+
+    // --- Path traversal on the lens route -> 400 (MT-106 hardening) -----------
+    let traversal = nav_headers(
+        http.get(format!(
+            "{base}/knowledge/code/files/..%2F..%2Fetc%2Fpasswd/lens"
+        ))
+        .query(&[
+            ("workspace_id", workspace_id.as_str()),
+            ("content_hash", sha256_hex(b"x").as_str()),
+            ("parser_version", "v1"),
+        ]),
+        "traversal",
+    )
+    .send()
+    .await
+    .expect("traversal send");
+    assert_eq!(
+        traversal.status(),
+        400,
+        "a path with '..' segments must be rejected"
+    );
+
+    server.abort();
+}
+
+/// MT-106 (spec 2.3.13.11 "mark stale, never serve stale silently"): once the
+/// code-file index is marked stale, the SAME symbol is served through the nav
+/// routes with a NON-fresh staleness flag — proving the gap the adversarial
+/// review flagged (5 of 6 routes served stale silently) is closed.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn mt106_nav_api_flags_stale_symbols_on_every_route() {
+    let Some(pg) = knowledge_pg().await else {
+        eprintln!("SKIP mt106_nav_api_flags_stale_symbols_on_every_route: no PostgreSQL");
+        return;
+    };
+    let workspace_id = index_fixture(&pg).await;
+
+    // Mark the indexed file stale directly in the code-file index state (this is
+    // what MT-107 / the ingestion lifecycle does when the source changes).
+    let code_files = pg
+        .db
+        .list_knowledge_code_files(&workspace_id)
+        .await
+        .expect("list code files");
+    let lib = code_files.first().expect("the fixture's one code file");
+    pg.db
+        .mark_knowledge_code_file_stale(&lib.code_file_id)
+        .await
+        .expect("mark stale");
+
+    let state = app_state_for(&pg.schema_url).await;
+    let (base, server) = start_server(state).await;
+    let http = reqwest::Client::new();
+
+    // Look up `add` -> it must now be flagged marked_stale, not served as fresh.
+    let lookup = nav_headers(
+        http.get(format!("{base}/knowledge/code/symbols"))
+            .query(&[("workspace_id", workspace_id.as_str()), ("name", "add")]),
+        "stale-lookup",
+    )
+    .send()
+    .await
+    .expect("lookup send");
+    assert_eq!(lookup.status(), 200);
+    let body: Value = lookup.json().await.expect("json");
+    let add_match = body["matches"]
+        .as_array()
+        .expect("matches")
+        .iter()
+        .find(|m| m["symbol_key"] == "rust:src/lib.rs#add")
+        .expect("add present")
+        .clone();
+    assert_eq!(
+        add_match["staleness"]["state"], "marked_stale",
+        "a stale symbol must be FLAGGED, never served as fresh: {add_match:?}"
+    );
+    assert_eq!(add_match["staleness"]["fresh"], false);
+
+    // The same flag must appear on the detail route (one of the 5 routes that
+    // previously emitted no staleness at all).
+    let add_id = add_match["symbol_entity_id"].as_str().unwrap();
+    let detail = nav_headers(
+        http.get(format!("{base}/knowledge/code/symbols/{add_id}")),
+        "stale-detail",
+    )
+    .send()
+    .await
+    .expect("detail send");
+    let detail_body: Value = detail.json().await.expect("json");
+    assert_eq!(detail_body["symbol"]["staleness"]["fresh"], false);
 
     server.abort();
 }
