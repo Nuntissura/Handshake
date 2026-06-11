@@ -22,7 +22,7 @@
   "title": "NativeDependencyAndPackaging-021-TiptapPackageIntegrationPlan",
   "group": "NativeDependencyAndPackaging",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T19:01:36.361Z",
+  "updated_at_utc": "2026-06-11T19:28:19.610Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-021.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -81,7 +81,7 @@
     ]
   },
   "lifecycle": {
-    "status": "FAIL_NEEDS_REWORK",
+    "status": "READY_FOR_VALIDATION_V2",
     "active": false,
     "depends_on": [
       "MT-017"
@@ -149,6 +149,13 @@
       "remediation_summary": [
         "Add the missing schema-version surface and collaboration hook integration/ownership evidence, or narrow the MT contract through the orchestrator before resubmitting. Include a test proving the extension set exposes the required collaboration/version contract rather than only locking the dependency."
       ]
+    },
+    "remediation_v2": {
+      "at_utc": "2026-06-11T19:28:19.610Z",
+      "by": "KERNEL_BUILDER-20260611-071323",
+      "commit": "8005de70",
+      "fail_verdict": "FAIL_V1: extension set only locked the dependency, did not expose schema-version or collaboration-hook contract",
+      "remediation": "Added WP009_RICH_DOCUMENT_SCHEMA_VERSION schema-version surface + Collaboration extension wired to a Yjs doc in app/src/lib/tiptap/extension_set.ts; new 6-test vitest proves the contract is exposed (editor drives the Yjs fragment), not just the dep locked. tsc/eslint clean, 16/16 no regression."
     }
   },
   "handoff": {
