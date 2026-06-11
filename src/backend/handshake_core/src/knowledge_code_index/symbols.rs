@@ -91,17 +91,76 @@ pub struct ExtractedSymbol {
     pub end_line: u32,
     /// Whether the Tree-sitter subtree for this symbol carried a syntax error.
     pub has_error: bool,
+    /// MT-098/099/100 collision discriminator. Distinguishes two symbols that
+    /// share the same `symbol_path` but are genuinely distinct entities the
+    /// upsert must NOT merge: a trait-impl method vs an inherent method of the
+    /// same name (`as Trait`), declaration-merging kinds (interface vs class vs
+    /// function `Foo`), and overload/duplicate signatures (an ordinal). `None`
+    /// when the `{lang}:{path}#{symbol_path}` key is already unique.
+    pub disambiguator: Option<String>,
 }
 
+/// The discriminator delimiter in an entity_key. The nav layer strips anything
+/// from this char onward before parsing the simple name / path, so the
+/// discriminator makes the key unique WITHOUT changing how a symbol is looked up
+/// by name or path. Chosen as `~` (not `#`/`:`/`.`/`::`) so it never clashes
+/// with a path separator.
+pub const KEY_DISCRIMINATOR: char = '~';
+
 impl ExtractedSymbol {
-    /// Stable entity key for this symbol within a file.
+    /// Stable, collision-resistant entity key for this symbol within a file.
+    /// Shape: `{lang}:{path}#{symbol_path}` plus, when a discriminator is
+    /// present, `~{discriminator}` so two distinct symbols sharing a
+    /// `symbol_path` (trait vs inherent method, declaration-merging kinds,
+    /// overloads) get DISTINCT keys and never merge in the entity upsert.
     pub fn entity_key(&self, language: CodeLanguage, relative_path: &str) -> String {
-        format!(
-            "{}:{}#{}",
-            language.as_str(),
-            relative_path,
-            self.symbol_path
-        )
+        match &self.disambiguator {
+            Some(disc) => format!(
+                "{}:{}#{}{KEY_DISCRIMINATOR}{}",
+                language.as_str(),
+                relative_path,
+                self.symbol_path,
+                disc
+            ),
+            None => format!(
+                "{}:{}#{}",
+                language.as_str(),
+                relative_path,
+                self.symbol_path
+            ),
+        }
+    }
+}
+
+/// Assign overload/duplicate discriminators: any two symbols that would produce
+/// the SAME base key (same language+path+symbol_path+kind-tag) get an ordinal
+/// (`#0`, `#1`, ...) appended to their discriminator in stable document order,
+/// so duplicate signatures never collapse to one entity. Symbols already unique
+/// keep whatever disambiguator they carry (the kind/trait tag).
+fn assign_collision_ordinals(symbols: &mut [ExtractedSymbol]) {
+    use std::collections::HashMap;
+    // Group indices by their current (symbol_path, disambiguator) identity.
+    let mut groups: HashMap<(String, Option<String>), Vec<usize>> = HashMap::new();
+    for (i, s) in symbols.iter().enumerate() {
+        groups
+            .entry((s.symbol_path.clone(), s.disambiguator.clone()))
+            .or_default()
+            .push(i);
+    }
+    for indices in groups.values() {
+        if indices.len() < 2 {
+            continue; // already unique
+        }
+        // Stable order: by start byte (document order).
+        let mut ordered = indices.clone();
+        ordered.sort_by_key(|&i| symbols[i].start_byte);
+        for (ordinal, &i) in ordered.iter().enumerate() {
+            let suffix = format!("dup{ordinal}");
+            symbols[i].disambiguator = Some(match symbols[i].disambiguator.take() {
+                Some(existing) => format!("{existing}.{suffix}"),
+                None => suffix,
+            });
+        }
     }
 }
 
@@ -113,6 +172,10 @@ pub fn extract_symbols(tree: &ParsedTree, source: &str) -> Vec<ExtractedSymbol> 
         CodeLanguage::TypeScript | CodeLanguage::Tsx => extract_typescript(tree, source),
         CodeLanguage::JavaScript => extract_javascript(tree, source),
     };
+    // MT-098/099/100: any remaining same-base-key duplicates (overloads, two
+    // impl blocks, repeated declarators) get a stable ordinal so the upsert
+    // never silently merges distinct symbols.
+    assign_collision_ordinals(&mut symbols);
     symbols.sort_by(|a, b| {
         a.start_byte
             .cmp(&b.start_byte)
@@ -234,6 +297,23 @@ fn extract_rust(tree: &ParsedTree, source: &str) -> Vec<ExtractedSymbol> {
             name.clone()
         };
         let symbol_path = scope_path(tree, node, source, &path_name, "::", RUST_SCOPE_KINDS);
+
+        // MT-098 disambiguation:
+        // * an impl entity carries its trait so `impl A` (inherent) and
+        //   `impl Trait for A` are distinct keys, and `impl T1 for A` !=
+        //   `impl T2 for A`.
+        // * a METHOD inside a trait-impl carries that trait so an inherent
+        //   `A::run` and a trait `A::run` (from `impl Trait for A`) do not merge.
+        let disambiguator = match kind {
+            SymbolKind::Impl => rust_impl_trait_name(tree, node, source)
+                .map(|t| format!("as:{t}"))
+                .or(Some("inherent".to_string())),
+            SymbolKind::Method => {
+                rust_enclosing_impl_trait(tree, node, source).map(|t| format!("as:{t}"))
+            }
+            _ => None,
+        };
+
         out.push(ExtractedSymbol {
             kind,
             name,
@@ -244,9 +324,39 @@ fn extract_rust(tree: &ParsedTree, source: &str) -> Vec<ExtractedSymbol> {
             start_line: node.start_line,
             end_line: node.end_line,
             has_error: node.has_error,
+            disambiguator,
         });
     }
     out
+}
+
+/// The trait name of an `impl_item` (the `trait` field), or `None` for an
+/// inherent impl. For `impl Foo for Bar` the `trait` field is `Foo`.
+fn rust_impl_trait_name<'a>(
+    tree: &ParsedTree,
+    impl_node: &AstNode,
+    source: &'a str,
+) -> Option<&'a str> {
+    tree.child_field_text(impl_node.index, "trait", source)
+}
+
+/// Walk up from a method node to its enclosing `impl_item` and return that
+/// impl's trait name, if the impl is a trait impl. `None` for an inherent impl
+/// method or a free function.
+fn rust_enclosing_impl_trait<'a>(
+    tree: &ParsedTree,
+    node: &AstNode,
+    source: &'a str,
+) -> Option<&'a str> {
+    let mut current = node.parent;
+    while let Some(idx) = current {
+        let parent = &tree.nodes[idx];
+        if parent.kind == "impl_item" {
+            return rust_impl_trait_name(tree, parent, source);
+        }
+        current = parent.parent;
+    }
+    None
 }
 
 /// True when the function node is preceded by a `#[test]` or
@@ -298,52 +408,78 @@ const TS_SCOPE_KINDS: &[&str] = &["class_declaration", "internal_module", "modul
 fn extract_typescript(tree: &ParsedTree, source: &str) -> Vec<ExtractedSymbol> {
     let mut out = Vec::new();
     for node in &tree.nodes {
-        let symbol = match node.kind.as_str() {
+        // A node may yield MULTIPLE symbols (a multi-declarator const), so the
+        // extractor returns a Vec.
+        let symbols: Vec<(SymbolKind, String)> = match node.kind.as_str() {
             "function_declaration" | "generator_function_declaration" => {
-                decl_name(tree, node, source).map(|name| (ts_function_kind(name), name.to_string()))
+                decl_name(tree, node, source)
+                    .map(|name| vec![(ts_function_kind(name), name.to_string())])
+                    .unwrap_or_default()
             }
-            "class_declaration" | "abstract_class_declaration" => {
-                decl_name(tree, node, source).map(|n| (SymbolKind::Class, n.to_string()))
-            }
-            "interface_declaration" => {
-                decl_name(tree, node, source).map(|n| (SymbolKind::Interface, n.to_string()))
-            }
-            "type_alias_declaration" => {
-                decl_name(tree, node, source).map(|n| (SymbolKind::TypeAlias, n.to_string()))
-            }
-            "enum_declaration" => {
-                decl_name(tree, node, source).map(|n| (SymbolKind::Enum, n.to_string()))
-            }
-            "method_definition" => {
-                method_name(tree, node, source).map(|n| (SymbolKind::Method, n.to_string()))
-            }
+            "class_declaration" | "abstract_class_declaration" => decl_name(tree, node, source)
+                .map(|n| vec![(SymbolKind::Class, n.to_string())])
+                .unwrap_or_default(),
+            "interface_declaration" => decl_name(tree, node, source)
+                .map(|n| vec![(SymbolKind::Interface, n.to_string())])
+                .unwrap_or_default(),
+            "type_alias_declaration" => decl_name(tree, node, source)
+                .map(|n| vec![(SymbolKind::TypeAlias, n.to_string())])
+                .unwrap_or_default(),
+            "enum_declaration" => decl_name(tree, node, source)
+                .map(|n| vec![(SymbolKind::Enum, n.to_string())])
+                .unwrap_or_default(),
+            "method_definition" => method_name(tree, node, source)
+                .map(|n| vec![(SymbolKind::Method, n.to_string())])
+                .unwrap_or_default(),
             "lexical_declaration" | "variable_declaration" => {
-                // `const Foo = () => {}` / `const useThing = () => {}`:
-                // arrow-function or function-expression bound consts become
-                // component/hook/function symbols.
-                ts_const_binding(tree, node, source)
+                // ALL declarators: `const a = () => {}, b = () => {}` yields BOTH
+                // a and b; a non-function `const MAX = 10` yields a Constant.
+                ts_const_bindings(tree, node, source)
             }
-            _ => None,
+            _ => Vec::new(),
         };
 
-        let Some((kind, name)) = symbol else { continue };
-        if name.trim().is_empty() {
-            continue;
+        for (kind, name) in symbols {
+            if name.trim().is_empty() {
+                continue;
+            }
+            let symbol_path = scope_path(tree, node, source, &name, ".", TS_SCOPE_KINDS);
+            out.push(ExtractedSymbol {
+                kind,
+                name,
+                symbol_path,
+                node_kind: node.kind.clone(),
+                start_byte: node.start_byte,
+                end_byte: node.end_byte,
+                start_line: node.start_line,
+                end_line: node.end_line,
+                has_error: node.has_error,
+                // MT-099: declaration merging - `interface Foo`, `class Foo`,
+                // `function Foo`, `namespace Foo` legally coexist and must NOT
+                // merge into one entity. The kind tag keeps their keys distinct.
+                disambiguator: Some(ts_js_kind_tag(kind).to_string()),
+            });
         }
-        let symbol_path = scope_path(tree, node, source, &name, ".", TS_SCOPE_KINDS);
-        out.push(ExtractedSymbol {
-            kind,
-            name,
-            symbol_path,
-            node_kind: node.kind.clone(),
-            start_byte: node.start_byte,
-            end_byte: node.end_byte,
-            start_line: node.start_line,
-            end_line: node.end_line,
-            has_error: node.has_error,
-        });
     }
     out
+}
+
+/// A short, stable kind tag used as a TS/JS entity-key disambiguator so
+/// declaration-merging same-name decls (interface/class/function/namespace) get
+/// distinct keys. Methods keep a tag too (harmless; they are class-scoped).
+fn ts_js_kind_tag(kind: SymbolKind) -> &'static str {
+    match kind {
+        SymbolKind::Class => "class",
+        SymbolKind::Interface => "interface",
+        SymbolKind::Enum => "enum",
+        SymbolKind::TypeAlias => "type",
+        SymbolKind::Method => "method",
+        SymbolKind::Component => "component",
+        SymbolKind::Hook => "hook",
+        SymbolKind::Constant => "const",
+        // Function/Module and any other share the `value` namespace.
+        _ => "value",
+    }
 }
 
 /// React heuristics: PascalCase => Component, `use` prefix => Hook.
@@ -383,14 +519,13 @@ fn method_name<'a>(tree: &ParsedTree, node: &AstNode, source: &'a str) -> Option
         })
 }
 
-/// Inspect a `const X = ...` declaration: only bindings whose value is a
-/// function (arrow/function expression) become symbols. Returns the first such
-/// binding (declarations usually have one).
-fn ts_const_binding(
-    tree: &ParsedTree,
-    node: &AstNode,
-    source: &str,
-) -> Option<(SymbolKind, String)> {
+/// Inspect a `const/let/var X = ...` declaration and return a symbol for EVERY
+/// declarator (MT-099/100: `const a = () => {}, b = () => {}` yields BOTH a and
+/// b). A function-valued binding becomes a function/component/hook symbol; any
+/// other binding becomes a `Constant` so config-like top-level values are
+/// navigable too. Document order.
+fn ts_const_bindings(tree: &ParsedTree, node: &AstNode, source: &str) -> Vec<(SymbolKind, String)> {
+    let mut out = Vec::new();
     for declarator in tree.children_of(node.index) {
         if declarator.kind != "variable_declarator" {
             continue;
@@ -403,6 +538,9 @@ fn ts_const_binding(
                     .and_then(|c| tree.node_text(c, source))
             });
         let Some(name) = name else { continue };
+        if name.trim().is_empty() {
+            continue;
+        }
         // Is the value an arrow / function expression?
         let is_fn = tree.children_of(declarator.index).any(|c| {
             matches!(
@@ -411,10 +549,12 @@ fn ts_const_binding(
             )
         });
         if is_fn {
-            return Some((ts_function_kind(name), name.to_string()));
+            out.push((ts_function_kind(name), name.to_string()));
+        } else {
+            out.push((SymbolKind::Constant, name.to_string()));
         }
     }
-    None
+    out
 }
 
 // ---------------------------------------------------------------------------
@@ -426,35 +566,41 @@ const JS_SCOPE_KINDS: &[&str] = &["class_declaration"];
 fn extract_javascript(tree: &ParsedTree, source: &str) -> Vec<ExtractedSymbol> {
     let mut out = Vec::new();
     for node in &tree.nodes {
-        let symbol = match node.kind.as_str() {
+        let symbols: Vec<(SymbolKind, String)> = match node.kind.as_str() {
             "function_declaration" | "generator_function_declaration" => {
-                decl_name(tree, node, source).map(|name| (ts_function_kind(name), name.to_string()))
+                decl_name(tree, node, source)
+                    .map(|name| vec![(ts_function_kind(name), name.to_string())])
+                    .unwrap_or_default()
             }
-            "class_declaration" => {
-                decl_name(tree, node, source).map(|n| (SymbolKind::Class, n.to_string()))
-            }
-            "method_definition" => {
-                method_name(tree, node, source).map(|n| (SymbolKind::Method, n.to_string()))
-            }
-            "lexical_declaration" | "variable_declaration" => ts_const_binding(tree, node, source),
-            _ => None,
+            "class_declaration" => decl_name(tree, node, source)
+                .map(|n| vec![(SymbolKind::Class, n.to_string())])
+                .unwrap_or_default(),
+            "method_definition" => method_name(tree, node, source)
+                .map(|n| vec![(SymbolKind::Method, n.to_string())])
+                .unwrap_or_default(),
+            "lexical_declaration" | "variable_declaration" => ts_const_bindings(tree, node, source),
+            _ => Vec::new(),
         };
-        let Some((kind, name)) = symbol else { continue };
-        if name.trim().is_empty() {
-            continue;
+        for (kind, name) in symbols {
+            if name.trim().is_empty() {
+                continue;
+            }
+            let symbol_path = scope_path(tree, node, source, &name, ".", JS_SCOPE_KINDS);
+            out.push(ExtractedSymbol {
+                kind,
+                name,
+                symbol_path,
+                node_kind: node.kind.clone(),
+                start_byte: node.start_byte,
+                end_byte: node.end_byte,
+                start_line: node.start_line,
+                end_line: node.end_line,
+                has_error: node.has_error,
+                // MT-100: a `class Foo` and a `function Foo`/`const Foo` must not
+                // merge - the kind tag keeps their keys distinct.
+                disambiguator: Some(ts_js_kind_tag(kind).to_string()),
+            });
         }
-        let symbol_path = scope_path(tree, node, source, &name, ".", JS_SCOPE_KINDS);
-        out.push(ExtractedSymbol {
-            kind,
-            name,
-            symbol_path,
-            node_kind: node.kind.clone(),
-            start_byte: node.start_byte,
-            end_byte: node.end_byte,
-            start_line: node.start_line,
-            end_line: node.end_line,
-            has_error: node.has_error,
-        });
     }
     out
 }
@@ -566,5 +712,155 @@ const PascalThing = () => null;
             sym.entity_key(CodeLanguage::Rust, "src/lib.rs"),
             "rust:src/lib.rs#a"
         );
+    }
+
+    /// Collect the entity keys of all extracted symbols for a file.
+    fn keys(lang: CodeLanguage, src: &str, path: &str) -> Vec<String> {
+        let tree = parse(lang, src);
+        extract_symbols(&tree, src)
+            .iter()
+            .map(|s| s.entity_key(lang, path))
+            .collect()
+    }
+
+    /// No two extracted symbols may share an entity key (the upsert merge bug).
+    fn assert_unique_keys(ks: &[String]) {
+        let mut seen = std::collections::HashSet::new();
+        for k in ks {
+            assert!(
+                seen.insert(k),
+                "duplicate entity key collides in upsert: {k} in {ks:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn rust_trait_and_inherent_method_same_name_do_not_collide() {
+        // MT-098: `A::run` inherent vs `A::run` from `impl Trait for A` are
+        // DISTINCT methods and must get distinct keys.
+        let src = r#"
+struct A;
+trait T { fn run(&self); }
+impl A { fn run(&self) {} }
+impl T for A { fn run(&self) {} }
+"#;
+        let ks = keys(CodeLanguage::Rust, src, "src/lib.rs");
+        assert_unique_keys(&ks);
+        // The trait-impl method carries the `as:T` discriminator.
+        assert!(
+            ks.iter().any(|k| k.contains("#A::run~as:T")),
+            "trait method must be tagged with its trait: {ks:?}"
+        );
+        // The inherent one is the bare path (no `~as:`).
+        assert!(
+            ks.iter().any(|k| k == "rust:src/lib.rs#A::run"),
+            "inherent method keeps the bare path: {ks:?}"
+        );
+    }
+
+    #[test]
+    fn rust_two_trait_impls_of_same_type_do_not_collide() {
+        // MT-098: `impl T1 for A` and `impl T2 for A` are distinct impl entities.
+        let src = r#"
+struct A;
+trait T1 {}
+trait T2 {}
+impl T1 for A {}
+impl T2 for A {}
+impl A {}
+"#;
+        let ks = keys(CodeLanguage::Rust, src, "src/lib.rs");
+        assert_unique_keys(&ks);
+        assert!(ks.iter().any(|k| k.contains("#impl A~as:T1")), "{ks:?}");
+        assert!(ks.iter().any(|k| k.contains("#impl A~as:T2")), "{ks:?}");
+        assert!(ks.iter().any(|k| k.contains("#impl A~inherent")), "{ks:?}");
+    }
+
+    #[test]
+    fn typescript_declaration_merging_same_name_do_not_collide() {
+        // MT-099: `interface Foo`, `class Foo`, `function Foo` legally coexist
+        // and must not merge into one symbol entity. (PascalCase `function Foo`
+        // is classified Component by the React heuristic -> `~component` tag;
+        // the point is the three keys are DISTINCT.)
+        let src = r#"
+interface Foo { a: number }
+class Foo { b() {} }
+function Foo() {}
+"#;
+        let ks = keys(CodeLanguage::TypeScript, src, "src/a.ts");
+        assert_unique_keys(&ks);
+        assert!(ks.iter().any(|k| k.contains("#Foo~interface")), "{ks:?}");
+        assert!(ks.iter().any(|k| k.contains("#Foo~class")), "{ks:?}");
+        assert!(
+            ks.iter()
+                .any(|k| k.contains("#Foo~component") || k.contains("#Foo~value")),
+            "the function/component Foo must have its own key: {ks:?}"
+        );
+    }
+
+    #[test]
+    fn typescript_multi_declarator_const_extracts_all() {
+        // MT-099: `const a = () => {}, b = () => {}` must yield BOTH a and b;
+        // a non-function `const MAX = 10` is a Constant.
+        let src = "const a = () => {}, b = () => {};\nconst MAX = 10;\n";
+        let tree = parse(CodeLanguage::TypeScript, src);
+        let syms = extract_symbols(&tree, src);
+        let names: Vec<&str> = syms.iter().map(|s| s.name.as_str()).collect();
+        assert!(names.contains(&"a"), "{names:?}");
+        assert!(names.contains(&"b"), "{names:?}");
+        assert!(names.contains(&"MAX"), "{names:?}");
+        let max = syms.iter().find(|s| s.name == "MAX").unwrap();
+        assert_eq!(max.kind, SymbolKind::Constant);
+        assert_unique_keys(
+            &syms
+                .iter()
+                .map(|s| s.entity_key(CodeLanguage::TypeScript, "src/a.ts"))
+                .collect::<Vec<_>>(),
+        );
+    }
+
+    #[test]
+    fn duplicate_same_kind_declarations_get_ordinal_and_do_not_collide() {
+        // MT-099/100: two declarations that genuinely produce the SAME base key
+        // (same name, same kind, same scope) — e.g. a duplicated function — get
+        // a stable `dup` ordinal so they do not collapse to one entity in the
+        // upsert. (Two top-level `function compute` is invalid JS but tree-sitter
+        // still parses both; the index must keep them distinct, not merge.)
+        let src = "function compute() { return 1; }\nfunction compute() { return 2; }\n";
+        let ks = keys(CodeLanguage::JavaScript, src, "src/a.js");
+        assert_unique_keys(&ks);
+        let dup_keys: Vec<&String> = ks.iter().filter(|k| k.contains("#compute~")).collect();
+        assert_eq!(dup_keys.len(), 2, "both duplicates must survive: {ks:?}");
+        assert!(
+            dup_keys.iter().all(|k| k.contains("dup")),
+            "duplicates must carry an ordinal: {ks:?}"
+        );
+    }
+
+    #[test]
+    fn javascript_class_and_function_same_name_do_not_collide() {
+        // MT-100: a `class Foo` and a `function Foo` must be distinct entities.
+        // (PascalCase `function Foo` -> Component heuristic -> `~component`.)
+        let src = "class Foo {}\nfunction Foo() {}\n";
+        let ks = keys(CodeLanguage::JavaScript, src, "src/a.js");
+        assert_unique_keys(&ks);
+        assert!(ks.iter().any(|k| k.contains("#Foo~class")), "{ks:?}");
+        assert!(
+            ks.iter()
+                .any(|k| k.contains("#Foo~component") || k.contains("#Foo~value")),
+            "{ks:?}"
+        );
+    }
+
+    #[test]
+    fn lowercase_function_and_const_same_name_do_not_collide() {
+        // A lowercase `value`-namespace collision: a `function helper` and a
+        // `const helper = () => {}` both tag `~value`; the ordinal keeps them
+        // distinct rather than merging.
+        let src = "function helper() {}\nconst helper = () => {};\n";
+        let ks = keys(CodeLanguage::JavaScript, src, "src/a.js");
+        assert_unique_keys(&ks);
+        let helper_keys: Vec<&String> = ks.iter().filter(|k| k.contains("#helper~")).collect();
+        assert_eq!(helper_keys.len(), 2, "{ks:?}");
     }
 }

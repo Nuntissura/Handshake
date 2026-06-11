@@ -691,10 +691,14 @@ async fn edge_span_refs(db: &PostgresDatabase, edge_id: &str) -> Vec<Value> {
     out
 }
 
-/// The simple name of a symbol key `{lang}:{path}#{symbol_path}` (last segment
-/// of the symbol_path after the final `.`/`::`).
+/// The simple name of a symbol key `{lang}:{path}#{symbol_path}[~{disc}]` (last
+/// segment of the symbol_path after the final `.`/`::`). The optional `~{disc}`
+/// collision discriminator (MT-098/099/100) is stripped first so the name match
+/// is unaffected by it.
 fn symbol_simple_name(entity_key: &str) -> &str {
     let after_hash = entity_key.rsplit('#').next().unwrap_or(entity_key);
+    // Drop the collision discriminator suffix (`~as:Trait`, `~class`, `~dup1`).
+    let after_hash = after_hash.split('~').next().unwrap_or(after_hash);
     after_hash
         .rsplit("::")
         .next()

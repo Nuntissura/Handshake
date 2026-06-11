@@ -209,26 +209,29 @@ async fn mt112_indexes_mixed_tree_with_symbols_spans_edges() {
         .await
         .expect("list symbols");
     let keys: Vec<&str> = symbols.iter().map(|s| s.entity_key.as_str()).collect();
-    // Rust
+    // Rust: free fns keep a clean key; a TRAIT-impl method carries the `as:Trait`
+    // collision discriminator (MT-098) so it never merges with an inherent one.
     assert!(keys.iter().any(|k| *k == "rust:src/lib.rs#add"), "{keys:?}");
     assert!(
-        keys.iter().any(|k| *k == "rust:src/lib.rs#Widget::render"),
+        keys.iter()
+            .any(|k| *k == "rust:src/lib.rs#Widget::render~as:Render"),
         "{keys:?}"
     );
-    // TS
+    // TS: top-level decls carry a kind tag (MT-099 declaration-merging safety).
     assert!(
         keys.iter()
-            .any(|k| *k == "typescript:app/service.ts#Service"),
+            .any(|k| *k == "typescript:app/service.ts#Service~class"),
         "{keys:?}"
     );
     assert!(
         keys.iter()
-            .any(|k| *k == "typescript:app/service.ts#useThing"),
+            .any(|k| *k == "typescript:app/service.ts#useThing~hook"),
         "{keys:?}"
     );
     // JS
     assert!(
-        keys.iter().any(|k| *k == "javascript:app/store.js#compute"),
+        keys.iter()
+            .any(|k| *k == "javascript:app/store.js#compute~value"),
         "{keys:?}"
     );
 
