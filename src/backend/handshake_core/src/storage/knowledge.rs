@@ -278,6 +278,272 @@ fn new_knowledge_id(prefix: &str) -> String {
     format!("{prefix}-{}", Uuid::now_v7().simple())
 }
 
+fn is_sha256_hex(value: &str) -> bool {
+    value.len() == 64 && value.chars().all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase())
+}
+
+// ---------------------------------------------------------------------------
+// MT-051 ProjectSourceFileTables: per-source records under managed roots.
+// ---------------------------------------------------------------------------
+
+/// Kind of an indexed knowledge source (spec 2.3.13.11 KnowledgeSource).
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum KnowledgeSourceKind {
+    File,
+    Asset,
+    RichDocument,
+    LoomBlock,
+    ExternalImport,
+    OperatorArtifact,
+}
+
+impl KnowledgeSourceKind {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::File => "file",
+            Self::Asset => "asset",
+            Self::RichDocument => "rich_document",
+            Self::LoomBlock => "loom_block",
+            Self::ExternalImport => "external_import",
+            Self::OperatorArtifact => "operator_artifact",
+        }
+    }
+}
+
+impl FromStr for KnowledgeSourceKind {
+    type Err = StorageError;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        match value {
+            "file" => Ok(Self::File),
+            "asset" => Ok(Self::Asset),
+            "rich_document" => Ok(Self::RichDocument),
+            "loom_block" => Ok(Self::LoomBlock),
+            "external_import" => Ok(Self::ExternalImport),
+            "operator_artifact" => Ok(Self::OperatorArtifact),
+            _ => Err(StorageError::Validation("invalid knowledge source_kind")),
+        }
+    }
+}
+
+/// Parser status of a knowledge source.
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum KnowledgeParserStatus {
+    Pending,
+    Parsed,
+    Failed,
+    Skipped,
+}
+
+impl KnowledgeParserStatus {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Pending => "pending",
+            Self::Parsed => "parsed",
+            Self::Failed => "failed",
+            Self::Skipped => "skipped",
+        }
+    }
+}
+
+impl FromStr for KnowledgeParserStatus {
+    type Err = StorageError;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        match value {
+            "pending" => Ok(Self::Pending),
+            "parsed" => Ok(Self::Parsed),
+            "failed" => Ok(Self::Failed),
+            "skipped" => Ok(Self::Skipped),
+            _ => Err(StorageError::Validation("invalid knowledge parser_status")),
+        }
+    }
+}
+
+/// Extraction status of a knowledge source.
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum KnowledgeExtractionStatus {
+    Pending,
+    Extracted,
+    Failed,
+    Skipped,
+}
+
+impl KnowledgeExtractionStatus {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Pending => "pending",
+            Self::Extracted => "extracted",
+            Self::Failed => "failed",
+            Self::Skipped => "skipped",
+        }
+    }
+}
+
+impl FromStr for KnowledgeExtractionStatus {
+    type Err = StorageError;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        match value {
+            "pending" => Ok(Self::Pending),
+            "extracted" => Ok(Self::Extracted),
+            "failed" => Ok(Self::Failed),
+            "skipped" => Ok(Self::Skipped),
+            _ => Err(StorageError::Validation(
+                "invalid knowledge extraction_status",
+            )),
+        }
+    }
+}
+
+/// Permission scope of a knowledge source.
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum KnowledgePermissionScope {
+    Workspace,
+    OperatorPrivate,
+    Shared,
+}
+
+impl KnowledgePermissionScope {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Workspace => "workspace",
+            Self::OperatorPrivate => "operator_private",
+            Self::Shared => "shared",
+        }
+    }
+}
+
+impl FromStr for KnowledgePermissionScope {
+    type Err = StorageError;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        match value {
+            "workspace" => Ok(Self::Workspace),
+            "operator_private" => Ok(Self::OperatorPrivate),
+            "shared" => Ok(Self::Shared),
+            _ => Err(StorageError::Validation(
+                "invalid knowledge permission_scope",
+            )),
+        }
+    }
+}
+
+/// Redaction state of a knowledge source.
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum KnowledgeRedactionState {
+    None,
+    Partial,
+    Redacted,
+}
+
+impl KnowledgeRedactionState {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::None => "none",
+            Self::Partial => "partial",
+            Self::Redacted => "redacted",
+        }
+    }
+}
+
+impl FromStr for KnowledgeRedactionState {
+    type Err = StorageError;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        match value {
+            "none" => Ok(Self::None),
+            "partial" => Ok(Self::Partial),
+            "redacted" => Ok(Self::Redacted),
+            _ => Err(StorageError::Validation(
+                "invalid knowledge redaction_state",
+            )),
+        }
+    }
+}
+
+/// A registered knowledge source (file/asset/rich doc/Loom block/import).
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct KnowledgeSource {
+    pub source_id: String,
+    pub workspace_id: String,
+    pub root_id: Option<String>,
+    pub source_kind: KnowledgeSourceKind,
+    pub relative_path: Option<String>,
+    pub asset_id: Option<String>,
+    pub loom_block_id: Option<String>,
+    pub document_id: Option<String>,
+    pub content_hash: String,
+    pub size_bytes: Option<i64>,
+    pub provenance: Value,
+    pub permission_scope: KnowledgePermissionScope,
+    pub redaction_state: KnowledgeRedactionState,
+    pub parser_status: KnowledgeParserStatus,
+    pub extraction_status: KnowledgeExtractionStatus,
+    pub stale: bool,
+    pub last_index_receipt_event_id: Option<String>,
+    pub source_modified_at: Option<DateTime<Utc>>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+/// Insert/upsert payload for [`KnowledgeSource`].
+#[derive(Clone, Debug)]
+pub struct NewKnowledgeSource {
+    pub workspace_id: String,
+    pub root_id: Option<String>,
+    pub source_kind: KnowledgeSourceKind,
+    pub relative_path: Option<String>,
+    pub asset_id: Option<String>,
+    pub loom_block_id: Option<String>,
+    pub document_id: Option<String>,
+    /// SHA-256 hex digest of the source content (lowercase, 64 chars).
+    pub content_hash: String,
+    pub size_bytes: Option<i64>,
+    pub provenance: Value,
+    pub permission_scope: KnowledgePermissionScope,
+    pub redaction_state: KnowledgeRedactionState,
+    pub source_modified_at: Option<DateTime<Utc>>,
+}
+
+const KNOWLEDGE_SOURCE_COLUMNS: &str = r#"
+    source_id, workspace_id, root_id, source_kind, relative_path,
+    asset_id, loom_block_id, document_id, content_hash, size_bytes,
+    provenance, permission_scope, redaction_state, parser_status,
+    extraction_status, stale, last_index_receipt_event_id,
+    source_modified_at, created_at, updated_at
+"#;
+
+fn source_from_pg(row: &sqlx::postgres::PgRow) -> StorageResult<KnowledgeSource> {
+    Ok(KnowledgeSource {
+        source_id: row.get("source_id"),
+        workspace_id: row.get("workspace_id"),
+        root_id: row.get("root_id"),
+        source_kind: row.get::<String, _>("source_kind").parse()?,
+        relative_path: row.get("relative_path"),
+        asset_id: row.get("asset_id"),
+        loom_block_id: row.get("loom_block_id"),
+        document_id: row.get("document_id"),
+        content_hash: row.get("content_hash"),
+        size_bytes: row.get("size_bytes"),
+        provenance: row.get("provenance"),
+        permission_scope: row.get::<String, _>("permission_scope").parse()?,
+        redaction_state: row.get::<String, _>("redaction_state").parse()?,
+        parser_status: row.get::<String, _>("parser_status").parse()?,
+        extraction_status: row.get::<String, _>("extraction_status").parse()?,
+        stale: row.get("stale"),
+        last_index_receipt_event_id: row.get("last_index_receipt_event_id"),
+        source_modified_at: row.get("source_modified_at"),
+        created_at: row.get("created_at"),
+        updated_at: row.get("updated_at"),
+    })
+}
+
 // ---------------------------------------------------------------------------
 // KnowledgeStore trait: the WP-009 storage surface on PostgresDatabase.
 // ---------------------------------------------------------------------------
@@ -319,6 +585,39 @@ pub trait KnowledgeStore: Send + Sync {
         root_id: &str,
         eligibility: KnowledgeIndexingEligibility,
     ) -> StorageResult<KnowledgeSourceRoot>;
+
+    // -- MT-051 sources -------------------------------------------------------
+    /// Registers or refreshes a knowledge source. File-kind sources upsert on
+    /// `(root_id, relative_path)`: a re-index with a new content hash updates
+    /// the row in place, resets parser/extraction status to `pending`, and
+    /// clears the stale marker.
+    async fn upsert_knowledge_source(
+        &self,
+        new_source: NewKnowledgeSource,
+    ) -> StorageResult<KnowledgeSource>;
+
+    async fn get_knowledge_source(
+        &self,
+        source_id: &str,
+    ) -> StorageResult<Option<KnowledgeSource>>;
+
+    async fn list_knowledge_sources_for_root(
+        &self,
+        root_id: &str,
+    ) -> StorageResult<Vec<KnowledgeSource>>;
+
+    /// Marks a source stale (content changed since last index).
+    async fn mark_knowledge_source_stale(&self, source_id: &str) -> StorageResult<KnowledgeSource>;
+
+    /// Records the index receipt for a source: parser/extraction outcome plus
+    /// the EventLedger receipt ref (FK-enforced replayable evidence).
+    async fn record_knowledge_source_index_receipt(
+        &self,
+        source_id: &str,
+        parser_status: KnowledgeParserStatus,
+        extraction_status: KnowledgeExtractionStatus,
+        receipt_event_id: &str,
+    ) -> StorageResult<KnowledgeSource>;
 }
 
 fn registry_row_from_pg(row: &sqlx::postgres::PgRow) -> StorageResult<KnowledgeSchemaRegistryRow> {
@@ -486,5 +785,139 @@ impl KnowledgeStore for PostgresDatabase {
         .await?
         .ok_or(StorageError::NotFound("knowledge source root"))?;
         source_root_from_pg(&row)
+    }
+
+    async fn upsert_knowledge_source(
+        &self,
+        new_source: NewKnowledgeSource,
+    ) -> StorageResult<KnowledgeSource> {
+        if !is_sha256_hex(&new_source.content_hash) {
+            return Err(StorageError::Validation(
+                "knowledge source content_hash must be a lowercase sha256 hex digest",
+            ));
+        }
+        let relative_path = new_source
+            .relative_path
+            .as_deref()
+            .map(normalize_repo_relative_path)
+            .transpose()?;
+        if matches!(new_source.source_kind, KnowledgeSourceKind::File)
+            && (new_source.root_id.is_none() || relative_path.is_none())
+        {
+            return Err(StorageError::Validation(
+                "file-kind knowledge sources require root_id and relative_path",
+            ));
+        }
+        let source_id = new_knowledge_id("KSRC");
+
+        let sql = format!(
+            r#"
+            INSERT INTO knowledge_sources
+                (source_id, workspace_id, root_id, source_kind, relative_path,
+                 asset_id, loom_block_id, document_id, content_hash, size_bytes,
+                 provenance, permission_scope, redaction_state, source_modified_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+            ON CONFLICT (root_id, relative_path) WHERE relative_path IS NOT NULL
+            DO UPDATE SET
+                content_hash = EXCLUDED.content_hash,
+                size_bytes = EXCLUDED.size_bytes,
+                provenance = EXCLUDED.provenance,
+                permission_scope = EXCLUDED.permission_scope,
+                redaction_state = EXCLUDED.redaction_state,
+                source_modified_at = EXCLUDED.source_modified_at,
+                parser_status = 'pending',
+                extraction_status = 'pending',
+                stale = FALSE,
+                updated_at = NOW()
+            RETURNING {KNOWLEDGE_SOURCE_COLUMNS}
+            "#
+        );
+        let row = sqlx::query(&sql)
+            .bind(&source_id)
+            .bind(&new_source.workspace_id)
+            .bind(&new_source.root_id)
+            .bind(new_source.source_kind.as_str())
+            .bind(&relative_path)
+            .bind(&new_source.asset_id)
+            .bind(&new_source.loom_block_id)
+            .bind(&new_source.document_id)
+            .bind(&new_source.content_hash)
+            .bind(new_source.size_bytes)
+            .bind(&new_source.provenance)
+            .bind(new_source.permission_scope.as_str())
+            .bind(new_source.redaction_state.as_str())
+            .bind(new_source.source_modified_at)
+            .fetch_one(self.pool())
+            .await?;
+        source_from_pg(&row)
+    }
+
+    async fn get_knowledge_source(
+        &self,
+        source_id: &str,
+    ) -> StorageResult<Option<KnowledgeSource>> {
+        let sql = format!(
+            "SELECT {KNOWLEDGE_SOURCE_COLUMNS} FROM knowledge_sources WHERE source_id = $1"
+        );
+        let row = sqlx::query(&sql)
+            .bind(source_id)
+            .fetch_optional(self.pool())
+            .await?;
+        row.as_ref().map(source_from_pg).transpose()
+    }
+
+    async fn list_knowledge_sources_for_root(
+        &self,
+        root_id: &str,
+    ) -> StorageResult<Vec<KnowledgeSource>> {
+        let sql = format!(
+            "SELECT {KNOWLEDGE_SOURCE_COLUMNS} FROM knowledge_sources
+             WHERE root_id = $1 ORDER BY relative_path"
+        );
+        let rows = sqlx::query(&sql).bind(root_id).fetch_all(self.pool()).await?;
+        rows.iter().map(source_from_pg).collect()
+    }
+
+    async fn mark_knowledge_source_stale(&self, source_id: &str) -> StorageResult<KnowledgeSource> {
+        let sql = format!(
+            "UPDATE knowledge_sources SET stale = TRUE, updated_at = NOW()
+             WHERE source_id = $1 RETURNING {KNOWLEDGE_SOURCE_COLUMNS}"
+        );
+        let row = sqlx::query(&sql)
+            .bind(source_id)
+            .fetch_optional(self.pool())
+            .await?
+            .ok_or(StorageError::NotFound("knowledge source"))?;
+        source_from_pg(&row)
+    }
+
+    async fn record_knowledge_source_index_receipt(
+        &self,
+        source_id: &str,
+        parser_status: KnowledgeParserStatus,
+        extraction_status: KnowledgeExtractionStatus,
+        receipt_event_id: &str,
+    ) -> StorageResult<KnowledgeSource> {
+        let sql = format!(
+            r#"
+            UPDATE knowledge_sources
+            SET parser_status = $2,
+                extraction_status = $3,
+                last_index_receipt_event_id = $4,
+                stale = FALSE,
+                updated_at = NOW()
+            WHERE source_id = $1
+            RETURNING {KNOWLEDGE_SOURCE_COLUMNS}
+            "#
+        );
+        let row = sqlx::query(&sql)
+            .bind(source_id)
+            .bind(parser_status.as_str())
+            .bind(extraction_status.as_str())
+            .bind(receipt_event_id)
+            .fetch_optional(self.pool())
+            .await?
+            .ok_or(StorageError::NotFound("knowledge source"))?;
+        source_from_pg(&row)
     }
 }

@@ -300,3 +300,209 @@ mod mt_050_source_roots {
         );
     }
 }
+
+// ---------------------------------------------------------------------------
+// MT-051 ProjectSourceFileTables
+// ---------------------------------------------------------------------------
+
+mod mt_051_sources {
+    use super::*;
+    use handshake_core::kernel::{KernelActor, KernelEventType, NewKernelEvent};
+    use handshake_core::storage::knowledge::{
+        KnowledgeExtractionStatus, KnowledgeIndexingEligibility, KnowledgeParserStatus,
+        KnowledgePermissionScope, KnowledgeRedactionState, KnowledgeRootKind,
+        KnowledgeSourceKind, KnowledgeStore, NewKnowledgeSource, NewKnowledgeSourceRoot,
+    };
+    use handshake_core::storage::{Database, StorageError};
+    use knowledge_pg_support::KnowledgePg;
+    use serde_json::json;
+    use uuid::Uuid;
+
+    const HASH_A: &str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+    const HASH_B: &str = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+
+    async fn root_for(pg: &KnowledgePg, workspace_id: &str) -> String {
+        pg.db
+            .create_knowledge_source_root(NewKnowledgeSourceRoot {
+                workspace_id: workspace_id.to_string(),
+                display_name: "core".to_string(),
+                root_kind: KnowledgeRootKind::ProjectRepo,
+                repo_relative_path: format!("src/{}", Uuid::now_v7().simple()),
+                allowlist_policy: json!({"include": ["**/*.rs"], "exclude": []}),
+                indexing_eligibility: KnowledgeIndexingEligibility::Eligible,
+            })
+            .await
+            .expect("create root")
+            .root_id
+    }
+
+    fn file_source(workspace_id: &str, root_id: &str, path: &str, hash: &str) -> NewKnowledgeSource {
+        NewKnowledgeSource {
+            workspace_id: workspace_id.to_string(),
+            root_id: Some(root_id.to_string()),
+            source_kind: KnowledgeSourceKind::File,
+            relative_path: Some(path.to_string()),
+            asset_id: None,
+            loom_block_id: None,
+            document_id: None,
+            content_hash: hash.to_string(),
+            size_bytes: Some(2048),
+            provenance: json!({"discovered_by": "index_walk_v1"}),
+            permission_scope: KnowledgePermissionScope::Workspace,
+            redaction_state: KnowledgeRedactionState::None,
+            source_modified_at: None,
+        }
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn upsert_keeps_stable_source_id_across_reindex() {
+        let Some(pg) = knowledge_pg().await else {
+            eprintln!("SKIP upsert_keeps_stable_source_id_across_reindex: no PostgreSQL");
+            return;
+        };
+        let workspace_id = pg.create_workspace().await;
+        let root_id = root_for(&pg, &workspace_id).await;
+
+        let first = pg
+            .db
+            .upsert_knowledge_source(file_source(&workspace_id, &root_id, "kernel/mod.rs", HASH_A))
+            .await
+            .expect("first upsert");
+        assert!(first.source_id.starts_with("KSRC-"));
+        assert_eq!(first.content_hash, HASH_A);
+
+        // Mark stale, then re-index the same (root, path) with a new hash:
+        // the stable source id survives, the hash updates, statuses reset.
+        pg.db
+            .mark_knowledge_source_stale(&first.source_id)
+            .await
+            .expect("mark stale");
+        let second = pg
+            .db
+            .upsert_knowledge_source(file_source(&workspace_id, &root_id, "kernel/mod.rs", HASH_B))
+            .await
+            .expect("re-index upsert");
+        assert_eq!(second.source_id, first.source_id, "source id must be stable");
+        assert_eq!(second.content_hash, HASH_B);
+        assert!(!second.stale, "re-index must clear the stale marker");
+        assert_eq!(second.parser_status, KnowledgeParserStatus::Pending);
+
+        let listed = pg
+            .db
+            .list_knowledge_sources_for_root(&root_id)
+            .await
+            .expect("list sources");
+        assert_eq!(listed.len(), 1, "upsert must not duplicate the source row");
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn index_receipt_is_fk_bound_to_event_ledger() {
+        let Some(pg) = knowledge_pg().await else {
+            eprintln!("SKIP index_receipt_is_fk_bound_to_event_ledger: no PostgreSQL");
+            return;
+        };
+        let workspace_id = pg.create_workspace().await;
+        let root_id = root_for(&pg, &workspace_id).await;
+        let source = pg
+            .db
+            .upsert_knowledge_source(file_source(&workspace_id, &root_id, "storage/mod.rs", HASH_A))
+            .await
+            .expect("upsert source");
+
+        // A bogus receipt ref must fail closed (FK violation), proving
+        // receipts can only point at real EventLedger rows.
+        let bogus = pg
+            .db
+            .record_knowledge_source_index_receipt(
+                &source.source_id,
+                KnowledgeParserStatus::Parsed,
+                KnowledgeExtractionStatus::Extracted,
+                "KE-DOES-NOT-EXIST",
+            )
+            .await
+            .expect_err("receipt ref must be FK-bound to kernel_event_ledger");
+        assert!(bogus.to_string().contains("foreign key"), "unexpected: {bogus}");
+
+        // A real appended kernel event satisfies the FK.
+        let suffix = Uuid::now_v7();
+        let event = pg
+            .db
+            .append_kernel_event(
+                NewKernelEvent::builder(
+                    format!("KTR-KNOWLEDGE-{suffix}"),
+                    format!("SR-KNOWLEDGE-{suffix}"),
+                    KernelEventType::ValidationRecorded,
+                    KernelActor::System("knowledge-indexer-test".to_string()),
+                )
+                .aggregate("knowledge_source", source.source_id.clone())
+                .idempotency_key(format!("idem-knowledge-receipt-{suffix}"))
+                .payload(json!({"parser": "v1", "source_id": source.source_id}))
+                .build()
+                .expect("build kernel event"),
+            )
+            .await
+            .expect("append kernel event");
+
+        let updated = pg
+            .db
+            .record_knowledge_source_index_receipt(
+                &source.source_id,
+                KnowledgeParserStatus::Parsed,
+                KnowledgeExtractionStatus::Extracted,
+                &event.event_id,
+            )
+            .await
+            .expect("record index receipt");
+        assert_eq!(updated.last_index_receipt_event_id.as_deref(), Some(event.event_id.as_str()));
+        assert_eq!(updated.parser_status, KnowledgeParserStatus::Parsed);
+        assert_eq!(updated.extraction_status, KnowledgeExtractionStatus::Extracted);
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn source_constraints_fail_closed() {
+        let Some(pg) = knowledge_pg().await else {
+            eprintln!("SKIP source_constraints_fail_closed: no PostgreSQL");
+            return;
+        };
+        let workspace_id = pg.create_workspace().await;
+        let root_id = root_for(&pg, &workspace_id).await;
+
+        // Rust validation: malformed hash.
+        let mut bad_hash = file_source(&workspace_id, &root_id, "a.rs", HASH_A);
+        bad_hash.content_hash = "not-a-hash".to_string();
+        let err = pg
+            .db
+            .upsert_knowledge_source(bad_hash)
+            .await
+            .expect_err("malformed content hash must be rejected");
+        assert!(matches!(err, StorageError::Validation(_)));
+
+        // Rust validation: file source without root/path.
+        let mut rootless = file_source(&workspace_id, &root_id, "b.rs", HASH_A);
+        rootless.root_id = None;
+        let err = pg
+            .db
+            .upsert_knowledge_source(rootless)
+            .await
+            .expect_err("file source without root must be rejected");
+        assert!(matches!(err, StorageError::Validation(_)));
+
+        // DB-level CHECK: uppercase hash bypassing the app layer.
+        let mut conn = pg.raw_connection().await;
+        let err = sqlx::query(
+            "INSERT INTO knowledge_sources
+                 (source_id, workspace_id, root_id, source_kind, relative_path, content_hash)
+             VALUES ('KSRC-00000000000000000000000000000001', $1, $2, 'file', 'c.rs', $3)",
+        )
+        .bind(&workspace_id)
+        .bind(&root_id)
+        .bind(HASH_A.to_uppercase())
+        .execute(&mut conn)
+        .await
+        .expect_err("DB must reject non-lowercase-hex content hash");
+        assert!(
+            err.to_string().contains("chk_knowledge_sources_content_hash"),
+            "unexpected: {err}"
+        );
+    }
+}
