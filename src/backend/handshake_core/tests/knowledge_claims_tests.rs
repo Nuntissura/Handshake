@@ -101,7 +101,9 @@ mod mt_056_claims {
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn claim_lifecycle_proposed_accepted_retired_with_receipts() {
         let Some(pg) = knowledge_pg().await else {
-            eprintln!("SKIP claim_lifecycle_proposed_accepted_retired_with_receipts: no PostgreSQL");
+            eprintln!(
+                "SKIP claim_lifecycle_proposed_accepted_retired_with_receipts: no PostgreSQL"
+            );
             return;
         };
         let (workspace_id, _source_id, span_id) = span_fixture(&pg).await;
@@ -225,7 +227,10 @@ mod mt_056_claims {
 
         // DB layer: direct INSERT without evidence fails at COMMIT.
         let mut conn = pg.raw_connection().await;
-        sqlx::query("BEGIN").execute(&mut conn).await.expect("begin");
+        sqlx::query("BEGIN")
+            .execute(&mut conn)
+            .await
+            .expect("begin");
         sqlx::query(
             "INSERT INTO knowledge_claims
                  (claim_id, workspace_id, claim_kind, claim_text)
@@ -255,7 +260,8 @@ mod mt_056_claims {
         .await
         .expect_err("retired claims must carry a retirement reason");
         assert!(
-            err.to_string().contains("chk_knowledge_claims_retirement_shape"),
+            err.to_string()
+                .contains("chk_knowledge_claims_retirement_shape"),
             "unexpected: {err}"
         );
     }
@@ -322,7 +328,8 @@ mod mt_056_claims {
             .await
             .expect_err("duplicate conflict pair must violate unique constraint");
         assert!(
-            err.to_string().contains("uq_knowledge_claim_conflicts_pair"),
+            err.to_string()
+                .contains("uq_knowledge_claim_conflicts_pair"),
             "unexpected: {err}"
         );
 
@@ -390,5 +397,194 @@ mod mt_056_claims {
             .await
             .expect("list conflicts");
         assert_eq!(conflicts.len(), 1);
+    }
+}
+
+// ---------------------------------------------------------------------------
+// MT-057 PassageEvidenceTables
+// ---------------------------------------------------------------------------
+
+mod mt_057_passages {
+    use super::*;
+    use handshake_core::storage::knowledge::{
+        KnowledgeClaimKind, KnowledgeCompactionPolicy, KnowledgePassageEvidenceRef,
+        KnowledgeRetrievalMode, NewKnowledgeClaim, NewKnowledgeMemoryPassage,
+    };
+    use handshake_core::storage::StorageError;
+
+    fn passage(
+        workspace_id: &str,
+        evidence: Vec<KnowledgePassageEvidenceRef>,
+    ) -> NewKnowledgeMemoryPassage {
+        NewKnowledgeMemoryPassage {
+            workspace_id: workspace_id.to_string(),
+            passage_text: "The managed PostgreSQL cluster listens on port 5544 by default."
+                .to_string(),
+            token_count: Some(14),
+            ocr_transcript_metadata: None,
+            extraction_confidence: 0.92,
+            ranking_features: json!({"recency_score": 0.8, "pin_weight": 0.0}),
+            retrieval_mode: KnowledgeRetrievalMode::HybridRag,
+            compaction_policy: KnowledgeCompactionPolicy::Keep,
+            failure_receipt_event_id: None,
+            derived_in_run: None,
+            evidence,
+        }
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn passage_roundtrip_with_mixed_evidence_lineage() {
+        let Some(pg) = knowledge_pg().await else {
+            eprintln!("SKIP passage_roundtrip_with_mixed_evidence_lineage: no PostgreSQL");
+            return;
+        };
+        let (workspace_id, source_id, span_id) = span_fixture(&pg).await;
+        let claim = pg
+            .db
+            .create_knowledge_claim(NewKnowledgeClaim {
+                workspace_id: workspace_id.clone(),
+                claim_kind: KnowledgeClaimKind::ProductBehavior,
+                claim_text: "managed PG default port is 5544".to_string(),
+                subject_entity_id: None,
+                temporal_qualifier: None,
+                granularity_qualifier: None,
+                confidence: 0.9,
+                proposed_in_run: None,
+                evidence_span_ids: vec![span_id.clone()],
+            })
+            .await
+            .expect("claim");
+
+        let evidence = vec![
+            KnowledgePassageEvidenceRef::Source {
+                source_id: source_id.clone(),
+            },
+            KnowledgePassageEvidenceRef::Claim {
+                claim_id: claim.claim_id.clone(),
+            },
+            KnowledgePassageEvidenceRef::Span {
+                span_id: span_id.clone(),
+            },
+        ];
+        let created = pg
+            .db
+            .create_knowledge_memory_passage(passage(&workspace_id, evidence.clone()))
+            .await
+            .expect("create passage");
+        assert!(created.passage_id.starts_with("KMP-"));
+        assert_eq!(created.retrieval_mode, KnowledgeRetrievalMode::HybridRag);
+        assert_eq!(created.compaction_policy, KnowledgeCompactionPolicy::Keep);
+        assert!((created.extraction_confidence - 0.92).abs() < f64::EPSILON);
+
+        let fetched = pg
+            .db
+            .get_knowledge_memory_passage(&created.passage_id)
+            .await
+            .expect("get passage")
+            .expect("passage exists");
+        assert_eq!(fetched, created);
+
+        let lineage = pg
+            .db
+            .list_knowledge_passage_evidence(&created.passage_id)
+            .await
+            .expect("lineage");
+        assert_eq!(lineage, evidence, "lineage must round-trip in order");
+
+        // Compaction lifecycle: keep -> compactable refreshes policy.
+        let compactable = pg
+            .db
+            .set_knowledge_passage_compaction(
+                &created.passage_id,
+                KnowledgeCompactionPolicy::Compactable,
+                true,
+            )
+            .await
+            .expect("set compaction");
+        assert_eq!(
+            compactable.compaction_policy,
+            KnowledgeCompactionPolicy::Compactable
+        );
+        assert!(compactable.freshness_at >= created.freshness_at);
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn passages_require_lineage_at_every_layer() {
+        let Some(pg) = knowledge_pg().await else {
+            eprintln!("SKIP passages_require_lineage_at_every_layer: no PostgreSQL");
+            return;
+        };
+        let (workspace_id, _source_id, _span_id) = span_fixture(&pg).await;
+
+        // Rust layer: lineage-free passages are rejected.
+        let err = pg
+            .db
+            .create_knowledge_memory_passage(passage(&workspace_id, vec![]))
+            .await
+            .expect_err("passages must carry derivation lineage");
+        assert!(matches!(err, StorageError::Validation(_)), "got {err:?}");
+
+        // Ghost lineage rolls the whole insert back (FK violation).
+        let err = pg
+            .db
+            .create_knowledge_memory_passage(passage(
+                &workspace_id,
+                vec![KnowledgePassageEvidenceRef::Span {
+                    span_id: "KSP-00000000000000000000000000000000".to_string(),
+                }],
+            ))
+            .await
+            .expect_err("ghost span lineage must violate the FK");
+        assert!(err.to_string().contains("foreign key"), "got {err}");
+
+        // DB layer: direct INSERT without lineage fails at COMMIT.
+        let mut conn = pg.raw_connection().await;
+        sqlx::query("BEGIN")
+            .execute(&mut conn)
+            .await
+            .expect("begin");
+        sqlx::query(
+            "INSERT INTO knowledge_memory_passages
+                 (passage_id, workspace_id, passage_text)
+             VALUES ('KMP-00000000000000000000000000000001', $1, 'rogue passage')",
+        )
+        .bind(&workspace_id)
+        .execute(&mut conn)
+        .await
+        .expect("insert inside transaction");
+        let err = sqlx::query("COMMIT")
+            .execute(&mut conn)
+            .await
+            .expect_err("commit must fail without lineage");
+        assert!(
+            err.to_string().contains("derived from sources and claims"),
+            "unexpected commit error: {err}"
+        );
+
+        // Evidence shape CHECK: ref_kind/ref column mismatch is rejected.
+        let real = pg
+            .db
+            .create_knowledge_memory_passage(passage(
+                &workspace_id,
+                vec![KnowledgePassageEvidenceRef::Source {
+                    source_id: span_fixture(&pg).await.1,
+                }],
+            ))
+            .await
+            .expect("real passage");
+        let err = sqlx::query(
+            "INSERT INTO knowledge_passage_evidence
+                 (passage_id, ref_kind, claim_id, ordinal)
+             VALUES ($1, 'span', NULL, 99)",
+        )
+        .bind(&real.passage_id)
+        .execute(&mut conn)
+        .await
+        .expect_err("ref_kind without matching ref column must violate CHECK");
+        assert!(
+            err.to_string()
+                .contains("chk_knowledge_passage_evidence_shape"),
+            "unexpected: {err}"
+        );
     }
 }

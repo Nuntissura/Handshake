@@ -236,12 +236,7 @@ pub fn normalize_repo_relative_path(path: &str) -> StorageResult<String> {
     }
     let normalized = trimmed.replace('\\', "/");
     let normalized = normalized.trim_end_matches('/').to_string();
-    if normalized
-        .chars()
-        .nth(1)
-        .map(|c| c == ':')
-        .unwrap_or(false)
-    {
+    if normalized.chars().nth(1).map(|c| c == ':').unwrap_or(false) {
         return Err(StorageError::Validation(
             "absolute path authority is forbidden: drive letters are machine-local",
         ));
@@ -279,7 +274,10 @@ fn new_knowledge_id(prefix: &str) -> String {
 }
 
 fn is_sha256_hex(value: &str) -> bool {
-    value.len() == 64 && value.chars().all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase())
+    value.len() == 64
+        && value
+            .chars()
+            .all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase())
 }
 
 // ---------------------------------------------------------------------------
@@ -657,9 +655,9 @@ impl KnowledgeIndexRunOutcome {
 
     fn counts(&self) -> KnowledgeIndexRunCounts {
         match self {
-            Self::Completed { counts } | Self::Failed { counts, .. } | Self::Cancelled { counts } => {
-                *counts
-            }
+            Self::Completed { counts }
+            | Self::Failed { counts, .. }
+            | Self::Cancelled { counts } => *counts,
         }
     }
 
@@ -1418,6 +1416,153 @@ fn claim_conflict_from_pg(row: &sqlx::postgres::PgRow) -> KnowledgeClaimConflict
 }
 
 // ---------------------------------------------------------------------------
+// MT-057 PassageEvidenceTables: MemoryPassage records with derivation lineage.
+// ---------------------------------------------------------------------------
+
+/// Retrieval mode vocabulary (spec 2.3.14.1.4 / RetrievalTrace).
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum KnowledgeRetrievalMode {
+    None,
+    DirectLoad,
+    ExactLookup,
+    GraphTraversal,
+    HybridRag,
+}
+
+impl KnowledgeRetrievalMode {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::None => "none",
+            Self::DirectLoad => "direct_load",
+            Self::ExactLookup => "exact_lookup",
+            Self::GraphTraversal => "graph_traversal",
+            Self::HybridRag => "hybrid_rag",
+        }
+    }
+}
+
+impl FromStr for KnowledgeRetrievalMode {
+    type Err = StorageError;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        match value {
+            "none" => Ok(Self::None),
+            "direct_load" => Ok(Self::DirectLoad),
+            "exact_lookup" => Ok(Self::ExactLookup),
+            "graph_traversal" => Ok(Self::GraphTraversal),
+            "hybrid_rag" => Ok(Self::HybridRag),
+            _ => Err(StorageError::Validation("invalid knowledge retrieval_mode")),
+        }
+    }
+}
+
+/// Compaction policy of a memory passage.
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum KnowledgeCompactionPolicy {
+    Keep,
+    Compactable,
+    Expired,
+}
+
+impl KnowledgeCompactionPolicy {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Keep => "keep",
+            Self::Compactable => "compactable",
+            Self::Expired => "expired",
+        }
+    }
+}
+
+impl FromStr for KnowledgeCompactionPolicy {
+    type Err = StorageError;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        match value {
+            "keep" => Ok(Self::Keep),
+            "compactable" => Ok(Self::Compactable),
+            "expired" => Ok(Self::Expired),
+            _ => Err(StorageError::Validation(
+                "invalid knowledge compaction_policy",
+            )),
+        }
+    }
+}
+
+/// One derivation-lineage ref of a memory passage.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(tag = "ref_kind", rename_all = "snake_case")]
+pub enum KnowledgePassageEvidenceRef {
+    Source { source_id: String },
+    Claim { claim_id: String },
+    Span { span_id: String },
+}
+
+/// A bounded passage eligible for model context (spec MemoryPassage).
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct KnowledgeMemoryPassage {
+    pub passage_id: String,
+    pub workspace_id: String,
+    pub passage_text: String,
+    pub token_count: Option<i32>,
+    pub ocr_transcript_metadata: Option<Value>,
+    pub extraction_confidence: f64,
+    pub ranking_features: Value,
+    pub retrieval_mode: KnowledgeRetrievalMode,
+    pub freshness_at: DateTime<Utc>,
+    pub compaction_policy: KnowledgeCompactionPolicy,
+    pub failure_receipt_event_id: Option<String>,
+    pub derived_in_run: Option<String>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+/// Insert payload for [`KnowledgeMemoryPassage`].
+#[derive(Clone, Debug)]
+pub struct NewKnowledgeMemoryPassage {
+    pub workspace_id: String,
+    pub passage_text: String,
+    pub token_count: Option<i32>,
+    pub ocr_transcript_metadata: Option<Value>,
+    pub extraction_confidence: f64,
+    pub ranking_features: Value,
+    pub retrieval_mode: KnowledgeRetrievalMode,
+    pub compaction_policy: KnowledgeCompactionPolicy,
+    pub failure_receipt_event_id: Option<String>,
+    pub derived_in_run: Option<String>,
+    /// REQUIRED derivation lineage: at least one source/claim/span ref.
+    pub evidence: Vec<KnowledgePassageEvidenceRef>,
+}
+
+const KNOWLEDGE_PASSAGE_COLUMNS: &str = r#"
+    passage_id, workspace_id, passage_text, token_count,
+    ocr_transcript_metadata, extraction_confidence, ranking_features,
+    retrieval_mode, freshness_at, compaction_policy,
+    failure_receipt_event_id, derived_in_run, created_at, updated_at
+"#;
+
+fn passage_from_pg(row: &sqlx::postgres::PgRow) -> StorageResult<KnowledgeMemoryPassage> {
+    Ok(KnowledgeMemoryPassage {
+        passage_id: row.get("passage_id"),
+        workspace_id: row.get("workspace_id"),
+        passage_text: row.get("passage_text"),
+        token_count: row.get("token_count"),
+        ocr_transcript_metadata: row.get("ocr_transcript_metadata"),
+        extraction_confidence: row.get("extraction_confidence"),
+        ranking_features: row.get("ranking_features"),
+        retrieval_mode: row.get::<String, _>("retrieval_mode").parse()?,
+        freshness_at: row.get("freshness_at"),
+        compaction_policy: row.get::<String, _>("compaction_policy").parse()?,
+        failure_receipt_event_id: row.get("failure_receipt_event_id"),
+        derived_in_run: row.get("derived_in_run"),
+        created_at: row.get("created_at"),
+        updated_at: row.get("updated_at"),
+    })
+}
+
+// ---------------------------------------------------------------------------
 // KnowledgeStore trait: the WP-009 storage surface on PostgresDatabase.
 // ---------------------------------------------------------------------------
 
@@ -1469,10 +1614,8 @@ pub trait KnowledgeStore: Send + Sync {
         new_source: NewKnowledgeSource,
     ) -> StorageResult<KnowledgeSource>;
 
-    async fn get_knowledge_source(
-        &self,
-        source_id: &str,
-    ) -> StorageResult<Option<KnowledgeSource>>;
+    async fn get_knowledge_source(&self, source_id: &str)
+        -> StorageResult<Option<KnowledgeSource>>;
 
     async fn list_knowledge_sources_for_root(
         &self,
@@ -1544,10 +1687,8 @@ pub trait KnowledgeStore: Send + Sync {
         new_entity: NewKnowledgeEntity,
     ) -> StorageResult<KnowledgeEntity>;
 
-    async fn get_knowledge_entity(
-        &self,
-        entity_id: &str,
-    ) -> StorageResult<Option<KnowledgeEntity>>;
+    async fn get_knowledge_entity(&self, entity_id: &str)
+        -> StorageResult<Option<KnowledgeEntity>>;
 
     async fn get_knowledge_entity_by_identity(
         &self,
@@ -1563,8 +1704,7 @@ pub trait KnowledgeStore: Send + Sync {
     ) -> StorageResult<Vec<KnowledgeEntity>>;
 
     /// Lists the evidence span ids an entity was detected from.
-    async fn list_knowledge_entity_span_ids(&self, entity_id: &str)
-        -> StorageResult<Vec<String>>;
+    async fn list_knowledge_entity_span_ids(&self, entity_id: &str) -> StorageResult<Vec<String>>;
 
     /// Marks an entity retired (it stops participating in new detection).
     async fn retire_knowledge_entity(&self, entity_id: &str) -> StorageResult<KnowledgeEntity>;
@@ -1657,6 +1797,33 @@ pub trait KnowledgeStore: Send + Sync {
         &self,
         claim_id: &str,
     ) -> StorageResult<Vec<KnowledgeClaimConflict>>;
+
+    // -- MT-057 memory passages -----------------------------------------------------
+    /// Creates a memory passage with its REQUIRED derivation lineage
+    /// (sources/claims/spans) in one transaction.
+    async fn create_knowledge_memory_passage(
+        &self,
+        new_passage: NewKnowledgeMemoryPassage,
+    ) -> StorageResult<KnowledgeMemoryPassage>;
+
+    async fn get_knowledge_memory_passage(
+        &self,
+        passage_id: &str,
+    ) -> StorageResult<Option<KnowledgeMemoryPassage>>;
+
+    /// Lists the derivation lineage of a passage in insertion order.
+    async fn list_knowledge_passage_evidence(
+        &self,
+        passage_id: &str,
+    ) -> StorageResult<Vec<KnowledgePassageEvidenceRef>>;
+
+    /// Refreshes passage freshness and/or compaction policy.
+    async fn set_knowledge_passage_compaction(
+        &self,
+        passage_id: &str,
+        compaction_policy: KnowledgeCompactionPolicy,
+        refresh_freshness: bool,
+    ) -> StorageResult<KnowledgeMemoryPassage>;
 }
 
 fn registry_row_from_pg(row: &sqlx::postgres::PgRow) -> StorageResult<KnowledgeSchemaRegistryRow> {
@@ -1913,7 +2080,10 @@ impl KnowledgeStore for PostgresDatabase {
             "SELECT {KNOWLEDGE_SOURCE_COLUMNS} FROM knowledge_sources
              WHERE root_id = $1 ORDER BY relative_path"
         );
-        let rows = sqlx::query(&sql).bind(root_id).fetch_all(self.pool()).await?;
+        let rows = sqlx::query(&sql)
+            .bind(root_id)
+            .fetch_all(self.pool())
+            .await?;
         rows.iter().map(source_from_pg).collect()
     }
 
@@ -2171,7 +2341,9 @@ impl KnowledgeStore for PostgresDatabase {
         &self,
         new_entity: NewKnowledgeEntity,
     ) -> StorageResult<KnowledgeEntity> {
-        if new_entity.entity_key.trim().is_empty() || new_entity.entity_key.trim() != new_entity.entity_key {
+        if new_entity.entity_key.trim().is_empty()
+            || new_entity.entity_key.trim() != new_entity.entity_key
+        {
             return Err(StorageError::Validation(
                 "knowledge entity_key must be non-empty without surrounding whitespace",
             ));
@@ -2285,10 +2457,7 @@ impl KnowledgeStore for PostgresDatabase {
         rows.iter().map(entity_from_pg).collect()
     }
 
-    async fn list_knowledge_entity_span_ids(
-        &self,
-        entity_id: &str,
-    ) -> StorageResult<Vec<String>> {
+    async fn list_knowledge_entity_span_ids(&self, entity_id: &str) -> StorageResult<Vec<String>> {
         let rows = sqlx::query(
             "SELECT span_id FROM knowledge_entity_spans WHERE entity_id = $1 ORDER BY span_id",
         )
@@ -2509,9 +2678,7 @@ impl KnowledgeStore for PostgresDatabase {
             ));
         }
         if new_claim.claim_text.trim().is_empty() {
-            return Err(StorageError::Validation(
-                "knowledge claim_text is required",
-            ));
+            return Err(StorageError::Validation("knowledge claim_text is required"));
         }
         if !(0.0..=1.0).contains(&new_claim.confidence) {
             return Err(StorageError::Validation(
@@ -2776,5 +2943,169 @@ impl KnowledgeStore for PostgresDatabase {
         .fetch_all(self.pool())
         .await?;
         Ok(rows.iter().map(claim_conflict_from_pg).collect())
+    }
+
+    async fn create_knowledge_memory_passage(
+        &self,
+        new_passage: NewKnowledgeMemoryPassage,
+    ) -> StorageResult<KnowledgeMemoryPassage> {
+        if new_passage.evidence.is_empty() {
+            return Err(StorageError::Validation(
+                "knowledge memory passages are derived from sources and claims; evidence is required (spec 2.3.13.11)",
+            ));
+        }
+        if new_passage.passage_text.is_empty() {
+            return Err(StorageError::Validation(
+                "knowledge passage_text is required",
+            ));
+        }
+        if !(0.0..=1.0).contains(&new_passage.extraction_confidence) {
+            return Err(StorageError::Validation(
+                "knowledge passage extraction_confidence must be within [0.0, 1.0]",
+            ));
+        }
+        let passage_id = new_knowledge_id("KMP");
+
+        let mut tx = self.pool().begin().await?;
+        let sql = format!(
+            r#"
+            INSERT INTO knowledge_memory_passages
+                (passage_id, workspace_id, passage_text, token_count,
+                 ocr_transcript_metadata, extraction_confidence,
+                 ranking_features, retrieval_mode, compaction_policy,
+                 failure_receipt_event_id, derived_in_run)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+            RETURNING {KNOWLEDGE_PASSAGE_COLUMNS}
+            "#
+        );
+        let row = sqlx::query(&sql)
+            .bind(&passage_id)
+            .bind(&new_passage.workspace_id)
+            .bind(&new_passage.passage_text)
+            .bind(new_passage.token_count)
+            .bind(&new_passage.ocr_transcript_metadata)
+            .bind(new_passage.extraction_confidence)
+            .bind(&new_passage.ranking_features)
+            .bind(new_passage.retrieval_mode.as_str())
+            .bind(new_passage.compaction_policy.as_str())
+            .bind(&new_passage.failure_receipt_event_id)
+            .bind(&new_passage.derived_in_run)
+            .fetch_one(&mut *tx)
+            .await?;
+        let passage = passage_from_pg(&row)?;
+
+        for (index, evidence) in new_passage.evidence.iter().enumerate() {
+            let (ref_kind, source_id, claim_id, span_id) = match evidence {
+                KnowledgePassageEvidenceRef::Source { source_id } => {
+                    ("source", Some(source_id.as_str()), None, None)
+                }
+                KnowledgePassageEvidenceRef::Claim { claim_id } => {
+                    ("claim", None, Some(claim_id.as_str()), None)
+                }
+                KnowledgePassageEvidenceRef::Span { span_id } => {
+                    ("span", None, None, Some(span_id.as_str()))
+                }
+            };
+            sqlx::query(
+                r#"
+                INSERT INTO knowledge_passage_evidence
+                    (passage_id, ref_kind, source_id, claim_id, span_id, ordinal)
+                VALUES ($1, $2, $3, $4, $5, $6)
+                "#,
+            )
+            .bind(&passage.passage_id)
+            .bind(ref_kind)
+            .bind(source_id)
+            .bind(claim_id)
+            .bind(span_id)
+            .bind(index as i32)
+            .execute(&mut *tx)
+            .await?;
+        }
+        tx.commit().await?;
+        Ok(passage)
+    }
+
+    async fn get_knowledge_memory_passage(
+        &self,
+        passage_id: &str,
+    ) -> StorageResult<Option<KnowledgeMemoryPassage>> {
+        let sql = format!(
+            "SELECT {KNOWLEDGE_PASSAGE_COLUMNS} FROM knowledge_memory_passages
+             WHERE passage_id = $1"
+        );
+        let row = sqlx::query(&sql)
+            .bind(passage_id)
+            .fetch_optional(self.pool())
+            .await?;
+        row.as_ref().map(passage_from_pg).transpose()
+    }
+
+    async fn list_knowledge_passage_evidence(
+        &self,
+        passage_id: &str,
+    ) -> StorageResult<Vec<KnowledgePassageEvidenceRef>> {
+        let rows = sqlx::query(
+            r#"
+            SELECT ref_kind, source_id, claim_id, span_id
+            FROM knowledge_passage_evidence
+            WHERE passage_id = $1
+            ORDER BY ordinal
+            "#,
+        )
+        .bind(passage_id)
+        .fetch_all(self.pool())
+        .await?;
+        rows.into_iter()
+            .map(|row| {
+                let ref_kind: String = row.get("ref_kind");
+                match ref_kind.as_str() {
+                    "source" => Ok(KnowledgePassageEvidenceRef::Source {
+                        source_id: row.get::<Option<String>, _>("source_id").ok_or(
+                            StorageError::Validation("passage evidence row missing source_id"),
+                        )?,
+                    }),
+                    "claim" => Ok(KnowledgePassageEvidenceRef::Claim {
+                        claim_id: row.get::<Option<String>, _>("claim_id").ok_or(
+                            StorageError::Validation("passage evidence row missing claim_id"),
+                        )?,
+                    }),
+                    "span" => Ok(KnowledgePassageEvidenceRef::Span {
+                        span_id: row.get::<Option<String>, _>("span_id").ok_or(
+                            StorageError::Validation("passage evidence row missing span_id"),
+                        )?,
+                    }),
+                    _ => Err(StorageError::Validation(
+                        "invalid knowledge passage evidence ref_kind",
+                    )),
+                }
+            })
+            .collect()
+    }
+
+    async fn set_knowledge_passage_compaction(
+        &self,
+        passage_id: &str,
+        compaction_policy: KnowledgeCompactionPolicy,
+        refresh_freshness: bool,
+    ) -> StorageResult<KnowledgeMemoryPassage> {
+        let sql = format!(
+            r#"
+            UPDATE knowledge_memory_passages
+            SET compaction_policy = $2,
+                freshness_at = CASE WHEN $3 THEN NOW() ELSE freshness_at END,
+                updated_at = NOW()
+            WHERE passage_id = $1
+            RETURNING {KNOWLEDGE_PASSAGE_COLUMNS}
+            "#
+        );
+        let row = sqlx::query(&sql)
+            .bind(passage_id)
+            .bind(compaction_policy.as_str())
+            .bind(refresh_freshness)
+            .fetch_optional(self.pool())
+            .await?
+            .ok_or(StorageError::NotFound("knowledge memory passage"))?;
+        passage_from_pg(&row)
     }
 }
