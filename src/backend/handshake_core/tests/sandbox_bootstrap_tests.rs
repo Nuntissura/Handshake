@@ -172,23 +172,28 @@ fn sandbox_bootstrap_tests_refuses_windows_native_jail_as_implicit_fallback() {
 }
 
 #[test]
-fn sandbox_bootstrap_tests_refuses_zero_adapters() {
-    let error = match build_registry_from_adapters(
+fn sandbox_bootstrap_tests_zero_adapters_boot_empty_and_fail_closed_on_selection() {
+    // WP-KERNEL-005 contract update: app startup must not depend on any
+    // outside-app sandbox runtime being installed, so an empty adapter set no
+    // longer hard-fails bootstrap. Fail-closed moves to the selection boundary:
+    // the registry boots empty and resolving the default adapter yields None,
+    // so any sandbox job selection fails closed.
+    let registry = build_registry_from_adapters(
         AdapterId::new(WSL2_PODMAN_ADAPTER_ID),
         Vec::new(),
         false,
-    ) {
-        Ok(_) => panic!("zero adapters must fail closed"),
-        Err(error) => error,
-    };
+    )
+    .expect("zero adapters must not block app startup (no outside-app dependency)");
 
-    match error {
-        SandboxAdapterError::AdapterUnavailable { adapter_id, reason } => {
-            assert_eq!(adapter_id, AdapterId::new(WSL2_PODMAN_ADAPTER_ID));
-            assert!(reason.contains("no sandbox adapters"));
-        }
-        other => panic!("expected AdapterUnavailable, got {other:?}"),
-    }
+    assert!(registry.list().is_empty());
+    assert_eq!(
+        registry.default_adapter_id().as_str(),
+        WSL2_PODMAN_ADAPTER_ID
+    );
+    assert!(
+        registry.get(registry.default_adapter_id()).is_none(),
+        "selecting the default adapter from an empty registry must fail closed"
+    );
 }
 
 fn adapter(capabilities: AdapterCapabilities) -> Arc<dyn SandboxAdapter> {
