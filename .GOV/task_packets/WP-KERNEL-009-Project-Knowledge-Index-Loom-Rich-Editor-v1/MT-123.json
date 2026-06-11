@@ -22,7 +22,7 @@
   "title": "MemoryGraphAndClaims-123-ConflictResolutionAgentJob",
   "group": "MemoryGraphAndClaims",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-11T23:21:34.542Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-123.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -79,14 +79,20 @@
     ]
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-113"
     ],
     "blocks": [],
     "claimed_by": null,
-    "completed_by": null
+    "completed_by": null,
+    "ready_by": "KERNEL_BUILDER-20260611-071323",
+    "ready_for_validation_at_utc": "2026-06-11T23:21:34.542Z",
+    "implementation_commit": "91c204e6",
+    "evidence": [
+      "Built+verified 91c204e6; MemoryGraphAndClaims group: 21 memory-graph tests pass on real PostgreSQL (ontology/facts/conflict/bridge/projection/api/fixtures); migrations 0240-0243 with down+rollback test; facts back knowledge_claims (reuse lifecycle+conflict authority), projections marked authority_class=projection."
+    ]
   },
   "handoff": {
     "coder_session": null,
