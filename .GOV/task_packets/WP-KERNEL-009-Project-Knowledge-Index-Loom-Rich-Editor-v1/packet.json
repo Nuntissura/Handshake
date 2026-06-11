@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
   "base_wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T18:05:59.097Z",
+  "updated_at_utc": "2026-06-11T18:18:02.279Z",
   "authority_files": {
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json",
     "refinement_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/refinement.json",
@@ -218,7 +218,12 @@
         "finding": "This crate's test-compiles take 10-20+ min each; concurrent sub-agents sharing one Cargo target-dir thrash the incremental cache so every compile is near-full, burning agent budget before verify+commit completes. Three agents (CRDT-hardening, ingestion-hardening, CodeIndexing-review) hit limits/529 mid-verify.",
         "mitigation": "Reduce concurrency to 2-3 agents max going forward (warmer cache = faster incremental compiles). Have agents compile once (cargo test --no-run for all their targets together) then run. For authored-but-stuck WIP, the main loop can verify+commit via background tasks (not budget-bound the way sub-agents are)."
       }
-    ]
+    ],
+    "validation_convention": {
+      "set_at_utc": "2026-06-11T18:18:02.278Z",
+      "source": "operator 2026-06-11",
+      "rule": "External validator checks MTs marked READY_FOR_VALIDATION. KERNEL_BUILDER keeps building remaining MTs. If validator FAILs an MT and KERNEL_BUILDER remediates it, mark it READY_FOR_VALIDATION_V2 (not V1) - state-recovery signal that it is a re-submission. Subsequent re-remediations increment: _V3, etc."
+    }
   },
   "scope": {
     "summary": "Build the Handshake Project Knowledge Index, native memory/claims system, retrieval+context bundles, Tiptap/ProseMirror rich document editor with embedded Monaco code editing, Loom/Obsidian-replacement navigation (backlinks, graphs, tags, folders, pins, wiki projections), UserManual migration, parallel-swarm backend navigation/state recovery, and security/portability validation fixtures as one integrated PostgreSQL/EventLedger-backed product foundation that replaces VS Code and Obsidian for operator knowledge/editing workflows.",
