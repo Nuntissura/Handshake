@@ -545,6 +545,168 @@ fn source_from_pg(row: &sqlx::postgres::PgRow) -> StorageResult<KnowledgeSource>
 }
 
 // ---------------------------------------------------------------------------
+// MT-052 IndexRunLifecycleTables: durable index run lifecycle.
+// ---------------------------------------------------------------------------
+
+/// Lifecycle state of a knowledge index run.
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum KnowledgeIndexRunState {
+    Started,
+    Completed,
+    Failed,
+    Cancelled,
+}
+
+impl KnowledgeIndexRunState {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Started => "started",
+            Self::Completed => "completed",
+            Self::Failed => "failed",
+            Self::Cancelled => "cancelled",
+        }
+    }
+
+    /// Terminal states never transition again.
+    pub fn is_terminal(&self) -> bool {
+        !matches!(self, Self::Started)
+    }
+}
+
+impl FromStr for KnowledgeIndexRunState {
+    type Err = StorageError;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        match value {
+            "started" => Ok(Self::Started),
+            "completed" => Ok(Self::Completed),
+            "failed" => Ok(Self::Failed),
+            "cancelled" => Ok(Self::Cancelled),
+            _ => Err(StorageError::Validation("invalid knowledge run_state")),
+        }
+    }
+}
+
+/// Result counters captured when an index run finishes.
+#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
+pub struct KnowledgeIndexRunCounts {
+    pub sources_seen: i32,
+    pub sources_indexed: i32,
+    pub spans_extracted: i32,
+    pub entities_detected: i32,
+    pub edges_written: i32,
+    pub claims_written: i32,
+}
+
+/// A durable knowledge index run record.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct KnowledgeIndexRun {
+    pub index_run_id: String,
+    pub workspace_id: String,
+    pub root_id: Option<String>,
+    pub run_state: KnowledgeIndexRunState,
+    pub scope: Value,
+    pub actor_kind: String,
+    pub actor_id: String,
+    pub worktree_id: Option<String>,
+    pub restart_checkpoint: Option<Value>,
+    pub counts: KnowledgeIndexRunCounts,
+    pub error_capture: Option<Value>,
+    pub start_receipt_event_id: Option<String>,
+    pub finish_receipt_event_id: Option<String>,
+    pub started_at: DateTime<Utc>,
+    pub finished_at: Option<DateTime<Utc>>,
+}
+
+/// Insert payload for [`KnowledgeIndexRun`].
+#[derive(Clone, Debug)]
+pub struct NewKnowledgeIndexRun {
+    pub workspace_id: String,
+    pub root_id: Option<String>,
+    pub scope: Value,
+    pub actor_kind: String,
+    pub actor_id: String,
+    pub worktree_id: Option<String>,
+    pub start_receipt_event_id: Option<String>,
+}
+
+/// Terminal outcome for [`KnowledgeStore::finish_knowledge_index_run`].
+#[derive(Clone, Debug)]
+pub enum KnowledgeIndexRunOutcome {
+    Completed {
+        counts: KnowledgeIndexRunCounts,
+    },
+    Failed {
+        counts: KnowledgeIndexRunCounts,
+        error_capture: Value,
+    },
+    Cancelled {
+        counts: KnowledgeIndexRunCounts,
+    },
+}
+
+impl KnowledgeIndexRunOutcome {
+    fn state(&self) -> KnowledgeIndexRunState {
+        match self {
+            Self::Completed { .. } => KnowledgeIndexRunState::Completed,
+            Self::Failed { .. } => KnowledgeIndexRunState::Failed,
+            Self::Cancelled { .. } => KnowledgeIndexRunState::Cancelled,
+        }
+    }
+
+    fn counts(&self) -> KnowledgeIndexRunCounts {
+        match self {
+            Self::Completed { counts } | Self::Failed { counts, .. } | Self::Cancelled { counts } => {
+                *counts
+            }
+        }
+    }
+
+    fn error_capture(&self) -> Option<&Value> {
+        match self {
+            Self::Failed { error_capture, .. } => Some(error_capture),
+            _ => None,
+        }
+    }
+}
+
+const KNOWLEDGE_INDEX_RUN_COLUMNS: &str = r#"
+    index_run_id, workspace_id, root_id, run_state, scope, actor_kind,
+    actor_id, worktree_id, restart_checkpoint, sources_seen, sources_indexed,
+    spans_extracted, entities_detected, edges_written, claims_written,
+    error_capture, start_receipt_event_id, finish_receipt_event_id,
+    started_at, finished_at
+"#;
+
+fn index_run_from_pg(row: &sqlx::postgres::PgRow) -> StorageResult<KnowledgeIndexRun> {
+    Ok(KnowledgeIndexRun {
+        index_run_id: row.get("index_run_id"),
+        workspace_id: row.get("workspace_id"),
+        root_id: row.get("root_id"),
+        run_state: row.get::<String, _>("run_state").parse()?,
+        scope: row.get("scope"),
+        actor_kind: row.get("actor_kind"),
+        actor_id: row.get("actor_id"),
+        worktree_id: row.get("worktree_id"),
+        restart_checkpoint: row.get("restart_checkpoint"),
+        counts: KnowledgeIndexRunCounts {
+            sources_seen: row.get("sources_seen"),
+            sources_indexed: row.get("sources_indexed"),
+            spans_extracted: row.get("spans_extracted"),
+            entities_detected: row.get("entities_detected"),
+            edges_written: row.get("edges_written"),
+            claims_written: row.get("claims_written"),
+        },
+        error_capture: row.get("error_capture"),
+        start_receipt_event_id: row.get("start_receipt_event_id"),
+        finish_receipt_event_id: row.get("finish_receipt_event_id"),
+        started_at: row.get("started_at"),
+        finished_at: row.get("finished_at"),
+    })
+}
+
+// ---------------------------------------------------------------------------
 // KnowledgeStore trait: the WP-009 storage surface on PostgresDatabase.
 // ---------------------------------------------------------------------------
 
@@ -618,6 +780,35 @@ pub trait KnowledgeStore: Send + Sync {
         extraction_status: KnowledgeExtractionStatus,
         receipt_event_id: &str,
     ) -> StorageResult<KnowledgeSource>;
+
+    // -- MT-052 index runs ----------------------------------------------------
+    /// Starts a new index run in `started` state.
+    async fn start_knowledge_index_run(
+        &self,
+        new_run: NewKnowledgeIndexRun,
+    ) -> StorageResult<KnowledgeIndexRun>;
+
+    async fn get_knowledge_index_run(
+        &self,
+        index_run_id: &str,
+    ) -> StorageResult<Option<KnowledgeIndexRun>>;
+
+    /// Persists a restart checkpoint on a still-running run.
+    async fn checkpoint_knowledge_index_run(
+        &self,
+        index_run_id: &str,
+        restart_checkpoint: Value,
+    ) -> StorageResult<KnowledgeIndexRun>;
+
+    /// Moves a run from `started` into a terminal state. Guarded: finishing a
+    /// run that is not in `started` state is a typed `Conflict` (terminal
+    /// states are terminal), enforced via an optimistic `WHERE run_state`.
+    async fn finish_knowledge_index_run(
+        &self,
+        index_run_id: &str,
+        outcome: KnowledgeIndexRunOutcome,
+        finish_receipt_event_id: Option<&str>,
+    ) -> StorageResult<KnowledgeIndexRun>;
 }
 
 fn registry_row_from_pg(row: &sqlx::postgres::PgRow) -> StorageResult<KnowledgeSchemaRegistryRow> {
@@ -919,5 +1110,137 @@ impl KnowledgeStore for PostgresDatabase {
             .await?
             .ok_or(StorageError::NotFound("knowledge source"))?;
         source_from_pg(&row)
+    }
+
+    async fn start_knowledge_index_run(
+        &self,
+        new_run: NewKnowledgeIndexRun,
+    ) -> StorageResult<KnowledgeIndexRun> {
+        if new_run.actor_kind.trim().is_empty() || new_run.actor_id.trim().is_empty() {
+            return Err(StorageError::Validation(
+                "knowledge index run requires actor_kind and actor_id",
+            ));
+        }
+        let index_run_id = new_knowledge_id("KIR");
+        let sql = format!(
+            r#"
+            INSERT INTO knowledge_index_runs
+                (index_run_id, workspace_id, root_id, scope, actor_kind,
+                 actor_id, worktree_id, start_receipt_event_id)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            RETURNING {KNOWLEDGE_INDEX_RUN_COLUMNS}
+            "#
+        );
+        let row = sqlx::query(&sql)
+            .bind(&index_run_id)
+            .bind(&new_run.workspace_id)
+            .bind(&new_run.root_id)
+            .bind(&new_run.scope)
+            .bind(&new_run.actor_kind)
+            .bind(&new_run.actor_id)
+            .bind(&new_run.worktree_id)
+            .bind(&new_run.start_receipt_event_id)
+            .fetch_one(self.pool())
+            .await?;
+        index_run_from_pg(&row)
+    }
+
+    async fn get_knowledge_index_run(
+        &self,
+        index_run_id: &str,
+    ) -> StorageResult<Option<KnowledgeIndexRun>> {
+        let sql = format!(
+            "SELECT {KNOWLEDGE_INDEX_RUN_COLUMNS} FROM knowledge_index_runs WHERE index_run_id = $1"
+        );
+        let row = sqlx::query(&sql)
+            .bind(index_run_id)
+            .fetch_optional(self.pool())
+            .await?;
+        row.as_ref().map(index_run_from_pg).transpose()
+    }
+
+    async fn checkpoint_knowledge_index_run(
+        &self,
+        index_run_id: &str,
+        restart_checkpoint: Value,
+    ) -> StorageResult<KnowledgeIndexRun> {
+        let sql = format!(
+            r#"
+            UPDATE knowledge_index_runs
+            SET restart_checkpoint = $2
+            WHERE index_run_id = $1 AND run_state = 'started'
+            RETURNING {KNOWLEDGE_INDEX_RUN_COLUMNS}
+            "#
+        );
+        let row = sqlx::query(&sql)
+            .bind(index_run_id)
+            .bind(&restart_checkpoint)
+            .fetch_optional(self.pool())
+            .await?;
+        match row {
+            Some(row) => index_run_from_pg(&row),
+            None => {
+                if self.get_knowledge_index_run(index_run_id).await?.is_some() {
+                    Err(StorageError::Conflict(
+                        "knowledge index run is terminal; checkpoints only apply to started runs",
+                    ))
+                } else {
+                    Err(StorageError::NotFound("knowledge index run"))
+                }
+            }
+        }
+    }
+
+    async fn finish_knowledge_index_run(
+        &self,
+        index_run_id: &str,
+        outcome: KnowledgeIndexRunOutcome,
+        finish_receipt_event_id: Option<&str>,
+    ) -> StorageResult<KnowledgeIndexRun> {
+        let state = outcome.state();
+        let counts = outcome.counts();
+        let sql = format!(
+            r#"
+            UPDATE knowledge_index_runs
+            SET run_state = $2,
+                sources_seen = $3,
+                sources_indexed = $4,
+                spans_extracted = $5,
+                entities_detected = $6,
+                edges_written = $7,
+                claims_written = $8,
+                error_capture = $9,
+                finish_receipt_event_id = $10,
+                restart_checkpoint = NULL,
+                finished_at = NOW()
+            WHERE index_run_id = $1 AND run_state = 'started'
+            RETURNING {KNOWLEDGE_INDEX_RUN_COLUMNS}
+            "#
+        );
+        let row = sqlx::query(&sql)
+            .bind(index_run_id)
+            .bind(state.as_str())
+            .bind(counts.sources_seen)
+            .bind(counts.sources_indexed)
+            .bind(counts.spans_extracted)
+            .bind(counts.entities_detected)
+            .bind(counts.edges_written)
+            .bind(counts.claims_written)
+            .bind(outcome.error_capture())
+            .bind(finish_receipt_event_id)
+            .fetch_optional(self.pool())
+            .await?;
+        match row {
+            Some(row) => index_run_from_pg(&row),
+            None => {
+                if self.get_knowledge_index_run(index_run_id).await?.is_some() {
+                    Err(StorageError::Conflict(
+                        "knowledge index run lifecycle violation: run is already terminal",
+                    ))
+                } else {
+                    Err(StorageError::NotFound("knowledge index run"))
+                }
+            }
+        }
     }
 }

@@ -506,3 +506,222 @@ mod mt_051_sources {
         );
     }
 }
+
+// ---------------------------------------------------------------------------
+// MT-052 IndexRunLifecycleTables
+// ---------------------------------------------------------------------------
+
+mod mt_052_index_runs {
+    use super::*;
+    use handshake_core::storage::knowledge::{
+        KnowledgeIndexRunCounts, KnowledgeIndexRunOutcome, KnowledgeIndexRunState, KnowledgeStore,
+        NewKnowledgeIndexRun,
+    };
+    use handshake_core::storage::StorageError;
+    use serde_json::json;
+
+    fn new_run(workspace_id: &str) -> NewKnowledgeIndexRun {
+        NewKnowledgeIndexRun {
+            workspace_id: workspace_id.to_string(),
+            root_id: None,
+            scope: json!({"mode": "full", "globs": ["**/*.rs"]}),
+            actor_kind: "system".to_string(),
+            actor_id: "knowledge-indexer-test".to_string(),
+            worktree_id: Some("wtc-kernel-009".to_string()),
+            start_receipt_event_id: None,
+        }
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn run_lifecycle_started_checkpoint_completed() {
+        let Some(pg) = knowledge_pg().await else {
+            eprintln!("SKIP run_lifecycle_started_checkpoint_completed: no PostgreSQL");
+            return;
+        };
+        let workspace_id = pg.create_workspace().await;
+
+        let run = pg
+            .db
+            .start_knowledge_index_run(new_run(&workspace_id))
+            .await
+            .expect("start run");
+        assert!(run.index_run_id.starts_with("KIR-"));
+        assert_eq!(run.run_state, KnowledgeIndexRunState::Started);
+        assert!(run.finished_at.is_none());
+
+        let checkpointed = pg
+            .db
+            .checkpoint_knowledge_index_run(
+                &run.index_run_id,
+                json!({"cursor": "src/kernel", "seen": 42}),
+            )
+            .await
+            .expect("checkpoint running run");
+        assert_eq!(
+            checkpointed.restart_checkpoint,
+            Some(json!({"cursor": "src/kernel", "seen": 42}))
+        );
+
+        let counts = KnowledgeIndexRunCounts {
+            sources_seen: 42,
+            sources_indexed: 40,
+            spans_extracted: 314,
+            entities_detected: 27,
+            edges_written: 12,
+            claims_written: 3,
+        };
+        let done = pg
+            .db
+            .finish_knowledge_index_run(
+                &run.index_run_id,
+                KnowledgeIndexRunOutcome::Completed { counts },
+                None,
+            )
+            .await
+            .expect("complete run");
+        assert_eq!(done.run_state, KnowledgeIndexRunState::Completed);
+        assert_eq!(done.counts, counts);
+        assert!(done.finished_at.is_some());
+        assert!(
+            done.restart_checkpoint.is_none(),
+            "finishing must clear the restart checkpoint"
+        );
+
+        let reread = pg
+            .db
+            .get_knowledge_index_run(&run.index_run_id)
+            .await
+            .expect("get run")
+            .expect("run exists");
+        assert_eq!(reread, done);
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn terminal_runs_reject_further_transitions() {
+        let Some(pg) = knowledge_pg().await else {
+            eprintln!("SKIP terminal_runs_reject_further_transitions: no PostgreSQL");
+            return;
+        };
+        let workspace_id = pg.create_workspace().await;
+
+        let run = pg
+            .db
+            .start_knowledge_index_run(new_run(&workspace_id))
+            .await
+            .expect("start run");
+        pg.db
+            .finish_knowledge_index_run(
+                &run.index_run_id,
+                KnowledgeIndexRunOutcome::Cancelled {
+                    counts: KnowledgeIndexRunCounts::default(),
+                },
+                None,
+            )
+            .await
+            .expect("cancel run");
+
+        // Terminal -> terminal must be a typed Conflict.
+        let err = pg
+            .db
+            .finish_knowledge_index_run(
+                &run.index_run_id,
+                KnowledgeIndexRunOutcome::Completed {
+                    counts: KnowledgeIndexRunCounts::default(),
+                },
+                None,
+            )
+            .await
+            .expect_err("terminal run must reject a second transition");
+        assert!(matches!(err, StorageError::Conflict(_)), "got {err:?}");
+
+        // Checkpointing a terminal run must be a typed Conflict too.
+        let err = pg
+            .db
+            .checkpoint_knowledge_index_run(&run.index_run_id, json!({"cursor": "x"}))
+            .await
+            .expect_err("terminal run must reject checkpoints");
+        assert!(matches!(err, StorageError::Conflict(_)), "got {err:?}");
+
+        // Unknown run id: typed NotFound.
+        let err = pg
+            .db
+            .finish_knowledge_index_run(
+                "KIR-00000000000000000000000000000000",
+                KnowledgeIndexRunOutcome::Completed {
+                    counts: KnowledgeIndexRunCounts::default(),
+                },
+                None,
+            )
+            .await
+            .expect_err("unknown run id must be NotFound");
+        assert!(matches!(err, StorageError::NotFound(_)), "got {err:?}");
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn failed_runs_must_capture_errors_and_db_enforces_shape() {
+        let Some(pg) = knowledge_pg().await else {
+            eprintln!("SKIP failed_runs_must_capture_errors_and_db_enforces_shape: no PostgreSQL");
+            return;
+        };
+        let workspace_id = pg.create_workspace().await;
+
+        let run = pg
+            .db
+            .start_knowledge_index_run(new_run(&workspace_id))
+            .await
+            .expect("start run");
+        let failed = pg
+            .db
+            .finish_knowledge_index_run(
+                &run.index_run_id,
+                KnowledgeIndexRunOutcome::Failed {
+                    counts: KnowledgeIndexRunCounts::default(),
+                    error_capture: json!({
+                        "taxonomy": "parser_panic",
+                        "message": "tree-sitter grammar missing"
+                    }),
+                },
+                None,
+            )
+            .await
+            .expect("fail run with error capture");
+        assert_eq!(failed.run_state, KnowledgeIndexRunState::Failed);
+        assert_eq!(
+            failed.error_capture.as_ref().and_then(|e| e["taxonomy"].as_str()),
+            Some("parser_panic")
+        );
+
+        // DB-level shape guard: a failed run without error capture is
+        // rejected even when application code is bypassed.
+        let mut conn = pg.raw_connection().await;
+        let err = sqlx::query(
+            "INSERT INTO knowledge_index_runs
+                 (index_run_id, workspace_id, run_state, actor_kind, actor_id, finished_at)
+             VALUES ('KIR-00000000000000000000000000000002', $1, 'failed', 'system', 'rogue', NOW())",
+        )
+        .bind(&workspace_id)
+        .execute(&mut conn)
+        .await
+        .expect_err("failed run without error_capture must violate CHECK");
+        assert!(
+            err.to_string().contains("chk_knowledge_index_runs_error_shape"),
+            "unexpected: {err}"
+        );
+
+        // DB-level lifecycle shape: started runs cannot carry finished_at.
+        let err = sqlx::query(
+            "INSERT INTO knowledge_index_runs
+                 (index_run_id, workspace_id, run_state, actor_kind, actor_id, finished_at)
+             VALUES ('KIR-00000000000000000000000000000003', $1, 'started', 'system', 'rogue', NOW())",
+        )
+        .bind(&workspace_id)
+        .execute(&mut conn)
+        .await
+        .expect_err("started run with finished_at must violate CHECK");
+        assert!(
+            err.to_string()
+                .contains("chk_knowledge_index_runs_finished_shape"),
+            "unexpected: {err}"
+        );
+    }
+}
