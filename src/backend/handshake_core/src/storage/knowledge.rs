@@ -817,6 +817,188 @@ fn span_from_pg(row: &sqlx::postgres::PgRow) -> StorageResult<KnowledgeSpan> {
 }
 
 // ---------------------------------------------------------------------------
+// MT-053 KnowledgeEntityTables: typed entities detected from spans.
+// ---------------------------------------------------------------------------
+
+/// Typed entity kinds (spec 2.3.13.11 KnowledgeEntity + MT-053 contract).
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum KnowledgeEntityKind {
+    Symbol,
+    Concept,
+    File,
+    Folder,
+    Project,
+    Person,
+    Role,
+    Task,
+    Api,
+    Schema,
+    Command,
+    Media,
+    ManualEntry,
+    ProductPrimitive,
+    SpecTopic,
+    WorkPacket,
+    MicroTask,
+    TaskboardRow,
+    RichDocument,
+    LoomBlock,
+    UserManualPage,
+}
+
+impl KnowledgeEntityKind {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Symbol => "symbol",
+            Self::Concept => "concept",
+            Self::File => "file",
+            Self::Folder => "folder",
+            Self::Project => "project",
+            Self::Person => "person",
+            Self::Role => "role",
+            Self::Task => "task",
+            Self::Api => "api",
+            Self::Schema => "schema",
+            Self::Command => "command",
+            Self::Media => "media",
+            Self::ManualEntry => "manual_entry",
+            Self::ProductPrimitive => "product_primitive",
+            Self::SpecTopic => "spec_topic",
+            Self::WorkPacket => "work_packet",
+            Self::MicroTask => "micro_task",
+            Self::TaskboardRow => "taskboard_row",
+            Self::RichDocument => "rich_document",
+            Self::LoomBlock => "loom_block",
+            Self::UserManualPage => "user_manual_page",
+        }
+    }
+
+    pub fn all() -> &'static [KnowledgeEntityKind] {
+        &[
+            Self::Symbol,
+            Self::Concept,
+            Self::File,
+            Self::Folder,
+            Self::Project,
+            Self::Person,
+            Self::Role,
+            Self::Task,
+            Self::Api,
+            Self::Schema,
+            Self::Command,
+            Self::Media,
+            Self::ManualEntry,
+            Self::ProductPrimitive,
+            Self::SpecTopic,
+            Self::WorkPacket,
+            Self::MicroTask,
+            Self::TaskboardRow,
+            Self::RichDocument,
+            Self::LoomBlock,
+            Self::UserManualPage,
+        ]
+    }
+}
+
+impl FromStr for KnowledgeEntityKind {
+    type Err = StorageError;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        Self::all()
+            .iter()
+            .find(|kind| kind.as_str() == value)
+            .copied()
+            .ok_or(StorageError::Validation("invalid knowledge entity_kind"))
+    }
+}
+
+/// Lifecycle of a knowledge entity.
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum KnowledgeEntityLifecycle {
+    Active,
+    Retired,
+}
+
+impl KnowledgeEntityLifecycle {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Active => "active",
+            Self::Retired => "retired",
+        }
+    }
+}
+
+impl FromStr for KnowledgeEntityLifecycle {
+    type Err = StorageError;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        match value {
+            "active" => Ok(Self::Active),
+            "retired" => Ok(Self::Retired),
+            _ => Err(StorageError::Validation(
+                "invalid knowledge entity lifecycle_state",
+            )),
+        }
+    }
+}
+
+/// A typed knowledge entity with stable (workspace, kind, key) identity.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct KnowledgeEntity {
+    pub entity_id: String,
+    pub workspace_id: String,
+    pub entity_kind: KnowledgeEntityKind,
+    pub entity_key: String,
+    pub display_name: String,
+    pub detection_provenance: Value,
+    pub lifecycle_state: KnowledgeEntityLifecycle,
+    pub primary_source_id: Option<String>,
+    pub first_detected_in_run: Option<String>,
+    pub last_detected_in_run: Option<String>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+/// Upsert payload for [`KnowledgeEntity`].
+#[derive(Clone, Debug)]
+pub struct NewKnowledgeEntity {
+    pub workspace_id: String,
+    pub entity_kind: KnowledgeEntityKind,
+    pub entity_key: String,
+    pub display_name: String,
+    pub detection_provenance: Value,
+    pub primary_source_id: Option<String>,
+    pub detected_in_run: Option<String>,
+    /// Detection evidence: span ids this entity was detected from.
+    pub evidence_span_ids: Vec<String>,
+}
+
+const KNOWLEDGE_ENTITY_COLUMNS: &str = r#"
+    entity_id, workspace_id, entity_kind, entity_key, display_name,
+    detection_provenance, lifecycle_state, primary_source_id,
+    first_detected_in_run, last_detected_in_run, created_at, updated_at
+"#;
+
+fn entity_from_pg(row: &sqlx::postgres::PgRow) -> StorageResult<KnowledgeEntity> {
+    Ok(KnowledgeEntity {
+        entity_id: row.get("entity_id"),
+        workspace_id: row.get("workspace_id"),
+        entity_kind: row.get::<String, _>("entity_kind").parse()?,
+        entity_key: row.get("entity_key"),
+        display_name: row.get("display_name"),
+        detection_provenance: row.get("detection_provenance"),
+        lifecycle_state: row.get::<String, _>("lifecycle_state").parse()?,
+        primary_source_id: row.get("primary_source_id"),
+        first_detected_in_run: row.get("first_detected_in_run"),
+        last_detected_in_run: row.get("last_detected_in_run"),
+        created_at: row.get("created_at"),
+        updated_at: row.get("updated_at"),
+    })
+}
+
+// ---------------------------------------------------------------------------
 // KnowledgeStore trait: the WP-009 storage surface on PostgresDatabase.
 // ---------------------------------------------------------------------------
 
@@ -932,6 +1114,41 @@ pub trait KnowledgeStore: Send + Sync {
         &self,
         source_id: &str,
     ) -> StorageResult<Vec<KnowledgeSpan>>;
+
+    // -- MT-053 entities --------------------------------------------------------
+    /// Upserts an entity on its stable (workspace, kind, key) identity and
+    /// links the detection evidence spans transactionally. Re-detection in a
+    /// later run keeps `entity_id` stable, refreshes provenance and
+    /// `last_detected_in_run`, and merges new evidence spans.
+    async fn upsert_knowledge_entity(
+        &self,
+        new_entity: NewKnowledgeEntity,
+    ) -> StorageResult<KnowledgeEntity>;
+
+    async fn get_knowledge_entity(
+        &self,
+        entity_id: &str,
+    ) -> StorageResult<Option<KnowledgeEntity>>;
+
+    async fn get_knowledge_entity_by_identity(
+        &self,
+        workspace_id: &str,
+        entity_kind: KnowledgeEntityKind,
+        entity_key: &str,
+    ) -> StorageResult<Option<KnowledgeEntity>>;
+
+    async fn list_knowledge_entities_by_kind(
+        &self,
+        workspace_id: &str,
+        entity_kind: KnowledgeEntityKind,
+    ) -> StorageResult<Vec<KnowledgeEntity>>;
+
+    /// Lists the evidence span ids an entity was detected from.
+    async fn list_knowledge_entity_span_ids(&self, entity_id: &str)
+        -> StorageResult<Vec<String>>;
+
+    /// Marks an entity retired (it stops participating in new detection).
+    async fn retire_knowledge_entity(&self, entity_id: &str) -> StorageResult<KnowledgeEntity>;
 }
 
 fn registry_row_from_pg(row: &sqlx::postgres::PgRow) -> StorageResult<KnowledgeSchemaRegistryRow> {
@@ -1440,5 +1657,154 @@ impl KnowledgeStore for PostgresDatabase {
             .fetch_all(self.pool())
             .await?;
         rows.iter().map(span_from_pg).collect()
+    }
+
+    async fn upsert_knowledge_entity(
+        &self,
+        new_entity: NewKnowledgeEntity,
+    ) -> StorageResult<KnowledgeEntity> {
+        if new_entity.entity_key.trim().is_empty() || new_entity.entity_key.trim() != new_entity.entity_key {
+            return Err(StorageError::Validation(
+                "knowledge entity_key must be non-empty without surrounding whitespace",
+            ));
+        }
+        if new_entity.display_name.trim().is_empty() {
+            return Err(StorageError::Validation(
+                "knowledge entity display_name is required",
+            ));
+        }
+        let entity_id = new_knowledge_id("KEN");
+
+        let mut tx = self.pool().begin().await?;
+        let sql = format!(
+            r#"
+            INSERT INTO knowledge_entities
+                (entity_id, workspace_id, entity_kind, entity_key, display_name,
+                 detection_provenance, primary_source_id,
+                 first_detected_in_run, last_detected_in_run)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $8)
+            ON CONFLICT (workspace_id, entity_kind, entity_key)
+            DO UPDATE SET
+                display_name = EXCLUDED.display_name,
+                detection_provenance = EXCLUDED.detection_provenance,
+                primary_source_id = COALESCE(EXCLUDED.primary_source_id,
+                                             knowledge_entities.primary_source_id),
+                last_detected_in_run = COALESCE(EXCLUDED.last_detected_in_run,
+                                                knowledge_entities.last_detected_in_run),
+                lifecycle_state = 'active',
+                updated_at = NOW()
+            RETURNING {KNOWLEDGE_ENTITY_COLUMNS}
+            "#
+        );
+        let row = sqlx::query(&sql)
+            .bind(&entity_id)
+            .bind(&new_entity.workspace_id)
+            .bind(new_entity.entity_kind.as_str())
+            .bind(&new_entity.entity_key)
+            .bind(&new_entity.display_name)
+            .bind(&new_entity.detection_provenance)
+            .bind(&new_entity.primary_source_id)
+            .bind(&new_entity.detected_in_run)
+            .fetch_one(&mut *tx)
+            .await?;
+        let entity = entity_from_pg(&row)?;
+
+        for span_id in &new_entity.evidence_span_ids {
+            sqlx::query(
+                r#"
+                INSERT INTO knowledge_entity_spans (entity_id, span_id, detected_in_run)
+                VALUES ($1, $2, $3)
+                ON CONFLICT (entity_id, span_id) DO NOTHING
+                "#,
+            )
+            .bind(&entity.entity_id)
+            .bind(span_id)
+            .bind(&new_entity.detected_in_run)
+            .execute(&mut *tx)
+            .await?;
+        }
+        tx.commit().await?;
+        Ok(entity)
+    }
+
+    async fn get_knowledge_entity(
+        &self,
+        entity_id: &str,
+    ) -> StorageResult<Option<KnowledgeEntity>> {
+        let sql = format!(
+            "SELECT {KNOWLEDGE_ENTITY_COLUMNS} FROM knowledge_entities WHERE entity_id = $1"
+        );
+        let row = sqlx::query(&sql)
+            .bind(entity_id)
+            .fetch_optional(self.pool())
+            .await?;
+        row.as_ref().map(entity_from_pg).transpose()
+    }
+
+    async fn get_knowledge_entity_by_identity(
+        &self,
+        workspace_id: &str,
+        entity_kind: KnowledgeEntityKind,
+        entity_key: &str,
+    ) -> StorageResult<Option<KnowledgeEntity>> {
+        let sql = format!(
+            "SELECT {KNOWLEDGE_ENTITY_COLUMNS} FROM knowledge_entities
+             WHERE workspace_id = $1 AND entity_kind = $2 AND entity_key = $3"
+        );
+        let row = sqlx::query(&sql)
+            .bind(workspace_id)
+            .bind(entity_kind.as_str())
+            .bind(entity_key)
+            .fetch_optional(self.pool())
+            .await?;
+        row.as_ref().map(entity_from_pg).transpose()
+    }
+
+    async fn list_knowledge_entities_by_kind(
+        &self,
+        workspace_id: &str,
+        entity_kind: KnowledgeEntityKind,
+    ) -> StorageResult<Vec<KnowledgeEntity>> {
+        let sql = format!(
+            "SELECT {KNOWLEDGE_ENTITY_COLUMNS} FROM knowledge_entities
+             WHERE workspace_id = $1 AND entity_kind = $2 ORDER BY entity_key"
+        );
+        let rows = sqlx::query(&sql)
+            .bind(workspace_id)
+            .bind(entity_kind.as_str())
+            .fetch_all(self.pool())
+            .await?;
+        rows.iter().map(entity_from_pg).collect()
+    }
+
+    async fn list_knowledge_entity_span_ids(
+        &self,
+        entity_id: &str,
+    ) -> StorageResult<Vec<String>> {
+        let rows = sqlx::query(
+            "SELECT span_id FROM knowledge_entity_spans WHERE entity_id = $1 ORDER BY span_id",
+        )
+        .bind(entity_id)
+        .fetch_all(self.pool())
+        .await?;
+        Ok(rows
+            .into_iter()
+            .map(|row| row.get::<String, _>("span_id"))
+            .collect())
+    }
+
+    async fn retire_knowledge_entity(&self, entity_id: &str) -> StorageResult<KnowledgeEntity> {
+        let sql = format!(
+            "UPDATE knowledge_entities
+             SET lifecycle_state = 'retired', updated_at = NOW()
+             WHERE entity_id = $1
+             RETURNING {KNOWLEDGE_ENTITY_COLUMNS}"
+        );
+        let row = sqlx::query(&sql)
+            .bind(entity_id)
+            .fetch_optional(self.pool())
+            .await?
+            .ok_or(StorageError::NotFound("knowledge entity"))?;
+        entity_from_pg(&row)
     }
 }
