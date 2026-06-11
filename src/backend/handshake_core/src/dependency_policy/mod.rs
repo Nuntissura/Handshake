@@ -28,6 +28,8 @@
 pub mod cui_gate;
 pub mod input_registry;
 pub mod manifest_tripwires;
+#[cfg(test)]
+mod native_parser_bundling;
 
 pub use cui_gate::{CuiGateError, CuiPortableGate};
 pub use input_registry::{RuntimeInputDeclaration, RuntimeInputError, RuntimeInputRegistry};
