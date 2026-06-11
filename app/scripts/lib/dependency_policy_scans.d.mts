@@ -29,6 +29,14 @@ export interface AllowlistDocument {
     reason: string;
   }>;
   docker_opt_in_exceptions: Array<{ path_prefix: string; reason: string }>;
+  built_output_scan_exceptions?: Array<{
+    pattern: string;
+    required_context_marker: string;
+    max_marker_distance: number;
+    dependency: string;
+    reason: string;
+    mt: string;
+  }>;
   product_scan_roots: string[];
   product_manifests: {
     npm: string[];
@@ -68,6 +76,19 @@ export declare function scanCdnReferences(args: {
   allowlist: AllowlistDocument;
 }): PatternScanResult;
 export declare function npmManifestDependencyNames(packageJsonText: string): string[];
+export declare function externalWorkerLoads(
+  content: string,
+  path: string,
+): Array<{ path: string; site: string; url: string }>;
+export declare function partitionCdnHits(args: {
+  content: string;
+  relPath: string;
+  pattern: string;
+  allowlist: AllowlistDocument;
+}): {
+  violations: Array<{ path: string; pattern: string; offset: number }>;
+  exempted: Array<{ path: string; pattern: string; dependency: string; marker: string }>;
+};
 export declare function cargoManifestDependencyNames(cargoTomlText: string): string[];
 export declare function cargoLockPackageNames(cargoLockText: string): string[];
 export declare function pnpmLockPackageNames(pnpmLockText: string): string[];

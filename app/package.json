@@ -13,6 +13,7 @@
     "test:visual": "playwright test",
     "test:dependency-policy": "playwright test --config playwright.dependency.config.ts",
     "check:portable-artifacts": "vitest run src/lib/dependency_policy/portable_build_artifacts.test.ts",
+    "check:worker-bundling": "node scripts/check-worker-bundling.mjs",
     "lint": "eslint src --ext .ts,.tsx",
     "depcruise": "dependency-cruiser --config .dependency-cruiser.cjs src",
     "screenshot:capture": "node scripts/handshake-screenshot-capture.mjs"

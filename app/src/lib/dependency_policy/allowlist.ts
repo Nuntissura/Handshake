@@ -67,6 +67,21 @@ export interface DockerOptInException {
   reason: string;
 }
 
+/**
+ * Tightly scoped exception for the MT-027 built-output scan: a forbidden
+ * pattern occurrence is exempt ONLY when `required_context_marker` appears
+ * within `max_marker_distance` characters of the hit (self-verifying — the
+ * exception cannot silently widen to unrelated occurrences of the pattern).
+ */
+export interface BuiltOutputScanException {
+  pattern: string;
+  required_context_marker: string;
+  max_marker_distance: number;
+  dependency: string;
+  reason: string;
+  mt: string;
+}
+
 export interface ProductManifests {
   npm: readonly string[];
   npm_lockfiles: readonly string[];
@@ -84,6 +99,7 @@ export interface RuntimeDependencyAllowlist {
   forbidden_runtime_dependency_classes: readonly ForbiddenRuntimeDependencyClass[];
   bundled_libraries: readonly BundledLibraryRule[];
   docker_opt_in_exceptions: readonly DockerOptInException[];
+  built_output_scan_exceptions?: readonly BuiltOutputScanException[];
   product_scan_roots: readonly string[];
   product_manifests: ProductManifests;
 }
@@ -179,6 +195,30 @@ export function validateAllowlistDocument(doc: unknown): RuntimeDependencyAllowl
   }
 
   assertCondition(Array.isArray(d.docker_opt_in_exceptions), "docker_opt_in_exceptions missing");
+  if (d.built_output_scan_exceptions !== undefined) {
+    assertCondition(
+      Array.isArray(d.built_output_scan_exceptions),
+      "built_output_scan_exceptions must be an array when present",
+    );
+    for (const exc of d.built_output_scan_exceptions as Array<Record<string, unknown>>) {
+      assertCondition(
+        typeof exc.pattern === "string" && exc.pattern.length > 0,
+        "built-output exception missing pattern",
+      );
+      assertCondition(
+        typeof exc.required_context_marker === "string" && exc.required_context_marker.length > 0,
+        `built-output exception for ${String(exc.pattern)} missing required_context_marker`,
+      );
+      assertCondition(
+        typeof exc.max_marker_distance === "number" && exc.max_marker_distance > 0,
+        `built-output exception for ${String(exc.pattern)} missing max_marker_distance`,
+      );
+      assertCondition(
+        typeof exc.reason === "string" && exc.reason.length > 0,
+        `built-output exception for ${String(exc.pattern)} missing reason`,
+      );
+    }
+  }
   assertCondition(
     Array.isArray(d.product_scan_roots) && d.product_scan_roots.length > 0,
     "product_scan_roots empty",

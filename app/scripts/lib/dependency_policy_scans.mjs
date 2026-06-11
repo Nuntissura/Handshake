@@ -337,6 +337,66 @@ export function cargoTreeProvesAbsent({ manifestDir, crateName }) {
 }
 
 /**
+ * MT-027 — finds worker-load sites in built JS whose URL argument is a
+ * LITERAL http(s) origin: `new Worker("https://...")`,
+ * `new Worker(new URL("https://...", ...))`, `importScripts("https://...")`.
+ * Bundled-local loads (relative URLs resolved against import.meta.url /
+ * self.location) are the only allowed form. Doc-comment URLs near a worker
+ * call (e.g. the MDN links TypeScript ships next to its importScripts
+ * mentions) are NOT loads and are not flagged; dynamic non-literal loads
+ * cannot be resolved statically and are covered by the MT-030 runtime proof
+ * (network cut, zero external requests).
+ */
+export function externalWorkerLoads(content, path) {
+  const violations = [];
+  const sitePattern =
+    /(?:new\s+(?:Shared)?Worker|importScripts)\s*\(\s*(?:new\s+URL\s*\(\s*)?["'`](https?:\/\/[^"'`]+)/g;
+  for (const match of content.matchAll(sitePattern)) {
+    violations.push({
+      path,
+      site: match[0].slice(0, 80),
+      url: match[1].slice(0, 160),
+    });
+  }
+  return violations;
+}
+
+/**
+ * MT-027 — applies the allowlist's built_output_scan_exceptions to occurrences
+ * of a forbidden CDN pattern in built-output text: a hit is exempt only when
+ * the exception's required_context_marker appears within max_marker_distance
+ * characters (self-verifying scope — the exception cannot widen to unrelated
+ * occurrences of the same pattern). Returns repo-relative paths via `relPath`.
+ */
+export function partitionCdnHits({ content, relPath, pattern, allowlist }) {
+  const exceptions = allowlist.built_output_scan_exceptions ?? [];
+  const violations = [];
+  const exempted = [];
+  let index = 0;
+  const lowered = content.toLowerCase();
+  while ((index = lowered.indexOf(pattern, index)) !== -1) {
+    const applicable = exceptions.find((exc) => {
+      if (exc.pattern !== pattern) return false;
+      const from = Math.max(0, index - exc.max_marker_distance);
+      const to = Math.min(content.length, index + exc.max_marker_distance);
+      return content.slice(from, to).includes(exc.required_context_marker);
+    });
+    if (applicable) {
+      exempted.push({
+        path: relPath,
+        pattern,
+        dependency: applicable.dependency,
+        marker: applicable.required_context_marker,
+      });
+    } else {
+      violations.push({ path: relPath, pattern, offset: index });
+    }
+    index += pattern.length;
+  }
+  return { violations, exempted };
+}
+
+/**
  * MT-019 — pnpm lockfile/manifest sync audit. Every declared dependency must
  * have a matching importer entry with the same specifier, and vice versa.
  */

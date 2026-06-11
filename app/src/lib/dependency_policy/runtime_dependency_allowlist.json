@@ -141,6 +141,16 @@
       "reason": "Opt-in HardIsolation sandbox adapter. The default sandbox adapter is WSL2 podman (sandbox/bootstrap.rs); DockerAdapter::try_new is failure-tolerant, so every core product path works without Docker installed."
     }
   ],
+  "built_output_scan_exceptions": [
+    {
+      "pattern": "esm.sh",
+      "required_context_marker": "ASSETS_FALLBACK_URL",
+      "max_marker_distance": 400,
+      "dependency": "@excalidraw/excalidraw",
+      "reason": "Excalidraw 0.18 hardcodes a static ASSETS_FALLBACK_URL constant pointing at esm.sh inside its published bundle; the string cannot be removed without patching the library. Its core fonts are bundled by Vite into app/dist/assets (*.woff2 emitted at build), so the fallback stays dormant in the packaged product. The exception only suppresses esm.sh hits that sit within max_marker_distance characters of the literal ASSETS_FALLBACK_URL marker (self-verifying); any other esm.sh reference still fails the MT-027 built-output scan. Tracked risk for the canvas-owning WP: an Excalidraw surface relying on lazily fetched non-bundled assets would make this fallback live — that surface must pin window.EXCALIDRAW_ASSET_PATH to a packaged path and prove offline canvas load with esm.sh aborted.",
+      "mt": "MT-027"
+    }
+  ],
   "product_scan_roots": ["app/src", "src/backend/handshake_core/src", "app/src-tauri/src"],
   "product_manifests": {
     "npm": ["app/package.json"],
