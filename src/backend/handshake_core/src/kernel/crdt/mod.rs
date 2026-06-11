@@ -1,5 +1,6 @@
 pub mod actor_site;
 pub mod agent_lease;
+pub mod claim_promotion;
 pub mod conflict_presence;
 pub mod context_slice;
 pub mod graph_proposal;

@@ -757,3 +757,110 @@ pub async fn mark_graph_proposal_promoted(
     row.map(map_graph_proposal).transpose()
 }
 
+// ---------------------------------------------------------------------------
+// MT-069 promoted facts.
+// ---------------------------------------------------------------------------
+
+/// One promoted fact (row of `knowledge_crdt_promoted_facts`, authority).
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct PromotedFactRow {
+    pub fact_id: String,
+    pub proposal_id: String,
+    pub workspace_id: String,
+    pub mutation_kind: String,
+    pub fact_payload: Value,
+    pub source_span_refs: Value,
+    pub confidence: f64,
+    pub proposed_by: String,
+    pub promoted_by: String,
+    pub promotion_requested_event_id: String,
+    pub promotion_accepted_event_id: String,
+    pub promoted_at_utc: DateTime<Utc>,
+}
+
+const PROMOTED_FACT_COLUMNS: &str = r#"
+    fact_id, proposal_id, workspace_id, mutation_kind, fact_payload,
+    source_span_refs, confidence, proposed_by, promoted_by,
+    promotion_requested_event_id, promotion_accepted_event_id, promoted_at_utc
+"#;
+
+fn map_promoted_fact(row: sqlx::postgres::PgRow) -> StorageResult<PromotedFactRow> {
+    Ok(PromotedFactRow {
+        fact_id: row.try_get("fact_id")?,
+        proposal_id: row.try_get("proposal_id")?,
+        workspace_id: row.try_get("workspace_id")?,
+        mutation_kind: row.try_get("mutation_kind")?,
+        fact_payload: row.try_get("fact_payload")?,
+        source_span_refs: row.try_get("source_span_refs")?,
+        confidence: row.try_get("confidence")?,
+        proposed_by: row.try_get("proposed_by")?,
+        promoted_by: row.try_get("promoted_by")?,
+        promotion_requested_event_id: row.try_get("promotion_requested_event_id")?,
+        promotion_accepted_event_id: row.try_get("promotion_accepted_event_id")?,
+        promoted_at_utc: row.try_get("promoted_at_utc")?,
+    })
+}
+
+#[derive(Clone, Debug)]
+pub struct NewPromotedFact {
+    pub fact_id: String,
+    pub proposal_id: String,
+    pub workspace_id: String,
+    pub mutation_kind: String,
+    pub fact_payload: Value,
+    pub source_span_refs: Value,
+    pub confidence: f64,
+    pub proposed_by: String,
+    pub promoted_by: String,
+    pub promotion_requested_event_id: String,
+    pub promotion_accepted_event_id: String,
+}
+
+/// Insert a promoted fact; idempotent on proposal_id (re-promotion returns
+/// the existing fact row untouched).
+pub async fn insert_promoted_fact_idempotent(
+    pool: &PgPool,
+    fact: NewPromotedFact,
+) -> StorageResult<PromotedFactRow> {
+    sqlx::query(
+        r#"
+        INSERT INTO knowledge_crdt_promoted_facts (
+            fact_id, proposal_id, workspace_id, mutation_kind, fact_payload,
+            source_span_refs, confidence, proposed_by, promoted_by,
+            promotion_requested_event_id, promotion_accepted_event_id
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+        ON CONFLICT (proposal_id) DO NOTHING
+        "#,
+    )
+    .bind(&fact.fact_id)
+    .bind(&fact.proposal_id)
+    .bind(&fact.workspace_id)
+    .bind(&fact.mutation_kind)
+    .bind(&fact.fact_payload)
+    .bind(&fact.source_span_refs)
+    .bind(fact.confidence)
+    .bind(&fact.proposed_by)
+    .bind(&fact.promoted_by)
+    .bind(&fact.promotion_requested_event_id)
+    .bind(&fact.promotion_accepted_event_id)
+    .execute(pool)
+    .await?;
+    get_promoted_fact_by_proposal(pool, &fact.proposal_id)
+        .await?
+        .ok_or(StorageError::NotFound("promoted fact after insert"))
+}
+
+pub async fn get_promoted_fact_by_proposal(
+    pool: &PgPool,
+    proposal_id: &str,
+) -> StorageResult<Option<PromotedFactRow>> {
+    let row = sqlx::query(&format!(
+        "SELECT {PROMOTED_FACT_COLUMNS} FROM knowledge_crdt_promoted_facts WHERE proposal_id = $1"
+    ))
+    .bind(proposal_id)
+    .fetch_optional(pool)
+    .await?;
+    row.map(map_promoted_fact).transpose()
+}
+

@@ -255,3 +255,185 @@ mod mt_068_graph_proposals {
         );
     }
 }
+
+mod mt_069_claim_promotion {
+    use super::*;
+    use handshake_core::kernel::crdt::claim_promotion::{
+        promote_graph_proposal, GraphPromotionDenialReasonV1, GraphPromotionOutcomeV1,
+    };
+    use handshake_core::kernel::crdt::graph_proposal::{
+        decide_graph_proposal, record_graph_proposal, GraphMutationKind,
+        GraphMutationProposalRequestV1,
+    };
+    use handshake_core::kernel::KernelEventType;
+    use handshake_core::storage::knowledge_crdt::list_denial_receipts_for_scope;
+    use serde_json::json;
+    use uuid::Uuid;
+
+    /// Approved proposal -> EventLedger promotion pair -> authority fact row;
+    /// re-promotion is idempotent; invalid promotions leave durable denial
+    /// receipts + PROMOTION_REJECTED.
+    #[tokio::test]
+    async fn approved_proposals_promote_idempotently_and_invalid_ones_deny_durably() {
+        let backend = backend_or_blocked().await;
+        let db = backend.database.clone();
+        let pool = backend.postgres_pool.clone();
+        let suffix = Uuid::now_v7().simple().to_string();
+        let ws = format!("ws-mt069-{suffix}");
+        let model =
+            KnowledgeActorIdV1::new(KnowledgeActorKind::LocalModel, "claims-lm").expect("actor");
+        let operator = KnowledgeActorIdV1::new(KnowledgeActorKind::Operator, "op").expect("actor");
+        let lease_id = model_lease(&backend, &model, &ws, &format!("sr-mt069-{suffix}")).await;
+
+        let mut record_request = GraphMutationProposalRequestV1 {
+            workspace_id: ws.clone(),
+            mutation_kind: GraphMutationKind::AddEdge,
+            mutation_payload: json!({
+                "edge_kind": "documents",
+                "from_entity": "module:managed_postgres",
+                "to_entity": "behavior:embedded-cluster-5544"
+            }),
+            source_span_refs: vec![format!("KSP-{:032x}", 0xabcdu32)],
+            confidence: 0.9,
+            actor: model.clone(),
+            session_id: format!("sr-mt069-{suffix}"),
+            correlation_id: format!("corr-mt069-{suffix}"),
+            lease_id: Some(lease_id),
+        };
+        let approved_proposal = record_graph_proposal(db.as_ref(), &pool, record_request.clone())
+            .await
+            .expect("record flow")
+            .expect("valid proposal");
+        decide_graph_proposal(
+            db.as_ref(),
+            &pool,
+            &approved_proposal.proposal_id,
+            true,
+            &operator,
+            "sr-review",
+            "edge verified against source",
+        )
+        .await
+        .expect("decide flow")
+        .expect("approved");
+
+        // Promote.
+        let outcome = promote_graph_proposal(
+            db.as_ref(),
+            &pool,
+            &approved_proposal.proposal_id,
+            &operator,
+            "sr-gate",
+            "corr-gate",
+        )
+        .await
+        .expect("promotion flow");
+        let fact = match outcome {
+            GraphPromotionOutcomeV1::Promoted(fact) => fact,
+            other => panic!("expected promotion, got {other:?}"),
+        };
+        assert_eq!(fact.proposal_id, approved_proposal.proposal_id);
+        assert_eq!(fact.proposed_by, model.canonical());
+        assert_eq!(fact.promoted_by, operator.canonical());
+
+        // The EventLedger promotion pair exists and is causation-linked.
+        let events = db
+            .list_kernel_events_for_aggregate(
+                "knowledge_graph_promotion",
+                &approved_proposal.proposal_id,
+            )
+            .await
+            .expect("events");
+        let requested = events
+            .iter()
+            .find(|event| event.event_type == KernelEventType::PromotionRequested)
+            .expect("PROMOTION_REQUESTED present");
+        let accepted = events
+            .iter()
+            .find(|event| event.event_type == KernelEventType::PromotionAccepted)
+            .expect("PROMOTION_ACCEPTED present");
+        assert_eq!(fact.promotion_requested_event_id, requested.event_id);
+        assert_eq!(fact.promotion_accepted_event_id, accepted.event_id);
+        assert_eq!(
+            accepted.causation_id.as_deref(),
+            Some(requested.event_id.as_str())
+        );
+
+        // Proposal row is stamped 'promoted'.
+        let stamped = handshake_core::storage::knowledge_crdt::get_graph_proposal(
+            &pool,
+            &approved_proposal.proposal_id,
+        )
+        .await
+        .expect("get proposal")
+        .expect("row exists");
+        assert_eq!(stamped.review_state, "promoted");
+
+        // Idempotent re-promotion returns the same fact.
+        let replay = promote_graph_proposal(
+            db.as_ref(),
+            &pool,
+            &approved_proposal.proposal_id,
+            &operator,
+            "sr-gate",
+            "corr-gate",
+        )
+        .await
+        .expect("promotion flow");
+        match replay {
+            GraphPromotionOutcomeV1::AlreadyPromoted(existing) => {
+                assert_eq!(existing.fact_id, fact.fact_id);
+            }
+            other => panic!("expected idempotent replay, got {other:?}"),
+        }
+
+        // Invalid promotion: a still-'proposed' proposal denies durably.
+        record_request.correlation_id = format!("corr-mt069-b-{suffix}");
+        let pending = record_graph_proposal(db.as_ref(), &pool, record_request)
+            .await
+            .expect("record flow")
+            .expect("valid proposal");
+        let denied = promote_graph_proposal(
+            db.as_ref(),
+            &pool,
+            &pending.proposal_id,
+            &operator,
+            "sr-gate",
+            "corr-gate",
+        )
+        .await
+        .expect("promotion flow");
+        let denial = match denied {
+            GraphPromotionOutcomeV1::Denied(denial) => denial,
+            other => panic!("expected denial, got {other:?}"),
+        };
+        assert!(matches!(
+            denial.reason,
+            GraphPromotionDenialReasonV1::NotApproved { ref current_state } if current_state == "proposed"
+        ));
+        let receipts =
+            list_denial_receipts_for_scope(&pool, &format!("proposal:{}", pending.proposal_id))
+                .await
+                .expect("receipts");
+        assert_eq!(receipts.len(), 1);
+        assert_eq!(receipts[0].receipt_kind, "graph_promotion_denied");
+        assert_eq!(receipts[0].receipt_id, denial.denial_receipt_id);
+
+        // Unknown proposal also denies durably.
+        let unknown = promote_graph_proposal(
+            db.as_ref(),
+            &pool,
+            "01ARZ3NDEKTSV4RRFFQ69G5FAX",
+            &operator,
+            "sr-gate",
+            "corr-gate",
+        )
+        .await
+        .expect("promotion flow");
+        assert!(matches!(
+            unknown,
+            GraphPromotionOutcomeV1::Denied(denial)
+                if matches!(denial.reason, GraphPromotionDenialReasonV1::UnknownProposal { .. })
+        ));
+    }
+}
