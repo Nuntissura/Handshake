@@ -1,4 +1,5 @@
 pub mod actor_site;
+pub mod agent_lease;
 pub mod conflict_presence;
 pub mod context_slice;
 pub mod identity;
