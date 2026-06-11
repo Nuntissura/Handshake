@@ -1,0 +1,1316 @@
+{
+  "schema_id": "hsk.work_packet_contract@1",
+  "schema_version": "work_packet_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
+  "base_wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor",
+  "created_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-11T07:26:24.908Z",
+  "authority_files": {
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json",
+    "refinement_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/refinement.json",
+    "spec_enrichment_proposal": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/spec-enrichment-proposal.json",
+    "stub_contract": ".GOV/task_packets/stubs/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1.contract.json",
+    "spec_current": ".GOV/spec/SPEC_CURRENT.md",
+    "spec_bundle": ".GOV/spec/master-spec-v02.192"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY",
+    "projection_hash": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": "NOT_GENERATED_BY_DEFAULT",
+    "note": "JSON contract is authority. No markdown projection is generated for WP-KERNEL-009 (prevents projection drift)."
+  },
+  "lifecycle": {
+    "packet_format_version": "2026-04-06",
+    "status": "IN_PROGRESS",
+    "risk_tier": "HIGH",
+    "user_signature": null,
+    "signature_policy": "One-time signature token from refinement phase remains unconsumed (not present in this session). Execution authorized by explicit operator command in Kernel Builder session 2026-06-11: 'you will be implementing wp kernel build 009 ... you will work autonomously without operator input' plus follow-up 'mark mt's that are finished ready for validation v1'. Recorded per CX-585C without fabricating a signature string.",
+    "operator_execution_order": {
+      "at_utc": "2026-06-11T07:20:56.864Z",
+      "session": "KERNEL_BUILDER-20260611-071323",
+      "order": "Implement WP-KERNEL-009 with up to 6 read/write sub-agents; follow coder protocol and HANDSHAKE_BUILD_RULES; minimum governance paperwork (MT status + state recovery only); no placeholders/mocks/scaffolding - runtime-working code only; operator GUI surfaces must replace VS Code and Obsidian functionality Handshake-natively; GUI mockup at .GOV/operator/docs_local/handshake-gui-mockup is loose reference (functionality primary); adversarial reviewer sub-agent reviews every MT; finished MTs are marked READY_FOR_VALIDATION for later external per-MT and whole-WP validation vs Master Spec."
+    },
+    "main_containment_status": "NOT_STARTED",
+    "current_main_compatibility_status": "NOT_RUN"
+  },
+  "scope": {
+    "summary": "Build the Handshake Project Knowledge Index, native memory/claims system, retrieval+context bundles, Tiptap/ProseMirror rich document editor with embedded Monaco code editing, Loom/Obsidian-replacement navigation (backlinks, graphs, tags, folders, pins, wiki projections), UserManual migration, parallel-swarm backend navigation/state recovery, and security/portability validation fixtures as one integrated PostgreSQL/EventLedger-backed product foundation that replaces VS Code and Obsidian for operator knowledge/editing workflows.",
+    "intent": "- What: Build Handshake Project Knowledge Index, native memory system, Loom/Obsidian replacement surface, UserManual-aware no-context operating layer, and HS_Rich_Text_Editor as one integrated product foundation.\n- Why: Handshake must let local and cloud models recover project state without chat memory, navigate the codebase/spec/WPs through backend APIs, and preserve operator intent across session limits.\n- Native dependency stance: Core behavior must not rely on outside apps, outside services, external daemons, Docker-only paths, SQLite fallback, or sidecar research papers. Allowed external runtime inputs are models/GGUF/tensors and explicitly gated CUI portable artifacts. Tiptap and Monaco are accepted as bundled Handshake product libraries, not external apps.\n- Source-of-truth stance: Research papers and GitHub projects are context only. Accepted ideas must be translated into this WP, official MTs, and later Master Spec enrichment so future models can work from SPEC_CURRENT and project artifacts alone.\n- Product goal: Every managed project can be indexed into PostgreSQL/EventLedger-backed typed knowledge, rich documents, source spans, claims, memory layers, retrieval traces, and UserManual pages with visual-debug and backend navigation evidence.",
+    "scope_sketch": "- IN_SCOPE:\n  - PostgreSQL/EventLedger-canonical ProjectKnowledgeIndex for sources, entities, edges, spans, claims, passages, wiki projections, context bundles, rich documents, UserManual pages, retrieval traces, and validation receipts.\n  - Handshake-native memory system translated from research into MemoryOntology, MemoryFact, MemoryPassage, ClaimLifecycle, ConflictDetection, ConflictResolution, EvidenceSpan, BridgeEdge, and Ranking contracts.\n  - Tiptap/ProseMirror as canonical rich document engine and Monaco as canonical embedded code-block/code editor, fully packaged and tested inside Handshake.\n  - Loom/Obsidian replacement workflows: backlinks, local/global graph, tags, tag hubs, folders, folder color labels, pins, unlinked mentions, project links, generated wiki projections, source citations, and graph-bias visibility.\n  - Code/source indexing with Handshake-managed Tree-sitter parsers first, plus optional SCIP/LSP-style import format as owned projection/import, not outside service dependency.\n  - PDF/media/research ingestion with extraction receipts, transcript/OCR metadata, failure states, repair queues, and no silent partial indexing.\n  - UserManual naming migration and build-time UserManual updates for every touched feature/tool/primitive/UI/API.\n  - Local/cloud swarm backend navigation, worktree/workspace claims, leases, receipts, state recovery, visual-debug evidence, and validator-ready HBR matrix.\n- OUT_OF_SCOPE:\n  - Making sidecar papers, markdown vaults, generated wiki pages, external apps, Docker containers, SQLite databases, Redis/Valkey caches, provider traces, or browser UI state authoritative.\n  - Shipping realtime multi-user collaboration servers as a prerequisite. CRDT semantics for human/AI draft state and EventLedger promotion are in scope; external sync servers are not required for core proof.\n  - Depending on CUI portable for core WP-009 behavior. It may remain an explicitly gated artifact/input class for other owning packets.\n  - Whole-project governance refactor beyond what is required to index, cite, validate, and later enrich the Master Spec.",
+    "acceptance_criteria": [
+      "PRODUCT-AC-001: A managed project indexes configured roots into PostgreSQL/EventLedger with source hashes, typed entities, edges, spans, claims, passages, and receipts.",
+      "PRODUCT-AC-002: Rich documents roundtrip through Tiptap/ProseMirror JSON, PostgreSQL/EventLedger, CRDT draft state, projections, and visual-debug selectors.",
+      "PRODUCT-AC-003: Monaco code blocks are embedded in Handshake, persist through backend save/load, expose code navigation, and require no external editor/server.",
+      "PRODUCT-AC-004: Memory claims use probationary/stable/rejected/superseded/conflicted lifecycle with evidence spans and conflict-resolution receipts.",
+      "PRODUCT-AC-005: Retrieval chooses explicit modes and emits QueryPlan/RetrievalTrace evidence that can reconstruct context bundles.",
+      "PRODUCT-AC-006: Loom/Obsidian navigation exposes backlinks, graph, tags, folders, pins, search, wiki projections, and repair states backed by canonical records.",
+      "PRODUCT-AC-007: UserManual replaces legacy ModelManual naming in product code except for declared deprecated compatibility shims with tests.",
+      "PRODUCT-AC-008: Local/cloud swarm lanes can navigate backend state, claim workspaces, coordinate leases, recover after compaction, and attribute actions.",
+      "PRODUCT-AC-009: Visual-debug evidence proves editor, Loom, UserManual, retrieval-debug, graph, and error states are readable, navigable, and non-overlapping.",
+      "PRODUCT-AC-010: Negative fixtures block false PASS for secrets, stale indexes, partial PDF extraction, bad citations, contradictory memory, parallel write conflicts, missing PostgreSQL, SQLite regressions, and external dependency regressions."
+    ],
+    "allowed_paths": [
+      "src/backend/handshake_core",
+      "app/src",
+      "app/src-tauri",
+      "tests"
+    ],
+    "forbidden_paths": [
+      "SQLite in any form (authority, cache, fixture, fallback, adapter)",
+      "Docker/outside-app runtime or proof dependency for core behavior",
+      "CDN-loaded editor workers or UI assets",
+      "External graph/RAG/memory services or sync servers as core proof",
+      "Markdown vault or generated wiki as authority"
+    ],
+    "spec_anchors": [
+      ".GOV/spec/master-spec-v02.192/spec-modules/02-system-architecture.md#2.3.13.11 Project Knowledge Index and Rich Document Authority [ADD v02.192]",
+      ".GOV/spec/master-spec-v02.192/spec-modules/07-user-experience-and-development.md#7.1.1.8 WP-KERNEL-009 Rich Editor Lock [ADD v02.192]",
+      ".GOV/spec/master-spec-v02.192/spec-modules/10-product-surfaces.md#10.15.8 UserManual migration bridge [ADD v02.192]",
+      ".GOV/spec/master-spec-v02.192/spec-modules/10-product-surfaces.md#10.20 Project Knowledge Index and Rich Editor Surface [ADD v02.192]",
+      ".GOV/spec/master-spec-v02.192/spec-modules/11-shared-dev-platform-and-oss-foundations.md#9.1.1 WP-KERNEL-009 authority supersession [ADD v02.192]",
+      ".GOV/spec/master-spec-v02.192/spec-modules/12-end-of-file-appendices.md#12.7 WP-KERNEL-009 Primitive and Interaction Addendum [ADD v02.192]"
+    ],
+    "governance_artifact_stance": "- The operator has explicitly said future work packets will not rely on repo governance as the primary correctness target. Treat this stub as a launch record, not as product truth.\n- Correct product behavior against the master spec, current product code, and this operator intent outranks paperwork polish.\n- This stub still uses current governance conventions so it can be found by existing tools, but implementation must not optimize for generating more paperwork instead of building the product substrate."
+  },
+  "workflow": {
+    "authority": "KERNEL_BUILDER",
+    "lane": "MANUAL_RELAY",
+    "execution_owner": "CODER_A",
+    "session_start_authority": "OPERATOR_DIRECT",
+    "acp": "DISABLED_BY_OPERATOR",
+    "sub_agents": {
+      "allowed": true,
+      "max_parallel": 6,
+      "operator_approval": "Recorded in lifecycle.operator_execution_order (read/write sub-agents, max 6, adversarial reviewer per MT).",
+      "restrictions": "Sub-agents may not create or switch worktrees; KERNEL_BUILDER reviews all delegated output before state advances."
+    },
+    "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1",
+    "kernel_builder_terminal_mt_state": "READY_FOR_VALIDATION",
+    "external_validator_contract": "External validator performs per-MT READY_FOR_VALIDATION -> COMPLETED transitions and the whole-WP product-code-vs-Master-Spec verdict after all MTs are ready.",
+    "communication_contract": "DIRECT_REVIEW_V1",
+    "communication_dir": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
+    "receipts_file": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/RECEIPTS.jsonl",
+    "runtime_status_file": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/RUNTIME_STATUS.json",
+    "kb_ready_checklist_receipts": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl",
+    "lane_note": "Folded KERNEL_BUILDER implementation under operator-direct manual relay; ACP disabled by operator. CODER_A is the schema-compatible owner token; the real implementer is KERNEL_BUILDER per lifecycle.operator_execution_order (KERNEL_BUILDER_PROTOCOL folded-receipt compatibility rule)."
+  },
+  "source_control": {
+    "canonical_branch": "main",
+    "work_branch": "feat/WP-KERNEL-009",
+    "remote_backup_branch": "feat/WP-KERNEL-009",
+    "worktree_dir": "../wtc-kernel-009",
+    "merge_base_sha": "39784270a652edf9cdf94c55bdf5227dcb29111d"
+  },
+  "microtasks": {
+    "contract_glob": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-*.json",
+    "declared_ids": [
+      "MT-001",
+      "MT-002",
+      "MT-003",
+      "MT-004",
+      "MT-005",
+      "MT-006",
+      "MT-007",
+      "MT-008",
+      "MT-009",
+      "MT-010",
+      "MT-011",
+      "MT-012",
+      "MT-013",
+      "MT-014",
+      "MT-015",
+      "MT-016",
+      "MT-017",
+      "MT-018",
+      "MT-019",
+      "MT-020",
+      "MT-021",
+      "MT-022",
+      "MT-023",
+      "MT-024",
+      "MT-025",
+      "MT-026",
+      "MT-027",
+      "MT-028",
+      "MT-029",
+      "MT-030",
+      "MT-031",
+      "MT-032",
+      "MT-033",
+      "MT-034",
+      "MT-035",
+      "MT-036",
+      "MT-037",
+      "MT-038",
+      "MT-039",
+      "MT-040",
+      "MT-041",
+      "MT-042",
+      "MT-043",
+      "MT-044",
+      "MT-045",
+      "MT-046",
+      "MT-047",
+      "MT-048",
+      "MT-049",
+      "MT-050",
+      "MT-051",
+      "MT-052",
+      "MT-053",
+      "MT-054",
+      "MT-055",
+      "MT-056",
+      "MT-057",
+      "MT-058",
+      "MT-059",
+      "MT-060",
+      "MT-061",
+      "MT-062",
+      "MT-063",
+      "MT-064",
+      "MT-065",
+      "MT-066",
+      "MT-067",
+      "MT-068",
+      "MT-069",
+      "MT-070",
+      "MT-071",
+      "MT-072",
+      "MT-073",
+      "MT-074",
+      "MT-075",
+      "MT-076",
+      "MT-077",
+      "MT-078",
+      "MT-079",
+      "MT-080",
+      "MT-081",
+      "MT-082",
+      "MT-083",
+      "MT-084",
+      "MT-085",
+      "MT-086",
+      "MT-087",
+      "MT-088",
+      "MT-089",
+      "MT-090",
+      "MT-091",
+      "MT-092",
+      "MT-093",
+      "MT-094",
+      "MT-095",
+      "MT-096",
+      "MT-097",
+      "MT-098",
+      "MT-099",
+      "MT-100",
+      "MT-101",
+      "MT-102",
+      "MT-103",
+      "MT-104",
+      "MT-105",
+      "MT-106",
+      "MT-107",
+      "MT-108",
+      "MT-109",
+      "MT-110",
+      "MT-111",
+      "MT-112",
+      "MT-113",
+      "MT-114",
+      "MT-115",
+      "MT-116",
+      "MT-117",
+      "MT-118",
+      "MT-119",
+      "MT-120",
+      "MT-121",
+      "MT-122",
+      "MT-123",
+      "MT-124",
+      "MT-125",
+      "MT-126",
+      "MT-127",
+      "MT-128",
+      "MT-129",
+      "MT-130",
+      "MT-131",
+      "MT-132",
+      "MT-133",
+      "MT-134",
+      "MT-135",
+      "MT-136",
+      "MT-137",
+      "MT-138",
+      "MT-139",
+      "MT-140",
+      "MT-141",
+      "MT-142",
+      "MT-143",
+      "MT-144",
+      "MT-145",
+      "MT-146",
+      "MT-147",
+      "MT-148",
+      "MT-149",
+      "MT-150",
+      "MT-151",
+      "MT-152",
+      "MT-153",
+      "MT-154",
+      "MT-155",
+      "MT-156",
+      "MT-157",
+      "MT-158",
+      "MT-159",
+      "MT-160",
+      "MT-161",
+      "MT-162",
+      "MT-163",
+      "MT-164",
+      "MT-165",
+      "MT-166",
+      "MT-167",
+      "MT-168",
+      "MT-169",
+      "MT-170",
+      "MT-171",
+      "MT-172",
+      "MT-173",
+      "MT-174",
+      "MT-175",
+      "MT-176",
+      "MT-177",
+      "MT-178",
+      "MT-179",
+      "MT-180",
+      "MT-181",
+      "MT-182",
+      "MT-183",
+      "MT-184",
+      "MT-185",
+      "MT-186",
+      "MT-187",
+      "MT-188",
+      "MT-189",
+      "MT-190",
+      "MT-191",
+      "MT-192",
+      "MT-193",
+      "MT-194",
+      "MT-195",
+      "MT-196",
+      "MT-197",
+      "MT-198",
+      "MT-199",
+      "MT-200",
+      "MT-201",
+      "MT-202",
+      "MT-203",
+      "MT-204",
+      "MT-205",
+      "MT-206",
+      "MT-207",
+      "MT-208",
+      "MT-209",
+      "MT-210",
+      "MT-211",
+      "MT-212",
+      "MT-213",
+      "MT-214",
+      "MT-215",
+      "MT-216",
+      "MT-217",
+      "MT-218",
+      "MT-219",
+      "MT-220",
+      "MT-221",
+      "MT-222",
+      "MT-223",
+      "MT-224",
+      "MT-225",
+      "MT-226",
+      "MT-227",
+      "MT-228",
+      "MT-229",
+      "MT-230",
+      "MT-231",
+      "MT-232",
+      "MT-233",
+      "MT-234",
+      "MT-235",
+      "MT-236",
+      "MT-237",
+      "MT-238",
+      "MT-239",
+      "MT-240"
+    ],
+    "active_id": null,
+    "group_index": {
+      "ResearchSpecTranslation": [
+        "MT-001",
+        "MT-002",
+        "MT-003",
+        "MT-004",
+        "MT-005",
+        "MT-006",
+        "MT-007",
+        "MT-008",
+        "MT-009",
+        "MT-010",
+        "MT-011",
+        "MT-012",
+        "MT-013",
+        "MT-014",
+        "MT-015",
+        "MT-016"
+      ],
+      "NativeDependencyAndPackaging": [
+        "MT-017",
+        "MT-018",
+        "MT-019",
+        "MT-020",
+        "MT-021",
+        "MT-022",
+        "MT-023",
+        "MT-024",
+        "MT-025",
+        "MT-026",
+        "MT-027",
+        "MT-028",
+        "MT-029",
+        "MT-030",
+        "MT-031",
+        "MT-032"
+      ],
+      "MasterSpecEnrichmentSeed": [
+        "MT-033",
+        "MT-034",
+        "MT-035",
+        "MT-036",
+        "MT-037",
+        "MT-038",
+        "MT-039",
+        "MT-040",
+        "MT-041",
+        "MT-042",
+        "MT-043",
+        "MT-044",
+        "MT-045",
+        "MT-046",
+        "MT-047",
+        "MT-048"
+      ],
+      "PostgresEventLedgerCore": [
+        "MT-049",
+        "MT-050",
+        "MT-051",
+        "MT-052",
+        "MT-053",
+        "MT-054",
+        "MT-055",
+        "MT-056",
+        "MT-057",
+        "MT-058",
+        "MT-059",
+        "MT-060",
+        "MT-061",
+        "MT-062",
+        "MT-063",
+        "MT-064"
+      ],
+      "CRDTAndConcurrencyCore": [
+        "MT-065",
+        "MT-066",
+        "MT-067",
+        "MT-068",
+        "MT-069",
+        "MT-070",
+        "MT-071",
+        "MT-072",
+        "MT-073",
+        "MT-074",
+        "MT-075",
+        "MT-076",
+        "MT-077",
+        "MT-078",
+        "MT-079",
+        "MT-080"
+      ],
+      "SourceIngestionAndEvidence": [
+        "MT-081",
+        "MT-082",
+        "MT-083",
+        "MT-084",
+        "MT-085",
+        "MT-086",
+        "MT-087",
+        "MT-088",
+        "MT-089",
+        "MT-090",
+        "MT-091",
+        "MT-092",
+        "MT-093",
+        "MT-094",
+        "MT-095",
+        "MT-096"
+      ],
+      "CodeIndexingAndNavigation": [
+        "MT-097",
+        "MT-098",
+        "MT-099",
+        "MT-100",
+        "MT-101",
+        "MT-102",
+        "MT-103",
+        "MT-104",
+        "MT-105",
+        "MT-106",
+        "MT-107",
+        "MT-108",
+        "MT-109",
+        "MT-110",
+        "MT-111",
+        "MT-112"
+      ],
+      "MemoryGraphAndClaims": [
+        "MT-113",
+        "MT-114",
+        "MT-115",
+        "MT-116",
+        "MT-117",
+        "MT-118",
+        "MT-119",
+        "MT-120",
+        "MT-121",
+        "MT-122",
+        "MT-123",
+        "MT-124",
+        "MT-125",
+        "MT-126",
+        "MT-127",
+        "MT-128"
+      ],
+      "RetrievalContextAndRanking": [
+        "MT-129",
+        "MT-130",
+        "MT-131",
+        "MT-132",
+        "MT-133",
+        "MT-134",
+        "MT-135",
+        "MT-136",
+        "MT-137",
+        "MT-138",
+        "MT-139",
+        "MT-140",
+        "MT-141",
+        "MT-142",
+        "MT-143",
+        "MT-144"
+      ],
+      "RichDocumentCore": [
+        "MT-145",
+        "MT-146",
+        "MT-147",
+        "MT-148",
+        "MT-149",
+        "MT-150",
+        "MT-151",
+        "MT-152",
+        "MT-153",
+        "MT-154",
+        "MT-155",
+        "MT-156",
+        "MT-157",
+        "MT-158",
+        "MT-159",
+        "MT-160"
+      ],
+      "TiptapMonacoIntegration": [
+        "MT-161",
+        "MT-162",
+        "MT-163",
+        "MT-164",
+        "MT-165",
+        "MT-166",
+        "MT-167",
+        "MT-168",
+        "MT-169",
+        "MT-170",
+        "MT-171",
+        "MT-172",
+        "MT-173",
+        "MT-174",
+        "MT-175",
+        "MT-176"
+      ],
+      "LoomObsidianNavigation": [
+        "MT-177",
+        "MT-178",
+        "MT-179",
+        "MT-180",
+        "MT-181",
+        "MT-182",
+        "MT-183",
+        "MT-184",
+        "MT-185",
+        "MT-186",
+        "MT-187",
+        "MT-188",
+        "MT-189",
+        "MT-190",
+        "MT-191",
+        "MT-192"
+      ],
+      "UserManualAndNoContextOps": [
+        "MT-193",
+        "MT-194",
+        "MT-195",
+        "MT-196",
+        "MT-197",
+        "MT-198",
+        "MT-199",
+        "MT-200",
+        "MT-201",
+        "MT-202",
+        "MT-203",
+        "MT-204",
+        "MT-205",
+        "MT-206",
+        "MT-207",
+        "MT-208"
+      ],
+      "ParallelSwarmStateRecovery": [
+        "MT-209",
+        "MT-210",
+        "MT-211",
+        "MT-212",
+        "MT-213",
+        "MT-214",
+        "MT-215",
+        "MT-216",
+        "MT-217",
+        "MT-218",
+        "MT-219",
+        "MT-220",
+        "MT-221",
+        "MT-222",
+        "MT-223",
+        "MT-224"
+      ],
+      "SecurityPortabilityValidation": [
+        "MT-225",
+        "MT-226",
+        "MT-227",
+        "MT-228",
+        "MT-229",
+        "MT-230",
+        "MT-231",
+        "MT-232",
+        "MT-233",
+        "MT-234",
+        "MT-235",
+        "MT-236",
+        "MT-237",
+        "MT-238",
+        "MT-239",
+        "MT-240"
+      ]
+    }
+  },
+  "hbr": {
+    "tags_declared": [
+      "INT",
+      "SWARM",
+      "VIS",
+      "QUIET",
+      "MAN",
+      "STOP"
+    ],
+    "not_applicable_overrides": []
+  },
+  "acceptance_matrix": {
+    "schema_version": 1,
+    "hbr": [],
+    "hbr_not_applicable": [],
+    "note": "HBR proof is carried per-MT via hbr_focus + evidence; whole-WP HBR review is the external validator's batch pass."
+  },
+  "role_profiles": {
+    "kernel_builder": "CLAUDE_FABLE_5_MAX",
+    "integration_validator": "EXTERNAL_VALIDATOR_TBD"
+  },
+  "refinement": {
+    "contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/refinement.json",
+    "enrichment_needed": "NO",
+    "spec_version": "v02.192"
+  },
+  "red_team": {
+    "required": true,
+    "profile": "PROJECT_KNOWLEDGE_INDEX_AND_RICH_EDITOR_V1",
+    "assumptions_to_attack": [
+      "A PostgreSQL knowledge graph is the right durable substrate for Handshake project memory.",
+      "Generated wiki pages help models more than they confuse source-of-truth boundaries.",
+      "The rich editor can replace separate Monaco/text editor expectations without losing code-editing power.",
+      "Loom/Obsidian UI can be built on top of canonical typed entities rather than Markdown files.",
+      "A thin vertical slice can be built without blocking on full code intelligence for every language.",
+      "Model context rot is reduced by context bundle compilation plus evidence, not by dumping more raw files into prompts.",
+      "Folding older retrieval and evidence stubs into WP-KERNEL-009 does not hide broader cross-pillar requirements.",
+      "UserManual migration can be completed without breaking existing manual routes, IPC commands, tests, or model onboarding flows."
+    ],
+    "minimum_controls": [
+      "Keep execution_authority=NON_EXECUTION_STUB.",
+      "Require refinement before Coder/Validator launch.",
+      "Keep generated wiki pages and editor exports as projections, not source authority.",
+      "Require source spans/evidence on generated claims and context bundle items.",
+      "Require no-SQLite/PostgreSQL-only verification before implementation closeout.",
+      "Require visual frontend verification for editor and graph surfaces.",
+      "Require round-trip save/load tests before claiming rich editor implementation complete.",
+      "Require folded_legacy_stub_preservation review before activation.",
+      "Require retrieval-mode, relationship_id, AI-ready evidence export, and ContextPack recorder tests before closeout.",
+      "Require product-code search proof for UserManual naming migration before closeout."
+    ]
+  },
+  "handshake_native_dependency_contract": {
+    "status": "normative_for_wp009_stub",
+    "updated_at_utc": "2026-06-11T00:00:00Z",
+    "core_rule": "Core WP-009 behavior must run as Handshake product code with Handshake-owned state, packaging, receipts, and validation.",
+    "allowed_external_runtime_inputs": [
+      "operator-provided model files",
+      "GGUF model files",
+      "tensor and safetensors artifacts",
+      "explicitly gated CUI portable artifacts where an owning WP defines that boundary"
+    ],
+    "bundled_product_libraries": [
+      "Tiptap/ProseMirror for rich document editing",
+      "Monaco for embedded code editing",
+      "Yjs or equivalent CRDT library for local human/AI draft-state semantics",
+      "Tree-sitter parser crates/grammars for code indexing",
+      "Rust and npm crates/packages locked and shipped through Handshake build manifests"
+    ],
+    "forbidden_core_dependencies": [
+      "manually launched outside apps",
+      "external editor applications",
+      "external graph/RAG/memory services",
+      "external sync servers as core proof",
+      "Docker-only or VM-only service prerequisites",
+      "SQLite fallback, cache authority, fixtures, or temp adapters for touched WP-009 paths",
+      "Redis/Valkey or other external cache authority",
+      "sidecar papers or chat memory as implementation authority",
+      "CDN-loaded editor workers or UI assets"
+    ],
+    "validation_rule": "WP Validator and Integration Validator must reject PASS if core proof depends on a forbidden dependency or if a bundled library is not integrated through Handshake packaging, lockfiles, tests, and UserManual."
+  },
+  "state_recovery_contract": {
+    "status": "required_for_every_mt",
+    "reason": "The operator frequently hits session/context limits; WP-009 must be recoverable by no-context local models.",
+    "each_mt_must_record": [
+      "current MT ID, title, group, and dependencies",
+      "files changed and files intentionally not touched",
+      "commands/tests run with pass/fail/blocker status",
+      "PostgreSQL/EventLedger receipt IDs or expected receipt locations",
+      "visual-debug artifacts for UI-facing work",
+      "HBR rows proven, blocked, or not applicable",
+      "remaining risks and next MTs unblocked"
+    ],
+    "recovery_sources_in_order": [
+      "official MT contract",
+      "WP-KERNEL-009 contract",
+      "SPEC_CURRENT indexed bundle",
+      "git status/diff",
+      "PostgreSQL/EventLedger receipts",
+      "UserManual recovery pages",
+      "visual-debug artifacts",
+      "validator evidence pack"
+    ]
+  },
+  "side_by_side_delivery": {
+    "must_preserve": [
+      "Project Knowledge Index",
+      "Loom/Obsidian clone integration",
+      "HS_Rich_Text_Editor",
+      "Project Brain runtime bridge",
+      "Semantic Catalog backend index",
+      "Retrieval mode policy",
+      "AIReady evidence export semantics",
+      "relationship_id graph retrieval",
+      "ContextPack recorder visibility",
+      "UserManual naming migration"
+    ],
+    "delivery_guidance": [
+      "Do not split WP-009 into sidecar workflows during activation; use MT naming groups inside the existing microtask_plan_draft and official MT contracts.",
+      "Do not split the rich editor away and forget it; it is the operator intended Monaco/text-editor replacement integrated with Tiptap rich documents.",
+      "Do not build the Obsidian replacement as a standalone Markdown vault; it must sit on the same PostgreSQL/EventLedger knowledge substrate as project indexing.",
+      "Do not reactivate folded older stubs separately; preserve their detail inside WP-009 MTs and deprecated links.",
+      "Do not let retrieval-mode policy collapse into generic hybrid RAG; exact/direct/graph/passage-fallback modes are first-class outcomes.",
+      "Do not let external papers remain required reading; translate their value into Master Spec enrichment seeds and MT contracts.",
+      "Do not ship product code using ModelManual, Model Manual, or model_manual as canonical wording; the canonical stuck-together product term is UserManual."
+    ]
+  },
+  "hs_rich_text_editor": {
+    "product_role": "The single Handshake authoring surface for rich text, code, notes, specs, research, workflow artifacts, and media-linked project knowledge.",
+    "relationship_to_monaco": "Tiptap/ProseMirror owns the unified rich document experience. Monaco is embedded inside Handshake as the canonical language-aware code-block/code editing surface. Neither may be treated as an external editor app or outside service.",
+    "canonical_save_format": {
+      "selected": "PostgreSQL/EventLedger-backed structured Tiptap/ProseMirror document JSON plus stable Handshake block/entity IDs, CRDT draft-state references, schema versions, and projection metadata.",
+      "projections": [
+        "Markdown export",
+        "HTML export",
+        "plain text extraction",
+        "context bundle extraction",
+        "wiki/Loom projection",
+        "UserManual page projection"
+      ],
+      "locked_decisions": [
+        "Tiptap/ProseMirror is the canonical rich document editor framework for WP-009.",
+        "Monaco is the canonical embedded code-block/code editor for WP-009.",
+        "Rich document authority is not a Markdown vault, browser-local state, or generated wiki page."
+      ],
+      "remaining_activation_checks": [
+        "Confirm exact package versions and worker bundling in the WP-005 product codebase.",
+        "Confirm document tables reuse Loom concepts or introduce sibling tables without duplicating authority.",
+        "Confirm visual-debug selectors and backend APIs before Coder starts."
+      ]
+    },
+    "required_features": [
+      "Supports many coding formats and language-aware code blocks.",
+      "Can create code blocks automatically from fenced code, pasted code, language hints, indentation, or slash-command selection.",
+      "Can use normal hyperlinks.",
+      "Can embed videos by stored asset, URL, or artifact reference.",
+      "Can embed albums as ordered media asset groups.",
+      "Can embed slideshow references using syntax like [[HS_slideshow]].",
+      "Can insert pictures using syntax like [[HS_images]] and drag/drop or paste flows.",
+      "Can link files like Obsidian-style wikilinks.",
+      "Can link folders and apply folder color labels.",
+      "Can link projects and project entities.",
+      "Can show backlinks and local graph relationships for current document/entity.",
+      "Can expose stable IDs/selectors for frontend model-driven testing.",
+      "Can surface retrieval-mode and source-evidence state for linked project entities when a model or operator inspects the document.",
+      "Can open or link UserManual pages without using legacy ModelManual wording."
+    ],
+    "link_syntax_seed": [
+      "[[note:title]]",
+      "[[file:path-or-id]]",
+      "[[folder:path-or-id]]",
+      "[[project:id-or-name]]",
+      "[[spec:topic-id]]",
+      "[[wp:WP-ID]]",
+      "[[symbol:qualified-name]]",
+      "[[HS_slideshow:id-or-name]]",
+      "[[HS_images:id-or-name]]",
+      "[[album:id-or-name]]",
+      "[[video:id-or-name]]"
+    ],
+    "auto_codeblock_rules_seed": [
+      "Triple-backtick paste creates a code-block node with language if specified.",
+      "Large pasted text with high code-likeness can prompt or automatically wrap as code depending on operator preference.",
+      "Indented multi-line text can suggest a code block but must not silently rewrite prose.",
+      "Language detection confidence must be visible or reversible.",
+      "The user can convert code block back to plain text without data loss.",
+      "Code block node stores language, raw text, display settings, lint markers if present, and source link if pasted from an indexed file."
+    ],
+    "embed_rules_seed": [
+      "Embeds store references to artifact/media/source IDs, not random absolute filesystem paths.",
+      "External URLs may be stored but should be explicitly typed and previewed safely.",
+      "Missing media/embed targets render as repairable broken-link nodes, not blank UI.",
+      "Albums and slideshows are ordered collections with stable item IDs and optional captions.",
+      "Large image/video collections must reuse artifact storage and lazy loading."
+    ]
+  },
+  "architecture_seed": {
+    "system_name": "Handshake Project Knowledge Index + Loom Rich Editor",
+    "storage_model": {
+      "canonical": "PostgreSQL",
+      "projection_examples": [
+        "Loom/wiki pages",
+        "Markdown export",
+        "HTML export",
+        "context bundles",
+        "search index snapshots",
+        "debug/evidence reports"
+      ],
+      "hard_constraints": [
+        "No SQLite inside Handshake.",
+        "No markdown vault as canonical authority.",
+        "No Valkey/Redis canonical memory for this work packet.",
+        "Every generated summary/claim must be traceable to source entities/spans or explicitly marked unsupported.",
+        "No outside runtime dependencies for core WP-009 behavior except operator-provided model files, GGUF/model artifacts, tensors/safetensors, and explicitly gated CUI portable artifacts owned by their own WP.",
+        "Tiptap/ProseMirror and Monaco must be bundled, lockfile-governed, offline-capable Handshake product libraries/assets, not external editor apps, CDNs, or manually launched services.",
+        "Research papers, GitHub repositories, docs, and discussions are non-normative inputs only; WP-009, official MTs, and later Master Spec enrichment must contain the complete Handshake-native requirements.",
+        "CRDT draft state must reconcile through PostgreSQL/EventLedger promotion and cannot become a separate browser-local or external-sync authority.",
+        "PDF/media/research ingestion must record extraction receipts, partial-failure state, transcript/OCR metadata, and repair queues before content can support stable memory claims."
+      ]
+    },
+    "core_components": [
+      {
+        "name": "Project Source Registry",
+        "purpose": "Register managed project roots, source files, source kinds, content hashes, modified times, and index eligibility."
+      },
+      {
+        "name": "Knowledge Entity/Edge/Span Store",
+        "purpose": "Persist typed entities and relationships with source spans and evidence."
+      },
+      {
+        "name": "Code Indexer",
+        "purpose": "Use Tree-sitter first to extract symbols, imports, definitions, comments, tests, and structural spans; leave room for SCIP/LSP precision later."
+      },
+      {
+        "name": "Spec/Governance/Workflow Artifact Indexer",
+        "purpose": "Index specs, work packets, microtasks, taskboard rows, changelogs, workflow JSON, receipts, and research notes as project knowledge inputs."
+      },
+      {
+        "name": "LLM Wiki Compiler",
+        "purpose": "Generate cited project wiki pages/topic summaries from indexed sources and mark them stale when sources change."
+      },
+      {
+        "name": "Loom/Obsidian Projection Surface",
+        "purpose": "Expose notes, wiki pages, backlinks, local graph, folder/project navigation, tags, color labels, and search."
+      },
+      {
+        "name": "HS_Rich_Text_Editor",
+        "purpose": "Unified rich text, code, media, link, and project authoring surface."
+      },
+      {
+        "name": "Context Bundle Compiler",
+        "purpose": "Compile bounded, cited, task-specific context bundles for models with no prior conversation context."
+      },
+      {
+        "name": "Retrieval Debug / Evidence View",
+        "purpose": "Show why a bundle or wiki page contains each source, span, edge, and summary."
+      },
+      {
+        "name": "Project Brain Runtime Bridge",
+        "purpose": "Expose Project Brain query/citation/context-compaction flows as deterministic Project Knowledge Index runtime paths with QueryPlan/RetrievalTrace evidence."
+      },
+      {
+        "name": "Semantic Catalog Backend Index",
+        "purpose": "Persist and query catalog entries as backend routing contracts for tools, retrieval, and Spec Router planning."
+      },
+      {
+        "name": "Retrieval Mode Policy Engine",
+        "purpose": "Select none/direct_load/exact_lookup/graph_traversal/hybrid_rag and record non_hybrid_reason for cheapest authoritative retrieval."
+      },
+      {
+        "name": "AIReady Evidence Export Bridge",
+        "purpose": "Bound export evidence for index artifacts, rebuild/update lifecycle events, provenance, retention, and portability."
+      },
+      {
+        "name": "ContextPack Recorder Bridge",
+        "purpose": "Emit bounded recorder events for pack build/reuse/refresh/freshness decisions with pack/source hashes."
+      },
+      {
+        "name": "UserManual Migration Surface",
+        "purpose": "Rename legacy ModelManual product surfaces to UserManual while preserving declared compatibility shims."
+      },
+      {
+        "name": "Handshake Dependency Boundary / Built-In Runtime Surface",
+        "purpose": "Enforce native-by-default runtime behavior, bundled-library ownership, allowed model/GGUF/tensor/CUI-portable exceptions, and validator tripwires against outside apps/services."
+      },
+      {
+        "name": "Built-In Tiptap/ProseMirror Editor Core",
+        "purpose": "Own rich document schema, custom nodes, CRDT draft bridge, save/load, projection, visual-debug selectors, and UserManual coverage inside Handshake."
+      },
+      {
+        "name": "Built-In Monaco Code Node Core",
+        "purpose": "Own embedded code block editing, worker bundling, language registration, diagnostics, code navigation, and persistence without external editor services."
+      },
+      {
+        "name": "PDF/Media Ingestion and Evidence Adapter",
+        "purpose": "Detect text layers, transcript/OCR needs, partial extraction, source hashes, media timing anchors, repair queues, and evidence eligibility."
+      },
+      {
+        "name": "Secrets and Permissions Gate",
+        "purpose": "Prevent unauthorized roots, secrets, credentials, machine-local paths, and denied files from entering indexes, context bundles, wiki projections, logs, or UserManual."
+      },
+      {
+        "name": "CRDT State Recovery and Conflict Ledger",
+        "purpose": "Record actor/site IDs, draft updates, conflict state, promotion decisions, replay plans, and crash/session recovery receipts."
+      },
+      {
+        "name": "Native Research Translation Registry",
+        "purpose": "Track which external research ideas were accepted, rejected, translated into WP/MT/spec language, and later patched into SPEC_CURRENT."
+      }
+    ],
+    "data_model_seed": {
+      "new_tables_to_consider": [
+        "project_source_roots",
+        "project_source_files",
+        "indexing_runs",
+        "knowledge_entities",
+        "knowledge_edges",
+        "knowledge_spans",
+        "knowledge_claims",
+        "knowledge_wiki_pages",
+        "code_symbols",
+        "rich_documents",
+        "rich_document_blocks",
+        "rich_document_links",
+        "rich_document_embeds",
+        "context_bundle_runs",
+        "context_bundle_items",
+        "semantic_catalog_entries",
+        "retrieval_policy_decisions",
+        "ai_ready_index_artifacts",
+        "ai_ready_index_export_events",
+        "context_pack_events",
+        "user_manual_pages",
+        "dependency_inventory",
+        "bundled_asset_manifests",
+        "native_research_translation_requirements",
+        "pdf_ingestion_jobs",
+        "pdf_ingestion_pages",
+        "pdf_ocr_transcript_state",
+        "source_extraction_receipts",
+        "secret_redaction_policies",
+        "secret_redaction_events",
+        "permission_grants",
+        "index_access_denials",
+        "crdt_document_snapshots",
+        "crdt_update_batches",
+        "crdt_conflicts",
+        "crdt_recovery_checkpoints",
+        "agent_worktree_claims",
+        "agent_recovery_receipts",
+        "visual_debug_evidence_artifacts"
+      ],
+      "existing_tables_or_concepts_to_reuse_where_practical": [
+        "ai_bronze_records",
+        "ai_silver_records",
+        "loom_blocks",
+        "loom_edges",
+        "assets",
+        "artifact manifests",
+        "flight recorder events"
+      ],
+      "entity_kinds": [
+        "project",
+        "file",
+        "folder",
+        "spec_topic",
+        "work_packet",
+        "microtask",
+        "taskboard_row",
+        "changelog_entry",
+        "workflow_artifact",
+        "research_note",
+        "rich_document",
+        "rich_block",
+        "code_symbol",
+        "code_file",
+        "test",
+        "media_asset",
+        "model_context_bundle",
+        "wiki_page"
+      ],
+      "edge_types": [
+        "implements",
+        "tests",
+        "mentions",
+        "derives_from",
+        "changed_by",
+        "validates",
+        "depends_on",
+        "blocks",
+        "contradicts",
+        "supersedes",
+        "embeds",
+        "links_to",
+        "contains",
+        "describes",
+        "indexes",
+        "generated_by",
+        "cites",
+        "same_as"
+      ],
+      "span_model": [
+        "source_file_id",
+        "path",
+        "byte_start",
+        "byte_end",
+        "line_start",
+        "line_end",
+        "hash_at_index_time",
+        "parser",
+        "parser_version",
+        "indexing_run_id"
+      ],
+      "edge_required_fields": [
+        "relationship_id",
+        "source_entity_id",
+        "target_entity_id",
+        "edge_type",
+        "evidence_span_id",
+        "created_by_indexing_run_id"
+      ]
+    }
+  },
+  "translated_memory_system_spec": {
+    "status": "wp_native_translation_of_research",
+    "source_research_is_normative": false,
+    "source_of_truth_after_this_stub": "WP-KERNEL-009 contract now carries the technical detail; future refinement/enrichment must patch this into SPEC_CURRENT and official MTs.",
+    "layers": [
+      {
+        "name": "MemoryOntology",
+        "purpose": "Stable schema memory for entity classes, relation classes, aliases, normalized terms, and promoted extraction patterns.",
+        "canonical_storage": "PostgreSQL/EventLedger",
+        "promotion_rule": "Schema terms start probationary and become stable only after evidence thresholds, conflict checks, or operator/spec approval."
+      },
+      {
+        "name": "MemoryFact",
+        "purpose": "Evidence-backed factual claims and relationships with lifecycle state.",
+        "canonical_storage": "PostgreSQL/EventLedger",
+        "states": [
+          "probationary",
+          "stable",
+          "conflicted",
+          "rejected",
+          "superseded",
+          "temporal_qualified",
+          "granularity_qualified",
+          "unsupported"
+        ]
+      },
+      {
+        "name": "MemoryPassage",
+        "purpose": "Source passages, OCR/transcript output, code/doc spans, and evidence snippets used to justify claims and retrieval.",
+        "canonical_storage": "PostgreSQL/EventLedger",
+        "failure_rule": "Missing text layers, partial extraction, and unsupported media produce receipts and repair queue items."
+      }
+    ],
+    "agent_jobs": [
+      "ExtractionJob: parser/model extraction writes probationary claims and passages only.",
+      "ConflictDetectionJob: finds symbolic, temporal, alias, stale-source, and semantic conflicts.",
+      "ConflictResolutionJob: discards, refines, merges, temporal-qualifies, granularity-qualifies, or promotes claims with receipts.",
+      "BridgeEdgeJob: proposes graph bridge edges across fragmented subgraphs only when evidence and hub-suppression rules allow."
+    ],
+    "retrieval_rules": [
+      "Exact IDs and authoritative paths use direct_load or exact_lookup before graph/hybrid retrieval.",
+      "Ontology/schema filters narrow graph candidates before ranking.",
+      "Graph traversal is bounded by depth, edge types, source authority, and hub suppression.",
+      "Passage fallback is explicit when structural graph candidates are missing, stale, contradicted, or low confidence.",
+      "Every answer/context bundle records QueryPlan, RetrievalTrace, candidate evidence, rejected evidence, stale reasons, and non_hybrid_reason where applicable."
+    ],
+    "non_goals": [
+      "Do not import MemGraphRAG as an external service.",
+      "Do not require a graph database outside PostgreSQL/EventLedger.",
+      "Do not treat LLM extracted triples as stable facts without Handshake evidence and conflict lifecycle."
+    ]
+  },
+  "folded_legacy_stub_preservation": {
+    "folded_at_utc": "2026-06-11T00:00:00Z",
+    "replacement_wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
+    "replacement_contract": ".GOV/task_packets/stubs/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1.contract.json",
+    "source_of_truth_rule": "The folded stubs are deprecated/superseded and must not be activated directly. WP-KERNEL-009 is the active planning surface for their preserved scope.",
+    "conflict_policy": "If a folded stub conflicts with WP-KERNEL-009, WP-KERNEL-009 wins unless the conflict would drop a major feature, hide a risk, weaken PostgreSQL-canonical storage, or remove deterministic retrieval/evidence behavior. In that case preserve the feature/risk as an explicit WP-KERNEL-009 requirement.",
+    "master_spec_basis": [
+      ".GOV/spec/SPEC_CURRENT.md points to master-spec-v02.191.",
+      "Project Brain: spec-modules/12-end-of-file-appendices.md Project Brain appendix and spec-modules/02-system-architecture.md Project Brain anchors define governed backend retrieval over AI-Ready Data with QueryPlan/RetrievalTrace and ContextPack reuse.",
+      "Semantic Catalog: spec-modules/12-end-of-file-appendices.md Semantic Catalog appendix and spec-modules/02-system-architecture.md catalog anchors define indexed backend routing contracts.",
+      "Retrieval mode policy: spec-modules/02-system-architecture.md requires none/direct_load/exact_lookup/graph_traversal/hybrid_rag and non-hybrid reasons in QueryPlan/RetrievalTrace.",
+      "AI-ready evidence/export and relationship IDs: spec-modules/12-end-of-file-appendices.md AI-Ready Data appendix and spec-modules/02-system-architecture.md relationship_id/graph_traversal anchors support bounded evidence and graph retrieval.",
+      "ContextPack recorder visibility: spec-modules/02-system-architecture.md and 12-end-of-file-appendices.md ContextPack anchors require visible build/select/refresh/freshness outcomes.",
+      "Loom/editor: spec-modules/07-user-experience-and-development.md rich editor inline token and Loom view anchors support the editor/navigation slice."
+    ],
+    "folded_stubs": [
+      {
+        "wp_id": "WP-1-Project-Brain-Runtime-Backfill-v1",
+        "base_wp_id": "WP-1-Project-Brain-Runtime-Backfill",
+        "source_stub": ".GOV/task_packets/stubs/WP-1-Project-Brain-Runtime-Backfill-v1.md",
+        "source_contract": ".GOV/task_packets/stubs/WP-1-Project-Brain-Runtime-Backfill-v1.contract.json",
+        "disposition": "folded_into_wp_kernel_009_with_full_intent_preserved",
+        "preserved_scope": [
+          "Project Brain remains a governed runtime retrieval/notebook surface, not a vague RAG promise.",
+          "Project Brain query/runtime mapping must expose citations, context-compaction visibility, QueryPlan, RetrievalTrace, and job/tool visibility.",
+          "Project Brain must distinguish discovery/synthesis from authoritative lookup and prefer fresh ContextPack reuse where appropriate."
+        ],
+        "preserved_acceptance": [
+          "Project Brain runtime/job/tool visibility is explicit in the product implementation and validation evidence.",
+          "Project Brain links deterministically to ContextPacks, QueryPlan, RetrievalTrace, SemanticCatalog, and the Project Knowledge Index."
+        ],
+        "preserved_risks": [
+          "Project Brain becomes a generic semantic-search feature instead of a deterministic runtime surface."
+        ],
+        "carried_dependencies": [
+          "WP-1-AI-Ready-Data-Architecture",
+          "WP-1-Semantic-Catalog",
+          "WP-1-ACE-Runtime"
+        ],
+        "downstream_impacts": [
+          "WP-1-Thinking-Pipeline-Runtime-Backfill"
+        ],
+        "conflict_resolution": "WP-KERNEL-009 owns the Project Knowledge Index slice; broader Project Brain behavior must be implemented only where needed to make that slice deterministic and citeable."
+      },
+      {
+        "wp_id": "WP-1-Semantic-Catalog-v2",
+        "base_wp_id": "WP-1-Semantic-Catalog",
+        "source_stub": ".GOV/task_packets/stubs/WP-1-Semantic-Catalog-v2.md",
+        "source_contract": ".GOV/task_packets/stubs/WP-1-Semantic-Catalog-v2.contract.json",
+        "disposition": "folded_into_wp_kernel_009_as_backend_routing_catalog_contract",
+        "preserved_scope": [
+          "Semantic Catalog remains a deterministic backend routing contract for tools, data surfaces, retrieval, and Spec Router planning.",
+          "Semantic Catalog entries may not remain hidden in prompts, helper labels, or UI-only descriptions.",
+          "The v2 stub was remediation for the earlier failed WP-1-Semantic-Catalog packet; this failure context remains preserved."
+        ],
+        "preserved_acceptance": [
+          "Project Knowledge Index can index, query, and cite catalog entries as backend contracts.",
+          "Spec/router/retrieval planning can use catalog entries without prompt-only drift."
+        ],
+        "preserved_risks": [
+          "Semantic Catalog stays a name-only dependency with no product-queryable backend representation."
+        ],
+        "carried_dependencies": [],
+        "downstream_impacts": [],
+        "conflict_resolution": "The empty v2 contract contributes remediation intent and name continuity; WP-KERNEL-009 supplies the implementation shape."
+      },
+      {
+        "wp_id": "WP-1-AIReady-Index-Evidence-Export-v1",
+        "base_wp_id": "WP-1-AIReady-Index-Evidence-Export",
+        "source_stub": ".GOV/task_packets/stubs/WP-1-AIReady-Index-Evidence-Export-v1.md",
+        "source_contract": ".GOV/task_packets/stubs/WP-1-AIReady-Index-Evidence-Export-v1.contract.json",
+        "disposition": "folded_into_wp_kernel_009_with_export_semantics_preserved",
+        "preserved_scope": [
+          "Define bounded export anchors for AI-ready index artifacts and rebuild/update evidence.",
+          "Preserve manifest, retention, provenance, backend-portability, and reconstructability semantics for embedding, vector, keyword, and graph artifacts.",
+          "Context bundle and retrieval-debug evidence must reuse the canonical AI-ready export dialect instead of inventing a second export format."
+        ],
+        "preserved_acceptance": [
+          "AI-ready index artifacts and lifecycle events are linked to bounded debug/export semantics.",
+          "Exported AI-ready evidence preserves stable provenance, retention, and PostgreSQL portability semantics.",
+          "Retrieval/debug/export packets can consume one canonical AI-ready evidence contract."
+        ],
+        "preserved_risks": [
+          "Evidence exports expose inconsistent artifact subsets across backends.",
+          "Rebuild/update events are recorder-visible but not reconstructable from exported evidence bundles."
+        ],
+        "carried_dependencies": [
+          "WP-1-AI-Ready-Data-Architecture",
+          "WP-1-Debug-Bundle",
+          "WP-1-Artifact-System-Foundations",
+          "WP-1-AIReady-CoreMetadata"
+        ],
+        "downstream_impacts": [
+          "WP-1-Retrieval-Trace-Bundle-Export"
+        ],
+        "conflict_resolution": "WP-KERNEL-009 now owns the evidence semantics needed by project knowledge bundles; if later export work remains broader, it must reuse this preserved contract rather than restart the old stub."
+      },
+      {
+        "wp_id": "WP-1-AIReady-RelationshipIds-GraphRetrieval-v1",
+        "base_wp_id": "WP-1-AIReady-RelationshipIds-GraphRetrieval",
+        "source_stub": ".GOV/task_packets/stubs/WP-1-AIReady-RelationshipIds-GraphRetrieval-v1.md",
+        "source_contract": ".GOV/task_packets/stubs/WP-1-AIReady-RelationshipIds-GraphRetrieval-v1.contract.json",
+        "disposition": "fully_folded_into_wp_kernel_009_graph_schema_and_retrieval",
+        "preserved_scope": [
+          "Knowledge graph edges require deterministic relationship_id values.",
+          "Extraction/indexing events must emit and persist relationship_id.",
+          "Hybrid retrieval and graph traversal must produce non-empty graph candidates for synthetic graph fixtures at minimum."
+        ],
+        "preserved_acceptance": [
+          "Graph edges have stable relationship_id values.",
+          "Retrieval traces can cite relationship_id deterministically.",
+          "Synthetic graph tests prove non-empty graph candidates."
+        ],
+        "preserved_risks": [
+          "Graph retrieval remains effectively stubbed because edges cannot be cited or reproduced."
+        ],
+        "carried_dependencies": [
+          "WP-1-AI-Ready-Data-Architecture"
+        ],
+        "downstream_impacts": [],
+        "conflict_resolution": "No conflict: relationship_id and graph candidates are core requirements for WP-KERNEL-009 typed edges and retrieval evidence."
+      },
+      {
+        "wp_id": "WP-1-RAG-Retrieval-Mode-Policy-v1",
+        "base_wp_id": "WP-1-RAG-Retrieval-Mode-Policy",
+        "source_stub": ".GOV/task_packets/stubs/WP-1-RAG-Retrieval-Mode-Policy-v1.md",
+        "source_contract": ".GOV/task_packets/stubs/WP-1-RAG-Retrieval-Mode-Policy-v1.contract.json",
+        "disposition": "folded_into_wp_kernel_009_with_cross_pillar_policy_preserved",
+        "preserved_scope": [
+          "One governed retrieval-mode policy covers none, direct_load, exact_lookup, graph_traversal, and hybrid_rag.",
+          "QueryPlan and RetrievalTrace must record retrieval mode and non_hybrid_reason for exact-id, authority, freshness, and bounded-executor cases.",
+          "Prompt-to-Spec, Project Brain, Loom graph expansion, Work Packet loads, and Micro-Task context assembly must choose the cheapest authoritative retrieval path rather than defaulting to hybrid retrieval.",
+          "Dev Command Center, operator surfaces, replay/debug views, and context inspectors must expose retrieval posture and reasons."
+        ],
+        "preserved_acceptance": [
+          "Exact identifiers and authoritative packet/spec state use direct_load or exact_lookup before hybrid_rag.",
+          "Graph traversal is preferred when bounded Loom/KG neighborhoods satisfy the task.",
+          "Retrieval evidence explains why hybrid retrieval was used or skipped."
+        ],
+        "preserved_risks": [
+          "Everything becomes generic hybrid search, increasing cost and weakening authority boundaries.",
+          "Microtask and WP context assembly blur authoritative loads with advisory retrieval."
+        ],
+        "carried_dependencies": [
+          "WP-1-AI-Ready-Data-Architecture",
+          "WP-1-ACE-Runtime",
+          "WP-1-Project-Brain-Runtime-Backfill",
+          "WP-1-Spec-Router-SpecPromptCompiler",
+          "WP-1-Micro-Task-Executor"
+        ],
+        "downstream_impacts": [],
+        "conflict_resolution": "WP-KERNEL-009 wins as the activation vehicle; broad retrieval policy remains preserved and must be implemented at least for all context-bundle, Loom/KG, Project Brain, Spec Router, WP, and MT paths touched by this packet."
+      },
+      {
+        "wp_id": "WP-1-ContextPack-Recorder-Visibility-v1",
+        "base_wp_id": "WP-1-ContextPack-Recorder-Visibility",
+        "source_stub": ".GOV/task_packets/stubs/WP-1-ContextPack-Recorder-Visibility-v1.md",
+        "source_contract": ".GOV/task_packets/stubs/WP-1-ContextPack-Recorder-Visibility-v1.contract.json",
+        "disposition": "folded_into_wp_kernel_009_context_bundle_observability",
+        "preserved_scope": [
+          "ContextPack build, reuse, refresh, freshness allow/deny, and require-rebuild decisions are first-class Flight Recorder evidence.",
+          "Pack hash, source hash, freshness policy, and job/spec-router/debug-bundle linkage must be stable and bounded.",
+          "Payloads must not dump full retrieval context by default."
+        ],
+        "preserved_acceptance": [
+          "ContextPack lifecycle paths emit recorder-visible events with stable pack hashes and bounded policy metadata.",
+          "Replay/debug surfaces correlate pack decisions to jobs and spec-router flows without hidden runtime state.",
+          "Tests fail if pack-visibility events or hash linkage disappear."
+        ],
+        "preserved_risks": [
+          "Context reuse depends on hidden cache decisions and cannot be replayed.",
+          "Full payload logging leaks too much retrieval context."
+        ],
+        "carried_dependencies": [
+          "WP-1-Artifact-System-Foundations",
+          "WP-1-ACE-Persist-QueryPlan-Trace-v1"
+        ],
+        "downstream_impacts": [
+          "WP-1-Distillation-v2"
+        ],
+        "conflict_resolution": "WP-KERNEL-009 owns context-bundle observability for project knowledge; distillation-facing reuse must consume these recorder events rather than revive the old stub."
+      }
+    ],
+    "not_folded_here": [
+      {
+        "wp_id": "WP-1-AIReady-CoreMetadata-v1",
+        "reason": "Referenced as a carried dependency by AI-ready evidence export, but not folded by this pass because the operator only approved the older knowledge/retrieval/editor-adjacent stubs and this scope should not silently absorb every transitive stub."
+      },
+      {
+        "wp_id": "WP-1-ACE-Persist-QueryPlan-Trace-v1",
+        "reason": "Referenced as a carried dependency by ContextPack recorder visibility; WP-KERNEL-009 must interoperate with it or implement the required trace persistence for its own paths, but the standalone ACE persistence stub is not deprecated by this fold."
+      }
+    ]
+  },
+  "operator_gui_reference": {
+    "mockup_dir": ".GOV/operator/docs_local/handshake-gui-mockup",
+    "mockup_image": ".GOV/operator/docs_local/handshake-gui-mockup/paper-control-room-mockup-firefox.png",
+    "binding": "LOOSE_REFERENCE_FUNCTIONALITY_PRIMARY",
+    "operator_intent": "GUI surfaces must replace VS Code and Obsidian functionality as Handshake-native features without outside dependencies."
+  }
+}

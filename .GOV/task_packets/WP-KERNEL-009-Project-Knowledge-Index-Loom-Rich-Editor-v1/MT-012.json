@@ -1,0 +1,106 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
+  "mt_id": "MT-012",
+  "title": "ResearchSpecTranslation-012-NoContextLocalModelReadinessRubric",
+  "group": "ResearchSpecTranslation",
+  "created_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-11T07:20:56.864Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-012.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY",
+    "projection_hash": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": "NOT_GENERATED_BY_DEFAULT",
+    "note": "JSON contract is authority. No markdown projection is generated for WP-KERNEL-009 (prevents projection drift)."
+  },
+  "scope": {
+    "scope": "Define what each official MT contract must contain so a small local model with no chat history can implement it safely. This MT belongs to ResearchSpecTranslation. Convert research, operator intent, and current authority into self-contained WP/spec-ready requirements.",
+    "relevant_files": [
+      ".GOV/spec/SPEC_CURRENT.md",
+      ".GOV/spec/master-spec-v02.191/indexed-spec-manifest.json",
+      ".GOV/spec/master-spec-v02.191/INDEX.json",
+      ".GOV/spec/master-spec-v02.191/spec-modules/",
+      ".GOV/operator/docs_local/external_research_papers/MemGraphRAG-Memory-based-Multi-Agent-System-for-Graph-Retrieval-Augmented-Generation.pdf",
+      ".GOV/task_packets/stubs/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1.contract.json"
+    ],
+    "constraints": [
+      "Use the existing microtask_plan_draft execution surface only; do not introduce a separate MT execution surface or suite field.",
+      "Core Handshake behavior must be Handshake-native: no outside app, outside server, external daemon, Docker-only path, SQLite fallback, Redis/Valkey cache authority, or sidecar paper as proof or authority.",
+      "Allowed external runtime inputs are limited to operator-provided models, GGUF/model files, tensors/safetensors, and CUI portable artifacts where the owning WP explicitly gates them; Tiptap and Monaco are allowed only as bundled/lockfile-governed product libraries integrated into Handshake.",
+      "PostgreSQL plus EventLedger is canonical for durable state, receipts, indexing evidence, runtime proof, and validation; generated markdown, wiki pages, HTML, context bundles, debug reports, and UI projections are projections only.",
+      "Every implementation handoff must be restartable by a no-context local model using only the WP/MT contract, current Master Spec bundle, product code, tests, and receipts.",
+      "Research papers and GitHub/codebase findings are context inputs only; translate every accepted idea into Handshake-native requirements before activation.",
+      "Activation must cite SPEC_CURRENT and the v02.191 indexed bundle as current authority, not the v02.182 monolith alone."
+    ],
+    "expected_behavior": "NoContextLocalModelReadinessRubric leaves a concrete, restartable implementation or activation artifact with PostgreSQL/EventLedger authority, Master Spec anchors, UserManual impact, and validator-readable evidence.",
+    "acceptance_criteria": [
+      "NoContextLocalModelReadinessRubric is implemented or specified with enough detail for a no-context local model to continue from the MT alone.",
+      "The MT names exact product/governance files, state tables or APIs, constraints, failure modes, and verification evidence.",
+      "The MT rejects sidecar research-paper authority and outside-runtime proof; accepted research ideas are restated as Handshake-native requirements.",
+      "The MT handoff names HBR rows proven, blocked, or not applicable with concrete reasons."
+    ],
+    "verification": [
+      "Parse the WP/MT contract and confirm this MT keeps all required fields populated.",
+      "Run the smallest relevant product, governance, or fixture test available for the touched surface; if not implemented yet, define the exact future test and negative case.",
+      "For UI/editor/UserManual surfaces, use visual debugging or declare why no GUI surface exists for this MT.",
+      "Confirm no SQLite, Docker-default, external-app, external-daemon, sidecar-paper, or mock-only proof satisfies the MT."
+    ],
+    "handoff_requirements": [
+      "List files changed or intentionally left untouched.",
+      "List commands/tests run and exact pass/fail/blocker status.",
+      "List EventLedger/PostgreSQL evidence, receipt IDs, fixtures, visual-debug artifacts, and repair queues produced or expected.",
+      "List remaining risks, compatibility shims, deprecated wording, and next MTs unblocked."
+    ],
+    "hbr_focus": [
+      "HBR-INT-001",
+      "HBR-INT-004",
+      "HBR-MAN-001",
+      "HBR-SWARM-001"
+    ]
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": [
+      "MT-001"
+    ],
+    "blocks": [],
+    "claimed_by": null,
+    "completed_by": null
+  },
+  "handoff": {
+    "coder_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "PROJECT_KNOWLEDGE_INDEX_RICH_EDITOR_V1",
+    "minimum_controls": [
+      "No placeholders, mocks, scaffolding, or deferred-live escapes; runtime proof against Handshake-managed PostgreSQL/EventLedger where the contract names durable state."
+    ]
+  }
+}
