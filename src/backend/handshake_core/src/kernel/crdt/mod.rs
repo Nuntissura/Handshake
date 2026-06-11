@@ -2,6 +2,7 @@ pub mod actor_site;
 pub mod agent_lease;
 pub mod conflict_presence;
 pub mod context_slice;
+pub mod graph_proposal;
 pub mod identity;
 pub mod index_run_guard;
 pub mod offline_boundary;

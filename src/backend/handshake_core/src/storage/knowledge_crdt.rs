@@ -557,3 +557,203 @@ pub async fn lease_lineage(pool: &PgPool, lease_id: &str) -> StorageResult<Vec<A
     Ok(lineage)
 }
 
+// ---------------------------------------------------------------------------
+// MT-068 graph mutation proposals.
+// ---------------------------------------------------------------------------
+
+/// One graph mutation proposal (row of `knowledge_crdt_graph_proposals`).
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct GraphMutationProposalRow {
+    pub proposal_id: String,
+    pub workspace_id: String,
+    pub mutation_kind: String,
+    pub mutation_payload: Value,
+    pub source_span_refs: Value,
+    pub confidence: f64,
+    pub actor_id: String,
+    pub actor_kind: String,
+    pub session_id: String,
+    pub correlation_id: String,
+    pub lease_id: Option<String>,
+    pub review_state: String,
+    pub decided_by: Option<String>,
+    pub decided_at_utc: Option<DateTime<Utc>>,
+    pub decision_reason: Option<String>,
+    pub recorded_event_id: String,
+    pub decided_event_id: Option<String>,
+    pub created_at_utc: DateTime<Utc>,
+}
+
+const GRAPH_PROPOSAL_COLUMNS: &str = r#"
+    proposal_id, workspace_id, mutation_kind, mutation_payload,
+    source_span_refs, confidence, actor_id, actor_kind, session_id,
+    correlation_id, lease_id, review_state, decided_by, decided_at_utc,
+    decision_reason, recorded_event_id, decided_event_id, created_at_utc
+"#;
+
+fn map_graph_proposal(row: sqlx::postgres::PgRow) -> StorageResult<GraphMutationProposalRow> {
+    Ok(GraphMutationProposalRow {
+        proposal_id: row.try_get("proposal_id")?,
+        workspace_id: row.try_get("workspace_id")?,
+        mutation_kind: row.try_get("mutation_kind")?,
+        mutation_payload: row.try_get("mutation_payload")?,
+        source_span_refs: row.try_get("source_span_refs")?,
+        confidence: row.try_get("confidence")?,
+        actor_id: row.try_get("actor_id")?,
+        actor_kind: row.try_get("actor_kind")?,
+        session_id: row.try_get("session_id")?,
+        correlation_id: row.try_get("correlation_id")?,
+        lease_id: row.try_get("lease_id")?,
+        review_state: row.try_get("review_state")?,
+        decided_by: row.try_get("decided_by")?,
+        decided_at_utc: row.try_get("decided_at_utc")?,
+        decision_reason: row.try_get("decision_reason")?,
+        recorded_event_id: row.try_get("recorded_event_id")?,
+        decided_event_id: row.try_get("decided_event_id")?,
+        created_at_utc: row.try_get("created_at_utc")?,
+    })
+}
+
+#[derive(Clone, Debug)]
+pub struct NewGraphMutationProposal {
+    pub proposal_id: String,
+    pub workspace_id: String,
+    pub mutation_kind: String,
+    pub mutation_payload: Value,
+    pub source_span_refs: Vec<String>,
+    pub confidence: f64,
+    pub actor_id: String,
+    pub actor_kind: String,
+    pub session_id: String,
+    pub correlation_id: String,
+    pub lease_id: Option<String>,
+    pub recorded_event_id: String,
+}
+
+pub async fn insert_graph_proposal(
+    pool: &PgPool,
+    proposal: NewGraphMutationProposal,
+) -> StorageResult<GraphMutationProposalRow> {
+    if proposal.source_span_refs.is_empty()
+        || proposal
+            .source_span_refs
+            .iter()
+            .any(|span| span.trim().is_empty())
+    {
+        return Err(StorageError::Validation(
+            "graph proposal requires at least one non-empty source span ref",
+        ));
+    }
+    let row = sqlx::query(&format!(
+        r#"
+        INSERT INTO knowledge_crdt_graph_proposals (
+            proposal_id, workspace_id, mutation_kind, mutation_payload,
+            source_span_refs, confidence, actor_id, actor_kind,
+            session_id, correlation_id, lease_id, recorded_event_id
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        RETURNING {GRAPH_PROPOSAL_COLUMNS}
+        "#
+    ))
+    .bind(&proposal.proposal_id)
+    .bind(&proposal.workspace_id)
+    .bind(&proposal.mutation_kind)
+    .bind(&proposal.mutation_payload)
+    .bind(serde_json::json!(proposal.source_span_refs))
+    .bind(proposal.confidence)
+    .bind(&proposal.actor_id)
+    .bind(&proposal.actor_kind)
+    .bind(&proposal.session_id)
+    .bind(&proposal.correlation_id)
+    .bind(&proposal.lease_id)
+    .bind(&proposal.recorded_event_id)
+    .fetch_one(pool)
+    .await?;
+    map_graph_proposal(row)
+}
+
+pub async fn get_graph_proposal(
+    pool: &PgPool,
+    proposal_id: &str,
+) -> StorageResult<Option<GraphMutationProposalRow>> {
+    let row = sqlx::query(&format!(
+        "SELECT {GRAPH_PROPOSAL_COLUMNS} FROM knowledge_crdt_graph_proposals WHERE proposal_id = $1"
+    ))
+    .bind(proposal_id)
+    .fetch_optional(pool)
+    .await?;
+    row.map(map_graph_proposal).transpose()
+}
+
+pub async fn list_graph_proposals_by_state(
+    pool: &PgPool,
+    workspace_id: &str,
+    review_state: &str,
+) -> StorageResult<Vec<GraphMutationProposalRow>> {
+    let rows = sqlx::query(&format!(
+        r#"
+        SELECT {GRAPH_PROPOSAL_COLUMNS} FROM knowledge_crdt_graph_proposals
+        WHERE workspace_id = $1 AND review_state = $2
+        ORDER BY created_at_utc ASC, proposal_id ASC
+        "#
+    ))
+    .bind(workspace_id)
+    .bind(review_state)
+    .fetch_all(pool)
+    .await?;
+    rows.into_iter().map(map_graph_proposal).collect()
+}
+
+/// Atomic review decision: proposed -> approved|rejected. Returns None when
+/// the proposal is not in 'proposed' (no lost-update double decisions).
+pub async fn decide_graph_proposal(
+    pool: &PgPool,
+    proposal_id: &str,
+    new_state: &str,
+    decided_by: &str,
+    decision_reason: &str,
+    decided_event_id: &str,
+) -> StorageResult<Option<GraphMutationProposalRow>> {
+    if !matches!(new_state, "approved" | "rejected") {
+        return Err(StorageError::Validation(
+            "graph proposal decision must be approved or rejected",
+        ));
+    }
+    let row = sqlx::query(&format!(
+        r#"
+        UPDATE knowledge_crdt_graph_proposals
+        SET review_state = $2, decided_by = $3, decided_at_utc = NOW(),
+            decision_reason = $4, decided_event_id = $5
+        WHERE proposal_id = $1 AND review_state = 'proposed'
+        RETURNING {GRAPH_PROPOSAL_COLUMNS}
+        "#
+    ))
+    .bind(proposal_id)
+    .bind(new_state)
+    .bind(decided_by)
+    .bind(decision_reason)
+    .bind(decided_event_id)
+    .fetch_optional(pool)
+    .await?;
+    row.map(map_graph_proposal).transpose()
+}
+
+/// approved -> promoted (MT-069 bridge finalization).
+pub async fn mark_graph_proposal_promoted(
+    pool: &PgPool,
+    proposal_id: &str,
+) -> StorageResult<Option<GraphMutationProposalRow>> {
+    let row = sqlx::query(&format!(
+        r#"
+        UPDATE knowledge_crdt_graph_proposals
+        SET review_state = 'promoted'
+        WHERE proposal_id = $1 AND review_state = 'approved'
+        RETURNING {GRAPH_PROPOSAL_COLUMNS}
+        "#
+    ))
+    .bind(proposal_id)
+    .fetch_optional(pool)
+    .await?;
+    row.map(map_graph_proposal).transpose()
+}
+
