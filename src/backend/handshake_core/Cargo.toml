@@ -504,6 +504,18 @@ name = "knowledge_graph_tests"
 path = "tests/knowledge_graph_tests.rs"
 required-features = ["test-utils"]
 
+[[test]]
+name = "knowledge_claims_tests"
+path = "tests/knowledge_claims_tests.rs"
+required-features = ["test-utils"]
+
+# WP-KERNEL-009 SourceIngestionAndEvidence (MT-081..MT-096): real-PostgreSQL
+# integration proof for allowlisted, hash-based, secret-aware ingestion.
+[[test]]
+name = "knowledge_ingestion_policy_tests"
+path = "tests/knowledge_ingestion_policy_tests.rs"
+required-features = ["test-utils"]
+
 # WP-KERNEL-009 CRDTAndConcurrencyCore (MT-065..MT-080): typed actor/site ids,
 # state vectors, rich-document CRDT drafts, proposals, leases, recovery.
 [[test]]
