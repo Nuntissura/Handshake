@@ -1563,6 +1563,146 @@ fn passage_from_pg(row: &sqlx::postgres::PgRow) -> StorageResult<KnowledgeMemory
 }
 
 // ---------------------------------------------------------------------------
+// MT-058 WikiProjectionTables: derived, staleable, regenerable views.
+//
+// PROJECTIONS ARE NEVER AUTHORITY (spec 2.3.13.11). The registry classifies
+// `knowledge_wiki_projections` as `projection`; no authority table carries an
+// FK into it, and deleting a projection row mutates nothing else. A stale or
+// deleted projection is simply rebuilt from canonical records.
+// ---------------------------------------------------------------------------
+
+/// Kind of a generated wiki/Loom projection.
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum KnowledgeProjectionKind {
+    WikiPage,
+    LoomView,
+    GraphView,
+    ManualPage,
+    OperatorSummary,
+}
+
+impl KnowledgeProjectionKind {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::WikiPage => "wiki_page",
+            Self::LoomView => "loom_view",
+            Self::GraphView => "graph_view",
+            Self::ManualPage => "manual_page",
+            Self::OperatorSummary => "operator_summary",
+        }
+    }
+}
+
+impl FromStr for KnowledgeProjectionKind {
+    type Err = StorageError;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        match value {
+            "wiki_page" => Ok(Self::WikiPage),
+            "loom_view" => Ok(Self::LoomView),
+            "graph_view" => Ok(Self::GraphView),
+            "manual_page" => Ok(Self::ManualPage),
+            "operator_summary" => Ok(Self::OperatorSummary),
+            _ => Err(StorageError::Validation(
+                "invalid knowledge projection_kind",
+            )),
+        }
+    }
+}
+
+/// Rebuild lifecycle of a projection.
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum KnowledgeRebuildStatus {
+    Fresh,
+    Stale,
+    Rebuilding,
+    Failed,
+}
+
+impl KnowledgeRebuildStatus {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Fresh => "fresh",
+            Self::Stale => "stale",
+            Self::Rebuilding => "rebuilding",
+            Self::Failed => "failed",
+        }
+    }
+}
+
+impl FromStr for KnowledgeRebuildStatus {
+    type Err = StorageError;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        match value {
+            "fresh" => Ok(Self::Fresh),
+            "stale" => Ok(Self::Stale),
+            "rebuilding" => Ok(Self::Rebuilding),
+            "failed" => Ok(Self::Failed),
+            _ => Err(StorageError::Validation("invalid knowledge rebuild_status")),
+        }
+    }
+}
+
+/// A generated wiki/Loom projection row. NEVER authority.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct KnowledgeWikiProjection {
+    pub projection_id: String,
+    pub workspace_id: String,
+    pub projection_kind: KnowledgeProjectionKind,
+    pub title: String,
+    /// Stable refs into the authority records this projection renders:
+    /// `[{"record_family": ..., "record_id": ...}, ...]`.
+    pub source_records: Value,
+    /// The rendered, regenerable content.
+    pub rendered_content: String,
+    pub rebuild_status: KnowledgeRebuildStatus,
+    /// sha256 over the render inputs at render time; a mismatch against
+    /// current authority state marks the projection stale.
+    pub staleness_hash: String,
+    pub rebuild_receipt_event_id: Option<String>,
+    pub last_rebuilt_at: Option<DateTime<Utc>>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+/// Upsert payload for [`KnowledgeWikiProjection`].
+#[derive(Clone, Debug, Serialize)]
+pub struct NewKnowledgeWikiProjection {
+    pub workspace_id: String,
+    pub projection_kind: KnowledgeProjectionKind,
+    pub title: String,
+    pub source_records: Value,
+    pub rendered_content: String,
+    pub staleness_hash: String,
+}
+
+const KNOWLEDGE_PROJECTION_COLUMNS: &str = r#"
+    projection_id, workspace_id, projection_kind, title, source_records,
+    rendered_content, rebuild_status, staleness_hash,
+    rebuild_receipt_event_id, last_rebuilt_at, created_at, updated_at
+"#;
+
+fn projection_from_pg(row: &sqlx::postgres::PgRow) -> StorageResult<KnowledgeWikiProjection> {
+    Ok(KnowledgeWikiProjection {
+        projection_id: row.get("projection_id"),
+        workspace_id: row.get("workspace_id"),
+        projection_kind: row.get::<String, _>("projection_kind").parse()?,
+        title: row.get("title"),
+        source_records: row.get("source_records"),
+        rendered_content: row.get("rendered_content"),
+        rebuild_status: row.get::<String, _>("rebuild_status").parse()?,
+        staleness_hash: row.get("staleness_hash"),
+        rebuild_receipt_event_id: row.get("rebuild_receipt_event_id"),
+        last_rebuilt_at: row.get("last_rebuilt_at"),
+        created_at: row.get("created_at"),
+        updated_at: row.get("updated_at"),
+    })
+}
+
+// ---------------------------------------------------------------------------
 // KnowledgeStore trait: the WP-009 storage surface on PostgresDatabase.
 // ---------------------------------------------------------------------------
 
@@ -1824,6 +1964,41 @@ pub trait KnowledgeStore: Send + Sync {
         compaction_policy: KnowledgeCompactionPolicy,
         refresh_freshness: bool,
     ) -> StorageResult<KnowledgeMemoryPassage>;
+
+    // -- MT-058 wiki projections (NEVER authority) ----------------------------------
+    /// Upserts a projection by its stable (workspace, kind, title) identity.
+    /// A re-upsert replaces the render inputs and marks the projection stale.
+    async fn upsert_knowledge_wiki_projection(
+        &self,
+        new_projection: NewKnowledgeWikiProjection,
+    ) -> StorageResult<KnowledgeWikiProjection>;
+
+    async fn get_knowledge_wiki_projection(
+        &self,
+        projection_id: &str,
+    ) -> StorageResult<Option<KnowledgeWikiProjection>>;
+
+    /// Records a completed rebuild: fresh content, new staleness hash, and an
+    /// optional EventLedger rebuild receipt.
+    async fn mark_knowledge_projection_rebuilt(
+        &self,
+        projection_id: &str,
+        staleness_hash: &str,
+        rendered_content: &str,
+        rebuild_receipt_event_id: Option<&str>,
+    ) -> StorageResult<KnowledgeWikiProjection>;
+
+    /// Moves a projection through stale/rebuilding/failed without touching
+    /// the rendered content.
+    async fn set_knowledge_projection_rebuild_status(
+        &self,
+        projection_id: &str,
+        rebuild_status: KnowledgeRebuildStatus,
+    ) -> StorageResult<KnowledgeWikiProjection>;
+
+    /// Deletes a projection row. Projections are regenerable; deleting one
+    /// MUST NOT mutate authority records (spec 2.3.13.11).
+    async fn delete_knowledge_wiki_projection(&self, projection_id: &str) -> StorageResult<()>;
 }
 
 fn registry_row_from_pg(row: &sqlx::postgres::PgRow) -> StorageResult<KnowledgeSchemaRegistryRow> {
@@ -3107,5 +3282,132 @@ impl KnowledgeStore for PostgresDatabase {
             .await?
             .ok_or(StorageError::NotFound("knowledge memory passage"))?;
         passage_from_pg(&row)
+    }
+
+    async fn upsert_knowledge_wiki_projection(
+        &self,
+        new_projection: NewKnowledgeWikiProjection,
+    ) -> StorageResult<KnowledgeWikiProjection> {
+        if new_projection.title.trim() != new_projection.title || new_projection.title.is_empty() {
+            return Err(StorageError::Validation(
+                "knowledge projection title must be non-empty and trimmed",
+            ));
+        }
+        if !is_sha256_hex(&new_projection.staleness_hash) {
+            return Err(StorageError::Validation(
+                "knowledge projection staleness_hash must be lowercase sha256 hex",
+            ));
+        }
+        let projection_id = new_knowledge_id("KWP");
+        let sql = format!(
+            r#"
+            INSERT INTO knowledge_wiki_projections
+                (projection_id, workspace_id, projection_kind, title,
+                 source_records, rendered_content, rebuild_status, staleness_hash)
+            VALUES ($1, $2, $3, $4, $5, $6, 'stale', $7)
+            ON CONFLICT (workspace_id, projection_kind, title) DO UPDATE SET
+                source_records = EXCLUDED.source_records,
+                rendered_content = EXCLUDED.rendered_content,
+                rebuild_status = 'stale',
+                staleness_hash = EXCLUDED.staleness_hash,
+                updated_at = NOW()
+            RETURNING {KNOWLEDGE_PROJECTION_COLUMNS}
+            "#
+        );
+        let row = sqlx::query(&sql)
+            .bind(&projection_id)
+            .bind(&new_projection.workspace_id)
+            .bind(new_projection.projection_kind.as_str())
+            .bind(&new_projection.title)
+            .bind(&new_projection.source_records)
+            .bind(&new_projection.rendered_content)
+            .bind(&new_projection.staleness_hash)
+            .fetch_one(self.pool())
+            .await?;
+        projection_from_pg(&row)
+    }
+
+    async fn get_knowledge_wiki_projection(
+        &self,
+        projection_id: &str,
+    ) -> StorageResult<Option<KnowledgeWikiProjection>> {
+        let sql = format!(
+            "SELECT {KNOWLEDGE_PROJECTION_COLUMNS} FROM knowledge_wiki_projections
+             WHERE projection_id = $1"
+        );
+        let row = sqlx::query(&sql)
+            .bind(projection_id)
+            .fetch_optional(self.pool())
+            .await?;
+        row.as_ref().map(projection_from_pg).transpose()
+    }
+
+    async fn mark_knowledge_projection_rebuilt(
+        &self,
+        projection_id: &str,
+        staleness_hash: &str,
+        rendered_content: &str,
+        rebuild_receipt_event_id: Option<&str>,
+    ) -> StorageResult<KnowledgeWikiProjection> {
+        if !is_sha256_hex(staleness_hash) {
+            return Err(StorageError::Validation(
+                "knowledge projection staleness_hash must be lowercase sha256 hex",
+            ));
+        }
+        let sql = format!(
+            r#"
+            UPDATE knowledge_wiki_projections
+            SET rebuild_status = 'fresh',
+                staleness_hash = $2,
+                rendered_content = $3,
+                rebuild_receipt_event_id = $4,
+                last_rebuilt_at = NOW(),
+                updated_at = NOW()
+            WHERE projection_id = $1
+            RETURNING {KNOWLEDGE_PROJECTION_COLUMNS}
+            "#
+        );
+        let row = sqlx::query(&sql)
+            .bind(projection_id)
+            .bind(staleness_hash)
+            .bind(rendered_content)
+            .bind(rebuild_receipt_event_id)
+            .fetch_optional(self.pool())
+            .await?
+            .ok_or(StorageError::NotFound("knowledge wiki projection"))?;
+        projection_from_pg(&row)
+    }
+
+    async fn set_knowledge_projection_rebuild_status(
+        &self,
+        projection_id: &str,
+        rebuild_status: KnowledgeRebuildStatus,
+    ) -> StorageResult<KnowledgeWikiProjection> {
+        let sql = format!(
+            r#"
+            UPDATE knowledge_wiki_projections
+            SET rebuild_status = $2, updated_at = NOW()
+            WHERE projection_id = $1
+            RETURNING {KNOWLEDGE_PROJECTION_COLUMNS}
+            "#
+        );
+        let row = sqlx::query(&sql)
+            .bind(projection_id)
+            .bind(rebuild_status.as_str())
+            .fetch_optional(self.pool())
+            .await?
+            .ok_or(StorageError::NotFound("knowledge wiki projection"))?;
+        projection_from_pg(&row)
+    }
+
+    async fn delete_knowledge_wiki_projection(&self, projection_id: &str) -> StorageResult<()> {
+        let result = sqlx::query("DELETE FROM knowledge_wiki_projections WHERE projection_id = $1")
+            .bind(projection_id)
+            .execute(self.pool())
+            .await?;
+        if result.rows_affected() == 0 {
+            return Err(StorageError::NotFound("knowledge wiki projection"));
+        }
+        Ok(())
     }
 }
