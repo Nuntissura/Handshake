@@ -152,8 +152,18 @@ impl LlmClient for TestLlmClient {
     }
 }
 
-fn test_app_state(db: Arc<dyn handshake_core::storage::Database>) -> AppState {
+async fn test_app_state(
+    db: Arc<dyn handshake_core::storage::Database>,
+    schema_url: &str,
+) -> AppState {
     let flight_recorder: Arc<dyn FlightRecorder> = Arc::new(CapturingFlightRecorder::default());
+    // Reuse the same isolated-schema URL the storage Arc was opened against so the
+    // shared pool (added to AppState by WP-KERNEL-005) sees identical state.
+    let postgres_pool = sqlx::postgres::PgPoolOptions::new()
+        .max_connections(5)
+        .connect(schema_url)
+        .await
+        .expect("connect AppState postgres pool to isolated schema");
     AppState {
         storage: db,
         flight_recorder,
@@ -161,6 +171,7 @@ fn test_app_state(db: Arc<dyn handshake_core::storage::Database>) -> AppState {
         llm_client: Arc::new(TestLlmClient::new()),
         capability_registry: Arc::new(CapabilityRegistry::new()),
         session_registry: Arc::new(SessionRegistry::new(SessionSchedulerConfig::default())),
+        postgres_pool,
     }
 }
 
@@ -395,7 +406,7 @@ async fn kernel_trace_inspector() {
 #[tokio::test]
 #[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
 async fn kernel_trace_inspector_api_route_returns_trace_projection() {
-    let db = postgres_or_environment_blocked().await;
+    let (schema_url, db) = postgres_reopenable_or_environment_blocked().await;
 
     let adapter = DummyEchoModelAdapter::new("dummy-echo");
     let result = KernelProofRunner::new(db.clone())
@@ -412,7 +423,7 @@ async fn kernel_trace_inspector_api_route_returns_trace_projection() {
         .await
         .expect("bind test API listener");
     let addr = listener.local_addr().expect("test API listener addr");
-    let app = handshake_core::api::kernel::routes(test_app_state(db));
+    let app = handshake_core::api::kernel::routes(test_app_state(db, &schema_url).await);
     let server = tokio::spawn(async move {
         axum::serve(listener, app)
             .await
@@ -442,12 +453,12 @@ async fn kernel_trace_inspector_api_route_returns_trace_projection() {
 #[tokio::test]
 #[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
 async fn kernel_dcc_projection_api_route_returns_backend_validated_surface() {
-    let db = postgres_or_environment_blocked().await;
+    let (schema_url, db) = postgres_reopenable_or_environment_blocked().await;
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
         .await
         .expect("bind test API listener");
     let addr = listener.local_addr().expect("test API listener addr");
-    let app = handshake_core::api::kernel::routes(test_app_state(db));
+    let app = handshake_core::api::kernel::routes(test_app_state(db, &schema_url).await);
     let server = tokio::spawn(async move {
         axum::serve(listener, app)
             .await
