@@ -39,4 +39,66 @@ if (typeof window !== "undefined") {
       disconnect(): void {}
     } as unknown as typeof ResizeObserver;
   }
+
+  // Monaco's clipboard service calls navigator.clipboard.{write,read*}; jsdom
+  // omits the Clipboard API, so its body-level paste/copy handlers throw
+  // "Cannot read properties of undefined (reading 'write')" when a code-block
+  // editor is mounted. Provide a no-op clipboard stub so the embedded editor's
+  // schema/UI can be tested under jsdom (real clipboard behavior is exercised in
+  // the MT-176 Playwright spec).
+  const nav = win.navigator as Navigator & { clipboard?: unknown };
+  if (!nav.clipboard) {
+    Object.defineProperty(nav, "clipboard", {
+      configurable: true,
+      value: {
+        write: async () => {},
+        writeText: async () => {},
+        read: async () => [],
+        readText: async () => "",
+      },
+    });
+  }
+  // Monaco constructs `new ClipboardItem(...)` in its body copy handler; jsdom
+  // omits the class. Provide a minimal stub so the handler does not throw a
+  // synchronous ReferenceError on synthetic clicks during code-block tests.
+  const g = globalThis as Record<string, unknown>;
+  if (typeof g.ClipboardItem === "undefined") {
+    g.ClipboardItem = class {
+      constructor(public items: Record<string, unknown>) {}
+    };
+  }
+
+  // WP-KERNEL-009 / MT-165 — Monaco schedules async clipboard/layout work that
+  // it CANCELS when an editor is disposed; under jsdom (no canvas, fast
+  // teardown) those cancellations surface as unhandled "Canceled" rejections.
+  // They are benign Monaco lifecycle noise, NOT product errors. Swallow ONLY
+  // Monaco's cancellation error so a real unhandled rejection still fails the
+  // suite. (Full Monaco behavior is proven in the MT-176 Playwright spec.)
+  win.addEventListener("unhandledrejection", (event) => {
+    if (isMonacoCancellation((event as PromiseRejectionEvent).reason)) {
+      event.preventDefault();
+    }
+  });
+}
+
+/** True for Monaco's benign disposal "Canceled" rejection (see note above). */
+function isMonacoCancellation(reason: unknown): boolean {
+  if (typeof reason === "string") return reason === "Canceled";
+  if (!reason || typeof reason !== "object") return false;
+  const r = reason as { name?: unknown; message?: unknown };
+  return r.name === "Canceled" || r.name === "CancellationError" || r.message === "Canceled";
+}
+
+// Vitest surfaces Node-level unhandled rejections too; swallow ONLY Monaco's
+// cancellation noise at the process boundary so a genuine unhandled rejection
+// still fails the suite.
+const nodeProcess = (
+  globalThis as {
+    process?: { on?: (event: string, listener: (reason: unknown) => void) => void };
+  }
+).process;
+if (nodeProcess && typeof nodeProcess.on === "function") {
+  nodeProcess.on("unhandledRejection", (reason: unknown) => {
+    if (!isMonacoCancellation(reason)) throw reason;
+  });
 }

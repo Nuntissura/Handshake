@@ -1,0 +1,63 @@
+// WP-KERNEL-009 / MT-172 — EditorVisualDebugSelectors (debug payload) tests.
+//
+// Proves the debug snapshot reports node counts, embedded code blocks (language
+// + hash + length), typed links, and selection from a REAL editor document — the
+// machine-readable state a no-context model / the visual lane asserts against.
+
+import { describe, it, expect } from "vitest";
+import { Editor } from "@tiptap/core";
+import { buildHandshakeEditorExtensions } from "./build_editor_extensions";
+import {
+  buildEditorDebugSnapshot,
+  EDITOR_STABLE_SELECTORS,
+  type DebuggableEditor,
+} from "./visual_debug";
+import { makeCodeBlockAttrs } from "./code_block_serialization";
+
+function makeEditor(): Editor {
+  return new Editor({
+    extensions: buildHandshakeEditorExtensions(),
+    content: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "hi" }] }] },
+  });
+}
+
+describe("editor visual-debug snapshot (MT-172)", () => {
+  it("reports node counts, code blocks, and links from the document", () => {
+    const editor = makeEditor();
+    editor
+      .chain()
+      .insertContent({ type: "monacoCodeBlock", attrs: makeCodeBlockAttrs("rust", "fn main() {}") })
+      .insertContent({
+        type: "hsLink",
+        attrs: { refKind: "wp", refValue: "WP-1", label: "WP-1", resolved: true },
+      })
+      .run();
+
+    const snap = buildEditorDebugSnapshot(editor as unknown as DebuggableEditor);
+    expect(snap.codeBlocks).toHaveLength(1);
+    expect(snap.codeBlocks[0].language).toBe("rust");
+    expect(snap.codeBlocks[0].contentHash.length).toBeGreaterThan(0);
+    expect(snap.codeBlocks[0].codeLength).toBe("fn main() {}".length);
+    expect(snap.links).toHaveLength(1);
+    expect(snap.links[0].refKind).toBe("wp");
+    expect(snap.nodeCounts.paragraph).toBeGreaterThanOrEqual(1);
+    expect(snap.editable).toBe(true);
+    editor.destroy();
+  });
+
+  it("reports selection range", () => {
+    const editor = makeEditor();
+    editor.commands.selectAll();
+    const snap = buildEditorDebugSnapshot(editor as unknown as DebuggableEditor);
+    expect(snap.selection.empty).toBe(false);
+    expect(snap.selection.to).toBeGreaterThan(snap.selection.from);
+    editor.destroy();
+  });
+
+  it("documents the canonical stable selector set", () => {
+    expect(EDITOR_STABLE_SELECTORS).toContain("rich-text-editor");
+    expect(EDITOR_STABLE_SELECTORS).toContain("monaco-code-block");
+    expect(EDITOR_STABLE_SELECTORS).toContain("hs-link");
+    expect(EDITOR_STABLE_SELECTORS).toContain("rich-text-editor-backend-error");
+  });
+});
