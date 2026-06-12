@@ -6447,6 +6447,132 @@ impl super::Database for PostgresDatabase {
         })
     }
 
+    // -- MT-188 NavigationBreadcrumbs ------------------------------------------
+
+    async fn loom_block_breadcrumbs(
+        &self,
+        workspace_id: &str,
+        block_id: &str,
+    ) -> StorageResult<super::LoomBreadcrumbTrail> {
+        // Block must exist (fail-closed) and gives the leaf label.
+        let block = self.get_loom_block(workspace_id, block_id).await?;
+
+        let mut crumbs: Vec<super::LoomBreadcrumb> = Vec::new();
+
+        // 1. Workspace root.
+        let workspace_name = self
+            .get_workspace(workspace_id)
+            .await?
+            .map(|w| w.name)
+            .unwrap_or_else(|| workspace_id.to_string());
+        crumbs.push(super::LoomBreadcrumb {
+            kind: "workspace".to_string(),
+            id: workspace_id.to_string(),
+            label: workspace_name,
+        });
+
+        // 2. Folder ancestry: pick ONE folder this block belongs to (the first
+        //    by deterministic order), then walk up to the root, emitting crumbs
+        //    root-first.
+        let first_folder: Option<(String, String, Option<String>)> = sqlx::query_as(
+            r#"
+            SELECT f.folder_id, f.name, f.project_ref
+            FROM loom_folder_members m
+            JOIN loom_folders f
+              ON f.folder_id = m.folder_id AND f.workspace_id = m.workspace_id
+            WHERE m.workspace_id = $1 AND m.block_id = $2
+            ORDER BY f.created_at ASC, f.folder_id ASC
+            LIMIT 1
+            "#,
+        )
+        .bind(workspace_id)
+        .bind(block_id)
+        .fetch_optional(&self.pool)
+        .await?;
+
+        if let Some((folder_id, _name, _project_ref)) = first_folder {
+            // Walk the folder ancestry up to the root (parent_folder_id chain),
+            // cycle-guarded. depth 0 = the block's own folder; higher depth =
+            // closer to the root. Emit root-first (highest depth first).
+            let ancestry: Vec<(String, String, Option<String>, i32)> = sqlx::query_as(
+                r#"
+                WITH RECURSIVE up(folder_id, name, parent_folder_id, project_ref, depth, path) AS (
+                    SELECT folder_id, name, parent_folder_id, project_ref, 0,
+                           ARRAY[folder_id]::TEXT[]
+                    FROM loom_folders
+                    WHERE workspace_id = $1 AND folder_id = $2
+                    UNION ALL
+                    SELECT f.folder_id, f.name, f.parent_folder_id, f.project_ref,
+                           up.depth + 1, up.path || f.folder_id
+                    FROM loom_folders f
+                    JOIN up ON f.folder_id = up.parent_folder_id
+                    WHERE f.workspace_id = $1
+                      AND NOT f.folder_id = ANY(up.path)
+                )
+                SELECT folder_id, name, project_ref, depth FROM up
+                ORDER BY depth DESC
+                "#,
+            )
+            .bind(workspace_id)
+            .bind(&folder_id)
+            .fetch_all(&self.pool)
+            .await?;
+
+            // Optional project crumb: the root-most folder in the ancestry that
+            // carries a project_ref (the project the branch belongs to).
+            if let Some(project) = ancestry
+                .iter()
+                .find_map(|(_, _, pr, _)| pr.as_deref().map(str::trim).filter(|v| !v.is_empty()))
+            {
+                crumbs.push(super::LoomBreadcrumb {
+                    kind: "project".to_string(),
+                    id: project.to_string(),
+                    label: project.to_string(),
+                });
+            }
+
+            for (fid, name, _pr, _depth) in ancestry {
+                crumbs.push(super::LoomBreadcrumb {
+                    kind: "folder".to_string(),
+                    id: fid,
+                    label: name,
+                });
+            }
+        }
+
+        // 3. The block itself.
+        let block_label = block
+            .title
+            .as_deref()
+            .map(str::trim)
+            .filter(|v| !v.is_empty())
+            .map(|v| v.to_string())
+            .unwrap_or_else(|| format!("{} {}", block.content_type.as_str(), block.block_id));
+        crumbs.push(super::LoomBreadcrumb {
+            kind: "block".to_string(),
+            id: block.block_id.clone(),
+            label: block_label,
+        });
+
+        // 4. The ProjectKnowledgeIndex entity (when bridged) — the authority
+        //    anchor at the tip of the spine.
+        if let Some(bridge) = self
+            .get_loom_block_knowledge_bridge(workspace_id, block_id)
+            .await?
+        {
+            crumbs.push(super::LoomBreadcrumb {
+                kind: "entity".to_string(),
+                id: bridge.entity_id,
+                label: "knowledge_entity".to_string(),
+            });
+        }
+
+        Ok(super::LoomBreadcrumbTrail {
+            block_id: block.block_id,
+            crumbs,
+        })
+    }
+
     async fn upsert_calendar_source(
         &self,
         ctx: &WriteContext,

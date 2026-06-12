@@ -2400,6 +2400,20 @@ pub trait Database: Send + Sync {
         Err(StorageError::NotImplemented("loom markdown import backend"))
     }
 
+    // -- MT-188 NavigationBreadcrumbs ------------------------------------------
+    /// Build the breadcrumb trail for a LoomBlock across the entity spine:
+    /// workspace -> (project) -> folder ancestry -> block -> ProjectKnowledge
+    /// entity. Root-first. When the block lives in multiple folders, the first
+    /// folder branch (deterministic order) is used. Fails closed if the block
+    /// does not exist.
+    async fn loom_block_breadcrumbs(
+        &self,
+        _workspace_id: &str,
+        _block_id: &str,
+    ) -> StorageResult<LoomBreadcrumbTrail> {
+        Err(StorageError::NotImplemented("loom breadcrumb backend"))
+    }
+
     // Calendar storage (WP-1-Calendar-Storage-v1)
     async fn upsert_calendar_source(
         &self,

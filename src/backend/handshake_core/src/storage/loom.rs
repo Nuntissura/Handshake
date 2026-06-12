@@ -803,6 +803,39 @@ pub struct LoomWikiOverlay {
     pub updated_at: DateTime<Utc>,
 }
 
+// ---------------------------------------------------------------------------
+// MT-188 NavigationBreadcrumbs
+//
+// Master Spec MT-188: a breadcrumb trail across the entity spine (project /
+// folder / doc / block / symbol / WP / MT / source span) so any block is
+// locatable. Borrows the VS Code / Obsidian breadcrumb idiom but over Handshake
+// entities. Reuses the MT-181 folder tree + the MT-177 ProjectKnowledgeIndex
+// bridge; a read projection, never a parallel store.
+// ---------------------------------------------------------------------------
+
+/// A single crumb in a navigation breadcrumb trail.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct LoomBreadcrumb {
+    /// The crumb kind: `workspace` | `project` | `folder` | `block` | `entity`.
+    pub kind: String,
+    /// A stable id for the crumb target (workspace id, folder id, block id,
+    /// knowledge entity id, or a project ref token). Never an absolute path.
+    pub id: String,
+    /// Human-readable label (folder/block title, etc.).
+    pub label: String,
+}
+
+/// The breadcrumb trail for a LoomBlock: root-first crumbs spanning the entity
+/// spine down to the block (and its ProjectKnowledgeIndex entity).
+///
+/// A block can live in multiple folders; `folder_path` is the trail of ONE
+/// chosen folder branch (the first by deterministic order) when present.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct LoomBreadcrumbTrail {
+    pub block_id: String,
+    pub crumbs: Vec<LoomBreadcrumb>,
+}
+
 /// The result of importing a markdown-like note into Loom authority (MT-187):
 /// the created authority LoomBlock + the backing RichDocument id, plus any
 /// import warnings (unsupported features). The markdown source is never stored

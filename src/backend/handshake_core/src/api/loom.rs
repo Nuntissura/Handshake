@@ -96,6 +96,11 @@ pub fn routes(state: AppState) -> Router {
             "/workspaces/:workspace_id/loom/blocks/:block_id/pin-order",
             axum::routing::put(set_loom_block_pin_order),
         )
+        // MT-188: navigation breadcrumbs across the entity spine
+        .route(
+            "/workspaces/:workspace_id/loom/blocks/:block_id/breadcrumbs",
+            get(get_loom_block_breadcrumbs),
+        )
         // MT-178: backlinks (linked, with context) + unlinked mentions
         .route(
             "/workspaces/:workspace_id/loom/blocks/:block_id/backlinks",
@@ -337,6 +342,21 @@ async fn get_loom_block_knowledge_bridge(
         .map_err(map_storage_error)?
         .ok_or_else(|| not_found("loom_block_not_bridged"))?;
     Ok(Json(bridge))
+}
+
+/// MT-188: the navigation breadcrumb trail for a block (workspace -> project ->
+/// folder ancestry -> block -> ProjectKnowledgeIndex entity).
+async fn get_loom_block_breadcrumbs(
+    State(state): State<AppState>,
+    Path((workspace_id, block_id)): Path<(String, String)>,
+) -> ApiResult<Json<crate::storage::LoomBreadcrumbTrail>> {
+    ensure_workspace_exists(&state, &workspace_id).await?;
+    let trail = state
+        .storage
+        .loom_block_breadcrumbs(&workspace_id, &block_id)
+        .await
+        .map_err(map_storage_error)?;
+    Ok(Json(trail))
 }
 
 /// MT-178: linked backlinks for a block (incoming MENTION/TAG/... edges) each
