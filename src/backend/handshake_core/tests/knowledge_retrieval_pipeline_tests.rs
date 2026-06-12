@@ -755,6 +755,192 @@ async fn planner_derives_route_from_semantic_catalog_entry() {
     assert!(planned.plan.route[0].purpose.contains("ContextPack"));
 }
 
+/// Adversarial-v2 MT-144: the three previously label-only scenarios are now
+/// DRIVEN against real PostgreSQL (the other four — exact lookup, graph
+/// traversal, hybrid, passage fallback — are driven by the tests above):
+///   * stale_graph — a REAL edge + uncertain freshness falls back with the
+///     `graph_candidates_stale` reason;
+///   * no_result_recovery — nothing to retrieve yields a persisted, bounded,
+///     explainable EMPTY bundle (recovery without hallucination);
+///   * bad_citation — an unsupported citation is surfaced with the explicit
+///     `supported=false` marker in the persisted bundle, and the FK law makes
+///     a dangling citation unconstructable through storage.
+#[tokio::test]
+async fn retrieval_scenarios_stale_graph_no_result_and_bad_citation_are_driven() {
+    let fx = skip_if_no_pg!(
+        MemoryFixture::setup().await,
+        "retrieval_scenarios_stale_graph"
+    );
+    let pool = pool_for(&fx.pg).await;
+
+    // ---- stale_graph ------------------------------------------------------
+    let a = fx.entity("symbol", "stale_a", "StaleA").await;
+    let b = fx.entity("symbol", "stale_b", "StaleB").await;
+    fx.pg
+        .db
+        .upsert_knowledge_edge(NewKnowledgeEdge {
+            workspace_id: fx.workspace_id.clone(),
+            edge_type: KnowledgeEdgeType::DependsOn,
+            source_entity_id: a.clone(),
+            target_entity_id: b.clone(),
+            extractor_version: "test_v1".to_string(),
+            confidence: 0.9,
+            detected_in_run: None,
+            evidence_span_ids: vec![fx.span_id.clone()],
+        })
+        .await
+        .expect("edge");
+    fx.pg
+        .db
+        .create_knowledge_memory_passage(NewKnowledgeMemoryPassage {
+            workspace_id: fx.workspace_id.clone(),
+            passage_text: "fallback passage for the stale graph".to_string(),
+            token_count: Some(8),
+            ocr_transcript_metadata: None,
+            extraction_confidence: 0.8,
+            ranking_features: serde_json::json!({}),
+            retrieval_mode: KnowledgeRetrievalMode::HybridRag,
+            compaction_policy: KnowledgeCompactionPolicy::Keep,
+            failure_receipt_event_id: None,
+            derived_in_run: None,
+            evidence: vec![KnowledgePassageEvidenceRef::Span {
+                span_id: fx.span_id.clone(),
+            }],
+        })
+        .await
+        .expect("passage");
+
+    let mut request = RetrievalRequest::discovery(&fx.workspace_id, "stale neighborhood");
+    request.graph_neighborhood_expected = true;
+    request.freshness_uncertain = true; // the staleness signal
+    let executed = execute_retrieval(
+        &fx.pg.db,
+        &pool,
+        "ktr-stale",
+        "sr-stale",
+        BundleTargetKind::Symbol,
+        &a,
+        &request,
+        &BTreeSet::from([a.clone()]),
+        GraphTraversalPolicy::default(),
+    )
+    .await
+    .expect("execute stale");
+    assert!(executed.graph_edge_count > 0, "the graph HAS candidates");
+    assert_eq!(
+        executed.fallback_reason.as_deref(),
+        Some("graph_candidates_stale"),
+        "uncertain freshness over a present graph falls back as STALE"
+    );
+    assert!(!executed.ranked.is_empty(), "fallback passages ranked");
+
+    // ---- no_result_recovery ------------------------------------------------
+    // A separate empty workspace: no edges, no passages, nothing to retrieve.
+    let empty_ws = fx.pg.create_workspace().await;
+    let mut request = RetrievalRequest::discovery(&empty_ws, "anything at all");
+    request.graph_neighborhood_expected = true;
+    let executed = execute_retrieval(
+        &fx.pg.db,
+        &pool,
+        "ktr-noresult",
+        "sr-noresult",
+        BundleTargetKind::Task,
+        "no-result",
+        &request,
+        &BTreeSet::new(),
+        GraphTraversalPolicy::default(),
+    )
+    .await
+    .expect("execute no-result");
+    assert_eq!(
+        executed.fallback_reason.as_deref(),
+        Some("graph_candidates_missing")
+    );
+    assert!(executed.ranked.is_empty(), "nothing to rank");
+    // Recovery = a PERSISTED, bounded, explainable empty bundle.
+    let (bundle, items) = fx
+        .pg
+        .db
+        .get_knowledge_context_bundle(&executed.compiled.bundle_id)
+        .await
+        .expect("get bundle")
+        .expect("empty bundle persists");
+    assert_eq!(items.len(), 0, "no fabricated items");
+    assert_eq!(bundle.tokens_used, Some(0));
+    let traces = traces_for_bundle(&fx.pg.db, &executed.compiled.bundle_id)
+        .await
+        .expect("traces");
+    assert_eq!(traces.len(), 1, "the empty result is explainable");
+
+    // ---- bad_citation -------------------------------------------------------
+    // (1) A citation the index cannot back is SURFACED, never silent: the
+    // snippet assembler marks it supported=false and the compiled bundle's
+    // allowed_context records the marker.
+    let ghost = assemble_span_snippet(&fx.pg.db, "KSP-00000000000000000000000000000000")
+        .await
+        .expect("assemble ghost snippet");
+    assert!(!ghost.supported);
+    let planner = CheapestAuthoritativePathPlanner::new(&fx.pg.db);
+    let planned = planner
+        .plan(
+            &RetrievalRequest::discovery(&fx.workspace_id, "bad citation scenario").with_handle(
+                AuthoritativeHandle::EntityId(a.clone()),
+            ),
+        )
+        .await
+        .expect("plan");
+    let mut trace = RetrievalTrace::for_plan(&planned.plan);
+    let compiled = ContextBundleCompilerV2::new(&fx.pg.db)
+        .compile(
+            &fx.workspace_id,
+            "ktr-badcite",
+            "sr-badcite",
+            BundleTargetKind::Symbol,
+            &a,
+            &planned.plan,
+            &mut trace,
+            &[BundleCandidate {
+                ref_kind: KnowledgeBundleItemRefKind::Span,
+                ref_id: "KSP-00000000000000000000000000000000".to_string(),
+                tier: PriorityTier::Authoritative,
+                token_count: 8,
+                relevance_score: 0.9,
+                source_id: "ghost-source".to_string(),
+                snippet: Some(ghost),
+            }],
+            None,
+            None,
+        )
+        .await
+        .expect("compile bad citation");
+    let (bundle, _items) = fx
+        .pg
+        .db
+        .get_knowledge_context_bundle(&compiled.bundle_id)
+        .await
+        .expect("get bundle")
+        .expect("bundle exists");
+    assert_eq!(
+        bundle.allowed_context["items"][0]["supported"],
+        serde_json::json!(false),
+        "the persisted bundle carries the unsupported-citation marker: {}",
+        bundle.allowed_context
+    );
+
+    // (2) The FK law makes a DANGLING citation unconstructable via storage:
+    // deleting a span that passages/edges cite is RESTRICTed.
+    let mut conn = fx.pg.raw_connection().await;
+    let err = sqlx::query("DELETE FROM knowledge_spans WHERE span_id = $1")
+        .bind(&fx.span_id)
+        .execute(&mut conn)
+        .await
+        .expect_err("deleting a cited span must violate ON DELETE RESTRICT");
+    assert!(
+        err.to_string().contains("violates foreign key constraint"),
+        "unexpected: {err}"
+    );
+}
+
 /// MT-140: SemanticCatalog routing contracts are backend-queryable (not
 /// prompt-only).
 #[tokio::test]
