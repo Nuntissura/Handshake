@@ -195,6 +195,16 @@ impl ParsedTree {
     }
 }
 
+/// MT-097 resource caps (adversarial-v2: the V1 unbounded-parse concern). A
+/// source file is repo content but UNTRUSTED input to a C grammar reached over
+/// FFI; without caps a pathological/hostile file could OOM the parse or stall
+/// an index run. Mirrors the MT-105 SCIP import caps (`scip.rs`): size is
+/// checked BEFORE the parse allocates, the node ceiling bounds the flattening
+/// walk. An over-cap file degrades to a single typed parse failure (the engine
+/// records it in the repair queue), never a dead run.
+pub const MAX_PARSE_SOURCE_BYTES: usize = 2 * 1024 * 1024; // 2 MiB per source file
+pub const MAX_PARSE_NODES: usize = 400_000;
+
 /// The reusable Tree-sitter parser adapter. Cheap to construct; one per parse
 /// call (Tree-sitter `Parser` is not `Sync`).
 pub struct CodeParserAdapter {
@@ -244,10 +254,35 @@ impl CodeParserAdapter {
     /// `UnwindSafe`; the closure owns the whole parse so [`AssertUnwindSafe`] is
     /// sound here (no borrowed state escapes a partial unwind).
     pub fn parse(&self, source: &str) -> CodeIndexResult<ParsedTree> {
+        self.parse_with_caps(source, MAX_PARSE_SOURCE_BYTES, MAX_PARSE_NODES)
+    }
+
+    /// [`Self::parse`] with explicit resource caps (MT-097, adversarial-v2):
+    /// `max_source_bytes` is enforced BEFORE the tree-sitter parse runs (no
+    /// allocation for an oversized input), `max_nodes` bounds the flattening
+    /// walk. Exposed so callers with tighter budgets can lower the caps; the
+    /// defaults are [`MAX_PARSE_SOURCE_BYTES`] / [`MAX_PARSE_NODES`].
+    pub fn parse_with_caps(
+        &self,
+        source: &str,
+        max_source_bytes: usize,
+        max_nodes: usize,
+    ) -> CodeIndexResult<ParsedTree> {
         let language = self.language;
+        // Byte cap FIRST: an oversized file is rejected with a typed error
+        // before tree-sitter touches it (skip + repair-queue at the engine).
+        if source.len() > max_source_bytes {
+            return Err(CodeIndexError::Parse(CodeParseError {
+                language,
+                reason: format!(
+                    "source is {} bytes, exceeds the {max_source_bytes}-byte parse cap (MT-097)",
+                    source.len()
+                ),
+            }));
+        }
         let parser_version = self.parser_version();
         let parsed = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            Self::parse_inner(language, &parser_version, source)
+            Self::parse_inner(language, &parser_version, source, max_nodes)
         }))
         .map_err(|panic_payload| {
             CodeIndexError::Parse(CodeParseError {
@@ -267,6 +302,7 @@ impl CodeParserAdapter {
         language: CodeLanguage,
         parser_version: &str,
         source: &str,
+        max_nodes: usize,
     ) -> CodeIndexResult<ParsedTree> {
         let mut parser = tree_sitter::Parser::new();
         let ts_language = language.tree_sitter_language();
@@ -304,6 +340,16 @@ impl CodeParserAdapter {
         }
 
         while let Some((node, parent_index, depth)) = stack.pop() {
+            // MT-097 node ceiling: a pathological tree degrades to a typed
+            // parse failure instead of an unbounded flattening walk.
+            if nodes.len() >= max_nodes {
+                return Err(CodeIndexError::Parse(CodeParseError {
+                    language,
+                    reason: format!(
+                        "parse tree exceeds the {max_nodes}-node cap (MT-097)"
+                    ),
+                }));
+            }
             let start_byte = node.start_byte();
             let end_byte = node.end_byte();
             let (start_line, end_line) =
@@ -477,6 +523,42 @@ fn byte_range_to_line_range(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn oversized_source_is_rejected_before_parse() {
+        // Adversarial-v2 MT-097: the byte cap fires BEFORE tree-sitter runs;
+        // an over-cap file is a typed parse failure, never an unbounded parse.
+        let adapter = CodeParserAdapter::new(CodeLanguage::Rust);
+        let oversized = "/".repeat(MAX_PARSE_SOURCE_BYTES + 1);
+        let err = adapter
+            .parse(&oversized)
+            .expect_err("over-cap source must be rejected");
+        let msg = err.to_string();
+        assert!(
+            msg.contains("parse cap") && msg.contains("MT-097"),
+            "typed cap reason expected, got: {msg}"
+        );
+        // A file exactly AT the cap parses (boundary is inclusive).
+        let at_cap = " ".repeat(MAX_PARSE_SOURCE_BYTES);
+        assert!(adapter.parse(&at_cap).is_ok());
+    }
+
+    #[test]
+    fn node_ceiling_degrades_to_typed_failure() {
+        // A tiny explicit node cap proves the ceiling bounds the flattening
+        // walk: 64 statements with a 16-node cap must fail typed, and the
+        // SAME source under the default caps parses fine.
+        let adapter = CodeParserAdapter::new(CodeLanguage::Rust);
+        let source = "fn main() {\n".to_string() + &"let x = 1;\n".repeat(64) + "}\n";
+        let err = adapter
+            .parse_with_caps(&source, MAX_PARSE_SOURCE_BYTES, 16)
+            .expect_err("over-node-cap parse must be rejected");
+        assert!(
+            err.to_string().contains("node cap"),
+            "typed node-cap reason expected, got: {err}"
+        );
+        assert!(adapter.parse(&source).is_ok(), "default caps still parse");
+    }
 
     #[test]
     fn detects_languages_by_extension() {
