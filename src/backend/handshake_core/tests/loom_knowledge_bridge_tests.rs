@@ -363,3 +363,59 @@ async fn bridge_fails_closed_on_missing_block() {
         "missing block bridge fails with not-found, got: {msg}"
     );
 }
+
+/// MT-177 adversarial: a LoomBlock with an un-bridgeable id (empty / surrounded
+/// by whitespace) must be rejected at create time, so it can never exist as an
+/// orphan block outside Postgres/EventLedger authority. (The block id becomes
+/// the knowledge_entities entity_key, which forbids surrounding whitespace.)
+#[tokio::test]
+async fn create_rejects_unbridgeable_block_id() {
+    let pg = pg_or_skip!();
+    let ws = pg.create_workspace().await;
+    let ctx = WriteContext::human(None);
+
+    for bad_id in ["", "   ", " leading", "trailing ", "\tmixed\n"] {
+        let result = pg
+            .db
+            .create_loom_block(
+                &ctx,
+                NewLoomBlock {
+                    block_id: Some(bad_id.to_string()),
+                    workspace_id: ws.clone(),
+                    content_type: LoomBlockContentType::Note,
+                    document_id: None,
+                    asset_id: None,
+                    title: Some("Bad Id".to_string()),
+                    original_filename: None,
+                    content_hash: None,
+                    pinned: false,
+                    journal_date: None,
+                    imported_at: None,
+                    derived: LoomBlockDerived::default(),
+                },
+            )
+            .await;
+        assert!(
+            result.is_err(),
+            "create_loom_block must reject un-bridgeable id {bad_id:?}"
+        );
+    }
+
+    // No orphan blocks were created (none can be listed in the All view).
+    let view = pg
+        .db
+        .query_loom_view(
+            &ws,
+            handshake_core::storage::LoomViewType::All,
+            handshake_core::storage::LoomViewFilters::default(),
+            100,
+            0,
+        )
+        .await
+        .expect("all view");
+    let count = match view {
+        handshake_core::storage::LoomViewResponse::All { blocks } => blocks.len(),
+        _ => unreachable!("all view returns All"),
+    };
+    assert_eq!(count, 0, "no orphan blocks created from rejected ids");
+}

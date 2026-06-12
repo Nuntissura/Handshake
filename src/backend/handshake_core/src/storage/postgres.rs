@@ -3405,6 +3405,17 @@ impl super::Database for PostgresDatabase {
         let id = block
             .block_id
             .map_or_else(|| Uuid::now_v7().to_string(), |v| v);
+        // MT-177: the block id becomes the ProjectKnowledgeIndex entity_key
+        // (knowledge_entities.entity_key has a `btrim = value AND <> ''`
+        // CHECK). Reject an un-bridgeable id at the source so a LoomBlock can
+        // never exist that the authority bridge would later refuse — which
+        // would otherwise leave an orphan block outside Postgres/EventLedger
+        // authority (§10.12 #9.1.1).
+        if id.trim().is_empty() || id.trim() != id {
+            return Err(StorageError::Validation(
+                "loom block_id must be non-empty without surrounding whitespace",
+            ));
+        }
         let metadata = self.guard.validate_write(ctx, &id).await?;
         let actor_kind = metadata.actor_kind.as_str();
         let actor_id = metadata.actor_id.clone();
