@@ -604,6 +604,11 @@ name = "knowledge_crdt_proposal_tests"
 path = "tests/knowledge_crdt_proposal_tests.rs"
 required-features = ["test-utils"]
 
+[[test]]
+name = "parallel_swarm_state_recovery_tests"
+path = "tests/parallel_swarm_state_recovery_tests.rs"
+required-features = ["test-utils"]
+
 # WP-KERNEL-009 UserManualAndNoContextOps (MT-193..MT-208): real-PostgreSQL
 # proof for the canonical UserManual surface (storage, API, content accuracy).
 [[test]]
@@ -631,11 +636,6 @@ required-features = ["test-utils"]
 [[test]]
 name = "project_wiki_drift_tests"
 path = "tests/project_wiki_drift_tests.rs"
-required-features = ["test-utils"]
-
-[[test]]
-name = "project_wiki_fanout_tests"
-path = "tests/project_wiki_fanout_tests.rs"
 required-features = ["test-utils"]
 
 [[test]]
