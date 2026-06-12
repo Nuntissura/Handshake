@@ -659,6 +659,115 @@ async fn mt152_save_path_validates_and_persists_content_embeds() {
 }
 
 // ---------------------------------------------------------------------------
+// MT-156 adversarial-v2: history is paginated and omits version bodies.
+// ---------------------------------------------------------------------------
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn mt156_history_is_paginated_and_omits_version_bodies() {
+    let Some(pg) = knowledge_pg().await else {
+        eprintln!("SKIP mt156_history...: no PostgreSQL");
+        return;
+    };
+    let workspace_id = pg.create_workspace().await;
+    let (base, http) = doc_server(&pg).await;
+    let created = create_doc(&base, &http, &workspace_id, "History").await;
+    let doc_id = created["document"]["rich_document_id"]
+        .as_str()
+        .expect("doc id")
+        .to_string();
+
+    // Build 5 versions (v1 from create + 4 saves with distinct bodies).
+    for v in 1..=4i64 {
+        let resp = headers_with_kind(
+            http.put(format!("{base}/knowledge/documents/{doc_id}/save")),
+            "hist-save",
+            "operator",
+        )
+        .json(&json!({
+            "expected_version": v,
+            "content_json": {"type": "doc", "content": [
+                { "type": "paragraph", "content": [{ "type": "text", "text": format!("body v{}", v + 1) }] }
+            ]}
+        }))
+        .send()
+        .await
+        .expect("send");
+        assert_eq!(resp.status(), 200, "save v{} must succeed", v + 1);
+    }
+
+    // Paginated page: limit=2 offset=1 -> versions 2 and 3, metadata ONLY.
+    let resp = headers_with_kind(
+        http.get(format!(
+            "{base}/knowledge/documents/{doc_id}/history?limit=2&offset=1"
+        )),
+        "hist-page",
+        "operator",
+    )
+    .send()
+    .await
+    .expect("send");
+    assert_eq!(resp.status(), 200);
+    let body: Value = resp.json().await.expect("json");
+    assert_eq!(body["total_versions"], 5);
+    assert_eq!(body["limit"], 2);
+    assert_eq!(body["offset"], 1);
+    let versions = body["versions"].as_array().expect("versions");
+    assert_eq!(versions.len(), 2);
+    assert_eq!(versions[0]["doc_version"], 2);
+    assert_eq!(versions[1]["doc_version"], 3);
+    for version in versions {
+        assert!(
+            version.get("content_json").is_none(),
+            "history list must omit version bodies: {version}"
+        );
+        assert!(version["content_sha256"].is_string());
+    }
+
+    // The limit is capped server-side: a huge requested limit clamps to 200.
+    let resp = headers_with_kind(
+        http.get(format!(
+            "{base}/knowledge/documents/{doc_id}/history?limit=100000"
+        )),
+        "hist-cap",
+        "operator",
+    )
+    .send()
+    .await
+    .expect("send");
+    let body: Value = resp.json().await.expect("json");
+    assert_eq!(body["limit"], 200, "requested limit must clamp to the cap");
+    assert_eq!(body["versions"].as_array().expect("versions").len(), 5);
+
+    // Lazy single-version body load: GET history/3 returns the v3 content.
+    let resp = headers_with_kind(
+        http.get(format!("{base}/knowledge/documents/{doc_id}/history/3")),
+        "hist-one",
+        "operator",
+    )
+    .send()
+    .await
+    .expect("send");
+    assert_eq!(resp.status(), 200);
+    let body: Value = resp.json().await.expect("json");
+    assert_eq!(body["version"]["doc_version"], 3);
+    assert_eq!(
+        body["version"]["content_json"]["content"][0]["content"][0]["text"],
+        "body v3"
+    );
+
+    // A missing version is a 404, not an empty 200.
+    let resp = headers_with_kind(
+        http.get(format!("{base}/knowledge/documents/{doc_id}/history/99")),
+        "hist-missing",
+        "operator",
+    )
+    .send()
+    .await
+    .expect("send");
+    assert_eq!(resp.status(), 404);
+}
+
+// ---------------------------------------------------------------------------
 // MT-149 adversarial-v2: a committed save never returns an error.
 // ---------------------------------------------------------------------------
 

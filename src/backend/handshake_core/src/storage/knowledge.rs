@@ -1850,6 +1850,22 @@ pub struct KnowledgeRichDocumentVersion {
     pub created_at: DateTime<Utc>,
 }
 
+/// Version-history METADATA without the content body (adversarial-v2 MT-156:
+/// the history list endpoint must not return every version's full
+/// `content_json` — that is a response-size DoS on long-lived documents). A
+/// single version body is lazily loaded through
+/// [`KnowledgeStore::get_knowledge_rich_document_version`].
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct KnowledgeRichDocumentVersionMeta {
+    pub rich_document_id: String,
+    pub doc_version: i64,
+    pub schema_version: String,
+    pub content_sha256: String,
+    pub crdt_snapshot_id: Option<String>,
+    pub promotion_receipt_event_id: Option<String>,
+    pub created_at: DateTime<Utc>,
+}
+
 /// A Monaco-backed code block embedded in a RichDocument.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct KnowledgeEditorCodeNode {
@@ -2833,6 +2849,29 @@ pub trait KnowledgeStore: Send + Sync {
         &self,
         rich_document_id: &str,
     ) -> StorageResult<Vec<KnowledgeRichDocumentVersion>>;
+
+    /// Paginated revision-history METADATA in version order (adversarial-v2
+    /// MT-156): no content bodies, bounded by `limit`/`offset`.
+    async fn list_knowledge_rich_document_version_metas(
+        &self,
+        rich_document_id: &str,
+        limit: i64,
+        offset: i64,
+    ) -> StorageResult<Vec<KnowledgeRichDocumentVersionMeta>>;
+
+    /// Total number of revisions in the document's history (MT-156 pagination).
+    async fn count_knowledge_rich_document_versions(
+        &self,
+        rich_document_id: &str,
+    ) -> StorageResult<i64>;
+
+    /// Loads ONE revision including its full content body (MT-156 lazy body
+    /// load — the list endpoint returns metadata only).
+    async fn get_knowledge_rich_document_version(
+        &self,
+        rich_document_id: &str,
+        doc_version: i64,
+    ) -> StorageResult<Option<KnowledgeRichDocumentVersion>>;
 
     /// MT-157 batch op: rename a document (title only). Does NOT bump
     /// doc_version (content is unchanged); a safe metadata-only op.
@@ -4640,6 +4679,87 @@ impl KnowledgeStore for PostgresDatabase {
                 created_at: row.get("created_at"),
             })
             .collect())
+    }
+
+    async fn list_knowledge_rich_document_version_metas(
+        &self,
+        rich_document_id: &str,
+        limit: i64,
+        offset: i64,
+    ) -> StorageResult<Vec<KnowledgeRichDocumentVersionMeta>> {
+        // MT-156: metadata only — content_json is deliberately NOT selected so
+        // a long history can never balloon the response.
+        let rows = sqlx::query(
+            r#"
+            SELECT rich_document_id, doc_version, schema_version,
+                   content_sha256, crdt_snapshot_id, promotion_receipt_event_id,
+                   created_at
+            FROM knowledge_rich_document_versions
+            WHERE rich_document_id = $1
+            ORDER BY doc_version
+            LIMIT $2 OFFSET $3
+            "#,
+        )
+        .bind(rich_document_id)
+        .bind(limit.max(0))
+        .bind(offset.max(0))
+        .fetch_all(self.pool())
+        .await?;
+        Ok(rows
+            .into_iter()
+            .map(|row| KnowledgeRichDocumentVersionMeta {
+                rich_document_id: row.get("rich_document_id"),
+                doc_version: row.get("doc_version"),
+                schema_version: row.get("schema_version"),
+                content_sha256: row.get("content_sha256"),
+                crdt_snapshot_id: row.get("crdt_snapshot_id"),
+                promotion_receipt_event_id: row.get("promotion_receipt_event_id"),
+                created_at: row.get("created_at"),
+            })
+            .collect())
+    }
+
+    async fn count_knowledge_rich_document_versions(
+        &self,
+        rich_document_id: &str,
+    ) -> StorageResult<i64> {
+        let count: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*) FROM knowledge_rich_document_versions WHERE rich_document_id = $1",
+        )
+        .bind(rich_document_id)
+        .fetch_one(self.pool())
+        .await?;
+        Ok(count)
+    }
+
+    async fn get_knowledge_rich_document_version(
+        &self,
+        rich_document_id: &str,
+        doc_version: i64,
+    ) -> StorageResult<Option<KnowledgeRichDocumentVersion>> {
+        let row = sqlx::query(
+            r#"
+            SELECT rich_document_id, doc_version, schema_version, content_json,
+                   content_sha256, crdt_snapshot_id, promotion_receipt_event_id,
+                   created_at
+            FROM knowledge_rich_document_versions
+            WHERE rich_document_id = $1 AND doc_version = $2
+            "#,
+        )
+        .bind(rich_document_id)
+        .bind(doc_version)
+        .fetch_optional(self.pool())
+        .await?;
+        Ok(row.map(|row| KnowledgeRichDocumentVersion {
+            rich_document_id: row.get("rich_document_id"),
+            doc_version: row.get("doc_version"),
+            schema_version: row.get("schema_version"),
+            content_json: row.get("content_json"),
+            content_sha256: row.get("content_sha256"),
+            crdt_snapshot_id: row.get("crdt_snapshot_id"),
+            promotion_receipt_event_id: row.get("promotion_receipt_event_id"),
+            created_at: row.get("created_at"),
+        }))
     }
 
     async fn rename_knowledge_rich_document(

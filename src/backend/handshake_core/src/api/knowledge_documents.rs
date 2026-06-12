@@ -75,6 +75,10 @@ pub fn routes(state: AppState) -> Router {
             get(load_history),
         )
         .route(
+            "/knowledge/documents/:document_id/history/:doc_version",
+            get(load_history_version),
+        )
+        .route(
             "/knowledge/documents/:document_id/projection",
             get(export_projection),
         )
@@ -363,6 +367,21 @@ struct ImportDocumentBody {
 struct ProjectionParams {
     format: String,
 }
+
+/// Pagination for the history list (adversarial-v2 MT-156). Defaults bound the
+/// response even when the caller passes nothing.
+#[derive(Debug, Deserialize)]
+struct HistoryParams {
+    #[serde(default)]
+    limit: Option<i64>,
+    #[serde(default)]
+    offset: Option<i64>,
+}
+
+/// History pagination bounds (MT-156): a caller can never request an
+/// unbounded page.
+const HISTORY_DEFAULT_LIMIT: i64 = 50;
+const HISTORY_MAX_LIMIT: i64 = 200;
 
 #[derive(Debug, Deserialize)]
 struct RepairEmbedBody {
@@ -682,16 +701,29 @@ async fn load_blocks(
     Ok(Json(tree))
 }
 
-/// GET /knowledge/documents/:document_id/history — append-only revision history
-/// + receipts (MT-156).
+/// GET /knowledge/documents/:document_id/history — append-only revision
+/// history + receipts (MT-156).
+///
+/// Adversarial-v2 hardening: the list is PAGINATED (`?limit=&offset=`, default
+/// 50, cap 200) and returns version METADATA only — no `content_json` bodies
+/// (a long history could otherwise balloon the response into a DoS). A single
+/// version body is lazily loaded via
+/// `GET /knowledge/documents/:document_id/history/:doc_version`.
 async fn load_history(
     State(state): State<AppState>,
     Path(document_id): Path<String>,
+    Query(params): Query<HistoryParams>,
     headers: HeaderMap,
 ) -> Result<Json<Value>, ApiError> {
     let ctx = doc_context(&headers)?;
     ctx.require(DocumentAction::Read)?;
     let db = db_for(&state);
+
+    let limit = params
+        .limit
+        .unwrap_or(HISTORY_DEFAULT_LIMIT)
+        .clamp(1, HISTORY_MAX_LIMIT);
+    let offset = params.offset.unwrap_or(0).max(0);
 
     let document = db
         .get_knowledge_rich_document(&document_id)
@@ -699,7 +731,11 @@ async fn load_history(
         .map_err(storage_error)?
         .ok_or_else(|| not_found("knowledge rich document"))?;
     let versions = db
-        .list_knowledge_rich_document_versions(&document_id)
+        .list_knowledge_rich_document_version_metas(&document_id, limit, offset)
+        .await
+        .map_err(storage_error)?;
+    let total_versions = db
+        .count_knowledge_rich_document_versions(&document_id)
         .await
         .map_err(storage_error)?;
 
@@ -710,6 +746,31 @@ async fn load_history(
         "owner_actor_kind": document.owner_actor_kind,
         "owner_actor_id": document.owner_actor_id,
         "versions": versions,
+        "total_versions": total_versions,
+        "limit": limit,
+        "offset": offset,
+    })))
+}
+
+/// GET /knowledge/documents/:document_id/history/:doc_version — ONE revision
+/// including its full content body (MT-156 lazy body load).
+async fn load_history_version(
+    State(state): State<AppState>,
+    Path((document_id, doc_version)): Path<(String, i64)>,
+    headers: HeaderMap,
+) -> Result<Json<Value>, ApiError> {
+    let ctx = doc_context(&headers)?;
+    ctx.require(DocumentAction::Read)?;
+    let db = db_for(&state);
+
+    let version = db
+        .get_knowledge_rich_document_version(&document_id, doc_version)
+        .await
+        .map_err(storage_error)?
+        .ok_or_else(|| not_found("knowledge rich document version"))?;
+    Ok(Json(json!({
+        "rich_document_id": document_id,
+        "version": version,
     })))
 }
 
