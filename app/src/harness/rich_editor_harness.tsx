@@ -27,8 +27,14 @@ import { buildHandshakeEditorExtensions } from "../lib/editor/build_editor_exten
 import { jsonDeepEquals } from "../lib/editor/doc_equality";
 import {
   EDITOR_DEBUG_GLOBAL_KEY,
+  EDITOR_DEBUG_ENABLE_KEY,
   type EditorDebugSnapshot,
 } from "../lib/editor/visual_debug";
+
+// Iteration-3 M15: the debug payload is OFF in production bundles by default;
+// the offline proof harness opts in explicitly so the Playwright lane can read
+// __HS_EDITOR_DEBUG__ from a production-built bundle.
+(globalThis as Record<string, unknown>)[EDITOR_DEBUG_ENABLE_KEY] = true;
 import { makeCodeBlockAttrs, codeBlockHash } from "../lib/editor/code_block_serialization";
 import "monaco-editor/min/vs/editor/editor.main.css";
 

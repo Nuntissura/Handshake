@@ -4,12 +4,17 @@
 // + hash + length), typed links, and selection from a REAL editor document — the
 // machine-readable state a no-context model / the visual lane asserts against.
 
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, afterEach } from "vitest";
 import { Editor } from "@tiptap/core";
 import { buildHandshakeEditorExtensions } from "./build_editor_extensions";
 import {
   buildEditorDebugSnapshot,
+  isEditorDebugEnabled,
+  publishEditorDebugSnapshot,
   EDITOR_STABLE_SELECTORS,
+  EDITOR_DEBUG_ENABLE_KEY,
+  EDITOR_DEBUG_GLOBAL_KEY,
+  EDITOR_DEBUG_BY_ID_GLOBAL_KEY,
   type DebuggableEditor,
 } from "./visual_debug";
 import { makeCodeBlockAttrs } from "./code_block_serialization";
@@ -59,5 +64,43 @@ describe("editor visual-debug snapshot (MT-172)", () => {
     expect(EDITOR_STABLE_SELECTORS).toContain("monaco-code-block");
     expect(EDITOR_STABLE_SELECTORS).toContain("hs-link");
     expect(EDITOR_STABLE_SELECTORS).toContain("rich-text-editor-backend-error");
+  });
+});
+
+describe("debug gating + per-editor namespacing (iteration-3 M15/L19)", () => {
+  afterEach(() => {
+    const g = globalThis as Record<string, unknown>;
+    delete g[EDITOR_DEBUG_ENABLE_KEY];
+    delete g[EDITOR_DEBUG_GLOBAL_KEY];
+    delete g[EDITOR_DEBUG_BY_ID_GLOBAL_KEY];
+  });
+
+  it("explicit enable/disable overrides; defaults ON outside production builds", () => {
+    const g = globalThis as Record<string, unknown>;
+    // Test env (vitest MODE=test) defaults to enabled.
+    expect(isEditorDebugEnabled()).toBe(true);
+    g[EDITOR_DEBUG_ENABLE_KEY] = false;
+    expect(isEditorDebugEnabled()).toBe(false);
+    g[EDITOR_DEBUG_ENABLE_KEY] = true;
+    expect(isEditorDebugEnabled()).toBe(true);
+  });
+
+  it("publishes on both the last-writer global and the per-id namespace", () => {
+    const editor = makeEditor();
+    const snapshot = buildEditorDebugSnapshot(editor as unknown as DebuggableEditor);
+    publishEditorDebugSnapshot(snapshot, "KRD-A");
+    const second = makeEditor();
+    const snapshot2 = buildEditorDebugSnapshot(second as unknown as DebuggableEditor);
+    publishEditorDebugSnapshot(snapshot2, "KRD-B");
+
+    const g = globalThis as Record<string, unknown>;
+    // Last writer wins on the legacy global (back-compat for existing specs)...
+    expect(g[EDITOR_DEBUG_GLOBAL_KEY]).toBe(snapshot2);
+    // ...while both editors stay attributable through the id namespace.
+    const byId = g[EDITOR_DEBUG_BY_ID_GLOBAL_KEY] as Record<string, unknown>;
+    expect(byId["KRD-A"]).toBe(snapshot);
+    expect(byId["KRD-B"]).toBe(snapshot2);
+    editor.destroy();
+    second.destroy();
   });
 });

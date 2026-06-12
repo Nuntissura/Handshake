@@ -396,6 +396,8 @@ export function RichDocumentView({ documentId }: Props) {
               // backend assets; memoized so the editor is not rebuilt per render.
               embedContext={embedContext}
               documentTitle={doc.title}
+              // Iteration-3 L19: attributable per-document debug namespace.
+              debugId={doc.rich_document_id}
             />
             <div className="document-editor__status" data-testid="rich-document-status">
               {lastSavedAt && (

@@ -63,7 +63,8 @@ import {
 } from "../lib/dependency_policy/dependency_failure";
 import {
   buildEditorDebugSnapshot,
-  EDITOR_DEBUG_GLOBAL_KEY,
+  isEditorDebugEnabled,
+  publishEditorDebugSnapshot,
   EDITOR_LAST_EXPORT_GLOBAL_KEY,
   type EditorDebugSnapshot,
 } from "../lib/editor/visual_debug";
@@ -117,6 +118,12 @@ export type RichTextEditorProps = {
    * preventDefault-ed (the browser save dialog must never appear).
    */
   onSaveRequested?: () => void;
+  /**
+   * Stable id for the per-editor debug namespace (iteration-3 L19):
+   * `__HS_EDITOR_DEBUG_BY_ID__[debugId]`. Defaults to "default"; document
+   * shells pass their document id so parallel editors stay attributable.
+   */
+  debugId?: string;
   /** Extension factory override (tests / DI). */
   extensionFactory?: () => AnyExtension[];
 };
@@ -264,6 +271,7 @@ function RichTextEditorInner({
   documentTitle,
   onEditorReady,
   onSaveRequested,
+  debugId = "default",
 }: RichTextEditorProps & { extensions: AnyExtension[] }) {
   const [, forceRefresh] = useState(0);
   const [paletteOpen, setPaletteOpen] = useState(false);
@@ -343,22 +351,41 @@ function RichTextEditorInner({
     if (editor && onEditorReady) onEditorReady(editor);
   }, [editor, onEditorReady]);
 
-  // Publishes the machine-readable visual-debug snapshot (MT-172) on a global
-  // and on component state so the visual lane / a no-context model can read it.
+  // Publishes the machine-readable visual-debug snapshot (MT-172) on the
+  // globals and on component state so the visual lane / a no-context model can
+  // read it. Iteration-3 M15: gated behind the debug switch (the walk is
+  // O(doc) per transaction — ON in dev/test and when the harness/operator
+  // enables it, OFF in production bundles); L19: also published under the
+  // per-editor id namespace so parallel editors stay attributable.
   const publishDebug = useCallback(() => {
-    if (!editor) return;
+    if (!editor || editor.isDestroyed) return;
+    if (!isEditorDebugEnabled()) return;
     const snapshot = buildEditorDebugSnapshot(editor);
     setDebugSnapshot(snapshot);
-    (globalThis as Record<string, unknown>)[EDITOR_DEBUG_GLOBAL_KEY] = snapshot;
-  }, [editor]);
+    publishEditorDebugSnapshot(snapshot, debugId);
+  }, [editor, debugId]);
 
   // Toolbar active-state refresh + actor-attributed selection snapshot (MT-171)
-  // + visual-debug publication (MT-172).
+  // + visual-debug publication (MT-172). Iteration-3 M15: selectionUpdate and
+  // transaction fire together on most edits — the refresh/publish work is
+  // coalesced into ONE microtask per tick instead of two synchronous
+  // re-renders + two O(doc) walks per keystroke.
   useEffect(() => {
     if (!editor) return;
+    let refreshQueued = false;
+    let disposed = false;
+    const scheduleRefresh = () => {
+      if (refreshQueued) return;
+      refreshQueued = true;
+      queueMicrotask(() => {
+        refreshQueued = false;
+        if (disposed || editor.isDestroyed) return;
+        forceRefresh((t) => t + 1);
+        publishDebug();
+      });
+    };
     const onSelection = () => {
-      forceRefresh((t) => t + 1);
-      publishDebug();
+      scheduleRefresh();
       if (!onSelectionSnapshot) return;
       const { from, to } = editor.state.selection;
       const doc = editor.state.doc;
@@ -370,18 +397,14 @@ function RichTextEditorInner({
       onSelectionSnapshot(snapshotFromOffsets(actor, selected, startUtf8, endUtf8, presencePolicy));
     };
     const onTx = () => {
-      forceRefresh((t) => t + 1);
-      publishDebug();
+      scheduleRefresh();
     };
     editor.on("selectionUpdate", onSelection);
     editor.on("transaction", onTx);
-    // Defer the initial publish out of the effect body so it does not cascade a
-    // synchronous re-render (the live updates flow through editor events above).
-    const initial = queueMicrotask
-      ? (queueMicrotask(publishDebug), undefined)
-      : setTimeout(publishDebug, 0);
+    // Initial publish via the same coalesced path.
+    scheduleRefresh();
     return () => {
-      if (initial !== undefined) clearTimeout(initial);
+      disposed = true;
       editor.off("selectionUpdate", onSelection);
       editor.off("transaction", onTx);
     };

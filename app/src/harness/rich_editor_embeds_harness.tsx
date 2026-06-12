@@ -24,7 +24,13 @@ import { createRoot } from "react-dom/client";
 import type { JSONContent } from "@tiptap/core";
 import { RichTextEditor } from "../components/RichTextEditor";
 import { makeCodeBlockAttrs } from "../lib/editor/code_block_serialization";
+import { EDITOR_DEBUG_ENABLE_KEY } from "../lib/editor/visual_debug";
 import "monaco-editor/min/vs/editor/editor.main.css";
+
+// Iteration-3 M15: the debug payload is OFF in production bundles by default;
+// this proof harness opts in so the offline Playwright spec can read
+// __HS_EDITOR_DEBUG__ from the production-built bundle.
+(globalThis as Record<string, unknown>)[EDITOR_DEBUG_ENABLE_KEY] = true;
 
 export const EMBED_PROOF_WORKSPACE = "ws-embed-proof";
 

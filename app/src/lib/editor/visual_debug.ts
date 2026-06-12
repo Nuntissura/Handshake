@@ -95,6 +95,51 @@ export function buildEditorDebugSnapshot(editor: DebuggableEditor): EditorDebugS
 export const EDITOR_DEBUG_GLOBAL_KEY = "__HS_EDITOR_DEBUG__" as const;
 
 /**
+ * Per-editor debug snapshots keyed by debug id (iteration-3 L19): the single
+ * global key is last-writer-wins across multiple mounted editors, so parallel
+ * surfaces (split views, tests, multi-doc sessions) could not attribute a
+ * snapshot. Consumers read `__HS_EDITOR_DEBUG_BY_ID__[debugId]`.
+ */
+export const EDITOR_DEBUG_BY_ID_GLOBAL_KEY = "__HS_EDITOR_DEBUG_BY_ID__" as const;
+
+/**
+ * Explicit runtime switch for the debug payload (iteration-3 M15). The
+ * snapshot walk is O(doc) per transaction — fine for tests/visual lanes,
+ * waste for large production documents.
+ */
+export const EDITOR_DEBUG_ENABLE_KEY = "__HS_EDITOR_DEBUG_ENABLE__" as const;
+
+/**
+ * Whether the editor should build + publish debug snapshots:
+ *   - explicit `__HS_EDITOR_DEBUG_ENABLE__ = true/false` always wins
+ *     (the offline harness sets true; an operator/model can flip it live),
+ *   - otherwise ON outside production builds (dev server, vitest),
+ *     OFF in production bundles.
+ */
+export function isEditorDebugEnabled(): boolean {
+  const g = globalThis as Record<string, unknown>;
+  const explicit = g[EDITOR_DEBUG_ENABLE_KEY];
+  if (explicit === true) return true;
+  if (explicit === false) return false;
+  try {
+    return import.meta.env?.MODE !== "production";
+  } catch {
+    return false;
+  }
+}
+
+/** Publishes a snapshot on the global + per-id surfaces (single write path). */
+export function publishEditorDebugSnapshot(
+  snapshot: EditorDebugSnapshot,
+  debugId: string,
+): void {
+  const g = globalThis as Record<string, unknown>;
+  g[EDITOR_DEBUG_GLOBAL_KEY] = snapshot;
+  const byId = (g[EDITOR_DEBUG_BY_ID_GLOBAL_KEY] ??= {}) as Record<string, EditorDebugSnapshot>;
+  byId[debugId] = snapshot;
+}
+
+/**
  * The stable global key the editor publishes its LAST EXPORT result under
  * (MT-244 save-to-format): { formatId, filename, bytes, embedErrors,
  * inlineSkips } — lets the visual lane assert export outcomes without

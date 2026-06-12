@@ -188,15 +188,34 @@ test.describe("WP-KERNEL-009 iteration-3 REAL typing in the offline editor (netw
     expect(externalRequests, "external requests attempted during boot").toEqual([]);
   }
 
-  /** Click the intro paragraph and park the caret after "Intro" (5 chars in). */
+  /** Click the intro paragraph and park the caret after "Intro" (5 chars in).
+   * The debug payload publishes on a coalesced microtask (M15), so the caret
+   * position is polled until STABLE across two consecutive reads. */
   async function caretAfterIntro(page: Page): Promise<number> {
     const paragraph = page.locator("[data-testid='rich-text-editor-surface'] .ProseMirror p").first();
     await paragraph.click();
     await page.keyboard.press("Home");
+    const homeFrom = await expectStableCaret(page);
     for (let i = 0; i < 5; i++) await page.keyboard.press("ArrowRight");
-    const debug = await readDebug(page);
-    expect(debug.selection.empty).toBe(true);
-    return debug.selection.from;
+    const from = await expectStableCaret(page);
+    expect(from).toBe(homeFrom + 5);
+    return from;
+  }
+
+  /** Polls the debug selection until two consecutive reads agree on a
+   * collapsed caret, then returns that position. */
+  async function expectStableCaret(page: Page): Promise<number> {
+    let last = -1;
+    await expect
+      .poll(async () => {
+        const debug = await readDebug(page);
+        if (!debug.selection.empty) return "selection-not-collapsed";
+        if (debug.selection.from === last) return "stable";
+        last = debug.selection.from;
+        return `moving:${last}`;
+      })
+      .toBe("stable");
+    return last;
   }
 
   test("H1 (browser): mid-document typing keeps the caret advancing one position per keystroke", async ({ page }) => {
