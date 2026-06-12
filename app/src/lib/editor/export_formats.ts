@@ -212,7 +212,18 @@ async function renderMediaEmbeds(
   const baseUrl = context?.apiBaseUrl ?? API_BASE_URL;
   const fetchImpl = context?.fetchImpl ?? ((url: string) => globalThis.fetch(url));
 
-  const inlineImage = async (assetId: string, mime: string): Promise<string | { skipped: string }> => {
+  const inlineImage = async (
+    assetId: string,
+    mime: string,
+    declaredSizeBytes: number | null,
+  ): Promise<string | { skipped: string }> => {
+    // Pre-fetch guard (adversarial review): the asset metadata already
+    // declares the size, so an over-cap image is skipped WITHOUT pulling its
+    // bytes into memory; the post-fetch check below stays as the backstop
+    // for a lying/missing size field.
+    if (typeof declaredSizeBytes === "number" && declaredSizeBytes > HTML_INLINE_IMAGE_MAX_BYTES) {
+      return { skipped: "image_size_guard" };
+    }
     const url = assetContentUrl(baseUrl, workspaceId, assetId);
     const response = await fetchImpl(url);
     if (!response.ok) throw new Error(`asset content HTTP ${response.status}`);
@@ -250,7 +261,11 @@ async function renderMediaEmbeds(
     let src = resolution.contentUrl;
     if (mode === "self_contained") {
       try {
-        const inlined = await inlineImage(assetId, resolution.asset.mime);
+        const inlined = await inlineImage(
+          assetId,
+          resolution.asset.mime,
+          typeof resolution.asset.size_bytes === "number" ? resolution.asset.size_bytes : null,
+        );
         if (typeof inlined === "string") {
           src = inlined;
         } else {

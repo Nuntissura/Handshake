@@ -262,10 +262,18 @@ export interface EmbedSequenceItem {
 }
 
 /**
+ * DoS guard (MT-244 adversarial review): a hostile/corrupt document could
+ * carry a sequence refValue with thousands of comma-separated ids, fanning
+ * out one metadata request each. Sequences cap fail-closed at this length.
+ */
+export const MAX_SEQUENCE_ITEMS = 100;
+
+/**
  * Resolves an ordered album/slideshow asset sequence. Items resolve
  * independently so one broken member renders as a typed per-item error while
  * the rest of the sequence still shows (fail-closed per item, not all-or-
- * nothing blanking). An empty sequence is itself a typed error.
+ * nothing blanking). An empty sequence is itself a typed error; an oversized
+ * sequence fails closed (MAX_SEQUENCE_ITEMS request-fan-out guard).
  */
 export async function resolveEmbedSequence(
   kind: MediaEmbedRefKind,
@@ -275,6 +283,13 @@ export async function resolveEmbedSequence(
   const refs = parseAssetRefList(refValue);
   if (refs.length === 0) {
     return { ok: false, errorKind: "empty_ref", detail: "album/slideshow embed has no asset ids" };
+  }
+  if (refs.length > MAX_SEQUENCE_ITEMS) {
+    return {
+      ok: false,
+      errorKind: "invalid_ref",
+      detail: `sequence has ${refs.length} members; the maximum is ${MAX_SEQUENCE_ITEMS}`,
+    };
   }
   const items = await Promise.all(
     refs.map(async (ref) => ({ refValue: ref, resolution: await resolveEmbedAsset(kind, ref, context) })),

@@ -18,6 +18,7 @@ import {
   resolveEmbedAsset,
   resolveEmbedSequence,
   validateAssetRef,
+  MAX_SEQUENCE_ITEMS,
   type EmbedAssetMetadata,
 } from "./embed_assets";
 
@@ -202,5 +203,17 @@ describe("album/slideshow sequences (closest real surface: asset-id list)", () =
   it("treats an empty sequence as a typed empty_ref error", async () => {
     const result = await resolveEmbedSequence("album", " , ", { workspaceId: WS });
     expect(result).toMatchObject({ ok: false, errorKind: "empty_ref" });
+  });
+
+  it("fails closed on an oversized sequence without fanning out requests (DoS guard)", async () => {
+    const fetchImpl = vi.fn(async () => jsonResponse(metadata()));
+    const refs = Array.from({ length: MAX_SEQUENCE_ITEMS + 1 }, (_, i) => `asset-${i}`).join(",");
+    const result = await resolveEmbedSequence("album", refs, {
+      workspaceId: WS,
+      apiBaseUrl: "http://127.0.0.1:9",
+      fetchImpl,
+    });
+    expect(result).toMatchObject({ ok: false, errorKind: "invalid_ref" });
+    expect(fetchImpl).not.toHaveBeenCalled();
   });
 });

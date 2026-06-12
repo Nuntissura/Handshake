@@ -244,6 +244,31 @@ describe("HTML primary projection (DEC-003)", () => {
     expect(dom.querySelector("span[data-hs-inline-note]")?.textContent).toContain("not inlined");
   });
 
+  it("skips the content fetch entirely when metadata declares an over-cap size (pre-fetch guard)", async () => {
+    const doc: JSONContent = {
+      type: "doc",
+      content: [
+        {
+          type: "paragraph",
+          content: [{ type: "hsLink", attrs: { refKind: "images", refValue: "huge-1", label: "huge-1", resolved: true } }],
+        },
+      ],
+    };
+    const context = embedContextWith({
+      "huge-1": {
+        metadata: asset("huge-1", "image/png", HTML_INLINE_IMAGE_MAX_BYTES + 1),
+        bytes: PNG_BYTES,
+      },
+    });
+    const result = await exportHtml(normalize(doc), { mode: "self_contained", embedContext: context });
+    expect(result.inlineSkips).toContainEqual({ refKind: "images", refValue: "huge-1", reason: "image_size_guard" });
+    // The metadata endpoint was hit, the CONTENT endpoint was not.
+    const fetchImpl = context.fetchImpl as ReturnType<typeof vi.fn>;
+    const urls = fetchImpl.mock.calls.map((call) => String(call[0]));
+    expect(urls.some((url) => url.endsWith("/assets/huge-1"))).toBe(true);
+    expect(urls.some((url) => url.endsWith("/assets/huge-1/content"))).toBe(false);
+  });
+
   it("falls back to reference-linking for an image over the per-image cap", async () => {
     const big = new Uint8Array(HTML_INLINE_IMAGE_MAX_BYTES + 1);
     const doc: JSONContent = {
