@@ -1,0 +1,109 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
+  "mt_id": "MT-253",
+  "title": "UnifiedWorkSurface-253-SourceControlPanel",
+  "group": "UnifiedWorkSurface",
+  "created_at_utc": "2026-06-12T04:32:33.318Z",
+  "updated_at_utc": "2026-06-12T04:32:33.318Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-253.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY",
+    "projection_hash": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": "NOT_GENERATED_BY_DEFAULT",
+    "note": "JSON contract is authority. No markdown projection is generated for WP-KERNEL-009 (prevents projection drift)."
+  },
+  "scope": {
+    "scope": "Close ED-WB-012 (DEC-007 reverses descope): source control panel over the LOCAL git repo - status (staged/unstaged/untracked), per-file diff view (reuses MT-247 diff), stage/unstage/discard (discard requires explicit confirm; never silent), commit with message, branch list/switch/create, log view, line blame in code context. Backend: thin git CLI invocation layer in handshake_core with typed results + receipts (git is a local tool dependency, not an external service). ALSO surface the Handshake-native history: EventLedger/CRDT document history side-by-side so the operator sees both authority models honestly.",
+    "relevant_files": [
+      "app/src/components/",
+      "app/src/lib/editor/",
+      "app/src/lib/tiptap/",
+      "app/src/lib/monaco/",
+      "tests/dependency_policy/",
+      "src/backend/handshake_core/src/api/",
+      "src/backend/handshake_core/src/storage/",
+      "src/backend/handshake_core/migrations/",
+      "src/backend/handshake_core/tests/"
+    ],
+    "constraints": [
+      "Use the existing microtask_plan_draft execution surface only; do not introduce a separate MT execution surface or suite field.",
+      "Core Handshake behavior must be Handshake-native: no outside app, outside server, external daemon, Docker-only path, SQLite fallback, Redis/Valkey cache authority, or sidecar paper as proof or authority.",
+      "Bundled/lockfile-governed product libraries only (Tiptap/Monaco precedent); no CDN; no external app launches as product behavior.",
+      "PostgreSQL plus EventLedger is canonical for durable state, receipts, indexing evidence, runtime proof, and validation; UI artifacts are projections only.",
+      "Every implementation handoff must be restartable by a no-context local model using only the WP/MT contract, current Master Spec bundle (v02.193), product code, tests, and receipts.",
+      "OPERATOR ORDER (DEC-007, 2026-06-12): NO scaffolding, templates, mock-ups, or vibecoding; every feature must be working AND tested in runtime (executed vitest/Playwright/real-PG proof per feature, not status text). A feature without an executed runtime proof is NOT done.",
+      "Git ops via local git CLI with typed parsing; destructive ops (discard/reset) demand explicit per-invocation confirm; no force flags ever by default.",
+      "Receipts for write ops in EventLedger."
+    ],
+    "expected_behavior": "Operator stages, commits, branches, diffs, and blames from inside Handshake; document history (ledger) visible alongside.",
+    "acceptance_criteria": [
+      "status/diff/stage/commit/branch/log/blame each runtime-proven against a real temp git repo (Playwright + backend tests).",
+      "Discard demands confirm; cancel leaves tree untouched (negative test).",
+      "Commit appears in git log with correct message (proven).",
+      "Adversarial self-review recorded per the WP loop; findings fixed before evidence write."
+    ],
+    "verification": [
+      "cargo test -p handshake_core --features runtime-full,test-utils (scoped) green with real-PG tests for backend state.",
+      "pnpm vitest run green; tsc --noEmit clean; eslint clean.",
+      "Offline Playwright runtime proof for each named capability (zero external network requests)."
+    ],
+    "handoff_requirements": [
+      "List files changed, tests run with exact names/counts, commits.",
+      "List EventLedger/PostgreSQL evidence and Playwright artifacts produced.",
+      "List remaining risks and any honestly-documented deviations (e.g., prose multi-cursor approach)."
+    ],
+    "hbr_focus": [
+      "HBR-INT-001",
+      "HBR-VIS-001",
+      "HBR-MAN-002"
+    ]
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": [
+      "MT-247"
+    ],
+    "blocks": [],
+    "claimed_by": null,
+    "completed_by": null,
+    "implementation_commit": null,
+    "evidence": []
+  },
+  "handoff": {
+    "coder_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "PROJECT_KNOWLEDGE_INDEX_RICH_EDITOR_V1",
+    "minimum_controls": [
+      "No placeholders, mocks, scaffolding, or deferred-live escapes; runtime proof against Handshake-managed PostgreSQL/EventLedger and/or offline Playwright where the contract names durable state or GUI behavior."
+    ]
+  }
+}

@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
   "base_wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-12T03:54:37.454Z",
+  "updated_at_utc": "2026-06-12T04:32:33.318Z",
   "authority_files": {
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json",
     "refinement_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/refinement.json",
@@ -278,6 +278,12 @@
         "at_utc": "2026-06-12T03:54:37.454Z",
         "decision": "Parity gap-check + hardening gate before whole-WP validation",
         "detail": "Operator order 2026-06-12: test and check for gaps/missing features compared to the original IDE (VS Code) and Obsidian; concerns addressed and everything hardened; finish all remaining MTs. Gate: after the build groups land, run (1) a parity audit of the built editor + Notes surfaces against .GOV/reference/wp009_editor_loom_capability_inventory.json AND the original VS Code/Obsidian feature sets, (2) runtime tests of the audited surfaces (not status-reading), (3) a hardening iteration fixing confirmed gaps/concerns. Repeat until no P0/P1 gap remains or the operator descopes. Remaining MT inventory at order time: Loom engine 177-192 (in-flight), UserManual 193-208, Swarm 209-224, SecurityPortability 225-240, UnifiedWorkSurface 241-243 (244 in-flight), backend-cleanup deferrals 101(verify 8b829f96)/102/107/109/110/111/112, BLK-002 clippy hygiene."
+      },
+      {
+        "id": "DEC-007",
+        "at_utc": "2026-06-12T04:32:33.318Z",
+        "decision": "Full original-app parity, runtime-proven, no shortcuts",
+        "detail": "Operator order 2026-06-12 (verbatim core): 'make sure no scaffolding, templates, mock ups or vibecoding takes place, i want a full featured vs code and obsidian merged into one in handshake and running and tested in runtime on all features the original apps have and provide. no shortcuts!'. Effects: (1) the earlier OUT_OF_SCOPE descopes of integrated terminal / debugger / source control are REVERSED (MT-252/253/254). (2) Every audit ABSENT/unowned row now has an owning MT: MT-245..262 created from the adversarial parity artifacts (evidence-derived, not invented). (3) MT-263 FullParityRuntimeProofSuite is the enforcement gate: every capability needs an executed runtime proof or an operator-cited descope; status text proves nothing. (4) HONEST STRUCTURAL LIMITS stated, not hidden: third-party extension MARKETPLACE is a network ecosystem and cannot be cloned native - Handshake-native command/registry surfaces are the equivalence path, flagged for operator awareness; REMOTE development/Live-Share-class is substituted by Handshake's native CRDT collaboration; Copilot-class assistance is Handshake's own model runtime (native by design); DEBUGGER ships protocol-core + Node inspector adapter first, more adapters iteratively - only runtime-working adapters appear in UI. (5) No-scaffolding rule restated into every new MT contract as a hard constraint."
       }
     ]
   },
@@ -595,7 +601,26 @@
       "MT-241",
       "MT-242",
       "MT-243",
-      "MT-244"
+      "MT-244",
+      "MT-245",
+      "MT-246",
+      "MT-247",
+      "MT-248",
+      "MT-249",
+      "MT-250",
+      "MT-251",
+      "MT-252",
+      "MT-253",
+      "MT-254",
+      "MT-255",
+      "MT-256",
+      "MT-257",
+      "MT-258",
+      "MT-259",
+      "MT-260",
+      "MT-261",
+      "MT-262",
+      "MT-263"
     ],
     "active_id": null,
     "group_index": {

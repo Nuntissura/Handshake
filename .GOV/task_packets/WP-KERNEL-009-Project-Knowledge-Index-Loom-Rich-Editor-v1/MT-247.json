@@ -1,0 +1,104 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
+  "mt_id": "MT-247",
+  "title": "UnifiedWorkSurface-247-DiffAndMergeEditor",
+  "group": "UnifiedWorkSurface",
+  "created_at_utc": "2026-06-12T04:32:33.318Z",
+  "updated_at_utc": "2026-06-12T04:32:33.318Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-247.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY",
+    "projection_hash": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": "NOT_GENERATED_BY_DEFAULT",
+    "note": "JSON contract is authority. No markdown projection is generated for WP-KERNEL-009 (prevents projection drift)."
+  },
+  "scope": {
+    "scope": "Close ED-WB-005 + ED-WB-006: side-by-side + inline diff of two document versions (history from MT-156 backend) for prose (block-level semantic diff) and code blocks (Monaco diff editor, bundled); CRDT-aware merge/conflict resolution UI for the MT-174 conflict path: pick-mine/pick-theirs/merge-per-block, never silent data loss - resolves the H5 conflict-reload-discards-edits finding at the UX level.",
+    "relevant_files": [
+      "app/src/components/",
+      "app/src/lib/editor/",
+      "app/src/lib/tiptap/",
+      "app/src/lib/monaco/",
+      "tests/dependency_policy/"
+    ],
+    "constraints": [
+      "Use the existing microtask_plan_draft execution surface only; do not introduce a separate MT execution surface or suite field.",
+      "Core Handshake behavior must be Handshake-native: no outside app, outside server, external daemon, Docker-only path, SQLite fallback, Redis/Valkey cache authority, or sidecar paper as proof or authority.",
+      "Bundled/lockfile-governed product libraries only (Tiptap/Monaco precedent); no CDN; no external app launches as product behavior.",
+      "PostgreSQL plus EventLedger is canonical for durable state, receipts, indexing evidence, runtime proof, and validation; UI artifacts are projections only.",
+      "Every implementation handoff must be restartable by a no-context local model using only the WP/MT contract, current Master Spec bundle (v02.193), product code, tests, and receipts.",
+      "OPERATOR ORDER (DEC-007, 2026-06-12): NO scaffolding, templates, mock-ups, or vibecoding; every feature must be working AND tested in runtime (executed vitest/Playwright/real-PG proof per feature, not status text). A feature without an executed runtime proof is NOT done.",
+      "Merge must never discard local edits without explicit per-block operator choice (negative test required)."
+    ],
+    "expected_behavior": "Operator diffs any two versions and resolves save conflicts per block; nothing is lost silently.",
+    "acceptance_criteria": [
+      "Prose block diff + Monaco code diff runtime-proven.",
+      "Conflict merge flow: local edits preserved through resolution (negative test: no silent discard).",
+      "History-pair selection works against real backend history.",
+      "Adversarial self-review recorded per the WP loop; findings fixed before evidence write."
+    ],
+    "verification": [
+      "pnpm vitest run green; tsc --noEmit clean; eslint clean.",
+      "Offline Playwright runtime proof for each named capability (zero external network requests)."
+    ],
+    "handoff_requirements": [
+      "List files changed, tests run with exact names/counts, commits.",
+      "List EventLedger/PostgreSQL evidence and Playwright artifacts produced.",
+      "List remaining risks and any honestly-documented deviations (e.g., prose multi-cursor approach)."
+    ],
+    "hbr_focus": [
+      "HBR-INT-001",
+      "HBR-VIS-001",
+      "HBR-MAN-002"
+    ]
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": [
+      "MT-244",
+      "MT-156"
+    ],
+    "blocks": [],
+    "claimed_by": null,
+    "completed_by": null,
+    "implementation_commit": null,
+    "evidence": []
+  },
+  "handoff": {
+    "coder_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "PROJECT_KNOWLEDGE_INDEX_RICH_EDITOR_V1",
+    "minimum_controls": [
+      "No placeholders, mocks, scaffolding, or deferred-live escapes; runtime proof against Handshake-managed PostgreSQL/EventLedger and/or offline Playwright where the contract names durable state or GUI behavior."
+    ]
+  }
+}
