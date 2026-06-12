@@ -2606,7 +2606,7 @@ pub trait KnowledgeStore: Send + Sync {
     ) -> StorageResult<KnowledgeSource>;
 
     async fn get_knowledge_source(&self, source_id: &str)
-        -> StorageResult<Option<KnowledgeSource>>;
+    -> StorageResult<Option<KnowledgeSource>>;
 
     /// Looks up the knowledge source indexing a RichDocument (adversarial-v2
     /// MT-154: documents are first-class Project-Knowledge-Index sources; the
@@ -2688,7 +2688,7 @@ pub trait KnowledgeStore: Send + Sync {
     ) -> StorageResult<KnowledgeEntity>;
 
     async fn get_knowledge_entity(&self, entity_id: &str)
-        -> StorageResult<Option<KnowledgeEntity>>;
+    -> StorageResult<Option<KnowledgeEntity>>;
 
     async fn get_knowledge_entity_by_identity(
         &self,
@@ -6413,13 +6413,7 @@ pub struct WikiLoomBlockState {
 }
 
 impl PostgresDatabase {
-    /// Upsert a compiled wiki page on its `(workspace, kind='wiki_page',
-    /// title)` identity. The row lands `fresh` with its stamp, recipe, links
-    /// and receipt in ONE statement (no stampless intermediate state exists).
-    pub async fn upsert_knowledge_wiki_page(
-        &self,
-        page: NewKnowledgeWikiPage,
-    ) -> StorageResult<KnowledgeWikiProjection> {
+    fn validate_knowledge_wiki_page_payload(page: &NewKnowledgeWikiPage) -> StorageResult<()> {
         if page.title.trim() != page.title || page.title.is_empty() {
             return Err(StorageError::Validation(
                 "wiki page title must be non-empty and trimmed",
@@ -6452,6 +6446,17 @@ impl PostgresDatabase {
                 "wiki page compile_stamp must carry ledger_version + cited_sources (LM-PWIKI-006)",
             ));
         }
+        Ok(())
+    }
+
+    /// Upsert a compiled wiki page on its `(workspace, kind='wiki_page',
+    /// title)` identity. The row lands `fresh` with its stamp, recipe, links
+    /// and receipt in ONE statement (no stampless intermediate state exists).
+    pub async fn upsert_knowledge_wiki_page(
+        &self,
+        page: NewKnowledgeWikiPage,
+    ) -> StorageResult<KnowledgeWikiProjection> {
+        Self::validate_knowledge_wiki_page_payload(&page)?;
         let projection_id = new_knowledge_id("KWP");
         let sql = format!(
             r#"
@@ -6491,6 +6496,54 @@ impl PostgresDatabase {
             .bind(&page.page_links)
             .fetch_one(self.pool())
             .await?;
+        projection_from_pg(&row)
+    }
+
+    /// Replace an existing compiled wiki page by its stable projection id.
+    /// Fan-out uses this when the regenerated title can differ from the stored
+    /// title, so a mutable display surface cannot fork duplicate pages.
+    pub async fn replace_knowledge_wiki_page_by_projection_id(
+        &self,
+        projection_id: &str,
+        page: NewKnowledgeWikiPage,
+    ) -> StorageResult<KnowledgeWikiProjection> {
+        Self::validate_knowledge_wiki_page_payload(&page)?;
+        let sql = format!(
+            r#"
+            UPDATE knowledge_wiki_projections
+            SET title = $3,
+                source_records = $4,
+                rendered_content = $5,
+                rebuild_status = 'fresh',
+                staleness_hash = $6,
+                rebuild_receipt_event_id = $7,
+                last_rebuilt_at = NOW(),
+                page_type = $8,
+                compile_stamp = $9,
+                compile_recipe = $10,
+                page_links = $11,
+                updated_at = NOW()
+            WHERE projection_id = $1
+              AND workspace_id = $2
+              AND projection_kind = 'wiki_page'
+            RETURNING {KNOWLEDGE_PROJECTION_COLUMNS}
+            "#
+        );
+        let row = sqlx::query(&sql)
+            .bind(projection_id)
+            .bind(&page.workspace_id)
+            .bind(&page.title)
+            .bind(&page.source_records)
+            .bind(&page.rendered_content)
+            .bind(&page.staleness_hash)
+            .bind(page.rebuild_receipt_event_id.as_deref())
+            .bind(page.page_type.as_deref())
+            .bind(&page.compile_stamp)
+            .bind(page.compile_recipe.as_ref())
+            .bind(&page.page_links)
+            .fetch_optional(self.pool())
+            .await?
+            .ok_or(StorageError::NotFound("knowledge wiki projection"))?;
         projection_from_pg(&row)
     }
 
@@ -6556,6 +6609,35 @@ impl PostgresDatabase {
         rows.iter().map(projection_from_pg).collect()
     }
 
+    /// MT-243 source fan-out companion query: entity citations whose owning
+    /// source metadata matches the changed source. Drift-check treats source
+    /// edits as stale for those entity stamps because entity hashes fold in the
+    /// current source hash.
+    pub async fn list_knowledge_wiki_pages_citing_entity_source(
+        &self,
+        workspace_id: &str,
+        source_id: &str,
+    ) -> StorageResult<Vec<KnowledgeWikiProjection>> {
+        let probe = serde_json::json!([{"kind": "entity", "source_id": source_id}]);
+        let sql = format!(
+            r#"
+            SELECT {KNOWLEDGE_PROJECTION_COLUMNS}
+            FROM knowledge_wiki_projections
+            WHERE workspace_id = $1
+              AND projection_kind = 'wiki_page'
+              AND compile_stamp IS NOT NULL
+              AND (compile_stamp -> 'cited_sources') @> $2
+            ORDER BY title ASC
+            "#
+        );
+        let rows = sqlx::query(&sql)
+            .bind(workspace_id)
+            .bind(&probe)
+            .fetch_all(self.pool())
+            .await?;
+        rows.iter().map(projection_from_pg).collect()
+    }
+
     /// Replace a page's outbound wikilink set (same-pass backlink refresh,
     /// LM-PWIKI-010). Wholesale replacement keeps re-runs idempotent (no
     /// duplicate links can accumulate).
@@ -6584,11 +6666,10 @@ impl PostgresDatabase {
     /// The EventLedger source version: `MAX(event_sequence)` (0 on an empty
     /// ledger). Monotonic compile watermark for stamps (LM-PWIKI-006).
     pub async fn current_event_ledger_version(&self) -> StorageResult<i64> {
-        let version: i64 = sqlx::query_scalar(
-            "SELECT COALESCE(MAX(event_sequence), 0) FROM kernel_event_ledger",
-        )
-        .fetch_one(self.pool())
-        .await?;
+        let version: i64 =
+            sqlx::query_scalar("SELECT COALESCE(MAX(event_sequence), 0) FROM kernel_event_ledger")
+                .fetch_one(self.pool())
+                .await?;
         Ok(version)
     }
 
@@ -6843,12 +6924,13 @@ impl PostgresDatabase {
                 // same way `map_loom_block` does (serde, default on parse
                 // failure — never a hard error on a hostile blob).
                 let derived_raw: String = row.get("derived_json");
-                let full_text_index = serde_json::from_str::<Value>(&derived_raw)
-                    .ok()
-                    .and_then(|v| {
-                        v.get("full_text_index")
-                            .and_then(|t| t.as_str().map(|s| s.to_string()))
-                    });
+                let full_text_index =
+                    serde_json::from_str::<Value>(&derived_raw)
+                        .ok()
+                        .and_then(|v| {
+                            v.get("full_text_index")
+                                .and_then(|t| t.as_str().map(|s| s.to_string()))
+                        });
                 WikiLoomBlockState {
                     block_id: row.get("block_id"),
                     title: row.get("title"),

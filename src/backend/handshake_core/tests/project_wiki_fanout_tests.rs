@@ -30,14 +30,15 @@ use handshake_core::knowledge_wiki::drift::WikiDriftChecker;
 use handshake_core::knowledge_wiki::fanout::{WikiFanOutEngine, WikiFanOutRequest};
 use handshake_core::knowledge_wiki::{CitedSourceKind, WikiStalenessVerdict};
 use handshake_core::storage::knowledge::{
-    KnowledgeIndexingEligibility, KnowledgeRebuildStatus, KnowledgeRootKind, KnowledgeStore,
+    KnowledgeEntity, KnowledgeEntityKind, KnowledgeIndexingEligibility, KnowledgeRebuildStatus,
+    KnowledgeRootKind, KnowledgeStore, KnowledgeWikiProjection, NewKnowledgeEntity,
     NewKnowledgeSourceRoot,
 };
 use handshake_core::storage::postgres::PostgresDatabase;
 use handshake_core::storage::{
     Database, LoomBlockContentType, LoomBlockDerived, LoomBlockUpdate, NewLoomBlock, WriteContext,
 };
-use knowledge_pg_support::{knowledge_pg, KnowledgePg};
+use knowledge_pg_support::{KnowledgePg, knowledge_pg};
 use serde_json::json;
 use uuid::Uuid;
 
@@ -180,6 +181,48 @@ async fn ledger_kind_count(pg: &KnowledgePg, kind: &str) -> i64 {
         .expect("ledger count")
 }
 
+async fn create_source_backed_decision_entity(
+    pg: &KnowledgePg,
+    workspace_id: &str,
+    source_id: &str,
+    entity_key: &str,
+    display_name: &str,
+) -> KnowledgeEntity {
+    pg.db
+        .upsert_knowledge_entity(NewKnowledgeEntity {
+            workspace_id: workspace_id.to_string(),
+            entity_kind: KnowledgeEntityKind::WorkPacket,
+            entity_key: entity_key.to_string(),
+            display_name: display_name.to_string(),
+            detection_provenance: json!({"extractor": "mt243_fanout_test"}),
+            primary_source_id: Some(source_id.to_string()),
+            detected_in_run: None,
+            evidence_span_ids: Vec::new(),
+        })
+        .await
+        .expect("upsert source-backed decision entity")
+}
+
+async fn decision_pages_for_entity(
+    handle: &PostgresDatabase,
+    workspace_id: &str,
+    entity_id: &str,
+) -> Vec<KnowledgeWikiProjection> {
+    handle
+        .list_knowledge_wiki_pages(workspace_id, Some("decision"), true, 2_000, 0)
+        .await
+        .expect("list decision pages")
+        .into_iter()
+        .filter(|page| {
+            page.compile_recipe
+                .as_ref()
+                .and_then(|recipe| recipe.get("entity_id"))
+                .and_then(|id| id.as_str())
+                == Some(entity_id)
+        })
+        .collect()
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt243_single_source_edit_regenerates_exactly_the_stale_set() {
     let pg = pg_or_skip!();
@@ -187,7 +230,11 @@ async fn mt243_single_source_edit_regenerates_exactly_the_stale_set() {
     let handle = pg_handle(&pg).await;
     let compiler = ProjectWikiCompiler::new(handle.clone());
     compiler
-        .bootstrap(&wiki_ctx(), &seeded.workspace_id, &WikiBootstrapOptions::default())
+        .bootstrap(
+            &wiki_ctx(),
+            &seeded.workspace_id,
+            &WikiBootstrapOptions::default(),
+        )
         .await
         .expect("bootstrap");
 
@@ -216,7 +263,10 @@ async fn mt243_single_source_edit_regenerates_exactly_the_stale_set() {
         .run(
             &wiki_ctx(),
             &seeded.workspace_id,
-            &WikiFanOutRequest::new(CitedSourceKind::Source, seeded.edit_target_source_id.clone()),
+            &WikiFanOutRequest::new(
+                CitedSourceKind::Source,
+                seeded.edit_target_source_id.clone(),
+            ),
         )
         .await
         .expect("fan-out");
@@ -224,8 +274,11 @@ async fn mt243_single_source_edit_regenerates_exactly_the_stale_set() {
     // LM-PWIKI-010 SET EQUALITY, proven against the independent drift result.
     let fanout_stale: BTreeSet<String> =
         outcome.stale_set.iter().map(|p| p.title.clone()).collect();
-    let regenerated: BTreeSet<String> =
-        outcome.regenerated.iter().map(|p| p.title.clone()).collect();
+    let regenerated: BTreeSet<String> = outcome
+        .regenerated
+        .iter()
+        .map(|p| p.title.clone())
+        .collect();
     assert_eq!(
         fanout_stale, drift_stale,
         "fan-out stale set == MT-242 drift stale set (set equality)"
@@ -236,7 +289,10 @@ async fn mt243_single_source_edit_regenerates_exactly_the_stale_set() {
     );
     assert!(outcome.truncated.is_empty(), "no truncation within budget");
     assert!(outcome.orphaned.is_empty());
-    assert!(outcome.index_refreshed, "index/catalog refreshed in the same pass");
+    assert!(
+        outcome.index_refreshed,
+        "index/catalog refreshed in the same pass"
+    );
 
     // Regeneration used CURRENT authority: the probe symbol is ON the page.
     let pages = handle
@@ -255,9 +311,15 @@ async fn mt243_single_source_edit_regenerates_exactly_the_stale_set() {
     );
     // Same-pass link refresh: every wikilink resolved to a projection id.
     for title in &regenerated {
-        let page = pages.iter().find(|p| &p.title == title).expect("regen page");
+        let page = pages
+            .iter()
+            .find(|p| &p.title == title)
+            .expect("regen page");
         let links = page.page_links.as_array().expect("links array");
-        assert!(!links.is_empty(), "regenerated page '{title}' carries wikilinks");
+        assert!(
+            !links.is_empty(),
+            "regenerated page '{title}' carries wikilinks"
+        );
         for link in links {
             assert!(
                 link.get("projection_id").and_then(|v| v.as_str()).is_some(),
@@ -302,12 +364,201 @@ async fn mt243_single_source_edit_regenerates_exactly_the_stale_set() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn mt243_source_fanout_includes_source_backed_decision_pages() {
+    let pg = pg_or_skip!();
+    let seeded = seed_workspace(&pg).await;
+    let handle = pg_handle(&pg).await;
+    let decision = create_source_backed_decision_entity(
+        &pg,
+        &seeded.workspace_id,
+        &seeded.edit_target_source_id,
+        "wp:MT-243-source-backed-decision",
+        "MT-243 Source Backed Decision",
+    )
+    .await;
+    ProjectWikiCompiler::new(handle.clone())
+        .bootstrap(
+            &wiki_ctx(),
+            &seeded.workspace_id,
+            &WikiBootstrapOptions::default(),
+        )
+        .await
+        .expect("bootstrap");
+
+    let decision_pages =
+        decision_pages_for_entity(handle.as_ref(), &seeded.workspace_id, &decision.entity_id).await;
+    assert_eq!(decision_pages.len(), 1, "bootstrap emits one decision page");
+    let decision_title = decision_pages[0].title.clone();
+
+    edit_and_reindex(&seeded).await;
+
+    let checker = WikiDriftChecker::new(handle.clone());
+    let drift_before = checker
+        .check_workspace(&wiki_ctx(), &seeded.workspace_id, false)
+        .await
+        .expect("drift before source fan-out");
+    let drift_stale: BTreeSet<String> = drift_before
+        .pages
+        .iter()
+        .filter(|d| matches!(d.verdict, WikiStalenessVerdict::Stale { .. }))
+        .map(|d| d.title.clone())
+        .collect();
+    assert!(
+        drift_stale.contains(&decision_title),
+        "source edit must make the source-backed decision page stale: {drift_stale:?}"
+    );
+
+    let engine = WikiFanOutEngine::new(handle.clone());
+    let outcome = engine
+        .run(
+            &wiki_ctx(),
+            &seeded.workspace_id,
+            &WikiFanOutRequest::new(
+                CitedSourceKind::Source,
+                seeded.edit_target_source_id.clone(),
+            ),
+        )
+        .await
+        .expect("source fan-out");
+    let fanout_stale: BTreeSet<String> =
+        outcome.stale_set.iter().map(|p| p.title.clone()).collect();
+    let regenerated: BTreeSet<String> = outcome
+        .regenerated
+        .iter()
+        .map(|p| p.title.clone())
+        .collect();
+    assert!(
+        fanout_stale.contains(&decision_title),
+        "source fan-out stale set must include entity citations anchored to that source"
+    );
+    assert!(
+        regenerated.contains(&decision_title),
+        "source fan-out must regenerate the source-backed decision page"
+    );
+
+    let drift_after = checker
+        .check_workspace(&wiki_ctx(), &seeded.workspace_id, false)
+        .await
+        .expect("drift after source fan-out");
+    assert_eq!(
+        drift_after.stale_pages, 0,
+        "source fan-out must close decision-page drift caused by the source hash"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn mt243_entity_display_name_change_updates_decision_without_duplicate() {
+    let pg = pg_or_skip!();
+    let seeded = seed_workspace(&pg).await;
+    let handle = pg_handle(&pg).await;
+    let decision = create_source_backed_decision_entity(
+        &pg,
+        &seeded.workspace_id,
+        &seeded.edit_target_source_id,
+        "wp:MT-243-rename-decision",
+        "MT-243 Rename Decision",
+    )
+    .await;
+    ProjectWikiCompiler::new(handle.clone())
+        .bootstrap(
+            &wiki_ctx(),
+            &seeded.workspace_id,
+            &WikiBootstrapOptions::default(),
+        )
+        .await
+        .expect("bootstrap");
+
+    let before =
+        decision_pages_for_entity(handle.as_ref(), &seeded.workspace_id, &decision.entity_id).await;
+    assert_eq!(before.len(), 1, "bootstrap emits one decision page");
+    let original_projection_id = before[0].projection_id.clone();
+    let original_title = before[0].title.clone();
+
+    let renamed = create_source_backed_decision_entity(
+        &pg,
+        &seeded.workspace_id,
+        &seeded.edit_target_source_id,
+        "wp:MT-243-rename-decision",
+        "MT-243 Rename Decision Updated",
+    )
+    .await;
+    assert_eq!(
+        renamed.entity_id, decision.entity_id,
+        "entity upsert keeps stable authority identity"
+    );
+
+    let checker = WikiDriftChecker::new(handle.clone());
+    let drift_before = checker
+        .check_workspace(&wiki_ctx(), &seeded.workspace_id, false)
+        .await
+        .expect("drift after decision rename");
+    assert!(
+        drift_before
+            .pages
+            .iter()
+            .any(|page| page.title == original_title
+                && matches!(page.verdict, WikiStalenessVerdict::Stale { .. })),
+        "display-name change must stale the existing decision projection"
+    );
+
+    let engine = WikiFanOutEngine::new(handle.clone());
+    let outcome = engine
+        .run(
+            &wiki_ctx(),
+            &seeded.workspace_id,
+            &WikiFanOutRequest::new(CitedSourceKind::Entity, decision.entity_id.clone()),
+        )
+        .await
+        .expect("entity fan-out");
+    assert_eq!(outcome.regenerated.len(), 1, "rename regenerates one page");
+
+    let after =
+        decision_pages_for_entity(handle.as_ref(), &seeded.workspace_id, &decision.entity_id).await;
+    assert_eq!(
+        after.len(),
+        1,
+        "entity fan-out must not leave the old decision page behind"
+    );
+    assert_eq!(
+        after[0].projection_id, original_projection_id,
+        "decision fan-out updates the existing projection identity"
+    );
+    assert!(
+        after[0]
+            .rendered_content
+            .contains("MT-243 Rename Decision Updated"),
+        "decision page content reflects the current display name"
+    );
+
+    let drift_after = checker
+        .check_workspace(&wiki_ctx(), &seeded.workspace_id, false)
+        .await
+        .expect("drift after entity fan-out");
+    assert_eq!(drift_after.stale_pages, 0, "entity fan-out closes drift");
+
+    let second = engine
+        .run(
+            &wiki_ctx(),
+            &seeded.workspace_id,
+            &WikiFanOutRequest::new(CitedSourceKind::Entity, decision.entity_id),
+        )
+        .await
+        .expect("entity fan-out rerun");
+    assert!(second.stale_set.is_empty());
+    assert!(second.regenerated.is_empty());
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt243_budget_truncation_is_loud_and_resumable() {
     let pg = pg_or_skip!();
     let seeded = seed_workspace(&pg).await;
     let handle = pg_handle(&pg).await;
     ProjectWikiCompiler::new(handle.clone())
-        .bootstrap(&wiki_ctx(), &seeded.workspace_id, &WikiBootstrapOptions::default())
+        .bootstrap(
+            &wiki_ctx(),
+            &seeded.workspace_id,
+            &WikiBootstrapOptions::default(),
+        )
         .await
         .expect("bootstrap");
     edit_and_reindex(&seeded).await;
@@ -336,13 +587,12 @@ async fn mt243_budget_truncation_is_loud_and_resumable() {
         .clone()
         .expect("truncation receipt id");
     let mut conn = pg.raw_connection().await;
-    let payload: Option<serde_json::Value> = sqlx::query_scalar(
-        "SELECT payload FROM kernel_event_ledger WHERE event_id = $1",
-    )
-    .bind(&truncation_receipt)
-    .fetch_optional(&mut conn)
-    .await
-    .expect("truncation receipt lookup");
+    let payload: Option<serde_json::Value> =
+        sqlx::query_scalar("SELECT payload FROM kernel_event_ledger WHERE event_id = $1")
+            .bind(&truncation_receipt)
+            .fetch_optional(&mut conn)
+            .await
+            .expect("truncation receipt lookup");
     let payload = payload.expect("truncation receipt payload");
     assert_eq!(payload["kind"], "wiki_fanout_truncated");
     assert_eq!(
@@ -388,7 +638,10 @@ async fn mt243_budget_truncation_is_loud_and_resumable() {
     let resumed: BTreeSet<String> = second.regenerated.iter().map(|p| p.title.clone()).collect();
     let expected_remainder: BTreeSet<String> =
         outcome.truncated.iter().map(|p| p.title.clone()).collect();
-    assert_eq!(resumed, expected_remainder, "re-run resumes exactly the truncated remainder");
+    assert_eq!(
+        resumed, expected_remainder,
+        "re-run resumes exactly the truncated remainder"
+    );
     assert!(second.truncated.is_empty());
 
     // …and a third run finds nothing left.
@@ -406,7 +659,11 @@ async fn mt243_rerun_is_idempotent_no_duplicates() {
     let seeded = seed_workspace(&pg).await;
     let handle = pg_handle(&pg).await;
     ProjectWikiCompiler::new(handle.clone())
-        .bootstrap(&wiki_ctx(), &seeded.workspace_id, &WikiBootstrapOptions::default())
+        .bootstrap(
+            &wiki_ctx(),
+            &seeded.workspace_id,
+            &WikiBootstrapOptions::default(),
+        )
         .await
         .expect("bootstrap");
     edit_and_reindex(&seeded).await;
@@ -435,10 +692,16 @@ async fn mt243_rerun_is_idempotent_no_duplicates() {
         .run(&wiki_ctx(), &seeded.workspace_id, &request)
         .await
         .expect("second fan-out");
-    assert!(second.stale_set.is_empty(), "stamps now match authority — nothing stale");
+    assert!(
+        second.stale_set.is_empty(),
+        "stamps now match authority — nothing stale"
+    );
     assert!(second.regenerated.is_empty(), "no duplicate regeneration");
     assert!(second.truncated.is_empty());
-    assert!(!second.index_refreshed, "nothing regenerated -> index untouched");
+    assert!(
+        !second.index_refreshed,
+        "nothing regenerated -> index untouched"
+    );
 
     // No duplicate pages / links / receipts.
     let pages_after = handle
@@ -449,7 +712,10 @@ async fn mt243_rerun_is_idempotent_no_duplicates() {
     for (before, after) in pages_before.iter().zip(pages_after.iter()) {
         assert_eq!(before.projection_id, after.projection_id);
         assert_eq!(before.rendered_content, after.rendered_content);
-        assert_eq!(before.compile_stamp, after.compile_stamp, "stamps untouched by the no-op re-run");
+        assert_eq!(
+            before.compile_stamp, after.compile_stamp,
+            "stamps untouched by the no-op re-run"
+        );
         // Link sets stay duplicate-free.
         let titles: Vec<&str> = after
             .page_links
@@ -462,7 +728,12 @@ async fn mt243_rerun_is_idempotent_no_duplicates() {
             })
             .unwrap_or_default();
         let unique: BTreeSet<&str> = titles.iter().copied().collect();
-        assert_eq!(titles.len(), unique.len(), "no duplicate links on '{}'", after.title);
+        assert_eq!(
+            titles.len(),
+            unique.len(),
+            "no duplicate links on '{}'",
+            after.title
+        );
     }
     assert_eq!(
         ledger_kind_count(&pg, "wiki_page_fanout_regenerated").await,

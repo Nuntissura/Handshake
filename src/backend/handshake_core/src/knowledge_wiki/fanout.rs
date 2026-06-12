@@ -20,10 +20,10 @@
 //! * drift path — `POST /workspaces/:ws/loom/wiki/drift-check` marks stale
 //!   pages; operators/models then fan out per changed source.
 
-use std::collections::{BTreeSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::sync::Arc;
 
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 use crate::storage::knowledge::{
     KnowledgeEntityKind, KnowledgeRebuildStatus, KnowledgeStore, KnowledgeWikiProjection,
@@ -31,12 +31,12 @@ use crate::storage::knowledge::{
 use crate::storage::postgres::PostgresDatabase;
 
 use super::compiler::{
-    concept_page_title, render_concept_page, render_decision_page, render_entity_page,
-    render_module_page, FileBundle, ModulePart, ProjectWikiCompiler, WikiCompileContext,
+    FileBundle, ModulePart, ProjectWikiCompiler, WikiCompileContext, concept_page_title,
+    render_concept_page, render_decision_page, render_entity_page, render_module_page,
 };
 use super::{
-    entity_content_hash, loom_block_state_content_hash, CitedSourceKind, WikiCompileError,
-    WikiCompileResult, WikiCompileStamp, WikiPageType, DEFAULT_FANOUT_BUDGET, MAX_FANOUT_BUDGET,
+    CitedSourceKind, DEFAULT_FANOUT_BUDGET, MAX_FANOUT_BUDGET, WikiCompileError, WikiCompileResult,
+    WikiCompileStamp, WikiPageType, entity_content_hash, loom_block_state_content_hash,
 };
 
 /// One fan-out request: the changed source + the explicit budget.
@@ -175,8 +175,11 @@ impl WikiFanOutEngine {
         let ledger_version = self.db.current_event_ledger_version().await?;
 
         // ---- the per-source stale set (LM-PWIKI-010 set equality) ----------
-        // Pages whose stamps CITE the trigger…
-        let candidates = self
+        // Pages whose stamps cite the trigger. For source triggers, include
+        // entity citations anchored to that source too: MT-242 folds source
+        // hashes into those entity stamps, so fan-out must see the same stale
+        // set as drift-check.
+        let mut candidates = self
             .db
             .list_knowledge_wiki_pages_citing(
                 workspace_id,
@@ -184,24 +187,41 @@ impl WikiFanOutEngine {
                 &request.source_id,
             )
             .await?;
+        if request.source_kind == CitedSourceKind::Source {
+            candidates.extend(
+                self.db
+                    .list_knowledge_wiki_pages_citing_entity_source(
+                        workspace_id,
+                        &request.source_id,
+                    )
+                    .await?,
+            );
+            let mut deduped = BTreeMap::new();
+            for page in candidates {
+                deduped.entry(page.projection_id.clone()).or_insert(page);
+            }
+            candidates = deduped.into_values().collect();
+        }
         // …whose stamped hash for the trigger no longer matches authority.
         let current_hash = self
             .current_hash(workspace_id, request.source_kind, &request.source_id)
+            .await?;
+        let source_backed_entity_hashes = self
+            .source_backed_entity_hashes(workspace_id, request, &candidates)
             .await?;
         let mut stale_pages: Vec<KnowledgeWikiProjection> = Vec::new();
         for page in candidates {
             let Some(stamp) = WikiCompileStamp::from_value(page.compile_stamp.as_ref()) else {
                 continue;
             };
-            let cited = stamp
-                .cited_sources
-                .iter()
-                .find(|c| c.kind == request.source_kind && c.id == request.source_id);
-            let Some(cited) = cited else { continue };
-            let is_stale = match &current_hash {
-                None => true, // cited record deleted from authority
-                Some(hash) => hash != &cited.content_hash,
-            };
+            let is_stale = stamp.cited_sources.iter().any(|cited| {
+                citation_stale_for_request(
+                    cited,
+                    request,
+                    &current_hash,
+                    &source_backed_entity_hashes,
+                )
+            });
             if is_stale {
                 stale_pages.push(page);
             }
@@ -457,10 +477,7 @@ impl WikiFanOutEngine {
                 source_dir.get(&edge.to_source_id),
             ) {
                 if from != to {
-                    dir_deps
-                        .entry(from.clone())
-                        .or_default()
-                        .insert(to.clone());
+                    dir_deps.entry(from.clone()).or_default().insert(to.clone());
                 }
             }
         }
@@ -469,6 +486,41 @@ impl WikiFanOutEngine {
             concept_dirs,
             dir_deps,
         })
+    }
+
+    async fn source_backed_entity_hashes(
+        &self,
+        _workspace_id: &str,
+        request: &WikiFanOutRequest,
+        candidates: &[KnowledgeWikiProjection],
+    ) -> WikiCompileResult<HashMap<String, String>> {
+        if request.source_kind != CitedSourceKind::Source {
+            return Ok(HashMap::new());
+        }
+        let mut entity_ids = BTreeSet::new();
+        for page in candidates {
+            let Some(stamp) = WikiCompileStamp::from_value(page.compile_stamp.as_ref()) else {
+                continue;
+            };
+            for cited in stamp.cited_sources {
+                if cited.kind == CitedSourceKind::Entity
+                    && cited.source_id.as_deref() == Some(request.source_id.as_str())
+                {
+                    entity_ids.insert(cited.id);
+                }
+            }
+        }
+        let ids: Vec<String> = entity_ids.into_iter().collect();
+        let states = self.db.get_wiki_entity_states(&ids).await?;
+        Ok(states
+            .into_iter()
+            .map(|(entity, source_hash)| {
+                (
+                    entity.entity_id.clone(),
+                    entity_content_hash(&entity, source_hash.as_deref()),
+                )
+            })
+            .collect())
     }
 
     /// Regenerate ONE page from its compile recipe against CURRENT authority.
@@ -602,7 +654,8 @@ impl WikiFanOutEngine {
                         let (title, rendered, citations, links) = render_entity_page(&document);
                         Some(
                             self.compiler
-                                .upsert_page(
+                                .replace_page_by_projection_id(
+                                    &page.projection_id,
                                     workspace_id,
                                     &title,
                                     WikiPageType::Entity,
@@ -634,7 +687,8 @@ impl WikiFanOutEngine {
                             render_decision_page(&entity, source_hash.as_deref());
                         Some(
                             self.compiler
-                                .upsert_page(
+                                .replace_page_by_projection_id(
+                                    &page.projection_id,
                                     workspace_id,
                                     &title,
                                     WikiPageType::Decision,
@@ -745,4 +799,29 @@ fn recipe_source_ids(recipe: &Value) -> Vec<String> {
                 .collect()
         })
         .unwrap_or_default()
+}
+
+fn citation_stale_for_request(
+    cited: &super::CitedSource,
+    request: &WikiFanOutRequest,
+    trigger_current_hash: &Option<String>,
+    source_backed_entity_hashes: &HashMap<String, String>,
+) -> bool {
+    if cited.kind == request.source_kind && cited.id == request.source_id {
+        return match trigger_current_hash {
+            None => true,
+            Some(hash) => hash != &cited.content_hash,
+        };
+    }
+
+    if request.source_kind == CitedSourceKind::Source
+        && cited.kind == CitedSourceKind::Entity
+        && cited.source_id.as_deref() == Some(request.source_id.as_str())
+    {
+        return source_backed_entity_hashes
+            .get(&cited.id)
+            .map_or(true, |hash| hash != &cited.content_hash);
+    }
+
+    false
 }

@@ -34,20 +34,21 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::sync::Arc;
 
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 use crate::kernel::{KernelActor, KernelEventType, NewKernelEvent};
+use crate::storage::Database;
 use crate::storage::knowledge::{
     KnowledgeEntityKind, KnowledgeEntityLifecycle, KnowledgeRichDocument, KnowledgeStore,
     KnowledgeWikiProjection, NewKnowledgeWikiPage, WikiCodeFileInput, WikiEntityWithSpan,
 };
 use crate::storage::postgres::PostgresDatabase;
-use crate::storage::Database;
 
 use super::{
-    entity_content_hash, estimate_tokens, rich_document_content_hash, CitedSource,
-    CitedSourceKind, WikiCompileError, WikiCompileResult, WikiCompileStamp, WikiPageType,
-    DEFAULT_PAGE_TOKEN_BUDGET, MAX_BOOTSTRAP_PAGES, MAX_PAGE_TOKEN_BUDGET, MIN_PAGE_TOKEN_BUDGET,
+    CitedSource, CitedSourceKind, DEFAULT_PAGE_TOKEN_BUDGET, MAX_BOOTSTRAP_PAGES,
+    MAX_PAGE_TOKEN_BUDGET, MIN_PAGE_TOKEN_BUDGET, WikiCompileError, WikiCompileResult,
+    WikiCompileStamp, WikiPageType, entity_content_hash, estimate_tokens,
+    rich_document_content_hash,
 };
 
 /// Caller identity for compile receipts (mirrors
@@ -595,6 +596,69 @@ impl ProjectWikiCompiler {
         ledger_version: i64,
         receipt_event_id: &str,
     ) -> WikiCompileResult<KnowledgeWikiProjection> {
+        let page = self.build_page_payload(
+            workspace_id,
+            title,
+            page_type,
+            rendered_content,
+            citations,
+            compile_recipe,
+            page_links,
+            ledger_version,
+            receipt_event_id,
+        );
+        let page = self.db.upsert_knowledge_wiki_page(page).await?;
+        Ok(page)
+    }
+
+    /// Replace one stamped page by its projection id. Used by incremental
+    /// fan-out when regenerating an existing page whose rendered title is based
+    /// on authority that may have changed since the original compile.
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) async fn replace_page_by_projection_id(
+        &self,
+        projection_id: &str,
+        workspace_id: &str,
+        title: &str,
+        page_type: WikiPageType,
+        rendered_content: String,
+        citations: Vec<CitedSource>,
+        compile_recipe: Value,
+        page_links: Value,
+        ledger_version: i64,
+        receipt_event_id: &str,
+    ) -> WikiCompileResult<KnowledgeWikiProjection> {
+        let page = self.build_page_payload(
+            workspace_id,
+            title,
+            page_type,
+            rendered_content,
+            citations,
+            compile_recipe,
+            page_links,
+            ledger_version,
+            receipt_event_id,
+        );
+        let page = self
+            .db
+            .replace_knowledge_wiki_page_by_projection_id(projection_id, page)
+            .await?;
+        Ok(page)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn build_page_payload(
+        &self,
+        workspace_id: &str,
+        title: &str,
+        page_type: WikiPageType,
+        rendered_content: String,
+        citations: Vec<CitedSource>,
+        compile_recipe: Value,
+        page_links: Value,
+        ledger_version: i64,
+        receipt_event_id: &str,
+    ) -> NewKnowledgeWikiPage {
         let stamp = WikiCompileStamp::new(ledger_version, citations);
         // Legacy staleness hash (MT-184 column, NOT NULL): hash of the stamp's
         // cited set — same drift signal, old shape.
@@ -617,22 +681,18 @@ impl ProjectWikiCompiler {
                 record
             })
             .collect::<Vec<_>>();
-        let page = self
-            .db
-            .upsert_knowledge_wiki_page(NewKnowledgeWikiPage {
-                workspace_id: workspace_id.to_string(),
-                title: title.to_string(),
-                page_type: Some(page_type.as_str().to_string()),
-                source_records: Value::Array(source_records),
-                rendered_content,
-                staleness_hash,
-                compile_stamp: stamp.to_value(),
-                compile_recipe: Some(compile_recipe),
-                page_links,
-                rebuild_receipt_event_id: Some(receipt_event_id.to_string()),
-            })
-            .await?;
-        Ok(page)
+        NewKnowledgeWikiPage {
+            workspace_id: workspace_id.to_string(),
+            title: title.to_string(),
+            page_type: Some(page_type.as_str().to_string()),
+            source_records: Value::Array(source_records),
+            rendered_content,
+            staleness_hash,
+            compile_stamp: stamp.to_value(),
+            compile_recipe: Some(compile_recipe),
+            page_links,
+            rebuild_receipt_event_id: Some(receipt_event_id.to_string()),
+        }
     }
 
     /// Second pass: fill `projection_id` into title-only wikilinks now that
@@ -1034,11 +1094,15 @@ pub(crate) fn render_decision_page(
         .chars()
         .rev()
         .collect();
-    let title = format!("decision: {} ({suffix})", inline(&entity.display_name));
+    let title = format!("decision: {} ({suffix})", inline(&entity.entity_key));
     let content_hash = entity_content_hash(entity, source_content_hash);
     let mut content = String::new();
     content.push_str(&format!("# {title}\n"));
     content.push_str("- type: decision\n");
+    content.push_str(&format!(
+        "- display_name: {}\n",
+        inline(&entity.display_name)
+    ));
     content.push_str(&format!(
         "- cite: entity:{} hash:{}\n- entity_kind: {}\n- entity_key: {}\n",
         entity.entity_id,
