@@ -1024,6 +1024,27 @@ impl CodeIndexEngine {
                 &receipt_event_id,
             )
             .await?;
+        // MT-101 hardening: emit the per-file index-state row for config files
+        // too (language 'config'). Without it, staleness (MT-107) and the monaco
+        // lens are blind to config sources. `edges_indexed` == contains edges
+        // (one per fact); symbols_indexed stays 0 (config keys are entities, not
+        // tree-sitter symbols).
+        self.db
+            .upsert_knowledge_code_file(UpsertKnowledgeCodeFile {
+                workspace_id: workspace_id.to_string(),
+                source_id: source_id.to_string(),
+                file_entity_id: Some(file_entity.entity_id.clone()),
+                language: KnowledgeCodeLanguage::Config,
+                indexed_content_hash: sha256_hex(text.as_bytes()),
+                parser_version: parser_version.clone(),
+                parse_status: KnowledgeCodeParseStatus::Parsed,
+                symbols_indexed: 0,
+                edges_indexed: count as i32,
+                failure_detail: None,
+                last_indexed_in_run: index_run_id.map(|s| s.to_string()),
+                last_index_receipt_event_id: Some(receipt_event_id.clone()),
+            })
+            .await?;
 
         Ok(CodeFileIndexOutcome {
             source_id: source_id.to_string(),

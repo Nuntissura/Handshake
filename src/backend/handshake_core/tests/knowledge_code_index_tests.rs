@@ -36,8 +36,8 @@ use handshake_core::knowledge_code_index::parser::{CodeLanguage, CodeParserAdapt
 use handshake_core::knowledge_code_index::scip::{artifact_hash, parse_scip_artifact};
 use handshake_core::knowledge_code_index::staleness::StalenessVerdict;
 use handshake_core::storage::knowledge::{
-    KnowledgeCodeParseStatus, KnowledgeCodeRepairReason, KnowledgeEdgeType, KnowledgeEntityKind,
-    KnowledgeIndexingEligibility, KnowledgeRootKind, KnowledgeScipFormat,
+    KnowledgeCodeLanguage, KnowledgeCodeParseStatus, KnowledgeCodeRepairReason, KnowledgeEdgeType,
+    KnowledgeEntityKind, KnowledgeIndexingEligibility, KnowledgeRootKind, KnowledgeScipFormat,
     KnowledgeScipImportStatus, KnowledgeSpanKind, KnowledgeStore, NewKnowledgeScipImport,
     NewKnowledgeSourceRoot,
 };
@@ -310,20 +310,38 @@ async fn mt112_indexes_mixed_tree_with_symbols_spans_edges() {
     );
 
     // --- Code-file index state (MT-107 bookkeeping) ---------------------------
-    // Only the three CODE files (rust/ts/js) get a knowledge_code_files row; the
-    // config file (package.json) is indexed through the config path and does not
-    // produce a code-file row (it is not a CodeLanguage). Its facts are proven
-    // by the `commands` assertion above.
+    // MT-101 hardening: every indexed source — the three CODE files (rust/ts/js)
+    // AND the config file (package.json) — now produces a knowledge_code_files
+    // row, so staleness (MT-107) and the lens cover config sources too. The
+    // config row carries language 'config'.
     let code_files = pg
         .db
         .list_knowledge_code_files(&workspace_id)
         .await
         .expect("list code files");
-    assert_eq!(code_files.len(), 3, "one code-file row per CODE source");
+    assert_eq!(
+        code_files.len(),
+        4,
+        "one code-file row per source incl. config: {:?}",
+        code_files
+            .iter()
+            .map(|f| (&f.source_id, f.language))
+            .collect::<Vec<_>>()
+    );
     assert!(code_files.iter().all(|f| !f.stale));
     assert!(code_files
         .iter()
         .all(|f| f.parse_status == KnowledgeCodeParseStatus::Parsed));
+    let config_rows: Vec<_> = code_files
+        .iter()
+        .filter(|f| f.language == KnowledgeCodeLanguage::Config)
+        .collect();
+    assert_eq!(
+        config_rows.len(),
+        1,
+        "the config file must produce exactly one language='config' code-file row"
+    );
+    assert_eq!(config_rows[0].symbols_indexed, 0);
 }
 
 // ---------------------------------------------------------------------------

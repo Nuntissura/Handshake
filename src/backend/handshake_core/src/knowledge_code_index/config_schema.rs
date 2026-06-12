@@ -122,18 +122,37 @@ fn line_index(text: &str) -> Vec<usize> {
     offsets
 }
 
-/// 1-based line + that line's byte range for a key, found by literal search.
-/// Used for JSON/YAML where the parsed model loses positions. Searches for
-/// `"<leaf>"` (JSON) or `<leaf>:` (YAML) starting at `from_byte`.
+/// What kind of key token to locate, so the locator matches a KEY position
+/// rather than any literal substring (a literal `text.find` would happily match
+/// the key string inside a value, or a shorter key inside a longer one — e.g.
+/// `"name"` inside `"display_name"`). MT-101 hardening.
+#[derive(Clone, Copy)]
+enum KeyToken<'a> {
+    /// JSON object key: a quoted `"leaf"` immediately followed (after optional
+    /// whitespace) by `:`.
+    Json(&'a str),
+    /// YAML mapping key: `leaf` that begins a (trimmed) line and is followed by
+    /// `:` then end-of-line or whitespace.
+    Yaml(&'a str),
+}
+
+/// Structured key locator: returns the 1-based line + that line's byte range for
+/// the next occurrence of `token` AT A KEY POSITION at or after `from_byte`.
+/// Falls back to `from_byte` if no structured match is found (degrades to the
+/// previous behaviour rather than panicking), so a quirky document still yields
+/// a span instead of aborting the index.
 fn locate_key(
     text: &str,
     offsets: &[usize],
-    needle: &str,
+    token: KeyToken<'_>,
     from_byte: usize,
 ) -> (u32, usize, usize) {
-    let hay = &text[from_byte.min(text.len())..];
-    let rel = hay.find(needle).unwrap_or(0);
-    let abs = from_byte + rel;
+    let start = from_byte.min(text.len());
+    let abs = match token {
+        KeyToken::Json(leaf) => find_json_key(text, leaf, start),
+        KeyToken::Yaml(leaf) => find_yaml_key(text, leaf, start),
+    }
+    .unwrap_or(start);
     let line = match offsets.binary_search(&abs) {
         Ok(i) => i,
         Err(i) => i.saturating_sub(1),
@@ -141,6 +160,52 @@ fn locate_key(
     let line_start = offsets.get(line).copied().unwrap_or(0);
     let line_end = offsets.get(line + 1).copied().unwrap_or(text.len());
     ((line + 1) as u32, line_start, line_end)
+}
+
+/// Find the absolute byte offset of `"leaf"` used as a JSON object key (quoted,
+/// then `:` after optional whitespace) at or after `from`.
+fn find_json_key(text: &str, leaf: &str, from: usize) -> Option<usize> {
+    let quoted = format!("\"{leaf}\"");
+    let mut search_from = from;
+    while let Some(rel) = text[search_from.min(text.len())..].find(&quoted) {
+        let abs = search_from + rel;
+        let after = abs + quoted.len();
+        // A key is followed (after whitespace) by ':'.
+        if text[after..].trim_start().starts_with(':') {
+            return Some(abs);
+        }
+        search_from = after;
+    }
+    None
+}
+
+/// Find the absolute byte offset of `leaf` used as a YAML mapping key (the leaf
+/// begins a trimmed line and is followed by `:` then EOL/space) at or after
+/// `from`.
+fn find_yaml_key(text: &str, leaf: &str, from: usize) -> Option<usize> {
+    let needle = format!("{leaf}:");
+    let mut search_from = from;
+    while let Some(rel) = text[search_from.min(text.len())..].find(&needle) {
+        let abs = search_from + rel;
+        // The text from the line start up to `abs` must be only indentation /
+        // list markers (so we matched a key, not a substring inside a value).
+        let line_start = text[..abs].rfind('\n').map(|i| i + 1).unwrap_or(0);
+        let prefix = &text[line_start..abs];
+        let prefix_is_keyish = prefix.chars().all(|c| c == ' ' || c == '\t' || c == '-');
+        // What follows the colon must be EOL or whitespace (a value), not more
+        // identifier characters (which would mean we hit `keyfoo:` for `key`).
+        let after = abs + needle.len();
+        let next_ok = text[after..]
+            .chars()
+            .next()
+            .map(|c| c.is_whitespace())
+            .unwrap_or(true);
+        if prefix_is_keyish && next_ok {
+            return Some(abs);
+        }
+        search_from = abs + needle.len();
+    }
+    None
 }
 
 fn extract_json(relative_path: &str, text: &str) -> Result<Vec<ConfigFact>, String> {
@@ -204,8 +269,7 @@ fn walk_json(
         } else {
             format!("{prefix}.{key}")
         };
-        let (line, byte_start, byte_end) =
-            locate_key(text, offsets, &format!("\"{key}\""), *cursor);
+        let (line, byte_start, byte_end) = locate_key(text, offsets, KeyToken::Json(key), *cursor);
         *cursor = byte_end;
 
         let fact_kind = if is_package && key_path.starts_with("scripts.") {
@@ -277,7 +341,7 @@ fn walk_yaml(
         } else {
             format!("{prefix}.{key}")
         };
-        let (line, byte_start, byte_end) = locate_key(text, offsets, &format!("{key}:"), *cursor);
+        let (line, byte_start, byte_end) = locate_key(text, offsets, KeyToken::Yaml(key), *cursor);
         *cursor = byte_start; // YAML siblings share indentation; do not over-advance.
         out.push(ConfigFact {
             fact_kind: ConfigFactKind::ConfigKey,
@@ -292,20 +356,35 @@ fn walk_yaml(
 
 /// Minimal deterministic TOML scanner: `[table]`, `[[array.table]]`, and
 /// `key = value` at the current table scope. Does not evaluate values.
+///
+/// MT-101 hardening: it also (a) skips continuation lines of a MULTILINE array
+/// value so an `=` inside an array element (e.g. `"foo = 1"`) is not misread as
+/// a key, (b) expands INLINE TABLES (`pt = { x = 1, y = 2 }`) into dotted inner
+/// keys (`pt.x`, `pt.y`), and (c) keeps dotted bare keys (`a.b.c = 1`) as a
+/// single dotted path under the current table.
 fn extract_toml(text: &str) -> Vec<ConfigFact> {
     let mut facts = Vec::new();
     let mut current_table = String::new();
     let mut byte_cursor = 0usize;
+    // Net unclosed '[' brackets carried from prior lines (multiline arrays).
+    let mut open_array_depth: i32 = 0;
     for (lineno0, raw_line) in text.split_inclusive('\n').enumerate() {
         let line_start = byte_cursor;
         byte_cursor += raw_line.len();
         let line_end = byte_cursor;
         let line = raw_line.trim_end_matches(['\n', '\r']);
         let trimmed = line.trim_start();
+        let lineno = (lineno0 + 1) as u32;
+
+        // Inside an open multiline array: this line is value continuation, not a
+        // key. Just update bracket depth and move on.
+        if open_array_depth > 0 {
+            open_array_depth += array_bracket_delta(line);
+            continue;
+        }
         if trimmed.is_empty() || trimmed.starts_with('#') {
             continue;
         }
-        let lineno = (lineno0 + 1) as u32;
 
         if let Some(rest) = trimmed.strip_prefix("[[") {
             if let Some(name) = rest.split_once("]]").map(|(n, _)| n.trim()) {
@@ -333,27 +412,112 @@ fn extract_toml(text: &str) -> Vec<ConfigFact> {
                 continue;
             }
         }
-        // key = value (key may be quoted or bare; stop at first '=').
-        if let Some((key_part, _value)) = split_toml_assignment(trimmed) {
-            let key = key_part.trim().trim_matches('"').trim();
+        // key = value (key may be quoted or bare; stop at first top-level '=').
+        if let Some((key_part, value)) = split_toml_assignment(trimmed) {
+            let key = normalize_toml_key(key_part);
             if key.is_empty() {
                 continue;
             }
             let key_path = if current_table.is_empty() {
-                key.to_string()
+                key.clone()
             } else {
                 format!("{current_table}.{key}")
             };
             facts.push(ConfigFact {
                 fact_kind: ConfigFactKind::ConfigKey,
-                key_path,
+                key_path: key_path.clone(),
                 line: lineno,
                 byte_start: line_start,
                 byte_end: line_end,
             });
+            // Inline table: expand inner `inner = ...` assignments into dotted
+            // keys on the same line.
+            let value_trimmed = value.trim();
+            if let Some(inner) = value_trimmed
+                .strip_prefix('{')
+                .and_then(|s| s.strip_suffix('}'))
+            {
+                for piece in split_top_level_commas(inner) {
+                    if let Some((ik, _)) = split_toml_assignment(piece.trim()) {
+                        let inner_key = normalize_toml_key(ik);
+                        if !inner_key.is_empty() {
+                            facts.push(ConfigFact {
+                                fact_kind: ConfigFactKind::ConfigKey,
+                                key_path: format!("{key_path}.{inner_key}"),
+                                line: lineno,
+                                byte_start: line_start,
+                                byte_end: line_end,
+                            });
+                        }
+                    }
+                }
+            } else {
+                // A value that opens an array but does not close it on this line
+                // begins a multiline array; skip following continuation lines.
+                open_array_depth += array_bracket_delta(value);
+                if open_array_depth < 0 {
+                    open_array_depth = 0;
+                }
+            }
         }
     }
     facts
+}
+
+/// Net `[` minus `]` brackets that are NOT inside a quoted string, used to track
+/// multiline-array nesting.
+fn array_bracket_delta(line: &str) -> i32 {
+    let mut depth = 0i32;
+    let mut in_quote = false;
+    let bytes = line.as_bytes();
+    for (i, &b) in bytes.iter().enumerate() {
+        match b {
+            b'"' => in_quote = !in_quote,
+            b'#' if !in_quote => break, // comment to EOL
+            b'[' if !in_quote => depth += 1,
+            b']' if !in_quote => depth -= 1,
+            _ => {}
+        }
+        let _ = i;
+    }
+    depth
+}
+
+/// Normalize a TOML key part: trim, strip surrounding quotes on each dotted
+/// segment, re-join with dots so `a."b c".d` becomes `a.b c.d`.
+fn normalize_toml_key(key_part: &str) -> String {
+    key_part
+        .split('.')
+        .map(|seg| seg.trim().trim_matches('"').trim())
+        .filter(|seg| !seg.is_empty())
+        .collect::<Vec<_>>()
+        .join(".")
+}
+
+/// Split on top-level commas (ignoring commas inside quotes or nested braces),
+/// used to break an inline table body into its assignments.
+fn split_top_level_commas(s: &str) -> Vec<&str> {
+    let mut out = Vec::new();
+    let mut depth = 0i32;
+    let mut in_quote = false;
+    let mut start = 0usize;
+    let bytes = s.as_bytes();
+    for (i, &b) in bytes.iter().enumerate() {
+        match b {
+            b'"' => in_quote = !in_quote,
+            b'{' | b'[' if !in_quote => depth += 1,
+            b'}' | b']' if !in_quote => depth -= 1,
+            b',' if !in_quote && depth == 0 => {
+                out.push(&s[start..i]);
+                start = i + 1;
+            }
+            _ => {}
+        }
+    }
+    if start < s.len() {
+        out.push(&s[start..]);
+    }
+    out
 }
 
 /// Split a TOML line at the first top-level `=` (ignores `=` inside quotes).
@@ -448,5 +612,82 @@ mod tests {
     fn malformed_json_is_typed_error() {
         let err = extract_config_facts(ConfigFormat::Json, "x.json", "{ not json").unwrap_err();
         assert!(err.contains("invalid JSON"), "{err}");
+    }
+
+    // ---- MT-101 hardening: structured locator + TOML edge cases ----
+
+    #[test]
+    fn json_locator_does_not_match_key_string_inside_a_value() {
+        // The value of "a" literally contains the token `"b"`; the structured
+        // locator must put key `b` on its real key line (3), not line 2.
+        let text = "{\n  \"a\": \"contains \\\"b\\\" inside\",\n  \"b\": 1\n}";
+        let facts = extract_config_facts(ConfigFormat::Json, "x.json", text).unwrap();
+        let b = facts.iter().find(|f| f.key_path == "b").expect("key b");
+        assert_eq!(b.line, 3, "key b must resolve to its key line, got {b:?}");
+    }
+
+    #[test]
+    fn json_locator_distinguishes_substring_keys() {
+        // `name` must not bind to the `display_name` line.
+        let text = "{\n  \"display_name\": \"x\",\n  \"name\": \"y\"\n}";
+        let facts = extract_config_facts(ConfigFormat::Json, "x.json", text).unwrap();
+        let name = facts
+            .iter()
+            .find(|f| f.key_path == "name")
+            .expect("key name");
+        assert_eq!(name.line, 3, "got {name:?}");
+        let dn = facts
+            .iter()
+            .find(|f| f.key_path == "display_name")
+            .expect("display_name");
+        assert_eq!(dn.line, 2, "got {dn:?}");
+    }
+
+    #[test]
+    fn toml_multiline_array_does_not_emit_spurious_keys_from_values() {
+        // The `=` inside the array element string must NOT be read as a key.
+        let text = "[deps]\nmembers = [\n  \"foo = 1\",\n  \"bar = 2\",\n]\nname = \"x\"\n";
+        let facts = extract_config_facts(ConfigFormat::Toml, "Cargo.toml", text).unwrap();
+        assert!(facts.iter().any(|f| f.key_path == "deps.members"));
+        // `name` after the array still parses.
+        assert!(facts.iter().any(|f| f.key_path == "deps.name"));
+        // No spurious `deps.foo` / `deps.bar` from the array element strings.
+        assert!(
+            !facts
+                .iter()
+                .any(|f| f.key_path.ends_with(".foo") || f.key_path.ends_with(".bar")),
+            "multiline array values leaked as keys: {facts:?}"
+        );
+    }
+
+    #[test]
+    fn toml_inline_table_expands_inner_keys() {
+        let text = "[pkg]\npoint = { x = 1, y = 2 }\n";
+        let facts = extract_config_facts(ConfigFormat::Toml, "Cargo.toml", text).unwrap();
+        assert!(facts.iter().any(|f| f.key_path == "pkg.point"));
+        assert!(
+            facts.iter().any(|f| f.key_path == "pkg.point.x"),
+            "{facts:?}"
+        );
+        assert!(
+            facts.iter().any(|f| f.key_path == "pkg.point.y"),
+            "{facts:?}"
+        );
+    }
+
+    #[test]
+    fn toml_dotted_bare_key_is_kept_as_dotted_path() {
+        let text = "[a]\nb.c.d = 1\n";
+        let facts = extract_config_facts(ConfigFormat::Toml, "Cargo.toml", text).unwrap();
+        assert!(facts.iter().any(|f| f.key_path == "a.b.c.d"), "{facts:?}");
+    }
+
+    #[test]
+    fn toml_quoted_dotted_key_segments_are_unquoted() {
+        let text = "\"weird.key\" = 1\n";
+        let facts = extract_config_facts(ConfigFormat::Toml, "Cargo.toml", text).unwrap();
+        // Quotes stripped per segment; the literal dot inside the quotes is kept
+        // as a path separator (deterministic, navigation-grade).
+        assert!(facts.iter().any(|f| f.key_path == "weird.key"), "{facts:?}");
     }
 }

@@ -5327,6 +5327,10 @@ pub enum KnowledgeCodeLanguage {
     Javascript,
     Typescript,
     Tsx,
+    /// MT-101: a config/schema file (json/yaml/toml). It has no tree-sitter
+    /// CodeLanguage, but it still gets a `knowledge_code_files` index-state row
+    /// so staleness (MT-107) and the lens cover config sources too.
+    Config,
 }
 
 impl KnowledgeCodeLanguage {
@@ -5336,6 +5340,7 @@ impl KnowledgeCodeLanguage {
             Self::Javascript => "javascript",
             Self::Typescript => "typescript",
             Self::Tsx => "tsx",
+            Self::Config => "config",
         }
     }
 }
@@ -5349,6 +5354,7 @@ impl FromStr for KnowledgeCodeLanguage {
             "javascript" => Ok(Self::Javascript),
             "typescript" => Ok(Self::Typescript),
             "tsx" => Ok(Self::Tsx),
+            "config" => Ok(Self::Config),
             _ => Err(StorageError::Validation("invalid knowledge code language")),
         }
     }
