@@ -188,6 +188,15 @@ pub mod knowledge_ingestion;
 /// ProjectKnowledgeIndex, built on the committed knowledge substrate.
 #[cfg(feature = "runtime-full")]
 pub mod knowledge_memory;
+/// WP-KERNEL-009 RetrievalContextAndRanking (MT-129..MT-144): the explainable
+/// retrieval-mode planners (cheapest-authoritative path, schema-first filtering,
+/// graph traversal, passage fallback), structure-aware ranking, evidence
+/// snippet assembly, the context-bundle compiler v2 + budget policy, the
+/// replayable QueryPlan/RetrievalTrace model, and the Project Brain / Semantic
+/// Catalog / AI-Ready export / ContextPack-recorder bridges over the committed
+/// ProjectKnowledgeIndex + MemoryGraph substrate.
+#[cfg(feature = "runtime-full")]
+pub mod knowledge_retrieval;
 #[cfg(feature = "runtime-full")]
 pub mod llm;
 #[cfg(feature = "runtime-full")]
