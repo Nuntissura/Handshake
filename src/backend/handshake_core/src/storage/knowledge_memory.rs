@@ -764,6 +764,35 @@ pub async fn list_memory_facts(
     rows.iter().map(fact_from_row).collect()
 }
 
+/// List ONLY the facts whose schema matches an in-scope id set
+/// (adversarial-v2 MT-131): the scope predicate is pushed into the SQL
+/// (`predicate_term_id` / `object_entity_id` = ANY(scope)) so the row cap
+/// applies to IN-SCOPE facts. The previous capped unordered load filtered in
+/// memory had a recall gap: in-scope facts beyond the cap were invisible.
+pub async fn list_memory_facts_in_schema_scope(
+    pool: &PgPool,
+    workspace_id: &str,
+    in_scope_ids: &[String],
+    limit: i64,
+) -> StorageResult<Vec<MemoryFact>> {
+    let sql = format!(
+        r#"
+        SELECT {FACT_COLUMNS} FROM knowledge_memory_facts
+        WHERE workspace_id = $1
+          AND (predicate_term_id = ANY($2) OR object_entity_id = ANY($2))
+        ORDER BY created_at DESC, fact_id DESC
+        LIMIT $3
+        "#
+    );
+    let rows = sqlx::query(&sql)
+        .bind(workspace_id)
+        .bind(in_scope_ids)
+        .bind(limit)
+        .fetch_all(pool)
+        .await?;
+    rows.iter().map(fact_from_row).collect()
+}
+
 /// MT-125: re-label a fact's authority, enforcing the legal label-transition
 /// table. An illegal transition is a typed `Conflict` (e.g. silently demoting
 /// an operator-approved fact to model_suggested).

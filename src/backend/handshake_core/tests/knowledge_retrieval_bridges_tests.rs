@@ -119,6 +119,8 @@ async fn schema_first_filter_narrows_to_query_scope() {
     .expect("fact out");
 
     // Query mentions "dependency" -> resolves to the term -> narrows facts.
+    // Adversarial-v2 MT-131: the scope predicate is pushed into the fact SQL,
+    // so off-topic rows never load (off_topic_dropped is 0 by construction).
     let result = schema_first_filter(&pool, &fx.workspace_id, "what is the dependency?", 100)
         .await
         .expect("filter");
@@ -128,7 +130,50 @@ async fn schema_first_filter_narrows_to_query_scope() {
     );
     assert!(result.matched_term_ids.contains(&term.term_id));
     assert_eq!(result.candidate_facts.len(), 1);
-    assert_eq!(result.off_topic_dropped, 1);
+    assert_eq!(result.off_topic_dropped, 0);
+    assert_eq!(
+        result.candidate_facts[0].predicate_term_id.as_deref(),
+        Some(term.term_id.as_str())
+    );
+
+    // RECALL-GAP proof (the adversarial-v2 finding): bury the in-scope fact
+    // under NEWER off-topic facts and use a tight cap. The old post-hoc
+    // filter loaded the newest N rows (all off-topic) and dropped everything;
+    // the SQL pushdown still finds the in-scope fact.
+    for i in 0..5 {
+        let claim = fx.claim(&format!("noise note {i}")).await;
+        create_memory_fact(
+            &pool,
+            NewMemoryFact {
+                workspace_id: fx.workspace_id.clone(),
+                claim_id: claim.claim_id.clone(),
+                subject_entity_id: subj.clone(),
+                predicate_key: format!("noise_{i}"),
+                predicate_term_id: None,
+                object: MemoryFactObject::Literal {
+                    value: "x".to_string(),
+                },
+                qualifiers: serde_json::json!({}),
+                authority_label: MemoryClaimAuthorityLabel::Derived,
+                extractor_version: "test_v1".to_string(),
+                created_in_run: None,
+            },
+        )
+        .await
+        .expect("noise fact");
+    }
+    let result = schema_first_filter(&pool, &fx.workspace_id, "what is the dependency?", 3)
+        .await
+        .expect("filter under tight cap");
+    assert_eq!(
+        result.candidate_facts.len(),
+        1,
+        "the in-scope fact survives a cap full of newer off-topic rows"
+    );
+    assert_eq!(
+        result.candidate_facts[0].predicate_term_id.as_deref(),
+        Some(term.term_id.as_str())
+    );
 }
 
 /// MT-142: the ContextPack recorder emits a recorder-visible EventLedger receipt

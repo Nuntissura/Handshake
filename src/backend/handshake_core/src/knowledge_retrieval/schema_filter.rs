@@ -22,7 +22,8 @@ use std::collections::BTreeSet;
 use sqlx::PgPool;
 
 use crate::storage::knowledge_memory::{
-    list_memory_facts, resolve_memory_ontology_alias, MemoryFact,
+    list_memory_facts, list_memory_facts_in_schema_scope, resolve_memory_ontology_alias,
+    MemoryFact,
 };
 use crate::storage::StorageResult;
 
@@ -133,8 +134,16 @@ pub fn filter_facts_by_schema(
     (kept, dropped)
 }
 
-/// End-to-end schema-first filter: resolve the query's schema scope, load the
-/// workspace facts, and narrow them. Bounded by `fact_limit`.
+/// End-to-end schema-first filter: resolve the query's schema scope and load
+/// the candidate facts. Bounded by `fact_limit`.
+///
+/// Adversarial-v2 MT-131 hardening: when the query resolves to a schema
+/// scope, the scope predicate is PUSHED INTO THE FACT SQL
+/// (`list_memory_facts_in_schema_scope`) so the row cap applies to in-scope
+/// facts — the previous post-hoc filter over a capped unordered load could
+/// miss in-scope facts beyond the cap (a recall gap). With no scope, the
+/// caller MUST widen (graph/hybrid); the capped recent-facts load is then
+/// only advisory context.
 pub async fn schema_first_filter(
     pool: &PgPool,
     workspace_id: &str,
@@ -142,12 +151,23 @@ pub async fn schema_first_filter(
     fact_limit: i64,
 ) -> StorageResult<SchemaFilterResult> {
     let matched_term_ids = resolve_query_schema(pool, workspace_id, query_text).await?;
-    let facts = list_memory_facts(pool, workspace_id, fact_limit).await?;
-    let (candidate_facts, off_topic_dropped) = filter_facts_by_schema(facts, &matched_term_ids);
+    if matched_term_ids.is_empty() {
+        let facts = list_memory_facts(pool, workspace_id, fact_limit).await?;
+        return Ok(SchemaFilterResult {
+            matched_term_ids,
+            candidate_facts: facts,
+            off_topic_dropped: 0,
+        });
+    }
+    let scope: Vec<String> = matched_term_ids.iter().cloned().collect();
+    let candidate_facts =
+        list_memory_facts_in_schema_scope(pool, workspace_id, &scope, fact_limit).await?;
     Ok(SchemaFilterResult {
         matched_term_ids,
         candidate_facts,
-        off_topic_dropped,
+        // The pushdown excludes off-topic rows at the SQL layer; the dropped
+        // count is no longer observable (and no longer load-bears recall).
+        off_topic_dropped: 0,
     })
 }
 
