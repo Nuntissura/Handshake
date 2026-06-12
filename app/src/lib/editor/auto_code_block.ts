@@ -83,3 +83,48 @@ export function detectIndentedCodeBlock(
 export function codeBlockToFenced(language: string, code: string): string {
   return "```" + (language || "") + "\n" + code + "\n```";
 }
+
+/** One ordered segment of a pasted blob (iteration-3 H6 paste pipeline). */
+export interface PasteSegment {
+  kind: "prose" | "code";
+  /** Canonical language id (code segments only). */
+  language?: string;
+  text: string;
+}
+
+/**
+ * Splits a pasted text blob into ORDERED prose/code segments so a paste that
+ * mixes prose and ```fenced``` regions loses nothing (iteration-3 H6: the
+ * previous helper extracted only the code blocks, silently dropping the prose
+ * around them). Returns null when the blob contains no code at all — the
+ * caller then lets the default paste run.
+ */
+export function segmentPasteText(text: string): PasteSegment[] | null {
+  const segments: PasteSegment[] = [];
+  let cursor = 0;
+  let foundFence = false;
+  for (const match of text.matchAll(FENCED_REGION_REGEX)) {
+    foundFence = true;
+    const start = match.index ?? 0;
+    if (start > cursor) {
+      const prose = text.slice(cursor, start);
+      if (prose.trim().length > 0) segments.push({ kind: "prose", text: prose });
+    }
+    segments.push({
+      kind: "code",
+      language: normalizeLanguageHint(match[1]),
+      text: match[2] ?? "",
+    });
+    cursor = start + match[0].length;
+  }
+  if (foundFence) {
+    const tail = text.slice(cursor);
+    if (tail.trim().length > 0) segments.push({ kind: "prose", text: tail });
+    return segments;
+  }
+  const indented = detectIndentedCodeBlock(text);
+  if (indented !== null) {
+    return [{ kind: "code", language: normalizeLanguageHint(undefined), text: indented }];
+  }
+  return null;
+}

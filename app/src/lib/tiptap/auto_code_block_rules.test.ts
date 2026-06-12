@@ -131,4 +131,115 @@ describe("AutoCodeBlockRules extension (MT-164, real editor)", () => {
     editor.destroy();
     editor2.destroy();
   });
+
+  it("paste is WIRED into the live editor via the registered handlePaste plugin (iteration-3 H6)", () => {
+    const editor = makeEditor();
+    // Drive the REAL registered plugin prop through the view's prop chain —
+    // exactly how ProseMirror dispatches a paste event.
+    const fenced = "```rust\nfn main() {}\n```";
+    const fakeEvent = {
+      clipboardData: { getData: (kind: string) => (kind === "text/plain" ? fenced : "") },
+    } as unknown as ClipboardEvent;
+    const handled = editor.view.someProp("handlePaste", (fn) =>
+      fn(editor.view, fakeEvent, null as never),
+    );
+    expect(handled).toBe(true);
+    const node = findNode(editor.getJSON(), "monacoCodeBlock");
+    expect(node?.attrs?.language).toBe("rust");
+    expect(node?.attrs?.code).toBe("fn main() {}");
+
+    // A prose-only paste must fall through (no plugin claims it).
+    const editor2 = makeEditor();
+    const proseEvent = {
+      clipboardData: {
+        getData: (kind: string) => (kind === "text/plain" ? "plain words only" : ""),
+      },
+    } as unknown as ClipboardEvent;
+    const fellThrough = editor2.view.someProp("handlePaste", (fn) =>
+      fn(editor2.view, proseEvent, null as never),
+    );
+    expect(fellThrough ?? false).toBe(false);
+    editor.destroy();
+    editor2.destroy();
+  });
+
+  it("mixed prose+fence paste preserves the interleaved prose in order (iteration-3 H6)", () => {
+    const editor = makeEditor();
+    const blob = "Setup notes first.\n```shell\necho hi\n```\nAnd a closing remark.";
+    expect(handleCodeBlockPaste(editor, blob)).toBe(true);
+    const json = editor.getJSON();
+    const kinds: string[] = [];
+    const texts: string[] = [];
+    for (const child of json.content ?? []) {
+      kinds.push(child.type ?? "");
+      if (child.type === "paragraph") {
+        texts.push((child.content ?? []).map((c) => (c as { text?: string }).text ?? "").join(""));
+      }
+    }
+    // Prose BEFORE the fence, the code block, prose AFTER — nothing dropped.
+    expect(kinds).toContain("monacoCodeBlock");
+    expect(texts).toContain("Setup notes first.");
+    expect(texts).toContain("And a closing remark.");
+    const codeIdx = kinds.indexOf("monacoCodeBlock");
+    const beforeIdx = kinds.findIndex((k, i) => k === "paragraph" && texts.length > 0 && i < codeIdx);
+    expect(beforeIdx).toBeGreaterThanOrEqual(0);
+    expect(beforeIdx).toBeLessThan(codeIdx);
+    editor.destroy();
+  });
+
+  it("codeToProse reverses a code block into paragraphs (iteration-3 M4 round-trip)", () => {
+    const editor = makeEditor();
+    editor.commands.setContent({
+      type: "doc",
+      content: [{ type: "paragraph", content: [{ type: "text", text: "line one" }] }],
+    });
+    editor.commands.selectAll();
+    editor.commands.proseToCodeBlock("shell");
+    // Find and node-select the produced block, then reverse it.
+    let blockPos = -1;
+    editor.state.doc.descendants((node, pos) => {
+      if (node.type.name === "monacoCodeBlock") {
+        blockPos = pos;
+        return false;
+      }
+      return true;
+    });
+    expect(blockPos).toBeGreaterThanOrEqual(0);
+    editor.commands.setNodeSelection(blockPos);
+    expect(editor.commands.codeToProse()).toBe(true);
+    const json = editor.getJSON();
+    expect(findNode(json, "monacoCodeBlock")).toBeNull();
+    const text = editor.state.doc.textBetween(0, editor.state.doc.content.size, "\n");
+    expect(text).toContain("line one");
+    editor.destroy();
+  });
+
+  it("codeToProse splits multi-line code into one paragraph per line and declines without a block", () => {
+    const editor = makeEditor();
+    editor.commands.insertCodeBlockFromSlash("python");
+    let blockPos = -1;
+    editor.state.doc.descendants((node, pos) => {
+      if (node.type.name === "monacoCodeBlock") {
+        blockPos = pos;
+        return false;
+      }
+      return true;
+    });
+    editor.commands.setNodeSelection(blockPos);
+    editor.commands.updateAttributes("monacoCodeBlock", {
+      code: "a = 1\n\nb = 2",
+    });
+    editor.commands.setNodeSelection(blockPos);
+    expect(editor.commands.codeToProse()).toBe(true);
+    const text = editor.state.doc.textBetween(0, editor.state.doc.content.size, "\n");
+    expect(text).toContain("a = 1");
+    expect(text).toContain("b = 2");
+    expect(findNode(editor.getJSON(), "monacoCodeBlock")).toBeNull();
+
+    // No code block at the selection → declines.
+    const editor2 = makeEditor();
+    expect(editor2.commands.codeToProse()).toBe(false);
+    editor.destroy();
+    editor2.destroy();
+  });
 });
