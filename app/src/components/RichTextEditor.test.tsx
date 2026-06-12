@@ -9,12 +9,12 @@
 // a non-blank notice (MT-174).
 
 import { render, screen, waitFor, fireEvent } from "@testing-library/react";
-import { act } from "react";
+import { act, type ComponentProps } from "react";
 import { describe, it, expect, vi } from "vitest";
 import { RichTextEditor } from "./RichTextEditor";
 import type { JSONContent } from "@tiptap/core";
 
-function renderEditor(props?: Partial<React.ComponentProps<typeof RichTextEditor>>) {
+function renderEditor(props?: Partial<ComponentProps<typeof RichTextEditor>>) {
   const onChange = vi.fn();
   const initial: JSONContent = { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "hello" }] }] };
   return {
