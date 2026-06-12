@@ -7,7 +7,10 @@
 //! parallel index writers. PostgreSQL tables from migration 0311 are authority;
 //! EventLedger rows provide the receipt trail.
 
-use std::sync::Arc;
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    sync::Arc,
+};
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -352,6 +355,15 @@ pub enum ClaimStatus {
 }
 
 impl ClaimStatus {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::Active => "active",
+            Self::Held => "held",
+            Self::Released => "released",
+            Self::Reclaimed => "reclaimed",
+        }
+    }
+
     fn parse(value: &str) -> StateRecoveryResult<Self> {
         match value {
             "active" => Ok(Self::Active),
@@ -415,10 +427,282 @@ pub struct SwarmEvidenceInspectionRequest {
 pub struct SwarmEvidenceInspectionSnapshot {
     pub workspace_id: String,
     pub claims: Vec<WorkClaimRecord>,
+    pub mailbox_handoffs: Vec<RoleMailboxHandoffRecord>,
     pub checkpoints: Vec<RecoveryCheckpointRecord>,
     pub recovery_receipts: Vec<RecoveryReceiptRecord>,
     pub indexing_leases: Vec<IndexingLeaseRecord>,
     pub quiet_background_work: Vec<QuietBackgroundWorkRecord>,
+}
+
+pub const PARALLEL_SWARM_DASHBOARD_SCHEMA_ID: &str = "hsk.parallel_swarm.dashboard_projection@1";
+
+const PARALLEL_SWARM_SOURCE_COMPONENT: &str = "parallel_swarm_state_recovery";
+
+const PARALLEL_SWARM_DASHBOARD_SOURCE_TABLES: &[&str] = &[
+    "knowledge_agent_worktree_claims",
+    "knowledge_agent_role_mailbox_handoffs",
+    "knowledge_agent_state_recovery_checkpoints",
+    "knowledge_agent_recovery_receipts",
+    "knowledge_parallel_indexing_lease_queue",
+    "knowledge_agent_quiet_background_work",
+    "kernel_event_ledger",
+];
+
+const PARALLEL_SWARM_DASHBOARD_EVENT_AGGREGATES: &[&str] = &[
+    "parallel_swarm_claim",
+    "parallel_swarm_claim_reclaim",
+    "parallel_swarm_handoff",
+    "parallel_swarm_checkpoint",
+    "parallel_swarm_recovery",
+    "parallel_indexing_lease",
+    "parallel_swarm_quiet_background_work",
+];
+
+#[derive(Debug, Clone)]
+pub struct SwarmDashboardProjectionRequest {
+    pub lane: AgentLaneIdentity,
+    pub workspace_id: String,
+    pub wp_id: Option<String>,
+    pub mt_id: Option<String>,
+    pub limit: i64,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ParallelSwarmDashboardProjectionV1 {
+    pub schema_id: String,
+    pub workspace_id: String,
+    pub generated_at_utc: DateTime<Utc>,
+    pub filters: SwarmDashboardProjectionFilters,
+    pub projection_contract: SwarmDashboardProjectionContractV1,
+    pub source_watermark: SwarmDashboardSourceWatermarkV1,
+    pub totals: SwarmDashboardTotalsV1,
+    pub lanes: Vec<SwarmDashboardLaneRowV1>,
+    pub claims: Vec<SwarmDashboardClaimRowV1>,
+    pub mailbox_handoffs: Vec<SwarmDashboardHandoffRowV1>,
+    pub recovery_checkpoints: Vec<SwarmDashboardCheckpointRowV1>,
+    pub recovery_receipts: Vec<SwarmDashboardRecoveryReceiptRowV1>,
+    pub indexing_leases: Vec<SwarmDashboardIndexingLeaseRowV1>,
+    pub quiet_background_work: Vec<SwarmDashboardQuietWorkRowV1>,
+    pub warnings: Vec<SwarmDashboardWarningV1>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SwarmDashboardProjectionFilters {
+    pub workspace_id: String,
+    pub wp_id: Option<String>,
+    pub mt_id: Option<String>,
+    pub limit: i64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SwarmDashboardProjectionContractV1 {
+    pub projection_only: bool,
+    pub authority_mutation_allowed: bool,
+    pub ui_state_authoritative: bool,
+    pub source_component: String,
+    pub source_tables: Vec<String>,
+    pub source_event_aggregates: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SwarmDashboardSourceWatermarkV1 {
+    pub source_component: String,
+    pub event_count: i64,
+    pub max_event_created_at_utc: Option<DateTime<Utc>>,
+    pub events: Vec<SwarmDashboardEventRefV1>,
+    pub aggregate_counts: Vec<SwarmDashboardAggregateCountV1>,
+    pub missing_event_refs: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SwarmDashboardEventRefV1 {
+    pub event_id: String,
+    pub source_component: String,
+    pub aggregate_type: String,
+    pub aggregate_id: String,
+    pub created_at_utc: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SwarmDashboardAggregateCountV1 {
+    pub aggregate_type: String,
+    pub count: i64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SwarmDashboardTotalsV1 {
+    pub claims: i64,
+    pub active_claims: i64,
+    pub stale_active_claims: i64,
+    pub mailbox_handoffs: i64,
+    pub recovery_checkpoints: i64,
+    pub recovery_receipts: i64,
+    pub indexing_leases: i64,
+    pub acquired_indexing_leases: i64,
+    pub quiet_background_work: i64,
+    pub events: i64,
+    pub warnings: i64,
+    pub claims_by_status: BTreeMap<String, i64>,
+    pub handoffs_by_status: BTreeMap<String, i64>,
+    pub leases_by_status: BTreeMap<String, i64>,
+    pub quiet_work_by_kind: BTreeMap<String, i64>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SwarmDashboardLaneRowV1 {
+    pub lane_id: String,
+    pub actor_id: String,
+    pub lane_kind: String,
+    pub attribution_mode: String,
+    pub total_rows: i64,
+    pub active_claims: i64,
+    pub handoffs: i64,
+    pub checkpoints: i64,
+    pub recovery_receipts: i64,
+    pub indexing_leases: i64,
+    pub quiet_background_work: i64,
+    pub source_event_ids: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SwarmDashboardSourceRefV1 {
+    pub table_name: String,
+    pub row_id: String,
+    pub row_source_ref: String,
+    pub event_ledger_event_id: Option<String>,
+    pub event_source_ref: Option<String>,
+    pub event_aggregate_type: Option<String>,
+    pub event_aggregate_id: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SwarmDashboardClaimRowV1 {
+    pub claim_id: String,
+    pub wp_id: String,
+    pub mt_id: Option<String>,
+    pub scope_kind: String,
+    pub scope_id: String,
+    pub lane_id: String,
+    pub actor_id: String,
+    pub lane_kind: String,
+    pub status: String,
+    pub reason: String,
+    pub claimed_at_utc: DateTime<Utc>,
+    pub expires_at_utc: DateTime<Utc>,
+    pub released_at_utc: Option<DateTime<Utc>>,
+    pub stale: bool,
+    pub source_refs: Vec<SwarmDashboardSourceRefV1>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SwarmDashboardHandoffRowV1 {
+    pub handoff_id: String,
+    pub wp_id: String,
+    pub mt_id: String,
+    pub claim_id: Option<String>,
+    pub from_lane_id: String,
+    pub from_actor_id: String,
+    pub from_lane_kind: String,
+    pub to_role: String,
+    pub mailbox_thread_id: String,
+    pub mailbox_message_id: String,
+    pub status: String,
+    pub summary: String,
+    pub created_at_utc: DateTime<Utc>,
+    pub source_refs: Vec<SwarmDashboardSourceRefV1>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SwarmDashboardCheckpointRowV1 {
+    pub checkpoint_id: String,
+    pub wp_id: String,
+    pub mt_id: String,
+    pub session_id: String,
+    pub lane_id: String,
+    pub actor_id: String,
+    pub lane_kind: String,
+    pub claim_id: Option<String>,
+    pub mailbox_handoff_id: Option<String>,
+    pub navigation_command_id: Option<String>,
+    pub resume_pointer: RecoveryResumePointer,
+    pub payload_sha256: String,
+    pub compaction_reason: String,
+    pub git_head: String,
+    pub created_at_utc: DateTime<Utc>,
+    pub source_refs: Vec<SwarmDashboardSourceRefV1>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SwarmDashboardRecoveryReceiptRowV1 {
+    pub receipt_id: String,
+    pub checkpoint_id: String,
+    pub prior_session_id: String,
+    pub new_session_id: String,
+    pub new_lane_id: String,
+    pub new_actor_id: String,
+    pub new_lane_kind: String,
+    pub resume_pointer: RecoveryResumePointer,
+    pub recovered_at_utc: DateTime<Utc>,
+    pub source_refs: Vec<SwarmDashboardSourceRefV1>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SwarmDashboardIndexingLeaseRowV1 {
+    pub lease_id: String,
+    pub wp_id: String,
+    pub mt_id: String,
+    pub scope_kind: String,
+    pub scope_id: String,
+    pub lane_id: String,
+    pub actor_id: String,
+    pub lane_kind: String,
+    pub session_id: String,
+    pub index_run_id: String,
+    pub status: String,
+    pub blocked_by_lease_id: Option<String>,
+    pub quiet_policy_ok: bool,
+    pub source_refs: Vec<SwarmDashboardSourceRefV1>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SwarmDashboardQuietWorkRowV1 {
+    pub receipt_id: String,
+    pub wp_id: String,
+    pub mt_id: String,
+    pub work_kind: String,
+    pub subject_id: String,
+    pub lane_id: String,
+    pub actor_id: String,
+    pub lane_kind: String,
+    pub session_id: String,
+    pub evidence_ref: String,
+    pub quiet_policy_ok: bool,
+    pub created_at_utc: DateTime<Utc>,
+    pub source_refs: Vec<SwarmDashboardSourceRefV1>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SwarmDashboardWarningV1 {
+    pub code: String,
+    pub detail: String,
+}
+
+#[derive(Debug, Clone, Default)]
+struct SwarmDashboardAuthorityTotals {
+    claims: i64,
+    active_claims: i64,
+    stale_active_claims: i64,
+    mailbox_handoffs: i64,
+    recovery_checkpoints: i64,
+    recovery_receipts: i64,
+    indexing_leases: i64,
+    acquired_indexing_leases: i64,
+    quiet_background_work: i64,
+    events: i64,
+    claims_by_status: BTreeMap<String, i64>,
+    handoffs_by_status: BTreeMap<String, i64>,
+    leases_by_status: BTreeMap<String, i64>,
+    quiet_work_by_kind: BTreeMap<String, i64>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -1034,6 +1318,21 @@ impl ParallelSwarmStateRecoveryStore {
         .bind(limit)
         .fetch_all(&self.pool)
         .await?;
+        let handoff_rows = sqlx::query(
+            r#"
+            SELECT h.*
+            FROM knowledge_agent_role_mailbox_handoffs h
+            INNER JOIN knowledge_agent_worktree_claims c
+                    ON c.claim_id = h.claim_id
+            WHERE c.workspace_id = $1
+            ORDER BY h.created_at_utc DESC, h.handoff_id DESC
+            LIMIT $2
+            "#,
+        )
+        .bind(&request.workspace_id)
+        .bind(limit)
+        .fetch_all(&self.pool)
+        .await?;
         let checkpoint_rows = sqlx::query(
             r#"
             SELECT * FROM knowledge_agent_state_recovery_checkpoints
@@ -1092,6 +1391,10 @@ impl ParallelSwarmStateRecoveryStore {
                 .into_iter()
                 .map(work_claim_from_row)
                 .collect::<StateRecoveryResult<Vec<_>>>()?,
+            mailbox_handoffs: handoff_rows
+                .into_iter()
+                .map(mailbox_handoff_from_row)
+                .collect::<StateRecoveryResult<Vec<_>>>()?,
             checkpoints: checkpoint_rows
                 .into_iter()
                 .map(checkpoint_from_row)
@@ -1108,6 +1411,609 @@ impl ParallelSwarmStateRecoveryStore {
                 .into_iter()
                 .map(quiet_background_work_from_row)
                 .collect::<StateRecoveryResult<Vec<_>>>()?,
+        })
+    }
+
+    pub async fn project_swarm_dashboard(
+        &self,
+        request: SwarmDashboardProjectionRequest,
+    ) -> StateRecoveryResult<ParallelSwarmDashboardProjectionV1> {
+        require_capability(&request.lane, AgentCapability::InspectEvidence)?;
+        ensure_safe_token("workspace_id", &request.workspace_id)?;
+        if let Some(wp_id) = request.wp_id.as_deref() {
+            ensure_safe_token("wp_id", wp_id)?;
+        }
+        if let Some(mt_id) = request.mt_id.as_deref() {
+            ensure_safe_token("mt_id", mt_id)?;
+        }
+        let limit = bounded_inspection_limit(request.limit)?;
+        let generated_at_utc = Utc::now();
+
+        let claim_rows = sqlx::query(
+            r#"
+            SELECT * FROM knowledge_agent_worktree_claims
+            WHERE workspace_id = $1
+              AND ($2::TEXT IS NULL OR wp_id = $2)
+              AND ($3::TEXT IS NULL OR mt_id = $3)
+            ORDER BY claimed_at_utc DESC, claim_id DESC
+            LIMIT $4
+            "#,
+        )
+        .bind(&request.workspace_id)
+        .bind(request.wp_id.as_deref())
+        .bind(request.mt_id.as_deref())
+        .bind(limit)
+        .fetch_all(&self.pool)
+        .await?;
+        let claims = claim_rows
+            .into_iter()
+            .map(work_claim_from_row)
+            .collect::<StateRecoveryResult<Vec<_>>>()?;
+
+        let handoff_rows = sqlx::query(
+            r#"
+            SELECT h.*
+            FROM knowledge_agent_role_mailbox_handoffs h
+            INNER JOIN knowledge_agent_worktree_claims c
+                    ON c.claim_id = h.claim_id
+            WHERE c.workspace_id = $1
+              AND ($2::TEXT IS NULL OR h.wp_id = $2)
+              AND ($3::TEXT IS NULL OR h.mt_id = $3)
+            ORDER BY h.created_at_utc DESC, h.handoff_id DESC
+            LIMIT $4
+            "#,
+        )
+        .bind(&request.workspace_id)
+        .bind(request.wp_id.as_deref())
+        .bind(request.mt_id.as_deref())
+        .bind(limit)
+        .fetch_all(&self.pool)
+        .await?;
+        let mailbox_handoffs = handoff_rows
+            .into_iter()
+            .map(mailbox_handoff_from_row)
+            .collect::<StateRecoveryResult<Vec<_>>>()?;
+
+        let checkpoint_rows = sqlx::query(
+            r#"
+            SELECT * FROM knowledge_agent_state_recovery_checkpoints
+            WHERE workspace_id = $1
+              AND ($2::TEXT IS NULL OR wp_id = $2)
+              AND ($3::TEXT IS NULL OR mt_id = $3)
+            ORDER BY created_at_utc DESC, checkpoint_id DESC
+            LIMIT $4
+            "#,
+        )
+        .bind(&request.workspace_id)
+        .bind(request.wp_id.as_deref())
+        .bind(request.mt_id.as_deref())
+        .bind(limit)
+        .fetch_all(&self.pool)
+        .await?;
+        let checkpoints = checkpoint_rows
+            .into_iter()
+            .map(checkpoint_from_row)
+            .collect::<StateRecoveryResult<Vec<_>>>()?;
+
+        let recovery_rows = sqlx::query(
+            r#"
+            SELECT r.*
+            FROM knowledge_agent_recovery_receipts r
+            INNER JOIN knowledge_agent_state_recovery_checkpoints c
+                    ON c.checkpoint_id = r.checkpoint_id
+            WHERE c.workspace_id = $1
+              AND ($2::TEXT IS NULL OR c.wp_id = $2)
+              AND ($3::TEXT IS NULL OR c.mt_id = $3)
+            ORDER BY r.recovered_at_utc DESC, r.receipt_id DESC
+            LIMIT $4
+            "#,
+        )
+        .bind(&request.workspace_id)
+        .bind(request.wp_id.as_deref())
+        .bind(request.mt_id.as_deref())
+        .bind(limit)
+        .fetch_all(&self.pool)
+        .await?;
+        let recovery_receipts = recovery_rows
+            .into_iter()
+            .map(recovery_receipt_from_row)
+            .collect::<StateRecoveryResult<Vec<_>>>()?;
+
+        let lease_rows = sqlx::query(
+            r#"
+            SELECT * FROM knowledge_parallel_indexing_lease_queue
+            WHERE workspace_id = $1
+              AND ($2::TEXT IS NULL OR wp_id = $2)
+              AND ($3::TEXT IS NULL OR mt_id = $3)
+            ORDER BY enqueued_at_utc DESC, lease_id DESC
+            LIMIT $4
+            "#,
+        )
+        .bind(&request.workspace_id)
+        .bind(request.wp_id.as_deref())
+        .bind(request.mt_id.as_deref())
+        .bind(limit)
+        .fetch_all(&self.pool)
+        .await?;
+        let indexing_leases = lease_rows
+            .into_iter()
+            .map(index_lease_from_row)
+            .collect::<StateRecoveryResult<Vec<_>>>()?;
+
+        let quiet_rows = sqlx::query(
+            r#"
+            SELECT * FROM knowledge_agent_quiet_background_work
+            WHERE workspace_id = $1
+              AND ($2::TEXT IS NULL OR wp_id = $2)
+              AND ($3::TEXT IS NULL OR mt_id = $3)
+            ORDER BY created_at_utc DESC, receipt_id DESC
+            LIMIT $4
+            "#,
+        )
+        .bind(&request.workspace_id)
+        .bind(request.wp_id.as_deref())
+        .bind(request.mt_id.as_deref())
+        .bind(limit)
+        .fetch_all(&self.pool)
+        .await?;
+        let quiet_background_work = quiet_rows
+            .into_iter()
+            .map(quiet_background_work_from_row)
+            .collect::<StateRecoveryResult<Vec<_>>>()?;
+
+        let authority_totals = self
+            .dashboard_authority_totals(
+                &request.workspace_id,
+                request.wp_id.as_deref(),
+                request.mt_id.as_deref(),
+            )
+            .await?;
+
+        let mut warnings = vec![SwarmDashboardWarningV1 {
+            code: "handoffs_without_workspace_source_ref_excluded".to_string(),
+            detail: "mailbox handoff receipts without a claim-backed workspace source are excluded by contract and are never counted from workspace dashboards".to_string(),
+        }];
+
+        let mut source_event_ids = BTreeSet::new();
+        collect_projection_event_ids(
+            &claims,
+            &mailbox_handoffs,
+            &checkpoints,
+            &recovery_receipts,
+            &indexing_leases,
+            &quiet_background_work,
+            &mut source_event_ids,
+        );
+        let source_watermark = self
+            .dashboard_event_watermark(source_event_ids.iter().cloned().collect())
+            .await?;
+        for missing in &source_watermark.missing_event_refs {
+            warnings.push(SwarmDashboardWarningV1 {
+                code: "missing_event_ledger_ref".to_string(),
+                detail: format!("projection source referenced missing EventLedger row {missing}"),
+            });
+        }
+
+        let claim_rows = claims
+            .iter()
+            .map(|claim| dashboard_claim_row(claim, generated_at_utc))
+            .collect::<Vec<_>>();
+        let handoff_rows = mailbox_handoffs
+            .iter()
+            .map(dashboard_handoff_row)
+            .collect::<Vec<_>>();
+        let checkpoint_rows = checkpoints
+            .iter()
+            .map(dashboard_checkpoint_row)
+            .collect::<Vec<_>>();
+        let recovery_rows = recovery_receipts
+            .iter()
+            .map(dashboard_recovery_receipt_row)
+            .collect::<Vec<_>>();
+        let lease_rows = indexing_leases
+            .iter()
+            .map(dashboard_indexing_lease_row)
+            .collect::<Vec<_>>();
+        let quiet_rows = quiet_background_work
+            .iter()
+            .map(dashboard_quiet_work_row)
+            .collect::<Vec<_>>();
+        add_truncation_warning(
+            &mut warnings,
+            "claims",
+            claim_rows.len(),
+            authority_totals.claims,
+        );
+        add_truncation_warning(
+            &mut warnings,
+            "mailbox_handoffs",
+            handoff_rows.len(),
+            authority_totals.mailbox_handoffs,
+        );
+        add_truncation_warning(
+            &mut warnings,
+            "recovery_checkpoints",
+            checkpoint_rows.len(),
+            authority_totals.recovery_checkpoints,
+        );
+        add_truncation_warning(
+            &mut warnings,
+            "recovery_receipts",
+            recovery_rows.len(),
+            authority_totals.recovery_receipts,
+        );
+        add_truncation_warning(
+            &mut warnings,
+            "indexing_leases",
+            lease_rows.len(),
+            authority_totals.indexing_leases,
+        );
+        add_truncation_warning(
+            &mut warnings,
+            "quiet_background_work",
+            quiet_rows.len(),
+            authority_totals.quiet_background_work,
+        );
+
+        let lanes = dashboard_lane_rows(
+            &claims,
+            &mailbox_handoffs,
+            &checkpoints,
+            &recovery_receipts,
+            &indexing_leases,
+            &quiet_background_work,
+        );
+        let mut totals = dashboard_totals(authority_totals);
+        totals.warnings = warnings.len() as i64;
+
+        Ok(ParallelSwarmDashboardProjectionV1 {
+            schema_id: PARALLEL_SWARM_DASHBOARD_SCHEMA_ID.to_string(),
+            workspace_id: request.workspace_id.clone(),
+            generated_at_utc,
+            filters: SwarmDashboardProjectionFilters {
+                workspace_id: request.workspace_id,
+                wp_id: request.wp_id,
+                mt_id: request.mt_id,
+                limit,
+            },
+            projection_contract: swarm_dashboard_projection_contract(),
+            source_watermark,
+            totals,
+            lanes,
+            claims: claim_rows,
+            mailbox_handoffs: handoff_rows,
+            recovery_checkpoints: checkpoint_rows,
+            recovery_receipts: recovery_rows,
+            indexing_leases: lease_rows,
+            quiet_background_work: quiet_rows,
+            warnings,
+        })
+    }
+
+    async fn dashboard_authority_totals(
+        &self,
+        workspace_id: &str,
+        wp_id: Option<&str>,
+        mt_id: Option<&str>,
+    ) -> StateRecoveryResult<SwarmDashboardAuthorityTotals> {
+        let claim_summary = sqlx::query(
+            r#"
+            SELECT COUNT(*) AS claims,
+                   COUNT(*) FILTER (WHERE status = 'active') AS active_claims,
+                   COUNT(*) FILTER (
+                       WHERE status = 'active' AND expires_at_utc <= NOW()
+                   ) AS stale_active_claims
+            FROM knowledge_agent_worktree_claims
+            WHERE workspace_id = $1
+              AND ($2::TEXT IS NULL OR wp_id = $2)
+              AND ($3::TEXT IS NULL OR mt_id = $3)
+            "#,
+        )
+        .bind(workspace_id)
+        .bind(wp_id)
+        .bind(mt_id)
+        .fetch_one(&self.pool)
+        .await?;
+        let handoff_count: i64 = sqlx::query_scalar(
+            r#"
+            SELECT COUNT(*)
+            FROM knowledge_agent_role_mailbox_handoffs h
+            INNER JOIN knowledge_agent_worktree_claims c
+                    ON c.claim_id = h.claim_id
+            WHERE c.workspace_id = $1
+              AND ($2::TEXT IS NULL OR h.wp_id = $2)
+              AND ($3::TEXT IS NULL OR h.mt_id = $3)
+            "#,
+        )
+        .bind(workspace_id)
+        .bind(wp_id)
+        .bind(mt_id)
+        .fetch_one(&self.pool)
+        .await?;
+        let checkpoint_count: i64 = sqlx::query_scalar(
+            r#"
+            SELECT COUNT(*)
+            FROM knowledge_agent_state_recovery_checkpoints
+            WHERE workspace_id = $1
+              AND ($2::TEXT IS NULL OR wp_id = $2)
+              AND ($3::TEXT IS NULL OR mt_id = $3)
+            "#,
+        )
+        .bind(workspace_id)
+        .bind(wp_id)
+        .bind(mt_id)
+        .fetch_one(&self.pool)
+        .await?;
+        let recovery_count: i64 = sqlx::query_scalar(
+            r#"
+            SELECT COUNT(*)
+            FROM knowledge_agent_recovery_receipts r
+            INNER JOIN knowledge_agent_state_recovery_checkpoints c
+                    ON c.checkpoint_id = r.checkpoint_id
+            WHERE c.workspace_id = $1
+              AND ($2::TEXT IS NULL OR c.wp_id = $2)
+              AND ($3::TEXT IS NULL OR c.mt_id = $3)
+            "#,
+        )
+        .bind(workspace_id)
+        .bind(wp_id)
+        .bind(mt_id)
+        .fetch_one(&self.pool)
+        .await?;
+        let lease_summary = sqlx::query(
+            r#"
+            SELECT COUNT(*) AS indexing_leases,
+                   COUNT(*) FILTER (WHERE status = 'acquired') AS acquired_indexing_leases
+            FROM knowledge_parallel_indexing_lease_queue
+            WHERE workspace_id = $1
+              AND ($2::TEXT IS NULL OR wp_id = $2)
+              AND ($3::TEXT IS NULL OR mt_id = $3)
+            "#,
+        )
+        .bind(workspace_id)
+        .bind(wp_id)
+        .bind(mt_id)
+        .fetch_one(&self.pool)
+        .await?;
+        let quiet_count: i64 = sqlx::query_scalar(
+            r#"
+            SELECT COUNT(*)
+            FROM knowledge_agent_quiet_background_work
+            WHERE workspace_id = $1
+              AND ($2::TEXT IS NULL OR wp_id = $2)
+              AND ($3::TEXT IS NULL OR mt_id = $3)
+            "#,
+        )
+        .bind(workspace_id)
+        .bind(wp_id)
+        .bind(mt_id)
+        .fetch_one(&self.pool)
+        .await?;
+        let event_count: i64 = sqlx::query_scalar(
+            r#"
+            WITH source_events(event_id) AS (
+                SELECT event_ledger_event_id
+                FROM knowledge_agent_worktree_claims
+                WHERE workspace_id = $1
+                  AND ($2::TEXT IS NULL OR wp_id = $2)
+                  AND ($3::TEXT IS NULL OR mt_id = $3)
+                  AND event_ledger_event_id IS NOT NULL
+                UNION
+                SELECT release_event_ledger_event_id
+                FROM knowledge_agent_worktree_claims
+                WHERE workspace_id = $1
+                  AND ($2::TEXT IS NULL OR wp_id = $2)
+                  AND ($3::TEXT IS NULL OR mt_id = $3)
+                  AND release_event_ledger_event_id IS NOT NULL
+                UNION
+                SELECT reclaim_event_ledger_event_id
+                FROM knowledge_agent_worktree_claims
+                WHERE workspace_id = $1
+                  AND ($2::TEXT IS NULL OR wp_id = $2)
+                  AND ($3::TEXT IS NULL OR mt_id = $3)
+                  AND reclaim_event_ledger_event_id IS NOT NULL
+                UNION
+                SELECT h.event_ledger_event_id
+                FROM knowledge_agent_role_mailbox_handoffs h
+                INNER JOIN knowledge_agent_worktree_claims c
+                        ON c.claim_id = h.claim_id
+                WHERE c.workspace_id = $1
+                  AND ($2::TEXT IS NULL OR h.wp_id = $2)
+                  AND ($3::TEXT IS NULL OR h.mt_id = $3)
+                UNION
+                SELECT event_ledger_event_id
+                FROM knowledge_agent_state_recovery_checkpoints
+                WHERE workspace_id = $1
+                  AND ($2::TEXT IS NULL OR wp_id = $2)
+                  AND ($3::TEXT IS NULL OR mt_id = $3)
+                UNION
+                SELECT r.event_ledger_event_id
+                FROM knowledge_agent_recovery_receipts r
+                INNER JOIN knowledge_agent_state_recovery_checkpoints c
+                        ON c.checkpoint_id = r.checkpoint_id
+                WHERE c.workspace_id = $1
+                  AND ($2::TEXT IS NULL OR c.wp_id = $2)
+                  AND ($3::TEXT IS NULL OR c.mt_id = $3)
+                UNION
+                SELECT event_ledger_event_id
+                FROM knowledge_parallel_indexing_lease_queue
+                WHERE workspace_id = $1
+                  AND ($2::TEXT IS NULL OR wp_id = $2)
+                  AND ($3::TEXT IS NULL OR mt_id = $3)
+                  AND event_ledger_event_id IS NOT NULL
+                UNION
+                SELECT event_ledger_event_id
+                FROM knowledge_agent_quiet_background_work
+                WHERE workspace_id = $1
+                  AND ($2::TEXT IS NULL OR wp_id = $2)
+                  AND ($3::TEXT IS NULL OR mt_id = $3)
+            )
+            SELECT COUNT(DISTINCT e.event_id)
+            FROM source_events s
+            INNER JOIN kernel_event_ledger e
+                    ON e.event_id = s.event_id
+                   AND e.source_component = $4
+            "#,
+        )
+        .bind(workspace_id)
+        .bind(wp_id)
+        .bind(mt_id)
+        .bind(PARALLEL_SWARM_SOURCE_COMPONENT)
+        .fetch_one(&self.pool)
+        .await?;
+        let claim_status_rows = sqlx::query(
+            r#"
+            SELECT status, COUNT(*) AS row_count
+            FROM knowledge_agent_worktree_claims
+            WHERE workspace_id = $1
+              AND ($2::TEXT IS NULL OR wp_id = $2)
+              AND ($3::TEXT IS NULL OR mt_id = $3)
+            GROUP BY status
+            "#,
+        )
+        .bind(workspace_id)
+        .bind(wp_id)
+        .bind(mt_id)
+        .fetch_all(&self.pool)
+        .await?;
+        let handoff_status_rows = sqlx::query(
+            r#"
+            SELECT h.status, COUNT(*) AS row_count
+            FROM knowledge_agent_role_mailbox_handoffs h
+            INNER JOIN knowledge_agent_worktree_claims c
+                    ON c.claim_id = h.claim_id
+            WHERE c.workspace_id = $1
+              AND ($2::TEXT IS NULL OR h.wp_id = $2)
+              AND ($3::TEXT IS NULL OR h.mt_id = $3)
+            GROUP BY h.status
+            "#,
+        )
+        .bind(workspace_id)
+        .bind(wp_id)
+        .bind(mt_id)
+        .fetch_all(&self.pool)
+        .await?;
+        let lease_status_rows = sqlx::query(
+            r#"
+            SELECT status, COUNT(*) AS row_count
+            FROM knowledge_parallel_indexing_lease_queue
+            WHERE workspace_id = $1
+              AND ($2::TEXT IS NULL OR wp_id = $2)
+              AND ($3::TEXT IS NULL OR mt_id = $3)
+            GROUP BY status
+            "#,
+        )
+        .bind(workspace_id)
+        .bind(wp_id)
+        .bind(mt_id)
+        .fetch_all(&self.pool)
+        .await?;
+        let quiet_kind_rows = sqlx::query(
+            r#"
+            SELECT work_kind, COUNT(*) AS row_count
+            FROM knowledge_agent_quiet_background_work
+            WHERE workspace_id = $1
+              AND ($2::TEXT IS NULL OR wp_id = $2)
+              AND ($3::TEXT IS NULL OR mt_id = $3)
+            GROUP BY work_kind
+            "#,
+        )
+        .bind(workspace_id)
+        .bind(wp_id)
+        .bind(mt_id)
+        .fetch_all(&self.pool)
+        .await?;
+
+        Ok(SwarmDashboardAuthorityTotals {
+            claims: claim_summary.try_get("claims")?,
+            active_claims: claim_summary.try_get("active_claims")?,
+            stale_active_claims: claim_summary.try_get("stale_active_claims")?,
+            mailbox_handoffs: handoff_count,
+            recovery_checkpoints: checkpoint_count,
+            recovery_receipts: recovery_count,
+            indexing_leases: lease_summary.try_get("indexing_leases")?,
+            acquired_indexing_leases: lease_summary.try_get("acquired_indexing_leases")?,
+            quiet_background_work: quiet_count,
+            events: event_count,
+            claims_by_status: dashboard_group_count_map(claim_status_rows, "status")?,
+            handoffs_by_status: dashboard_group_count_map(handoff_status_rows, "status")?,
+            leases_by_status: dashboard_group_count_map(lease_status_rows, "status")?,
+            quiet_work_by_kind: dashboard_group_count_map(quiet_kind_rows, "work_kind")?,
+        })
+    }
+
+    async fn dashboard_event_watermark(
+        &self,
+        event_ids: Vec<String>,
+    ) -> StateRecoveryResult<SwarmDashboardSourceWatermarkV1> {
+        if event_ids.is_empty() {
+            return Ok(SwarmDashboardSourceWatermarkV1 {
+                source_component: PARALLEL_SWARM_SOURCE_COMPONENT.to_string(),
+                event_count: 0,
+                max_event_created_at_utc: None,
+                events: Vec::new(),
+                aggregate_counts: Vec::new(),
+                missing_event_refs: Vec::new(),
+            });
+        }
+        let rows = sqlx::query(
+            r#"
+            SELECT event_id,
+                   source_component,
+                   aggregate_type,
+                   aggregate_id,
+                   created_at AT TIME ZONE 'UTC' AS created_at_utc
+            FROM kernel_event_ledger
+            WHERE source_component = $1
+              AND event_id = ANY($2)
+            ORDER BY created_at DESC, event_id DESC
+            "#,
+        )
+        .bind(PARALLEL_SWARM_SOURCE_COMPONENT)
+        .bind(&event_ids)
+        .fetch_all(&self.pool)
+        .await?;
+        let mut found = BTreeSet::new();
+        let mut counts = BTreeMap::<String, i64>::new();
+        let mut max_created = None;
+        let mut events = Vec::new();
+        for row in rows {
+            let event_id: String = row.try_get("event_id")?;
+            let source_component: String = row.try_get("source_component")?;
+            let aggregate_type: String = row.try_get("aggregate_type")?;
+            let aggregate_id: String = row.try_get("aggregate_id")?;
+            let created_at: DateTime<Utc> = row.try_get("created_at_utc")?;
+            found.insert(event_id.clone());
+            *counts.entry(aggregate_type.clone()).or_insert(0) += 1;
+            if max_created.map_or(true, |current| created_at > current) {
+                max_created = Some(created_at);
+            }
+            events.push(SwarmDashboardEventRefV1 {
+                event_id,
+                source_component,
+                aggregate_type,
+                aggregate_id,
+                created_at_utc: created_at,
+            });
+        }
+        let missing_event_refs = event_ids
+            .into_iter()
+            .filter(|event_id| !found.contains(event_id))
+            .collect::<Vec<_>>();
+        let aggregate_counts = counts
+            .into_iter()
+            .map(|(aggregate_type, count)| SwarmDashboardAggregateCountV1 {
+                aggregate_type,
+                count,
+            })
+            .collect::<Vec<_>>();
+        Ok(SwarmDashboardSourceWatermarkV1 {
+            source_component: PARALLEL_SWARM_SOURCE_COMPONENT.to_string(),
+            event_count: found.len() as i64,
+            max_event_created_at_utc: max_created,
+            events,
+            aggregate_counts,
+            missing_event_refs,
         })
     }
 
@@ -2037,6 +2943,697 @@ impl ParallelSwarmStateRecoveryStore {
         .fetch_one(&mut **tx)
         .await
         .map_err(StateRecoveryError::from)
+    }
+}
+
+pub fn validate_swarm_dashboard_projection(
+    projection: &ParallelSwarmDashboardProjectionV1,
+) -> Result<(), Vec<String>> {
+    let mut errors = Vec::new();
+    if projection.schema_id != PARALLEL_SWARM_DASHBOARD_SCHEMA_ID {
+        errors.push("schema_id must be hsk.parallel_swarm.dashboard_projection@1".to_string());
+    }
+    let contract = &projection.projection_contract;
+    if !contract.projection_only {
+        errors.push("projection contract must set projection_only=true".to_string());
+    }
+    if contract.authority_mutation_allowed {
+        errors.push("projection contract must set authority_mutation_allowed=false".to_string());
+    }
+    if contract.ui_state_authoritative {
+        errors.push("projection contract must set ui_state_authoritative=false".to_string());
+    }
+    if contract.source_component != PARALLEL_SWARM_SOURCE_COMPONENT {
+        errors
+            .push("projection source_component must be parallel_swarm_state_recovery".to_string());
+    }
+    for expected in PARALLEL_SWARM_DASHBOARD_SOURCE_TABLES {
+        if !contract.source_tables.iter().any(|table| table == expected) {
+            errors.push(format!(
+                "projection contract missing source table {expected}"
+            ));
+        }
+    }
+    for expected in PARALLEL_SWARM_DASHBOARD_EVENT_AGGREGATES {
+        if !contract
+            .source_event_aggregates
+            .iter()
+            .any(|aggregate| aggregate == expected)
+        {
+            errors.push(format!(
+                "projection contract missing source event aggregate {expected}"
+            ));
+        }
+    }
+    if projection.totals.warnings != projection.warnings.len() as i64 {
+        errors.push("totals.warnings must match warnings length".to_string());
+    }
+    if projection.source_watermark.event_count != projection.source_watermark.events.len() as i64 {
+        errors.push(
+            "source_watermark.event_count must match source_watermark.events length".to_string(),
+        );
+    }
+    if !projection.source_watermark.missing_event_refs.is_empty() {
+        errors.push(
+            "source_watermark.missing_event_refs must be empty for a valid projection".to_string(),
+        );
+    }
+    let mut watermark_events = BTreeMap::<String, &SwarmDashboardEventRefV1>::new();
+    let mut aggregate_counts = BTreeMap::<String, i64>::new();
+    for event in &projection.source_watermark.events {
+        if event.source_component != PARALLEL_SWARM_SOURCE_COMPONENT {
+            errors.push(format!(
+                "watermark event {} has invalid source_component",
+                event.event_id
+            ));
+        }
+        if watermark_events
+            .insert(event.event_id.clone(), event)
+            .is_some()
+        {
+            errors.push(format!(
+                "source_watermark.events contains duplicate event {}",
+                event.event_id
+            ));
+        }
+        *aggregate_counts
+            .entry(event.aggregate_type.clone())
+            .or_insert(0) += 1;
+    }
+    let declared_aggregate_counts = projection
+        .source_watermark
+        .aggregate_counts
+        .iter()
+        .map(|row| (row.aggregate_type.clone(), row.count))
+        .collect::<BTreeMap<_, _>>();
+    if aggregate_counts != declared_aggregate_counts {
+        errors.push(
+            "source_watermark.aggregate_counts must match source_watermark.events".to_string(),
+        );
+    }
+
+    validate_source_refs(
+        &mut errors,
+        "claim",
+        "knowledge_agent_worktree_claims",
+        &["parallel_swarm_claim", "parallel_swarm_claim_reclaim"],
+        &watermark_events,
+        projection
+            .claims
+            .iter()
+            .map(|row| (row.claim_id.as_str(), row.source_refs.as_slice())),
+    );
+    validate_source_refs(
+        &mut errors,
+        "mailbox_handoff",
+        "knowledge_agent_role_mailbox_handoffs",
+        &["parallel_swarm_handoff"],
+        &watermark_events,
+        projection
+            .mailbox_handoffs
+            .iter()
+            .map(|row| (row.handoff_id.as_str(), row.source_refs.as_slice())),
+    );
+    validate_source_refs(
+        &mut errors,
+        "checkpoint",
+        "knowledge_agent_state_recovery_checkpoints",
+        &["parallel_swarm_checkpoint"],
+        &watermark_events,
+        projection
+            .recovery_checkpoints
+            .iter()
+            .map(|row| (row.checkpoint_id.as_str(), row.source_refs.as_slice())),
+    );
+    validate_source_refs(
+        &mut errors,
+        "recovery_receipt",
+        "knowledge_agent_recovery_receipts",
+        &["parallel_swarm_recovery"],
+        &watermark_events,
+        projection
+            .recovery_receipts
+            .iter()
+            .map(|row| (row.receipt_id.as_str(), row.source_refs.as_slice())),
+    );
+    validate_source_refs(
+        &mut errors,
+        "indexing_lease",
+        "knowledge_parallel_indexing_lease_queue",
+        &["parallel_indexing_lease"],
+        &watermark_events,
+        projection
+            .indexing_leases
+            .iter()
+            .map(|row| (row.lease_id.as_str(), row.source_refs.as_slice())),
+    );
+    validate_source_refs(
+        &mut errors,
+        "quiet_background_work",
+        "knowledge_agent_quiet_background_work",
+        &["parallel_swarm_quiet_background_work"],
+        &watermark_events,
+        projection
+            .quiet_background_work
+            .iter()
+            .map(|row| (row.receipt_id.as_str(), row.source_refs.as_slice())),
+    );
+
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(errors)
+    }
+}
+
+fn validate_source_refs<'a>(
+    errors: &mut Vec<String>,
+    row_kind: &str,
+    expected_table: &str,
+    allowed_event_aggregate_types: &[&str],
+    watermark_events: &BTreeMap<String, &SwarmDashboardEventRefV1>,
+    rows: impl Iterator<Item = (&'a str, &'a [SwarmDashboardSourceRefV1])>,
+) {
+    for (row_id, refs) in rows {
+        if refs.is_empty() {
+            errors.push(format!("{row_kind} {row_id} has no source_refs"));
+            continue;
+        }
+        if !refs
+            .iter()
+            .any(|source_ref| source_ref.event_ledger_event_id.is_some())
+        {
+            errors.push(format!("{row_kind} {row_id} has no EventLedger source ref"));
+        }
+        for source_ref in refs {
+            if source_ref.table_name.trim().is_empty() {
+                errors.push(format!("{row_kind} {row_id} has empty source table"));
+            }
+            if source_ref.table_name != expected_table {
+                errors.push(format!(
+                    "{row_kind} {row_id} source table must be {expected_table}"
+                ));
+            }
+            if source_ref.row_id != row_id {
+                errors.push(format!("{row_kind} {row_id} has mismatched source row_id"));
+            }
+            if source_ref.row_source_ref != format!("postgres://{}/{}", expected_table, row_id) {
+                errors.push(format!("{row_kind} {row_id} has mismatched row source ref"));
+            }
+            if source_ref.row_source_ref.trim().is_empty()
+                || !source_ref.row_source_ref.starts_with("postgres://")
+            {
+                errors.push(format!("{row_kind} {row_id} has invalid row source ref"));
+            }
+            match (
+                source_ref.event_ledger_event_id.as_deref(),
+                source_ref.event_source_ref.as_deref(),
+            ) {
+                (Some(event_id), Some(event_ref))
+                    if event_ref == format!("event-ledger://{event_id}") => {}
+                (Some(_), _) => {
+                    errors.push(format!("{row_kind} {row_id} has invalid event source ref"))
+                }
+                (None, Some(_)) => {
+                    errors.push(format!("{row_kind} {row_id} has dangling event source ref"))
+                }
+                (None, None) => {}
+            }
+            match (
+                source_ref.event_ledger_event_id.as_deref(),
+                source_ref.event_aggregate_type.as_deref(),
+                source_ref.event_aggregate_id.as_deref(),
+            ) {
+                (Some(event_id), Some(aggregate_type), Some(aggregate_id)) => {
+                    if !allowed_event_aggregate_types.contains(&aggregate_type) {
+                        errors.push(format!(
+                            "{row_kind} {row_id} has invalid event aggregate_type"
+                        ));
+                    }
+                    if aggregate_id != row_id {
+                        errors.push(format!(
+                            "{row_kind} {row_id} has mismatched event aggregate_id"
+                        ));
+                    }
+                    match watermark_events.get(event_id) {
+                        Some(event)
+                            if event.aggregate_type == aggregate_type
+                                && event.aggregate_id == aggregate_id
+                                && event.source_component == PARALLEL_SWARM_SOURCE_COMPONENT => {}
+                        Some(_) => errors.push(format!(
+                            "{row_kind} {row_id} EventLedger watermark aggregate mismatch"
+                        )),
+                        None => errors.push(format!(
+                            "{row_kind} {row_id} EventLedger ref missing from watermark"
+                        )),
+                    }
+                }
+                (Some(_), _, _) => errors.push(format!(
+                    "{row_kind} {row_id} missing EventLedger aggregate identity"
+                )),
+                (None, Some(_), _) | (None, _, Some(_)) => errors.push(format!(
+                    "{row_kind} {row_id} has aggregate identity without EventLedger ref"
+                )),
+                (None, None, None) => {}
+            }
+        }
+    }
+}
+
+fn swarm_dashboard_projection_contract() -> SwarmDashboardProjectionContractV1 {
+    SwarmDashboardProjectionContractV1 {
+        projection_only: true,
+        authority_mutation_allowed: false,
+        ui_state_authoritative: false,
+        source_component: PARALLEL_SWARM_SOURCE_COMPONENT.to_string(),
+        source_tables: PARALLEL_SWARM_DASHBOARD_SOURCE_TABLES
+            .iter()
+            .map(|table| (*table).to_string())
+            .collect(),
+        source_event_aggregates: PARALLEL_SWARM_DASHBOARD_EVENT_AGGREGATES
+            .iter()
+            .map(|aggregate| (*aggregate).to_string())
+            .collect(),
+    }
+}
+
+fn collect_projection_event_ids(
+    claims: &[WorkClaimRecord],
+    handoffs: &[RoleMailboxHandoffRecord],
+    checkpoints: &[RecoveryCheckpointRecord],
+    recovery_receipts: &[RecoveryReceiptRecord],
+    indexing_leases: &[IndexingLeaseRecord],
+    quiet_work: &[QuietBackgroundWorkRecord],
+    out: &mut BTreeSet<String>,
+) {
+    for claim in claims {
+        extend_event_id(out, claim.event_ledger_event_id.as_deref());
+        extend_event_id(out, claim.release_event_ledger_event_id.as_deref());
+        extend_event_id(out, claim.reclaim_event_ledger_event_id.as_deref());
+    }
+    for handoff in handoffs {
+        extend_event_id(out, Some(&handoff.event_ledger_event_id));
+    }
+    for checkpoint in checkpoints {
+        extend_event_id(out, Some(&checkpoint.event_ledger_event_id));
+    }
+    for receipt in recovery_receipts {
+        extend_event_id(out, Some(&receipt.event_ledger_event_id));
+    }
+    for lease in indexing_leases {
+        extend_event_id(out, Some(&lease.event_ledger_event_id));
+    }
+    for quiet in quiet_work {
+        extend_event_id(out, Some(&quiet.event_ledger_event_id));
+    }
+}
+
+fn extend_event_id(out: &mut BTreeSet<String>, event_id: Option<&str>) {
+    if let Some(event_id) = event_id.filter(|value| !value.trim().is_empty()) {
+        out.insert(event_id.to_string());
+    }
+}
+
+fn dashboard_source_ref(
+    table_name: &str,
+    row_id: &str,
+    event_ledger_event_id: Option<&str>,
+    event_aggregate_type: Option<&str>,
+    event_aggregate_id: Option<&str>,
+) -> SwarmDashboardSourceRefV1 {
+    SwarmDashboardSourceRefV1 {
+        table_name: table_name.to_string(),
+        row_id: row_id.to_string(),
+        row_source_ref: format!("postgres://{table_name}/{row_id}"),
+        event_ledger_event_id: event_ledger_event_id.map(ToOwned::to_owned),
+        event_source_ref: event_ledger_event_id
+            .map(|event_id| format!("event-ledger://{event_id}")),
+        event_aggregate_type: event_aggregate_type.map(ToOwned::to_owned),
+        event_aggregate_id: event_aggregate_id.map(ToOwned::to_owned),
+    }
+}
+
+fn dashboard_claim_row(
+    claim: &WorkClaimRecord,
+    generated_at_utc: DateTime<Utc>,
+) -> SwarmDashboardClaimRowV1 {
+    let mut source_refs = vec![dashboard_source_ref(
+        "knowledge_agent_worktree_claims",
+        &claim.claim_id,
+        claim.event_ledger_event_id.as_deref(),
+        claim
+            .event_ledger_event_id
+            .as_deref()
+            .map(|_| "parallel_swarm_claim"),
+        claim
+            .event_ledger_event_id
+            .as_deref()
+            .map(|_| claim.claim_id.as_str()),
+    )];
+    if let Some(event_id) = claim.release_event_ledger_event_id.as_deref() {
+        source_refs.push(dashboard_source_ref(
+            "knowledge_agent_worktree_claims",
+            &claim.claim_id,
+            Some(event_id),
+            Some("parallel_swarm_claim"),
+            Some(&claim.claim_id),
+        ));
+    }
+    if let Some(event_id) = claim.reclaim_event_ledger_event_id.as_deref() {
+        source_refs.push(dashboard_source_ref(
+            "knowledge_agent_worktree_claims",
+            &claim.claim_id,
+            Some(event_id),
+            Some("parallel_swarm_claim_reclaim"),
+            Some(&claim.claim_id),
+        ));
+    }
+    SwarmDashboardClaimRowV1 {
+        claim_id: claim.claim_id.clone(),
+        wp_id: claim.wp_id.clone(),
+        mt_id: claim.mt_id.clone(),
+        scope_kind: claim.scope.kind_str().to_string(),
+        scope_id: claim.scope.scope_id(),
+        lane_id: claim.lane.lane_id.clone(),
+        actor_id: claim.lane.actor_id.clone(),
+        lane_kind: claim.lane.lane_kind.as_str().to_string(),
+        status: claim.status.as_str().to_string(),
+        reason: claim.reason.clone(),
+        claimed_at_utc: claim.claimed_at_utc,
+        expires_at_utc: claim.expires_at_utc,
+        released_at_utc: claim.released_at_utc,
+        stale: claim.status == ClaimStatus::Active && claim.expires_at_utc <= generated_at_utc,
+        source_refs,
+    }
+}
+
+fn dashboard_handoff_row(handoff: &RoleMailboxHandoffRecord) -> SwarmDashboardHandoffRowV1 {
+    SwarmDashboardHandoffRowV1 {
+        handoff_id: handoff.handoff_id.clone(),
+        wp_id: handoff.wp_id.clone(),
+        mt_id: handoff.mt_id.clone(),
+        claim_id: handoff.claim_id.clone(),
+        from_lane_id: handoff.from_lane.lane_id.clone(),
+        from_actor_id: handoff.from_lane.actor_id.clone(),
+        from_lane_kind: handoff.from_lane.lane_kind.as_str().to_string(),
+        to_role: handoff.to_role.clone(),
+        mailbox_thread_id: handoff.mailbox_thread_id.clone(),
+        mailbox_message_id: handoff.mailbox_message_id.clone(),
+        status: handoff.status.as_str().to_string(),
+        summary: handoff.summary.clone(),
+        created_at_utc: handoff.created_at_utc,
+        source_refs: vec![dashboard_source_ref(
+            "knowledge_agent_role_mailbox_handoffs",
+            &handoff.handoff_id,
+            Some(&handoff.event_ledger_event_id),
+            Some("parallel_swarm_handoff"),
+            Some(&handoff.handoff_id),
+        )],
+    }
+}
+
+fn dashboard_checkpoint_row(
+    checkpoint: &RecoveryCheckpointRecord,
+) -> SwarmDashboardCheckpointRowV1 {
+    SwarmDashboardCheckpointRowV1 {
+        checkpoint_id: checkpoint.checkpoint_id.clone(),
+        wp_id: checkpoint.wp_id.clone(),
+        mt_id: checkpoint.mt_id.clone(),
+        session_id: checkpoint.session_id.clone(),
+        lane_id: checkpoint.lane.lane_id.clone(),
+        actor_id: checkpoint.lane.actor_id.clone(),
+        lane_kind: checkpoint.lane.lane_kind.as_str().to_string(),
+        claim_id: checkpoint.claim_id.clone(),
+        mailbox_handoff_id: checkpoint.mailbox_handoff_id.clone(),
+        navigation_command_id: checkpoint.navigation_command_id.clone(),
+        resume_pointer: checkpoint.resume_pointer.clone(),
+        payload_sha256: checkpoint.payload_sha256.clone(),
+        compaction_reason: checkpoint.compaction_reason.clone(),
+        git_head: checkpoint.git_head.clone(),
+        created_at_utc: checkpoint.created_at_utc,
+        source_refs: vec![dashboard_source_ref(
+            "knowledge_agent_state_recovery_checkpoints",
+            &checkpoint.checkpoint_id,
+            Some(&checkpoint.event_ledger_event_id),
+            Some("parallel_swarm_checkpoint"),
+            Some(&checkpoint.checkpoint_id),
+        )],
+    }
+}
+
+fn dashboard_recovery_receipt_row(
+    receipt: &RecoveryReceiptRecord,
+) -> SwarmDashboardRecoveryReceiptRowV1 {
+    SwarmDashboardRecoveryReceiptRowV1 {
+        receipt_id: receipt.receipt_id.clone(),
+        checkpoint_id: receipt.checkpoint_id.clone(),
+        prior_session_id: receipt.prior_session_id.clone(),
+        new_session_id: receipt.new_session_id.clone(),
+        new_lane_id: receipt.new_lane.lane_id.clone(),
+        new_actor_id: receipt.new_lane.actor_id.clone(),
+        new_lane_kind: receipt.new_lane.lane_kind.as_str().to_string(),
+        resume_pointer: receipt.resume_pointer.clone(),
+        recovered_at_utc: receipt.recovered_at_utc,
+        source_refs: vec![dashboard_source_ref(
+            "knowledge_agent_recovery_receipts",
+            &receipt.receipt_id,
+            Some(&receipt.event_ledger_event_id),
+            Some("parallel_swarm_recovery"),
+            Some(&receipt.receipt_id),
+        )],
+    }
+}
+
+fn dashboard_indexing_lease_row(lease: &IndexingLeaseRecord) -> SwarmDashboardIndexingLeaseRowV1 {
+    SwarmDashboardIndexingLeaseRowV1 {
+        lease_id: lease.lease_id.clone(),
+        wp_id: lease.wp_id.clone(),
+        mt_id: lease.mt_id.clone(),
+        scope_kind: lease.scope.kind_str().to_string(),
+        scope_id: lease.scope.scope_id(),
+        lane_id: lease.lane.lane_id.clone(),
+        actor_id: lease.lane.actor_id.clone(),
+        lane_kind: lease.lane.lane_kind.as_str().to_string(),
+        session_id: lease.session_id.clone(),
+        index_run_id: lease.index_run_id.clone(),
+        status: lease.status.as_str().to_string(),
+        blocked_by_lease_id: lease.blocked_by_lease_id.clone(),
+        quiet_policy_ok: validate_quiet_background_policy(
+            QuietBackgroundWorkKind::Indexing,
+            &lease.quiet_policy,
+        )
+        .is_ok(),
+        source_refs: vec![dashboard_source_ref(
+            "knowledge_parallel_indexing_lease_queue",
+            &lease.lease_id,
+            Some(&lease.event_ledger_event_id),
+            Some("parallel_indexing_lease"),
+            Some(&lease.lease_id),
+        )],
+    }
+}
+
+fn dashboard_quiet_work_row(quiet: &QuietBackgroundWorkRecord) -> SwarmDashboardQuietWorkRowV1 {
+    SwarmDashboardQuietWorkRowV1 {
+        receipt_id: quiet.receipt_id.clone(),
+        wp_id: quiet.wp_id.clone(),
+        mt_id: quiet.mt_id.clone(),
+        work_kind: quiet.work_kind.as_str().to_string(),
+        subject_id: quiet.subject_id.clone(),
+        lane_id: quiet.lane.lane_id.clone(),
+        actor_id: quiet.lane.actor_id.clone(),
+        lane_kind: quiet.lane.lane_kind.as_str().to_string(),
+        session_id: quiet.session_id.clone(),
+        evidence_ref: quiet.evidence_ref.clone(),
+        quiet_policy_ok: validate_quiet_background_policy(quiet.work_kind, &quiet.policy).is_ok(),
+        created_at_utc: quiet.created_at_utc,
+        source_refs: vec![dashboard_source_ref(
+            "knowledge_agent_quiet_background_work",
+            &quiet.receipt_id,
+            Some(&quiet.event_ledger_event_id),
+            Some("parallel_swarm_quiet_background_work"),
+            Some(&quiet.receipt_id),
+        )],
+    }
+}
+
+#[derive(Default)]
+struct DashboardLaneAccumulator {
+    actor_id: String,
+    lane_kind: String,
+    attribution_mode: String,
+    total_rows: i64,
+    active_claims: i64,
+    handoffs: i64,
+    checkpoints: i64,
+    recovery_receipts: i64,
+    indexing_leases: i64,
+    quiet_background_work: i64,
+    source_event_ids: BTreeSet<String>,
+}
+
+fn dashboard_lane_rows(
+    claims: &[WorkClaimRecord],
+    handoffs: &[RoleMailboxHandoffRecord],
+    checkpoints: &[RecoveryCheckpointRecord],
+    recovery_receipts: &[RecoveryReceiptRecord],
+    indexing_leases: &[IndexingLeaseRecord],
+    quiet_work: &[QuietBackgroundWorkRecord],
+) -> Vec<SwarmDashboardLaneRowV1> {
+    let mut lanes = BTreeMap::<String, DashboardLaneAccumulator>::new();
+    for claim in claims {
+        let lane = lane_accumulator(&mut lanes, &claim.lane);
+        lane.total_rows += 1;
+        if claim.status == ClaimStatus::Active {
+            lane.active_claims += 1;
+        }
+        extend_event_id(
+            &mut lane.source_event_ids,
+            claim.event_ledger_event_id.as_deref(),
+        );
+        extend_event_id(
+            &mut lane.source_event_ids,
+            claim.release_event_ledger_event_id.as_deref(),
+        );
+        extend_event_id(
+            &mut lane.source_event_ids,
+            claim.reclaim_event_ledger_event_id.as_deref(),
+        );
+    }
+    for handoff in handoffs {
+        let lane = lane_accumulator(&mut lanes, &handoff.from_lane);
+        lane.total_rows += 1;
+        lane.handoffs += 1;
+        extend_event_id(
+            &mut lane.source_event_ids,
+            Some(&handoff.event_ledger_event_id),
+        );
+    }
+    for checkpoint in checkpoints {
+        let lane = lane_accumulator(&mut lanes, &checkpoint.lane);
+        lane.total_rows += 1;
+        lane.checkpoints += 1;
+        extend_event_id(
+            &mut lane.source_event_ids,
+            Some(&checkpoint.event_ledger_event_id),
+        );
+    }
+    for receipt in recovery_receipts {
+        let lane = lane_accumulator(&mut lanes, &receipt.new_lane);
+        lane.total_rows += 1;
+        lane.recovery_receipts += 1;
+        extend_event_id(
+            &mut lane.source_event_ids,
+            Some(&receipt.event_ledger_event_id),
+        );
+    }
+    for lease in indexing_leases {
+        let lane = lane_accumulator(&mut lanes, &lease.lane);
+        lane.total_rows += 1;
+        lane.indexing_leases += 1;
+        extend_event_id(
+            &mut lane.source_event_ids,
+            Some(&lease.event_ledger_event_id),
+        );
+    }
+    for quiet in quiet_work {
+        let lane = lane_accumulator(&mut lanes, &quiet.lane);
+        lane.total_rows += 1;
+        lane.quiet_background_work += 1;
+        extend_event_id(
+            &mut lane.source_event_ids,
+            Some(&quiet.event_ledger_event_id),
+        );
+    }
+
+    lanes
+        .into_iter()
+        .map(|(lane_id, lane)| SwarmDashboardLaneRowV1 {
+            lane_id,
+            actor_id: lane.actor_id,
+            lane_kind: lane.lane_kind,
+            attribution_mode: lane.attribution_mode,
+            total_rows: lane.total_rows,
+            active_claims: lane.active_claims,
+            handoffs: lane.handoffs,
+            checkpoints: lane.checkpoints,
+            recovery_receipts: lane.recovery_receipts,
+            indexing_leases: lane.indexing_leases,
+            quiet_background_work: lane.quiet_background_work,
+            source_event_ids: lane.source_event_ids.into_iter().collect(),
+        })
+        .collect()
+}
+
+fn lane_accumulator<'a>(
+    lanes: &'a mut BTreeMap<String, DashboardLaneAccumulator>,
+    lane: &AgentLaneIdentity,
+) -> &'a mut DashboardLaneAccumulator {
+    lanes
+        .entry(lane.lane_id.clone())
+        .or_insert_with(|| DashboardLaneAccumulator {
+            actor_id: lane.actor_id.clone(),
+            lane_kind: lane.lane_kind.as_str().to_string(),
+            attribution_mode: attribution_mode_as_str(lane.attribution.mode).to_string(),
+            ..DashboardLaneAccumulator::default()
+        })
+}
+
+fn dashboard_totals(authority: SwarmDashboardAuthorityTotals) -> SwarmDashboardTotalsV1 {
+    SwarmDashboardTotalsV1 {
+        claims: authority.claims,
+        active_claims: authority.active_claims,
+        stale_active_claims: authority.stale_active_claims,
+        mailbox_handoffs: authority.mailbox_handoffs,
+        recovery_checkpoints: authority.recovery_checkpoints,
+        recovery_receipts: authority.recovery_receipts,
+        indexing_leases: authority.indexing_leases,
+        acquired_indexing_leases: authority.acquired_indexing_leases,
+        quiet_background_work: authority.quiet_background_work,
+        events: authority.events,
+        warnings: 0,
+        claims_by_status: authority.claims_by_status,
+        handoffs_by_status: authority.handoffs_by_status,
+        leases_by_status: authority.leases_by_status,
+        quiet_work_by_kind: authority.quiet_work_by_kind,
+    }
+}
+
+fn dashboard_group_count_map(
+    rows: Vec<PgRow>,
+    key_column: &str,
+) -> StateRecoveryResult<BTreeMap<String, i64>> {
+    rows.into_iter()
+        .map(|row| {
+            let key: String = row.try_get(key_column)?;
+            let count: i64 = row.try_get("row_count")?;
+            Ok((key, count))
+        })
+        .collect()
+}
+
+fn add_truncation_warning(
+    warnings: &mut Vec<SwarmDashboardWarningV1>,
+    section: &str,
+    returned: usize,
+    total: i64,
+) {
+    if total > returned as i64 {
+        warnings.push(SwarmDashboardWarningV1 {
+            code: "dashboard_section_truncated".to_string(),
+            detail: format!(
+                "{section} returned {returned} of {total} durable source row(s); increase limit or use narrower filters to inspect the full set"
+            ),
+        });
+    }
+}
+
+fn attribution_mode_as_str(mode: AttributionMode) -> &'static str {
+    match mode {
+        AttributionMode::Local => "local",
+        AttributionMode::Cloud => "cloud",
+        AttributionMode::Operator => "operator",
+        AttributionMode::System => "system",
     }
 }
 

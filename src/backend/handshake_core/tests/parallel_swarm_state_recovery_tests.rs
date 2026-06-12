@@ -19,6 +19,9 @@ use std::{
 };
 
 use async_trait::async_trait;
+use handshake_core::api::kernel as kernel_api;
+use handshake_core::capabilities::CapabilityRegistry;
+use handshake_core::diagnostics::{DiagFilter, Diagnostic, DiagnosticsStore, ProblemGroup};
 use handshake_core::flight_recorder::{
     EventFilter, FlightRecorder, FlightRecorderEvent, RecorderError,
 };
@@ -34,16 +37,23 @@ use handshake_core::kernel::product_screenshot_capture::{
 use handshake_core::kernel::KernelActor;
 use handshake_core::knowledge_code_index::engine::{CodeIndexContext, CodeIndexEngine};
 use handshake_core::knowledge_code_index::CodeIndexError;
+use handshake_core::llm::{
+    CompletionRequest, CompletionResponse, LlmClient, LlmError, ModelProfile, TokenUsage,
+};
 use handshake_core::storage::postgres::PostgresDatabase;
 use handshake_core::storage::{Database, NewWorkspace, WriteContext};
 use handshake_core::swarm_orchestration::state_recovery::{
-    AgentCapability, AgentLaneIdentity, AgentLaneKind, AttributionMode, BackendNavigationCommand,
-    ClaimScope, ClaimStatus, IndexLeaseStatus, IndexingLeaseRequest, LocalCloudAttribution,
-    ModelProviderKind, NavigationCommandSet, ParallelSwarmStateRecoveryStore,
-    QuietBackgroundPolicy, QuietBackgroundWorkKind, QuietBackgroundWorkRequest,
-    RecoveryCheckpointRequest, RecoveryResumePointer, RoleMailboxHandoffRequest,
-    StateRecoveryError, SwarmEvidenceInspectionRequest, SwarmReceiptStatus, WorkClaimRequest,
+    validate_swarm_dashboard_projection, AgentCapability, AgentLaneIdentity, AgentLaneKind,
+    AttributionMode, BackendNavigationCommand, ClaimScope, ClaimStatus, IndexLeaseStatus,
+    IndexingLeaseRequest, LocalCloudAttribution, ModelProviderKind, NavigationCommandSet,
+    ParallelSwarmDashboardProjectionV1, ParallelSwarmStateRecoveryStore, QuietBackgroundPolicy,
+    QuietBackgroundWorkKind, QuietBackgroundWorkRequest, RecoveryCheckpointRequest,
+    RecoveryResumePointer, RoleMailboxHandoffRequest, StateRecoveryError,
+    SwarmDashboardProjectionRequest, SwarmEvidenceInspectionRequest, SwarmReceiptStatus,
+    WorkClaimRequest,
 };
+use handshake_core::workflows::{SessionRegistry, SessionSchedulerConfig};
+use handshake_core::AppState;
 use knowledge_pg_support::knowledge_pg;
 use serde_json::json;
 use sqlx::postgres::PgPoolOptions;
@@ -68,6 +78,62 @@ impl FlightRecorder for NoopRecorder {
         _filter: EventFilter,
     ) -> Result<Vec<FlightRecorderEvent>, RecorderError> {
         Ok(Vec::new())
+    }
+}
+
+#[async_trait]
+impl DiagnosticsStore for NoopRecorder {
+    async fn record_diagnostic(
+        &self,
+        _diag: Diagnostic,
+    ) -> Result<(), handshake_core::storage::StorageError> {
+        Ok(())
+    }
+
+    async fn list_problems(
+        &self,
+        _filter: DiagFilter,
+    ) -> Result<Vec<ProblemGroup>, handshake_core::storage::StorageError> {
+        Ok(Vec::new())
+    }
+
+    async fn get_diagnostic(
+        &self,
+        _id: Uuid,
+    ) -> Result<Diagnostic, handshake_core::storage::StorageError> {
+        Err(handshake_core::storage::StorageError::NotFound(
+            "diagnostic",
+        ))
+    }
+
+    async fn list_diagnostics(
+        &self,
+        _filter: DiagFilter,
+    ) -> Result<Vec<Diagnostic>, handshake_core::storage::StorageError> {
+        Ok(Vec::new())
+    }
+}
+
+struct NoopLlmClient {
+    profile: ModelProfile,
+}
+
+#[async_trait]
+impl LlmClient for NoopLlmClient {
+    async fn completion(&self, _req: CompletionRequest) -> Result<CompletionResponse, LlmError> {
+        Ok(CompletionResponse {
+            text: String::new(),
+            usage: TokenUsage {
+                prompt_tokens: 0,
+                completion_tokens: 0,
+                total_tokens: 0,
+            },
+            latency_ms: 0,
+        })
+    }
+
+    fn profile(&self) -> &ModelProfile {
+        &self.profile
     }
 }
 
@@ -114,6 +180,42 @@ async fn recovery_store() -> Option<(sqlx::PgPool, ParallelSwarmStateRecoverySto
     let event_db = Arc::new(PostgresDatabase::new(pool.clone()));
     let store = ParallelSwarmStateRecoveryStore::new(pool.clone(), event_db);
     Some((pool, store))
+}
+
+async fn app_state_for(schema_url: &str) -> AppState {
+    let storage = PostgresDatabase::connect(schema_url, 5)
+        .await
+        .expect("connect AppState storage to isolated schema")
+        .into_arc();
+    let pool = PgPoolOptions::new()
+        .max_connections(5)
+        .connect(schema_url)
+        .await
+        .expect("connect AppState pool to isolated schema");
+    let recorder = Arc::new(NoopRecorder);
+    AppState {
+        storage,
+        flight_recorder: recorder.clone(),
+        diagnostics: recorder,
+        llm_client: Arc::new(NoopLlmClient {
+            profile: ModelProfile::new("parallel-swarm-dashboard-api-test".to_string(), 4096),
+        }),
+        capability_registry: Arc::new(CapabilityRegistry::new()),
+        session_registry: Arc::new(SessionRegistry::new(SessionSchedulerConfig::default())),
+        postgres_pool: pool,
+    }
+}
+
+async fn start_kernel_server(state: AppState) -> (String, tokio::task::JoinHandle<()>) {
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("bind loopback listener");
+    let addr = listener.local_addr().expect("local addr");
+    let app = kernel_api::routes(state);
+    let server = tokio::spawn(async move {
+        axum::serve(listener, app).await.expect("kernel api server");
+    });
+    (format!("http://{addr}"), server)
 }
 
 fn local_lane(actor_suffix: &str) -> AgentLaneIdentity {
@@ -333,6 +435,145 @@ async fn swarm_evidence_counts(
         events,
         recovery_receipts,
         recovery_events,
+    )
+}
+
+async fn swarm_dashboard_authority_counts(
+    pool: &sqlx::PgPool,
+    workspace_id: &str,
+) -> (i64, i64, i64, i64, i64, i64, i64) {
+    let claims: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM knowledge_agent_worktree_claims WHERE workspace_id = $1",
+    )
+    .bind(workspace_id)
+    .fetch_one(pool)
+    .await
+    .expect("count dashboard claims");
+    let handoffs: i64 = sqlx::query_scalar(
+        r#"
+        SELECT COUNT(*)
+        FROM knowledge_agent_role_mailbox_handoffs h
+        INNER JOIN knowledge_agent_worktree_claims c
+                ON c.claim_id = h.claim_id
+        WHERE c.workspace_id = $1
+        "#,
+    )
+    .bind(workspace_id)
+    .fetch_one(pool)
+    .await
+    .expect("count dashboard handoffs");
+    let checkpoints: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM knowledge_agent_state_recovery_checkpoints WHERE workspace_id = $1",
+    )
+    .bind(workspace_id)
+    .fetch_one(pool)
+    .await
+    .expect("count dashboard checkpoints");
+    let recovery_receipts: i64 = sqlx::query_scalar(
+        r#"
+        SELECT COUNT(*)
+        FROM knowledge_agent_recovery_receipts r
+        INNER JOIN knowledge_agent_state_recovery_checkpoints c
+                ON c.checkpoint_id = r.checkpoint_id
+        WHERE c.workspace_id = $1
+        "#,
+    )
+    .bind(workspace_id)
+    .fetch_one(pool)
+    .await
+    .expect("count dashboard recoveries");
+    let leases: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM knowledge_parallel_indexing_lease_queue WHERE workspace_id = $1",
+    )
+    .bind(workspace_id)
+    .fetch_one(pool)
+    .await
+    .expect("count dashboard leases");
+    let quiet: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM knowledge_agent_quiet_background_work WHERE workspace_id = $1",
+    )
+    .bind(workspace_id)
+    .fetch_one(pool)
+    .await
+    .expect("count dashboard quiet work");
+    let events: i64 = sqlx::query_scalar(
+        r#"
+        SELECT COUNT(*)
+        FROM kernel_event_ledger
+        WHERE source_component = 'parallel_swarm_state_recovery'
+          AND (
+              payload ->> 'workspace_id' = $1
+              OR event_id IN (
+                  SELECT r.event_ledger_event_id
+                  FROM knowledge_agent_recovery_receipts r
+                  INNER JOIN knowledge_agent_state_recovery_checkpoints c
+                          ON c.checkpoint_id = r.checkpoint_id
+                  WHERE c.workspace_id = $1
+              )
+          )
+        "#,
+    )
+    .bind(workspace_id)
+    .fetch_one(pool)
+    .await
+    .expect("count dashboard source events");
+    (
+        claims,
+        handoffs,
+        checkpoints,
+        recovery_receipts,
+        leases,
+        quiet,
+        events,
+    )
+}
+
+async fn swarm_dashboard_global_source_counts(
+    pool: &sqlx::PgPool,
+) -> (i64, i64, i64, i64, i64, i64, i64) {
+    let claims: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM knowledge_agent_worktree_claims")
+        .fetch_one(pool)
+        .await
+        .expect("count all dashboard claims");
+    let handoffs: i64 =
+        sqlx::query_scalar("SELECT COUNT(*) FROM knowledge_agent_role_mailbox_handoffs")
+            .fetch_one(pool)
+            .await
+            .expect("count all dashboard handoffs");
+    let checkpoints: i64 =
+        sqlx::query_scalar("SELECT COUNT(*) FROM knowledge_agent_state_recovery_checkpoints")
+            .fetch_one(pool)
+            .await
+            .expect("count all dashboard checkpoints");
+    let recovery_receipts: i64 =
+        sqlx::query_scalar("SELECT COUNT(*) FROM knowledge_agent_recovery_receipts")
+            .fetch_one(pool)
+            .await
+            .expect("count all dashboard recoveries");
+    let leases: i64 =
+        sqlx::query_scalar("SELECT COUNT(*) FROM knowledge_parallel_indexing_lease_queue")
+            .fetch_one(pool)
+            .await
+            .expect("count all dashboard leases");
+    let quiet: i64 =
+        sqlx::query_scalar("SELECT COUNT(*) FROM knowledge_agent_quiet_background_work")
+            .fetch_one(pool)
+            .await
+            .expect("count all dashboard quiet work");
+    let events: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM kernel_event_ledger WHERE source_component = 'parallel_swarm_state_recovery'",
+    )
+    .fetch_one(pool)
+    .await
+    .expect("count all dashboard EventLedger rows");
+    (
+        claims,
+        handoffs,
+        checkpoints,
+        recovery_receipts,
+        leases,
+        quiet,
+        events,
     )
 }
 
@@ -1379,6 +1620,509 @@ async fn validator_lanes_inspect_swarm_evidence_without_mutating_state() {
         swarm_evidence_counts(&pool, &workspace_id).await,
         before_counts,
         "denied validator mutations must not change inspected state"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn swarm_dashboard_projection_derives_from_postgres_eventledger_and_is_projection_only() {
+    let Some((pool, store)) = recovery_store().await else {
+        return;
+    };
+
+    let workspace_id = format!("workspace-dashboard-projection-{}", Uuid::now_v7());
+    let local = local_lane("dashboard-projection");
+    let claim = store
+        .claim_work_surface(WorkClaimRequest {
+            workspace_id: workspace_id.clone(),
+            wp_id: "WP-KERNEL-009".to_string(),
+            mt_id: Some("MT-220".to_string()),
+            scope: ClaimScope::Workspace {
+                workspace_id: workspace_id.clone(),
+            },
+            lane: local.clone(),
+            session_id: "session-dashboard-claim".to_string(),
+            ttl_seconds: 600,
+            reason: "seed durable dashboard claim".to_string(),
+        })
+        .await
+        .expect("seed dashboard claim");
+    assert_eq!(claim.status, ClaimStatus::Active);
+    let claim_id = claim.claim_id.clone();
+
+    let handoff = store
+        .record_role_mailbox_handoff(RoleMailboxHandoffRequest {
+            from_lane: local.clone(),
+            to_role: "WP_VALIDATOR".to_string(),
+            wp_id: "WP-KERNEL-009".to_string(),
+            mt_id: "MT-220".to_string(),
+            claim_id: Some(claim_id.clone()),
+            mailbox_thread_id: "thread-dashboard-claim-backed".to_string(),
+            mailbox_message_id: "message-dashboard-claim-backed".to_string(),
+            status: SwarmReceiptStatus::Progress,
+            summary: "claim-backed dashboard handoff".to_string(),
+            body_sha256: "a".repeat(64),
+        })
+        .await
+        .expect("seed claim-backed handoff");
+    let unscoped_handoff = store
+        .record_role_mailbox_handoff(RoleMailboxHandoffRequest {
+            from_lane: local.clone(),
+            to_role: "WP_VALIDATOR".to_string(),
+            wp_id: "WP-KERNEL-009".to_string(),
+            mt_id: "MT-220".to_string(),
+            claim_id: None,
+            mailbox_thread_id: "thread-dashboard-unscoped".to_string(),
+            mailbox_message_id: "message-dashboard-unscoped".to_string(),
+            status: SwarmReceiptStatus::Blocked,
+            summary: "unscoped handoff must be warned and excluded".to_string(),
+            body_sha256: "b".repeat(64),
+        })
+        .await
+        .expect("seed unscoped handoff");
+    assert!(
+        !unscoped_handoff.event_ledger_event_id.is_empty(),
+        "unscoped handoff is still durable, just not workspace-projectable"
+    );
+
+    let checkpoint = store
+        .record_checkpoint(RecoveryCheckpointRequest {
+            lane: local.clone(),
+            session_id: "session-dashboard-checkpoint".to_string(),
+            workspace_id: workspace_id.clone(),
+            wp_id: "WP-KERNEL-009".to_string(),
+            mt_id: "MT-220".to_string(),
+            claim_id: Some(claim_id.clone()),
+            mailbox_handoff_id: Some(handoff.handoff_id.clone()),
+            navigation_command_id: Some("validation_state".to_string()),
+            resume_pointer: RecoveryResumePointer::Claim {
+                claim_id: claim_id.clone(),
+            },
+            touched_files: vec![
+                "src/backend/handshake_core/src/swarm_orchestration/state_recovery.rs".to_string(),
+            ],
+            tests: vec![
+                "parallel_swarm_state_recovery_tests::swarm_dashboard_projection".to_string(),
+            ],
+            hbr_rows: vec!["HBR-SWARM-001".to_string(), "HBR-SWARM-004".to_string()],
+            next_step_context: "dashboard projection can recover from this checkpoint".to_string(),
+            payload: json!({"dashboard_projection_seed": true}),
+            compaction_reason: "dashboard_projection_seed".to_string(),
+            git_head: "dashboard220".to_string(),
+        })
+        .await
+        .expect("seed dashboard checkpoint");
+    let recovered = store
+        .recover_from_checkpoint(
+            &checkpoint.checkpoint_id,
+            local_lane("dashboard-recovery"),
+            "session-dashboard-recovered",
+        )
+        .await
+        .expect("seed dashboard recovery receipt");
+    let lease = store
+        .enqueue_indexing_lease(IndexingLeaseRequest {
+            workspace_id: workspace_id.clone(),
+            wp_id: "WP-KERNEL-009".to_string(),
+            mt_id: "MT-220".to_string(),
+            scope: ClaimScope::IndexRun {
+                workspace_id: workspace_id.clone(),
+                source_root_id: "dashboard-source-root".to_string(),
+            },
+            lane: local.clone(),
+            session_id: "session-dashboard-indexing".to_string(),
+            index_run_id: format!("index-run-dashboard-{}", Uuid::now_v7()),
+            priority: 3,
+            ttl_seconds: 600,
+            quiet_policy: QuietBackgroundPolicy::quiet_for(QuietBackgroundWorkKind::Indexing),
+        })
+        .await
+        .expect("seed dashboard indexing lease");
+    assert_eq!(lease.status, IndexLeaseStatus::Acquired);
+    let quiet = store
+        .record_quiet_background_work(QuietBackgroundWorkRequest {
+            lane: local.clone(),
+            workspace_id: workspace_id.clone(),
+            wp_id: "WP-KERNEL-009".to_string(),
+            mt_id: "MT-220".to_string(),
+            work_kind: QuietBackgroundWorkKind::TestRun,
+            subject_id: format!("dashboard-test-run-{}", Uuid::now_v7()),
+            session_id: "session-dashboard-quiet-test".to_string(),
+            policy: QuietBackgroundPolicy::quiet_for(QuietBackgroundWorkKind::TestRun),
+            evidence_ref: "cargo://parallel_swarm_state_recovery_tests/dashboard_projection"
+                .to_string(),
+        })
+        .await
+        .expect("seed dashboard quiet work");
+
+    let before_counts = swarm_dashboard_authority_counts(&pool, &workspace_id).await;
+    let before_global_counts = swarm_dashboard_global_source_counts(&pool).await;
+    let projection = store
+        .project_swarm_dashboard(SwarmDashboardProjectionRequest {
+            lane: lane_with_kind("dashboard-validator", AgentLaneKind::Validator),
+            workspace_id: workspace_id.clone(),
+            wp_id: Some("WP-KERNEL-009".to_string()),
+            mt_id: Some("MT-220".to_string()),
+            limit: 50,
+        })
+        .await
+        .expect("project swarm dashboard");
+    assert_eq!(
+        swarm_dashboard_authority_counts(&pool, &workspace_id).await,
+        before_counts,
+        "dashboard projection must be SELECT-only over PostgreSQL/EventLedger"
+    );
+    assert_eq!(
+        swarm_dashboard_global_source_counts(&pool).await,
+        before_global_counts,
+        "dashboard projection must not write unrelated source rows or EventLedger events"
+    );
+    validate_swarm_dashboard_projection(&projection).expect("valid dashboard projection");
+    assert_eq!(projection.workspace_id, workspace_id);
+    assert!(projection.projection_contract.projection_only);
+    assert!(!projection.projection_contract.authority_mutation_allowed);
+    assert!(!projection.projection_contract.ui_state_authoritative);
+    assert_eq!(projection.totals.claims, 1);
+    assert_eq!(projection.totals.active_claims, 1);
+    assert_eq!(projection.totals.mailbox_handoffs, 1);
+    assert_eq!(projection.totals.recovery_checkpoints, 1);
+    assert_eq!(projection.totals.recovery_receipts, 1);
+    assert_eq!(projection.totals.indexing_leases, 1);
+    assert_eq!(projection.totals.quiet_background_work, 1);
+    assert_eq!(projection.totals.events, 6);
+    assert_eq!(projection.totals.warnings, 1);
+    assert!(projection
+        .warnings
+        .iter()
+        .any(|warning| warning.code == "handoffs_without_workspace_source_ref_excluded"));
+    assert!(projection
+        .claims
+        .iter()
+        .any(|row| row.claim_id == claim_id && row.status == "active"));
+    assert!(projection
+        .mailbox_handoffs
+        .iter()
+        .any(|row| row.handoff_id == handoff.handoff_id));
+    assert!(!projection
+        .mailbox_handoffs
+        .iter()
+        .any(|row| row.handoff_id == unscoped_handoff.handoff_id));
+    assert!(projection
+        .recovery_checkpoints
+        .iter()
+        .any(|row| row.checkpoint_id == checkpoint.checkpoint_id));
+    assert!(projection
+        .recovery_receipts
+        .iter()
+        .any(|row| row.receipt_id == recovered.receipt.receipt_id));
+    assert!(projection
+        .indexing_leases
+        .iter()
+        .any(|row| row.lease_id == lease.lease_id && row.quiet_policy_ok));
+    assert!(projection
+        .quiet_background_work
+        .iter()
+        .any(|row| row.receipt_id == quiet.receipt_id && row.quiet_policy_ok));
+    let aggregate_counts: HashSet<&str> = projection
+        .source_watermark
+        .aggregate_counts
+        .iter()
+        .map(|row| row.aggregate_type.as_str())
+        .collect();
+    for aggregate in [
+        "parallel_swarm_claim",
+        "parallel_swarm_handoff",
+        "parallel_swarm_checkpoint",
+        "parallel_swarm_recovery",
+        "parallel_indexing_lease",
+        "parallel_swarm_quiet_background_work",
+    ] {
+        assert!(
+            aggregate_counts.contains(aggregate),
+            "projection watermark must include {aggregate}: {:?}",
+            projection.source_watermark.aggregate_counts
+        );
+    }
+
+    let mut forged_ui_authority: ParallelSwarmDashboardProjectionV1 = projection.clone();
+    forged_ui_authority
+        .projection_contract
+        .ui_state_authoritative = true;
+    forged_ui_authority
+        .projection_contract
+        .authority_mutation_allowed = true;
+    let errors = validate_swarm_dashboard_projection(&forged_ui_authority)
+        .expect_err("UI-authoritative forged projection must fail validation");
+    assert!(errors
+        .iter()
+        .any(|error| error.contains("ui_state_authoritative=false")));
+    assert!(errors
+        .iter()
+        .any(|error| error.contains("authority_mutation_allowed=false")));
+
+    let mut forged_ui_only_row = projection.clone();
+    forged_ui_only_row.claims[0].source_refs.clear();
+    let errors = validate_swarm_dashboard_projection(&forged_ui_only_row)
+        .expect_err("UI-only row without source refs must fail validation");
+    assert!(
+        errors
+            .iter()
+            .any(|error| error.contains("has no source_refs")),
+        "expected source ref validation error, got {errors:?}"
+    );
+
+    let mut forged_wrong_table = projection.clone();
+    forged_wrong_table.claims[0].source_refs[0].table_name =
+        "knowledge_agent_quiet_background_work".to_string();
+    forged_wrong_table.claims[0].source_refs[0].row_source_ref = format!(
+        "postgres://knowledge_agent_quiet_background_work/{}",
+        forged_wrong_table.claims[0].claim_id
+    );
+    let errors = validate_swarm_dashboard_projection(&forged_wrong_table)
+        .expect_err("wrong source table must fail validation");
+    assert!(
+        errors
+            .iter()
+            .any(|error| error.contains("source table must be knowledge_agent_worktree_claims")),
+        "expected source table validation error, got {errors:?}"
+    );
+
+    let mut forged_wrong_event = projection.clone();
+    forged_wrong_event.claims[0].source_refs[0].event_aggregate_id =
+        Some("wrong-aggregate-id".to_string());
+    let errors = validate_swarm_dashboard_projection(&forged_wrong_event)
+        .expect_err("wrong EventLedger aggregate id must fail validation");
+    assert!(
+        errors
+            .iter()
+            .any(|error| error.contains("mismatched event aggregate_id")),
+        "expected event aggregate validation error, got {errors:?}"
+    );
+
+    let mut forged_missing_watermark = projection.clone();
+    forged_missing_watermark.source_watermark.events.clear();
+    forged_missing_watermark.source_watermark.event_count = 0;
+    forged_missing_watermark
+        .source_watermark
+        .aggregate_counts
+        .clear();
+    let errors = validate_swarm_dashboard_projection(&forged_missing_watermark)
+        .expect_err("source refs missing from watermark must fail validation");
+    assert!(
+        errors
+            .iter()
+            .any(|error| error.contains("EventLedger ref missing from watermark")),
+        "expected watermark validation error, got {errors:?}"
+    );
+
+    let bad_limit = store
+        .project_swarm_dashboard(SwarmDashboardProjectionRequest {
+            lane: lane_with_kind("dashboard-validator-bad-limit", AgentLaneKind::Validator),
+            workspace_id: workspace_id.clone(),
+            wp_id: Some("WP-KERNEL-009".to_string()),
+            mt_id: Some("MT-220".to_string()),
+            limit: 0,
+        })
+        .await;
+    assert_invalid_input_contains(bad_limit, "inspection limit");
+    assert_eq!(
+        swarm_dashboard_authority_counts(&pool, &workspace_id).await,
+        before_counts,
+        "rejected dashboard projection requests must not mutate authority state"
+    );
+    assert_eq!(
+        swarm_dashboard_global_source_counts(&pool).await,
+        before_global_counts,
+        "rejected dashboard projection requests must not mutate any source table or EventLedger"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn swarm_dashboard_projection_api_exposes_postgres_eventledger_read_model() {
+    let Some(pg) = knowledge_pg().await else {
+        eprintln!("SKIP swarm_dashboard_projection_api: no PostgreSQL");
+        return;
+    };
+    let pool = PgPoolOptions::new()
+        .max_connections(5)
+        .connect(&pg.schema_url)
+        .await
+        .expect("connect isolated parallel swarm schema");
+    let event_db = Arc::new(PostgresDatabase::new(pool.clone()));
+    let store = ParallelSwarmStateRecoveryStore::new(pool.clone(), event_db);
+    let workspace_id = format!("workspace-dashboard-api-{}", Uuid::now_v7());
+    let local = local_lane("dashboard-api");
+    let claim = store
+        .claim_work_surface(WorkClaimRequest {
+            workspace_id: workspace_id.clone(),
+            wp_id: "WP-KERNEL-009".to_string(),
+            mt_id: Some("MT-220".to_string()),
+            scope: ClaimScope::Workspace {
+                workspace_id: workspace_id.clone(),
+            },
+            lane: local.clone(),
+            session_id: "session-dashboard-api-claim".to_string(),
+            ttl_seconds: 600,
+            reason: "seed dashboard API claim".to_string(),
+        })
+        .await
+        .expect("seed dashboard API claim");
+    let quiet = store
+        .record_quiet_background_work(QuietBackgroundWorkRequest {
+            lane: local,
+            workspace_id: workspace_id.clone(),
+            wp_id: "WP-KERNEL-009".to_string(),
+            mt_id: "MT-220".to_string(),
+            work_kind: QuietBackgroundWorkKind::BackendNavigation,
+            subject_id: format!("dashboard-api-nav-{}", Uuid::now_v7()),
+            session_id: "session-dashboard-api-quiet".to_string(),
+            policy: QuietBackgroundPolicy::quiet_for(QuietBackgroundWorkKind::BackendNavigation),
+            evidence_ref: "api://kernel/parallel_swarm/dashboard_projection".to_string(),
+        })
+        .await
+        .expect("seed dashboard API quiet receipt");
+
+    let before_counts = swarm_dashboard_authority_counts(&pool, &workspace_id).await;
+    let before_global_counts = swarm_dashboard_global_source_counts(&pool).await;
+    let state = app_state_for(&pg.schema_url).await;
+    let (base, server) = start_kernel_server(state).await;
+    let http = reqwest::Client::new();
+
+    let response = http
+        .get(format!("{base}/kernel/parallel_swarm/dashboard_projection"))
+        .query(&[
+            ("workspace_id", workspace_id.as_str()),
+            ("wp_id", "WP-KERNEL-009"),
+            ("mt_id", "MT-220"),
+            ("limit", "25"),
+        ])
+        .send()
+        .await
+        .expect("dashboard projection API send");
+    assert_eq!(response.status(), 200);
+    let projection: ParallelSwarmDashboardProjectionV1 =
+        response.json().await.expect("dashboard projection json");
+    validate_swarm_dashboard_projection(&projection).expect("API projection validates");
+    assert_eq!(projection.workspace_id, workspace_id);
+    assert!(projection.projection_contract.projection_only);
+    assert_eq!(projection.totals.claims, 1);
+    assert_eq!(projection.totals.quiet_background_work, 1);
+    assert!(projection
+        .claims
+        .iter()
+        .any(|row| row.claim_id == claim.claim_id));
+    assert!(projection
+        .quiet_background_work
+        .iter()
+        .any(|row| row.receipt_id == quiet.receipt_id));
+    assert_eq!(
+        swarm_dashboard_authority_counts(&pool, &workspace_id).await,
+        before_counts,
+        "dashboard API must be read-only over durable state"
+    );
+    assert_eq!(
+        swarm_dashboard_global_source_counts(&pool).await,
+        before_global_counts,
+        "dashboard API must not write unrelated source rows or EventLedger events"
+    );
+
+    let bad_limit = http
+        .get(format!("{base}/kernel/parallel_swarm/dashboard_projection"))
+        .query(&[
+            ("workspace_id", workspace_id.as_str()),
+            ("wp_id", "WP-KERNEL-009"),
+            ("mt_id", "MT-220"),
+            ("limit", "0"),
+        ])
+        .send()
+        .await
+        .expect("dashboard bad-limit API send");
+    assert_eq!(bad_limit.status(), 400);
+    let bad_body: serde_json::Value = bad_limit.json().await.expect("bad limit json");
+    assert_eq!(bad_body["code"], "parallel_swarm_dashboard_invalid_request");
+    assert_eq!(
+        swarm_dashboard_authority_counts(&pool, &workspace_id).await,
+        before_counts,
+        "rejected dashboard API requests must not mutate durable state"
+    );
+    assert_eq!(
+        swarm_dashboard_global_source_counts(&pool).await,
+        before_global_counts,
+        "rejected dashboard API requests must not mutate any source table or EventLedger"
+    );
+    server.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn swarm_dashboard_projection_totals_remain_authoritative_when_rows_are_limited() {
+    let Some((pool, store)) = recovery_store().await else {
+        return;
+    };
+
+    let workspace_id = format!("workspace-dashboard-limit-{}", Uuid::now_v7());
+    let local = local_lane("dashboard-limit");
+    for index in 0..3 {
+        let claim = store
+            .claim_work_surface(WorkClaimRequest {
+                workspace_id: workspace_id.clone(),
+                wp_id: "WP-KERNEL-009".to_string(),
+                mt_id: Some("MT-220".to_string()),
+                scope: ClaimScope::Worktree {
+                    worktree_id: format!("dashboard-limit-worktree-{index}"),
+                },
+                lane: local.clone(),
+                session_id: format!("session-dashboard-limit-{index}"),
+                ttl_seconds: 600,
+                reason: format!("seed dashboard limited claim {index}"),
+            })
+            .await
+            .expect("seed dashboard limited claim");
+        assert_eq!(claim.status, ClaimStatus::Active);
+    }
+
+    let before_counts = swarm_dashboard_authority_counts(&pool, &workspace_id).await;
+    let before_global_counts = swarm_dashboard_global_source_counts(&pool).await;
+    let projection = store
+        .project_swarm_dashboard(SwarmDashboardProjectionRequest {
+            lane: lane_with_kind("dashboard-limit-validator", AgentLaneKind::Validator),
+            workspace_id: workspace_id.clone(),
+            wp_id: Some("WP-KERNEL-009".to_string()),
+            mt_id: Some("MT-220".to_string()),
+            limit: 1,
+        })
+        .await
+        .expect("project limited dashboard");
+    validate_swarm_dashboard_projection(&projection).expect("limited projection validates");
+    assert_eq!(
+        projection.claims.len(),
+        1,
+        "row array obeys requested limit"
+    );
+    assert_eq!(
+        projection.source_watermark.event_count, 1,
+        "watermark covers returned rows"
+    );
+    assert_eq!(
+        projection.totals.claims, 3,
+        "totals remain authoritative over all matching durable rows"
+    );
+    assert_eq!(projection.totals.active_claims, 3);
+    assert_eq!(
+        projection.totals.events, 3,
+        "event total remains authoritative over all matching durable EventLedger rows"
+    );
+    assert!(projection.warnings.iter().any(|warning| {
+        warning.code == "dashboard_section_truncated"
+            && warning.detail.contains("claims returned 1 of 3")
+    }));
+    assert_eq!(
+        swarm_dashboard_authority_counts(&pool, &workspace_id).await,
+        before_counts,
+        "limited dashboard projection must be SELECT-only over filtered authority state"
+    );
+    assert_eq!(
+        swarm_dashboard_global_source_counts(&pool).await,
+        before_global_counts,
+        "limited dashboard projection must not write any source table or EventLedger"
     );
 }
 

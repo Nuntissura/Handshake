@@ -26,6 +26,11 @@ use crate::kernel::{
     DccMvpRuntimeSurfaceV1, KernelError, KernelTraceInspector, TraceProjection,
 };
 use crate::storage::{ModelSession, ModelSessionState};
+use crate::swarm_orchestration::state_recovery::{
+    validate_swarm_dashboard_projection, AgentLaneIdentity, AgentLaneKind, AttributionMode,
+    LocalCloudAttribution, ParallelSwarmDashboardProjectionV1, ParallelSwarmStateRecoveryStore,
+    StateRecoveryError, SwarmDashboardProjectionRequest,
+};
 use crate::AppState;
 
 #[derive(Debug, Deserialize)]
@@ -79,6 +84,14 @@ pub struct ProductScreenshotCaptureExecuteResponse {
     pub durable_receipt: ProductScreenshotDurableReceiptV1,
     pub proof: ProductScreenshotExecutionProofV1,
     pub receipt: ProductScreenshotExecutionReceiptV1,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ParallelSwarmDashboardProjectionQuery {
+    pub workspace_id: String,
+    pub wp_id: Option<String>,
+    pub mt_id: Option<String>,
+    pub limit: Option<i64>,
 }
 
 #[derive(Debug, Serialize)]
@@ -149,6 +162,21 @@ fn map_kernel_error(err: KernelError) -> (StatusCode, Json<ErrorResponse>) {
     }
 }
 
+fn map_state_recovery_error(err: StateRecoveryError) -> (StatusCode, Json<ErrorResponse>) {
+    match err {
+        StateRecoveryError::InvalidInput(message) => api_error(
+            StatusCode::BAD_REQUEST,
+            "parallel_swarm_dashboard_invalid_request",
+            message,
+        ),
+        other => api_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "parallel_swarm_dashboard_projection_failed",
+            other.to_string(),
+        ),
+    }
+}
+
 pub async fn inspect_trace_projection(
     State(state): State<AppState>,
     Query(query): Query<TraceProjectionQuery>,
@@ -184,6 +212,46 @@ pub async fn dcc_projection(
         surface,
         session_spawn_runtime_records,
     }))
+}
+
+pub async fn parallel_swarm_dashboard_projection(
+    State(state): State<AppState>,
+    Query(query): Query<ParallelSwarmDashboardProjectionQuery>,
+) -> ApiResult<ParallelSwarmDashboardProjectionV1> {
+    let lane = AgentLaneIdentity::new(
+        "lane-parallel-swarm-dashboard-api",
+        "parallel-swarm-dashboard-api",
+        AgentLaneKind::Validator,
+        LocalCloudAttribution {
+            mode: AttributionMode::System,
+            provider: None,
+            runtime: Some("handshake_core_api".to_string()),
+            model_label: "parallel-swarm-dashboard-projection".to_string(),
+            credential_ref: None,
+            provider_metadata: serde_json::json!({}),
+        },
+    )
+    .map_err(map_state_recovery_error)?;
+    let store =
+        ParallelSwarmStateRecoveryStore::new(state.postgres_pool.clone(), state.storage.clone());
+    let projection = store
+        .project_swarm_dashboard(SwarmDashboardProjectionRequest {
+            lane,
+            workspace_id: query.workspace_id,
+            wp_id: query.wp_id,
+            mt_id: query.mt_id,
+            limit: query.limit.unwrap_or(100),
+        })
+        .await
+        .map_err(map_state_recovery_error)?;
+    validate_swarm_dashboard_projection(&projection).map_err(|errors| {
+        api_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "parallel_swarm_dashboard_projection_invalid",
+            format!("parallel swarm dashboard projection failed validation: {errors:?}"),
+        )
+    })?;
+    Ok(Json(projection))
 }
 
 pub async fn trigger_dcc_governed_action(
@@ -595,6 +663,10 @@ pub fn routes(state: AppState) -> Router {
     Router::new()
         .route("/kernel/trace_projection", get(inspect_trace_projection))
         .route("/kernel/dcc_projection", get(dcc_projection))
+        .route(
+            "/kernel/parallel_swarm/dashboard_projection",
+            get(parallel_swarm_dashboard_projection),
+        )
         .route(
             "/kernel/dcc_actions/trigger",
             post(trigger_dcc_governed_action),
