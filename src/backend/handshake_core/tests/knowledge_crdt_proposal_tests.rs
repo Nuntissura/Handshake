@@ -1003,15 +1003,95 @@ mod hardening_lease_chokepoint {
 /// diff is rejected.
 mod hardening_applied_binding {
     use super::*;
+    use handshake_core::kernel::crdt::actor_site::{
+        derive_knowledge_site_id, knowledge_crdt_identity,
+    };
     use handshake_core::kernel::crdt::ai_edit_proposal::{
         apply_approved_ai_edit, decide_ai_edit_proposal, record_ai_edit_proposal,
         AiEditApplyOutcomeV1, AiEditProposalRequestV1, RecordAiEditProposalOutcomeV1,
     };
+    use handshake_core::kernel::crdt::persistence::{
+        new_crdt_update_record, CrdtReplayMetadataV1, CrdtUpdateRecordInputV1,
+    };
+    use handshake_core::kernel::crdt::state_vector::KnowledgeStateVectorV1;
+    use handshake_core::kernel::{KernelEventType, NewKernelEvent};
     use handshake_core::storage::knowledge_crdt::{
         get_ai_edit_proposal, list_denial_receipts_for_scope,
     };
     use serde_json::json;
     use uuid::Uuid;
+
+    /// MT-074 V1 FAIL remediation helper: push a REAL `kernel_crdt_updates` row
+    /// whose persisted `update_sha256` is the canonical hash of `applied_diff`,
+    /// so an applied-binding for `update_id` can anchor to a genuine document
+    /// update. Mirrors the MT-067 push path (event ledger row + update row).
+    async fn insert_real_crdt_update(
+        backend: &PostgresTestBackend,
+        ws: &str,
+        doc: &str,
+        crdt_doc: &str,
+        actor: &KnowledgeActorIdV1,
+        update_id: &str,
+        update_seq: u64,
+        applied_diff: &serde_json::Value,
+        suffix: &str,
+    ) {
+        let db = backend.database.clone();
+        let identity = knowledge_crdt_identity(
+            ws,
+            doc,
+            crdt_doc,
+            "hsk.doc.rich_document@1",
+            actor,
+            &format!("trace-applied-{suffix}"),
+        );
+        let site = derive_knowledge_site_id(ws, crdt_doc, actor);
+        let mut sv = KnowledgeStateVectorV1::new();
+        let before = sv.encode();
+        for _ in 0..update_seq {
+            sv.increment(&site.site_id);
+        }
+        let after = sv.encode();
+        let event = NewKernelEvent::builder(
+            format!("KTR-APPLIED-{suffix}"),
+            format!("SR-APPLIED-{suffix}"),
+            KernelEventType::KnowledgeCrdtUpdateRecorded,
+            actor.to_kernel_actor(),
+        )
+        .aggregate("knowledge_crdt_document", crdt_doc.to_string())
+        .idempotency_key(format!("applied:{suffix}:{update_id}"))
+        .source_component("knowledge_crdt_proposal_tests")
+        .payload(json!({ "update_id": update_id, "after": after }))
+        .build()
+        .expect("valid event");
+        let stored_event = db.append_kernel_event(event).await.expect("append event");
+        // The persisted update_sha256 MUST be the canonical hash of the diff
+        // the binder will present, so use the serde_json bytes of applied_diff.
+        let bytes = serde_json::to_vec(applied_diff).expect("serialize applied diff");
+        let record = new_crdt_update_record(CrdtUpdateRecordInputV1 {
+            identity: &identity,
+            update_id,
+            update_seq,
+            update_bytes: &bytes,
+            update_bytes_ref: &format!(
+                "postgres://kernel_crdt_updates/{crdt_doc}/{update_id}/update_bytes"
+            ),
+            session_id: &format!("SR-APPLIED-{suffix}"),
+            trace_id: &format!("trace-applied-{suffix}"),
+            state_vector_before: &before,
+            state_vector_after: &after,
+            replay_metadata: CrdtReplayMetadataV1 {
+                replay_order_key: format!("{ws}/{doc}/{update_seq:020}"),
+                dependency_update_ids: Vec::new(),
+                encoding: "yjs-update-v1".to_string(),
+                schema_version: "kernel-crdt-update-v1".to_string(),
+            },
+            event_ledger_event_id: &stored_event.event_id,
+        });
+        db.append_kernel_crdt_update(record, bytes)
+            .await
+            .expect("append real crdt update");
+    }
 
     #[tokio::test]
     async fn applied_update_must_hash_to_approved_diff() {
@@ -1065,8 +1145,23 @@ mod hardening_applied_binding {
         .expect("approved");
 
         // A push NOT matching the approved diff is rejected with a durable
-        // mismatch receipt; the binding is refused.
+        // mismatch receipt; the binding is refused. A REAL kernel_crdt_updates
+        // row is pushed carrying the tampered content, so the flow gets past the
+        // update-row existence gate and is caught by the approved-diff hash
+        // check (proving the two denial paths are distinct, not collapsed).
         let tampered_diff = json!({"steps": [{"insert": "TAMPERED text"}]});
+        insert_real_crdt_update(
+            &backend,
+            &ws,
+            &doc,
+            &crdt_doc,
+            &model,
+            &format!("update-bad-{suffix}"),
+            1,
+            &tampered_diff,
+            &suffix,
+        )
+        .await;
         let mismatch = apply_approved_ai_edit(
             db.as_ref(),
             &pool,
@@ -1101,7 +1196,20 @@ mod hardening_applied_binding {
         assert!(row.applied_update_id.is_none());
         assert!(row.applied_update_sha256.is_none());
 
-        // The matching applied update binds successfully.
+        // The matching applied update binds successfully — but ONLY after a
+        // real kernel_crdt_updates row carrying the approved content exists.
+        insert_real_crdt_update(
+            &backend,
+            &ws,
+            &doc,
+            &crdt_doc,
+            &model,
+            &format!("update-good-{suffix}"),
+            2,
+            &approved_diff,
+            &suffix,
+        )
+        .await;
         let bound = apply_approved_ai_edit(
             db.as_ref(),
             &pool,
@@ -1127,5 +1235,148 @@ mod hardening_applied_binding {
             }
             other => panic!("matching applied update must bind, got {other:?}"),
         }
+    }
+
+    /// MT-074 V1 FAIL remediation (the exact negative test the validator asked
+    /// for): the approved diff hash matches the content presented for binding,
+    /// but NO kernel_crdt_updates row exists for the cited update id. The
+    /// binding MUST be refused and a durable denial receipt MUST be emitted —
+    /// the hash match alone may not bind an approved edit to a phantom update.
+    #[tokio::test]
+    async fn approved_hash_matches_but_update_id_absent_refuses_binding() {
+        let backend = backend_or_blocked().await;
+        let db = backend.database.clone();
+        let pool = backend.postgres_pool.clone();
+        let suffix = Uuid::now_v7().simple().to_string();
+        let ws = format!("ws-absent-{suffix}");
+        let doc = format!("doc-{suffix}");
+        let crdt_doc = format!("crdt-{suffix}");
+        let model =
+            KnowledgeActorIdV1::new(KnowledgeActorKind::CloudModel, "absent-cm").expect("actor");
+        let operator = KnowledgeActorIdV1::new(KnowledgeActorKind::Operator, "op").expect("actor");
+        let lease_id = model_lease(&backend, &model, &ws, &format!("sr-{suffix}")).await;
+
+        let approved_diff = json!({"steps": [{"insert": "approved text"}]});
+        let proposal = match record_ai_edit_proposal(
+            db.as_ref(),
+            &pool,
+            AiEditProposalRequestV1 {
+                workspace_id: ws.clone(),
+                document_id: doc.clone(),
+                crdt_document_id: crdt_doc.clone(),
+                base_update_seq: 0,
+                base_state_vector: "hsk-sv1:".to_string(),
+                proposed_diff: approved_diff.clone(),
+                source_span_citations: vec![format!("KSP-{}", "0".repeat(32))],
+                actor: model.clone(),
+                session_id: format!("sr-{suffix}"),
+                correlation_id: format!("corr-{suffix}"),
+                lease_id: Some(lease_id),
+            },
+        )
+        .await
+        .expect("record flow")
+        {
+            RecordAiEditProposalOutcomeV1::Recorded(row) => *row,
+            other => panic!("expected recorded draft, got {other:?}"),
+        };
+        decide_ai_edit_proposal(
+            db.as_ref(),
+            &pool,
+            &proposal.proposal_id,
+            true,
+            &operator,
+            &format!("sr-rev-{suffix}"),
+            "approved",
+        )
+        .await
+        .expect("decide flow")
+        .expect("approved");
+
+        // Present the EXACT approved diff (hash matches diff_sha256), but cite
+        // an update id that was never pushed — there is no kernel_crdt_updates
+        // row for it. The binding must be refused with a durable receipt.
+        let absent_update_id = format!("update-never-pushed-{suffix}");
+        let outcome = apply_approved_ai_edit(
+            db.as_ref(),
+            &pool,
+            &proposal.proposal_id,
+            &absent_update_id,
+            &approved_diff,
+            &model,
+            &format!("sr-apply-{suffix}"),
+            &format!("corr-apply-{suffix}"),
+        )
+        .await
+        .expect("apply flow");
+        match outcome {
+            AiEditApplyOutcomeV1::UpdateRowMissing {
+                applied_update_id,
+                stored_update_sha256,
+                denial_receipt_id,
+                ..
+            } => {
+                assert_eq!(applied_update_id, absent_update_id);
+                assert!(
+                    stored_update_sha256.is_none(),
+                    "no kernel_crdt_updates row should exist for the absent update id"
+                );
+                assert!(!denial_receipt_id.is_empty());
+            }
+            other => {
+                panic!("approved-hash-but-absent-update must refuse the binding, got {other:?}")
+            }
+        }
+
+        // The durable ai_edit_applied_update_missing receipt is present.
+        let receipts =
+            list_denial_receipts_for_scope(&pool, &format!("proposal:{}", proposal.proposal_id))
+                .await
+                .expect("receipts");
+        assert!(
+            receipts
+                .iter()
+                .any(|r| r.receipt_kind == "ai_edit_applied_update_missing"),
+            "a durable ai_edit_applied_update_missing receipt must exist"
+        );
+
+        // The proposal row carries NO applied binding after the refusal.
+        let row = get_ai_edit_proposal(&pool, &proposal.proposal_id)
+            .await
+            .expect("get")
+            .expect("row");
+        assert!(row.applied_update_id.is_none());
+        assert!(row.applied_update_sha256.is_none());
+
+        // Control: once the real update is pushed, the same diff binds. This
+        // proves the refusal was about the missing row, not the content.
+        insert_real_crdt_update(
+            &backend,
+            &ws,
+            &doc,
+            &crdt_doc,
+            &model,
+            &absent_update_id,
+            1,
+            &approved_diff,
+            &suffix,
+        )
+        .await;
+        let bound = apply_approved_ai_edit(
+            db.as_ref(),
+            &pool,
+            &proposal.proposal_id,
+            &absent_update_id,
+            &approved_diff,
+            &model,
+            &format!("sr-apply-{suffix}"),
+            &format!("corr-apply2-{suffix}"),
+        )
+        .await
+        .expect("apply flow");
+        assert!(
+            matches!(bound, AiEditApplyOutcomeV1::Bound(_)),
+            "with a real update row present the same diff must bind, got {bound:?}"
+        );
     }
 }

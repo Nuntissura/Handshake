@@ -47,7 +47,7 @@ pub struct KnowledgeCrdtDenialReceiptRow {
 
 /// Allowed receipt kinds (mirrors the migration CHECK; kept in Rust so
 /// callers fail closed before touching the database).
-pub const KNOWLEDGE_CRDT_DENIAL_KINDS: [&str; 10] = [
+pub const KNOWLEDGE_CRDT_DENIAL_KINDS: [&str; 11] = [
     "stale_draft_save",
     "concurrent_draft_fork",
     "ahead_of_head_save",
@@ -60,6 +60,10 @@ pub const KNOWLEDGE_CRDT_DENIAL_KINDS: [&str; 10] = [
     // Authority-hardening #5: an applied update did not hash to the approved
     // proposal's diff_sha256 (approved-vs-applied binding violation).
     "ai_edit_applied_mismatch",
+    // MT-074 V1 FAIL remediation: an applied-binding cited an update id with no
+    // matching kernel_crdt_updates row (or a row whose stored content hash
+    // disagreed with the presented content).
+    "ai_edit_applied_update_missing",
 ];
 
 /// Generate a new denial receipt id (`KCDR-<32 hex>`, time-ordered v7 per
@@ -1374,6 +1378,43 @@ pub async fn bind_applied_ai_edit_update(
     .fetch_optional(pool)
     .await?;
     row.map(map_ai_edit_proposal).transpose()
+}
+
+/// MT-074 V1 FAIL remediation: look up the real `kernel_crdt_updates` row that
+/// an applied-binding claims to reference and return its persisted
+/// `update_sha256`. The lookup keys on the proposal's authority identity
+/// (`workspace_id`, `document_id`, `crdt_document_id`) plus the candidate
+/// `applied_update_id` — exactly the `kernel_crdt_updates` PRIMARY KEY. Returns
+/// `None` when NO such update row exists, so the caller refuses the binding and
+/// emits a durable denial even when the diff hash matches. The hash match alone
+/// is insufficient: an absent update id means there is no real document update
+/// to anchor the approved edit to.
+pub async fn find_applied_crdt_update_sha256(
+    pool: &PgPool,
+    workspace_id: &str,
+    document_id: &str,
+    crdt_document_id: &str,
+    applied_update_id: &str,
+) -> StorageResult<Option<String>> {
+    let row = sqlx::query(
+        r#"
+        SELECT update_sha256
+        FROM kernel_crdt_updates
+        WHERE workspace_id = $1
+          AND document_id = $2
+          AND crdt_document_id = $3
+          AND update_id = $4
+        "#,
+    )
+    .bind(workspace_id)
+    .bind(document_id)
+    .bind(crdt_document_id)
+    .bind(applied_update_id)
+    .fetch_optional(pool)
+    .await?;
+    row.map(|r| r.try_get::<String, _>("update_sha256"))
+        .transpose()
+        .map_err(StorageError::from)
 }
 
 // ---------------------------------------------------------------------------

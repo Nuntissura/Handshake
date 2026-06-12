@@ -608,6 +608,13 @@ async fn deny_promotion(
 pub const AI_EDIT_APPLIED_BINDING_SCHEMA_ID: &str = "hsk.kernel.knowledge_ai_edit_applied@1";
 pub const AI_EDIT_APPLIED_MISMATCH_SCHEMA_ID: &str =
     "hsk.kernel.knowledge_ai_edit_applied_mismatch@1";
+/// MT-074 V1 FAIL remediation: emitted when an applied-binding cites an
+/// `applied_update_id` with NO corresponding `kernel_crdt_updates` row, or with
+/// a row whose persisted `update_sha256` disagrees with the content presented
+/// for binding. A matching real update row is required before authority can be
+/// stamped, even when the diff hash matches.
+pub const AI_EDIT_APPLIED_UPDATE_MISSING_SCHEMA_ID: &str =
+    "hsk.kernel.knowledge_ai_edit_applied_update_missing@1";
 
 /// Outcome of binding an applied update to an approved AI edit proposal.
 #[derive(Debug, Clone, PartialEq)]
@@ -625,6 +632,21 @@ pub enum AiEditApplyOutcomeV1 {
     /// approved one.
     HashMismatch {
         expected_diff_sha256: String,
+        applied_content_sha256: String,
+        denial_receipt_id: String,
+        event_ledger_event_id: String,
+    },
+    /// MT-074 V1 FAIL remediation: there is NO `kernel_crdt_updates` row for the
+    /// proposal's (workspace, document, crdt_document, update_id), OR the row
+    /// that exists carries a different `update_sha256` than the content
+    /// presented for binding. The binding is refused even when the diff hash
+    /// matches — an approved edit may only bind to a real, content-consistent
+    /// document update. Durable `ai_edit_applied_update_missing` receipt.
+    UpdateRowMissing {
+        applied_update_id: String,
+        /// `Some(stored)` when a row exists but its persisted hash disagrees
+        /// with the presented content; `None` when no row exists at all.
+        stored_update_sha256: Option<String>,
         applied_content_sha256: String,
         denial_receipt_id: String,
         event_ledger_event_id: String,
@@ -667,6 +689,38 @@ pub async fn apply_approved_ai_edit(
     let applied_bytes = serde_json::to_vec(applied_diff)
         .map_err(|error| LeaseFlowError::Event(error.to_string()))?;
     let applied_content_sha256 = sha256_hex(&applied_bytes);
+
+    // MT-074 V1 FAIL remediation: before binding, require that a REAL
+    // `kernel_crdt_updates` row exists for the proposal's
+    // (workspace, document, crdt_document, applied_update_id) AND that the
+    // persisted row hash equals the content presented for binding. The diff
+    // hash matching the approved diff is NOT sufficient: without a real update
+    // row there is no document edit to anchor the approved proposal to, and an
+    // approved proposal's authority trail must never point at an update id that
+    // was never pushed (or at one whose stored content differs). Refuse the
+    // binding with a durable `ai_edit_applied_update_missing` denial.
+    let stored_update_sha256 = knowledge_crdt::find_applied_crdt_update_sha256(
+        pool,
+        &proposal.workspace_id,
+        &proposal.document_id,
+        &proposal.crdt_document_id,
+        applied_update_id,
+    )
+    .await?;
+    if stored_update_sha256.as_deref() != Some(applied_content_sha256.as_str()) {
+        return deny_applied_update_missing(
+            db,
+            pool,
+            &proposal,
+            applied_update_id,
+            stored_update_sha256,
+            &applied_content_sha256,
+            actor,
+            session_id,
+            correlation_id,
+        )
+        .await;
+    }
 
     // The binder only stamps the row when the hash equals the approved diff
     // hash (and the 0192 CHECK is the schema backstop).
@@ -763,6 +817,87 @@ pub async fn apply_approved_ai_edit(
     Ok(AiEditApplyOutcomeV1::HashMismatch {
         expected_diff_sha256: proposal.diff_sha256,
         applied_content_sha256,
+        denial_receipt_id: receipt.receipt_id,
+        event_ledger_event_id: stored_event.event_id,
+    })
+}
+
+/// MT-074 V1 FAIL remediation: emit the durable `ai_edit_applied_update_missing`
+/// denial (receipt + EventLedger row) when an applied-binding cannot be anchored
+/// to a real, content-consistent `kernel_crdt_updates` row, and refuse the
+/// binding. `stored_update_sha256` distinguishes "no update row at all" (`None`)
+/// from "update row exists but its persisted content hash disagrees with the
+/// presented content" (`Some(stored)`).
+#[allow(clippy::too_many_arguments)]
+async fn deny_applied_update_missing(
+    db: &(dyn Database + '_),
+    pool: &PgPool,
+    proposal: &AiEditProposalRow,
+    applied_update_id: &str,
+    stored_update_sha256: Option<String>,
+    applied_content_sha256: &str,
+    actor: &KnowledgeActorIdV1,
+    session_id: &str,
+    correlation_id: &str,
+) -> Result<AiEditApplyOutcomeV1, LeaseFlowError> {
+    let proposal_id = proposal.proposal_id.as_str();
+    let receipt_id = new_denial_receipt_id();
+    let update_row_absent = stored_update_sha256.is_none();
+    let denial_payload = json!({
+        "schema_id": AI_EDIT_APPLIED_UPDATE_MISSING_SCHEMA_ID,
+        "proposal_id": proposal_id,
+        "applied_update_id": applied_update_id,
+        "applied_content_sha256": applied_content_sha256,
+        "stored_update_sha256": stored_update_sha256.clone(),
+        "approved_diff_sha256": proposal.diff_sha256,
+        // true => no kernel_crdt_updates row exists; false => row exists but its
+        // persisted hash disagrees with the presented content.
+        "update_row_absent": update_row_absent,
+    });
+    let event = NewKernelEvent::builder(
+        format!("KTR-KNOWLEDGE-AI-EDIT-{}", proposal.crdt_document_id),
+        session_id.to_string(),
+        KernelEventType::AiEditProposalDecided,
+        actor.to_kernel_actor(),
+    )
+    .aggregate("knowledge_ai_edit_proposal", proposal_id.to_string())
+    .idempotency_key(format!(
+        "knowledge-ai-edit-applied-missing-denial:{receipt_id}"
+    ))
+    .correlation_id(correlation_id.to_string())
+    .source_component("knowledge_crdt_ai_edit_proposal")
+    .payload(denial_payload.clone())
+    .build()
+    .map_err(|error| LeaseFlowError::Event(error.to_string()))?;
+    let stored_event = db
+        .append_kernel_event(event)
+        .await
+        .map_err(|error| LeaseFlowError::Event(error.to_string()))?;
+
+    let receipt = insert_denial_receipt(
+        pool,
+        NewKnowledgeCrdtDenialReceipt {
+            receipt_id: receipt_id.clone(),
+            receipt_kind: "ai_edit_applied_update_missing".to_string(),
+            workspace_id: proposal.workspace_id.clone(),
+            document_id: Some(proposal.document_id.clone()),
+            crdt_document_id: Some(proposal.crdt_document_id.clone()),
+            scope_ref: format!("proposal:{proposal_id}"),
+            actor_id: actor.canonical(),
+            actor_kind: actor.kind().as_str().to_string(),
+            session_id: session_id.to_string(),
+            correlation_id: correlation_id.to_string(),
+            denial_payload,
+            event_ledger_event_id: stored_event.event_id.clone(),
+            idempotency_key: format!("knowledge-ai-edit-applied-missing-denial:{receipt_id}"),
+        },
+    )
+    .await?;
+
+    Ok(AiEditApplyOutcomeV1::UpdateRowMissing {
+        applied_update_id: applied_update_id.to_string(),
+        stored_update_sha256,
+        applied_content_sha256: applied_content_sha256.to_string(),
         denial_receipt_id: receipt.receipt_id,
         event_ledger_event_id: stored_event.event_id,
     })
