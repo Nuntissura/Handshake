@@ -831,6 +831,132 @@ export async function createDiagnostic(input: DiagnosticInput): Promise<Diagnost
   return request("/api/diagnostics", { method: "POST", body: input });
 }
 
+export type UserManualPageSummary = {
+  slug: string;
+  title: string;
+  page_kind: string;
+  audience: string;
+  manual_version: string;
+  content_hash: string;
+  status: string;
+  updated_at: string;
+};
+
+export type UserManualPage = UserManualPageSummary & {
+  page_id?: string;
+  body?: unknown;
+  source_kind?: string;
+  spec_anchors?: string[];
+  superseded_by_slug?: string | null;
+  ledger_event_id?: string | null;
+  created_at?: string;
+};
+
+export type UserManualSection = {
+  section_id: string;
+  page_id?: string;
+  position?: number;
+  section_kind?: string;
+  title: string;
+  body_md: string;
+  body_json?: unknown | null;
+};
+
+export type UserManualAnchor = {
+  anchor_id: string;
+  page_id?: string;
+  anchor_kind: string;
+  anchor_value: string;
+  http_method?: string;
+};
+
+export type UserManualPagesResponse = {
+  manual_version: string;
+  route_namespace: string;
+  count: number;
+  pages: UserManualPageSummary[];
+};
+
+export type UserManualPageResponse = {
+  page: UserManualPage;
+  sections: UserManualSection[];
+  anchors: UserManualAnchor[];
+  bootstrap_receipt_event_id: string;
+  bootstrap_identity_used: boolean;
+};
+
+export type UserManualSearchHit = {
+  kind?: "page" | "section" | "tool" | string;
+  result_kind?: "page" | "section" | "tool" | string;
+  result_ref: string;
+  page_slug: string | null;
+  title: string;
+  excerpt: string;
+};
+
+export type UserManualSearchResponse = {
+  query: string;
+  count: number;
+  results: UserManualSearchHit[];
+};
+
+export type UserManualAccessPoint = {
+  access_point_id: string;
+  host_surface: string;
+  entry_kind: string;
+  target_page_slug: string;
+  ui_wiring_route: string;
+  stable_element_id: string;
+  note: string;
+  target_resolves: boolean;
+};
+
+export type UserManualAccessPointsResponse = {
+  count: number;
+  access_points: UserManualAccessPoint[];
+};
+
+export type UserManualPagesQuery = {
+  kind?: string;
+  audience?: string;
+  limit?: number;
+};
+
+function userManualQuery(params: Record<string, string | number | undefined>): string {
+  const query = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined) query.append(key, String(value));
+  });
+  return query.toString();
+}
+
+export async function listUserManualPages(
+  params: UserManualPagesQuery = {},
+): Promise<UserManualPagesResponse> {
+  const query = userManualQuery({
+    kind: params.kind,
+    audience: params.audience,
+    limit: params.limit,
+  });
+  return request(query ? `/api/usermanual/pages?${query}` : "/api/usermanual/pages");
+}
+
+export async function getUserManualPage(slug: string): Promise<UserManualPageResponse> {
+  return request(`/api/usermanual/pages/${encodeURIComponent(slug)}`);
+}
+
+export async function searchUserManual(
+  q: string,
+  limit = 25,
+): Promise<UserManualSearchResponse> {
+  const query = userManualQuery({ q, limit });
+  return request(`/api/usermanual/search?${query}`);
+}
+
+export async function listUserManualAccessPoints(): Promise<UserManualAccessPointsResponse> {
+  return request("/api/usermanual/access-points");
+}
+
 export async function getAtelierRoles(): Promise<AtelierRolesResponse> {
   return request("/api/atelier/roles");
 }

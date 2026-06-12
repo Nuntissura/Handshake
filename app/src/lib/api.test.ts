@@ -4,7 +4,10 @@ import {
   applyAtelierAiTagSuggestion,
   archiveAtelierDeletionTargets,
   getKernelDccProjection,
+  getUserManualPage,
   importAtelierClipboardImage,
+  listUserManualAccessPoints,
+  listUserManualPages,
   listAtelierAiTagSuggestionsForCharacter,
   listAtelierFilesystemHealthFindings,
   listAtelierStealthWindows,
@@ -15,6 +18,7 @@ import {
   rejectAtelierAiTagSuggestion,
   restoreAtelierDeletionTargets,
   runAtelierFilesystemHealthCheck,
+  searchUserManual,
 } from "./api";
 
 describe("Kernel DCC API projection composition", () => {
@@ -543,6 +547,133 @@ describe("Atelier API actor context", () => {
         }),
         body: expect.stringContaining("capgrant://media_downloader/MediaDownloader/evidence-1"),
       }),
+    );
+  });
+});
+
+describe("UserManual API client", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("fetches the manual page index from the canonical /api/usermanual route", async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      jsonResponse({
+        manual_version: "2.0.0",
+        route_namespace: "/usermanual",
+        count: 1,
+        pages: [
+          {
+            slug: "manual-toc",
+            title: "Manual TOC",
+            page_kind: "guide",
+            audience: "model",
+            manual_version: "2.0.0",
+            content_hash: "hash-manual-toc",
+            status: "current",
+            updated_at: "2026-06-12T00:00:00Z",
+          },
+        ],
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await listUserManualPages({ audience: "model", limit: 25 });
+
+    expect(result.pages[0].slug).toBe("manual-toc");
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://127.0.0.1:37501/api/usermanual/pages?audience=model&limit=25",
+      expect.objectContaining({ method: "GET" }),
+    );
+  });
+
+  it("fetches one manual page by slug with encoded path parameters", async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      jsonResponse({
+        page: { slug: "manual-toc", title: "Manual TOC", manual_version: "2.0.0" },
+        sections: [{ section_id: "sec-1", title: "Navigation", body_md: "Start here." }],
+        anchors: [{ anchor_id: "a-1", anchor_kind: "http_route", anchor_value: "/usermanual/pages" }],
+        bootstrap_receipt_event_id: "evt-user-manual-opened",
+        bootstrap_identity_used: true,
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await getUserManualPage("manual/toc");
+
+    expect(result.bootstrap_identity_used).toBe(true);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://127.0.0.1:37501/api/usermanual/pages/manual%2Ftoc",
+      expect.objectContaining({ method: "GET" }),
+    );
+  });
+
+  it("searches the manual through the backend search route", async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      jsonResponse({
+        query: "recovery",
+        count: 1,
+        results: [
+          {
+            result_kind: "section",
+            result_ref: "sec-recovery",
+            page_slug: "state-recovery-guide",
+            title: "State recovery",
+            excerpt: "Recover failed startup state.",
+          },
+        ],
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await searchUserManual("recovery", 10);
+
+    expect(result.results[0].page_slug).toBe("state-recovery-guide");
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://127.0.0.1:37501/api/usermanual/search?q=recovery&limit=10",
+      expect.objectContaining({ method: "GET" }),
+    );
+  });
+
+  it("lists backend-declared in-app access points with stable element ids", async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      jsonResponse({
+        count: 2,
+        access_points: [
+          {
+            access_point_id: "ap.diagnostics.manual_tab",
+            host_surface: "diagnostics",
+            entry_kind: "panel",
+            target_page_slug: "manual-toc",
+            ui_wiring_route: "/usermanual/pages/manual-toc",
+            stable_element_id: "hs-usermanual-diagnostics-tab",
+            note: "Diagnostics manual tab",
+            target_resolves: true,
+          },
+          {
+            access_point_id: "ap.command_palette.search_manual",
+            host_surface: "command_palette",
+            entry_kind: "command",
+            target_page_slug: "manual-toc",
+            ui_wiring_route: "/usermanual/search",
+            stable_element_id: "hs-usermanual-palette-search",
+            note: "Palette search",
+            target_resolves: true,
+          },
+        ],
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await listUserManualAccessPoints();
+
+    expect(result.access_points.map((point) => point.stable_element_id)).toEqual([
+      "hs-usermanual-diagnostics-tab",
+      "hs-usermanual-palette-search",
+    ]);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://127.0.0.1:37501/api/usermanual/access-points",
+      expect.objectContaining({ method: "GET" }),
     );
   });
 });

@@ -6,6 +6,8 @@ export type CommandPaletteAction = {
   description?: string;
   keywords?: string[];
   disabled?: boolean;
+  stableId?: string;
+  testId?: string;
 };
 
 type Props = {
@@ -116,6 +118,8 @@ export function CommandPalette({ open, title = "Command Palette", actions, foote
                     disabled={disabled}
                     aria-selected={isSelected}
                     role="option"
+                    data-stable-id={action.stableId}
+                    data-testid={action.testId ?? (action.stableId ? `command-palette-action-${action.stableId}` : undefined)}
                   >
                     <div className="command-palette__item-title">
                       <strong>{action.label}</strong>

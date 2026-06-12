@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { vi } from "vitest";
 
 vi.mock("@excalidraw/excalidraw", () => ({
@@ -81,6 +82,98 @@ vi.mock("./lib/api", () => ({
   listAtelierIntakeBatches: vi.fn(async () => []),
   listAtelierStealthWindows: vi.fn(async () => []),
   openAtelierIntakeBatch: vi.fn(async () => ({})),
+  listUserManualAccessPoints: vi.fn(async () => ({
+    count: 3,
+    access_points: [
+      {
+        access_point_id: "ap.diagnostics.manual_tab",
+        host_surface: "diagnostics",
+        entry_kind: "panel",
+        target_page_slug: "manual-toc",
+        ui_wiring_route: "/usermanual/pages/manual-toc",
+        stable_element_id: "hs-usermanual-diagnostics-tab",
+        note: "Diagnostics manual tab",
+        target_resolves: true,
+      },
+      {
+        access_point_id: "ap.command_palette.open_manual",
+        host_surface: "command_palette",
+        entry_kind: "command",
+        target_page_slug: "manual-toc",
+        ui_wiring_route: "/usermanual/pages/manual-toc",
+        stable_element_id: "hs-usermanual-palette-open",
+        note: "Palette open",
+        target_resolves: true,
+      },
+      {
+        access_point_id: "ap.command_palette.search_manual",
+        host_surface: "command_palette",
+        entry_kind: "command",
+        target_page_slug: "manual-toc",
+        ui_wiring_route: "/usermanual/search",
+        stable_element_id: "hs-usermanual-palette-search",
+        note: "Palette search",
+        target_resolves: true,
+      },
+    ],
+  })),
+  listUserManualPages: vi.fn(async () => ({
+    manual_version: "2.0.0",
+    route_namespace: "/usermanual",
+    count: 1,
+    pages: [
+      {
+        slug: "manual-toc",
+        title: "Manual TOC",
+        page_kind: "guide",
+        audience: "model",
+        manual_version: "2.0.0",
+        content_hash: "hash-manual-toc",
+        status: "current",
+        updated_at: "2026-06-12T00:00:00Z",
+      },
+    ],
+  })),
+  getUserManualPage: vi.fn(async () => ({
+    page: {
+      page_id: "page-manual-toc",
+      slug: "manual-toc",
+      title: "Manual TOC",
+      page_kind: "guide",
+      audience: "model",
+      manual_version: "2.0.0",
+      content_hash: "hash-manual-toc",
+      status: "current",
+      updated_at: "2026-06-12T00:00:00Z",
+    },
+    sections: [
+      {
+        section_id: "section-navigation",
+        page_id: "page-manual-toc",
+        position: 0,
+        section_kind: "body",
+        title: "Navigation",
+        body_md: "Start with the page index, then open a task-sized guide.",
+        body_json: null,
+      },
+    ],
+    anchors: [],
+    bootstrap_receipt_event_id: "evt-manual-opened",
+    bootstrap_identity_used: true,
+  })),
+  searchUserManual: vi.fn(async () => ({
+    query: "recovery",
+    count: 1,
+    results: [
+      {
+        result_kind: "section",
+        result_ref: "section-recovery",
+        page_slug: "manual-toc",
+        title: "Manual recovery",
+        excerpt: "Recover failed startup state.",
+      },
+    ],
+  })),
   getKernelDccProjection: vi.fn(async () => ({
     schema_id: "hsk.kernel.dcc_mvp_runtime_surface@1",
     surface_id: "dcc-app-backend-test",
@@ -306,7 +399,11 @@ import {
   createDiagnostic,
   getEvents,
   getKernelDccProjection,
+  getUserManualPage,
+  listUserManualAccessPoints,
+  listUserManualPages,
   listWorkspaces,
+  searchUserManual,
   type FlightEvent,
 } from "./lib/api";
 
@@ -435,6 +532,88 @@ it("loads the backend Kernel DCC projection when module pane is set to CKC", asy
   expect(screen.getAllByText("session-app-backend").length).toBeGreaterThan(0);
   expect(document.querySelector('[data-stable-id="dcc.session_spawn_tree.node.session-app-backend"]')).not.toBeNull();
   await waitFor(() => expect(vi.mocked(getKernelDccProjection)).toHaveBeenCalledTimes(1));
+});
+
+it("opens the UserManual diagnostics tab from the app command palette", async () => {
+  vi.mocked(listUserManualAccessPoints).mockClear();
+  vi.mocked(listUserManualPages).mockClear();
+  vi.mocked(getUserManualPage).mockClear();
+
+  render(<App />);
+
+  fireEvent.click(screen.getByTestId("app-command-palette.open"));
+  fireEvent.click(await screen.findByTestId("command-palette-action-hs-usermanual-palette-open"));
+
+  const panel = await screen.findByTestId("usermanual-panel");
+  expect(panel).toHaveAttribute("data-stable-id", "hs-usermanual-panel");
+  expect(screen.getByTestId("pane-pane-a")).toHaveAttribute("data-pane-type", "user-manual");
+  expect(screen.getByTestId("pane-pane-a.tab.user-manual")).toHaveAttribute(
+    "data-stable-id",
+    "hs-usermanual-diagnostics-tab",
+  );
+  expect(document.querySelectorAll('[data-stable-id="hs-usermanual-diagnostics-tab"]')).toHaveLength(1);
+  expect(await screen.findByText("Manual TOC")).toBeInTheDocument();
+  expect(listUserManualAccessPoints).toHaveBeenCalledTimes(1);
+  expect(listUserManualPages).toHaveBeenCalledTimes(1);
+  expect(getUserManualPage).toHaveBeenCalledWith("manual-toc");
+});
+
+it("puts the diagnostics stable selector on the UserManual tab entry point", () => {
+  render(<App />);
+
+  const tab = screen.getByTestId("pane-pane-a.tab.user-manual");
+
+  expect(tab.tagName).toBe("BUTTON");
+  expect(tab).toHaveAttribute("data-stable-id", "hs-usermanual-diagnostics-tab");
+});
+
+it("keeps the diagnostics stable selector canonical when UserManual opens in another pane", async () => {
+  render(<App />);
+
+  fireEvent.click(screen.getByTestId("pane-pane-b.tab.problems"));
+  fireEvent.click(screen.getByTestId("app-command-palette.open"));
+  fireEvent.click(await screen.findByTestId("command-palette-action-hs-usermanual-palette-open"));
+
+  expect(screen.getByTestId("pane-pane-b")).toHaveAttribute("data-pane-type", "user-manual");
+  expect(screen.getByTestId("pane-pane-a.tab.user-manual")).toHaveAttribute(
+    "data-stable-id",
+    "hs-usermanual-diagnostics-tab",
+  );
+  expect(screen.getByTestId("pane-pane-b.tab.user-manual")).toHaveAttribute(
+    "data-stable-id",
+    "pane-pane-b.tab.user-manual",
+  );
+  expect(document.querySelectorAll('[data-stable-id="hs-usermanual-diagnostics-tab"]')).toHaveLength(1);
+});
+
+it("runs the UserManual search command against the backend client using the bottom search text", async () => {
+  vi.mocked(searchUserManual).mockClear();
+
+  render(<App />);
+
+  fireEvent.change(screen.getByTestId("search-input"), { target: { value: "recovery" } });
+  fireEvent.click(screen.getByTestId("app-command-palette.open"));
+  fireEvent.click(await screen.findByTestId("command-palette-action-hs-usermanual-palette-search"));
+
+  expect(await screen.findByTestId("usermanual-search-results")).toHaveTextContent("Manual recovery");
+  await waitFor(() => expect(searchUserManual).toHaveBeenCalledWith("recovery", 25));
+});
+
+it("declares a narrow viewport layout override that stacks the pane grid for UserManual readability", () => {
+  const css = readFileSync("src/App.css", "utf8");
+
+  expect(css).toMatch(
+    /@media \(max-width: 700px\) \{[\s\S]*?\.main-pane-grid \{[\s\S]*?grid-template-columns: 1fr;[\s\S]*?grid-template-rows: none;/,
+  );
+  expect(css).toMatch(
+    /@media \(max-width: 700px\) \{[\s\S]*?\.main-pane\[data-pane-id="pane-a"\],[\s\S]*?\.main-pane\[data-pane-id="pane-b"\],[\s\S]*?\.main-pane\[data-pane-id="pane-c"\],[\s\S]*?\.main-pane\[data-pane-id="pane-d"\] \{[\s\S]*?grid-column: 1;[\s\S]*?grid-row: auto;/,
+  );
+  expect(css).toMatch(
+    /@media \(max-width: 700px\) \{[\s\S]*?\.main-divider \{[\s\S]*?display: none;/,
+  );
+  expect(css).toMatch(
+    /@media \(max-width: 700px\) \{[\s\S]*?\.usermanual-search \.filter-actions \{[\s\S]*?flex-direction: column;/,
+  );
 });
 
 describe("FlightRecorderView deep links", () => {

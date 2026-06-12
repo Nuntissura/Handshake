@@ -35,6 +35,8 @@ import type { ViewMode } from "./lib/viewMode";
 import { loadViewModeFromStorage, saveViewModeToStorage } from "./lib/viewMode";
 import { SystemStatus } from "./components/SystemStatus";
 import { FlightRecorderView } from "./components/FlightRecorderView";
+import { CommandPalette, type CommandPaletteAction } from "./components/CommandPalette";
+import { UserManualPanel } from "./components/UserManualPanel";
 import {
   EvidenceDrawer,
   EvidenceSelection,
@@ -60,6 +62,7 @@ type PaneTabId =
   | "problems"
   | "jobs"
   | "timeline"
+  | "user-manual"
   | "atelier"
   | "visual-debugger";
 
@@ -98,6 +101,7 @@ const TAB_LABEL_BY_ID: Record<PaneTabId, string> = {
   problems: "Problems",
   jobs: "Jobs",
   timeline: "Timeline",
+  "user-manual": "UserManual",
   atelier: "Atelier",
   "visual-debugger": "Visual Debugger",
 };
@@ -113,14 +117,14 @@ const MODULE_DEFINITIONS: {
     id: "MAIN",
     label: "MAIN",
     dataId: "module-main",
-    tabs: ["workspace", "problems", "jobs", "timeline"],
+    tabs: ["workspace", "user-manual", "problems", "jobs", "timeline"],
     defaultTab: "workspace",
   },
   {
     id: "CKC",
     label: "CKC",
     dataId: "module-ckc",
-    tabs: ["atelier", "kernel-dcc", "problems", "jobs", "timeline"],
+    tabs: ["atelier", "kernel-dcc", "user-manual", "problems", "jobs", "timeline"],
     defaultTab: "atelier",
   },
   {
@@ -141,14 +145,14 @@ const MODULE_DEFINITIONS: {
     id: "LAB",
     label: "LAB",
     dataId: "module-lab",
-    tabs: ["inference-lab", "model-runtime", "swarm", "fonts", "kernel-dcc"],
+    tabs: ["inference-lab", "model-runtime", "swarm", "fonts", "kernel-dcc", "user-manual"],
     defaultTab: "inference-lab",
   },
   {
     id: "STUDIO",
     label: "STUDIO",
     dataId: "module-studio",
-    tabs: ["model-runtime", "swarm", "inference-lab", "fonts", "kernel-dcc"],
+    tabs: ["model-runtime", "swarm", "inference-lab", "fonts", "kernel-dcc", "user-manual"],
     defaultTab: "model-runtime",
   },
 ];
@@ -158,7 +162,7 @@ const DEFAULT_PANES: PaneState[] = [
     id: "pane-a",
     module: "MAIN",
     activeTab: "workspace",
-    tabs: ["workspace", "problems", "jobs", "timeline"],
+    tabs: ["workspace", "user-manual", "problems", "jobs", "timeline"],
     locked: false,
     projectRef: "project-main",
   },
@@ -193,6 +197,7 @@ const DEFAULT_PROJECTS: ProjectItem[] = [{ id: "project-main", name: "Project Ma
 const SPLIT_MIN = 0.2;
 const SPLIT_MAX = 0.8;
 const SPLIT_STEP = 0.05;
+const USERMANUAL_DIAGNOSTICS_TAB_STABLE_ID = "hs-usermanual-diagnostics-tab";
 
 const clampSplit = (value: number) => Math.max(SPLIT_MIN, Math.min(SPLIT_MAX, value));
 
@@ -228,6 +233,8 @@ function App() {
   const [fileDrawerOpen, setFileDrawerOpen] = useState(true);
   const [bottomDrawerOpen, setBottomDrawerOpen] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [appCommandPaletteOpen, setAppCommandPaletteOpen] = useState(false);
+  const [userManualSearchRequest, setUserManualSearchRequest] = useState({ query: "", requestId: 0 });
   const [splitWeights, setSplitWeights] = useState<SplitWeights>({ vertical: 0.5, horizontal: 0.55 });
   const paneGridRef = useRef<HTMLDivElement>(null);
 
@@ -322,6 +329,58 @@ function App() {
         };
       }),
     );
+  };
+
+  const openUserManualPane = (searchQuery?: string) => {
+    setPanes((current) =>
+      current.map((pane) => {
+        if (pane.id !== activePaneId) {
+          return pane;
+        }
+        return {
+          ...pane,
+          activeTab: "user-manual",
+          tabs: uniqueTabs(["user-manual", ...pane.tabs]),
+        };
+      }),
+    );
+    if (searchQuery !== undefined) {
+      setUserManualSearchRequest((current) => ({
+        query: searchQuery,
+        requestId: current.requestId + 1,
+      }));
+    }
+  };
+
+  const appCommandActions: CommandPaletteAction[] = [
+    {
+      id: "usermanual.open",
+      label: "UserManual: Open",
+      description: "Open the in-app UserManual diagnostics tab.",
+      keywords: ["manual", "usermanual", "help", "diagnostics"],
+      stableId: "hs-usermanual-palette-open",
+    },
+    {
+      id: "usermanual.search",
+      label: "UserManual: Search",
+      description: searchText.trim()
+        ? `Search UserManual for "${searchText.trim()}".`
+        : "Open UserManual search.",
+      keywords: ["manual", "usermanual", "search", "help"],
+      stableId: "hs-usermanual-palette-search",
+    },
+  ];
+
+  const runAppCommand = (actionId: string) => {
+    if (actionId === "usermanual.open") {
+      openUserManualPane();
+      setAppCommandPaletteOpen(false);
+      return;
+    }
+    if (actionId === "usermanual.search") {
+      openUserManualPane(searchText.trim());
+      setAppCommandPaletteOpen(false);
+    }
   };
 
   const isSplitterLocked = (axis: DragAxis) =>
@@ -485,6 +544,13 @@ function App() {
       content = <ProblemsView onSelect={setSelection} />;
     } else if (pane.activeTab === "jobs") {
       content = <JobsView onSelect={setSelection} focusJobId={focusJobId} />;
+    } else if (pane.activeTab === "user-manual") {
+      content = (
+        <UserManualPanel
+          initialSearchQuery={userManualSearchRequest.query}
+          searchRequestId={userManualSearchRequest.requestId}
+        />
+      );
     } else if (pane.activeTab === "atelier") {
       content = <AtelierPanel />;
     } else if (pane.activeTab === "visual-debugger") {
@@ -517,13 +583,17 @@ function App() {
           <div className="main-pane__tabs" data-stable-id={`pane-${pane.id}-tabs`}>
             {pane.tabs.map((tab) => {
               const tabId = `pane-${pane.id}.tab.${tab}`;
+              const tabStableId =
+                tab === "user-manual" && pane.id === "pane-a"
+                  ? USERMANUAL_DIAGNOSTICS_TAB_STABLE_ID
+                  : tabId;
               return (
                 <button
                   key={tabId}
                   type="button"
                   className={pane.activeTab === tab ? "main-pane__tab main-pane__tab--active" : "main-pane__tab"}
                   onClick={() => setActiveTabForPane(pane.id, tab)}
-                  data-stable-id={tabId}
+                  data-stable-id={tabStableId}
                   data-testid={tabId}
                   data-pane-tab={tab}
                 >
@@ -774,6 +844,14 @@ function App() {
                 <button type="button" onClick={() => setAns001TimelineOpen(true)}>
                   ANS-001 Timeline
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setAppCommandPaletteOpen(true)}
+                  data-stable-id="app-command-palette.open"
+                  data-testid="app-command-palette.open"
+                >
+                  Commands
+                </button>
               </div>
 
               {bottomDrawerOpen ? (
@@ -822,6 +900,13 @@ function App() {
         onClose={() => setSettingsOpen(false)}
         viewMode={viewMode}
         onViewModeChange={setViewMode}
+      />
+      <CommandPalette
+        open={appCommandPaletteOpen}
+        title="App commands"
+        actions={appCommandActions}
+        onAction={runAppCommand}
+        onClose={() => setAppCommandPaletteOpen(false)}
       />
       {exportScope && (
         <DebugBundleExport

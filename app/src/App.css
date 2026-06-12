@@ -1093,6 +1093,147 @@ body {
   min-height: 260px;
 }
 
+.usermanual-panel {
+  min-height: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  container-type: inline-size;
+}
+
+.usermanual-layout {
+  min-height: 0;
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  overflow: auto;
+}
+
+.usermanual-sidebar,
+.usermanual-page {
+  min-width: 0;
+  overflow: auto;
+}
+
+.usermanual-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border-bottom: 1px solid var(--hs-color-border);
+  padding-bottom: 12px;
+  max-height: min(45vh, 360px);
+}
+
+.usermanual-search {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.usermanual-search .filter-actions {
+  align-items: stretch;
+}
+
+.usermanual-search input {
+  min-width: 0;
+  flex: 1;
+}
+
+.usermanual-page-list,
+.usermanual-search-results,
+.usermanual-access-points {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.usermanual-page-list h3,
+.usermanual-search-results h3,
+.usermanual-access-points h3 {
+  margin: 0;
+  font-size: 14px;
+}
+
+.usermanual-page-list .job-card,
+.usermanual-search-results .job-card {
+  width: 100%;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.usermanual-search-result--non-page {
+  cursor: default;
+}
+
+.usermanual-access-point {
+  border: 1px solid var(--hs-color-border);
+  border-radius: 8px;
+  padding: 8px;
+  display: grid;
+  gap: 4px;
+  background: var(--hs-color-bg);
+  font-size: 12px;
+  word-break: break-word;
+}
+
+.usermanual-page {
+  padding-right: 4px;
+}
+
+.usermanual-page__header {
+  border-bottom: 1px solid var(--hs-color-border);
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+}
+
+.usermanual-page__header h3 {
+  margin: 0 0 4px;
+  font-size: 22px;
+}
+
+.usermanual-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.usermanual-section {
+  max-width: 84ch;
+}
+
+.usermanual-section h4 {
+  margin: 0 0 6px;
+  font-size: 16px;
+}
+
+.usermanual-section p {
+  margin: 0 0 8px;
+  line-height: 1.55;
+}
+
+.usermanual-anchors {
+  margin-top: 14px;
+}
+
+@container (min-width: 760px) {
+  .usermanual-layout {
+    grid-template-columns: minmax(240px, 320px) minmax(0, 1fr);
+    overflow: hidden;
+  }
+
+  .usermanual-sidebar {
+    border-right: 1px solid var(--hs-color-border);
+    border-bottom: 0;
+    padding-right: 12px;
+    padding-bottom: 0;
+    max-height: none;
+  }
+}
+
 .tabs {
   display: flex;
   gap: 8px;
@@ -2411,6 +2552,110 @@ body {
 
   .main-pane-grid {
     min-height: 420px;
+  }
+}
+
+@media (max-width: 700px) {
+  .app-shell--main-v1 {
+    width: 100%;
+    padding: 8px;
+    align-items: stretch;
+    overflow-x: hidden;
+  }
+
+  .app-layout,
+  .main-window-surface,
+  .app-main,
+  .main-workarea,
+  .main-pane-grid,
+  .main-pane,
+  .content-panel,
+  .content-card {
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .app-header {
+    padding: 14px;
+    border-radius: 12px;
+  }
+
+  .app-header-right {
+    width: 100%;
+    align-items: stretch;
+  }
+
+  .main-window-surface,
+  .main-workarea {
+    gap: 8px;
+  }
+
+  .left-rail {
+    border-radius: 10px;
+    padding: 8px;
+  }
+
+  .main-workarea {
+    min-height: 0;
+  }
+
+  .main-pane-grid {
+    grid-template-columns: 1fr;
+    grid-template-rows: none;
+    gap: 8px;
+    min-height: 0;
+    background: transparent;
+    padding: 0;
+  }
+
+  .main-pane[data-pane-id="pane-a"],
+  .main-pane[data-pane-id="pane-b"],
+  .main-pane[data-pane-id="pane-c"],
+  .main-pane[data-pane-id="pane-d"] {
+    grid-column: 1;
+    grid-row: auto;
+    min-height: 360px;
+  }
+
+  .main-divider {
+    display: none;
+  }
+
+  .content-panel {
+    padding: 10px;
+  }
+
+  .content-card {
+    border-radius: 8px;
+    padding: 12px;
+  }
+
+  .usermanual-panel {
+    height: auto;
+    overflow: visible;
+  }
+
+  .usermanual-layout {
+    overflow: visible;
+  }
+
+  .usermanual-sidebar {
+    max-height: none;
+  }
+
+  .usermanual-search .filter-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .usermanual-search .filter-actions button {
+    width: 100%;
+  }
+
+  .usermanual-page__header h3 {
+    font-size: 18px;
+    overflow-wrap: anywhere;
   }
 }
 /* ---- Swarm Control Room (MT-205 operator surface) ---- */
