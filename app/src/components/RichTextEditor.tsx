@@ -36,6 +36,8 @@ import {
   resolveShortcut,
   bindingsForAction,
   PALETTE_OPEN_ACTION,
+  FIND_OPEN_ACTION,
+  REPLACE_OPEN_ACTION,
 } from "../lib/editor/editor_keymap";
 import {
   snapshotFromOffsets,
@@ -51,8 +53,20 @@ import {
 import {
   buildEditorDebugSnapshot,
   EDITOR_DEBUG_GLOBAL_KEY,
+  EDITOR_LAST_EXPORT_GLOBAL_KEY,
   type EditorDebugSnapshot,
 } from "../lib/editor/visual_debug";
+import {
+  EXPORT_FORMATS,
+  exportHtml,
+  exportMarkdown,
+  exportPlainText,
+  exportProseMirrorJson,
+  buildExportFilename,
+  type ExportFormatId,
+} from "../lib/editor/export_formats";
+import { saveTextToFile } from "../lib/editor/save_to_file";
+import { FindReplacePanel } from "./FindReplacePanel";
 import type {
   EditorBackendError,
   EditorBackendErrorKind,
@@ -127,6 +141,47 @@ export function RichTextEditor(props: RichTextEditorProps) {
   return <RichTextEditorInner extensions={extensions} {...props} />;
 }
 
+/**
+ * Component-level palette commands (MT-244): UI-state actions (find/replace
+ * panel, export menu, export formats) that operate on the editor COMPONENT
+ * rather than the document, so they live beside — not inside — the pure
+ * editor command catalog.
+ */
+interface ComponentCommand {
+  id: string;
+  label: string;
+  keywords: string[];
+}
+
+const COMPONENT_COMMANDS: readonly ComponentCommand[] = [
+  { id: FIND_OPEN_ACTION, label: "Find in document", keywords: ["find", "search", "match"] },
+  { id: REPLACE_OPEN_ACTION, label: "Find and replace", keywords: ["replace", "find", "substitute"] },
+  ...EXPORT_FORMATS.map((format) => ({
+    id: `export.${format.id}`,
+    label: `Export: ${format.label}`,
+    keywords: ["export", "save", "download", format.extension, format.id],
+  })),
+];
+
+function filterComponentCommands(query: string): ComponentCommand[] {
+  const q = query.trim().toLowerCase();
+  if (q.length === 0) return [...COMPONENT_COMMANDS];
+  return COMPONENT_COMMANDS.filter(
+    (cmd) =>
+      cmd.id.toLowerCase().includes(q) ||
+      cmd.label.toLowerCase().includes(q) ||
+      cmd.keywords.some((k) => k.toLowerCase().includes(q)),
+  );
+}
+
+interface LastExportInfo {
+  formatId: ExportFormatId;
+  filename: string;
+  bytes: number;
+  embedErrors: number;
+  inlineSkips: number;
+}
+
 function RichTextEditorInner({
   extensions,
   initialContent,
@@ -136,6 +191,8 @@ function RichTextEditorInner({
   presencePolicy = DEFAULT_PRESENCE_POLICY,
   onSelectionSnapshot,
   backendError = null,
+  embedContext,
+  documentTitle,
 }: RichTextEditorProps & { extensions: AnyExtension[] }) {
   const [, forceRefresh] = useState(0);
   const [paletteOpen, setPaletteOpen] = useState(false);
@@ -143,6 +200,13 @@ function RichTextEditorInner({
   const [pendingCommand, setPendingCommand] = useState<EditorCommandDescriptor | null>(null);
   const [argValues, setArgValues] = useState<Record<string, string>>({});
   const paletteInputRef = useRef<HTMLInputElement>(null);
+
+  // MT-244: find/replace panel + export menu state.
+  const [findPanel, setFindPanel] = useState<"closed" | "find" | "replace">("closed");
+  const [exportMenuOpen, setExportMenuOpen] = useState(false);
+  const [exportBusy, setExportBusy] = useState(false);
+  const [lastExport, setLastExport] = useState<LastExportInfo | null>(null);
+  const [exportError, setExportError] = useState<string | null>(null);
 
   const [debugSnapshot, setDebugSnapshot] = useState<EditorDebugSnapshot | null>(null);
 
@@ -222,7 +286,79 @@ function RichTextEditorInner({
     [editor],
   );
 
-  // Keyboard: explicit keymap (MT-170). Palette open + bound commands.
+  // MT-244: runs one save-to-format export end to end — build the projection
+  // from the live document, download it quietly, surface the outcome (typed
+  // inline error on failure, never silent), and publish a machine-readable
+  // result for the visual lane.
+  const runExport = useCallback(
+    async (formatId: ExportFormatId) => {
+      if (!editor || exportBusy) return;
+      const descriptor = EXPORT_FORMATS.find((format) => format.id === formatId);
+      if (!descriptor) return;
+      setExportBusy(true);
+      setExportError(null);
+      try {
+        const docJson = editor.getJSON();
+        const title = documentTitle ?? "handshake-document";
+        let content: string;
+        let embedErrors = 0;
+        let inlineSkips = 0;
+        if (formatId === "html_self_contained" || formatId === "html_reference_linked") {
+          const result = await exportHtml(docJson, {
+            mode: formatId === "html_self_contained" ? "self_contained" : "reference_linked",
+            title,
+            embedContext: embedContext ?? null,
+          });
+          content = result.html;
+          embedErrors = result.embedErrors.length;
+          inlineSkips = result.inlineSkips.length;
+        } else if (formatId === "markdown") {
+          content = exportMarkdown(docJson);
+        } else if (formatId === "plain_text") {
+          content = exportPlainText(docJson);
+        } else {
+          content = exportProseMirrorJson(docJson);
+        }
+        const filename = buildExportFilename(title, formatId);
+        const bytes = saveTextToFile(filename, content, descriptor.mimeType);
+        const info: LastExportInfo = { formatId, filename, bytes, embedErrors, inlineSkips };
+        setLastExport(info);
+        (globalThis as Record<string, unknown>)[EDITOR_LAST_EXPORT_GLOBAL_KEY] = {
+          ...info,
+          content,
+        };
+      } catch (error) {
+        setExportError(error instanceof Error ? error.message : String(error));
+      } finally {
+        setExportBusy(false);
+        setExportMenuOpen(false);
+      }
+    },
+    [editor, exportBusy, documentTitle, embedContext],
+  );
+
+  // MT-244: component-level command dispatch (find/replace/export surfaces).
+  const runComponentCommand = useCallback(
+    (id: string) => {
+      setPaletteOpen(false);
+      setPaletteQuery("");
+      if (id === FIND_OPEN_ACTION) {
+        setFindPanel("find");
+        return;
+      }
+      if (id === REPLACE_OPEN_ACTION) {
+        setFindPanel("replace");
+        return;
+      }
+      if (id.startsWith("export.")) {
+        void runExport(id.slice("export.".length) as ExportFormatId);
+      }
+    },
+    [runExport],
+  );
+
+  // Keyboard: explicit keymap (MT-170 + MT-244). Palette/find/replace +
+  // bound commands.
   useEffect(() => {
     if (!editor) return;
     const handler = (event: KeyboardEvent) => {
@@ -231,6 +367,10 @@ function RichTextEditorInner({
       event.preventDefault();
       if (action === PALETTE_OPEN_ACTION) {
         setPaletteOpen(true);
+        return;
+      }
+      if (action === FIND_OPEN_ACTION || action === REPLACE_OPEN_ACTION) {
+        setFindPanel(action === FIND_OPEN_ACTION ? "find" : "replace");
         return;
       }
       const cmd = EDITOR_COMMAND_BY_ID.get(action);
@@ -254,6 +394,7 @@ function RichTextEditorInner({
     ["embed", "graph", "mention", "manual"].includes(c.category),
   );
   const paletteResults = filterEditorCommands(paletteQuery);
+  const componentResults = filterComponentCommands(paletteQuery);
 
   return (
     <div
@@ -307,6 +448,26 @@ function RichTextEditorInner({
         <button
           type="button"
           className="tt-button"
+          data-testid="editor-open-find"
+          aria-label="Find in document (Ctrl/Cmd+F)"
+          title="Find in document (Ctrl/Cmd+F)"
+          onClick={() => setFindPanel((open) => (open === "closed" ? "find" : "closed"))}
+        >
+          Find
+        </button>
+        <button
+          type="button"
+          className="tt-button"
+          data-testid="editor-open-export"
+          aria-label="Export document (save to format)"
+          title="Export document (save to format)"
+          onClick={() => setExportMenuOpen(true)}
+        >
+          Export…
+        </button>
+        <button
+          type="button"
+          className="tt-button"
           data-testid="editor-open-palette"
           aria-label="Open command palette (more actions)"
           title="More actions (Ctrl/Cmd+P)"
@@ -316,10 +477,80 @@ function RichTextEditorInner({
         </button>
       </div>
 
+      {/* Document-wide find/replace (MT-244): prose + code blocks. */}
+      {findPanel !== "closed" && (
+        <FindReplacePanel
+          editor={editor}
+          withReplace={findPanel === "replace" && !readOnly}
+          onClose={() => setFindPanel("closed")}
+        />
+      )}
+
       {/* The editing surface. */}
       <div className="rich-text-editor__surface tiptap-scroll" data-testid="rich-text-editor-surface">
         <EditorContent editor={editor} />
       </div>
+
+      {/* Save-to-format export menu (MT-244 / DEC-003). */}
+      {exportMenuOpen && (
+        <div
+          className="rich-text-editor__export-menu"
+          role="dialog"
+          aria-label="Export document"
+          data-testid="editor-export-menu"
+          data-export-busy={exportBusy ? "true" : "false"}
+        >
+          <h4>Export document</h4>
+          <p className="muted small">
+            Exports are projections — the saved Handshake document stays the authority.
+          </p>
+          <ul className="rich-text-editor__export-list">
+            {EXPORT_FORMATS.map((format) => (
+              <li key={format.id}>
+                <button
+                  type="button"
+                  className="rich-text-editor__export-item"
+                  data-testid={`export-format-${format.id}`}
+                  disabled={exportBusy}
+                  onClick={() => void runExport(format.id)}
+                >
+                  <span>{format.label}</span>
+                  <span className="muted small">.{format.extension}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+          <button
+            type="button"
+            data-testid="editor-export-cancel"
+            disabled={exportBusy}
+            onClick={() => setExportMenuOpen(false)}
+          >
+            Cancel
+          </button>
+        </div>
+      )}
+
+      {/* Export outcome (typed, machine-readable; never silent). */}
+      {exportError && (
+        <div className="rich-text-editor__export-error" role="alert" data-testid="export-error">
+          Export failed: {exportError}
+        </div>
+      )}
+      {lastExport && !exportError && (
+        <div
+          className="rich-text-editor__export-status muted"
+          data-testid="export-status"
+          data-export-format={lastExport.formatId}
+          data-export-bytes={String(lastExport.bytes)}
+          data-export-embed-errors={String(lastExport.embedErrors)}
+          data-export-inline-skips={String(lastExport.inlineSkips)}
+        >
+          Exported {lastExport.filename} ({lastExport.bytes} bytes
+          {lastExport.embedErrors > 0 ? `, ${lastExport.embedErrors} embed error(s)` : ""}
+          {lastExport.inlineSkips > 0 ? `, ${lastExport.inlineSkips} inline skip(s)` : ""}).
+        </div>
+      )}
 
       {/* Command palette (MT-170) — overflow + searchable all-command surface. */}
       {paletteOpen && (
@@ -361,7 +592,22 @@ function RichTextEditorInner({
                 </button>
               </li>
             ))}
-            {paletteResults.length === 0 && (
+            {/* Component-level surfaces: find/replace + export (MT-244). */}
+            {componentResults.map((cmd) => (
+              <li key={cmd.id} role="option" aria-selected="false">
+                <button
+                  type="button"
+                  className="rich-text-editor__palette-item"
+                  data-testid={`palette-cmd-${cmd.id}`}
+                  data-command-id={cmd.id}
+                  onClick={() => runComponentCommand(cmd.id)}
+                >
+                  <span>{cmd.label}</span>
+                  <span className="muted small">{bindingsForAction(cmd.id)[0]?.chord ?? "editor"}</span>
+                </button>
+              </li>
+            ))}
+            {paletteResults.length === 0 && componentResults.length === 0 && (
               <li className="muted" data-testid="editor-command-palette-empty">
                 No matching commands.
               </li>

@@ -87,6 +87,10 @@ export const MonacoCodeBlockNode = Node.create({
     return [
       {
         tag: "pre[data-testid='monaco-code-block-serialized']",
+        // Must outrank StarterKit's generic `pre` codeBlock rule (default
+        // priority 50), otherwise a serialized Monaco block re-imports as a
+        // plain code block and loses language/hash (MT-244 round-trip).
+        priority: 100,
         getAttrs: (node) => (node instanceof HTMLElement ? parseAttrsFromElement(node) : false),
       },
     ];

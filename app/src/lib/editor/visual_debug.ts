@@ -94,6 +94,14 @@ export function buildEditorDebugSnapshot(editor: DebuggableEditor): EditorDebugS
 /** The stable global key the editor publishes its debug snapshot under. */
 export const EDITOR_DEBUG_GLOBAL_KEY = "__HS_EDITOR_DEBUG__" as const;
 
+/**
+ * The stable global key the editor publishes its LAST EXPORT result under
+ * (MT-244 save-to-format): { formatId, filename, bytes, embedErrors,
+ * inlineSkips } — lets the visual lane assert export outcomes without
+ * screen-scraping.
+ */
+export const EDITOR_LAST_EXPORT_GLOBAL_KEY = "__HS_EDITOR_LAST_EXPORT__" as const;
+
 /** The canonical set of stable selectors the editor surfaces expose (for docs/tests). */
 export const EDITOR_STABLE_SELECTORS = [
   "rich-text-editor",

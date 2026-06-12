@@ -26,6 +26,7 @@ import {
   DEFAULT_CODE_LANGUAGE,
 } from "../lib/monaco/language_registry";
 import { codeBlockHash } from "../lib/editor/code_block_serialization";
+import { registerCodeBlockFindHandle } from "../lib/editor/code_block_find_registry";
 import {
   dependencyFailures,
   formatDependencyFailureMessage,
@@ -34,12 +35,13 @@ import {
 type Editor = monaco.editor.IStandaloneCodeEditor;
 
 export function MonacoCodeBlockView(props: ReactNodeViewProps<HTMLElement>) {
-  const { node, updateAttributes, editor } = props;
+  const { node, updateAttributes, editor, getPos } = props;
   const language = String(node.attrs.language || DEFAULT_CODE_LANGUAGE);
   const code = String(node.attrs.code ?? "");
   const rtHash = String(node.attrs.contentHash ?? "");
 
   const hostRef = useRef<HTMLDivElement>(null);
+  const fallbackRef = useRef<HTMLTextAreaElement>(null);
   const editorRef = useRef<Editor | null>(null);
   const [mounted, setMounted] = useState(false);
   const [degraded, setDegraded] = useState(false);
@@ -47,6 +49,37 @@ export function MonacoCodeBlockView(props: ReactNodeViewProps<HTMLElement>) {
   const applyingRef = useRef(false);
 
   const isEditable = editor.isEditable;
+
+  // MT-244: register the find/replace reveal handle so document-wide find can
+  // highlight + scroll a match INSIDE this code block (Monaco when mounted,
+  // the degraded textarea otherwise). Unregisters on unmount.
+  useEffect(() => {
+    return registerCodeBlockFindHandle({
+      getPos,
+      reveal: (start, end) => {
+        const instance = editorRef.current;
+        const model = instance?.getModel();
+        if (instance && model) {
+          const from = model.getPositionAt(start);
+          const to = model.getPositionAt(end);
+          const range = {
+            startLineNumber: from.lineNumber,
+            startColumn: from.column,
+            endLineNumber: to.lineNumber,
+            endColumn: to.column,
+          };
+          instance.setSelection(range);
+          instance.revealRangeInCenterIfOutsideViewport(range);
+          return;
+        }
+        const fallback = fallbackRef.current;
+        if (fallback) {
+          fallback.focus();
+          fallback.setSelectionRange(start, end);
+        }
+      },
+    });
+  }, [getPos]);
 
   // Mount Monaco once.
   useEffect(() => {
@@ -174,6 +207,7 @@ export function MonacoCodeBlockView(props: ReactNodeViewProps<HTMLElement>) {
       {/* Degraded fallback: keep code editable + persisted if Monaco can't mount. */}
       {degraded && (
         <textarea
+          ref={fallbackRef}
           data-testid="monaco-code-block-fallback"
           className="monaco-code-block__fallback"
           value={code}

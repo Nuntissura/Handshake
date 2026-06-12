@@ -31,6 +31,10 @@ export interface KeyBinding {
 
 /** Special non-command actions the editor itself handles. */
 export const PALETTE_OPEN_ACTION = "palette.open";
+/** Opens the document-wide find panel (MT-244). */
+export const FIND_OPEN_ACTION = "find.open";
+/** Opens the find panel with the replace row (MT-244). */
+export const REPLACE_OPEN_ACTION = "replace.open";
 
 /**
  * The explicit binding table. Formatting chords (Mod-b/i/e) are also provided
@@ -45,6 +49,8 @@ export const EDITOR_KEY_BINDINGS: readonly KeyBinding[] = [
   { chord: "Mod-Alt-c", action: "code.insert", description: "Insert code block" },
   { chord: "Mod-p", action: PALETTE_OPEN_ACTION, description: "Open command palette" },
   { chord: "Mod-Shift-p", action: PALETTE_OPEN_ACTION, description: "Open command palette" },
+  { chord: "Mod-f", action: FIND_OPEN_ACTION, description: "Find in document" },
+  { chord: "Mod-h", action: REPLACE_OPEN_ACTION, description: "Find and replace" },
 ] as const;
 
 /** Builds the canonical chord string for a key event (Mod-… form). */
