@@ -611,6 +611,372 @@ async fn cloud_lane_is_denied_worktree_claim_and_local_index_write_lease() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn editor_document_and_graph_claims_serialize_parallel_mutations() {
+    let Some((pool, store)) = recovery_store().await else {
+        return;
+    };
+
+    let workspace_id = format!("workspace-editor-safety-{}", Uuid::now_v7());
+    let doc_scope = ClaimScope::RichDocument {
+        workspace_id: workspace_id.clone(),
+        document_id: "note-alpha".to_string(),
+    };
+    let graph_scope = ClaimScope::GraphMutation {
+        workspace_id: workspace_id.clone(),
+        graph_id: "graph-main".to_string(),
+    };
+    let first_editor = lane_with_kind("editor-doc-a", AgentLaneKind::Editor);
+    let second_editor = lane_with_kind("editor-doc-b", AgentLaneKind::Editor);
+
+    let first_doc_claim = store
+        .claim_work_surface(WorkClaimRequest {
+            workspace_id: workspace_id.clone(),
+            wp_id: "WP-KERNEL-009".to_string(),
+            mt_id: Some("MT-217".to_string()),
+            scope: doc_scope.clone(),
+            lane: first_editor.clone(),
+            session_id: "session-editor-doc-a".to_string(),
+            ttl_seconds: 600,
+            reason: "claim rich document before editing".to_string(),
+        })
+        .await
+        .expect("first rich-document claim");
+    assert_eq!(first_doc_claim.status, ClaimStatus::Active);
+
+    let second_doc_claim = store
+        .claim_work_surface(WorkClaimRequest {
+            workspace_id: workspace_id.clone(),
+            wp_id: "WP-KERNEL-009".to_string(),
+            mt_id: Some("MT-217".to_string()),
+            scope: doc_scope.clone(),
+            lane: second_editor.clone(),
+            session_id: "session-editor-doc-b".to_string(),
+            ttl_seconds: 600,
+            reason: "parallel editor should wait for same document".to_string(),
+        })
+        .await
+        .expect("second rich-document claim returns held");
+    assert_eq!(second_doc_claim.status, ClaimStatus::Held);
+    assert_eq!(
+        second_doc_claim
+            .active_holder
+            .as_ref()
+            .expect("held document claim names active holder")
+            .actor_id,
+        first_editor.actor_id
+    );
+
+    let other_doc_claim = store
+        .claim_work_surface(WorkClaimRequest {
+            workspace_id: workspace_id.clone(),
+            wp_id: "WP-KERNEL-009".to_string(),
+            mt_id: Some("MT-217".to_string()),
+            scope: ClaimScope::RichDocument {
+                workspace_id: workspace_id.clone(),
+                document_id: "note-beta".to_string(),
+            },
+            lane: second_editor.clone(),
+            session_id: "session-editor-doc-b".to_string(),
+            ttl_seconds: 600,
+            reason: "different document can proceed in parallel".to_string(),
+        })
+        .await
+        .expect("different document claim");
+    assert_eq!(other_doc_claim.status, ClaimStatus::Active);
+
+    let first_graph_claim = store
+        .claim_work_surface(WorkClaimRequest {
+            workspace_id: workspace_id.clone(),
+            wp_id: "WP-KERNEL-009".to_string(),
+            mt_id: Some("MT-217".to_string()),
+            scope: graph_scope.clone(),
+            lane: first_editor.clone(),
+            session_id: "session-editor-graph-a".to_string(),
+            ttl_seconds: 600,
+            reason: "claim graph before mutation".to_string(),
+        })
+        .await
+        .expect("first graph mutation claim");
+    assert_eq!(first_graph_claim.status, ClaimStatus::Active);
+
+    let second_graph_claim = store
+        .claim_work_surface(WorkClaimRequest {
+            workspace_id: workspace_id.clone(),
+            wp_id: "WP-KERNEL-009".to_string(),
+            mt_id: Some("MT-217".to_string()),
+            scope: graph_scope.clone(),
+            lane: second_editor.clone(),
+            session_id: "session-editor-graph-b".to_string(),
+            ttl_seconds: 600,
+            reason: "parallel editor should wait for same graph".to_string(),
+        })
+        .await
+        .expect("second graph claim returns held");
+    assert_eq!(second_graph_claim.status, ClaimStatus::Held);
+    assert_eq!(
+        second_graph_claim
+            .active_holder
+            .as_ref()
+            .expect("held graph claim names active holder")
+            .actor_id,
+        first_editor.actor_id
+    );
+
+    let persisted_scopes: Vec<(String, String)> = sqlx::query_as(
+        r#"
+        SELECT scope_kind, scope_id
+        FROM knowledge_agent_worktree_claims
+        WHERE workspace_id = $1
+        ORDER BY scope_kind ASC, scope_id ASC
+        "#,
+    )
+    .bind(&workspace_id)
+    .fetch_all(&pool)
+    .await
+    .expect("fetch persisted editor safety claims");
+    assert!(
+        persisted_scopes.contains(&(
+            "rich_document".to_string(),
+            format!("{workspace_id}/note-alpha")
+        )),
+        "rich-document claims must persist a stable per-document scope id"
+    );
+    assert!(
+        persisted_scopes.contains(&(
+            "graph_mutation".to_string(),
+            format!("{workspace_id}/graph-main")
+        )),
+        "graph mutation claims must persist a stable per-graph scope id"
+    );
+
+    assert!(
+        store
+            .release_claim(
+                &first_doc_claim.claim_id,
+                &first_editor,
+                "rich document edit complete"
+            )
+            .await
+            .expect("release rich document claim"),
+        "document claim holder can release the claim"
+    );
+    let after_release = store
+        .claim_work_surface(WorkClaimRequest {
+            workspace_id,
+            wp_id: "WP-KERNEL-009".to_string(),
+            mt_id: Some("MT-217".to_string()),
+            scope: doc_scope,
+            lane: second_editor,
+            session_id: "session-editor-doc-b".to_string(),
+            ttl_seconds: 600,
+            reason: "same document can proceed after release".to_string(),
+        })
+        .await
+        .expect("claim released document");
+    assert_eq!(after_release.status, ClaimStatus::Active);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn non_editor_lanes_cannot_claim_editor_mutation_scopes() {
+    let Some((pool, store)) = recovery_store().await else {
+        return;
+    };
+
+    let workspace_id = format!("workspace-editor-deny-{}", Uuid::now_v7());
+    for (suffix, lane_kind, scope, expected_capability) in [
+        (
+            "validator-doc",
+            AgentLaneKind::Validator,
+            ClaimScope::RichDocument {
+                workspace_id: workspace_id.clone(),
+                document_id: "note-denied".to_string(),
+            },
+            "EditRichDocument",
+        ),
+        (
+            "validator-graph",
+            AgentLaneKind::Validator,
+            ClaimScope::GraphMutation {
+                workspace_id: workspace_id.clone(),
+                graph_id: "graph-denied".to_string(),
+            },
+            "MutateGraph",
+        ),
+        (
+            "cloud-doc",
+            AgentLaneKind::Cloud,
+            ClaimScope::RichDocument {
+                workspace_id: workspace_id.clone(),
+                document_id: "cloud-note-denied".to_string(),
+            },
+            "EditRichDocument",
+        ),
+        (
+            "indexer-graph",
+            AgentLaneKind::Indexer,
+            ClaimScope::GraphMutation {
+                workspace_id: workspace_id.clone(),
+                graph_id: "indexer-graph-denied".to_string(),
+            },
+            "MutateGraph",
+        ),
+    ] {
+        let claim_result = store
+            .claim_work_surface(WorkClaimRequest {
+                workspace_id: workspace_id.clone(),
+                wp_id: "WP-KERNEL-009".to_string(),
+                mt_id: Some("MT-217".to_string()),
+                scope,
+                lane: lane_with_kind(suffix, lane_kind),
+                session_id: format!("session-{suffix}"),
+                ttl_seconds: 600,
+                reason: "non-editor lanes must not mutate editor surfaces".to_string(),
+            })
+            .await;
+        assert_invalid_input_contains(claim_result, expected_capability);
+    }
+
+    let persisted_claims: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM knowledge_agent_worktree_claims WHERE workspace_id = $1",
+    )
+    .bind(&workspace_id)
+    .fetch_one(&pool)
+    .await
+    .expect("count denied editor safety claims");
+    assert_eq!(persisted_claims, 0);
+    assert_eq!(
+        ledger_count_for_payload_value(
+            &pool,
+            "parallel_swarm_claim",
+            "workspace_id",
+            &workspace_id
+        )
+        .await,
+        0,
+        "denied mutation-scope claims must not emit false EventLedger receipts"
+    );
+
+    let allowed_workspace_id = format!("workspace-editor-allowed-{}", Uuid::now_v7());
+    let editor_claim = store
+        .claim_work_surface(WorkClaimRequest {
+            workspace_id: allowed_workspace_id.clone(),
+            wp_id: "WP-KERNEL-009".to_string(),
+            mt_id: Some("MT-217".to_string()),
+            scope: ClaimScope::RichDocument {
+                workspace_id: allowed_workspace_id,
+                document_id: "note-allowed".to_string(),
+            },
+            lane: lane_with_kind("editor-allowed", AgentLaneKind::Editor),
+            session_id: "session-editor-allowed".to_string(),
+            ttl_seconds: 600,
+            reason: "editor lane may claim rich document mutation scope".to_string(),
+        })
+        .await
+        .expect("editor may claim document mutation scope");
+    assert_eq!(editor_claim.status, ClaimStatus::Active);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn malformed_editor_mutation_scopes_do_not_persist_claims_or_receipts() {
+    let Some((pool, store)) = recovery_store().await else {
+        return;
+    };
+
+    let workspace_id = format!("workspace-editor-malformed-{}", Uuid::now_v7());
+    let editor = lane_with_kind("editor-malformed-scope", AgentLaneKind::Editor);
+    for (suffix, scope, expected) in [
+        (
+            "empty-doc-workspace",
+            ClaimScope::RichDocument {
+                workspace_id: String::new(),
+                document_id: "note-empty-workspace".to_string(),
+            },
+            "rich_document.workspace_id",
+        ),
+        (
+            "empty-document-id",
+            ClaimScope::RichDocument {
+                workspace_id: workspace_id.clone(),
+                document_id: String::new(),
+            },
+            "rich_document.document_id",
+        ),
+        (
+            "slash-document-id",
+            ClaimScope::RichDocument {
+                workspace_id: workspace_id.clone(),
+                document_id: "nested/note".to_string(),
+            },
+            "rich_document.document_id",
+        ),
+        (
+            "mismatched-doc-workspace",
+            ClaimScope::RichDocument {
+                workspace_id: format!("other-{workspace_id}"),
+                document_id: "note-mismatch".to_string(),
+            },
+            "workspace_id must match",
+        ),
+        (
+            "empty-graph-id",
+            ClaimScope::GraphMutation {
+                workspace_id: workspace_id.clone(),
+                graph_id: String::new(),
+            },
+            "graph_mutation.graph_id",
+        ),
+        (
+            "mismatched-graph-workspace",
+            ClaimScope::GraphMutation {
+                workspace_id: format!("other-graph-{workspace_id}"),
+                graph_id: "graph-mismatch".to_string(),
+            },
+            "workspace_id must match",
+        ),
+    ] {
+        let claim_result = store
+            .claim_work_surface(WorkClaimRequest {
+                workspace_id: workspace_id.clone(),
+                wp_id: "WP-KERNEL-009".to_string(),
+                mt_id: Some("MT-217".to_string()),
+                scope,
+                lane: editor.clone(),
+                session_id: format!("session-invalid-editor-scope-{suffix}"),
+                ttl_seconds: 600,
+                reason: "invalid editor mutation scope should not persist".to_string(),
+            })
+            .await;
+        assert_invalid_input_contains(claim_result, expected);
+    }
+
+    let persisted_claims: i64 = sqlx::query_scalar(
+        r#"
+        SELECT COUNT(*)
+        FROM knowledge_agent_worktree_claims
+        WHERE session_id LIKE 'session-invalid-editor-scope-%'
+        "#,
+    )
+    .fetch_one(&pool)
+    .await
+    .expect("count malformed editor scope claims");
+    assert_eq!(
+        persisted_claims, 0,
+        "malformed editor mutation claims must be rejected before authority rows"
+    );
+    assert_eq!(
+        ledger_count_for_payload_value(
+            &pool,
+            "parallel_swarm_claim",
+            "workspace_id",
+            &workspace_id
+        )
+        .await,
+        0,
+        "malformed editor mutation claims must not emit false EventLedger receipts"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mailbox_handoff_requires_write_mailbox_capability() {
     let Some((pool, store)) = recovery_store().await else {
         return;

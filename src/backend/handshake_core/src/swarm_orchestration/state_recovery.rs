@@ -92,6 +92,8 @@ impl AgentLaneKind {
 pub enum AgentCapability {
     ClaimWorktree,
     ClaimWorkspace,
+    EditRichDocument,
+    MutateGraph,
     WriteLocalIndex,
     WriteMailbox,
     NavigateBackend,
@@ -196,6 +198,8 @@ impl AgentLaneIdentity {
             AgentLaneKind::Local => vec![
                 ClaimWorktree,
                 ClaimWorkspace,
+                EditRichDocument,
+                MutateGraph,
                 WriteLocalIndex,
                 WriteMailbox,
                 NavigateBackend,
@@ -212,6 +216,8 @@ impl AgentLaneIdentity {
             AgentLaneKind::Operator => vec![
                 ClaimWorktree,
                 ClaimWorkspace,
+                EditRichDocument,
+                MutateGraph,
                 WriteMailbox,
                 NavigateBackend,
                 RecordCheckpoint,
@@ -232,10 +238,18 @@ impl AgentLaneIdentity {
                     RecordCheckpoint,
                 ]
             }
-            AgentLaneKind::Editor => vec![ClaimWorkspace, NavigateBackend, RecordCheckpoint],
+            AgentLaneKind::Editor => vec![
+                ClaimWorkspace,
+                EditRichDocument,
+                MutateGraph,
+                NavigateBackend,
+                RecordCheckpoint,
+            ],
             AgentLaneKind::System => vec![
                 ClaimWorktree,
                 ClaimWorkspace,
+                EditRichDocument,
+                MutateGraph,
                 WriteLocalIndex,
                 WriteMailbox,
                 NavigateBackend,
@@ -275,6 +289,14 @@ pub enum ClaimScope {
     Workspace {
         workspace_id: String,
     },
+    RichDocument {
+        workspace_id: String,
+        document_id: String,
+    },
+    GraphMutation {
+        workspace_id: String,
+        graph_id: String,
+    },
     IndexRun {
         workspace_id: String,
         source_root_id: String,
@@ -286,6 +308,8 @@ impl ClaimScope {
         match self {
             Self::Worktree { .. } => "worktree",
             Self::Workspace { .. } => "workspace",
+            Self::RichDocument { .. } => "rich_document",
+            Self::GraphMutation { .. } => "graph_mutation",
             Self::IndexRun { .. } => "index_run",
         }
     }
@@ -294,6 +318,14 @@ impl ClaimScope {
         match self {
             Self::Worktree { worktree_id } => worktree_id.clone(),
             Self::Workspace { workspace_id } => workspace_id.clone(),
+            Self::RichDocument {
+                workspace_id,
+                document_id,
+            } => format!("{workspace_id}/{document_id}"),
+            Self::GraphMutation {
+                workspace_id,
+                graph_id,
+            } => format!("{workspace_id}/{graph_id}"),
             Self::IndexRun {
                 workspace_id,
                 source_root_id,
@@ -712,6 +744,7 @@ impl ParallelSwarmStateRecoveryStore {
         request: WorkClaimRequest,
     ) -> StateRecoveryResult<WorkClaimOutcome> {
         validate_ttl(request.ttl_seconds)?;
+        validate_claim_scope(&request.workspace_id, &request.scope)?;
         require_capability(&request.lane, required_claim_capability(&request.scope))?;
         let reclaimer = system_reclaimer_lane()?;
         self.reclaim_expired_work_claims(
@@ -1784,6 +1817,20 @@ fn scope_from_parts(kind: String, scope_id: String) -> StateRecoveryResult<Claim
         "workspace" => Ok(ClaimScope::Workspace {
             workspace_id: scope_id,
         }),
+        "rich_document" => {
+            let (workspace_id, document_id) = split_scoped_claim_id("rich_document", &scope_id)?;
+            Ok(ClaimScope::RichDocument {
+                workspace_id,
+                document_id,
+            })
+        }
+        "graph_mutation" => {
+            let (workspace_id, graph_id) = split_scoped_claim_id("graph_mutation", &scope_id)?;
+            Ok(ClaimScope::GraphMutation {
+                workspace_id,
+                graph_id,
+            })
+        }
         "index_run" => {
             let (workspace_id, source_root_id) = scope_id.split_once('/').ok_or_else(|| {
                 StateRecoveryError::InvalidInput("index_run scope missing slash".to_string())
@@ -1796,6 +1843,65 @@ fn scope_from_parts(kind: String, scope_id: String) -> StateRecoveryResult<Claim
         other => Err(StateRecoveryError::InvalidInput(format!(
             "unknown claim scope kind: {other}"
         ))),
+    }
+}
+
+fn split_scoped_claim_id(kind: &str, scope_id: &str) -> StateRecoveryResult<(String, String)> {
+    let (workspace_id, child_id) = scope_id
+        .split_once('/')
+        .ok_or_else(|| StateRecoveryError::InvalidInput(format!("{kind} scope missing slash")))?;
+    if workspace_id.is_empty() || child_id.is_empty() {
+        return Err(StateRecoveryError::InvalidInput(format!(
+            "{kind} scope has empty segment"
+        )));
+    }
+    Ok((workspace_id.to_string(), child_id.to_string()))
+}
+
+fn validate_claim_scope(request_workspace_id: &str, scope: &ClaimScope) -> StateRecoveryResult<()> {
+    match scope {
+        ClaimScope::RichDocument {
+            workspace_id,
+            document_id,
+        } => {
+            ensure_composite_scope_segment("rich_document.workspace_id", workspace_id)?;
+            ensure_composite_scope_segment("rich_document.document_id", document_id)?;
+            ensure_scope_workspace_matches("rich_document", request_workspace_id, workspace_id)
+        }
+        ClaimScope::GraphMutation {
+            workspace_id,
+            graph_id,
+        } => {
+            ensure_composite_scope_segment("graph_mutation.workspace_id", workspace_id)?;
+            ensure_composite_scope_segment("graph_mutation.graph_id", graph_id)?;
+            ensure_scope_workspace_matches("graph_mutation", request_workspace_id, workspace_id)
+        }
+        ClaimScope::Worktree { .. }
+        | ClaimScope::Workspace { .. }
+        | ClaimScope::IndexRun { .. } => Ok(()),
+    }
+}
+
+fn ensure_composite_scope_segment(field: &str, value: &str) -> StateRecoveryResult<()> {
+    if value.contains('/') {
+        return Err(StateRecoveryError::InvalidInput(format!(
+            "{field} must not contain '/'"
+        )));
+    }
+    ensure_safe_token(field, value)
+}
+
+fn ensure_scope_workspace_matches(
+    kind: &str,
+    request_workspace_id: &str,
+    scope_workspace_id: &str,
+) -> StateRecoveryResult<()> {
+    if request_workspace_id == scope_workspace_id {
+        Ok(())
+    } else {
+        Err(StateRecoveryError::InvalidInput(format!(
+            "{kind} scope workspace_id must match request workspace_id"
+        )))
     }
 }
 
@@ -1828,6 +1934,8 @@ fn required_claim_capability(scope: &ClaimScope) -> AgentCapability {
     match scope {
         ClaimScope::Worktree { .. } => AgentCapability::ClaimWorktree,
         ClaimScope::Workspace { .. } => AgentCapability::ClaimWorkspace,
+        ClaimScope::RichDocument { .. } => AgentCapability::EditRichDocument,
+        ClaimScope::GraphMutation { .. } => AgentCapability::MutateGraph,
         ClaimScope::IndexRun { .. } => AgentCapability::WriteLocalIndex,
     }
 }
