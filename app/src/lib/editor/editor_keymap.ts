@@ -17,6 +17,8 @@ export interface KeyboardEventLike {
   metaKey?: boolean;
   shiftKey?: boolean;
   altKey?: boolean;
+  /** True while an IME composition is active — no chord may fire then. */
+  isComposing?: boolean;
 }
 
 /** A single keyboard binding. `action` is a command id or a special token. */
@@ -66,12 +68,90 @@ export function chordFromEvent(event: KeyboardEventLike): string {
 
 /**
  * Resolves a key event to a bound action (command id or PALETTE_OPEN_ACTION),
- * or null when nothing is bound. Deterministic; pure.
+ * or null when nothing is bound. Deterministic; pure. Returns null during an
+ * IME composition (iteration-3 L15): firing chords mid-composition would
+ * corrupt the composed text.
  */
 export function resolveShortcut(event: KeyboardEventLike): string | null {
+  if (event.isComposing) return null;
   const chord = chordFromEvent(event);
   const binding = EDITOR_KEY_BINDINGS.find((b) => b.chord === chord);
   return binding?.action ?? null;
+}
+
+/**
+ * Actions that stay global even when the keystroke originates INSIDE an
+ * embedded code editor (iteration-3 H3). Everything else typed in a Monaco
+ * code block belongs to Monaco — the prose keymap must not intercept it
+ * (Mod-Alt-c / Mod-k typed in code were replacing the node-selected block).
+ * The command palette is the deliberate escape hatch (VS Code parity: F1 /
+ * Ctrl+Shift+P works everywhere).
+ */
+export const CODE_BLOCK_GLOBAL_ACTIONS: ReadonlySet<string> = new Set([
+  PALETTE_OPEN_ACTION,
+]);
+
+/** True when `action` may fire from a keystroke originating inside a code block. */
+export function isGlobalEditorAction(action: string): boolean {
+  return CODE_BLOCK_GLOBAL_ACTIONS.has(action);
+}
+
+/**
+ * Prose-level chords that must be CONTAINED when they bubble out of an
+ * embedded Monaco editor (iteration-3 H3). Two sources:
+ *   1. this keymap's own bindings (minus the global escape hatches), and
+ *   2. StarterKit's native ProseMirror keymaps — those run on the PROSE state
+ *      even when the key event originated inside the code island (PM applies
+ *      its keymap regardless of event origin), silently mutating the document
+ *      (e.g. Mod-Alt-1 turning the paragraph above into a heading while the
+ *      operator types in code).
+ *
+ * Deliberately NOT contained:
+ *   - Mod-z / Mod-y / Mod-Shift-z — Monaco resolves undo/redo itself and stops
+ *     propagation; they never bubble, and containing them would risk breaking
+ *     undo in the degraded textarea fallback.
+ *   - Mod-c / Mod-v / Mod-x — clipboard keys must keep their browser/Monaco
+ *     default behavior; preventing them would break copy/paste inside code.
+ */
+const STARTERKIT_PROSE_CHORDS: readonly string[] = [
+  "Mod-b",
+  "Mod-i",
+  "Mod-u",
+  "Mod-e",
+  "Mod-Shift-s",
+  "Mod-Shift-x",
+  "Mod-Alt-c",
+  "Mod-Shift-b",
+  "Mod-Shift-7",
+  "Mod-Shift-8",
+  "Mod-Alt-0",
+  "Mod-Alt-1",
+  "Mod-Alt-2",
+  "Mod-Alt-3",
+  "Mod-Alt-4",
+  "Mod-Alt-5",
+  "Mod-Alt-6",
+  "Mod-Enter",
+];
+
+const CONTAINED_CODE_BLOCK_CHORDS: ReadonlySet<string> = new Set([
+  ...STARTERKIT_PROSE_CHORDS,
+  ...EDITOR_KEY_BINDINGS.filter((b) => !CODE_BLOCK_GLOBAL_ACTIONS.has(b.action)).map(
+    (b) => b.chord,
+  ),
+]);
+
+/**
+ * True when a key event that originated inside an embedded code editor must be
+ * contained (claimed and ignored) instead of reaching the prose keymaps.
+ * Only modifier chords are ever contained — plain typing, Enter, Backspace and
+ * friends keep their Monaco/textarea behavior untouched.
+ */
+export function shouldContainChordFromCodeBlock(event: KeyboardEventLike): boolean {
+  if (!event.ctrlKey && !event.metaKey) return false;
+  const action = resolveShortcut(event);
+  if (action && isGlobalEditorAction(action)) return false;
+  return CONTAINED_CODE_BLOCK_CHORDS.has(chordFromEvent(event));
 }
 
 /** All bindings for a given command id (for showing hints in the UI). */

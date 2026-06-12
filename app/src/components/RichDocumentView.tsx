@@ -11,7 +11,7 @@
 // mounting, [[link]] syntax, slash menus) is the NEXT group; this provides the
 // data plumbing + block rendering + selectors.
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { JSONContent } from "@tiptap/core";
 import {
   RichDocLoad,
@@ -55,7 +55,12 @@ function embedContextFor(workspaceId: string): EmbedResolverContext {
 
 export function RichDocumentView({ documentId }: Props) {
   const [load, setLoad] = useState<RichDocLoad | null>(null);
-  const [editorContent, setEditorContent] = useState<JSONContent | null>(null);
+  // Iteration-3 H1: the editor receives ONLY genuinely loaded content
+  // (load/reload/conflict restore). The live editing state stays in a ref —
+  // feeding onChange JSON back into initialContent was the echo loop that
+  // teleported the caret on every keystroke.
+  const [loadedContent, setLoadedContent] = useState<JSONContent | null>(null);
+  const editorContentRef = useRef<JSONContent | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -86,9 +91,11 @@ export function RichDocumentView({ documentId }: Props) {
         response.document.content_json,
       );
       if (assertion.ok) {
-        setEditorContent(assertion.content as JSONContent);
+        setLoadedContent(assertion.content as JSONContent);
+        editorContentRef.current = assertion.content as JSONContent;
       } else {
-        setEditorContent(response.document.content_json as JSONContent);
+        setLoadedContent(response.document.content_json as JSONContent);
+        editorContentRef.current = response.document.content_json as JSONContent;
         setBackendError(schemaMismatchError(assertion.reason));
       }
       logEvent({ type: "doc-load", targetId: documentId, result: "ok" });
@@ -127,6 +134,7 @@ export function RichDocumentView({ documentId }: Props) {
   }, [load, refreshSidecars]);
 
   const onSave = useCallback(async () => {
+    const editorContent = editorContentRef.current;
     if (!load || !editorContent) return;
     setIsSaving(true);
     setSaveError(null);
@@ -152,7 +160,7 @@ export function RichDocumentView({ documentId }: Props) {
     } finally {
       setIsSaving(false);
     }
-  }, [load, editorContent, documentId, refreshSidecars]);
+  }, [load, documentId, refreshSidecars]);
 
   if (loading && !load) {
     return (
@@ -219,9 +227,10 @@ export function RichDocumentView({ documentId }: Props) {
         <div className="document-editor__body">
           <div className="document-editor__main">
             <RichTextEditor
-              initialContent={editorContent}
+              initialContent={loadedContent}
               onChange={(next) => {
-                setEditorContent(next);
+                // H1: track live content WITHOUT echoing it back down.
+                editorContentRef.current = next;
                 setIsDirty(true);
               }}
               backendError={backendError}

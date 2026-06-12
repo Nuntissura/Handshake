@@ -23,6 +23,7 @@ import {
 import { HsLinkNode } from "../tiptap/hs_link_node";
 import { MonacoCodeBlockNode } from "../tiptap/monaco_code_block_node";
 import { AutoCodeBlockRules } from "../tiptap/auto_code_block_rules";
+import { CodeBlockKeystrokeGuard } from "../tiptap/code_block_keystroke_guard";
 import { FindDecorations } from "../tiptap/find_decorations";
 import type { EmbedResolverContext } from "./embed_assets";
 
@@ -54,6 +55,7 @@ export function buildHandshakeEditorExtensions(
       : HsLinkNode,
     MonacoCodeBlockNode,
     AutoCodeBlockRules,
+    CodeBlockKeystrokeGuard,
     FindDecorations,
   ];
 }
@@ -63,5 +65,6 @@ export const HANDSHAKE_EDITOR_CUSTOM_EXTENSION_NAMES = [
   "hsLink",
   "monacoCodeBlock",
   "autoCodeBlockRules",
+  "codeBlockKeystrokeGuard",
   "findDecorations",
 ] as const;

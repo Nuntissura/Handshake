@@ -18,7 +18,7 @@
 // NOT call a backend (the offline proof must not need a server); the backend
 // save path is covered by the RichDocumentView vitest suite against the real API.
 
-import { StrictMode, useCallback, useEffect, useState } from "react";
+import { StrictMode, useCallback, useEffect } from "react";
 import { createRoot } from "react-dom/client";
 import type { JSONContent } from "@tiptap/core";
 import { RichTextEditor } from "../components/RichTextEditor";
@@ -97,11 +97,16 @@ function firstCodeBlockAttrs(doc: JSONContent | null): { language: string; code:
 }
 
 function HarnessShell() {
-  const [doc, setDoc] = useState<JSONContent>(INITIAL_DOC);
-
+  // Iteration-3 H1: do NOT store onChange JSON in state and pass it back as
+  // initialContent — that echo loop teleported the caret on every keystroke.
+  // The editor owns the live document; the harness only mirrors the latest
+  // JSON (+ the editor's debug snapshot) for the spec to read.
   const onChange = useCallback((next: JSONContent) => {
-    setDoc(next);
     state.docJson = next;
+    const debug = (globalThis as Record<string, unknown>)[EDITOR_DEBUG_GLOBAL_KEY] as
+      | EditorDebugSnapshot
+      | undefined;
+    if (debug) state.debug = debug;
   }, []);
 
   // In-harness round-trip: snapshot the current code block, serialize the doc to
@@ -131,23 +136,16 @@ function HarnessShell() {
     if (window.__RICH_EDITOR_HARNESS__) window.__RICH_EDITOR_HARNESS__.roundTrip = result;
   }, []);
 
-  // Publish the harness control surface + mirror the editor debug snapshot via an
-  // effect (NOT the render body) so a no-context spec can drive it without the
-  // React compiler seeing render-time global mutation. Runs each render so the
-  // latest debug snapshot (published by the editor via a microtask) is mirrored.
+  // Publish the harness control surface via an effect (NOT the render body) so
+  // a no-context spec can drive it without render-time global mutation.
   useEffect(() => {
-    const debug = (globalThis as Record<string, unknown>)[EDITOR_DEBUG_GLOBAL_KEY] as
-      | EditorDebugSnapshot
-      | undefined;
-    if (debug) state.debug = debug;
-    state.docJson = doc;
     window.__RICH_EDITOR_HARNESS__ = Object.assign(state, { runRoundTrip });
-  });
+  }, [runRoundTrip]);
 
   return (
     <div data-testid="rich-editor-harness-root" style={{ padding: 16 }}>
       <h1 style={{ fontSize: 16 }}>Handshake rich-editor offline harness</h1>
-      <RichTextEditor initialContent={doc} onChange={onChange} />
+      <RichTextEditor initialContent={INITIAL_DOC} onChange={onChange} />
       <button type="button" data-testid="harness-run-roundtrip" onClick={runRoundTrip}>
         Run round-trip
       </button>

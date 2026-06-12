@@ -22,7 +22,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { EditorContent, useEditor } from "@tiptap/react";
-import type { JSONContent } from "@tiptap/core";
+import type { Editor, JSONContent } from "@tiptap/core";
 import type { AnyExtension } from "@tiptap/core";
 import { buildHandshakeEditorExtensions } from "../lib/editor/build_editor_extensions";
 import {
@@ -35,10 +35,12 @@ import {
 import {
   resolveShortcut,
   bindingsForAction,
+  isGlobalEditorAction,
   PALETTE_OPEN_ACTION,
   FIND_OPEN_ACTION,
   REPLACE_OPEN_ACTION,
 } from "../lib/editor/editor_keymap";
+import { jsonDeepEquals } from "../lib/editor/doc_equality";
 import {
   snapshotFromOffsets,
   type SelectionActor,
@@ -93,6 +95,12 @@ export type RichTextEditorProps = {
   embedContext?: EmbedResolverContext;
   /** Document title used for export file naming (MT-244); optional. */
   documentTitle?: string;
+  /**
+   * Called once the Tiptap editor instance exists. Lets the parent (document
+   * shell, merge UI, tests, diagnostics) reach the live editor without global
+   * state — e.g. to flush content before a save or to drive typing in tests.
+   */
+  onEditorReady?: (editor: Editor) => void;
   /** Extension factory override (tests / DI). */
   extensionFactory?: () => AnyExtension[];
 };
@@ -193,6 +201,7 @@ function RichTextEditorInner({
   backendError = null,
   embedContext,
   documentTitle,
+  onEditorReady,
 }: RichTextEditorProps & { extensions: AnyExtension[] }) {
   const [, forceRefresh] = useState(0);
   const [paletteOpen, setPaletteOpen] = useState(false);
@@ -210,21 +219,56 @@ function RichTextEditorInner({
 
   const [debugSnapshot, setDebugSnapshot] = useState<EditorDebugSnapshot | null>(null);
 
+  // Iteration-3 H1 (echo-loop caret teleport): remember the exact JSON object
+  // this editor last EMITTED through onChange. Parents (RichDocumentView, the
+  // offline harness) store that object and pass it straight back down as
+  // initialContent; without this guard the reload effect re-fed every keystroke
+  // into setContent — an O(doc) re-parse that teleported the caret to the
+  // document end (adversarial review: caret 6 -> 12/13) and broke IME.
+  const lastEmittedRef = useRef<JSONContent | null>(null);
+  // Keep the latest onChange without rebinding the editor's onUpdate closure.
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
+
   const editor = useEditor({
     extensions,
     content: initialContent ?? { type: "doc", content: [{ type: "paragraph" }] },
     editable: !readOnly,
-    onUpdate: ({ editor }) => onChange(editor.getJSON()),
+    onUpdate: ({ editor }) => {
+      const json = editor.getJSON();
+      lastEmittedRef.current = json;
+      onChangeRef.current(json);
+    },
   });
 
-  // Reload content when the upstream document changes.
+  // Reload content ONLY when the upstream document genuinely changed
+  // (load/reload/conflict resolution) — never for the editor's own echo:
+  //   1. identity guard: the parent passed back the object we just emitted;
+  //   2. structural guard: a clone of the current document (e.g. a backend
+  //      round-trip that changed nothing) must not replace the doc under the
+  //      caret. A real external update still applies.
   useEffect(() => {
-    if (!editor) return;
-    editor.commands.setContent(
-      initialContent ?? { type: "doc", content: [{ type: "paragraph" }] },
-      { emitUpdate: false },
-    );
+    if (!editor || editor.isDestroyed) return;
+    if (initialContent !== null && initialContent === lastEmittedRef.current) return;
+    const next = initialContent ?? { type: "doc", content: [{ type: "paragraph" }] };
+    if (jsonDeepEquals(editor.getJSON(), next)) return;
+    editor.commands.setContent(next, { emitUpdate: false });
+    // The document is now externally owned; the previous emit no longer
+    // describes the editor state.
+    lastEmittedRef.current = null;
   }, [editor, initialContent]);
+
+  // Reflect read-only changes (schema fail-closed, conflict lockout) onto the
+  // live editor — useEditor only applies `editable` at construction.
+  useEffect(() => {
+    if (!editor || editor.isDestroyed) return;
+    if (editor.isEditable === readOnly) editor.setEditable(!readOnly, false);
+  }, [editor, readOnly]);
+
+  // Hand the live editor instance to the parent (document shell / tests).
+  useEffect(() => {
+    if (editor && onEditorReady) onEditorReady(editor);
+  }, [editor, onEditorReady]);
 
   // Publishes the machine-readable visual-debug snapshot (MT-172) on a global
   // and on component state so the visual lane / a no-context model can read it.
@@ -358,12 +402,26 @@ function RichTextEditorInner({
   );
 
   // Keyboard: explicit keymap (MT-170 + MT-244). Palette/find/replace +
-  // bound commands.
+  // bound commands. Iteration-3 hardening (H3):
+  //   - defaultPrevented guard: ProseMirror's native keymap (StarterKit Mod-b/
+  //     i/e) runs first and preventDefaults; re-dispatching here would toggle
+  //     the mark twice (a net no-op for the operator).
+  //   - code-block containment: keystrokes originating inside the embedded
+  //     Monaco code block belong to Monaco — only explicitly global chords
+  //     (command palette) may fire from there. Without this, Mod-Alt-c/Mod-k
+  //     typed in code reached the prose handler and could REPLACE the
+  //     node-selected code block.
+  //   - IME: resolveShortcut returns null while event.isComposing (L15).
   useEffect(() => {
     if (!editor) return;
     const handler = (event: KeyboardEvent) => {
+      if (event.defaultPrevented) return;
       const action = resolveShortcut(event);
       if (!action) return;
+      const origin = event.target instanceof Element ? event.target : null;
+      if (origin?.closest("[data-testid='monaco-code-block']") && !isGlobalEditorAction(action)) {
+        return;
+      }
       event.preventDefault();
       if (action === PALETTE_OPEN_ACTION) {
         setPaletteOpen(true);
