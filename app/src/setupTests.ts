@@ -40,6 +40,28 @@ if (typeof window !== "undefined") {
     } as unknown as typeof ResizeObserver;
   }
 
+  // WP-KERNEL-009 iteration-3 (L25): jsdom's Range implements neither
+  // getClientRects nor getBoundingClientRect, but ProseMirror's scroll-into-view
+  // path (EditorView.coordsAtPos -> singleRect) calls them after every command
+  // dispatch that scrolls (focus/insert/find). The resulting TypeError escaped
+  // the dispatch as an UNCAUGHT exception — tests stayed green while dispatch
+  // crashed mid-flight (false-positive risk flagged by the adversarial review).
+  // Zero-rect polyfills keep the dispatch path intact under jsdom; real
+  // coordinates are exercised in the Playwright browser lane.
+  if (typeof Range !== "undefined") {
+    const rangeProto = Range.prototype as Range & {
+      getClientRects?: () => DOMRectList;
+      getBoundingClientRect?: () => DOMRect;
+    };
+    if (typeof rangeProto.getClientRects !== "function") {
+      rangeProto.getClientRects = () => [] as unknown as DOMRectList;
+    }
+    if (typeof rangeProto.getBoundingClientRect !== "function") {
+      rangeProto.getBoundingClientRect = () =>
+        ({ x: 0, y: 0, top: 0, left: 0, right: 0, bottom: 0, width: 0, height: 0, toJSON: () => ({}) }) as DOMRect;
+    }
+  }
+
   // Monaco's clipboard service calls navigator.clipboard.{write,read*}; jsdom
   // omits the Clipboard API, so its body-level paste/copy handlers throw
   // "Cannot read properties of undefined (reading 'write')" when a code-block
