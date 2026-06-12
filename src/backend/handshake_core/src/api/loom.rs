@@ -130,10 +130,25 @@ pub fn routes(state: AppState) -> Router {
             axum::routing::put(add_block_to_loom_folder)
                 .delete(remove_block_from_loom_folder),
         )
-        // MT-184/185: wiki projection compiler + editable overlay
+        // MT-184/185: wiki projection compiler + editable overlay.
+        // MT-241/242/243 (project wiki compile layer): GET list serves every
+        // page WITH its staleness verdict; bootstrap/drift-check/fanout are
+        // the compile, drift, and incremental-regeneration surfaces.
         .route(
             "/workspaces/:workspace_id/loom/wiki",
-            post(compile_loom_wiki_projection),
+            get(list_loom_wiki_pages).post(compile_loom_wiki_projection),
+        )
+        .route(
+            "/workspaces/:workspace_id/loom/wiki/bootstrap",
+            post(bootstrap_project_wiki),
+        )
+        .route(
+            "/workspaces/:workspace_id/loom/wiki/drift-check",
+            post(project_wiki_drift_check),
+        )
+        .route(
+            "/workspaces/:workspace_id/loom/wiki/fanout",
+            post(project_wiki_fanout),
         )
         .route(
             "/workspaces/:workspace_id/loom/wiki/:projection_id",
@@ -440,6 +455,87 @@ async fn set_loom_block_pin_order(
 }
 
 // -- MT-184/185 wiki projection + overlay handlers -------------------------
+// -- MT-241/242/243 project wiki compile layer (LM-PWIKI-001..013) ----------
+
+/// THE STALE-BADGE CONTRACT (MT-242, LM-PWIKI-008): every served wiki page
+/// carries `staleness_verdict` — `{"state": "fresh", "stamp_ledger_version",
+/// "current_ledger_version"}` | `{"state": "stale", …, "reasons": [{"kind",
+/// "id", "stamped_content_hash", "current_content_hash", "change"}]}` |
+/// `{"state": "unstamped"}`. `unstamped` must NEVER render as fresh. The
+/// wrapper type makes serving without a verdict unrepresentable (fail-closed).
+#[derive(Debug, Serialize)]
+struct ServedWikiPage {
+    #[serde(flatten)]
+    page: crate::storage::LoomWikiProjection,
+    staleness_verdict: crate::knowledge_wiki::WikiStalenessVerdict,
+}
+
+fn wiki_pg(state: &AppState) -> std::sync::Arc<crate::storage::postgres::PostgresDatabase> {
+    std::sync::Arc::new(crate::storage::postgres::PostgresDatabase::new(
+        state.postgres_pool.clone(),
+    ))
+}
+
+fn map_wiki_error(err: crate::knowledge_wiki::WikiCompileError) -> ApiError {
+    use crate::knowledge_wiki::WikiCompileError;
+    match err {
+        WikiCompileError::Validation(_) => bad_request("HSK-400-LOOM-VALIDATION"),
+        WikiCompileError::PageCapExceeded(_) => bad_request("HSK-400-WIKI-PAGE-CAP"),
+        WikiCompileError::Storage(inner) => map_storage_error(inner),
+        WikiCompileError::Kernel(inner) => internal_error(inner),
+    }
+}
+
+/// Optional caller identity for wiki compile receipts (same `x-hsk-*` headers
+/// as the code-nav API; absent headers fall back to an attributable system
+/// identity so EventLedger receipts are ALWAYS written).
+fn wiki_compile_context(headers: &axum::http::HeaderMap) -> crate::knowledge_wiki::compiler::WikiCompileContext {
+    fn hdr<'a>(headers: &'a axum::http::HeaderMap, name: &str) -> Option<&'a str> {
+        headers
+            .get(name)
+            .and_then(|value| value.to_str().ok())
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+    }
+    let actor_id = hdr(headers, "x-hsk-actor-id").unwrap_or("notes-wiki").to_string();
+    let actor = match hdr(headers, "x-hsk-actor-kind") {
+        Some("operator") => crate::kernel::KernelActor::Operator(actor_id),
+        Some("model_adapter") => crate::kernel::KernelActor::ModelAdapter(actor_id),
+        Some("session_broker") => crate::kernel::KernelActor::SessionBroker(actor_id),
+        Some("toolgate") => crate::kernel::KernelActor::ToolGate(actor_id),
+        Some("validation_runner") => crate::kernel::KernelActor::ValidationRunner(actor_id),
+        Some("promotion_gate") => crate::kernel::KernelActor::PromotionGate(actor_id),
+        _ => crate::kernel::KernelActor::System(actor_id),
+    };
+    crate::knowledge_wiki::compiler::WikiCompileContext {
+        actor,
+        kernel_task_run_id: hdr(headers, "x-hsk-kernel-task-run-id")
+            .map(|v| v.to_string())
+            .unwrap_or_else(|| format!("KTR-wiki-{}", Uuid::now_v7().simple())),
+        session_run_id: hdr(headers, "x-hsk-session-run-id")
+            .map(|v| v.to_string())
+            .unwrap_or_else(|| format!("SR-wiki-{}", Uuid::now_v7().simple())),
+        correlation_id: hdr(headers, "x-hsk-correlation-id").map(|v| v.to_string()),
+    }
+}
+
+/// Attach the MT-242 verdict to a page about to be served. Fail-closed: a
+/// verdict-evaluation failure fails the serve (LM-PWIKI-008) — there is no
+/// "serve without verdict" path.
+async fn attach_wiki_verdict(
+    state: &AppState,
+    page: crate::storage::LoomWikiProjection,
+) -> ApiResult<ServedWikiPage> {
+    let checker = crate::knowledge_wiki::drift::WikiDriftChecker::new(wiki_pg(state));
+    let staleness_verdict = checker
+        .evaluate_stamp_value(&page.workspace_id, page.compile_stamp.as_ref())
+        .await
+        .map_err(map_wiki_error)?;
+    Ok(ServedWikiPage {
+        page,
+        staleness_verdict,
+    })
+}
 
 #[derive(Debug, Deserialize)]
 struct CompileWikiRequest {
@@ -452,7 +548,7 @@ async fn compile_loom_wiki_projection(
     State(state): State<AppState>,
     Path(workspace_id): Path<String>,
     Json(payload): Json<CompileWikiRequest>,
-) -> ApiResult<Json<crate::storage::LoomWikiProjection>> {
+) -> ApiResult<Json<ServedWikiPage>> {
     ensure_workspace_exists(&state, &workspace_id).await?;
     let projection = state
         .storage
@@ -475,20 +571,22 @@ async fn compile_loom_wiki_projection(
     .with_wsids(vec![workspace_id]);
     let _ = state.flight_recorder.record_event(event).await;
 
-    Ok(Json(projection))
+    Ok(Json(attach_wiki_verdict(&state, projection).await?))
 }
 
 async fn get_loom_wiki_projection(
     State(state): State<AppState>,
     Path((workspace_id, projection_id)): Path<(String, String)>,
-) -> ApiResult<Json<crate::storage::LoomWikiProjection>> {
+) -> ApiResult<Json<ServedWikiPage>> {
     ensure_workspace_exists(&state, &workspace_id).await?;
     let projection = state
         .storage
         .get_loom_wiki_projection(&workspace_id, &projection_id)
         .await
         .map_err(map_storage_error)?;
-    Ok(Json(projection))
+    // LM-PWIKI-008: the single-page serve path attaches the verdict
+    // fail-closed.
+    Ok(Json(attach_wiki_verdict(&state, projection).await?))
 }
 
 async fn loom_wiki_projection_stale(
@@ -496,18 +594,29 @@ async fn loom_wiki_projection_stale(
     Path((workspace_id, projection_id)): Path<(String, String)>,
 ) -> ApiResult<Json<serde_json::Value>> {
     ensure_workspace_exists(&state, &workspace_id).await?;
-    let stale = state
+    let projection = state
         .storage
-        .loom_wiki_projection_is_stale(&workspace_id, &projection_id)
+        .get_loom_wiki_projection(&workspace_id, &projection_id)
         .await
         .map_err(map_storage_error)?;
-    Ok(Json(json!({ "projection_id": projection_id, "stale": stale })))
+    let checker = crate::knowledge_wiki::drift::WikiDriftChecker::new(wiki_pg(&state));
+    let verdict = checker
+        .evaluate_stamp_value(&workspace_id, projection.compile_stamp.as_ref())
+        .await
+        .map_err(map_wiki_error)?;
+    // `stale` is derived from the verdict: anything not provably fresh is
+    // stale (unstamped pages are forbidden to read as fresh, LM-PWIKI-008).
+    Ok(Json(json!({
+        "projection_id": projection_id,
+        "stale": !verdict.is_fresh(),
+        "verdict": verdict,
+    })))
 }
 
 async fn regenerate_loom_wiki_projection(
     State(state): State<AppState>,
     Path((workspace_id, projection_id)): Path<(String, String)>,
-) -> ApiResult<Json<crate::storage::LoomWikiProjection>> {
+) -> ApiResult<Json<ServedWikiPage>> {
     ensure_workspace_exists(&state, &workspace_id).await?;
     let projection = state
         .storage
@@ -530,7 +639,214 @@ async fn regenerate_loom_wiki_projection(
     .with_wsids(vec![workspace_id]);
     let _ = state.flight_recorder.record_event(event).await;
 
-    Ok(Json(projection))
+    Ok(Json(attach_wiki_verdict(&state, projection).await?))
+}
+
+// -- MT-241 bootstrap / MT-242 drift / MT-243 fan-out handlers ---------------
+
+#[derive(Debug, Default, Deserialize)]
+struct ListWikiPagesQuery {
+    #[serde(default)]
+    page_type: Option<String>,
+    #[serde(default)]
+    typed_only: Option<bool>,
+    #[serde(default)]
+    limit: Option<i64>,
+    #[serde(default)]
+    offset: Option<i64>,
+}
+
+/// GET /workspaces/:ws/loom/wiki — the list serve path consumed by the Notes
+/// UI and by retrieval (LM-PWIKI-013): every page is returned in its FULL
+/// knowledge shape (citations in `source_records`, `compile_stamp`,
+/// `page_links`) with its `staleness_verdict` attached (LM-PWIKI-008).
+async fn list_loom_wiki_pages(
+    State(state): State<AppState>,
+    Path(workspace_id): Path<String>,
+    Query(params): Query<ListWikiPagesQuery>,
+) -> ApiResult<Json<serde_json::Value>> {
+    ensure_workspace_exists(&state, &workspace_id).await?;
+    let db = wiki_pg(&state);
+    let pages = db
+        .list_knowledge_wiki_pages(
+            &workspace_id,
+            params.page_type.as_deref(),
+            params.typed_only.unwrap_or(false),
+            params.limit.unwrap_or(500),
+            params.offset.unwrap_or(0),
+        )
+        .await
+        .map_err(map_storage_error)?;
+    let checker = crate::knowledge_wiki::drift::WikiDriftChecker::new(db);
+    let verdicts = checker
+        .evaluate_pages(&workspace_id, &pages)
+        .await
+        .map_err(map_wiki_error)?;
+    let served: Vec<serde_json::Value> = pages
+        .into_iter()
+        .zip(verdicts.into_iter())
+        .map(|(page, verdict)| {
+            let mut value = serde_json::to_value(&page).unwrap_or_else(|_| json!({}));
+            value["staleness_verdict"] = serde_json::to_value(&verdict).unwrap_or_default();
+            value
+        })
+        .collect();
+    Ok(Json(json!({ "pages": served })))
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct BootstrapWikiRequest {
+    #[serde(default)]
+    page_token_budget: Option<usize>,
+}
+
+/// POST /workspaces/:ws/loom/wiki/bootstrap — MT-241: compile the project
+/// wiki from existing authority (code index + knowledge entities/edges + rich
+/// documents). EventLedger receives the compile receipts (LM-PWIKI-012).
+async fn bootstrap_project_wiki(
+    State(state): State<AppState>,
+    Path(workspace_id): Path<String>,
+    headers: axum::http::HeaderMap,
+    payload: Option<Json<BootstrapWikiRequest>>,
+) -> ApiResult<Json<serde_json::Value>> {
+    ensure_workspace_exists(&state, &workspace_id).await?;
+    let request = payload.map(|Json(p)| p).unwrap_or_default();
+    let ctx = wiki_compile_context(&headers);
+    let db = wiki_pg(&state);
+    let compiler = crate::knowledge_wiki::compiler::ProjectWikiCompiler::new(db.clone());
+    let mut options = crate::knowledge_wiki::compiler::WikiBootstrapOptions::default();
+    if let Some(budget) = request.page_token_budget {
+        options.page_token_budget = budget;
+    }
+    let outcome = compiler
+        .bootstrap(&ctx, &workspace_id, &options)
+        .await
+        .map_err(map_wiki_error)?;
+
+    let checker = crate::knowledge_wiki::drift::WikiDriftChecker::new(db);
+    let verdicts = checker
+        .evaluate_pages(&workspace_id, &outcome.pages)
+        .await
+        .map_err(map_wiki_error)?;
+    let pages: Vec<serde_json::Value> = outcome
+        .pages
+        .iter()
+        .zip(verdicts.into_iter())
+        .map(|(page, verdict)| {
+            let mut value = serde_json::to_value(page).unwrap_or_else(|_| json!({}));
+            value["staleness_verdict"] = serde_json::to_value(&verdict).unwrap_or_default();
+            value
+        })
+        .collect();
+
+    let event = FlightRecorderEvent::new(
+        FlightRecorderEventType::LoomProjectionRebuilt,
+        FlightRecorderActor::Human,
+        Uuid::now_v7(),
+        json!({
+            "type": "loom_projection_rebuilt",
+            "workspace_id": workspace_id,
+            "operation": "wiki_bootstrap",
+            "pages": pages.len(),
+        }),
+    )
+    .with_wsids(vec![workspace_id.clone()]);
+    let _ = state.flight_recorder.record_event(event).await;
+
+    Ok(Json(json!({
+        "workspace_id": workspace_id,
+        "pages": pages,
+        "started_receipt_event_id": outcome.started_receipt_event_id,
+        "completed_receipt_event_id": outcome.completed_receipt_event_id,
+        "ledger_version": outcome.ledger_version,
+        "module_pages": outcome.module_pages,
+        "concept_pages": outcome.concept_pages,
+        "entity_pages": outcome.entity_pages,
+        "decision_pages": outcome.decision_pages,
+        "split_clusters": outcome.split_clusters,
+        "oversize_files": outcome.oversize_files,
+    })))
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct WikiDriftCheckRequest {
+    /// Persist `rebuild_status = 'stale'` marks for drifted pages
+    /// (default true; the drift run is the canonical mark-stale surface).
+    #[serde(default)]
+    persist: Option<bool>,
+}
+
+/// POST /workspaces/:ws/loom/wiki/drift-check — MT-242: diff current
+/// authority against every page stamp; returns exactly which pages are stale
+/// and why, persists stale marks, appends the staleness-verdict receipt.
+async fn project_wiki_drift_check(
+    State(state): State<AppState>,
+    Path(workspace_id): Path<String>,
+    headers: axum::http::HeaderMap,
+    payload: Option<Json<WikiDriftCheckRequest>>,
+) -> ApiResult<Json<crate::knowledge_wiki::drift::WikiDriftReport>> {
+    ensure_workspace_exists(&state, &workspace_id).await?;
+    let request = payload.map(|Json(p)| p).unwrap_or_default();
+    let ctx = wiki_compile_context(&headers);
+    let checker = crate::knowledge_wiki::drift::WikiDriftChecker::new(wiki_pg(&state));
+    let report = checker
+        .check_workspace(&ctx, &workspace_id, request.persist.unwrap_or(true))
+        .await
+        .map_err(map_wiki_error)?;
+    Ok(Json(report))
+}
+
+#[derive(Debug, Deserialize)]
+struct WikiFanOutHttpRequest {
+    /// `source` | `entity` | `loom_block` | `rich_document`.
+    source_kind: crate::knowledge_wiki::CitedSourceKind,
+    source_id: String,
+    #[serde(default)]
+    budget: Option<usize>,
+}
+
+/// POST /workspaces/:ws/loom/wiki/fanout — MT-243: one changed source
+/// regenerates exactly the pages whose stamps cite it (set equality with the
+/// drift result), bounded by the budget, with LOUD truncation receipts.
+async fn project_wiki_fanout(
+    State(state): State<AppState>,
+    Path(workspace_id): Path<String>,
+    headers: axum::http::HeaderMap,
+    Json(payload): Json<WikiFanOutHttpRequest>,
+) -> ApiResult<Json<crate::knowledge_wiki::fanout::WikiFanOutOutcome>> {
+    ensure_workspace_exists(&state, &workspace_id).await?;
+    let ctx = wiki_compile_context(&headers);
+    let engine = crate::knowledge_wiki::fanout::WikiFanOutEngine::new(wiki_pg(&state));
+    let mut request = crate::knowledge_wiki::fanout::WikiFanOutRequest::new(
+        payload.source_kind,
+        payload.source_id,
+    );
+    if let Some(budget) = payload.budget {
+        request.budget = budget;
+    }
+    let outcome = engine
+        .run(&ctx, &workspace_id, &request)
+        .await
+        .map_err(map_wiki_error)?;
+
+    let event = FlightRecorderEvent::new(
+        FlightRecorderEventType::LoomProjectionRebuilt,
+        FlightRecorderActor::Human,
+        Uuid::now_v7(),
+        json!({
+            "type": "loom_projection_rebuilt",
+            "workspace_id": workspace_id,
+            "operation": "wiki_fanout",
+            "trigger_kind": outcome.trigger_kind.as_str(),
+            "trigger_id": outcome.trigger_id,
+            "regenerated": outcome.regenerated.len(),
+            "truncated": outcome.truncated.len(),
+        }),
+    )
+    .with_wsids(vec![workspace_id]);
+    let _ = state.flight_recorder.record_event(event).await;
+
+    Ok(Json(outcome))
 }
 
 async fn delete_loom_wiki_projection(

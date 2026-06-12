@@ -1829,6 +1829,11 @@ fn loom_wiki_projection_from_knowledge(
         .as_array()
         .map(|arr| {
             arr.iter()
+                // Typed project-wiki pages (MT-241) cite entities/sources/
+                // documents; only genuine LoomBlock citations are block ids.
+                .filter(|v| {
+                    v.get("record_family").and_then(|f| f.as_str()) == Some("LoomBlock")
+                })
                 .filter_map(|v| v.get("record_id").and_then(|r| r.as_str()))
                 .map(|s| s.to_string())
                 .collect::<Vec<_>>()
@@ -1842,6 +1847,9 @@ fn loom_wiki_projection_from_knowledge(
         rendered_content: p.rendered_content,
         staleness_hash: p.staleness_hash,
         rebuild_status: p.rebuild_status.as_str().to_string(),
+        page_type: p.page_type,
+        compile_stamp: p.compile_stamp,
+        page_links: p.page_links,
         created_at: p.created_at,
         updated_at: p.updated_at,
     }
@@ -6172,9 +6180,8 @@ impl super::Database for PostgresDatabase {
         title: &str,
         block_ids: &[String],
     ) -> StorageResult<super::LoomWikiProjection> {
-        use crate::storage::knowledge::{
-            KnowledgeProjectionKind, KnowledgeStore, NewKnowledgeWikiProjection,
-        };
+        use crate::knowledge_wiki::{loom_block_content_hash, CitedSource, CitedSourceKind, WikiCompileStamp};
+        use crate::storage::knowledge::NewKnowledgeWikiPage;
         let title = title.trim();
         if title.is_empty() {
             return Err(StorageError::Validation("loom wiki projection title is required"));
@@ -6189,19 +6196,48 @@ impl super::Database for PostgresDatabase {
 
         let rendered_content = render_loom_wiki_markdown(title, &blocks);
         let staleness_hash = loom_wiki_staleness_hash(&blocks);
-        let source_records = json!(block_ids
+        let source_records = json!(blocks
             .iter()
-            .map(|id| json!({"record_family": "LoomBlock", "record_id": id}))
+            .map(|b| json!({
+                "record_family": "LoomBlock",
+                "record_id": b.block_id,
+                "content_hash": loom_block_content_hash(b),
+            }))
             .collect::<Vec<_>>());
 
+        // MT-242 ship-together upgrade: the MT-184 compile path stamps too —
+        // EventLedger source version + the exact cited LoomBlock set with
+        // content hashes (LM-PWIKI-006). No unstamped compile output exists.
+        let ledger_version = self.current_event_ledger_version().await?;
+        let stamp = WikiCompileStamp::new(
+            ledger_version,
+            blocks
+                .iter()
+                .map(|b| CitedSource {
+                    kind: CitedSourceKind::LoomBlock,
+                    id: b.block_id.clone(),
+                    content_hash: loom_block_content_hash(b),
+                    span_id: None,
+                    source_id: None,
+                })
+                .collect(),
+        );
+
         let projection = self
-            .upsert_knowledge_wiki_projection(NewKnowledgeWikiProjection {
+            .upsert_knowledge_wiki_page(NewKnowledgeWikiPage {
                 workspace_id: workspace_id.to_string(),
-                projection_kind: KnowledgeProjectionKind::WikiPage,
                 title: title.to_string(),
+                page_type: None,
                 source_records,
                 rendered_content,
                 staleness_hash,
+                compile_stamp: stamp.to_value(),
+                compile_recipe: Some(json!({
+                    "kind": "loom_topic",
+                    "block_ids": block_ids,
+                })),
+                page_links: json!([]),
+                rebuild_receipt_event_id: None,
             })
             .await?;
         Ok(loom_wiki_projection_from_knowledge(projection))
@@ -6229,6 +6265,15 @@ impl super::Database for PostgresDatabase {
         let projection = self
             .get_loom_wiki_projection(workspace_id, projection_id)
             .await?;
+        // Typed project-wiki pages (MT-241) cite entities/sources, not Loom
+        // blocks — their staleness is the MT-242 drift verdict
+        // (`knowledge_wiki::drift::WikiDriftChecker`), never this block-hash
+        // path. Fail closed instead of mis-reporting.
+        if projection.page_type.is_some() {
+            return Err(StorageError::Validation(
+                "typed project-wiki pages take staleness from the drift verdict",
+            ));
+        }
         // Recompute the hash over the CURRENT source blocks; a mismatch (or a
         // since-deleted source block) means the projection is stale.
         let mut blocks = Vec::with_capacity(projection.source_block_ids.len());
@@ -6247,10 +6292,18 @@ impl super::Database for PostgresDatabase {
         workspace_id: &str,
         projection_id: &str,
     ) -> StorageResult<super::LoomWikiProjection> {
-        use crate::storage::knowledge::KnowledgeStore;
         let current = self
             .get_loom_wiki_projection(workspace_id, projection_id)
             .await?;
+        // Typed project-wiki pages regenerate through their compile recipe
+        // (knowledge_wiki fan-out / bootstrap), which re-stamps citations from
+        // code-index/knowledge authority. Re-rendering them as a Loom topic
+        // page would silently destroy the compiled content — fail closed.
+        if current.page_type.is_some() {
+            return Err(StorageError::Validation(
+                "typed project-wiki pages regenerate via the project wiki engine",
+            ));
+        }
         // Re-render from current authority (skip source blocks that vanished).
         let mut blocks = Vec::new();
         for id in &current.source_block_ids {
@@ -6260,17 +6313,12 @@ impl super::Database for PostgresDatabase {
                 Err(err) => return Err(err),
             }
         }
-        let rendered_content = render_loom_wiki_markdown(&current.title, &blocks);
-        let staleness_hash = loom_wiki_staleness_hash(&blocks);
-        let refreshed = self
-            .mark_knowledge_projection_rebuilt(
-                projection_id,
-                &staleness_hash,
-                &rendered_content,
-                None,
-            )
-            .await?;
-        Ok(loom_wiki_projection_from_knowledge(refreshed))
+        // Re-compile (same identity upsert) so the refreshed page carries a
+        // CURRENT stamp — regeneration without restamping would be a stale
+        // verdict lying fresh.
+        let block_ids: Vec<String> = blocks.iter().map(|b| b.block_id.clone()).collect();
+        self.compile_loom_wiki_projection(workspace_id, &current.title, &block_ids)
+            .await
     }
 
     async fn delete_loom_wiki_projection(

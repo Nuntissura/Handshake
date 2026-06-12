@@ -979,6 +979,15 @@ const KNOWLEDGE_ENTITY_COLUMNS: &str = r#"
     first_detected_in_run, last_detected_in_run, created_at, updated_at
 "#;
 
+/// `KNOWLEDGE_ENTITY_COLUMNS` qualified with an `e.` table alias for joined
+/// selects (column names in the result stay unqualified, so `entity_from_pg`
+/// reads them unchanged).
+const KNOWLEDGE_ENTITY_COLUMNS_E: &str = r#"
+    e.entity_id, e.workspace_id, e.entity_kind, e.entity_key, e.display_name,
+    e.detection_provenance, e.lifecycle_state, e.primary_source_id,
+    e.first_detected_in_run, e.last_detected_in_run, e.created_at, e.updated_at
+"#;
+
 fn entity_from_pg(row: &sqlx::postgres::PgRow) -> StorageResult<KnowledgeEntity> {
     Ok(KnowledgeEntity {
         entity_id: row.get("entity_id"),
@@ -1713,6 +1722,25 @@ pub struct KnowledgeWikiProjection {
     pub staleness_hash: String,
     pub rebuild_receipt_event_id: Option<String>,
     pub last_rebuilt_at: Option<DateTime<Utc>>,
+    /// MT-241 (migration 0300): typed compiled page kind
+    /// (`module|concept|flow|entity|decision|index`); `None` for untyped
+    /// MT-184 Loom topic pages.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub page_type: Option<String>,
+    /// MT-242 (LM-PWIKI-006) compile stamp: EventLedger source version + the
+    /// exact cited-source set (ids + content hashes) the page compiled from.
+    /// Structurally REQUIRED for typed pages
+    /// (`chk_knowledge_wiki_projections_stamp_guard`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub compile_stamp: Option<Value>,
+    /// MT-243 deterministic compile-input descriptor so fan-out can
+    /// regenerate one page from current authority without a full bootstrap.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub compile_recipe: Option<Value>,
+    /// Outbound wikilinks `[{"title": ..., "projection_id": ...}]` (backlinks
+    /// derive by reverse lookup).
+    #[serde(default)]
+    pub page_links: Value,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -1731,7 +1759,8 @@ pub struct NewKnowledgeWikiProjection {
 const KNOWLEDGE_PROJECTION_COLUMNS: &str = r#"
     projection_id, workspace_id, projection_kind, title, source_records,
     rendered_content, rebuild_status, staleness_hash,
-    rebuild_receipt_event_id, last_rebuilt_at, created_at, updated_at
+    rebuild_receipt_event_id, last_rebuilt_at, page_type, compile_stamp,
+    compile_recipe, page_links, created_at, updated_at
 "#;
 
 fn projection_from_pg(row: &sqlx::postgres::PgRow) -> StorageResult<KnowledgeWikiProjection> {
@@ -1746,6 +1775,10 @@ fn projection_from_pg(row: &sqlx::postgres::PgRow) -> StorageResult<KnowledgeWik
         staleness_hash: row.get("staleness_hash"),
         rebuild_receipt_event_id: row.get("rebuild_receipt_event_id"),
         last_rebuilt_at: row.get("last_rebuilt_at"),
+        page_type: row.get("page_type"),
+        compile_stamp: row.get("compile_stamp"),
+        compile_recipe: row.get("compile_recipe"),
+        page_links: row.get("page_links"),
         created_at: row.get("created_at"),
         updated_at: row.get("updated_at"),
     })
@@ -6286,4 +6319,567 @@ fn escape_like(value: &str) -> String {
         .replace('\\', "\\\\")
         .replace('%', "\\%")
         .replace('_', "\\_")
+}
+
+// ===========================================================================
+// WP-KERNEL-009 MT-241/242/243 ProjectWikiCompile storage support
+// (Master Spec §10.12 Section 17 [LM-PWIKI-001..013]).
+//
+// Inherent PostgresDatabase methods (the established code-files pattern: a
+// separate auditable impl, NOT new KnowledgeStore trait surface). Everything
+// writes into the EXISTING `knowledge_wiki_projections` projection store
+// (0139 + 0300) — no parallel wiki infrastructure (LM-PWIKI-005).
+// ===========================================================================
+
+/// Allowed typed page kinds (mirrors `chk_knowledge_wiki_projections_page_type`
+/// and `knowledge_wiki::WikiPageType`; kept as strings here so the storage
+/// layer does not depend on the compile module).
+const KNOWLEDGE_WIKI_PAGE_TYPES: [&str; 6] =
+    ["module", "concept", "flow", "entity", "decision", "index"];
+
+/// Upsert payload for a compiled, STAMPED wiki page.
+///
+/// SHIP-TOGETHER GUARD (LM-PWIKI-009): `compile_stamp` is NOT `Option` — a
+/// compile output without its drift/staleness stamp cannot be expressed at
+/// this layer, and migration 0300's CHECK enforces the same at the database.
+#[derive(Clone, Debug)]
+pub struct NewKnowledgeWikiPage {
+    pub workspace_id: String,
+    pub title: String,
+    /// `module|concept|flow|entity|decision|index`; `None` only for untyped
+    /// MT-184 Loom topic pages (which are still stamped).
+    pub page_type: Option<String>,
+    /// Citation refs `[{"record_family", "record_id", "content_hash", ...}]`.
+    pub source_records: Value,
+    pub rendered_content: String,
+    /// Legacy MT-184 staleness hash (sha256 hex; kept for back-compat).
+    pub staleness_hash: String,
+    /// MT-242 stamp (`knowledge_wiki::WikiCompileStamp::to_value()`).
+    pub compile_stamp: Value,
+    /// MT-243 deterministic compile-input descriptor.
+    pub compile_recipe: Option<Value>,
+    /// Outbound wikilinks `[{"title", "projection_id"}]`.
+    pub page_links: Value,
+    /// EventLedger compile receipt this build references (LM-PWIKI-012).
+    pub rebuild_receipt_event_id: Option<String>,
+}
+
+/// One indexed code file + its source identity, as bootstrap-compiler input.
+#[derive(Clone, Debug)]
+pub struct WikiCodeFileInput {
+    pub code_file_id: String,
+    pub source_id: String,
+    pub relative_path: String,
+    /// The source's current content hash (citation hash for `source` kind).
+    pub content_hash: String,
+    pub language: KnowledgeCodeLanguage,
+    pub parse_status: KnowledgeCodeParseStatus,
+    pub stale: bool,
+    pub symbols_indexed: i32,
+}
+
+/// An entity plus its latest evidence span on a given source (compiler input
+/// for symbol/concept listings with span citations).
+#[derive(Clone, Debug)]
+pub struct WikiEntityWithSpan {
+    pub entity: KnowledgeEntity,
+    pub span_id: String,
+    pub span_content_sha256: String,
+    pub line_start: Option<i32>,
+    pub line_end: Option<i32>,
+    pub section_path: Option<String>,
+}
+
+/// A code-graph edge whose endpoints live on DIFFERENT sources (drives
+/// cross-module wikilinks).
+#[derive(Clone, Debug)]
+pub struct WikiCrossSourceEdge {
+    pub edge_type: KnowledgeEdgeType,
+    pub from_source_id: String,
+    pub to_source_id: String,
+}
+
+/// Current loom-block content state for drift hashing (lean row; content-
+/// bearing fields only).
+#[derive(Clone, Debug)]
+pub struct WikiLoomBlockState {
+    pub block_id: String,
+    pub title: Option<String>,
+    pub content_type: String,
+    pub full_text_index: Option<String>,
+    pub document_id: Option<String>,
+    pub asset_id: Option<String>,
+    pub content_hash: Option<String>,
+}
+
+impl PostgresDatabase {
+    /// Upsert a compiled wiki page on its `(workspace, kind='wiki_page',
+    /// title)` identity. The row lands `fresh` with its stamp, recipe, links
+    /// and receipt in ONE statement (no stampless intermediate state exists).
+    pub async fn upsert_knowledge_wiki_page(
+        &self,
+        page: NewKnowledgeWikiPage,
+    ) -> StorageResult<KnowledgeWikiProjection> {
+        if page.title.trim() != page.title || page.title.is_empty() {
+            return Err(StorageError::Validation(
+                "wiki page title must be non-empty and trimmed",
+            ));
+        }
+        if !is_sha256_hex(&page.staleness_hash) {
+            return Err(StorageError::Validation(
+                "wiki page staleness_hash must be lowercase sha256 hex",
+            ));
+        }
+        if let Some(page_type) = page.page_type.as_deref() {
+            if !KNOWLEDGE_WIKI_PAGE_TYPES.contains(&page_type) {
+                return Err(StorageError::Validation("invalid wiki page_type"));
+            }
+        }
+        // Fail-closed stamp shape check (mirror of the 0300 CHECK, so the
+        // caller gets a typed Validation error instead of a constraint blow).
+        let stamp_ok = page
+            .compile_stamp
+            .get("ledger_version")
+            .map(|v| v.is_i64() || v.is_u64())
+            .unwrap_or(false)
+            && page
+                .compile_stamp
+                .get("cited_sources")
+                .map(|v| v.is_array())
+                .unwrap_or(false);
+        if !stamp_ok {
+            return Err(StorageError::Validation(
+                "wiki page compile_stamp must carry ledger_version + cited_sources (LM-PWIKI-006)",
+            ));
+        }
+        let projection_id = new_knowledge_id("KWP");
+        let sql = format!(
+            r#"
+            INSERT INTO knowledge_wiki_projections
+                (projection_id, workspace_id, projection_kind, title,
+                 source_records, rendered_content, rebuild_status,
+                 staleness_hash, rebuild_receipt_event_id, last_rebuilt_at,
+                 page_type, compile_stamp, compile_recipe, page_links)
+            VALUES ($1, $2, 'wiki_page', $3, $4, $5, 'fresh', $6, $7, NOW(),
+                    $8, $9, $10, $11)
+            ON CONFLICT (workspace_id, projection_kind, title) DO UPDATE SET
+                source_records = EXCLUDED.source_records,
+                rendered_content = EXCLUDED.rendered_content,
+                rebuild_status = 'fresh',
+                staleness_hash = EXCLUDED.staleness_hash,
+                rebuild_receipt_event_id = EXCLUDED.rebuild_receipt_event_id,
+                last_rebuilt_at = NOW(),
+                page_type = EXCLUDED.page_type,
+                compile_stamp = EXCLUDED.compile_stamp,
+                compile_recipe = EXCLUDED.compile_recipe,
+                page_links = EXCLUDED.page_links,
+                updated_at = NOW()
+            RETURNING {KNOWLEDGE_PROJECTION_COLUMNS}
+            "#
+        );
+        let row = sqlx::query(&sql)
+            .bind(&projection_id)
+            .bind(&page.workspace_id)
+            .bind(&page.title)
+            .bind(&page.source_records)
+            .bind(&page.rendered_content)
+            .bind(&page.staleness_hash)
+            .bind(page.rebuild_receipt_event_id.as_deref())
+            .bind(page.page_type.as_deref())
+            .bind(&page.compile_stamp)
+            .bind(page.compile_recipe.as_ref())
+            .bind(&page.page_links)
+            .fetch_one(self.pool())
+            .await?;
+        projection_from_pg(&row)
+    }
+
+    /// List a workspace's wiki pages (optionally one `page_type`), newest
+    /// titles in deterministic order. `typed_only` filters to project-wiki
+    /// pages (page_type IS NOT NULL).
+    pub async fn list_knowledge_wiki_pages(
+        &self,
+        workspace_id: &str,
+        page_type: Option<&str>,
+        typed_only: bool,
+        limit: i64,
+        offset: i64,
+    ) -> StorageResult<Vec<KnowledgeWikiProjection>> {
+        let sql = format!(
+            r#"
+            SELECT {KNOWLEDGE_PROJECTION_COLUMNS}
+            FROM knowledge_wiki_projections
+            WHERE workspace_id = $1
+              AND projection_kind = 'wiki_page'
+              AND ($2::text IS NULL OR page_type = $2)
+              AND (NOT $3::bool OR page_type IS NOT NULL)
+            ORDER BY COALESCE(page_type, 'zz') ASC, title ASC
+            LIMIT $4 OFFSET $5
+            "#
+        );
+        let rows = sqlx::query(&sql)
+            .bind(workspace_id)
+            .bind(page_type)
+            .bind(typed_only)
+            .bind(limit.clamp(1, 2_000))
+            .bind(offset.max(0))
+            .fetch_all(self.pool())
+            .await?;
+        rows.iter().map(projection_from_pg).collect()
+    }
+
+    /// MT-243 fan-out probe: pages whose compile stamp CITES the given
+    /// authority record (`@>` containment over the GIN-indexed cited_sources).
+    pub async fn list_knowledge_wiki_pages_citing(
+        &self,
+        workspace_id: &str,
+        cited_kind: &str,
+        cited_id: &str,
+    ) -> StorageResult<Vec<KnowledgeWikiProjection>> {
+        let probe = serde_json::json!([{"kind": cited_kind, "id": cited_id}]);
+        let sql = format!(
+            r#"
+            SELECT {KNOWLEDGE_PROJECTION_COLUMNS}
+            FROM knowledge_wiki_projections
+            WHERE workspace_id = $1
+              AND projection_kind = 'wiki_page'
+              AND compile_stamp IS NOT NULL
+              AND (compile_stamp -> 'cited_sources') @> $2
+            ORDER BY title ASC
+            "#
+        );
+        let rows = sqlx::query(&sql)
+            .bind(workspace_id)
+            .bind(&probe)
+            .fetch_all(self.pool())
+            .await?;
+        rows.iter().map(projection_from_pg).collect()
+    }
+
+    /// Replace a page's outbound wikilink set (same-pass backlink refresh,
+    /// LM-PWIKI-010). Wholesale replacement keeps re-runs idempotent (no
+    /// duplicate links can accumulate).
+    pub async fn update_knowledge_wiki_page_links(
+        &self,
+        projection_id: &str,
+        page_links: &Value,
+    ) -> StorageResult<()> {
+        let result = sqlx::query(
+            r#"
+            UPDATE knowledge_wiki_projections
+            SET page_links = $2, updated_at = NOW()
+            WHERE projection_id = $1
+            "#,
+        )
+        .bind(projection_id)
+        .bind(page_links)
+        .execute(self.pool())
+        .await?;
+        if result.rows_affected() == 0 {
+            return Err(StorageError::NotFound("knowledge wiki projection"));
+        }
+        Ok(())
+    }
+
+    /// The EventLedger source version: `MAX(event_sequence)` (0 on an empty
+    /// ledger). Monotonic compile watermark for stamps (LM-PWIKI-006).
+    pub async fn current_event_ledger_version(&self) -> StorageResult<i64> {
+        let version: i64 = sqlx::query_scalar(
+            "SELECT COALESCE(MAX(event_sequence), 0) FROM kernel_event_ledger",
+        )
+        .fetch_one(self.pool())
+        .await?;
+        Ok(version)
+    }
+
+    /// Bootstrap-compiler input: every indexed code file of the workspace
+    /// joined to its source identity (path + current content hash).
+    pub async fn list_wiki_code_file_inputs(
+        &self,
+        workspace_id: &str,
+    ) -> StorageResult<Vec<WikiCodeFileInput>> {
+        let rows = sqlx::query(
+            r#"
+            SELECT cf.code_file_id, cf.source_id, cf.language, cf.parse_status,
+                   cf.stale, cf.symbols_indexed,
+                   s.relative_path, s.content_hash
+            FROM knowledge_code_files cf
+            JOIN knowledge_sources s ON s.source_id = cf.source_id
+            WHERE cf.workspace_id = $1 AND s.relative_path IS NOT NULL
+            ORDER BY s.relative_path ASC
+            "#,
+        )
+        .bind(workspace_id)
+        .fetch_all(self.pool())
+        .await?;
+        rows.iter()
+            .map(|row| {
+                Ok(WikiCodeFileInput {
+                    code_file_id: row.get("code_file_id"),
+                    source_id: row.get("source_id"),
+                    relative_path: row.get("relative_path"),
+                    content_hash: row.get("content_hash"),
+                    language: row.get::<String, _>("language").parse()?,
+                    parse_status: row.get::<String, _>("parse_status").parse()?,
+                    stale: row.get("stale"),
+                    symbols_indexed: row.get("symbols_indexed"),
+                })
+            })
+            .collect()
+    }
+
+    /// MT-243 regeneration input: like [`Self::list_wiki_code_file_inputs`]
+    /// but scoped to an explicit source-id set (the page recipe's cited
+    /// sources). Sources that vanished from authority simply do not return —
+    /// the regenerated page drops them.
+    pub async fn list_wiki_code_file_inputs_by_sources(
+        &self,
+        workspace_id: &str,
+        source_ids: &[String],
+    ) -> StorageResult<Vec<WikiCodeFileInput>> {
+        if source_ids.is_empty() {
+            return Ok(Vec::new());
+        }
+        let rows = sqlx::query(
+            r#"
+            SELECT cf.code_file_id, cf.source_id, cf.language, cf.parse_status,
+                   cf.stale, cf.symbols_indexed,
+                   s.relative_path, s.content_hash
+            FROM knowledge_code_files cf
+            JOIN knowledge_sources s ON s.source_id = cf.source_id
+            WHERE cf.workspace_id = $1
+              AND cf.source_id = ANY($2)
+              AND s.relative_path IS NOT NULL
+            ORDER BY s.relative_path ASC
+            "#,
+        )
+        .bind(workspace_id)
+        .bind(source_ids)
+        .fetch_all(self.pool())
+        .await?;
+        rows.iter()
+            .map(|row| {
+                Ok(WikiCodeFileInput {
+                    code_file_id: row.get("code_file_id"),
+                    source_id: row.get("source_id"),
+                    relative_path: row.get("relative_path"),
+                    content_hash: row.get("content_hash"),
+                    language: row.get::<String, _>("language").parse()?,
+                    parse_status: row.get::<String, _>("parse_status").parse()?,
+                    stale: row.get("stale"),
+                    symbols_indexed: row.get("symbols_indexed"),
+                })
+            })
+            .collect()
+    }
+
+    /// Active entities of one kind anchored to a source, each with its LATEST
+    /// evidence span on that source (definition span for symbols, passage span
+    /// for concepts) — the precise citation row (entity id + span id + span
+    /// content hash, LM-PWIKI-003).
+    pub async fn list_wiki_source_entities_with_spans(
+        &self,
+        workspace_id: &str,
+        source_id: &str,
+        entity_kind: KnowledgeEntityKind,
+    ) -> StorageResult<Vec<WikiEntityWithSpan>> {
+        let sql = format!(
+            r#"
+            SELECT DISTINCT ON (e.entity_id)
+                {KNOWLEDGE_ENTITY_COLUMNS_E},
+                s.span_id AS wiki_span_id,
+                s.content_sha256 AS wiki_span_content_sha256,
+                s.line_start AS wiki_line_start,
+                s.line_end AS wiki_line_end,
+                s.section_path AS wiki_section_path
+            FROM knowledge_entities e
+            JOIN knowledge_entity_spans es ON es.entity_id = e.entity_id
+            JOIN knowledge_spans s
+              ON s.span_id = es.span_id AND s.source_id = $2
+            WHERE e.workspace_id = $1
+              AND e.primary_source_id = $2
+              AND e.entity_kind = $3
+              AND e.lifecycle_state = 'active'
+            ORDER BY e.entity_id, s.created_at DESC, s.span_id DESC
+            "#
+        );
+        let rows = sqlx::query(&sql)
+            .bind(workspace_id)
+            .bind(source_id)
+            .bind(entity_kind.as_str())
+            .fetch_all(self.pool())
+            .await?;
+        let mut out = Vec::with_capacity(rows.len());
+        for row in &rows {
+            out.push(WikiEntityWithSpan {
+                entity: entity_from_pg(row)?,
+                span_id: row.get("wiki_span_id"),
+                span_content_sha256: row.get("wiki_span_content_sha256"),
+                line_start: row.get("wiki_line_start"),
+                line_end: row.get("wiki_line_end"),
+                section_path: row.get("wiki_section_path"),
+            });
+        }
+        // DISTINCT ON ordered by entity_id; re-sort by stable entity_key for
+        // deterministic page rendering.
+        out.sort_by(|a, b| a.entity.entity_key.cmp(&b.entity.entity_key));
+        Ok(out)
+    }
+
+    /// Cross-source code-graph edges (references / depends_on / implements)
+    /// for cross-module wikilinks. Bounded read (DoS guard).
+    pub async fn list_wiki_cross_source_code_edges(
+        &self,
+        workspace_id: &str,
+        limit: i64,
+    ) -> StorageResult<Vec<WikiCrossSourceEdge>> {
+        let rows = sqlx::query(
+            r#"
+            SELECT ed.edge_type,
+                   se.primary_source_id AS from_source_id,
+                   te.primary_source_id AS to_source_id
+            FROM knowledge_edges ed
+            JOIN knowledge_entities se ON se.entity_id = ed.source_entity_id
+            JOIN knowledge_entities te ON te.entity_id = ed.target_entity_id
+            WHERE ed.workspace_id = $1
+              AND ed.edge_type IN ('references', 'depends_on', 'implements')
+              AND ed.lifecycle_state = 'active'
+              AND se.primary_source_id IS NOT NULL
+              AND te.primary_source_id IS NOT NULL
+              AND se.primary_source_id <> te.primary_source_id
+            ORDER BY se.primary_source_id, te.primary_source_id
+            LIMIT $2
+            "#,
+        )
+        .bind(workspace_id)
+        .bind(limit.clamp(1, 100_000))
+        .fetch_all(self.pool())
+        .await?;
+        rows.iter()
+            .map(|row| {
+                Ok(WikiCrossSourceEdge {
+                    edge_type: row.get::<String, _>("edge_type").parse()?,
+                    from_source_id: row.get("from_source_id"),
+                    to_source_id: row.get("to_source_id"),
+                })
+            })
+            .collect()
+    }
+
+    /// Drift resolver: current content hashes of `knowledge_sources` rows.
+    pub async fn get_wiki_source_hashes(
+        &self,
+        source_ids: &[String],
+    ) -> StorageResult<std::collections::HashMap<String, String>> {
+        if source_ids.is_empty() {
+            return Ok(Default::default());
+        }
+        let rows = sqlx::query(
+            "SELECT source_id, content_hash FROM knowledge_sources
+             WHERE source_id = ANY($1)",
+        )
+        .bind(source_ids)
+        .fetch_all(self.pool())
+        .await?;
+        Ok(rows
+            .iter()
+            .map(|r| (r.get("source_id"), r.get("content_hash")))
+            .collect())
+    }
+
+    /// Drift resolver: entities by id with their owning source's CURRENT
+    /// content hash (input to `knowledge_wiki::entity_content_hash`).
+    pub async fn get_wiki_entity_states(
+        &self,
+        entity_ids: &[String],
+    ) -> StorageResult<Vec<(KnowledgeEntity, Option<String>)>> {
+        if entity_ids.is_empty() {
+            return Ok(Vec::new());
+        }
+        let sql = format!(
+            r#"
+            SELECT {KNOWLEDGE_ENTITY_COLUMNS_E}, s.content_hash AS wiki_source_content_hash
+            FROM knowledge_entities e
+            LEFT JOIN knowledge_sources s ON s.source_id = e.primary_source_id
+            WHERE e.entity_id = ANY($1)
+            "#
+        );
+        let rows = sqlx::query(&sql)
+            .bind(entity_ids)
+            .fetch_all(self.pool())
+            .await?;
+        let mut out = Vec::with_capacity(rows.len());
+        for row in &rows {
+            out.push((entity_from_pg(row)?, row.get("wiki_source_content_hash")));
+        }
+        Ok(out)
+    }
+
+    /// Drift resolver: current loom-block content states.
+    pub async fn get_wiki_loom_block_states(
+        &self,
+        workspace_id: &str,
+        block_ids: &[String],
+    ) -> StorageResult<Vec<WikiLoomBlockState>> {
+        if block_ids.is_empty() {
+            return Ok(Vec::new());
+        }
+        let rows = sqlx::query(
+            r#"
+            SELECT block_id, title, content_type, document_id, asset_id,
+                   content_hash, derived_json
+            FROM loom_blocks
+            WHERE workspace_id = $1 AND block_id = ANY($2)
+            "#,
+        )
+        .bind(workspace_id)
+        .bind(block_ids)
+        .fetch_all(self.pool())
+        .await?;
+        Ok(rows
+            .iter()
+            .map(|row| {
+                // `derived_json` is a TEXT column; lift full_text_index the
+                // same way `map_loom_block` does (serde, default on parse
+                // failure — never a hard error on a hostile blob).
+                let derived_raw: String = row.get("derived_json");
+                let full_text_index = serde_json::from_str::<Value>(&derived_raw)
+                    .ok()
+                    .and_then(|v| {
+                        v.get("full_text_index")
+                            .and_then(|t| t.as_str().map(|s| s.to_string()))
+                    });
+                WikiLoomBlockState {
+                    block_id: row.get("block_id"),
+                    title: row.get("title"),
+                    content_type: row.get("content_type"),
+                    full_text_index,
+                    document_id: row.get("document_id"),
+                    asset_id: row.get("asset_id"),
+                    content_hash: row.get("content_hash"),
+                }
+            })
+            .collect())
+    }
+
+    /// Drift resolver: current rich-document content hashes.
+    pub async fn get_wiki_rich_document_hashes(
+        &self,
+        rich_document_ids: &[String],
+    ) -> StorageResult<std::collections::HashMap<String, String>> {
+        if rich_document_ids.is_empty() {
+            return Ok(Default::default());
+        }
+        let rows = sqlx::query(
+            "SELECT rich_document_id, content_sha256 FROM knowledge_rich_documents
+             WHERE rich_document_id = ANY($1)",
+        )
+        .bind(rich_document_ids)
+        .fetch_all(self.pool())
+        .await?;
+        Ok(rows
+            .iter()
+            .map(|r| (r.get("rich_document_id"), r.get("content_sha256")))
+            .collect())
+    }
 }

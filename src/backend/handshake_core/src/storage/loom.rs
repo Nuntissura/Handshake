@@ -781,6 +781,18 @@ pub struct LoomWikiProjection {
     pub staleness_hash: String,
     /// `fresh` | `stale` | `rebuilding` | `failed`.
     pub rebuild_status: String,
+    /// MT-241: typed compiled page kind
+    /// (`module|concept|flow|entity|decision|index`); `None` for operator
+    /// topic pages.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub page_type: Option<String>,
+    /// MT-242 (LM-PWIKI-006) compile stamp: EventLedger source version + the
+    /// exact cited-source set (ids + content hashes) this page compiled from.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub compile_stamp: Option<serde_json::Value>,
+    /// Outbound wikilinks `[{"title", "projection_id"}]`.
+    #[serde(default, skip_serializing_if = "serde_json::Value::is_null")]
+    pub page_links: serde_json::Value,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }

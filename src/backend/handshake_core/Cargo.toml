@@ -603,3 +603,10 @@ required-features = ["test-utils"]
 name = "knowledge_crdt_proposal_tests"
 path = "tests/knowledge_crdt_proposal_tests.rs"
 required-features = ["test-utils"]
+
+# WP-KERNEL-009 ProjectWikiCompileLayer (MT-241..MT-243): real-PostgreSQL
+# proof for the bootstrap compiler, drift/staleness, and fan-out surfaces.
+[[test]]
+name = "project_wiki_bootstrap_tests"
+path = "tests/project_wiki_bootstrap_tests.rs"
+required-features = ["test-utils"]

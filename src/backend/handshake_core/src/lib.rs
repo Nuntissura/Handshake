@@ -204,6 +204,14 @@ pub mod knowledge_memory;
 /// ProjectKnowledgeIndex + MemoryGraph substrate.
 #[cfg(feature = "runtime-full")]
 pub mod knowledge_retrieval;
+/// WP-KERNEL-009 ProjectWikiCompileLayer (MT-241..MT-243): "knowledge as a
+/// compile target" — bootstrap-compiles a typed, cited, navigable project wiki
+/// from existing authority into the `knowledge_wiki_projections` store, with
+/// EventLedger-stamped drift/staleness verdicts on every served page and
+/// bounded incremental fan-out regeneration (Master Spec §10.12 Section 17
+/// [LM-PWIKI-001..013]).
+#[cfg(feature = "runtime-full")]
+pub mod knowledge_wiki;
 #[cfg(feature = "runtime-full")]
 pub mod llm;
 #[cfg(feature = "runtime-full")]
