@@ -42,7 +42,7 @@ use crate::knowledge_retrieval::planner::{
 };
 use crate::knowledge_retrieval::ranking::{rank_candidates, CandidateFeatures, RankingWeights};
 use crate::knowledge_retrieval::snippet::{assemble_span_snippet, EvidenceSnippet};
-use crate::memory::retrieval_mode::QueryRetrievalMode;
+use crate::memory::retrieval_mode::{NonHybridReason, QueryRetrievalMode};
 use crate::storage::knowledge::{KnowledgePassageEvidenceRef, KnowledgeStore};
 use crate::storage::postgres::PostgresDatabase;
 use crate::storage::StorageResult;
@@ -158,8 +158,15 @@ pub async fn execute_retrieval(
         // column persists it as hybrid_rag (the MT-129 mode law) and
         // `RetrievalTrace::mode_reason` carries the fallback rationale, so the
         // WHY survives into the durable row, not just the decisions JSONB.
+        // PassageFallback is a non-hybrid posture and MUST carry a reason
+        // (spec A0.5): a hybrid-origin plan (reason None) gets the bounded
+        // passage-context reason on revision.
         planned.plan.retrieval_mode = QueryRetrievalMode::PassageFallback;
+        if planned.plan.non_hybrid_reason.is_none() {
+            planned.plan.non_hybrid_reason = Some(NonHybridReason::BoundedExecutorContext);
+        }
         trace.retrieval_mode = QueryRetrievalMode::PassageFallback;
+        trace.non_hybrid_reason = planned.plan.non_hybrid_reason;
         for passage in &decision.fallback_passages {
             features.push(CandidateFeatures {
                 candidate_id: passage.passage_id.clone(),

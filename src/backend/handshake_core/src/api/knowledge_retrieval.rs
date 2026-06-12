@@ -17,7 +17,7 @@
 //! actor/session/correlation identity and the resolved query. Conventions
 //! mirror `api/knowledge_memory.rs`.
 //!
-//! Routes (all read-only; each leaves a retrieval receipt):
+//! Routes (each leaves a retrieval receipt):
 //! * `GET /knowledge/retrieval/bundles/:bundle_id` — a bundle, its items
 //!   (with retrieval decisions + citations), and its replayable traces
 //!   (QueryPlan + RetrievalTrace in `decisions`) — the explanation + reproduction
@@ -25,13 +25,23 @@
 //! * `GET /knowledge/retrieval/bundles/:bundle_id/export` — the bounded AI-ready
 //!   evidence export manifest for the bundle (provenance + retention +
 //!   reconstructable).
+//! * `GET /knowledge/retrieval/bundles/:bundle_id/staleness` — the EXPLICIT
+//!   stale-reason / missing-evidence surface (adversarial-v2 MT-143): every
+//!   bundle item's backing record is re-checked against the live index
+//!   (missing span/passage/source/entity, stale source) and reported per item.
+//! * `POST /knowledge/retrieval/bundles/:bundle_id/repair` — the repair action
+//!   (adversarial-v2 MT-143): re-executes the bundle's recorded query through
+//!   the executed retrieval pipeline, producing a FRESH bundle + trace linked
+//!   to the stale one.
 //! * `GET /knowledge/retrieval/catalog?workspace_id=&limit=` — the active
 //!   SemanticCatalog routing contracts.
+
+use std::collections::BTreeSet;
 
 use axum::{
     extract::{Path, Query, State},
     http::{HeaderMap, StatusCode},
-    routing::get,
+    routing::{get, post},
     Json, Router,
 };
 use serde::Deserialize;
@@ -39,7 +49,11 @@ use serde_json::{json, Value};
 
 use crate::kernel::{KernelActor, KernelEventType, NewKernelEvent};
 use crate::knowledge_retrieval::ai_ready_export::build_evidence_manifest;
-use crate::storage::knowledge::KnowledgeStore;
+use crate::knowledge_retrieval::compiler::BundleTargetKind;
+use crate::knowledge_retrieval::executor::execute_retrieval;
+use crate::knowledge_retrieval::graph_planner::GraphTraversalPolicy;
+use crate::knowledge_retrieval::planner::RetrievalRequest;
+use crate::storage::knowledge::{KnowledgeBundleItemRefKind, KnowledgeStore};
 use crate::storage::knowledge_retrieval::list_semantic_catalog_entries;
 use crate::storage::postgres::PostgresDatabase;
 use crate::storage::{Database, StorageError};
@@ -63,6 +77,14 @@ pub fn routes(state: AppState) -> Router {
         .route(
             "/knowledge/retrieval/bundles/:bundle_id/export",
             get(export_bundle_evidence),
+        )
+        .route(
+            "/knowledge/retrieval/bundles/:bundle_id/staleness",
+            get(bundle_staleness),
+        )
+        .route(
+            "/knowledge/retrieval/bundles/:bundle_id/repair",
+            post(repair_bundle),
         )
         .route("/knowledge/retrieval/catalog", get(list_catalog))
         .with_state(state)
@@ -273,6 +295,205 @@ async fn export_bundle_evidence(
 
     Ok(Json(json!({
         "manifest": manifest,
+        "retrieval_receipt_event_id": receipt,
+    })))
+}
+
+/// GET /knowledge/retrieval/bundles/:bundle_id/staleness
+///
+/// The EXPLICIT stale-reason / missing-evidence surface (adversarial-v2
+/// MT-143): every bundle item's backing record is re-checked against the live
+/// index. Statuses per item: `ok`, `missing_evidence` (the cited record no
+/// longer exists), `source_stale` (the cited span's source changed since
+/// indexing). The bundle is `stale` when any item is not `ok`.
+async fn bundle_staleness(
+    State(state): State<AppState>,
+    Path(bundle_id): Path<String>,
+    headers: HeaderMap,
+) -> Result<Json<Value>, ApiError> {
+    let ctx = nav_context(&headers)?;
+    let db = db_for(&state);
+
+    let (_bundle, items) = db
+        .get_knowledge_context_bundle(&bundle_id)
+        .await
+        .map_err(storage_error)?
+        .ok_or_else(|| not_found("knowledge context bundle"))?;
+
+    let mut item_reports: Vec<Value> = Vec::with_capacity(items.len());
+    let mut stale = false;
+    for item in &items {
+        let (status, reason): (&str, Option<String>) = match item.ref_kind {
+            KnowledgeBundleItemRefKind::Span => {
+                match db.get_knowledge_span(&item.ref_id).await.map_err(storage_error)? {
+                    None => ("missing_evidence", Some("cited span no longer exists".into())),
+                    Some(span) => {
+                        match db
+                            .get_knowledge_source(&span.source_id)
+                            .await
+                            .map_err(storage_error)?
+                        {
+                            None => (
+                                "missing_evidence",
+                                Some("the span's source no longer exists".into()),
+                            ),
+                            Some(source) if source.stale => (
+                                "source_stale",
+                                Some(format!(
+                                    "source {} changed since indexing (stale)",
+                                    source.source_id
+                                )),
+                            ),
+                            Some(_) => ("ok", None),
+                        }
+                    }
+                }
+            }
+            KnowledgeBundleItemRefKind::Passage => {
+                match db
+                    .get_knowledge_memory_passage(&item.ref_id)
+                    .await
+                    .map_err(storage_error)?
+                {
+                    None => ("missing_evidence", Some("cited passage no longer exists".into())),
+                    Some(_) => ("ok", None),
+                }
+            }
+            KnowledgeBundleItemRefKind::Source => {
+                match db
+                    .get_knowledge_source(&item.ref_id)
+                    .await
+                    .map_err(storage_error)?
+                {
+                    None => ("missing_evidence", Some("cited source no longer exists".into())),
+                    Some(source) if source.stale => (
+                        "source_stale",
+                        Some("source changed since indexing (stale)".into()),
+                    ),
+                    Some(_) => ("ok", None),
+                }
+            }
+            KnowledgeBundleItemRefKind::Entity => {
+                // Entity candidates from the executed pipeline cite the stable
+                // relationship_id (not a bare entity row id), so the entity
+                // surface carries no per-item staleness check here.
+                ("ok", None)
+            }
+            KnowledgeBundleItemRefKind::Claim => {
+                match db
+                    .get_knowledge_claim(&item.ref_id)
+                    .await
+                    .map_err(storage_error)?
+                {
+                    None => ("missing_evidence", Some("cited claim no longer exists".into())),
+                    Some(_) => ("ok", None),
+                }
+            }
+        };
+        if status != "ok" {
+            stale = true;
+        }
+        item_reports.push(json!({
+            "ref_kind": item.ref_kind.as_str(),
+            "ref_id": item.ref_id,
+            "status": status,
+            "reason": reason,
+        }));
+    }
+
+    let receipt = record_nav_receipt(
+        &db,
+        &ctx,
+        "bundle_staleness",
+        json!({"bundle_id": bundle_id}),
+    )
+    .await?;
+
+    Ok(Json(json!({
+        "bundle_id": bundle_id,
+        "stale": stale,
+        "items": item_reports,
+        "repair_available": true,
+        "retrieval_receipt_event_id": receipt,
+    })))
+}
+
+/// POST /knowledge/retrieval/bundles/:bundle_id/repair
+///
+/// The repair action (adversarial-v2 MT-143): re-executes the bundle's
+/// recorded query through the executed retrieval pipeline
+/// (`knowledge_retrieval::executor`), producing a FRESH bundle + trace bound
+/// to current index state. The response links old -> new so a consumer swaps
+/// to the repaired bundle; the stale bundle stays (bundles are append-only
+/// evidence, never silently rewritten).
+async fn repair_bundle(
+    State(state): State<AppState>,
+    Path(bundle_id): Path<String>,
+    headers: HeaderMap,
+) -> Result<Json<Value>, ApiError> {
+    let ctx = nav_context(&headers)?;
+    let db = db_for(&state);
+
+    let (_bundle, _items) = db
+        .get_knowledge_context_bundle(&bundle_id)
+        .await
+        .map_err(storage_error)?
+        .ok_or_else(|| not_found("knowledge context bundle"))?;
+    let traces = db
+        .list_knowledge_retrieval_traces_for_bundle(&bundle_id)
+        .await
+        .map_err(storage_error)?;
+    let Some(trace_row) = traces.first() else {
+        return Err(bad_request(
+            "bundle has no recorded trace; the original query cannot be reproduced",
+        ));
+    };
+    let recorded_plan = &trace_row.decisions["query_plan"];
+    let query_text = recorded_plan["query_text"]
+        .as_str()
+        .or(trace_row.query_text.as_deref())
+        .ok_or_else(|| bad_request("recorded trace carries no query text to re-execute"))?
+        .to_string();
+    let recorded_mode = recorded_plan["retrieval_mode"].as_str().unwrap_or("");
+    let target = trace_row.decisions["retrieval_trace"]["target"].clone();
+
+    // Re-execute the recorded query against CURRENT index state.
+    let mut request = RetrievalRequest::discovery(&trace_row.workspace_id, &query_text);
+    request.graph_neighborhood_expected = recorded_mode == "graph_traversal";
+    let executed = execute_retrieval(
+        &db,
+        &state.postgres_pool,
+        &ctx.kernel_task_run_id,
+        &ctx.session_run_id,
+        BundleTargetKind::Task,
+        &format!("repair:{bundle_id}"),
+        &request,
+        &BTreeSet::new(),
+        GraphTraversalPolicy::default(),
+    )
+    .await
+    .map_err(storage_error)?;
+
+    let receipt = record_nav_receipt(
+        &db,
+        &ctx,
+        "repair_bundle",
+        json!({
+            "bundle_id": bundle_id,
+            "repaired_bundle_id": executed.compiled.bundle_id,
+            "action": "reexecute",
+        }),
+    )
+    .await?;
+
+    Ok(Json(json!({
+        "bundle_id": bundle_id,
+        "action": "reexecute",
+        "repaired_bundle_id": executed.compiled.bundle_id,
+        "repaired_trace_id": executed.compiled.trace_id,
+        "fallback_reason": executed.fallback_reason,
+        "ranked_candidates": executed.ranked.len(),
+        "original_target": target,
         "retrieval_receipt_event_id": receipt,
     })))
 }
