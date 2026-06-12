@@ -12,6 +12,35 @@
 use serde::{Deserialize, Serialize};
 
 use super::block_tree::{Block, BlockKind, BlockTree};
+use super::embed::{url_scheme, EmbedTarget};
+
+/// URL schemes a projection may emit into a link target (adversarial-v2
+/// MT-150 hardening): web links, mail links, and internal `hsk:` refs.
+/// Everything else — `javascript:`, `data:`, `vbscript:`, `file:` — is
+/// neutralized. Scheme detection runs on the obfuscation-stripped value
+/// (see [`url_scheme`]) so case/tab/newline tricks cannot smuggle a scheme.
+const SAFE_LINK_SCHEMES: [&str; 4] = ["http", "https", "mailto", "hsk"];
+
+/// Sanitize a link target for rendering (MT-150): returns the target when it
+/// is scheme-less (relative/internal ref) or carries an allowlisted scheme,
+/// else `None` (the renderer neutralizes the link instead of emitting it).
+fn sanitize_link_target(target: &str) -> Option<&str> {
+    match url_scheme(target) {
+        None => Some(target),
+        Some(scheme) if SAFE_LINK_SCHEMES.contains(&scheme.as_str()) => Some(target),
+        Some(_) => None,
+    }
+}
+
+/// Resolve a block's embed target through the typed [`EmbedTarget`] law
+/// (MT-150/152 hardening: projections no longer trust raw `attrs` — the same
+/// validation that guards the side table governs what renders). Returns the
+/// validated value, or `None` when the target is absent or fails validation
+/// (absolute path, non-http URL, scheme-bearing pseudo-id).
+fn validated_embed_target(block: &Block) -> Option<String> {
+    let raw = embed_target(block)?;
+    EmbedTarget::parse_raw(&raw).ok().map(|target| target.value)
+}
 
 /// Supported projection output formats (MT-150).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -112,13 +141,22 @@ fn markdown_block(block: &Block, wiki: bool) -> String {
                 format!("[[{target}]]")
             } else {
                 let label = if text.is_empty() { &target } else { text };
-                format!("[{label}]({target})")
+                match sanitize_link_target(&target) {
+                    // MT-150: only allowlisted schemes become markdown links;
+                    // a javascript:/data: target degrades to the plain label.
+                    Some(safe) => format!("[{label}]({safe})"),
+                    None => label.clone(),
+                }
             }
         }
         kind if kind.is_embed() => {
-            let target = embed_target(block).unwrap_or_default();
             let alt = if text.is_empty() { "embed" } else { text };
-            format!("![{alt}]({target})")
+            match validated_embed_target(block) {
+                // MT-150/152: embed targets render only through the typed
+                // EmbedTarget law; an invalid target degrades to the alt text.
+                Some(target) => format!("![{alt}]({target})"),
+                None => alt.to_string(),
+            }
         }
         _ => text.clone(),
     }
@@ -149,17 +187,49 @@ fn html_block(block: &Block) -> String {
         }
         BlockKind::OrderedList => list_html("ol", &block.content.derived.plain_text),
         kind if kind.is_typed_link() => {
-            let target = escape_html(&typed_link_target(block).unwrap_or_default());
-            let label = if text.is_empty() {
-                target.clone()
-            } else {
-                text
-            };
-            format!("<a href=\"{target}\">{label}</a>")
+            let raw_target = typed_link_target(block).unwrap_or_default();
+            // MT-150 (adversarial-v2): only allowlisted schemes may become an
+            // href. A javascript:/data:/vbscript: target — including case,
+            // tab/newline, and entity obfuscations — is neutralized into a
+            // non-link span carrying the label only (stored XSS closed).
+            match sanitize_link_target(&raw_target) {
+                Some(safe) => {
+                    let target = escape_html(safe);
+                    let label = if text.is_empty() {
+                        target.clone()
+                    } else {
+                        text
+                    };
+                    format!("<a href=\"{target}\">{label}</a>")
+                }
+                None => {
+                    let label = if text.is_empty() {
+                        escape_html("blocked link")
+                    } else {
+                        text
+                    };
+                    format!("<span data-hsk-blocked-link=\"true\">{label}</span>")
+                }
+            }
         }
         kind if kind.is_embed() => {
-            let target = escape_html(&embed_target(block).unwrap_or_default());
-            format!("<img src=\"{target}\" alt=\"{text}\" />")
+            // MT-150/152 (adversarial-v2): embeds render only through the
+            // typed EmbedTarget law — never raw attrs. An invalid target
+            // renders as a repairable placeholder span, not a live src.
+            match validated_embed_target(block) {
+                Some(valid) => {
+                    let target = escape_html(&valid);
+                    format!("<img src=\"{target}\" alt=\"{text}\" />")
+                }
+                None => {
+                    let alt = if text.is_empty() {
+                        escape_html("broken embed")
+                    } else {
+                        text
+                    };
+                    format!("<span data-hsk-broken-embed=\"true\">{alt}</span>")
+                }
+            }
         }
         _ => format!("<p>{text}</p>"),
     }
@@ -298,5 +368,174 @@ mod tests {
             let rendered = render_projection("Doc", &tree(), format);
             assert!(!rendered.content.is_empty());
         }
+    }
+
+    // -- adversarial-v2 MT-150: stored-XSS scheme allowlist -------------------
+
+    fn link_doc(target: &str) -> BlockTree {
+        let doc = json!({
+            "type": "doc",
+            "content": [
+                { "type": "fileLink", "attrs": { "target": target },
+                  "content": [{ "type": "text", "text": "click me" }] }
+            ]
+        });
+        BlockTree::from_document_json("KRD-x", DOCUMENT_SCHEMA_VERSION, &doc).unwrap()
+    }
+
+    fn embed_doc(target: &str) -> BlockTree {
+        let doc = json!({
+            "type": "doc",
+            "content": [
+                { "type": "image", "attrs": { "target": target },
+                  "content": [{ "type": "text", "text": "pic" }] }
+            ]
+        });
+        BlockTree::from_document_json("KRD-x", DOCUMENT_SCHEMA_VERSION, &doc).unwrap()
+    }
+
+    #[test]
+    fn html_projection_neutralizes_dangerous_href_schemes() {
+        // Plain and OBFUSCATED payloads: case tricks, embedded tab/newline/CR
+        // (browsers strip these in URLs), leading whitespace, and friends.
+        for payload in [
+            "javascript:alert(1)",
+            "JaVaScRiPt:alert(1)",
+            "jav\tascript:alert(1)",
+            "jav\nascript:alert(1)",
+            "jav\rascript:alert(1)",
+            "  javascript:alert(1)",
+            "\u{1}javascript:alert(1)",
+            "vbscript:msgbox(1)",
+            "VBScript:msgbox(1)",
+            "data:text/html,<script>alert(1)</script>",
+            "DATA:text/html;base64,PHNjcmlwdD4=",
+            "file:///etc/passwd",
+        ] {
+            let html = render_projection("T", &link_doc(payload), ProjectionFormat::Html);
+            let lower = html.content.to_lowercase().replace(['\t', '\n', '\r'], "");
+            assert!(
+                !lower.contains("href=\"javascript")
+                    && !lower.contains("href=\"vbscript")
+                    && !lower.contains("href=\"data:")
+                    && !lower.contains("href=\"file:"),
+                "payload `{payload}` must never become an href: {}",
+                html.content
+            );
+            assert!(
+                html.content.contains("data-hsk-blocked-link=\"true\""),
+                "payload `{payload}` must render as a neutralized non-link"
+            );
+            assert!(
+                html.content.contains("click me"),
+                "the label text survives neutralization"
+            );
+        }
+    }
+
+    #[test]
+    fn html_projection_keeps_allowlisted_and_relative_link_targets() {
+        for safe in [
+            "https://example.com/page",
+            "http://example.com",
+            "mailto:ops@example.com",
+            "hsk:spec/2.3.13.11",
+            "WP-KERNEL-009",
+            "docs/runbook.md",
+            "src/main.rs",
+        ] {
+            let html = render_projection("T", &link_doc(safe), ProjectionFormat::Html);
+            assert!(
+                html.content.contains("<a href=\""),
+                "safe target `{safe}` must stay a link: {}",
+                html.content
+            );
+            assert!(!html.content.contains("data-hsk-blocked-link"));
+        }
+    }
+
+    #[test]
+    fn entity_encoded_scheme_stays_inert_through_escaping() {
+        // `&#106;avascript:` carries no real scheme (the `&` breaks scheme
+        // parsing) and the ampersand is escaped to `&amp;#106;` so a browser
+        // decodes it back to LITERAL text `&#106;...` — an inert relative URL,
+        // never a decoded javascript: scheme.
+        let html = render_projection(
+            "T",
+            &link_doc("&#106;avascript:alert(1)"),
+            ProjectionFormat::Html,
+        );
+        assert!(
+            html.content.contains("href=\"&amp;#106;avascript:alert(1)\""),
+            "entity payload must be emitted double-escaped: {}",
+            html.content
+        );
+        assert!(!html.content.contains("href=\"&#106;"));
+    }
+
+    #[test]
+    fn html_projection_routes_embeds_through_embed_target_validation() {
+        // Valid typed targets render as <img src>.
+        for valid in ["KMED-abc123", "https://cdn.example/x.png"] {
+            let html = render_projection("T", &embed_doc(valid), ProjectionFormat::Html);
+            assert!(
+                html.content.contains("<img src=\""),
+                "valid embed `{valid}` renders: {}",
+                html.content
+            );
+        }
+        // Invalid targets (the MT-152 bypass the review found) are neutralized:
+        // data:/javascript: URIs, absolute paths, UNC, file:.
+        for invalid in [
+            "data:image/svg+xml,<svg onload=alert(1)>",
+            "javascript:alert(1)",
+            "JaVa\tScRiPt:alert(1)",
+            "/var/secrets/x.png",
+            "C:\\secrets\\x.png",
+            "\\\\host\\share\\x.png",
+            "file:///etc/passwd",
+            "ftp://host/x.png",
+        ] {
+            let html = render_projection("T", &embed_doc(invalid), ProjectionFormat::Html);
+            assert!(
+                !html.content.contains("<img"),
+                "invalid embed `{invalid}` must not render an img: {}",
+                html.content
+            );
+            assert!(
+                html.content.contains("data-hsk-broken-embed=\"true\""),
+                "invalid embed `{invalid}` renders the repairable placeholder"
+            );
+        }
+    }
+
+    #[test]
+    fn markdown_projection_neutralizes_dangerous_targets_too() {
+        let md = render_projection(
+            "T",
+            &link_doc("javascript:alert(1)"),
+            ProjectionFormat::Markdown,
+        );
+        assert!(
+            !md.content.contains("](javascript:"),
+            "markdown must not emit a javascript: link: {}",
+            md.content
+        );
+        assert!(md.content.contains("click me"), "label text survives");
+        let md = render_projection(
+            "T",
+            &embed_doc("data:text/html,<script>"),
+            ProjectionFormat::Markdown,
+        );
+        assert!(!md.content.contains("](data:"));
+        // Safe targets still render as links/embeds in markdown.
+        let md = render_projection(
+            "T",
+            &link_doc("https://example.com"),
+            ProjectionFormat::Markdown,
+        );
+        assert!(md.content.contains("[click me](https://example.com)"));
+        let md = render_projection("T", &embed_doc("KMED-1"), ProjectionFormat::Markdown);
+        assert!(md.content.contains("![pic](KMED-1)"));
     }
 }

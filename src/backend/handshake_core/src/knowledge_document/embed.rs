@@ -44,6 +44,8 @@ pub enum EmbedTargetError {
     AbsolutePath(String),
     #[error("embed url target must be an http(s) URL, got `{0}`")]
     NonHttpUrl(String),
+    #[error("embed id target carries a URL scheme (`{0}`); artifact/media/source ids are bare ids — scheme-bearing values must use the url kind (http/https only)")]
+    SchemeNotAllowedForId(String),
 }
 
 /// A typed embed reference target (MT-152).
@@ -56,9 +58,18 @@ pub struct EmbedTarget {
 }
 
 impl EmbedTarget {
-    /// Construct a typed embed target, rejecting absolute filesystem paths and
-    /// non-http URLs (MT-152). This is the only public constructor, so a path
-    /// can never become an embed target.
+    /// Construct a typed embed target, rejecting absolute filesystem paths,
+    /// non-http URLs, and scheme-bearing "ids" (MT-152, hardened by
+    /// adversarial-v2 MT-150/152). This is the only public constructor, so a
+    /// path or a `javascript:`/`data:` URI can never become an embed target:
+    ///
+    /// * `url` kind: must start with `http://` / `https://` exactly (an
+    ///   obfuscated scheme — case tricks, embedded tab/newline — fails the
+    ///   strict prefix and is rejected).
+    /// * id kinds (`artifact`/`media`/`source`): must be bare ids; any value
+    ///   that parses as carrying a URL scheme (after stripping the tab/LF/CR
+    ///   obfuscation characters browsers ignore) is rejected, so
+    ///   `javascript:...`/`data:...` can never hide inside an id field.
     pub fn new(kind: EmbedRefKind, value: impl Into<String>) -> Result<Self, EmbedTargetError> {
         let value = value.into();
         let trimmed = value.trim();
@@ -68,16 +79,74 @@ impl EmbedTarget {
         if is_absolute_path(trimmed) {
             return Err(EmbedTargetError::AbsolutePath(trimmed.to_string()));
         }
-        if kind == EmbedRefKind::Url
-            && !(trimmed.starts_with("http://") || trimmed.starts_with("https://"))
-        {
-            return Err(EmbedTargetError::NonHttpUrl(trimmed.to_string()));
+        match kind {
+            EmbedRefKind::Url => {
+                if !(trimmed.starts_with("http://") || trimmed.starts_with("https://")) {
+                    return Err(EmbedTargetError::NonHttpUrl(trimmed.to_string()));
+                }
+            }
+            EmbedRefKind::Artifact | EmbedRefKind::Media | EmbedRefKind::Source => {
+                if url_scheme(trimmed).is_some() {
+                    return Err(EmbedTargetError::SchemeNotAllowedForId(trimmed.to_string()));
+                }
+            }
         }
         Ok(Self {
             kind,
             value: trimmed.to_string(),
         })
     }
+
+    /// Validate a raw embed target string from document content (MT-150/152:
+    /// the projection + save paths route raw `attrs.target`/`attrs.src` values
+    /// through THIS law instead of trusting them). The kind is inferred:
+    /// a scheme-bearing value must be a typed http(s) URL; everything else is
+    /// treated as a bare media/artifact/source id.
+    pub fn parse_raw(value: &str) -> Result<Self, EmbedTargetError> {
+        let kind = if url_scheme(value.trim()).is_some() {
+            EmbedRefKind::Url
+        } else {
+            EmbedRefKind::Media
+        };
+        Self::new(kind, value)
+    }
+}
+
+/// Parse the URL scheme of a value, defending against the obfuscation
+/// browsers tolerate (adversarial-v2 MT-150): ASCII tab/LF/CR are stripped
+/// anywhere (HTML URL parsing ignores them, so `jav\tascript:` IS
+/// `javascript:` to a browser) and leading/trailing C0 controls + space are
+/// trimmed. Returns the lowercased scheme when the cleaned value starts with
+/// `ALPHA *( ALPHA / DIGIT / "+" / "-" / "." ) ":"`, else `None` (a relative
+/// or scheme-less value).
+pub(crate) fn url_scheme(value: &str) -> Option<String> {
+    let cleaned: String = value
+        .chars()
+        .filter(|c| !matches!(c, '\t' | '\n' | '\r'))
+        .collect();
+    let cleaned = cleaned.trim_matches(|c: char| c <= ' ' || c == '\u{7f}');
+    let mut scheme = String::new();
+    for (index, ch) in cleaned.chars().enumerate() {
+        if ch == ':' {
+            return if scheme.is_empty() {
+                None
+            } else {
+                Some(scheme)
+            };
+        }
+        let valid = if index == 0 {
+            ch.is_ascii_alphabetic()
+        } else {
+            ch.is_ascii_alphanumeric() || matches!(ch, '+' | '-' | '.')
+        };
+        if !valid {
+            // A non-scheme character before any ':' means the value has no
+            // scheme (it is a relative path / bare id / title).
+            return None;
+        }
+        scheme.push(ch.to_ascii_lowercase());
+    }
+    None
 }
 
 /// A typed embed reference attached to an embed block (MT-152).
@@ -214,6 +283,81 @@ mod tests {
             EmbedTarget::new(EmbedRefKind::Media, "  "),
             Err(EmbedTargetError::Empty)
         ));
+    }
+
+    #[test]
+    fn id_kinds_reject_scheme_bearing_values() {
+        // Adversarial-v2 MT-150/152: a javascript:/data: URI can never hide
+        // inside an artifact/media/source id field, including the obfuscations
+        // browsers tolerate (case, embedded tab/newline).
+        for bad in [
+            "javascript:alert(1)",
+            "JaVaScRiPt:alert(1)",
+            "jav\tascript:alert(1)",
+            "jav\nascript:alert(1)",
+            "data:text/html,<script>",
+            "vbscript:msgbox(1)",
+            "ftp://host/x",
+        ] {
+            for kind in [EmbedRefKind::Artifact, EmbedRefKind::Media, EmbedRefKind::Source] {
+                assert!(
+                    matches!(
+                        EmbedTarget::new(kind, bad),
+                        Err(EmbedTargetError::SchemeNotAllowedForId(_))
+                    ),
+                    "`{bad}` must be rejected as a {} id",
+                    kind.as_str()
+                );
+            }
+        }
+        // Bare ids remain accepted.
+        assert!(EmbedTarget::new(EmbedRefKind::Media, "KMED-1").is_ok());
+        assert!(EmbedTarget::new(EmbedRefKind::Artifact, "KART-2026").is_ok());
+    }
+
+    #[test]
+    fn parse_raw_infers_kind_and_applies_the_same_law() {
+        // Bare id -> media id target.
+        let id = EmbedTarget::parse_raw("KMED-1").expect("bare id");
+        assert_eq!(id.kind, EmbedRefKind::Media);
+        // http(s) -> typed url target.
+        let url = EmbedTarget::parse_raw("https://cdn.example/x.png").expect("https url");
+        assert_eq!(url.kind, EmbedRefKind::Url);
+        // Every dangerous shape fails closed.
+        for bad in [
+            "javascript:alert(1)",
+            "JaVaScRiPt:alert(1)",
+            "jav\tascript:alert(1)",
+            "data:image/svg+xml,<svg>",
+            "file:///etc/passwd",
+            "/abs/path.png",
+            "C:\\x.png",
+            "\\\\host\\share\\x",
+            "ftp://host/x",
+        ] {
+            assert!(
+                EmbedTarget::parse_raw(bad).is_err(),
+                "`{bad}` must fail parse_raw"
+            );
+        }
+    }
+
+    #[test]
+    fn url_scheme_detection_defeats_obfuscation() {
+        assert_eq!(url_scheme("javascript:x"), Some("javascript".to_string()));
+        assert_eq!(url_scheme("JaVaScRiPt:x"), Some("javascript".to_string()));
+        assert_eq!(
+            url_scheme("jav\tascri\npt:x"),
+            Some("javascript".to_string())
+        );
+        assert_eq!(url_scheme("  \u{1}data:text/html"), Some("data".to_string()));
+        assert_eq!(url_scheme("https://x"), Some("https".to_string()));
+        // Scheme-less values: bare ids, relative paths, wiki titles.
+        assert_eq!(url_scheme("KMED-1"), None);
+        assert_eq!(url_scheme("docs/page.md"), None);
+        assert_eq!(url_scheme("Deploy Guide"), None);
+        assert_eq!(url_scheme("&#106;avascript:x"), None, "entity payloads have no scheme");
+        assert_eq!(url_scheme(":nope"), None);
     }
 
     #[test]
