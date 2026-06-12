@@ -105,7 +105,9 @@
           "severity": "MEDIUM",
           "title": "MT scope ~40% implemented: themes, diagnostics, formatting hooks, code-navigation bridges absent",
           "evidence": "MT-166 scope: \"Register languages, themes, diagnostics, formatting hooks, and code navigation bridges\". On disk only the language registry + detection exists (language_registry.ts). No theme registry, no setModelMarkers diagnostics pipeline, no DocumentFormattingEditProvider, no Definition/Reference/Hover/Completion providers - while the backend code-nav API (knowledge_code_nav.rs: symbols/references/file-lens) is BUILT and waiting (inventory GAP-ED-005). The embedded code editor is not IntelliSense-class.",
-          "fix": "Iteration item: register Monaco Completion/Hover/Definition/Reference providers backed by /knowledge/code/* (offline, project-aware), a diagnostics source -> setModelMarkers, and a theme bridge to the app theme. Single highest-leverage code-editor gap."
+          "fix": "Iteration item: register Monaco Completion/Hover/Definition/Reference providers backed by /knowledge/code/* (offline, project-aware), a diagnostics source -> setModelMarkers, and a theme bridge to the app theme. Single highest-leverage code-editor gap.",
+          "status": "DEFERRED",
+          "residual": "code-intelligence bridge (completion/hover/definition/diagnostics/formatting over /knowledge/code/*) is MT-249's contracted scope per the iteration-3 orders (fixlist item 14 explicitly skipped for this hardening pass)"
         },
         {
           "severity": "LOW",

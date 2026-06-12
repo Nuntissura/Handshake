@@ -126,7 +126,10 @@
           "severity": "MEDIUM",
           "title": "O(doc) selection snapshot work on every selection update",
           "evidence": "RichTextEditor.tsx:177-189 computes doc.textBetween(0, from) + TextEncoder.encode(fullPrefix) on each selectionUpdate to derive UTF-8 offsets - every caret move re-encodes the entire document prefix; on 10k-block documents this is typing/caret latency.",
-          "fix": "Compute offsets lazily (only when a consumer subscribes), debounce snapshot emission, or maintain incremental offsets; add a perf budget test over a synthetic 10k-block doc."
+          "fix": "Compute offsets lazily (only when a consumer subscribes), debounce snapshot emission, or maintain incremental offsets; add a perf budget test over a synthetic 10k-block doc.",
+          "status": "MITIGATED",
+          "fixed_commit": "701904be",
+          "residual": "the snapshot path only computes when an onSelectionSnapshot consumer subscribes (NO product consumer exists today -> zero production keystroke cost), and the M15 microtask coalescing (701904be) removed the duplicate per-keystroke refresh. Truly incremental offsets become worthwhile when collab presence (the first real subscriber) lands - revisit with the collaboration transport lane."
         },
         {
           "severity": "LOW",

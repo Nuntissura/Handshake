@@ -121,7 +121,15 @@
       "note": "Adversarial finding fixed + real-PG/unit test green (knowledge_code_index_tests 13 + nav_api 2 + 59 unit, 0 fail)."
     },
     "evidence": [
-      "Hardened cf1b690d: Tree-sitter FFI parse wrapped in catch_unwind; raw-bytes/UTF-8 read-failure handling."
+      "Hardened cf1b690d: Tree-sitter FFI parse wrapped in catch_unwind; raw-bytes/UTF-8 read-failure handling.",
+      {
+        "at_utc": "2026-06-12T12:20:00Z",
+        "kind": "hardening_v2",
+        "finding": "Unbounded tree-sitter parse: no input-size or node-count guard (V1 concern; catch_unwind only)",
+        "fix": "MAX_PARSE_SOURCE_BYTES 2MiB enforced before parse + MAX_PARSE_NODES 400k bounding the walk; typed CodeParseError degrades to engine repair-queue skip; parse_with_caps for tighter budgets",
+        "commit": "f09d7a38",
+        "tests": "lib knowledge_code_index::parser 7 passed incl. oversized_source_is_rejected_before_parse + node_ceiling_degrades_to_typed_failure"
+      }
     ],
     "adversarial_review_v2": {
       "at_utc": "2026-06-12T04:13:25.184Z",
@@ -132,7 +140,9 @@
           "severity": "MEDIUM",
           "title": "V1 unbounded-parse concern NOT closed: no input-size or node-count guard before tree-sitter parse",
           "evidence": "parser.rs:246-263 wraps parse in catch_unwind (the panic vector the hardening commit cf1b690d addressed), but there is still NO byte/node cap before parse, and engine.rs:258 calls adapter.parse(text) with no pre-parse file-size cap (grep for MAX_FILE/metadata/len> in engine.rs finds none). A multi-MB or pathologically deep adversarial file is parsed unconditionally; catch_unwind prevents a panic but not unbounded time/memory. The module still promises bounded operation.",
-          "fix": "Add a byte cap (skip+repair-queue oversized files) and/or a node-count ceiling in parse_inner, mirroring the SCIP caps (scip.rs:152), before invoking tree-sitter."
+          "fix": "Add a byte cap (skip+repair-queue oversized files) and/or a node-count ceiling in parse_inner, mirroring the SCIP caps (scip.rs:152), before invoking tree-sitter.",
+          "status": "FIXED",
+          "fixed_commit": "f09d7a38"
         }
       ],
       "claim_mismatches": [],

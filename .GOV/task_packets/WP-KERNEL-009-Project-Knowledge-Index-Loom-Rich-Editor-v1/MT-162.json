@@ -124,7 +124,9 @@
           "severity": "MEDIUM",
           "title": "Migrated content is never persisted until a manual edit; migration ladder unexercised end-to-end",
           "evidence": "RichDocumentView.tsx:74-75 loads assertion.content for compatibility \"migrated\" but isDirty stays false, so the migrated JSON + new schema_version are not saved; every load re-migrates. SCHEMA_MIGRATIONS is empty (schema_versioning.ts:46) and no integration test covers migrate->save->reload stamping.",
-          "fix": "After a successful migration either mark dirty with an explicit \"migrated - save to upgrade\" notice or auto-save a migration version; add an end-to-end test with a synthetic v0->v1 migration through RichDocumentView."
+          "fix": "After a successful migration either mark dirty with an explicit \"migrated - save to upgrade\" notice or auto-save a migration version; add an end-to-end test with a synthetic v0->v1 migration through RichDocumentView.",
+          "status": "DEFERRED",
+          "residual": "auto-persisting migrated content is a WRITE the operator did not request - it needs an explicit auto-migration-save policy decision (and the migration ladder is still empty: no production migration exists). The migration walk itself is unit-proven; H2 fail-closed (6e48aa6b) guarantees a mismatched doc can never be silently overwritten meanwhile. Revisit when the first real schema migration is registered."
         }
       ],
       "parity_gaps": [

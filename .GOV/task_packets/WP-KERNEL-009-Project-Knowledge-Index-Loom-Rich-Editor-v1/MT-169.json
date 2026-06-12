@@ -93,7 +93,21 @@
     "ready_for_validation_at_utc": "2026-06-12T02:58:09.834Z",
     "implementation_commit": "966bec7d",
     "evidence": [
-      "Built+verified 966bec7d: editor_commands.test.ts 7/7 (real editor) - toolbar + menus. TiptapMonacoIntegration group complete: full app vitest 60 files/442 tests green; tsc --noEmit + eslint clean; offline Playwright roundtrip PASS (bundled Monaco mounts + round-trips, ZERO external network requests, worker chunks loopback-only). RichTextEditor wired into RichDocumentView over the real rich-doc backend; no src/backend or .GOV product code touched."
+      "Built+verified 966bec7d: editor_commands.test.ts 7/7 (real editor) - toolbar + menus. TiptapMonacoIntegration group complete: full app vitest 60 files/442 tests green; tsc --noEmit + eslint clean; offline Playwright roundtrip PASS (bundled Monaco mounts + round-trips, ZERO external network requests, worker chunks loopback-only). RichTextEditor wired into RichDocumentView over the real rich-doc backend; no src/backend or .GOV product code touched.",
+      {
+        "at_utc": "2026-06-12T12:40:00Z",
+        "kind": "iteration3_hardening",
+        "finding": "M11 canRun never populated + insertContent-over-NodeSelection replacement; L12 insert-only tables; L13 overflow stub; L14 no undo/redo",
+        "fix": "canRun across the catalog; NodeSelection-safe insertSafely (inserts AFTER selected nodes); table structure family (add/delete row/column, toggle header, delete table); REAL overflow menu (role=menu, Insert... toolbar toggle, truthful disabled state); undo/redo commands + toolbar buttons with stack-edge canRun; roving tab stop always on an enabled control",
+        "commit": "2949bc87",
+        "tests": [
+          "editor_commands.test.ts: M11 insert commands on a NodeSelection insert AFTER the node, never replace it",
+          "editor_commands.test.ts: L14 undo/redo truthful canRun + revert/reapply",
+          "editor_commands.test.ts: L12 table structure commands enable inside a table and edit it",
+          "RichTextEditor.test.tsx: opens a REAL overflow menu listing insert + table commands and runs one",
+          "RichTextEditor.test.tsx: disables undo until an edit exists, then undo/redo round-trips from the toolbar"
+        ]
+      }
     ],
     "adversarial_review_v2": {
       "at_utc": "2026-06-12T04:18:00Z",
@@ -105,25 +119,33 @@
           "severity": "MEDIUM",
           "title": "canRun exists on the descriptor interface but is never populated; toolbar/palette never disable invalid commands",
           "evidence": "editor_commands.ts:59 declares canRun; no command in EDITOR_COMMANDS defines it; RichTextEditor.tsx:289-305 disables buttons only via readOnly. Concrete hazard: with a monacoCodeBlock node-selected, \"Insert table\"/\"Insert code block\"/\"Insert link\" run insertContent which REPLACES the selected code block - one toolbar click destroys the block (undoable, but silent).",
-          "fix": "Populate canRun with editor.can() chains per command; bind disabled={readOnly || !cmd.canRun?.(editor)} in toolbar + palette; add a NodeSelection-replacement regression test."
+          "fix": "Populate canRun with editor.can() chains per command; bind disabled={readOnly || !cmd.canRun?.(editor)} in toolbar + palette; add a NodeSelection-replacement regression test.",
+          "status": "FIXED",
+          "fixed_commit": "2949bc87"
         },
         {
           "severity": "LOW",
           "title": "Tables are insert-only: no row/column/delete/toggle-header operations",
           "evidence": "editor_commands.ts:168-174 has only table.insert; TableKit provides addRowAfter/addColumnAfter/deleteRow/deleteColumn/deleteTable/toggleHeaderRow but none are cataloged - an inserted table cannot be structurally edited from any UI.",
-          "fix": "Add the standard table edit command family to EDITOR_COMMANDS (palette category table), shown contextually via canRun."
+          "fix": "Add the standard table edit command family to EDITOR_COMMANDS (palette category table), shown contextually via canRun.",
+          "status": "FIXED",
+          "fixed_commit": "2949bc87"
         },
         {
           "severity": "LOW",
           "title": "Overflow commands are not operator-reachable from the toolbar; hidden div is a stub",
           "evidence": "RichTextEditor.tsx:408-413 renders overflow commands as hidden empty spans; embed/graph/mention/manual commands are reachable only by knowing to open the palette.",
-          "fix": "Render a real overflow menu (button + popover listing overflowCommands) or fold them into the toolbar with grouping."
+          "fix": "Render a real overflow menu (button + popover listing overflowCommands) or fold them into the toolbar with grouping.",
+          "status": "FIXED",
+          "fixed_commit": "2949bc87"
         },
         {
           "severity": "LOW",
           "title": "No undo/redo commands in catalog or toolbar",
           "evidence": "EDITOR_COMMANDS has no history commands; keyboard Mod-Z works via StarterKit but there is no discoverable button/palette entry (VS Code-class editors expose both).",
-          "fix": "Add history.undo/history.redo commands with canRun editor.can().undo()/redo()."
+          "fix": "Add history.undo/history.redo commands with canRun editor.can().undo()/redo().",
+          "status": "FIXED",
+          "fixed_commit": "2949bc87"
         }
       ],
       "parity_gaps": [

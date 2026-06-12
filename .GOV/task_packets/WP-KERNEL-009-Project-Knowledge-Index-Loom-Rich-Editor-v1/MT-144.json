@@ -91,7 +91,15 @@
     "ready_for_validation_at_utc": "2026-06-12T00:37:20.897Z",
     "implementation_commit": "00eb73b5",
     "evidence": [
-      "Built+verified 00eb73b5; RetrievalContextAndRanking: 46 unit + 10 real-PG tests pass; cheapest-authoritative planner records mode+skip-reason in replayable RetrievalTrace; reuses MT-060 trace/bundle substrate (1 new migration 0260); MT-129 additive QueryRetrievalMode extension; folded-stub bridges (139-142) preserve ProjectBrain/SemanticCatalog/AIReady/ContextPack intent as backend contracts."
+      "Built+verified 00eb73b5; RetrievalContextAndRanking: 46 unit + 10 real-PG tests pass; cheapest-authoritative planner records mode+skip-reason in replayable RetrievalTrace; reuses MT-060 trace/bundle substrate (1 new migration 0260); MT-129 additive QueryRetrievalMode extension; folded-stub bridges (139-142) preserve ProjectBrain/SemanticCatalog/AIReady/ContextPack intent as backend contracts.",
+      {
+        "at_utc": "2026-06-12T15:10:00Z",
+        "kind": "hardening_v2",
+        "finding": "Named scenarios existed as labels; only ranking/budget fixtures realized (hybrid/passage-fallback/stale-graph/bad-citation/no-result absent)",
+        "fix": "All 7 scenarios now DRIVEN on real PG: exact lookup (known_entity_plans_direct_load), graph traversal (graph_traversal_* + executed_pipeline_graph_path), hybrid discovery (dangling_handle_degrades_to_discovery), passage fallback (executed_pipeline_falls_back_to_passages), stale graph + no-result recovery + bad citation (new retrieval_scenarios_stale_graph_no_result_and_bad_citation_are_driven incl. FK proof that dangling citations are unconstructable)",
+        "commit": "e457c2a4",
+        "tests": "knowledge_retrieval_pipeline_tests 13 passed"
+      }
     ],
     "adversarial_review_v2": {
       "at_utc": "2026-06-12T04:11:18.477Z",
@@ -102,7 +110,9 @@
           "severity": "MEDIUM",
           "title": "named scenarios exist as labels but only ranking/budget fixtures are realized",
           "evidence": "fixtures.rs RetrievalScenario enumerates all 7 (exact_lookup..no_result_recovery) but the builders produce only candidate-feature + budget-item sets; tests are all-scenarios-named + rank + budget. No fixture actually drives hybrid retrieval, passage fallback, stale graph, bad citation, or no-result recovery as an exercisable path. The PG pipeline proves exact-lookup/graph/snippet/compile/catalog but not these.",
-          "fix": "Add fixtures (and PG tests) that realize hybrid, passage-fallback, stale-graph, bad-citation, and no-result-recovery as driven scenarios, not just enum labels."
+          "fix": "Add fixtures (and PG tests) that realize hybrid, passage-fallback, stale-graph, bad-citation, and no-result-recovery as driven scenarios, not just enum labels.",
+          "status": "FIXED",
+          "fixed_commit": "e457c2a4"
         }
       ],
       "claim_mismatches": [

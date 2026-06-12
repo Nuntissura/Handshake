@@ -94,7 +94,18 @@
     "ready_for_validation_at_utc": "2026-06-12T02:58:09.834Z",
     "implementation_commit": "feceb392",
     "evidence": [
-      "Built+verified feceb392: extension_inventory.test.ts 7/7 - typed Tiptap extension inventory. TiptapMonacoIntegration group complete: full app vitest 60 files/442 tests green; tsc --noEmit + eslint clean; offline Playwright roundtrip PASS (bundled Monaco mounts + round-trips, ZERO external network requests, worker chunks loopback-only). RichTextEditor wired into RichDocumentView over the real rich-doc backend; no src/backend or .GOV product code touched."
+      "Built+verified feceb392: extension_inventory.test.ts 7/7 - typed Tiptap extension inventory. TiptapMonacoIntegration group complete: full app vitest 60 files/442 tests green; tsc --noEmit + eslint clean; offline Playwright roundtrip PASS (bundled Monaco mounts + round-trips, ZERO external network requests, worker chunks loopback-only). RichTextEditor wired into RichDocumentView over the real rich-doc backend; no src/backend or .GOV product code touched.",
+      {
+        "at_utc": "2026-06-12T12:41:00Z",
+        "kind": "iteration3_hardening",
+        "finding": "M1 mention/tag nodes uncreatable from the UI (commands inserted bare @/# text)",
+        "fix": "mention.at / mention.tag commands take an arg-prompted value and insert REAL mention/tagMention nodes (id+label) + trailing space; empty values decline; reachable from palette and the new overflow menu (ED-LINK-002 creation path)",
+        "commit": "2949bc87",
+        "tests": [
+          "editor_commands.test.ts: M1 mention/tag commands create REAL mention and tagMention nodes",
+          "RichTextEditor.test.tsx: overflow menu runs mention.at -> arg prompt -> debug nodeCounts.mention === 1"
+        ]
+      }
     ],
     "adversarial_review_v2": {
       "at_utc": "2026-06-12T04:10:00Z",
@@ -106,7 +117,9 @@
           "severity": "MEDIUM",
           "title": "Mention/tag nodes exist in schema but cannot be created from the editor UI",
           "evidence": "extension_set.ts:127-146 configures Mention/tagMention suggestion with items only - no render UI, so typing @/# shows no popup and never inserts a node; editor_commands.ts:269-281 mention.at/mention.tag merely insertContent(\"@\")/(\"#\") literal text. ED-LINK-002 is marked BUILT in the capability inventory but the surface cannot mint a mention/tagMention node.",
-          "fix": "Configure suggestion.render (popup listbox over a real items source) or add direct insert commands with an arg prompt that insert {type:\"mention\"/\"tagMention\", attrs:{id,label}} nodes."
+          "fix": "Configure suggestion.render (popup listbox over a real items source) or add direct insert commands with an arg prompt that insert {type:\"mention\"/\"tagMention\", attrs:{id,label}} nodes.",
+          "status": "FIXED",
+          "fixed_commit": "2949bc87"
         },
         {
           "severity": "LOW",

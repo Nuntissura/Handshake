@@ -127,6 +127,17 @@
           "MonacoCodeBlockView.language.test.tsx: reconciles EXTERNAL code changes via pushEditOperations with view-state preserve, never setValue",
           "rich_editor_typing.spec.ts: EXT-UNDO smoke (Mod-z reverts typed text in the browser)"
         ]
+      },
+      {
+        "at_utc": "2026-06-12T15:05:00Z",
+        "kind": "iteration3_hardening",
+        "finding": "L7 no lazy mount (every block boots Monaco at parse) + L6 disposition",
+        "fix": "IntersectionObserver-gated mount (600px rootMargin; immediate without IO; find-reveal force-mounts and replays); static code preview while unmounted (never blank). L6 deferred with design rationale (attr writes are the persistence bridge).",
+        "commit": "679c8d4a",
+        "tests": [
+          "MonacoCodeBlockView.language.test.tsx: mounts Monaco lazily on viewport intersection, showing a code preview meanwhile",
+          "playwright dependency lane 13/13 green against rebuilt harness (real IO mounts)"
+        ]
       }
     ],
     "adversarial_review_v2": {
@@ -171,13 +182,17 @@
           "severity": "LOW",
           "title": "Code text serialized twice in HTML rendering and full code re-pushed through attrs each keystroke",
           "evidence": "monaco_code_block_node.ts:95-108 renderHTML emits a data-code attribute AND the code text inside <code> (2x payload for copy/export); every keystroke ships the FULL code string through updateAttributes -> editor.getJSON() upstream (O(code length) per keystroke).",
-          "fix": "Drop data-code and parse from <code> textContent (parseAttrsFromElement already falls back to it); consider debouncing attr writes (e.g. 150ms idle) with flush-on-blur/save."
+          "fix": "Drop data-code and parse from <code> textContent (parseAttrsFromElement already falls back to it); consider debouncing attr writes (e.g. 150ms idle) with flush-on-blur/save.",
+          "status": "DEFERRED",
+          "residual": "deliberate design: the <pre data-code>+<code> double serialization is the round-trip safety net for non-NodeView renders, and per-keystroke attr writes ARE the MT-168 single-authority-record persistence bridge; debouncing them risks losing trailing keystrokes on an immediate save. Revisit only with a flush-on-save contract (workbench shell lane MT-245+)."
         },
         {
           "severity": "LOW",
           "title": "No lazy mount: every code block boots a full Monaco instance at parse time",
           "evidence": "Each monacoCodeBlock NodeView constructs an IStandaloneCodeEditor immediately; a document with dozens of code blocks mounts dozens of Monaco instances up front (memory + startup cost).",
-          "fix": "Mount Monaco on first interaction or via IntersectionObserver; render the serialized <pre><code> until visible."
+          "fix": "Mount Monaco on first interaction or via IntersectionObserver; render the serialized <pre><code> until visible.",
+          "status": "FIXED",
+          "fixed_commit": "679c8d4a"
         }
       ],
       "parity_gaps": [

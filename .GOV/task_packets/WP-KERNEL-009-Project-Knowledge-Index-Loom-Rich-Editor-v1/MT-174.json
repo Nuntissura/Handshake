@@ -107,6 +107,17 @@
           "RichDocumentView.test.tsx: blocks unload while dirty via beforeunload and releases it after save",
           "RichDocumentView.test.tsx: snapshots un-saved edits when switching documents; restore only offered on the owning doc"
         ]
+      },
+      {
+        "at_utc": "2026-06-12T13:50:00Z",
+        "kind": "iteration3_hardening",
+        "finding": "M18 substring-based error classification misroutes (any 'version' -> conflict)",
+        "fix": "typed ApiRequestError {status, statusText, body} thrown by api.ts request(); classification is STATUS-FIRST (409 -> conflict structurally; schema text still wins for the H2 path); bare 'version' substring trigger removed; substring fallback only for non-API errors with explicit conflict vocabulary",
+        "commit": "ce5eb4d6",
+        "tests": [
+          "backend_error.test.ts: classifies status-first from typed API errors (409 body-agnostic / schema-over-status / 500 generic)",
+          "backend_error.test.ts: no longer misroutes arbitrary 'version' mentions into the conflict surface"
+        ]
       }
     ],
     "adversarial_review_v2": {
@@ -127,7 +138,9 @@
           "severity": "MEDIUM",
           "title": "Error classification by substring over free-text messages misroutes errors",
           "evidence": "backend_error.ts:28-51 - any save failure whose message contains \"version\" (e.g. a backend message like \"document_versions table unavailable\") classifies as conflict with the misleading reload hint; \"schema\" anywhere wins over conflict. The rich-doc API (api.ts request) throws plain Errors with message text, so classification is best-effort string matching.",
-          "fix": "Return structured error codes from the API layer (status + typed code in the JSON error body) and classify on those; keep substring matching only as fallback."
+          "fix": "Return structured error codes from the API layer (status + typed code in the JSON error body) and classify on those; keep substring matching only as fallback.",
+          "status": "FIXED",
+          "fixed_commit": "ce5eb4d6"
         },
         {
           "severity": "LOW",

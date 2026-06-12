@@ -91,7 +91,15 @@
     "ready_for_validation_at_utc": "2026-06-12T00:37:20.897Z",
     "implementation_commit": "4026ec85",
     "evidence": [
-      "Built+verified 4026ec85; RetrievalContextAndRanking: 46 unit + 10 real-PG tests pass; cheapest-authoritative planner records mode+skip-reason in replayable RetrievalTrace; reuses MT-060 trace/bundle substrate (1 new migration 0260); MT-129 additive QueryRetrievalMode extension; folded-stub bridges (139-142) preserve ProjectBrain/SemanticCatalog/AIReady/ContextPack intent as backend contracts."
+      "Built+verified 4026ec85; RetrievalContextAndRanking: 46 unit + 10 real-PG tests pass; cheapest-authoritative planner records mode+skip-reason in replayable RetrievalTrace; reuses MT-060 trace/bundle substrate (1 new migration 0260); MT-129 additive QueryRetrievalMode extension; folded-stub bridges (139-142) preserve ProjectBrain/SemanticCatalog/AIReady/ContextPack intent as backend contracts.",
+      {
+        "at_utc": "2026-06-12T11:10:00Z",
+        "kind": "hardening_v2",
+        "finding": "Passage fallback was a correct pure decision but unwired/unexecuted with no integration test",
+        "fix": "New knowledge_retrieval::executor wires decide_passage_fallback into the executed retrieval path after graph traversal; on fallback the plan revises to PassageFallback (persisted hybrid_rag per MT-129 law) and the durable mode_reason + trace warnings/decisions record WHY",
+        "commit": "136c5e9a",
+        "tests": "knowledge_retrieval_pipeline_tests 12 passed incl. executed_pipeline_falls_back_to_passages_ranks_and_compiles (real-PG empty graph -> graph_candidates_missing -> ranked span-cited passage bundle persisted with replayable trace)"
+      }
     ],
     "adversarial_review_v2": {
       "at_utc": "2026-06-12T04:11:18.477Z",
@@ -102,7 +110,9 @@
           "severity": "MEDIUM",
           "title": "passage fallback is a correct pure decision but is never wired/executed or integration-tested",
           "evidence": "decide_passage_fallback (passage_fallback.rs:87) is only unit-tested; no planner/executor calls it and no PG/integration test exercises graph-result -> fallback -> passages. The compiler path (pipeline_tests:230) injects pre-built candidates, bypassing fallback.",
-          "fix": "Wire decide_passage_fallback into the retrieval execution path after graph traversal, and add a PG test where a missing/stale/contradicted graph drives a recorded passage-fallback trace."
+          "fix": "Wire decide_passage_fallback into the retrieval execution path after graph traversal, and add a PG test where a missing/stale/contradicted graph drives a recorded passage-fallback trace.",
+          "status": "FIXED",
+          "fixed_commit": "136c5e9a"
         }
       ],
       "claim_mismatches": [

@@ -92,7 +92,15 @@
     "ready_for_validation_at_utc": "2026-06-12T01:53:13.415Z",
     "implementation_commit": "b506d832+935e0482+bf0c62a5+dd3056f5",
     "evidence": [
-      "Built+verified (commits b506d832 backend core + 935e0482 manual + bf0c62a5 integration tests + dd3056f5 frontend); RichDocumentCore: 6 real-PG integration + 27 unit backend tests + 8 vitest (app suite 349/349). 18 block kinds, RawDerivedDisplay (CX-100), stable KBL- ids, save/load API w/ receipts, projections (negative proof: projection-delete leaves authority byte-identical), embeds (absolute paths DB-CHECK rejected), backlinks (stable KDLNK- relationship_id), history, permissions, crash recovery; migrations 0280-0282; RichDocumentView.tsx wired to real authority with stable selectors for MT-161+ GUI groups. UserManual coverage added (1 group + 10 cmd refs)."
+      "Built+verified (commits b506d832 backend core + 935e0482 manual + bf0c62a5 integration tests + dd3056f5 frontend); RichDocumentCore: 6 real-PG integration + 27 unit backend tests + 8 vitest (app suite 349/349). 18 block kinds, RawDerivedDisplay (CX-100), stable KBL- ids, save/load API w/ receipts, projections (negative proof: projection-delete leaves authority byte-identical), embeds (absolute paths DB-CHECK rejected), backlinks (stable KDLNK- relationship_id), history, permissions, crash recovery; migrations 0280-0282; RichDocumentView.tsx wired to real authority with stable selectors for MT-161+ GUI groups. UserManual coverage added (1 group + 10 cmd refs).",
+      {
+        "at_utc": "2026-06-12T13:50:00Z",
+        "kind": "hardening_v2",
+        "finding": "Block/title/embed indexing into the Project Knowledge Index not implemented (links/tags only, as backlink edges); prior evidence overclaimed",
+        "fix": "create/save/rename now index the document for real: first-class knowledge SOURCE row (kind rich_document, content-hash tracked, stale-marked on change, provenance-keyed KRD linkage) + first-class title ENTITY (kind rich_document, planner-confirmable per MT-130); links/tags remain backlink edges (MT-155), embeds in the typed side table (MT-152); block text is the source's content-hash-tracked indexing unit (span/passage extraction = index pipeline's job on stale sources)",
+        "commit": "1ec93d61",
+        "tests": "knowledge_documents_api_tests 9 passed incl. mt154_save_indexes_document_into_project_knowledge_index"
+      }
     ],
     "adversarial_review_v2": {
       "at_utc": "2026-06-12T04:05:46.457Z",
@@ -103,7 +111,9 @@
           "severity": "MEDIUM",
           "title": "Block/title/embed content indexing into the Project Knowledge Index is not implemented",
           "evidence": "The only persistence wired from documents is knowledge_document_backlinks (a link graph) + DocumentLinkReferences::tags() (backlink.rs:137-144). No code indexes block plain_text, titles, or embeds into the retrieval/search index. backlink.rs module header even says search-index bridge inputs - inputs only.",
-          "fix": "Wire document block text/title/tags/embeds into the Project Knowledge Index (knowledge_retrieval) on save, or descope MT-154 to link/tag edges only explicitly in the contract."
+          "fix": "Wire document block text/title/tags/embeds into the Project Knowledge Index (knowledge_retrieval) on save, or descope MT-154 to link/tag edges only explicitly in the contract.",
+          "status": "FIXED",
+          "fixed_commit": "1ec93d61"
         }
       ],
       "claim_mismatches": [

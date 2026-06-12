@@ -91,7 +91,15 @@
     "ready_for_validation_at_utc": "2026-06-12T00:37:20.897Z",
     "implementation_commit": "91b6df48",
     "evidence": [
-      "Built+verified 91b6df48; RetrievalContextAndRanking: 46 unit + 10 real-PG tests pass; cheapest-authoritative planner records mode+skip-reason in replayable RetrievalTrace; reuses MT-060 trace/bundle substrate (1 new migration 0260); MT-129 additive QueryRetrievalMode extension; folded-stub bridges (139-142) preserve ProjectBrain/SemanticCatalog/AIReady/ContextPack intent as backend contracts."
+      "Built+verified 91b6df48; RetrievalContextAndRanking: 46 unit + 10 real-PG tests pass; cheapest-authoritative planner records mode+skip-reason in replayable RetrievalTrace; reuses MT-060 trace/bundle substrate (1 new migration 0260); MT-129 additive QueryRetrievalMode extension; folded-stub bridges (139-142) preserve ProjectBrain/SemanticCatalog/AIReady/ContextPack intent as backend contracts.",
+      {
+        "at_utc": "2026-06-12T14:30:00Z",
+        "kind": "hardening_v2",
+        "finding": "Schema scope applied post-hoc over a capped unordered fact load (recall gap); never invoked by the planner before widening",
+        "fix": "Scope predicate pushed into the fact SQL (list_memory_facts_in_schema_scope, ANY(scope)); schema_first_filter routes through it when scope resolves; the executed pipeline (executor.rs) invokes schema_first_filter before graph widening",
+        "commit": "e5180a83",
+        "tests": "knowledge_retrieval_bridges_tests 3 passed incl. recall-gap proof (in-scope fact buried under 5 newer off-topic facts, cap 3, still returned)"
+      }
     ],
     "adversarial_review_v2": {
       "at_utc": "2026-06-12T04:11:18.477Z",
@@ -102,13 +110,17 @@
           "severity": "MEDIUM",
           "title": "schema scope is applied post-hoc over a capped, unordered fact load (recall gap)",
           "evidence": "schema_first_filter (schema_filter.rs:138-152) loads up to fact_limit facts via list_memory_facts then filters in memory by in-scope terms; the scope is NOT pushed into SQL. For a large fact base the in-scope facts can fall outside the first fact_limit rows and be silently missed.",
-          "fix": "Push the resolved term scope into the SQL (WHERE predicate_term_id IN (...) OR object_entity_id IN (...)) so the limit bounds in-scope facts, not an arbitrary prefix."
+          "fix": "Push the resolved term scope into the SQL (WHERE predicate_term_id IN (...) OR object_entity_id IN (...)) so the limit bounds in-scope facts, not an arbitrary prefix.",
+          "status": "FIXED",
+          "fixed_commit": "e5180a83"
         },
         {
           "severity": "MEDIUM",
           "title": "schema-first filtering is not invoked by the planner before widening",
           "evidence": "CheapestAuthoritativePathPlanner (planner.rs) never calls schema_first_filter; the graph/hybrid widen (steps 3 and 5) run without narrowing to schema scope. The primitive is unit-tested but unwired, so the spec use-schema-first-before-widening is unrealized in the plan path.",
-          "fix": "Invoke schema_first_filter to seed graph_neighborhood / candidate sets before the planner emits a graph/hybrid route."
+          "fix": "Invoke schema_first_filter to seed graph_neighborhood / candidate sets before the planner emits a graph/hybrid route.",
+          "status": "FIXED",
+          "fixed_commit": "e5180a83"
         }
       ],
       "claim_mismatches": [],

@@ -93,7 +93,19 @@
     "ready_for_validation_at_utc": "2026-06-12T02:58:09.834Z",
     "implementation_commit": "23f3f510",
     "evidence": [
-      "Built+verified 23f3f510: hs_link_node.test.ts 10/10 (real editor) - [[kind:value]] -> typed hsLink nodes (note/file/folder/project/spec/wp/symbol/album/video/HS_images/HS_slideshow), unknown prefixes preserved. TiptapMonacoIntegration group complete: full app vitest 60 files/442 tests green; tsc --noEmit + eslint clean; offline Playwright roundtrip PASS (bundled Monaco mounts + round-trips, ZERO external network requests, worker chunks loopback-only). RichTextEditor wired into RichDocumentView over the real rich-doc backend; no src/backend or .GOV product code touched."
+      "Built+verified 23f3f510: hs_link_node.test.ts 10/10 (real editor) - [[kind:value]] -> typed hsLink nodes (note/file/folder/project/spec/wp/symbol/album/video/HS_images/HS_slideshow), unknown prefixes preserved. TiptapMonacoIntegration group complete: full app vitest 60 files/442 tests green; tsc --noEmit + eslint clean; offline Playwright roundtrip PASS (bundled Monaco mounts + round-trips, ZERO external network requests, worker chunks loopback-only). RichTextEditor wired into RichDocumentView over the real rich-doc backend; no src/backend or .GOV product code touched.",
+      {
+        "at_utc": "2026-06-12T14:25:00Z",
+        "kind": "iteration3_hardening",
+        "finding": "L3 spoofable pasted chips + M3 resolved-from-prefix (partial) + EXT-NAV-LINK-001 dead chips",
+        "fix": "attribute parsers clamp data-ref-kind to KNOWN_BACKEND_REF_KINDS and drop the claimed resolved flag for unknown kinds; chips dispatch the typed hs:link-navigate CustomEvent contract (workbench shell MT-245/246/248 is the consumer); backend resolution pass deferred to MT-249",
+        "commit": "5ca8355d",
+        "tests": [
+          "hs_link_node.test.ts: clamps spoofed ref kinds from pasted HTML and drops the claimed resolved flag (hostile + legit)",
+          "hs_link_node.test.ts: clampRefKind accepts every known backend kind and rejects the rest",
+          "HsLinkView.test.tsx: dispatches a typed navigation intent when a chip is clicked"
+        ]
+      }
     ],
     "adversarial_review_v2": {
       "at_utc": "2026-06-12T04:12:00Z",
@@ -105,13 +117,18 @@
           "severity": "MEDIUM",
           "title": "resolved=true is minted from prefix recognition alone, never from backend resolution",
           "evidence": "wikilink.ts:54-61 classifyWikilink returns resolved:true for ANY known prefix regardless of whether the target exists; hs_link_node.ts renders hs-link--resolved styling from it. A typo like [[wp:WP-KERNEL-999]] renders as a confident resolved chip. The backend broken-embed/repair model (embed.rs, MT-152/153) is never consulted at insert or load.",
-          "fix": "Rename the attr to knownKind (truthful) or add an async resolution pass (on insert + on load) that patches resolved from the backend entity lookup and feeds the broken-embed repair queue."
+          "fix": "Rename the attr to knownKind (truthful) or add an async resolution pass (on insert + on load) that patches resolved from the backend entity lookup and feeds the broken-embed repair queue.",
+          "status": "PARTIALLY_FIXED",
+          "fixed_commit": "5ca8355d",
+          "residual": "commands now classify through the shared wikilink rules (2949bc87) and unknown kinds can never claim resolved (5ca8355d); the BACKEND verification pass for the resolved flag needs a target-existence endpoint - deferred to the code-intel/Loom bridge lane (MT-249)"
         },
         {
           "severity": "LOW",
           "title": "Pasted HTML can mint arbitrary trusted-looking hsLink chips (spoofable, not XSS)",
           "evidence": "hs_link_node.ts:92-94 parseHTML accepts any span[data-testid=hs-link] from clipboard HTML, including data-resolved=\"true\" and arbitrary refKind/refValue. Rendering is text-only (ProseMirror escapes), so no script execution, but future click-navigation will receive attacker-shaped refValue.",
-          "fix": "Clamp refKind to WP009_WIKILINK_KINDS on parse (else force refKind=unknown, resolved=false); treat refValue as untrusted in the future navigation handler (allowlist routes, no raw path/URL dereference)."
+          "fix": "Clamp refKind to WP009_WIKILINK_KINDS on parse (else force refKind=unknown, resolved=false); treat refValue as untrusted in the future navigation handler (allowlist routes, no raw path/URL dereference).",
+          "status": "FIXED",
+          "fixed_commit": "5ca8355d"
         },
         {
           "severity": "LOW",

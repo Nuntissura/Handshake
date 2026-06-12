@@ -91,7 +91,15 @@
     "ready_for_validation_at_utc": "2026-06-12T00:37:20.897Z",
     "implementation_commit": "dd02de8d",
     "evidence": [
-      "Built+verified dd02de8d; RetrievalContextAndRanking: 46 unit + 10 real-PG tests pass; cheapest-authoritative planner records mode+skip-reason in replayable RetrievalTrace; reuses MT-060 trace/bundle substrate (1 new migration 0260); MT-129 additive QueryRetrievalMode extension; folded-stub bridges (139-142) preserve ProjectBrain/SemanticCatalog/AIReady/ContextPack intent as backend contracts."
+      "Built+verified dd02de8d; RetrievalContextAndRanking: 46 unit + 10 real-PG tests pass; cheapest-authoritative planner records mode+skip-reason in replayable RetrievalTrace; reuses MT-060 trace/bundle substrate (1 new migration 0260); MT-129 additive QueryRetrievalMode extension; folded-stub bridges (139-142) preserve ProjectBrain/SemanticCatalog/AIReady/ContextPack intent as backend contracts.",
+      {
+        "at_utc": "2026-06-12T16:35:00Z",
+        "kind": "hardening_v2",
+        "finding": "A span with a deleted source was still marked supported=true",
+        "fix": "Snippet marks supported=false with explicit reason when the source row is missing; noted the FK law (spans CASCADE on source delete) already makes the state unrepresentable - defensive closure",
+        "commit": "a46b9e6b",
+        "tests": "lib knowledge_retrieval 46 passed"
+      }
     ],
     "adversarial_review_v2": {
       "at_utc": "2026-06-12T04:11:18.477Z",
@@ -102,7 +110,9 @@
           "severity": "LOW",
           "title": "a span with a deleted source is still marked supported",
           "evidence": "assemble_span_snippet (snippet.rs:77-95): when the source row is gone, source_path=None but supported=true. supported reflects span existence only, not source availability.",
-          "fix": "Optionally flag source-missing as a soft unsupported/degraded marker."
+          "fix": "Optionally flag source-missing as a soft unsupported/degraded marker.",
+          "status": "FIXED",
+          "fixed_commit": "a46b9e6b"
         }
       ],
       "claim_mismatches": [],

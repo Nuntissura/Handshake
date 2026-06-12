@@ -92,7 +92,15 @@
     "ready_for_validation_at_utc": "2026-06-12T01:53:13.415Z",
     "implementation_commit": "b506d832+935e0482+bf0c62a5+dd3056f5",
     "evidence": [
-      "Built+verified (commits b506d832 backend core + 935e0482 manual + bf0c62a5 integration tests + dd3056f5 frontend); RichDocumentCore: 6 real-PG integration + 27 unit backend tests + 8 vitest (app suite 349/349). 18 block kinds, RawDerivedDisplay (CX-100), stable KBL- ids, save/load API w/ receipts, projections (negative proof: projection-delete leaves authority byte-identical), embeds (absolute paths DB-CHECK rejected), backlinks (stable KDLNK- relationship_id), history, permissions, crash recovery; migrations 0280-0282; RichDocumentView.tsx wired to real authority with stable selectors for MT-161+ GUI groups. UserManual coverage added (1 group + 10 cmd refs)."
+      "Built+verified (commits b506d832 backend core + 935e0482 manual + bf0c62a5 integration tests + dd3056f5 frontend); RichDocumentCore: 6 real-PG integration + 27 unit backend tests + 8 vitest (app suite 349/349). 18 block kinds, RawDerivedDisplay (CX-100), stable KBL- ids, save/load API w/ receipts, projections (negative proof: projection-delete leaves authority byte-identical), embeds (absolute paths DB-CHECK rejected), backlinks (stable KDLNK- relationship_id), history, permissions, crash recovery; migrations 0280-0282; RichDocumentView.tsx wired to real authority with stable selectors for MT-161+ GUI groups. UserManual coverage added (1 group + 10 cmd refs).",
+      {
+        "at_utc": "2026-06-12T13:05:00Z",
+        "kind": "hardening_v2",
+        "finding": "Move with empty body silently cleared project/folder membership; batch operations named by the contract were unimplemented (only per-doc rename/move)",
+        "fix": "Move uses double-Option absent!=null semantics (absent=unchanged, null=clear, value=set); new bounded POST /knowledge/documents/batch (rename/move/set_authority_label) with per-item receipts + partial-failure reporting, write-gated by the MT-158 boundary. Remaining contract ops (tag, folder-color-label, projection-rebuild, stale-repair) are NOT implemented in this surface - tag edges exist via MT-155 backlinks, projection rebuild via MT-058 rebuild-status surfaces",
+        "commit": "c8f54538",
+        "tests": "knowledge_documents_api_tests 8 passed incl. mt157_move_empty_body_preserves_membership_and_batch_reports_per_item"
+      }
     ],
     "adversarial_review_v2": {
       "at_utc": "2026-06-12T04:05:46.457Z",
@@ -103,13 +111,17 @@
           "severity": "MEDIUM",
           "title": "BATCH operations and most named ops are not implemented",
           "evidence": "api routes expose only single-doc rename_document and move_document (api:786-853). The contract names batch rename, move, tag, folder color label, projection rebuild, and stale repair. There is no batch endpoint, no tag op, no folder-color op, no projection-rebuild op, no stale-repair op.",
-          "fix": "Implement batch endpoints (accept id lists, per-item receipts + partial-failure reporting) for the named operations, or descope the contract."
+          "fix": "Implement batch endpoints (accept id lists, per-item receipts + partial-failure reporting) for the named operations, or descope the contract.",
+          "status": "FIXED",
+          "fixed_commit": "c8f54538"
         },
         {
           "severity": "MEDIUM",
           "title": "move with an empty body silently clears project_ref and folder_ref",
           "evidence": "move_document (api:820-837) passes body.project_ref/folder_ref (Option, default None) straight into move_knowledge_rich_document (knowledge.rs:4660 SET project_ref=$2, folder_ref=$3); a POST /move with empty body sets both to NULL, wiping membership.",
-          "fix": "Distinguish absent=leave unchanged from explicit null=clear (serde double-Option or separate clear flags)."
+          "fix": "Distinguish absent=leave unchanged from explicit null=clear (serde double-Option or separate clear flags).",
+          "status": "FIXED",
+          "fixed_commit": "c8f54538"
         }
       ],
       "claim_mismatches": [
