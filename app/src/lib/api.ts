@@ -1596,3 +1596,248 @@ export async function listAtelierStealthWindows(
     headers: writeContextHeaders(ctx),
   });
 }
+
+// ---------------------------------------------------------------------------
+// WP-KERNEL-009 RichDocumentCore (MT-145..MT-160): the rich-document authority
+// API client. These call the REAL backend authority (knowledge_rich_documents
+// via /knowledge/documents) — NOT the legacy /documents+/blocks surface — so
+// the editor's document MODEL works end-to-end with no mocks.
+//
+// Every rich-document request requires the backend-navigation identity headers
+// (actor + kernel/session run ids); the actor-kind drives the server-enforced
+// MT-158 permission boundary.
+// ---------------------------------------------------------------------------
+
+export type RichDocActorKind =
+  | "operator"
+  | "local_model"
+  | "cloud_model"
+  | "validator"
+  | "system";
+
+export type RichDocContext = {
+  actor_id: string;
+  kernel_task_run_id: string;
+  session_run_id: string;
+  actor_kind?: RichDocActorKind;
+  correlation_id?: string;
+};
+
+/** A stable, default operator identity for editor-driven document calls. */
+export const DEFAULT_RICH_DOC_CONTEXT: RichDocContext = {
+  actor_id: "operator",
+  kernel_task_run_id: "KTR-EDITOR-UI",
+  session_run_id: "SR-EDITOR-UI",
+  actor_kind: "operator",
+};
+
+function richDocHeaders(ctx: RichDocContext): Record<string, string> {
+  const headers: Record<string, string> = {
+    "x-hsk-actor-id": ctx.actor_id,
+    "x-hsk-kernel-task-run-id": ctx.kernel_task_run_id,
+    "x-hsk-session-run-id": ctx.session_run_id,
+  };
+  if (ctx.actor_kind) headers["x-hsk-actor-kind"] = ctx.actor_kind;
+  if (ctx.correlation_id) headers["x-hsk-correlation-id"] = ctx.correlation_id;
+  return headers;
+}
+
+export type RichDocument = {
+  rich_document_id: string;
+  workspace_id: string;
+  document_id: string | null;
+  title: string;
+  schema_version: string;
+  doc_version: number;
+  content_json: JSONContentLike;
+  content_sha256: string;
+  crdt_document_id: string | null;
+  crdt_snapshot_id: string | null;
+  promotion_receipt_event_id: string | null;
+  projection_refs: unknown;
+  project_ref: string | null;
+  folder_ref: string | null;
+  authority_label: string;
+  owner_actor_kind: string | null;
+  owner_actor_id: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+/** A loosely typed ProseMirror doc-node JSON (mirrors @tiptap/core JSONContent). */
+export type JSONContentLike = {
+  type?: string;
+  attrs?: Record<string, unknown>;
+  content?: JSONContentLike[];
+  text?: string;
+  [key: string]: unknown;
+};
+
+export type RichDocBlock = {
+  block_id: string;
+  kind: string;
+  heading_level: number | null;
+  sequence: number;
+  content: {
+    raw: JSONContentLike;
+    derived: { plain_text: string; word_count: number; preview: string };
+    display: unknown;
+  };
+};
+
+export type RichDocTree = {
+  schema_version: string;
+  schema_matches: boolean;
+  block_ids: string[];
+  blocks: RichDocBlock[];
+};
+
+export type RichDocLoad = {
+  document: RichDocument;
+  tree: RichDocTree;
+  code_nodes: unknown[];
+};
+
+export type RichDocSaveResult = {
+  document: RichDocument;
+  save_receipt_event_id: string;
+  backlinks_persisted: number;
+  backlinks_skipped_reason: string | null;
+};
+
+export type RichDocVersion = {
+  rich_document_id: string;
+  doc_version: number;
+  schema_version: string;
+  content_sha256: string;
+  promotion_receipt_event_id: string | null;
+  created_at: string;
+};
+
+export type RichDocHistory = {
+  rich_document_id: string;
+  current_version: number;
+  authority_label: string;
+  owner_actor_kind: string | null;
+  owner_actor_id: string | null;
+  versions: RichDocVersion[];
+};
+
+export type RichDocEmbed = {
+  embed_id: string;
+  rich_document_id: string;
+  block_id: string;
+  ref_kind: string;
+  ref_value: string;
+  caption: string | null;
+  repair_state: string;
+  repair_reason: string | null;
+};
+
+export type RichDocBacklink = {
+  backlink_id: string;
+  workspace_id: string;
+  relationship_id: string;
+  source_document_id: string;
+  link_kind: string;
+  target: string;
+  block_id: string;
+};
+
+export type RichDocProjectionFormat =
+  | "markdown"
+  | "html"
+  | "plain_text"
+  | "wiki_loom"
+  | "context_bundle";
+
+export async function createRichDocument(
+  workspaceId: string,
+  title: string,
+  contentJson?: JSONContentLike,
+  ctx: RichDocContext = DEFAULT_RICH_DOC_CONTEXT,
+): Promise<{ document: RichDocument; save_receipt_event_id: string }> {
+  return request("/knowledge/documents", {
+    method: "POST",
+    body: { workspace_id: workspaceId, title, content_json: contentJson ?? null },
+    headers: richDocHeaders(ctx),
+  });
+}
+
+export async function loadRichDocument(
+  documentId: string,
+  ctx: RichDocContext = DEFAULT_RICH_DOC_CONTEXT,
+): Promise<RichDocLoad> {
+  return request(`/knowledge/documents/${encodeURIComponent(documentId)}`, {
+    headers: richDocHeaders(ctx),
+  });
+}
+
+export async function saveRichDocument(
+  documentId: string,
+  expectedVersion: number,
+  contentJson: JSONContentLike,
+  ctx: RichDocContext = DEFAULT_RICH_DOC_CONTEXT,
+): Promise<RichDocSaveResult> {
+  return request(`/knowledge/documents/${encodeURIComponent(documentId)}/save`, {
+    method: "PUT",
+    body: { expected_version: expectedVersion, content_json: contentJson },
+    headers: richDocHeaders(ctx),
+  });
+}
+
+export async function loadRichDocumentBlocks(
+  documentId: string,
+  ctx: RichDocContext = DEFAULT_RICH_DOC_CONTEXT,
+): Promise<RichDocTree> {
+  return request(`/knowledge/documents/${encodeURIComponent(documentId)}/blocks`, {
+    headers: richDocHeaders(ctx),
+  });
+}
+
+export async function loadRichDocumentHistory(
+  documentId: string,
+  ctx: RichDocContext = DEFAULT_RICH_DOC_CONTEXT,
+): Promise<RichDocHistory> {
+  return request(`/knowledge/documents/${encodeURIComponent(documentId)}/history`, {
+    headers: richDocHeaders(ctx),
+  });
+}
+
+export async function exportRichDocumentProjection(
+  documentId: string,
+  format: RichDocProjectionFormat,
+  ctx: RichDocContext = DEFAULT_RICH_DOC_CONTEXT,
+): Promise<{ rich_document_id: string; projection: { format: string; content: string } }> {
+  return request(
+    `/knowledge/documents/${encodeURIComponent(documentId)}/projection?format=${format}`,
+    { headers: richDocHeaders(ctx) },
+  );
+}
+
+export async function listRichDocumentEmbeds(
+  documentId: string,
+  ctx: RichDocContext = DEFAULT_RICH_DOC_CONTEXT,
+): Promise<{ rich_document_id: string; embeds: RichDocEmbed[] }> {
+  return request(`/knowledge/documents/${encodeURIComponent(documentId)}/embeds`, {
+    headers: richDocHeaders(ctx),
+  });
+}
+
+export async function listRichDocumentBrokenEmbeds(
+  documentId: string,
+  ctx: RichDocContext = DEFAULT_RICH_DOC_CONTEXT,
+): Promise<{ rich_document_id: string; broken_embeds: RichDocEmbed[]; available_actions: string[] }> {
+  return request(`/knowledge/documents/${encodeURIComponent(documentId)}/embeds/broken`, {
+    headers: richDocHeaders(ctx),
+  });
+}
+
+export async function listRichDocumentBacklinks(
+  documentId: string,
+  ctx: RichDocContext = DEFAULT_RICH_DOC_CONTEXT,
+): Promise<{ source_document_id: string; backlinks: RichDocBacklink[] }> {
+  return request(`/knowledge/documents/${encodeURIComponent(documentId)}/backlinks`, {
+    headers: richDocHeaders(ctx),
+  });
+}

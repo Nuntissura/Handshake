@@ -16,13 +16,29 @@ import { addJob } from "../state/aiJobs";
 import { CommandPalette, CommandPaletteAction } from "./CommandPalette";
 import { AtelierCollaborationPanel } from "./AtelierCollaborationPanel";
 import { DependencyFailureBanner } from "./DependencyFailureBanner";
+import { RichDocumentView } from "./RichDocumentView";
 
 type Props = {
   documentId: string | null;
   onDeleted: () => void;
 };
 
+/// WP-KERNEL-009 (MT-145): a rich-document authority id is `KRD-...`. Those
+/// documents load/save through the RichDocument authority (knowledge_rich_documents
+/// via /knowledge/documents). The legacy `documents`/`blocks` surface keeps its
+/// existing flow so this is additive, not a regression.
+function isRichDocumentId(documentId: string | null): documentId is string {
+  return typeof documentId === "string" && documentId.startsWith("KRD-");
+}
+
 export function DocumentView({ documentId, onDeleted }: Props) {
+  if (isRichDocumentId(documentId)) {
+    return <RichDocumentView documentId={documentId} onDeleted={onDeleted} />;
+  }
+  return <LegacyDocumentView documentId={documentId} onDeleted={onDeleted} />;
+}
+
+function LegacyDocumentView({ documentId, onDeleted }: Props) {
   const [doc, setDoc] = useState<DocumentWithBlocks | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
