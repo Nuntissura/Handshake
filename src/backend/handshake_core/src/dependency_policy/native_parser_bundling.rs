@@ -147,7 +147,10 @@ function indexEntry(entry) {
         // The grammar tables live in the binary itself: each Language exposes
         // a populated node-kind table without any file or network access.
         for (name, language) in [
-            ("rust", tree_sitter::Language::from(tree_sitter_rust::LANGUAGE)),
+            (
+                "rust",
+                tree_sitter::Language::from(tree_sitter_rust::LANGUAGE),
+            ),
             (
                 "javascript",
                 tree_sitter::Language::from(tree_sitter_javascript::LANGUAGE),
@@ -169,14 +172,16 @@ function indexEntry(entry) {
         // No runtime-loadable grammar binaries may ship in product source
         // trees; grammars exist only as compiled-in tables.
         let repo_root = repo_root_from_manifest_dir();
-        let allowlist = RuntimeDependencyAllowlist::load_from_repo_root(&repo_root)
-            .expect("allowlist loads");
+        let allowlist =
+            RuntimeDependencyAllowlist::load_from_repo_root(&repo_root).expect("allowlist loads");
         let mut offenders = Vec::new();
         for root in &allowlist.product_scan_roots {
             let root_path = repo_root.join(root.replace('/', std::path::MAIN_SEPARATOR_STR));
             let mut stack = vec![root_path];
             while let Some(dir) = stack.pop() {
-                let Ok(entries) = std::fs::read_dir(&dir) else { continue };
+                let Ok(entries) = std::fs::read_dir(&dir) else {
+                    continue;
+                };
                 for entry in entries.flatten() {
                     let path = entry.path();
                     let name = entry.file_name().to_string_lossy().to_ascii_lowercase();

@@ -69,10 +69,7 @@ impl CuiPortableGate {
 
     /// Opens the gate for a specific owning WP under an explicit operator
     /// grant. Both identifiers are mandatory and retained for audit.
-    pub fn open_for_owning_wp(
-        owning_wp: &str,
-        operator_grant: &str,
-    ) -> Result<Self, CuiGateError> {
+    pub fn open_for_owning_wp(owning_wp: &str, operator_grant: &str) -> Result<Self, CuiGateError> {
         if owning_wp.trim().is_empty() {
             return Err(CuiGateError::MissingOwningWp);
         }
@@ -169,8 +166,9 @@ mod tests {
             CuiPortableGate::open_for_owning_wp("WP-FUTURE-CUI", "  "),
             Err(CuiGateError::MissingOperatorGrant)
         );
-        let gate = CuiPortableGate::open_for_owning_wp("WP-FUTURE-CUI", "operator-grant-receipt-42")
-            .expect("valid open");
+        let gate =
+            CuiPortableGate::open_for_owning_wp("WP-FUTURE-CUI", "operator-grant-receipt-42")
+                .expect("valid open");
         assert!(gate.is_open());
         assert_eq!(gate.owning_wp(), Some("WP-FUTURE-CUI"));
         assert_eq!(gate.operator_grant(), Some("operator-grant-receipt-42"));

@@ -115,6 +115,8 @@ const BUNDLE_CANDIDATE_FILES: &[&str] = &[
     "coder_prompt.md",
 ];
 
+const MACHINE_LOCAL_PATH_PATTERN: &str = r#"(?m)(^|[\s"'=:\(\[<`,;])([A-Za-z]:[\\/](?:[^\\/"'\r\n\s,;\)\]>`][^"'\r\n\)\]>`]*)?|\\\\[^"'\r\n]+(?:[\\/][^"'\r\n]+)*|/(?:Users|home)(?:/[^\s"',;\)\]>`]*)?|/tmp(?:/[^\s"',;\)\]>`]*)?|/var(?:/[^\s"',;\)\]>`]*)?)([\s"',;\)\]>`]|$)"#;
+
 #[derive(Debug)]
 struct BundleContents {
     entries: HashSet<String>,
@@ -1053,13 +1055,25 @@ fn extract_uuids(content: &str) -> Vec<String> {
 
 fn validate_safe_default_leaks(contents: &BundleContents, findings: &mut Vec<ValidationFinding>) {
     let mut leak_patterns: Vec<(&str, Regex)> = Vec::new();
-    if let Ok(re) = Regex::new(r#"(?m)([A-Z]:\\[^\s"']+|/(Users|home)/[^\s"']+)"#) {
+    if let Ok(re) = Regex::new(MACHINE_LOCAL_PATH_PATTERN) {
         leak_patterns.push(("path_absolute", re));
     }
     if let Ok(re) =
         Regex::new(r"(?i)(sk-[a-z0-9]{10,}|api_[a-z0-9]{10,}|bearer\s+[a-z0-9\-\._~\+\/]+=*)")
     {
         leak_patterns.push(("secret_api_key", re));
+    }
+    if let Ok(re) = Regex::new(r"\bgithub_pat_[A-Za-z0-9]{22}_[A-Za-z0-9]{59}\b") {
+        leak_patterns.push(("secret_github_pat", re));
+    }
+    if let Ok(re) = Regex::new(r"\bxapp-[0-9]-[0-9A-Za-z-]{10,}\b") {
+        leak_patterns.push(("secret_slack_app_token", re));
+    }
+    if let Ok(re) = Regex::new(r"\bxox[baprs]-[0-9A-Za-z-]{10,}\b") {
+        leak_patterns.push(("secret_slack_token", re));
+    }
+    if let Ok(re) = Regex::new(r"\bAIza[0-9A-Za-z_-]{35}\b") {
+        leak_patterns.push(("secret_google_api_key", re));
     }
     if let Ok(re) = Regex::new(r"(\$[A-Z][A-Z0-9_]*|%[A-Z0-9_]+%|\$\{[A-Z0-9_]+\})") {
         leak_patterns.push(("env_var", re));

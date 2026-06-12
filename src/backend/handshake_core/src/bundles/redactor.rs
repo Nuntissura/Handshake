@@ -1,5 +1,5 @@
 use chrono::Utc;
-use regex::Regex;
+use regex::{Captures, Regex};
 use serde_json::Value;
 use std::collections::HashMap;
 
@@ -20,6 +20,8 @@ pub struct SecretRedactor {
     patterns: Vec<SecretPattern>,
 }
 
+const MACHINE_LOCAL_PATH_PATTERN: &str = r#"(?m)(^|[\s"'=:\(\[<`,;])([A-Za-z]:[\\/](?:[^\\/"'\r\n\s,;\)\]>`][^"'\r\n\)\]>`]*)?|\\\\[^"'\r\n]+(?:[\\/][^"'\r\n]+)*|/(?:Users|home)(?:/[^\s"',;\)\]>`]*)?|/tmp(?:/[^\s"',;\)\]>`]*)?|/var(?:/[^\s"',;\)\]>`]*)?)([\s"',;\)\]>`]|$)"#;
+
 impl SecretRedactor {
     pub fn new() -> Self {
         let mut patterns = Vec::new();
@@ -38,6 +40,30 @@ impl SecretRedactor {
             "secret_api_key",
             "api_key",
             r"(?i)(sk-[a-z0-9]{10,}|api_[a-z0-9]{10,}|bearer\s+[a-z0-9\-\._~\+\/]+=*)",
+            &mut patterns,
+        );
+        add(
+            "secret_github_pat",
+            "api_key",
+            r"\bgithub_pat_[A-Za-z0-9]{22}_[A-Za-z0-9]{59}\b",
+            &mut patterns,
+        );
+        add(
+            "secret_slack_app_token",
+            "api_key",
+            r"\bxapp-[0-9]-[0-9A-Za-z-]{10,}\b",
+            &mut patterns,
+        );
+        add(
+            "secret_slack_token",
+            "api_key",
+            r"\bxox[baprs]-[0-9A-Za-z-]{10,}\b",
+            &mut patterns,
+        );
+        add(
+            "secret_google_api_key",
+            "api_key",
+            r"\bAIza[0-9A-Za-z_-]{35}\b",
             &mut patterns,
         );
         add(
@@ -85,7 +111,7 @@ impl SecretRedactor {
         add(
             "path_absolute",
             "path",
-            r#"([A-Z]:\\[^\s"']+|/(Users|home)/[^\s"']+)"#,
+            MACHINE_LOCAL_PATH_PATTERN,
             &mut patterns,
         );
         add(
@@ -158,10 +184,21 @@ impl SecretRedactor {
 
             let replacement = format!("[REDACTED:{}:{}]", pattern.category, pattern.id);
             if pattern.regex.is_match(&redacted) {
-                redacted = pattern
-                    .regex
-                    .replace_all(&redacted, replacement.as_str())
-                    .into_owned();
+                redacted = if pattern.id == "path_absolute" {
+                    pattern
+                        .regex
+                        .replace_all(&redacted, |captures: &Captures<'_>| {
+                            let prefix = captures.get(1).map_or("", |m| m.as_str());
+                            let suffix = captures.get(3).map_or("", |m| m.as_str());
+                            format!("{prefix}{replacement}{suffix}")
+                        })
+                        .into_owned()
+                } else {
+                    pattern
+                        .regex
+                        .replace_all(&redacted, replacement.as_str())
+                        .into_owned()
+                };
                 logs.push(RedactionLogEntry {
                     file: "".to_string(),
                     location: location.to_string(),

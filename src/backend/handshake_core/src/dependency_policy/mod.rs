@@ -30,9 +30,13 @@ pub mod input_registry;
 pub mod manifest_tripwires;
 #[cfg(test)]
 mod native_parser_bundling;
+pub mod source_tripwires;
 
 pub use cui_gate::{CuiGateError, CuiPortableGate};
 pub use input_registry::{RuntimeInputDeclaration, RuntimeInputError, RuntimeInputRegistry};
+pub use source_tripwires::{
+    assert_source_tripwire_policy, assert_source_tripwire_policy_for_files,
+};
 
 use std::path::{Path, PathBuf};
 
@@ -57,7 +61,10 @@ pub enum DependencyPolicyError {
     #[error("failed to parse runtime dependency allowlist JSON: {0}")]
     Json(#[from] serde_json::Error),
     #[error("invalid allowlist schema: expected {expected}, got {actual}")]
-    InvalidSchema { expected: &'static str, actual: String },
+    InvalidSchema {
+        expected: &'static str,
+        actual: String,
+    },
     #[error("allowlist kind mismatch between JSON and Rust vocabulary: {0}")]
     KindMismatch(String),
 }
@@ -158,6 +165,26 @@ pub struct DockerOptInException {
     pub reason: String,
 }
 
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct ScanSelfExemptPaths {
+    #[serde(default)]
+    pub paths: Vec<String>,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct SourceTripwireExceptions {
+    #[serde(default)]
+    pub entries: Vec<SourceTripwireException>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct SourceTripwireException {
+    pub class_id: String,
+    pub path: String,
+    pub patterns: Vec<String>,
+    pub reason: String,
+}
+
 #[derive(Debug, Clone, Deserialize)]
 pub struct ProductManifests {
     pub npm: Vec<String>,
@@ -178,6 +205,10 @@ pub struct RuntimeDependencyAllowlist {
     pub docker_opt_in_exceptions: Vec<DockerOptInException>,
     pub product_scan_roots: Vec<String>,
     pub product_manifests: ProductManifests,
+    #[serde(default)]
+    pub scan_self_exempt_paths: ScanSelfExemptPaths,
+    #[serde(default)]
+    pub source_tripwire_exceptions: SourceTripwireExceptions,
 }
 
 impl RuntimeDependencyAllowlist {
@@ -248,10 +279,9 @@ mod tests {
 
     #[test]
     fn allowlist_document_loads_and_matches_rust_vocabulary() {
-        let allowlist = RuntimeDependencyAllowlist::load_from_repo_root(
-            &repo_root_from_manifest_dir(),
-        )
-        .expect("allowlist document must load and pass kind parity");
+        let allowlist =
+            RuntimeDependencyAllowlist::load_from_repo_root(&repo_root_from_manifest_dir())
+                .expect("allowlist document must load and pass kind parity");
         assert_eq!(allowlist.schema, ALLOWLIST_SCHEMA);
         assert!(allowlist.wp_id.contains("WP-KERNEL-009"));
         assert_eq!(allowlist.allowed_external_runtime_inputs.len(), 4);
@@ -259,10 +289,9 @@ mod tests {
 
     #[test]
     fn allowlist_declares_required_forbidden_classes() {
-        let allowlist = RuntimeDependencyAllowlist::load_from_repo_root(
-            &repo_root_from_manifest_dir(),
-        )
-        .expect("allowlist loads");
+        let allowlist =
+            RuntimeDependencyAllowlist::load_from_repo_root(&repo_root_from_manifest_dir())
+                .expect("allowlist loads");
         for id in FORBIDDEN_CLASS_IDS {
             let class = allowlist
                 .forbidden_class(id)
@@ -280,13 +309,43 @@ mod tests {
     }
 
     #[test]
+    fn source_tripwire_exceptions_are_exact_and_documented() {
+        let allowlist =
+            RuntimeDependencyAllowlist::load_from_repo_root(&repo_root_from_manifest_dir())
+                .expect("allowlist loads");
+        for exception in &allowlist.source_tripwire_exceptions.entries {
+            assert!(
+                !exception.path.contains('\\') && !exception.path.is_empty(),
+                "source tripwire exception path must be exact repo-relative POSIX form: {exception:?}"
+            );
+            assert!(
+                !exception.class_id.is_empty()
+                    && allowlist.forbidden_class(&exception.class_id).is_some(),
+                "source tripwire exception must reference a known class: {exception:?}"
+            );
+            assert!(
+                !exception.patterns.is_empty()
+                    && exception.patterns.iter().all(|pattern| !pattern.is_empty()),
+                "source tripwire exception must be pattern-scoped: {exception:?}"
+            );
+            assert!(
+                exception.reason.len() >= 24,
+                "source tripwire exception must document why it is not a forbidden runtime dependency: {exception:?}"
+            );
+        }
+    }
+
+    #[test]
     fn every_external_input_is_operator_gated_and_default_off() {
-        let allowlist = RuntimeDependencyAllowlist::load_from_repo_root(
-            &repo_root_from_manifest_dir(),
-        )
-        .expect("allowlist loads");
+        let allowlist =
+            RuntimeDependencyAllowlist::load_from_repo_root(&repo_root_from_manifest_dir())
+                .expect("allowlist loads");
         for input in &allowlist.allowed_external_runtime_inputs {
-            assert!(input.operator_gated, "{} must be operator gated", input.kind);
+            assert!(
+                input.operator_gated,
+                "{} must be operator gated",
+                input.kind
+            );
             assert!(!input.default_enabled, "{} must default off", input.kind);
         }
     }
@@ -310,8 +369,14 @@ mod tests {
             Some(RuntimeInputKind::CuiPortableArtifact)
         );
         assert_eq!(RuntimeInputKind::classify_path(Path::new("evil.exe")), None);
-        assert_eq!(RuntimeInputKind::classify_path(Path::new("db.sqlite3")), None);
-        assert_eq!(RuntimeInputKind::classify_path(Path::new("no_extension")), None);
+        assert_eq!(
+            RuntimeInputKind::classify_path(Path::new("db.sqlite3")),
+            None
+        );
+        assert_eq!(
+            RuntimeInputKind::classify_path(Path::new("no_extension")),
+            None
+        );
     }
 
     #[test]
@@ -326,7 +391,8 @@ mod tests {
             "bundled_libraries": [],
             "docker_opt_in_exceptions": [],
             "product_scan_roots": [],
-            "product_manifests": {"npm": [], "npm_lockfiles": [], "cargo": [], "cargo_lockfiles": []}
+            "product_manifests": {"npm": [], "npm_lockfiles": [], "cargo": [], "cargo_lockfiles": []},
+            "scan_self_exempt_paths": {"paths": []}
         }"#;
         let doc: RuntimeDependencyAllowlist = serde_json::from_str(raw).expect("parses");
         assert_eq!(doc.schema, "handshake.runtime_dependency_allowlist@99");

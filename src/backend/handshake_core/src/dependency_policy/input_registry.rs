@@ -154,7 +154,9 @@ mod tests {
         registry
             .declare(RuntimeInputKind::ModelGguf, path, "model_runtime")
             .expect("declaring a gguf model is allowed");
-        let declaration = registry.validate_use(path).expect("declared input validates");
+        let declaration = registry
+            .validate_use(path)
+            .expect("declared input validates");
         assert_eq!(declaration.kind, RuntimeInputKind::ModelGguf);
         assert_eq!(declaration.declared_by, "model_runtime");
         assert_eq!(registry.len(), 1);
@@ -222,7 +224,10 @@ mod tests {
                 "future_cui_wp",
             )
             .expect_err("closed gate must reject CUI portable declarations");
-        assert!(matches!(err, RuntimeInputError::CuiGate(CuiGateError::GateClosed { .. })));
+        assert!(matches!(
+            err,
+            RuntimeInputError::CuiGate(CuiGateError::GateClosed { .. })
+        ));
 
         let gate = CuiPortableGate::open_for_owning_wp("WP-FUTURE-CUI", "grant-7")
             .expect("gate opens with owning WP + grant");
@@ -245,7 +250,10 @@ mod tests {
         let err = registry
             .declare(RuntimeInputKind::TensorArtifact, path, "model_runtime")
             .expect_err("duplicate declaration must be rejected");
-        assert!(matches!(err, RuntimeInputError::DuplicateDeclaration { .. }));
+        assert!(matches!(
+            err,
+            RuntimeInputError::DuplicateDeclaration { .. }
+        ));
     }
 
     #[test]

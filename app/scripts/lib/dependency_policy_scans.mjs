@@ -159,20 +159,28 @@ export function scanFilesForPatterns({
 }) {
   const violations = [];
   const exceptionsApplied = [];
+  const readErrors = [];
   const exactSet = exactExemptPaths instanceof Set ? exactExemptPaths : new Set(exactExemptPaths ?? []);
   const lowered = patterns.map((p) => p.toLowerCase());
   for (const file of files) {
     const rel = toRepoRel(repoRoot, file);
+    const relLower = rel.toLowerCase();
     if (exactSet.has(rel)) continue;
     if (excludePathSubstrings.some((s) => rel.includes(s))) continue;
     const exception = exceptPathPrefixes.find((p) => rel.startsWith(p));
+    const pathHits = lowered.filter((p) => relLower.includes(p));
     let content;
     try {
       content = readFileSync(file, "utf8").toLowerCase();
-    } catch {
+    } catch (error) {
+      readErrors.push({
+        path: rel,
+        error: error instanceof Error ? error.message : String(error),
+      });
       continue;
     }
-    const hits = lowered.filter((p) => content.includes(p));
+    const contentHits = lowered.filter((p) => content.includes(p));
+    const hits = [...new Set([...pathHits, ...contentHits])];
     if (hits.length === 0) continue;
     if (exception) {
       exceptionsApplied.push({ path: rel, exception, patterns: hits });
@@ -189,7 +197,7 @@ export function scanFilesForPatterns({
       });
     }
   }
-  return { violations, exceptionsApplied };
+  return { violations, exceptionsApplied, readErrors };
 }
 
 /**

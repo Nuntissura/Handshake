@@ -44,14 +44,14 @@
       "description": "External desktop applications required for core product behavior. Core Handshake behavior must be Handshake-native.",
       "npm_package_names": [],
       "cargo_crate_name_substrings": [],
-      "source_scan_patterns": []
+      "source_scan_patterns": ["photoshop.exe"]
     },
     {
       "id": "outside_server_daemon",
       "description": "Externally managed servers or daemons (Redis, Valkey, Memcached, external brokers) as runtime or cache authority. PostgreSQL+EventLedger managed by Handshake is the only durable-state authority.",
       "npm_package_names": ["redis", "ioredis", "memcached", "valkey", "memjs"],
       "cargo_crate_name_substrings": ["redis", "valkey", "memcache"],
-      "source_scan_patterns": ["redis://", "valkey://", "memcached://"]
+      "source_scan_patterns": ["redis://", "valkey://", "memcached://", "ollama serve", "localhost:11434", "127.0.0.1:11434", "npm run dev", "localhost:5173", "127.0.0.1:5173"]
     },
     {
       "id": "docker_default",
@@ -65,7 +65,7 @@
       "description": "SQLite in any form (direct, transitive, wasm, node:sqlite) is forbidden in product code. PostgreSQL+EventLedger is canonical for durable state.",
       "npm_package_names": ["better-sqlite3", "sql.js", "sqlite3", "sqlite", "@sqlite.org/sqlite-wasm"],
       "cargo_crate_name_substrings": ["sqlite"],
-      "source_scan_patterns": ["node:sqlite"]
+      "source_scan_patterns": ["node:sqlite", "sqlite://", "sqlite:", ".sqlite", ".sqlite3", "rusqlite", "sqlx::Sqlite", "SqlitePool", "SqlitePoolOptions", "SqliteConnectOptions", "SqliteDatabase", "sqlite fallback"]
     },
     {
       "id": "cdn_runtime_asset",
@@ -163,6 +163,10 @@
   "scan_self_exempt_paths": {
     "description": "HARDENED (H3, external-validator finding): replaces a blanket excludePathSubstrings:['dependency_policy','dependency-policy'] exemption that was so broad it silently excluded the REAL product runtime file app/src/harness/dependency_policy_harness.tsx (and any other product file whose path merely contains the substring) from the CDN + docker source tripwires. Only the EXACT policy-data, scanner, and test files below — which legitimately embed forbidden-pattern literals as data or negative-test fixtures — are exempt from those source scans. Every other product source file (including dependency_policy_harness.tsx) is scanned like any other product source. Paths are repo-relative and matched EXACTLY (no substring widening).",
     "paths": [
+      "src/backend/handshake_core/src/dependency_policy/input_registry.rs",
+      "src/backend/handshake_core/src/dependency_policy/manifest_tripwires.rs",
+      "src/backend/handshake_core/src/dependency_policy/mod.rs",
+      "src/backend/handshake_core/src/dependency_policy/source_tripwires.rs",
       "app/src/lib/dependency_policy/runtime_dependency_allowlist.json",
       "app/src/lib/dependency_policy/allowlist.test.ts",
       "app/src/lib/dependency_policy/bundled_library_policy.test.ts",
@@ -172,6 +176,65 @@
       "app/src/lib/dependency_policy/package_lock_audit.test.ts",
       "app/src/lib/dependency_policy/portable_build_artifacts.test.ts",
       "app/src/lib/dependency_policy/third_party_notices.test.ts"
+    ]
+  },
+  "source_tripwire_exceptions": {
+    "description": "Pattern-scoped source tripwire exceptions for existing owned product code that intentionally exposes local operator-configured model runtime URLs. Exceptions are exact path + forbidden class + source pattern; they must not be used for new proof defaults, storage/cache authority, desktop-app dependencies, or dev-server instructions.",
+    "entries": [
+      {
+        "class_id": "outside_server_daemon",
+        "path": "src/backend/handshake_core/src/llm/registry.rs",
+        "patterns": ["localhost:11434"],
+        "reason": "Existing local LLM registry support resolves an operator-configured Ollama endpoint; this exception does not allow new unmanaged proof defaults or dev-server dependencies."
+      },
+      {
+        "class_id": "outside_server_daemon",
+        "path": "src/backend/handshake_core/src/llm/ollama.rs",
+        "patterns": ["localhost:11434", "ollama serve"],
+        "reason": "Existing Ollama runtime adapter documents and tests its local endpoint; this exception is exact to the adapter and does not authorize new server-daemon defaults elsewhere."
+      },
+      {
+        "class_id": "outside_server_daemon",
+        "path": "src/backend/handshake_core/src/model_runtime/invariant.rs",
+        "patterns": ["localhost:11434", "127.0.0.1:11434"],
+        "reason": "Existing model runtime invariant tests cover local Ollama configuration; this exception is exact and does not permit new unmanaged proof or cache authority."
+      },
+      {
+        "class_id": "outside_server_daemon",
+        "path": "src/backend/handshake_core/src/sandbox/wsl2_podman/podman_cli.rs",
+        "patterns": ["127.0.0.1:11434"],
+        "reason": "Sandbox network comments use a local model-service loopback example while documenting opt-in loopback bridging, not a default external daemon dependency."
+      },
+      {
+        "class_id": "outside_server_daemon",
+        "path": "src/backend/handshake_core/src/sandbox/docker/kernel_003_bridge.rs",
+        "patterns": ["127.0.0.1:11434"],
+        "reason": "Docker bridge comments use a local model-service loopback example while documenting opt-in loopback allowlisting, not a default external daemon dependency."
+      },
+      {
+        "class_id": "sqlite",
+        "path": "src/backend/handshake_core/src/managed_postgres.rs",
+        "patterns": ["sqlite fallback"],
+        "reason": "Managed PostgreSQL module states the negative invariant that no SQLite fallback is used; this is not a fallback implementation."
+      },
+      {
+        "class_id": "sqlite",
+        "path": "src/backend/handshake_core/src/storage/tests.rs",
+        "patterns": ["sqlite:", "SqliteDatabase"],
+        "reason": "Storage tests contain negative assertions against legacy SQLite references; exact exception keeps the production tripwire active elsewhere."
+      },
+      {
+        "class_id": "sqlite",
+        "path": "src/backend/handshake_core/src/diagnostics/bundle_manifest.rs",
+        "patterns": ["sqlite://", "sqlite:"],
+        "reason": "Diagnostics bundle tests use SQLite-shaped fixture data to prove local-authority redaction and validation, not to configure storage."
+      },
+      {
+        "class_id": "sqlite",
+        "path": "src/backend/handshake_core/src/atelier/mod.rs",
+        "patterns": ["sqlite://", "sqlite:", ".sqlite", ".sqlite3"],
+        "reason": "Atelier path validation rejects SQLite-shaped storage inputs; exact exception covers negative validation logic only."
+      }
     ]
   },
   "docker_artifact_scan": {

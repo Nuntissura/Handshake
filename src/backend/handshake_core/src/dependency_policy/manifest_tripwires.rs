@@ -25,7 +25,7 @@
 
 use std::path::Path;
 
-use super::{repo_root_from_manifest_dir, RuntimeDependencyAllowlist};
+use super::RuntimeDependencyAllowlist;
 
 /// Extracts direct dependency crate names from `[dependencies]`-style
 /// sections of a Cargo.toml (handles `alias = { package = "real" }`).
@@ -112,8 +112,8 @@ pub fn forbidden_resolved_cargo_packages(
         }
         let doc: serde_json::Value = serde_json::from_slice(&output.stdout)
             .map_err(|e| format!("parse cargo metadata JSON for {manifest_rel}: {e}"))?;
-        for (name, class_id) in
-            forbidden_activated_packages(&doc, allowlist).map_err(|e| format!("{manifest_rel}: {e}"))?
+        for (name, class_id) in forbidden_activated_packages(&doc, allowlist)
+            .map_err(|e| format!("{manifest_rel}: {e}"))?
         {
             violations.push((manifest_rel.clone(), name, class_id));
         }
@@ -160,15 +160,21 @@ fn forbidden_activated_packages(
         };
         let feature_map = pkg["features"].as_object();
         for feature in node["features"].as_array().into_iter().flatten() {
-            let Some(feature) = feature.as_str() else { continue };
+            let Some(feature) = feature.as_str() else {
+                continue;
+            };
             // Implicit optional-dep feature: a feature named after the dep.
             out.insert(feature.to_string());
-            let Some(targets) = feature_map.and_then(|m| m.get(feature)).and_then(|t| t.as_array())
+            let Some(targets) = feature_map
+                .and_then(|m| m.get(feature))
+                .and_then(|t| t.as_array())
             else {
                 continue;
             };
             for target in targets {
-                let Some(target) = target.as_str() else { continue };
+                let Some(target) = target.as_str() else {
+                    continue;
+                };
                 if let Some(dep) = target.strip_prefix("dep:") {
                     out.insert(dep.to_string());
                 } else if let Some((dep, _feat)) = target.split_once('/') {
@@ -188,26 +194,30 @@ fn forbidden_activated_packages(
     activated.insert(root.to_string());
     queue.push_back(root.to_string());
     while let Some(id) = queue.pop_front() {
-        let Some(node) = node_by_id.get(id.as_str()) else { continue };
+        let Some(node) = node_by_id.get(id.as_str()) else {
+            continue;
+        };
         let is_root = id == root;
         let active_optionals = activated_optionals(&id);
         let parent_pkg = pkg_by_id.get(id.as_str());
         for edge in node["deps"].as_array().into_iter().flatten() {
-            let Some(target_id) = edge["pkg"].as_str() else { continue };
-            let Some(target_pkg) = pkg_by_id.get(target_id) else { continue };
+            let Some(target_id) = edge["pkg"].as_str() else {
+                continue;
+            };
+            let Some(target_pkg) = pkg_by_id.get(target_id) else {
+                continue;
+            };
             let target_name = target_pkg["name"].as_str().unwrap_or_default();
             // Edge kinds: normal (null) + build always; dev only for the root
             // (mirrors `cargo tree -e normal,build` + root dev-deps compiled
             // for tests).
-            let kind_ok = edge["dep_kinds"]
-                .as_array()
-                .into_iter()
-                .flatten()
-                .any(|k| match k["kind"].as_str() {
+            let kind_ok = edge["dep_kinds"].as_array().into_iter().flatten().any(|k| {
+                match k["kind"].as_str() {
                     None | Some("build") => true,
                     Some("dev") => is_root,
                     Some(_) => false,
-                });
+                }
+            });
             if !kind_ok {
                 continue;
             }
@@ -219,9 +229,9 @@ fn forbidden_activated_packages(
                 .flatten()
                 .filter(|d| {
                     d["name"].as_str() == Some(target_name)
-                        || d["rename"].as_str().is_some_and(|r| {
-                            active_optionals.contains(r) || r == target_name
-                        })
+                        || d["rename"]
+                            .as_str()
+                            .is_some_and(|r| active_optionals.contains(r) || r == target_name)
                 })
                 .any(|d| d["optional"].as_bool() == Some(true));
             let edge_active = !optional
@@ -237,8 +247,12 @@ fn forbidden_activated_packages(
 
     let mut violations = Vec::new();
     for id in &activated {
-        let Some(pkg) = pkg_by_id.get(id.as_str()) else { continue };
-        let Some(name) = pkg["name"].as_str() else { continue };
+        let Some(pkg) = pkg_by_id.get(id.as_str()) else {
+            continue;
+        };
+        let Some(name) = pkg["name"].as_str() else {
+            continue;
+        };
         let lowered = name.to_ascii_lowercase();
         for class in &allowlist.forbidden_runtime_dependency_classes {
             if class
@@ -262,7 +276,8 @@ pub fn forbidden_direct_cargo_dependencies(
 ) -> Vec<(String, String, String)> {
     let mut violations = Vec::new();
     for manifest_rel in &allowlist.product_manifests.cargo {
-        let manifest_path = repo_root.join(manifest_rel.replace('/', std::path::MAIN_SEPARATOR_STR));
+        let manifest_path =
+            repo_root.join(manifest_rel.replace('/', std::path::MAIN_SEPARATOR_STR));
         let Ok(raw) = std::fs::read_to_string(&manifest_path) else {
             violations.push((
                 manifest_rel.clone(),
@@ -291,12 +306,13 @@ pub fn forbidden_direct_cargo_dependencies(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::dependency_policy::repo_root_from_manifest_dir;
 
     #[test]
     fn product_manifests_declare_no_forbidden_crates() {
         let repo_root = repo_root_from_manifest_dir();
-        let allowlist = RuntimeDependencyAllowlist::load_from_repo_root(&repo_root)
-            .expect("allowlist loads");
+        let allowlist =
+            RuntimeDependencyAllowlist::load_from_repo_root(&repo_root).expect("allowlist loads");
         let violations = forbidden_direct_cargo_dependencies(&repo_root, &allowlist);
         assert!(
             violations.is_empty(),
@@ -312,8 +328,8 @@ mod tests {
     #[test]
     fn resolved_dependency_graph_contains_no_forbidden_crates() {
         let repo_root = repo_root_from_manifest_dir();
-        let allowlist = RuntimeDependencyAllowlist::load_from_repo_root(&repo_root)
-            .expect("allowlist loads");
+        let allowlist =
+            RuntimeDependencyAllowlist::load_from_repo_root(&repo_root).expect("allowlist loads");
         assert_eq!(
             allowlist.product_manifests.cargo.len(),
             2,
@@ -393,8 +409,8 @@ mod tests {
     #[test]
     fn dormant_optional_sqlite_union_is_not_flagged() {
         let repo_root = repo_root_from_manifest_dir();
-        let allowlist = RuntimeDependencyAllowlist::load_from_repo_root(&repo_root)
-            .expect("allowlist loads");
+        let allowlist =
+            RuntimeDependencyAllowlist::load_from_repo_root(&repo_root).expect("allowlist loads");
         // Union nodes exist, but sqlx's `sqlite` feature is NOT enabled.
         let doc = sqlx_fixture(&["postgres"]);
         let violations = forbidden_activated_packages(&doc, &allowlist).expect("analysis runs");
@@ -407,14 +423,17 @@ mod tests {
     #[test]
     fn feature_smuggled_sqlite_is_flagged() {
         let repo_root = repo_root_from_manifest_dir();
-        let allowlist = RuntimeDependencyAllowlist::load_from_repo_root(&repo_root)
-            .expect("allowlist loads");
+        let allowlist =
+            RuntimeDependencyAllowlist::load_from_repo_root(&repo_root).expect("allowlist loads");
         // `sqlx = { features = ["sqlite"] }` smuggling: the enabled feature
         // activates dep:sqlx-sqlite, pulling libsqlite3-sys transitively.
         let doc = sqlx_fixture(&["postgres", "sqlite"]);
         let violations = forbidden_activated_packages(&doc, &allowlist).expect("analysis runs");
         let names: Vec<&str> = violations.iter().map(|(n, _)| n.as_str()).collect();
-        assert!(names.contains(&"sqlx-sqlite"), "sqlx-sqlite must be flagged: {names:?}");
+        assert!(
+            names.contains(&"sqlx-sqlite"),
+            "sqlx-sqlite must be flagged: {names:?}"
+        );
         assert!(
             names.contains(&"libsqlite3-sys"),
             "transitive libsqlite3-sys must be flagged: {names:?}"
@@ -424,8 +443,8 @@ mod tests {
     #[test]
     fn renamed_feature_activating_sqlite_dep_is_flagged() {
         let repo_root = repo_root_from_manifest_dir();
-        let allowlist = RuntimeDependencyAllowlist::load_from_repo_root(&repo_root)
-            .expect("allowlist loads");
+        let allowlist =
+            RuntimeDependencyAllowlist::load_from_repo_root(&repo_root).expect("allowlist loads");
         // A feature whose NAME hides its payload: `embedded-db = ["dep:rusqlite"]`.
         let doc = serde_json::json!({
             "packages": [
@@ -451,7 +470,9 @@ mod tests {
         });
         let violations = forbidden_activated_packages(&doc, &allowlist).expect("analysis runs");
         assert!(
-            violations.iter().any(|(n, c)| n == "rusqlite" && c == "sqlite"),
+            violations
+                .iter()
+                .any(|(n, c)| n == "rusqlite" && c == "sqlite"),
             "renamed-feature activation must be flagged: {violations:?}"
         );
     }
@@ -473,8 +494,8 @@ sqlx = { version = "0.8", features = ["sqlite"] }
         assert!(names.contains(&"rusqlite".to_string()));
         assert!(names.contains(&"sqlx".to_string()));
         let repo_root = repo_root_from_manifest_dir();
-        let allowlist = RuntimeDependencyAllowlist::load_from_repo_root(&repo_root)
-            .expect("allowlist loads");
+        let allowlist =
+            RuntimeDependencyAllowlist::load_from_repo_root(&repo_root).expect("allowlist loads");
         let sqlite = allowlist.forbidden_class("sqlite").expect("sqlite class");
         assert!(
             names.iter().any(|n| sqlite
@@ -502,8 +523,8 @@ harmless_alias = { package = "libsqlite3-sys", version = "0.30" }
     fn product_manifests_have_dependencies_at_all() {
         // Guards against the scanner silently parsing nothing.
         let repo_root = repo_root_from_manifest_dir();
-        let allowlist = RuntimeDependencyAllowlist::load_from_repo_root(&repo_root)
-            .expect("allowlist loads");
+        let allowlist =
+            RuntimeDependencyAllowlist::load_from_repo_root(&repo_root).expect("allowlist loads");
         for manifest_rel in &allowlist.product_manifests.cargo {
             let manifest_path =
                 repo_root.join(manifest_rel.replace('/', std::path::MAIN_SEPARATOR_STR));
