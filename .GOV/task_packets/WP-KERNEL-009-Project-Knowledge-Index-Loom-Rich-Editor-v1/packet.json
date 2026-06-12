@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
   "base_wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-12T01:53:13.415Z",
+  "updated_at_utc": "2026-06-12T03:37:21.486Z",
   "authority_files": {
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json",
     "refinement_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/refinement.json",
@@ -41,8 +41,8 @@
     "packet_format_version": "2026-04-06",
     "status": "IN_PROGRESS",
     "risk_tier": "HIGH",
-    "user_signature": null,
-    "signature_policy": "One-time signature token from refinement phase remains unconsumed (not present in this session). Execution authorized by explicit operator command in Kernel Builder session 2026-06-11: 'you will be implementing wp kernel build 009 ... you will work autonomously without operator input' plus follow-up 'mark mt's that are finished ready for validation v1'. Recorded per CX-585C without fabricating a signature string.",
+    "user_signature": "ilja120620260530",
+    "signature_policy": "One-time signature token from refinement phase remains unconsumed (not present in this session). Execution authorized by explicit operator command in Kernel Builder session 2026-06-11: 'you will be implementing wp kernel build 009 ... you will work autonomously without operator input' plus follow-up 'mark mt's that are finished ready for validation v1'. Recorded per CX-585C without fabricating a signature string. | 2026-06-12: operator signature ilja120620260530 supplied live, authorizing: Master Spec update (bundle v02.192 -> v02.193) describing the unified work surface, SPEC_CURRENT pointer update, and WP/MT updates (UnifiedWorkSurface group MT-241..244 + operator decisions DEC-001..DEC-005).",
     "operator_execution_order": {
       "at_utc": "2026-06-11T07:20:56.864Z",
       "session": "KERNEL_BUILDER-20260611-071323",
@@ -109,6 +109,15 @@
           "Touched 2 non-owned test files (tests/knowledge_fail_closed_tests.rs, tests/knowledge_idempotency_tests.rs) with additive ..Default::default() only, required to keep the build green after MT-145 added identity fields to knowledge_rich_documents. No semantic change; all prior values preserved."
         ],
         "scope": "Build-green unblock only; no behavior change to those tests."
+      },
+      {
+        "id": "WAIVER-004",
+        "from": "TiptapMonacoIntegration delegate",
+        "at_utc": "2026-06-12T02:58:09.834Z",
+        "items": [
+          "One out-of-app/ file: tests/dependency_policy/rich_editor_roundtrip.spec.ts (MT-176 Playwright spec) placed in the repo's established frontend spec directory. Frontend test code only; no src/backend or .GOV change. setupTests.ts jsdom shims + vite.harness.config.ts second harness entry are additive and within app/."
+        ],
+        "scope": "Frontend test placement only; no product-behavior or backend change."
       }
     ],
     "recovery_snapshot": {
@@ -232,7 +241,39 @@
       "set_at_utc": "2026-06-11T18:18:02.278Z",
       "source": "operator 2026-06-11",
       "rule": "External validator checks MTs marked READY_FOR_VALIDATION. KERNEL_BUILDER keeps building remaining MTs. If validator FAILs an MT and KERNEL_BUILDER remediates it, mark it READY_FOR_VALIDATION_V2 (not V1) - state-recovery signal that it is a re-submission. Subsequent re-remediations increment: _V3, etc."
-    }
+    },
+    "operator_decisions": [
+      {
+        "id": "DEC-001",
+        "at_utc": "2026-06-12T03:37:21.486Z",
+        "decision": "Operator-facing surface name = 'Notes'",
+        "detail": "The Obsidian-class knowledge surface is named 'Notes' (operator: undersell, bombard with features). 'Loom' remains the engine/spec term. MT-177..192 group delivers the Loom engine + Notes surfaces."
+      },
+      {
+        "id": "DEC-002",
+        "at_utc": "2026-06-12T03:37:21.486Z",
+        "decision": "Unified work surface",
+        "detail": "Notes (Obsidian-class GUI incl. graph view + linking), Loom (LoomBlock backend), project-wiki compile backend (Karpathy LLM-wiki pattern), and the Tiptap+Monaco editor are ONE combined rich-text work surface for operators and models to understand large projects and co-author work - full VS Code and Obsidian replacement in a single surface. Operator notes: many coding formats; auto codeblocks; save-to format; hyperlinks; embedded videos/albums (CKC); embed slideshow [[HS_slideshow]]; insert picture [[HS_images]]; file linking like Obsidian; folder linking + color labels; project linking - explicitly not exhaustive."
+      },
+      {
+        "id": "DEC-003",
+        "at_utc": "2026-06-12T03:37:21.486Z",
+        "decision": "HTML is the primary file projection; authority stays Postgres",
+        "detail": "Rich documents save to Postgres/EventLedger structured authority (unchanged). Primary export/interchange projection = HTML with data-hs-* attributes for near-lossless round-trip; two export modes: self-contained (assets base64-inlined - operator-confirmed) and reference-linked. Markdown remains a deliberately lossy extractor for interop. HTML import sanitized fail-closed. LLM-consumption nuance: retrieval may serve md (cheap), HTML (structure-aware), or JSON (programmatic) per task."
+      },
+      {
+        "id": "DEC-004",
+        "at_utc": "2026-06-12T03:37:21.486Z",
+        "decision": "Karpathy LLM-wiki integration -> MT-241/242/243",
+        "detail": "Loom/Notes adopt the 'knowledge as a compile target' pattern (research: .GOV/reference/wp009_karpathy_wiki_research.json). New UnifiedWorkSurface group: MT-241 ProjectWikiBootstrapCompiler, MT-242 WikiProjectionDriftAndStaleness (S9.1.1 guard - 241 must not ship without it), MT-243 WikiIncrementalIngestFanOut. Researcher's proposed ids MT-193/194/195 collided with the UserManual group and were renumbered."
+      },
+      {
+        "id": "DEC-005",
+        "at_utc": "2026-06-12T03:37:21.486Z",
+        "decision": "Master Spec update authorized (signature ilja120620260530)",
+        "detail": "Create bundle v02.193 from v02.192 with additive sections describing the unified work surface (Notes naming, unified surface composition, CKC embeds, save-to-format/HTML projection, project-wiki compile layer); update SPEC_CURRENT.md pointer + packet spec_bundle reference after the bundle lands."
+      }
+    ]
   },
   "scope": {
     "summary": "Build the Handshake Project Knowledge Index, native memory/claims system, retrieval+context bundles, Tiptap/ProseMirror rich document editor with embedded Monaco code editing, Loom/Obsidian-replacement navigation (backlinks, graphs, tags, folders, pins, wiki projections), UserManual migration, parallel-swarm backend navigation/state recovery, and security/portability validation fixtures as one integrated PostgreSQL/EventLedger-backed product foundation that replaces VS Code and Obsidian for operator knowledge/editing workflows.",
@@ -544,7 +585,11 @@
       "MT-237",
       "MT-238",
       "MT-239",
-      "MT-240"
+      "MT-240",
+      "MT-241",
+      "MT-242",
+      "MT-243",
+      "MT-244"
     ],
     "active_id": null,
     "group_index": {

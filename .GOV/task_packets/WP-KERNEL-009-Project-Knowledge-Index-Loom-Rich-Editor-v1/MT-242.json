@@ -1,0 +1,105 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
+  "mt_id": "MT-242",
+  "title": "UnifiedWorkSurface-242-WikiProjectionDriftAndStaleness",
+  "group": "UnifiedWorkSurface",
+  "created_at_utc": "2026-06-12T03:37:21.486Z",
+  "updated_at_utc": "2026-06-12T03:37:21.486Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-242.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY",
+    "projection_hash": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": "NOT_GENERATED_BY_DEFAULT",
+    "note": "JSON contract is authority. No markdown projection is generated for WP-KERNEL-009 (prevents projection drift)."
+  },
+  "scope": {
+    "scope": "Drift/staleness tracking for compiled wiki pages - the native analog of codewiki's commit-vs-source_files drift check and the S9.1.1 guard that keeps 'query the wiki, not the raw' safe. Every compiled page is stamped with the EventLedger source-version and the exact cited-source set (entity/span/symbol ids + content hashes) it compiled from. A drift checker diffs current authority against stamps and flags exactly which pages are stale and why. Serving a wiki page attaches a staleness verdict fail-closed (reuse the MT-106 StalenessVerdict pattern); the Notes UI receives a machine-readable stale badge contract. Without this MT, MT-241's wiki silently goes stale; they ship together.",
+    "relevant_files": [
+      "src/backend/handshake_core/src/storage/knowledge.rs",
+      "src/backend/handshake_core/src/api/loom.rs",
+      "src/backend/handshake_core/migrations/",
+      "src/backend/handshake_core/tests/"
+    ],
+    "constraints": [
+      "Use the existing microtask_plan_draft execution surface only; do not introduce a separate MT execution surface or suite field.",
+      "Core Handshake behavior must be Handshake-native: no outside app, outside server, external daemon, Docker-only path, SQLite fallback, Redis/Valkey cache authority, or sidecar paper as proof or authority.",
+      "Allowed external runtime inputs are limited to operator-provided models, GGUF/model files, tensors/safetensors, and CUI portable artifacts where the owning WP explicitly gates them; Tiptap and Monaco are allowed only as bundled/lockfile-governed product libraries integrated into Handshake.",
+      "PostgreSQL plus EventLedger is canonical for durable state, receipts, indexing evidence, runtime proof, and validation; generated markdown, wiki pages, HTML, context bundles, debug reports, and UI projections are projections only.",
+      "Every implementation handoff must be restartable by a no-context local model using only the WP/MT contract, current Master Spec bundle, product code, tests, and receipts.",
+      "Stamps live in PostgreSQL keyed to EventLedger versions; no wall-clock-based staleness heuristics.",
+      "Serving a stale page without its verdict is a contract violation (fail-closed).",
+      "No false-stale: unchanged sources must not flag pages (negative test required)."
+    ],
+    "expected_behavior": "Changing any cited source flags exactly the wiki pages that cited it as STALE with a concrete reason (which source, which version delta); unchanged pages stay FRESH; every served page carries its verdict.",
+    "acceptance_criteria": [
+      "Page stamps record EventLedger version + full cited-source set with content hashes.",
+      "Drift check after a real source edit returns exactly the affected page set (proven set equality in test).",
+      "Staleness verdict attached on every page-serve path; never silent.",
+      "Negative test: recompile with no source change yields zero stale pages."
+    ],
+    "verification": [
+      "Real-PG tests: edit-cited-source -> exact stale set; no-change -> no stale; verdict-on-serve.",
+      "cargo test -p handshake_core --features runtime-full,test-utils green."
+    ],
+    "handoff_requirements": [
+      "List files changed, migrations, tests with results.",
+      "Document the stale-badge contract (fields, values) for the Notes UI + retrieval."
+    ],
+    "hbr_focus": [
+      "HBR-INT-001",
+      "HBR-INT-004",
+      "HBR-MAN-002"
+    ]
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": [
+      "MT-241",
+      "MT-106"
+    ],
+    "blocks": [
+      "MT-243"
+    ],
+    "claimed_by": null,
+    "completed_by": null,
+    "implementation_commit": null,
+    "evidence": []
+  },
+  "handoff": {
+    "coder_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "PROJECT_KNOWLEDGE_INDEX_RICH_EDITOR_V1",
+    "minimum_controls": [
+      "No placeholders, mocks, scaffolding, or deferred-live escapes; runtime proof against Handshake-managed PostgreSQL/EventLedger where the contract names durable state."
+    ]
+  }
+}

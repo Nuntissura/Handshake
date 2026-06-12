@@ -1,0 +1,110 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
+  "mt_id": "MT-244",
+  "title": "UnifiedWorkSurface-244-EditorEmbedViewsSaveToFormatAndFindReplace",
+  "group": "UnifiedWorkSurface",
+  "created_at_utc": "2026-06-12T03:37:21.486Z",
+  "updated_at_utc": "2026-06-12T03:37:21.486Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-244.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY",
+    "projection_hash": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": "NOT_GENERATED_BY_DEFAULT",
+    "note": "JSON contract is authority. No markdown projection is generated for WP-KERNEL-009 (prevents projection drift)."
+  },
+  "scope": {
+    "scope": "Unified-work-surface editor iteration 2, per operator notes (2026-06-12): (1) CKC embed views - inline NodeViews rendering the typed hsLink/embed nodes built in MT-163: insert picture [[HS_images]], embed slideshow [[HS_slideshow]], embedded albums, embedded videos - resolving REAL backend assets fail-closed (unresolvable embed renders a typed, visible error state; never mock data; never blank). (2) save-to-format export: HTML is the PRIMARY file projection (operator decision DEC-003) with data-hs-* attributes carrying typed link/embed semantics for near-lossless round-trip; TWO export modes: self-contained (assets base64-inlined - operator-confirmed) and reference-linked; plus markdown extractor (deliberately lossy, interop), plain text, and ProseMirror JSON. Authority remains the Postgres rich document; an export file is never authority. (3) Document-wide find/replace across prose AND embedded Monaco code blocks (case/whole-word/regex), VS Code-class.",
+    "relevant_files": [
+      "app/src/components/RichTextEditor.tsx",
+      "app/src/components/RichDocumentView.tsx",
+      "app/src/lib/tiptap/",
+      "app/src/lib/editor/",
+      "app/src/lib/monaco/",
+      "tests/dependency_policy/"
+    ],
+    "constraints": [
+      "Use the existing microtask_plan_draft execution surface only; do not introduce a separate MT execution surface or suite field.",
+      "Core Handshake behavior must be Handshake-native: no outside app, outside server, external daemon, Docker-only path, SQLite fallback, Redis/Valkey cache authority, or sidecar paper as proof or authority.",
+      "Allowed external runtime inputs are limited to operator-provided models, GGUF/model files, tensors/safetensors, and CUI portable artifacts where the owning WP explicitly gates them; Tiptap and Monaco are allowed only as bundled/lockfile-governed product libraries integrated into Handshake.",
+      "PostgreSQL plus EventLedger is canonical for durable state, receipts, indexing evidence, runtime proof, and validation; generated markdown, wiki pages, HTML, context bundles, debug reports, and UI projections are projections only.",
+      "Every implementation handoff must be restartable by a no-context local model using only the WP/MT contract, current Master Spec bundle, product code, tests, and receipts.",
+      "Frontend-only lane: pnpm/vitest/Playwright; NO cargo builds; no src/backend changes (report any backend gap instead of mocking around it).",
+      "Bundled/lockfile-governed deps only (a markdown serializer such as prosemirror-markdown is acceptable); no CDN, no external apps.",
+      "Stable selectors + visual-debug surface for every new view; offline Playwright proof for embeds and export round-trip.",
+      "HTML import path (if implemented here) must sanitize: strip scripts/event handlers, fail-closed."
+    ],
+    "expected_behavior": "An operator (or model) inserts pictures, slideshows, albums, and videos inline and sees them render from real assets; exports the document to self-contained or reference-linked HTML (plus md/txt/json) via a save-to-format UI; and runs document-wide find/replace spanning prose and code blocks.",
+    "acceptance_criteria": [
+      "Embed NodeViews render real resolvable assets; unresolvable -> typed visible error state (tested), never blank or mocked.",
+      "HTML export: data-hs-* semantics round-trip (export -> import -> identical doc structure proven in test); both modes work; base64 self-contained file opens standalone in a browser (Playwright proof).",
+      "Markdown/text/JSON exports produced; markdown explicitly documented as lossy.",
+      "Find/replace: case/whole-word/regex across prose + code blocks with match count + replace-all (tested).",
+      "Full app vitest suite + offline Playwright lane green; tsc + eslint clean."
+    ],
+    "verification": [
+      "pnpm vitest run (full app suite) green; pnpm tsc --noEmit clean; eslint clean.",
+      "Offline Playwright: embed render + HTML export round-trip + standalone-open proof, zero external network requests."
+    ],
+    "handoff_requirements": [
+      "List files changed, tests with counts, Playwright results.",
+      "Report any backend asset surface found missing (album/slideshow data source) as a precise gap - do not mock around it.",
+      "List stable selectors added for the visual-debug suite."
+    ],
+    "hbr_focus": [
+      "HBR-INT-001",
+      "HBR-VIS-001",
+      "HBR-MAN-002"
+    ]
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": [
+      "MT-163",
+      "MT-165",
+      "MT-169",
+      "MT-145"
+    ],
+    "blocks": [],
+    "claimed_by": null,
+    "completed_by": null,
+    "implementation_commit": null,
+    "evidence": []
+  },
+  "handoff": {
+    "coder_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "PROJECT_KNOWLEDGE_INDEX_RICH_EDITOR_V1",
+    "minimum_controls": [
+      "No placeholders, mocks, scaffolding, or deferred-live escapes; runtime proof against Handshake-managed PostgreSQL/EventLedger where the contract names durable state."
+    ]
+  }
+}

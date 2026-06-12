@@ -88,7 +88,77 @@
     ],
     "blocks": [],
     "claimed_by": null,
-    "completed_by": null
+    "completed_by": null,
+    "implementation_commit": "2ee98c28",
+    "implementation_commits": [
+      "2ee98c28 gov(WP-KERNEL-009): MT-177 LoomBlockKnowledgeBridge",
+      "58b773a5 gov(WP-KERNEL-009): MT-177 adversarial fix - reject un-bridgeable block_id"
+    ],
+    "evidence": [
+      {
+        "at_utc": "2026-06-12T05:30:00Z",
+        "kind": "implementation",
+        "summary": "LoomBlock<->ProjectKnowledgeIndex/EventLedger authority bridge implemented; Loom is Postgres/EventLedger-authoritative (no parallel store). SQLite removed/unreachable.",
+        "files_changed": [
+          "src/backend/handshake_core/migrations/0292_loom_block_knowledge_bridge.sql (NEW) - loom_block_knowledge_bridge link table (block_id<->entity_id<->index_event_id), idempotent, FK-enforced authority (kernel_event_ledger, knowledge_entities)",
+          "src/backend/handshake_core/migrations/0292_loom_block_knowledge_bridge.down.sql (NEW)",
+          "src/backend/handshake_core/src/storage/loom.rs - LoomKnowledgeBridge + LoomAuthorityBackend(PostgresEventLedger) types",
+          "src/backend/handshake_core/src/storage/mod.rs - Database trait: bridge_loom_block_to_knowledge/get/list + loom_authority_backend()",
+          "src/backend/handshake_core/src/storage/postgres.rs - PostgresDatabase bridge impl (reuses KnowledgeStore::upsert_knowledge_entity + Database::append_kernel_event); create_loom_block rejects un-bridgeable block_id",
+          "src/backend/handshake_core/src/api/loom.rs - block create / import / auto-created link+tag targets fail-closed bridge; GET /workspaces/:ws/loom/blocks/:id/knowledge",
+          "src/backend/handshake_core/src/storage/sqlite.rs (DELETED) - dead orphan, never compiled (sqlx has no sqlite feature; not declared as a module)",
+          "src/backend/handshake_core/src/storage/locus_sqlite.rs (DELETED) - dead orphan, never compiled",
+          "src/backend/handshake_core/tests/loom_knowledge_bridge_tests.rs (NEW) - 8 real-Postgres+EventLedger tests"
+        ]
+      },
+      {
+        "at_utc": "2026-06-12T05:30:00Z",
+        "kind": "test_proof",
+        "command": "cargo test -p handshake_core --features runtime-full,test-utils --test loom_knowledge_bridge_tests -- --test-threads=1",
+        "result": "ok. 8 passed; 0 failed (real Handshake-managed PostgreSQL @127.0.0.1:5544, isolated schema, full migration chain)",
+        "tests": [
+          "bridge_binds_loom_block_to_knowledge_entity_and_event_ledger - entity (ws,loom_block,block_id) + KNOWLEDGE_LOOM_BLOCK_INDEXED receipt verified in ledger",
+          "bridge_display_name_falls_back_when_title_absent - non-empty display_name (0135 CHECK) from block id when title/filename absent",
+          "bridge_is_idempotent_no_duplicate_authority_rows - re-bridge => same entity, exactly 1 entity + 1 bridge row, fresh receipt re-pointed",
+          "get_and_list_bridge_read_back_authority_binding - get/list authority binding; un-bridged read is None",
+          "authority_backend_is_postgres_event_ledger - loom_authority_backend()==PostgresEventLedger (sole variant)",
+          "bridge_fails_closed_on_missing_block - NotFound, never silent success",
+          "create_rejects_unbridgeable_block_id - empty/whitespace block_id rejected at create; zero orphan blocks (adversarial fix)",
+          "sqlite_is_unreachable_from_the_loom_runtime_path - source guard: no sqlite module declared, orphans removed, sqlx has no sqlite feature, no SqlitePool in Loom source"
+        ]
+      },
+      {
+        "at_utc": "2026-06-12T05:30:00Z",
+        "kind": "regression_guard",
+        "command": "cargo test -p handshake_core --features runtime-full,test-utils --lib storage::tests::database_trait_purity_source_regressions -- --exact",
+        "result": "ok. 1 passed (existing Database trait-purity guard still green after SQLite orphan removal)"
+      },
+      {
+        "at_utc": "2026-06-12T05:30:00Z",
+        "kind": "sqlite_removal_confirmation",
+        "summary": "SQLite fully removed/unreachable from the Loom runtime path. (1) storage/mod.rs declares NO sqlite/locus_sqlite module (only postgres). (2) sqlx in Cargo.toml has NO 'sqlite' feature - a SqlitePool cannot be constructed in this crate. (3) The orphan storage/sqlite.rs (15x sqlx::sqlite/SqlitePool, would NOT compile) and storage/locus_sqlite.rs are physically removed via git rm. (4) StorageBackendKind enum has only Postgres; ControlPlaneStorageMode::resolve always returns PostgresPrimary and rejects non-postgres URLs. (5) AppState.storage is always Arc<dyn Database> backed by PostgresDatabase. NOTE: src/locus/sqlite_store.rs is misnamed legacy - it is a pure LocusOperation JSON parser with ZERO SQLite code (not a SQLite path); left untouched."
+      },
+      {
+        "at_utc": "2026-06-12T05:30:00Z",
+        "kind": "reuse_confirmation",
+        "summary": "No parallel infrastructure. Bridge EXTENDS existing layers: knowledge_entities (entity_kind='loom_block' already a first-class kind, migration 0135) is the ProjectKnowledgeIndex authority; reuses KnowledgeStore::upsert_knowledge_entity (stable identity upsert), Database::append_kernel_event (EventLedger) with the pre-existing KnowledgeLoomBlockIndexed kernel event type; extends storage/loom.rs + api/loom.rs + the loom_blocks/loom_edges (migration 0013) store rather than forking it."
+      }
+    ],
+    "adversarial_code_review": {
+      "at_utc": "2026-06-12T05:30:00Z",
+      "reviewer": "KERNEL_BUILDER backend delegate (self-review)",
+      "commit": "58b773a5",
+      "findings": [
+        "ORPHAN-BLOCK (fixed): loom_blocks.block_id is a bare TEXT PK with no format CHECK and CreateLoomBlockRequest.block_id is caller-supplied. An empty/whitespace-surrounded id passes loom_blocks but FAILS the knowledge_entities.entity_key CHECK (btrim=value AND <>''), so the fail-closed bridge would refuse it AFTER the block row was inserted, leaving an orphan block outside authority.",
+        "NON-ATOMIC-BRIDGE (accepted, self-healing): bridge does 3 sequential awaits (entity upsert, event append, bridge upsert) not in one transaction. A crash between event-append and bridge-upsert leaves an orphan entity+event with no bridge row; the next bridge call is idempotent (re-upserts entity, appends a new receipt, upserts bridge) and self-heals. No data loss; no duplicate authority rows.",
+        "INJECTION (clear): all writes are sqlx-parameterized; entity_key/display_name are bound params under CHECK constraints. No string interpolation of user input into SQL.",
+        "DEDUP-IMPORT-PATH (clear): import dedup_hit returns BEFORE the bridge call and points at the existing (already-bridged) block, so a duplicate import does not create an un-bridged block.",
+        "DOS (low): list_loom_block_knowledge_bridges has no LIMIT (workspace-scoped admin/debug read). get/bridge-on-create are O(1). Acceptable for the surface."
+      ],
+      "fixes": [
+        "create_loom_block now validates the resolved block_id (reject empty or surrounding-whitespace) BEFORE insert, so an un-bridgeable block can never be created -> closes ORPHAN-BLOCK at the source. Proven by create_rejects_unbridgeable_block_id (asserts 5 bad ids rejected + zero blocks in the All view)."
+      ]
+    }
   },
   "handoff": {
     "coder_session": null,

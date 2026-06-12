@@ -1,0 +1,248 @@
+{
+  "schema": "wp009.karpathy_wiki_research@1",
+  "generated_at_utc": "2026-06-12T00:00:00Z",
+  "title": "WP-KERNEL-009 'Karpathy Wiki' research + Loom/Notes integration map",
+  "purpose": "Identify what the operator means by 'Karpathy Wiki', inspect the actual source, extract load-bearing patterns, and map each pattern onto Handshake's existing Loom (LoomBlock/edge/wiki-projection) + Notes + code-index + RetrievalContextAndRanking, marking REUSE-of-existing-MT vs NEW-capability. The 'understand a large project + co-author' angle is the spine of the mapping. NO code was changed.",
+
+  "repo": {
+    "name": "Karpathy LLM Wiki (the 'llm-wiki' pattern/spec)",
+    "url": "https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f",
+    "what_it_actually_is": "NOT a conventional codebase repo. 'Karpathy Wiki' is the LLM Wiki PATTERN/SPEC that Andrej Karpathy published as a ~1,500-word GitHub gist (llm-wiki.md, early April 2026). It is a set of principles, not a product. Core idea ('knowledge as a compile target'): your raw sources (PDFs, notes, transcripts, and by extension code) are SOURCE CODE; the wiki is the COMPILED BINARY. Instead of per-query RAG that re-searches raw docs and re-derives synthesis every time, an LLM/agent INCREMENTALLY builds and maintains a persistent, interlinked set of markdown pages that sit BETWEEN the human and the raw sources. Three immutable layers: (1) raw/ = immutable curated sources the LLM reads but never edits; (2) wiki/ = LLM-generated+maintained markdown pages (index.md catalog, log.md append-only history, overview.md synthesis, entities/, concepts/); (3) a schema/config doc (Karpathy uses CLAUDE.md) that governs structure + the human/LLM contract ('human curates sources and asks questions; the LLM does all the grunt work of summarizing, cross-referencing, filing, bookkeeping'). Three operations: INGEST (drop a source -> LLM reads it, writes a summary page, updates ~10-15 entity/concept pages in one pass, appends to log), QUERY (answer from wiki pages, not raw; good answers can be filed back as new pages so knowledge COMPOUNDS), LINT (periodic health check for contradictions, stale claims, orphans, missing cross-refs, gaps). Cross-references use wikilinks [[page]]; superseded facts are marked STALE, not deleted; contradictions are flagged. Claim: for corpora under ~100k-200k tokens it is simpler AND more reliable than RAG (no embeddings/chunking/retrieval tuning; whole wiki fits in context for global reasoning). The 'understand a large project + co-author' framing the operator gave is the codebase instantiation of this pattern (see alternates: jaylane/codewiki applies it directly to a source tree with git-commit drift tracking).",
+    "confidence": "high (~0.9). Strong corroboration: the gist is the single canonical artifact every community implementation and write-up cites by URL; the operator's exact description ('a backend that helps operators and models understand large projects and co-author work' = a wiki/knowledge surface that the LLM maintains over a large corpus) is precisely the LLM Wiki value prop. The ONLY ambiguity is whether the operator means (a) the canonical pattern/spec or (b) a specific community implementation of it; for Loom integration this does not matter because the load-bearing PATTERNS are identical across them, and the codebase-specific mechanics the operator wants come from the codewiki instantiation (jaylane/codewiki), which I inspected as the primary 'understand a large project' reference.",
+    "alternates": [
+      {"name": "jaylane/codewiki", "url": "https://github.com/jaylane/codewiki", "note": "BEST FIT for the 'understand a LARGE PROJECT' half of the operator ask. A Claude Code plugin that applies the Karpathy pattern directly to a SOURCE TREE: compiles a codebase into interlinked markdown under docs/wiki/ (modules/, concepts/, flows/decisions) and keeps them in sync as code changes. Page frontmatter carries source_files: [...]; a _meta.yaml records the last-compiled commit hash; `cw status` / /wiki:sync diff working tree against that commit and cross-reference CHANGED files against every article's source_files to flag STALE articles. Commands: /wiki:bootstrap (first scan -> per-significant-package module pages), /wiki:ingest <path> (integrate a path across modules/concepts/flows), /wiki:query (answer from wiki, optionally file the answer), /wiki:sync (drift reconcile), /wiki:lint (orphans/dead-links/gaps/contradictions). This is the closest external analog to Loom's MT-184 wiki compiler + MT-185 overlay, with the added codebase staleness model Loom currently lacks."},
+      {"name": "lucasastorian/llmwiki", "url": "https://github.com/lucasastorian/llmwiki", "note": "Full open-source WEB-APP implementation (Next.js + FastAPI; SQLite/FTS5 local or PostgreSQL/PGroonga hosted; filesystem-as-source-of-truth, SQLite/PG as a DERIVED search index). Claude connects via MCP stdio and uses tools guide/search/read/create/edit/append/delete to read sources and write wiki pages; 'all writes hit disk first, then update the search index.' Best reference for the runtime/storage split (authority on disk, index derived) and the MCP co-authoring tool surface. Its DERIVED-INDEX-over-AUTHORITY split is structurally identical to Loom's PostgreSQL/EventLedger authority + projection/retrieval index split (just with the authority substrate swapped from files to Postgres)."},
+      {"name": "toolboxmd/karpathy-wiki", "url": "https://github.com/toolboxmd/karpathy-wiki", "note": "Production-grade Claude Code SKILL system implementing the pattern with hardened operational discipline: inbox/ -> .wiki-pending/ -> background ingester pipeline; per-directory recursive _index.md + small root index.md MOC; a validator (Tier-1 lint: required frontmatter, link resolution, source existence, quality-block ranges, type/path consistency; rejects pages at depth >=5); session-start hooks (fork-bomb guard, drift detection, raw-recovery, detached ingester spawn, stale .processing reclaim). Best reference for the GOVERNANCE/operability layer (orientation-before-answer 'iron laws', deterministic read ladder, issue logging to .ingest-issues.jsonl). Maps onto Loom visual-debug + FR-EVT-LOOM + navigation-fixtures MTs."},
+      {"name": "Astro-Han/karpathy-llm-wiki", "url": "https://github.com/Astro-Han/karpathy-llm-wiki", "note": "Agent-Skills-compatible (Claude Code, Cursor, Codex) build from raw sources + citations + linting. Confirms the cross-tool, citation-first restatement of the same pattern."},
+      {"name": "FSoft-AI4Code/CodeWiki (ACL 2026)", "url": "https://github.com/FSoft-AI4Code/CodeWiki", "note": "ACADEMIC framework (different team, same name) for repository-level documentation across 8 languages, 86K-1.4M LOC. Not the operator's referent, but a strong RESEARCH input for the 'understand a large project' angle: hierarchical decomposition (dynamic-programming-style module partitioning preserving architecture), token-aware clustering (--max-token-per-module ~36k, --max-token-per-leaf-module 16k, --max-depth) to recursively summarize/cluster and avoid context overflow, dependency-graph + call-graph use, Mermaid architecture/sequence/data-flow diagrams, module_tree.json hierarchy + overview.md + interactive HTML viewer. Demonstrates how to SCALE Karpathy's pattern to repo-scale codebases."}
+    ]
+  },
+
+  "sources": [
+    "https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f",
+    "https://gist.githubusercontent.com/karpathy/442a6bf555914893e9891c11519de94f/raw",
+    "https://github.com/jaylane/codewiki",
+    "https://github.com/jaylane/codewiki/blob/main/README.md",
+    "https://muhammadraza.me/2026/building-codewiki-compiling-codebases-into-living-wikis/",
+    "https://github.com/lucasastorian/llmwiki",
+    "https://github.com/toolboxmd/karpathy-wiki",
+    "https://github.com/Astro-Han/karpathy-llm-wiki",
+    "https://github.com/ussumant/llm-wiki-compiler",
+    "https://github.com/NicholasSpisak/second-brain",
+    "https://github.com/charlie947/ai-second-brain",
+    "https://github.com/FSoft-AI4Code/CodeWiki",
+    "https://developers.googleblog.com/introducing-code-wiki-accelerating-your-code-understanding/",
+    "https://www.mindstudio.ai/blog/andrej-karpathy-llm-wiki-obsidian-ai-second-brain",
+    "https://www.kunalganglani.com/blog/llm-wiki-karpathy-local-knowledge-base"
+  ],
+
+  "patterns": [
+    {
+      "id": "KW-P1",
+      "name": "Knowledge-as-compile-target (raw -> wiki binary; not per-query RAG)",
+      "description": "The defining pattern. Raw sources are 'source code'; the wiki is the 'compiled binary' that an agent builds ONCE and incrementally maintains. Synthesis, cross-references and contradiction-flags are PRE-COMPUTED into durable pages rather than re-derived on every question. A query reads the COMPILED wiki, not the raw corpus. For sub-200k-token corpora the whole wiki fits in context, enabling global reasoning instead of stitching isolated retrieved chunks.",
+      "where_in_their_code": "Karpathy gist (philosophy section: 'the wiki is a persistent, compounding artifact'; 'the cross-references are already there. the contradictions have already been flagged'). Instantiated by jaylane/codewiki ('compiles the codebase into an interlinked set of markdown pages, then keeps them in sync as the code changes') and lucasastorian/llmwiki ('the LLM incrementally builds and maintains a persistent wiki').",
+      "backend_or_frontend": "backend (concept) + agent-orchestration"
+    },
+    {
+      "id": "KW-P2",
+      "name": "Three-layer separation: raw (immutable authority) | wiki (generated, regenerable) | schema/config",
+      "description": "Strict separation of (1) raw sources the agent reads-but-never-edits, (2) the LLM-OWNED generated wiki, and (3) a schema/config doc that governs structure and the human<->LLM contract. The generated wiki is explicitly the LLM's artifact; humans curate sources + ask questions. Critically, the GENERATED layer is disposable/rebuildable from raw — it is never the authority for the raw facts.",
+      "where_in_their_code": "Karpathy gist (three layers: raw/, wiki/, CLAUDE.md schema). lucasastorian/llmwiki makes it explicit: 'the filesystem is the source of truth. SQLite is a derived index'; '.llmwiki/ ... delete it anytime; llmwiki reindex rebuilds from the source files'.",
+      "backend_or_frontend": "backend"
+    },
+    {
+      "id": "KW-P3",
+      "name": "Page taxonomy: module / concept / flow / entity / decision pages + system pages",
+      "description": "Generated pages are typed. Personal-KB flavor: entities/ and concepts/. Codebase flavor (codewiki): type=module (one page per significant package: 'what each part of the code actually does'), type=concept (cross-cutting concerns: 'how does error handling work across the system'), flows/decisions (design decisions, bugs fixed, patterns discovered). Plus SYSTEM pages: _index.md (master index/MOC), _architecture.md (system overview), _patterns.md (recurring patterns), overview.md (synthesis), log.md (history).",
+      "where_in_their_code": "codewiki README + author blog (muhammadraza.me): types module/concept/decision; system files _index.md/_architecture.md/_patterns.md. Karpathy gist: entities/ + concepts/ + overview.md. toolboxmd/karpathy-wiki: discovery-driven <category>/ dirs each with frontmatter type=<plural-category> validated against the directory name.",
+      "backend_or_frontend": "backend (data model) + frontend (navigation)"
+    },
+    {
+      "id": "KW-P4",
+      "name": "Page frontmatter with source_files citations (page -> source provenance)",
+      "description": "Every generated page carries YAML frontmatter that CITES its sources. Codebase flavor: `title`, `type`, `source_files: [paths...]`, `tags: [...]`. This is the citation/provenance backbone: it ties each synthesized page back to the exact raw artifacts (files; by extension code spans/symbols) it was compiled from, which is what makes both navigation-to-source and staleness detection possible.",
+      "where_in_their_code": "codewiki author blog example: `---\\ntitle: Authentication Module\\ntype: module\\nsource_files:\\n  - src/auth/middleware.py\\n  - src/auth/tokens.py\\ntags: [auth, middleware, jwt]\\n---`. Karpathy gist: wikilinks + index one-line summaries + log entries provide the lighter-weight provenance.",
+      "backend_or_frontend": "backend (data model) + frontend (citation rendering)"
+    },
+    {
+      "id": "KW-P5",
+      "name": "Commit-anchored staleness / drift detection (source changed -> page stale)",
+      "description": "The page->source citation enables incremental staleness. codewiki records the last-compiled commit (in _meta.yaml) and `cw status` / /wiki:sync DIFFS the working tree against that commit, then cross-references each CHANGED file against every article's source_files to flag exactly the STALE articles (e.g. '! modules/auth.md'). Only affected pages are re-read/regenerated — not the whole wiki. Karpathy's gist generalizes this as 'mark superseded facts stale, not deleted; note where new data contradicts old claims.'",
+      "where_in_their_code": "codewiki author blog: 'Changed since last compile (4964c23): M src/auth/middleware.py ... Stale articles: ! modules/auth.md'; 'the CLI tracks which commit the wiki was last compiled against ... diffs against that commit and cross-references changed files against every article's source_files.' toolboxmd/karpathy-wiki: `wiki status` reports drift; session-start hook runs drift detection.",
+      "backend_or_frontend": "backend"
+    },
+    {
+      "id": "KW-P6",
+      "name": "Bootstrap scan -> per-significant-module pages (codebase ingestion / TOC generation)",
+      "description": "First-time ingestion scans the whole project, identifies 'significant packages/modules', and emits one module page each plus an architecture/overview page and an index. At repo scale (FSoft CodeWiki) this is hierarchical decomposition with token-aware clustering (--max-token-per-module, --max-depth) that recursively summarizes/clusters modules to avoid context overflow, using dependency/call graphs to preserve architecture and emitting a module_tree.json hierarchy + Mermaid diagrams. This is the 'understand a large project automatically' engine.",
+      "where_in_their_code": "codewiki: '/wiki:bootstrap — first-time scan; produces docs/wiki/modules/*.md per significant package'. FSoft-AI4Code/CodeWiki: hierarchical decomposition + token-aware clustering + dependency graphs + module_tree.json + overview.md.",
+      "backend_or_frontend": "backend"
+    },
+    {
+      "id": "KW-P7",
+      "name": "Incremental ingest: one source updates ~10-15 interlinked pages in one pass",
+      "description": "Ingesting a new source is not 'append a page' — the agent reads it, writes/updates its summary page, AND propagates into the ~10-15 related entity/concept/module pages it touches, updating inbound wikilinks and revising summaries, then appends a log entry. This 'touch every page a source affects' behavior is the compounding mechanism and the maintenance work humans usually fail at.",
+      "where_in_their_code": "Karpathy gist: 'Each ingestion updates 10-15 existing pages, synthesizing new information into the structure.' codewiki: '/wiki:ingest <path> — read and integrate knowledge across modules/concepts/flows.' lucasastorian/llmwiki: 'touching the 15 pages that a single new source affects.'",
+      "backend_or_frontend": "backend + agent-orchestration"
+    },
+    {
+      "id": "KW-P8",
+      "name": "index.md catalog + log.md append-only history (cheap orientation)",
+      "description": "Two always-present navigation files. index.md is a content-oriented catalog: every page with a one-line summary, organized by category; the agent reads it FIRST on a query to locate relevant pages without re-ingesting everything (a cheap, in-context table of contents). log.md is append-only with parseable prefixes (e.g. '## [2026-04-02] ingest | Title') for grep-style history. codewiki adds recursive per-directory _index.md + a small root MOC.",
+      "where_in_their_code": "Karpathy gist (index.md content catalog read-first; log.md append-only parseable). toolboxmd/karpathy-wiki: per-directory recursive _index.md + root index.md MOC; `wiki status` rollup.",
+      "backend_or_frontend": "backend (index data) + frontend (navigation)"
+    },
+    {
+      "id": "KW-P9",
+      "name": "Wikilink cross-references + backlink/inbound-link maintenance + stale-on-supersede",
+      "description": "Pages interlink via wikilinks [[page]]. On ingest the agent updates INBOUND links and revises summaries; when new data contradicts old claims it FLAGS the contradiction and marks the superseded fact stale rather than deleting it (preserving history). Relationships are explicit and pre-computed, which is exactly what removes per-query re-derivation.",
+      "where_in_their_code": "Karpathy gist: wikilinks [[page_name]]; 'updates inbound links and revises summaries'; 'marks superseded facts as stale rather than deleting them.' lucasastorian/llmwiki: 'keeping cross-references and summaries current, flagging contradictions.'",
+      "backend_or_frontend": "backend (edges) + frontend (link rendering)"
+    },
+    {
+      "id": "KW-P10",
+      "name": "Lint: contradictions / stale / orphans / dead links / missing cross-refs / gaps",
+      "description": "A periodic health check over the generated wiki. Karpathy: audit for contradictions, stale claims, orphan pages, missing cross-references, data gaps. codewiki /wiki:lint: orphans, dead links, gaps, contradictions. toolboxmd Tier-1 validator: required frontmatter, link resolution, source existence, quality-block ranges, type/path consistency, depth<=4. This is the quality/observability gate that keeps the compiled artifact trustworthy.",
+      "where_in_their_code": "Karpathy gist LINT operation. codewiki /wiki:lint. toolboxmd/karpathy-wiki Tier-1 lint + validator + .ingest-issues.jsonl.",
+      "backend_or_frontend": "backend"
+    },
+    {
+      "id": "KW-P11",
+      "name": "Filesystem/authority-as-truth + DERIVED search index (rebuildable)",
+      "description": "Where an implementation adds search, the GENERATED-page store stays the source of truth and the search index is explicitly DERIVED and disposable. llmwiki: pages on disk are truth; SQLite FTS5 (local) / PGroonga (hosted) is a derived index built AFTER each disk write; '.llmwiki/ ... rebuilds from source files'. This cleanly separates 'authoritative content' from 'acceleration structure' — the same shape as Handshake's authority + projection/retrieval index split (substrate differs).",
+      "where_in_their_code": "lucasastorian/llmwiki README: 'filesystem is the source of truth. SQLite is a derived index'; writes 'hit disk first, then update the search index.'",
+      "backend_or_frontend": "backend"
+    },
+    {
+      "id": "KW-P12",
+      "name": "Agent co-authoring tool surface (read sources / create / edit / append pages) + human<->LLM contract",
+      "description": "Co-authoring is mediated by a small, explicit tool surface the LLM drives, plus a clear division of labor. llmwiki exposes MCP tools guide/search/read/create/edit/append/delete; the agent browses workspace, searches+reads sources, then creates/edits pages, writing to disk immediately. The contract (gist): the human owns sourcing/exploration/asking-the-right-questions; the LLM owns summarizing/cross-referencing/filing/bookkeeping. toolboxmd hardens this with 'orientation-before-answer iron laws' and a deterministic read ladder.",
+      "where_in_their_code": "lucasastorian/llmwiki MCP tools table (guide/search/read/create/edit/append/delete over stdio). Karpathy gist human/LLM contract. toolboxmd karpathy-wiki-read SKILL 'deterministic 6-step orientation ladder ... orient -> count candidates -> inline-read OR Explore subagent OR web search -> cite'.",
+      "backend_or_frontend": "backend (tools/API) + agent-orchestration"
+    }
+  ],
+
+  "handshake_mapping": [
+    {
+      "pattern_id": "KW-P1",
+      "reuse_or_new": "reuse",
+      "target": "loom",
+      "owning_mt_or_NEW": "MT-184 (wiki/topic-page projection compiler)",
+      "how": "KW-P1 IS Loom's wiki-projection model already: LM-WIKI-001 / MT-184 'generate wiki/topic pages from indexed sources with citations, stale markers, regeneration controls — DisplayContent PROJECTIONS, never authority.' Karpathy's 'raw=source, wiki=compiled binary, query the binary' equals Handshake's 'PostgreSQL/EventLedger authority = source, knowledge_wiki_projections = compiled+regenerable projection, never authority' (§10.12 #9.1.1). NO new infra: the compile-target philosophy is the justification text MT-184 was waiting for. The ONE conceptual delta to absorb: Karpathy QUERIES the compiled wiki by default; Handshake should let retrieval (knowledge_retrieval) read compiled projections as a CHEAP first-pass corpus, with exact-id direct-load still taking precedence (§9.1.1) and authority always re-resolvable. Reuse knowledge_wiki_projections (migration 0139) + projection.rs render_projection."
+    },
+    {
+      "pattern_id": "KW-P2",
+      "reuse_or_new": "reuse",
+      "target": "loom",
+      "owning_mt_or_NEW": "MT-187 (markdown/import boundary) + MT-185 (editable overlay) + framing_confirmation.markdown_vault_never_authority",
+      "how": "Karpathy's raw|wiki|schema split is ALREADY Handshake's stricter boundary: raw sources -> Handshake authority records (RichDocument/LoomBlock/Asset/code spans in PostgreSQL/EventLedger); the GENERATED wiki -> non-authority projection; the schema/config -> the spec + MT contracts. The crucial reuse: Karpathy treats the generated wiki/ markdown as DISPOSABLE-rebuildable-from-raw, which is exactly MT-187's 'markdown vault MUST NOT be authority' and MT-185's 'editable overlay without the projection becoming canonical.' MAP, do not adopt: Handshake's authority substrate is Postgres/EventLedger, NOT the filesystem markdown that Karpathy/llmwiki use — so 'raw' = Handshake authority rows, and the .md vault is only an import source + export projection. This pattern HARDENS MT-187; no new MT."
+    },
+    {
+      "pattern_id": "KW-P3",
+      "reuse_or_new": "reuse",
+      "target": "loom",
+      "owning_mt_or_NEW": "MT-184 (page types) + MT-182 (tag_hub as concept page) + MT-188 (index/MOC navigation)",
+      "how": "Page taxonomy maps onto existing LoomBlock content_types + projection kinds: module page -> a wiki projection scoped to a code module (new projection SCOPE, not new infra — see KW-P6/NEW MT); concept/cross-cutting page -> tag_hub LoomBlock (MT-182: 'a #tag is a first-class block with its own rich-text content + sub-tags + backlinks' — this is literally a Karpathy concept page); entity page -> note LoomBlock; decision/flow page -> note/journal LoomBlock or a projection. System pages (_index.md/overview/_architecture) -> Loom wiki projections + the MT-188 breadcrumb/index surface. Reuse content_type taxonomy in storage/loom.rs; reuse MT-182 for concept pages."
+    },
+    {
+      "pattern_id": "KW-P4",
+      "reuse_or_new": "reuse",
+      "target": "loom",
+      "owning_mt_or_NEW": "MT-184 (citations) + MT-177 (LoomBlock<->knowledge/source-span bridge) + MT-178 (source anchors)",
+      "how": "source_files frontmatter = Handshake's existing citation spine, only richer. MT-184 already requires 'citations' on projections; MT-177 LoomBlockKnowledgeBridge already links blocks to knowledge entities/rich-docs/assets/SOURCE-SPANS; MT-178/LM-EDGE-004 LoomSourceAnchor already carries document_id+block_id+char-offsets. So a Handshake wiki page cites not just files but exact symbols/spans/blocks via knowledge_edges + source anchors — strictly more precise than codewiki's file-list. REUSE: persist projection->source citations as knowledge_edges with stable relationship ids (backlink.rs KDLNK-) pointing at code_files (0170/0291) symbol/span records. No new infra."
+    },
+    {
+      "pattern_id": "KW-P5",
+      "reuse_or_new": "new",
+      "target": "loom",
+      "owning_mt_or_NEW": "NEW MT-193 (projection staleness/drift compiler) — extends MT-184; depends on MT-177, MT-184, code-index 0291",
+      "how": "THIS IS THE BIGGEST GENUINE GAP. MT-184 mentions 'stale markers' but there is no commit/version-anchored drift ENGINE. codewiki's model — record the source version a page was compiled against, diff current vs that version, cross-reference changed sources against each page's citations, flag exactly the stale pages — has no Handshake equivalent. Handshake has BETTER raw materials than git: EventLedger gives a monotonic authority version per source, and knowledge citations give per-page source sets. NEW MT-193: stamp each wiki projection with the EventLedger watermark/source-version-set it compiled from; on source change, intersect changed-source ids with each projection's cited-source set to mark precisely-stale projections + drive selective regenerate. This is the 'keeps the wiki in sync as the code changes' capability operators asked for, expressed natively over EventLedger instead of git HEAD."
+    },
+    {
+      "pattern_id": "KW-P6",
+      "reuse_or_new": "new",
+      "target": "code-index",
+      "owning_mt_or_NEW": "NEW MT-194 (project-wiki bootstrap compiler over code-index) — depends on knowledge_code_nav (symbols/refs/file-lens, BUILT), MT-184, MT-177",
+      "how": "THE 'understand a large project' ENGINE and the second real gap. Handshake already has the ingredients codewiki/FSoft build from scratch: a code-index (knowledge_code_nav.rs: symbols, references, file-lens over code_files), RetrievalContextAndRanking, and the wiki-projection compiler. What's MISSING is the orchestration that bootstraps a navigable PROJECT WIKI from them: scan the code-index, cluster into significant modules (use FSoft's token-aware clustering + dependency/call-graph from references to keep within model context), and emit one module projection per cluster + an architecture/overview projection + a Loom index, each citing real symbols/spans (KW-P4 reuse). NEW MT-194 = bootstrap-scan -> per-module wiki projections, reusing code-index + MT-184 compiler; pairs with MT-193 to stay in sync. This is what makes Loom+Notes 'work like Karpathy Wiki' for code, for BOTH models (retrieval corpus) and operators (navigable Notes wiki)."
+    },
+    {
+      "pattern_id": "KW-P7",
+      "reuse_or_new": "new",
+      "target": "loom",
+      "owning_mt_or_NEW": "NEW MT-195 (incremental fan-out ingest: one source updates all affected pages) — extends MT-184/MT-178; depends on MT-177/MT-178/MT-184",
+      "how": "Loom today computes backlinks/edges per block, but has no 'ingest one source -> update the ~10-15 PROJECTIONS/PAGES it affects in one pass' orchestration. KW-P7 + the citation graph (KW-P4 reuse) make this mechanical: when a source changes/arrives, walk the citation edges (knowledge_edges) to find every projection/concept(tag_hub)/page that cites it, regenerate/patch those, refresh inbound wikilinks (MT-178 backlinks), and append an EventLedger/log entry. NEW MT-195 is the compounding-update loop; it is the projection-side complement to MT-178 backlink computation and reuses the same edge graph. (Could be merged into MT-193 as its 'apply' phase if the board prefers fewer MTs.)"
+    },
+    {
+      "pattern_id": "KW-P8",
+      "reuse_or_new": "reuse",
+      "target": "notes",
+      "owning_mt_or_NEW": "MT-188 (NavigationBreadcrumbs + index) + MT-186 (search) + MT-183 (views)",
+      "how": "index.md content-catalog -> reuse MT-188's index/breadcrumb surface + a generated Loom 'index' projection (one-line summaries per page/block by category) rendered in Notes; the agent reads it first for cheap orientation. log.md append-only history -> reuse EventLedger + FR-EVT-LOOM (MT-190) as the canonical parseable history (no separate log file needed; EventLedger IS the log). The four Loom views (MT-183) + quick switcher already give richer navigation than index.md. NO new infra — map index.md onto an index projection + MT-188; map log.md onto EventLedger."
+    },
+    {
+      "pattern_id": "KW-P9",
+      "reuse_or_new": "reuse",
+      "target": "loom",
+      "owning_mt_or_NEW": "MT-178 (backlinks/unlinked) + MT-179/180 (graph) + LM-EDGE-002 AiSuggested promotion",
+      "how": "Wikilink cross-refs + inbound-link maintenance = Loom's MENTION/TAG edges + MT-178 backlink computation + MT-179/180 local/global graph (strictly richer: bidirectional, typed, offset-anchored, graph-queryable — Karpathy's are flat markdown links). Stale-on-supersede + contradiction-flag = reuse the AiSuggested->confirmed edge promotion (LM-EDGE-002) + projection stale markers (MT-193). NO new infra; Loom's relational engine already exceeds KW-P9. Note: Karpathy's auto-create-page-on-missing-wikilink-target = Loom's existing auto-create-NOTE-on-missing-@mention (LM-EDGE-001/MT-178)."
+    },
+    {
+      "pattern_id": "KW-P10",
+      "reuse_or_new": "reuse",
+      "target": "loom",
+      "owning_mt_or_NEW": "MT-191 (Loom visual-debug) + MT-190 (FR events) + MT-192 (fixtures); lint logic rides MT-193",
+      "how": "Karpathy LINT (contradictions/stale/orphans/dead-links/missing-xref/gaps) maps onto Handshake's diagnostics surface: orphans/dead-links = graph queries over knowledge_edges (zero-edge blocks already surface via LM-VIEW-002 Unlinked + MT-178 unlinked-mentions); stale = MT-193 drift output; contradictions = an AI Loom job (LM-AI-001) flagging conflicting AiSuggested edges. Surface the whole lint rollup through MT-191 Loom visual-debug snapshots + MT-190 FR events, with MT-192 fixtures. Mostly REUSE; the only NEW logic (stale computation) already lives in MT-193. A `wiki status`-style rollup is a thin projection over these."
+    },
+    {
+      "pattern_id": "KW-P11",
+      "reuse_or_new": "reuse",
+      "target": "loom",
+      "owning_mt_or_NEW": "framing_confirmation (authority vs projection) + MT-189 (retrieval index) + MT-184",
+      "how": "llmwiki's 'files=truth, SQLite/FTS=derived index, rebuildable' is structurally identical to Handshake's 'PostgreSQL/EventLedger=authority, projections + retrieval/knowledge index=derived, regenerable' — Handshake just put authority in Postgres instead of files, which is the §9.1.1 mandate. Direct REUSE/validation of the existing architecture: the compiled wiki projections + knowledge retrieval index are the 'derived acceleration structure'; deleting/rebuilding them must never lose authority. Confirms MT-184 projections must be deterministically regenerable and MT-189 retrieval can treat them as a derived corpus. NO new infra; this pattern is a correctness CHECK on the existing split."
+    },
+    {
+      "pattern_id": "KW-P12",
+      "reuse_or_new": "reuse",
+      "target": "unified-surface",
+      "owning_mt_or_NEW": "MT-185 (editable overlay) + MT-158 (doc permissions) + ED-LINK/MENTION editor surface + knowledge_documents/loom APIs",
+      "how": "Co-authoring is the unified-work-surface thesis: operators co-author in the Notes/Tiptap GUI; models co-author through the existing knowledge/loom APIs (create/save/blocks/embeds/backlinks already exist — ED-WB-001) which are Handshake's equivalent of llmwiki's MCP create/edit/append/read tools. The authority-vs-generated separation in co-authoring = MT-185 editable overlay (operator annotations are their own authority rows; the generated projection stays non-authority) + MT-158 permission boundary (operator/local-model/cloud-model/validator actors). REUSE; the 'orientation-before-answer' discipline from toolboxmd maps onto MT-189 RetrievalTrace (show what was read before answering). Optionally expose the knowledge/loom write API as an MCP-style tool surface for external models — but that is a runtime concern beyond WP-009."
+    }
+  ],
+
+  "proposed_new_mts": [
+    {
+      "suggested_id": "MT-193",
+      "title": "WikiProjectionDriftAndStaleness (EventLedger-anchored stale-page compiler)",
+      "scope": "Extend the MT-184 wiki compiler so every generated wiki/topic/module projection is stamped with the EventLedger source-version watermark + the explicit set of cited source ids it compiled from. Provide a drift pass that, on authority change, intersects changed-source ids with each projection's cited-source set to mark precisely-stale projections, expose a stale-page list + per-page 'why stale' (which cited source moved), and drive selective regeneration. Native EventLedger analog of codewiki's `cw status`/_meta.yaml commit-diff-against-source_files.",
+      "why": "Closes the single biggest Karpathy-Wiki capability gap: 'keep the wiki in sync as the project changes.' Today MT-184 only names 'stale markers' with no engine. Operators explicitly want a wiki that tracks a large, changing project. Handshake has BETTER inputs than git (EventLedger monotonic versions + precise citation edges), so this is high-ROI and reuses existing authority+citation infra rather than adding a parallel store.",
+      "depends_on": ["MT-177 (LoomBlock<->knowledge/source-span bridge)", "MT-184 (wiki compiler + citations)", "code-index 0291/0170 + knowledge_code_nav (BUILT)", "EventLedger"]
+    },
+    {
+      "suggested_id": "MT-194",
+      "title": "ProjectWikiBootstrapCompiler (auto-build a navigable project wiki from the code-index)",
+      "scope": "Orchestrate a bootstrap that turns the existing code-index (symbols/references/file-lens over code_files) + knowledge index into a navigable PROJECT WIKI: scan + cluster into significant modules using token-aware clustering and the reference/dependency graph (FSoft technique) to stay within model context; emit one module wiki projection per cluster + an architecture/overview projection + a Loom index, each citing real symbols/spans (reuse KW-P4 citation edges). Output renders in Notes (operator) AND is readable by retrieval (models). Incremental re-bootstrap on demand; pairs with MT-193 for sync.",
+      "why": "This is the literal 'make Loom+Notes work like Karpathy Wiki for understanding large projects' deliverable, and the 'co-author large projects' spine. It is the orchestration codewiki/FSoft build from scratch — Handshake already owns every ingredient (code-index BUILT, retrieval BUILT, MT-184 compiler), so the marginal cost is the bootstrap/cluster orchestration, not new infrastructure. Serves models (retrieval corpus) and operators (navigable wiki) simultaneously — high ROI, directly on the operator's stated goal.",
+      "depends_on": ["knowledge_code_nav symbols/references/file-lens (BUILT)", "RetrievalContextAndRanking / knowledge_retrieval (BUILT)", "MT-184 (compiler)", "MT-177 (bridge)", "MT-193 (staleness, for keep-in-sync)"]
+    },
+    {
+      "suggested_id": "MT-195",
+      "title": "IncrementalIngestFanOut (one source updates every page it affects, in one pass)",
+      "scope": "On source arrival/change, walk the citation+mention edge graph to find every projection/concept(tag_hub)/note that cites the source, regenerate or patch those pages in one pass, refresh inbound wikilinks/backlinks (MT-178), and append an EventLedger entry. Implements Karpathy's 'one source updates ~10-15 pages' compounding-maintenance loop. MAY be folded into MT-193 as its 'apply/regenerate' phase if the board prefers fewer MTs (MT-193 detects stale; MT-195 applies the fan-out update).",
+      "why": "Delivers the compounding-knowledge maintenance that is the whole point of the pattern (and the part personal wikis fail at). Reuses the citation/mention edge graph (KW-P4/KW-P9) and the MT-178 backlink machinery — no new store. Without it, drift detection (MT-193) flags stale pages but nothing closes the loop automatically.",
+      "depends_on": ["MT-177", "MT-178 (backlinks/edges)", "MT-184 (compiler)", "MT-193 (drift detection)"]
+    }
+  ],
+
+  "research_basis": {
+    "patterns_found": "Karpathy's LLM Wiki is a PATTERN/SPEC (gist), not a codebase: raw(immutable authority)/wiki(generated, regenerable)/schema(config) three-layer split; 'knowledge as compile target' (compile raw->wiki binary, query the binary, not per-query RAG); typed pages (module/concept/flow/entity/decision + system pages); YAML frontmatter with source_files citations; commit/version-anchored staleness (diff against last-compiled version, cross-ref changed sources vs each page's citations); bootstrap-scan -> per-significant-module pages (hierarchical decomposition + token-aware clustering at repo scale per FSoft); incremental ingest fan-out (one source updates ~10-15 interlinked pages); index.md catalog + log.md append-only history; wikilink cross-refs with inbound-link maintenance + stale-on-supersede; lint (contradictions/stale/orphans/dead-links/missing-xref/gaps); filesystem/authority-as-truth + DERIVED rebuildable search index; agent co-authoring tool surface (read/create/edit/append) under a human-curates/LLM-bookkeeps contract. Inspected real source: jaylane/codewiki (codebase instantiation: source_files frontmatter, _meta.yaml commit, cw status drift, bootstrap/ingest/query/sync/lint), lucasastorian/llmwiki (Next.js+FastAPI+SQLite-FTS5/Postgres-PGroonga, MCP tools guide/search/read/create/edit/append/delete, files=truth+derived index), toolboxmd/karpathy-wiki (skill system: inbox->pending->ingester pipeline, recursive _index.md, validator/lint tiers, session hooks), FSoft-AI4Code/CodeWiki (ACL 2026 repo-scale: hierarchical decomposition, token-aware clustering, dependency graphs, module_tree.json).",
+    "reuse_opportunities": "~9 of 12 patterns REUSE existing Loom/Notes/code-index infra with NO parallel store: KW-P1->MT-184 wiki projections (the compile-target philosophy IS the projection model); KW-P2->MT-187/MT-185 import+overlay boundary (generated wiki is disposable/non-authority); KW-P3->LoomBlock content_types + MT-182 tag_hub (concept pages) + MT-188 index; KW-P4->MT-177/MT-178 citation edges + source anchors over code_files (richer than file-lists: symbol/span precision); KW-P8->MT-188 index + EventLedger-as-log + MT-183 views; KW-P9->MT-178 backlinks + MT-179/180 graph (typed/bidirectional/offset-anchored, exceeds flat wikilinks); KW-P10->MT-191 visual-debug + MT-190 FR + Unlinked view for lint; KW-P11->existing authority(Postgres/EventLedger)+derived(projection/retrieval index) split = a correctness CHECK confirming §9.1.1; KW-P12->MT-185 overlay + MT-158 permissions + existing knowledge/loom write APIs (= the co-authoring tool surface) for the unified work surface.",
+    "rejected_options": "(1) REJECTED adopting markdown-vault-on-filesystem as the wiki store (Karpathy/codewiki/llmwiki default) — violates §10.12 #9.1.1 + MT-187: Handshake authority is PostgreSQL/EventLedger; the .md vault is import-source + export-projection only. We MAP the pattern, not the substrate. (2) REJECTED git-commit-based drift (codewiki _meta.yaml + git HEAD) — Handshake has EventLedger monotonic source versions + precise citation edges, a better and already-present drift substrate; MT-193 uses those. (3) REJECTED a standalone SQLite/FTS5 derived index (llmwiki) — Handshake already has knowledge retrieval + projections as its derived/acceleration layer (NO SQLite for WP-009). (4) REJECTED treating the generated wiki as authority/source-of-truth (the seductive misread of 'query the wiki not the raw') — generated projections are NEVER authority; exact-id direct-load precedes projection/semantic retrieval (§9.1.1). (5) REJECTED building a from-scratch codebase parser/clustering engine like FSoft — reuse the existing knowledge_code_nav code-index; only BORROW FSoft's token-aware clustering heuristic inside MT-194.",
+    "selected_approach": "Treat 'Karpathy Wiki' as the compile-target wiki PATTERN and realize it natively on Loom's existing wiki-projection model + code-index + retrieval, adding exactly three new MTs and reusing everything else. (A) Confirm KW-P1/P2/P11 ARE the existing projection+authority model (documentation/justification only). (B) Reuse MT-177/178/182/184/185/186/187/188/189/190/191 for taxonomy, citations(as edges/source-anchors), concept-pages(tag_hub), backlinks/graph, navigation/index, retrieval-trace, lint surfacing, and co-authoring/overlay/permissions. (C) Add MT-193 (EventLedger-anchored staleness/drift — the biggest gap), MT-194 (bootstrap a navigable PROJECT WIKI from the code-index — the 'understand large projects' deliverable for models+operators), and MT-195 (incremental ingest fan-out — the compounding-maintenance loop; foldable into MT-193). Net: Loom+Notes 'work like Karpathy Wiki' by COMPILING the code-index + knowledge into cited, drift-tracked, navigable wiki projections that both models (via retrieval) and operators (via Notes) read and co-author, with authority always remaining in PostgreSQL/EventLedger.",
+    "risks": "(R1) Projection-as-authority drift: if retrieval/operators start trusting compiled wiki pages as ground truth, stale/contradictory pages mislead — the exact failure §9.1.1 forbids. (R2) Stale-detection false-confidence: a page whose cited source set is incomplete won't be flagged stale when an UNCITED-but-relevant source changes (codewiki shares this limit). (R3) Bootstrap context overflow / cost on large repos: naive whole-repo scan blows model context or burns budget. (R4) Citation granularity mismatch: codewiki cites files; Handshake cites symbols/spans — finer, but symbol churn could over-flag pages stale on trivial edits. (R5) Co-authoring authority confusion: operator edits to a generated page must not silently become canonical (MT-185 boundary). (R6) Fan-out blast radius: one hot source (e.g. a core util) cited by 100s of pages makes MT-195 regenerate too much. (R7) Scope creep: MT-193/194/195 could balloon into a full DeepWiki product beyond WP-009.",
+    "mitigations": "(R1) Enforce projection-never-authority in render (visible 'generated, non-authority, regenerable' badge + citations) and keep exact-id direct-load ahead of projection retrieval (§9.1.1); MT-185 overlays stay separate authority rows. (R2) Pair citation-set drift with a coarse EventLedger watermark per projection so an uncited change still down-ranks a project-wide 'possibly stale' signal; surface confidence, not a binary. (R3) MT-194 borrows FSoft token-aware clustering (--max-token-per-module/leaf, --max-depth) + recursive summarization; bootstrap is on-demand + incremental, never auto-blocking. (R4) Flag stale at MODULE/section granularity; debounce on symbol-signature changes, not whitespace; let regeneration be lazy (mark, regenerate on next read). (R5) MT-185 overlay annotations are their own authority rows; generated text stays regenerable; permission boundary (MT-158) attributes operator vs model edits. (R6) Cap MT-195 fan-out per pass + queue + FR-log the blast radius; hot-source pages regenerate lazily/batched. (R7) Hard-scope MT-193 to drift+stale, MT-194 to bootstrap+cluster, MT-195 to fan-out-apply (or fold into MT-193); explicitly defer DeepWiki-style hosted/diagram features to a later WP. Validate every change via MT-192 navigation fixtures.",
+    "validation_plan": "(V1) Compile a project wiki via MT-194 from a fixture repo through the code-index; assert per-module projections exist with real symbol/span citations (KW-P4) and an index/overview projection. (V2) Mutate a cited source via the authority path; assert MT-193 flags EXACTLY the projections citing it as stale with a correct 'why stale' (and does NOT flag unrelated pages); assert selective regenerate (not full recompile). (V3) Assert §9.1.1: exact-id direct-load returns authority, NOT a projection; deleting+rebuilding all projections loses zero authority (KW-P11/regenerability). (V4) MT-195: change one hot source; assert all citing pages update inbound links/backlinks in one pass and an EventLedger entry is appended, within the fan-out cap. (V5) MT-185: operator-annotate a generated page; assert the annotation persists as its own authority row and a regenerate does NOT overwrite it nor promote the generated text to authority. (V6) Lint (KW-P10): assert orphans/dead-links/stale/contradiction rollup surfaces via MT-191 visual-debug + MT-190 FR events. (V7) Co-authoring (KW-P12): a model writes a page via the knowledge/loom API and an operator edits it in Notes; assert attribution via MT-158 and consistent state. All gated by MT-192 Loom navigation fixtures."
+  },
+
+  "integration_summary": "'Karpathy Wiki' is Andrej Karpathy's LLM Wiki PATTERN (a GitHub gist/spec, not a codebase): raw sources are 'source code', the wiki is the 'compiled binary' an agent builds and maintains, and you QUERY the compiled wiki instead of re-running RAG over raw docs every time (confidence ~0.9; the codebase-understanding half the operator wants comes from the jaylane/codewiki instantiation, which I inspected directly). This is an almost exact match for Handshake's EXISTING Loom wiki-projection model: PostgreSQL/EventLedger authority = Karpathy's raw 'source code'; knowledge_wiki_projections = the regenerable 'compiled binary'; projections are NEVER authority (§10.12 #9.1.1) — the same boundary MT-187/MT-185 already enforce. So ~9 of 12 load-bearing patterns REUSE existing MTs (MT-177/178/182/184/185/186/188/189/190/191) — citations become precise symbol/span edges (richer than codewiki's file-lists), concept pages become tag_hubs, wikilinks become typed bidirectional graph edges, the log becomes EventLedger, lint rides the diagnostics surface, and co-authoring rides the existing knowledge/loom write APIs + MT-185 overlay + MT-158 permissions. The integration's real new work is THREE MTs that give Loom the codebase-wiki superpowers it lacks: MT-194 (bootstrap a navigable PROJECT WIKI from the already-built code-index — knowledge_code_nav symbols/references/file-lens — using FSoft-style token-aware clustering, serving models via retrieval AND operators via Notes), MT-193 (EventLedger-anchored staleness/drift: stamp each page with the source-version + cited-source set it compiled from, diff on change, flag exactly the stale pages — the native analog of codewiki's commit-vs-source_files drift, and the single biggest gap), and MT-195 (incremental ingest fan-out: one changed source regenerates every page it affects + refreshes backlinks in one pass — the compounding-maintenance loop; foldable into MT-193). Single best path: COMPILE the code-index + knowledge into cited, drift-tracked, navigable wiki projections (MT-194 + MT-193, applying via MT-195), rendered in Notes for operators and exposed to retrieval for models, with authority permanently in PostgreSQL/EventLedger and the generated wiki always regenerable and non-authoritative. That makes Loom+Notes 'work like Karpathy Wiki' for understanding large projects + co-authoring, with NO parallel infrastructure and NO markdown vault as authority. Key sources inspected: gist 442a6bf555914893e9891c11519de94f (canonical spec); github.com/jaylane/codewiki + muhammadraza.me build write-up (source_files frontmatter, _meta.yaml commit, cw status drift, bootstrap/ingest/query/sync/lint); github.com/lucasastorian/llmwiki (MCP tools + files-as-truth/derived-index); github.com/toolboxmd/karpathy-wiki (ingester pipeline + validator/lint); github.com/FSoft-AI4Code/CodeWiki (repo-scale hierarchical decomposition + token-aware clustering)."
+}

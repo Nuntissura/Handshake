@@ -1,0 +1,111 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1",
+  "mt_id": "MT-241",
+  "title": "UnifiedWorkSurface-241-ProjectWikiBootstrapCompiler",
+  "group": "UnifiedWorkSurface",
+  "created_at_utc": "2026-06-12T03:37:21.486Z",
+  "updated_at_utc": "2026-06-12T03:37:21.486Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-241.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY",
+    "projection_hash": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": "NOT_GENERATED_BY_DEFAULT",
+    "note": "JSON contract is authority. No markdown projection is generated for WP-KERNEL-009 (prevents projection drift)."
+  },
+  "scope": {
+    "scope": "Compile a navigable project wiki from already-built authority: the code index (knowledge_code_nav symbols/references/file-lens), knowledge entities/edges, and rich documents, into wiki projections - the Karpathy LLM-wiki 'knowledge as a compile target' pattern (research basis: .GOV/reference/wp009_karpathy_wiki_research.json; operator decision DEC-004). Raw authority stays in PostgreSQL/EventLedger (the immutable 'raw' layer); the compiled wiki is a regenerable projection (the 'binary'). Bootstrap-scan produces typed pages (module/concept/flow/entity/decision) using token-aware clustering for large repos (FSoft CodeWiki pattern); every page records its citations as precise entity/span/symbol references (richer than file lists); an index/catalog page is generated; EventLedger is the compile log. Pages land in the SAME wiki-projection store as MT-184 (no parallel store) and are never authority.",
+    "relevant_files": [
+      "src/backend/handshake_core/src/storage/knowledge.rs",
+      "src/backend/handshake_core/src/storage/loom.rs",
+      "src/backend/handshake_core/src/api/loom.rs",
+      "src/backend/handshake_core/migrations/",
+      "src/backend/handshake_core/tests/"
+    ],
+    "constraints": [
+      "Use the existing microtask_plan_draft execution surface only; do not introduce a separate MT execution surface or suite field.",
+      "Core Handshake behavior must be Handshake-native: no outside app, outside server, external daemon, Docker-only path, SQLite fallback, Redis/Valkey cache authority, or sidecar paper as proof or authority.",
+      "Allowed external runtime inputs are limited to operator-provided models, GGUF/model files, tensors/safetensors, and CUI portable artifacts where the owning WP explicitly gates them; Tiptap and Monaco are allowed only as bundled/lockfile-governed product libraries integrated into Handshake.",
+      "PostgreSQL plus EventLedger is canonical for durable state, receipts, indexing evidence, runtime proof, and validation; generated markdown, wiki pages, HTML, context bundles, debug reports, and UI projections are projections only.",
+      "Every implementation handoff must be restartable by a no-context local model using only the WP/MT contract, current Master Spec bundle, product code, tests, and receipts.",
+      "The compiled wiki is a projection: deleting every generated page must leave authority byte-identical (negative test required).",
+      "Citations must resolve to entity/span/symbol ids + content hashes in authority, not loose file-path strings.",
+      "Must reuse the MT-184 wiki-projection store and the existing code-index/knowledge surfaces; no parallel wiki infrastructure.",
+      "MUST NOT ship without MT-242 drift/staleness: a compiled wiki without staleness tracking silently lies about a changing codebase (S9.1.1 guard)."
+    ],
+    "expected_behavior": "Running the bootstrap compiler over handshake_core itself produces a navigable, cited, typed project wiki (module pages + index) stored as projections, queryable by retrieval for models and renderable by the Notes surface for operators.",
+    "acceptance_criteria": [
+      "Bootstrap over the real handshake_core produces module/concept pages with real citations (entity/span/symbol ids) - no placeholder pages.",
+      "Index/catalog page lists all generated pages; EventLedger carries compile receipts.",
+      "Deleting all generated pages leaves authority byte-identical (proven negative test).",
+      "Real-Postgres integration tests cover compile, citation resolution, idempotent recompile."
+    ],
+    "verification": [
+      "cargo test -p handshake_core --features runtime-full,test-utils with real-PG tests for the compiler.",
+      "Negative projection-delete test passes.",
+      "Citation spot-check: a generated module page cites symbols that exist in knowledge_code_nav for that module."
+    ],
+    "handoff_requirements": [
+      "List files changed, migrations added, tests run with pass/fail.",
+      "List EventLedger receipts/evidence produced.",
+      "Name the exact API/query surface the Notes UI and retrieval consume."
+    ],
+    "hbr_focus": [
+      "HBR-INT-001",
+      "HBR-INT-004",
+      "HBR-MAN-002"
+    ]
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": [
+      "MT-177",
+      "MT-184",
+      "MT-097",
+      "MT-129"
+    ],
+    "blocks": [
+      "MT-242"
+    ],
+    "claimed_by": null,
+    "completed_by": null,
+    "implementation_commit": null,
+    "evidence": []
+  },
+  "handoff": {
+    "coder_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "PROJECT_KNOWLEDGE_INDEX_RICH_EDITOR_V1",
+    "minimum_controls": [
+      "No placeholders, mocks, scaffolding, or deferred-live escapes; runtime proof against Handshake-managed PostgreSQL/EventLedger where the contract names durable state."
+    ]
+  }
+}
