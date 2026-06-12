@@ -498,6 +498,90 @@ async fn crash_recovery_reconstructs_document_from_postgres() {
     assert_eq!(tree.blocks.len(), 5);
 }
 
+/// Adversarial-v2 MT-159: the DRAFT (write-box) half of crash recovery. The
+/// promoted-state proof above covers committed authority; this proves a
+/// document still in `draft` authority — including draft edits saved on top —
+/// reconstructs completely from PG after a crash (fresh connection), keeps its
+/// draft label (a crash never silently promotes), and can continue its
+/// lifecycle (promote) after recovery.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn crash_recovery_reconstructs_draft_writebox_state_from_postgres() {
+    let Some(pg) = knowledge_pg().await else {
+        eprintln!("SKIP crash_recovery_draft...: no PostgreSQL");
+        return;
+    };
+    let workspace_id = pg.create_workspace().await;
+
+    // A write-box document: authority_label `draft`, not yet promoted.
+    let mut draft_doc = new_doc(&workspace_id, "Draft Box", mixed_document());
+    draft_doc.authority_label = Some("draft".to_string());
+    let created = pg
+        .db
+        .create_knowledge_rich_document(draft_doc)
+        .await
+        .expect("create draft");
+    assert_eq!(created.authority_label, "draft");
+
+    // Draft edits land as a v2 save while STILL in draft state (the unsaved
+    // work-in-progress the operator would lose on a crash without PG).
+    let mut wip = mixed_document();
+    wip["content"][1]["content"][0]["text"] = json!("draft work in progress, not yet promoted");
+    let saved = pg
+        .db
+        .save_knowledge_rich_document_version(&created.rich_document_id, 1, wip.clone(), None)
+        .await
+        .expect("save draft v2");
+    assert_eq!(saved.doc_version, 2);
+    assert_eq!(saved.authority_label, "draft", "a save does not promote");
+
+    // CRASH: a brand-new PostgresDatabase against the same schema (what a
+    // fresh process does after app crash / session compaction).
+    let recovered_db =
+        handshake_core::storage::postgres::PostgresDatabase::connect(&pg.schema_url, 5)
+            .await
+            .expect("reconnect after crash");
+    let recovered = recovered_db
+        .get_knowledge_rich_document(&created.rich_document_id)
+        .await
+        .expect("recover draft")
+        .expect("draft survives crash");
+
+    // The draft state is COMPLETE: label, WIP content, version, hash, history.
+    assert_eq!(
+        recovered.authority_label, "draft",
+        "a crash never silently promotes a draft"
+    );
+    assert_eq!(recovered.doc_version, 2);
+    assert_eq!(recovered.content_json, wip);
+    assert_eq!(recovered.content_sha256, saved.content_sha256);
+    let versions = recovered_db
+        .list_knowledge_rich_document_versions(&created.rich_document_id)
+        .await
+        .expect("draft history after crash");
+    assert_eq!(versions.len(), 2, "draft history is complete");
+    let tree = BlockTree::from_document_json(
+        &recovered.rich_document_id,
+        &recovered.schema_version,
+        &recovered.content_json,
+    )
+    .expect("draft block tree reconstructs");
+    assert!(tree
+        .plain_text()
+        .contains("draft work in progress, not yet promoted"));
+
+    // The recovered draft continues its lifecycle: promotion works after the
+    // crash, on the recovered connection.
+    let promoted = recovered_db
+        .set_knowledge_rich_document_authority_label(&created.rich_document_id, "promoted")
+        .await
+        .expect("promote recovered draft");
+    assert_eq!(promoted.authority_label, "promoted");
+    assert_eq!(
+        promoted.content_json, wip,
+        "promotion after recovery promotes the recovered draft content"
+    );
+}
+
 // ---------------------------------------------------------------------------
 // MT-151 import + MT-157 batch ops + MT-158 permission boundary.
 // ---------------------------------------------------------------------------
