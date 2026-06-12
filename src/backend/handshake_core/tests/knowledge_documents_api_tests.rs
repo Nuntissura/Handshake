@@ -768,6 +768,137 @@ async fn mt156_history_is_paginated_and_omits_version_bodies() {
 }
 
 // ---------------------------------------------------------------------------
+// MT-157 adversarial-v2: move absent != null; batch with per-item reporting.
+// ---------------------------------------------------------------------------
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn mt157_move_empty_body_preserves_membership_and_batch_reports_per_item() {
+    let Some(pg) = knowledge_pg().await else {
+        eprintln!("SKIP mt157_move...: no PostgreSQL");
+        return;
+    };
+    let workspace_id = pg.create_workspace().await;
+    let (base, http) = doc_server(&pg).await;
+
+    // A document WITH project + folder membership.
+    let resp = headers_with_kind(
+        http.post(format!("{base}/knowledge/documents")),
+        "move-setup",
+        "operator",
+    )
+    .json(&json!({
+        "workspace_id": workspace_id,
+        "title": "Membership",
+        "project_ref": "PRJ-alpha",
+        "folder_ref": "runbooks",
+        "content_json": {"type": "doc", "content": []}
+    }))
+    .send()
+    .await
+    .expect("send");
+    assert_eq!(resp.status(), 200);
+    let created: Value = resp.json().await.expect("json");
+    let doc_id = created["document"]["rich_document_id"]
+        .as_str()
+        .expect("doc id")
+        .to_string();
+    assert_eq!(created["document"]["project_ref"], "PRJ-alpha");
+
+    let do_move = |label: &'static str, body: Value| {
+        headers_with_kind(
+            http.post(format!("{base}/knowledge/documents/{doc_id}/move")),
+            label,
+            "operator",
+        )
+        .json(&body)
+        .send()
+    };
+
+    // EMPTY body: a no-op move — membership is PRESERVED (the review found it
+    // silently cleared both refs).
+    let resp = do_move("empty", json!({})).await.expect("send");
+    assert_eq!(resp.status(), 200);
+    let body: Value = resp.json().await.expect("json");
+    assert_eq!(
+        body["document"]["project_ref"], "PRJ-alpha",
+        "empty move body must not clear project membership"
+    );
+    assert_eq!(body["document"]["folder_ref"], "runbooks");
+
+    // Explicit null clears ONLY the named field.
+    let resp = do_move("clear-folder", json!({"folder_ref": null}))
+        .await
+        .expect("send");
+    let body: Value = resp.json().await.expect("json");
+    assert_eq!(body["document"]["project_ref"], "PRJ-alpha");
+    assert!(body["document"]["folder_ref"].is_null());
+
+    // A value sets only the named field; the absent one stays.
+    let resp = do_move("set-project", json!({"project_ref": "PRJ-beta"}))
+        .await
+        .expect("send");
+    let body: Value = resp.json().await.expect("json");
+    assert_eq!(body["document"]["project_ref"], "PRJ-beta");
+    assert!(body["document"]["folder_ref"].is_null());
+
+    // BATCH: rename (ok) + move on a ghost doc (not_found) + bad label
+    // (validation) -> 200 with per-item outcomes + per-item receipt on the
+    // success; one failure never aborts the batch.
+    let resp = headers_with_kind(
+        http.post(format!("{base}/knowledge/documents/batch")),
+        "batch",
+        "operator",
+    )
+    .json(&json!({"operations": [
+        {"op": "rename", "document_id": doc_id, "title": "Membership v2"},
+        {"op": "move", "document_id": "KRD-00000000000000000000000000000000", "project_ref": "PRJ-x"},
+        {"op": "set_authority_label", "document_id": doc_id, "authority_label": "published"}
+    ]}))
+    .send()
+    .await
+    .expect("send");
+    assert_eq!(resp.status(), 200, "partial failure is per-item, not a 4xx");
+    let body: Value = resp.json().await.expect("json");
+    assert_eq!(body["succeeded"], 1);
+    assert_eq!(body["failed"], 2);
+    let results = body["results"].as_array().expect("results");
+    assert_eq!(results.len(), 3);
+    assert_eq!(results[0]["ok"], true);
+    assert!(results[0]["save_receipt_event_id"].is_string());
+    assert_eq!(results[1]["ok"], false);
+    assert_eq!(results[1]["error"], "not_found");
+    assert_eq!(results[2]["ok"], false);
+    assert_eq!(results[2]["error"], "validation");
+
+    // The successful rename landed; the failed label change did not.
+    let resp = headers_with_kind(
+        http.get(format!("{base}/knowledge/documents/{doc_id}")),
+        "batch-check",
+        "operator",
+    )
+    .send()
+    .await
+    .expect("send");
+    let body: Value = resp.json().await.expect("json");
+    assert_eq!(body["document"]["title"], "Membership v2");
+    assert_eq!(body["document"]["authority_label"], "promoted");
+
+    // A cloud model cannot batch-write (the MT-158 boundary covers batch too).
+    let resp = headers_with_kind(
+        http.post(format!("{base}/knowledge/documents/batch")),
+        "batch-cloud",
+        "cloud_model",
+    )
+    .json(&json!({"operations": [
+        {"op": "rename", "document_id": doc_id, "title": "Hijack"}
+    ]}))
+    .send()
+    .await
+    .expect("send");
+    assert_eq!(resp.status(), 403);
+}
+
+// ---------------------------------------------------------------------------
 // MT-149 adversarial-v2: a committed save never returns an error.
 // ---------------------------------------------------------------------------
 

@@ -103,6 +103,7 @@ pub fn routes(state: AppState) -> Router {
             "/knowledge/documents/:document_id/move",
             post(move_document),
         )
+        .route("/knowledge/documents/batch", post(batch_documents))
         .with_state(state)
 }
 
@@ -400,13 +401,77 @@ struct RenameBody {
     title: String,
 }
 
+/// Move body with absent-vs-null semantics (adversarial-v2 MT-157): an ABSENT
+/// field leaves that membership unchanged; an explicit `null` clears it; a
+/// string sets it. Before this hardening an empty body silently cleared BOTH
+/// memberships.
 #[derive(Debug, Deserialize)]
 struct MoveBody {
-    #[serde(default)]
-    project_ref: Option<String>,
-    #[serde(default)]
-    folder_ref: Option<String>,
+    #[serde(default, deserialize_with = "double_option")]
+    project_ref: Option<Option<String>>,
+    #[serde(default, deserialize_with = "double_option")]
+    folder_ref: Option<Option<String>>,
 }
+
+/// Deserialize a present-but-possibly-null field into `Some(Option<T>)`,
+/// leaving an absent field as `None` (the serde double-Option idiom).
+fn double_option<'de, T, D>(deserializer: D) -> Result<Option<Option<T>>, D::Error>
+where
+    T: serde::Deserialize<'de>,
+    D: serde::Deserializer<'de>,
+{
+    serde::Deserialize::deserialize(deserializer).map(Some)
+}
+
+/// One operation in a batch request (MT-157): rename / move /
+/// set_authority_label, applied per-document with per-item receipts and
+/// partial-failure reporting.
+#[derive(Debug, Deserialize)]
+#[serde(tag = "op", rename_all = "snake_case")]
+enum BatchOperation {
+    Rename {
+        document_id: String,
+        title: String,
+    },
+    Move {
+        document_id: String,
+        #[serde(default, deserialize_with = "double_option")]
+        project_ref: Option<Option<String>>,
+        #[serde(default, deserialize_with = "double_option")]
+        folder_ref: Option<Option<String>>,
+    },
+    SetAuthorityLabel {
+        document_id: String,
+        authority_label: String,
+    },
+}
+
+impl BatchOperation {
+    fn document_id(&self) -> &str {
+        match self {
+            Self::Rename { document_id, .. }
+            | Self::Move { document_id, .. }
+            | Self::SetAuthorityLabel { document_id, .. } => document_id,
+        }
+    }
+
+    fn op_name(&self) -> &'static str {
+        match self {
+            Self::Rename { .. } => "rename",
+            Self::Move { .. } => "move",
+            Self::SetAuthorityLabel { .. } => "set_authority_label",
+        }
+    }
+}
+
+#[derive(Debug, Deserialize)]
+struct BatchBody {
+    operations: Vec<BatchOperation>,
+}
+
+/// Bound on one batch request (MT-157): keeps a batch a bounded, reviewable
+/// unit instead of an unbounded sweep.
+const BATCH_MAX_OPERATIONS: usize = 100;
 
 // ---------------------------------------------------------------------------
 // Handlers.
@@ -1039,6 +1104,10 @@ async fn rename_document(
 
 /// POST /knowledge/documents/:document_id/move — batch-safe move to a project /
 /// folder (MT-157).
+///
+/// Adversarial-v2 hardening: absent != explicit null. An absent field leaves
+/// that membership UNCHANGED (an empty body is a no-op move, never a silent
+/// clear); an explicit `null` clears; a string sets.
 async fn move_document(
     State(state): State<AppState>,
     Path(document_id): Path<String>,
@@ -1049,12 +1118,23 @@ async fn move_document(
     ctx.require(DocumentAction::Write)?;
     let db = db_for(&state);
 
+    // Merge absent fields from the CURRENT membership so they stay unchanged.
+    let current = db
+        .get_knowledge_rich_document(&document_id)
+        .await
+        .map_err(storage_error)?
+        .ok_or_else(|| not_found("knowledge rich document"))?;
+    let project_ref = match &body.project_ref {
+        None => current.project_ref.clone(),
+        Some(explicit) => explicit.clone(),
+    };
+    let folder_ref = match &body.folder_ref {
+        None => current.folder_ref.clone(),
+        Some(explicit) => explicit.clone(),
+    };
+
     let updated = db
-        .move_knowledge_rich_document(
-            &document_id,
-            body.project_ref.as_deref(),
-            body.folder_ref.as_deref(),
-        )
+        .move_knowledge_rich_document(&document_id, project_ref.as_deref(), folder_ref.as_deref())
         .await
         .map_err(storage_error)?;
     let (receipt, receipt_error) = record_receipt_non_fatal(
@@ -1073,6 +1153,123 @@ async fn move_document(
         "document": updated,
         "save_receipt_event_id": receipt,
         "receipt_error": receipt_error,
+    })))
+}
+
+/// POST /knowledge/documents/batch — batch rename / move / set-authority-label
+/// (adversarial-v2 MT-157): a bounded operation list applied per-document with
+/// PER-ITEM receipts and partial-failure reporting. One failing item never
+/// aborts the batch (each op is an independent metadata write); the response
+/// reports every item's outcome so the caller can retry exactly the failures.
+async fn batch_documents(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(body): Json<BatchBody>,
+) -> Result<Json<Value>, ApiError> {
+    let ctx = doc_context(&headers)?;
+    ctx.require(DocumentAction::Write)?;
+    let db = db_for(&state);
+
+    if body.operations.is_empty() {
+        return Err(bad_request("batch requires at least one operation"));
+    }
+    if body.operations.len() > BATCH_MAX_OPERATIONS {
+        return Err(bad_request(format!(
+            "batch is limited to {BATCH_MAX_OPERATIONS} operations per request"
+        )));
+    }
+
+    let mut results: Vec<Value> = Vec::with_capacity(body.operations.len());
+    let mut succeeded = 0usize;
+    let mut failed = 0usize;
+    for operation in &body.operations {
+        let document_id = operation.document_id().to_string();
+        let op_name = operation.op_name();
+        let outcome: Result<crate::storage::knowledge::KnowledgeRichDocument, StorageError> =
+            match operation {
+                BatchOperation::Rename { title, .. } => {
+                    let title = title.trim().to_string();
+                    if title.is_empty() {
+                        Err(StorageError::Validation("title must be non-empty"))
+                    } else {
+                        db.rename_knowledge_rich_document(&document_id, &title).await
+                    }
+                }
+                BatchOperation::Move {
+                    project_ref,
+                    folder_ref,
+                    ..
+                } => match db.get_knowledge_rich_document(&document_id).await {
+                    Err(err) => Err(err),
+                    Ok(None) => Err(StorageError::NotFound("knowledge rich document")),
+                    Ok(Some(current)) => {
+                        // Same absent != null law as the per-document move.
+                        let project = match project_ref {
+                            None => current.project_ref.clone(),
+                            Some(explicit) => explicit.clone(),
+                        };
+                        let folder = match folder_ref {
+                            None => current.folder_ref.clone(),
+                            Some(explicit) => explicit.clone(),
+                        };
+                        db.move_knowledge_rich_document(
+                            &document_id,
+                            project.as_deref(),
+                            folder.as_deref(),
+                        )
+                        .await
+                    }
+                },
+                BatchOperation::SetAuthorityLabel {
+                    authority_label, ..
+                } => {
+                    db.set_knowledge_rich_document_authority_label(&document_id, authority_label)
+                        .await
+                }
+            };
+        match outcome {
+            Ok(updated) => {
+                succeeded += 1;
+                // Per-item receipt (post-commit, non-fatal per MT-149).
+                let (receipt, receipt_error) = record_receipt_non_fatal(
+                    &db,
+                    &ctx,
+                    KernelEventType::KnowledgeRichDocumentSaved,
+                    &updated.rich_document_id,
+                    json!({"event": "batch", "op": op_name}),
+                )
+                .await;
+                results.push(json!({
+                    "document_id": document_id,
+                    "op": op_name,
+                    "ok": true,
+                    "save_receipt_event_id": receipt,
+                    "receipt_error": receipt_error,
+                }));
+            }
+            Err(err) => {
+                failed += 1;
+                let (error_kind, detail) = match &err {
+                    StorageError::NotFound(what) => ("not_found", what.to_string()),
+                    StorageError::Validation(detail) => ("validation", detail.to_string()),
+                    StorageError::Conflict(detail) => ("conflict", detail.to_string()),
+                    other => ("internal", other.to_string()),
+                };
+                results.push(json!({
+                    "document_id": document_id,
+                    "op": op_name,
+                    "ok": false,
+                    "error": error_kind,
+                    "detail": detail,
+                }));
+            }
+        }
+    }
+
+    Ok(Json(json!({
+        "results": results,
+        "succeeded": succeeded,
+        "failed": failed,
     })))
 }
 
