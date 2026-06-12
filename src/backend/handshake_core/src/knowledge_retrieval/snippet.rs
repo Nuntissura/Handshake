@@ -74,10 +74,20 @@ pub async fn assemble_span_snippet(
         });
     };
 
-    let source_path = match db.get_knowledge_source(&span.source_id).await? {
-        Some(source) => source.relative_path,
-        None => None,
-    };
+    // Adversarial-v2 MT-135 LOW: a span whose SOURCE is gone is not a
+    // supported citation. The schema makes this state unrepresentable
+    // (knowledge_spans.source_id is ON DELETE CASCADE, so deleting the source
+    // deletes the span and the span-missing path above fires) — this branch is
+    // the defensive belt under that FK suspender.
+    let (source_path, supported, unsupported_reason) =
+        match db.get_knowledge_source(&span.source_id).await? {
+            Some(source) => (source.relative_path, true, None),
+            None => (
+                None,
+                false,
+                Some("the span's source no longer exists in the index".to_string()),
+            ),
+        };
 
     Ok(EvidenceSnippet {
         span_id: span.span_id,
@@ -90,8 +100,8 @@ pub async fn assemble_span_snippet(
         content_sha256: span.content_sha256,
         excerpt: span.display_snippet,
         extraction_receipt_event_id: span.extraction_receipt_event_id,
-        supported: true,
-        unsupported_reason: None,
+        supported,
+        unsupported_reason,
     })
 }
 

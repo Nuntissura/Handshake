@@ -84,6 +84,20 @@ impl RouteStep {
 /// Token / count budgets that bound a retrieval (spec 2.6.6.7.14.5
 /// `RetrievalBudgets`). MT-137 ContextBudgetPolicy owns the defaults and the
 /// truncation rules; this struct is the value carried in the plan/trace.
+///
+/// Enforcement map (adversarial-v2 MT-137 LOW — which caps are HARD and which
+/// are planner hints):
+/// * `max_total_evidence_tokens`, `max_snippets_total`,
+///   `max_snippets_per_source` — ENFORCED by `budget::allocate` on every
+///   compiled bundle (drops recorded with truncation flags).
+/// * `max_candidates_total`, `max_rerank_candidates` — planner HINTS carried
+///   into `RouteStep.max_candidates`; the executed pipeline additionally
+///   bounds its loads (graph `max_nodes`, schema-fact and fallback-passage
+///   limits in `executor.rs`).
+/// * `max_read_tokens`, `max_tool_calls`, `tool_delta_inline_char_limit` —
+///   ADVISORY for the consuming runtime (the retrieval layer performs no
+///   tool calls or raw reads itself); they travel in the plan/trace so the
+///   consumer enforces them.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RetrievalBudgets {
     pub max_total_evidence_tokens: u32,

@@ -463,9 +463,11 @@ impl<'a> CheapestAuthoritativePathPlanner<'a> {
         }
     }
 
-    /// Assemble a [`QueryPlan`] with a fresh plan id. The plan is validated
-    /// (non-hybrid invariant) before return — an internal inconsistency panics
-    /// in tests but in prod the caller can re-check via `plan.validate()`.
+    /// Assemble a [`QueryPlan`] with a fresh plan id, VALIDATING the spec A0.5
+    /// invariant before return (adversarial-v2 MT-138 LOW: the comment claimed
+    /// validation that never ran). An invariant violation here is a planner
+    /// bug: it is logged loudly and the persistence layer
+    /// (`record_retrieval_trace`) still refuses to persist it fail-closed.
     fn build_plan(
         &self,
         request: &RetrievalRequest,
@@ -473,7 +475,7 @@ impl<'a> CheapestAuthoritativePathPlanner<'a> {
         reason: Option<NonHybridReason>,
         route: Vec<RouteStep>,
     ) -> QueryPlan {
-        QueryPlan {
+        let plan = QueryPlan {
             plan_id: format!("QP-{}", Uuid::now_v7().simple()),
             created_at: chrono::Utc::now(),
             query_text: request.query_text.clone(),
@@ -486,6 +488,16 @@ impl<'a> CheapestAuthoritativePathPlanner<'a> {
             determinism_mode: request.determinism_mode,
             policy_id: POLICY_ID.to_string(),
             version: 1,
+        };
+        if let Err(violation) = plan.validate() {
+            debug_assert!(false, "planner built an invalid plan: {violation}");
+            tracing::error!(
+                target: "handshake_core::knowledge_retrieval",
+                plan_id = %plan.plan_id,
+                %violation,
+                "planner_built_invalid_plan"
+            );
         }
+        plan
     }
 }
