@@ -43,6 +43,7 @@ use serde_json::{json, Value};
 use crate::kernel::{KernelActor, KernelEventType, NewKernelEvent};
 use crate::knowledge_document::backlink::DocumentLinkReferences;
 use crate::knowledge_document::block_tree::BlockTree;
+use crate::knowledge_document::embed::{validate_block_embeds, ValidatedBlockEmbed};
 use crate::knowledge_document::import::{import_snippet, ImportFormat};
 use crate::knowledge_document::permission::{
     DocumentAction, DocumentActorKind, DocumentPermission,
@@ -50,6 +51,7 @@ use crate::knowledge_document::permission::{
 use crate::knowledge_document::projection::{render_projection, ProjectionFormat};
 use crate::storage::knowledge::{
     KnowledgeStore, NewKnowledgeRichDocument, UpsertKnowledgeDocumentBacklink,
+    UpsertKnowledgeDocumentEmbed,
 };
 use crate::storage::postgres::PostgresDatabase;
 use crate::storage::{Database, StorageError};
@@ -228,6 +230,54 @@ impl DocContext {
     }
 }
 
+/// Render an ApiError into a short diagnostic string for the non-fatal
+/// post-commit recording path (MT-149).
+fn api_error_detail(err: &ApiError) -> String {
+    format!("{} {}", err.0.as_u16(), err.1 .0)
+}
+
+/// Append a receipt for a write that has ALREADY committed (adversarial-v2
+/// MT-149): a receipt failure must never turn a committed write into an error
+/// response — it is recorded in the response (and the log) instead.
+async fn record_receipt_non_fatal(
+    db: &PostgresDatabase,
+    ctx: &DocContext,
+    event_type: KernelEventType,
+    rich_document_id: &str,
+    payload: Value,
+) -> (Option<String>, Option<String>) {
+    match record_receipt(db, ctx, event_type, rich_document_id, payload).await {
+        Ok(event_id) => (Some(event_id), None),
+        Err(err) => {
+            let detail = api_error_detail(&err);
+            tracing::error!(
+                target: "handshake_core::knowledge_documents_api",
+                rich_document_id,
+                error = %detail,
+                "rich_document_receipt_failed_post_commit"
+            );
+            (None, Some(detail))
+        }
+    }
+}
+
+/// Map validated content embeds (MT-152) to side-table upserts.
+fn embed_upserts(
+    rich_document_id: &str,
+    validated: &[ValidatedBlockEmbed],
+) -> Vec<UpsertKnowledgeDocumentEmbed> {
+    validated
+        .iter()
+        .map(|embed| UpsertKnowledgeDocumentEmbed {
+            rich_document_id: rich_document_id.to_string(),
+            block_id: embed.block_id.clone(),
+            ref_kind: embed.target.kind.as_str().to_string(),
+            ref_value: embed.target.value.clone(),
+            caption: embed.caption.clone(),
+        })
+        .collect()
+}
+
 /// Append a document EventLedger receipt (save/promotion/nav) and return its id.
 async fn record_receipt(
     db: &PostgresDatabase,
@@ -360,6 +410,16 @@ async fn create_document(
         .content_json
         .unwrap_or_else(|| json!({"type": "doc", "content": []}));
 
+    // MT-146/152 (adversarial-v2): the created content must be a valid block
+    // tree AND every embed block must satisfy the typed EmbedTarget law BEFORE
+    // anything commits — the same law that guards the side table governs the
+    // authority content itself (no javascript:/data:/absolute-path targets).
+    let tree = BlockTree::from_document_json("KRD-pending", &schema_version, &content_json)
+        .map_err(|err| bad_request(format!("document block tree is malformed: {err}")))?;
+    validate_block_embeds(&tree).map_err(|(block_id, err)| {
+        bad_request(format!("embed block `{block_id}` target rejected: {err}"))
+    })?;
+
     let created = db
         .create_knowledge_rich_document(NewKnowledgeRichDocument {
             workspace_id: body.workspace_id,
@@ -379,18 +439,56 @@ async fn create_document(
         .await
         .map_err(storage_error)?;
 
-    let receipt = record_receipt(
+    // ---- post-commit (MT-149): the create above is committed; the steps
+    // below are best-effort and RECORDED, never an error for a committed write.
+    let (receipt, receipt_error) = record_receipt_non_fatal(
         &db,
         &ctx,
         KernelEventType::KnowledgeRichDocumentSaved,
         &created.rich_document_id,
         json!({"event": "created", "doc_version": created.doc_version}),
     )
-    .await?;
+    .await;
+
+    // MT-152: sync the typed embed side table from the validated content.
+    // Re-validate against the REAL document id so derived block ids match.
+    let mut embeds_persisted = 0usize;
+    let mut embeds_error: Option<String> = None;
+    let created_tree = BlockTree::from_document_json(
+        &created.rich_document_id,
+        &created.schema_version,
+        &created.content_json,
+    )
+    .ok();
+    if let Some(created_tree) = created_tree {
+        if let Ok(validated) = validate_block_embeds(&created_tree) {
+            match db
+                .replace_knowledge_document_embeds(
+                    &created.rich_document_id,
+                    embed_upserts(&created.rich_document_id, &validated),
+                )
+                .await
+            {
+                Ok(persisted) => embeds_persisted = persisted.len(),
+                Err(err) => {
+                    tracing::error!(
+                        target: "handshake_core::knowledge_documents_api",
+                        rich_document_id = %created.rich_document_id,
+                        error = %err,
+                        "rich_document_embed_sync_failed_post_commit"
+                    );
+                    embeds_error = Some(err.to_string());
+                }
+            }
+        }
+    }
 
     Ok(Json(json!({
         "document": created,
         "save_receipt_event_id": receipt,
+        "receipt_error": receipt_error,
+        "embeds_persisted": embeds_persisted,
+        "embeds_error": embeds_error,
     })))
 }
 
@@ -429,8 +527,15 @@ async fn load_document(
 
 /// PUT /knowledge/documents/:document_id/save — optimistic-concurrency save
 /// (MT-149). Builds on MT-059 `save_knowledge_rich_document_version`; a stale
-/// `expected_version` returns 409. Leaves a save receipt and re-extracts the
-/// document's backlinks (MT-155).
+/// `expected_version` returns 409. Leaves a save receipt, re-extracts the
+/// document's backlinks (MT-155), and syncs the typed embed side table from
+/// the content (MT-152).
+///
+/// Atomicity law (adversarial-v2 MT-149): everything that can REJECT the save
+/// (tree validation, embed-target validation, version conflict) runs BEFORE
+/// the save commits; everything after the commit (receipt, backlink index,
+/// embed sync) is best-effort and RECORDED in the response — a committed save
+/// never returns an error.
 async fn save_document(
     State(state): State<AppState>,
     Path(document_id): Path<String>,
@@ -442,13 +547,20 @@ async fn save_document(
     let db = db_for(&state);
 
     // Validate the block tree before promoting (MT-146): a malformed doc is a
-    // 400, never a silent bad save.
-    let _ = BlockTree::from_document_json(
+    // 400, never a silent bad save. The SAME parsed tree drives the post-save
+    // index steps (no second parse with a different schema-version input).
+    let tree = BlockTree::from_document_json(
         &document_id,
         crate::knowledge_document::block_tree::DOCUMENT_SCHEMA_VERSION,
         &body.content_json,
     )
     .map_err(|err| bad_request(format!("document block tree is malformed: {err}")))?;
+    // MT-152 (adversarial-v2): every embed block in the content must satisfy
+    // the typed EmbedTarget law BEFORE the save commits. A javascript:/data:/
+    // absolute-path target rejects the whole save fail-closed.
+    let validated_embeds = validate_block_embeds(&tree).map_err(|(block_id, err)| {
+        bad_request(format!("embed block `{block_id}` target rejected: {err}"))
+    })?;
 
     let saved = db
         .save_knowledge_rich_document_version(
@@ -460,29 +572,28 @@ async fn save_document(
         .await
         .map_err(storage_error)?;
 
-    let receipt = record_receipt(
+    // ---- post-commit (MT-149): nothing below may error a committed save. ----
+    let (receipt, receipt_error) = record_receipt_non_fatal(
         &db,
         &ctx,
         KernelEventType::KnowledgeRichDocumentSaved,
         &saved.rich_document_id,
         json!({"event": "saved", "doc_version": saved.doc_version}),
     )
-    .await?;
+    .await;
 
-    // MT-155: re-extract + persist backlinks from the new content (the document
-    // content is the source of truth; rebuild is idempotent). Index permission
-    // is checked, but a denial is non-fatal to the save — it just skips the
-    // index step and reports it.
+    // MT-155 backlinks + MT-152 embeds: re-extract + persist from the new
+    // content (the document content is the source of truth; both rebuilds are
+    // idempotent). Index permission is checked, but a denial is non-fatal to
+    // the save — it just skips the index step and reports it. A storage
+    // failure in either step is RECORDED, never an error for the saved write.
     let mut backlinks_persisted = 0usize;
+    let mut backlinks_error: Option<String> = None;
     let mut backlinks_skipped_reason: Option<String> = None;
+    let mut embeds_persisted = 0usize;
+    let mut embeds_error: Option<String> = None;
     match ctx.require(DocumentAction::Index) {
         Ok(()) => {
-            let tree = BlockTree::from_document_json(
-                &saved.rich_document_id,
-                &saved.schema_version,
-                &saved.content_json,
-            )
-            .map_err(|err| bad_request(format!("block tree: {err}")))?;
             let refs = DocumentLinkReferences::extract(&tree);
             let upserts: Vec<UpsertKnowledgeDocumentBacklink> = refs
                 .references
@@ -496,11 +607,39 @@ async fn save_document(
                     block_id: r.block_id.clone(),
                 })
                 .collect();
-            let persisted = db
+            match db
                 .replace_knowledge_document_backlinks(&saved.rich_document_id, upserts)
                 .await
-                .map_err(storage_error)?;
-            backlinks_persisted = persisted.len();
+            {
+                Ok(persisted) => backlinks_persisted = persisted.len(),
+                Err(err) => {
+                    tracing::error!(
+                        target: "handshake_core::knowledge_documents_api",
+                        rich_document_id = %saved.rich_document_id,
+                        error = %err,
+                        "rich_document_backlink_index_failed_post_commit"
+                    );
+                    backlinks_error = Some(err.to_string());
+                }
+            }
+            match db
+                .replace_knowledge_document_embeds(
+                    &saved.rich_document_id,
+                    embed_upserts(&saved.rich_document_id, &validated_embeds),
+                )
+                .await
+            {
+                Ok(persisted) => embeds_persisted = persisted.len(),
+                Err(err) => {
+                    tracing::error!(
+                        target: "handshake_core::knowledge_documents_api",
+                        rich_document_id = %saved.rich_document_id,
+                        error = %err,
+                        "rich_document_embed_sync_failed_post_commit"
+                    );
+                    embeds_error = Some(err.to_string());
+                }
+            }
         }
         Err(_) => {
             backlinks_skipped_reason = Some(format!("{}_index_denied", ctx.actor_kind.as_str()));
@@ -510,8 +649,12 @@ async fn save_document(
     Ok(Json(json!({
         "document": saved,
         "save_receipt_event_id": receipt,
+        "receipt_error": receipt_error,
         "backlinks_persisted": backlinks_persisted,
+        "backlinks_error": backlinks_error,
         "backlinks_skipped_reason": backlinks_skipped_reason,
+        "embeds_persisted": embeds_persisted,
+        "embeds_error": embeds_error,
     })))
 }
 
@@ -636,19 +779,21 @@ async fn import_document(
         .await
         .map_err(storage_error)?;
 
-    let receipt = record_receipt(
+    // Post-commit receipt (MT-149): never an error for a committed import.
+    let (receipt, receipt_error) = record_receipt_non_fatal(
         &db,
         &ctx,
         KernelEventType::KnowledgeRichDocumentSaved,
         &created.rich_document_id,
         json!({"event": "imported", "format": format.as_str(), "warnings": outcome.warnings.len()}),
     )
-    .await?;
+    .await;
 
     Ok(Json(json!({
         "document": created,
         "warnings": outcome.warnings,
         "save_receipt_event_id": receipt,
+        "receipt_error": receipt_error,
     })))
 }
 
@@ -711,7 +856,7 @@ async fn repair_embed(
         .set_knowledge_document_embed_repair_state(&embed_id, body.broken_reason.as_deref())
         .await
         .map_err(storage_error)?;
-    let receipt = record_receipt(
+    let (receipt, receipt_error) = record_receipt_non_fatal(
         &db,
         &ctx,
         KernelEventType::KnowledgeRichDocumentSaved,
@@ -723,10 +868,12 @@ async fn repair_embed(
             "repair_state": updated.repair_state,
         }),
     )
-    .await?;
-    Ok(Json(
-        json!({"embed": updated, "save_receipt_event_id": receipt}),
-    ))
+    .await;
+    Ok(Json(json!({
+        "embed": updated,
+        "save_receipt_event_id": receipt,
+        "receipt_error": receipt_error,
+    })))
 }
 
 /// GET /knowledge/documents/:document_id/backlinks — forward backlinks (MT-155).
@@ -814,17 +961,19 @@ async fn rename_document(
         .rename_knowledge_rich_document(&document_id, &title)
         .await
         .map_err(storage_error)?;
-    let receipt = record_receipt(
+    let (receipt, receipt_error) = record_receipt_non_fatal(
         &db,
         &ctx,
         KernelEventType::KnowledgeRichDocumentSaved,
         &updated.rich_document_id,
         json!({"event": "renamed", "title": updated.title}),
     )
-    .await?;
-    Ok(Json(
-        json!({"document": updated, "save_receipt_event_id": receipt}),
-    ))
+    .await;
+    Ok(Json(json!({
+        "document": updated,
+        "save_receipt_event_id": receipt,
+        "receipt_error": receipt_error,
+    })))
 }
 
 /// POST /knowledge/documents/:document_id/move — batch-safe move to a project /
@@ -847,7 +996,7 @@ async fn move_document(
         )
         .await
         .map_err(storage_error)?;
-    let receipt = record_receipt(
+    let (receipt, receipt_error) = record_receipt_non_fatal(
         &db,
         &ctx,
         KernelEventType::KnowledgeRichDocumentSaved,
@@ -858,10 +1007,12 @@ async fn move_document(
             "folder_ref": updated.folder_ref,
         }),
     )
-    .await?;
-    Ok(Json(
-        json!({"document": updated, "save_receipt_event_id": receipt}),
-    ))
+    .await;
+    Ok(Json(json!({
+        "document": updated,
+        "save_receipt_event_id": receipt,
+        "receipt_error": receipt_error,
+    })))
 }
 
 // ---------------------------------------------------------------------------

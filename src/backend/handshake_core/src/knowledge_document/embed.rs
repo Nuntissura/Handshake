@@ -10,6 +10,8 @@
 
 use serde::{Deserialize, Serialize};
 
+use super::block_tree::{Block, BlockTree};
+
 /// The kind of a typed embed reference (MT-152).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -110,6 +112,73 @@ impl EmbedTarget {
         };
         Self::new(kind, value)
     }
+}
+
+/// Read an embed block's RAW target from its authority attrs (MT-152). Embeds
+/// carry their typed target under `attrs.target` (id or url) or `attrs.src`
+/// (legacy/url); `target` wins. This is the single canonical reader — the
+/// projection renderer and the save-path validator both use it so the same
+/// bytes are governed by the same law.
+pub fn block_embed_target_raw(block: &Block) -> Option<String> {
+    let attrs = block
+        .content
+        .raw
+        .as_object()
+        .and_then(|o| o.get("attrs"))
+        .and_then(|a| a.as_object())?;
+    attrs
+        .get("target")
+        .and_then(|t| t.as_str())
+        .or_else(|| attrs.get("src").and_then(|t| t.as_str()))
+        .map(ToOwned::to_owned)
+}
+
+/// A `content_json` embed block validated through the [`EmbedTarget`] law
+/// (adversarial-v2 MT-152: the save path validates + persists what documents
+/// actually contain, closing the side-table-only bypass).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ValidatedBlockEmbed {
+    /// Stable block id of the embed block (MT-148).
+    pub block_id: String,
+    pub target: EmbedTarget,
+    /// The block's plain text, used as the embed caption when non-empty.
+    pub caption: Option<String>,
+}
+
+/// Validate every embed block in a parsed document tree through
+/// [`EmbedTarget::parse_raw`] (MT-152). Returns the validated set ready to
+/// persist into `knowledge_document_embeds`, or the FIRST failing
+/// `(block_id, error)` so the caller can reject the write fail-closed. An
+/// embed block WITHOUT any target attr is skipped (that is the broken-embed
+/// repair queue's domain, MT-153 — absence is repairable, not invalid).
+pub fn validate_block_embeds(
+    tree: &BlockTree,
+) -> Result<Vec<ValidatedBlockEmbed>, (String, EmbedTargetError)> {
+    let mut validated = Vec::new();
+    for block in &tree.blocks {
+        if !block.kind.is_embed() {
+            continue;
+        }
+        let Some(raw) = block_embed_target_raw(block) else {
+            continue;
+        };
+        match EmbedTarget::parse_raw(&raw) {
+            Ok(target) => {
+                let text = block.content.derived.plain_text.trim();
+                validated.push(ValidatedBlockEmbed {
+                    block_id: block.block_id.clone(),
+                    target,
+                    caption: if text.is_empty() {
+                        None
+                    } else {
+                        Some(text.to_string())
+                    },
+                });
+            }
+            Err(err) => return Err((block.block_id.clone(), err)),
+        }
+    }
+    Ok(validated)
 }
 
 /// Parse the URL scheme of a value, defending against the obfuscation

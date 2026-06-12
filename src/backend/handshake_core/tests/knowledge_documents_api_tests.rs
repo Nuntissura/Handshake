@@ -504,6 +504,253 @@ async fn mt151_imported_html_document_roundtrips_load_save_export() {
     );
 }
 
+// ---------------------------------------------------------------------------
+// MT-152 adversarial-v2: the save path validates + persists content embeds.
+// ---------------------------------------------------------------------------
+
+fn doc_with_embed(workspace_id: &str, title: &str, target: &str) -> Value {
+    json!({
+        "workspace_id": workspace_id,
+        "title": title,
+        "content_json": {
+            "type": "doc",
+            "content": [
+                { "type": "paragraph", "content": [{ "type": "text", "text": "intro" }] },
+                { "type": "image", "attrs": { "target": target },
+                  "content": [{ "type": "text", "text": "diagram" }] }
+            ]
+        }
+    })
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn mt152_save_path_validates_and_persists_content_embeds() {
+    let Some(pg) = knowledge_pg().await else {
+        eprintln!("SKIP mt152_save_path...: no PostgreSQL");
+        return;
+    };
+    let workspace_id = pg.create_workspace().await;
+    let (base, http) = doc_server(&pg).await;
+
+    // CREATE with a valid typed embed target -> the side table is synced.
+    let resp = headers_with_kind(
+        http.post(format!("{base}/knowledge/documents")),
+        "embed-create",
+        "operator",
+    )
+    .json(&doc_with_embed(&workspace_id, "Embeds", "KMED-ok"))
+    .send()
+    .await
+    .expect("send");
+    assert_eq!(resp.status(), 200);
+    let created: Value = resp.json().await.expect("json");
+    assert_eq!(created["embeds_persisted"], 1, "create syncs the embed table");
+    let doc_id = created["document"]["rich_document_id"]
+        .as_str()
+        .expect("doc id")
+        .to_string();
+
+    let list_embeds = |label: &'static str| {
+        headers_with_kind(
+            http.get(format!("{base}/knowledge/documents/{doc_id}/embeds")),
+            label,
+            "operator",
+        )
+        .send()
+    };
+    let body: Value = list_embeds("e1").await.expect("send").json().await.expect("json");
+    let embeds = body["embeds"].as_array().expect("embeds");
+    assert_eq!(embeds.len(), 1);
+    assert_eq!(embeds[0]["ref_value"], "KMED-ok");
+    assert_eq!(embeds[0]["ref_kind"], "media");
+
+    // SAVE v2 with two embeds (media id + https url) -> table resyncs to 2.
+    let v2 = json!({
+        "type": "doc",
+        "content": [
+            { "type": "image", "attrs": { "target": "KMED-ok" },
+              "content": [{ "type": "text", "text": "diagram" }] },
+            { "type": "video", "attrs": { "src": "https://cdn.example/clip.mp4" },
+              "content": [{ "type": "text", "text": "clip" }] }
+        ]
+    });
+    let resp = headers_with_kind(
+        http.put(format!("{base}/knowledge/documents/{doc_id}/save")),
+        "embed-save2",
+        "operator",
+    )
+    .json(&json!({"expected_version": 1, "content_json": v2}))
+    .send()
+    .await
+    .expect("send");
+    assert_eq!(resp.status(), 200);
+    let saved: Value = resp.json().await.expect("json");
+    assert_eq!(saved["embeds_persisted"], 2);
+    let body: Value = list_embeds("e2").await.expect("send").json().await.expect("json");
+    let embeds = body["embeds"].as_array().expect("embeds");
+    assert_eq!(embeds.len(), 2);
+    assert!(embeds.iter().any(|e| e["ref_kind"] == "url"
+        && e["ref_value"] == "https://cdn.example/clip.mp4"));
+
+    // SAVE with a dangerous embed target -> 400 BEFORE commit; version stays 2.
+    for bad in [
+        "javascript:alert(1)",
+        "JaVa\tScRiPt:alert(1)",
+        "data:text/html,<script>",
+        "C:\\secrets\\x.png",
+        "/etc/passwd",
+        "file:///etc/passwd",
+    ] {
+        let v3 = json!({
+            "type": "doc",
+            "content": [
+                { "type": "image", "attrs": { "target": bad },
+                  "content": [{ "type": "text", "text": "evil" }] }
+            ]
+        });
+        let resp = headers_with_kind(
+            http.put(format!("{base}/knowledge/documents/{doc_id}/save")),
+            "embed-bad",
+            "operator",
+        )
+        .json(&json!({"expected_version": 2, "content_json": v3}))
+        .send()
+        .await
+        .expect("send");
+        assert_eq!(
+            resp.status(),
+            400,
+            "embed target `{bad}` must reject the save fail-closed"
+        );
+    }
+    let resp = headers_with_kind(
+        http.get(format!("{base}/knowledge/documents/{doc_id}")),
+        "embed-check",
+        "operator",
+    )
+    .send()
+    .await
+    .expect("send");
+    let body: Value = resp.json().await.expect("json");
+    assert_eq!(
+        body["document"]["doc_version"], 2,
+        "rejected saves never committed"
+    );
+
+    // SAVE v3 with NO embeds -> the side table empties (true sync, no drift).
+    let v3 = json!({
+        "type": "doc",
+        "content": [
+            { "type": "paragraph", "content": [{ "type": "text", "text": "no embeds left" }] }
+        ]
+    });
+    let resp = headers_with_kind(
+        http.put(format!("{base}/knowledge/documents/{doc_id}/save")),
+        "embed-save3",
+        "operator",
+    )
+    .json(&json!({"expected_version": 2, "content_json": v3}))
+    .send()
+    .await
+    .expect("send");
+    assert_eq!(resp.status(), 200);
+    let body: Value = list_embeds("e3").await.expect("send").json().await.expect("json");
+    assert_eq!(body["embeds"].as_array().expect("embeds").len(), 0);
+}
+
+// ---------------------------------------------------------------------------
+// MT-149 adversarial-v2: a committed save never returns an error.
+// ---------------------------------------------------------------------------
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn mt149_committed_save_never_errors_when_post_commit_steps_fail() {
+    let Some(pg) = knowledge_pg().await else {
+        eprintln!("SKIP mt149_committed_save...: no PostgreSQL");
+        return;
+    };
+    let workspace_id = pg.create_workspace().await;
+    let (base, http) = doc_server(&pg).await;
+    let created = create_doc(&base, &http, &workspace_id, "Atomicity").await;
+    let doc_id = created["document"]["rich_document_id"]
+        .as_str()
+        .expect("doc id")
+        .to_string();
+
+    // Break EVERY post-commit step for real: drop the backlink + embed side
+    // tables and the EventLedger table in the isolated schema. The save's own
+    // tables stay intact, so the save itself can still commit.
+    {
+        let mut conn = pg.raw_connection().await;
+        for table in [
+            "knowledge_document_backlinks",
+            "knowledge_document_embeds",
+            "kernel_event_ledger",
+        ] {
+            sqlx::query(&format!("DROP TABLE {table} CASCADE"))
+                .execute(&mut conn)
+                .await
+                .unwrap_or_else(|err| panic!("drop {table}: {err}"));
+        }
+    }
+
+    // The save must COMMIT and return 200 with every failure RECORDED.
+    let resp = headers_with_kind(
+        http.put(format!("{base}/knowledge/documents/{doc_id}/save")),
+        "atomic-save",
+        "operator",
+    )
+    .json(&json!({
+        "expected_version": 1,
+        "content_json": {"type": "doc", "content": [
+            { "type": "paragraph", "content": [{ "type": "text", "text": "v2 body" }] },
+            { "type": "image", "attrs": { "target": "KMED-1" } }
+        ]}
+    }))
+    .send()
+    .await
+    .expect("send");
+    assert_eq!(
+        resp.status(),
+        200,
+        "a committed save must NEVER surface a post-commit step failure as an error"
+    );
+    let body: Value = resp.json().await.expect("json");
+    assert_eq!(body["document"]["doc_version"], 2, "the save committed");
+    assert!(
+        body["save_receipt_event_id"].is_null(),
+        "no receipt could be written"
+    );
+    assert!(
+        body["receipt_error"].is_string(),
+        "the receipt failure is recorded: {body}"
+    );
+    assert!(
+        body["backlinks_error"].is_string(),
+        "the backlink index failure is recorded: {body}"
+    );
+    assert!(
+        body["embeds_error"].is_string(),
+        "the embed sync failure is recorded: {body}"
+    );
+
+    // The committed write is durable and loadable.
+    let resp = headers_with_kind(
+        http.get(format!("{base}/knowledge/documents/{doc_id}")),
+        "atomic-load",
+        "operator",
+    )
+    .send()
+    .await
+    .expect("send");
+    assert_eq!(resp.status(), 200);
+    let loaded: Value = resp.json().await.expect("json");
+    assert_eq!(loaded["document"]["doc_version"], 2);
+    assert_eq!(
+        loaded["document"]["content_json"]["content"][0]["content"][0]["text"],
+        "v2 body"
+    );
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt151_imported_markdown_table_document_roundtrips_load_save_export() {
     let Some(pg) = knowledge_pg().await else {

@@ -2909,6 +2909,18 @@ pub trait KnowledgeStore: Send + Sync {
         rich_document_id: &str,
     ) -> StorageResult<Vec<KnowledgeDocumentEmbed>>;
 
+    /// Replaces ALL embed references for a document with the supplied set in
+    /// one transaction (adversarial-v2 MT-152: the document content is the
+    /// source of truth — the save path re-projects content_json embed blocks
+    /// through the EmbedTarget law and syncs the side table, so the table can
+    /// never drift from what documents actually contain). Returns the
+    /// persisted embeds.
+    async fn replace_knowledge_document_embeds(
+        &self,
+        rich_document_id: &str,
+        upserts: Vec<UpsertKnowledgeDocumentEmbed>,
+    ) -> StorageResult<Vec<KnowledgeDocumentEmbed>>;
+
     // -- MT-155 document backlinks (stable relationship id) --------------------------
     /// Upserts a document backlink by its stable `(workspace, relationship_id)`
     /// identity (MT-155). The relationship id is caller-derived and stable
@@ -4886,6 +4898,61 @@ impl KnowledgeStore for PostgresDatabase {
             .await?
             .ok_or(StorageError::NotFound("knowledge document embed"))?;
         Ok(document_embed_from_pg(&row))
+    }
+
+    async fn replace_knowledge_document_embeds(
+        &self,
+        rich_document_id: &str,
+        upserts: Vec<UpsertKnowledgeDocumentEmbed>,
+    ) -> StorageResult<Vec<KnowledgeDocumentEmbed>> {
+        // Sync semantics (MT-152): the document content is the source of
+        // truth, so a re-save is delete-all-for-document + insert in one
+        // transaction (mirrors replace_knowledge_document_backlinks).
+        for upsert in &upserts {
+            if upsert.block_id.trim() != upsert.block_id || upsert.block_id.is_empty() {
+                return Err(StorageError::Validation(
+                    "knowledge document embed block_id must be non-empty and trimmed",
+                ));
+            }
+            if !matches!(
+                upsert.ref_kind.as_str(),
+                "artifact" | "media" | "source" | "url"
+            ) {
+                return Err(StorageError::Validation(
+                    "knowledge document embed ref_kind must be artifact|media|source|url",
+                ));
+            }
+        }
+        let mut tx = self.pool().begin().await?;
+        sqlx::query("DELETE FROM knowledge_document_embeds WHERE rich_document_id = $1")
+            .bind(rich_document_id)
+            .execute(&mut *tx)
+            .await?;
+        let mut out = Vec::with_capacity(upserts.len());
+        for upsert in upserts {
+            let embed_id = new_knowledge_id("KEMB");
+            let sql = format!(
+                r#"
+                INSERT INTO knowledge_document_embeds
+                    (embed_id, rich_document_id, block_id, ref_kind, ref_value,
+                     caption)
+                VALUES ($1, $2, $3, $4, $5, $6)
+                RETURNING {KNOWLEDGE_DOCUMENT_EMBED_COLUMNS}
+                "#
+            );
+            let row = sqlx::query(&sql)
+                .bind(&embed_id)
+                .bind(rich_document_id)
+                .bind(&upsert.block_id)
+                .bind(&upsert.ref_kind)
+                .bind(&upsert.ref_value)
+                .bind(&upsert.caption)
+                .fetch_one(&mut *tx)
+                .await?;
+            out.push(document_embed_from_pg(&row));
+        }
+        tx.commit().await?;
+        Ok(out)
     }
 
     async fn list_knowledge_document_broken_embeds(

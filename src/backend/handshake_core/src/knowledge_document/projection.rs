@@ -12,7 +12,7 @@
 use serde::{Deserialize, Serialize};
 
 use super::block_tree::{Block, BlockKind, BlockTree};
-use super::embed::{url_scheme, EmbedTarget};
+use super::embed::{block_embed_target_raw, url_scheme, EmbedTarget};
 
 /// URL schemes a projection may emit into a link target (adversarial-v2
 /// MT-150 hardening): web links, mail links, and internal `hsk:` refs.
@@ -38,7 +38,7 @@ fn sanitize_link_target(target: &str) -> Option<&str> {
 /// validated value, or `None` when the target is absent or fails validation
 /// (absolute path, non-http URL, scheme-bearing pseudo-id).
 fn validated_embed_target(block: &Block) -> Option<String> {
-    let raw = embed_target(block)?;
+    let raw = block_embed_target_raw(block)?;
     EmbedTarget::parse_raw(&raw).ok().map(|target| target.value)
 }
 
@@ -303,22 +303,6 @@ fn imported_raw_source_format(block: &Block) -> String {
         .and_then(|s| s.as_str())
         .unwrap_or("")
         .to_string()
-}
-
-fn embed_target(block: &Block) -> Option<String> {
-    let attrs = block
-        .content
-        .raw
-        .as_object()
-        .and_then(|o| o.get("attrs"))
-        .and_then(|a| a.as_object())?;
-    // Embeds carry their typed target under attrs.target (id or url) or
-    // attrs.src (legacy/url). Prefer target.
-    attrs
-        .get("target")
-        .and_then(|t| t.as_str())
-        .or_else(|| attrs.get("src").and_then(|t| t.as_str()))
-        .map(ToOwned::to_owned)
 }
 
 fn escape_html(text: &str) -> String {
