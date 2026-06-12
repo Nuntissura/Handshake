@@ -22,14 +22,17 @@ vi.mock("./RichTextEditor", () => ({
     initialContent,
     onChange,
     backendError,
+    readOnly,
   }: {
     initialContent: JSONContent | null;
     onChange: (doc: JSONContent | null) => void;
     backendError?: { kind: string; message: string } | null;
+    readOnly?: boolean;
   }) => (
     <div>
       <textarea
         data-testid="tiptap-editor"
+        data-readonly={readOnly ? "true" : "false"}
         defaultValue={JSON.stringify(initialContent)}
         onChange={() => onChange({ type: "doc", content: [{ type: "paragraph" }] })}
       />
@@ -216,5 +219,49 @@ describe("RichDocumentView (MT-145..MT-160)", () => {
       const err = screen.getByTestId("rte-backend-error");
       expect(err.getAttribute("data-error-kind")).toBe("conflict");
     });
+  });
+
+  it("fails CLOSED on a newer-schema document: read-only editor, save blocked, typed banner (iteration-3 H2)", async () => {
+    const api = await import("../lib/api");
+    vi.mocked(api.loadRichDocument).mockResolvedValueOnce({
+      document: { ...DOC_V1, schema_version: "rich_document_v999" },
+      tree: {
+        schema_version: "rich_document_v999",
+        schema_matches: false,
+        block_ids: [],
+        blocks: [],
+      },
+      code_nodes: [],
+    } as never);
+
+    await act(async () => {
+      render(<RichDocumentView documentId="KRD-00000000000000000000000000000001" />);
+    });
+
+    // The view is marked blocked and the editor mounts READ-ONLY.
+    const view = await screen.findByTestId("rich-document-view");
+    expect(view.getAttribute("data-schema-blocked")).toBe("true");
+    const editor = screen.getByTestId("tiptap-editor");
+    expect(editor.getAttribute("data-readonly")).toBe("true");
+
+    // The typed schema banner reaches the editor surface.
+    const err = screen.getByTestId("rte-backend-error");
+    expect(err.getAttribute("data-error-kind")).toBe("schema");
+    expect(err.textContent).toContain("rich_document_v999");
+
+    // DESTRUCTIVE-SAVE NEGATIVE TEST: even if edits somehow land (ProseMirror
+    // would have silently dropped unknown nodes), the save path never reaches
+    // the backend — the stripped doc can never overwrite the authority record.
+    const saveMock = vi.mocked(api.saveRichDocument);
+    const callsBefore = saveMock.mock.calls.length;
+    await act(async () => {
+      fireEvent.change(editor, { target: { value: "forced edit" } });
+    });
+    const save = screen.getByTestId("rich-document-save") as HTMLButtonElement;
+    expect(save.disabled).toBe(true);
+    await act(async () => {
+      fireEvent.click(save);
+    });
+    expect(saveMock.mock.calls.length).toBe(callsBefore);
   });
 });

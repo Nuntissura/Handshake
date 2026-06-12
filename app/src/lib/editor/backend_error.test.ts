@@ -9,6 +9,7 @@ import {
   classifySaveError,
   classifyLoadError,
   schemaMismatchError,
+  schemaSaveBlockedError,
 } from "./backend_error";
 
 describe("backend error classification (MT-174)", () => {
@@ -40,6 +41,16 @@ describe("backend error classification (MT-174)", () => {
     const e = schemaMismatchError("Document schema rich_document_v9 is newer than this editor");
     expect(e.kind).toBe("schema");
     expect(e.message).toContain("newer than this editor");
+    // Iteration-3 H2: the schema banner states the fail-closed contract.
+    expect(e.hint).toContain("read-only");
+    expect(e.hint).toContain("saving is disabled");
+  });
+
+  it("builds a typed save-blocked error for schema-blocked documents (iteration-3 H2)", () => {
+    const e = schemaSaveBlockedError("Document schema rich_document_v9 is newer than this editor");
+    expect(e.kind).toBe("schema");
+    expect(e.message).toContain("Save blocked");
+    expect(e.hint).toContain("drop content");
   });
 
   it("accepts non-Error values without throwing", () => {

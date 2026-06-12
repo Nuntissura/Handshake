@@ -29,6 +29,7 @@ import { RichTextEditor } from "./RichTextEditor";
 import {
   classifySaveError,
   schemaMismatchError,
+  schemaSaveBlockedError,
   type EditorBackendError,
 } from "../lib/editor/backend_error";
 import { assertEditorSchema } from "../lib/editor/schema_versioning";
@@ -68,6 +69,11 @@ export function RichDocumentView({ documentId }: Props) {
   const [backendError, setBackendError] = useState<EditorBackendError | null>(null);
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
   const [isDirty, setIsDirty] = useState(false);
+  // Iteration-3 H2 (schema fail-closed): a document whose persisted schema the
+  // running editor cannot reconcile opens READ-ONLY with saving blocked —
+  // ProseMirror drops unknown nodes, so one save of an editable mismatched doc
+  // would persist the stripped content. Holds the assertion failure reason.
+  const [schemaBlocked, setSchemaBlocked] = useState<string | null>(null);
 
   const [versions, setVersions] = useState<RichDocVersion[] | null>(null);
   const [embeds, setEmbeds] = useState<RichDocEmbed[] | null>(null);
@@ -93,9 +99,15 @@ export function RichDocumentView({ documentId }: Props) {
       if (assertion.ok) {
         setLoadedContent(assertion.content as JSONContent);
         editorContentRef.current = assertion.content as JSONContent;
+        setSchemaBlocked(null);
       } else {
+        // H2 fail-closed: render the best-effort view READ-ONLY and block the
+        // save path entirely (typed banner explains why). ProseMirror may drop
+        // nodes it does not know — read-only + save-block means the stripped
+        // rendering can never overwrite the authority record.
         setLoadedContent(response.document.content_json as JSONContent);
         editorContentRef.current = response.document.content_json as JSONContent;
+        setSchemaBlocked(assertion.reason);
         setBackendError(schemaMismatchError(assertion.reason));
       }
       logEvent({ type: "doc-load", targetId: documentId, result: "ok" });
@@ -136,6 +148,18 @@ export function RichDocumentView({ documentId }: Props) {
   const onSave = useCallback(async () => {
     const editorContent = editorContentRef.current;
     if (!load || !editorContent) return;
+    if (schemaBlocked !== null) {
+      // H2 defense-in-depth: the button is disabled, but ANY save path (future
+      // keyboard save, programmatic callers) must also refuse.
+      setBackendError(schemaSaveBlockedError(schemaBlocked));
+      logEvent({
+        type: "doc-save",
+        targetId: documentId,
+        result: "error",
+        message: "save blocked: schema mismatch (fail-closed)",
+      });
+      return;
+    }
     setIsSaving(true);
     setSaveError(null);
     setBackendError(null);
@@ -160,7 +184,7 @@ export function RichDocumentView({ documentId }: Props) {
     } finally {
       setIsSaving(false);
     }
-  }, [load, documentId, refreshSidecars]);
+  }, [load, documentId, refreshSidecars, schemaBlocked]);
 
   if (loading && !load) {
     return (
@@ -195,6 +219,7 @@ export function RichDocumentView({ documentId }: Props) {
       data-doc-version={doc.doc_version}
       data-authority-label={doc.authority_label}
       data-schema-matches={String(load.tree.schema_matches)}
+      data-schema-blocked={schemaBlocked !== null ? "true" : "false"}
     >
       <h2 data-testid="rich-document-title">{doc.title}</h2>
       <p className="muted">
@@ -214,7 +239,12 @@ export function RichDocumentView({ documentId }: Props) {
             <button
               data-testid="rich-document-save"
               onClick={() => void onSave()}
-              disabled={isSaving || !isDirty}
+              disabled={isSaving || !isDirty || schemaBlocked !== null}
+              title={
+                schemaBlocked !== null
+                  ? "Saving is blocked: the document schema is newer than this editor."
+                  : undefined
+              }
             >
               {isSaving ? "Saving..." : "Save"}
             </button>
@@ -233,6 +263,7 @@ export function RichDocumentView({ documentId }: Props) {
                 editorContentRef.current = next;
                 setIsDirty(true);
               }}
+              readOnly={schemaBlocked !== null}
               backendError={backendError}
               // MT-244: bind media embed NodeViews to the document's workspace
               // so [[HS_images:…]]/[[video:…]]/album/slideshow resolve REAL

@@ -70,7 +70,32 @@ export function classifyLoadError(error: unknown): EditorBackendError {
  * Builds a typed schema error from a failed editor schema assertion (MT-162),
  * so a newer-than-editor or unknown-version document surfaces as a "schema"
  * backend error rather than crashing the load.
+ *
+ * Iteration-3 H2 (fail-closed): the document opens READ-ONLY and saving is
+ * blocked — ProseMirror silently DROPS nodes its schema does not know, so one
+ * save of an editable mismatched doc would persist the stripped content and
+ * destroy the newer-schema data. The hint states that contract.
  */
 export function schemaMismatchError(reason: string): EditorBackendError {
-  return { kind: "schema", message: reason, hint: undefined };
+  return {
+    kind: "schema",
+    message: reason,
+    hint:
+      "The document is opened read-only and saving is disabled so no content " +
+      "can be lost. Update Handshake to edit it.",
+  };
+}
+
+/**
+ * Typed error for a save attempt against a schema-blocked document (H2
+ * defense-in-depth: the Save button is disabled AND the save path refuses).
+ */
+export function schemaSaveBlockedError(reason: string): EditorBackendError {
+  return {
+    kind: "schema",
+    message: `Save blocked: ${reason}`,
+    hint:
+      "Saving this document from an older editor would silently drop content " +
+      "the newer schema added. Update Handshake, then edit and save.",
+  };
 }
