@@ -37,6 +37,8 @@ export const PALETTE_OPEN_ACTION = "palette.open";
 export const FIND_OPEN_ACTION = "find.open";
 /** Opens the find panel with the replace row (MT-244). */
 export const REPLACE_OPEN_ACTION = "replace.open";
+/** Requests a save from the owning document shell (iteration-3 L16/EXT-SAVE-001). */
+export const SAVE_ACTION = "editor.save";
 
 /**
  * The explicit binding table. Formatting chords (Mod-b/i/e) are also provided
@@ -53,6 +55,7 @@ export const EDITOR_KEY_BINDINGS: readonly KeyBinding[] = [
   { chord: "Mod-Shift-p", action: PALETTE_OPEN_ACTION, description: "Open command palette" },
   { chord: "Mod-f", action: FIND_OPEN_ACTION, description: "Find in document" },
   { chord: "Mod-h", action: REPLACE_OPEN_ACTION, description: "Find and replace" },
+  { chord: "Mod-s", action: SAVE_ACTION, description: "Save document" },
 ] as const;
 
 /** Builds the canonical chord string for a key event (Mod-… form). */
@@ -89,6 +92,9 @@ export function resolveShortcut(event: KeyboardEventLike): string | null {
  */
 export const CODE_BLOCK_GLOBAL_ACTIONS: ReadonlySet<string> = new Set([
   PALETTE_OPEN_ACTION,
+  // Save is document-level: Mod-s typed while editing code must save the
+  // document (VS Code parity), not vanish into the code island.
+  SAVE_ACTION,
 ]);
 
 /** True when `action` may fire from a keystroke originating inside a code block. */

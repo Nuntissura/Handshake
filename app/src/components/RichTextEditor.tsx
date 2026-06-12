@@ -20,7 +20,15 @@
 // failure and the editor still renders its chrome with an inline notice rather
 // than blanking.
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type RefObject,
+} from "react";
 import { EditorContent, useEditor } from "@tiptap/react";
 import type { Editor, JSONContent } from "@tiptap/core";
 import type { AnyExtension } from "@tiptap/core";
@@ -39,6 +47,7 @@ import {
   PALETTE_OPEN_ACTION,
   FIND_OPEN_ACTION,
   REPLACE_OPEN_ACTION,
+  SAVE_ACTION,
 } from "../lib/editor/editor_keymap";
 import { jsonDeepEquals } from "../lib/editor/doc_equality";
 import {
@@ -101,6 +110,13 @@ export type RichTextEditorProps = {
    * state — e.g. to flush content before a save or to drive typing in tests.
    */
   onEditorReady?: (editor: Editor) => void;
+  /**
+   * Called when the operator requests a save (Mod-s, including from inside an
+   * embedded code block, or the palette "Save document" entry). The editor
+   * never persists by itself — the parent owns the save path. Mod-s is always
+   * preventDefault-ed (the browser save dialog must never appear).
+   */
+  onSaveRequested?: () => void;
   /** Extension factory override (tests / DI). */
   extensionFactory?: () => AnyExtension[];
 };
@@ -171,14 +187,59 @@ const COMPONENT_COMMANDS: readonly ComponentCommand[] = [
   })),
 ];
 
-function filterComponentCommands(query: string): ComponentCommand[] {
+function filterComponentCommands(query: string, extra: readonly ComponentCommand[]): ComponentCommand[] {
+  const all = [...COMPONENT_COMMANDS, ...extra];
   const q = query.trim().toLowerCase();
-  if (q.length === 0) return [...COMPONENT_COMMANDS];
-  return COMPONENT_COMMANDS.filter(
+  if (q.length === 0) return all;
+  return all.filter(
     (cmd) =>
       cmd.id.toLowerCase().includes(q) ||
       cmd.label.toLowerCase().includes(q) ||
       cmd.keywords.some((k) => k.toLowerCase().includes(q)),
+  );
+}
+
+/**
+ * Dialog focus management (iteration-3 M13): remembers the element focused
+ * before a dialog opened and restores it on close; returns a Tab-trap keydown
+ * handler that cycles focus within the dialog container (aria-modal dialogs
+ * previously let Tab walk out of the dialog and never restored focus).
+ */
+function useDialogFocus(
+  open: boolean,
+  containerRef: RefObject<HTMLDivElement | null>,
+): (event: ReactKeyboardEvent) => void {
+  const restoreRef = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    if (!open) return;
+    restoreRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    return () => {
+      restoreRef.current?.focus?.();
+      restoreRef.current = null;
+    };
+  }, [open]);
+  return useCallback(
+    (event: ReactKeyboardEvent) => {
+      if (event.key !== "Tab") return;
+      const container = containerRef.current;
+      if (!container) return;
+      const focusables = Array.from(
+        container.querySelectorAll<HTMLElement>(
+          "button, input, select, textarea, a[href], [tabindex]:not([tabindex='-1'])",
+        ),
+      ).filter((el) => !el.hasAttribute("disabled"));
+      if (focusables.length === 0) return;
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    },
+    [containerRef],
   );
 }
 
@@ -202,13 +263,23 @@ function RichTextEditorInner({
   embedContext,
   documentTitle,
   onEditorReady,
+  onSaveRequested,
 }: RichTextEditorProps & { extensions: AnyExtension[] }) {
   const [, forceRefresh] = useState(0);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [paletteQuery, setPaletteQuery] = useState("");
+  // Iteration-3 M12: keyboard-navigable palette (roving active option).
+  const [paletteActiveIndex, setPaletteActiveIndex] = useState(0);
   const [pendingCommand, setPendingCommand] = useState<EditorCommandDescriptor | null>(null);
   const [argValues, setArgValues] = useState<Record<string, string>>({});
   const paletteInputRef = useRef<HTMLInputElement>(null);
+  // Iteration-3 M13: dialog containers for focus trap + restore.
+  const paletteRef = useRef<HTMLDivElement>(null);
+  const argPromptRef = useRef<HTMLDivElement>(null);
+  const exportMenuRef = useRef<HTMLDivElement>(null);
+  // Iteration-3 M16: toolbar roving tabindex (single tab stop + arrow keys).
+  const toolbarRef = useRef<HTMLDivElement>(null);
+  const [toolbarFocusIndex, setToolbarFocusIndex] = useState(0);
 
   // MT-244: find/replace panel + export menu state.
   const [findPanel, setFindPanel] = useState<"closed" | "find" | "replace">("closed");
@@ -431,17 +502,60 @@ function RichTextEditorInner({
         setFindPanel(action === FIND_OPEN_ACTION ? "find" : "replace");
         return;
       }
+      if (action === SAVE_ACTION) {
+        // Always swallowed (no browser save dialog); fires the parent's save
+        // path when wired (L16/EXT-SAVE-001). Global from inside code blocks.
+        onSaveRequested?.();
+        return;
+      }
       const cmd = EDITOR_COMMAND_BY_ID.get(action);
       if (cmd) runCommand(cmd);
     };
     const root = editor.view.dom;
     root.addEventListener("keydown", handler);
     return () => root.removeEventListener("keydown", handler);
-  }, [editor, runCommand]);
+  }, [editor, runCommand, onSaveRequested]);
+
+  // Iteration-3 M13: focus trap + restore for every modal surface. These hooks
+  // are declared BEFORE the focus-moving effects below so the previously
+  // focused element is captured before the dialog steals focus.
+  const onPaletteTrapKeyDown = useDialogFocus(paletteOpen, paletteRef);
+  const onArgPromptTrapKeyDown = useDialogFocus(pendingCommand !== null, argPromptRef);
+  const onExportTrapKeyDown = useDialogFocus(exportMenuOpen, exportMenuRef);
 
   useEffect(() => {
     if (paletteOpen) paletteInputRef.current?.focus();
   }, [paletteOpen]);
+  useEffect(() => {
+    if (pendingCommand) {
+      argPromptRef.current?.querySelector<HTMLInputElement>("input")?.focus();
+    }
+  }, [pendingCommand]);
+  useEffect(() => {
+    if (exportMenuOpen) {
+      exportMenuRef.current?.querySelector<HTMLButtonElement>("button")?.focus();
+    }
+  }, [exportMenuOpen]);
+
+  // Iteration-3 M16: ARIA toolbar keyboard pattern — one tab stop, arrows move.
+  const onToolbarKeyDown = useCallback((event: ReactKeyboardEvent) => {
+    if (!["ArrowRight", "ArrowLeft", "Home", "End"].includes(event.key)) return;
+    const container = toolbarRef.current;
+    if (!container) return;
+    const buttons = Array.from(
+      container.querySelectorAll<HTMLButtonElement>("button:not([disabled])"),
+    );
+    if (buttons.length === 0) return;
+    const current = buttons.indexOf(document.activeElement as HTMLButtonElement);
+    let next = current;
+    if (event.key === "ArrowRight") next = (current + 1 + buttons.length) % buttons.length;
+    else if (event.key === "ArrowLeft") next = (current - 1 + buttons.length) % buttons.length;
+    else if (event.key === "Home") next = 0;
+    else if (event.key === "End") next = buttons.length - 1;
+    event.preventDefault();
+    buttons[next]?.focus();
+    setToolbarFocusIndex(next);
+  }, []);
 
   if (!editor) return null;
 
@@ -452,7 +566,64 @@ function RichTextEditorInner({
     ["embed", "graph", "mention", "manual"].includes(c.category),
   );
   const paletteResults = filterEditorCommands(paletteQuery);
-  const componentResults = filterComponentCommands(paletteQuery);
+  const componentResults = filterComponentCommands(
+    paletteQuery,
+    onSaveRequested
+      ? [{ id: SAVE_ACTION, label: "Save document", keywords: ["save", "persist", "write"] }]
+      : [],
+  );
+  // Combined keyboard-navigable option order (M12): editor commands first,
+  // then component commands — matching the rendered list order.
+  const paletteOptionIds = [
+    ...paletteResults.map((cmd) => cmd.id),
+    ...componentResults.map((cmd) => cmd.id),
+  ];
+  const activeOptionId =
+    paletteOptionIds.length > 0
+      ? `palette-opt-${paletteOptionIds[Math.min(paletteActiveIndex, paletteOptionIds.length - 1)]}`
+      : undefined;
+
+  const runPaletteIndex = (index: number) => {
+    const clamped = Math.min(index, paletteOptionIds.length - 1);
+    if (clamped < 0) return;
+    if (clamped < paletteResults.length) {
+      runCommand(paletteResults[clamped]);
+    } else {
+      const component = componentResults[clamped - paletteResults.length];
+      if (component.id === SAVE_ACTION) {
+        setPaletteOpen(false);
+        setPaletteQuery("");
+        onSaveRequested?.();
+        return;
+      }
+      runComponentCommand(component.id);
+    }
+  };
+
+  const onPaletteInputKeyDown = (event: ReactKeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "Escape") {
+      setPaletteOpen(false);
+      setPendingCommand(null);
+      return;
+    }
+    if (paletteOptionIds.length === 0) return;
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      setPaletteActiveIndex((i) => (i + 1) % paletteOptionIds.length);
+    } else if (event.key === "ArrowUp") {
+      event.preventDefault();
+      setPaletteActiveIndex((i) => (i - 1 + paletteOptionIds.length) % paletteOptionIds.length);
+    } else if (event.key === "Home" && paletteQuery.length === 0) {
+      event.preventDefault();
+      setPaletteActiveIndex(0);
+    } else if (event.key === "End" && paletteQuery.length === 0) {
+      event.preventDefault();
+      setPaletteActiveIndex(paletteOptionIds.length - 1);
+    } else if (event.key === "Enter") {
+      event.preventDefault();
+      runPaletteIndex(paletteActiveIndex);
+    }
+  };
 
   return (
     <div
@@ -479,14 +650,18 @@ function RichTextEditorInner({
         </div>
       )}
 
-      {/* Toolbar (MT-169) — labelled, keyboard-reachable (MT-173). */}
+      {/* Toolbar (MT-169) — labelled, keyboard-reachable (MT-173). Iteration-3
+          M16: ARIA toolbar keyboard pattern — ONE tab stop with roving
+          tabindex; ArrowLeft/Right/Home/End move focus between controls. */}
       <div
+        ref={toolbarRef}
         className="rich-text-editor__toolbar"
         role="toolbar"
         aria-label="Editor formatting"
         data-testid="rich-text-editor-toolbar"
+        onKeyDown={onToolbarKeyDown}
       >
-        {toolbarCommands.map((cmd) => (
+        {toolbarCommands.map((cmd, index) => (
           <button
             key={cmd.id}
             type="button"
@@ -498,6 +673,8 @@ function RichTextEditorInner({
             aria-label={ariaLabelFor(cmd)}
             title={ariaLabelFor(cmd)}
             disabled={readOnly}
+            tabIndex={index === toolbarFocusIndex ? 0 : -1}
+            onFocus={() => setToolbarFocusIndex(index)}
             onClick={() => runCommand(cmd)}
           >
             {cmd.label}
@@ -509,6 +686,8 @@ function RichTextEditorInner({
           data-testid="editor-open-find"
           aria-label="Find in document (Ctrl/Cmd+F)"
           title="Find in document (Ctrl/Cmd+F)"
+          tabIndex={toolbarCommands.length === toolbarFocusIndex ? 0 : -1}
+          onFocus={() => setToolbarFocusIndex(toolbarCommands.length)}
           onClick={() => setFindPanel((open) => (open === "closed" ? "find" : "closed"))}
         >
           Find
@@ -519,6 +698,8 @@ function RichTextEditorInner({
           data-testid="editor-open-export"
           aria-label="Export document (save to format)"
           title="Export document (save to format)"
+          tabIndex={toolbarCommands.length + 1 === toolbarFocusIndex ? 0 : -1}
+          onFocus={() => setToolbarFocusIndex(toolbarCommands.length + 1)}
           onClick={() => setExportMenuOpen(true)}
         >
           Export…
@@ -529,6 +710,8 @@ function RichTextEditorInner({
           data-testid="editor-open-palette"
           aria-label="Open command palette (more actions)"
           title="More actions (Ctrl/Cmd+P)"
+          tabIndex={toolbarCommands.length + 2 === toolbarFocusIndex ? 0 : -1}
+          onFocus={() => setToolbarFocusIndex(toolbarCommands.length + 2)}
           onClick={() => setPaletteOpen(true)}
         >
           More…
@@ -549,14 +732,24 @@ function RichTextEditorInner({
         <EditorContent editor={editor} />
       </div>
 
-      {/* Save-to-format export menu (MT-244 / DEC-003). */}
+      {/* Save-to-format export menu (MT-244 / DEC-003). Iteration-3 M13:
+          focus trap + Escape close + focus restore. */}
       {exportMenuOpen && (
         <div
+          ref={exportMenuRef}
           className="rich-text-editor__export-menu"
           role="dialog"
           aria-label="Export document"
+          aria-modal="true"
           data-testid="editor-export-menu"
           data-export-busy={exportBusy ? "true" : "false"}
+          onKeyDown={(e) => {
+            if (e.key === "Escape" && !exportBusy) {
+              setExportMenuOpen(false);
+              return;
+            }
+            onExportTrapKeyDown(e);
+          }}
         >
           <h4>Export document</h4>
           <p className="muted small">
@@ -610,14 +803,19 @@ function RichTextEditorInner({
         </div>
       )}
 
-      {/* Command palette (MT-170) — overflow + searchable all-command surface. */}
+      {/* Command palette (MT-170) — overflow + searchable all-command surface.
+          Iteration-3 M12/M13: ArrowUp/Down + Enter keyboard navigation with
+          valid listbox/option semantics (aria-activedescendant) and a focus
+          trap that restores focus on close. */}
       {paletteOpen && (
         <div
+          ref={paletteRef}
           className="rich-text-editor__palette"
           role="dialog"
           aria-label="Command palette"
           aria-modal="true"
           data-testid="editor-command-palette"
+          onKeyDown={onPaletteTrapKeyDown}
         >
           <input
             ref={paletteInputRef}
@@ -626,20 +824,35 @@ function RichTextEditorInner({
             data-testid="editor-command-palette-input"
             aria-label="Search editor commands"
             placeholder="Search commands…"
+            role="combobox"
+            aria-expanded="true"
+            aria-controls="editor-command-palette-listbox"
+            aria-activedescendant={activeOptionId}
             value={paletteQuery}
-            onChange={(e) => setPaletteQuery(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Escape") {
-                setPaletteOpen(false);
-                setPendingCommand(null);
-              }
+            onChange={(e) => {
+              setPaletteQuery(e.target.value);
+              setPaletteActiveIndex(0);
             }}
+            onKeyDown={onPaletteInputKeyDown}
           />
-          <ul className="rich-text-editor__palette-list" role="listbox" data-testid="editor-command-palette-list">
-            {paletteResults.map((cmd) => (
-              <li key={cmd.id} role="option" aria-selected="false">
+          <ul
+            id="editor-command-palette-listbox"
+            className="rich-text-editor__palette-list"
+            role="listbox"
+            aria-label="Matching commands"
+            data-testid="editor-command-palette-list"
+          >
+            {paletteResults.map((cmd, index) => (
+              <li
+                key={cmd.id}
+                id={`palette-opt-${cmd.id}`}
+                role="option"
+                aria-selected={index === paletteActiveIndex}
+                data-palette-active={index === paletteActiveIndex ? "true" : "false"}
+              >
                 <button
                   type="button"
+                  tabIndex={-1}
                   className="rich-text-editor__palette-item"
                   data-testid={`palette-cmd-${cmd.id}`}
                   data-command-id={cmd.id}
@@ -650,15 +863,24 @@ function RichTextEditorInner({
                 </button>
               </li>
             ))}
-            {/* Component-level surfaces: find/replace + export (MT-244). */}
-            {componentResults.map((cmd) => (
-              <li key={cmd.id} role="option" aria-selected="false">
+            {/* Component-level surfaces: find/replace + export (MT-244) + save. */}
+            {componentResults.map((cmd, index) => (
+              <li
+                key={cmd.id}
+                id={`palette-opt-${cmd.id}`}
+                role="option"
+                aria-selected={paletteResults.length + index === paletteActiveIndex}
+                data-palette-active={
+                  paletteResults.length + index === paletteActiveIndex ? "true" : "false"
+                }
+              >
                 <button
                   type="button"
+                  tabIndex={-1}
                   className="rich-text-editor__palette-item"
                   data-testid={`palette-cmd-${cmd.id}`}
                   data-command-id={cmd.id}
-                  onClick={() => runComponentCommand(cmd.id)}
+                  onClick={() => runPaletteIndex(paletteResults.length + index)}
                 >
                   <span>{cmd.label}</span>
                   <span className="muted small">{bindingsForAction(cmd.id)[0]?.chord ?? "editor"}</span>
@@ -674,13 +896,24 @@ function RichTextEditorInner({
         </div>
       )}
 
-      {/* Arg prompt for commands needing input (link target, language, …). */}
+      {/* Arg prompt for commands needing input (link target, language, …).
+          Iteration-3 M13: focus lands on the first field, Tab is trapped,
+          Escape cancels, and focus restores on close. */}
       {pendingCommand && (
         <div
+          ref={argPromptRef}
           className="rich-text-editor__arg-prompt"
           role="dialog"
           aria-label={`${pendingCommand.label} options`}
+          aria-modal="true"
           data-testid="editor-arg-prompt"
+          onKeyDown={(e) => {
+            if (e.key === "Escape") {
+              setPendingCommand(null);
+              return;
+            }
+            onArgPromptTrapKeyDown(e);
+          }}
         >
           <h4>{pendingCommand.label}</h4>
           {(pendingCommand.args ?? []).map((arg) => (

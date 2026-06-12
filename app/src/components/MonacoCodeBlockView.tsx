@@ -59,6 +59,23 @@ export function MonacoCodeBlockView(props: ReactNodeViewProps<HTMLElement>) {
 
   const isEditable = editor.isEditable;
 
+  // Iteration-3 M6/M17 (WCAG 2.1.2 keyboard trap): Escape returns focus from
+  // the embedded code editor to the prose document, placing the caret right
+  // AFTER this block so keyboard-only operators can continue writing. Monaco
+  // keeps Escape for its own open widgets (find/suggest) via the keybinding
+  // context below; the degraded textarea wires the same exit directly.
+  const exitToProse = () => {
+    const pos = typeof getPos === "function" ? getPos() : null;
+    if (typeof pos !== "number") return;
+    editor
+      .chain()
+      .focus()
+      .setTextSelection(Math.min(pos + node.nodeSize, editor.state.doc.content.size))
+      .run();
+  };
+  const exitToProseRef = useRef(exitToProse);
+  exitToProseRef.current = exitToProse;
+
   // MT-244: register the find/replace reveal handle so document-wide find can
   // highlight + scroll a match INSIDE this code block (Monaco when mounted,
   // the degraded textarea otherwise). Unregisters on unmount.
@@ -118,6 +135,13 @@ export function MonacoCodeBlockView(props: ReactNodeViewProps<HTMLElement>) {
           updateAttributes(makeCodeBlockAttrs(languageRef.current, next));
         });
       }
+      // M6/M17: keyboard exit. The context expression leaves Escape to Monaco
+      // while its own popups are open (find widget, suggestions, rename).
+      instance.addCommand(
+        monaco.KeyCode.Escape,
+        () => exitToProseRef.current(),
+        "!suggestWidgetVisible && !findWidgetVisible && !renameInputVisible",
+      );
       setMounted(true);
     } catch (error) {
       // createConfiguredEditor already reported a typed dependency failure; we
@@ -182,6 +206,8 @@ export function MonacoCodeBlockView(props: ReactNodeViewProps<HTMLElement>) {
       data-rt-hash={rtHash}
       data-monaco-mounted={mounted ? "true" : "false"}
       data-degraded={degraded ? "true" : "false"}
+      data-keyboard-exit="escape"
+      aria-label={`Embedded ${language} code editor. Press Escape to return to the document.`}
     >
       <div className="monaco-code-block__toolbar" contentEditable={false}>
         <label className="monaco-code-block__lang-label">
@@ -221,10 +247,18 @@ export function MonacoCodeBlockView(props: ReactNodeViewProps<HTMLElement>) {
           ref={fallbackRef}
           data-testid="monaco-code-block-fallback"
           className="monaco-code-block__fallback"
+          aria-label={`Code (${language}). Press Escape to return to the document.`}
           value={code}
           readOnly={!isEditable}
           spellCheck={false}
           onChange={(event) => onFallbackChange(event.target.value)}
+          onKeyDown={(event) => {
+            // M6/M17: same keyboard exit as the Monaco path.
+            if (event.key === "Escape") {
+              event.preventDefault();
+              exitToProse();
+            }
+          }}
           style={{ width: "100%", minHeight: 120, fontFamily: "monospace" }}
         />
       )}

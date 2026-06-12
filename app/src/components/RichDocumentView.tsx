@@ -387,6 +387,9 @@ export function RichDocumentView({ documentId }: Props) {
                 setIsDirty(true);
               }}
               readOnly={schemaBlocked !== null}
+              // Iteration-3 L16: Mod-s / palette save routes through the SAME
+              // guarded save path as the button (schema-block included).
+              onSaveRequested={() => void onSave()}
               backendError={backendError}
               // MT-244: bind media embed NodeViews to the document's workspace
               // so [[HS_images:…]]/[[video:…]]/album/slideshow resolve REAL

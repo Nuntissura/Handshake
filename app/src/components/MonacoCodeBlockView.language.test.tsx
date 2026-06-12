@@ -55,13 +55,14 @@ vi.mock("../lib/monaco/setup", () => {
     dispose: () => {},
     setSelection: () => {},
     revealRangeInCenterIfOutsideViewport: () => {},
+    addCommand: () => null,
   };
   return {
     createConfiguredEditor: ({ value }: { value: string }) => {
       monacoDouble.state.value = value;
       return instance;
     },
-    monaco: { editor: { setModelLanguage: () => {} } },
+    monaco: { editor: { setModelLanguage: () => {} }, KeyCode: { Escape: 9 } },
   };
 });
 

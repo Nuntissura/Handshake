@@ -343,6 +343,24 @@ test.describe("WP-KERNEL-009 iteration-3 REAL typing in the offline editor (netw
     expect(pasted!.contentHash).toBe(fnvHash("python", "x = 1"));
   });
 
+  test("M6/M17 (browser): Escape exits the embedded Monaco editor back to prose typing", async ({ page }) => {
+    await bootEditor(page);
+    const monaco = page.locator("[data-testid='monaco-code-block-host'] .monaco-editor").first();
+    await monaco.click();
+    const codeBefore = firstCodeBlock(await readDoc(page)).code;
+
+    // Escape leaves the code island (WCAG 2.1.2 keyboard-trap exit)...
+    await page.keyboard.press("Escape");
+    // ...and subsequent typing lands in the PROSE document, not the code.
+    await page.keyboard.type("escaped-to-prose");
+    await expect
+      .poll(async () => JSON.stringify(await readDoc(page)))
+      .toContain("escaped-to-prose");
+    const block = firstCodeBlock(await readDoc(page));
+    expect(block.code, "Escape-exit typing leaked into the code block").toBe(codeBefore);
+    expect(block.code).not.toContain("escaped-to-prose");
+  });
+
   test("IME (CDP): composition set + commit lands exactly once mid-document", async ({ page, context }) => {
     await bootEditor(page);
     const from0 = await caretAfterIntro(page);
