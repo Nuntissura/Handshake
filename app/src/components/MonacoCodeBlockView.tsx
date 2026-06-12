@@ -45,6 +45,13 @@ export function MonacoCodeBlockView(props: ReactNodeViewProps<HTMLElement>) {
   const editorRef = useRef<Editor | null>(null);
   const [mounted, setMounted] = useState(false);
   const [degraded, setDegraded] = useState(false);
+  // Iteration-3 L7 (lazy mount): a full Monaco instance per code block at
+  // parse time made large documents pay the whole boot cost upfront. The
+  // editor now mounts when the block approaches the viewport (generous
+  // rootMargin), immediately when IntersectionObserver is unavailable, or
+  // on demand when document-wide find needs to reveal a match inside it.
+  const [shouldMount, setShouldMount] = useState(false);
+  const pendingRevealRef = useRef<{ start: number; end: number } | null>(null);
   // Guards re-entrant attr writes when WE set the model value programmatically.
   const applyingRef = useRef(false);
   // Iteration-3 H4: the Monaco mount effect runs ONCE, so its
@@ -102,13 +109,41 @@ export function MonacoCodeBlockView(props: ReactNodeViewProps<HTMLElement>) {
         if (fallback) {
           fallback.focus();
           fallback.setSelectionRange(start, end);
+          return;
         }
+        // L7: the block has not lazily mounted yet (offscreen) — force the
+        // mount and replay this reveal once Monaco is up.
+        pendingRevealRef.current = { start, end };
+        setShouldMount(true);
       },
     });
   }, [getPos]);
 
-  // Mount Monaco once.
+  // L7: viewport-driven mount trigger. Falls back to immediate mounting when
+  // IntersectionObserver is unavailable (jsdom, very old webviews).
   useEffect(() => {
+    if (shouldMount) return;
+    const host = hostRef.current;
+    if (!host || typeof IntersectionObserver === "undefined") {
+      setShouldMount(true);
+      return;
+    }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          setShouldMount(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: "600px" },
+    );
+    observer.observe(host);
+    return () => observer.disconnect();
+  }, [shouldMount]);
+
+  // Mount Monaco once the lazy trigger fires (L7).
+  useEffect(() => {
+    if (!shouldMount) return;
     const host = hostRef.current;
     if (!host || editorRef.current) return;
     let instance: Editor | null = null;
@@ -142,6 +177,21 @@ export function MonacoCodeBlockView(props: ReactNodeViewProps<HTMLElement>) {
         () => exitToProseRef.current(),
         "!suggestWidgetVisible && !findWidgetVisible && !renameInputVisible",
       );
+      // L7: replay a reveal that arrived before the lazy mount completed.
+      const pendingReveal = pendingRevealRef.current;
+      if (pendingReveal && model) {
+        pendingRevealRef.current = null;
+        const from = model.getPositionAt(pendingReveal.start);
+        const to = model.getPositionAt(pendingReveal.end);
+        const range = {
+          startLineNumber: from.lineNumber,
+          startColumn: from.column,
+          endLineNumber: to.lineNumber,
+          endColumn: to.column,
+        };
+        instance.setSelection(range);
+        instance.revealRangeInCenterIfOutsideViewport(range);
+      }
       setMounted(true);
     } catch (error) {
       // createConfiguredEditor already reported a typed dependency failure; we
@@ -159,9 +209,10 @@ export function MonacoCodeBlockView(props: ReactNodeViewProps<HTMLElement>) {
       instance?.dispose();
       editorRef.current = null;
     };
-    // Mount-once: language/code changes are reconciled by the effects below.
+    // Mount-once (per lazy trigger): language/code changes are reconciled by
+    // the effects below.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [shouldMount]);
 
   // Reconcile external code changes (undo/redo, collaborative edits, reload)
   // into the Monaco model without clobbering the user's caret on self-edits.
@@ -251,6 +302,19 @@ export function MonacoCodeBlockView(props: ReactNodeViewProps<HTMLElement>) {
         </span>
       </div>
 
+      {/* L7: while the lazy mount has not fired (offscreen block), the code
+          stays VISIBLE as a static preview — never a blank surface. */}
+      {!mounted && !degraded && (
+        <pre
+          data-testid="monaco-code-block-preview"
+          className="monaco-code-block__preview"
+          contentEditable={false}
+          style={{ minHeight: 120, margin: 0, overflow: "hidden" }}
+        >
+          {code}
+        </pre>
+      )}
+
       {/* Real Monaco host. contentEditable=false so ProseMirror does not fight
           Monaco for the DOM subtree. */}
       <div
@@ -258,7 +322,7 @@ export function MonacoCodeBlockView(props: ReactNodeViewProps<HTMLElement>) {
         data-testid="monaco-code-block-host"
         className="monaco-code-block__host"
         contentEditable={false}
-        style={{ minHeight: 120, display: degraded ? "none" : "block" }}
+        style={{ minHeight: mounted ? 120 : 0, display: degraded ? "none" : "block" }}
       />
 
       {/* Degraded fallback: keep code editable + persisted if Monaco can't mount. */}

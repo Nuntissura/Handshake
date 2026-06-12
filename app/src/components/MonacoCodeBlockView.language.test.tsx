@@ -178,6 +178,41 @@ describe("MonacoCodeBlockView language/hash integrity (iteration-3 H4/M10)", () 
     });
   });
 
+  it("mounts Monaco lazily on viewport intersection, showing a code preview meanwhile (iteration-3 L7)", async () => {
+    // Controlled IntersectionObserver double: capture callbacks, fire manually.
+    const observers: Array<(entries: Array<{ isIntersecting: boolean }>) => void> = [];
+    const g = globalThis as Record<string, unknown>;
+    const realIO = g.IntersectionObserver;
+    g.IntersectionObserver = class {
+      constructor(cb: (entries: Array<{ isIntersecting: boolean }>) => void) {
+        observers.push(cb);
+      }
+      observe() {}
+      disconnect() {}
+      unobserve() {}
+    };
+    try {
+      await act(async () => {
+        render(<Harness language="typescript" code={"const lazy = true;"} />);
+      });
+      const block = await screen.findByTestId("monaco-code-block");
+      // Not yet mounted; the code stays VISIBLE as a static preview.
+      expect(block.getAttribute("data-monaco-mounted")).toBe("false");
+      const preview = screen.getByTestId("monaco-code-block-preview");
+      expect(preview.textContent).toBe("const lazy = true;");
+
+      // The block scrolls near the viewport -> the observer fires -> Monaco mounts.
+      await act(async () => {
+        for (const cb of observers) cb([{ isIntersecting: true }]);
+      });
+      await waitFor(() => expect(block.getAttribute("data-monaco-mounted")).toBe("true"));
+      expect(screen.queryByTestId("monaco-code-block-preview")).toBeNull();
+      expect(monacoDouble.state.value).toBe("const lazy = true;");
+    } finally {
+      g.IntersectionObserver = realIO;
+    }
+  });
+
   it("reconciles EXTERNAL code changes via pushEditOperations with view-state preserve, never setValue (iteration-3 M5)", async () => {
     type TiptapEditor = NonNullable<ReturnType<typeof useEditor>>;
     let editor: TiptapEditor | null = null;
