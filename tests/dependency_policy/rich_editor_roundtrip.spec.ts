@@ -82,6 +82,9 @@ interface RichEditorHarnessWindow {
       | null
       | {
           ok: boolean;
+          schemaRehydrated: boolean;
+          docEqual: boolean;
+          rehydrateError: string | null;
           beforeHash: string;
           afterHash: string;
           beforeLanguage: string;
@@ -169,12 +172,18 @@ test.describe("WP-KERNEL-009 integrated rich-editor offline round-trip (network 
     expect(debug?.links?.length).toBeGreaterThanOrEqual(2);
 
     // ---- MT-176: deterministic round-trip of the embedded code block. ----
+    // Iteration-3 H7: this is now a REAL re-hydration through the editor
+    // schema (nodeFromJSON + check + structural compare), not a clone-vs-clone
+    // tautology — the assertions below pin that contract.
     await page.getByTestId("harness-run-roundtrip").click();
     const roundTrip = await page.evaluate(
       () => (window as unknown as RichEditorHarnessWindow).__RICH_EDITOR_HARNESS__?.roundTrip,
     );
     expect(roundTrip, "round-trip result missing").toBeTruthy();
     expect(roundTrip?.ok, `round-trip mismatch: ${JSON.stringify(roundTrip)}`).toBe(true);
+    expect(roundTrip?.schemaRehydrated, `schema re-hydration failed: ${roundTrip?.rehydrateError}`).toBe(true);
+    expect(roundTrip?.docEqual, "re-hydrated doc structurally diverged from the serialized doc").toBe(true);
+    expect(roundTrip?.rehydrateError).toBeNull();
     expect(roundTrip?.beforeLanguage).toBe("typescript");
     expect(roundTrip?.afterLanguage).toBe("typescript");
     expect(roundTrip?.beforeHash).toBe(roundTrip?.afterHash);

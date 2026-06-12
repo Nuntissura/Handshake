@@ -20,8 +20,11 @@
 
 import { StrictMode, useCallback, useEffect } from "react";
 import { createRoot } from "react-dom/client";
+import { getSchema } from "@tiptap/core";
 import type { JSONContent } from "@tiptap/core";
 import { RichTextEditor } from "../components/RichTextEditor";
+import { buildHandshakeEditorExtensions } from "../lib/editor/build_editor_extensions";
+import { jsonDeepEquals } from "../lib/editor/doc_equality";
 import {
   EDITOR_DEBUG_GLOBAL_KEY,
   type EditorDebugSnapshot,
@@ -39,6 +42,13 @@ export interface RichEditorHarnessState {
     | null
     | {
         ok: boolean;
+        /** True when the serialized JSON re-hydrated through the REAL editor
+         * schema (nodeFromJSON + check()) without error (iteration-3 H7). */
+        schemaRehydrated: boolean;
+        /** True when the re-hydrated doc structurally equals the serialized
+         * one (no nodes/attrs dropped or normalized away). */
+        docEqual: boolean;
+        rehydrateError: string | null;
         beforeHash: string;
         afterHash: string;
         beforeLanguage: string;
@@ -56,6 +66,11 @@ declare global {
   }
 }
 
+// NOTE (iteration-3 H7): hsLink is an INLINE atom — it must live inside a
+// paragraph. The previous harness doc put the links directly under `doc`,
+// which ProseMirror renders but node.check() rejects ("Invalid content for
+// node doc"); the old tautological round-trip masked exactly that defect and
+// the new schema re-hydration caught it immediately.
 const INITIAL_DOC: JSONContent = {
   type: "doc",
   content: [
@@ -65,12 +80,18 @@ const INITIAL_DOC: JSONContent = {
       content: [{ type: "text", text: "Intro paragraph with a typed link and an embed." }],
     },
     {
-      type: "hsLink",
-      attrs: { refKind: "wp", refValue: "WP-KERNEL-009", label: "WP-KERNEL-009", resolved: true },
-    },
-    {
-      type: "hsLink",
-      attrs: { refKind: "album", refValue: "album-001", label: "album-001", resolved: true },
+      type: "paragraph",
+      content: [
+        {
+          type: "hsLink",
+          attrs: { refKind: "wp", refValue: "WP-KERNEL-009", label: "WP-KERNEL-009", resolved: true },
+        },
+        { type: "text", text: " " },
+        {
+          type: "hsLink",
+          attrs: { refKind: "album", refValue: "album-001", label: "album-001", resolved: true },
+        },
+      ],
     },
     {
       type: "monacoCodeBlock",
@@ -109,22 +130,43 @@ function HarnessShell() {
     if (debug) state.debug = debug;
   }, []);
 
-  // In-harness round-trip: snapshot the current code block, serialize the doc to
-  // JSON, re-hydrate the comparison, and verify language+code+hash are stable.
+  // In-harness round-trip (iteration-3 H7 — the previous version compared a
+  // JSON deep-clone to itself, a tautology). Now a REAL re-hydration:
+  //   1. serialize the live doc to the persistence wire format (JSON string),
+  //   2. re-hydrate it through the ACTUAL editor schema (getSchema over the
+  //      full Handshake extension set -> nodeFromJSON -> node.check(), which
+  //      throws on unknown nodes/marks or invalid content expressions),
+  //   3. re-serialize the schema document and compare STRUCTURALLY to what
+  //      went in, then verify the embedded code block's language/code/hash.
   const runRoundTrip = useCallback(() => {
     const before = firstCodeBlockAttrs(state.docJson);
-    // Re-serialize through JSON (the persistence path's content_json) and read back.
     const serialized = JSON.parse(JSON.stringify(state.docJson)) as JSONContent;
-    const after = firstCodeBlockAttrs(serialized);
+    let rehydrated: JSONContent | null = null;
+    let rehydrateError: string | null = null;
+    try {
+      const schema = getSchema(buildHandshakeEditorExtensions());
+      const node = schema.nodeFromJSON(serialized);
+      node.check();
+      rehydrated = node.toJSON() as JSONContent;
+    } catch (error) {
+      rehydrateError = error instanceof Error ? error.message : String(error);
+    }
+    const after = rehydrated ? firstCodeBlockAttrs(rehydrated) : null;
+    const docEqual = rehydrated !== null && jsonDeepEquals(serialized, rehydrated);
     const result = {
       ok:
+        rehydrateError === null &&
+        docEqual &&
         !!before &&
         !!after &&
         before.language === after.language &&
         before.code === after.code &&
-        // Recompute the hash from the round-tripped content and confirm it matches.
+        // Recompute the hash from the re-hydrated content and confirm it matches.
         codeBlockHash(after.language, after.code) === after.contentHash &&
         before.contentHash === after.contentHash,
+      schemaRehydrated: rehydrateError === null,
+      docEqual,
+      rehydrateError,
       beforeHash: before?.contentHash ?? "",
       afterHash: after?.contentHash ?? "",
       beforeLanguage: before?.language ?? "",
