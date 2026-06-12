@@ -132,6 +132,141 @@ async fn dangling_handle_degrades_to_discovery() {
 
     assert_eq!(planned.plan.retrieval_mode, QueryRetrievalMode::HybridRag);
     assert!(planned.confirmed_handle.is_none());
+    // Adversarial-v2: the dangle is RECORDED, not silent.
+    assert_eq!(planned.dangling_handles.len(), 1);
+    assert_eq!(planned.dangling_handles[0].kind, "entity");
+    assert_eq!(planned.dangling_handles[0].id, "ENT-does-not-exist");
+}
+
+/// Adversarial-v2 MT-130: WP / MT / relationship handles are existence-checked
+/// exactly like entity/source handles — a dangling one degrades the plan to a
+/// broader mode AND is recorded, never a false direct/exact plan.
+#[tokio::test]
+async fn dangling_wp_mt_relationship_handles_degrade_and_record() {
+    let fx = skip_if_no_pg!(
+        MemoryFixture::setup().await,
+        "dangling_wp_mt_relationship_handles"
+    );
+
+    let planner = CheapestAuthoritativePathPlanner::new(&fx.pg.db);
+    let request = RetrievalRequest::discovery(&fx.workspace_id, "load ghosts")
+        .with_handle(AuthoritativeHandle::WorkPacketId("WP-GHOST-001".to_string()))
+        .with_handle(AuthoritativeHandle::MicroTaskId("MT-999".to_string()))
+        .with_handle(AuthoritativeHandle::RelationshipId(
+            "KREL-0000000000000000000000000000000000000000000000000000000000000000".to_string(),
+        ));
+    let planned = planner.plan(&request).await.expect("plan");
+
+    // Before the hardening this produced an unsatisfiable direct_load on the
+    // ghost WP id; now it degrades to discovery with all three dangles named.
+    assert_eq!(planned.plan.retrieval_mode, QueryRetrievalMode::HybridRag);
+    assert!(planned.confirmed_handle.is_none());
+    let kinds: Vec<&str> = planned
+        .dangling_handles
+        .iter()
+        .map(|d| d.kind.as_str())
+        .collect();
+    assert_eq!(kinds, vec!["work_packet", "micro_task", "relationship"]);
+    assert!(planned.dangling_handles[0].reason().contains("WP-GHOST-001"));
+}
+
+/// Adversarial-v2 MT-130: an INDEXED work-packet / micro-task / relationship
+/// handle confirms against the ProjectKnowledgeIndex and anchors the cheapest
+/// authoritative mode (direct_load / exact_lookup), with no dangles recorded.
+#[tokio::test]
+async fn indexed_wp_mt_relationship_handles_confirm() {
+    let fx = skip_if_no_pg!(
+        MemoryFixture::setup().await,
+        "indexed_wp_mt_relationship_handles"
+    );
+
+    // Index the WP + MT as ProjectKnowledgeIndex entities (the packet store)
+    // and a real edge whose relationship_id is the exact graph handle.
+    fx.entity("work_packet", "WP-KERNEL-009", "WP-KERNEL-009").await;
+    fx.entity("micro_task", "MT-130", "MT-130").await;
+    let a = fx.entity("symbol", "edge_a", "EdgeA").await;
+    let b = fx.entity("symbol", "edge_b", "EdgeB").await;
+    let edge = fx
+        .pg
+        .db
+        .upsert_knowledge_edge(NewKnowledgeEdge {
+            workspace_id: fx.workspace_id.clone(),
+            edge_type: KnowledgeEdgeType::DependsOn,
+            source_entity_id: a,
+            target_entity_id: b,
+            extractor_version: "test_v1".to_string(),
+            confidence: 0.9,
+            detected_in_run: None,
+            evidence_span_ids: vec![fx.span_id.clone()],
+        })
+        .await
+        .expect("edge");
+
+    let planner = CheapestAuthoritativePathPlanner::new(&fx.pg.db);
+
+    // Confirmed WP handle -> direct_load.
+    let planned = planner
+        .plan(
+            &RetrievalRequest::discovery(&fx.workspace_id, "load WP").with_handle(
+                AuthoritativeHandle::WorkPacketId("WP-KERNEL-009".to_string()),
+            ),
+        )
+        .await
+        .expect("plan wp");
+    assert_eq!(planned.plan.retrieval_mode, QueryRetrievalMode::DirectLoad);
+    assert_eq!(
+        planned.confirmed_handle.as_ref().map(|c| c.kind.as_str()),
+        Some("work_packet")
+    );
+    assert!(planned.dangling_handles.is_empty());
+
+    // Confirmed MT handle -> direct_load.
+    let planned = planner
+        .plan(
+            &RetrievalRequest::discovery(&fx.workspace_id, "load MT")
+                .with_handle(AuthoritativeHandle::MicroTaskId("MT-130".to_string())),
+        )
+        .await
+        .expect("plan mt");
+    assert_eq!(planned.plan.retrieval_mode, QueryRetrievalMode::DirectLoad);
+    assert_eq!(
+        planned.confirmed_handle.as_ref().map(|c| c.kind.as_str()),
+        Some("micro_task")
+    );
+
+    // Confirmed relationship handle -> exact_lookup citing the stable id.
+    let planned = planner
+        .plan(
+            &RetrievalRequest::discovery(&fx.workspace_id, "load edge").with_handle(
+                AuthoritativeHandle::RelationshipId(edge.relationship_id.clone()),
+            ),
+        )
+        .await
+        .expect("plan rel");
+    assert_eq!(planned.plan.retrieval_mode, QueryRetrievalMode::ExactLookup);
+    assert_eq!(
+        planned.confirmed_handle.as_ref().map(|c| c.id.as_str()),
+        Some(edge.relationship_id.as_str())
+    );
+
+    // A dangling WP followed by a REAL entity: the plan anchors on the entity
+    // and records the WP dangle (degrade, not fail).
+    let entity_id = fx.entity("symbol", "fallback_anchor", "Anchor").await;
+    let planned = planner
+        .plan(
+            &RetrievalRequest::discovery(&fx.workspace_id, "load mixed")
+                .with_handle(AuthoritativeHandle::WorkPacketId("WP-GHOST-XYZ".to_string()))
+                .with_handle(AuthoritativeHandle::EntityId(entity_id.clone())),
+        )
+        .await
+        .expect("plan mixed");
+    assert_eq!(planned.plan.retrieval_mode, QueryRetrievalMode::DirectLoad);
+    assert_eq!(
+        planned.confirmed_handle.as_ref().map(|c| c.id.as_str()),
+        Some(entity_id.as_str())
+    );
+    assert_eq!(planned.dangling_handles.len(), 1);
+    assert_eq!(planned.dangling_handles[0].kind, "work_packet");
 }
 
 /// MT-132: a bounded graph traversal over a real edge yields non-empty

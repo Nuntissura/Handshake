@@ -10,11 +10,13 @@
 //!
 //! This planner takes a [`RetrievalRequest`] (the query plus any authoritative
 //! handles the caller already holds) and produces a [`QueryPlan`]. It is
-//! deterministic: the same request yields the same plan. When a handle names an
-//! entity, the planner CONFIRMS the entity exists in the ProjectKnowledgeIndex
-//! (real PostgreSQL read via `KnowledgeStore`) before choosing `direct_load` —
-//! a dangling handle degrades to a broader mode rather than producing a plan
-//! that cannot be satisfied.
+//! deterministic: the same request yields the same plan. EVERY handle kind
+//! (entity, work-packet, micro-task, source, relationship) is CONFIRMED
+//! against the ProjectKnowledgeIndex with a real PostgreSQL read before it may
+//! anchor `direct_load`/`exact_lookup` (adversarial-v2 MT-130) — a dangling
+//! handle degrades the plan to a broader mode AND is recorded in
+//! [`PlannedRetrieval::dangling_handles`] rather than producing a plan that
+//! cannot be satisfied.
 //!
 //! The folded WP-1-RAG-Retrieval-Mode-Policy-v1 stub intent is preserved here:
 //! "one governed retrieval-mode policy covers none/direct_load/exact_lookup/
@@ -123,6 +125,12 @@ pub struct PlannedRetrieval {
     /// The handle the planner confirmed and chose to load directly, if the
     /// chosen mode is direct_load / exact_lookup.
     pub confirmed_handle: Option<ConfirmedHandle>,
+    /// Handles the caller supplied that did NOT confirm against the
+    /// ProjectKnowledgeIndex (adversarial-v2 MT-130): each dangling handle is
+    /// RECORDED here (and surfaced into the trace by the executor) so an
+    /// operator can see why the plan degraded to a broader mode instead of
+    /// silently producing an unsatisfiable direct load.
+    pub dangling_handles: Vec<DanglingHandle>,
 }
 
 /// A handle the planner confirmed exists in the ProjectKnowledgeIndex.
@@ -132,6 +140,25 @@ pub struct ConfirmedHandle {
     pub kind: String,
     /// The concrete id loaded (entity_id for identity handles).
     pub id: String,
+}
+
+/// A supplied handle that failed existence confirmation (MT-130 degrade
+/// recording): the plan widened instead of trusting it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DanglingHandle {
+    /// `entity` | `work_packet` | `micro_task` | `source` | `relationship`.
+    pub kind: String,
+    pub id: String,
+}
+
+impl DanglingHandle {
+    /// The actor-visible degrade reason for a trace warning.
+    pub fn reason(&self) -> String {
+        format!(
+            "authoritative handle did not confirm against the ProjectKnowledgeIndex: {} `{}` (plan degraded to a broader mode)",
+            self.kind, self.id
+        )
+    }
 }
 
 /// The cheapest-authoritative-path planner. Confirms entity/source handles
@@ -150,15 +177,21 @@ impl<'a> CheapestAuthoritativePathPlanner<'a> {
     /// Plan a retrieval, choosing the cheapest authoritative mode that the
     /// request's handles + hints justify. Confirms entity handles against PG.
     pub async fn plan(&self, request: &RetrievalRequest) -> StorageResult<PlannedRetrieval> {
+        // Existence-check the supplied handles ONCE (MT-130): the first
+        // confirmed handle anchors the plan; every dangling handle is recorded
+        // so the degrade is explainable.
+        let (confirmed, dangling_handles) = self.first_confirmed_handle(request).await?;
+
         // 1. User/policy can force a direct, no-RAG path regardless of handles.
         if let HybridPosture::UserForcedDirect = request.hybrid_posture {
             // If a handle is present we still prefer direct_load; otherwise the
             // forced posture yields a `none` plan with the user reason.
-            if let Some(confirmed) = self.first_confirmed_handle(request).await? {
+            if let Some(confirmed) = confirmed {
                 return Ok(self.direct_or_exact_plan(
                     request,
                     confirmed,
                     NonHybridReason::UserForcedDirect,
+                    dangling_handles,
                 ));
             }
             return Ok(PlannedRetrieval {
@@ -169,11 +202,12 @@ impl<'a> CheapestAuthoritativePathPlanner<'a> {
                     vec![],
                 ),
                 confirmed_handle: None,
+                dangling_handles,
             });
         }
 
         // 2. Cheapest authoritative: a confirmed exact handle -> direct/exact.
-        if let Some(confirmed) = self.first_confirmed_handle(request).await? {
+        if let Some(confirmed) = confirmed {
             let reason = if request.freshness_uncertain {
                 // Even with a handle, an uncertain-freshness caller records the
                 // freshness reason so operators see why broader was skipped.
@@ -181,7 +215,7 @@ impl<'a> CheapestAuthoritativePathPlanner<'a> {
             } else {
                 NonHybridReason::ExactIdentifierKnown
             };
-            return Ok(self.direct_or_exact_plan(request, confirmed, reason));
+            return Ok(self.direct_or_exact_plan(request, confirmed, reason, dangling_handles));
         }
 
         // 3. No exact handle, but a bounded graph neighborhood is expected.
@@ -207,6 +241,7 @@ impl<'a> CheapestAuthoritativePathPlanner<'a> {
                     route,
                 ),
                 confirmed_handle: None,
+                dangling_handles,
             });
         }
 
@@ -221,6 +256,7 @@ impl<'a> CheapestAuthoritativePathPlanner<'a> {
                     vec![],
                 ),
                 confirmed_handle: None,
+                dangling_handles,
             });
         }
 
@@ -250,68 +286,103 @@ impl<'a> CheapestAuthoritativePathPlanner<'a> {
         Ok(PlannedRetrieval {
             plan: self.build_plan(request, QueryRetrievalMode::HybridRag, None, route),
             confirmed_handle: None,
+            dangling_handles,
         })
     }
 
     /// Resolve the first handle (cheapest-first order in the request) that
-    /// CONFIRMS against the ProjectKnowledgeIndex. WP/MT/source/relationship
-    /// handles are authoritative by construction; entity handles are confirmed
-    /// by a real PG read so a dangling id degrades the plan.
+    /// CONFIRMS against the ProjectKnowledgeIndex, recording every handle that
+    /// did not (adversarial-v2 MT-130). EVERY handle kind is existence-checked
+    /// by a real PG read before it may anchor a direct/exact plan:
+    /// entity handles against `knowledge_entities`, WP/MT handles against the
+    /// indexed work-packet / micro-task entities (the packet store inside the
+    /// ProjectKnowledgeIndex), source handles against `knowledge_sources`, and
+    /// relationship handles against `knowledge_edges.relationship_id`. A
+    /// dangling handle never produces an unsatisfiable plan — the planner
+    /// degrades to a broader mode and the dangle is recorded.
     async fn first_confirmed_handle(
         &self,
         request: &RetrievalRequest,
-    ) -> StorageResult<Option<ConfirmedHandle>> {
+    ) -> StorageResult<(Option<ConfirmedHandle>, Vec<DanglingHandle>)> {
+        let mut dangling = Vec::new();
+        let mut confirmed = None;
         for handle in &request.handles {
-            match handle {
+            let (kind, id, hit) = match handle {
                 AuthoritativeHandle::EntityId(entity_id) => {
-                    if let Some(entity) = self.db.get_knowledge_entity(entity_id).await? {
-                        return Ok(Some(ConfirmedHandle {
-                            kind: "entity".to_string(),
-                            id: entity.entity_id,
-                        }));
-                    }
+                    let hit = self
+                        .db
+                        .get_knowledge_entity(entity_id)
+                        .await?
+                        .map(|entity| entity.entity_id);
+                    ("entity", entity_id.clone(), hit)
                 }
                 AuthoritativeHandle::EntityIdentity { kind, key } => {
-                    if let Some(entity) = self
+                    let hit = self
                         .db
                         .get_knowledge_entity_by_identity(&request.workspace_id, *kind, key)
                         .await?
-                    {
-                        return Ok(Some(ConfirmedHandle {
-                            kind: "entity".to_string(),
-                            id: entity.entity_id,
-                        }));
-                    }
+                        .map(|entity| entity.entity_id);
+                    ("entity", key.clone(), hit)
                 }
                 AuthoritativeHandle::WorkPacketId(id) => {
-                    return Ok(Some(ConfirmedHandle {
-                        kind: "work_packet".to_string(),
-                        id: id.clone(),
-                    }));
+                    let hit = self
+                        .db
+                        .get_knowledge_entity_by_identity(
+                            &request.workspace_id,
+                            KnowledgeEntityKind::WorkPacket,
+                            id,
+                        )
+                        .await?
+                        .map(|_| id.clone());
+                    ("work_packet", id.clone(), hit)
                 }
                 AuthoritativeHandle::MicroTaskId(id) => {
-                    return Ok(Some(ConfirmedHandle {
-                        kind: "micro_task".to_string(),
-                        id: id.clone(),
-                    }));
+                    let hit = self
+                        .db
+                        .get_knowledge_entity_by_identity(
+                            &request.workspace_id,
+                            KnowledgeEntityKind::MicroTask,
+                            id,
+                        )
+                        .await?
+                        .map(|_| id.clone());
+                    ("micro_task", id.clone(), hit)
                 }
                 AuthoritativeHandle::SourceId(id) => {
-                    if let Some(source) = self.db.get_knowledge_source(id).await? {
-                        return Ok(Some(ConfirmedHandle {
-                            kind: "source".to_string(),
-                            id: source.source_id,
-                        }));
-                    }
+                    let hit = self
+                        .db
+                        .get_knowledge_source(id)
+                        .await?
+                        .map(|source| source.source_id);
+                    ("source", id.clone(), hit)
                 }
                 AuthoritativeHandle::RelationshipId(id) => {
-                    return Ok(Some(ConfirmedHandle {
-                        kind: "relationship".to_string(),
-                        id: id.clone(),
-                    }));
+                    let hit = self
+                        .db
+                        .get_knowledge_edge_by_relationship_id(&request.workspace_id, id)
+                        .await?
+                        .map(|edge| edge.relationship_id);
+                    ("relationship", id.clone(), hit)
                 }
+            };
+            match hit {
+                Some(confirmed_id) => {
+                    confirmed = Some(ConfirmedHandle {
+                        kind: kind.to_string(),
+                        id: confirmed_id,
+                    });
+                    // Cheapest-first: the first confirmed handle wins; the
+                    // remaining handles are not checked (they were supplied in
+                    // cheapest-first order and the plan is already anchored).
+                    break;
+                }
+                None => dangling.push(DanglingHandle {
+                    kind: kind.to_string(),
+                    id,
+                }),
             }
         }
-        Ok(None)
+        Ok((confirmed, dangling))
     }
 
     /// Build a direct_load (whole record) or exact_lookup (exact key) plan for a
@@ -322,6 +393,7 @@ impl<'a> CheapestAuthoritativePathPlanner<'a> {
         request: &RetrievalRequest,
         confirmed: ConfirmedHandle,
         reason: NonHybridReason,
+        dangling_handles: Vec<DanglingHandle>,
     ) -> PlannedRetrieval {
         let (mode, purpose) = if confirmed.kind == "relationship" {
             (
@@ -339,6 +411,7 @@ impl<'a> CheapestAuthoritativePathPlanner<'a> {
         PlannedRetrieval {
             plan,
             confirmed_handle: Some(confirmed),
+            dangling_handles,
         }
     }
 
