@@ -22,7 +22,7 @@
   "title": "ParallelSwarmStateRecovery-219-QuietModeBackgroundWork",
   "group": "ParallelSwarmStateRecovery",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-12T21:32:36.615Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-219.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -81,17 +81,78 @@
     ]
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-209"
     ],
     "blocks": [],
     "claimed_by": null,
-    "completed_by": null
+    "completed_by": "KERNEL_BUILDER-20260612",
+    "implementation_commit": "1e55f9d6",
+    "evidence": [
+      {
+        "kind": "implementation",
+        "at_utc": "2026-06-12T21:32:36.615Z",
+        "by": "KERNEL_BUILDER-20260612",
+        "commits": [
+          {
+            "sha": "1e55f9d6",
+            "slice": "MT-219 quiet indexing, test, visual capture, and backend navigation work"
+          }
+        ],
+        "summary": "MT-219 adds PostgreSQL/EventLedger quiet-background-work receipts, a RunQuietBackgroundWork capability, constrained quiet policies for indexing/backend-navigation/visual-capture/test-run work, quiet indexing lease acquisition that avoids queued orphan leases under contention, quiet code-index/check/screenshot wrappers that preflight denial paths before side effects, backend navigation route receipt emission, and DB constraints enforcing quiet-policy booleans and work-kind alignment."
+      },
+      {
+        "kind": "test_proof",
+        "at_utc": "2026-06-12T21:32:36.615Z",
+        "commands": [
+          {
+            "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test parallel_swarm_state_recovery_tests quiet -- --nocapture",
+            "result": "PASS; 4/4 quiet-background-work focused PostgreSQL/EventLedger tests passed"
+          },
+          {
+            "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test parallel_swarm_state_recovery_tests -- --nocapture",
+            "result": "PASS; 24/24 parallel swarm state recovery tests passed"
+          },
+          {
+            "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test knowledge_code_nav_api_tests -- --nocapture",
+            "result": "PASS; 2/2 backend navigation API tests passed with persisted quiet receipt assertions"
+          },
+          {
+            "command": "rustfmt --edition 2021 --check src/backend/handshake_core/src/api/knowledge_code_nav.rs src/backend/handshake_core/src/governance_check_runner.rs src/backend/handshake_core/src/kernel/product_screenshot_capture.rs src/backend/handshake_core/src/knowledge_code_index/engine.rs src/backend/handshake_core/src/swarm_orchestration/state_recovery.rs src/backend/handshake_core/tests/knowledge_code_nav_api_tests.rs src/backend/handshake_core/tests/parallel_swarm_state_recovery_tests.rs",
+            "result": "PASS"
+          },
+          {
+            "command": "rustfmt --edition 2021 --check --config skip_children=true src/backend/handshake_core/src/kernel/mod.rs",
+            "result": "PASS"
+          },
+          {
+            "command": "git diff --check",
+            "result": "PASS; CRLF notices only"
+          }
+        ]
+      },
+      {
+        "kind": "adversarial_review",
+        "at_utc": "2026-06-12T21:32:36.615Z",
+        "reviewer": "multi_agent:019ebd50-6561-7040-b474-f02ea85d35aa",
+        "result": "PASS",
+        "summary": "Reviewer confirmed the earlier ordering and orphan gaps are closed: quiet indexing uses try_acquire_indexing_lease before receipt/KIR write, visual capture prevalidates request/focus/PNG/redaction before receipt, quiet checks preflight missing capability and unsupported kind before receipt while using the planned evidence artifact id, and backend nav routes persist and return quiet receipt IDs. Residual uncertainty is limited to infrastructure-level cross-transaction failure, not an in-scope MT-219 implementation gap."
+      },
+      {
+        "kind": "adversarial_review",
+        "at_utc": "2026-06-12T21:32:36.615Z",
+        "reviewer": "multi_agent:019ebd7a-0c16-77b0-b75c-70bebba8d58c",
+        "result": "PASS",
+        "summary": "Reviewer found no concrete in-scope MT-219 gap under the narrowed quiet swarm/background contract. They verified quiet wrappers call real KIR/artifact/check code, successful backend nav routes persist receipts, denial paths occur before KIR/artifact/check side effects, and normal foreground operator/CLI paths were not treated as blockers because no in-scope quiet swarm/background bypass was found."
+      }
+    ],
+    "ready_by": "KERNEL_BUILDER-20260612",
+    "ready_for_validation_at_utc": "2026-06-12T21:32:36.615Z"
   },
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260612-SWARM-MT219",
     "review_request_receipt_id": null,
     "review_response_receipt_id": null,
     "wp_validator_session": null
