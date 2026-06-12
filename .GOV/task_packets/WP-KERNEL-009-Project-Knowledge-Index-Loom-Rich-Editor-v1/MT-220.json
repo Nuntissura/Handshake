@@ -22,7 +22,7 @@
   "title": "ParallelSwarmStateRecovery-220-SwarmDashboardProjection",
   "group": "ParallelSwarmStateRecovery",
   "created_at_utc": "2026-06-11T07:20:56.864Z",
-  "updated_at_utc": "2026-06-11T07:20:56.864Z",
+  "updated_at_utc": "2026-06-12T22:56:23.358Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/MT-220.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1/packet.json"
@@ -81,17 +81,74 @@
     ]
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-209"
     ],
     "blocks": [],
     "claimed_by": null,
-    "completed_by": null
+    "completed_by": "KERNEL_BUILDER-20260612",
+    "implementation_commit": "3eead501",
+    "evidence": [
+      {
+        "kind": "implementation",
+        "at_utc": "2026-06-12T22:56:23.358Z",
+        "by": "KERNEL_BUILDER-20260612",
+        "commits": [
+          {
+            "sha": "3eead501",
+            "slice": "MT-220 PostgreSQL/EventLedger-backed parallel swarm dashboard projection"
+          }
+        ],
+        "summary": "MT-220 adds a projection-only parallel swarm dashboard read model over PostgreSQL and EventLedger, exposed through GET /kernel/parallel_swarm/dashboard_projection. The projection returns bounded row arrays with durable source refs, semantic EventLedger aggregate proof, authoritative full-source totals, truncation warnings, lane/status aggregates, and deterministic exclusion of claim-less handoffs that cannot be workspace-attributed."
+      },
+      {
+        "kind": "test_proof",
+        "at_utc": "2026-06-12T22:56:23.358Z",
+        "commands": [
+          {
+            "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test parallel_swarm_state_recovery_tests swarm_dashboard -- --nocapture",
+            "result": "PASS; 3/3 swarm dashboard projection/API/truncation PostgreSQL/EventLedger tests passed"
+          },
+          {
+            "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test parallel_swarm_state_recovery_tests -- --nocapture",
+            "result": "PASS; 27/27 parallel swarm state recovery tests passed"
+          },
+          {
+            "command": "rustfmt --edition 2021 --check src/backend/handshake_core/src/api/kernel.rs src/backend/handshake_core/src/swarm_orchestration/state_recovery.rs src/backend/handshake_core/tests/parallel_swarm_state_recovery_tests.rs",
+            "result": "PASS"
+          },
+          {
+            "command": "git diff --check",
+            "result": "PASS; CRLF notices only"
+          },
+          {
+            "command": "git diff -- src/backend/handshake_core/src/kernel/visual_debugging_loop.rs src/backend/handshake_core/src/kernel/visual_diff_baseline.rs --exit-code",
+            "result": "PASS; known line-ending status noise has no content diff"
+          }
+        ]
+      },
+      {
+        "kind": "adversarial_review",
+        "at_utc": "2026-06-12T22:56:23.358Z",
+        "reviewer": "multi_agent:019ebde4-cfa4-78a1-bac5-e19489d53768",
+        "result": "PASS_AFTER_HARDENING",
+        "summary": "Initial review found cross-workspace claim-less handoff count leakage, limited-row totals masquerading as authoritative totals, syntactic-only source-ref validation, and narrow no-mutation test snapshots. The hardened implementation removed the global claim-less handoff count, added full durable source totals and truncation warnings, made EventLedger source refs semantic with aggregate type/id plus watermark membership validation, and added global source-table/EventLedger no-mutation snapshots. Re-review returned PASS with all prior HIGH/MEDIUM findings resolved."
+      },
+      {
+        "kind": "adversarial_review",
+        "at_utc": "2026-06-12T22:56:23.358Z",
+        "reviewer": "multi_agent:019ebde4-91dc-7f81-9f11-81a04383a805",
+        "result": "PASS",
+        "summary": "Reviewer confirmed the projection is SELECT-only, route-backed, PostgreSQL/EventLedger-backed, bounded, and validated against forged UI-authoritative/source-less projections. After hardening, their earlier low findings around semantic EventLedger linkage and claim-less handoff warning leakage were resolved; no new findings remained."
+      }
+    ],
+    "ready_by": "KERNEL_BUILDER-20260612",
+    "ready_for_validation_at_utc": "2026-06-12T22:56:23.358Z"
   },
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260612-SWARM-MT220",
     "review_request_receipt_id": null,
     "review_response_receipt_id": null,
     "wp_validator_session": null
