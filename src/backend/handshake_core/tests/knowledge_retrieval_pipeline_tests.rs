@@ -455,6 +455,85 @@ async fn compiler_persists_bounded_bundle_and_drops_over_budget() {
     assert_eq!(manifest.dialect, "ai_ready_evidence_export@1");
 }
 
+/// Adversarial-v2 MT-140: when a request names a SemanticCatalog entry, the
+/// PLANNER derives plan.route[] from the catalog's declared routing contract
+/// (spec 2.6.6.7.14.6 A) — and falls back to defaults when the entry is
+/// absent.
+#[tokio::test]
+async fn planner_derives_route_from_semantic_catalog_entry() {
+    let fx = skip_if_no_pg!(
+        MemoryFixture::setup().await,
+        "planner_derives_route_from_catalog"
+    );
+    let pool = pool_for(&fx.pg).await;
+
+    upsert_semantic_catalog_entry(
+        &pool,
+        NewSemanticCatalogEntry {
+            workspace_id: fx.workspace_id.clone(),
+            entry_kind: SemanticCatalogKind::Index,
+            name: "loom_neighborhood".to_string(),
+            version: 1,
+            description: "Loom graph neighborhood index".to_string(),
+            query_routes: vec![
+                "knowledge_graph".to_string(),
+                "shadow_ws_vector".to_string(),
+            ],
+            supported_selectors: vec!["loom_block".to_string()],
+            default_budgets: None,
+            examples: serde_json::json!([]),
+        },
+    )
+    .await
+    .expect("upsert catalog");
+
+    let planner = CheapestAuthoritativePathPlanner::new(&fx.pg.db);
+
+    // Hybrid discovery governed by the catalog entry: route IS the contract.
+    let planned = planner
+        .plan(
+            &RetrievalRequest::discovery(&fx.workspace_id, "find related loom blocks")
+                .with_catalog_entry("loom_neighborhood"),
+        )
+        .await
+        .expect("plan hybrid");
+    assert_eq!(planned.plan.retrieval_mode, QueryRetrievalMode::HybridRag);
+    assert_eq!(planned.plan.route.len(), 2, "route derived from the catalog");
+    assert!(
+        planned.plan.route[0]
+            .purpose
+            .contains("semantic catalog 'loom_neighborhood'"),
+        "route steps cite the catalog contract: {:?}",
+        planned.plan.route
+    );
+    assert!(planned.plan.route[1]
+        .purpose
+        .contains("route 'shadow_ws_vector'"));
+
+    // Graph-neighborhood mode is governed by the catalog too.
+    let mut graph_request = RetrievalRequest::discovery(&fx.workspace_id, "expand neighborhood")
+        .with_catalog_entry("loom_neighborhood");
+    graph_request.graph_neighborhood_expected = true;
+    let planned = planner.plan(&graph_request).await.expect("plan graph");
+    assert_eq!(
+        planned.plan.retrieval_mode,
+        QueryRetrievalMode::GraphTraversal
+    );
+    assert!(planned.plan.route[0].purpose.contains("semantic catalog"));
+
+    // An UNKNOWN entry name falls back to the default routing (spec C).
+    let planned = planner
+        .plan(
+            &RetrievalRequest::discovery(&fx.workspace_id, "discover")
+                .with_catalog_entry("no_such_contract"),
+        )
+        .await
+        .expect("plan fallback");
+    assert_eq!(planned.plan.retrieval_mode, QueryRetrievalMode::HybridRag);
+    assert_eq!(planned.plan.route.len(), 4, "default hybrid route");
+    assert!(planned.plan.route[0].purpose.contains("ContextPack"));
+}
+
 /// MT-140: SemanticCatalog routing contracts are backend-queryable (not
 /// prompt-only).
 #[tokio::test]

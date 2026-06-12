@@ -88,6 +88,13 @@ pub struct RetrievalRequest {
     pub budgets: RetrievalBudgets,
     pub filters: RetrievalFilters,
     pub determinism_mode: DeterminismMode,
+    /// SemanticCatalog entry name governing this query surface (adversarial-v2
+    /// MT-140). When present and resolvable, the plan's `route[]` is DERIVED
+    /// from the catalog's declared routing contract (spec 2.6.6.7.14.6 A: a
+    /// QueryPlan.route MUST be derived from the SemanticCatalog when present);
+    /// when absent or unresolvable, the planner falls back to its defaults
+    /// (spec C default policy).
+    pub catalog_entry: Option<String>,
 }
 
 impl RetrievalRequest {
@@ -104,12 +111,20 @@ impl RetrievalRequest {
             budgets: RetrievalBudgets::default_bounded(),
             filters: RetrievalFilters::default(),
             determinism_mode: DeterminismMode::Strict,
+            catalog_entry: None,
         }
     }
 
     /// Attach an authoritative handle (builder).
     pub fn with_handle(mut self, handle: AuthoritativeHandle) -> Self {
         self.handles.push(handle);
+        self
+    }
+
+    /// Name the SemanticCatalog entry governing this query surface (builder,
+    /// MT-140).
+    pub fn with_catalog_entry(mut self, name: impl Into<String>) -> Self {
+        self.catalog_entry = Some(name.into());
         self
     }
 }
@@ -220,19 +235,24 @@ impl<'a> CheapestAuthoritativePathPlanner<'a> {
 
         // 3. No exact handle, but a bounded graph neighborhood is expected.
         if request.graph_neighborhood_expected {
-            let route = vec![
-                RouteStep::new(
-                    RetrievalStore::KnowledgeGraph,
-                    "bounded graph neighborhood satisfies the task",
-                    request.budgets.max_candidates_total,
-                )
-                .required(),
-                RouteStep::new(
-                    RetrievalStore::ShadowWsLexical,
-                    "lexical confirmation of graph candidates",
-                    request.budgets.max_rerank_candidates,
-                ),
-            ];
+            // MT-140 (adversarial-v2): a SemanticCatalog routing contract, when
+            // named and resolvable, DERIVES the route; defaults otherwise.
+            let route = match self.catalog_route(request).await? {
+                Some(route) => route,
+                None => vec![
+                    RouteStep::new(
+                        RetrievalStore::KnowledgeGraph,
+                        "bounded graph neighborhood satisfies the task",
+                        request.budgets.max_candidates_total,
+                    )
+                    .required(),
+                    RouteStep::new(
+                        RetrievalStore::ShadowWsLexical,
+                        "lexical confirmation of graph candidates",
+                        request.budgets.max_rerank_candidates,
+                    ),
+                ],
+            };
             return Ok(PlannedRetrieval {
                 plan: self.build_plan(
                     request,
@@ -261,33 +281,61 @@ impl<'a> CheapestAuthoritativePathPlanner<'a> {
         }
 
         // 5. Discovery / synthesis: hybrid_rag is the reserved broadest mode.
-        let route = vec![
-            RouteStep::new(
-                RetrievalStore::ContextPacks,
-                "reuse fresh ContextPack if available",
-                8,
-            ),
-            RouteStep::new(
-                RetrievalStore::KnowledgeGraph,
-                "prefilter candidate entity sets",
-                request.budgets.max_candidates_total,
-            ),
-            RouteStep::new(
-                RetrievalStore::ShadowWsLexical,
-                "high-precision lexical recall",
-                request.budgets.max_rerank_candidates,
-            ),
-            RouteStep::new(
-                RetrievalStore::ShadowWsVector,
-                "semantic recall",
-                request.budgets.max_rerank_candidates,
-            ),
-        ];
+        // MT-140 (adversarial-v2): catalog-derived route when present.
+        let route = match self.catalog_route(request).await? {
+            Some(route) => route,
+            None => vec![
+                RouteStep::new(
+                    RetrievalStore::ContextPacks,
+                    "reuse fresh ContextPack if available",
+                    8,
+                ),
+                RouteStep::new(
+                    RetrievalStore::KnowledgeGraph,
+                    "prefilter candidate entity sets",
+                    request.budgets.max_candidates_total,
+                ),
+                RouteStep::new(
+                    RetrievalStore::ShadowWsLexical,
+                    "high-precision lexical recall",
+                    request.budgets.max_rerank_candidates,
+                ),
+                RouteStep::new(
+                    RetrievalStore::ShadowWsVector,
+                    "semantic recall",
+                    request.budgets.max_rerank_candidates,
+                ),
+            ],
+        };
         Ok(PlannedRetrieval {
             plan: self.build_plan(request, QueryRetrievalMode::HybridRag, None, route),
             confirmed_handle: None,
             dangling_handles,
         })
+    }
+
+    /// Resolve the request's named SemanticCatalog entry into plan route steps
+    /// (adversarial-v2 MT-140; spec 2.6.6.7.14.6 A). Returns `None` — meaning
+    /// "use the default route" — when the request names no entry, the catalog
+    /// has no active contract for the name, or the entry declares no
+    /// resolvable routes.
+    async fn catalog_route(
+        &self,
+        request: &RetrievalRequest,
+    ) -> StorageResult<Option<Vec<RouteStep>>> {
+        let Some(name) = &request.catalog_entry else {
+            return Ok(None);
+        };
+        let routing = super::semantic_catalog::routing_for(
+            self.db.pool(),
+            &request.workspace_id,
+            name,
+            request.budgets.max_candidates_total,
+        )
+        .await?;
+        Ok(routing
+            .map(|routing| routing.route)
+            .filter(|route| !route.is_empty()))
     }
 
     /// Resolve the first handle (cheapest-first order in the request) that

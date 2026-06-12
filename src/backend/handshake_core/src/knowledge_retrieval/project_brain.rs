@@ -93,6 +93,9 @@ pub fn map_query(query: &ProjectBrainQuery) -> ProjectBrainPlanInputs {
         budgets: RetrievalBudgets::default_bounded(),
         filters: RetrievalFilters::default(),
         determinism_mode: DeterminismMode::Strict,
+        // Project Brain queries carry no catalog binding yet; the planner
+        // falls back to default routing (MT-140 spec C default policy).
+        catalog_entry: None,
     };
 
     ProjectBrainPlanInputs {
