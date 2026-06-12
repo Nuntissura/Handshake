@@ -610,3 +610,8 @@ required-features = ["test-utils"]
 name = "project_wiki_bootstrap_tests"
 path = "tests/project_wiki_bootstrap_tests.rs"
 required-features = ["test-utils"]
+
+[[test]]
+name = "project_wiki_drift_tests"
+path = "tests/project_wiki_drift_tests.rs"
+required-features = ["test-utils"]

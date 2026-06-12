@@ -216,6 +216,11 @@ impl WikiFanOutEngine {
             .collect();
 
         // ---- started receipt -------------------------------------------------
+        // Receipt detail is bounded (first 100 + total) — a hot source cited
+        // by thousands of pages must not write multi-MB ledger payloads.
+        const RECEIPT_DETAIL_CAP: usize = 100;
+        let stale_set_detail: Vec<&WikiPageRef> =
+            stale_set.iter().take(RECEIPT_DETAIL_CAP).collect();
         let started_receipt_event_id = self
             .compiler
             .append_receipt(
@@ -227,7 +232,9 @@ impl WikiFanOutEngine {
                     "workspace_id": workspace_id,
                     "trigger": {"kind": request.source_kind.as_str(), "id": request.source_id},
                     "trigger_current_hash": current_hash,
-                    "stale_set": stale_set,
+                    "stale_total": stale_set.len(),
+                    "stale_set": stale_set_detail,
+                    "stale_detail_capped": stale_set.len() > RECEIPT_DETAIL_CAP,
                     "budget": budget,
                     "ledger_version": ledger_version,
                 }),
@@ -272,8 +279,14 @@ impl WikiFanOutEngine {
         // ---- truncation: receipt + persistent stale marks (never silent) ------
         let mut truncation_receipt_event_id = None;
         if !to_truncate.is_empty() {
+            // Receipt payload detail is bounded (first 100 + total counts) so a
+            // hot source cited by thousands of pages cannot bloat the ledger;
+            // the LOUD signal is the receipt + the persisted stale marks, and
+            // every skipped page remains queryable as rebuild_status='stale'.
+            const SKIPPED_DETAIL_CAP: usize = 100;
             let skipped: Vec<WikiPageRef> = to_truncate
                 .iter()
+                .take(SKIPPED_DETAIL_CAP)
                 .map(|p| WikiPageRef {
                     projection_id: p.projection_id.clone(),
                     title: p.title.clone(),
@@ -300,7 +313,9 @@ impl WikiFanOutEngine {
                         "budget": budget,
                         "total_stale": stale_set.len(),
                         "regenerated": regenerated.len(),
+                        "skipped_total": to_truncate.len(),
                         "skipped": skipped,
+                        "skipped_detail_capped": to_truncate.len() > SKIPPED_DETAIL_CAP,
                     }),
                 )
                 .await?;
@@ -342,7 +357,10 @@ impl WikiFanOutEngine {
                     "kind": "wiki_fanout_completed",
                     "workspace_id": workspace_id,
                     "trigger": {"kind": request.source_kind.as_str(), "id": request.source_id},
-                    "stale_set": stale_set,
+                    "stale_total": stale_set.len(),
+                    "stale_set": stale_set.iter().take(RECEIPT_DETAIL_CAP).collect::<Vec<_>>(),
+                    "stale_detail_capped": stale_set.len() > RECEIPT_DETAIL_CAP,
+                    // bounded by the budget clamp (<= MAX_FANOUT_BUDGET)
                     "regenerated": regenerated,
                     "truncated": to_truncate.len(),
                     "orphaned": orphaned,

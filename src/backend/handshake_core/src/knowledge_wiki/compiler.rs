@@ -319,6 +319,32 @@ impl ProjectWikiCompiler {
             return Err(WikiCompileError::PageCapExceeded(planned_pages));
         }
 
+        // ---- title-collision guard (adversarial: a directory literally named
+        // like another page's "(part N)" title, or same-named entities, would
+        // hit the (workspace, kind, title) upsert identity and SILENTLY
+        // overwrite a sibling page; fail loudly instead) ----------------------
+        {
+            let mut titles: BTreeSet<String> = BTreeSet::new();
+            let mut planned: Vec<String> = Vec::with_capacity(planned_pages);
+            planned.extend(module_parts.iter().map(|p| p.title()));
+            planned.extend(concept_dirs.iter().map(|d| concept_page_title(d)));
+            planned.extend(rich_documents.iter().map(|d| render_entity_page(d).0));
+            planned.extend(
+                decision_entities
+                    .iter()
+                    .map(|e| render_decision_page(e, None).0),
+            );
+            planned.push(WIKI_INDEX_PAGE_TITLE.to_string());
+            for title in planned {
+                if !titles.insert(title.clone()) {
+                    return Err(WikiCompileError::Validation(format!(
+                        "wiki page title collision: two planned pages share the title '{title}' \
+                         (refusing a compile that would silently overwrite a page)"
+                    )));
+                }
+            }
+        }
+
         // ---- started receipt (FK target for the page rows) ------------------
         let started_receipt_event_id = self
             .append_receipt(
@@ -924,10 +950,13 @@ pub(crate) fn render_concept_page(
     (content, citations, Value::Array(links))
 }
 
-/// Extract readable text from a ProseMirror/Tiptap document JSON (bounded).
+/// Extract readable text from a ProseMirror/Tiptap document JSON (bounded in
+/// BOTH output size and recursion depth — a hostile deeply-nested document
+/// must not overflow the stack).
 fn prosemirror_excerpt(content_json: &Value, cap_chars: usize) -> String {
-    fn walk(node: &Value, out: &mut String, cap: usize) {
-        if out.chars().count() >= cap {
+    const MAX_DEPTH: usize = 64;
+    fn walk(node: &Value, out: &mut String, cap: usize, depth: usize) {
+        if depth >= MAX_DEPTH || out.chars().count() >= cap {
             return;
         }
         if let Some(text) = node.get("text").and_then(|t| t.as_str()) {
@@ -938,12 +967,12 @@ fn prosemirror_excerpt(content_json: &Value, cap_chars: usize) -> String {
         }
         if let Some(children) = node.get("content").and_then(|c| c.as_array()) {
             for child in children {
-                walk(child, out, cap);
+                walk(child, out, cap, depth + 1);
             }
         }
     }
     let mut out = String::new();
-    walk(content_json, &mut out, cap_chars);
+    walk(content_json, &mut out, cap_chars, 0);
     if out.chars().count() > cap_chars {
         out = out.chars().take(cap_chars).collect::<String>() + "…";
     }
