@@ -94,7 +94,34 @@
     "implementation_commit": "6b84266e",
     "evidence": [
       "Built+verified 6b84266e: pnpm run build:harness + check-worker-bundling.mjs clean - no external app, deps bundled/lockfile-governed only. TiptapMonacoIntegration group complete: full app vitest 60 files/442 tests green; tsc --noEmit + eslint clean; offline Playwright roundtrip PASS (bundled Monaco mounts + round-trips, ZERO external network requests, worker chunks loopback-only). RichTextEditor wired into RichDocumentView over the real rich-doc backend; no src/backend or .GOV product code touched."
-    ]
+    ],
+    "adversarial_review_v2": {
+      "at_utc": "2026-06-12T04:22:00Z",
+      "reviewer": "adversarial-parity-reviewer",
+      "verdict": "HARDENED_OK",
+      "suites_observed": "RERUN 2026-06-12: playwright dependency lane 2/2 PASS (offline_editor_load + rich_editor_roundtrip), zero external requests recorded, worker chunks loopback-only; check-worker-bundling green per recorded evidence",
+      "findings": [
+        {
+          "severity": "LOW",
+          "title": "Kill-switch scope: WebSockets and service-worker fetches are outside page.route interception",
+          "evidence": "tests/dependency_policy/rich_editor_roundtrip.spec.ts:120-129 routes request interception only; a regression introducing a ws:// or service-worker-mediated fetch would not land in the external-request ledger. No current dependency opens such channels.",
+          "fix": "Add context websocket/serviceworker listeners to the ledger and assert empty."
+        },
+        {
+          "severity": "LOW",
+          "title": "Proof covers the harness build, not the Tauri-packaged app",
+          "evidence": "The offline proof serves dist-harness over loopback http; the Tauri packaging path (asset protocol) is exercised elsewhere but not under the network kill-switch.",
+          "fix": "When a packaged-app smoke lane exists, repeat the zero-external assertion against the tauri:// asset serving."
+        }
+      ],
+      "parity_gaps": [
+        "ED-RUN-001 no-external-app: PRESENT (verified live this review)"
+      ],
+      "missing_tests": [
+        "zero-external assertion including websocket channels",
+        "packaged (Tauri) offline boot equivalence"
+      ]
+    }
   },
   "handoff": {
     "coder_session": null,

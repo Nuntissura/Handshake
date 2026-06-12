@@ -118,7 +118,25 @@
     },
     "evidence": [
       "Hardened b0266f35: JS class+function same-name disambiguated; all const declarators extracted."
-    ]
+    ],
+    "adversarial_review_v2": {
+      "at_utc": "2026-06-12T04:13:25.184Z",
+      "reviewer": "adversarial-backend-reviewer",
+      "verdict": "HARDENED_OK",
+      "findings": [
+        {
+          "severity": "LOW",
+          "title": "Positional-ordinal churn (shared with 098/099); re-confirm all const declarators are extracted, not just the first function-valued one",
+          "evidence": "JS class/function same-name disambiguated via kind tag (symbols.rs); the V1 finding that ts_const_binding returned only the FIRST function-valued declarator was claimed fixed (all const declarators extracted) - worth a spot re-confirm in the validator since the multi-declarator path is subtle.",
+          "fix": "Same edit-stable discriminator as 098; keep a test asserting `const a=()=>{}, b=()=>{}` yields both a and b."
+        }
+      ],
+      "claim_mismatches": [],
+      "missing_tests": [
+        "test: multi-declarator const (a, b both function-valued) extracts both symbols"
+      ],
+      "note": "VERIFIED FIXED from V1 (b0266f35): JS class+function same-name disambiguated; all const declarators claimed extracted. Residual: positional-ordinal churn + suggest a multi-declarator regression test."
+    }
   },
   "handoff": {
     "coder_session": null,

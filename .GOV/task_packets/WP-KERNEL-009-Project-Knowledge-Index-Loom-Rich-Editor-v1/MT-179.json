@@ -86,7 +86,48 @@
     ],
     "blocks": [],
     "claimed_by": null,
-    "completed_by": null
+    "completed_by": null,
+    "implementation_commit": "cd944110",
+    "evidence": [
+      {
+        "at_utc": "2026-06-12T06:40:00Z",
+        "kind": "implementation",
+        "summary": "Local graph neighborhood API (undirected BFS, edge-type filters, depth, stale markers, ProjectKnowledgeIndex citations) over loom_edges + loom_blocks + the MT-177 bridge. Read projection; no parallel store.",
+        "files_changed": [
+          "src/backend/handshake_core/src/storage/loom.rs - LoomGraph/LoomGraphNode/LoomGraphEdge (depth, degree, stale, entity_id citation)",
+          "src/backend/handshake_core/src/storage/mod.rs - Database::local_graph",
+          "src/backend/handshake_core/src/storage/postgres.rs - local_graph (UNDIRECTED recursive CTE, both edge directions, cycle-guarded, node_limit -> truncated) + shared assemble_loom_graph (induced subgraph, per-node degree, stale=not-bridged, ai_suggested edge stale)",
+          "src/backend/handshake_core/src/api/loom.rs - GET /loom/graph/local",
+          "src/backend/handshake_core/tests/loom_graph_tests.rs (shared MT-179+180)"
+        ]
+      },
+      {
+        "at_utc": "2026-06-12T06:40:00Z",
+        "kind": "test_proof",
+        "command": "cargo test -p handshake_core --features runtime-full,test-utils --test loom_graph_tests -- --test-threads=1",
+        "result": "ok. 5 passed; 0 failed (real PostgreSQL) [shared MT-179+180 suite]",
+        "tests": [
+          "local_graph_is_undirected_with_stale_markers_and_citations - reaches incoming A + outgoing C from B; bridged node not-stale w/ entity_id citation; un-bridged node stale w/o citation; ai_suggested edge stale; mention-only filter drops tag neighbor",
+          "local_graph_depth_one_is_immediate_neighborhood - induced edges (2)",
+          "local_graph_fails_closed_on_missing_start - NotFound"
+        ]
+      }
+    ],
+    "adversarial_code_review": {
+      "at_utc": "2026-06-12T06:40:00Z",
+      "reviewer": "KERNEL_BUILDER backend delegate (self-review)",
+      "commit": "cd944110",
+      "findings": [
+        "INT4/INT8 DECODE (fixed): recursive depth literal is INT4; MIN(depth) cast ::BIGINT to match the i64 decode. Proven by now-green depth tests.",
+        "DOS (mitigated): node_limit.clamp(1,5000) + max_depth clamp(1,8) + path cycle guard.",
+        "EDGE-TYPE INJECTION (clear): LoomEdgeType enum parse; node ids bound as TEXT[].",
+        "DETERMINISM (clear): explicit ORDER BY in CTE + node assembly.",
+        "CITATION/STALE (handled+tested): stale = no bridge row; citation = bridge entity_id."
+      ],
+      "fixes": [
+        "Cast MIN(depth)::BIGINT in the local-graph CTE."
+      ]
+    }
   },
   "handoff": {
     "coder_session": null,

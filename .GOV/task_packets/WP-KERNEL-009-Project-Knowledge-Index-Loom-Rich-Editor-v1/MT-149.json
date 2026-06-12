@@ -93,7 +93,30 @@
     "implementation_commit": "b506d832+935e0482+bf0c62a5+dd3056f5",
     "evidence": [
       "Built+verified (commits b506d832 backend core + 935e0482 manual + bf0c62a5 integration tests + dd3056f5 frontend); RichDocumentCore: 6 real-PG integration + 27 unit backend tests + 8 vitest (app suite 349/349). 18 block kinds, RawDerivedDisplay (CX-100), stable KBL- ids, save/load API w/ receipts, projections (negative proof: projection-delete leaves authority byte-identical), embeds (absolute paths DB-CHECK rejected), backlinks (stable KDLNK- relationship_id), history, permissions, crash recovery; migrations 0280-0282; RichDocumentView.tsx wired to real authority with stable selectors for MT-161+ GUI groups. UserManual coverage added (1 group + 10 cmd refs)."
-    ]
+    ],
+    "adversarial_review_v2": {
+      "at_utc": "2026-06-12T04:05:46.457Z",
+      "reviewer": "adversarial-backend-reviewer",
+      "verdict": "FINDINGS",
+      "findings": [
+        {
+          "severity": "MEDIUM",
+          "title": "Non-atomic save+index: post-commit error path returns error for an already-committed save",
+          "evidence": "api/knowledge_documents.rs:441-449 save commits (UPDATE + version row + receipt), THEN 466-496 re-parses for backlinks; a parse failure returns 400 (line 473) and a backlink-persist failure returns 500 - both for a save that already persisted. Client retry then hits a stale expected_version -> 409.",
+          "fix": "Either fold backlink rebuild into the same storage transaction as the version bump, or never surface index-step failures as save failures (the code already treats Index permission denial as non-fatal at 493-495; extend that to parse/persist failures)."
+        },
+        {
+          "severity": "LOW",
+          "title": "Schema-version inconsistency between pre-save validate and post-save re-parse",
+          "evidence": "line 436 validates tree with DOCUMENT_SCHEMA_VERSION; line 468 re-parses with saved.schema_version. Divergent docs would validate twice under two versions.",
+          "fix": "Use the stored schema_version consistently."
+        }
+      ],
+      "claim_mismatches": [],
+      "missing_tests": [
+        "test: a save whose backlink-rebuild step fails must not report the save as failed (committed save + index error)"
+      ]
+    }
   },
   "handoff": {
     "coder_session": null,

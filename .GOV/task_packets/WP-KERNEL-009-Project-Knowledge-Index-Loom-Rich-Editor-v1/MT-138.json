@@ -92,7 +92,23 @@
     "implementation_commit": "c5bac6ec",
     "evidence": [
       "Built+verified c5bac6ec; RetrievalContextAndRanking: 46 unit + 10 real-PG tests pass; cheapest-authoritative planner records mode+skip-reason in replayable RetrievalTrace; reuses MT-060 trace/bundle substrate (1 new migration 0260); MT-129 additive QueryRetrievalMode extension; folded-stub bridges (139-142) preserve ProjectBrain/SemanticCatalog/AIReady/ContextPack intent as backend contracts."
-    ]
+    ],
+    "adversarial_review_v2": {
+      "at_utc": "2026-06-12T04:11:18.477Z",
+      "reviewer": "adversarial-backend-reviewer",
+      "verdict": "HARDENED_OK",
+      "findings": [
+        {
+          "severity": "LOW",
+          "title": "build_plan does not call validate() despite the comment claiming it",
+          "evidence": "planner.rs:345-347 comment says the plan is validated before return, but build_plan (348-369) never calls validate(); the A0.5 invariant is enforced only at persistence (storage/knowledge_retrieval.rs:55 record_retrieval_trace). An in-memory plan can transiently violate the invariant.",
+          "fix": "Call validate() in build_plan (or remove the misleading comment) so the invariant holds at construction too."
+        }
+      ],
+      "claim_mismatches": [],
+      "missing_tests": [],
+      "note": "Persistence validates the plan, derives non-empty mode_reason (DB CHECK) + decisions JSON; replay round-trip proven (pipeline_tests:66 decisions[query_plan][plan_id] + retrieval_mode)."
+    }
   },
   "handoff": {
     "coder_session": null,

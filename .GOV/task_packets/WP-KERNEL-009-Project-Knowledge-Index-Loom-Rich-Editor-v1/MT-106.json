@@ -123,7 +123,16 @@
     },
     "evidence": [
       "Hardened c2a660ae: StalenessVerdict attached to every served symbol on all 6 nav routes (fail-closed); load-all-workspace DoS replaced with DB-side lookup_code_symbols; path traversal rejected."
-    ]
+    ],
+    "adversarial_review_v2": {
+      "at_utc": "2026-06-12T04:13:25.184Z",
+      "reviewer": "adversarial-backend-reviewer",
+      "verdict": "HARDENED_OK",
+      "findings": [],
+      "claim_mismatches": [],
+      "missing_tests": [],
+      "note": "VERIFIED FIXED from V1 (c2a660ae): served_staleness (knowledge_code_nav.rs:271) is attached on ALL 6 nav routes - lookup_symbols/get_symbol via symbol_to_json (332), symbol_references (455,468,482), symbol_tests (523,536), symbol_spans (588), file_lens via build_monaco_payload. It FAILS CLOSED: a staleness lookup failure is served as an explicit error verdict, never as fresh (294-296). The serve-stale-silently on 5-of-6-routes finding the V1 reviewer flagged is closed."
+    }
   },
   "handoff": {
     "coder_session": null,

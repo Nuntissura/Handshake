@@ -94,7 +94,40 @@
     "implementation_commit": "00efdcd6",
     "evidence": [
       "Built+verified 00efdcd6: language_registry.test.ts 7/7 - Monaco language registration. TiptapMonacoIntegration group complete: full app vitest 60 files/442 tests green; tsc --noEmit + eslint clean; offline Playwright roundtrip PASS (bundled Monaco mounts + round-trips, ZERO external network requests, worker chunks loopback-only). RichTextEditor wired into RichDocumentView over the real rich-doc backend; no src/backend or .GOV product code touched."
-    ]
+    ],
+    "adversarial_review_v2": {
+      "at_utc": "2026-06-12T04:14:00Z",
+      "reviewer": "adversarial-parity-reviewer",
+      "verdict": "FINDINGS",
+      "suites_observed": "language_registry.test.ts 7/7 PASS",
+      "findings": [
+        {
+          "severity": "MEDIUM",
+          "title": "MT scope ~40% implemented: themes, diagnostics, formatting hooks, code-navigation bridges absent",
+          "evidence": "MT-166 scope: \"Register languages, themes, diagnostics, formatting hooks, and code navigation bridges\". On disk only the language registry + detection exists (language_registry.ts). No theme registry, no setModelMarkers diagnostics pipeline, no DocumentFormattingEditProvider, no Definition/Reference/Hover/Completion providers - while the backend code-nav API (knowledge_code_nav.rs: symbols/references/file-lens) is BUILT and waiting (inventory GAP-ED-005). The embedded code editor is not IntelliSense-class.",
+          "fix": "Iteration item: register Monaco Completion/Hover/Definition/Reference providers backed by /knowledge/code/* (offline, project-aware), a diagnostics source -> setModelMarkers, and a theme bridge to the app theme. Single highest-leverage code-editor gap."
+        },
+        {
+          "severity": "LOW",
+          "title": "ensureHandshakeLanguagesRegistered is dead code in the product",
+          "evidence": "grep: only language_registry.test.ts calls it; setup.ts/MonacoCodeBlockView never do. Languages resolve solely because monaco ships these 16 ids; the Handshake aliases/extensions registration this MT names is never executed at runtime.",
+          "fix": "Call it once from ensureMonacoEnvironment()/createConfiguredEditor (idempotent) or retire the helper and correct the MT handoff wording."
+        }
+      ],
+      "parity_gaps": [
+        "ED-CODE-INT-001 completion: ABSENT (owner MT-166)",
+        "ED-CODE-INT-002 hover: ABSENT (owner MT-166)",
+        "ED-CODE-INT-003 go-to-definition/references: ABSENT editor-side, backend BUILT (owner MT-166)",
+        "ED-CODE-INT-004 diagnostics/problems: ABSENT (owner MT-166/MT-174)",
+        "ED-CODE-INT-005 formatting: ABSENT (owner MT-166)",
+        "ED-CODE-INT-007 semantic tokens: ABSENT (syntax-only highlighting via Monaco built-ins)"
+      ],
+      "missing_tests": [
+        "completion provider returns project symbols inside a code block (once wired)",
+        "diagnostics markers render for a known-bad snippet (once wired)",
+        "language registration actually executed at editor mount (currently dead path)"
+      ]
+    }
   },
   "handoff": {
     "coder_session": null,

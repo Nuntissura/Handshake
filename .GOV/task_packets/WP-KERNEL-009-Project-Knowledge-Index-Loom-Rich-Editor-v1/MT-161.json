@@ -95,7 +95,42 @@
     "implementation_commit": "feceb392",
     "evidence": [
       "Built+verified feceb392: extension_inventory.test.ts 7/7 - typed Tiptap extension inventory. TiptapMonacoIntegration group complete: full app vitest 60 files/442 tests green; tsc --noEmit + eslint clean; offline Playwright roundtrip PASS (bundled Monaco mounts + round-trips, ZERO external network requests, worker chunks loopback-only). RichTextEditor wired into RichDocumentView over the real rich-doc backend; no src/backend or .GOV product code touched."
-    ]
+    ],
+    "adversarial_review_v2": {
+      "at_utc": "2026-06-12T04:10:00Z",
+      "reviewer": "adversarial-parity-reviewer",
+      "verdict": "FINDINGS",
+      "suites_observed": "vitest 62 files/468 tests PASS (2 uncaught jsdom getClientRects errors from RichTextEditor.test.tsx command dispatch); playwright dependency lane 2/2 PASS, zero external requests",
+      "findings": [
+        {
+          "severity": "MEDIUM",
+          "title": "Mention/tag nodes exist in schema but cannot be created from the editor UI",
+          "evidence": "extension_set.ts:127-146 configures Mention/tagMention suggestion with items only - no render UI, so typing @/# shows no popup and never inserts a node; editor_commands.ts:269-281 mention.at/mention.tag merely insertContent(\"@\")/(\"#\") literal text. ED-LINK-002 is marked BUILT in the capability inventory but the surface cannot mint a mention/tagMention node.",
+          "fix": "Configure suggestion.render (popup listbox over a real items source) or add direct insert commands with an arg prompt that insert {type:\"mention\"/\"tagMention\", attrs:{id,label}} nodes."
+        },
+        {
+          "severity": "LOW",
+          "title": "Inventory advertises primitives with no instantiation-path test",
+          "evidence": "extension_inventory.ts declares every primitive incl. mention/tagMention; extension_inventory.test.ts asserts catalog shape only - no test builds the full editor and creates each primitive through a user-reachable path.",
+          "fix": "Add a per-primitive creation test over buildHandshakeEditorExtensions: for each inventory node, assert at least one command/input-rule/paste-rule can create it."
+        },
+        {
+          "severity": "LOW",
+          "title": "StarterKit v3 marks (underline, strike) in schema but absent from command catalog/toolbar",
+          "evidence": "extension_set.ts uses StarterKit (v3 bundles Underline+Link); editor_commands.ts has no underline/strike/link-mark commands, so schema capabilities are unreachable.",
+          "fix": "Add format.underline/format.strike (and a plain-URL link.set/unset) commands to EDITOR_COMMANDS."
+        }
+      ],
+      "parity_gaps": [
+        "ED-LINK-002 mentions/tags: downgrade BUILT -> PARTIAL (no creation UI)",
+        "Plain external URL hyperlink: schema mark present, no UI to set/unset/open (unowned)"
+      ],
+      "missing_tests": [
+        "creates a mention node through the @ suggestion popup (real editor)",
+        "creates a tagMention node through the # suggestion popup",
+        "every inventory primitive reachable via at least one command/rule"
+      ]
+    }
   },
   "handoff": {
     "coder_session": null,

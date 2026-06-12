@@ -122,7 +122,25 @@
     },
     "evidence": [
       "Hardened cf1b690d: Tree-sitter FFI parse wrapped in catch_unwind; raw-bytes/UTF-8 read-failure handling."
-    ]
+    ],
+    "adversarial_review_v2": {
+      "at_utc": "2026-06-12T04:13:25.184Z",
+      "reviewer": "adversarial-backend-reviewer",
+      "verdict": "FINDINGS",
+      "findings": [
+        {
+          "severity": "MEDIUM",
+          "title": "V1 unbounded-parse concern NOT closed: no input-size or node-count guard before tree-sitter parse",
+          "evidence": "parser.rs:246-263 wraps parse in catch_unwind (the panic vector the hardening commit cf1b690d addressed), but there is still NO byte/node cap before parse, and engine.rs:258 calls adapter.parse(text) with no pre-parse file-size cap (grep for MAX_FILE/metadata/len> in engine.rs finds none). A multi-MB or pathologically deep adversarial file is parsed unconditionally; catch_unwind prevents a panic but not unbounded time/memory. The module still promises bounded operation.",
+          "fix": "Add a byte cap (skip+repair-queue oversized files) and/or a node-count ceiling in parse_inner, mirroring the SCIP caps (scip.rs:152), before invoking tree-sitter."
+        }
+      ],
+      "claim_mismatches": [],
+      "missing_tests": [
+        "test: an oversized / pathologically deep file is skipped (or capped) rather than parsed unbounded"
+      ],
+      "note": "VERIFIED FIXED from V1: FFI panic now caught (catch_unwind, parser.rs:249) and raw-bytes/UTF-8 read failures handled. Residual: the size/node guard the V1 reviewer flagged remains absent."
+    }
   },
   "handoff": {
     "coder_session": null,

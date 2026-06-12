@@ -94,7 +94,55 @@
     "implementation_commit": "66669bce",
     "evidence": [
       "Built+verified 66669bce: editor_keymap.test.ts 6/6 - keyboard + command palette. TiptapMonacoIntegration group complete: full app vitest 60 files/442 tests green; tsc --noEmit + eslint clean; offline Playwright roundtrip PASS (bundled Monaco mounts + round-trips, ZERO external network requests, worker chunks loopback-only). RichTextEditor wired into RichDocumentView over the real rich-doc backend; no src/backend or .GOV product code touched."
-    ]
+    ],
+    "adversarial_review_v2": {
+      "at_utc": "2026-06-12T04:18:00Z",
+      "reviewer": "adversarial-parity-reviewer",
+      "verdict": "FINDINGS",
+      "suites_observed": "editor_keymap.test.ts 6/6 PASS; palette test PASS (with the uncaught jsdom dispatch error noted in MT-169)",
+      "findings": [
+        {
+          "severity": "HIGH",
+          "title": "Editor keydown handler intercepts keystrokes bubbling out of the embedded Monaco editor - chords typed while editing code mutate the prose document",
+          "evidence": "RichTextEditor.tsx:225-241 attaches the keymap handler to editor.view.dom, which CONTAINS every Monaco NodeView DOM subtree; Monaco does not stop propagation for keys it does not bind (Mod-b/i/e/k/p, Mod-Alt-c are all unbound in standalone Monaco). Typing Mod-Alt-c or Mod-k while focused in Monaco runs prose commands against the LAST ProseMirror selection - if that selection is the NodeSelection of the code block being edited (the normal state after clicking into it), insertContent REPLACES the code block: the operator loses the block they are typing in. Mod-p opens the prose palette over the code editor.",
+          "fix": "In the keydown handler, return early when event.target is inside [data-testid=monaco-code-block] (or when !editor.isFocused); add a test simulating a keydown from inside the Monaco host asserting no prose command runs."
+        },
+        {
+          "severity": "MEDIUM",
+          "title": "Command palette has no keyboard navigation or selection state",
+          "evidence": "RichTextEditor.tsx:324-369 - input handles only Escape; no ArrowUp/ArrowDown/Enter handling; role=listbox with li[role=option aria-selected=false] wrapping inner buttons (invalid pattern - interactive content inside option, aria-selected never updates). A keyboard user must Tab through every row; VS Code palette semantics (arrows + Enter) absent.",
+          "fix": "Add active-index state: ArrowUp/Down moves, Enter runs, aria-activedescendant on the input, aria-selected reflects the active row; drop the inner buttons or switch to the combobox pattern."
+        },
+        {
+          "severity": "MEDIUM",
+          "title": "aria-modal dialogs are not modal: no focus trap, no focus restore, Escape only works from the input",
+          "evidence": "RichTextEditor.tsx:324-406 palette + arg prompt declare aria-modal=true but Tab walks out of the dialog into the page behind it; closing does not restore focus to the invoking control; Escape is bound only on the palette input (not the arg prompt or dialog container).",
+          "fix": "Trap Tab within the dialog while open, bind Escape at the dialog container, and restore focus to the trigger on close (standard dialog pattern)."
+        },
+        {
+          "severity": "LOW",
+          "title": "resolveShortcut ignores IME composition state",
+          "evidence": "editor_keymap.ts:65-69 and the RichTextEditor handler never check event.isComposing; a chord-shaped keydown during active IME composition dispatches a command and preventDefaults mid-composition.",
+          "fix": "Return null/skip when event.isComposing (and key === \"Process\"); add a composition-guard unit test."
+        },
+        {
+          "severity": "LOW",
+          "title": "No save binding and no save command in the palette",
+          "evidence": "EDITOR_KEY_BINDINGS (editor_keymap.ts:40-48) has 7 chords; Mod-s is absent and save lives outside the command catalog entirely (RichDocumentView button only) - for an editor-replacement surface, save is keyboard-unreachable and palette-invisible.",
+          "fix": "Add a doc.save command id wired by the host (RichDocumentView passes an onSave into the editor context) + Mod-s binding with preventDefault."
+        }
+      ],
+      "parity_gaps": [
+        "ED-NAV-001 command palette: PARTIAL (full catalog wired, but no keyboard nav/selection)",
+        "ED-NAV-002 keymap: PARTIAL (7 chords; no save/undo listing/customization; ED-WB-009 keybindings UI unowned)"
+      ],
+      "missing_tests": [
+        "keydown originating inside the Monaco host does not trigger prose commands",
+        "palette ArrowDown/Enter runs the highlighted command",
+        "focus is trapped in palette/arg dialog and restored on close",
+        "chord during IME composition (isComposing=true) is ignored"
+      ]
+    }
   },
   "handoff": {
     "coder_session": null,

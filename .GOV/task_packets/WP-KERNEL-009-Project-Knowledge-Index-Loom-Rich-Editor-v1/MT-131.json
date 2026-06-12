@@ -92,7 +92,30 @@
     "implementation_commit": "91b6df48",
     "evidence": [
       "Built+verified 91b6df48; RetrievalContextAndRanking: 46 unit + 10 real-PG tests pass; cheapest-authoritative planner records mode+skip-reason in replayable RetrievalTrace; reuses MT-060 trace/bundle substrate (1 new migration 0260); MT-129 additive QueryRetrievalMode extension; folded-stub bridges (139-142) preserve ProjectBrain/SemanticCatalog/AIReady/ContextPack intent as backend contracts."
-    ]
+    ],
+    "adversarial_review_v2": {
+      "at_utc": "2026-06-12T04:11:18.477Z",
+      "reviewer": "adversarial-backend-reviewer",
+      "verdict": "FINDINGS",
+      "findings": [
+        {
+          "severity": "MEDIUM",
+          "title": "schema scope is applied post-hoc over a capped, unordered fact load (recall gap)",
+          "evidence": "schema_first_filter (schema_filter.rs:138-152) loads up to fact_limit facts via list_memory_facts then filters in memory by in-scope terms; the scope is NOT pushed into SQL. For a large fact base the in-scope facts can fall outside the first fact_limit rows and be silently missed.",
+          "fix": "Push the resolved term scope into the SQL (WHERE predicate_term_id IN (...) OR object_entity_id IN (...)) so the limit bounds in-scope facts, not an arbitrary prefix."
+        },
+        {
+          "severity": "MEDIUM",
+          "title": "schema-first filtering is not invoked by the planner before widening",
+          "evidence": "CheapestAuthoritativePathPlanner (planner.rs) never calls schema_first_filter; the graph/hybrid widen (steps 3 and 5) run without narrowing to schema scope. The primitive is unit-tested but unwired, so the spec use-schema-first-before-widening is unrealized in the plan path.",
+          "fix": "Invoke schema_first_filter to seed graph_neighborhood / candidate sets before the planner emits a graph/hybrid route."
+        }
+      ],
+      "claim_mismatches": [],
+      "missing_tests": [
+        "test: planner narrows graph seeds via schema scope before widening"
+      ]
+    }
   },
   "handoff": {
     "coder_session": null,

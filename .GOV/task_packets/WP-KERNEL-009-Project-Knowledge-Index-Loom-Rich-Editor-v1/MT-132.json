@@ -92,7 +92,23 @@
     "implementation_commit": "924dc6bc",
     "evidence": [
       "Built+verified 924dc6bc; RetrievalContextAndRanking: 46 unit + 10 real-PG tests pass; cheapest-authoritative planner records mode+skip-reason in replayable RetrievalTrace; reuses MT-060 trace/bundle substrate (1 new migration 0260); MT-129 additive QueryRetrievalMode extension; folded-stub bridges (139-142) preserve ProjectBrain/SemanticCatalog/AIReady/ContextPack intent as backend contracts."
-    ]
+    ],
+    "adversarial_review_v2": {
+      "at_utc": "2026-06-12T04:11:18.477Z",
+      "reviewer": "adversarial-backend-reviewer",
+      "verdict": "HARDENED_OK",
+      "findings": [
+        {
+          "severity": "LOW",
+          "title": "N+1 DB round-trips per traversal and uncapped edge vector",
+          "evidence": "graph_planner.rs:168,190 call entity_edge_degree + list_knowledge_edges_for_entity once per visited node (<=2*max_nodes=128 queries/traversal); edges (line 202) are appended with no max_candidates_total cap (a node with degree<=hub_suppression can add up to ~50 edges).",
+          "fix": "Batch the per-node degree/edge reads (single query over the frontier) and cap edges at budgets.max_candidates_total."
+        }
+      ],
+      "claim_mismatches": [],
+      "missing_tests": [],
+      "note": "Bounded BFS proven over a real edge (relationship_id cited) + allowlist exclusion proven (pipeline_tests:140,182); deterministic frontier + edge ordering."
+    }
   },
   "handoff": {
     "coder_session": null,

@@ -93,7 +93,30 @@
     "implementation_commit": "b506d832+935e0482+bf0c62a5+dd3056f5",
     "evidence": [
       "Built+verified (commits b506d832 backend core + 935e0482 manual + bf0c62a5 integration tests + dd3056f5 frontend); RichDocumentCore: 6 real-PG integration + 27 unit backend tests + 8 vitest (app suite 349/349). 18 block kinds, RawDerivedDisplay (CX-100), stable KBL- ids, save/load API w/ receipts, projections (negative proof: projection-delete leaves authority byte-identical), embeds (absolute paths DB-CHECK rejected), backlinks (stable KDLNK- relationship_id), history, permissions, crash recovery; migrations 0280-0282; RichDocumentView.tsx wired to real authority with stable selectors for MT-161+ GUI groups. UserManual coverage added (1 group + 10 cmd refs)."
-    ]
+    ],
+    "adversarial_review_v2": {
+      "at_utc": "2026-06-12T04:05:46.457Z",
+      "reviewer": "adversarial-backend-reviewer",
+      "verdict": "FINDINGS",
+      "findings": [
+        {
+          "severity": "HIGH",
+          "title": "import -> load is broken for HTML and markdown-table inputs: importedRaw is not a known BlockKind",
+          "evidence": "import.rs:87-93 emits importedRaw nodes for HTML (line 117) and markdown tables (line 230). BlockKind::from_node_type (block_tree.rs:110-131) has NO importedRaw arm, so BlockTree::from_document_json returns UnsupportedBlockType. import_document (api:595) stores the doc without parsing, but load_document/load_blocks/export_projection all call BlockTree::from_document_json -> every read of an imported HTML/table doc 400s. The import tests only round-trip the markdown happy path through BlockTree (import.rs:328-345); the HTML/table tests assert raw JSON only (349-375), never re-parsing.",
+          "fix": "Add ImportedRaw to BlockKind (and as_node_type/from_node_type) so imported docs are loadable/repairable, or have the importer emit a supported placeholder block. Add an import->load->project round-trip test for HTML and table inputs."
+        }
+      ],
+      "claim_mismatches": [
+        {
+          "claim": "Import markdown/plain text/HTML snippets with repairable nodes",
+          "reality": "a repairable importedRaw node makes the entire document unloadable through the typed API (load/blocks/projection all 400), defeating repairability"
+        }
+      ],
+      "missing_tests": [
+        "test: import_snippet HTML -> BlockTree::from_document_json on the result must succeed (currently fails)",
+        "test: import a markdown table -> load_blocks succeeds"
+      ]
+    }
   },
   "handoff": {
     "coder_session": null,

@@ -92,7 +92,29 @@
     "implementation_commit": "387a43b2",
     "evidence": [
       "Built+verified 387a43b2; RetrievalContextAndRanking: 46 unit + 10 real-PG tests pass; cheapest-authoritative planner records mode+skip-reason in replayable RetrievalTrace; reuses MT-060 trace/bundle substrate (1 new migration 0260); MT-129 additive QueryRetrievalMode extension; folded-stub bridges (139-142) preserve ProjectBrain/SemanticCatalog/AIReady/ContextPack intent as backend contracts."
-    ]
+    ],
+    "adversarial_review_v2": {
+      "at_utc": "2026-06-12T04:11:18.477Z",
+      "reviewer": "adversarial-backend-reviewer",
+      "verdict": "FINDINGS",
+      "findings": [
+        {
+          "severity": "MEDIUM",
+          "title": "repair-actions surface (and dedicated stale/missing-evidence endpoints) named by the contract are not implemented",
+          "evidence": "api/knowledge_retrieval.rs exposes explain_bundle + export_bundle_evidence + list_catalog (read-only). The contract names retrieval explanation, bundle reproduction, stale reason, missing evidence, and repair actions; there is no repair-action endpoint and no dedicated stale/missing-evidence route beyond what is embedded in the trace decisions JSON.",
+          "fix": "Add a repair-action endpoint (e.g. re-run/refresh a stale bundle, re-extract missing evidence) and/or surface stale/missing-evidence explicitly, or descope the contract."
+        }
+      ],
+      "claim_mismatches": [
+        {
+          "claim": "Expose backend APIs for retrieval explanation, bundle reproduction, stale reason, missing evidence, and repair actions",
+          "reality": "explanation/reproduction/catalog are implemented; repair actions are not, and stale/missing evidence is only implicit in the trace"
+        }
+      ],
+      "missing_tests": [
+        "test: a retrieval repair action endpoint exists and records a receipt"
+      ]
+    }
   },
   "handoff": {
     "coder_session": null,

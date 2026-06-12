@@ -92,7 +92,23 @@
     "implementation_commit": "80d38c14",
     "evidence": [
       "Built+verified 80d38c14; RetrievalContextAndRanking: 46 unit + 10 real-PG tests pass; cheapest-authoritative planner records mode+skip-reason in replayable RetrievalTrace; reuses MT-060 trace/bundle substrate (1 new migration 0260); MT-129 additive QueryRetrievalMode extension; folded-stub bridges (139-142) preserve ProjectBrain/SemanticCatalog/AIReady/ContextPack intent as backend contracts."
-    ]
+    ],
+    "adversarial_review_v2": {
+      "at_utc": "2026-06-12T04:11:18.477Z",
+      "reviewer": "adversarial-backend-reviewer",
+      "verdict": "HARDENED_OK",
+      "findings": [
+        {
+          "severity": "LOW",
+          "title": "only token + snippet caps are enforced; candidate/read/tool/rerank caps are advisory",
+          "evidence": "allocate (budget.rs:113) enforces max_total_evidence_tokens, max_snippets_total, max_snippets_per_source. max_candidates_total / max_read_tokens / max_tool_calls / max_rerank_candidates (plan.rs:88-96) are defined but no executor enforces them (used only as route-step max_candidates hints).",
+          "fix": "Enforce the remaining caps in an executor, or document them as planner hints not hard limits."
+        }
+      ],
+      "claim_mismatches": [],
+      "missing_tests": [],
+      "note": "Deterministic tiered allocation with per-drop reasons + truncation flags; PG-proven (pipeline_tests:230)."
+    }
   },
   "handoff": {
     "coder_session": null,

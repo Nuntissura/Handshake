@@ -93,7 +93,29 @@
     "implementation_commit": "b506d832+935e0482+bf0c62a5+dd3056f5",
     "evidence": [
       "Built+verified (commits b506d832 backend core + 935e0482 manual + bf0c62a5 integration tests + dd3056f5 frontend); RichDocumentCore: 6 real-PG integration + 27 unit backend tests + 8 vitest (app suite 349/349). 18 block kinds, RawDerivedDisplay (CX-100), stable KBL- ids, save/load API w/ receipts, projections (negative proof: projection-delete leaves authority byte-identical), embeds (absolute paths DB-CHECK rejected), backlinks (stable KDLNK- relationship_id), history, permissions, crash recovery; migrations 0280-0282; RichDocumentView.tsx wired to real authority with stable selectors for MT-161+ GUI groups. UserManual coverage added (1 group + 10 cmd refs)."
-    ]
+    ],
+    "adversarial_review_v2": {
+      "at_utc": "2026-06-12T04:05:46.457Z",
+      "reviewer": "adversarial-backend-reviewer",
+      "verdict": "FINDINGS",
+      "findings": [
+        {
+          "severity": "MEDIUM",
+          "title": "Crash-recovery proof covers only promoted (committed) state, not the unsaved/draft half of the contract",
+          "evidence": "crash_recovery_reconstructs_document_from_postgres (knowledge_document_model_tests.rs:454-499) creates+saves (committed) then reconnects PG and re-reads - this only proves committed rows survive (trivially durable). The contract scope is unsaved/draft/promoted recover after crash or session compaction; the draft authority_label path and CRDT write-box draft recovery are not exercised.",
+          "fix": "Add a test that lands an unsaved/draft (write-box / draft-label) document state and proves it recovers after a fresh connection / simulated compaction. Reconcile with any build-order descope note for MT-159."
+        }
+      ],
+      "claim_mismatches": [
+        {
+          "claim": "Prove unsaved/draft/promoted document state can recover",
+          "reality": "only promoted state is proven recoverable; unsaved/draft recovery has no covering test"
+        }
+      ],
+      "missing_tests": [
+        "test: draft/unsaved document state recovers after crash (the non-trivial half of MT-159)"
+      ]
+    }
   },
   "handoff": {
     "coder_session": null,

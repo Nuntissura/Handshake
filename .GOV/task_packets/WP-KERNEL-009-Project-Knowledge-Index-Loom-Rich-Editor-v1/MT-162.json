@@ -94,7 +94,35 @@
     "implementation_commit": "5f1b0939",
     "evidence": [
       "Built+verified 5f1b0939: schema_versioning.test.ts 5/5 - assertEditorSchema pass-through/migrate/refuse-newer/typed-unknown wired into RichDocumentView load. TiptapMonacoIntegration group complete: full app vitest 60 files/442 tests green; tsc --noEmit + eslint clean; offline Playwright roundtrip PASS (bundled Monaco mounts + round-trips, ZERO external network requests, worker chunks loopback-only). RichTextEditor wired into RichDocumentView over the real rich-doc backend; no src/backend or .GOV product code touched."
-    ]
+    ],
+    "adversarial_review_v2": {
+      "at_utc": "2026-06-12T04:10:00Z",
+      "reviewer": "adversarial-parity-reviewer",
+      "verdict": "FINDINGS",
+      "suites_observed": "schema_versioning.test.ts 5/5 PASS in current tree (within vitest 62/468)",
+      "findings": [
+        {
+          "severity": "HIGH",
+          "title": "Fail-open on schema mismatch: newer/unknown-schema documents stay editable and saveable -> silent data loss",
+          "evidence": "RichDocumentView.tsx:74-79 - when assertEditorSchema returns ok:false the view STILL setEditorContent(response.document.content_json) and leaves the editor editable with Save enabled. schema_versioning.ts:54-57 states a non-ok result \"must be surfaced (MT-174) rather than loaded\". ProseMirror (enableContentCheck default false) silently DROPS unknown node types on parse, so one Save persists a stripped document over the newer-schema head (versions table keeps history, head is degraded).",
+          "fix": "On ok:false: keep the typed banner, render read-only (editable:false) or a raw-JSON preview, and hard-disable Save until reload under a compatible editor. Add a regression test: load newer_than_editor doc -> editor readOnly -> save blocked."
+        },
+        {
+          "severity": "MEDIUM",
+          "title": "Migrated content is never persisted until a manual edit; migration ladder unexercised end-to-end",
+          "evidence": "RichDocumentView.tsx:74-75 loads assertion.content for compatibility \"migrated\" but isDirty stays false, so the migrated JSON + new schema_version are not saved; every load re-migrates. SCHEMA_MIGRATIONS is empty (schema_versioning.ts:46) and no integration test covers migrate->save->reload stamping.",
+          "fix": "After a successful migration either mark dirty with an explicit \"migrated - save to upgrade\" notice or auto-save a migration version; add an end-to-end test with a synthetic v0->v1 migration through RichDocumentView."
+        }
+      ],
+      "parity_gaps": [
+        "ED-CORE-004 schema versioning: module PRESENT, consumer fail-open -> PARTIAL at the surface"
+      ],
+      "missing_tests": [
+        "load newer_than_editor schema -> editor is read-only and save is blocked",
+        "load unknown_version schema -> unknown nodes are NOT silently dropped into a saveable doc",
+        "migrated document -> save stamps current schema_version (end-to-end through RichDocumentView)"
+      ]
+    }
   },
   "handoff": {
     "coder_session": null,

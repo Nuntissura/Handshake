@@ -92,7 +92,29 @@
     "implementation_commit": "1d1f949d",
     "evidence": [
       "Built+verified 1d1f949d; RetrievalContextAndRanking: 46 unit + 10 real-PG tests pass; cheapest-authoritative planner records mode+skip-reason in replayable RetrievalTrace; reuses MT-060 trace/bundle substrate (1 new migration 0260); MT-129 additive QueryRetrievalMode extension; folded-stub bridges (139-142) preserve ProjectBrain/SemanticCatalog/AIReady/ContextPack intent as backend contracts."
-    ]
+    ],
+    "adversarial_review_v2": {
+      "at_utc": "2026-06-12T04:11:18.477Z",
+      "reviewer": "adversarial-backend-reviewer",
+      "verdict": "FINDINGS",
+      "findings": [
+        {
+          "severity": "MEDIUM",
+          "title": "QueryPlan routes are not derived from the SemanticCatalog",
+          "evidence": "The bridge docstring (semantic_catalog.rs:7-8) cites spec MUST: QueryPlan.route[] derived from the SemanticCatalog when present. But CheapestAuthoritativePathPlanner builds hardcoded routes (planner.rs steps 3 and 5) and never calls routing_for / route_steps_from_entry. The catalog is queryable + listed in the debug API, but no plan derives its route from it.",
+          "fix": "Have the planner resolve routing_for(workspace, target) and use route_steps_from_entry to populate plan.route when a catalog entry exists; fall back to defaults otherwise."
+        }
+      ],
+      "claim_mismatches": [
+        {
+          "claim": "QueryPlan.route[] MUST be derived from the SemanticCatalog when present",
+          "reality": "the catalog->RouteStep bridge exists and is unit-tested, but the planner ignores it and emits fixed routes"
+        }
+      ],
+      "missing_tests": [
+        "test: a planned query whose target has a catalog entry derives its route from the catalog"
+      ]
+    }
   },
   "handoff": {
     "coder_session": null,

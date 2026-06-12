@@ -94,7 +94,49 @@
     "implementation_commit": "a8f9c43c",
     "evidence": [
       "Built+verified a8f9c43c: selection_state.test.ts 6/6 - selection + cursor state. TiptapMonacoIntegration group complete: full app vitest 60 files/442 tests green; tsc --noEmit + eslint clean; offline Playwright roundtrip PASS (bundled Monaco mounts + round-trips, ZERO external network requests, worker chunks loopback-only). RichTextEditor wired into RichDocumentView over the real rich-doc backend; no src/backend or .GOV product code touched."
-    ]
+    ],
+    "adversarial_review_v2": {
+      "at_utc": "2026-06-12T04:18:00Z",
+      "reviewer": "adversarial-parity-reviewer",
+      "verdict": "FINDINGS",
+      "suites_observed": "selection_state.test.ts 6/6 PASS",
+      "findings": [
+        {
+          "severity": "HIGH",
+          "title": "Cursor does not survive document echo: external setContent teleports the caret to document end (proven headless)",
+          "evidence": "RichTextEditor.tsx:156-162 runs editor.commands.setContent on EVERY initialContent identity change; RichDocumentView.tsx:204-209 (and rich_editor_harness.tsx:100-105) echo onChange JSON straight back into initialContent, so the effect fires per keystroke. Tiptap 3.13 setContent is tr.replaceWith(0, size, doc) with no equality guard and no selection preservation - headless probe on the bundled packages: caret at pos 6 of \"hello world\" -> after setContent(identical JSON) caret lands at pos 12/13 (doc end). Mid-document typing teleports the caret to the end after every keystroke; appended typing (what all current tests do) masks it. Also destroys IME composition state and runs an O(doc) parse per keystroke.",
+          "fix": "Guard the reload effect: only setContent when the incoming doc differs from editor.getJSON() semantically AND the change is genuinely external (e.g. track a lastEmitted ref in RichTextEditor; skip when initialContent === lastEmitted). Parent should pass a stable loaded-document object, not the onChange echo. Add a mid-document typing caret test (real keyboard, jsdom or Playwright)."
+        },
+        {
+          "severity": "MEDIUM",
+          "title": "O(doc) selection snapshot work on every selection update",
+          "evidence": "RichTextEditor.tsx:177-189 computes doc.textBetween(0, from) + TextEncoder.encode(fullPrefix) on each selectionUpdate to derive UTF-8 offsets - every caret move re-encodes the entire document prefix; on 10k-block documents this is typing/caret latency.",
+          "fix": "Compute offsets lazily (only when a consumer subscribes), debounce snapshot emission, or maintain incremental offsets; add a perf budget test over a synthetic 10k-block doc."
+        },
+        {
+          "severity": "LOW",
+          "title": "Multi-actor presence is computed but never rendered; quiet-mode path untested at the surface",
+          "evidence": "selection_state.ts mergePresence and remote-actor snapshots have no consumer; only the local actor snapshot is produced (RichTextEditor.tsx:180-188). The MT scope names representing selections for multiple actors; rendering/awareness wiring is absent (matches inventory ED-SEL-001 PARTIAL).",
+          "fix": "When collab transport lands, render remote carets from mergePresence over CRDT awareness; until then mark the surface PARTIAL in the capability inventory (done) and keep the pure lib tested."
+        },
+        {
+          "severity": "LOW",
+          "title": "UTF-8 offsets are ambiguous across atom nodes",
+          "evidence": "textBetween(0, from, \"\\n\") gives atom leaf nodes (hsLink, monacoCodeBlock) zero width, so distinct ProseMirror positions map to identical UTF-8 offsets; an external consumer cannot reliably map an offset back to a document position.",
+          "fix": "Document the mapping contract (offsets are prose-text-relative) or emit block-id + intra-block offsets instead."
+        }
+      ],
+      "parity_gaps": [
+        "ED-SEL-001 selection/cursor state: PARTIAL (local-only; no multi-actor rendering)",
+        "Selection survival across external updates: FAILING until the echo-loop fix lands"
+      ],
+      "missing_tests": [
+        "mid-document typing preserves caret position through the RichDocumentView wiring (currently fails by design analysis)",
+        "IME composition survives a document echo (composition events not interrupted)",
+        "selection snapshot perf budget on a 10k-block document",
+        "snapshot offsets across atom nodes (hsLink/code block) round-trip to positions"
+      ]
+    }
   },
   "handoff": {
     "coder_session": null,

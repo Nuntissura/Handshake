@@ -122,7 +122,16 @@
     },
     "evidence": [
       "Hardened (storage _v2): Confirmed: relationship_id v2 length-prefix derivation covers code-index edges (injective over disambiguated keys); no separate work needed."
-    ]
+    ],
+    "adversarial_review_v2": {
+      "at_utc": "2026-06-12T04:13:25.184Z",
+      "reviewer": "adversarial-backend-reviewer",
+      "verdict": "HARDENED_OK",
+      "findings": [],
+      "claim_mismatches": [],
+      "missing_tests": [],
+      "note": "VERIFIED FIXED from V1: derive_knowledge_relationship_id uses the _v2 length-prefixed ({byte_len}:{value}) injective preimage, separator-injective across code-index edge keys (file:/module:/{lang}:{path}#{path}). Consistent with the same discipline I confirmed in derive_block_id (block_tree.rs:318) and derive_document_link_relationship_id (backlink.rs:152). The separator-injection collision the V1 reviewer flagged is neutralized."
+    }
   },
   "handoff": {
     "coder_session": null,

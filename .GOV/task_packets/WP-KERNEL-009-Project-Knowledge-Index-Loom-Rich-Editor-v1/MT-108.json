@@ -120,7 +120,16 @@
     },
     "evidence": [
       "Hardened cf1b690d: Real durable knowledge_code_repair_queue (migration 0230) with enqueue/refresh/reopen/resolve; Io/non-UTF-8 + tree-sitter panic recorded not aborting; false repair-queue claim now true."
-    ]
+    ],
+    "adversarial_review_v2": {
+      "at_utc": "2026-06-12T04:13:25.184Z",
+      "reviewer": "adversarial-backend-reviewer",
+      "verdict": "HARDENED_OK",
+      "findings": [],
+      "claim_mismatches": [],
+      "missing_tests": [],
+      "note": "VERIFIED FIXED from V1 (cf1b690d): a durable knowledge_code_repair_queue (migration 0230) now exists, and record_parse_failure ACTUALLY enqueues into it - engine.rs:858 enqueue_knowledge_code_repair(NewKnowledgeCodeRepairEntry{...}) -> storage enqueue_knowledge_code_repair (knowledge.rs:5876) UPSERT with a unique-open-per-source index (uq_knowledge_code_repair_open_source) + lifecycle CHECK (queued/retrying/resolved/dead_letter) + FK to the event ledger. The repair-queue-not-implemented-but-claimed finding the V1 reviewer flagged is closed; the prose-vs-code gap is now code-true."
+    }
   },
   "handoff": {
     "coder_session": null,

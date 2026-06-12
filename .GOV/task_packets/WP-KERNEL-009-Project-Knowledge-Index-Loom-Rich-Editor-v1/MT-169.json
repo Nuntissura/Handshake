@@ -94,7 +94,48 @@
     "implementation_commit": "966bec7d",
     "evidence": [
       "Built+verified 966bec7d: editor_commands.test.ts 7/7 (real editor) - toolbar + menus. TiptapMonacoIntegration group complete: full app vitest 60 files/442 tests green; tsc --noEmit + eslint clean; offline Playwright roundtrip PASS (bundled Monaco mounts + round-trips, ZERO external network requests, worker chunks loopback-only). RichTextEditor wired into RichDocumentView over the real rich-doc backend; no src/backend or .GOV product code touched."
-    ]
+    ],
+    "adversarial_review_v2": {
+      "at_utc": "2026-06-12T04:18:00Z",
+      "reviewer": "adversarial-parity-reviewer",
+      "verdict": "FINDINGS",
+      "suites_observed": "editor_commands.test.ts 7/7 PASS; RichTextEditor.test.tsx toolbar tests PASS (with 2 uncaught jsdom getClientRects errors escaping command dispatch - the scrollIntoView path throws AFTER assertions, so the toolbar tests prove less than they appear to)",
+      "findings": [
+        {
+          "severity": "MEDIUM",
+          "title": "canRun exists on the descriptor interface but is never populated; toolbar/palette never disable invalid commands",
+          "evidence": "editor_commands.ts:59 declares canRun; no command in EDITOR_COMMANDS defines it; RichTextEditor.tsx:289-305 disables buttons only via readOnly. Concrete hazard: with a monacoCodeBlock node-selected, \"Insert table\"/\"Insert code block\"/\"Insert link\" run insertContent which REPLACES the selected code block - one toolbar click destroys the block (undoable, but silent).",
+          "fix": "Populate canRun with editor.can() chains per command; bind disabled={readOnly || !cmd.canRun?.(editor)} in toolbar + palette; add a NodeSelection-replacement regression test."
+        },
+        {
+          "severity": "LOW",
+          "title": "Tables are insert-only: no row/column/delete/toggle-header operations",
+          "evidence": "editor_commands.ts:168-174 has only table.insert; TableKit provides addRowAfter/addColumnAfter/deleteRow/deleteColumn/deleteTable/toggleHeaderRow but none are cataloged - an inserted table cannot be structurally edited from any UI.",
+          "fix": "Add the standard table edit command family to EDITOR_COMMANDS (palette category table), shown contextually via canRun."
+        },
+        {
+          "severity": "LOW",
+          "title": "Overflow commands are not operator-reachable from the toolbar; hidden div is a stub",
+          "evidence": "RichTextEditor.tsx:408-413 renders overflow commands as hidden empty spans; embed/graph/mention/manual commands are reachable only by knowing to open the palette.",
+          "fix": "Render a real overflow menu (button + popover listing overflowCommands) or fold them into the toolbar with grouping."
+        },
+        {
+          "severity": "LOW",
+          "title": "No undo/redo commands in catalog or toolbar",
+          "evidence": "EDITOR_COMMANDS has no history commands; keyboard Mod-Z works via StarterKit but there is no discoverable button/palette entry (VS Code-class editors expose both).",
+          "fix": "Add history.undo/history.redo commands with canRun editor.can().undo()/redo()."
+        }
+      ],
+      "parity_gaps": [
+        "ED-NAV-003 toolbar: PRESENT but PARTIAL (no canRun gating, overflow stub, no undo/redo, tables insert-only)",
+        "Plain URL link mark commands absent (set/unset/open link)"
+      ],
+      "missing_tests": [
+        "toolbar insert command on a NodeSelection does not silently replace the selected block",
+        "disabled state reflects canRun for context-invalid commands",
+        "jsdom suite: polyfill getClientRects or assert command dispatch does not throw (2 uncaught errors currently escape)"
+      ]
+    }
   },
   "handoff": {
     "coder_session": null,

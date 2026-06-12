@@ -94,7 +94,34 @@
     "implementation_commit": "953a1453",
     "evidence": [
       "Built+verified 953a1453: worker_bundling.test.ts 4/4 - offline worker bundling (Vite ?worker, no CDN). TiptapMonacoIntegration group complete: full app vitest 60 files/442 tests green; tsc --noEmit + eslint clean; offline Playwright roundtrip PASS (bundled Monaco mounts + round-trips, ZERO external network requests, worker chunks loopback-only). RichTextEditor wired into RichDocumentView over the real rich-doc backend; no src/backend or .GOV product code touched."
-    ]
+    ],
+    "adversarial_review_v2": {
+      "at_utc": "2026-06-12T04:14:00Z",
+      "reviewer": "adversarial-parity-reviewer",
+      "verdict": "HARDENED_OK",
+      "suites_observed": "worker_bundling.test.ts 4/4 + worker_map.test.ts PASS; playwright proves worker chunks served loopback-only with zero external requests (2/2 PASS rerun 2026-06-12)",
+      "findings": [
+        {
+          "severity": "LOW",
+          "title": "Worker-construction failure degrades language services silently after the typed report",
+          "evidence": "setup.ts:44-62 reports + rethrows; monaco then runs editor-core without that language worker. The global DependencyFailureBanner surfaces it, but nothing on the affected code block indicates language services are degraded (block keeps data-monaco-mounted=true).",
+          "fix": "Reflect worker failures per-language on the code-block surface (e.g. data-language-services=degraded) so a no-context model can attribute missing intellisense/validation to the worker, not the code."
+        },
+        {
+          "severity": "LOW",
+          "title": "Offline proof does not cover WebSocket/EventSource channels",
+          "evidence": "rich_editor_roundtrip.spec.ts uses page.route which does not intercept WebSocket connections; current deps open none, so this is regression cover only.",
+          "fix": "Add context websocket listeners to the kill-switch ledger asserting zero non-loopback sockets."
+        }
+      ],
+      "parity_gaps": [
+        "ED-CORE-007 worker bundling: PRESENT and proven offline"
+      ],
+      "missing_tests": [
+        "worker-only failure (editor mounts, ts worker dies) keeps editing usable and flags language services degraded",
+        "websocket/eventsource channels included in the zero-external assertion"
+      ]
+    }
   },
   "handoff": {
     "coder_session": null,

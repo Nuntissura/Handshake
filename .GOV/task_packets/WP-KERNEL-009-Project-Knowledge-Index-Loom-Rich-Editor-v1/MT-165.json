@@ -94,7 +94,62 @@
     "implementation_commit": "bc476ece",
     "evidence": [
       "Built+verified bc476ece: monaco_code_block_node.test.ts 5/5 + MonacoCodeBlockView.test.tsx 2/2 - embedded Monaco code-block node. TiptapMonacoIntegration group complete: full app vitest 60 files/442 tests green; tsc --noEmit + eslint clean; offline Playwright roundtrip PASS (bundled Monaco mounts + round-trips, ZERO external network requests, worker chunks loopback-only). RichTextEditor wired into RichDocumentView over the real rich-doc backend; no src/backend or .GOV product code touched."
-    ]
+    ],
+    "adversarial_review_v2": {
+      "at_utc": "2026-06-12T04:14:00Z",
+      "reviewer": "adversarial-parity-reviewer",
+      "verdict": "FINDINGS",
+      "suites_observed": "monaco_code_block_node.test.ts 5/5 + MonacoCodeBlockView.test.tsx PASS; playwright offline mount PASS (data-monaco-mounted=true)",
+      "findings": [
+        {
+          "severity": "HIGH",
+          "title": "Stale-closure language in onDidChangeContent corrupts the round-trip hash after a language switch",
+          "evidence": "MonacoCodeBlockView.tsx:52-95 mounts once and captures `language` from the FIRST render inside the model.onDidChangeContent closure (line 73: codeBlockHash(language, next)). After the operator changes the language picker (updateAttributes language+hash, lines 121-126), every subsequent keystroke recomputes contentHash with the OLD language -> persisted attrs where contentHash != codeBlockHash(attrs.language, attrs.code). The MT-168 integrity invariant is silently broken at the source.",
+          "fix": "Keep a languageRef updated by the language effect (or read the current node attrs at write time) so the hash is always computed from the current language; add a test: mount -> change language -> type -> verifyCodeBlockIntegrity(attrs) === true."
+        },
+        {
+          "severity": "MEDIUM",
+          "title": "External reconcile uses model.setValue -> Monaco undo stack, caret, scroll and folds destroyed on every external code change",
+          "evidence": "MonacoCodeBlockView.tsx:99-107 - any externally-driven attrs.code change (prose-side undo/redo of code edits, future collab updates, document reload) runs instance.setValue(code), which resets the model: undo history cleared, cursor to 0:0, view state lost.",
+          "fix": "Replace setValue with model.pushEditOperations(minimal diff) and save/restore editor view state around external updates (the standard Monaco reconcile pattern)."
+        },
+        {
+          "severity": "MEDIUM",
+          "title": "Keyboard trap: no keyboard path out of the embedded Monaco editor",
+          "evidence": "monaco_code_block_node.ts is an atom node with no addKeyboardShortcuts; MonacoCodeBlockView wires no boundary handling. Once focus is inside Monaco, Tab indents (Monaco), arrows never exit at first/last line, and Escape does nothing -> a keyboard-only user cannot leave the code block (WCAG 2.1.2 No Keyboard Trap).",
+          "fix": "Implement the standard code-block NodeView escape pattern: ArrowDown on last line / ArrowUp on first line moves selection to the adjacent prose block (creating a trailing paragraph if the block is last); Escape selects the node; consider Monaco tabFocusMode toggle."
+        },
+        {
+          "severity": "MEDIUM",
+          "title": "Dual undo stacks (Monaco internal vs ProseMirror attr history) diverge across the boundary",
+          "evidence": "Every Monaco keystroke emits a PM attr-update transaction (updateAttributes, MonacoCodeBlockView.tsx:73) entering StarterKit history; Monaco keeps its own model undo. Prose-side Ctrl+Z undoes an attr step -> effect setValue resets the Monaco stack; Monaco-side Ctrl+Z afterwards mutates code and creates NEW PM steps. Mixed sequences produce surprising states; no test covers cross-boundary undo.",
+          "fix": "Pick one owner: suppress PM history for code-attr transactions (setMeta addToHistory false + explicit commit points) or disable Monaco internal undo and route Ctrl+Z to PM. Document the chosen semantics and test prose-edit -> code-edit -> undo -> undo."
+        },
+        {
+          "severity": "LOW",
+          "title": "Code text serialized twice in HTML rendering and full code re-pushed through attrs each keystroke",
+          "evidence": "monaco_code_block_node.ts:95-108 renderHTML emits a data-code attribute AND the code text inside <code> (2x payload for copy/export); every keystroke ships the FULL code string through updateAttributes -> editor.getJSON() upstream (O(code length) per keystroke).",
+          "fix": "Drop data-code and parse from <code> textContent (parseAttrsFromElement already falls back to it); consider debouncing attr writes (e.g. 150ms idle) with flush-on-blur/save."
+        },
+        {
+          "severity": "LOW",
+          "title": "No lazy mount: every code block boots a full Monaco instance at parse time",
+          "evidence": "Each monacoCodeBlock NodeView constructs an IStandaloneCodeEditor immediately; a document with dozens of code blocks mounts dozens of Monaco instances up front (memory + startup cost).",
+          "fix": "Mount Monaco on first interaction or via IntersectionObserver; render the serialized <pre><code> until visible."
+        }
+      ],
+      "parity_gaps": [
+        "ED-CODE-INT-006 folding/bracket matching: Monaco defaults active inside the embed but unconfigured/unverified (no test)",
+        "ED-CODE-INT-009 minimap explicitly disabled, sticky scroll/inlay hints unconfigured (accepted as P2)",
+        "Monaco theme hardcoded vs-dark; no app-theme sync (ED-WB-009 adjacency)"
+      ],
+      "missing_tests": [
+        "language change then edit keeps verifyCodeBlockIntegrity true",
+        "external attrs.code update preserves Monaco caret/undo (after pushEditOperations fix)",
+        "keyboard-only enter/exit of the code block (boundary arrows + Escape)",
+        "cross-boundary undo sequence (prose edit -> code edit -> Ctrl+Z x2)"
+      ]
+    }
   },
   "handoff": {
     "coder_session": null,

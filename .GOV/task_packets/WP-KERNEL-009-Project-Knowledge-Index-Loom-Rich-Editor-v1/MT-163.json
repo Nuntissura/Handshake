@@ -94,7 +94,42 @@
     "implementation_commit": "23f3f510",
     "evidence": [
       "Built+verified 23f3f510: hs_link_node.test.ts 10/10 (real editor) - [[kind:value]] -> typed hsLink nodes (note/file/folder/project/spec/wp/symbol/album/video/HS_images/HS_slideshow), unknown prefixes preserved. TiptapMonacoIntegration group complete: full app vitest 60 files/442 tests green; tsc --noEmit + eslint clean; offline Playwright roundtrip PASS (bundled Monaco mounts + round-trips, ZERO external network requests, worker chunks loopback-only). RichTextEditor wired into RichDocumentView over the real rich-doc backend; no src/backend or .GOV product code touched."
-    ]
+    ],
+    "adversarial_review_v2": {
+      "at_utc": "2026-06-12T04:12:00Z",
+      "reviewer": "adversarial-parity-reviewer",
+      "verdict": "FINDINGS",
+      "suites_observed": "hs_link_node.test.ts 10/10 PASS in current tree (file now carries MT-244 NodeView additions - reviewed as on disk)",
+      "findings": [
+        {
+          "severity": "MEDIUM",
+          "title": "resolved=true is minted from prefix recognition alone, never from backend resolution",
+          "evidence": "wikilink.ts:54-61 classifyWikilink returns resolved:true for ANY known prefix regardless of whether the target exists; hs_link_node.ts renders hs-link--resolved styling from it. A typo like [[wp:WP-KERNEL-999]] renders as a confident resolved chip. The backend broken-embed/repair model (embed.rs, MT-152/153) is never consulted at insert or load.",
+          "fix": "Rename the attr to knownKind (truthful) or add an async resolution pass (on insert + on load) that patches resolved from the backend entity lookup and feeds the broken-embed repair queue."
+        },
+        {
+          "severity": "LOW",
+          "title": "Pasted HTML can mint arbitrary trusted-looking hsLink chips (spoofable, not XSS)",
+          "evidence": "hs_link_node.ts:92-94 parseHTML accepts any span[data-testid=hs-link] from clipboard HTML, including data-resolved=\"true\" and arbitrary refKind/refValue. Rendering is text-only (ProseMirror escapes), so no script execution, but future click-navigation will receive attacker-shaped refValue.",
+          "fix": "Clamp refKind to WP009_WIKILINK_KINDS on parse (else force refKind=unknown, resolved=false); treat refValue as untrusted in the future navigation handler (allowlist routes, no raw path/URL dereference)."
+        },
+        {
+          "severity": "LOW",
+          "title": "No Obsidian-style [[title]] shorthand and no feedback when it is typed",
+          "evidence": "wikilink.ts:35 WIKILINK_REGEX requires a kind: prefix; typing [[My Note]] silently stays plain text - no rule fires, no hint.",
+          "fix": "Either add a note-default input rule for [[title]] -> refKind:\"note\" or show a non-blocking hint; document the deliberate syntax in the manual."
+        }
+      ],
+      "parity_gaps": [
+        "ED-LINK-001 typed wikilinks PRESENT; resolution-to-live-entity remains unimplemented (resolved flag is syntax-level)",
+        "Click-to-navigate on hsLink chips not implemented (no click handler; openOnClick disabled) - navigation parity unowned"
+      ],
+      "missing_tests": [
+        "hostile clipboard HTML minting hsLink attrs is clamped (unknown refKind forced unresolved)",
+        "label containing HTML-special characters renders escaped (regression guard)",
+        "unresolved-target chip is visually distinct after backend resolution pass (once wired)"
+      ]
+    }
   },
   "handoff": {
     "coder_session": null,

@@ -118,7 +118,23 @@
     },
     "evidence": [
       "Hardened b0266f35: entity_key disambiguation: trait-impl methods tagged as:Trait, impls tagged, collision ordinals; distinct symbols no longer merge."
-    ]
+    ],
+    "adversarial_review_v2": {
+      "at_utc": "2026-06-12T04:13:25.184Z",
+      "reviewer": "adversarial-backend-reviewer",
+      "verdict": "HARDENED_OK",
+      "findings": [
+        {
+          "severity": "LOW",
+          "title": "Collision ordinal is positional, so entity_key (and derived relationship_id) churns when impl blocks / duplicates are added or reordered",
+          "evidence": "assign_collision_ordinals (symbols.rs:140-168) assigns dup0/dup1 by extraction order to same-(symbol_path,disambiguator) symbols. Two impl blocks of the same type no longer silently merge (V1 finding closed), but adding/removing/reordering an impl re-numbers the others, changing their entity_key and any relationship_id derived from it.",
+          "fix": "Derive the ordinal from a stable intra-file property (e.g. byte-span order is already stable, but insertion above still shifts it) or include a content/signature hash so the discriminator is edit-stable."
+        }
+      ],
+      "claim_mismatches": [],
+      "missing_tests": [],
+      "note": "VERIFIED FIXED from V1 (b0266f35): the silent two-impl/same-type merge at the upsert is resolved by disambiguator + ordinal (test duplicate_same_kind_declarations_get_ordinal_and_do_not_collide, symbols.rs:823). Residual is positional-ordinal churn, a lesser issue than the merge it replaced."
+    }
   },
   "handoff": {
     "coder_session": null,

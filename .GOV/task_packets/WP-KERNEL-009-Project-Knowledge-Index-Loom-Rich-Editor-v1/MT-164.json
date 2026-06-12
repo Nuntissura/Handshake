@@ -94,7 +94,41 @@
     "implementation_commit": "5ca31f9d",
     "evidence": [
       "Built+verified 5ca31f9d: auto_code_block_rules.test.ts 9/9 - ```lang input rule + fenced/indented paste + slash command, reversible prose<->code. TiptapMonacoIntegration group complete: full app vitest 60 files/442 tests green; tsc --noEmit + eslint clean; offline Playwright roundtrip PASS (bundled Monaco mounts + round-trips, ZERO external network requests, worker chunks loopback-only). RichTextEditor wired into RichDocumentView over the real rich-doc backend; no src/backend or .GOV product code touched."
-    ]
+    ],
+    "adversarial_review_v2": {
+      "at_utc": "2026-06-12T04:12:00Z",
+      "reviewer": "adversarial-parity-reviewer",
+      "verdict": "FINDINGS",
+      "suites_observed": "auto_code_block_rules.test.ts 9/9 PASS - but the paste tests call the pure helper directly, not the wired editor",
+      "findings": [
+        {
+          "severity": "HIGH",
+          "title": "Fenced/indented PASTE conversion is not wired into the integrated editor - claimed MT scope not operative",
+          "evidence": "handleCodeBlockPaste (auto_code_block_rules.ts:108) has ZERO product callers (grep: only its own test imports it). AutoCodeBlockRules adds input rules + commands but no addPasteRules/editorProps.handlePaste; RichTextEditor.tsx sets no editorProps. Pasting \"```ts ... ```\" into the real editor yields plain prose paragraphs. MT-164 scope names \"fenced paste, indented paste\" and the recorded evidence claims them green.",
+          "fix": "Wire editorProps.handlePaste in the useEditor options (or addProseMirrorPlugins in AutoCodeBlockRules) to delegate plain-text pastes to handleCodeBlockPaste; add an integrated paste test dispatching a real ClipboardEvent."
+        },
+        {
+          "severity": "MEDIUM",
+          "title": "Reversibility is one-way: codeToProse does not exist",
+          "evidence": "auto_code_block_rules.ts:10 doc comment promises \"toggleProseToCode/codeToProse for reversible conversion\"; addCommands (lines 59-80) implements only insertCodeBlockFromSlash + proseToCodeBlock. There is no command, toolbar entry, or keybinding to turn a monacoCodeBlock back into prose. MT scope requires \"reversible prose/code conversion\".",
+          "fix": "Add codeBlockToProse command: replace the selected monacoCodeBlock with paragraph(s) from its code attr (or a fenced-text paragraph via codeBlockToFenced); register in EDITOR_COMMANDS + palette."
+        },
+        {
+          "severity": "LOW",
+          "title": "proseToCodeBlock converts the selection, not \"the current paragraph\" as documented; empty selection inserts an empty block mid-paragraph",
+          "evidence": "auto_code_block_rules.ts:68-79 uses state.selection from/to + textBetween; with a collapsed cursor text=\"\" and an empty code block is spliced into the paragraph.",
+          "fix": "When selection is empty, expand to the parent textblock range (replaceRangeWith over the paragraph), matching the doc comment."
+        }
+      ],
+      "parity_gaps": [
+        "ED-CORE-008 auto code-block rules: input rule PRESENT; paste path ABSENT at the surface; reverse conversion ABSENT -> PARTIAL"
+      ],
+      "missing_tests": [
+        "integrated editor: paste fenced markdown via ClipboardEvent -> monacoCodeBlock created (currently impossible: unwired)",
+        "integrated editor: paste indented blob -> plaintext code block",
+        "codeToProse round-trip: prose -> code -> prose preserves text"
+      ]
+    }
   },
   "handoff": {
     "coder_session": null,

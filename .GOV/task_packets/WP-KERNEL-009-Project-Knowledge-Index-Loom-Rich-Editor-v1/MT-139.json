@@ -92,7 +92,27 @@
     "implementation_commit": "ac666fe3",
     "evidence": [
       "Built+verified ac666fe3; RetrievalContextAndRanking: 46 unit + 10 real-PG tests pass; cheapest-authoritative planner records mode+skip-reason in replayable RetrievalTrace; reuses MT-060 trace/bundle substrate (1 new migration 0260); MT-129 additive QueryRetrievalMode extension; folded-stub bridges (139-142) preserve ProjectBrain/SemanticCatalog/AIReady/ContextPack intent as backend contracts."
-    ]
+    ],
+    "adversarial_review_v2": {
+      "at_utc": "2026-06-12T04:11:18.477Z",
+      "reviewer": "adversarial-backend-reviewer",
+      "verdict": "FINDINGS",
+      "findings": [
+        {
+          "severity": "LOW",
+          "title": "prefer_context_pack_reuse is a passthrough with no effect on the produced plan",
+          "evidence": "project_brain.rs:70-103 returns prefer_context_pack_reuse in ProjectBrainPlanInputs but does NOT inject it into RetrievalRequest, and the planner has no context-pack-reuse field/branch (the hybrid route always includes a ContextPacks step regardless). The folded prefer-fresh-ContextPack-reuse intent does not change planning.",
+          "fix": "Thread the reuse preference into the request/plan so the planner can prefer/skip the ContextPack step, or document it as caller-only metadata."
+        }
+      ],
+      "claim_mismatches": [
+        {
+          "claim": "prefer fresh ContextPack reuse where appropriate",
+          "reality": "represented as a passthrough boolean that does not influence the QueryPlan"
+        }
+      ],
+      "missing_tests": []
+    }
   },
   "handoff": {
     "coder_session": null,

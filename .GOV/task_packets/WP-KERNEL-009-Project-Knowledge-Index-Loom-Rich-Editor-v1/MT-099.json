@@ -119,7 +119,23 @@
     },
     "evidence": [
       "Hardened b0266f35: TS declaration-merging (interface/function/class/namespace) + overloads disambiguated by kind; all const declarators extracted."
-    ]
+    ],
+    "adversarial_review_v2": {
+      "at_utc": "2026-06-12T04:13:25.184Z",
+      "reviewer": "adversarial-backend-reviewer",
+      "verdict": "HARDENED_OK",
+      "findings": [
+        {
+          "severity": "LOW",
+          "title": "Same positional-ordinal churn as MT-098 applies to TS overloads / declaration-merging discriminated by kind tag + ordinal",
+          "evidence": "TS symbols carry ts_js_kind_tag disambiguators (symbols.rs:460,601); same-(path,kind) duplicates (overloads, merged declarations) fall through to assign_collision_ordinals positional dup ordinals.",
+          "fix": "Same as MT-098: make the discriminator edit-stable (signature/content hash) rather than extraction-order positional."
+        }
+      ],
+      "claim_mismatches": [],
+      "missing_tests": [],
+      "note": "VERIFIED FIXED from V1 (b0266f35): TS interface/function/class/namespace declaration-merging + overloads no longer collapse (kind-tag disambiguator + ordinal). Residual: positional-ordinal churn."
+    }
   },
   "handoff": {
     "coder_session": null,

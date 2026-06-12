@@ -94,7 +94,43 @@
     "implementation_commit": "53b5e903",
     "evidence": [
       "Built+verified 53b5e903: backend_error.test.ts 6/6 + RichDocumentView conflict test - typed inline backend errors (save/conflict/schema/load/index/projection), never blank; Monaco-mount-failure textarea fallback. TiptapMonacoIntegration group complete: full app vitest 60 files/442 tests green; tsc --noEmit + eslint clean; offline Playwright roundtrip PASS (bundled Monaco mounts + round-trips, ZERO external network requests, worker chunks loopback-only). RichTextEditor wired into RichDocumentView over the real rich-doc backend; no src/backend or .GOV product code touched."
-    ]
+    ],
+    "adversarial_review_v2": {
+      "at_utc": "2026-06-12T04:22:00Z",
+      "reviewer": "adversarial-parity-reviewer",
+      "verdict": "FINDINGS",
+      "suites_observed": "backend_error.test.ts 6/6 + RichDocumentView conflict test PASS",
+      "findings": [
+        {
+          "severity": "HIGH",
+          "title": "Conflict guidance leads the operator into irrecoverable local-edit loss; dirty-flag race silently discards keystrokes typed during an in-flight save",
+          "evidence": "Two coupled defects on the save/error surface this MT owns: (1) backend_error.ts:44-48 conflict hint says \"Reload to get the latest version, then re-apply your edit\" but Reload (RichDocumentView.tsx:58-91) discards editorContent with no draft, no export, no confirmation - following the official hint destroys the unsaved work the conflict was protecting. (2) RichDocumentView.tsx:115-141 onSave captures editorContent at click time; keystrokes during the in-flight await mark isDirty=true, then the save resolution unconditionally setIsDirty(false) - the Save button disables with UNSAVED content in the editor and \"Saved at\" showing success. (3) No beforeunload/doc-switch guard: switching documentId or closing with dirty edits silently discards them.",
+          "fix": "On conflict: snapshot the local doc (e.g. localStorage/recovery table) BEFORE reload and offer re-apply; fix the race by capturing a save-generation counter (only clear dirty if no onChange occurred since capture); add an unsaved-changes guard on unmount/doc switch. Regression tests for all three."
+        },
+        {
+          "severity": "MEDIUM",
+          "title": "Error classification by substring over free-text messages misroutes errors",
+          "evidence": "backend_error.ts:28-51 - any save failure whose message contains \"version\" (e.g. a backend message like \"document_versions table unavailable\") classifies as conflict with the misleading reload hint; \"schema\" anywhere wins over conflict. The rich-doc API (api.ts request) throws plain Errors with message text, so classification is best-effort string matching.",
+          "fix": "Return structured error codes from the API layer (status + typed code in the JSON error body) and classify on those; keep substring matching only as fallback."
+        },
+        {
+          "severity": "LOW",
+          "title": "Blocks panel renders a stale tree after save",
+          "evidence": "RichDocumentView.tsx:126 setLoad({...load, document: result.document, tree: load.tree}) - doc_version advances but tree.blocks remain the pre-save snapshot until manual reload; the visual-debug block list lies about current content.",
+          "fix": "Refresh blocks in refreshSidecars (loadRichDocumentBlocks) after save, or mark the panel as stale-until-reload."
+        }
+      ],
+      "parity_gaps": [
+        "ED-DBG-002 inline backend errors: PRESENT (typed kinds + banner tested) but the conflict REMEDIATION path is data-lossy",
+        "ED-REC-001 crash/draft recovery: no editor-side draft persistence at all (descope noted on MT-159, but the conflict hint depends on it)"
+      ],
+      "missing_tests": [
+        "typing during an in-flight save keeps isDirty=true after the save resolves",
+        "conflict -> reload preserves (or explicitly offers) the local unsaved doc",
+        "document switch / unmount with dirty edits prompts or snapshots",
+        "misclassification guard: save error mentioning \"version\" in a non-conflict sense"
+      ]
+    }
   },
   "handoff": {
     "coder_session": null,

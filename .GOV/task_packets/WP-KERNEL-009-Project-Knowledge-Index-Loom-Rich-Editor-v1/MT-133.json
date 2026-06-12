@@ -92,7 +92,29 @@
     "implementation_commit": "4026ec85",
     "evidence": [
       "Built+verified 4026ec85; RetrievalContextAndRanking: 46 unit + 10 real-PG tests pass; cheapest-authoritative planner records mode+skip-reason in replayable RetrievalTrace; reuses MT-060 trace/bundle substrate (1 new migration 0260); MT-129 additive QueryRetrievalMode extension; folded-stub bridges (139-142) preserve ProjectBrain/SemanticCatalog/AIReady/ContextPack intent as backend contracts."
-    ]
+    ],
+    "adversarial_review_v2": {
+      "at_utc": "2026-06-12T04:11:18.477Z",
+      "reviewer": "adversarial-backend-reviewer",
+      "verdict": "FINDINGS",
+      "findings": [
+        {
+          "severity": "MEDIUM",
+          "title": "passage fallback is a correct pure decision but is never wired/executed or integration-tested",
+          "evidence": "decide_passage_fallback (passage_fallback.rs:87) is only unit-tested; no planner/executor calls it and no PG/integration test exercises graph-result -> fallback -> passages. The compiler path (pipeline_tests:230) injects pre-built candidates, bypassing fallback.",
+          "fix": "Wire decide_passage_fallback into the retrieval execution path after graph traversal, and add a PG test where a missing/stale/contradicted graph drives a recorded passage-fallback trace."
+        }
+      ],
+      "claim_mismatches": [
+        {
+          "claim": "Fallback to passage retrieval when graph candidates are missing, stale, contradicted, or low-confidence",
+          "reality": "the fallback DECISION is implemented and unit-proven, but no executed fallback path exists or is tested end-to-end"
+        }
+      ],
+      "missing_tests": [
+        "PG test: missing/stale/contradicted graph -> passage_fallback trace recorded with the right reason"
+      ]
+    }
   },
   "handoff": {
     "coder_session": null,

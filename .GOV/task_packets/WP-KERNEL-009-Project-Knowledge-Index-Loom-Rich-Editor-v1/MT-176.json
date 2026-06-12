@@ -94,7 +94,51 @@
     "implementation_commit": "dfd7a0f8",
     "evidence": [
       "Built+verified dfd7a0f8: rich_editor_roundtrip.spec.ts Playwright PASS - offline integrated editor + embedded Monaco, data-monaco-mounted, deterministic round-trip, network kill-switch. TiptapMonacoIntegration group complete: full app vitest 60 files/442 tests green; tsc --noEmit + eslint clean; offline Playwright roundtrip PASS (bundled Monaco mounts + round-trips, ZERO external network requests, worker chunks loopback-only). RichTextEditor wired into RichDocumentView over the real rich-doc backend; no src/backend or .GOV product code touched."
-    ]
+    ],
+    "adversarial_review_v2": {
+      "at_utc": "2026-06-12T04:22:00Z",
+      "reviewer": "adversarial-parity-reviewer",
+      "verdict": "FINDINGS",
+      "suites_observed": "RERUN 2026-06-12: rich_editor_roundtrip.spec.ts PASS (909ms); vitest app suite 62 files/468 tests PASS with 2 uncaught jsdom errors",
+      "findings": [
+        {
+          "severity": "HIGH",
+          "title": "The \"deterministic round-trip\" proof is a tautology: JSON deep-clone compared to itself, never re-hydrated through the editor schema",
+          "evidence": "rich_editor_harness.tsx:109-132 runRoundTrip does serialized = JSON.parse(JSON.stringify(state.docJson)) and compares firstCodeBlockAttrs(before) vs (after) - this cannot fail for JSON-safe data. The harness header (line 18) claims \"re-load it into a fresh editor, compare\" but no fresh editor/schema parse ever happens; schema-level attribute loss (the actual round-trip risk) is invisible. The only real assertion is hash self-consistency.",
+          "fix": "Rebuild the document through the schema: create a second Editor (or generateJSON/createDocument) from the serialized JSON and compare getJSON() output structurally; better, drive a real edit (page.keyboard.type into Monaco + prose) before the round-trip."
+        },
+        {
+          "severity": "HIGH",
+          "title": "No test anywhere types into the integrated editor - the seam hiding the proven caret-teleport defect",
+          "evidence": "The playwright spec clicks one harness button; vitest tests drive commands/fireEvent, never real typing with caret assertions. The initialContent echo -> setContent loop (RichTextEditor.tsx:156-162 + RichDocumentView.tsx:204-209 + the harness itself, rich_editor_harness.tsx:100-105) teleports the caret to document end on every keystroke for mid-document edits (verified by headless probe against the bundled tiptap 3.13: setContent(identical) moved caret 6 -> 12/13). Every existing test appends at the end or bypasses typing, so the flagship integration defect class is structurally untestable by the current matrix.",
+          "fix": "Add to the offline playwright lane: click mid-paragraph, page.keyboard.type(\"X\"), assert caret stays adjacent to X and document order is correct; same inside Monaco; plus an undo-after-typing assertion. These are the MT-176 acceptance tests the round-trip spec was meant to be."
+        },
+        {
+          "severity": "MEDIUM",
+          "title": "Claimed coverage scope (create/code-edit/embeds/links/save/load/conflict) is mostly absent from the visual lane",
+          "evidence": "Inventory ED-TEST-001 names create/code-edit/embeds/links/save/load/conflict; the spec covers boot + selectors + the tautological round-trip only. Save/load/conflict have jsdom coverage (RichDocumentView tests) but no browser-context coverage; code-EDIT (typing in Monaco) and IME/composition have none anywhere. Embeds + find/replace visual coverage is MT-244 lane (skipped here).",
+          "fix": "Extend the offline lane with: code-block typing + hash update assert; save-mock round-trip through a loopback stub; conflict banner render; viewport matrix per MT-173."
+        },
+        {
+          "severity": "LOW",
+          "title": "Screenshot captured but nothing asserts on it; single default viewport",
+          "evidence": "rich_editor_roundtrip.spec.ts:193-196 saves a fullPage screenshot as evidence without pixel/layout assertions or a second viewport.",
+          "fix": "Add the pixelmatch baseline (devDeps already include pixelmatch/pngjs) for the editor chrome at 2 viewports."
+        }
+      ],
+      "parity_gaps": [
+        "ED-TEST-001 roundtrip+visual tests: PARTIAL (boot+selectors proven; typing/IME/undo/conflict/visual-matrix absent)"
+      ],
+      "missing_tests": [
+        "mid-document prose typing caret assertion (real keyboard)",
+        "typing inside Monaco updates attrs + hash and survives prose edits",
+        "undo/redo after mixed prose+code edits",
+        "IME composition smoke (CDP Input.imeSetComposition or insertCompositionText)",
+        "editor-schema re-hydration round-trip (fresh editor parse, not JSON clone)",
+        "10k-block document open + typing latency budget",
+        "pixelmatch visual baseline at >=2 viewports"
+      ]
+    }
   },
   "handoff": {
     "coder_session": null,

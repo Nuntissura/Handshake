@@ -94,7 +94,34 @@
     "implementation_commit": "5d4da13a",
     "evidence": [
       "Built+verified 5d4da13a: visual_debug.test.ts 3/3 + RichTextEditor.test.tsx 6/6 - stable visual-debug selectors + __HS_EDITOR_DEBUG__ payload (lint 7c10517d). TiptapMonacoIntegration group complete: full app vitest 60 files/442 tests green; tsc --noEmit + eslint clean; offline Playwright roundtrip PASS (bundled Monaco mounts + round-trips, ZERO external network requests, worker chunks loopback-only). RichTextEditor wired into RichDocumentView over the real rich-doc backend; no src/backend or .GOV product code touched."
-    ]
+    ],
+    "adversarial_review_v2": {
+      "at_utc": "2026-06-12T04:22:00Z",
+      "reviewer": "adversarial-parity-reviewer",
+      "verdict": "FINDINGS",
+      "suites_observed": "visual_debug.test.ts 3/3 + RichTextEditor.test.tsx 6/6 PASS; playwright reads __HS_EDITOR_DEBUG__ successfully",
+      "findings": [
+        {
+          "severity": "MEDIUM",
+          "title": "Unconditional O(doc) debug snapshot on every transaction AND selection update in production",
+          "evidence": "RichTextEditor.tsx:166-206 calls buildEditorDebugSnapshot (full doc.descendants walk, visual_debug.ts:60-92) from BOTH the transaction and selectionUpdate handlers, plus forceRefresh re-rendering the component each event - per keystroke the document is walked twice and the React tree re-renders twice, with no debug-mode gate. Compounds with the echo-loop getJSON+setContent cost (MT-171) into structurally quadratic typing on large documents.",
+          "fix": "Gate snapshot publication behind a debug flag (env/window toggle) or debounce to idle (requestIdleCallback/150ms); keep data-* attrs cheap (counts from nodeCounts cache, not fresh walks)."
+        },
+        {
+          "severity": "LOW",
+          "title": "Single global __HS_EDITOR_DEBUG__ key: last-writer-wins across multiple mounted editors",
+          "evidence": "visual_debug.ts:95 one global key; RichTextEditor.tsx:170 writes unconditionally - with two documents open (future split view, MT-244 panes, or harness + app), a no-context model cannot attribute the snapshot to a document (GLOBAL-BUILD parallel-attribution intent).",
+          "fix": "Namespace by document/editor id: __HS_EDITOR_DEBUG__[docId] with a lastUpdated field; expose the id on the rich-text-editor root data-* for correlation."
+        }
+      ],
+      "parity_gaps": [
+        "ED-DBG-001 visual debug selectors: PRESENT (selector set + payload proven in playwright)"
+      ],
+      "missing_tests": [
+        "debug publication is gated/debounced (perf regression guard once fixed)",
+        "two mounted editors publish attributable snapshots"
+      ]
+    }
   },
   "handoff": {
     "coder_session": null,

@@ -93,7 +93,36 @@
     "implementation_commit": "b506d832+935e0482+bf0c62a5+dd3056f5",
     "evidence": [
       "Built+verified (commits b506d832 backend core + 935e0482 manual + bf0c62a5 integration tests + dd3056f5 frontend); RichDocumentCore: 6 real-PG integration + 27 unit backend tests + 8 vitest (app suite 349/349). 18 block kinds, RawDerivedDisplay (CX-100), stable KBL- ids, save/load API w/ receipts, projections (negative proof: projection-delete leaves authority byte-identical), embeds (absolute paths DB-CHECK rejected), backlinks (stable KDLNK- relationship_id), history, permissions, crash recovery; migrations 0280-0282; RichDocumentView.tsx wired to real authority with stable selectors for MT-161+ GUI groups. UserManual coverage added (1 group + 10 cmd refs)."
-    ]
+    ],
+    "adversarial_review_v2": {
+      "at_utc": "2026-06-12T04:05:46.457Z",
+      "reviewer": "adversarial-backend-reviewer",
+      "verdict": "FINDINGS",
+      "findings": [
+        {
+          "severity": "MEDIUM",
+          "title": "BATCH operations and most named ops are not implemented",
+          "evidence": "api routes expose only single-doc rename_document and move_document (api:786-853). The contract names batch rename, move, tag, folder color label, projection rebuild, and stale repair. There is no batch endpoint, no tag op, no folder-color op, no projection-rebuild op, no stale-repair op.",
+          "fix": "Implement batch endpoints (accept id lists, per-item receipts + partial-failure reporting) for the named operations, or descope the contract."
+        },
+        {
+          "severity": "MEDIUM",
+          "title": "move with an empty body silently clears project_ref and folder_ref",
+          "evidence": "move_document (api:820-837) passes body.project_ref/folder_ref (Option, default None) straight into move_knowledge_rich_document (knowledge.rs:4660 SET project_ref=$2, folder_ref=$3); a POST /move with empty body sets both to NULL, wiping membership.",
+          "fix": "Distinguish absent=leave unchanged from explicit null=clear (serde double-Option or separate clear flags)."
+        }
+      ],
+      "claim_mismatches": [
+        {
+          "claim": "Define safe batch rename, move, tag, folder color label, projection rebuild, and stale repair operations",
+          "reality": "only per-document rename and move exist; no batch, tag, folder-color, projection-rebuild, or stale-repair operation is implemented"
+        }
+      ],
+      "missing_tests": [
+        "test: batch rename of N docs with one failing id reports per-item results",
+        "test: move with empty body leaves existing project/folder unchanged"
+      ]
+    }
   },
   "handoff": {
     "coder_session": null,

@@ -94,7 +94,48 @@
     "implementation_commit": "1d0a2e66",
     "evidence": [
       "Built+verified 1d0a2e66: RichTextEditor.a11y.test.tsx 4/4 - accessibility + readability. TiptapMonacoIntegration group complete: full app vitest 60 files/442 tests green; tsc --noEmit + eslint clean; offline Playwright roundtrip PASS (bundled Monaco mounts + round-trips, ZERO external network requests, worker chunks loopback-only). RichTextEditor wired into RichDocumentView over the real rich-doc backend; no src/backend or .GOV product code touched."
-    ]
+    ],
+    "adversarial_review_v2": {
+      "at_utc": "2026-06-12T04:22:00Z",
+      "reviewer": "adversarial-parity-reviewer",
+      "verdict": "FINDINGS",
+      "suites_observed": "RichTextEditor.a11y.test.tsx 4/4 PASS (structure-level assertions only)",
+      "findings": [
+        {
+          "severity": "MEDIUM",
+          "title": "role=toolbar without the ARIA toolbar keyboard pattern",
+          "evidence": "RichTextEditor.tsx:283-316 - toolbar exposes role+label (tested) but no roving tabindex / ArrowLeft-ArrowRight navigation; Tab stops on every one of ~12 buttons. WAI-ARIA APG requires arrow-key navigation within a toolbar with a single Tab stop.",
+          "fix": "Implement roving tabindex (active button tabIndex=0, others -1; arrows move focus); extend the a11y test to assert arrow traversal."
+        },
+        {
+          "severity": "MEDIUM",
+          "title": "Keyboard trap inside the embedded code block defeats the focus-order claim (cross-ref MT-165)",
+          "evidence": "MT-173 owns focus order/discoverability; the Monaco embed has no keyboard exit (MonacoCodeBlockView.tsx - no boundary/Escape handling), so the documented focus order is broken for keyboard users at the first code block (WCAG 2.1.2).",
+          "fix": "Land the MT-165 boundary-exit pattern and add a keyboard-only traversal test that enters and leaves a code block."
+        },
+        {
+          "severity": "LOW",
+          "title": "Palette listbox semantics invalid; fallback textarea unlabeled",
+          "evidence": "RichTextEditor.tsx:348-368 li[role=option] always aria-selected=false and wraps a button (interactive child of option is invalid); MonacoCodeBlockView.tsx:176-184 degraded textarea has no aria-label.",
+          "fix": "Fix option semantics together with the MT-170 keyboard-nav work; add aria-label=\"Code (plain editor fallback)\" to the textarea."
+        },
+        {
+          "severity": "LOW",
+          "title": "No automated a11y scan or contrast/viewport verification in any lane",
+          "evidence": "The a11y suite asserts roles/labels only; no axe-core pass, no contrast check, no narrow-viewport overlap check (the file header defers pixel checks to the MT-176 matrix, which contains none - single default-viewport screenshot only).",
+          "fix": "Add an axe-core (or playwright-accessibility-snapshot) assertion to the offline playwright lane + one narrow-viewport (e.g. 800x600) overlap screenshot assertion."
+        }
+      ],
+      "parity_gaps": [
+        "ED-A11Y-001: PARTIAL (semantic structure proven; toolbar pattern, focus traps, code-block exit, automated scans missing)"
+      ],
+      "missing_tests": [
+        "toolbar arrow-key roving tabindex traversal",
+        "keyboard-only enter/exit of a code block",
+        "axe-core scan of the mounted editor (0 serious violations)",
+        "narrow-viewport no-overlap visual assertion"
+      ]
+    }
   },
   "handoff": {
     "coder_session": null,

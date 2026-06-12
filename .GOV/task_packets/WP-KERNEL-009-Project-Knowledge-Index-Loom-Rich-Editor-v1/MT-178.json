@@ -86,7 +86,53 @@
     ],
     "blocks": [],
     "claimed_by": null,
-    "completed_by": null
+    "completed_by": null,
+    "implementation_commit": "991985b9",
+    "evidence": [
+      {
+        "at_utc": "2026-06-12T06:00:00Z",
+        "kind": "implementation",
+        "summary": "Linked backlinks (with surrounding-text context snippets) + unlinked-mention scanner over loom_edges + loom_blocks Postgres store. No parallel index; reuses the existing get_backlinks incoming-edge query.",
+        "files_changed": [
+          "src/backend/handshake_core/src/storage/loom.rs - LoomBacklink, LoomUnlinkedMention types; pure helpers loom_context_snippet (char-safe windowed excerpt w/ ellipses, LOOM_SNIPPET_CONTEXT_CHARS=48) + loom_find_unlinked_term (case-insensitive word-boundary match returning char offset); 5 unit tests (mt178_helper_tests)",
+          "src/backend/handshake_core/src/storage/mod.rs - Database::get_backlinks_with_context + scan_unlinked_mentions trait methods",
+          "src/backend/handshake_core/src/storage/postgres.rs - PostgresDatabase impls + loom_block_scan_text helper (title + derived full_text_index)",
+          "src/backend/handshake_core/src/api/loom.rs - GET /loom/blocks/:id/backlinks + GET /loom/blocks/:id/unlinked-mentions (aliases, limit query params)",
+          "src/backend/handshake_core/tests/loom_backlink_tests.rs (NEW) - 4 real-Postgres integration tests"
+        ]
+      },
+      {
+        "at_utc": "2026-06-12T06:00:00Z",
+        "kind": "test_proof",
+        "command": "cargo test -p handshake_core --features runtime-full,test-utils --lib storage::loom::mt178_helper_tests  &&  --test loom_backlink_tests -- --test-threads=1",
+        "result": "unit ok. 5 passed; integration ok. 4 passed; 0 failed (real Handshake-managed PostgreSQL)",
+        "tests": [
+          "UNIT snippet_windows_around_match_with_ellipses / snippet_handles_match_at_start_and_short_text / snippet_never_splits_multibyte_chars / unlinked_term_matches_on_word_boundary_only / unlinked_term_returns_char_offset",
+          "PG linked_backlinks_carry_source_block_and_context_snippet - incoming MENTION edge -> source block + snippet containing the reference",
+          "PG unlinked_mentions_surface_only_unlinked_word_boundary_matches - unlinked 'Roadmap' surfaces; 'Roadmapping' (substring) excluded; already-linked block excluded; matched_term+snippet+offset present",
+          "PG unlinked_mentions_scan_aliases_too - alias term ('Plan-of-Record') is scanned",
+          "PG backlinks_fail_closed_on_missing_block - NotFound, never silent success"
+        ]
+      }
+    ],
+    "adversarial_code_review": {
+      "at_utc": "2026-06-12T06:00:00Z",
+      "reviewer": "KERNEL_BUILDER backend delegate (self-review)",
+      "commit": "991985b9",
+      "findings": [
+        "ILIKE-INJECTION (clear): scan prefilter uses escape_like_token + sqlx parameterized binds; no string interpolation of the term into SQL.",
+        "DOS (mitigated): scan_unlinked_mentions bounds rows via limit.clamp(1,500) + an ILIKE prefilter before the O(text*terms) Rust word-boundary pass; backlinks are bounded by the incoming-edge count.",
+        "SELF-MENTION (handled): the scan excludes b.block_id = the viewed block, so a block mentioning its own title is not reported.",
+        "ALREADY-LINKED EXCLUSION (handled+tested): NOT EXISTS guard removes blocks that already have a mention/tag/sub_tag edge to the target, so 'unlinked' means truly unlinked.",
+        "WORD-BOUNDARY CORRECTNESS (handled+tested): loom_find_unlinked_term rejects alphanumeric-flanked matches (Roadmapping != Roadmap); snippet operates on chars not bytes (no multibyte split).",
+        "NON-ASCII-LOWERCASE (minor, accepted): the case-insensitive match uses an ASCII-lowercase fast path with a Unicode-lowercase fallback only when lengths differ; a few non-Latin uppercase forms (e.g. Turkish dotted I) could miss. No security impact; common Latin/UTF-8 text matches correctly.",
+        "N+1 (accepted): get_backlinks_with_context loads each source block individually; bounded by the backlink count (panel-scale). Acceptable; can batch later if a hot path emerges.",
+        "CROSS-WORKSPACE (clear): every query filters workspace_id."
+      ],
+      "fixes": [
+        "No code change required beyond the implemented guards; all findings are either handled-by-design (and tested) or accepted low-impact with a rationale."
+      ]
+    }
   },
   "handoff": {
     "coder_session": null,

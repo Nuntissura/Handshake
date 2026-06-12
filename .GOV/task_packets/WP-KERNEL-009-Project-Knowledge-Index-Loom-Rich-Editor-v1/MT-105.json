@@ -120,7 +120,16 @@
     },
     "evidence": [
       "Hardened 575fcffd: SCIP validate rejects ../ and . segments; 64MiB byte cap + doc/symbol/occurrence count caps; occurrence->declared-symbol invariant enforced."
-    ]
+    ],
+    "adversarial_review_v2": {
+      "at_utc": "2026-06-12T04:13:25.184Z",
+      "reviewer": "adversarial-backend-reviewer",
+      "verdict": "HARDENED_OK",
+      "findings": [],
+      "claim_mismatches": [],
+      "missing_tests": [],
+      "note": "VERIFIED FIXED from V1 (575fcffd): parse_scip_artifact enforces a 64 MiB byte cap FIRST (scip.rs:152,162) + document/symbol/occurrence count caps (153-155), and validate_relative_path rejects leading '/', backslash, and '.'/'..'/empty segments (scip.rs:187) with tests rejects_dot_dot_path_segment (362) + rejects_single_dot_path_segment (374). The path-traversal vector the V1 reviewer flagged (../ passing validation) is closed in real code, not just the docstring."
+    }
   },
   "handoff": {
     "coder_session": null,

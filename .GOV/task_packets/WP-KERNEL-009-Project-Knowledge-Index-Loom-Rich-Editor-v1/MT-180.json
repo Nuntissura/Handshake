@@ -86,7 +86,48 @@
     ],
     "blocks": [],
     "claimed_by": null,
-    "completed_by": null
+    "completed_by": null,
+    "implementation_commit": "cd944110",
+    "evidence": [
+      {
+        "at_utc": "2026-06-12T06:40:00Z",
+        "kind": "implementation",
+        "summary": "Project-level global graph API with performance limits + hub suppression over loom_edges + loom_blocks (+ MT-177 bridge for citations). Read projection; no parallel store.",
+        "files_changed": [
+          "src/backend/handshake_core/src/storage/loom.rs - shared LoomGraph types + LOOM_GLOBAL_GRAPH_DEFAULT_NODE_LIMIT(500)/MAX(5000)/DEFAULT_HUB_DEGREE(50) consts",
+          "src/backend/handshake_core/src/storage/mod.rs - Database::global_graph",
+          "src/backend/handshake_core/src/storage/postgres.rs - global_graph (per-node degree across filtered edges; hub suppression drops degree>threshold nodes + lists them; node_limit -> truncated) reusing assemble_loom_graph",
+          "src/backend/handshake_core/src/api/loom.rs - GET /loom/graph/global (edge_types, node_limit, hub_degree_threshold)",
+          "src/backend/handshake_core/tests/loom_graph_tests.rs (shared MT-179+180)"
+        ]
+      },
+      {
+        "at_utc": "2026-06-12T06:40:00Z",
+        "kind": "test_proof",
+        "command": "cargo test -p handshake_core --features runtime-full,test-utils --test loom_graph_tests -- --test-threads=1",
+        "result": "ok. 5 passed; 0 failed (real PostgreSQL) [shared MT-179+180 suite]",
+        "tests": [
+          "global_graph_returns_all_and_suppresses_hubs - threshold 0 disables suppression (hub present, degree 6 counted); threshold 5 suppresses the degree-6 hub (dropped + in suppressed_hub_ids); unrelated X-Y pair unaffected; no edges to a suppressed hub",
+          "global_graph_node_limit_sets_truncated - node_limit 3 over 5 blocks -> 3 nodes + truncated=true"
+        ]
+      }
+    ],
+    "adversarial_code_review": {
+      "at_utc": "2026-06-12T06:40:00Z",
+      "reviewer": "KERNEL_BUILDER backend delegate (self-review)",
+      "commit": "cd944110",
+      "findings": [
+        "HUB-SUPPRESSION GUARD (handled+tested): hub_degree_threshold>0 required, so threshold 0 disables suppression deterministically.",
+        "INDUCED SUBGRAPH (handled+tested): edges require BOTH endpoints in the surviving node set, so a suppressed hub's edges are excluded.",
+        "DOS (mitigated): node_limit.clamp(1,5000) bounds the expensive block/edge fetches; degree is one aggregate query.",
+        "ALL-IDS FETCH (accepted): the candidate id list is the full workspace block id set (cheap id-only fetch) filtered+capped in Rust; the heavy block/edge fetches use only the capped node set.",
+        "EDGE-TYPE INJECTION (clear): LoomEdgeType enum parse; ids bound as TEXT[].",
+        "DETERMINISM (clear): blocks ordered updated_at DESC, block_id ASC; suppressed_hub_ids sorted."
+      ],
+      "fixes": [
+        "No code change required; findings are handled-by-design (and tested) or accepted with rationale."
+      ]
+    }
   },
   "handoff": {
     "coder_session": null,

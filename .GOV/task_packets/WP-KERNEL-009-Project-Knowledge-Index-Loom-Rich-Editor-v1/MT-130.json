@@ -92,7 +92,35 @@
     "implementation_commit": "bc2aaa63",
     "evidence": [
       "Built+verified bc2aaa63; RetrievalContextAndRanking: 46 unit + 10 real-PG tests pass; cheapest-authoritative planner records mode+skip-reason in replayable RetrievalTrace; reuses MT-060 trace/bundle substrate (1 new migration 0260); MT-129 additive QueryRetrievalMode extension; folded-stub bridges (139-142) preserve ProjectBrain/SemanticCatalog/AIReady/ContextPack intent as backend contracts."
-    ]
+    ],
+    "adversarial_review_v2": {
+      "at_utc": "2026-06-12T04:11:18.477Z",
+      "reviewer": "adversarial-backend-reviewer",
+      "verdict": "FINDINGS",
+      "findings": [
+        {
+          "severity": "MEDIUM",
+          "title": "dangling-handle degrade holds only for entity/source handles; WP/MT/relationship handles never confirm",
+          "evidence": "planner.rs first_confirmed_handle: EntityId/EntityIdentity (266-285) and SourceId (298-305) do a real PG read, but WorkPacketId (286-291), MicroTaskId (292-297), and RelationshipId (306-311) return Some unconditionally. A fabricated WP-9999 / MT-9999 / REL-fake yields a confident direct_load/exact_lookup plan for a nonexistent record with no degrade and no recorded unconfirmed reason. The dangling-handle test (knowledge_retrieval_pipeline_tests.rs:124) covers only EntityId.",
+          "fix": "Confirm WP/MT against the packet/MT store and relationship_id against knowledge_edges; degrade (and record the reason) when absent, matching the entity path."
+        },
+        {
+          "severity": "LOW",
+          "title": "freshness_uncertain stamps a reason but never downgrades a stale-but-confirmed entity",
+          "evidence": "planner.rs:177-183 sets NonHybridReason::FreshnessUncertain yet still returns direct_load for the confirmed handle; no StalenessVerdict is consulted, so a confirmed-but-stale record is served directly (reason recorded, mode unchanged).",
+          "fix": "Consult a staleness signal and downgrade to a fresher mode (or passage fallback) when the authoritative record is stale, not just record the reason."
+        }
+      ],
+      "claim_mismatches": [
+        {
+          "claim": "a dangling handle degrades to a broader mode rather than producing a plan that cannot be satisfied",
+          "reality": "true only for entity/source handles; WP/MT/relationship handles are authoritative-by-construction and produce an unsatisfiable plan with no degrade"
+        }
+      ],
+      "missing_tests": [
+        "test: dangling WorkPacketId / MicroTaskId / RelationshipId degrades to a broader mode (currently produces a confident unsatisfiable plan)"
+      ]
+    }
   },
   "handoff": {
     "coder_session": null,

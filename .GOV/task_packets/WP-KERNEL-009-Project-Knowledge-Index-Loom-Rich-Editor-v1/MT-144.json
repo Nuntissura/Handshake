@@ -92,7 +92,29 @@
     "implementation_commit": "00eb73b5",
     "evidence": [
       "Built+verified 00eb73b5; RetrievalContextAndRanking: 46 unit + 10 real-PG tests pass; cheapest-authoritative planner records mode+skip-reason in replayable RetrievalTrace; reuses MT-060 trace/bundle substrate (1 new migration 0260); MT-129 additive QueryRetrievalMode extension; folded-stub bridges (139-142) preserve ProjectBrain/SemanticCatalog/AIReady/ContextPack intent as backend contracts."
-    ]
+    ],
+    "adversarial_review_v2": {
+      "at_utc": "2026-06-12T04:11:18.477Z",
+      "reviewer": "adversarial-backend-reviewer",
+      "verdict": "FINDINGS",
+      "findings": [
+        {
+          "severity": "MEDIUM",
+          "title": "named scenarios exist as labels but only ranking/budget fixtures are realized",
+          "evidence": "fixtures.rs RetrievalScenario enumerates all 7 (exact_lookup..no_result_recovery) but the builders produce only candidate-feature + budget-item sets; tests are all-scenarios-named + rank + budget. No fixture actually drives hybrid retrieval, passage fallback, stale graph, bad citation, or no-result recovery as an exercisable path. The PG pipeline proves exact-lookup/graph/snippet/compile/catalog but not these.",
+          "fix": "Add fixtures (and PG tests) that realize hybrid, passage-fallback, stale-graph, bad-citation, and no-result-recovery as driven scenarios, not just enum labels."
+        }
+      ],
+      "claim_mismatches": [
+        {
+          "claim": "Create fixtures for exact lookup, graph traversal, hybrid retrieval, passage fallback, stale graph, bad citation, and no-result recovery",
+          "reality": "the 7 scenario NAMES exist; only exact-lookup/graph + ranking/budget inputs are realized; hybrid/passage-fallback/stale-graph/bad-citation/no-result fixtures that drive those paths are absent"
+        }
+      ],
+      "missing_tests": [
+        "fixtures + tests for: hybrid retrieval, passage fallback, stale graph, bad citation, no-result recovery (driven, not named)"
+      ]
+    }
   },
   "handoff": {
     "coder_session": null,

@@ -93,7 +93,26 @@
     "implementation_commit": "b506d832+935e0482+bf0c62a5+dd3056f5",
     "evidence": [
       "Built+verified (commits b506d832 backend core + 935e0482 manual + bf0c62a5 integration tests + dd3056f5 frontend); RichDocumentCore: 6 real-PG integration + 27 unit backend tests + 8 vitest (app suite 349/349). 18 block kinds, RawDerivedDisplay (CX-100), stable KBL- ids, save/load API w/ receipts, projections (negative proof: projection-delete leaves authority byte-identical), embeds (absolute paths DB-CHECK rejected), backlinks (stable KDLNK- relationship_id), history, permissions, crash recovery; migrations 0280-0282; RichDocumentView.tsx wired to real authority with stable selectors for MT-161+ GUI groups. UserManual coverage added (1 group + 10 cmd refs)."
-    ]
+    ],
+    "adversarial_review_v2": {
+      "at_utc": "2026-06-12T04:05:46.457Z",
+      "reviewer": "adversarial-backend-reviewer",
+      "verdict": "HARDENED_OK",
+      "findings": [
+        {
+          "severity": "LOW",
+          "title": "Fixtures miss the broken/round-trip cases the contract calls out",
+          "evidence": "knowledge_document_model_tests.rs mixed_document + roundtrip cover paragraph/heading/code/link; no importedRaw round-trip (the case that breaks load, MT-151), no slideshow/album/video embed round-trip through BlockTree+projection, no explicit conflict fixture.",
+          "fix": "Add fixtures for every block/embed/link kind incl. importedRaw, plus conflict and missing-target cases per the contract."
+        }
+      ],
+      "claim_mismatches": [],
+      "missing_tests": [
+        "fixture: importedRaw round-trip",
+        "fixture: album/slideshow/video embed render",
+        "fixture: save conflict (stale expected_version)"
+      ]
+    }
   },
   "handoff": {
     "coder_session": null,

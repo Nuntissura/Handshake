@@ -93,7 +93,22 @@
     "implementation_commit": "0f78b03d",
     "evidence": [
       "Built+verified 0f78b03d; RetrievalContextAndRanking: 46 unit + 10 real-PG tests pass; cheapest-authoritative planner records mode+skip-reason in replayable RetrievalTrace; reuses MT-060 trace/bundle substrate (1 new migration 0260); MT-129 additive QueryRetrievalMode extension; folded-stub bridges (139-142) preserve ProjectBrain/SemanticCatalog/AIReady/ContextPack intent as backend contracts."
-    ]
+    ],
+    "adversarial_review_v2": {
+      "at_utc": "2026-06-12T04:11:18.477Z",
+      "reviewer": "adversarial-backend-reviewer",
+      "verdict": "HARDENED_OK",
+      "findings": [
+        {
+          "severity": "LOW",
+          "title": "passage_fallback and blocked collapse to hybrid_rag/none in the durable mode column",
+          "evidence": "storage_mode_of (storage/knowledge_retrieval.rs:31) maps via to_storage_str so PassageFallback->hybrid_rag, Blocked->none; a raw knowledge_retrieval_traces.retrieval_mode read shows hybrid_rag for a passage-fallback run. The distinction survives only in mode_reason/decisions.",
+          "fix": "Acceptable (reason recorded); if column-level fidelity matters, widen the storage enum or add a sub-mode column."
+        }
+      ],
+      "claim_mismatches": [],
+      "missing_tests": []
+    }
   },
   "handoff": {
     "coder_session": null,
